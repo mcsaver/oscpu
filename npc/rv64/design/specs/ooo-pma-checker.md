@@ -1,6 +1,7 @@
-# 规范：OooPmaChecker（具体实例静态物理地址属性）
+# 规范：OooPmaChecker / OooTypedPmaChecker（具体实例静态物理地址属性）
 
-> 模块：`vsrc/memory/OooPmaChecker.v`。状态：**T4H 已实现并定向验证**。
+> 模块：`vsrc/memory/OooPmaChecker.v`、`vsrc/memory/OooTypedPmaChecker.v`。
+> 状态：**S0 compatibility checker 保持冻结；S1.1 typed 叶模块已实现并定向验证，尚未接 bridge**。
 
 ## 1. 目的与边界
 
@@ -16,7 +17,7 @@ LSU request→xbar→LSU authorization 的组合回边。地址常量与 xbar �
 
 仅允许当前顶层中有真实 RTL 或真实外部端口的区域：
 
-- CLINT、PLIC、UART；
+- reset-syscon、CLINT、PLIC、UART；
 - virtio-blk、PSRAM、legacy-MMIO、SDRAM。
 
 GPIO、PS2、MROM、VGA、FLASH、ChipLink-MMIO、ChipLink-MEM 与 default 当前都接
@@ -44,7 +45,23 @@ R/B `SLVERR` 仍由设备响应路径处理，不能被静态 PMA 预知。
 - PTE read/write 是原指令退休前的隐式访问，其 AXI error 已有精确 PTW 响应路径；本模块只检查
   最终数据 PA。
 
-## 5. 验证合同
+## 5. R4-S1.1 typed 基础类型实现
+
+精确编码和 PBMT 合并矩阵见
+[`ooo-memory-typed-abi.md`](ooo-memory-typed-abi.md)。S1.1 的
+`OooTypedPmaChecker` 已在完整 byte-range allow/deny 之外输出唯一 PMA 基础类型：
+
+- PMEM 子窗口优先于重叠的较宽 PSRAM decode，输出 CACHED；
+- PSRAM residual 与 SDRAM 输出 NC；
+- reset-syscon、CLINT、PLIC、UART、virtio-blk、legacy-MMIO 输出 IO；
+- default、空壳、wrap、跨 region 与 deny 不产生合法 attr。
+
+PBMT 不在 PMA checker 内合并；`OooTypedMemoryClassifier` 在叶模块级实现唯一合并真值表。
+当前 live bridge 仍例化只有 `fault_o` 的旧 `OooPmaChecker`；该文件保持 P0-A 冻结 SHA，
+typed checker/classifier 尚未成为 routing authority。因此可以声明 typed 叶模块已实现，不能
+声明 post-translation typed ABI 已贯通。
+
+## 6. 验证合同
 
 - `tb_ooo_pma_checker`：真实窗口 allow、所有空壳/default deny、PLIC/SRAM 优先级别名、跨区域、
   地址回绕和 zero-size 防御；
@@ -54,14 +71,19 @@ R/B `SLVERR` 仍由设备响应路径处理，不能被静态 PMA 预知。
   不 drain；
 - mutation-negative：强制 checker allow、绕过 direct deny、绕过 walk deny 都必须被测试拒绝。
 
-## 6. 与动态 B error 的边界
+## 7. 与动态 B error 的边界
 
 T4N 已改变 store 提交协议：ROB/SQ owner 保持到 physical write 的聚合 B，因而设备动态
 `SLVERR/DECERR` 现在都能精确形成 cause 7，且 `tval` 保留 original VA。PMA checker 仍只负责
 静态可判定的早期 probe fault；late-B owner 合同见 `ooo-store-bresp-precise-terminal.md`。
 
-## 7. 变更记录
+## 8. 变更记录
 
+- 2026-07-16（R4-S1.1 typed leaves）：新增独立 `OooTypedPmaChecker` 与
+  `OooTypedMemoryClassifier`，完成 enabled/disabled 两组 PMA×PBMT 16 格、fail-closed、断言
+  和 mutation-negative；旧 `OooPmaChecker` 精确保持 S0 行为，bridge 迁移留给 S1.2。
+- 2026-07-16（R4-S1.0 docs-only）：冻结 CACHED/NC/IO 基础区域映射以及 PMA 与 PBMT 的
+  owner 边界；RTL 状态仍为 T4H fault-only checker。
 - 2026-07-14（T4H）：建立静态 PMA checker、桥内 direct/walk/pretrans 三条合同和后端精确
   store access-fault 端到端定向测试。
 - 2026-07-14（T4N）：ROB/SQ owner 延长到聚合 B，关闭设备动态 B error 的精确异常缺口。

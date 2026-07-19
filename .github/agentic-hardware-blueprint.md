@@ -105,6 +105,9 @@ evidence:
 - 每条边都应能解释为“执行依赖”或“知识依赖”，不能只是模糊的顺序摆放
 - 同一节点不要同时承担“构建、定位、修复、记录”四种职责；职责过宽时应拆节点
 - 图中出现未来节点时，要明确它是“预留接入点”还是“当前硬依赖”，不能混写
+- 本地 RV64 RTL 节点若委派给子 agent，进入节点前必须存在已校验的 task contract；契约把
+  `goal/allowed_paths/write_paths/allowed_commands/required_context/deliverables/success_criteria`
+  绑定到单个 owner。平台 review 只形成该节点的 `review_pending` overlay，不沿图自动传播为父目标关闭。
 
 ## 结构化任务产物
 
@@ -117,6 +120,8 @@ evidence:
 - 建议每个重要图任务创建一个目录：`.github/task-runs/YYYY-MM-DD-<task-slug>/`
 - `task-report.md` 用于汇总当前任务的目标、选图、节点状态、关键产物、阻塞点、下一步和模板升级候选
 - `dispatch-log.md` 用于追加记录节点派发、状态变更、输入输出、证据与 handoff
+- RTL 子 agent 契约放在 `subagent-contracts/`，`dispatch-log.md` 记录相对路径与 SHA-256；下游只消费
+  通过契约符合性复核的子 agent 产物
 
 ## 静态图模板
 

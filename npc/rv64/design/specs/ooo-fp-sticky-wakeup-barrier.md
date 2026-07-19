@@ -65,6 +65,14 @@ write-through 会留下 payload 长弧或让 consumer 在数据尚未落账时�
 - flush 全清 IQ/恢复 FP rename/PRF 的现有 owner 不变，flush+dispatch+wake 不得复活 entry。
 - kill 拍冻结 issue；存活前缀必须吸收 wake0/1，年轻后缀必须 squash；recover 多拍后存活项
   仍可从 sticky state 发射。
+- completion arbiter 必须在 kill 当拍、任何 `fp_result_wb_valid`/FPR write/busy clear/wake/
+  done-FIFO push 之前，用同一环形年龄判定剔除 strictly-younger `exec1` 与 held-long candidate。
+  `PipeStageReg.valid`、`long_meta_valid` 在上升沿清零太晚，不能单独作为 kill-now 证明。
+- 等于 kill boundary 或更老的 completion 必须保留；被 kill 的高优先级 exec1 不得阻挡存活
+  long completion 递补。`long_done` 与 kill 同沿时，kill 必须同时清 meta 与 done-hold，禁止
+  下一拍迟发。
+- done FIFO 的 killed/tombstone 标记只保护后续 ROB dequeue，不能撤销入 FIFO 之前已经发生的
+  FPR/busy/wakeup 副作用，故不得作为 completion-arbiter kill mask 的替代品。
 
 ### 3.4 异常序
 
@@ -108,7 +116,12 @@ dispatch+wake collision 在 N 沿直接写入 sticky，entry 最早仍从 N+1 �
   断言必须同时覆盖 wake0/1 与 issue0/1，而不是只在 wake0 命中时检查。
 - `[FP-PRF-STORED-ONLY]`：R0–R3 输出必须等于相应 `regs_q`；natural write hit + force
   read-output negative 必须精准命中该 marker。
-- 已验证 focused、全 module `95/95`、lint/style/contract `85/85`、full build、AM、
+- `[FP-COMPLETION-KILL-NOW]`：strictly-younger exec1/long 在 kill edge 不得取得 effective
+  take。动态矩阵必须覆盖 younger/equal/older、ROB 环回、FPR/GPR destination、
+  arith>exec1、exec1>long、killed-exec1→live-long 递补、long done-hold 与 raw long-done+kill；
+  oracle 同时检查 generic WB、FPR write、busy、wake、FIFO 与 kill 后无 delayed pulse。
+- 以下 `95/95`、AM、177 与 CoreMark 数字属于此前 T3H sticky-wakeup 基线，不是
+  2026-07-19 v8c completion-kill task-run 的验证结论：已验证 focused、全 module `95/95`、lint/style/contract `85/85`、full build、AM、
   177 official/privileged 与 FP ISA；CoreMark 10 iter 为 `3,020,147 cycles`、
   `3,218,532 commits`、CPI `0.938`、CRC `fcaf`，与 T3G cycle-exact。
 - fresh 5 ns 必须 `loops=0`。DCache→integer ex0/ex1 与 DCache→FP exec1 的旧长弧

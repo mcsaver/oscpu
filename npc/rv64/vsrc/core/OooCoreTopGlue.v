@@ -185,7 +185,14 @@ module OooCoreTopGlue #(
   output [1:0] retire_count_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
-  output [ISSUE_COUNT_W-1:0] issue_count_o
+  output [ISSUE_COUNT_W-1:0] issue_count_o,
+
+  // S2-Q2 v8a：无状态、同名 shadow transport。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
   // 声明前置：iverilog 14 拒绝前向引用（下行 assign 引用 halted_q）
@@ -707,6 +714,11 @@ module OooCoreTopGlue #(
   ) u_execute_backend (
     .a0_data_w(a0_data_w),
     .clk(clk),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
     .core_branch_resolve_rob_idx_w(core_branch_resolve_rob_idx_w),
     .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),

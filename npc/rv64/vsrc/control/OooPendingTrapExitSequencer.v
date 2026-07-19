@@ -72,7 +72,11 @@ module OooPendingTrapExitSequencer (
         pending_exit_is_ebreak_o <= capture_exit_is_ebreak_i;
       end
 
-      if (capture_arch_i) begin
+      // A redirect squash can coincide with classification of the younger
+      // wrong-path head.  In that collision the squash owns both validity
+      // and payload; otherwise the later NBA assignments below would revive
+      // an orphan trap after the stop owner was already cleared.
+      if (capture_arch_i && !(clear_arch_i && clear_arch_squash_i)) begin
         pending_arch_trap_o <= capture_arch_valid_i;
         pending_trap_cause_o <= capture_trap_cause_i;
         pending_trap_pc_o <= capture_trap_pc_i;
@@ -97,15 +101,28 @@ module OooPendingTrapExitSequencer (
   // payload 生命周期须对齐 validity 位。修前(:59-60 有 cause==ILLEGAL gate)非-illegal wrong-path
   // fetch-fault(page/access/breakpoint) residual 会残留 → 此断言 fire; 删 gate 后恒静默。
   reg gap6_squash_noload_q;
+  reg gap6_squash_collision_q;
   always @(posedge clk)
     gap6_squash_noload_q <= !rst && clear_arch_i && clear_arch_squash_i &&
                             !capture_arch_i && !late_clear_i;
+  always @(posedge clk)
+    gap6_squash_collision_q <=
+        !rst && clear_arch_i && clear_arch_squash_i &&
+        capture_arch_i && !late_clear_i;
   always @(posedge clk) if (!rst && gap6_squash_noload_q)
     if ((pending_trap_cause_o !== {`TRAP_CAUSE_W{1'b0}}) ||
         (pending_trap_pc_o   !== {`XLEN{1'b0}}) ||
         (pending_trap_tval_o !== {`XLEN{1'b0}}))
       $error("[FLUSH-CONTRACT GAP-6] squash 清 arch trap 后 payload 残留: cause=%h pc=%h tval=%h @%0t",
              pending_trap_cause_o, pending_trap_pc_o, pending_trap_tval_o, $time);
+  always @(posedge clk) if (!rst && gap6_squash_collision_q)
+    if (pending_arch_trap_o ||
+        (pending_trap_cause_o !== {`TRAP_CAUSE_W{1'b0}}) ||
+        (pending_trap_pc_o !== {`XLEN{1'b0}}) ||
+        (pending_trap_tval_o !== {`XLEN{1'b0}}))
+      $error("[FLUSH-CONTRACT GAP-6-COLLISION] squash/capture 同拍后 wrong-path trap 复活: valid=%b cause=%h pc=%h tval=%h @%0t",
+             pending_arch_trap_o, pending_trap_cause_o,
+             pending_trap_pc_o, pending_trap_tval_o, $time);
 `endif
 
 endmodule

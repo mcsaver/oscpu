@@ -1,0 +1,1667 @@
+diff --git a/npc/rv64/design/arch/rv64-architecture-ppa-contract.md b/npc/rv64/design/arch/rv64-architecture-ppa-contract.md
+index 8a5aef9ddadbfb3e54702b0673e81c3f82fcdf64..9d93c5f89b0bbad81e26c1569775d703633464b6 100644
+--- a/npc/rv64/design/arch/rv64-architecture-ppa-contract.md
++++ b/npc/rv64/design/arch/rv64-architecture-ppa-contract.md
+@@ -41,6 +41,8 @@ best     = ParetoFront(feasible, maximize performance,
+   TLB/cache hit、credit 充足且无 bank/端口冲突时，也必须同拍从 IQ 被两个独立 memory
+   terminal owner 接纳。真实 alias、同 bank 或序列化属性可等待/replay，但必须由逐请求冲突事实
+   约束，不能以单 LSU 为由静态串行全部双 memory pair。
++  capability steering 若把 younger memory 放到 Universal terminal，则其 pop/reservation
++  capture 必须蕴含 older partner 同拍 fire；不得产生 orphan memory owner。
+ - **DI-4 no static lane semantics**：lane 编号不得决定 uop 是否永远可执行。非对称 FU 合法，
+   但必须由 swap/promotion/steering 把 uop 移到有能力的 lane；永久 simple-only lane1、
+   lane1 LSU tie-off 或只在两条都是 simple ALU 时才称“双发射”均失败。
+@@ -50,13 +52,18 @@ best     = ParetoFront(feasible, maximize performance,
+   alternating-bank、cache-hit memory 轨迹的稳态 issue IPC 必须≥1.90。只有一个 AGU/翻译入口/
+   请求 owner、第二条仅在 LSU 外排队，或以单端口 reservation 将全部 memory 串行化，均为
+   `architecture_infeasible`。
++  R3/R3.1 的单 Universal + simple-ALU terminal 方案可作为恢复 ALU+complex pairing 与
++  reservation liveness 的阶段证据，但在补齐 DI-3 双 memory matrix、DI-4 与 DI-5 前仍是
++  `architecture_infeasible`，不得替换 canonical baseline。
+ 
+ ### 2.3 真 OoO 门槛（OOO）
+ 
+ - **OOO-1 long-latency bypass**：一条老 load miss、Mul 或 Div 未完成期间，至少 8 条年轻、
+-  无依赖 ALU 在其前完成，ROB peak occupancy≥8；最终 retire 顺序仍与程序序一致。
++  无依赖 ALU 在其前 exactly-once 完成，ROB peak occupancy≥9（老指令 + 8 younger）；
++  最终 retire 顺序仍与程序序一致，ROB/IQ/free-list 全恢复。
+ - **OOO-2 selective scheduling**：资源阻塞只阻塞依赖项或争用同一资源的项；不得用任意
+-  older-valid、单 reservation 或 raw lane0 freeze 阻塞所有年轻可执行项。
++  older-valid、单 reservation 或 raw lane0 freeze 阻塞所有年轻可执行项。registered
++  Universal owner 驻留时，IQ 中 sole ready ALU-capable uop 也必须能用独立 terminal 前进。
+ - **OOO-3 memory ordering**：non-alias younger load 可越过 older store；alias 情形必须
+   forward、等待或 replay，绝不能读到旧值；flush/kill 不留 SQ/MIQ/LQ ghost。
+ - **OOO-4 speculation/recovery**：多条控制流在飞、最老 mispredict 胜出、wrong-path
+diff --git a/npc/rv64/design/specs/ooo-int-issue-queue.md b/npc/rv64/design/specs/ooo-int-issue-queue.md
+index 1e3644b695a8f1641227e57408c17a4bcea7e670..58cbd32a6f361435c72024ac964ad6f90e214217 100644
+--- a/npc/rv64/design/specs/ooo-int-issue-queue.md
++++ b/npc/rv64/design/specs/ooo-int-issue-queue.md
+@@ -5,7 +5,8 @@
+ > **T3H：FP wake0/1 resident select 均已 sticky-only**；
+ > **2026-07-09 P5 刀 B:dispatch→issue 同拍 bypass 族已整体删除**
+ > (决策与数据见 `../arch/p5-repipeline-first-batch.md`、`../arch/timing-dispatch-issue-path.md` §6c)；
+-> **2026-07-15 T4S：registered virtual lane0 owner 下允许 issue1-alone promotion**。
++> **2026-07-15 R3/R3.1：按执行能力动态分配 Universal/ALU terminal；registered
++> Universal owner 占用时允许独立 ALU terminal 继续前进**。
+ 
+ ## 1. 目的与范围
+ 保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 writeback wakeup
+@@ -20,22 +21,27 @@
+   N 沿粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
+   completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；T3H 起
+   FP load WB口(wake1)也遵守同一边界，以切断 DCache→FP-store 同拍长锥。
+-- **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
+-  simultaneous valid 双 lane 的 enabled integer source 不可能 RAW：consumer 只能在 producer WB
+-  wakeup 后成为 ready；`RAW-I1` 在 backend 消费边界看护该不变量。current-result forward
++- **select/steering**：顺序扫描已寄存阵列，最多选择两个 ready uop，动态分配给
++  Universal terminal（物理 `issue0`）和 fixed-latency ALU terminal（物理 `issue1`）。
++  older complex + younger simple 保持自然分配；older simple + younger complex 则做 capability
++  swap，让 older simple 到 ALU terminal、younger complex 到 Universal terminal。dispatch
++  包位置不形成静态 lane 归属，物理 terminal 编号也不表示程序年龄。simultaneous valid
++  双 terminal 的 enabled integer source 不可能相互 RAW：consumer 只能在 producer WB
++  wakeup 后成为 ready；backend 的双向 RAW 断言看护该不变量。current-result forward
+   的 true arm 在合法状态不可达，但 2026-07-12 与 2026-07-13 两次 fresh 5ns 删除 A/B 均被
+   物理证据拒绝。第二次虽让原 39 条 MIQ tail 退出 top40，仍使 WNS `-10.001→-10.182ns`、
+   TNS 恶化18.5%、loops `109→142`、area/power 上升并暴露39条更差 FP exec1 tail。因此当前
+   物理 mux 暂留，避免用 RTL 代码直觉覆盖映射实测；先切 long-op WB feedback 后再重评。
+-- **lane0 memory reservation（T3S/T3V）**：IQ 选中的 memory uop 只在 station
++- **Universal memory reservation（T3S/T3V/R3.1）**：IQ 选中的 memory uop 只在 station
+   有空 credit 时 pop，沿上原子锁存 ctrl/ROB/pdest/rs1 value/imm/store data；capture
+   拍没有执行或请求。T3V 起 generic `issue0_*`/PRF/ALU0 只承载 raw non-memory，
+   memory 驻留项用独立的 `captured rs1 + captured imm` AGU 和 captured store data 驱动
+   LSU、SQ/MIQ/order、bridge request 与 MIQ metadata。station consume 必须且只能对应
+   SQ-forward、failed-SC、精确异常、bridge fire 或 buffer capture 之一。reservation Q
+-  作为 `lane0_owner_present_i` 占有逻辑 lane0 时，不得把整个 IQ 冻结：issue0 必须 quiet，
+-  现有 oldest-first scan 可把最老 ready simple-ALU 提升到 issue1 并独立 fire；complex/memory
+-  项仍留队。该 owner 只能来自寄存状态，禁止接 capture/ready/credit 等组合事实。
++  作为 `universal_owner_present_i` 占有 Universal terminal 时，不得把整个 IQ 冻结：
++  raw issue0 必须 quiet，scan 仍把最老 ready、ALU-terminal-capable resident 分配到 issue1，
++  包括 IQ 中只有这一项的场景；complex/memory 项仍留队。owner 只能来自
++  `mem_issue_res_valid_q` 等寄存状态，禁止接 capture/ready/credit 等组合事实。
+ - **compaction**:发射后剩余项向前压实保持程序序紧凑。
+ - **dispatch→issue 时序(P5 刀 B,2026-07-09)**:dispatch 项当拍只写入阵列,**次拍(N+1)起
+   才可被 select**——"dispatch 活值作虚拟队尾同拍参与 select"的 bypass 族(bypass 许可判定/
+@@ -52,10 +58,10 @@
+   capture/restore 恒被 gate,为死硅(fp 新增字段亦不进影子)。
+ 
+ ## 3. 不变量
+-- **IQ-I1 选择顺序与架构序**：无外部 owner 时，两条 resident 选择保持 oldest-first，
+-  issue0/issue1 的相对程序序不变。registered virtual owner 占 lane0 时，issue1 可以独立发射
+-  最老 eligible simple uop；跨 reservation/IQ 的 lane 编号不代表程序序，最终架构序只由
+-  ROB in-order commit 保证。
++- **IQ-I1 选择集合、能力与架构序**：无外部 owner 时，选择集合必须来自 oldest-first
++  扫描遇到的前两个 eligible ready resident；物理 terminal 分配可因能力 swap 而反转年龄。
++  Universal owner 已占用时只选择最老 eligible ALU-capable resident 到 ALU terminal。
++  terminal 编号不代表程序序，最终架构序只由 ROB in-order commit 保证。
+ - **IQ-I2 唤醒优先**:dispatch 撞同拍 wakeup 时,写入阵列的 ready 位必须吸收该唤醒
+   (写臂 OR wakeup_match),避免漏唤醒;kill 拍幸存前缀同拍继续吸收 wakeup。
+ - **IQ-I3 容量**:dispatch ready 严格按空位;compaction 不丢项/不重排乱序。
+@@ -68,9 +74,10 @@
+   发 dispatch valid——上游 OooDispatchBackend 用与 kill_valid_i 同源的寄存 kill_valid_q 生成
+   dispatch_freeze。这是"当拍 dispatch 写入+同拍 kill"窗口结构性不存在的承重契约:IQ kill
+   分支不消费 valid_next_r 写入计划,互斥被破坏时新写项会被静默丢弃。
+-- **IQ-I7 双 lane 无 RAW(`RAW-I1`，backend 消费边界)**:issue0/issue1 同时 valid 时，
+-  issue1 任一 enabled integer source preg 不得等于 issue0 非零 integer pdest。该合同依赖
+-  无 dispatch bypass/early-result wakeup；FP destination domain 与 invalid/default payload 排除。
++- **IQ-I7 双 terminal 双向无 RAW（backend 消费边界）**：issue0/issue1 同时 valid 时，
++  任一 terminal 的 enabled integer source preg 均不得等于另一 terminal 的非零 integer
++  pdest。能力 swap 后 terminal 编号可与年龄相反，故只做 issue0→issue1 单向检查不充分。
++  该合同依赖无 dispatch bypass/early-result wakeup；FP destination/default payload 排除。
+ - **IQ-I8 integer sticky-only（`IQ-INT-WAKE-STICKY-ONLY`）**：任一 issued integer source
+   必须在沿前已有对应 `src*_ready_q`；full pulse 不得在本拍把尚未 ready 项选出，但必须在
+   compaction、dispatch insertion 与 kill-survivor 全部 next-state 路径粘住 ready，下一拍可选。
+@@ -98,12 +105,21 @@
+   为 1。MIQ head 被 ROB-walk 标记 killed 时必须抬 `mem_req_device_cancel`，使尚未发 AR 的
+   device request 无总线 side effect 地 quiet 回收。release/cancel 必须互斥；普通 translated
+   PMEM load 不得受这两个 sideband 串行化。
+-- **IQ-I13 registered virtual lane0 owner（T4S）**：`lane0_owner_present_i=1` 时选择器
+-  必须把 lane0 视为已占有，但 `issue0_valid_o` 必须保持 0，不能用默认 index 产生假 owner。
+-  issue1 只允许选择 `ctrl_is_lane1_simple_alu` 的最老 resident ready 项，可在 issue0 不 fire
+-  时独立保持、fire 和 compaction；owner 不得被 IQ pop/修改。owner 清零后，剩余项恢复普通
+-  issue0 oldest-ready 选择。该过渡合同只解除 reservation 对独立 ALU 的全局冻结，不代表
+-  DI-3 pair matrix 或 no-static-lane-semantics 已闭合。
++- **IQ-I13 registered Universal owner（R3.1）**：`universal_owner_present_i=1` 时选择器
++  必须把 Universal terminal 视为已占有，但 `issue0_valid_o` 必须保持 0，不能用默认 index
++  产生假 owner。issue1 只允许选择最老 `alu_terminal_capable_q` resident，可在 issue0
++  不 fire 时独立保持、fire 和 compaction；owner 不得被 IQ pop/修改。owner 清零后，
++  剩余项恢复普通动态 steering。
++- **IQ-I14 swapped-memory 原子 capture（R3.1，P0）**：若 capability swap 令 younger
++  memory 位于 Universal terminal、older ALU 位于 ALU terminal，则 memory pop/capture
++  必须蕴含 older ALU 同拍 fire。ready bits 按 `{Universal-base-ready, ALU-ready}`：
++  `00` 两项保持；`01` 只允许 older ALU 离队；`10` 必须阻止 orphan memory；
++  `11` 才允许双离队。MMIO/head gate 可继续延迟 reservation consume，但不得反向丢失、
++  replay 或复制 older ALU。
++- **IQ-I15 capability metadata 守恒（R3）**：`alu_terminal_capable_q` 必须随 dispatch
++  insertion、compaction、kill survivor 原子移动；issue1 永远只读 capability=1 的 resident。
++  `issue_pair_swapped_o` 只在两项均 valid 且物理 terminal 年龄反转时有效；两 terminal
++  不得引用同一 IQ index。
+ 
+ ## 4. 关键路径
+ P5 刀 B 前,dispatch→issue bypass 把 free-list 分配+busy 查询+IQ select **单拍合一**
+@@ -136,11 +152,14 @@ T3V 前的 memory 驻留项虽已跨过一拍边界，执行拍仍回灌 generic
+   LR.W/SC.D 与 LR.D/SC.W size mismatch 失败、matching misaligned SC 异常后 reservation
+   清除。另跑 `tb_ooo_int_issue_queue` 与 `rv64ua-p-lrsc`，覆盖 oldest promotion、
+   LR/SC head/retry 和 side-effect 守恒。
+-- T4S 定向覆盖：virtual owner=1 + sole simple 时 issue0 quiet、issue1 在 backpressure 下
+-  payload/count 稳定，ready 后 issue1-alone pop；owner=1 + older branch/load + younger simple
+-  时只 promotion 最老 eligible simple，complex 项保留，owner 清零后恢复 issue0。集成 TB
+-  必须证明 held memory reservation 期间 younger ALU 从 issue1 exactly-once fire/WB，释放后
+-  不 replay，并保持 reservation address/payload 与 LSU/MIQ owner 不变。
++- R3 定向 pair matrix 覆盖 `ALU+{branch,JAL/JALR,load,store}` 的两种程序位置；每例必须
++  同拍双 terminal fire，不能用串行 promotion 冒充。R3.1 standalone IQ 覆盖 swapped
++  ready `00/01/10/11` 与 registered owner + sole ALU；集成 TB 覆盖 held reservation
++  期间 sole ALU 从 issue1 exactly-once fire/WB，以及 older ALU + younger MMIO 的原子
++  capture/head release，无 early device request、无 replay/duplicate。真实 iterative DIVU
++  加 8 条独立 younger ALU 还必须得到 younger formal-WB mask `ff`、ROB old+8 occupancy、
++  9 条程序序 retire 和 ROB/IQ/free-list 全恢复。上述是模块级功能证据，不替代 Linux、
++  fresh 综合或 STA。
+ 
+ ## 6. 变更记录
+ - 2026-06-28：逆向文档化(压缩程序序队列/2 唤醒/2 oldest-ready 发射/dispatch 旁路/快路径/不变量)。
+@@ -177,7 +196,10 @@ T3V 前的 memory 驻留项虽已跨过一拍边界，执行拍仍回灌 generic
+   old-full MIQ 禁止 pop/refill look-through、LR reservation size 匹配，以及任意 SC
+   consume 清 reservation 的生命周期合同与定向反例。
+   功能门禁通过后仍须 fresh STA 才能裁决 200 MHz。
+-- 2026-07-15 T4S：新增 IQ-I13。registered memory reservation 作为 virtual lane0 owner，
+-  issue1 可 promotion 最老 ready simple ALU 并独立 compaction；issue0 保持 quiet。该刀不
+-  新增状态/PRF port/FU，不恢复 completion→select 或 ready→valid 组合旁路，且不冒充完整
+-  pair matrix 闭合。
++- 2026-07-15 R3/R3.1：每项新增 ALU-terminal capability metadata；选择器可在
++  older simple + younger complex 时动态交换 Universal/ALU terminal，并给出显式
++  `issue_pair_swapped`。registered memory reservation 作为 Universal owner 时，sole
++  ready ALU 仍可从独立 terminal 前进。swapped younger memory 的 capture 追加
++  `issue1_fire` 原子前件，避免 orphan reservation；消费边界 RAW 改成双向。该候选不
++  新增 PRF port/FU，不恢复 completion→select 或 dispatch bypass，也不宣称解决一般
++  non-alias load/store 越序。
+diff --git a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+index 83735b2038d2f55ec69cd0ba4d0519f310a122e4..f63a261a2662d8c8b2a7070c5b3d6b8d37163e41 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+@@ -113,6 +113,7 @@ module tb_ooo_dispatch_backend;
+     .flush_i(flush),
+     .kill_rob_idx_i(kill_rob_idx),
+     .issue_mem_block_i(1'b0),
++    .universal_owner_present_i(1'b0),
+     .sq_alloc0_ready_i(1'b1),
+     .sq_alloc1_ready_i(1'b1),
+     .branch_mispredict_valid_i(branch_mispredict_valid),
+@@ -184,6 +185,7 @@ module tb_ooo_dispatch_backend;
+     .issue0_src2_preg_o(issue0_src2_preg),
+     .issue0_pdest_o(issue0_pdest),
+     .issue0_imm_o(issue0_imm),
++    .issue_pair_swapped_o(),
+     .issue1_valid_o(issue1_valid),
+     .issue1_ready_i(issue1_ready),
+     .issue1_pc_o(issue1_pc),
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+index bb09f6a5ac7b5ef5ba147e5a2e41167d11c710ab..0f5f3998395e5d03874532af4ae8a3707ed18a82 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+@@ -3195,14 +3195,17 @@ module tb_ooo_int_backend;
+     reg [`XLEN-1:0] held_imm;
+     reg [`CTRL_BUS_W-1:0] held_ctrl;
+     reg [ROB_INDEX_W-1:0] held_rob;
++    reg [ROB_INDEX_W-1:0] younger_rob;
+     integer hold_cycles;
+     integer younger_fire_count;
+     integer younger_commit_count;
++    integer younger_wb_count;
+     integer observe_cycles;
+     begin
+       reset_dut();
+       younger_fire_count = 0;
+       younger_commit_count = 0;
++      younger_wb_count = 0;
+       mem_req_ready = 1'b0;
+       set_dispatch0(32'h8000_6c00,
+                     make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+@@ -3241,21 +3244,28 @@ module tb_ooo_int_backend;
+       `TB_TICK(clk);
+       clear_dispatch();
+       #1;
+-      tb_check32("T3S younger remains in IQ while held",
++      tb_check32("T3S younger enters IQ while held",
+                  {28'b0, issue_count}, 32'd1);
+-      // T3V 物理数据面探针：reservation 驻留时，generic issue0/ALU0 已经
+-      // 观察到完全不同的 younger raw packet；memory AGU/request 仍只能来自 Q。
+-      tb_check1("T3V held memory excludes generic issue0 owner",
+-                dut.issue0_valid_w, 1'b0);
+-      tb_check64("T3V younger raw ALU is independently perturbed",
+-                 dut.issue0_alu_result_w, 64'd9);
+-      tb_check64("T3V dedicated memory AGU ignores raw ALU",
++      // T3V：resident memory reservation 是虚拟 lane0 owner。IQ 的 raw lane0
++      // 必须保持安静，但 oldest-ready simple integer 可从真实 lane1 前进。
++      tb_check1("T3V held memory excludes raw IQ lane0 owner",
++                dut.iq_issue0_valid_w, 1'b0);
++      tb_check1("T3V held memory promotes younger simple to lane1",
++                dut.issue1_valid_w, 1'b1);
++      tb_check1("T3V promoted younger lane1 is fireable",
++                dut.issue1_fire_w, 1'b1);
++      tb_check32("T3V promoted younger lane1 keeps PC",
++                 dut.issue1_pc_w[31:0], 32'h8000_6c04);
++      tb_check64("T3V promoted younger lane1 computes nine",
++                 dut.issue1_alu_result_w, 64'd9);
++      younger_rob = dut.issue1_rob_idx_w;
++      tb_check64("T3V dedicated memory AGU ignores lane1 ALU",
+                  dut.mem_issue_res_eff_addr_w, 64'h8000_0310);
+       for (hold_cycles = 0; hold_cycles < 3;
+            hold_cycles = hold_cycles + 1) begin
+         tb_check1("T3S stalled reservation remains valid",
+                   dut.mem_issue_res_valid_q, 1'b1);
+-        tb_check1("T3S stalled reservation keeps IQ frozen",
++        tb_check1("T3S stalled reservation keeps raw IQ lane0 frozen",
+                   dut.iq_issue0_ready_w, 1'b0);
+         tb_check64("T3S stalled reservation PC stable",
+                    dut.mem_issue_res_pc_q, held_pc);
+@@ -3271,9 +3281,33 @@ module tb_ooo_int_backend;
+                    dut.mem_issue_res_ctrl_q, held_ctrl);
+           tb_errors = tb_errors + 1;
+         end
++        if (dut.issue0_fire_w &&
++            (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
++        if (dut.issue1_fire_w &&
++            (dut.issue1_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
+         `TB_TICK(clk);
+         #1;
++        if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V promoted younger WB0 data", dut.wb0_data_w, 64'd9);
++        end
++        if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V promoted younger WB1 data", dut.wb1_data_w, 64'd9);
++        end
++        tb_check1("T3V younger WB cannot pass older load",
++                  commit0_valid || commit1_valid, 1'b0);
+       end
++      tb_check32("T3V promoted younger leaves IQ while held",
++                 {28'b0, issue_count}, 32'd0);
++      tb_check1("T3V raw IQ lane0 remains quiet after promotion",
++                dut.iq_issue0_valid_w, 1'b0);
++      tb_check1("T3V lane1 does not replay promoted younger",
++                dut.issue1_valid_w, 1'b0);
++      tb_check32("T3V promoted younger writes back exactly once while held",
++                 younger_wb_count, 32'd1);
+ 
+       mem_req_ready = 1'b1;
+       #1;
+@@ -3286,37 +3320,34 @@ module tb_ooo_int_backend;
+                  dut.miq_push_addr_w, 64'h8000_0310);
+       tb_check1("T3V memory consume excludes generic issue0 fire",
+                 dut.issue0_fire_w, 1'b0);
++      tb_check1("T3V memory consume has no younger lane1 replay",
++                dut.issue1_fire_w, 1'b0);
+       `TB_TICK(clk);
+       #1;
+       tb_check1("T3S consumed reservation clears",
+                 dut.mem_issue_res_valid_q, 1'b0);
+       tb_check1("T3S no same-cycle full-pop refill",
+                 dut.mem_issue_res_capture_w, 1'b0);
+-      // T3V 不能只在 invalid generic owner 上读取脏 ALU payload。station 释放后，
+-      // held younger 必须成为一个真实 raw owner，且全程只 fire/commit 一次。
+-      tb_check1("T3V released younger becomes valid generic owner",
+-                dut.issue0_valid_w, 1'b1);
+-      tb_check32("T3V released younger keeps PC",
+-                 dut.issue0_pc_w[31:0], 32'h8000_6c04);
+-      tb_check64("T3V released younger computes nine",
+-                 dut.issue0_alu_result_w, 64'd9);
+-      tb_check1("T3V released younger really fires",
+-                dut.issue0_fire_w, 1'b1);
+-      if (dut.issue0_fire_w &&
+-          (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+-        younger_fire_count = younger_fire_count + 1;
+-
+-      `TB_TICK(clk);
+-      #1;
+-      if (dut.issue0_fire_w &&
+-          (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+-        younger_fire_count = younger_fire_count + 1;
+-      tb_check32("T3V released younger leaves IQ",
++      // younger 已在 reservation hold 窗口从 lane1 exactly-once 执行；station
++      // 释放后不能在 lane0/lane1 重新出现，也不能越过未完成的 older load 提交。
++      if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++        younger_wb_count = younger_wb_count + 1;
++        tb_check64("T3V no duplicate younger WB0 after release",
++                   dut.wb0_data_w, 64'd9);
++      end
++      if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++        younger_wb_count = younger_wb_count + 1;
++        tb_check64("T3V no duplicate younger WB1 after release",
++                   dut.wb1_data_w, 64'd9);
++      end
++      tb_check32("T3V released station keeps younger out of IQ",
+                  {28'b0, issue_count}, 32'd0);
+-      tb_check1("T3V released younger reaches formal WB",
+-                dut.wb0_valid_w, 1'b1);
+-      tb_check64("T3V released younger WB data",
+-                 dut.wb0_data_w, 64'd9);
++      tb_check1("T3V released station has no lane0 replay",
++                dut.issue0_valid_w || dut.issue0_fire_w, 1'b0);
++      tb_check1("T3V released station has no lane1 replay",
++                dut.issue1_valid_w || dut.issue1_fire_w, 1'b0);
++      tb_check32("T3V younger WB remains exactly once after release",
++                 younger_wb_count, 32'd1);
+       tb_check1("T3V younger formal WB cannot pass older load",
+                 commit0_valid || commit1_valid, 1'b0);
+ 
+@@ -3347,6 +3378,17 @@ module tb_ooo_int_backend;
+         if (dut.issue0_fire_w &&
+             (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+           younger_fire_count = younger_fire_count + 1;
++        if (dut.issue1_fire_w &&
++            (dut.issue1_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
++        if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V younger later WB0 data", dut.wb0_data_w, 64'd9);
++        end
++        if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V younger later WB1 data", dut.wb1_data_w, 64'd9);
++        end
+         if (commit0_valid && (commit0_pc[31:0] == 32'h8000_6c04)) begin
+           younger_commit_count = younger_commit_count + 1;
+           tb_check64("T3V younger later commit0 data", commit0_data, 64'd9);
+@@ -3360,12 +3402,14 @@ module tb_ooo_int_backend;
+       end
+       tb_check32("T3V younger fires exactly once",
+                  younger_fire_count, 32'd1);
++      tb_check32("T3V younger writes back exactly once",
++                 younger_wb_count, 32'd1);
+       tb_check32("T3V younger commits exactly once",
+                  younger_commit_count, 32'd1);
+       tb_check32("T3V release sequence drains ROB",
+                  {27'b0, rob_count}, 32'd0);
+-      $display("[T3V-MEM-RES-RELEASE] younger_fire=%0d younger_commit=%0d",
+-               younger_fire_count, younger_commit_count);
++      $display("[T3V-MEM-RES-RELEASE] younger_fire=%0d younger_wb=%0d younger_commit=%0d",
++               younger_fire_count, younger_wb_count, younger_commit_count);
+       $display("[T3S-MEM-RES-HOLD] cycles=%0d rob=%0d addr=0x%08h younger_iq=%0d",
+                hold_cycles, held_rob, held_imm[31:0], issue_count);
+ 
+@@ -4029,9 +4073,9 @@ module tb_ooo_int_backend;
+     end
+   endtask
+ 
+-  // T3U：在真实双发射窗口锁住 lane1-simple 的物理边界。lane1 仍完成
+-  // fixed-latency ALU，但所有 LSU/request/MIQ owner 信号必须永久为零。
+-  task automatic run_t3u_lane1_memory_tieoff_contract;
++  // R3：锁住物理 ALU terminal 的资源边界，而非程序序 lane 语义。它仍完成
++  // fixed-latency ALU，但 LSU/request/MIQ owner 均归唯一 Universal terminal。
++  task automatic run_r3_alu_terminal_no_lsu_contract;
+     begin
+       reset_dut();
+       set_dispatch0(32'h8000_6dc0,
+@@ -4043,41 +4087,294 @@ module tb_ooo_int_backend;
+                                   `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                     5'd0, 5'd0, 5'd4, 64'd13);
+       #1;
+-      tb_check1("T3U lane1 tieoff dispatch0 ready", dispatch0_ready, 1'b1);
+-      tb_check1("T3U lane1 tieoff dispatch1 ready", dispatch1_ready, 1'b1);
++      tb_check1("R3 terminal contract dispatch0 ready", dispatch0_ready, 1'b1);
++      tb_check1("R3 terminal contract dispatch1 ready", dispatch1_ready, 1'b1);
+       `TB_TICK(clk);
+       clear_dispatch();
+       #1;
+-      tb_check1("T3U lane1 tieoff live lane1 simple owner",
++      tb_check1("R3 live physical ALU-terminal owner",
+                 dut.issue1_valid_w, 1'b1);
+-      tb_check1("T3U lane1 tieoff live lane1 fires",
++      tb_check1("R3 live physical ALU-terminal fires",
+                 dut.issue1_fire_w, 1'b1);
+-      tb_check1("T3U lane1 tieoff load class is zero",
++      tb_check1("R3 ALU terminal load class is zero",
+                 dut.issue1_is_load_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff store class is zero",
++      tb_check1("R3 ALU terminal store class is zero",
+                 dut.issue1_is_store_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff AMO class is zero",
++      tb_check1("R3 ALU terminal AMO class is zero",
+                 dut.issue1_is_amo_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff memory owner is zero",
++      tb_check1("R3 ALU terminal memory owner is zero",
+                 dut.issue1_is_mem_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff request valid is zero",
++      tb_check1("R3 ALU terminal request valid is zero",
+                 dut.issue1_mem_req_valid_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff request fire is zero",
++      tb_check1("R3 ALU terminal request fire is zero",
+                 dut.issue1_mem_request_fire_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff MIQ owner is zero",
++      tb_check1("R3 ALU terminal MIQ owner is zero",
+                 dut.push_issue1_w, 1'b0);
+-      tb_check1("T3U lane1 tieoff emits no memory request",
++      tb_check1("R3 ALU terminal emits no memory request",
+                 mem_req_valid, 1'b0);
+-      $display("[T3U-LANE1-MEM-TIEOFF] live=%0b fire=%0b req=%0b push=%0b",
++      $display("[R3-ALU-TERMINAL-NO-LSU] live=%0b fire=%0b req=%0b push=%0b",
+                dut.issue1_valid_w, dut.issue1_fire_w,
+                dut.issue1_mem_req_valid_w, dut.push_issue1_w);
+       reset_dut();
+     end
+   endtask
+ 
++  // R3.1 P0: a younger MMIO load must never capture the reservation while
++  // its older swapped ALU is backpressured.  Otherwise the MMIO load waits
++  // for ROB head while its reservation owner suppresses the older ALU.
++  task automatic run_r3p1_swapped_mmio_atomic_contract;
++    integer wait_cycles;
++    begin
++      reset_dut();
++      mem_req_ready = 1'b0;
++      set_dispatch0(32'h8000_6dd0,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd6, 64'd17);
++      set_dispatch1(32'h8000_6dd4,
++                    make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
++                    5'd0, 5'd0, 5'd7, 64'h0000_0200);
++      #1;
++      tb_check1("R3.1 MMIO pair dispatch0 ready", dispatch0_ready, 1'b1);
++      tb_check1("R3.1 MMIO pair dispatch1 ready", dispatch1_ready, 1'b1);
++      `TB_TICK(clk);
++      clear_dispatch();
++      force dut.issue1_ready_w = 1'b0;
++      #1;
++      tb_check1("R3.1 MMIO pair is capability-swapped",
++                dut.iq_issue_pair_swapped_w, 1'b1);
++      tb_check32("R3.1 MMIO Universal owns younger",
++                 dut.iq_issue0_pc_w[31:0], 32'h8000_6dd4);
++      tb_check32("R3.1 MMIO ALU terminal owns older",
++                 dut.issue1_pc_w[31:0], 32'h8000_6dd0);
++      tb_check1("R3.1 ready10 blocks memory IQ pop",
++                dut.iq_issue0_ready_w, 1'b0);
++      tb_check1("R3.1 ready10 blocks reservation capture",
++                dut.mem_issue_res_capture_w, 1'b0);
++      `TB_TICK(clk);
++      #1;
++      tb_check32("R3.1 ready10 holds both IQ entries",
++                 {28'b0, issue_count}, 32'd2);
++      tb_check1("R3.1 ready10 leaves reservation empty",
++                dut.mem_issue_res_valid_q, 1'b0);
++
++      release dut.issue1_ready_w;
++      #1;
++      tb_check1("R3.1 ready11 older ALU fires", dut.issue1_fire_w, 1'b1);
++      tb_check1("R3.1 ready11 younger MMIO captures",
++                dut.mem_issue_res_capture_w, 1'b1);
++      `TB_TICK(clk);
++      #1;
++      tb_check32("R3.1 ready11 drains pair from IQ",
++                 {28'b0, issue_count}, 32'd0);
++      tb_check1("R3.1 MMIO reservation established",
++                dut.mem_issue_res_valid_q, 1'b1);
++      tb_check1("R3.1 older ALU reaches WB1", dut.wb1_valid_w, 1'b1);
++      tb_check1("R3.1 no retire on older formal WB", commit0_valid, 1'b0);
++      tb_check1("R3.1 MMIO cannot request before older retires",
++                mem_req_valid, 1'b0);
++
++      `TB_TICK(clk);
++      #1;
++      tb_check1("R3.1 older ALU retires before MMIO", commit0_valid, 1'b1);
++      tb_check32("R3.1 older ALU retire PC", commit0_pc[31:0],
++                 32'h8000_6dd0);
++      tb_check1("R3.1 MMIO still has no early request", mem_req_valid, 1'b0);
++      `TB_TICK(clk);
++      #1;
++      tb_check1("R3.1 older ALU retires exactly once", commit0_valid, 1'b0);
++
++      mem_req_ready = 1'b1;
++      wait_cycles = 0;
++      while (!mem_req_valid && (wait_cycles < 16)) begin
++        `TB_TICK(clk);
++        #1;
++        wait_cycles = wait_cycles + 1;
++      end
++      tb_check1("R3.1 MMIO request becomes live at ROB head",
++                mem_req_valid, 1'b1);
++      tb_check1("R3.1 MMIO request is read", mem_req_write, 1'b0);
++      tb_check64("R3.1 MMIO request address", mem_req_addr, 64'h0000_0200);
++      `TB_TICK(clk);
++      #1;
++      complete_mem0_response("R3.1 swapped MMIO", 64'h0000_0000_1234_5678,
++                             1'b1, 1'b1, 1'b1,
++                             64'h0000_0000_1234_5678);
++      tb_check32("R3.1 MMIO ROB drains", {27'b0, rob_count}, 32'd0);
++      tb_check32("R3.1 MMIO IQ drains", {28'b0, issue_count}, 32'd0);
++      $display("[R3P1-SWAPPED-MMIO-ATOMIC] wait=%0d PASS", wait_cycles);
++      reset_dut();
++    end
++  endtask
++
++
+   // T3U：queue-head CSR 模式下，任何非 ROB-head memory 都必须留在 IQ。
+   // 用已完成但被 commit_ready 挡在 ROB head 的 ALU 制造最小反例；这与
+   // “较老已完成 CSR 等 mem_idle、较年轻 load 占 reservation”的互等窗口
++
++  // R3.1 long-latency proof: a real 32-iteration DIVU holds the old ROB head
++  // while exactly eight independent younger ALUs leave the IQ and reach
++  // formal WB.  Retirement must then flatten in original program order.
++  task automatic run_r3p1_divu_eight_younger_contract;
++    localparam [`XLEN-1:0] OLD_PC = 64'h0000_0000_8000_6e20;
++    localparam [`XLEN-1:0] YOUNGER_PC = 64'h0000_0000_8000_6e40;
++    reg [ROB_INDEX_W-1:0] old_rob;
++    reg [ROB_INDEX_W-1:0] first_younger_rob;
++    reg [7:0] younger_wb_mask;
++    reg [`XLEN-1:0] expected_commit_pc;
++    integer younger_i;
++    integer cycle_count;
++    integer younger_wb_count;
++    integer old_wb_count;
++    integer commit_seen;
++    integer wb_delta;
++    begin
++      reset_dut();
++
++      // Seed UINT64_MAX / 3 in architectural x1/x2 so DIVU takes the iterative
++      // path rather than the divide-by-zero fast terminal.
++      set_dispatch0(32'h8000_6e00,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd1, 64'hffff_ffff_ffff_ffff);
++      set_dispatch1(32'h8000_6e04,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd2, 64'd3);
++      tick_dispatch_to_commit("R3.1 DIVU operand setup",
++                              64'hffff_ffff_ffff_ffff, 64'd3);
++
++      set_dispatch0(OLD_PC[31:0], make_muldiv_ctrl(),
++                    5'd1, 5'd2, 5'd9, 64'd0);
++      dispatch0_inst = inst_op(`FUNCT7_MULDIV, 5'd2, 5'd1,
++                               3'b101, 5'd9);
++      #1;
++      tb_check1("R3.1 DIVU old dispatch ready", dispatch0_ready, 1'b1);
++      old_rob = dut.dispatch0_rob_idx_w;
++      `TB_TICK(clk);
++      clear_dispatch();
++      #1;
++      tb_check1("R3.1 DIVU old selected", dut.issue0_valid_w, 1'b1);
++      tb_check32("R3.1 DIVU old PC", dut.issue0_pc_w[31:0], OLD_PC[31:0]);
++      `TB_TICK(clk);
++      #1;
++      tb_check1("R3.1 DIVU request buffered",
++                dut.u_muldiv_unit.state_q == 3'd1, 1'b1);
++
++      // Feed eight independent younger ALUs at the architectural two-wide
++      // rate while observing issue/WB/retirement in the same loop.  No
++      // internal ready/valid boundary is forced apart.
++      younger_wb_mask = 8'h00;
++      younger_wb_count = 0;
++      old_wb_count = 0;
++      commit_seen = 0;
++      cycle_count = 0;
++      younger_i = 0;
++      #1;
++      while ((commit_seen < 9) && (cycle_count < 80)) begin
++        if (younger_i < 8) begin
++          set_dispatch0(YOUNGER_PC[31:0] + (younger_i * 4),
++                        make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                      `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                        5'd0, 5'd0, 5'd10 + younger_i,
++                        64'h100 + younger_i);
++          set_dispatch1(YOUNGER_PC[31:0] + ((younger_i + 1) * 4),
++                        make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                      `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                        5'd0, 5'd0, 5'd11 + younger_i,
++                        64'h101 + younger_i);
++          #1;
++          tb_check1("R3.1 DIVU younger dispatch0 ready",
++                    dispatch0_ready, 1'b1);
++          tb_check1("R3.1 DIVU younger dispatch1 ready",
++                    dispatch1_ready, 1'b1);
++          if (younger_i == 0)
++            first_younger_rob = dut.dispatch0_rob_idx_w;
++        end
++
++        if (dut.wb0_valid_w) begin
++          wb_delta = dut.wb0_rob_idx_w - first_younger_rob;
++          if ((wb_delta >= 0) && (wb_delta < 8)) begin
++            if (younger_wb_mask[wb_delta])
++              $display("[R3P1-DIVU-DUP-WB] cycle=%0d lane=0 rob=%0d delta=%0d",
++                       cycle_count, dut.wb0_rob_idx_w, wb_delta);
++            tb_check1("R3.1 no repeated younger WB on terminal0",
++                      younger_wb_mask[wb_delta], 1'b0);
++            younger_wb_mask[wb_delta] = 1'b1;
++            younger_wb_count = younger_wb_count + 1;
++          end
++        end
++        if (dut.wb1_valid_w) begin
++          wb_delta = dut.wb1_rob_idx_w - first_younger_rob;
++          if ((wb_delta >= 0) && (wb_delta < 8)) begin
++            if (younger_wb_mask[wb_delta])
++              $display("[R3P1-DIVU-DUP-WB] cycle=%0d lane=1 rob=%0d delta=%0d",
++                       cycle_count, dut.wb1_rob_idx_w, wb_delta);
++            tb_check1("R3.1 no repeated younger WB on terminal1",
++                      younger_wb_mask[wb_delta], 1'b0);
++            younger_wb_mask[wb_delta] = 1'b1;
++            younger_wb_count = younger_wb_count + 1;
++          end
++        end
++
++        if ((dut.wb0_valid_w && (dut.wb0_rob_idx_w == old_rob)) ||
++            (dut.wb1_valid_w && (dut.wb1_rob_idx_w == old_rob))) begin
++          old_wb_count = old_wb_count + 1;
++          tb_check32("R3.1 all eight WB before old DIVU",
++                     {24'b0, younger_wb_mask}, 32'h0000_00ff);
++          tb_check1("R3.1 old DIVU formal WB has no same-cycle retire",
++                    commit0_valid || commit1_valid, 1'b0);
++        end
++
++        if (old_wb_count == 0)
++          tb_check1("R3.1 no younger retirement before old DIVU WB",
++                    commit0_valid || commit1_valid, 1'b0);
++
++        if (commit0_valid) begin
++          expected_commit_pc = (commit_seen == 0) ? OLD_PC :
++              (YOUNGER_PC + ((commit_seen - 1) * 4));
++          tb_check32("R3.1 flattened commit0 program order",
++                     commit0_pc[31:0], expected_commit_pc[31:0]);
++          commit_seen = commit_seen + 1;
++        end
++        if (commit1_valid) begin
++          expected_commit_pc = (commit_seen == 0) ? OLD_PC :
++              (YOUNGER_PC + ((commit_seen - 1) * 4));
++          tb_check32("R3.1 flattened commit1 program order",
++                     commit1_pc[31:0], expected_commit_pc[31:0]);
++          commit_seen = commit_seen + 1;
++        end
++
++        `TB_TICK(clk);
++        clear_dispatch();
++        if (younger_i < 8)
++          younger_i = younger_i + 2;
++        #1;
++        cycle_count = cycle_count + 1;
++        if ((younger_i == 8) && (cycle_count == 4)) begin
++          tb_check32("R3.1 DIVU ROB holds old plus eight",
++                     {27'b0, rob_count}, 32'd9);
++          tb_check1("R3.1 DIVU remains in iterative run",
++                    dut.u_muldiv_unit.state_q == 3'd3, 1'b1);
++        end
++      end
++
++      tb_check32("R3.1 DIVU younger distinct WB mask",
++                 {24'b0, younger_wb_mask}, 32'h0000_00ff);
++      tb_check32("R3.1 DIVU younger WB exactly once",
++                 younger_wb_count, 32'd8);
++      tb_check32("R3.1 DIVU old WB exactly once", old_wb_count, 32'd1);
++      tb_check32("R3.1 DIVU ordered commit count", commit_seen, 32'd9);
++      tb_check32("R3.1 DIVU ROB drains", {27'b0, rob_count}, 32'd0);
++      tb_check32("R3.1 DIVU IQ drains", {28'b0, issue_count}, 32'd0);
++      tb_check32("R3.1 DIVU free-list recovers",
++                 {25'b0, free_count}, 32'd32);
++      $display("[R3P1-DIVU-8-YOUNGER] cycles=%0d mask=%02h commits=%0d PASS",
++               cycle_count, younger_wb_mask, commit_seen);
++      reset_dut();
++    end
++  endtask
++
+   // 具有相同 admission 前件。
+   task automatic run_t3u_csr_queue_head_mem_admission;
+     integer wait_cycles;
+@@ -5100,35 +5397,40 @@ module tb_ooo_int_backend;
+ 	    `TB_TICK(clk);
+ 	    clear_dispatch();
+ 	    #1;
+-	    // 【P5 刀 B】ALU+store 先同拍入队(store 有更老 valid 项,整拍被序阻塞);
+-	    // ALU 次拍发射、再次拍 EX/commit,store 随后独占发射。
+-	    tb_check32("alu+store pair queued", {28'b0, issue_count}, 32'd2);
+-	    `TB_TICK(clk);
+-	    #1;
+-		    tb_check32("lane1 store waits in iq", {28'b0, issue_count}, 32'd1);
+-		    tb_check1("lane0 alu writes before delayed lane1 store", execute0_valid, 1'b1);
+-		    tb_check1("lane0 ALU formal WB visible", dut.wb0_valid_w, 1'b1);
+-		    tb_check64("lane0 ALU formal WB data",
+-		               dut.wb0_data_w, 64'h0000_0000_0000_0055);
+-		    tb_check1("lane0 ALU has no commit on formal WB",
+-		              commit0_valid, 1'b0);
+-		    `TB_TICK(clk);
+-		    #1;
+-		    tb_check1("lane0 ALU commits from ROB Q", commit0_valid, 1'b1);
+-		    tb_check64("lane0 ALU commit data from ROB Q",
+-		               commit0_data, 64'h0000_0000_0000_0055);
+-		    wait_mem0_request("lane1 store", 1'b1, 32'h0000_0100,
+-	                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+-	    tb_check1("lane1 store first request is probe", mem_req_probe, 1'b1);
+-	    `TB_TICK(clk);
+-	    #1;
+-	    complete_sq_store_after_probe("lane1 store",
+-	                                  64'h0000_0000_0000_0100,
+-	                                  64'h0000_0000_8000_0100,
+-	                                  1'b0);
+-	    tb_check32("lane1 store rob drains", {27'b0, rob_count}, 32'd0);
+-	    tb_check32("lane1 store iq drains", {28'b0, issue_count}, 32'd0);
+-	    tb_check32("lane1 store freelist recovers", {25'b0, free_count}, 32'd32);
++    // R3 capability steering：较年轻 store 取得 Universal/memory reservation，
++    // 较老 simple ALU 同拍改走物理 ALU terminal。仍只有一个 LSU owner；store
++    // 必须先原子捕获 reservation，下一拍才可产生唯一 probe request。
++    tb_check32("alu+store pair queued", {28'b0, issue_count}, 32'd2);
++    `TB_TICK(clk);
++    #1;
++    tb_check32("R3 ALU+store both leave IQ", {28'b0, issue_count}, 32'd0);
++    tb_check1("R3 older ALU executes on ALU terminal", execute1_valid, 1'b1);
++    tb_check1("R3 older ALU formal WB1 visible", dut.wb1_valid_w, 1'b1);
++    tb_check64("R3 older ALU formal WB1 data",
++               dut.wb1_data_w, 64'h0000_0000_0000_0055);
++    tb_check1("R3 younger store captured exactly-once reservation",
++              dut.mem_issue_res_valid_q, 1'b1);
++    tb_check1("R3 ALU has no commit on formal WB", commit0_valid, 1'b0);
++    wait_mem0_request("R3 younger store", 1'b1, 32'h0000_0100,
++                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
++    tb_check1("R3 younger store first request is probe", mem_req_probe, 1'b1);
++    `TB_TICK(clk);
++    #1;
++    tb_check1("R3 request consumes reservation once",
++              dut.mem_issue_res_valid_q, 1'b0);
++    tb_check1("R3 older ALU commits from ROB Q", commit0_valid, 1'b1);
++    tb_check64("R3 older ALU commit data from ROB Q",
++               commit0_data, 64'h0000_0000_0000_0055);
++    `TB_TICK(clk);
++    #1;
++    tb_check1("R3 older ALU commits exactly once", commit0_valid, 1'b0);
++    complete_sq_store_after_probe("R3 younger store",
++                                  64'h0000_0000_0000_0100,
++                                  64'h0000_0000_8000_0100,
++                                  1'b0);
++    tb_check32("R3 younger store rob drains", {27'b0, rob_count}, 32'd0);
++    tb_check32("R3 younger store iq drains", {28'b0, issue_count}, 32'd0);
++    tb_check32("R3 younger store freelist recovers", {25'b0, free_count}, 32'd32);
+ 
+     set_dispatch0(32'h8000_4000,
+                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+@@ -5264,7 +5566,9 @@ module tb_ooo_int_backend;
+     run_t3v_mem_buffer_selective_kill_contract();
+     run_t3v_miq_full_pop_parent_backpressure_contract();
+     run_t3v_lrsc_width_and_exception_contract();
+-    run_t3u_lane1_memory_tieoff_contract();
++    run_r3_alu_terminal_no_lsu_contract();
++    run_r3p1_swapped_mmio_atomic_contract();
++    run_r3p1_divu_eight_younger_contract();
+ `endif
+ 
+     // T3P 后 memory/AMO 不再是 lane1 可达类别；IQ focused 用例已覆盖
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+index adda95655bcefdc563c7ecc7234159d36c1c816b..03a29d4ca23b6ec0b064ebde19979f8d6cf1d981 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+@@ -23,6 +23,7 @@ module tb_ooo_int_issue_queue;
+   reg rst;
+   reg flush;
+   reg issue_mem_block;
++  reg universal_owner_present;
+   reg dispatch0_valid;
+   wire dispatch0_ready;
+   reg [`XLEN-1:0] dispatch0_pc;
+@@ -64,6 +65,7 @@ module tb_ooo_int_issue_queue;
+   reg [PHY_REG_ADDR_W-1:0] fp_wake1_preg;
+   wire issue0_valid;
+   reg issue0_ready;
++  wire issue_pair_swapped;
+   wire [`XLEN-1:0] issue0_pc;
+   wire [`XLEN-1:0] issue0_next_pc;
+   wire [`INST_W-1:0] issue0_inst;
+@@ -102,6 +104,7 @@ module tb_ooo_int_issue_queue;
+     .rst(rst),
+     .flush_i(flush),
+     .issue_mem_block_i(issue_mem_block),
++    .universal_owner_present_i(universal_owner_present),
+     .dispatch0_valid_i(dispatch0_valid),
+     .dispatch0_ready_o(dispatch0_ready),
+     .dispatch0_pc_i(dispatch0_pc),
+@@ -164,6 +167,7 @@ module tb_ooo_int_issue_queue;
+     .issue0_fp_st_src_en_o(issue0_fp_st_src_en),
+     .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg),
+     .issue0_imm_o(issue0_imm),
++    .issue_pair_swapped_o(issue_pair_swapped),
+     .issue1_valid_o(issue1_valid),
+     .issue1_ready_i(issue1_ready),
+     .issue1_pc_o(issue1_pc),
+@@ -192,6 +196,7 @@ module tb_ooo_int_issue_queue;
+     begin
+       flush = 1'b0;
+       issue_mem_block = 1'b0;
++      universal_owner_present = 1'b0;
+       dispatch0_valid = 1'b0;
+       dispatch0_pc = 32'h0;
+       dispatch0_inst = 32'h0;
+@@ -305,8 +310,203 @@ module tb_ooo_int_issue_queue;
+     end
+   endtask
+ 
+-  // 审查者反例矩阵：每个复杂候选均夹在 older/younger simple-ALU 之间。
+-  // lane1 必须越过候选选择 younger；候选只可在下一拍晋升 lane0。
++  // R3 capability steering matrix.  issue0 is the universal terminal and
++  // issue1 is the fixed-latency ALU terminal; neither name is a program-order
++  // lane.  When an older ALU precedes a younger complex uop, the IQ must swap
++  // their terminal assignment so that both resident, independent uops fire in
++  // the same cycle.  The reverse program order must work as well.
++  function automatic [`CTRL_BUS_W-1:0] r3_complex_ctrl;
++    input integer class_id;
++    reg [`CTRL_BUS_W-1:0] ctrl;
++    begin
++      ctrl = {`CTRL_BUS_W{1'b0}};
++      ctrl[`CTRL_VALID_BIT] = 1'b1;
++      ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
++      case (class_id)
++        0: begin // branch
++          ctrl[`CTRL_BRANCH_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
++        end
++        1: begin // JAL
++          ctrl[`CTRL_JAL_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
++        end
++        2: begin // JALR
++          ctrl[`CTRL_JALR_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
++        end
++        3: begin // load
++          ctrl[`CTRL_LOAD_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
++        end
++        default: begin // store
++          ctrl[`CTRL_STORE_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
++        end
++      endcase
++      r3_complex_ctrl = ctrl;
++    end
++  endfunction
++
++  task automatic run_r3_capability_pair;
++    input integer class_id;
++    input complex_older;
++    reg [`XLEN-1:0] older_pc;
++    reg [`XLEN-1:0] younger_pc;
++    reg [`XLEN-1:0] expect_universal_pc;
++    reg [`XLEN-1:0] expect_alu_pc;
++    begin
++      reset_dut();
++      issue0_ready = 1'b0;
++      issue1_ready = 1'b0;
++      older_pc = 32'h8200_0000 + (class_id * 32'h40) +
++                 (complex_older ? 32'h20 : 32'h00);
++      younger_pc = older_pc + 32'd4;
++      set_dispatch0(older_pc, 4'd1, 6'd1, 1'b1,
++                    6'd2, 1'b1, 6'd40);
++      set_dispatch1(younger_pc, 4'd2, 6'd3, 1'b1,
++                    6'd4, 1'b1, 6'd41);
++      if (complex_older) begin
++        dispatch0_ctrl = r3_complex_ctrl(class_id);
++        expect_universal_pc = older_pc;
++        expect_alu_pc = younger_pc;
++      end else begin
++        dispatch1_ctrl = r3_complex_ctrl(class_id);
++        expect_universal_pc = younger_pc;
++        expect_alu_pc = older_pc;
++      end
++      `TB_TICK(clk);
++      clear_inputs();
++      issue0_ready = 1'b1;
++      issue1_ready = 1'b1;
++      #1;
++      $display("[R3-CAP-PAIR] class=%0d complex_older=%0b issue={%0b,%0b} universal_pc=%h alu_pc=%h count=%0d",
++               class_id, complex_older, issue0_valid, issue1_valid,
++               issue0_pc, issue1_pc, count);
++      tb_check32("R3 pair keeps two resident uops", {28'b0, count}, 32'd2);
++      tb_check1("R3 pair universal terminal valid", issue0_valid, 1'b1);
++      tb_check1("R3 pair ALU terminal valid", issue1_valid, 1'b1);
++      tb_check32("R3 pair complex routes to universal", issue0_pc,
++                 expect_universal_pc);
++      tb_check32("R3 pair simple routes to ALU terminal", issue1_pc,
++                 expect_alu_pc);
++      tb_check1("R3 pair universal owns complex class",
++                issue0_ctrl[`CTRL_BRANCH_BIT] || issue0_ctrl[`CTRL_JAL_BIT] ||
++                issue0_ctrl[`CTRL_JALR_BIT] || issue0_ctrl[`CTRL_LOAD_BIT] ||
++                issue0_ctrl[`CTRL_STORE_BIT], 1'b1);
++      tb_check1("R3 pair ALU terminal owns simple class",
++                issue1_ctrl[`CTRL_BRANCH_BIT] || issue1_ctrl[`CTRL_JAL_BIT] ||
++                issue1_ctrl[`CTRL_JALR_BIT] || issue1_ctrl[`CTRL_LOAD_BIT] ||
++                issue1_ctrl[`CTRL_STORE_BIT], 1'b0);
++      `TB_TICK(clk);
++      clear_inputs();
++      #1;
++      tb_check1("R3 pair fires exactly once and drains", empty, 1'b1);
++    end
++  endtask
++
++  // R3.1 handshake matrix.  Bits are {Universal-base-ready, ALU-ready}.
++  // The backend must turn Universal ready into 0 for an age-swapped pair
++  // unless the older ALU terminal is also firing.  This task models that
++  // coupling at the standalone IQ boundary and verifies compaction.
++  task automatic run_r3p1_swapped_ready_case;
++    input [1:0] ready_case;
++    reg effective_universal_ready;
++    begin
++      reset_dut();
++      issue0_ready = 1'b0;
++      issue1_ready = 1'b0;
++      set_dispatch0(32'h8300_0000 + ({30'b0, ready_case} << 4),
++                    4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
++      set_dispatch1(32'h8300_0004 + ({30'b0, ready_case} << 4),
++                    4'd2, 6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
++      dispatch1_ctrl = r3_complex_ctrl(3);
++      `TB_TICK(clk);
++      clear_inputs();
++      #1;
++      tb_check1("R3.1 ready matrix presents Universal", issue0_valid, 1'b1);
++      tb_check1("R3.1 ready matrix presents ALU", issue1_valid, 1'b1);
++      tb_check1("R3.1 ready matrix marks age swap", issue_pair_swapped, 1'b1);
++      tb_check32("R3.1 ready matrix younger load on Universal", issue0_pc,
++                 32'h8300_0004 + ({30'b0, ready_case} << 4));
++      tb_check32("R3.1 ready matrix older ALU on ALU terminal", issue1_pc,
++                 32'h8300_0000 + ({30'b0, ready_case} << 4));
++      issue1_ready = ready_case[0];
++      effective_universal_ready =
++          ready_case[1] && (!issue_pair_swapped || issue1_ready);
++      issue0_ready = effective_universal_ready;
++      #1;
++      tb_check1("R3.1 memory-pop implies older-ALU fire",
++                issue0_ready && !issue1_ready, 1'b0);
++      `TB_TICK(clk);
++      #1;
++      case (ready_case)
++        2'b00: begin
++          tb_check32("R3.1 ready00 holds both", {28'b0, count}, 32'd2);
++          tb_check1("R3.1 ready00 keeps swap", issue_pair_swapped, 1'b1);
++        end
++        2'b01: begin
++          tb_check32("R3.1 ready01 fires only older ALU",
++                     {28'b0, count}, 32'd1);
++          tb_check1("R3.1 ready01 leaves younger memory", issue0_valid, 1'b1);
++          tb_check1("R3.1 ready01 clears pair marker", issue_pair_swapped, 1'b0);
++        end
++        2'b10: begin
++          tb_check32("R3.1 ready10 blocks orphan memory",
++                     {28'b0, count}, 32'd2);
++          tb_check1("R3.1 ready10 keeps swap", issue_pair_swapped, 1'b1);
++        end
++        default: tb_check1("R3.1 ready11 drains both", empty, 1'b1);
++      endcase
++      $display("[R3P1-READY-MATRIX] ready=%b effective_universal=%0b count=%0d",
++               ready_case, effective_universal_ready, count);
++    end
++  endtask
++
++  task automatic run_r3p1_registered_owner_sole_alu;
++    begin
++      reset_dut();
++      issue0_ready = 1'b0;
++      issue1_ready = 1'b0;
++      set_dispatch0(32'h8300_0100, 4'd3, 6'd5, 1'b1,
++                    6'd6, 1'b1, 6'd42);
++      `TB_TICK(clk);
++      clear_inputs();
++      universal_owner_present = 1'b1;
++      issue0_ready = 1'b0;
++      issue1_ready = 1'b0;
++      #1;
++      tb_check1("R3.1 registered owner suppresses Universal",
++                issue0_valid, 1'b0);
++      tb_check1("R3.1 sole ALU dynamically owns ALU terminal",
++                issue1_valid, 1'b1);
++      tb_check32("R3.1 sole ALU identity", issue1_pc, 32'h8300_0100);
++      `TB_TICK(clk);
++      #1;
++      tb_check32("R3.1 sole ALU backpressure holds",
++                 {28'b0, count}, 32'd1);
++      issue1_ready = 1'b1;
++      `TB_TICK(clk);
++      #1;
++      tb_check1("R3.1 sole ALU drains while owner remains", empty, 1'b1);
++      tb_check1("R3.1 Universal stays quiet while owner remains",
++                issue0_valid, 1'b0);
++      $display("[R3P1-REGISTERED-OWNER-SOLE-ALU] PASS");
++    end
++  endtask
++
++
++  // R3 capability 反例矩阵：每个复杂候选均夹在 older/younger simple-ALU
++  // 之间。复杂候选必须当拍路由到 Universal terminal，older simple 必须动态
++  // 路由到 ALU terminal；不得用跳过复杂候选、下一拍再晋升来伪装双发。
+   task automatic run_lane1_negative_class;
+     input integer class_id;
+     reg [`CTRL_BUS_W-1:0] candidate_ctrl;
+@@ -365,19 +565,19 @@ module tb_ooo_int_issue_queue;
+       #1;
+       $display("[T3Q-LANE1-NEG] class=%0d lane0_pc=%h lane1_pc=%h count=%0d",
+                class_id, issue0_pc, issue1_pc, count);
+-      tb_check1("T3Q negative oldest simple owns lane0", issue0_valid, 1'b1);
+-      tb_check1("T3Q negative younger simple owns lane1", issue1_valid, 1'b1);
+-      tb_check32("T3Q negative lane0 identity", issue0_pc,
++      tb_check1("R3 complex owns Universal terminal", issue0_valid, 1'b1);
++      tb_check1("R3 older simple owns ALU terminal", issue1_valid, 1'b1);
++      tb_check32("R3 Universal takes complex candidate", issue0_pc,
++                 32'h8100_0004 + (class_id * 32'h20));
++      tb_check32("R3 ALU terminal takes older simple", issue1_pc,
+                  32'h8100_0000 + (class_id * 32'h20));
+-      tb_check32("T3Q negative lane1 skips candidate", issue1_pc,
+-                 32'h8100_0008 + (class_id * 32'h20));
+       `TB_TICK(clk);
+       #1;
+-      tb_check32("T3Q negative candidate remains", {28'b0, count}, 32'd1);
+-      tb_check1("T3Q negative candidate promotes lane0", issue0_valid, 1'b1);
+-      tb_check1("T3Q negative candidate never owns lane1", issue1_valid, 1'b0);
+-      tb_check32("T3Q negative promoted identity", issue0_pc,
+-                 32'h8100_0004 + (class_id * 32'h20));
++      tb_check32("R3 younger simple remains", {28'b0, count}, 32'd1);
++      tb_check1("R3 remaining simple uses Universal alone", issue0_valid, 1'b1);
++      tb_check1("R3 no duplicate ALU-terminal owner", issue1_valid, 1'b0);
++      tb_check32("R3 remaining simple identity", issue0_pc,
++                 32'h8100_0008 + (class_id * 32'h20));
+       `TB_TICK(clk);
+       clear_inputs();
+       #1;
+@@ -592,7 +792,7 @@ module tb_ooo_int_issue_queue;
+     #1;
+     tb_check1("empty after dual issue", empty, 1'b1);
+ 
+-    // ===== T3N：控制流只能由 lane0 拥有，lane1 扫描可越过它 =====
++    // ===== R3：控制流动态取得 Universal，older ALU 改走 ALU terminal =====
+     set_dispatch0(32'h8000_0018, 4'd10,
+                   6'd1, 1'b1, 6'd2, 1'b1, 6'd36);
+     set_dispatch1(32'h8000_001c, 4'd11,
+@@ -605,33 +805,35 @@ module tb_ooo_int_issue_queue;
+     set_dispatch0(32'h8000_0020, 4'd12,
+                   6'd5, 1'b1, 6'd6, 1'b1, 6'd37);
+     #1;
+-    tb_check1("T3N older non-control occupies lane0", issue0_valid, 1'b1);
+-    tb_check32("T3N lane0 oldest pc", issue0_pc, 32'h8000_0018);
+-    tb_check1("T3N control-flow not exposed on lane1", issue1_valid, 1'b0);
++    tb_check1("R3 branch occupies Universal", issue0_valid, 1'b1);
++    tb_check32("R3 Universal branch pc", issue0_pc, 32'h8000_001c);
++    tb_check1("R3 older ALU occupies ALU terminal", issue1_valid, 1'b1);
++    tb_check32("R3 ALU terminal older pc", issue1_pc, 32'h8000_0018);
+     `TB_TICK(clk);
+     clear_inputs();
+     issue0_ready = 1'b1;
+     issue1_ready = 1'b1;
+     #1;
+     tb_check32("T3N three entries resident", {28'b0, count}, 32'd3);
+-    tb_check1("T3N lane0 valid", issue0_valid, 1'b1);
+-    tb_check1("T3N lane1 selects younger non-control", issue1_valid, 1'b1);
+-    tb_check32("T3N lane1 skips branch pc", issue1_pc, 32'h8000_0020);
+-    tb_check1("T3N lane1 payload is not branch",
++    tb_check1("R3 Universal terminal valid", issue0_valid, 1'b1);
++    tb_check1("R3 ALU terminal valid", issue1_valid, 1'b1);
++    tb_check32("R3 Universal selects branch", issue0_pc, 32'h8000_001c);
++    tb_check32("R3 ALU terminal selects oldest ALU", issue1_pc, 32'h8000_0018);
++    tb_check1("R3 ALU terminal payload is not branch",
+               issue1_ctrl[`CTRL_BRANCH_BIT], 1'b0);
+     `TB_TICK(clk);
+     clear_inputs();
+     #1;
+-    tb_check32("T3N skipped branch remains", {28'b0, count}, 32'd1);
+-    tb_check1("T3N branch promotes to lane0", issue0_valid, 1'b1);
+-    tb_check32("T3N promoted branch pc", issue0_pc, 32'h8000_001c);
+-    tb_check1("T3N promoted payload is branch",
+-              issue0_ctrl[`CTRL_BRANCH_BIT], 1'b1);
+-    tb_check1("T3N lane1 idle behind sole branch", issue1_valid, 1'b0);
++    tb_check32("R3 younger ALU remains", {28'b0, count}, 32'd1);
++    tb_check1("R3 remaining ALU uses Universal alone", issue0_valid, 1'b1);
++    tb_check32("R3 remaining ALU pc", issue0_pc, 32'h8000_0020);
++    tb_check1("R3 remaining payload is not branch",
++              issue0_ctrl[`CTRL_BRANCH_BIT], 1'b0);
++    tb_check1("R3 ALU terminal idle for sole uop", issue1_valid, 1'b0);
+     `TB_TICK(clk);
+     clear_inputs();
+     #1;
+-    tb_check1("T3N promoted branch drains", empty, 1'b1);
++    tb_check1("R3 capability trio drains", empty, 1'b1);
+ 
+     // ===== S4 / T3M RED→GREEN：EX/full wake 只落 sticky，N+1 发射 =====
+     set_dispatch0(32'h8000_0020, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+@@ -834,7 +1036,7 @@ module tb_ooo_int_issue_queue;
+     #1;
+     tb_check1("T3S ordered memory pair drains", empty, 1'b1);
+ 
+-    // ===== T3T 年龄反例：memory 不得越过未 ready 的 older non-memory =====
++    // ===== T3T 年龄反例：memory 不越过未 ready 的 older non-memory =====
+     set_dispatch0(32'h8000_0140, 4'd11,
+                   6'd21, 1'b0, 6'd0, 1'b1, 6'd0);
+     dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+@@ -1225,6 +1427,22 @@ module tb_ooo_int_issue_queue;
+     run_fp_dispatch_wake_collision(1'b1, 1'b1, 6'd0,
+                                    32'h8000_00dc, 4'd13);
+ 
++    // R3 RED->GREEN pair matrix: branch/JAL/JALR/load/store, both program
++    // orders.  A passing result requires two simultaneous terminal fires;
++    // serial promotion is not accepted as dual issue.
++    for (lane1_negative_i = 0; lane1_negative_i < 5;
++         lane1_negative_i = lane1_negative_i + 1) begin
++      run_r3_capability_pair(lane1_negative_i, 1'b0);
++      run_r3_capability_pair(lane1_negative_i, 1'b1);
++    end
++
++    run_r3p1_swapped_ready_case(2'b00);
++    run_r3p1_swapped_ready_case(2'b01);
++    run_r3p1_swapped_ready_case(2'b10);
++    run_r3p1_swapped_ready_case(2'b11);
++    run_r3p1_registered_owner_sole_alu;
++
++
+     tb_finish("tb_ooo_int_issue_queue");
+   end
+ endmodule
+diff --git a/npc/rv64/vsrc/execute/OooIntBackend.v b/npc/rv64/vsrc/execute/OooIntBackend.v
+index ea0bd16bcfff20f283453312c0c063f219be1dd7..b9c8adb3d2f6b15c32eb720f71d2878400485fc6 100644
+--- a/npc/rv64/vsrc/execute/OooIntBackend.v
++++ b/npc/rv64/vsrc/execute/OooIntBackend.v
+@@ -189,6 +189,7 @@ module OooIntBackend #(
+   // non-fallthrough reservation；执行端只在下一拍消费 reservation Q。
+   wire iq_issue0_valid_w;
+   wire iq_issue0_ready_w;
++  wire iq_issue_pair_swapped_w;
+   wire [`XLEN-1:0] iq_issue0_pc_w;
+   wire [`XLEN-1:0] iq_issue0_next_pc_w;
+   wire [`XLEN-1:0] iq_issue0_pred_npc_w;
+@@ -223,6 +224,7 @@ module OooIntBackend #(
+ 
+   wire issue1_valid_w;
+   wire issue1_ready_w;
++  wire issue1_fire_w;
+   wire [`XLEN-1:0] issue1_pc_w;
+   wire [`XLEN-1:0] issue1_next_pc_w;
+   wire [`XLEN-1:0] issue1_pred_npc_w;
+@@ -342,6 +344,9 @@ module OooIntBackend #(
+   wire branch_resolve_mispredict_w;
+   wire sq_alloc0_ready_w;
+   wire sq_alloc1_ready_w;
++  // Registered Universal-terminal owner; declaration is intentionally before
++  // the DispatchBackend instance to avoid an implicit-net owner path.
++  reg mem_issue_res_valid_q;
+ 
+   wire unused_issue_ctrl_bits_w =
+       (|{issue0_ctrl_w[42:24], issue0_ctrl_w[15:0]}) |
+@@ -360,6 +365,7 @@ module OooIntBackend #(
+     .kill_rob_idx_i(branch_resolve_rob_idx_o),   // B2 ROB-walk：mispredict 控制流 rob_idx（与 mispredict 同拍）
+     .branch_mispredict_valid_i(branch_resolve_mispredict_w),  // B2 片4：ROB-walk kill 触发
+     .issue_mem_block_i(mem_issue_block_w),
++    .universal_owner_present_i(mem_issue_res_valid_q),
+     .sq_alloc0_ready_i(sq_alloc0_ready_w),
+     .sq_alloc1_ready_i(sq_alloc1_ready_w),
+     .dispatch0_valid_i(dispatch0_valid_i && d0_fp_ok_w),
+@@ -444,6 +450,7 @@ module OooIntBackend #(
+     .issue0_imm_o(iq_issue0_imm_w),
+     .issue0_bht_idx_o(iq_issue0_bht_idx_w),
+     .issue0_pred_taken_o(iq_issue0_pred_taken_w),
++    .issue_pair_swapped_o(iq_issue_pair_swapped_w),
+     .issue1_bht_idx_o(issue1_bht_idx_w),
+     .issue1_pred_taken_o(issue1_pred_taken_w),
+     .issue1_valid_o(issue1_valid_w),
+@@ -536,7 +543,6 @@ module OooIntBackend #(
+   // T3T 起 IQ 只允许“前方无更老 valid 项”的 memory 晋升，故驻留项不会挡住
+   // 更老 raw uop；执行 owner 只读 reservation valid，不再组合读取 IQ select/年龄。
+   // ===========================================================================
+-  reg mem_issue_res_valid_q;
+   reg [`XLEN-1:0] mem_issue_res_pc_q;
+   reg [`XLEN-1:0] mem_issue_res_next_pc_q;
+   reg [`XLEN-1:0] mem_issue_res_pred_npc_q;
+@@ -576,9 +582,15 @@ module OooIntBackend #(
+   wire mem_issue_res_admit_w =
+       !mem_issue_res_requires_head_w ||
+       (rob_head_valid_w && (iq_issue0_rob_idx_w == rob_head_idx_w));
++  // In a capability-swapped pair, issue0 is a younger complex uop while
++  // issue1 is its older independent ALU partner.  A younger memory may enter
++  // the registered reservation only when that older ALU actually fires.
++  wire iq_issue0_swapped_memory_w =
++      iq_issue_pair_swapped_w && iq_issue0_mem_class_w;
+   wire mem_issue_res_capture_w =
+       iq_issue0_mem_class_w && mem_issue_res_credit_w &&
+-      mem_issue_res_admit_w;
++      mem_issue_res_admit_w &&
++      (!iq_issue0_swapped_memory_w || issue1_fire_w);
+ 
+   // raw non-memory 的 ready 锥只含全局门控及其自身 long-op resource，禁止复用
+   // issue0_ready_w；后者含 AGU/SQ/MIQ/SC 深组合谓词，会重新回接 IQ compact。
+@@ -607,7 +619,8 @@ module OooIntBackend #(
+       !branch_resolve_mispredict_w &&
+       (mem_issue_res_valid_q ? 1'b0 :
+        iq_issue0_mem_class_w ?
+-         (mem_issue_res_credit_w && mem_issue_res_admit_w) :
++         (mem_issue_res_credit_w && mem_issue_res_admit_w &&
++          (!iq_issue0_swapped_memory_w || issue1_fire_w)) :
+                                iq_issue0_raw_nonmem_ready_w);
+ 
+   // T3V：generic issue0 数据面只承载 raw non-memory。memory reservation 不再
+@@ -910,12 +923,13 @@ module OooIntBackend #(
+     end
+   endfunction
+ 
+-  // 与 OooIntIssueQueue 的第二候选 owner 合同机械同源。lane1 只接固定延迟
+-  // RV64I simple-ALU；地址/SQ、long-op 与退休序列化类别必须晋升 lane0。
+-  function is_lane1_simple_alu_ctrl;
++  // 与 OooIntIssueQueue 的物理 terminal capability 机械同源。issue1 是固定延迟
++  // RV64I ALU terminal，而不是程序序/dispatch lane；IQ 可把 older simple 动态
++  // steering 到这里，同时把 younger complex 送 Universal issue0。
++  function is_alu_terminal_capable_ctrl;
+     input [`CTRL_BUS_W-1:0] ctrl;
+     begin
+-      is_lane1_simple_alu_ctrl =
++      is_alu_terminal_capable_ctrl =
+           ctrl[`CTRL_VALID_BIT] &&
+           ctrl[`CTRL_RD_EN_BIT] &&
+           ctrl[`CTRL_NEED_EXEC_BIT] &&
+@@ -938,7 +952,7 @@ module OooIntBackend #(
+   endfunction
+ 
+   // T3P：RAW-I1 已证明合法双 issue lane 不会形成 lane0→lane1 RAW；现在又由
+-  // lane1-simple owner 将两 lane 的类别/ready 拆开，因此物理删除旧 current-result
++  // ALU-terminal capability 将两 terminal 的类别/ready 拆开，因此物理删除旧 current-result
+   // 前递，而不是保留一个逻辑不可达却会串起 ALU0→ALU1 的 mux。
+   wire [`XLEN-1:0] issue0_wb_data_w;
+ 
+@@ -1064,10 +1078,11 @@ module OooIntBackend #(
+                         mem_issue_res_ctrl_q[`CTRL_AMO_LR_BIT];
+   wire issue0_is_sc_w = issue0_is_amo_w &&
+                         mem_issue_res_ctrl_q[`CTRL_AMO_SC_BIT];
+-  // T3U：lane1-simple 是 IQ 的结构合同，不只是运行时概率。把不可达的
++  // R3：物理 ALU terminal capability 是 IQ 的结构合同，不是 dispatch lane
++  // 语义。把该 terminal 不可达的
+   // load/store/AMO 类别在 backend 边界物理常零，避免 STA 仍沿
+   // IQ→lane1 PRF/ALU/LSU→request/MIQ 计一条假路径。OOO_ASSERT 下方仍以
+-  // is_lane1_simple_alu_ctrl 检查上游若违反合同，不能把 tie-off 当作容错。
++  // is_alu_terminal_capable_ctrl 检查上游若违反 capability，不能把 tie-off 当作容错。
+   wire issue1_is_load_w = 1'b0;
+   wire issue1_is_store_w = 1'b0;
+   wire issue1_is_amo_w = 1'b0;
+@@ -2034,14 +2049,13 @@ module OooIntBackend #(
+                           !mem_rsp_waiting_for_wb_w;
+ 
+   assign issue0_fire_w = issue0_valid_w && issue0_ready_w;
+-  wire issue1_fire_w = issue1_valid_w && issue1_ready_w;
++  assign issue1_fire_w = issue1_valid_w && issue1_ready_w;
+ 
+ `ifdef OOO_ASSERT
+-  // T3a RAW-I1：dispatch bypass 与 issue-result early wakeup 均已删除；因此同时
+-  // 呈现的两个 integer issue lane 不可能存在 lane0→lane1 RAW。valid/source-enable/
+-  // destination-domain/nonzero tag 门控排除 invalid 默认 payload、x0 与 FPR 数字别名。
++  // Dynamic terminal numbering may reverse program age.  Check RAW in both
++  // directions at the IQ packet boundary; terminal numbers are not age.
+   always @(posedge clk) begin
+-    if (!rst && issue0_valid_w && issue1_valid_w &&
++    if (!rst && iq_issue0_valid_w && issue1_valid_w &&
+         issue0_ctrl_w[`CTRL_RD_EN_BIT] && !issue0_fp_pdest_w &&
+         (issue0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+         ((issue1_ctrl_w[`CTRL_RS1_EN_BIT] &&
+@@ -2052,6 +2066,18 @@ module OooIntBackend #(
+              issue0_rob_idx_w, issue0_pdest_w, issue1_rob_idx_w,
+              issue1_src1_preg_w, issue1_src2_preg_w, $time);
+     end
++    if (!rst && iq_issue_pair_swapped_w && iq_issue0_valid_w &&
++        issue1_valid_w && issue1_ctrl_w[`CTRL_RD_EN_BIT] &&
++        !issue1_fp_pdest_w &&
++        (issue1_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
++        ((iq_issue0_ctrl_w[`CTRL_RS1_EN_BIT] &&
++          (iq_issue0_src1_preg_w == issue1_pdest_w)) ||
++         (iq_issue0_ctrl_w[`CTRL_RS2_EN_BIT] &&
++          (iq_issue0_src2_preg_w == issue1_pdest_w)))) begin
++      $error("[INT-ISSUE-CONTRACT RAW-DYNAMIC] swapped terminals contain older-issue1 to younger-issue0 RAW: issue1 rob=%0d pdest=%0d issue0 rob=%0d src1=%0d src2=%0d @%0t",
++             issue1_rob_idx_w, issue1_pdest_w, iq_issue0_rob_idx_w,
++             iq_issue0_src1_preg_w, iq_issue0_src2_preg_w, $time);
++    end
+     if (!rst && mem_req_device_release_o &&
+         (!miq_head_valid_w || miq_head_killed_w || !rob_head_valid_w ||
+          (miq_head_rob_w != rob_head_idx_w))) begin
+@@ -2072,9 +2098,9 @@ module OooIntBackend #(
+              issue1_rob_idx_w, issue1_pc_w, $time);
+     end
+     if (!rst && issue1_valid_w &&
+-        (!is_lane1_simple_alu_ctrl(issue1_ctrl_w) ||
++        (!is_alu_terminal_capable_ctrl(issue1_ctrl_w) ||
+          issue1_fp_pdest_w || issue1_fp_st_en_w)) begin
+-      $error("[INT-LANE1-SIMPLE-OWNER] lane1 selected non-simple uop rob=%0d pc=%h ctrl=%h @%0t",
++      $error("[INT-ALU-TERMINAL-CAPABILITY] ALU terminal selected non-simple uop rob=%0d pc=%h ctrl=%h @%0t",
+              issue1_rob_idx_w, issue1_pc_w, issue1_ctrl_w, $time);
+     end
+     if (!rst && checkpoint_restore_i &&
+@@ -2131,7 +2157,7 @@ module OooIntBackend #(
+ `endif
+   // T3Q canonical owner handshake：request valid 只表达“该 owner 有合法请求且
+   // 全局允许发射”，绝不读取 resource ready；fire 在单元边界再与 ready 相与。
+-  // lane1-simple 合同已结构禁止 long-op，删除不可达的 lane1 payload mux 臂。
++  // 物理 ALU-terminal capability 已结构禁止 long-op，删除不可达 payload mux 臂。
+   wire issue0_muldiv_req_valid_w = issue0_is_muldiv_w &&
+                                    issue0_global_ready_w;
+   wire issue0_clmul_req_valid_w = issue0_is_clmul_w &&
+@@ -2289,7 +2315,7 @@ module OooIntBackend #(
+       !mem_buffer_valid_q && !flush_i && !checkpoint_restore_i &&
+       !branch_resolve_mispredict_w &&
+       !issue_block_w && !mem_issue_block_w && issue0_mem_order_ready_w;
+-  // lane1-simple 物理合同：主请求、buffer 与 MIQ owner 均不存在 issue1 臂。
++  // ALU-terminal 物理合同：主请求、buffer 与 MIQ owner 均不存在 issue1 臂。
+   wire issue1_mem_request_fire_w = 1'b0;
+   wire issue1_mem_buffer_fire_w = 1'b0;
+   wire issue1_mem_req_valid_w = 1'b0;
+@@ -2322,6 +2348,11 @@ module OooIntBackend #(
+           (iq_issue0_valid_w && iq_issue0_ready_w &&
+            iq_issue0_mem_class_w))
+         $error("[T3S-MEM-RES-IQ-OWNER] IQ pop/capture mismatch @%0t", $time);
++      if (mem_issue_res_capture_w && iq_issue_pair_swapped_w &&
++          !issue1_fire_w)
++        $error("[R3P1-SWAP-CAPTURE-ATOMIC] younger memory captured without older ALU fire @%0t",
++               $time);
++
+       if (mem_issue_res_capture_w && issue0_mem_req_valid_w)
+         $error("[T3S-MEM-RES-NO-EARLY-REQ] raw capture generated lane0 request @%0t",
+                $time);
+@@ -2475,14 +2506,14 @@ module OooIntBackend #(
+   assign miq_push_wstrb_w = mem_req_wstrb_o;
+ 
+ `ifdef OOO_ASSERT
+-  // T3U 结构契约：lane1 memory owner 已物理删除；任何重新接活必须先恢复
++  // R3 结构契约：ALU-terminal memory owner 已物理删除；任何重新接活必须先恢复
+   // 完整的 request/MIQ/SQ 守恒验证，而不能只改一个分类 wire。
+   always @(posedge clk) begin
+     if (!rst &&
+         (issue1_is_mem_w || issue1_mem_req_valid_w ||
+          issue1_mem_request_fire_w || issue1_mem_buffer_fire_w ||
+          push_issue1_w))
+-      $error("[T3U-LANE1-MEM-TIEOFF] deleted lane1 memory owner became active @%0t",
++      $error("[R3-ALU-TERMINAL-NO-LSU] deleted ALU-terminal memory owner became active @%0t",
+              $time);
+   end
+ `endif
+diff --git a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+index f6b87ed7d395056d4e00c8a072a6d76800285196..741f64bfc00086c4f650a8ce76efeb3fd7e6e68c 100644
+--- a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
++++ b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+@@ -18,6 +18,9 @@ module OooDispatchBackend #(
+   input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // T3N：已寄存 coherent resolve packet 的 rob_idx
+   input branch_mispredict_valid_i,          // T3N：已寄存 coherent resolve packet 的 mispredict valid
+   input issue_mem_block_i,
++  // Registered downstream occupancy of the physical Universal terminal.
++  // Kept separate from memory dispatch blocking and combinational ready.
++  input universal_owner_present_i,
+   // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
+   // 需要 SQ slot, 满则反压。
+   input sq_alloc0_ready_i,
+@@ -120,6 +123,7 @@ module OooDispatchBackend #(
+   output [`XLEN-1:0] issue0_imm_o,
+   output [`BPU_BHT_INDEX_W-1:0] issue0_bht_idx_o,
+   output issue0_pred_taken_o,
++  output issue_pair_swapped_o,
+ 
+   output issue1_valid_o,
+   input issue1_ready_i,
+@@ -594,6 +598,7 @@ module OooDispatchBackend #(
+     .rst(rst),
+     .flush_i(flush_i),
+     .issue_mem_block_i(issue_mem_block_i),
++    .universal_owner_present_i(universal_owner_present_i),
+     .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
+     .dispatch0_ready_o(iq_dispatch0_ready_w),
+     .dispatch0_pc_i(dispatch0_pc_i),
+@@ -662,6 +667,7 @@ module OooDispatchBackend #(
+     .issue0_imm_o(issue0_imm_o),
+     .issue0_bht_idx_o(issue0_bht_idx_o),
+     .issue0_pred_taken_o(issue0_pred_taken_o),
++    .issue_pair_swapped_o(issue_pair_swapped_o),
+     .issue1_valid_o(issue1_valid_o),
+     .issue1_ready_i(issue1_ready_i),
+     .issue1_pc_o(issue1_pc_o),
+diff --git a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+index c927d5383a545a7926b790a7dc52ac29fd130c41..eec67bf697e078d8f75dfd2063d3740ab3abc6bf 100644
+--- a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
++++ b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+@@ -18,6 +18,10 @@ module OooIntIssueQueue #(
+   input rst,
+   input flush_i,
+   input issue_mem_block_i,
++  // Registered occupancy of the physical Universal terminal.  This is a
++  // resource-owner fact, not a dispatch or program-order lane.  It must not
++  // be driven from combinational ready.
++  input universal_owner_present_i,
+ 
+   input dispatch0_valid_i,
+   output dispatch0_ready_o,
+@@ -92,6 +96,9 @@ module OooIntIssueQueue #(
+   output issue0_fp_st_src_en_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
+   output [`XLEN-1:0] issue0_imm_o,
++  // High when capability steering maps a younger complex uop to issue0 and
++  // its older independent ALU partner to issue1.
++  output issue_pair_swapped_o,
+ 
+   output issue1_valid_o,
+   input issue1_ready_i,
+@@ -143,6 +150,10 @@ module OooIntIssueQueue #(
+   reg [PHY_REG_ADDR_W-1:0] fp_st_preg_q [0:ENTRY_COUNT-1];
+   reg fp_st_ready_q [0:ENTRY_COUNT-1];
+   reg [`XLEN-1:0] imm_q [0:ENTRY_COUNT-1];
++  // R3 timing cut: capability is predecoded once at dispatch and compacted
++  // beside the payload.  The oldest-first scan reads one bit per entry rather
++  // than repeatedly decoding the wide ctrl bus on the select critical path.
++  reg alu_terminal_capable_q [0:ENTRY_COUNT-1];
+   reg [ENTRY_COUNT_W-1:0] count_q;
+ 
+   reg valid_next_r [0:ENTRY_COUNT-1];
+@@ -164,6 +175,7 @@ module OooIntIssueQueue #(
+   reg [PHY_REG_ADDR_W-1:0] fp_st_preg_next_r [0:ENTRY_COUNT-1];
+   reg fp_st_ready_next_r [0:ENTRY_COUNT-1];
+   reg [`XLEN-1:0] imm_next_r [0:ENTRY_COUNT-1];
++  reg alu_terminal_capable_next_r [0:ENTRY_COUNT-1];
+   reg [ENTRY_COUNT_W-1:0] count_next_r;
+   reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
+   integer kc_i;
+@@ -172,7 +184,9 @@ module OooIntIssueQueue #(
+   // dispatch 活值相关的 issue*_dispatch*/forward/entry_ready_for_issue1 族已删除。
+   reg issue0_found_r;
+   reg issue1_found_r;
++  reg issue_pair_swapped_r;
+   reg older_valid_seen_r;
++  reg older_multiple_valid_seen_r;
+   reg entry_load_r;
+   reg entry_store_r;
+   reg entry_amo_r;
+@@ -228,14 +242,13 @@ module OooIntIssueQueue #(
+     end
+   endfunction
+ 
+-  // T3P：lane1 只承载固定延迟的 RV64I simple-ALU。所有会读取地址/SQ、共享
+-  // long-op 单元或在退休端序列化的类别都留在 IQ，待其晋升 lane0；第二候选会
+-  // 继续向后扫描，因此更年轻的独立 simple-ALU 仍可双发。这个 owner 边界使
+-  // lane1 的出队许可不再需要执行结果或 LSU resource predicate。
+-  function ctrl_is_lane1_simple_alu;
++  // R3：这是物理 ALU terminal 的 capability，不是 dispatch lane 或程序序 lane
++  // 的永久语义。Universal terminal 可接任意 ready 类别；ALU terminal 只接固定
++  // 延迟 RV64I simple-ALU。select 会按 capability 动态交换两条 resident uop。
++  function ctrl_is_alu_terminal_capable;
+     input [`CTRL_BUS_W-1:0] ctrl;
+     begin
+-      ctrl_is_lane1_simple_alu =
++      ctrl_is_alu_terminal_capable =
+           ctrl[`CTRL_VALID_BIT] &&
+           ctrl[`CTRL_RD_EN_BIT] &&
+           ctrl[`CTRL_NEED_EXEC_BIT] &&
+@@ -262,9 +275,14 @@ module OooIntIssueQueue #(
+   // select 唯一真源=已寄存阵列项。mode 下 branch/JAL/JALR 原"禁 bypass"特例随之普适化,
+   // pred_npc→mispredict→redirect→前端预测后继 的组合环由结构保证不存在。
+   always @(*) begin
+-    issue0_found_r = 1'b0;
++    // A registered downstream owner occupies Universal without consuming an
++    // IQ entry.  Continue the same oldest-first scan for the ALU terminal;
++    // unlike a static lane rule, any resident program position may own it.
++    issue0_found_r = universal_owner_present_i;
+     issue1_found_r = 1'b0;
++    issue_pair_swapped_r = 1'b0;
+     older_valid_seen_r = 1'b0;
++    older_multiple_valid_seen_r = 1'b0;
+     entry_load_r = 1'b0;
+     entry_store_r = 1'b0;
+     entry_amo_r = 1'b0;
+@@ -275,13 +293,18 @@ module OooIntIssueQueue #(
+       entry_load_r = ctrl_q[scan_i][`CTRL_LOAD_BIT];
+       entry_store_r = ctrl_q[scan_i][`CTRL_STORE_BIT];
+       entry_amo_r = ctrl_q[scan_i][`CTRL_AMO_BIT];
+-      // T3T：单槽 memory reservation 只允许 IQ 中没有任何更老 valid 项时晋升。
+-      // 这比仅保持 memory-memory 顺序更强：驻留 memory 天生不可能挡住更老
+-      // raw branch/long-op/load，因此 backend 无需用 raw IQ 年龄动态选择执行 owner。
+-      // 该结构不变量同时切断 IQ select→resident mux→AGU/MIQ 的组合回接。
++      // R3 最小安全放宽：单槽 reservation 仍禁止越过一般 older valid，避免
++      // 驻留 memory 反向挡住未 ready 的 older branch/long-op。唯一例外是 IQ
++      // 中恰有一条更老、ready、可走物理 ALU terminal 的 simple uop：两者会在
++      // 本拍原子双发，memory→Universal、older ALU→ALU terminal，不会留下被
++      // reservation 反压的 older owner。memory-memory 程序序保持不变。
+       entry_mem_order_block_r =
+           (entry_load_r || entry_store_r || entry_amo_r) &&
+-          older_valid_seen_r;
++          older_valid_seen_r &&
++          !(issue0_found_r && !issue1_found_r &&
++            !universal_owner_present_i &&
++            !older_multiple_valid_seen_r &&
++            alu_terminal_capable_q[issue0_idx_r]);
+       entry_ready_r[scan_i] = valid_q[scan_i] &&
+                               !(issue_mem_block_i &&
+                                 ctrl_is_mem(ctrl_q[scan_i][`CTRL_LOAD_BIT],
+@@ -298,15 +321,32 @@ module OooIntIssueQueue #(
+         if (!issue0_found_r) begin
+           issue0_found_r = 1'b1;
+           issue0_idx_r = scan_i[ENTRY_INDEX_W-1:0];
+-        end else if (!issue1_found_r &&
+-                     // T3P：复杂类别保留等待 lane0；继续扫描更年轻 simple-ALU。
+-                     // 与 IntBackend 的 shallow ready/无 crosslane-forward 同源。
+-                     ctrl_is_lane1_simple_alu(ctrl_q[scan_i]) &&
+-                     !fp_pdest_q[scan_i] && !fp_st_en_q[scan_i]) begin
+-          issue1_found_r = 1'b1;
+-          issue1_idx_r = scan_i[ENTRY_INDEX_W-1:0];
++        end else if (!issue1_found_r) begin
++          if (universal_owner_present_i) begin
++            // Universal is occupied by a registered reservation owner.  The
++            // oldest eligible simple ALU proceeds on the independent ALU
++            // terminal, including the sole-resident case.
++            if (alu_terminal_capable_q[scan_i]) begin
++              issue1_found_r = 1'b1;
++              issue1_idx_r = scan_i[ENTRY_INDEX_W-1:0];
++            end
++          end else if (alu_terminal_capable_q[scan_i]) begin
++            // Natural order: oldest ready owns Universal, younger simple owns ALU.
++            issue1_found_r = 1'b1;
++            issue1_idx_r = scan_i[ENTRY_INDEX_W-1:0];
++          end else if (alu_terminal_capable_q[issue0_idx_r]) begin
++            // Capability swap: an older simple ALU must not force a younger
++            // branch/JAL/JALR/load/store/long-op to serialize.  Move the older
++            // simple uop to the ALU terminal and give Universal to this uop.
++            issue1_found_r = 1'b1;
++            issue1_idx_r = issue0_idx_r;
++            issue0_idx_r = scan_i[ENTRY_INDEX_W-1:0];
++            issue_pair_swapped_r = 1'b1;
++          end
+         end
+       end
++      older_multiple_valid_seen_r = older_multiple_valid_seen_r ||
++                                    (older_valid_seen_r && valid_q[scan_i]);
+       older_valid_seen_r = older_valid_seen_r || valid_q[scan_i];
+     end
+     // 【P5 刀 B】"dispatch 活值作 IQ 虚拟队尾同拍参与 select" 的三个臂已删除:
+@@ -320,7 +360,9 @@ module OooIntIssueQueue #(
+   // 【P5 刀 B】issue payload 直读寄存阵列(dispatch 活值直通臂已删):
+   // pred_npc 恒取寄存 pred_npc_q,pred_npc→mispredict→redirect→前端预测→pred_npc 的
+   // 组合环 loop-free 性质由"select 唯一真源=寄存项"结构直接保证,不再依赖控制流禁 bypass 特例。
+-  assign issue0_valid_o = issue0_found_r && !recover_active_i && !kill_valid_i;
++  assign issue0_valid_o = issue0_found_r && !universal_owner_present_i &&
++                          !recover_active_i && !kill_valid_i;
++  assign issue_pair_swapped_o = issue_pair_swapped_r && issue0_valid_o && issue1_valid_o;
+   assign issue0_pc_o = pc_q[issue0_idx_r];
+   assign issue0_next_pc_o = next_pc_q[issue0_idx_r];
+   assign issue0_pred_npc_o = pred_npc_q[issue0_idx_r];
+@@ -386,6 +428,7 @@ module OooIntIssueQueue #(
+       src2_ready_next_r[compact_i] = 1'b0;
+       pdest_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
+       imm_next_r[compact_i] = {`XLEN{1'b0}};
++      alu_terminal_capable_next_r[compact_i] = 1'b0;
+     end
+ 
+     for (compact_i = 0; compact_i < ENTRY_COUNT; compact_i = compact_i + 1) begin
+@@ -424,6 +467,8 @@ module OooIntIssueQueue #(
+             (fp_wake0_valid_i && (fp_wake0_preg_i == fp_st_preg_q[compact_i])) ||
+             (fp_wake1_valid_i && (fp_wake1_preg_i == fp_st_preg_q[compact_i]));
+         imm_next_r[write_i] = imm_q[compact_i];
++        alu_terminal_capable_next_r[write_i] =
++            alu_terminal_capable_q[compact_i];
+         write_i = write_i + 1;
+       end
+     end
+@@ -461,6 +506,9 @@ module OooIntIssueQueue #(
+                           fp_wake0_valid_i, fp_wake0_preg_i,
+                           fp_wake1_valid_i, fp_wake1_preg_i);
+       imm_next_r[write_i] = dispatch0_imm_i;
++      alu_terminal_capable_next_r[write_i] =
++          ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) &&
++          !dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i;
+       write_i = write_i + 1;
+     end
+ 
+@@ -495,6 +543,9 @@ module OooIntIssueQueue #(
+                           fp_wake0_valid_i, fp_wake0_preg_i,
+                           fp_wake1_valid_i, fp_wake1_preg_i);
+       imm_next_r[write_i] = dispatch1_imm_i;
++      alu_terminal_capable_next_r[write_i] =
++          ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&
++          !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i;
+       write_i = write_i + 1;
+     end
+ 
+@@ -535,6 +586,7 @@ module OooIntIssueQueue #(
+         fp_st_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
+         fp_st_ready_q[reset_i] <= 1'b0;
+         imm_q[reset_i] <= {`XLEN{1'b0}};
++        alu_terminal_capable_q[reset_i] <= 1'b0;
+       end
+     end else if (kill_valid_i) begin
+       // ROB-walk squash：清掉比 kill_rob_idx 更年轻(age 更大)的 entry（程序序后缀），存活=前缀，已紧凑。
+@@ -584,6 +636,8 @@ module OooIntIssueQueue #(
+         fp_st_preg_q[reset_i] <= fp_st_preg_next_r[reset_i];
+         fp_st_ready_q[reset_i] <= fp_st_ready_next_r[reset_i];
+         imm_q[reset_i] <= imm_next_r[reset_i];
++        alu_terminal_capable_q[reset_i] <=
++            alu_terminal_capable_next_r[reset_i];
+       end
+     end
+   end
+@@ -600,6 +654,22 @@ module OooIntIssueQueue #(
+   // 不消费 valid_next_r 写入计划,若互斥被破坏,kill 拍的新写项会被静默丢弃而非入队。
+   always @(posedge clk) begin
+     if (!rst) begin
++      if (universal_owner_present_i && issue0_valid_o)
++        $error("[IQ-UNIVERSAL-OWNER-EXCLUSIVE] registered owner overlapped resident issue0 @%0t",
++               $time);
++      if (issue0_valid_o && issue1_valid_o &&
++          (issue0_idx_r == issue1_idx_r))
++        $error("[IQ-DYNAMIC-OWNER-DUP] one entry selected by both terminals idx=%0d @%0t",
++               issue0_idx_r, $time);
++      if (issue_pair_swapped_o &&
++          !(issue1_idx_r < issue0_idx_r))
++        $error("[IQ-DYNAMIC-OWNER-AGE] swapped pair lacks older issue1: i0=%0d i1=%0d @%0t",
++               issue0_idx_r, issue1_idx_r, $time);
++      if (issue_pair_swapped_o &&
++          (!alu_terminal_capable_q[issue1_idx_r] ||
++           alu_terminal_capable_q[issue0_idx_r]))
++        $error("[IQ-DYNAMIC-OWNER-CAP] swapped capability mismatch i0=%0d i1=%0d @%0t",
++               issue0_idx_r, issue1_idx_r, $time);
+       if (issue0_valid_o && !valid_q[issue0_idx_r])
+         $error("[IQ-NO-BYPASS] issue0 select 源非寄存 valid_q 项: idx=%0d @%0t",
+                issue0_idx_r, $time);
+@@ -612,9 +682,9 @@ module OooIntIssueQueue #(
+         $error("[IQ-CTRL-LANE0-OWNER] issue1 selected control-flow idx=%0d rob=%0d @%0t",
+                issue1_idx_r, issue1_rob_idx_o, $time);
+       if (issue1_valid_o &&
+-          (!ctrl_is_lane1_simple_alu(issue1_ctrl_o) ||
++          (!ctrl_is_alu_terminal_capable(issue1_ctrl_o) ||
+            issue1_fp_pdest_o || issue1_fp_st_src_en_o))
+-        $error("[IQ-LANE1-SIMPLE-OWNER] issue1 selected non-simple uop idx=%0d rob=%0d ctrl=%h @%0t",
++        $error("[IQ-ALU-TERMINAL-CAPABILITY] issue1 selected non-simple uop idx=%0d rob=%0d ctrl=%h @%0t",
+                issue1_idx_r, issue1_rob_idx_o, issue1_ctrl_o, $time);
+       if (kill_valid_i && (dispatch0_valid_i || dispatch1_valid_i))
+         $error("[IQ-KILL-NO-DISPATCH] kill 拍收到 dispatch valid(上游 freeze 契约被破坏) @%0t",

@@ -1,0 +1,130 @@
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+index adda956..6521ce3 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+@@ -305,6 +305,109 @@ module tb_ooo_int_issue_queue;
+     end
+   endtask
+ 
++  // R3 capability steering matrix.  issue0 is the universal terminal and
++  // issue1 is the fixed-latency ALU terminal; neither name is a program-order
++  // lane.  When an older ALU precedes a younger complex uop, the IQ must swap
++  // their terminal assignment so that both resident, independent uops fire in
++  // the same cycle.  The reverse program order must work as well.
++  function automatic [`CTRL_BUS_W-1:0] r3_complex_ctrl;
++    input integer class_id;
++    reg [`CTRL_BUS_W-1:0] ctrl;
++    begin
++      ctrl = {`CTRL_BUS_W{1'b0}};
++      ctrl[`CTRL_VALID_BIT] = 1'b1;
++      ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
++      case (class_id)
++        0: begin // branch
++          ctrl[`CTRL_BRANCH_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
++        end
++        1: begin // JAL
++          ctrl[`CTRL_JAL_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
++        end
++        2: begin // JALR
++          ctrl[`CTRL_JALR_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
++        end
++        3: begin // load
++          ctrl[`CTRL_LOAD_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
++        end
++        default: begin // store
++          ctrl[`CTRL_STORE_BIT] = 1'b1;
++          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
++        end
++      endcase
++      r3_complex_ctrl = ctrl;
++    end
++  endfunction
++
++  task automatic run_r3_capability_pair;
++    input integer class_id;
++    input complex_older;
++    reg [`XLEN-1:0] older_pc;
++    reg [`XLEN-1:0] younger_pc;
++    reg [`XLEN-1:0] expect_universal_pc;
++    reg [`XLEN-1:0] expect_alu_pc;
++    begin
++      reset_dut();
++      issue0_ready = 1'b0;
++      issue1_ready = 1'b0;
++      older_pc = 32'h8200_0000 + (class_id * 32'h40) +
++                 (complex_older ? 32'h20 : 32'h00);
++      younger_pc = older_pc + 32'd4;
++      set_dispatch0(older_pc, 4'd1, 6'd1, 1'b1,
++                    6'd2, 1'b1, 6'd40);
++      set_dispatch1(younger_pc, 4'd2, 6'd3, 1'b1,
++                    6'd4, 1'b1, 6'd41);
++      if (complex_older) begin
++        dispatch0_ctrl = r3_complex_ctrl(class_id);
++        expect_universal_pc = older_pc;
++        expect_alu_pc = younger_pc;
++      end else begin
++        dispatch1_ctrl = r3_complex_ctrl(class_id);
++        expect_universal_pc = younger_pc;
++        expect_alu_pc = older_pc;
++      end
++      `TB_TICK(clk);
++      clear_inputs();
++      issue0_ready = 1'b1;
++      issue1_ready = 1'b1;
++      #1;
++      $display("[R3-CAP-PAIR] class=%0d complex_older=%0b issue={%0b,%0b} universal_pc=%h alu_pc=%h count=%0d",
++               class_id, complex_older, issue0_valid, issue1_valid,
++               issue0_pc, issue1_pc, count);
++      tb_check32("R3 pair keeps two resident uops", {28'b0, count}, 32'd2);
++      tb_check1("R3 pair universal terminal valid", issue0_valid, 1'b1);
++      tb_check1("R3 pair ALU terminal valid", issue1_valid, 1'b1);
++      tb_check32("R3 pair complex routes to universal", issue0_pc,
++                 expect_universal_pc);
++      tb_check32("R3 pair simple routes to ALU terminal", issue1_pc,
++                 expect_alu_pc);
++      tb_check1("R3 pair universal owns complex class",
++                issue0_ctrl[`CTRL_BRANCH_BIT] || issue0_ctrl[`CTRL_JAL_BIT] ||
++                issue0_ctrl[`CTRL_JALR_BIT] || issue0_ctrl[`CTRL_LOAD_BIT] ||
++                issue0_ctrl[`CTRL_STORE_BIT], 1'b1);
++      tb_check1("R3 pair ALU terminal owns simple class",
++                issue1_ctrl[`CTRL_BRANCH_BIT] || issue1_ctrl[`CTRL_JAL_BIT] ||
++                issue1_ctrl[`CTRL_JALR_BIT] || issue1_ctrl[`CTRL_LOAD_BIT] ||
++                issue1_ctrl[`CTRL_STORE_BIT], 1'b0);
++      `TB_TICK(clk);
++      clear_inputs();
++      #1;
++      tb_check1("R3 pair fires exactly once and drains", empty, 1'b1);
++    end
++  endtask
++
+   // 审查者反例矩阵：每个复杂候选均夹在 older/younger simple-ALU 之间。
+   // lane1 必须越过候选选择 younger；候选只可在下一拍晋升 lane0。
+   task automatic run_lane1_negative_class;
+@@ -1225,6 +1328,15 @@ module tb_ooo_int_issue_queue;
+     run_fp_dispatch_wake_collision(1'b1, 1'b1, 6'd0,
+                                    32'h8000_00dc, 4'd13);
+ 
++    // R3 RED->GREEN pair matrix: branch/JAL/JALR/load/store, both program
++    // orders.  A passing result requires two simultaneous terminal fires;
++    // serial promotion is not accepted as dual issue.
++    for (lane1_negative_i = 0; lane1_negative_i < 5;
++         lane1_negative_i = lane1_negative_i + 1) begin
++      run_r3_capability_pair(lane1_negative_i, 1'b0);
++      run_r3_capability_pair(lane1_negative_i, 1'b1);
++    end
++
+     tb_finish("tb_ooo_int_issue_queue");
+   end
+ endmodule

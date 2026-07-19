@@ -1,0 +1,7 @@
+interface:
+  display_name: "Prepare RTL Task Contract"
+  short_description: "为本地 RTL 主/子 agent 生成并校验最小权限任务契约"
+  default_prompt: "Use $prepare-rtl-task-contract to prepare a precise local RTL task contract before delegation."
+
+policy:
+  allow_implicit_invocation: true

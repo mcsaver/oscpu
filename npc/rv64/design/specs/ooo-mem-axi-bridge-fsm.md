@@ -223,6 +223,23 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
 - **MEM-I10 DMA stale-hit 禁止**：`dcache_dma_invalidate_all_i` 与 S_LOOKUP 判决重合时，
   D-cache hit 必须为 0；桥只能沿既有 miss/AR/refill 路径取得 DPI 已写入的 PMEM 数据。
   事件不创建 bridge transaction 或 AXI owner，也不允许 B/IRQ 先于 D-cache 采样失效对外可见。
+- **MEM-I11 post-translation class 单点合并（R4-S0）**：Bare/DTLB-hit 和 PTW-leaf
+  两条成功路径都必须经 `OooPostTranslateMemoryClass`，在最终 PA、PMA 与 leaf PBMT 已知后
+  恰好合并一次。`access_cacheable_q` 在进入数据事务状态前锁存并保持到 response；
+  `mem0_rsp_cacheable_o` 与 SQ/drain sideband 只能转发该锁存值。PBMT=11 或 PMA deny 产生
+  fault 且不得保留 admission class；PBMT NC/IO 即使 PA 落在 PMEM 也不得 lookup/fill/RMW。
+  target bridge、SQ 或 D-cache 禁止再次按 PA 猜测/覆盖该属性。
+- **MEM-I12 B terminal cache 维护真值（R4-S0）**：`data_store_b_terminal` 与
+  `data_store_b_ok` 必须分开。只有 `B=OKAY && access_cacheable_q` 的普通 store 能置
+  `store_rmw_en_i`；PBMT NC/IO、A/D 写回以及任意聚合 B error 都走 valid-only alias
+  invalidate。split write 的前 beat 可能已生效，所以 error 也必须保守维护本行与跨线 p1。
+- **MEM-I13 S0 非 typed ABI**：S0 的 `access_cacheable_q` 仍把 NC 与 IO 合并为一个
+  serialized/non-cacheable 类，只是正确性检查点，不满足完整 memory-order ABI。S1 必须改为
+  `{attr_valid,class[1:0]}`（CACHED/NC/IO；fault 独立），并让 NC 与 IO 拥有不同 ordering；
+  精确编码、PMA/PBMT 矩阵、owner token/MMU epoch 与 fault 关系已在
+  [`ooo-memory-typed-abi.md`](ooo-memory-typed-abi.md) 以 R4-S1.0 冻结，但本模块 RTL
+  尚未实施。在此之前不得把该
+  bridge 计为 DI-5 或完整双内存发射通过。
 - **桥内断言族（OOO_ASSERT，立即断言）**：MEM-RMW-PORT（RMW 判决拍宏读口独占）、
   BRG-NOFIRE-FLUSH（flush 拍无 fire）、BRG-ADV-NODROP（advance ⇒ drop_rsp_q=0）、
   BRG-STG-LOOKUP（req 源 lookup 只在 advance 拍）、BRG-STG-HOLD（stall 拍站内字段冻结）、
@@ -240,6 +257,14 @@ upstream AW/W fire 只是 capture，split write 可能尚有多个下游 beat。
 `design/arch/history/mem-store-decouple.md`，不得当作当前行为依据。
 
 ## 7. 变更记录
+- 2026-07-16（R4-S1.0 docs-only）：冻结 typed ABI、owner identity、epoch、PMA/PBMT 矩阵及
+  S1 single-owner/S2 RED 边界；本模块实现状态保持 R4-S0 Boolean 单 owner，不声明 RTL 完成。
+- 2026-07-15（R4-S0 post-translation memory semantics）：新增统一分类器，Bare/DTLB-hit/
+  PTW-leaf 在最终 PA 后合并 PMA/PBMT；请求站、response 与 SQ drain 传播最终 cacheability。
+  store cache 维护从“PA 是否 PMEM”拆成“alias 是否可能存在”和“事务是否允许 RMW”两真值；
+  cacheable+B OK 才 write-update，NC/IO、A/D、B error 均失效（含 cross-line）。该切片仍把
+  NC/IO 合并，明确是 correctness checkpoint，而非 typed class、双 translation 或双 cache
+  admission 的架构完成态。
 - 2026-07-15（T4P virtio DMA/D-cache contract）：桥新增
   `dcache_dma_invalidate_all_i` 透传，不增状态/owner/宏口占用；D-cache 以 lookup-hit masking +
   valid-only 全失效阻断 queue-notify 同步 DPI 写造成的 stale hit，设备端将 notify B/IRQ 延后一拍。

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -11,14 +13,28 @@ from typing import Any, Sequence
 from .core import *
 from .queries import *
 
+BRIEF_CANONICAL_PATH = ".github/AGENTS.md"
+BRIEF_ROOT_SHIM_PATH = "AGENTS.md"
 BRIEF_CORE_PATHS = (
-    "AGENTS.md",
-    ".github/AGENTS.md",
+    BRIEF_CANONICAL_PATH,
+    BRIEF_ROOT_SHIM_PATH,
     ".github/copilot-instructions.md",
     ".github/memory/project-status.md",
     ".github/memory/known-issues.md",
     ".github/e2e/README.md",
 )
+BRIEF_EXCLUDED_FOCUS_PREFIXES = (".github/shujuku_aireview",)
+BRIEF_CURRENT_MEMORY_KINDS = {"memory", "memory-module"}
+BRIEF_CURRENT_RULE_KINDS = {
+    "agent-rule",
+    "agent",
+    "agent-shim",
+    "skill",
+    "instruction",
+    "e2e-profile",
+    "e2e-module",
+}
+BRIEF_HISTORY_KINDS = {"task-report", "dispatch-log", "task-run", "task-evidence"}
 
 
 def count_by(conn: sqlite3.Connection, table: str, field: str) -> dict[str, int]:
@@ -126,8 +142,8 @@ def add_brief_rows(
         tokens = int(row["token_estimate"] or 0)
         if chunk_id in rows_by_chunk:
             continue
-        if rows_by_chunk and used + tokens > token_budget:
-            break
+        if used + tokens > token_budget:
+            continue
         rows_by_chunk[chunk_id] = row
         used += tokens
         added += 1
@@ -137,6 +153,80 @@ def add_brief_rows(
 def stored_rows_for_path(conn: sqlite3.Connection, path: str, limit: int) -> list[sqlite3.Row]:
     _, rows = path_stored_rows(conn, normalize_index_path(path), None, limit)
     return rows
+
+
+def brief_rows_for_path(conn: sqlite3.Connection, path: str, limit: int) -> list[sqlite3.Row]:
+    """Read current rules live-first and retained DB-first documents stored-first."""
+    normalized = normalize_index_path(path)
+    stored_first = infer_kind(normalized) in DB_FIRST_KINDS
+    if stored_first:
+        rows = stored_rows_for_path(conn, normalized, limit)
+        if rows:
+            return rows
+        _, rows = path_chunk_rows(conn, normalized, None, "indexed", limit)
+        return rows
+    _, rows = path_chunk_rows(conn, normalized, None, "indexed", limit)
+    if rows:
+        return rows
+    return stored_rows_for_path(conn, normalized, limit)
+
+
+def brief_focus_excluded(path: str) -> bool:
+    return any(
+        path == prefix or path.startswith(prefix.rstrip("/") + "/")
+        for prefix in BRIEF_EXCLUDED_FOCUS_PREFIXES
+    )
+
+
+def brief_focus_kind_priority(row: sqlite3.Row) -> int:
+    kind = str(row["kind"] or "")
+    if kind in BRIEF_CURRENT_MEMORY_KINDS:
+        return 0
+    if kind in BRIEF_CURRENT_RULE_KINDS:
+        return 1
+    if kind in BRIEF_HISTORY_KINDS:
+        return 3
+    return 2
+
+
+def brief_focus_source_priority(row: sqlite3.Row) -> int:
+    kind = str(row["kind"] or "")
+    stored = str(row["index_status"] or "") == "stored"
+    if kind in DB_FIRST_KINDS:
+        return 0 if stored else 1
+    return 1 if stored else 0
+
+
+def merge_brief_focus_rows(
+    stored_rows: Sequence[sqlite3.Row],
+    live_rows: Sequence[sqlite3.Row],
+    focus_limit: int,
+    excluded_paths: set[str] | None = None,
+) -> list[sqlite3.Row]:
+    """Merge focus hits with deterministic current-memory/rule priority and a hard cap."""
+    excluded_paths = excluded_paths or set()
+    rows_by_chunk: dict[str, tuple[sqlite3.Row, int]] = {}
+    for ordinal, row in enumerate([*stored_rows, *live_rows]):
+        path = str(row["path"] or "")
+        if path in excluded_paths or brief_focus_excluded(path):
+            continue
+        chunk_id = str(row["chunk_id"])
+        current = rows_by_chunk.get(chunk_id)
+        if current is None:
+            rows_by_chunk[chunk_id] = (row, ordinal)
+            continue
+        if brief_focus_source_priority(row) < brief_focus_source_priority(current[0]):
+            rows_by_chunk[chunk_id] = (row, current[1])
+    ranked = sorted(
+        rows_by_chunk.values(),
+        key=lambda item: (
+            brief_focus_kind_priority(item[0]),
+            item[1],
+            str(item[0]["path"] or ""),
+            str(item[0]["chunk_id"] or ""),
+        ),
+    )
+    return [row for row, _ in ranked[:focus_limit]]
 
 
 def profile_name_from_path(path: str) -> str | None:
@@ -149,7 +239,11 @@ def profile_name_from_path(path: str) -> str | None:
 
 def task_run_id_from_path(path: str) -> str | None:
     parts = Path(path).parts
-    if len(parts) >= 3 and parts[:2] == (".github", "task-runs"):
+    if (
+        len(parts) == 4
+        and parts[:2] == (".github", "task-runs")
+        and parts[3] == "task-report.md"
+    ):
         return parts[2]
     return None
 
@@ -165,6 +259,45 @@ def markdown_fields(content: str) -> dict[str, str]:
             continue
         fields[line[3:key_end]] = line[key_end + 2 :].strip()
     return fields
+
+
+def canonical_task_report_fields(content: str) -> dict[str, str] | None:
+    lines = content.splitlines()
+    if lines[:4] != ["# 任务报告", "", "## 基本信息", ""]:
+        return None
+    field_re = re.compile(r"^- `([A-Za-z0-9_.-]+)`:\s*(.*?)\s*$")
+    fields: dict[str, str] = {}
+    index = 4
+    while index < len(lines) and lines[index] != "":
+        match = field_re.fullmatch(lines[index])
+        if match is None or match.group(1) in fields:
+            return None
+        fields[match.group(1)] = match.group(2)
+        index += 1
+    if index == 4:
+        return None
+    return fields
+
+
+def canonical_task_report_final_result(content: str) -> str:
+    lines = content.splitlines()
+    headings = [index for index, line in enumerate(lines) if line == "## 收尾结论"]
+    if len(headings) != 1:
+        return ""
+    index = headings[0] + 1
+    if index >= len(lines) or lines[index] != "":
+        return ""
+    index += 1
+    field_re = re.compile(r"^- `([A-Za-z0-9_.-]+)`:\s*(.*?)\s*$")
+    fields: dict[str, str] = {}
+    while index < len(lines) and not lines[index].startswith("## "):
+        if lines[index]:
+            match = field_re.fullmatch(lines[index])
+            if match is None or match.group(1) in fields:
+                return ""
+            fields[match.group(1)] = match.group(2)
+        index += 1
+    return fields.get("final_result", "")
 
 
 def is_db_backed_payload(path: str, content: str) -> bool:
@@ -481,6 +614,81 @@ def task_run_profile_resolve_summary(conn: sqlite3.Connection, run_id: str) -> d
     return summary
 
 
+def task_run_publication_valid(
+    conn: sqlite3.Connection,
+    run_id: str,
+    report_fields: dict[str, str],
+    report_content: str,
+) -> bool:
+    publication_path = f".github/task-runs/{run_id}/completion-publication.md"
+    row = conn.execute(
+        "SELECT content FROM db_documents WHERE path = ?",
+        (publication_path,),
+    ).fetchone()
+    if row is None:
+        return False
+    lines = str(row["content"] or "").splitlines()
+    if lines[:4] != ["# Task Run Publication", "", "## 基本信息", ""]:
+        return False
+    publication_field_re = re.compile(r"^- `([A-Za-z0-9_.-]+)`:\s*(.*?)\s*$")
+    fields: dict[str, str] = {}
+    for line in lines[4:]:
+        match = publication_field_re.fullmatch(line)
+        if match is None or match.group(1) in fields:
+            return False
+        fields[match.group(1)] = match.group(2)
+    artifact_paths = {
+        "task_report_md_sha256": f".github/task-runs/{run_id}/task-report.md",
+        "context_brief_md_sha256": f".github/task-runs/{run_id}/context-brief.md",
+        "profile_resolve_md_sha256": f".github/task-runs/{run_id}/profile-resolve.md",
+        "evidence_index_md_sha256": f".github/task-runs/{run_id}/evidence-index.md",
+        "dispatch_log_md_sha256": f".github/task-runs/{run_id}/dispatch-log.md",
+    }
+    marker_only_hashes = {"run_manifest_json_sha256", "nodes_tsv_sha256"}
+    expected_keys = {
+        "task_id",
+        "trace_id",
+        "task_slug",
+        "profile",
+        "status",
+        "publication_contract",
+        "marker_sha256",
+        *artifact_paths,
+        *marker_only_hashes,
+    }
+    if set(fields) != expected_keys:
+        return False
+    if any(
+        fields.get(key) != value
+        for key, value in {
+            "task_id": run_id,
+            "trace_id": f"e2e:{run_id}",
+            "task_slug": report_fields.get("task_slug", ""),
+            "profile": report_fields.get("profile", ""),
+            "status": "completed",
+            "publication_contract": "db-marker-v1",
+        }.items()
+    ):
+        return False
+    digest_re = re.compile(r"^[0-9a-f]{64}$")
+    if not digest_re.fullmatch(fields.get("marker_sha256", "")):
+        return False
+    for key in marker_only_hashes:
+        if not digest_re.fullmatch(fields.get(key, "")):
+            return False
+    for key, path in artifact_paths.items():
+        artifact_row = conn.execute(
+            "SELECT content FROM db_documents WHERE path = ?",
+            (path,),
+        ).fetchone()
+        if artifact_row is None:
+            return False
+        content = report_content if key == "task_report_md_sha256" else str(artifact_row["content"] or "")
+        if fields.get(key) != hashlib.sha256(content.encode("utf-8")).hexdigest():
+            return False
+    return True
+
+
 def task_runs_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
     terms = request_terms(request)
     profile_filter = str(request.get("profile", "")).strip()
@@ -502,9 +710,24 @@ def task_runs_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict
         run_id = task_run_id_from_path(row["path"])
         if not run_id:
             continue
-        fields = markdown_fields(row["content"] or "")
+        fields = canonical_task_report_fields(row["content"] or "")
+        if fields is None:
+            continue
         profile = fields.get("profile", "")
         status = fields.get("status", "")
+        publication_contract = fields.get("publication_contract", "")
+        publication_valid = status != "completed"
+        if status == "completed":
+            if publication_contract != "db-marker-v1":
+                continue
+            publication_valid = task_run_publication_valid(
+                conn,
+                run_id,
+                fields,
+                row["content"] or "",
+            )
+            if not publication_valid:
+                continue
         if profile_filter and profile != profile_filter:
             continue
         if status_filter and status != status_filter:
@@ -530,9 +753,11 @@ def task_runs_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict
             "status": status,
             "started_at": fields.get("started_at", ""),
             "updated_at": fields.get("updated_at", row["stored_at"] or ""),
-            "final_result": fields.get("final_result", ""),
+            "final_result": canonical_task_report_final_result(row["content"] or ""),
             "matched_terms": matched_terms,
             "report_path": row["path"],
+            "publication_contract": publication_contract,
+            "publication_valid": publication_valid,
         }
         if include_artifacts:
             item.update(task_run_artifacts(conn, run_id))
@@ -560,9 +785,14 @@ def task_runs_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict
 def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, Any]) -> dict[str, Any]:
     terms = request_terms(request)
     profile = str(request.get("profile", "")).strip()
-    max_tokens = request_int(request, "max_tokens", 2400, 200)
+    max_tokens = request_int(request, "max_tokens", 2400, 0)
     core_limit = request_int(request, "core_limit", 1)
     focus_limit = request_int(request, "focus_limit", 8)
+    requested_focus_scope = str(request.get("focus_scope", "all")).strip() or "all"
+    focus_scope = requested_focus_scope if requested_focus_scope in {"all", "non-history"} else "all"
+    focus_excluded_kinds = (
+        tuple(sorted(BRIEF_HISTORY_KINDS)) if focus_scope == "non-history" else ()
+    )
     profile_limit = request_int(request, "profile_limit", 5)
     extra_paths = request.get("paths", [])
     if isinstance(extra_paths, str):
@@ -570,34 +800,62 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
     elif not isinstance(extra_paths, Sequence):
         extra_paths = []
 
+    profile_paths = brief_profile_paths(profile)
+    requested_profile_path = profile_paths[0] if profile_paths else ""
+    required_paths = [BRIEF_CANONICAL_PATH]
+    if requested_profile_path:
+        required_paths.append(requested_profile_path)
+
     selected_paths: list[str] = []
-    for path in [*BRIEF_CORE_PATHS, *brief_profile_paths(profile), *[str(path) for path in extra_paths]]:
+    path_priority = [
+        *required_paths,
+        BRIEF_ROOT_SHIM_PATH,
+        *BRIEF_CORE_PATHS,
+        *profile_paths,
+        *[str(path) for path in extra_paths],
+    ]
+    for path in path_priority:
         normalized = normalize_index_path(path)
         if normalized not in selected_paths:
             selected_paths.append(normalized)
 
+    path_rows: dict[str, list[sqlite3.Row]] = {
+        path: brief_rows_for_path(conn, path, core_limit) for path in selected_paths
+    }
+    missing_paths = [path for path in selected_paths if not path_rows[path]]
     rows_by_chunk: dict[str, sqlite3.Row] = {}
-    missing_paths: list[str] = []
-    for path in selected_paths:
-        rows = stored_rows_for_path(conn, path, core_limit)
+    required_missing_paths = [path for path in required_paths if not path_rows.get(path)]
+    required_omitted_paths: list[str] = []
+    omitted_by_budget: list[str] = []
+    for path in required_paths:
+        rows = path_rows.get(path) or []
         if not rows:
-            _, rows = path_chunk_rows(conn, path, None, "indexed", core_limit)
-        if rows:
-            add_brief_rows(rows_by_chunk, rows, max_tokens)
-        else:
-            missing_paths.append(path)
+            continue
+        required_row = rows[0]
+        add_brief_rows(rows_by_chunk, [required_row], max_tokens)
+        if required_row["chunk_id"] not in rows_by_chunk:
+            required_omitted_paths.append(path)
+            omitted_by_budget.append(str(required_row["chunk_id"]))
 
+    focus_rows: list[sqlite3.Row] = []
     if terms:
         meta = fetch_meta(conn)
-        focus_rows: list[sqlite3.Row] = []
+        focus_fetch_limit = max(128, focus_limit * 16)
+        stored_focus_rows: list[sqlite3.Row] = []
         try:
             if meta.get("fts5") == "1":
-                _, focus_rows = query_stored_rows_fts(conn, terms, None, None, max(focus_limit, focus_limit * 4))
+                _, stored_focus_rows = query_stored_rows_fts(
+                    conn, terms, None, None, focus_fetch_limit, focus_excluded_kinds
+                )
             else:
-                _, focus_rows = query_stored_rows_like(conn, terms, None, None, max(focus_limit, focus_limit * 4))
+                _, stored_focus_rows = query_stored_rows_like(
+                    conn, terms, None, None, focus_fetch_limit, focus_excluded_kinds
+                )
         except sqlite3.Error:
-            _, focus_rows = query_stored_rows_like(conn, terms, None, None, max(focus_limit, focus_limit * 4))
-        add_brief_rows(rows_by_chunk, focus_rows, max_tokens)
+            _, stored_focus_rows = query_stored_rows_like(
+                conn, terms, None, None, focus_fetch_limit, focus_excluded_kinds
+            )
+        live_focus_rows: list[sqlite3.Row] = []
         try:
             if meta.get("fts5") == "1":
                 _, live_focus_rows = query_chunk_rows_fts(
@@ -606,7 +864,8 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
                     None,
                     None,
                     "indexed",
-                    max(focus_limit, focus_limit * 4),
+                    focus_fetch_limit,
+                    focus_excluded_kinds,
                 )
             else:
                 _, live_focus_rows = query_chunk_rows_like(
@@ -615,7 +874,8 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
                     None,
                     None,
                     "indexed",
-                    max(focus_limit, focus_limit * 4),
+                    focus_fetch_limit,
+                    focus_excluded_kinds,
                 )
         except sqlite3.Error:
             _, live_focus_rows = query_chunk_rows_like(
@@ -624,15 +884,64 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
                 None,
                 None,
                 "indexed",
-                max(focus_limit, focus_limit * 4),
+                focus_fetch_limit,
+                focus_excluded_kinds,
             )
-        add_brief_rows(rows_by_chunk, live_focus_rows, max_tokens)
+        focus_rows = merge_brief_focus_rows(
+            stored_focus_rows,
+            live_focus_rows,
+            focus_limit,
+            set(selected_paths),
+        )
+
+    primary_focus = focus_rows[0] if focus_rows else None
+    if primary_focus is not None:
+        add_brief_rows(rows_by_chunk, [primary_focus], max_tokens)
+
+    root_rows = path_rows.get(BRIEF_ROOT_SHIM_PATH) or []
+    add_brief_rows(rows_by_chunk, root_rows, max_tokens)
+
+    # Required chunks and the primary focus are reserved first. Everything below
+    # is best-effort, but the allocator keeps scanning so a later small chunk can fit.
+    required_path_set = set(required_paths)
+    for path in selected_paths:
+        if path == BRIEF_ROOT_SHIM_PATH:
+            continue
+        rows = path_rows[path]
+        if path in required_path_set:
+            rows = rows[1:]
+        add_brief_rows(rows_by_chunk, rows, max_tokens)
+    if len(focus_rows) > 1:
+        add_brief_rows(rows_by_chunk, focus_rows[1:], max_tokens)
+
+    primary_focus_selected = (
+        primary_focus is None or primary_focus["chunk_id"] in rows_by_chunk
+    )
+    if primary_focus is not None and not primary_focus_selected:
+        omitted_by_budget.append(str(primary_focus["chunk_id"]))
+    errors: list[str] = []
+    if requested_focus_scope not in {"all", "non-history"}:
+        errors.append("invalid focus_scope: " + requested_focus_scope)
+    if required_missing_paths:
+        errors.append("required paths missing: " + ", ".join(required_missing_paths))
+    if required_omitted_paths:
+        errors.append("required paths exceed token budget: " + ", ".join(required_omitted_paths))
+    if primary_focus is not None and not primary_focus_selected:
+        errors.append(
+            "primary focus exceeds remaining token budget: " + str(primary_focus["chunk_id"])
+        )
+    if terms and primary_focus is None:
+        errors.append(
+            "no independent primary focus match outside required/core/profile/optional paths: "
+            + " ".join(terms)
+        )
+    ok = not errors
 
     chunks = [chunk_to_payload(row) for row in rows_by_chunk.values()]
     token_estimate = sum(int(chunk["token_estimate"] or 0) for chunk in chunks)
     suggestions = profile_suggestions(conn, terms, profile, profile_limit)
     commands = [
-        "python3 scripts/github_index_db.py brief <terms> --profile <profile>",
+        "python3 scripts/github_index_db.py brief <terms> --profile <profile> --focus-scope non-history",
         "python3 scripts/github_index_db.py load --source auto --path <path>",
         "python3 scripts/github_index_db.py audit-db-first",
         "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence",
@@ -642,9 +951,10 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
         commands.append(f"scripts/agent-e2e.sh --profile {profile}")
     elif suggestions:
         commands.extend(suggestion["command"] for suggestion in suggestions[:3])
-    return {
+    payload: dict[str, Any] = {
         "op": "brief",
-        "ok": True,
+        "ok": ok,
+        "recall_status": "complete" if ok else "failed",
         "db": str(db_path),
         "profile": profile,
         "terms": terms,
@@ -653,10 +963,24 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
         "max_tokens": max_tokens,
         "selected_paths": selected_paths,
         "missing_paths": missing_paths,
+        "required_paths": required_paths,
+        "required_missing_paths": required_missing_paths,
+        "required_omitted_paths": required_omitted_paths,
+        "omitted_by_budget": omitted_by_budget,
+        "focus_limit": focus_limit,
+        "focus_scope": requested_focus_scope,
+        "focus_match_count": len(focus_rows),
+        "focus_selected_count": sum(
+            1 for row in focus_rows if row["chunk_id"] in rows_by_chunk
+        ),
+        "primary_focus": chunk_to_payload(primary_focus) if primary_focus is not None else None,
         "profile_suggestions": suggestions,
         "commands": commands,
         "chunks": chunks,
     }
+    if errors:
+        payload["error"] = "; ".join(errors)
+    return payload
 
 
 def live_summary_rows(
@@ -801,7 +1125,7 @@ def api_load(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any
     kind = str(request["kind"]) if request.get("kind") else None
     status = str(request["status"]) if request.get("status") else None
     limit = request_int(request, "limit", 8)
-    max_tokens = request_int(request, "max_tokens", 1800)
+    max_tokens = request_int(request, "max_tokens", 1800, 0)
     fetch_limit = max(limit, limit * 4)
     used_mode = "path"
     rows: list[sqlite3.Row] = []
@@ -835,16 +1159,24 @@ def api_load(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any
             used_mode, rows = query_chunk_rows_like(conn, terms, path_prefix, kind, status, fetch_limit)
     selected = select_chunks_with_budget(rows[: limit * 4], max_tokens)[:limit]
     chunks = [chunk_to_payload(row) for row in selected]
-    return {
+    ok = not rows or bool(selected)
+    payload: dict[str, Any] = {
         "op": "load",
-        "ok": True,
+        "ok": ok,
         "source": "stored" if used_mode.startswith("stored") else "live",
         "mode": used_mode,
         "terms": terms,
         "path": path_prefix,
         "chunks": chunks,
         "token_estimate": sum(chunk["token_estimate"] for chunk in chunks),
+        "max_tokens": max_tokens,
     }
+    if not ok:
+        payload["error"] = (
+            f"matching chunks exceed max_tokens={max_tokens}; "
+            "no chunk can be loaded without exceeding the budget"
+        )
+    return payload
 
 
 def api_search(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
@@ -1105,7 +1437,18 @@ def api_schema_payload() -> dict[str, Any]:
             "summary": {"fields": ["path?", "source?", "kind?", "limit?", "summary_chars?"]},
             "load": {"fields": ["terms?", "path?", "source?", "kind?", "limit?", "max_tokens?"]},
             "show": {"fields": ["path", "source?", "include_content?"]},
-            "brief": {"fields": ["terms?", "profile?", "paths?", "max_tokens?", "profile_limit?"]},
+            "brief": {
+                "fields": [
+                    "terms?",
+                    "profile?",
+                    "paths?",
+                    "max_tokens?",
+                    "core_limit?",
+                    "focus_limit?",
+                    "focus_scope?",
+                    "profile_limit?",
+                ]
+            },
             "profiles": {"fields": ["terms?", "limit?", "include_nodes?"]},
             "resolve-profile": {"fields": ["profile", "include_nodes?", "max_depth?"]},
             "runs": {"fields": ["terms?", "profile?", "status?", "limit?", "include_artifacts?"]},
@@ -1255,13 +1598,17 @@ def render_brief_markdown(payload: dict[str, Any]) -> str:
     lines = [
         "# Agent Brief",
         "",
+        f"- `ok`: {str(bool(payload.get('ok'))).lower()}",
+        f"- `recall_status`: {payload.get('recall_status', 'failed')}",
         f"- `source`: {payload.get('source', '')}",
         f"- `profile`: {payload.get('profile') or '<none>'}",
         f"- `terms`: {' '.join(payload.get('terms') or []) or '<none>'}",
+        f"- `focus_scope`: {payload.get('focus_scope', 'all')}",
         f"- `token_estimate`: {payload.get('token_estimate', 0)} / {payload.get('max_tokens', 0)}",
-        "",
-        "## Profile Suggestions",
     ]
+    if payload.get("error"):
+        lines.append(f"- `error`: {payload['error']}")
+    lines.extend(["", "## Profile Suggestions"])
     suggestions = payload.get("profile_suggestions") or []
     if suggestions:
         for suggestion in suggestions:
@@ -1552,6 +1899,7 @@ def agent_brief(args: argparse.Namespace) -> int:
         "max_tokens": args.max_tokens,
         "core_limit": args.core_limit,
         "focus_limit": args.focus_limit,
+        "focus_scope": args.focus_scope,
         "profile_limit": args.profile_limit,
     }
     conn = open_db(db_path, readonly=True)

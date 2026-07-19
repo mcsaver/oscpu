@@ -26,6 +26,7 @@ module tb_ooo_fetch_packet_decode;
   wire dec1_branch;
   wire [12:0] dec1_bimm;
   wire [`XLEN-1:0] packet_next_pc;
+  wire [`XLEN-1:0] packet_raw_next_pc;
   wire [`XLEN-1:0] fault_tval;
 
   OooFetchPacketDecode dut (
@@ -50,6 +51,7 @@ module tb_ooo_fetch_packet_decode;
     .dec1_branch_o(dec1_branch),
     .dec1_bimm_o(dec1_bimm),
     .packet_next_pc_o(packet_next_pc),
+    .packet_raw_next_pc_o(packet_raw_next_pc),
     .fault_tval_o(fault_tval)
   );
 
@@ -110,6 +112,7 @@ module tb_ooo_fetch_packet_decode;
     tb_check32("u32 dec1 inst", dec1_inst, 32'h0000_8067);
     tb_check1("u32 dec1 jalr stop", dec1_control_stop, 1'b1);
     check_xlen("u32 packet next", packet_next_pc, 64'h0000_0000_0000_1008);
+    check_xlen("u32 raw packet next", packet_raw_next_pc, 64'h0000_0000_0000_1008);
 
     drive(64'h0000_0000_0000_2000, 32'h0001_0001, 2'b00,
           32'hdead_beef, 2'b01);
@@ -120,14 +123,21 @@ module tb_ooo_fetch_packet_decode;
     tb_check32("c+c dec1 c.nop", dec1_inst, 32'h0000_0013);
     tb_check32("c+c dec1 resp from word0", {30'b0, dec1_resp}, 32'h0000_0000);
     check_xlen("c+c packet next", packet_next_pc, 64'h0000_0000_0000_2004);
+    check_xlen("c+c raw packet next", packet_raw_next_pc, 64'h0000_0000_0000_2004);
 
     drive(64'h0000_0000_0000_3000, 32'h0093_0001, 2'b00,
           32'hbabe_0010, 2'b10);
     check_xlen("c+u32 dec0 next", dec0_next_pc, 64'h0000_0000_0000_3002);
     check_xlen("c+u32 dec1 next", dec1_next_pc, 64'h0000_0000_0000_3006);
+    check_xlen("c+u32 raw packet next", packet_raw_next_pc, 64'h0000_0000_0000_3006);
     tb_check32("c+u32 faulted inst sanitized", dec1_inst, 32'h0000_0013);
     tb_check32("c+u32 dec1 resp from word1", {30'b0, dec1_resp}, 32'h0000_0002);
     tb_check1("c+u32 resp creates stop", dec1_control_stop, 1'b1);
+    drive(64'h0000_0000_0000_3500, 32'h0000_0013, 2'b00,
+          32'h0000_0001, 2'b00);
+    check_xlen("u32+c semantic packet next", packet_next_pc,
+               64'h0000_0000_0000_3506);
+    check_xlen("u32+c raw packet next", packet_raw_next_pc, 64'h0000_0000_0000_3506);
 
     drive(64'h0000_0000_0000_4000, 32'h0000_0063, 2'b00,
           32'h0010_0093, 2'b01);
@@ -161,12 +171,16 @@ module tb_ooo_fetch_packet_decode;
     tb_check1("rvc slot1 c.nop not branch", dec1_branch, 1'b0);
     check_bimm("rvc slot1 bimm zero", dec1_bimm, 13'h0000);
 
-    drive(64'h0000_0000_0000_5000, 32'h0001_0001, 2'b11,
+    drive(64'h0000_0000_0000_5000, 32'h0003_0003, 2'b11,
           32'h0000_0013, 2'b00);
     tb_check1("word0 fault stops dec0", dec0_control_stop, 1'b1);
     tb_check32("c+c fault propagates dec1 resp", {30'b0, dec1_resp},
                32'h0000_0003);
     tb_check1("word0 fault stops dec1 when contained", dec1_control_stop, 1'b1);
+    check_xlen("fault semantic packet next uses safe prefixes",
+               packet_next_pc, 64'h0000_0000_0000_5004);
+    check_xlen("fault raw packet next remains untrusted payload",
+               packet_raw_next_pc, 64'h0000_0000_0000_5008);
 
     // IFU-FETCH-G2: split=4 时 slot1 的 32b prefix 在成功 segment0，upper half 在
     // fault segment1。特意把 fault tail 拼成 semihost exit sentinel；response 必须胜出，

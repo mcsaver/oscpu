@@ -32,6 +32,7 @@ module OooDataWordCacheChecker (
 
   input wire store_commit_i,
   input wire store_rmw_en_i,
+  input wire store_cacheable_i,
   input wire [`XLEN-1:0] store_addr_i,
   input wire [`XLEN-1:0] store_wdata_i,
   input wire [`STRB_W-1:0] store_wstrb_i,
@@ -84,7 +85,8 @@ module OooDataWordCacheChecker (
 
   // store RMW pend 模型: rmw_busy 必须恰为"cacheable 真 store commit"的次拍。
   wire store_rmw_issue_w =
-      store_commit_i && store_rmw_en_i && cacheable_addr(store_addr_i);
+      store_commit_i && store_rmw_en_i && store_cacheable_i &&
+      cacheable_addr(store_addr_i);
   reg rmw_pend_model_q;
   always @(posedge clk) begin
     if (rst)

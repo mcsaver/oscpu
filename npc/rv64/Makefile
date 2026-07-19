@@ -233,6 +233,19 @@ check-rtl-style:
 check-contract:
 	@$(abspath eval/check-contract.sh)
 
+# S2-Q2 v8a behavior-neutral shadow foundation: frozen structural checker,
+# focused release/assert simulations, non-vacuous negative, and candidate vs
+# pre-implementation old-ABI cycle-trace equivalence.
+.PHONY: check-q2-v8a-shadow
+check-q2-v8a-shadow:
+	@bash $(abspath ../../.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/run-s2-q2-shadow-foundation-v8a-green.sh)
+
+# S2-Q1A source-catalog-only abort priority: shared registered abort consumer,
+# immediate handshake/grant mask, atomic held clear, and no epoch advance.
+.PHONY: check-q1a-abort-priority
+check-q1a-abort-priority:
+	@bash $(abspath ../../.github/task-runs/2026-07-19-rv64-q1a-abort-priority/run-q1a-abort-priority.sh)
+
 all: default
 
 core-regress:

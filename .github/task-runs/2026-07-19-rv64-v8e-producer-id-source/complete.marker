@@ -1,0 +1,23 @@
+504dfe6a72dbc93b9272153826ecb920af87a206418aeb92d154e8df0fcc7553  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/contract.md
+3c5fcd0098a5f230328f2d6f60f9190426d560aa239b59e7077bc5227bdb93aa  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/dispatch-log.md
+aa00b5d3a3f732c79b89904d4f688007282dcdba76cd503e3badcb9ae4caf79e  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/holder-census-delta.md
+02f215dd63078c948332f057e92aeb8bf603fc5413b7e2cf32c2f3cfb1e20c6d  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/task-report.md
+1e28834896e30a8a8141f99ec6fa0892806948ab2919966067ba63500ee45d69  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/mutate-rob-producer-id.py
+5b5e65c8c8f1b98778727be4667fae53a0c2b01d42491543c3a1529220aa60be  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/run-producer-id-source.sh
+d5b36d83094b87ab8b3c21d0b84997f0ef254868a242b5c3d4b90632bc884a27  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/source/complete.marker
+c45ec483d5b7dbdf4f0bac31dc3fe612ee6c79f5c4bef3985f30a06fa2aad012  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/source/sources.post.sha256
+26771d951046842ec33604ffbaac9c371df1049d09aa33a6e50966caeda4b52d  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/source/manifest-audit.log
+06cd2ebbf88f56db2ea3b1f0d597f7c6641b588e1bf1f1134b3d56b7dd57e5c6  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/focused/summary.txt
+5c676ed3b7dfa2088f4ab117ec2ca52cee7a432f4bc19ea03a889b04cd26d1b6  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/module-full/summary.txt
+17538296cc5586b0985b48152f4764ea83c3f7a88fcfb1fdcbe6a20f8f625c7d  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/style.log
+b51056777ef8d745970f2633876e9b5162c2fffe314a74612390fa48a964e740  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/contract.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/diff-check.log
+e7e85f040c5c980654986aaa10fb665df3d8c9d8c3f9fbb64abe403228e81f47  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/lint-status.txt
+4378492badbe197fb1c9963b7a3e636f390dc30aa320ba339b01eea93cbb9fc2  .github/task-runs/2026-07-19-rv64-v8e-producer-id-source/evidence/strict-guard.log
+07b748707df8df3fe91d8e6e8aa40fa58b0754872ba35c41b0502e28f2fb004f  .github/task-runs/2026-07-19-agent-rtl-3/complete.marker
+b29b453cf06f8a7540f33bef20753d9c91f709207fbe670e0d406a2d0ea50144  .github/task-runs/2026-07-19-agent-rtl-3/completion-publication.md
+45773a926ef1bf05003d8be27df90ccde36667be7511c00d5feda2b7ec9a2baf  .github/task-runs/2026-07-19-rv64-producer-identity-generation-3/complete.marker
+9d77e6a2896d14c2aff8a4d6ed43ad2f147dc6b8ecaac6defa8ebfe184095a3f  .github/task-runs/2026-07-19-rv64-producer-identity-generation-3/completion-publication.md
+eabdd62811eb062b79e503bf9ee81a40534acd1c7df5726ab962db69b506c562  .github/task-runs/2026-07-19-slug-recall-3/complete.marker
+0dcb374f7658b7f781628ce5f93697cfd8be5145ee3689f31a4edbedac499de1  .github/task-runs/2026-07-19-slug-recall-3/completion-publication.md
+# [V8E-PRODUCER-ID-SOURCE][PASS] scoped_local_green=1 global_no_live_reuse=RED ppa=UNMEASURED

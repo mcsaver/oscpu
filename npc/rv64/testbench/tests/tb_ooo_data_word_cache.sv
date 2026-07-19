@@ -9,7 +9,8 @@
 // commit 拍占宏口读, 次拍(rmw_busy=1)tag match 则线内字节合并写，并以
 // 全 1 tag mask 幂等写回锁存 tag。
 // commit_store 任务同步审核 rmw_busy 恰为发射次拍; 一期"无条件失效"预期全部
-// 重写为 write-update 预期。A/D 维护路(store_rmw_en=0)保持无条件失效。
+// 重写为 write-update 预期。A/D 维护路(store_rmw_en=0)与 PBMT NC/IO
+// 路(store_cacheable=0)保持无条件失效，后者证明不 RMW 但会清理热别名。
 // INDEX_W 固定 12(Sram4096x113 宏定死), TB 不再用小参数覆盖。
 module tb_ooo_data_word_cache;
   `include "tb_common.svh"
@@ -37,6 +38,7 @@ module tb_ooo_data_word_cache;
 
   reg store_commit;
   reg store_rmw_en;
+  reg store_cacheable;
   reg [`XLEN-1:0] store_addr;
   reg [`XLEN-1:0] store_wdata;
   reg [`STRB_W-1:0] store_wstrb;
@@ -68,6 +70,7 @@ module tb_ooo_data_word_cache;
     .fill_data_i(fill_data),
     .store_commit_i(store_commit),
     .store_rmw_en_i(store_rmw_en),
+    .store_cacheable_i(store_cacheable),
     .store_addr_i(store_addr),
     .store_wdata_i(store_wdata),
     .store_wstrb_i(store_wstrb),
@@ -91,6 +94,7 @@ module tb_ooo_data_word_cache;
     .fill_addr_i(fill_addr),
     .store_commit_i(store_commit),
     .store_rmw_en_i(store_rmw_en),
+    .store_cacheable_i(store_cacheable),
     .store_addr_i(store_addr),
     .store_wdata_i(store_wdata),
     .store_wstrb_i(store_wstrb),
@@ -129,6 +133,7 @@ module tb_ooo_data_word_cache;
       fill_data = {`XLEN{1'b0}};
       store_commit = 1'b0;
       store_rmw_en = 1'b0;
+      store_cacheable = 1'b1;
       store_addr = {`XLEN{1'b0}};
       store_wdata = {`XLEN{1'b0}};
       store_wstrb = {`STRB_W{1'b0}};
@@ -157,14 +162,17 @@ module tb_ooo_data_word_cache;
     input [`STRB_W-1:0] strb;
     input [`XLEN-1:0] data;
     input rmw_en;
+    input transaction_cacheable;
     reg busy_exp_r;
     begin
       busy_exp_r =
-          rmw_en && ((addr & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
+          rmw_en && transaction_cacheable &&
+          ((addr & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
       store_addr = addr;
       store_wstrb = strb;
       store_wdata = data;
       store_rmw_en = rmw_en;
+      store_cacheable = transaction_cacheable;
       store_commit = 1'b1;
       tick();
       store_commit = 1'b0;
@@ -352,7 +360,7 @@ module tb_ooo_data_word_cache;
     fill_addr = ALIAS0;
     fill_data = 64'hface_cafe_dead_beef;
     fill_valid = 1'b0;
-    commit_store(WORD0, 8'b0000_1111, 64'haabb_ccdd_1122_3344, 1'b1);
+    commit_store(WORD0, 8'b0000_1111, 64'haabb_ccdd_1122_3344, 1'b1, 1'b1);
     issue_lookup(WORD0);
     tb_check1("rmw store keeps line valid", lookup_hit, 1'b1);
     tb_check64("rmw store merges low bytes", lookup_line,
@@ -361,23 +369,25 @@ module tb_ooo_data_word_cache;
     tb_check1("rmw tag ignores inactive live fill payload", lookup_hit, 1'b0);
 
     // 偏移合并: off=4 的 2B store 只覆盖 byte4..5(窗口数据低位起)
-    commit_store(WORD0 + 64'd4, 8'b0000_0011, 64'h0000_0000_0000_8899, 1'b1);
+    commit_store(WORD0 + 64'd4, 8'b0000_0011,
+                 64'h0000_0000_0000_8899, 1'b1, 1'b1);
     issue_lookup(WORD0);
     tb_check1("offset rmw store keeps line valid", lookup_hit, 1'b1);
     tb_check64("offset rmw store merges bytes 4..5", lookup_line,
                64'h0011_8899_1122_3344);
 
     // write-no-allocate: miss 行(未 fill)store 不建行也不误动他行
-    commit_store(WORD1, 8'b1111_1111, 64'hdead_dead_dead_dead, 1'b1);
+    commit_store(WORD1, 8'b1111_1111, 64'hdead_dead_dead_dead, 1'b1, 1'b1);
     issue_lookup(WORD1);
     tb_check1("full store miss no allocate (line model)", lookup_hit, 1'b0);
 
-    commit_store(WORD2, 8'b0000_1111, 64'hdead_dead_dead_dead, 1'b1);
+    commit_store(WORD2, 8'b0000_1111, 64'hdead_dead_dead_dead, 1'b1, 1'b1);
     issue_lookup(WORD2);
     tb_check1("partial store miss no allocate", lookup_hit, 1'b0);
 
     // write-update 主收益: 同 index 异 tag 的 store miss 不再误清原行
-    commit_store(ALIAS0, 8'b1111_1111, 64'h5a5a_5a5a_5a5a_5a5a, 1'b1);
+    commit_store(ALIAS0, 8'b1111_1111,
+                 64'h5a5a_5a5a_5a5a_5a5a, 1'b1, 1'b1);
     issue_lookup(WORD0);
     tb_check1("alias-index store miss keeps victim line", lookup_hit, 1'b1);
     tb_check64("alias-index store miss keeps victim data", lookup_line,
@@ -404,7 +414,8 @@ module tb_ooo_data_word_cache;
     tb_check1("cross-store setup word0 hit", lookup_hit, 1'b1);
     issue_lookup(WORD1);
     tb_check1("cross-store setup word1 hit", lookup_hit, 1'b1);
-    commit_store(WORD0 + 64'd6, 8'b0000_1111, 64'h0000_0000_aabb_ccdd, 1'b1);
+    commit_store(WORD0 + 64'd6, 8'b0000_1111,
+                 64'h0000_0000_aabb_ccdd, 1'b1, 1'b1);
     issue_lookup(WORD0);
     tb_check1("cross-line store updates first line in-line bytes",
               lookup_hit, 1'b1);
@@ -417,15 +428,43 @@ module tb_ooo_data_word_cache;
     fill_word(WORD2, 64'h9999_8888_7777_6666);
     issue_lookup(WORD2);
     tb_check1("ad-maintenance setup hit", lookup_hit, 1'b1);
-    commit_store(WORD2, 8'b1111_1111, 64'h0badc0de_0badc0de, 1'b0);
+    commit_store(WORD2, 8'b1111_1111,
+                 64'h0badc0de_0badc0de, 1'b0, 1'b1);
     issue_lookup(WORD2);
     tb_check1("ad-maintenance store invalidates unconditionally",
               lookup_hit, 1'b0);
 
+    // A PMEM PA may be accessed through a PBMT NC/IO mapping after the same PA
+    // was cached through a default-PBMT mapping.  The external store must not
+    // RMW the cached line, but B completion must invalidate that stale alias.
+    fill_word(WORD2, 64'hfeed_face_cafe_beef);
+    issue_lookup(WORD2);
+    tb_check1("pbmt-nc setup creates hot cacheable alias", lookup_hit, 1'b1);
+    commit_store(WORD2, 8'b1111_1111,
+                 64'h0123_4567_89ab_cdef, 1'b1, 1'b0);
+    issue_lookup(WORD2);
+    tb_check1("pbmt-nc store invalidates hot alias without rmw",
+              lookup_hit, 1'b0);
+
+    // The same conservative rule spans both lines for a cross-line NC/IO
+    // store; neither line may remain as a stale cacheable alias.
+    fill_word(WORD0, 64'h1111_2222_3333_4444);
+    fill_word(WORD1, 64'h5555_6666_7777_8888);
+    commit_store(WORD0 + 64'd6, 8'b0000_1111,
+                 64'h0000_0000_aabb_ccdd, 1'b1, 1'b0);
+    issue_lookup(WORD0);
+    tb_check1("pbmt-nc cross-store invalidates first hot alias",
+              lookup_hit, 1'b0);
+    issue_lookup(WORD1);
+    tb_check1("pbmt-nc cross-store invalidates second hot alias",
+              lookup_hit, 1'b0);
+    store_cacheable = 1'b1;
+
     dma_invalidate_conflicts();
 
     // MMIO: 组合视图不 cacheable, store commit 无 RMW(busy 恒 0), 判决必 miss
-    commit_store(MMIO_WORD, 8'b1111_1111, 64'h1234_5678_9abc_def0, 1'b1);
+    commit_store(MMIO_WORD, 8'b1111_1111,
+                 64'h1234_5678_9abc_def0, 1'b1, 1'b0);
     req_lookup_addr = MMIO_WORD;
     walk_lookup_addr = MMIO_WORD;
     #1;

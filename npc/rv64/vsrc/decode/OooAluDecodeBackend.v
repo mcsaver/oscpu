@@ -164,7 +164,14 @@ module OooAluDecodeBackend #(
   output dispatch_branch_resolve_misaligned_o,
 
   // 【P4 shadow】ROB 队头指针透传（IntBackend→本层→AluCoreSlice，纯观测端口）
-  output [ROB_INDEX_W-1:0] rob_head_idx_o
+  output [ROB_INDEX_W-1:0] rob_head_idx_o,
+
+  // S2-Q2 v8a：无状态、同名 shadow transport。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
   wire [`CTRL_BUS_W-1:0] decode0_ctrl_w;
@@ -442,6 +449,11 @@ module OooAluDecodeBackend #(
     .ISSUE_COUNT_W(ISSUE_COUNT_W)
   ) u_int_backend (
     .clk(clk),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
     .rst(rst),
     .flush_i(flush_i),
     .checkpoint_capture_i(checkpoint_capture_i),

@@ -84,6 +84,9 @@ module tb_ooo_core_top_glue;
   wire [`XLEN-1:0] commit1_rd_data;
   wire commit1_exception;
   wire commit1_write;
+  wire head0_retire_candidate_valid;
+  wire head0_identity_valid;
+  wire [`OOO_CONTEXT_ID_W-1:0] head0_identity;
   wire trap_valid;
   wire [`TRAP_CAUSE_W-1:0] trap_cause;
   wire [`XLEN-1:0] trap_pc;
@@ -128,6 +131,8 @@ module tb_ooo_core_top_glue;
   reg saw_fp_gpr_completion;
   reg saw_fp_gpr_completion_wake;
   reg saw_head0_csr_stop_owner;
+  reg saw_v8a_candidate;
+  reg saw_v8a_identity;
   reg saw_fetch_fault_packet_enqueue;
   reg saw_fetch_fault_predecode_fifo;
   reg saw_fetch_fault_raw_fp_response;
@@ -180,6 +185,11 @@ module tb_ooo_core_top_glue;
   OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid),
+    .head0_identity_valid_o(head0_identity_valid),
+    .head0_identity_o(head0_identity),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
@@ -809,6 +819,8 @@ module tb_ooo_core_top_glue;
       saw_fp_gpr_completion = 1'b0;
       saw_fp_gpr_completion_wake = 1'b0;
       saw_head0_csr_stop_owner = 1'b0;
+      saw_v8a_candidate = 1'b0;
+      saw_v8a_identity = 1'b0;
       saw_fetch_fault_packet_enqueue = 1'b0;
       saw_fetch_fault_predecode_fifo = 1'b0;
       saw_fetch_fault_raw_fp_response = 1'b0;
@@ -941,6 +953,8 @@ module tb_ooo_core_top_glue;
       saw_fp_gpr_completion <= 1'b0;
       saw_fp_gpr_completion_wake <= 1'b0;
       saw_head0_csr_stop_owner <= 1'b0;
+      saw_v8a_candidate <= 1'b0;
+      saw_v8a_identity <= 1'b0;
       saw_fetch_fault_packet_enqueue <= 1'b0;
       saw_fetch_fault_predecode_fifo <= 1'b0;
       saw_fetch_fault_raw_fp_response <= 1'b0;
@@ -948,6 +962,15 @@ module tb_ooo_core_top_glue;
       saw_fetch_fault_static_zero_fifo <= 1'b0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
+      if (head0_retire_candidate_valid)
+        saw_v8a_candidate <= 1'b1;
+      if (head0_identity_valid) begin
+        saw_v8a_identity <= 1'b1;
+        if ((^head0_identity) === 1'bx) begin
+          tb_errors = tb_errors + 1;
+          $display("[S2-Q2-V8A-WRAPPER][FAIL] public identity contains X while valid");
+        end
+      end
       if (fetch_req_valid && fetch_req_ready) begin
         request_total <= request_total + 1;
         if (last_fetch_fire) begin
@@ -1097,6 +1120,10 @@ module tb_ooo_core_top_glue;
   initial begin
     tb_errors = 0;
     reset_dut(MODE_DEFAULT_BODY, 32'h0000_0000);
+    tb_check1("v8a wrapper candidate low after reset",
+              head0_retire_candidate_valid, 1'b0);
+    tb_check1("v8a wrapper identity invalid after reset",
+              head0_identity_valid, 1'b0);
 
     repeat (80) begin
       `TB_TICK(clk);
@@ -1122,6 +1149,15 @@ module tb_ooo_core_top_glue;
     tb_check1("ecall flag remains low", exit_is_ecall, 1'b0);
     tb_check1("default body ebreak flag", exit_is_ebreak, 1'b1);
     tb_check32("exit code remains zero", exit_code, 32'd0);
+    tb_check1("v8a wrapper propagated a non-vacuous candidate",
+              saw_v8a_candidate, 1'b1);
+    tb_check1("v8a wrapper propagated a non-vacuous identity",
+              saw_v8a_identity, 1'b1);
+    tb_check1("v8a wrapper candidate low after ROB drain",
+              head0_retire_candidate_valid, 1'b0);
+    tb_check1("v8a wrapper identity invalid after ROB drain",
+              head0_identity_valid, 1'b0);
+    $display("[S2-Q2-V8A-WRAPPER-PASS] public observation chain toggled without X");
 
     reset_dut(MODE_BRANCH_TAKEN, 32'h0000_0000);
     repeat (80) begin

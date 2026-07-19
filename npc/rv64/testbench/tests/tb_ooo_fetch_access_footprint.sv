@@ -152,7 +152,8 @@ module tb_ooo_fetch_access_footprint;
     .dec0_bimm_o(dec0_bimm),
     .dec1_branch_o(dec1_branch),
     .dec1_bimm_o(dec1_bimm),
-    .packet_next_pc_o(packet_next_pc)
+    .packet_next_pc_o(packet_next_pc),
+    .packet_raw_next_pc_o()
   );
 
   always #5 clk = ~clk;

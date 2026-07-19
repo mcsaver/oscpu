@@ -1,0 +1,256 @@
+{
+  "schema": "npc-rv64-ppa-policy-v1",
+  "policy_id": "rv64-complete-ooo-dual-issue-proxy-200mhz-v1",
+  "claim_tier": "rtl_proxy_partial_constraints",
+  "performance_evidence": {
+    "schema": "npc-rv64-performance-evidence-v3",
+    "minimum_repetitions": 3,
+    "require_bit_exact_repetition_counters": true,
+    "benchmark_contracts": {
+      "coremark": {
+        "counter_scope": "pc_bounded_region_v1",
+        "raw_log_artifact_kinds": [
+          "coremark_raw_log_rep1",
+          "coremark_raw_log_rep2",
+          "coremark_raw_log_rep3"
+        ],
+        "region": {
+          "start_pc": "0x00000000800017a8",
+          "stop_pc": "0x00000000800017b0",
+          "start_marker_semantics": "first_committed_hit",
+          "start_hits": 1,
+          "stop_hits": 1
+        }
+      },
+      "dhrystone_10000": {
+        "counter_scope": "pc_bounded_region_v1",
+        "raw_log_artifact_kinds": [
+          "dhrystone_raw_log_rep1",
+          "dhrystone_raw_log_rep2",
+          "dhrystone_raw_log_rep3"
+        ],
+        "region": {
+          "start_pc": "0x0000000080000334",
+          "stop_pc": "0x000000008000047c",
+          "start_marker_semantics": "first_committed_hit",
+          "start_hits": 10000,
+          "stop_hits": 1
+        }
+      }
+    }
+  },
+  "required_artifact_kinds": [
+    "design_binding_manifest",
+    "source_manifest",
+    "config_manifest",
+    "simulation_binary",
+    "required_test_manifest",
+    "module_summary",
+    "official_summary",
+    "am_summary",
+    "difftest_summary",
+    "architecture_directed_suite",
+    "architecture_hard_gates_result",
+    "architecture_frontend_ii1",
+    "architecture_width_continuity",
+    "architecture_pair_matrix",
+    "architecture_no_static_lane_semantics",
+    "architecture_dual_memory_issue",
+    "architecture_true_ooo_long_latency",
+    "architecture_selective_scheduling",
+    "architecture_memory_ordering",
+    "architecture_speculation_recovery",
+    "coremark_raw_log_rep1",
+    "coremark_raw_log_rep2",
+    "coremark_raw_log_rep3",
+    "coremark_image",
+    "dhrystone_raw_log_rep1",
+    "dhrystone_raw_log_rep2",
+    "dhrystone_raw_log_rep3",
+    "dhrystone_image",
+    "synthesis_rtl_manifest",
+    "mapped_netlist",
+    "synthesis_log",
+    "sta_setup_manifest",
+    "sta_summary"
+  ],
+  "functional": {
+    "module_required": 102,
+    "official_required": 177,
+    "am_required": 59,
+    "difftest_max_mismatches": 0,
+    "coremark_iterations": 10,
+    "coremark_crc": "0xfcaf",
+    "dhrystone_runs": 10000
+  },
+  "architecture": {
+    "fixed_contract": {
+      "xlen": 64,
+      "fetch_width": 2,
+      "dispatch_width": 2,
+      "issue_width": 2,
+      "memory_issue_width": 2,
+      "agu_width": 2,
+      "memory_translation_width": 2,
+      "memory_order_check_width": 2,
+      "dcache_request_width": 2,
+      "retire_width": 2
+    },
+    "minimum_capacities": {
+      "rob_entries": 16,
+      "int_iq_entries": 8,
+      "fp_iq_entries": 8,
+      "int_prf_entries": 64,
+      "fp_prf_entries": 64,
+      "lq_entries": 4,
+      "sq_entries": 4
+    },
+    "required_directed_evidence": [
+      "frontend_ii1",
+      "width_continuity",
+      "pair_matrix",
+      "no_static_lane_semantics",
+      "dual_memory_issue",
+      "true_ooo_long_latency",
+      "selective_scheduling",
+      "memory_ordering",
+      "speculation_recovery"
+    ],
+    "frontend_packets": 64,
+    "frontend_max_initiation_interval": 1,
+    "independent_alu_min_ipc": 1.9,
+    "independent_memory_min_ipc": 1.9,
+    "minimum_younger_completed_before_old": 8,
+    "minimum_rob_peak": 9,
+    "required_pair_matrix": [
+      "alu_alu",
+      "alu_branch_both_orders",
+      "alu_jal_jalr_both_orders",
+      "alu_load_both_orders",
+      "alu_store_both_orders",
+      "load_load",
+      "load_store",
+      "store_load",
+      "store_store"
+    ],
+    "required_true_ooo": [
+      "old_load_miss_younger_complete",
+      "old_mul_younger_complete",
+      "old_div_younger_complete",
+      "in_order_retire",
+      "nonalias_load_bypass",
+      "alias_forward_wait_or_replay",
+      "selective_wrong_path_squash"
+    ]
+  },
+  "timing": {
+    "period_ns": 5.0,
+    "qualified_mhz": 200.0,
+    "minimum_worst_slack_ns_for_promotion": 0.1,
+    "required_tns_ns": 0.0,
+    "maximum_violated_paths": 0,
+    "maximum_combinational_loops": 0
+  },
+  "benchmarks": {
+    "coremark": 0.5,
+    "dhrystone_10000": 0.5
+  },
+  "pareto_epsilon": {
+    "performance_ratio": 0.001,
+    "area_ratio": 0.001,
+    "power_ratio": 0.005
+  },
+  "area_proxy": {
+    "metric_kind": "logic_area_proxy_excluding_unknown_macros",
+    "unit": "library_area_unit",
+    "unknown_cell_types": [
+      "Sram4096x199",
+      "Sram4096x113",
+      "OooFpArithGate",
+      "OooBranchDirectionPredictor"
+    ]
+  },
+  "power": {
+    "qualified_metric_kind": "workload_activity_total",
+    "minimum_activity_coverage": 0.95,
+    "require_macro_power_complete": true
+  },
+  "promotion": {
+    "require_candidate_dominates": true,
+    "minimum_performance_ratio": 0.995,
+    "minimum_per_benchmark_ratio": 0.995,
+    "minimum_area_efficiency_ratio": 0.999,
+    "minimum_power_efficiency_ratio": 0.995,
+    "maximum_area_ratio": 1.1,
+    "minimum_balanced_score": 100.2,
+    "require_qualified_power_for_final_champion": true
+  },
+  "architecture_feasible_seed": {
+    "transition_id": "r3p6-infeasible-anchor-to-first-feasible-seed-v1",
+    "one_time": true,
+    "source_anchor": {
+      "path": "npc/rv64/eval/ppa/baselines/r3p6-recovery-baseline.json",
+      "baseline_id": "r3p6-onehot-prf-recovery-20260715",
+      "status": "engineering_recovery_baseline",
+      "promotable": false,
+      "architecture_feasible": false,
+      "performance_counters": {
+        "coremark": {
+          "cycles": 4904511,
+          "retired_instructions": 3183617
+        },
+        "dhrystone_10000": {
+          "cycles": 9481620,
+          "retired_instructions": 4250000
+        }
+      },
+      "logic_area": 1605803.92
+    },
+    "candidate_role": "architecture_feasible_seed",
+    "required_candidate_status": "candidate",
+    "hard_gates": {
+      "require_full_candidate_checker_audit": true,
+      "checker_target": "proxy_champion",
+      "require_all_nine_architecture_gates_green": true,
+      "require_all_functional_gates_green": true
+    },
+    "performance": {
+      "minimum_per_benchmark_ratio": 0.995,
+      "require_fixed_image_retired_instruction_equality": true
+    },
+    "timing": {
+      "tier": "rtl_proxy_partial_constraints",
+      "period_ns": 5.0,
+      "minimum_worst_slack_ns": 0.1,
+      "required_tns_ns": 0.0,
+      "maximum_violated_paths": 0,
+      "maximum_combinational_loops": 0
+    },
+    "area": {
+      "metric_kind": "logic_area_proxy_excluding_unknown_macros",
+      "anchor_logic_area": 1605803.92,
+      "maximum_ratio_to_anchor": 1.1,
+      "maximum_logic_area": 1766384.312,
+      "require_total_area_qualified_for_front_or_canonical": true
+    },
+    "exception": {
+      "require_candidate_dominates_anchor": false,
+      "apply_minimum_area_efficiency_ratio": false
+    },
+    "power": {
+      "qualified_preferred": true,
+      "allow_unqualified_for_architecture_seed_only": true,
+      "unqualified_seed_front_accepted": false,
+      "unqualified_seed_canonical": false,
+      "unqualified_seed_ppa_champion": false
+    },
+    "post_seed": {
+      "reject_second_seed_transition": true,
+      "restore_standard_promotion_rules": true,
+      "formal_front_requires_seed_power_and_total_area_qualified": true,
+      "require_candidate_dominates": true,
+      "minimum_area_efficiency_ratio": 0.999,
+      "minimum_per_benchmark_ratio": 0.995
+    }
+  }
+}

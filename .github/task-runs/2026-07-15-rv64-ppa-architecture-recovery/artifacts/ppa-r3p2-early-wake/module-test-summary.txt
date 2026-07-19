@@ -1,0 +1,12 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_ooo_int_issue_queue
+- PASS tb_ooo_dispatch_backend
+- PASS tb_ooo_int_backend
+
+- total: 3
+- passed: 3
+- failed: 0

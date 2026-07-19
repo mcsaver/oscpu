@@ -66,6 +66,9 @@ main() {
   run_step "commercial delivery audit" "$PYTHON_BIN" scripts/github_index_db.py delivery-audit || rc=1
   run_step "policy audit" "$PYTHON_BIN" scripts/github_index_db.py policy-audit || rc=1
   run_step "skill audit" "$PYTHON_BIN" scripts/github_index_db.py skill-audit || rc=1
+  run_step "RTL task contract audit" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit || rc=1
+  run_step "RTL task contract self-test" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test || rc=1
+  run_step "RTL task contract CLI self-test" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test || rc=1
   run_step "trace audit" "$PYTHON_BIN" scripts/github_index_db.py trace-audit || rc=1
   run_step "state machine audit" "$PYTHON_BIN" scripts/github_index_db.py state-audit || rc=1
   run_step "branch health report" "$PYTHON_BIN" scripts/github_index_db.py branch-health-report || rc=1

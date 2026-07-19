@@ -1,0 +1,1273 @@
+diff --git a/npc/rv64/design/specs/ooo-int-issue-queue.md b/npc/rv64/design/specs/ooo-int-issue-queue.md
+index 58cbd32..5347786 100644
+--- a/npc/rv64/design/specs/ooo-int-issue-queue.md
++++ b/npc/rv64/design/specs/ooo-int-issue-queue.md
+@@ -6,19 +6,23 @@
+ > **2026-07-09 P5 刀 B:dispatch→issue 同拍 bypass 族已整体删除**
+ > (决策与数据见 `../arch/p5-repipeline-first-batch.md`、`../arch/timing-dispatch-issue-path.md` §6c)；
+ > **2026-07-15 R3/R3.1：按执行能力动态分配 Universal/ALU terminal；registered
+-> Universal owner 占用时允许独立 ALU terminal 继续前进**。
++> Universal owner 占用时允许独立 ALU terminal 继续前进**；
++> **R3.2：仅对 actual-fire 的 fixed GPR producer 生成 lookahead sticky wake，consumer
++> 下一拍从 registered EX payload 前递，PRF 仍为 stored-only**。
+ 
+ ## 1. 目的与范围
+-保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 writeback wakeup
+-+ 2 个 FP wakeup、发射最多 2 个**最老 ready** uop。容量 ENTRY_COUNT=8(`OOO_ISSUE_INDEX_W`=3)。
++保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 full-WB wakeup
+++ 2 个 fixed-producer actual-fire early wakeup + 2 个 FP wakeup、发射最多 2 个**最老 ready** uop。容量 ENTRY_COUNT=8(`OOO_ISSUE_INDEX_W`=3)。
+ 不负责寄存器读/执行(下游 ALU slice)、不负责 busy-table 状态(由 BusyTable,IQ 内缓存 src ready 位)。
+ 
+ ## 2. 结构与时序
+ - 每项:valid/src1_ready/src2_ready/src preg/pdest/imm/ctrl/rob_idx/pc...,**按程序序排列**(新进尾)。
+-- **wakeup**:2 个 full整数 writeback + 2 个 FP wakeup pdest 广播,匹配 src preg → 置该 src ready。
+-  T3M 起所有整数 completion（EX/MEM/MulDiv/CLMUL/FPWB）只服务
+-  compaction/dispatch insertion/kill survivor 的 sticky ready：N 拍不得进入 resident select，
+-  N 沿粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
++- **wakeup**:2 个 full整数 writeback + 2 个 fixed-producer actual-fire early wakeup +
++  2 个 FP wakeup pdest 广播。全部只写 compaction/dispatch insertion/kill survivor 的
++  sticky next-state，绝不进入当拍 resident select。R3.2 early wake 仅在 producer actual fire
++  时产生；N 沿同时粘住 consumer ready 并寄存 `{valid,pdest,data}`，consumer N+1 只从该
++  registered EX payload 前递。memory/AMO、MulDiv、CLMUL、CSR、FP、control-flow、
++  system/exception 类 fail-closed，仍由 formal WB 唤醒。T3D 起 FP execution
+   completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；T3H 起
+   FP load WB口(wake1)也遵守同一边界，以切断 DCache→FP-store 同拍长锥。
+ - **select/steering**：顺序扫描已寄存阵列，最多选择两个 ready uop，动态分配给
+@@ -26,9 +30,10 @@
+   older complex + younger simple 保持自然分配；older simple + younger complex 则做 capability
+   swap，让 older simple 到 ALU terminal、younger complex 到 Universal terminal。dispatch
+   包位置不形成静态 lane 归属，物理 terminal 编号也不表示程序年龄。simultaneous valid
+-  双 terminal 的 enabled integer source 不可能相互 RAW：consumer 只能在 producer WB
+-  wakeup 后成为 ready；backend 的双向 RAW 断言看护该不变量。current-result forward
+-  的 true arm 在合法状态不可达，但 2026-07-12 与 2026-07-13 两次 fresh 5ns 删除 A/B 均被
++  双 terminal 的 enabled integer source 不可能相互 RAW：early wake 也只在沿上写 sticky，
++  consumer 最早下一拍 select；backend 的双向 RAW 断言看护该不变量。R3.2 仅增加
++  registered-EX forward，不恢复 issue-current-result 组合旁路。此前 2026-07-12 与
++  2026-07-13 两次 fresh 5ns 删除 A/B 均被
+   物理证据拒绝。第二次虽让原 39 条 MIQ tail 退出 top40，仍使 WNS `-10.001→-10.182ns`、
+   TNS 恶化18.5%、loops `109→142`、area/power 上升并暴露39条更差 FP exec1 tail。因此当前
+   物理 mux 暂留，避免用 RTL 代码直觉覆盖映射实测；先切 long-op WB feedback 后再重评。
+@@ -47,10 +52,10 @@
+   才可被 select**——"dispatch 活值作虚拟队尾同拍参与 select"的 bypass 族(bypass 许可判定/
+   活值 entry_ready/issue0 前递 forward/payload 直通臂)已整体删除。select 唯一真源=已寄存
+   valid_q 项,由 `IQ-NO-BYPASS` 立即断言看护;mode 下 branch/JAL/JALR 原"禁旁路"特例随之
+-  普适化,pred_npc 恒取寄存 pred_npc_q(loop-free by construction)。full integer wake 与
+-  两路 FP wake 都只写 sticky state，不存在 completion→resident select 组合直通。
+-  backend 中仍有由 issue0_fire
+-  驱动的 current-result mux，但 RAW-I1 证明其 true arm 对合法双 lane 不可达；保留原因见上。
++  普适化,pred_npc 恒取寄存 pred_npc_q(loop-free by construction)。full integer、R3.2 early
++  与两路 FP wake 都只写 sticky state，不存在 completion/fire→resident select 组合直通。
++  backend 的源值选择只读取 PRF stored state 或上一沿 registered EX payload，不存在
++  issue-current-result 组合 mux。
+   历史:load-dependent-branch 快路径消费端已删(E7);旧 bypass 的 CPI 价值在现核已萎缩
+   (CoreMark 10 迭代实测 +0.23%,见 §6 变更记录)。
+ - 误预测恢复=ROB-walk:按 `kill_rob_idx` 环形年龄 squash 更年轻项,recover 期冻结发射
+@@ -77,10 +82,10 @@
+ - **IQ-I7 双 terminal 双向无 RAW（backend 消费边界）**：issue0/issue1 同时 valid 时，
+   任一 terminal 的 enabled integer source preg 均不得等于另一 terminal 的非零 integer
+   pdest。能力 swap 后 terminal 编号可与年龄相反，故只做 issue0→issue1 单向检查不充分。
+-  该合同依赖无 dispatch bypass/early-result wakeup；FP destination/default payload 排除。
++  该合同依赖无 dispatch bypass且 early wake 不进入同拍 select；FP destination/default payload 排除。
+ - **IQ-I8 integer sticky-only（`IQ-INT-WAKE-STICKY-ONLY`）**：任一 issued integer source
+-  必须在沿前已有对应 `src*_ready_q`；full pulse 不得在本拍把尚未 ready 项选出，但必须在
+-  compaction、dispatch insertion 与 kill-survivor 全部 next-state 路径粘住 ready，下一拍可选。
++  必须在沿前已有对应 `src*_ready_q`；full 与 R3.2 early pulse 均不得在本拍把尚未 ready 项
++  选出，但必须在 compaction、dispatch insertion 与 kill-survivor next-state 粘住 ready。
+ - **IQ-I9 FP 跨域 sticky-only**：`fp_wake0/1` 均不得进入 resident select 的组合 ready
+   视图。compaction、dispatch insertion 与 kill survivor 必须继续把两者 OR 入
+   `fp_st_ready_q`；dispatch insertion 必须由 IQ 自身捕获，不能隐式依赖上游 query 前视。
+@@ -120,6 +125,10 @@
+   insertion、compaction、kill survivor 原子移动；issue1 永远只读 capability=1 的 resident。
+   `issue_pair_swapped_o` 只在两项均 valid 且物理 terminal 年龄反转时有效；两 terminal
+   不得引用同一 IQ index。
++- **IQ-I16 R3.2 early-wake allow-list 与数据边界**：early valid 必须蕴含对应 terminal
++  actual fire、非零 GPR pdest、fixed ALU/IMM WB 类；memory/AMO、MulDiv、CLMUL、CSR、FP、
++  control-flow、system/exception 类必须 fail-closed。consumer N+1 只读上一沿 registered
++  EX payload；PRF 不增加 current-result write-through，payload 失配后回落 formal WB/PRF state。
+ 
+ ## 4. 关键路径
+ P5 刀 B 前,dispatch→issue bypass 把 free-list 分配+busy 查询+IQ select **单拍合一**
+@@ -138,9 +147,10 @@ T3V 前的 memory 驻留项虽已跨过一拍边界，执行拍仍回灌 generic
+   上层集成 TB `tb_ooo_dispatch_backend`/`tb_ooo_int_backend`/`tb_ooo_alu_decode_backend`
+   已同步 N+1 时序。契约立即断言:IQ-NO-BYPASS/IQ-KILL-NO-DISPATCH(负测试证据存
+   `.github/task-runs/2026-07-09-p5-first-batch/`)。
+-- `tb_ooo_int_backend` 常驻三 uop 场景：P 写 x7，依赖者 A 与 P 同拍 dispatch，P issue
+-  拍再 dispatch 依赖者 C；P WB 拍 A/C 均不得 select，N 沿 sticky 后在 N+1 分别落到
+-  issue0/issue1，检查 issue1 从已落账 PRF 取得 P 的 64-bit 值。`RAW_I1_NEGATIVE_PROBE` 在合法
++- `tb_ooo_int_backend` 常驻三 uop 场景：P 写 x7，依赖者 A 与 P 同拍 dispatch，P actual-fire
++  拍再 dispatch 依赖者 C；A/C 下一拍分别落到 issue0/issue1，并从 registered EX payload
++  取得 P 的 64-bit 值。另有 64 级 RAW 链逐级检查 producer N fire→consumer N+1 fire、
++  EX hit 与 commit 结果 1..64。`RAW_I1_NEGATIVE_PROBE` 在合法
+   双 lane 上做消费边界 source-tag mutation，必须只触发 RAW-I1 且 runner 非零。
+ - 集成 riscv-tests/AM(数据相关唤醒、双发射、load-use、分支恢复);
+   代表:branch-resolve-loop/ooo-mem-order(读写交替+唤醒时序)。
+@@ -203,3 +213,8 @@ T3V 前的 memory 驻留项虽已跨过一拍边界，执行拍仍回灌 generic
+   `issue1_fire` 原子前件，避免 orphan reservation；消费边界 RAW 改成双向。该候选不
+   新增 PRF port/FU，不恢复 completion→select 或 dispatch bypass，也不宣称解决一般
+   non-alias load/store 越序。
++- 2026-07-15 R3.2：IQ 保存 fixed-GPR-producer metadata，并仅由两路 terminal actual fire
++  产生 early sticky wake；EX payload 增加 registered valid，两路 terminal 对四个整数源
++  tag-match forward。定向覆盖 64 级连续 RAW、dual producer/consumer、stall、kill/flush，
++  以及 load/AMO/MulDiv/CLMUL/CSR/FP/branch/illegal 排除矩阵。只建立功能候选，不替代
++  fresh synthesis/STA/power 与 benchmark A/B。
+diff --git a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+index f63a261..1377259 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+@@ -174,6 +174,10 @@ module tb_ooo_dispatch_backend;
+     .wb1_cause_i(wb1_cause),
+     .wb1_tval_i(wb1_tval),
+     .wb1_fflags_i(5'b00000),
++    .early_wakeup0_valid_i(1'b0),
++    .early_wakeup0_pdest_i({PHY_REG_ADDR_W{1'b0}}),
++    .early_wakeup1_valid_i(1'b0),
++    .early_wakeup1_pdest_i({PHY_REG_ADDR_W{1'b0}}),
+     .issue0_valid_o(issue0_valid),
+     .issue0_ready_i(issue0_ready),
+     .issue0_pc_o(issue0_pc),
+@@ -184,6 +188,7 @@ module tb_ooo_dispatch_backend;
+     .issue0_src1_preg_o(issue0_src1_preg),
+     .issue0_src2_preg_o(issue0_src2_preg),
+     .issue0_pdest_o(issue0_pdest),
++    .issue0_fixed_gpr_producer_o(),
+     .issue0_imm_o(issue0_imm),
+     .issue_pair_swapped_o(),
+     .issue1_valid_o(issue1_valid),
+@@ -196,6 +201,7 @@ module tb_ooo_dispatch_backend;
+     .issue1_src1_preg_o(issue1_src1_preg),
+     .issue1_src2_preg_o(issue1_src2_preg),
+     .issue1_pdest_o(issue1_pdest),
++    .issue1_fixed_gpr_producer_o(),
+     .issue1_imm_o(issue1_imm),
+     .commit_ready_i(commit_ready),
+     .commit1_block_i(1'b0),
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+index 0f5f399..3368862 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+@@ -1194,6 +1194,173 @@ module tb_ooo_int_backend;
+     end
+   endtask
+ 
++  // R3.2 integration proof: two independent fixed-latency producers fire
++  // together, then two consumers dispatched on that fire edge select on the
++  // very next cycle and read the two distinct registered EX payloads.
++  task automatic run_r3p2_dual_producer_consumer;
++    begin
++      reset_dut();
++
++      set_dispatch0(32'h8000_7200,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd5, 64'd11);
++      set_dispatch1(32'h8000_7204,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd6, 64'd22);
++      #1;
++      tb_check1("R3.2 dual producers lane0 ready", dispatch0_ready, 1'b1);
++      tb_check1("R3.2 dual producers lane1 ready", dispatch1_ready, 1'b1);
++      `TB_TICK(clk);
++      clear_dispatch();
++      #1;
++      tb_check1("R3.2 dual producer0 fires", dut.issue0_fire_w, 1'b1);
++      tb_check1("R3.2 dual producer1 fires", dut.issue1_fire_w, 1'b1);
++
++      set_dispatch0(32'h8000_7208,
++                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
++                    5'd5, 5'd0, 5'd7, 64'd1);
++      set_dispatch1(32'h8000_720c,
++                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
++                    5'd6, 5'd0, 5'd8, 64'd2);
++      #1;
++      tb_check1("R3.2 dual consumers lane0 ready", dispatch0_ready, 1'b1);
++      tb_check1("R3.2 dual consumers lane1 ready", dispatch1_ready, 1'b1);
++      `TB_TICK(clk);
++      clear_dispatch();
++      #1;
++
++      tb_check1("R3.2 consumer0 fires N+1", dut.issue0_fire_w, 1'b1);
++      tb_check1("R3.2 consumer1 fires N+1", dut.issue1_fire_w, 1'b1);
++      tb_check32("R3.2 consumer0 PC", dut.issue0_pc_w[31:0],
++                 32'h8000_7208);
++      tb_check32("R3.2 consumer1 PC", dut.issue1_pc_w[31:0],
++                 32'h8000_720c);
++      tb_check1("R3.2 consumer0 uses EX0", dut.issue0_src1_ex0_fwd_hit_w,
++                1'b1);
++      tb_check1("R3.2 consumer0 does not use EX1",
++                dut.issue0_src1_ex1_fwd_hit_w, 1'b0);
++      tb_check1("R3.2 consumer1 uses EX1", dut.issue1_src1_ex1_fwd_hit_w,
++                1'b1);
++      tb_check64("R3.2 consumer0 forwarded value",
++                 dut.issue0_src1_data_w, 64'd11);
++      tb_check64("R3.2 consumer1 forwarded value",
++                 dut.issue1_src1_value_w, 64'd22);
++
++      `TB_TICK(clk);
++      #1;
++      tb_check64("R3.2 dual result0", dut.wb0_data_w, 64'd12);
++      tb_check64("R3.2 dual result1", dut.wb1_data_w, 64'd24);
++      repeat (3) begin
++        `TB_TICK(clk);
++      end
++      #1;
++      tb_check32("R3.2 dual ROB drains", {27'b0, rob_count}, 32'd0);
++      tb_check32("R3.2 dual IQ drains", {28'b0, issue_count}, 32'd0);
++      tb_check32("R3.2 dual freelist recovers", {25'b0, free_count},
++                 32'd32);
++    end
++  endtask
++
++  // A nontrivial 64-uop RAW chain is kept one entry ahead of issue.  Every
++  // producer is therefore required to fire in cycle N and its consumer in
++  // cycle N+1; every consumer must use the registered EX0 payload, and the
++  // architectural result sequence must commit as 1..64.
++  task automatic run_r3p2_raw_chain_64;
++    integer dispatched;
++    integer fired;
++    integer committed;
++    integer cycle_count;
++    integer previous_fire_cycle;
++    begin
++      reset_dut();
++
++      set_dispatch0(32'h8000_a000,
++                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
++                    5'd0, 5'd0, 5'd5, 64'd1);
++      set_dispatch1(32'h8000_a004,
++                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
++                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
++                    5'd5, 5'd0, 5'd5, 64'd1);
++      #1;
++      tb_check1("R3.2 chain seed lane0 ready", dispatch0_ready, 1'b1);
++      tb_check1("R3.2 chain seed lane1 ready", dispatch1_ready, 1'b1);
++      `TB_TICK(clk);
++
++      dispatched = 2;
++      fired = 0;
++      committed = 0;
++      cycle_count = 0;
++      previous_fire_cycle = -1;
++
++      while ((committed < 64) && (cycle_count < 160)) begin
++        clear_dispatch();
++        if (dispatched < 64) begin
++          set_dispatch0(32'h8000_a000 + (dispatched * 4),
++                        make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
++                                      `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
++                        5'd5, 5'd0, 5'd5, 64'd1);
++        end
++        #1;
++
++        if (dispatched < 64) begin
++          tb_check1("R3.2 chain continuous dispatch", dispatch0_ready,
++                    1'b1);
++          if (dispatch0_ready)
++            dispatched = dispatched + 1;
++        end
++
++        if (fired < 64) begin
++          tb_check1("R3.2 chain issue0 fires", dut.issue0_fire_w, 1'b1);
++          tb_check1("R3.2 chain never consumes issue1", dut.issue1_fire_w,
++                    1'b0);
++          if (dut.issue0_fire_w) begin
++            tb_check32("R3.2 chain fire PC", dut.issue0_pc_w[31:0],
++                       32'h8000_a000 + (fired * 4));
++            if (fired != 0) begin
++              tb_check32("R3.2 chain producer N to consumer N+1",
++                         cycle_count - previous_fire_cycle, 32'd1);
++              tb_check1("R3.2 chain registered EX0 hit",
++                        dut.issue0_src1_ex0_fwd_hit_w, 1'b1);
++              tb_check64("R3.2 chain forwarded value",
++                         dut.issue0_src1_data_w, fired);
++            end
++            previous_fire_cycle = cycle_count;
++            fired = fired + 1;
++          end
++        end
++
++        if (commit0_valid) begin
++          tb_check32("R3.2 chain commit PC", commit0_pc[31:0],
++                     32'h8000_a000 + (committed * 4));
++          tb_check64("R3.2 chain result sequence", commit0_data,
++                     committed + 1);
++          committed = committed + 1;
++        end
++        tb_check1("R3.2 chain single commit lane", commit1_valid, 1'b0);
++
++        `TB_TICK(clk);
++        cycle_count = cycle_count + 1;
++      end
++      clear_dispatch();
++      #1;
++
++      tb_check32("R3.2 chain dispatched all", dispatched, 32'd64);
++      tb_check32("R3.2 chain fired all", fired, 32'd64);
++      tb_check32("R3.2 chain committed all", committed, 32'd64);
++      tb_check32("R3.2 chain ROB drains", {27'b0, rob_count}, 32'd0);
++      tb_check32("R3.2 chain IQ drains", {28'b0, issue_count}, 32'd0);
++      tb_check32("R3.2 chain freelist recovers", {25'b0, free_count},
++                 32'd32);
++      $display("[R3.2-RAW64] fired=%0d committed=%0d cycles=%0d",
++               fired, committed, cycle_count);
++    end
++  endtask
++
+   task automatic run_lane1_prf_wb_wakeup;
+     reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+     begin
+@@ -1240,65 +1407,45 @@ module tb_ooo_int_backend;
+       tb_check64("lane1 PRF producer formal WB data",
+                  dut.wb0_data_w, 64'h1122_3344_5566_7780);
+       producer_pdest = dut.wb0_pdest_w;
+-      tb_check1("T3M producer WB does not select A in N",
+-                dut.issue0_valid_w, 1'b0);
+-      tb_check1("T3M producer WB does not select C in N",
+-                dut.issue1_valid_w, 1'b0);
+-      tb_check32("T3M A/C remain resident through WB cycle",
+-                 {28'b0, issue_count}, 32'd2);
+-
+-      `TB_TICK(clk);
+-      #1;
+-      tb_check1("lane1 PRF A wakes into issue0 at N+1",
+-                dut.issue0_valid_w, 1'b1);
+-      tb_check1("lane1 PRF C wakes into issue1 at N+1",
+-                dut.issue1_valid_w, 1'b1);
+-      tb_check32("lane1 PRF A issue PC", dut.issue0_pc_w[31:0],
+-                 32'h8000_0604);
+-      tb_check32("lane1 PRF C issue PC", dut.issue1_pc_w[31:0],
+-                 32'h8000_0608);
+-      tb_check1("lane1 PRF A fires", dut.issue0_fire_w, 1'b1);
+-      tb_check1("lane1 PRF C fires", dut.issue1_fire_w, 1'b1);
+-      tb_check32("lane1 PRF A source tag matches producer WB",
+-                 {26'b0, dut.issue0_src1_preg_w},
++      // R3.2 lookahead wake is absorbed at the producer-fire edge, so A
++      // and same-edge-dispatched C both select now, while producer formal WB
++      // and the matching registered EX payload are visible.
++      tb_check1("R3.2 A selects with producer EX", dut.issue0_valid_w, 1'b1);
++      tb_check1("R3.2 C selects with producer EX", dut.issue1_valid_w, 1'b1);
++      tb_check32("R3.2 A issue PC", dut.issue0_pc_w[31:0], 32'h8000_0604);
++      tb_check32("R3.2 C issue PC", dut.issue1_pc_w[31:0], 32'h8000_0608);
++      tb_check1("R3.2 A fires", dut.issue0_fire_w, 1'b1);
++      tb_check1("R3.2 C fires", dut.issue1_fire_w, 1'b1);
++      tb_check32("R3.2 A source tag", {26'b0, dut.issue0_src1_preg_w},
+                  {26'b0, producer_pdest});
+-      tb_check32("lane1 PRF C source tag matches producer WB",
+-                 {26'b0, dut.issue1_src1_preg_w},
++      tb_check32("R3.2 C source tag", {26'b0, dut.issue1_src1_preg_w},
+                  {26'b0, producer_pdest});
+-      tb_check1("lane1 PRF simultaneous lanes are not RAW",
+-                dut.issue1_src1_preg_w != dut.issue0_pdest_w, 1'b1);
+-      tb_check32("lane1 PRF issue1 source low via stored PRF",
+-                 dut.issue1_src1_data_w[31:0], 32'h5566_7780);
+-      tb_check32("lane1 PRF issue1 source high via stored PRF",
+-                 dut.issue1_src1_data_w[63:32], 32'h1122_3344);
++      tb_check1("R3.2 A EX0 hit", dut.issue0_src1_ex0_fwd_hit_w, 1'b1);
++      tb_check1("R3.2 C EX0 hit", dut.issue1_src1_ex0_fwd_hit_w, 1'b1);
++      tb_check32("R3.2 C forwarded source low",
++                 dut.issue1_src1_value_w[31:0], 32'h5566_7780);
++      tb_check32("R3.2 C forwarded source high",
++                 dut.issue1_src1_value_w[63:32], 32'h1122_3344);
+ 
+       `TB_TICK(clk);
+       #1;
+-      tb_check1("lane1 PRF A formal WB visible", dut.wb0_valid_w, 1'b1);
+-      tb_check1("lane1 PRF C formal WB visible", dut.wb1_valid_w, 1'b1);
+-      tb_check1("lane1 PRF A does not commit on formal WB",
+-                commit0_valid, 1'b0);
+-      tb_check1("lane1 PRF C does not commit on formal WB",
+-                commit1_valid, 1'b0);
+-      tb_check64("lane1 PRF A formal WB data", dut.wb0_data_w,
++      tb_check1("R3.2 A formal WB visible", dut.wb0_valid_w, 1'b1);
++      tb_check1("R3.2 C formal WB visible", dut.wb1_valid_w, 1'b1);
++      tb_check1("R3.2 producer commits while consumers WB",
++                commit0_valid, 1'b1);
++      tb_check64("R3.2 A formal WB data", dut.wb0_data_w,
+                  64'h1122_3344_5566_7785);
+-      tb_check64("lane1 PRF C formal WB data", dut.wb1_data_w,
++      tb_check64("R3.2 C formal WB data", dut.wb1_data_w,
+                  64'h1122_3344_5566_7789);
+ 
+       `TB_TICK(clk);
+       #1;
+-      tb_check1("lane1 PRF A result commits from ROB Q",
+-                commit0_valid, 1'b1);
+-      tb_check1("lane1 PRF C result commits from ROB Q",
+-                commit1_valid, 1'b1);
+-      tb_check32("lane1 PRF A result low", commit0_data[31:0],
+-                 32'h5566_7785);
+-      tb_check32("lane1 PRF A result high", commit0_data[63:32],
+-                 32'h1122_3344);
+-      tb_check32("lane1 PRF C result low", commit1_data[31:0],
+-                 32'h5566_7789);
+-      tb_check32("lane1 PRF C result high", commit1_data[63:32],
+-                 32'h1122_3344);
++      tb_check1("R3.2 A result commits", commit0_valid, 1'b1);
++      tb_check1("R3.2 C result commits", commit1_valid, 1'b1);
++      tb_check32("R3.2 A result low", commit0_data[31:0], 32'h5566_7785);
++      tb_check32("R3.2 A result high", commit0_data[63:32], 32'h1122_3344);
++      tb_check32("R3.2 C result low", commit1_data[31:0], 32'h5566_7789);
++      tb_check32("R3.2 C result high", commit1_data[63:32], 32'h1122_3344);
+ 
+       `TB_TICK(clk);
+       #1;
+@@ -3475,12 +3622,10 @@ module tb_ooo_int_backend;
+       #1;
+       tb_check1("T3T younger load blocked by older branch",
+                 dut.mem_issue_res_capture_w, 1'b0);
+-      tb_check1("T3T blocked load has no execution owner",
+-                dut.issue0_valid_w, 1'b0);
++      tb_check1("R3.2 older branch is the execution owner",
++                dut.issue0_valid_w, 1'b1);
+       tb_check32("T3T branch-load pair remains in IQ",
+                  {28'b0, issue_count}, 32'd2);
+-      `TB_TICK(clk);
+-      #1;
+       tb_check1("T3T no premature station before branch",
+                 dut.mem_issue_res_valid_q, 1'b0);
+       tb_check32("T3T older branch owns lane0 first",
+@@ -3532,8 +3677,6 @@ module tb_ooo_int_backend;
+       #1;
+       tb_check1("T3T wrong-path load remains blocked",
+                 dut.mem_issue_res_capture_w, 1'b0);
+-      `TB_TICK(clk);
+-      #1;
+       tb_check1("T3T wrong-path branch fires first",
+                 dut.issue0_ctrlflow_fire_w, 1'b1);
+       tb_check1("T3T wrong-path load never entered station",
+@@ -3579,8 +3722,6 @@ module tb_ooo_int_backend;
+       #1;
+       tb_check1("T3T LR blocked behind older branch",
+                 dut.mem_issue_res_capture_w, 1'b0);
+-      `TB_TICK(clk);
+-      #1;
+       tb_check32("T3T older branch owns lane0 before LR",
+                  dut.iq_issue0_pc_w[31:0], 32'h8000_6d44);
+       tb_check1("T3T older branch fires before LR",
+@@ -4606,36 +4747,33 @@ module tb_ooo_int_backend;
+     `TB_TICK(clk);
+     clear_dispatch();
+     #1;
+-    // N+1 契约:两条 uop 均先入队;producer 先发,consumer 等 producer 的 formal WB
+-    // 在沿上落 sticky，下一拍才 select——不再有同拍双发前递/双 commit。
++    // R3.2: producer actual fire sets sticky ready at the edge that also
++    // registers its EX result.  The dependent selects in the following cycle
++    // and consumes only the registered EX forwarding payload.
+     tb_check32("dependent pair queued", {28'b0, issue_count}, 32'd2);
+     `TB_TICK(clk);
+     #1;
+-    tb_check32("consumer waits in iq", {28'b0, issue_count}, 32'd1);
+-    tb_check1("producer enters execute", execute0_valid, 1'b1);
++    tb_check32("consumer resident during lookahead select",
++               {28'b0, issue_count}, 32'd1);
+     tb_check1("producer formal WB visible", dut.wb0_valid_w, 1'b1);
+     tb_check64("producer formal WB data", dut.wb0_data_w, 64'd7);
+     tb_check1("producer does not commit on formal WB", commit0_valid, 1'b0);
+-    `TB_TICK(clk);
+-    #1;
+-    tb_check32("consumer remains resident on first sticky-select cycle",
+-               {28'b0, issue_count}, 32'd1);
+-    tb_check1("producer commits from ROB Q", commit0_valid, 1'b1);
+-    tb_check64("producer result from ROB Q", commit0_data, 64'd7);
+-    tb_check1("consumer selects after wb sticky edge",
++    tb_check1("consumer selects one cycle after producer fire",
+               dut.issue0_valid_w, 1'b1);
+-    tb_check1("consumer not yet in execute on issue cycle",
+-              execute0_valid, 1'b0);
++    tb_check1("consumer source hits registered EX0",
++              dut.issue0_src1_ex0_fwd_hit_w, 1'b1);
++    tb_check64("consumer forwarded source value",
++               dut.issue0_src1_data_w, 64'd7);
+ 
+     `TB_TICK(clk);
+     #1;
+-    tb_check32("consumer leaves IQ after fire",
++    tb_check32("consumer leaves IQ after lookahead fire",
+                {28'b0, issue_count}, 32'd0);
+-    tb_check1("consumer enters execute", execute0_valid, 1'b1);
++    tb_check1("producer commits from ROB Q", commit0_valid, 1'b1);
++    tb_check64("producer result from ROB Q", commit0_data, 64'd7);
+     tb_check1("consumer formal WB visible", dut.wb0_valid_w, 1'b1);
+-    tb_check64("consumer formal WB uses stored producer value",
++    tb_check64("consumer formal WB uses registered EX forward",
+                dut.wb0_data_w, 64'd10);
+-    tb_check1("consumer does not commit on formal WB", commit0_valid, 1'b0);
+ 
+     `TB_TICK(clk);
+     #1;
+@@ -4648,6 +4786,8 @@ module tb_ooo_int_backend;
+     tb_check32("dependent iq drains", {28'b0, issue_count}, 32'd0);
+     tb_check32("dependent freelist recovers", {25'b0, free_count}, 32'd32);
+ 
++    run_r3p2_dual_producer_consumer();
++    run_r3p2_raw_chain_64();
+     run_lane1_prf_wb_wakeup();
+     run_t3b_divu_wb0_isolation();
+     run_t3b_clmul_wb0_isolation();
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+index 03a29d4..b3bd6d6 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+@@ -29,6 +29,7 @@ module tb_ooo_int_issue_queue;
+   reg [`XLEN-1:0] dispatch0_pc;
+   reg [`INST_W-1:0] dispatch0_inst;
+   reg [`CTRL_BUS_W-1:0] dispatch0_ctrl;
++  reg dispatch0_is_fp;
+   reg [ROB_INDEX_W-1:0] dispatch0_rob_idx;
+   reg [PHY_REG_ADDR_W-1:0] dispatch0_src1_preg;
+   reg dispatch0_src1_ready;
+@@ -44,6 +45,7 @@ module tb_ooo_int_issue_queue;
+   reg [`XLEN-1:0] dispatch1_pc;
+   reg [`INST_W-1:0] dispatch1_inst;
+   reg [`CTRL_BUS_W-1:0] dispatch1_ctrl;
++  reg dispatch1_is_fp;
+   reg dispatch1_optional;
+   reg [ROB_INDEX_W-1:0] dispatch1_rob_idx;
+   reg [PHY_REG_ADDR_W-1:0] dispatch1_src1_preg;
+@@ -59,6 +61,10 @@ module tb_ooo_int_issue_queue;
+   reg [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
+   reg wakeup1_valid;
+   reg [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
++  reg early_wakeup0_valid;
++  reg [PHY_REG_ADDR_W-1:0] early_wakeup0_pdest;
++  reg early_wakeup1_valid;
++  reg [PHY_REG_ADDR_W-1:0] early_wakeup1_pdest;
+   reg fp_wake0_valid;
+   reg [PHY_REG_ADDR_W-1:0] fp_wake0_preg;
+   reg fp_wake1_valid;
+@@ -74,6 +80,7 @@ module tb_ooo_int_issue_queue;
+   wire [PHY_REG_ADDR_W-1:0] issue0_src1_preg;
+   wire [PHY_REG_ADDR_W-1:0] issue0_src2_preg;
+   wire [PHY_REG_ADDR_W-1:0] issue0_pdest;
++  wire issue0_fixed_gpr_producer;
+   wire issue0_fp_st_src_en;
+   wire [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg;
+   wire [`XLEN-1:0] issue0_imm;
+@@ -87,6 +94,7 @@ module tb_ooo_int_issue_queue;
+   wire [PHY_REG_ADDR_W-1:0] issue1_src1_preg;
+   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg;
+   wire [PHY_REG_ADDR_W-1:0] issue1_pdest;
++  wire issue1_fixed_gpr_producer;
+   wire issue1_fp_st_src_en;
+   wire [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg;
+   wire [`XLEN-1:0] issue1_imm;
+@@ -114,6 +122,7 @@ module tb_ooo_int_issue_queue;
+     .dispatch0_pred_taken_i(1'b0),
+     .dispatch0_inst_i(dispatch0_inst),
+     .dispatch0_ctrl_i(dispatch0_ctrl),
++    .dispatch0_is_fp_i(dispatch0_is_fp),
+     .dispatch0_rob_idx_i(dispatch0_rob_idx),
+     .dispatch0_src1_preg_i(dispatch0_src1_preg),
+     .dispatch0_src1_ready_i(dispatch0_src1_ready),
+@@ -135,6 +144,7 @@ module tb_ooo_int_issue_queue;
+     .dispatch1_pred_taken_i(1'b0),
+     .dispatch1_inst_i(dispatch1_inst),
+     .dispatch1_ctrl_i(dispatch1_ctrl),
++    .dispatch1_is_fp_i(dispatch1_is_fp),
+     .dispatch1_rob_idx_i(dispatch1_rob_idx),
+     .dispatch1_src1_preg_i(dispatch1_src1_preg),
+     .dispatch1_src1_ready_i(dispatch1_src1_ready),
+@@ -150,6 +160,10 @@ module tb_ooo_int_issue_queue;
+     .wakeup0_pdest_i(wakeup0_pdest),
+     .wakeup1_valid_i(wakeup1_valid),
+     .wakeup1_pdest_i(wakeup1_pdest),
++    .early_wakeup0_valid_i(early_wakeup0_valid),
++    .early_wakeup0_pdest_i(early_wakeup0_pdest),
++    .early_wakeup1_valid_i(early_wakeup1_valid),
++    .early_wakeup1_pdest_i(early_wakeup1_pdest),
+     .fp_wake0_valid_i(fp_wake0_valid),
+     .fp_wake0_preg_i(fp_wake0_preg),
+     .fp_wake1_valid_i(fp_wake1_valid),
+@@ -164,6 +178,7 @@ module tb_ooo_int_issue_queue;
+     .issue0_src1_preg_o(issue0_src1_preg),
+     .issue0_src2_preg_o(issue0_src2_preg),
+     .issue0_pdest_o(issue0_pdest),
++    .issue0_fixed_gpr_producer_o(issue0_fixed_gpr_producer),
+     .issue0_fp_st_src_en_o(issue0_fp_st_src_en),
+     .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg),
+     .issue0_imm_o(issue0_imm),
+@@ -178,6 +193,7 @@ module tb_ooo_int_issue_queue;
+     .issue1_src1_preg_o(issue1_src1_preg),
+     .issue1_src2_preg_o(issue1_src2_preg),
+     .issue1_pdest_o(issue1_pdest),
++    .issue1_fixed_gpr_producer_o(issue1_fixed_gpr_producer),
+     .issue1_fp_st_src_en_o(issue1_fp_st_src_en),
+     .issue1_fp_st_src_preg_o(issue1_fp_st_src_preg),
+     .issue1_imm_o(issue1_imm),
+@@ -201,6 +217,7 @@ module tb_ooo_int_issue_queue;
+       dispatch0_pc = 32'h0;
+       dispatch0_inst = 32'h0;
+       dispatch0_ctrl = {`CTRL_BUS_W{1'b0}};
++      dispatch0_is_fp = 1'b0;
+       dispatch0_rob_idx = 4'd0;
+       dispatch0_src1_preg = 6'd0;
+       dispatch0_src1_ready = 1'b0;
+@@ -215,6 +232,7 @@ module tb_ooo_int_issue_queue;
+       dispatch1_pc = 32'h0;
+       dispatch1_inst = 32'h0;
+       dispatch1_ctrl = {`CTRL_BUS_W{1'b0}};
++      dispatch1_is_fp = 1'b0;
+       dispatch1_optional = 1'b0;
+       dispatch1_rob_idx = 4'd0;
+       dispatch1_src1_preg = 6'd0;
+@@ -230,6 +248,10 @@ module tb_ooo_int_issue_queue;
+       wakeup0_pdest = 6'd0;
+       wakeup1_valid = 1'b0;
+       wakeup1_pdest = 6'd0;
++      early_wakeup0_valid = 1'b0;
++      early_wakeup0_pdest = 6'd0;
++      early_wakeup1_valid = 1'b0;
++      early_wakeup1_pdest = 6'd0;
+       fp_wake0_valid = 1'b0;
+       fp_wake0_preg = 6'd0;
+       fp_wake1_valid = 1'b0;
+@@ -585,6 +607,60 @@ module tb_ooo_int_issue_queue;
+     end
+   endtask
+ 
++  // R3.2 allow-list proof.  Class 0 is the only positive fixed-latency GPR
++  // producer; all speculative/multicycle/exception-bearing categories must
++  // retain formal-WB wake latency.
++  task automatic run_r3p2_fixed_class_case;
++    input integer class_id;
++    reg expected_fixed;
++    begin
++      reset_dut();
++      set_dispatch0(32'h8400_0000 + (class_id * 32'h20),
++                    4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
++      expected_fixed = (class_id == 0);
++      case (class_id)
++        1: begin // load
++          dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
++        end
++        2: begin // AMO
++          dispatch0_ctrl[`CTRL_AMO_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
++        end
++        3: dispatch0_ctrl[`CTRL_MULDIV_BIT] = 1'b1;
++        4: begin // CLMUL encoding: funct7=0x05, funct3=SLL
++          dispatch0_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
++          dispatch0_inst = {7'h05, 5'd2, 5'd1, `FUNCT3_SLL,
++                            5'd5, `OPCODE_OP};
++        end
++        5: begin // CSR/system
++          dispatch0_ctrl[`CTRL_CSR_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_SYSTEM_BIT] = 1'b1;
++          dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_CSR;
++        end
++        6: dispatch0_is_fp = 1'b1;
++        7: dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
++        8: dispatch0_ctrl[`CTRL_ILLEGAL_BIT] = 1'b1;
++        default: begin end
++      endcase
++      #1;
++      tb_check1("R3.2 fixed-class dispatch ready", dispatch0_ready, 1'b1);
++      `TB_TICK(clk);
++      clear_inputs();
++      #1;
++      tb_check1("R3.2 fixed-class metadata", dut.fixed_gpr_producer_q[0],
++                expected_fixed);
++      $display("[R3P2-FIXED-CLASS] class=%0d fixed=%0b expected=%0b",
++               class_id, dut.fixed_gpr_producer_q[0], expected_fixed);
++      `TB_TICK(clk);
++      clear_inputs();
++      #1;
++      tb_check1("R3.2 fixed-class drains", empty, 1'b1);
++    end
++  endtask
++
+   task automatic run_fp_dispatch_wake_collision;
+     input dispatch_lane;
+     input wake_lane;
+@@ -1104,6 +1180,7 @@ module tb_ooo_int_issue_queue;
+     `TB_TICK(clk);
+     #1;
+     tb_check1("entry drains after ready", empty, 1'b1);
++    $display("[R3P2-STALL] IQ valid held under ready=0 and drained after release PASS");
+ 
+     // ===== T3P：lane1 跳过复杂 load，选择更年轻 simple-ALU；load 随后晋升 lane0 =====
+     issue0_ready = 1'b0;
+@@ -1145,6 +1222,10 @@ module tb_ooo_int_issue_queue;
+          lane1_negative_i = lane1_negative_i + 1)
+       run_lane1_negative_class(lane1_negative_i);
+ 
++    for (lane1_negative_i = 0; lane1_negative_i < 9;
++         lane1_negative_i = lane1_negative_i + 1)
++      run_r3p2_fixed_class_case(lane1_negative_i);
++
+     // ===== S10 乱序 select:ready 新项越过 unready 老项,但仍须先寄存(N+1) =====
+     set_dispatch0(32'h8000_0080, 4'd14, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
+     `TB_TICK(clk);
+@@ -1198,8 +1279,8 @@ module tb_ooo_int_issue_queue;
+     kill_valid = 1'b1;
+     kill_rob_idx = 4'd1;
+     rob_head_idx = 4'd1;
+-    wakeup0_valid = 1'b1;
+-    wakeup0_pdest = 6'd21;
++    early_wakeup0_valid = 1'b1;
++    early_wakeup0_pdest = 6'd21;
+     #1;
+     tb_check1("kill gates issue0", issue0_valid, 1'b0);
+     tb_check1("kill gates issue1", issue1_valid, 1'b0);
+@@ -1207,13 +1288,14 @@ module tb_ooo_int_issue_queue;
+     clear_inputs();
+     #1;
+     tb_check32("kill squashes younger suffix", {28'b0, count}, 32'd1);
+-    tb_check1("[T3B-GREEN] survivor absorbed kill-cycle full wakeup",
++    tb_check1("[R3P2-KILL] survivor absorbed kill-cycle early wakeup",
+               issue0_valid, 1'b1);
+     tb_check32("survivor pc", issue0_pc, 32'h8000_0090);
+     `TB_TICK(clk);
+     clear_inputs();
+     #1;
+     tb_check1("empty after kill scenario", empty, 1'b1);
++    $display("[R3P2-KILL] younger suffix removed, early-woken survivor fired PASS");
+ 
+     // ===== S12 recover 冻结发射 =====
+     set_dispatch0(32'h8000_00a0, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd56);
+@@ -1235,10 +1317,13 @@ module tb_ooo_int_issue_queue;
+     `TB_TICK(clk);
+     clear_inputs();
+     flush = 1'b1;
++    early_wakeup0_valid = 1'b1;
++    early_wakeup0_pdest = 6'd57;
+     `TB_TICK(clk);
+     clear_inputs();
+     #1;
+     tb_check1("flush empties queue", empty, 1'b1);
++    $display("[R3P2-FLUSH] flush dominates matching early wake and clears IQ PASS");
+ 
+     // ===== T3D RED：FP store wakeup 只可落 sticky，禁止 N 拍直进 select =====
+     reset_dut();
+diff --git a/npc/rv64/vsrc/execute/OooIntBackend.v b/npc/rv64/vsrc/execute/OooIntBackend.v
+index b9c8adb..ad24726 100644
+--- a/npc/rv64/vsrc/execute/OooIntBackend.v
++++ b/npc/rv64/vsrc/execute/OooIntBackend.v
+@@ -181,6 +181,12 @@ module OooIntBackend #(
+   wire wb1_exception_w;
+   wire [`TRAP_CAUSE_W-1:0] wb1_cause_w;
+   wire [`XLEN-1:0] wb1_tval_w;
++  // R3.2 EX registers carry one forwarding-valid bit above the legacy
++  // formal-WB payload; all legacy field positions remain unchanged.
++  wire ex0_valid_q;
++  wire [144:0] ex0_down_payload_w;
++  wire ex1_valid_q;
++  wire [144:0] ex1_down_payload_w;
+   // 真实 integer PRF write event 与送往 FP IQ 的 formal sticky wake
+   // 共用同一 valid 真源，过滤 FP-only/probe/x0 completion 的 p0 tag。
+   wire gpr_wb0_write_valid_w;
+@@ -201,6 +207,7 @@ module OooIntBackend #(
+   wire [PHY_REG_ADDR_W-1:0] iq_issue0_src1_preg_w;
+   wire [PHY_REG_ADDR_W-1:0] iq_issue0_src2_preg_w;
+   wire [PHY_REG_ADDR_W-1:0] iq_issue0_pdest_w;
++  wire iq_issue0_fixed_gpr_producer_w;
+   wire [`XLEN-1:0] iq_issue0_imm_w;
+   wire issue0_valid_w;
+   wire issue0_ready_w;
+@@ -234,8 +241,13 @@ module OooIntBackend #(
+   wire [PHY_REG_ADDR_W-1:0] issue1_src1_preg_w;
+   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg_w;
+   wire [PHY_REG_ADDR_W-1:0] issue1_pdest_w;
++  wire issue1_fixed_gpr_producer_w;
+   wire [`XLEN-1:0] issue1_imm_w;
+   wire mem_issue_block_w = mem_issue_block_i || checkpoint_quiesce_i;
++  wire early_wakeup0_valid_w =
++      issue0_fire_w && iq_issue0_fixed_gpr_producer_w;
++  wire early_wakeup1_valid_w =
++      issue1_fire_w && issue1_fixed_gpr_producer_w;
+ 
+   // 【B-FP 簇】dispatch 分流: FP 算术/跨域 → FpBackend.disp; FP load → fpld_alloc
+   // (lane0/lane1 均可, 每拍一条); FP store → fpst_query(数据源进整数 IQ fp_src2)。
+@@ -433,6 +445,10 @@ module OooIntBackend #(
+     .wb1_cause_i(wb1_cause_w),
+     .wb1_tval_i(wb1_tval_w),
+     .wb1_fflags_i(wb1_fflags_w),
++    .early_wakeup0_valid_i(early_wakeup0_valid_w),
++    .early_wakeup0_pdest_i(iq_issue0_pdest_w),
++    .early_wakeup1_valid_i(early_wakeup1_valid_w),
++    .early_wakeup1_pdest_i(issue1_pdest_w),
+     .issue0_valid_o(iq_issue0_valid_w),
+     .issue0_ready_i(iq_issue0_ready_w),
+     .issue0_pc_o(iq_issue0_pc_w),
+@@ -444,6 +460,7 @@ module OooIntBackend #(
+     .issue0_src1_preg_o(iq_issue0_src1_preg_w),
+     .issue0_src2_preg_o(iq_issue0_src2_preg_w),
+     .issue0_pdest_o(iq_issue0_pdest_w),
++    .issue0_fixed_gpr_producer_o(iq_issue0_fixed_gpr_producer_w),
+     .issue0_fp_pdest_o(iq_issue0_fp_pdest_w),
+     .issue0_fp_st_src_en_o(iq_issue0_fp_st_en_w),
+     .issue0_fp_st_src_preg_o(iq_issue0_fp_st_preg_w),
+@@ -464,6 +481,7 @@ module OooIntBackend #(
+     .issue1_src1_preg_o(issue1_src1_preg_w),
+     .issue1_src2_preg_o(issue1_src2_preg_w),
+     .issue1_pdest_o(issue1_pdest_w),
++    .issue1_fixed_gpr_producer_o(issue1_fixed_gpr_producer_w),
+     .issue1_fp_pdest_o(issue1_fp_pdest_w),
+     .issue1_fp_st_src_en_o(issue1_fp_st_en_w),
+     .issue1_fp_st_src_preg_o(issue1_fp_st_preg_w),
+@@ -679,8 +697,72 @@ module OooIntBackend #(
+     .write1_data_i(wb1_data_w)
+   );
+ 
+-  assign issue0_src1_data_w = iq_issue0_src1_data_w;
+-  assign issue0_src2_data_w = iq_issue0_src2_data_w;
++  // R3.2 forwarding is strictly EX-register -> consumer.  PRF remains
++  // stored-only; no WB/result combinational arm is added inside the PRF.
++  wire ex0_registered_fwd_valid_w =
++      ex0_valid_q && ex0_down_payload_w[144];
++  wire ex1_registered_fwd_valid_w =
++      ex1_valid_q && ex1_down_payload_w[144];
++  wire [PHY_REG_ADDR_W-1:0] ex0_registered_fwd_pdest_w =
++      ex0_down_payload_w[139:134];
++  wire [PHY_REG_ADDR_W-1:0] ex1_registered_fwd_pdest_w =
++      ex1_down_payload_w[139:134];
++  wire [`XLEN-1:0] ex0_registered_fwd_data_w =
++      ex0_down_payload_w[133:70];
++  wire [`XLEN-1:0] ex1_registered_fwd_data_w =
++      ex1_down_payload_w[133:70];
++
++  wire issue0_src1_ex0_fwd_hit_w =
++      ex0_registered_fwd_valid_w &&
++      (iq_issue0_src1_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (iq_issue0_src1_preg_w == ex0_registered_fwd_pdest_w);
++  wire issue0_src1_ex1_fwd_hit_w =
++      ex1_registered_fwd_valid_w &&
++      (iq_issue0_src1_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (iq_issue0_src1_preg_w == ex1_registered_fwd_pdest_w);
++  wire issue0_src2_ex0_fwd_hit_w =
++      ex0_registered_fwd_valid_w &&
++      (iq_issue0_src2_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (iq_issue0_src2_preg_w == ex0_registered_fwd_pdest_w);
++  wire issue0_src2_ex1_fwd_hit_w =
++      ex1_registered_fwd_valid_w &&
++      (iq_issue0_src2_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (iq_issue0_src2_preg_w == ex1_registered_fwd_pdest_w);
++  wire issue1_src1_ex0_fwd_hit_w =
++      ex0_registered_fwd_valid_w &&
++      (issue1_src1_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (issue1_src1_preg_w == ex0_registered_fwd_pdest_w);
++  wire issue1_src1_ex1_fwd_hit_w =
++      ex1_registered_fwd_valid_w &&
++      (issue1_src1_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (issue1_src1_preg_w == ex1_registered_fwd_pdest_w);
++  wire issue1_src2_ex0_fwd_hit_w =
++      ex0_registered_fwd_valid_w &&
++      (issue1_src2_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (issue1_src2_preg_w == ex0_registered_fwd_pdest_w);
++  wire issue1_src2_ex1_fwd_hit_w =
++      ex1_registered_fwd_valid_w &&
++      (issue1_src2_preg_w != {PHY_REG_ADDR_W{1'b0}}) &&
++      (issue1_src2_preg_w == ex1_registered_fwd_pdest_w);
++
++  // Match write-port priority: ex1 wins only in the architecturally illegal
++  // duplicate-pdest case, making the failure deterministic for assertions.
++  assign issue0_src1_data_w =
++      issue0_src1_ex1_fwd_hit_w ? ex1_registered_fwd_data_w :
++      issue0_src1_ex0_fwd_hit_w ? ex0_registered_fwd_data_w :
++                                  iq_issue0_src1_data_w;
++  assign issue0_src2_data_w =
++      issue0_src2_ex1_fwd_hit_w ? ex1_registered_fwd_data_w :
++      issue0_src2_ex0_fwd_hit_w ? ex0_registered_fwd_data_w :
++                                  iq_issue0_src2_data_w;
++  wire [`XLEN-1:0] issue1_src1_value_w =
++      issue1_src1_ex1_fwd_hit_w ? ex1_registered_fwd_data_w :
++      issue1_src1_ex0_fwd_hit_w ? ex0_registered_fwd_data_w :
++                                  issue1_src1_data_w;
++  wire [`XLEN-1:0] issue1_src2_value_w =
++      issue1_src2_ex1_fwd_hit_w ? ex1_registered_fwd_data_w :
++      issue1_src2_ex0_fwd_hit_w ? ex0_registered_fwd_data_w :
++                                  issue1_src2_data_w;
+ 
+   wire mem_issue_res_kill_w =
+       branch_resolve_mispredict_w && mem_issue_res_valid_q &&
+@@ -730,11 +812,11 @@ module OooIntBackend #(
+       mem_issue_res_fp_st_en_q <= iq_issue0_fp_st_en_w;
+       mem_issue_res_fp_st_preg_q <= iq_issue0_fp_st_preg_w;
+       mem_issue_res_imm_q <= iq_issue0_imm_w;
+-      mem_issue_res_src1_data_q <= iq_issue0_src1_data_w;
+-      mem_issue_res_src2_data_q <= iq_issue0_src2_data_w;
++      mem_issue_res_src1_data_q <= issue0_src1_data_w;
++      mem_issue_res_src2_data_q <= issue0_src2_data_w;
+       mem_issue_res_store_data_q <= iq_issue0_fp_st_en_w ?
+                                     fpst_read_data_w :
+-                                    iq_issue0_src2_data_w;
++                                    issue0_src2_data_w;
+     end
+   end
+ 
+@@ -759,9 +841,9 @@ module OooIntBackend #(
+        iq_issue0_src1_preg_w, iq_issue0_src2_preg_w,
+        iq_issue0_pdest_w, iq_issue0_fp_pdest_w,
+        iq_issue0_fp_st_en_w, iq_issue0_fp_st_preg_w,
+-       iq_issue0_imm_w, iq_issue0_src1_data_w,
+-       iq_issue0_src2_data_w,
+-       iq_issue0_fp_st_en_w ? fpst_read_data_w : iq_issue0_src2_data_w};
++       iq_issue0_imm_w, issue0_src1_data_w,
++       issue0_src2_data_w,
++       iq_issue0_fp_st_en_w ? fpst_read_data_w : issue0_src2_data_w};
+   reg mem_issue_res_capture_shadow_q;
+   reg mem_issue_res_hold_shadow_q;
+   reg [MEM_ISSUE_RES_PAYLOAD_W-1:0] mem_issue_res_capture_expect_q;
+@@ -956,9 +1038,6 @@ module OooIntBackend #(
+   // 前递，而不是保留一个逻辑不可达却会串起 ALU0→ALU1 的 mux。
+   wire [`XLEN-1:0] issue0_wb_data_w;
+ 
+-  wire [`XLEN-1:0] issue1_src1_value_w = issue1_src1_data_w;
+-  wire [`XLEN-1:0] issue1_src2_value_w = issue1_src2_data_w;
+-
+   wire [`XLEN-1:0] issue0_alu_src1_w =
+       select_op1(issue0_ctrl_w[`CTRL_OP1_SEL_MSB:`CTRL_OP1_SEL_LSB],
+                  issue0_src1_data_w, issue0_pc_w);
+@@ -1441,23 +1520,19 @@ module OooIntBackend #(
+       !sq_mode_w || (sq_empty_w && !drain_inflight_q);
+   // 【级间边界治理 P1】EX→WB 级间寄存簇提取为 PipeStageReg 实例
+   // (spec: design/arch/pipeline-stage-boundary.md §4 P1——全核唯一真实 stage 寄存簇)。
+-  // payload 位段布局(144b/lane, 两 lane 一致; rob4+pdest6+result64+exc1+cause5+tval64):
+-  //   {rob_idx[143:140], pdest[139:134], result[133:70],
+-  //    exception[69], cause[68:64], tval[63:0]}
++  // payload 位段布局(145b/lane): bit144=fwd_valid；原 144b formal-WB
++  // 位段保持原位：{rob[143:140], pdest[139:134], result[133:70],
++  // exception[69], cause[68:64], tval[63:0]}。
+   // up_valid/up_payload 由原 always 各赋值臂等价改写的组合逻辑生成(assign 在原
+   // always 块位置, 见后文; 声明前置——iverilog 14 拒绝前向引用)。
+   wire ex0_up_valid_w;
+-  wire [143:0] ex0_up_payload_w;
++  wire [144:0] ex0_up_payload_w;
+   wire ex0_up_ready_unused_w;
+-  wire [143:0] ex0_down_payload_w;
+-  wire ex0_valid_q;
+   wire ex1_up_valid_w;
+-  wire [143:0] ex1_up_payload_w;
++  wire [144:0] ex1_up_payload_w;
+   wire ex1_up_ready_unused_w;
+-  wire [143:0] ex1_down_payload_w;
+-  wire ex1_valid_q;
+ 
+-  PipeStageReg #(.WIDTH(144)) u_ex0_stage (
++  PipeStageReg #(.WIDTH(145)) u_ex0_stage (
+     .clk(clk),
+     .rst(rst),
+     // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
+@@ -1473,7 +1548,7 @@ module OooIntBackend #(
+     .down_ready_i(1'b1),
+     .down_payload_o(ex0_down_payload_w)
+   );
+-  PipeStageReg #(.WIDTH(144)) u_ex1_stage (
++  PipeStageReg #(.WIDTH(145)) u_ex1_stage (
+     .clk(clk),
+     .rst(rst),
+     // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
+@@ -2552,7 +2627,8 @@ module OooIntBackend #(
+   wire [`XLEN-1:0] ex0_up_tval_w =
+       ex0_up_exception_w ? mem_issue_res_eff_addr_w : {`XLEN{1'b0}};
+   assign ex0_up_payload_w =
+-      {ex0_up_from_mem_w ? mem_issue_res_rob_idx_q : issue0_rob_idx_w,
++      {early_wakeup0_valid_w && !ex0_up_from_mem_w,
++       ex0_up_from_mem_w ? mem_issue_res_rob_idx_q : issue0_rob_idx_w,
+        ex0_up_from_mem_w ? mem_issue_res_pdest_q : issue0_pdest_w,
+        ex0_up_result_w,
+        ex0_up_exception_w, ex0_up_cause_w, ex0_up_tval_w};
+@@ -2577,7 +2653,8 @@ module OooIntBackend #(
+   wire [`XLEN-1:0] ex1_up_tval_w =
+       issue1_mem_exception_w ? issue1_alu_result_w : {`XLEN{1'b0}};
+   assign ex1_up_payload_w =
+-      {issue1_rob_idx_w, issue1_pdest_w, ex1_up_result_w,
++      {early_wakeup1_valid_w,
++       issue1_rob_idx_w, issue1_pdest_w, ex1_up_result_w,
+        ex1_up_exception_w, ex1_up_cause_w, ex1_up_tval_w};
+ 
+   always @(posedge clk) begin
+diff --git a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+index 741f64b..474ed76 100644
+--- a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
++++ b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+@@ -92,6 +92,13 @@ module OooDispatchBackend #(
+   input [`XLEN-1:0] wb1_tval_i,
+   input [4:0] wb1_fflags_i,
+ 
++  // R3.2 actual-fire lookahead wake.  These pulses update only IQ sticky
++  // readiness; formal WB remains the sole BusyTable/PRF completion source.
++  input early_wakeup0_valid_i,
++  input [PHY_REG_ADDR_W-1:0] early_wakeup0_pdest_i,
++  input early_wakeup1_valid_i,
++  input [PHY_REG_ADDR_W-1:0] early_wakeup1_pdest_i,
++
+   // 【B-FP 簇】FP wakeup(整数 IQ 的 fp_src2 监听) + FP walk 分流输出
+   input fp_wake0_valid_i,
+   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
+@@ -117,6 +124,7 @@ module OooDispatchBackend #(
+   output [PHY_REG_ADDR_W-1:0] issue0_src1_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_src2_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_pdest_o,
++  output issue0_fixed_gpr_producer_o,
+   output issue0_fp_pdest_o,
+   output issue0_fp_st_src_en_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
+@@ -136,6 +144,7 @@ module OooDispatchBackend #(
+   output [PHY_REG_ADDR_W-1:0] issue1_src1_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_src2_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_pdest_o,
++  output issue1_fixed_gpr_producer_o,
+   output issue1_fp_pdest_o,
+   output issue1_fp_st_src_en_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg_o,
+@@ -606,6 +615,7 @@ module OooDispatchBackend #(
+     .dispatch0_pred_npc_i(dispatch0_pred_npc_i),
+     .dispatch0_inst_i(dispatch0_inst_i),
+     .dispatch0_ctrl_i(dispatch0_ctrl_i),
++    .dispatch0_is_fp_i(dispatch0_is_fp_i),
+     .dispatch0_rob_idx_i(rob_dispatch0_idx_w),
+     .dispatch0_src1_preg_i(dispatch0_src1_preg_w),
+     .dispatch0_src1_ready_i(!dispatch0_uses_rs1_w || dispatch0_src1_ready_w),
+@@ -628,6 +638,7 @@ module OooDispatchBackend #(
+     .dispatch1_pred_npc_i(dispatch1_pred_npc_i),
+     .dispatch1_inst_i(dispatch1_inst_i),
+     .dispatch1_ctrl_i(dispatch1_ctrl_i),
++    .dispatch1_is_fp_i(dispatch1_is_fp_i),
+     .dispatch1_rob_idx_i(rob_dispatch1_idx_w),
+     .dispatch1_src1_preg_i(dispatch1_src1_preg_w),
+     .dispatch1_src1_ready_i(!dispatch1_uses_rs1_w || dispatch1_src1_ready_w),
+@@ -646,6 +657,10 @@ module OooDispatchBackend #(
+     .wakeup0_pdest_i(wb0_pdest_i),
+     .wakeup1_valid_i(wb1_valid_i),
+     .wakeup1_pdest_i(wb1_pdest_i),
++    .early_wakeup0_valid_i(early_wakeup0_valid_i),
++    .early_wakeup0_pdest_i(early_wakeup0_pdest_i),
++    .early_wakeup1_valid_i(early_wakeup1_valid_i),
++    .early_wakeup1_pdest_i(early_wakeup1_pdest_i),
+     .fp_wake0_valid_i(fp_wake0_valid_i),
+     .fp_wake0_preg_i(fp_wake0_preg_i),
+     .fp_wake1_valid_i(fp_wake1_valid_i),
+@@ -661,6 +676,7 @@ module OooDispatchBackend #(
+     .issue0_src1_preg_o(issue0_src1_preg_o),
+     .issue0_src2_preg_o(issue0_src2_preg_o),
+     .issue0_pdest_o(issue0_pdest_o),
++    .issue0_fixed_gpr_producer_o(issue0_fixed_gpr_producer_o),
+     .issue0_fp_pdest_o(issue0_fp_pdest_o),
+     .issue0_fp_st_src_en_o(issue0_fp_st_src_en_o),
+     .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg_o),
+@@ -679,6 +695,7 @@ module OooDispatchBackend #(
+     .issue1_src1_preg_o(issue1_src1_preg_o),
+     .issue1_src2_preg_o(issue1_src2_preg_o),
+     .issue1_pdest_o(issue1_pdest_o),
++    .issue1_fixed_gpr_producer_o(issue1_fixed_gpr_producer_o),
+     .issue1_fp_pdest_o(issue1_fp_pdest_o),
+     .issue1_fp_st_src_en_o(issue1_fp_st_src_en_o),
+     .issue1_fp_st_src_preg_o(issue1_fp_st_src_preg_o),
+diff --git a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+index eec67bf..8dc134f 100644
+--- a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
++++ b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+@@ -32,6 +32,7 @@ module OooIntIssueQueue #(
+   input dispatch0_pred_taken_i,
+   input [`INST_W-1:0] dispatch0_inst_i,
+   input [`CTRL_BUS_W-1:0] dispatch0_ctrl_i,
++  input dispatch0_is_fp_i,
+   input [ROB_INDEX_W-1:0] dispatch0_rob_idx_i,
+   input [PHY_REG_ADDR_W-1:0] dispatch0_src1_preg_i,
+   input dispatch0_src1_ready_i,
+@@ -57,6 +58,7 @@ module OooIntIssueQueue #(
+   input dispatch1_pred_taken_i,
+   input [`INST_W-1:0] dispatch1_inst_i,
+   input [`CTRL_BUS_W-1:0] dispatch1_ctrl_i,
++  input dispatch1_is_fp_i,
+   input [ROB_INDEX_W-1:0] dispatch1_rob_idx_i,
+   input [PHY_REG_ADDR_W-1:0] dispatch1_src1_preg_i,
+   input dispatch1_src1_ready_i,
+@@ -73,6 +75,12 @@ module OooIntIssueQueue #(
+   input [PHY_REG_ADDR_W-1:0] wakeup0_pdest_i,
+   input wakeup1_valid_i,
+   input [PHY_REG_ADDR_W-1:0] wakeup1_pdest_i,
++  // R3.2 lookahead wake comes only from an actual fixed-latency terminal
++  // fire.  Like full WB wake it is sticky-only and never enters select.
++  input early_wakeup0_valid_i,
++  input [PHY_REG_ADDR_W-1:0] early_wakeup0_pdest_i,
++  input early_wakeup1_valid_i,
++  input [PHY_REG_ADDR_W-1:0] early_wakeup1_pdest_i,
+   // 【B-FP 簇】FP wakeup(fp store 数据源 fs2 的就绪监听)
+   input fp_wake0_valid_i,
+   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
+@@ -92,6 +100,7 @@ module OooIntIssueQueue #(
+   output [PHY_REG_ADDR_W-1:0] issue0_src1_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_src2_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_pdest_o,
++  output issue0_fixed_gpr_producer_o,
+   output issue0_fp_pdest_o,
+   output issue0_fp_st_src_en_o,
+   output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
+@@ -113,6 +122,7 @@ module OooIntIssueQueue #(
+   output [PHY_REG_ADDR_W-1:0] issue1_src1_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_src2_preg_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_pdest_o,
++  output issue1_fixed_gpr_producer_o,
+   output issue1_fp_pdest_o,
+   output issue1_fp_st_src_en_o,
+   output [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg_o,
+@@ -154,6 +164,9 @@ module OooIntIssueQueue #(
+   // beside the payload.  The oldest-first scan reads one bit per entry rather
+   // than repeatedly decoding the wide ctrl bus on the select critical path.
+   reg alu_terminal_capable_q [0:ENTRY_COUNT-1];
++  // R3.2: compact one predecoded bit with each entry.  This is strictly the
++  // fixed-latency integer GPR producer domain; it is not a lane capability.
++  reg fixed_gpr_producer_q [0:ENTRY_COUNT-1];
+   reg [ENTRY_COUNT_W-1:0] count_q;
+ 
+   reg valid_next_r [0:ENTRY_COUNT-1];
+@@ -176,6 +189,7 @@ module OooIntIssueQueue #(
+   reg fp_st_ready_next_r [0:ENTRY_COUNT-1];
+   reg [`XLEN-1:0] imm_next_r [0:ENTRY_COUNT-1];
+   reg alu_terminal_capable_next_r [0:ENTRY_COUNT-1];
++  reg fixed_gpr_producer_next_r [0:ENTRY_COUNT-1];
+   reg [ENTRY_COUNT_W-1:0] count_next_r;
+   reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
+   integer kc_i;
+@@ -216,7 +230,11 @@ module OooIntIssueQueue #(
+     begin
+       wakeup_match = (preg != {PHY_REG_ADDR_W{1'b0}}) &&
+                      ((wakeup0_valid && (wakeup0_pdest == preg)) ||
+-                      (wakeup1_valid && (wakeup1_pdest == preg)));
++                      (wakeup1_valid && (wakeup1_pdest == preg)) ||
++                      (early_wakeup0_valid_i &&
++                       (early_wakeup0_pdest_i == preg)) ||
++                      (early_wakeup1_valid_i &&
++                       (early_wakeup1_pdest_i == preg)));
+     end
+   endfunction
+ 
+@@ -270,6 +288,54 @@ module OooIntIssueQueue #(
+     end
+   endfunction
+ 
++  function inst_is_clmul;
++    input [`INST_W-1:0] inst;
++    begin
++      inst_is_clmul =
++          (inst[6:0] == `OPCODE_OP) && (inst[31:25] == 7'h05) &&
++          ((inst[14:12] == `FUNCT3_SLL) ||
++           (inst[14:12] == `FUNCT3_SLT) ||
++           (inst[14:12] == `FUNCT3_SLTU));
++    end
++  endfunction
++
++  // The lookahead domain is deliberately narrower than "writes rd".
++  // Memory/AMO, MulDiv, CLMUL, CSR, FP, control-flow and all synchronous
++  // exception/system classes keep the formal WB sticky-wake latency.
++  function ctrl_is_fixed_gpr_producer;
++    input [`CTRL_BUS_W-1:0] ctrl;
++    input [`INST_W-1:0] inst;
++    input is_fp;
++    input fp_pdest;
++    input fp_st_src;
++    input [PHY_REG_ADDR_W-1:0] pdest;
++    begin
++      ctrl_is_fixed_gpr_producer =
++          ctrl[`CTRL_VALID_BIT] &&
++          ctrl[`CTRL_RD_EN_BIT] &&
++          ctrl[`CTRL_NEED_EXEC_BIT] &&
++          ctrl[`CTRL_NEED_WB_BIT] &&
++          !ctrl[`CTRL_NEED_MEM_BIT] &&
++          (pdest != {PHY_REG_ADDR_W{1'b0}}) &&
++          !is_fp && !fp_pdest && !fp_st_src &&
++          !ctrl[`CTRL_LOAD_BIT] && !ctrl[`CTRL_STORE_BIT] &&
++          !ctrl[`CTRL_AMO_BIT] && !ctrl[`CTRL_MULDIV_BIT] &&
++          !inst_is_clmul(inst) &&
++          !ctrl[`CTRL_CSR_BIT] &&
++          !ctrl[`CTRL_BRANCH_BIT] && !ctrl[`CTRL_JAL_BIT] &&
++          !ctrl[`CTRL_JALR_BIT] &&
++          !ctrl[`CTRL_ILLEGAL_BIT] &&
++          !ctrl[`CTRL_ECALL_BIT] && !ctrl[`CTRL_EBREAK_BIT] &&
++          !ctrl[`CTRL_FENCE_BIT] && !ctrl[`CTRL_FENCEI_BIT] &&
++          !ctrl[`CTRL_SYSTEM_BIT] && !ctrl[`CTRL_MISC_MEM_BIT] &&
++          !ctrl[`CTRL_MRET_BIT] && !ctrl[`CTRL_SRET_BIT] &&
++          !ctrl[`CTRL_WFI_BIT] && !ctrl[`CTRL_SFENCE_VMA_BIT] &&
++          !ctrl[`CTRL_SFENCE_TVM_BIT] &&
++          ((ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] == `WB_SEL_ALU) ||
++           (ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] == `WB_SEL_IMM));
++    end
++  endfunction
++
+   // 【P5 刀 B】dispatch→issue bypass 族(bypass 许可判定/dispatch 活值 entry_ready/
+   // issue0 结果前递 forward 判定/clmul 甄别)已整体删除:dispatch 活值退出 select 锥,
+   // select 唯一真源=已寄存阵列项。mode 下 branch/JAL/JALR 原"禁 bypass"特例随之普适化,
+@@ -374,6 +440,8 @@ module OooIntIssueQueue #(
+   assign issue0_src1_preg_o = src1_preg_q[issue0_idx_r];
+   assign issue0_src2_preg_o = src2_preg_q[issue0_idx_r];
+   assign issue0_pdest_o = pdest_q[issue0_idx_r];
++  assign issue0_fixed_gpr_producer_o =
++      fixed_gpr_producer_q[issue0_idx_r];
+   assign issue0_fp_pdest_o = fp_pdest_q[issue0_idx_r];
+   assign issue0_fp_st_src_en_o = fp_st_en_q[issue0_idx_r];
+   assign issue0_fp_st_src_preg_o = fp_st_preg_q[issue0_idx_r];
+@@ -394,6 +462,8 @@ module OooIntIssueQueue #(
+   assign issue1_src1_preg_o = src1_preg_q[issue1_idx_r];
+   assign issue1_src2_preg_o = src2_preg_q[issue1_idx_r];
+   assign issue1_pdest_o = pdest_q[issue1_idx_r];
++  assign issue1_fixed_gpr_producer_o =
++      fixed_gpr_producer_q[issue1_idx_r];
+   assign issue1_fp_pdest_o = fp_pdest_q[issue1_idx_r];
+   assign issue1_fp_st_src_en_o = fp_st_en_q[issue1_idx_r];
+   assign issue1_fp_st_src_preg_o = fp_st_preg_q[issue1_idx_r];
+@@ -429,6 +499,7 @@ module OooIntIssueQueue #(
+       pdest_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
+       imm_next_r[compact_i] = {`XLEN{1'b0}};
+       alu_terminal_capable_next_r[compact_i] = 1'b0;
++      fixed_gpr_producer_next_r[compact_i] = 1'b0;
+     end
+ 
+     for (compact_i = 0; compact_i < ENTRY_COUNT; compact_i = compact_i + 1) begin
+@@ -469,6 +540,8 @@ module OooIntIssueQueue #(
+         imm_next_r[write_i] = imm_q[compact_i];
+         alu_terminal_capable_next_r[write_i] =
+             alu_terminal_capable_q[compact_i];
++        fixed_gpr_producer_next_r[write_i] =
++            fixed_gpr_producer_q[compact_i];
+         write_i = write_i + 1;
+       end
+     end
+@@ -509,6 +582,11 @@ module OooIntIssueQueue #(
+       alu_terminal_capable_next_r[write_i] =
+           ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) &&
+           !dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i;
++      fixed_gpr_producer_next_r[write_i] =
++          ctrl_is_fixed_gpr_producer(
++              dispatch0_ctrl_i, dispatch0_inst_i, dispatch0_is_fp_i,
++              dispatch0_fp_pdest_i, dispatch0_fp_st_src_en_i,
++              dispatch0_pdest_i);
+       write_i = write_i + 1;
+     end
+ 
+@@ -546,6 +624,11 @@ module OooIntIssueQueue #(
+       alu_terminal_capable_next_r[write_i] =
+           ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&
+           !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i;
++      fixed_gpr_producer_next_r[write_i] =
++          ctrl_is_fixed_gpr_producer(
++              dispatch1_ctrl_i, dispatch1_inst_i, dispatch1_is_fp_i,
++              dispatch1_fp_pdest_i, dispatch1_fp_st_src_en_i,
++              dispatch1_pdest_i);
+       write_i = write_i + 1;
+     end
+ 
+@@ -587,6 +670,7 @@ module OooIntIssueQueue #(
+         fp_st_ready_q[reset_i] <= 1'b0;
+         imm_q[reset_i] <= {`XLEN{1'b0}};
+         alu_terminal_capable_q[reset_i] <= 1'b0;
++        fixed_gpr_producer_q[reset_i] <= 1'b0;
+       end
+     end else if (kill_valid_i) begin
+       // ROB-walk squash：清掉比 kill_rob_idx 更年轻(age 更大)的 entry（程序序后缀），存活=前缀，已紧凑。
+@@ -638,6 +722,8 @@ module OooIntIssueQueue #(
+         imm_q[reset_i] <= imm_next_r[reset_i];
+         alu_terminal_capable_q[reset_i] <=
+             alu_terminal_capable_next_r[reset_i];
++        fixed_gpr_producer_q[reset_i] <=
++            fixed_gpr_producer_next_r[reset_i];
+       end
+     end
+   end

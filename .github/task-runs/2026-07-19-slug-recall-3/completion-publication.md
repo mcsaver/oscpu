@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-slug-recall-3
+- `trace_id`: e2e:2026-07-19-slug-recall-3
+- `task_slug`: slug-recall
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: eabdd62811eb062b79e503bf9ee81a40534acd1c7df5726ab962db69b506c562
+- `task_report_md_sha256`: ea45c01f391f1a2e8aa091624d8af9a20be6470e63ccfe312ccab819c961574c
+- `run_manifest_json_sha256`: df126500f80f2a937402438c78992d4d3e9b3083750378a7314f31a78f22d970
+- `context_brief_md_sha256`: be1940ab2e82739ac52b3dc6420219eeab081c8df27ab1065da41d8c48220511
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 544b53869af62c350546635c200c8893338fee50910d63b9ed37e819df2b3c3a
+- `dispatch_log_md_sha256`: 92bb88c80080629cae86dede094dcb8e51e3f8a8fd80c647c71242629b2def11
+- `nodes_tsv_sha256`: 8ae1275ea3ce27aa5cbbc78f91fa043df0a92a6a133379a8c219da2ed642b482

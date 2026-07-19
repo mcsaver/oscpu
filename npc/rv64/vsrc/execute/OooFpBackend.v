@@ -739,6 +739,11 @@ module OooFpBackend #(
   // div/sqrt: 单在飞(busy 背压); meta 在本层寄存(long_meta_valid_q 声明已前置)
   reg [ROB_INDEX_W-1:0] long_rob_q;
   reg [PHY_REG_ADDR_W-1:0] long_pdest_q;
+  wire [ROB_INDEX_W-1:0] kill_age_w =
+      kill_rob_idx_i - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] long_age_w = long_rob_q - rob_head_idx_i;
+  wire long_kill_w = kill_valid_i && long_meta_valid_q &&
+      (long_age_w > kill_age_w);
   wire long_done_w;
   wire [`XLEN-1:0] long_result_w;
   wire [4:0] long_fflags_w;
@@ -790,10 +795,9 @@ module OooFpBackend #(
         long_meta_valid_q <= 1'b0;
         long_done_hold_q <= 1'b0;
       end
-      if (kill_valid_i && long_meta_valid_q &&
-          ((long_rob_q - rob_head_idx_i) >
-           (kill_rob_idx_i - rob_head_idx_i))) begin
+      if (long_kill_w) begin
         long_meta_valid_q <= 1'b0;
+        long_done_hold_q <= 1'b0;
       end
     end
   end
@@ -892,8 +896,9 @@ module OooFpBackend #(
   wire [`XLEN-1:0] exec1_value_q = exec1_stage_payload_w[68:5];
   wire [4:0] exec1_fflags_q = exec1_stage_payload_w[4:0];
   // kill 年龄判定留使用方(原语契约⑥): rob 从 down_payload 位段取, 环形 age 比较
+  wire [ROB_INDEX_W-1:0] exec1_age_w = exec1_rob_q - rob_head_idx_i;
   wire exec1_kill_w = kill_valid_i && exec1_valid_q &&
-      ((exec1_rob_q - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+      (exec1_age_w > kill_age_w);
 
   PipeStageReg #(
     .WIDTH(81)
@@ -914,10 +919,15 @@ module OooFpBackend #(
   // ===========================================================================
   // 完成仲裁 + 完成 FIFO(优先: arith(无背压) > exec1(保持) > long(done 保持))
   // FPR 目的在入队拍写物理堆+唤醒(fp_result_wb_*); FIFO 只承载 ROB done 事务。
+  // kill 当拍 PipeStageReg/long meta 尚未到沿清空，故必须在仲裁资格处组合剔除
+  // strictly-younger candidate；被剔除的 exec1 不得阻挡存活 long 递补。
   // ===========================================================================
-  wire exec1_take_w = exec1_valid_q && !arith_out_valid_w;
-  wire long_take_w = long_done_hold_q && long_meta_valid_q &&
-                     !arith_out_valid_w && !exec1_take_w;
+  wire exec1_take_candidate_w = exec1_valid_q && !arith_out_valid_w;
+  wire exec1_take_w = exec1_take_candidate_w && !exec1_kill_w;
+  wire long_take_candidate_w =
+      long_done_hold_q && long_meta_valid_q &&
+      !arith_out_valid_w && !exec1_take_w;
+  wire long_take_w = long_take_candidate_w && !long_kill_w;
   assign long_take_pre_w = long_take_w;
 
   assign fp_result_wb_valid_w =
@@ -1064,6 +1074,15 @@ module OooFpBackend #(
     if (!rst && !flush_i && fp_result_wb_valid_w &&
         !fp_result_wb_frd_w && fp_wake0_valid_o)
       $fatal(1, "GPR-destination FP completion woke FPR domain");
+  end
+
+  // Kill-edge completion 合同：状态清空发生在沿上，但任何 strictly-younger
+  // producer 在该沿之前就不得取得仲裁资格。最终 side effects 全部从 take 派生。
+  always @(posedge clk) begin
+    if (!rst && !flush_i && exec1_kill_w && exec1_take_w)
+      $error("[FP-COMPLETION-KILL-NOW] killed exec1 completed on kill edge");
+    if (!rst && !flush_i && long_kill_w && long_take_w)
+      $error("[FP-COMPLETION-KILL-NOW] killed long completed on kill edge");
   end
 `endif
 

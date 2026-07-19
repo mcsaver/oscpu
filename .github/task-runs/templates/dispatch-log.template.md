@@ -19,6 +19,8 @@
 - `trigger`:
 - `depends_on`:
 - `inputs`:
+- `task_contract`: `<subagent-contracts/<id>.json + sha256 | 不适用>`
+- `access_boundary`: `<read-only | explicit-write-paths | 不适用>`
 - `action`:
 - `outputs`:
 - `evidence`:

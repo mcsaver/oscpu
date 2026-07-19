@@ -14,6 +14,14 @@ NPC 开发默认使用 NPC-only profile：
 
 - 快速 NPC 合同：`scripts/agent-e2e.sh --profile npc-dev`
 
+## 子 agent 任务契约
+
+派发 `npc/rv64` RTL、验证或 PPA 子任务前，读取
+`.github/instructions/rtl-agent-task-contract.instructions.md`，并用
+`.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小权限契约。只读复核必须限定路径、
+命令和输出，禁止写文件、联网、账号、凭据和外部服务；实现任务必须显式列出可写文件并继续满足
+RTL 四段式与接口契约硬门。
+
 ## RV64 PPA 持续优化
 
 涉及双发射完整 OoO 核的性能、面积、时序或功耗时，必须读取

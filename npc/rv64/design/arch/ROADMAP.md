@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-14。
+> **最近更新**：2026-07-15。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
 > `.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/`；2026-07-11 历史快照：
@@ -102,23 +102,30 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 
 ### 4.1 前端
 
-1. 切分 IFU/frontend next-PC 长组合回环，先取得频率余量。
+1. **PPA-R1（当前）**：按 `rv64-architecture-ppa-contract.md` 恢复 cache-hit frontend
+   II=1；采用 elastic request/tag/response pipeline 与 selective squash，禁止恢复
+   response→request 组合旁路或三拍单事务 FSM。
 2. 增加普通 JALR 小型 target predictor；改善 RAS 可回滚/可用窗口。
 3. 以 fetch block + byte queue 取代“8B packet 只展开两条”的字节浪费。
 4. 在 memory hierarchy 可支撑后，再考虑多 IFU outstanding 与 speculative history。
 
 ### 4.2 后端
 
-1. int IQ 从全表 compact/oldest scan 演进为 valid+age、分 bank 或分层选择。
-2. PRF 评估 bank/replica/同步读阶段，减少多口异步 FF 代价。
-3. completion 从固定优先级演进为可保留/轮转仲裁，降低长尾抖动。
-4. 先清除 ROB idx/preg 固定位宽切片，再评估 ROB32/更大 PRF；禁止只改参数扩容。
+1. **PPA-R1（当前）**：恢复完整 pair capability；先让 registered memory reservation 作为
+   虚拟 lane0 owner 时仍可 promotion 一个独立 uop 到 lane1，再以动态 steering 逐步移除
+   simple-only lane1/静态 memory lane 限制。该过渡刀本身不代表 DI hard gate 已关闭。
+2. int IQ 从全表 compact/oldest scan 演进为 valid+age、分 bank 或分层选择。
+3. PRF 评估 bank/replica/同步读阶段，减少多口异步 FF 代价。
+4. completion 从固定优先级演进为可保留/轮转仲裁，降低长尾抖动。
+5. 先清除 ROB idx/preg 固定位宽切片，再评估 ROB32/更大 PRF；禁止只改参数扩容。
 
 ### 4.3 memory hierarchy
 
-保守路线：先增大 line、增加小型组相联并保持单 request；性能路线则需要 LQ、age compare、
-violation replay、tagged outstanding、MSHR、burst refill 与独立 PTW 资源。性能路线必须同刀
-设计 response identity、kill/drain 和 memory ordering，不能只把 MIQ 深度改大。
+单 request/单 AGU 路线只允许作为内存顺序正确性的中间实验，必须标记
+`architecture_infeasible`，不能进入最终 PPA 基线。完整双发射出口固定为：LQ、age compare、
+violation replay、tagged outstanding、两路 AGU/翻译/LSQ 查询/cache-request admission、MSHR、
+burst refill 与独立 PTW 资源；并须同刀设计 response identity、kill/drain 和 memory ordering，
+不能只把 MIQ 深度改大，也不能把第二条 memory 仅移出 IQ 后串行排队。
 
 ## 5. 已完成里程碑（只保留摘要）
 

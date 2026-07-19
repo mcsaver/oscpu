@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-architecture-feasible-seed-result-v1",
+  "title": "NPC RV64 one-time architecture-feasible seed result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "transition_id",
+    "source_anchor",
+    "candidate",
+    "candidate_checker_audited",
+    "architecture_feasible_seed_eligible",
+    "per_benchmark_performance_ratio",
+    "minimum_per_benchmark_ratio",
+    "candidate_logic_area",
+    "maximum_logic_area",
+    "dominance_required_for_this_transition",
+    "minimum_area_efficiency_ratio_applied_to_this_transition",
+    "power_qualified",
+    "total_area_qualified",
+    "eligible_for_front_accepted_baseline",
+    "eligible_for_canonical",
+    "eligible_for_ppa_champion",
+    "unqualified_power_claim_scope",
+    "post_seed_standard_rules_restored",
+    "post_seed_formal_front_available",
+    "post_seed_require_candidate_dominates",
+    "post_seed_minimum_area_efficiency_ratio",
+    "second_seed_transition_allowed",
+    "structural_errors",
+    "transition_blockers",
+    "warnings"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-architecture-feasible-seed-result-v1"
+    },
+    "transition_id": {
+      "const": "r3p6-infeasible-anchor-to-first-feasible-seed-v1"
+    },
+    "source_anchor": {
+      "type": ["string", "null"]
+    },
+    "candidate": {
+      "type": ["string", "null"]
+    },
+    "candidate_checker_audited": {
+      "type": "boolean"
+    },
+    "architecture_feasible_seed_eligible": {
+      "type": "boolean"
+    },
+    "per_benchmark_performance_ratio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coremark", "dhrystone_10000"],
+      "properties": {
+        "coremark": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "dhrystone_10000": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "minimum_per_benchmark_ratio": {
+      "const": 0.995
+    },
+    "candidate_logic_area": {
+      "type": ["number", "null"]
+    },
+    "maximum_logic_area": {
+      "const": 1766384.312
+    },
+    "dominance_required_for_this_transition": {
+      "const": false
+    },
+    "minimum_area_efficiency_ratio_applied_to_this_transition": {
+      "const": false
+    },
+    "power_qualified": {
+      "type": "boolean"
+    },
+    "total_area_qualified": {
+      "type": "boolean"
+    },
+    "eligible_for_front_accepted_baseline": {
+      "type": "boolean"
+    },
+    "eligible_for_canonical": {
+      "type": "boolean"
+    },
+    "eligible_for_ppa_champion": {
+      "const": false
+    },
+    "unqualified_power_claim_scope": {
+      "enum": [null, "architecture_feasible_seed_only"]
+    },
+    "post_seed_standard_rules_restored": {
+      "type": "boolean"
+    },
+    "post_seed_formal_front_available": {
+      "type": "boolean"
+    },
+    "post_seed_require_candidate_dominates": {
+      "const": true
+    },
+    "post_seed_minimum_area_efficiency_ratio": {
+      "const": 0.999
+    },
+    "second_seed_transition_allowed": {
+      "const": false
+    },
+    "structural_errors": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "transition_blockers": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "warnings": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "candidate_checker_returncode": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_checker_diagnostic": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "power_qualified": {
+            "const": false
+          }
+        },
+        "required": ["power_qualified"]
+      },
+      "then": {
+        "properties": {
+          "eligible_for_front_accepted_baseline": {
+            "const": false
+          },
+          "eligible_for_canonical": {
+            "const": false
+          },
+          "post_seed_formal_front_available": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "total_area_qualified": {
+            "const": false
+          }
+        },
+        "required": ["total_area_qualified"]
+      },
+      "then": {
+        "properties": {
+          "eligible_for_front_accepted_baseline": {
+            "const": false
+          },
+          "eligible_for_canonical": {
+            "const": false
+          },
+          "post_seed_formal_front_available": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eligible_for_front_accepted_baseline": {
+            "const": true
+          }
+        },
+        "required": ["eligible_for_front_accepted_baseline"]
+      },
+      "then": {
+        "properties": {
+          "power_qualified": {
+            "const": true
+          },
+          "total_area_qualified": {
+            "const": true
+          },
+          "eligible_for_canonical": {
+            "const": true
+          },
+          "post_seed_formal_front_available": {
+            "const": true
+          }
+        }
+      }
+    }
+  ]
+}

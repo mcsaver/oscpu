@@ -1,0 +1,38 @@
+{
+  "candidate": "ppa-r3-capability-steering",
+  "canonical_head": "31e90c679050a3a9138c967151b240f0fa2ab158",
+  "isolated_snapshot_commit": "e058e38681f541e42e1da29813ab8c5d078dbafe",
+  "linux_run": false,
+  "synthesis_run": false,
+  "sta_run": false,
+  "artifacts": [
+    {
+      "path": "red/r3-pair-matrix-red-tests.patch",
+      "sha256": "4b0bb11fb406746bf1c8988b3e39c61a890f337d34e8430ec96082cc08c41fa6"
+    },
+    {
+      "path": "red/logs/tb_ooo_int_issue_queue.log",
+      "sha256": "27e97b0c930255c8abf8571edb74ec8379114820d1c9324743eb26b6cef5a987",
+      "result": "EXPECTED_RED_20_CHECK_FAILURES"
+    },
+    {
+      "path": "final2/r3-capability-steering-candidate.patch",
+      "sha256": "a99e1a8c71ed0534c4c59524fdb98fe90b1e041effd102fb0e4c873c39707132"
+    },
+    {
+      "path": "final2/logs/tb_ooo_int_issue_queue.log",
+      "sha256": "9f580db58a5b6980e1760110966a6e1226aa6b1ce600a01e0475387991a861ca",
+      "result": "PASS"
+    },
+    {
+      "path": "final2/logs/tb_ooo_dispatch_backend.log",
+      "sha256": "594e4c533f874466fa8b30ed902312494e4253ed2c4c0f92625aec4066d97fc3",
+      "result": "PASS"
+    },
+    {
+      "path": "final2/logs/tb_ooo_int_backend.log",
+      "sha256": "0492b1509380fbf77df193752a6a8d32687b6882715be3571cac8e5430ed558f",
+      "result": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+3e4d1c5a3844c19e22a24bbe919e8f93f76d0202deaea6bd4ddfeeadba391137  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/README.md
+d401ed4c3d1d1d7a681cdde6fe90bf99aafc5c284181fa0b0f176d0cb7b092ca  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/binaries/NpcSimTop-R2p5
+69ea600208829b05376f0bd46b4c70f274bbe84fa3cb07248a0f839bcbad70db  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/r2p5-cumulative-tracked.patch
+4304b0b53e676ea78eba00580aea04974e7f92e3425960d2dd26c298d7eac450  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/r2p5-new-source-gate.patch

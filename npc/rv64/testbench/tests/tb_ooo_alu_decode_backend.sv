@@ -75,6 +75,11 @@ module tb_ooo_alu_decode_backend;
   OooAluDecodeBackend dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(),
+    .head0_identity_valid_o(),
+    .head0_identity_o(),
     .flush_i(flush),
     .checkpoint_capture_i(1'b0),
     .checkpoint_restore_i(1'b0),

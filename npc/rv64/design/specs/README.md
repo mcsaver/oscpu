@@ -32,13 +32,21 @@
 - FP completion 到整数 IQ 的跨域 sticky wake：`ooo-cross-domain-wakeup.md`；
 - Integer completion 到 FP IQ/read8 的全 sticky 时序边界：`ooo-int-to-fp-sticky-wakeup.md`；
 - FP execution/load completion 到 FP IQ、FP-store 与四口 FP PRF 的全 sticky/stored-only
-  边界：`ooo-fp-sticky-wakeup-barrier.md`；
+  边界，以及 exec1/long completion-arbiter 的 selective-kill-now 合同：
+  `ooo-fp-sticky-wakeup-barrier.md`；
 - backend drain 的 ROB-empty / core-retire-count 冗余消除：
   `ooo-drain-retire-redundancy.md`；
   `ooo-fp-arith-gate` — FP short arithmetic 5-cycle 流水、B-FP launch/out 与 macro/OOC decision contract;
   `ooo-fp-reg-file` — 架构 FPR(commit 双写+trap 恢复源)
 
 ## 访存 / MMU
+- ★ `ooo-mmu-epoch-owner` — **R4-S2-Q1 data-MMU boundary/epoch 叶 owner**：
+  held request、首拍 capture block、full-quiet sticky grant 与 grant-fire modulo-4 epoch；
+  已进入 source catalog，尚未接入 live core/MMU barrier
+- ★ `ooo-memory-typed-abi` — **R4-S1.0 typed post-translate ABI 规范真源**：
+  CACHED/NC/IO 编码、PMA/PBMT 矩阵、fault/attr、owner token/MMU epoch 生命周期及
+  single-owner/S2 RED 边界；S1.1 typed PMA/classifier 叶模块已实现，但
+  bridge/backend/SQ、token/epoch 与双 owner 尚未贯通，live routing 仍为 S0 Boolean single-owner
 - ★ `ooo-mem-axi-bridge-fsm` — 访存桥 FSM(probe/pretrans/nokill/store 解耦/单 outstanding)
 - ★ `ooo-data-word-cache` — 数据侧 8B line D-cache 语义、debug/common checker 与 macro/OOC 前置合同
 - ★ `ooo-sv39-tlb` — Sv39 TLB(64 项/上下文/superpage)

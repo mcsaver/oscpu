@@ -19,7 +19,8 @@
 //   0-cycle 组合(不查存储阵列)。
 //
 // store 维护(2026-07-09 二期赎回 write-update, 一期无条件失效废止):
-// - store_rmw_en_i=1(真 store commit): 2 拍 RMW 线内字节合并——
+// - store_rmw_en_i=1 且 store_cacheable_i=1(真 cacheable store commit):
+//   2 拍 RMW 线内字节合并——
 //   commit 拍(桥 S_WRITE_REQ 解耦/S_WRITE_RESP b-ok, 该拍宏读口空闲)占宏口
 //   发读 st_idx 并锁存 store 上下文(idx/tag/line 掩码/line 数据);
 //   次拍(判决拍, rmw_busy_o=1, 桥压 req_ready 产生 store 后 1 bubble)判
@@ -27,9 +28,10 @@
 //   同时用全 1 tag mask 幂等写回锁存 tag；miss 无动作
 //   (write-no-allocate)。跨线 store 的下一行(p1)仍无条件清 valid(跨线 RMW
 //   不做, 保守失效); 本行照常线内合并(line 掩码=wstrb<<off 截断即线内字节)。
-// - store_rmw_en_i=0(HW A/D PTE 写回维护路): 保持无条件失效(清 valid, 不读
-//   不写宏, 0 额外拍)——该拍 S_AD_UPDATE 的 read 续访问可能同拍发 lookup,
-//   宏读口不空闲, 且 PTE 行保热无收益。
+// - store_rmw_en_i=0(HW A/D PTE 写回维护路)，或 store_cacheable_i=0
+//   (PBMT NC/IO 真 store): 对落入 PMEM 物理范围的行保持无条件失效(清 valid,
+//   不读不写宏, 0 额外拍)。前者避免与 S_AD_UPDATE 的 read 续访问争宏口；
+//   后者禁止把 non-cacheable transaction 写入 cache，同时清掉同 PA 的热别名。
 // - fill 是全行写(全 1 掩码), 桥保证 fill(S_READ_DATA)与 lookup 发射拍/RMW
 //   两拍窗口状态互斥; 宏口占用者两两同拍视为 1RW 违约(OOO_ASSERT 把关)。
 module OooDataWordCache #(
@@ -66,8 +68,11 @@ module OooDataWordCache #(
 
   // ---- store 维护 ----
   input store_commit_i,
-  // 1=真 store commit(2 拍 RMW write-update); 0=A/D PTE 写回维护(无条件失效)
+  // 1=真 store commit; 0=A/D PTE 写回维护(无条件失效)
   input store_rmw_en_i,
+  // Post-translation PMA/PBMT class.  A PMEM PA alone is insufficient:
+  // PBMT NC/IO stores must invalidate, not update, a cached alias after B.
+  input store_cacheable_i,
   input [`XLEN-1:0] store_addr_i,
   input [`XLEN-1:0] store_wdata_i,   // 窗口数据(低位起, 与 wstrb 位对齐)
   input [`STRB_W-1:0] store_wstrb_i,
@@ -136,7 +141,12 @@ module OooDataWordCache #(
   wire st_cross_w = ({1'b0, st_off_w} + st_nbytes_w) > 5'd8;
   wire [INDEX_W-1:0] st_idx_w = line_index(store_addr_i);
   wire [INDEX_W-1:0] st_idx_p1_w = st_idx_w + {{(INDEX_W-1){1'b0}}, 1'b1};
-  wire st_cacheable_w = cacheable_addr(store_addr_i);
+  // Two deliberately separate truths:
+  // - st_address_cacheable_w: this PA can have an extant DCache alias and thus
+  //   needs post-store maintenance;
+  // - st_rmw_cacheable_w: this transaction is allowed to write-update it.
+  wire st_address_cacheable_w = cacheable_addr(store_addr_i);
+  wire st_rmw_cacheable_w = store_cacheable_i && st_address_cacheable_w;
   // line 视角的合并掩码/数据(窗口左移 off 字节; 8b 截断天然只留线内字节,
   // 跨线溢出部分由 p1 保守失效兜底)
   wire [`STRB_W-1:0] st_line_mask_w = store_wstrb_i << st_off_w;
@@ -144,7 +154,7 @@ module OooDataWordCache #(
 
   // ---- store RMW 2 拍机构 ----
   // commit 拍(发射): 占宏口读 st_idx, 同拍锁存 store 上下文。
-  wire rmw_start_w = store_commit_i && store_rmw_en_i && st_cacheable_w;
+  wire rmw_start_w = store_commit_i && store_rmw_en_i && st_rmw_cacheable_w;
 
   reg rmw_pending_q;
   reg [INDEX_W-1:0] rmw_idx_q;
@@ -244,7 +254,8 @@ module OooDataWordCache #(
   //   store(RMW 路)本行不失效(命中判决拍原地合并, miss 原行继续有效——
   //     同 index 异 tag 行不再被误清, 这是 write-update 赎回的主收益);
   //   跨线 store 的 p1 行无条件清(跨线 RMW 不做, 保守失效);
-  //   A/D 维护路(store_rmw_en_i=0)保持一期无条件失效(含跨线 p1)。
+  //   A/D 维护路(store_rmw_en_i=0)或 PBMT NC/IO 路(store_cacheable_i=0)
+  //   保持无条件失效(含跨线 p1)。
   always @(posedge clk) begin
     if (rst) begin
       valid_q <= {ENTRY_COUNT{1'b0}};
@@ -255,8 +266,8 @@ module OooDataWordCache #(
     end else begin
       if (fill_we_w)
         valid_q[fill_idx_w] <= 1'b1;
-      if (store_commit_i && st_cacheable_w) begin
-        if (!store_rmw_en_i) begin
+      if (store_commit_i && st_address_cacheable_w) begin
+        if (!store_rmw_en_i || !store_cacheable_i) begin
           valid_q[st_idx_w] <= 1'b0;
           if (st_cross_w)
             valid_q[st_idx_p1_w] <= 1'b0;
@@ -268,6 +279,37 @@ module OooDataWordCache #(
   end
 
 `ifdef OOO_ASSERT
+  // Delayed maintenance witness: an invalidate-class terminal must make both
+  // affected valid bits unobservable on the following cycle.  Checking one
+  // cycle later avoids sampling pre-NBA state on the commit edge.
+  wire invalidate_class_store_w =
+      store_commit_i && st_address_cacheable_w &&
+      (!store_rmw_en_i || !store_cacheable_i);
+  reg invalidate_check_q;
+  reg [INDEX_W-1:0] invalidate_idx_q;
+  reg invalidate_cross_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      invalidate_check_q <= 1'b0;
+      invalidate_idx_q <= {INDEX_W{1'b0}};
+      invalidate_cross_q <= 1'b0;
+    end else begin
+      invalidate_check_q <= invalidate_class_store_w;
+      if (invalidate_class_store_w) begin
+        invalidate_idx_q <= st_idx_w;
+        invalidate_cross_q <= st_cross_w;
+      end
+      if (invalidate_check_q &&
+          (valid_q[invalidate_idx_q] ||
+           (invalidate_cross_q &&
+            valid_q[invalidate_idx_q + {{(INDEX_W-1){1'b0}}, 1'b1}]))) begin
+        $error("[DWC-STORE-INVALIDATE] invalidate-class store retained a hot alias @%0t",
+               $time);
+        $fatal;
+      end
+    end
+  end
+
   initial begin
     if (INDEX_W != 12) begin
       $error("[DWC-SRAM-GEOM] INDEX_W=%0d 与 Sram4096x113(4096x113)宏不匹配",

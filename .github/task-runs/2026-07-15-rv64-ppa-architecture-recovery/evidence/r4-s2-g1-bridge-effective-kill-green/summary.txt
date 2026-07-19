@@ -1,4 +1,4 @@
-work_dir=/tmp/s2-g1-bridge-green.Iygw7N
+work_dir=/tmp/s2-g1-bridge-green.FlQ68Y
 long_regression=GREEN_OOO_ASSERT
 write_visibility_hold=GREEN_both_stalled_AW_only_W_only_3_OF_3
 dual_drop_and_atomic_replace=GREEN_2_OF_2

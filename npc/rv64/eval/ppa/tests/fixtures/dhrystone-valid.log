@@ -1,0 +1,8 @@
+Dhrystone Benchmark, Version C, Version 2.2
+Trying 10000 runs through Dhrystone.
+Dhrystone PASS         1 Marks
+[cpu-exec.cpp:824 region_probe] BOUNDARY kind=start pc=0x0000000080000334 cycle=10 retired_before=20 lane=0 cycle_retire=1
+[cpu-exec.cpp:842 region_probe] BOUNDARY kind=end pc=0x000000008000047c cycle=110 retired_before=120 lane=0 cycle_retire=1
+[cpu-exec.cpp:852 region_probe] RESULT start_hits=10000 end_hits=1 start_cycle=10 end_cycle=110 cycles=100 start_retired=20 end_retired=120 retired=100
+[cpu-exec.cpp:2006 cpu_exec] npc: HIT GOOD TRAP at pc = 0x0000000080000b70
+[cpu-exec.cpp:2020 report_run_result] exit via ebreak, code=0, cycles=150, commits=141

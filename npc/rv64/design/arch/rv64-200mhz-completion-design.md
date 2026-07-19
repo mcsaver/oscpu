@@ -56,6 +56,11 @@ T-PRE 不能替代 T-PHYS。当前 icsprout55 TT/1.2 V/25°C、ideal clock、无
 性能；纯性能/时序改动若没有改善 200 MHz 可达性或综合性能，必须撤回并记录负实验。前端目标是
 流水填满后 1 packet/cycle；若中间台阶暂时降低吞吐，只能作为可逆实验，不能作为最终架构。
 
+2026-07-15 起，本节受 `ooo-core-architecture.md` §8.5 与
+`rv64-architecture-ppa-contract.md` 约束：完整双发射、真 OoO、frontend II=1 是 hard gate，
+不能用 lane capability 删除或全局 older-valid 串行换 5 ns。候选先过功能/架构/时序门槛，再做
+performance/area/power Pareto 对抗；T4T 只登记为 provisional seed，不是 canonical champion。
+
 ## 2. 当前基线（2026-07-11）
 
 ### 2.1 功能

@@ -32,8 +32,11 @@
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/AGENTS.md",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/ai-env/README.md",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/ai-env/contracts/agent-env-policy.json",
+    "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/ai-env/contracts/agent-env-rtl-task-contract.json",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/agents/AGENT_INDEX.md",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/agent-env-maintenance/SKILL.md",
+    "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/prepare-rtl-task-contract/SKILL.md",
+    "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/README.md",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-maintain.sh",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/github_index_db.py"

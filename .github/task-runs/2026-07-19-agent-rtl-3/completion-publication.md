@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-agent-rtl-3
+- `trace_id`: e2e:2026-07-19-agent-rtl-3
+- `task_slug`: agent-rtl
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 07b748707df8df3fe91d8e6e8aa40fa58b0754872ba35c41b0502e28f2fb004f
+- `task_report_md_sha256`: 3df3373127251aabf372d2d6c0386420921f127c50a7e382f40852b03da81231
+- `run_manifest_json_sha256`: 0be64ec39142e011cc78822c96399676b35466df2b66f06d945490c00fc7bc78
+- `context_brief_md_sha256`: e7ccac14ff6eebae44fc9de138186135f1bca8e49b48c537b9f36b69fae89646
+- `profile_resolve_md_sha256`: 848e738541006a520215f10fbdd6895161697d78d798cd29aa45decdfbcfdb5c
+- `evidence_index_md_sha256`: 2d1d5f65939913fe1263cb8e5848efff89ee1888c607275a0b9cca4dbc5b3bd0
+- `dispatch_log_md_sha256`: c7e8994ff7761d96eefb943cb42ee147493a6e2b69fb6bbf045eb5adbbfecf17
+- `nodes_tsv_sha256`: 562437e96cbd4b76a8816086978ea56e797c2cece612693e4c39e8514cfcb9a4

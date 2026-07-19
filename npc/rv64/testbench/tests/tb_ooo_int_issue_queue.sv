@@ -18,17 +18,22 @@ module tb_ooo_int_issue_queue;
   localparam PHY_REG_ADDR_W = 6;
   localparam ROB_INDEX_W = 4;
   localparam ENTRY_COUNT_W = 4;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
 
   reg clk;
   reg rst;
   reg flush;
   reg issue_mem_block;
+  reg universal_owner_present;
   reg dispatch0_valid;
   wire dispatch0_ready;
   reg [`XLEN-1:0] dispatch0_pc;
   reg [`INST_W-1:0] dispatch0_inst;
   reg [`CTRL_BUS_W-1:0] dispatch0_ctrl;
+  reg dispatch0_is_fp;
   reg [ROB_INDEX_W-1:0] dispatch0_rob_idx;
+  reg [PRODUCER_ID_W-1:0] dispatch0_producer_id;
   reg [PHY_REG_ADDR_W-1:0] dispatch0_src1_preg;
   reg dispatch0_src1_ready;
   reg [PHY_REG_ADDR_W-1:0] dispatch0_src2_preg;
@@ -43,8 +48,10 @@ module tb_ooo_int_issue_queue;
   reg [`XLEN-1:0] dispatch1_pc;
   reg [`INST_W-1:0] dispatch1_inst;
   reg [`CTRL_BUS_W-1:0] dispatch1_ctrl;
+  reg dispatch1_is_fp;
   reg dispatch1_optional;
   reg [ROB_INDEX_W-1:0] dispatch1_rob_idx;
+  reg [PRODUCER_ID_W-1:0] dispatch1_producer_id;
   reg [PHY_REG_ADDR_W-1:0] dispatch1_src1_preg;
   reg dispatch1_src1_ready;
   reg [PHY_REG_ADDR_W-1:0] dispatch1_src2_preg;
@@ -58,20 +65,27 @@ module tb_ooo_int_issue_queue;
   reg [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
   reg wakeup1_valid;
   reg [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
+  reg early_wakeup0_valid;
+  reg [PHY_REG_ADDR_W-1:0] early_wakeup0_pdest;
+  reg early_wakeup1_valid;
+  reg [PHY_REG_ADDR_W-1:0] early_wakeup1_pdest;
   reg fp_wake0_valid;
   reg [PHY_REG_ADDR_W-1:0] fp_wake0_preg;
   reg fp_wake1_valid;
   reg [PHY_REG_ADDR_W-1:0] fp_wake1_preg;
   wire issue0_valid;
   reg issue0_ready;
+  wire issue_pair_swapped;
   wire [`XLEN-1:0] issue0_pc;
   wire [`XLEN-1:0] issue0_next_pc;
   wire [`INST_W-1:0] issue0_inst;
   wire [`CTRL_BUS_W-1:0] issue0_ctrl;
   wire [ROB_INDEX_W-1:0] issue0_rob_idx;
+  wire [PRODUCER_ID_W-1:0] issue0_producer_id;
   wire [PHY_REG_ADDR_W-1:0] issue0_src1_preg;
   wire [PHY_REG_ADDR_W-1:0] issue0_src2_preg;
   wire [PHY_REG_ADDR_W-1:0] issue0_pdest;
+  wire issue0_fixed_gpr_producer;
   wire issue0_fp_st_src_en;
   wire [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg;
   wire [`XLEN-1:0] issue0_imm;
@@ -82,9 +96,11 @@ module tb_ooo_int_issue_queue;
   wire [`INST_W-1:0] issue1_inst;
   wire [`CTRL_BUS_W-1:0] issue1_ctrl;
   wire [ROB_INDEX_W-1:0] issue1_rob_idx;
+  wire [PRODUCER_ID_W-1:0] issue1_producer_id;
   wire [PHY_REG_ADDR_W-1:0] issue1_src1_preg;
   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg;
   wire [PHY_REG_ADDR_W-1:0] issue1_pdest;
+  wire issue1_fixed_gpr_producer;
   wire issue1_fp_st_src_en;
   wire [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg;
   wire [`XLEN-1:0] issue1_imm;
@@ -97,11 +113,14 @@ module tb_ooo_int_issue_queue;
   reg recover_active;
   integer lane1_negative_i;
 
-  OooIntIssueQueue dut (
+  OooIntIssueQueue #(
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .issue_mem_block_i(issue_mem_block),
+    .universal_owner_present_i(universal_owner_present),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
@@ -111,7 +130,9 @@ module tb_ooo_int_issue_queue;
     .dispatch0_pred_taken_i(1'b0),
     .dispatch0_inst_i(dispatch0_inst),
     .dispatch0_ctrl_i(dispatch0_ctrl),
+    .dispatch0_is_fp_i(dispatch0_is_fp),
     .dispatch0_rob_idx_i(dispatch0_rob_idx),
+    .dispatch0_producer_id_i(dispatch0_producer_id),
     .dispatch0_src1_preg_i(dispatch0_src1_preg),
     .dispatch0_src1_ready_i(dispatch0_src1_ready),
     .dispatch0_src2_preg_i(dispatch0_src2_preg),
@@ -132,7 +153,9 @@ module tb_ooo_int_issue_queue;
     .dispatch1_pred_taken_i(1'b0),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_ctrl_i(dispatch1_ctrl),
+    .dispatch1_is_fp_i(dispatch1_is_fp),
     .dispatch1_rob_idx_i(dispatch1_rob_idx),
+    .dispatch1_producer_id_i(dispatch1_producer_id),
     .dispatch1_src1_preg_i(dispatch1_src1_preg),
     .dispatch1_src1_ready_i(dispatch1_src1_ready),
     .dispatch1_src2_preg_i(dispatch1_src2_preg),
@@ -147,6 +170,10 @@ module tb_ooo_int_issue_queue;
     .wakeup0_pdest_i(wakeup0_pdest),
     .wakeup1_valid_i(wakeup1_valid),
     .wakeup1_pdest_i(wakeup1_pdest),
+    .early_wakeup0_valid_i(early_wakeup0_valid),
+    .early_wakeup0_pdest_i(early_wakeup0_pdest),
+    .early_wakeup1_valid_i(early_wakeup1_valid),
+    .early_wakeup1_pdest_i(early_wakeup1_pdest),
     .fp_wake0_valid_i(fp_wake0_valid),
     .fp_wake0_preg_i(fp_wake0_preg),
     .fp_wake1_valid_i(fp_wake1_valid),
@@ -158,12 +185,15 @@ module tb_ooo_int_issue_queue;
     .issue0_inst_o(issue0_inst),
     .issue0_ctrl_o(issue0_ctrl),
     .issue0_rob_idx_o(issue0_rob_idx),
+    .issue0_producer_id_o(issue0_producer_id),
     .issue0_src1_preg_o(issue0_src1_preg),
     .issue0_src2_preg_o(issue0_src2_preg),
     .issue0_pdest_o(issue0_pdest),
+    .issue0_fixed_gpr_producer_o(issue0_fixed_gpr_producer),
     .issue0_fp_st_src_en_o(issue0_fp_st_src_en),
     .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg),
     .issue0_imm_o(issue0_imm),
+    .issue_pair_swapped_o(issue_pair_swapped),
     .issue1_valid_o(issue1_valid),
     .issue1_ready_i(issue1_ready),
     .issue1_pc_o(issue1_pc),
@@ -171,9 +201,11 @@ module tb_ooo_int_issue_queue;
     .issue1_inst_o(issue1_inst),
     .issue1_ctrl_o(issue1_ctrl),
     .issue1_rob_idx_o(issue1_rob_idx),
+    .issue1_producer_id_o(issue1_producer_id),
     .issue1_src1_preg_o(issue1_src1_preg),
     .issue1_src2_preg_o(issue1_src2_preg),
     .issue1_pdest_o(issue1_pdest),
+    .issue1_fixed_gpr_producer_o(issue1_fixed_gpr_producer),
     .issue1_fp_st_src_en_o(issue1_fp_st_src_en),
     .issue1_fp_st_src_preg_o(issue1_fp_st_src_preg),
     .issue1_imm_o(issue1_imm),
@@ -192,11 +224,14 @@ module tb_ooo_int_issue_queue;
     begin
       flush = 1'b0;
       issue_mem_block = 1'b0;
+      universal_owner_present = 1'b0;
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
       dispatch0_inst = 32'h0;
       dispatch0_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch0_is_fp = 1'b0;
       dispatch0_rob_idx = 4'd0;
+      dispatch0_producer_id = {PRODUCER_ID_W{1'b0}};
       dispatch0_src1_preg = 6'd0;
       dispatch0_src1_ready = 1'b0;
       dispatch0_src2_preg = 6'd0;
@@ -210,8 +245,10 @@ module tb_ooo_int_issue_queue;
       dispatch1_pc = 32'h0;
       dispatch1_inst = 32'h0;
       dispatch1_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch1_is_fp = 1'b0;
       dispatch1_optional = 1'b0;
       dispatch1_rob_idx = 4'd0;
+      dispatch1_producer_id = {PRODUCER_ID_W{1'b0}};
       dispatch1_src1_preg = 6'd0;
       dispatch1_src1_ready = 1'b0;
       dispatch1_src2_preg = 6'd0;
@@ -225,6 +262,10 @@ module tb_ooo_int_issue_queue;
       wakeup0_pdest = 6'd0;
       wakeup1_valid = 1'b0;
       wakeup1_pdest = 6'd0;
+      early_wakeup0_valid = 1'b0;
+      early_wakeup0_pdest = 6'd0;
+      early_wakeup1_valid = 1'b0;
+      early_wakeup1_pdest = 6'd0;
       fp_wake0_valid = 1'b0;
       fp_wake0_preg = 6'd0;
       fp_wake1_valid = 1'b0;
@@ -268,6 +309,7 @@ module tb_ooo_int_issue_queue;
       dispatch0_ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
       dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_ALU;
       dispatch0_rob_idx = rob_idx;
+      dispatch0_producer_id = {{PRODUCER_GEN_W{1'b0}}, rob_idx};
       dispatch0_src1_preg = src1;
       dispatch0_src1_ready = src1_ready;
       dispatch0_src2_preg = src2;
@@ -296,6 +338,7 @@ module tb_ooo_int_issue_queue;
       dispatch1_ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
       dispatch1_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_ALU;
       dispatch1_rob_idx = rob_idx;
+      dispatch1_producer_id = {{PRODUCER_GEN_W{1'b0}}, rob_idx};
       dispatch1_src1_preg = src1;
       dispatch1_src1_ready = src1_ready;
       dispatch1_src2_preg = src2;
@@ -305,8 +348,203 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
-  // 审查者反例矩阵：每个复杂候选均夹在 older/younger simple-ALU 之间。
-  // lane1 必须越过候选选择 younger；候选只可在下一拍晋升 lane0。
+  // R3 capability steering matrix.  issue0 is the universal terminal and
+  // issue1 is the fixed-latency ALU terminal; neither name is a program-order
+  // lane.  When an older ALU precedes a younger complex uop, the IQ must swap
+  // their terminal assignment so that both resident, independent uops fire in
+  // the same cycle.  The reverse program order must work as well.
+  function automatic [`CTRL_BUS_W-1:0] r3_complex_ctrl;
+    input integer class_id;
+    reg [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      ctrl = {`CTRL_BUS_W{1'b0}};
+      ctrl[`CTRL_VALID_BIT] = 1'b1;
+      ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+      case (class_id)
+        0: begin // branch
+          ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
+        end
+        1: begin // JAL
+          ctrl[`CTRL_JAL_BIT] = 1'b1;
+          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
+        end
+        2: begin // JALR
+          ctrl[`CTRL_JALR_BIT] = 1'b1;
+          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_PC4;
+        end
+        3: begin // load
+          ctrl[`CTRL_LOAD_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+        end
+        default: begin // store
+          ctrl[`CTRL_STORE_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
+        end
+      endcase
+      r3_complex_ctrl = ctrl;
+    end
+  endfunction
+
+  task automatic run_r3_capability_pair;
+    input integer class_id;
+    input complex_older;
+    reg [`XLEN-1:0] older_pc;
+    reg [`XLEN-1:0] younger_pc;
+    reg [`XLEN-1:0] expect_universal_pc;
+    reg [`XLEN-1:0] expect_alu_pc;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      older_pc = 32'h8200_0000 + (class_id * 32'h40) +
+                 (complex_older ? 32'h20 : 32'h00);
+      younger_pc = older_pc + 32'd4;
+      set_dispatch0(older_pc, 4'd1, 6'd1, 1'b1,
+                    6'd2, 1'b1, 6'd40);
+      set_dispatch1(younger_pc, 4'd2, 6'd3, 1'b1,
+                    6'd4, 1'b1, 6'd41);
+      if (complex_older) begin
+        dispatch0_ctrl = r3_complex_ctrl(class_id);
+        expect_universal_pc = older_pc;
+        expect_alu_pc = younger_pc;
+      end else begin
+        dispatch1_ctrl = r3_complex_ctrl(class_id);
+        expect_universal_pc = younger_pc;
+        expect_alu_pc = older_pc;
+      end
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      #1;
+      $display("[R3-CAP-PAIR] class=%0d complex_older=%0b issue={%0b,%0b} universal_pc=%h alu_pc=%h count=%0d",
+               class_id, complex_older, issue0_valid, issue1_valid,
+               issue0_pc, issue1_pc, count);
+      tb_check32("R3 pair keeps two resident uops", {28'b0, count}, 32'd2);
+      tb_check1("R3 pair universal terminal valid", issue0_valid, 1'b1);
+      tb_check1("R3 pair ALU terminal valid", issue1_valid, 1'b1);
+      tb_check32("R3 pair complex routes to universal", issue0_pc,
+                 expect_universal_pc);
+      tb_check32("R3 pair simple routes to ALU terminal", issue1_pc,
+                 expect_alu_pc);
+      tb_check1("R3 pair universal owns complex class",
+                issue0_ctrl[`CTRL_BRANCH_BIT] || issue0_ctrl[`CTRL_JAL_BIT] ||
+                issue0_ctrl[`CTRL_JALR_BIT] || issue0_ctrl[`CTRL_LOAD_BIT] ||
+                issue0_ctrl[`CTRL_STORE_BIT], 1'b1);
+      tb_check1("R3 pair ALU terminal owns simple class",
+                issue1_ctrl[`CTRL_BRANCH_BIT] || issue1_ctrl[`CTRL_JAL_BIT] ||
+                issue1_ctrl[`CTRL_JALR_BIT] || issue1_ctrl[`CTRL_LOAD_BIT] ||
+                issue1_ctrl[`CTRL_STORE_BIT], 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("R3 pair fires exactly once and drains", empty, 1'b1);
+    end
+  endtask
+
+  // R3.1 handshake matrix.  Bits are {Universal-base-ready, ALU-ready}.
+  // The backend must turn Universal ready into 0 for an age-swapped pair
+  // unless the older ALU terminal is also firing.  This task models that
+  // coupling at the standalone IQ boundary and verifies compaction.
+  task automatic run_r3p1_swapped_ready_case;
+    input [1:0] ready_case;
+    reg effective_universal_ready;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8300_0000 + ({30'b0, ready_case} << 4),
+                    4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+      set_dispatch1(32'h8300_0004 + ({30'b0, ready_case} << 4),
+                    4'd2, 6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
+      dispatch1_ctrl = r3_complex_ctrl(3);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("R3.1 ready matrix presents Universal", issue0_valid, 1'b1);
+      tb_check1("R3.1 ready matrix presents ALU", issue1_valid, 1'b1);
+      tb_check1("R3.1 ready matrix marks age swap", issue_pair_swapped, 1'b1);
+      tb_check32("R3.1 ready matrix younger load on Universal", issue0_pc,
+                 32'h8300_0004 + ({30'b0, ready_case} << 4));
+      tb_check32("R3.1 ready matrix older ALU on ALU terminal", issue1_pc,
+                 32'h8300_0000 + ({30'b0, ready_case} << 4));
+      issue1_ready = ready_case[0];
+      effective_universal_ready =
+          ready_case[1] && (!issue_pair_swapped || issue1_ready);
+      issue0_ready = effective_universal_ready;
+      #1;
+      tb_check1("R3.1 memory-pop implies older-ALU fire",
+                issue0_ready && !issue1_ready, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      case (ready_case)
+        2'b00: begin
+          tb_check32("R3.1 ready00 holds both", {28'b0, count}, 32'd2);
+          tb_check1("R3.1 ready00 keeps swap", issue_pair_swapped, 1'b1);
+        end
+        2'b01: begin
+          tb_check32("R3.1 ready01 fires only older ALU",
+                     {28'b0, count}, 32'd1);
+          tb_check1("R3.1 ready01 leaves younger memory", issue0_valid, 1'b1);
+          tb_check1("R3.1 ready01 clears pair marker", issue_pair_swapped, 1'b0);
+        end
+        2'b10: begin
+          tb_check32("R3.1 ready10 blocks orphan memory",
+                     {28'b0, count}, 32'd2);
+          tb_check1("R3.1 ready10 keeps swap", issue_pair_swapped, 1'b1);
+        end
+        default: tb_check1("R3.1 ready11 drains both", empty, 1'b1);
+      endcase
+      $display("[R3P1-READY-MATRIX] ready=%b effective_universal=%0b count=%0d",
+               ready_case, effective_universal_ready, count);
+    end
+  endtask
+
+  task automatic run_r3p1_registered_owner_sole_alu;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8300_0100, 4'd3, 6'd5, 1'b1,
+                    6'd6, 1'b1, 6'd42);
+      `TB_TICK(clk);
+      clear_inputs();
+      universal_owner_present = 1'b1;
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      tb_check1("R3.1 registered owner suppresses Universal",
+                issue0_valid, 1'b0);
+      tb_check1("R3.1 sole ALU dynamically owns ALU terminal",
+                issue1_valid, 1'b1);
+      tb_check32("R3.1 sole ALU identity", issue1_pc, 32'h8300_0100);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("R3.1 sole ALU backpressure holds",
+                 {28'b0, count}, 32'd1);
+      issue1_ready = 1'b1;
+      `TB_TICK(clk);
+      #1;
+      tb_check1("R3.1 sole ALU drains while owner remains", empty, 1'b1);
+      tb_check1("R3.1 Universal stays quiet while owner remains",
+                issue0_valid, 1'b0);
+      $display("[R3P1-REGISTERED-OWNER-SOLE-ALU] PASS");
+    end
+  endtask
+
+
+  // R3 capability 反例矩阵：每个复杂候选均夹在 older/younger simple-ALU
+  // 之间。复杂候选必须当拍路由到 Universal terminal，older simple 必须动态
+  // 路由到 ALU terminal；不得用跳过复杂候选、下一拍再晋升来伪装双发。
   task automatic run_lane1_negative_class;
     input integer class_id;
     reg [`CTRL_BUS_W-1:0] candidate_ctrl;
@@ -365,23 +603,77 @@ module tb_ooo_int_issue_queue;
       #1;
       $display("[T3Q-LANE1-NEG] class=%0d lane0_pc=%h lane1_pc=%h count=%0d",
                class_id, issue0_pc, issue1_pc, count);
-      tb_check1("T3Q negative oldest simple owns lane0", issue0_valid, 1'b1);
-      tb_check1("T3Q negative younger simple owns lane1", issue1_valid, 1'b1);
-      tb_check32("T3Q negative lane0 identity", issue0_pc,
+      tb_check1("R3 complex owns Universal terminal", issue0_valid, 1'b1);
+      tb_check1("R3 older simple owns ALU terminal", issue1_valid, 1'b1);
+      tb_check32("R3 Universal takes complex candidate", issue0_pc,
+                 32'h8100_0004 + (class_id * 32'h20));
+      tb_check32("R3 ALU terminal takes older simple", issue1_pc,
                  32'h8100_0000 + (class_id * 32'h20));
-      tb_check32("T3Q negative lane1 skips candidate", issue1_pc,
-                 32'h8100_0008 + (class_id * 32'h20));
       `TB_TICK(clk);
       #1;
-      tb_check32("T3Q negative candidate remains", {28'b0, count}, 32'd1);
-      tb_check1("T3Q negative candidate promotes lane0", issue0_valid, 1'b1);
-      tb_check1("T3Q negative candidate never owns lane1", issue1_valid, 1'b0);
-      tb_check32("T3Q negative promoted identity", issue0_pc,
-                 32'h8100_0004 + (class_id * 32'h20));
+      tb_check32("R3 younger simple remains", {28'b0, count}, 32'd1);
+      tb_check1("R3 remaining simple uses Universal alone", issue0_valid, 1'b1);
+      tb_check1("R3 no duplicate ALU-terminal owner", issue1_valid, 1'b0);
+      tb_check32("R3 remaining simple identity", issue0_pc,
+                 32'h8100_0008 + (class_id * 32'h20));
       `TB_TICK(clk);
       clear_inputs();
       #1;
       tb_check1("T3Q negative case drains", empty, 1'b1);
+    end
+  endtask
+
+  // R3.2 allow-list proof.  Class 0 is the only positive fixed-latency GPR
+  // producer; all speculative/multicycle/exception-bearing categories must
+  // retain formal-WB wake latency.
+  task automatic run_r3p2_fixed_class_case;
+    input integer class_id;
+    reg expected_fixed;
+    begin
+      reset_dut();
+      set_dispatch0(32'h8400_0000 + (class_id * 32'h20),
+                    4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+      expected_fixed = (class_id == 0);
+      case (class_id)
+        1: begin // load
+          dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+        end
+        2: begin // AMO
+          dispatch0_ctrl[`CTRL_AMO_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+        end
+        3: dispatch0_ctrl[`CTRL_MULDIV_BIT] = 1'b1;
+        4: begin // CLMUL encoding: funct7=0x05, funct3=SLL
+          dispatch0_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
+          dispatch0_inst = {7'h05, 5'd2, 5'd1, `FUNCT3_SLL,
+                            5'd5, `OPCODE_OP};
+        end
+        5: begin // CSR/system
+          dispatch0_ctrl[`CTRL_CSR_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_SYSTEM_BIT] = 1'b1;
+          dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_CSR;
+        end
+        6: dispatch0_is_fp = 1'b1;
+        7: dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+        8: dispatch0_ctrl[`CTRL_ILLEGAL_BIT] = 1'b1;
+        default: begin end
+      endcase
+      #1;
+      tb_check1("R3.2 fixed-class dispatch ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("R3.2 fixed-class metadata", dut.fixed_gpr_producer_q[0],
+                expected_fixed);
+      $display("[R3P2-FIXED-CLASS] class=%0d fixed=%0b expected=%0b",
+               class_id, dut.fixed_gpr_producer_q[0], expected_fixed);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("R3.2 fixed-class drains", empty, 1'b1);
     end
   endtask
 
@@ -442,6 +734,126 @@ module tb_ooo_int_issue_queue;
       clear_inputs();
       #1;
       tb_check1("[T3H-COLLISION] captured entry drains", empty, 1'b1);
+    end
+  endtask
+
+  // v8f carrier contract: full ProducerId, rather than a parallel raw-index
+  // state array, must remain attached to the same entry across hold,
+  // compaction, simultaneous replacement dispatch, and selective kill.
+  task automatic run_v8f_producer_id_carrier;
+    reg [PRODUCER_ID_W-1:0] id0;
+    reg [PRODUCER_ID_W-1:0] id1;
+    reg [PRODUCER_ID_W-1:0] id2;
+    begin
+      id0 = {PRODUCER_ID_W{1'b0}};
+      id0[PRODUCER_ID_W-1:ROB_INDEX_W] = {PRODUCER_GEN_W{1'b1}};
+      id0[ROB_INDEX_W-1:0] = 4'd3;
+      id1 = {PRODUCER_ID_W{1'b0}};
+      id1[ROB_INDEX_W] = 1'b1;
+      id1[ROB_INDEX_W-1:0] = 4'd4;
+      id2 = {PRODUCER_ID_W{1'b0}};
+      id2[PRODUCER_ID_W-1] = 1'b1;
+      id2[ROB_INDEX_W-1:0] = 4'd5;
+
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8000_1200, 4'd3,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+      dispatch0_producer_id = id0;
+      set_dispatch1(32'h8000_1204, 4'd4,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
+      dispatch1_producer_id = id1;
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("v8f dual carrier exposes issue0", issue0_valid, 1'b1);
+      tb_check1("v8f dual carrier exposes issue1", issue1_valid, 1'b1);
+      tb_check32("v8f lane0 full producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id0});
+      tb_check32("v8f lane1 full producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id1});
+      tb_check32("v8f lane0 raw projection", {28'b0, issue0_rob_idx},
+                 {28'b0, id0[ROB_INDEX_W-1:0]});
+      tb_check32("v8f lane1 raw projection", {28'b0, issue1_rob_idx},
+                 {28'b0, id1[ROB_INDEX_W-1:0]});
+
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("v8f stalled lane0 id holds",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id0});
+      tb_check32("v8f stalled lane1 id holds",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id1});
+
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b0;
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      #1;
+      tb_check32("v8f survivor compacts with full id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id1});
+      tb_check32("v8f compaction leaves one entry", {28'b0, count}, 32'd1);
+
+      issue0_ready = 1'b1;
+      set_dispatch0(32'h8000_1208, 4'd5,
+                    6'd5, 1'b1, 6'd6, 1'b1, 6'd42);
+      dispatch0_producer_id = id2;
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      #1;
+      tb_check32("v8f replacement dispatch keeps its full id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id2});
+      tb_check32("v8f replacement leaves one entry", {28'b0, count}, 32'd1);
+
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      id0[ROB_INDEX_W-1:0] = 4'd14;
+      id1[ROB_INDEX_W-1:0] = 4'd15;
+      id2[ROB_INDEX_W-1:0] = 4'd0;
+      set_dispatch0(32'h8000_1210, 4'd14,
+                    6'd7, 1'b1, 6'd8, 1'b1, 6'd43);
+      dispatch0_producer_id = id0;
+      set_dispatch1(32'h8000_1214, 4'd15,
+                    6'd9, 1'b1, 6'd10, 1'b1, 6'd44);
+      dispatch1_producer_id = id1;
+      `TB_TICK(clk);
+      clear_inputs();
+      set_dispatch0(32'h8000_1218, 4'd0,
+                    6'd11, 1'b1, 6'd12, 1'b1, 6'd45);
+      dispatch0_producer_id = id2;
+      `TB_TICK(clk);
+      clear_inputs();
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd15;
+      rob_head_idx = 4'd14;
+      #1;
+      tb_check1("v8f kill cycle suppresses issue0", issue0_valid, 1'b0);
+      tb_check1("v8f kill cycle suppresses issue1", issue1_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      tb_check32("v8f kill keeps survivor count", {28'b0, count}, 32'd2);
+      tb_check32("v8f kill keeps oldest full id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id0});
+      tb_check32("v8f kill keeps boundary full id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id1});
+      tb_check1("v8f kill clears strictly-younger slot", dut.valid_q[2], 1'b0);
+      $display("[V8F-INTIQ-PRODUCER-CARRIER] dual/hold/compact/replace/kill PASS");
+      reset_dut();
     end
   endtask
 
@@ -592,7 +1004,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("empty after dual issue", empty, 1'b1);
 
-    // ===== T3N：控制流只能由 lane0 拥有，lane1 扫描可越过它 =====
+    // ===== R3：控制流动态取得 Universal，older ALU 改走 ALU terminal =====
     set_dispatch0(32'h8000_0018, 4'd10,
                   6'd1, 1'b1, 6'd2, 1'b1, 6'd36);
     set_dispatch1(32'h8000_001c, 4'd11,
@@ -605,33 +1017,35 @@ module tb_ooo_int_issue_queue;
     set_dispatch0(32'h8000_0020, 4'd12,
                   6'd5, 1'b1, 6'd6, 1'b1, 6'd37);
     #1;
-    tb_check1("T3N older non-control occupies lane0", issue0_valid, 1'b1);
-    tb_check32("T3N lane0 oldest pc", issue0_pc, 32'h8000_0018);
-    tb_check1("T3N control-flow not exposed on lane1", issue1_valid, 1'b0);
+    tb_check1("R3 branch occupies Universal", issue0_valid, 1'b1);
+    tb_check32("R3 Universal branch pc", issue0_pc, 32'h8000_001c);
+    tb_check1("R3 older ALU occupies ALU terminal", issue1_valid, 1'b1);
+    tb_check32("R3 ALU terminal older pc", issue1_pc, 32'h8000_0018);
     `TB_TICK(clk);
     clear_inputs();
     issue0_ready = 1'b1;
     issue1_ready = 1'b1;
     #1;
     tb_check32("T3N three entries resident", {28'b0, count}, 32'd3);
-    tb_check1("T3N lane0 valid", issue0_valid, 1'b1);
-    tb_check1("T3N lane1 selects younger non-control", issue1_valid, 1'b1);
-    tb_check32("T3N lane1 skips branch pc", issue1_pc, 32'h8000_0020);
-    tb_check1("T3N lane1 payload is not branch",
+    tb_check1("R3 Universal terminal valid", issue0_valid, 1'b1);
+    tb_check1("R3 ALU terminal valid", issue1_valid, 1'b1);
+    tb_check32("R3 Universal selects branch", issue0_pc, 32'h8000_001c);
+    tb_check32("R3 ALU terminal selects oldest ALU", issue1_pc, 32'h8000_0018);
+    tb_check1("R3 ALU terminal payload is not branch",
               issue1_ctrl[`CTRL_BRANCH_BIT], 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check32("T3N skipped branch remains", {28'b0, count}, 32'd1);
-    tb_check1("T3N branch promotes to lane0", issue0_valid, 1'b1);
-    tb_check32("T3N promoted branch pc", issue0_pc, 32'h8000_001c);
-    tb_check1("T3N promoted payload is branch",
-              issue0_ctrl[`CTRL_BRANCH_BIT], 1'b1);
-    tb_check1("T3N lane1 idle behind sole branch", issue1_valid, 1'b0);
+    tb_check32("R3 younger ALU remains", {28'b0, count}, 32'd1);
+    tb_check1("R3 remaining ALU uses Universal alone", issue0_valid, 1'b1);
+    tb_check32("R3 remaining ALU pc", issue0_pc, 32'h8000_0020);
+    tb_check1("R3 remaining payload is not branch",
+              issue0_ctrl[`CTRL_BRANCH_BIT], 1'b0);
+    tb_check1("R3 ALU terminal idle for sole uop", issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check1("T3N promoted branch drains", empty, 1'b1);
+    tb_check1("R3 capability trio drains", empty, 1'b1);
 
     // ===== S4 / T3M RED→GREEN：EX/full wake 只落 sticky，N+1 发射 =====
     set_dispatch0(32'h8000_0020, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
@@ -834,7 +1248,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("T3S ordered memory pair drains", empty, 1'b1);
 
-    // ===== T3T 年龄反例：memory 不得越过未 ready 的 older non-memory =====
+    // ===== T3T 年龄反例：memory 不越过未 ready 的 older non-memory =====
     set_dispatch0(32'h8000_0140, 4'd11,
                   6'd21, 1'b0, 6'd0, 1'b1, 6'd0);
     dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
@@ -902,6 +1316,7 @@ module tb_ooo_int_issue_queue;
     `TB_TICK(clk);
     #1;
     tb_check1("entry drains after ready", empty, 1'b1);
+    $display("[R3P2-STALL] IQ valid held under ready=0 and drained after release PASS");
 
     // ===== T3P：lane1 跳过复杂 load，选择更年轻 simple-ALU；load 随后晋升 lane0 =====
     issue0_ready = 1'b0;
@@ -942,6 +1357,10 @@ module tb_ooo_int_issue_queue;
     for (lane1_negative_i = 0; lane1_negative_i < 8;
          lane1_negative_i = lane1_negative_i + 1)
       run_lane1_negative_class(lane1_negative_i);
+
+    for (lane1_negative_i = 0; lane1_negative_i < 9;
+         lane1_negative_i = lane1_negative_i + 1)
+      run_r3p2_fixed_class_case(lane1_negative_i);
 
     // ===== S10 乱序 select:ready 新项越过 unready 老项,但仍须先寄存(N+1) =====
     set_dispatch0(32'h8000_0080, 4'd14, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
@@ -996,8 +1415,8 @@ module tb_ooo_int_issue_queue;
     kill_valid = 1'b1;
     kill_rob_idx = 4'd1;
     rob_head_idx = 4'd1;
-    wakeup0_valid = 1'b1;
-    wakeup0_pdest = 6'd21;
+    early_wakeup0_valid = 1'b1;
+    early_wakeup0_pdest = 6'd21;
     #1;
     tb_check1("kill gates issue0", issue0_valid, 1'b0);
     tb_check1("kill gates issue1", issue1_valid, 1'b0);
@@ -1005,13 +1424,14 @@ module tb_ooo_int_issue_queue;
     clear_inputs();
     #1;
     tb_check32("kill squashes younger suffix", {28'b0, count}, 32'd1);
-    tb_check1("[T3B-GREEN] survivor absorbed kill-cycle full wakeup",
+    tb_check1("[R3P2-KILL] survivor absorbed kill-cycle early wakeup",
               issue0_valid, 1'b1);
     tb_check32("survivor pc", issue0_pc, 32'h8000_0090);
     `TB_TICK(clk);
     clear_inputs();
     #1;
     tb_check1("empty after kill scenario", empty, 1'b1);
+    $display("[R3P2-KILL] younger suffix removed, early-woken survivor fired PASS");
 
     // ===== S12 recover 冻结发射 =====
     set_dispatch0(32'h8000_00a0, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd56);
@@ -1033,10 +1453,13 @@ module tb_ooo_int_issue_queue;
     `TB_TICK(clk);
     clear_inputs();
     flush = 1'b1;
+    early_wakeup0_valid = 1'b1;
+    early_wakeup0_pdest = 6'd57;
     `TB_TICK(clk);
     clear_inputs();
     #1;
     tb_check1("flush empties queue", empty, 1'b1);
+    $display("[R3P2-FLUSH] flush dominates matching early wake and clears IQ PASS");
 
     // ===== T3D RED：FP store wakeup 只可落 sticky，禁止 N 拍直进 select =====
     reset_dut();
@@ -1225,6 +1648,48 @@ module tb_ooo_int_issue_queue;
     run_fp_dispatch_wake_collision(1'b1, 1'b1, 6'd0,
                                    32'h8000_00dc, 4'd13);
 
+    // R3 RED->GREEN pair matrix: branch/JAL/JALR/load/store, both program
+    // orders.  A passing result requires two simultaneous terminal fires;
+    // serial promotion is not accepted as dual issue.
+    for (lane1_negative_i = 0; lane1_negative_i < 5;
+         lane1_negative_i = lane1_negative_i + 1) begin
+      run_r3_capability_pair(lane1_negative_i, 1'b0);
+      run_r3_capability_pair(lane1_negative_i, 1'b1);
+    end
+
+    run_r3p1_swapped_ready_case(2'b00);
+    run_r3p1_swapped_ready_case(2'b01);
+    run_r3p1_swapped_ready_case(2'b10);
+    run_r3p1_swapped_ready_case(2'b11);
+    run_r3p1_registered_owner_sole_alu;
+    run_v8f_producer_id_carrier;
+
+`ifdef R3P3_PACKED_HOLE_NEGATIVE
+    // Reachable design state must never contain a hole.  This negative probe
+    // deliberately deposits only idx1 as a ready memory uop: combinational
+    // outputs must fail closed before PACKED-AGE reports the violation.
+    clear_inputs();
+    dut.valid_q[0] = 1'b0;
+    dut.valid_q[1] = 1'b1;
+    dut.src1_ready_q[1] = 1'b1;
+    dut.src2_ready_q[1] = 1'b1;
+    dut.fp_st_en_q[1] = 1'b0;
+    dut.alu_terminal_capable_q[1] = 1'b0;
+    dut.ctrl_q[1][`CTRL_LOAD_BIT] = 1'b1;
+    dut.ctrl_q[1][`CTRL_STORE_BIT] = 1'b0;
+    dut.ctrl_q[1][`CTRL_AMO_BIT] = 1'b0;
+    #1;
+    tb_check1("[R3P3-HOLE-QUIET] issue0 suppressed", issue0_valid, 1'b0);
+    tb_check1("[R3P3-HOLE-QUIET] issue1 suppressed", issue1_valid, 1'b0);
+    tb_check1("[R3P3-HOLE-QUIET] eligible suppressed",
+              |dut.select_eligible_w, 1'b0);
+    $display("[R3P3-HOLE-QUIET] outputs quiet before assertion edge");
+    `TB_TICK(clk);
+    #1;
+    $display("[R3P3-PACKED-HOLE-NEGATIVE-DONE] completed one assertion edge");
+    $finish_and_return(0);
+`else
     tb_finish("tb_ooo_int_issue_queue");
+`endif
   end
 endmodule

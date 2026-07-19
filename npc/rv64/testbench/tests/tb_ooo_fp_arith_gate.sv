@@ -28,6 +28,7 @@ module tb_ooo_fp_arith_gate;
   wire [`OOO_PHY_REG_ADDR_W-1:0] out_pdest;
   wire [`XLEN-1:0] out_value;
   wire [4:0] out_fflags;
+  integer kill_guard;
 
   OooFpArithGate dut (
     .clk(clk), .rst(rst), .flush_i(flush), .start_i(start),
@@ -190,6 +191,68 @@ module tb_ooo_fp_arith_gate;
     chk_out("launch fma out", 1'b1, 4'd3, 6'd35, D7, 5'b0);
     @(posedge clk); #1;
     chk_out("launch pipe drained", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+
+    // v8b-prep kill-now：先把结果 hold 在 stage5，然后在不走时钟的
+    // 同一输出窗口内只切换 cut 或 kill-valid。ambient function 若漏了
+    // 敏感依赖，out_valid 会保留旧值，直接泄漏 stale FP completion。
+    launch_op(2'd0, 4'd4, 6'd41, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D1, 64'b0);
+    launch_valid = 1'b0;
+    kill_guard = 0;
+    while ((out_valid !== 1'b1) && (kill_guard < 8)) begin
+      @(posedge clk); #1;
+      kill_guard = kill_guard + 1;
+    end
+    chk_out("kill-now held fp result", 1'b1, 4'd4, 6'd41, D2, 5'b0);
+    @(negedge clk);
+    rob_head_idx = 4'd0;
+    kill_rob_idx = 4'd6;
+    kill_valid = 1'b1;  // idx4 older than cut6: survivor
+    #1;
+    tb_check1("fp nonmatching kill preserves output", out_valid, 1'b1);
+    kill_rob_idx = 4'd2;  // 只变 cut：idx4 严格年轻
+    #1;
+    tb_check1("fp cut-only toggle masks output", out_valid, 1'b0);
+    kill_valid = 1'b0;
+    #1;
+    tb_check1("fp kill-valid low restores held output", out_valid, 1'b1);
+    kill_valid = 1'b1;
+    #1;
+    tb_check1("fp kill-valid only toggle masks output", out_valid, 1'b0);
+    @(posedge clk); #1;
+    kill_valid = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      tb_check1("fp killed result has no delayed pulse", out_valid, 1'b0);
+    end
+
+    // head-only sensitivity + wrap：idx0/head0 是 oldest，不杀；只把 head 改成14 后，
+    // idx0 age=2 而 cut15 age=1，必须立即抹掉。
+    launch_op(2'd0, 4'd0, 6'd42, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D1, 64'b0);
+    launch_valid = 1'b0;
+    kill_guard = 0;
+    while ((out_valid !== 1'b1) && (kill_guard < 8)) begin
+      @(posedge clk); #1;
+      kill_guard = kill_guard + 1;
+    end
+    chk_out("head-only held fp result", 1'b1, 4'd0, 6'd42, D2, 5'b0);
+    @(negedge clk);
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'd15;
+    rob_head_idx = 4'd0;
+    #1;
+    tb_check1("fp head baseline survives", out_valid, 1'b1);
+    rob_head_idx = 4'd14;
+    #1;
+    tb_check1("fp head-only toggle masks wrap-younger output",
+              out_valid, 1'b0);
+    @(posedge clk); #1;
+    kill_valid = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      tb_check1("fp head-killed result has no delayed pulse", out_valid, 1'b0);
+    end
 
     // younger-than-kill 的在飞 meta 必须被清 valid；数据可以继续流动，但 out_valid 不得拉高。
     launch_op(2'd2, 4'd4, 6'd36, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);

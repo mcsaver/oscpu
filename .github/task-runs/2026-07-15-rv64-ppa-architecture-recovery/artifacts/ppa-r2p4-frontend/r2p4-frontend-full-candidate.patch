@@ -1,0 +1,1136 @@
+diff --git a/npc/rv64/design/specs/ooo-fetch-axi-bridge.md b/npc/rv64/design/specs/ooo-fetch-axi-bridge.md
+index 01e201718..e4daebd9f 100644
+--- a/npc/rv64/design/specs/ooo-fetch-axi-bridge.md
++++ b/npc/rv64/design/specs/ooo-fetch-axi-bridge.md
+@@ -18,9 +18,9 @@
+ ## 2. 接口（要点）
+ | 信号 | 含义 |
+ | --- | --- |
+-| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。只在 S_IDLE，或 S_RESP 旧响应同拍 fire 时 accept；candidate context 每拍无条件预装 raw live，fire 只取得标量 FSM owner。下一拍 S_CACHE_READ 用 candidate 发同步 SRAM/ITLB lookup，拍尾 candidate→exec，再下一拍 S_LOOKUP 判决。不得从 live request 组合穿透到 SRAM/response |
++| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。S_IDLE、可消费旧响应的 S_RESP、可消费 fast-hit 的 S_CACHE_READ(H1) 可 accept。SRAM 读窗由这些 registered state 预开，semantic lookup 仅由 request fire 产生；fire 拍消费 live PC/context，下一拍 H1 对齐 SRAM/ITLB/PMP 结果。fast hit 可在 H1 同沿 response fire + successor request fire，实现稳态 1 packet/cycle |
+ | `fetch_req_owner_pc_o` | frontend outstanding PC 唯一载荷真源。S_CACHE_READ 取 candidate PC，其余状态取 frozen exec PC；交接值保持。无 outstanding 时该 payload 可 stale，response stall/MMU flush 不得改变有效 owner |
+-| `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。成功=`(OK,OK)`；fault 使用 successful-prefix/fault-suffix `(OK,cause)`，不是最终 per-slot response |
++| `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。H1 按 registered state 无条件暴露 SRAM raw payload，miss/fault 时为 don’t-care；只有 `fetch_rsp_valid_o` 才赋予语义。成功=`(OK,OK)`；fault 使用 successful-prefix/fault-suffix `(OK,cause)`，不是最终 per-slot response |
+ | `fetch_rsp_resp0_bytes_o` | 成功/cache=4；fault=首个失败 halfword offset `F∈{0,2,4,6}`。0 是合法 first-halfword fault。与 response 同 owner、同 stall 生命周期 |
+ | `ifu_axi_araddr/arsize/arprot` | instruction data=`translate(PC+offset),2B,exec`；PTE walk=`registered pte_addr,8B,data`。ARVALID 一经呈现，包含 flush 在内都必须保持 valid/payload 到 fire；被 flush 作废者进入对应 AR_DROP，fire 后在 S_DRAIN 吞 R |
+ | `priv_mode_i/satp_i/svpbmt_en_i` + `pmpcfg_i/pmpaddr_i` | 翻译/权限上下文 |
+@@ -65,21 +65,27 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由
+ 
+ ## 3. 主要数据通路
+ - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
+-  T3R 把 semantic accept 与物理读分成两个注册边界；T4A 把完整 context
+-  `{pc,paging,priv,satp,svpbmt}` 固定分成 candidate/exec 两种物理角色。candidate 每拍无条件
+-  跟踪 raw live，S_CACHE_READ 的 cache/ITLB lookup 只显式消费 candidate；该拍尾 exec 只按
+-  registered `state_q==S_CACHE_READ` 原子捕获旧 candidate。S_LOOKUP 及以后所有 transaction
+-  consumer 只显式消费 frozen exec。历史别名 `pc_q/paging_q/req_*_q` 仅供 owner output、XMR
+-  debug 与 assertion 使用，不得回流功能数据通路。T3X 的 `paddr*`、walk/cross-page flag、
+-  gather data/offset 和 response/split 等派生 scratch 仍只在 S_CACHE_READ 拍尾初始化。
+-  S_LOOKUP 消费同步 SRAM payload 并把结果写 response Q；只有 S_RESP 对外 valid。fill 只在
+-  最终成功的 S_R0，与 1RW read 严格互斥。
++  R2 将物理读窗固定预开在 registered accepting states `S_IDLE/S_CACHE_READ/S_RESP`，
++  `fetch_req_fire_w` 才是 semantic lookup token，并在同沿让 FPC shadow 与同步 SRAM 消费
++  live PC/context。下一拍 S_CACHE_READ(H1) 的 SRAM Q、tag shadow、candidate context 与
++  registered ITLB result 属于同一请求。无 fire 的 dummy read 不产生 `dec_en_q`，因此不能
++  形成 hit。fill 仍只在最终成功的 S_R0，与 1RW read 严格互斥。
++- **固定角色 context**：完整 `{pc,paging,priv,satp,svpbmt}` candidate 每个非 reset 拍无条件
++  采 live；request-fire 后的 H1 token 才赋予该值 owner 语义。H1 closing edge 将旧 candidate
++  捕获进 frozen exec，供 miss/PMP/PTW/AXI/fill 使用；fast-hit turnover 同沿可把 successor
++  live tuple 装进 candidate。历史别名 `pc_q/paging_q/req_*_q` 仅供 owner output/XMR/assertion。
++- **H1 data/control 分离**：`cache_result_window_w=(state_q==S_CACHE_READ)` 无条件选择 SRAM raw
++  payload；`cache_hit_resp_w` 另行叠加 cache tag、ITLB 权限、PMP、flush/invalidate 后才产生
++  response valid/ready。miss/fault 的 raw payload 是 don’t-care，禁止被无 valid 的路径消费；
++  response stall 则把精确 payload 捕获到 S_RESP skid。该约束禁止 PMP/ITLB valid 控制锥进入
++  packet decode、successor PC 与下次 SRAM address 数据路径。
+ - **ITLB** `OooSv39Tlb`：paging 时翻译 PC→paddr；miss 触发 page table walk(S_WALK_*)。
+-  lookup 输入接 candidate。T3W/T4A 在 S_CACHE_READ 拍尾同时锁存
+-  `lookup_itlb_hit_q`、`lookup_itlb_perm_fault_q`、translated-or-bare
+-  `lookup_exec_paddr_q` 与 exec context；S_LOOKUP 的两个 4B fast PMP checker 只消费这些
+-  registered owner。这样 PC→ITLB 与 PMP 不再和 cache-hit/response payload 串在同一拍，
+-  同时不增加 T3R cadence。
++  lookup 与 FPC 在 request-fire 沿消费同一 live tuple；`lookup_itlb_hit_q`、
++  `lookup_itlb_perm_fault_q`、`lookup_exec_paddr_q` 在 H1 对齐。两个固定 4B fast PMP
++  checker 只消费 registered PA 与 H1 candidate privilege；慢路径离开 H1 前由 candidate→exec
++  交接冻结 owner。R2.2 要求 translated paddr payload 只由 registered paging mode 选择，
++  不再由 ITLB hit/permission valid 选择；miss/fault 时该 paddr 是 don’t-care，只有独立的
++  registered hit/permission token 才允许 PMP、fast response 或 slow translated fetch 消费。
+ - **PMP fast gate**：两个固定 4B checker 只提供 cache-hit 的保守充分条件，且在所有
+   privilege/pmpcfg（包括全零配置）下都运行。任一 fixed-window 拒绝只降级 slow path，
+   不直接形成架构 fault。
+@@ -109,10 +115,10 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由
+ 
+ | bridge 状态/事件 | `lookup_read_en_i` | semantic accept (`lookup_en_i`) | SRAM 写 | 可见语义 |
+ | --- | ---: | ---: | ---: | --- |
+-| S_IDLE | 0 | 0 | 0 | request fire 只取得 FSM owner；candidate 已在该沿预装完整 context，物理 SRAM 保持关闭 |
+-| S_RESP | 0 | 0 | 0 | response stall 保持 payload；旧响应 fire 可同拍锁存 replacement request |
+-| S_CACHE_READ | 1 | 1 | 0 | 只用 candidate 发 SRAM/ITLB lookup；拍尾同时捕获 ITLB/PA authorization 与 candidate→exec |
+-| S_LOOKUP | 0 | 0 | 0 | 消费上拍 SRAM payload与 registered ITLB/PMP owner，拍尾写 response Q 或进入 slow path |
++| S_IDLE | 1 | 仅 request fire | 0 | 无 fire 为 dummy read；fire 同沿用 live tuple 发 SRAM/ITLB issue |
++| S_RESP | 1 | 仅旧 response fire 且 successor valid | 0 | stall 为 dummy read；旧响应消费同拍可 issue replacement |
++| S_CACHE_READ(H1) | 1 | 仅 fast-hit response fire 且 successor valid | 0 | raw payload 无条件预装；valid 经权限精确门控；可原子 turnover |
++| S_LOOKUP(legacy) | 0 | 0 | 0 | 只保留 debug encoding，生产 FSM 不得进入 |
+ | S_R0 final successful fill | 0 | 0 | 1 | fill PC/payload 写入；物理读写严格互斥 |
+ | 其它 walk/AR/R/drain/write 状态 | 0 | 0 | 0 | 不占 payload SRAM 端口 |
+ 
+@@ -122,8 +128,9 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由
+ outstanding 时 owner payload 可 stale。普通非写态 flush 清逻辑 scratch，唯独已呈现且 stalled
+ 的 AR 必须转 `S_WALK_AR_DROP/S_FETCH_AR_DROP` 并保留 payload 真源，直到 AR fire 后进
+ S_DRAIN 吞 R；已 fire 的读直接排水。S_AD_UPDATE 中则 exec、registered PTE address、AD payload
+-与 AW/W/B owner 保持到 B completion，仅 sticky-drop 架构语义。raw SRAM payload 在 semantic
+-hit=0 时是 don't-care，禁止被任何架构路径消费。
++与 AW/W/B owner 保持到 B completion，仅 sticky-drop 架构语义。state-only 物理读窗在 flush
++拍可以产生 dummy read；raw SRAM payload 在 `fetch_rsp_valid_o=0` 时是 don’t-care，禁止被
++任何架构 token 消费。
+ 
+ ### 3.1 IFU-AXI-G1 状态 / 子模式
+ 
+@@ -158,8 +165,8 @@ effective_drop   = ad_drop_q || mmu_flush_i
+ | `w_done_q` | 当前 write 的 W accepted | complete 清 0 | 保持并吸收同拍 fire | 0 |
+ | `ad_drop_q` | 当前 write 完成后的 fetch 语义 | 新 A-update/complete 清 0 | sticky 置 1 | 0 |
+ | `ad_pte_q` | WDATA payload | re-walk 后可覆写 | 保持 | 0 |
+-| candidate context | 下一次 S_CACHE_READ lookup | 每个非 reset 拍采 raw live | write/flush 期间仍可变化，但不是 transaction owner | 0/default |
+-| exec context | 整个有效 fetch transaction | S_CACHE_READ 拍尾从 candidate 捕获，其余保持 | 保持到 B completion；普通 flush 后只成为 invalid stale payload | 0/default |
++| candidate context | request-fire 后的 H1 owner / fast-turnover successor | 每个非 reset 拍采 raw live，H1 token 才赋予语义 | write/flush 期间仍可变化，但不是 frozen slow owner | 0/default |
++| exec context | H1 离开后的 slow transaction | S_CACHE_READ 拍尾从 old candidate 捕获，其余保持 | 保持到 B completion；普通 flush 后只成为 invalid stale payload | 0/default |
+ | `walk_ppn_q/walk_level_q/walk_second_q` | walk/re-walk provenance | 按原 FSM 使用 | write owner 中保持到 B completion | 0 |
+ | `walk_pte_addr_q/walk_pte_pmp_fault_q` | 当前 PTE READ address + 8B READ-PMP verdict | S_WALK_CHECK 原子捕获；AR/AWADDR/debug 消费 | 普通 flush 不驱动有效 AR；write owner 保持 address provenance | 0 |
+ | `S_*_AR_DROP` + fetch scratch | 已呈现但被 flush 作废的 AR payload | AR fire 后进 S_DRAIN | 重复 flush 与反压期间完整保持 | IDLE/0 |
+@@ -202,13 +209,16 @@ slow path checker reject at F -> no AR, raw response=(OK, ACCESS_FAULT, F)
+ 
+ ## 5. 状态机（简）
+ ```
+- S_IDLE --req fire(candidate 已预装，取得 FSM owner)--> S_CACHE_READ
+- S_RESP --旧 response fire + replacement req fire--> S_CACHE_READ
+- S_CACHE_READ --candidate lookup；candidate→exec；锁存 ITLB owner；初始化 scratch--> S_LOOKUP
+- S_LOOKUP --cache hit / first-frontier fault--> S_RESP
+- S_LOOKUP --miss,no-trans/itlb-hit--> S_AR0(exact PMP+AR)/S_R0(2B gather)
++ S_IDLE --req fire(live SRAM/ITLB issue)--> S_CACHE_READ(H1)
++ S_RESP --旧 response fire + replacement req fire--> S_CACHE_READ(H1)
++ S_CACHE_READ --fast hit + response fire + successor req fire--> S_CACHE_READ(H1)
++ S_CACHE_READ --fast hit + response fire，无 successor--> S_IDLE
++ S_CACHE_READ --fast hit + response stall--> S_RESP(payload skid)
++ S_CACHE_READ --ITLB permission/canonical fault--> S_RESP(OK,cause,0)
++ S_CACHE_READ --bare/ITLB-hit cache miss或保守 PMP fast reject--> S_AR0(exact PMP+2B AR)
++ S_CACHE_READ --ITLB miss--> S_WALK_CHECK
+  S_R0 --more,same-page--> S_AR0
+- S_LOOKUP/S_WALK_R/S_R0/S_AD_UPDATE(B OK) --> S_WALK_CHECK --> S_WALK_AR/S_WALK_R
++ S_CACHE_READ/S_WALK_R/S_R0/S_AD_UPDATE(B OK) --> S_WALK_CHECK --> S_WALK_AR/S_WALK_R
+  S_R0 --more,next-page,paging--> S_WALK_CHECK/S_WALK_AR/S_WALK_R(三级) --> S_AR0
+  S_R0 --N complete--> S_RESP
+  任一 frontier PMP/page/RRESP fault --> S_RESP(OK,cause,F)
+@@ -217,11 +227,11 @@ slow path checker reject at F -> no AR, raw response=(OK, ACCESS_FAULT, F)
+  已 fire 读 --mmu_flush--> S_DRAIN(消费返回后回 IDLE)
+  未呈现 AR/PMP fault/其它无总线 owner 状态 --mmu_flush--> S_IDLE
+ ```
+-`S_AR1/S_R1` 仅保留历史 debug state 编码，exact fetch 不再进入。RDATA 只在 S_R0 决定
+-下一拍 offset/state，不存在 RDATA→下一 ARVALID/ARADDR 的同拍链；hit 快速路径
+-固定经过 request fire→S_CACHE_READ→S_LOOKUP→S_RESP，不允许 response 或下一个 request
+-穿透 cache 判决拍。S_RESP 仍可在旧响应 fire 同拍锁存 replacement request，随后按相同
+-两拍 read/decision cadence 前进。
++`S_LOOKUP/S_AR1/S_R1` 仅保留历史 debug state 编码，生产 FSM 不再进入。RDATA 只在 S_R0
++决定下一拍 offset/state，不存在 RDATA→下一 ARVALID/ARADDR 的同拍链。hit 快速路径固定为
++request-fire→H1；H1 response 与 successor request 可在同一沿原子 turnover，稳态 II=1。
++若 response 反压，H1 payload 必须进入 S_RESP skid，之后 S_RESP 仍可在旧响应 fire 同沿
++issue replacement。任何 miss/fault 都禁止 H1 successor fire。
+ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道完成并收到 B 后，
+ 若该请求未被 flush 则重新 page walk，再填 ITLB；若 flush 已把旧取指语义标为 drop，则仍
+ 补齐 AW/W、消费 B，随后直接回 IDLE。reserved 扩展位检查在 Svpbmt/Svnapot 规则之后完成；ITLB
+@@ -273,15 +283,20 @@ AR，S_DRAIN 只拉 RREADY；两种排水期都禁止 fetch request/response、f
+   已全部迁出 Bridge，下一瓶颈属于 FIFO-head classify→dispatch/outstanding，不能宣称 200MHz。
+ 
+ ## 7. 关键路径
+-T3R 后 SRAM `en_i` 只依赖 registered `S_CACHE_READ`，S_IDLE/S_RESP/S_LOOKUP 均关闭读窗。
+-T3W 把 PC→ITLB 结果打拍，使 S_LOOKUP 的两个固定 4B PMP checker 只消费 registered PA。
+-T3X 再把 `paddr0_q/fetch_data_q` 等宽派生 scratch 从 request-fire D mux 移到
+-S_CACHE_READ state owner；fire 拍仅锁 immutable context，不增加状态或可见 latency。
+-T4A 物理删除 T3Z 的双 bank 与高扇出 active selector，改成固定角色 candidate→exec：
+-S_CACHE_READ lookup 只读 candidate，拍尾 exec 本地捕获，后续 PMP/walk/AXI/fill 只读 exec。
+-同时在 page walk 增加 S_WALK_CHECK，把 exec→PTE address/PMP cone 截止在 q，下一拍
+-registered address/fault 才进入 AXI/xbar。T3Z fresh exact-5ns 的 `WNS=-0.850ns` 是本刀输入
+-基线，不是 T4A 收敛结论；T4A 必须使用新鲜冻结网表复测。
++R2 为恢复 1 packet/cycle，把 SRAM 读窗预开到 registered accepting states，并在 request-fire
++沿直接消费 live PC/context。R2 fresh exact-5ns 得到 `WNS=-2.104600906ns`：top path 为
++`registered context -> PMP -> H1 semantic hit/response payload mux -> PacketDecode/RVC length
++-> RequestMux next PC -> ITLB -> H1 result D`，因此 R2 虽有 +14.16% workload performance，
++仍因 timing hard gate 被拒绝。
++R2.1 保留 H1 valid/ready 的完整 PMP/ITLB/flush/invalidate 门控，但把 raw payload mux select
++改为 registered `state_q==S_CACHE_READ`，并由 outstanding token（而非 response valid）
++选择 packet successor。这样 control plane 仍精确，data plane 不再经过 PMP valid selector。
++R2.1 fresh exact-5ns 为 `WNS=-0.100615077ns/TNS=-4.919452667ns`；旧
++`PMP -> decoder` 已从 top40 消失，40 条同族路径均为
++`SRAM Q -> packet length/add -> RequestMux -> ITLB paddr -> hit-qualified paddr mux
++-> lookup_exec_paddr_q D`。R2.2 仅把最后的 paddr payload 与 hit/permission valid 解耦：
++paging 时无条件预装 ITLB paddr，bare 时预装 PC；miss/fault 的 payload 无 token，不可消费。
++是否达到 promotion 所需 `WNS>=+0.10ns` 必须由 R2.2 新鲜同源综合/STA 判定。
+ 每一刀是否改善 5ns WNS 只由新鲜同源综合/STA 判定，不能凭 RTL 结构宣称 200MHz。
+ exact miss 不再有 RDATA→下一 AR 的组合链；但最终 S_R0 仍存在
+ `RDATA -> address-lane shift -> halfword insert -> length判定 -> fetch-cache fill` 同拍锥。
+@@ -326,11 +341,18 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
+   S_WALK_CHECK，寄存 PTE READ address/PMP verdict 后才进入 AXI。审查同时修复 IFU stalled
+   AR 被 `mmu_flush_i` 撤回的问题：WALK/FETCH 各有 AR_DROP owner，保持 valid/payload 到 fire，
+   再进 S_DRAIN 吞 R；新增独立端口 shadow、deny/flush/READY/poison 动态矩阵。
++- 2026-07-15(R2)：恢复 request-fire 直接 SRAM/ITLB issue 与 H1 fast-hit 原子 turnover，
++  稳态 II=1；功能回归和 workload 性能通过，但 exact-5ns `WNS=-2.104600906ns`，候选拒绝。
++- 2026-07-15(R2.1)：保持 semantic valid/ready 的完整权限门控，将 H1 raw payload selection
++  收敛到 registered state owner，并让 outstanding token 无条件预装 packet successor；
++  fresh exact-5ns 改善到 `WNS=-0.100615077ns`，但仍按 timing hard gate 拒绝。
++- 2026-07-15(R2.2)：进一步把 translated paddr payload 与 ITLB hit/permission valid 分离；
++  无有效 token 的 miss/fault payload 不可消费，候选等待 fresh synthesis/STA。
+ 
+ ## 已知隐患(2026-06-28 bug-hunt)
+ - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。
+ 
+-## 9. 合同状态（2026-07-14）
++## 9. 合同状态（2026-07-15）
+ 
+ ### IFU-AXI-G1：A-update 写通道的 flush-drain（CLOSED 2026-07-12）
+ 
+diff --git a/npc/rv64/design/specs/ooo-fetch-packet-decode.md b/npc/rv64/design/specs/ooo-fetch-packet-decode.md
+index fdac3cf75..7e0c6a94b 100644
+--- a/npc/rv64/design/specs/ooo-fetch-packet-decode.md
++++ b/npc/rv64/design/specs/ooo-fetch-packet-decode.md
+@@ -99,3 +99,18 @@ slot response 选择：
+ - T4G / IFU-TVAL-G1 已关闭：真实 bridge page-end 矩阵检查 F=2/4/6 的
+   `fault_tval=packet_pc+F`；decoder、FIFO、lane0/lane1 capture 与 drain 分层正向
+   回归通过，且丢 offset、FIFO 换回 slot PC、lane0/lane1 回退 PC 四个动态变异均被拒绝。
++
++## 7. R2.3 raw successor 与语义 successor 分离（2026-07-15）
++
++`packet_next_pc_o` 继续是 response-aware 的语义结果：fault prefix 必须使用安全长度，
++并且所有 FIFO、预测、异常和 architected PC 消费者都只能使用该输出。
++
++`packet_raw_next_pc_o` 只按 raw packet 中两条指令的 2B/4B prefix 计算长度，
++不读取 `resp0/resp1/split`。它只允许作为 registered outstanding owner 下的下一拍
++FPC SRAM 地址预装提示；miss、fault、flush、invalidate 或 redirect 没有 successor
++consume token 时，该值是不可消费的 don’t-care。
++
++当 `resp0=OK && resp1=OK` 时，raw 与 semantic successor 必须逐位相等；
++失败 response 则允许二者不同，并由 `IFU-R2P3-RAW-EQ` 及 directed fault poison
++用例证明语义输出不受无效 raw tail 影响。这个分离不得复制 RVC 解压或 ISA decode；
++raw 口只拥有两级 2-bit length hint，完整 RVC/response 解释仍唯一属于本模块。
+diff --git a/npc/rv64/design/specs/ooo-fetch-packet-fifo.md b/npc/rv64/design/specs/ooo-fetch-packet-fifo.md
+index c71a1368e..25baa7b4c 100644
+--- a/npc/rv64/design/specs/ooo-fetch-packet-fifo.md
++++ b/npc/rv64/design/specs/ooo-fetch-packet-fifo.md
+@@ -110,3 +110,19 @@ count 归零。full pop+enqueue 时 tail=head，新包覆盖旧 head，而 shado
+   legacy control combination 统一 clear+refetch。
+ 
+ T3V 的译码所有权与验证见 `ooo-fetch-predecode-bundle.md`。
++
++## 6. R2.4 immediate 压缩存储合同（2026-07-15）
++
++`ImmGen` 的 RV64 I/S/B/U/J/default 输出均满足
++`imm[63:32] == {32{imm[31]}}`。FIFO ring 与 registered head shadow 因而只保存
++`imm[31:0]` 以及 4 个独立 sign replicas；每个 replica 只重建高 32 位中的 8 位，
++以限制 head 侧扇出。接口仍保持完整 64-bit `enqueue_imm*_i/head_imm*_o`。
++
++- 未被 `clear_i` 吞掉的 enqueue 必须检查输入高 32 位确为 bit31 符号扩展；否则 fail closed。
++- empty enqueue、ring write、pop-to-shadow 与 full pop+enqueue 必须移动同一压缩字段。
++- `head_imm*_o[31:0]` 逐位等于 stored low word；高 32 位只能由注册 sign replicas 重建。
++- 不允许把该压缩推广到任意非 `ImmGen` 数据，也不允许把 immediate 重新放回 response 组合 decode。
++- 此变换不增加 packet latency/occupancy，不改变 enqueue/pop/clear 优先级或 II=1。
++
++该合同既减少两 lane ×（4-entry ring + head shadow）的冗余符号位，也切断
++`ImmGen` 单个符号选择节点对大量 FIFO D pin 的高扇出；面积和时序必须用 fresh netlist 复核。
+diff --git a/npc/rv64/design/specs/ooo-fetch-request-mux.md b/npc/rv64/design/specs/ooo-fetch-request-mux.md
+index 9f76792d3..720500b53 100644
+--- a/npc/rv64/design/specs/ooo-fetch-request-mux.md
++++ b/npc/rv64/design/specs/ooo-fetch-request-mux.md
+@@ -20,8 +20,10 @@
+ 
+ `OooFetchRequestMux` 承接 `OooFrontend`（原 `OooAluFetchCore`，已重构删除）中 fetch request PC 来源选择的纯组合逻辑：
+ 
+-- 计算顺序 fetch PC：若 registered outstanding response 已呈现 valid，则预装
+-  response packet next PC；否则使用 `next_fetch_pc_q`。不得等待 ready/fire。
++- 计算顺序 fetch PC：若 registered outstanding owner 存在，则从 Bridge raw payload
++  预装 response packet next PC；无 owner 才使用 `next_fetch_pc_q`。该数据选择不得依赖
++  response valid/ready/fire；miss/fault/stall 时上游 flow control 禁止 request fire，
++  所以预装值是 don’t-care，不形成架构 token。
+ - 计算 redirect fetch 是否能在本拍发起，并选择 redirect target。
+ - 在 redirect、branch prefetch 和顺序取指三类来源中选择最终 `fetch_req_pc_o`。
+ 
+@@ -34,7 +36,8 @@
+ 输入信号分为四类：
+ 
+ - 顺序 PC：`outstanding_valid_i`、`fetch_rsp_valid_i`、
+-  `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`。
++  `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`；其中 `fetch_rsp_valid_i` 只供
++  协议可观察性，不得回流顺序 PC 数据 mux。
+ - redirect predicate：direct JAL/return、direct jump spec（B2 非返回 JALR 投机续取）、
+   lane0 branch to lane1 return、pending JALR/no-link commit、direct branch resolve、
+   normal branch resolve、branch speculation restore、untracked branch resolve、
+@@ -55,8 +58,10 @@
+ ## 不变量
+ 
+ - Redirect request 优先级高于 branch prefetch，高于顺序取指。
+-- Response stall 时顺序 candidate 可以预装 successor，但上游 request valid 仍被
+-  outstanding/flow control 关闭；candidate 是 don't-care，不改变 active owner。
++- outstanding token 有效时顺序 candidate 必须无条件预装 raw packet successor，
++  包括 response valid 尚未成立的 H1 miss/fault 判决窗口；上游 request valid 仍被
++  outstanding/flow control 关闭，candidate 是 don’t-care，不改变 active owner。
++- PMP/ITLB response-valid 控制锥不得进入 packet-next-PC 数据选择。
+ - Branch fallthrough 已有匹配 outstanding 时，redirect request valid 必须为假。
+ - Redirect target（P4 单源）：`redirect_valid_i` 拍恒透传 `redirect_pc_i`（arbiter 年龄律
+   赢家）；无赢家拍恒兜底 `core_branch_resolve_next_pc_i`。守卫=`OooRedirectMuxChecker`
+@@ -71,3 +76,17 @@
+ - 不维护 outstanding/discard 状态。
+ - 不写 FIFO，不处理 response ready/enqueue/drop。
+ - 不解释 instruction、branch compare、BTB/BHT/RAS 或 CSR trap cause。
++
++## R2.3 raw successor 消费边界（2026-07-15）
++
++`fetch_rsp_packet_next_pc_i` 在本模块边界上的物理含义收窄为
++`OooFetchPacketDecode.packet_raw_next_pc_o`：它只驱动顺序 request candidate，
++不得进入 FIFO、预测、异常或 architected PC 状态。registered `outstanding_valid_i`
++只选择 payload；真正请求是否 fire 仍由独立 FlowControl/Bridge response token 决定。
++
++因此必须同时满足：
++
++- 成功 packet 上 raw successor 与 response-aware semantic successor 逐位相等；
++- miss/fault/flush/invalidate/redirect 上即使 raw payload 任意变化，也不得产生 request fire；
++- `fetch_rsp_valid_i`、PMP、ITLB permission 和 response provenance 不得回流本数据 mux；
++- 删除 token gate 或把 raw 口接到语义消费者，均属于硬约束失败。
+diff --git a/npc/rv64/testbench/Makefile b/npc/rv64/testbench/Makefile
+index 862ec982d..a94e90079 100644
+--- a/npc/rv64/testbench/Makefile
++++ b/npc/rv64/testbench/Makefile
+@@ -215,7 +215,7 @@ TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate
+ TB_SRCS_tb_pipe_stage_reg := tests/tb_pipe_stage_reg.sv $(RTL_PIPE_STAGE_REG)
+ TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
+ TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
+-TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
++TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_axi_access_attrs := tests/tb_ooo_fetch_axi_access_attrs.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+diff --git a/npc/rv64/vsrc/cache/OooFetchPacketCache.v b/npc/rv64/vsrc/cache/OooFetchPacketCache.v
+index 448fd037c..c115b25c9 100644
+--- a/npc/rv64/vsrc/cache/OooFetchPacketCache.v
++++ b/npc/rv64/vsrc/cache/OooFetchPacketCache.v
+@@ -5,7 +5,8 @@
+ // 1 个 Sram4096x199 1RW 同步读宏; valid 保持 ENTRY_COUNT bit FF(SRAM 内容无复位,
+ // 全清/失效语义由 valid FF 承担)。
+ // 两拍 lookup 协议: lookup_read_en_i 是物理 SRAM 读窗；lookup_en_i 是语义 accept，
+-// 只锁存请求上下文并置次拍判决资格。使用方保证 accept=>read，且 read 与 fill 写
++// 只置次拍判决资格。请求上下文无条件采样，dec_en_q 负责限定哪一拍可消费；
++// 使用方保证 accept=>read，且 read 与 fill 写
+ // 不同拍；dummy read 只改变无判决资格的 raw rdata，不产生 cache-visible hit/payload。
+ module OooFetchPacketCache #(
+   parameter INDEX_W = `OOO_FETCH_PACKET_CACHE_INDEX_W,
+@@ -49,7 +50,8 @@ module OooFetchPacketCache #(
+ 
+   reg [ENTRY_COUNT-1:0] valid_q;
+ 
+-  // fire 拍锁存的 lookup 请求(判决拍与 SRAM rdata_o 同参照系比较)。
++  // lookup 输入的逐拍影子。只有 dec_en_q=1 的拍才会消费这些寄存器；无条件
++  // 采样可移除 lookup_en_i(含 fast-hit turnover)到宽 context D 端的 CE mux。
+   reg dec_en_q;                       // 上拍发射过 lookup → 本拍为判决拍
+   reg lkp_paging_q;
+   reg [1:0] lkp_priv_q;
+@@ -108,7 +110,7 @@ module OooFetchPacketCache #(
+       invalidate_valid_i && same_fetch_window(fill_pc_i, invalidate_addr_i);
+ 
+   // ── SRAM 宏(1RW 同步读): 物理读窗与语义 accept 解耦。读窗可提前/持续打开，
+-  //    但只有 lookup_en_i 才锁存 context 并使 dec_en_q 在次拍有效。──
++  //    context 每拍采样，但只有 lookup_en_i 才使 dec_en_q 在次拍有效。──
+   wire sram_we_w = fill_valid_i && !fill_invalidated_w;
+   wire sram_en_w = lookup_read_en_i || sram_we_w;
+   // 用 | 零扩展补齐宏 12b 地址口, 避免 INDEX_W=12 时出现 0 次复制拼接(非法)。
+@@ -177,13 +179,11 @@ module OooFetchPacketCache #(
+     end else begin
+       dec_en_q <= lookup_en_i;
+     end
+-    if (lookup_en_i) begin
+-      lkp_paging_q <= lookup_paging_i;
+-      lkp_priv_q <= lookup_priv_i;
+-      lkp_satp_q <= lookup_satp_i;
+-      lkp_pc_q <= lookup_pc_i;
+-      lkp_idx_q <= lookup_idx_w;
+-    end
++    lkp_paging_q <= lookup_paging_i;
++    lkp_priv_q <= lookup_priv_i;
++    lkp_satp_q <= lookup_satp_i;
++    lkp_pc_q <= lookup_pc_i;
++    lkp_idx_q <= lookup_idx_w;
+     // 刀F 时序修复: lkp_inv_q 无条件锁存(去 CE)——CE=fire 含融合 hit 锥, 与 D 端的
+     // snoop 地址比较链在 CE-mux 上串联成 top 违例。无条件锁存等价: fire 拍锁的即
+     // fire 拍比较; 非 fire 拍锁到的值因 dec_en_q=0 不被消费; 判决拍组合读的是
+@@ -225,8 +225,8 @@ module OooFetchPacketCache #(
+     end
+   end
+ 
+-  // 契约: SRAM 1RW 物理读写不同拍。使用方 FSM 的读窗只含
+-  // S_CACHE_READ，fill 写只发生在 S_R0，二者必须互斥。
++  // 契约: SRAM 1RW 物理读写不同拍。使用方 FSM 的预开读窗与最终
++  // S_R0 fill 写必须互斥。
+   always @(posedge clk) begin
+     if (!rst && lookup_read_en_i && sram_we_w) begin
+       $error("[CONTRACT-FPC-1RW] physical read and fill write in same cycle violate 1RW SRAM: lookup_pc=%h fill_pc=%h @%0t",
+diff --git a/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v b/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v
+index 951ef9542..bb6e557ee 100644
+--- a/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v
++++ b/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v
+@@ -80,12 +80,12 @@ module OooFetchAxiBridge (
+   localparam [3:0] S_R1 = 4'd6;
+   localparam [3:0] S_RESP = 4'd7;
+   localparam [3:0] S_AD_UPDATE = 4'd8;  // HW A 更新: 写回 leaf PTE 置 A 位, 再 re-walk 续原取指
+-  localparam [3:0] S_LOOKUP = 4'd9;     // cache 判决拍；只把结果落入 registered response
++  localparam [3:0] S_LOOKUP = 4'd9;     // legacy/debug encoding；II=1 生产流不再进入
+   // 【AXI4 化 S1】mmu_flush 命中在飞 AXI 读(AR 已 fire、R 未归)时的自吞排水态:
+   // rready 保持拉高吞掉 R 后才回 IDLE; 期间 fetch_req_ready=0(防新请求与残 R 串包)。
+   // 取代旧"xbar abort 边带吞 R"机制——master 自吞使互连成为纯标准 AXI4。
+   localparam [3:0] S_DRAIN = 4'd10;
+-  localparam [3:0] S_CACHE_READ = 4'd11; // 已锁存请求驱动 SRAM 同步读的发射拍
++  localparam [3:0] S_CACHE_READ = 4'd11; // SRAM/ITLB 结果判决与 hit 原子 turnover 拍(H1)
+   localparam [3:0] S_WALK_CHECK = 4'd12; // 本地寄存 PTE 地址与 PMP 判决，再发 AXI AR
+   // mmu_flush 不能撤回已经呈现且被反压的 AXI AR。两种 owner 分态保留原
+   // payload 真源，不新增宽地址寄存器；AR fire 后统一进 S_DRAIN 吞 R。
+@@ -98,11 +98,11 @@ module OooFetchAxiBridge (
+   localparam ITLB_INDEX_W = 6;
+ 
+   reg [3:0] state_q;
+-  // T4A fixed-role immutable-context pipeline.  Candidate registers sample
+-  // raw live inputs every cycle with no valid/ready/fire/state/flush gate.
+-  // The one-cycle S_CACHE_READ boundary then copies that exact request into a
+-  // transaction-stable execution context.  This physically removes T3Z's
+-  // high-fanout active-bank selector from every PMP/AXI/xbar cone.
++  // T4A fixed-role immutable-context pipeline. Candidate registers sample raw
++  // live inputs every cycle with no valid/ready/fire/state/flush gate. The
++  // request-fire edge is the only live-input issue boundary for FPC/ITLB; in
++  // the following H1 result cycle candidate is immutable, and the closing edge
++  // copies it into transaction-stable exec before any slow PMP/PTW/AXI work.
+   reg fetch_ctx_candidate_paging_q;
+   reg [1:0] fetch_ctx_candidate_priv_q;
+   reg [`XLEN-1:0] fetch_ctx_candidate_satp_q;
+@@ -115,10 +115,10 @@ module OooFetchAxiBridge (
+   reg [`XLEN-1:0] fetch_ctx_exec_pc_q;
+ 
+   // Preserve the historical XMR/debug aliases as the architectural owner
+-  // view only.  Immediately after request fire S_CACHE_READ observes the new
+-  // candidate; at its closing edge exec captures the same value, so the owner
+-  // handoff is value-stable.  Internal transaction datapaths do not use these
+-  // aliases: lookup uses candidate explicitly and all later work uses exec.
++  // view only. Immediately after request fire H1 observes the new candidate;
++  // at its closing edge exec captures the same value. A hit turnover replaces
++  // candidate with the new owner while retiring the old owner into exec; a
++  // miss/stall leaves H1 and therefore hands the old value to exec unchanged.
+   wire fetch_ctx_owner_candidate_w = (state_q == S_CACHE_READ);
+   wire paging_q = fetch_ctx_owner_candidate_w ?
+       fetch_ctx_candidate_paging_q : fetch_ctx_exec_paging_q;
+@@ -321,10 +321,14 @@ module OooFetchAxiBridge (
+   // 永远运行；S/U + 全零 pmpcfg 的 default-deny 不能再借 cache 绕过。
+   wire cache_hit_w = cache_hit_raw_w &&
+       !req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
+-      (!fetch_ctx_exec_paging_q || lookup_itlb_hit_q);
+-  // T3R 后 response 不再组合穿透 cache payload，no-snoop hit 仅保留模块端口
+-  // 兼容性，bridge 只消费含完整 invalidate 窗口的 cache_hit_raw_w。
+-  wire fetch_cache_no_snoop_unused_w;
++      (!fetch_ctx_candidate_paging_q || lookup_itlb_hit_q);
++  // 融合臂不能把 SQ snoop 地址比较串进 request recurrence。no-snoop hit
++  // 叠加 invalidate_valid 全局关断；invalidate 拍降级到精确 hit/skid 或 miss。
++  wire cache_hit_no_snoop_raw_w;
++  wire cache_hit_fusion_w = cache_hit_no_snoop_raw_w &&
++      !invalidate_valid_i &&
++      !req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
++      (!fetch_ctx_candidate_paging_q || lookup_itlb_hit_q);
+   wire fetch_cache_context_unused_w;
+   wire [`INST_W-1:0] cache_inst0_w;
+   wire [`INST_W-1:0] cache_inst1_w;
+@@ -334,28 +338,31 @@ module OooFetchAxiBridge (
+   wire [`XLEN-1:0] req_itlb_pte_w;
+   wire [1:0] req_itlb_level_w;
+   wire [`XLEN-1:0] req_itlb_paddr_w;
+-  // S_CACHE_READ 的 ITLB lookup/permission 只读 candidate；拍尾将结果与
+-  // candidate→exec 交接同时寄存。S_LOOKUP 后不得再读 candidate。
++  // ITLB issue 与 FPC 同在 request-fire 边沿消费 live request。以下 live
++  // 组合值每拍无条件进入 lookup_*_q；只有下一拍 H1 token 才允许消费。
+   // pmpcfg/pmpaddr 仍取当拍输入(CSR 写经串行化, 无在飞取指请求交叠)。
+   wire req_itlb_perm_fault_w =
+       req_itlb_context_hit_w &&
+       (pte_reserved_fault(req_itlb_pte_w,
+-                          fetch_ctx_candidate_svpbmt_en_q,
++                          svpbmt_en_i,
+                           req_itlb_level_w) ||
+        exec_permission_fault(req_itlb_pte_w,
+-                             fetch_ctx_candidate_priv_q));
++                             priv_mode_i));
+   assign req_itlb_hit_w = req_itlb_context_hit_w && !req_itlb_perm_fault_w;
++  // R2.2 timing cut: translated address is a raw payload, while hit/permission
++  // are the semantic token. A paging miss/fault may preload an arbitrary TLB
++  // paddr, but registered lookup_itlb_hit_q independently prevents PMP, fast
++  // response and translated slow-path consumption in H1.
+   wire [`XLEN-1:0] req_exec_paddr_w =
+-      (fetch_ctx_candidate_paging_q && req_itlb_hit_w) ?
+-      req_itlb_paddr_w : fetch_ctx_candidate_pc_q;
++      req_paging_w ? req_itlb_paddr_w : fetch_req_pc_i;
+   wire [`XLEN-1:0] req_exec1_paddr_w = lookup_exec_paddr_q + 64'd4;
+   wire req_exec_pmp_fault_raw_w;
+   wire req_exec1_pmp_fault_raw_w;
+   assign req_exec_pmp_fault_w =
+-      (!fetch_ctx_exec_paging_q || lookup_itlb_hit_q) &&
++      (!fetch_ctx_candidate_paging_q || lookup_itlb_hit_q) &&
+       req_exec_pmp_fault_raw_w;
+   assign req_exec1_pmp_fault_w =
+-      (!fetch_ctx_exec_paging_q || lookup_itlb_hit_q) &&
++      (!fetch_ctx_candidate_paging_q || lookup_itlb_hit_q) &&
+       req_exec1_pmp_fault_raw_w;
+   wire fetch_req_fire_w = fetch_req_valid_i && fetch_req_ready_o;
+   wire fetch_rsp_fire_w = fetch_rsp_valid_o && fetch_rsp_ready_i;
+@@ -449,24 +456,27 @@ module OooFetchAxiBridge (
+   wire [1:0] fetch_cache_fill_resp0_w = RESP_OK;
+   wire [1:0] fetch_cache_fill_resp1_w = RESP_OK;
+ 
+-  // T3R 请求非穿透边界：外部 fire 只锁存完整请求上下文。下一拍
+-  // S_CACHE_READ 才用 q 驱动同步 SRAM，同拍发射 cache 语义 lookup。这使
+-  // frontend ready/control 锥只到请求寄存器 D 端，不再直达 SRAM addr/en 与 lkp_inv。
+-  wire fetch_cache_read_window_w = (state_q == S_CACHE_READ);
+-  wire fetch_cache_lookup_issue_w = (state_q == S_CACHE_READ);
++  // II=1 issue boundary: the physical read port is pre-opened only from
++  // registered states that can accept a request. Semantic lookup remains the
++  // request fire, so dummy reads never create a result token. Fill is confined
++  // to S_R0 and therefore remains disjoint from this 1RW read window.
++  wire fetch_cache_read_window_w =
++      (state_q == S_IDLE) || (state_q == S_CACHE_READ) ||
++      (state_q == S_RESP);
++  wire fetch_cache_lookup_issue_w = fetch_req_fire_w;
+   OooFetchPacketCache u_fetch_packet_cache (
+     .clk(clk),
+     .rst(rst),
+     .clear_i(mmu_flush_i),
+     .lookup_read_en_i(fetch_cache_read_window_w),
+     .lookup_en_i(fetch_cache_lookup_issue_w),
+-    .lookup_paging_i(fetch_ctx_candidate_paging_q),
+-    .lookup_priv_i(fetch_ctx_candidate_priv_q),
+-    .lookup_satp_i(fetch_ctx_candidate_satp_q),
+-    .lookup_pc_i(fetch_ctx_candidate_pc_q),
++    .lookup_paging_i(req_paging_w),
++    .lookup_priv_i(priv_mode_i),
++    .lookup_satp_i(satp_i),
++    .lookup_pc_i(fetch_req_pc_i),
+     .lookup_context_hit_o(fetch_cache_context_unused_w),
+     .lookup_hit_o(cache_hit_raw_w),
+-    .lookup_hit_no_snoop_o(fetch_cache_no_snoop_unused_w),
++    .lookup_hit_no_snoop_o(cache_hit_no_snoop_raw_w),
+     .lookup_inst0_o(cache_inst0_w),
+     .lookup_resp0_o(cache_resp0_w),
+     .lookup_inst1_o(cache_inst1_w),
+@@ -484,18 +494,18 @@ module OooFetchAxiBridge (
+     .invalidate_addr_i(invalidate_addr_i)
+   );
+ 
+-  // ITLB lookup 输入使用 fire 拍锁存值；结果在 S_CACHE_READ 末端打拍，
+-  // 与取指包 cache SRAM rdata_o 一起在 S_LOOKUP 对齐。ITLB 本体仍是 FF
+-  // 组合读，但不再与完整 PMP 树串在同一条 response payload 路径上。
++  // ITLB lookup consumes the same live issue tuple as the FPC synchronous
++  // read. Its combinational result is registered on the issue edge and aligns
++  // with SRAM rdata during the following H1 result cycle.
+   OooSv39Tlb #(
+     .INDEX_W(ITLB_INDEX_W)
+   ) u_itlb (
+     .clk(clk),
+     .rst(rst),
+     .clear_i(mmu_flush_i),
+-    .lookup_valid_i(fetch_ctx_candidate_paging_q),
+-    .lookup_vaddr_i(fetch_ctx_candidate_pc_q),
+-    .lookup_satp_i(fetch_ctx_candidate_satp_q),
++    .lookup_valid_i(req_paging_w),
++    .lookup_vaddr_i(fetch_req_pc_i),
++    .lookup_satp_i(satp_i),
+     .lookup_context_hit_o(req_itlb_context_hit_w),
+     .lookup_pte_o(req_itlb_pte_w),
+     .lookup_level_o(req_itlb_level_w),
+@@ -510,7 +520,7 @@ module OooFetchAxiBridge (
+   PmpChecker u_req_exec_pmp_checker (
+     .paddr_i(lookup_exec_paddr_q),
+     .access_size_i(4'd4),
+-    .priv_mode_i(fetch_ctx_exec_priv_q),
++    .priv_mode_i(fetch_ctx_candidate_priv_q),
+     .access_read_i(1'b0),
+     .access_write_i(1'b0),
+     .access_exec_i(1'b1),
+@@ -522,7 +532,7 @@ module OooFetchAxiBridge (
+   PmpChecker u_req_exec1_pmp_checker (
+     .paddr_i(req_exec1_paddr_w),
+     .access_size_i(4'd4),
+-    .priv_mode_i(fetch_ctx_exec_priv_q),
++    .priv_mode_i(fetch_ctx_candidate_priv_q),
+     .access_read_i(1'b0),
+     .access_write_i(1'b0),
+     .access_exec_i(1'b1),
+@@ -610,23 +620,31 @@ module OooFetchAxiBridge (
+       walk_pte_write_pmp_fault_w;
+ 
+   // packet cache 使用 PC+satp/priv 做上下文 tag；ITLB 命中只缓存翻译，不绕过取指权限。
+-  // T3R 响应非穿透边界：S_LOOKUP 只能把 cache hit/fault 结果落入 q，
+-  // 对外 valid/payload 只由 S_RESP/q 驱动。S_RESP 消费旧响应同拍仍可锁存下一
+-  // 个完整请求，但新请求要到下拍 S_CACHE_READ 才能触及 SRAM。
++  // H1 fast hit is an elastic combinational response. A ready response can
++  // atomically turn over into a new request/read on the same edge; a stalled
++  // response is captured by the existing S_RESP registers (the skid stage).
++  // Payload ownership is the registered H1 result window, not semantic hit.
++  // Raw SRAM data is preloaded on misses/faults as don't-care; only
++  // cache_hit_resp_w may assert valid. This keeps PMP/ITLB qualification out
++  // of the packet-decode -> next-PC -> SRAM-address data path.
++  wire cache_result_window_w = (state_q == S_CACHE_READ);
++  wire cache_hit_resp_w = !mmu_flush_i &&
++      cache_result_window_w && cache_hit_fusion_w;
+   // 【mmu_flush 打拍配套】flush 拍不受理新请求: 复位分支会吞掉同拍 fire 的请求
+   // (sequencer 记账悬空→挂死), flush 拍压 ready 使请求次拍重发。
+   assign fetch_req_ready_o = !mmu_flush_i &&
+                              ((state_q == S_IDLE) ||
+-                              ((state_q == S_RESP) && fetch_rsp_ready_i));
++                              ((state_q == S_RESP) && fetch_rsp_ready_i) ||
++                              (cache_hit_resp_w && fetch_rsp_ready_i));
+   assign fetch_req_owner_pc_o = pc_q;
+-  assign fetch_rsp_valid_o = (state_q == S_RESP);
+-  assign fetch_rsp_inst0_o = inst0_q;
+-  assign fetch_rsp_inst1_o = inst1_q;
+-  assign fetch_rsp_resp0_o = resp0_q;
+-  assign fetch_rsp_resp1_o = resp1_q;
++  assign fetch_rsp_valid_o = (state_q == S_RESP) || cache_hit_resp_w;
++  assign fetch_rsp_inst0_o = cache_result_window_w ? cache_inst0_w : inst0_q;
++  assign fetch_rsp_inst1_o = cache_result_window_w ? cache_inst1_w : inst1_q;
++  assign fetch_rsp_resp0_o = cache_result_window_w ? cache_resp0_w : resp0_q;
++  assign fetch_rsp_resp1_o = cache_result_window_w ? cache_resp1_w : resp1_q;
+   // successful-prefix/fault-suffix ABI：hit/完整成功恒 split=4；fault 的 split=首个
+   // 失败 halfword offset F（允许 F=0）。decoder 以真实长度决定 fault 属于哪一槽。
+-  assign fetch_rsp_resp0_bytes_o = resp0_bytes_q;
++  assign fetch_rsp_resp0_bytes_o = cache_result_window_w ? 3'd4 : resp0_bytes_q;
+ 
+   // AXI VALID-until-fire：普通 AR owner 由 registered state + authorization
+   // 驱动；若 mmu_flush 命中已呈现请求，FSM 转对应 DROP owner，继续保持
+@@ -667,9 +685,9 @@ module OooFetchAxiBridge (
+                                  ifu_ad_w_accepted_next_w && ifu_ad_b_fire_w;
+ 
+   // Fixed-role context pipeline is deliberately outside the main FSM/flush
+-  // priority tree.  Candidate always samples raw live inputs.  Exec captures
+-  // the previous candidate only while the registered state is S_CACHE_READ;
+-  // NBA semantics make this the exact request sampled on the preceding fire.
++  // priority tree. Candidate and live ITLB result shadows sample every cycle;
++  // the H1 token qualifies the tuple sampled on the preceding request fire.
++  // Exec captures the previous candidate only while state is S_CACHE_READ.
+   // A flush on that edge may update invalid exec payload, but never enters a
+   // wide D gate; S_AD_UPDATE is a different state and therefore holds exec.
+   always @(posedge clk) begin
+@@ -684,12 +702,18 @@ module OooFetchAxiBridge (
+       fetch_ctx_exec_satp_q <= {`XLEN{1'b0}};
+       fetch_ctx_exec_svpbmt_en_q <= 1'b0;
+       fetch_ctx_exec_pc_q <= {`XLEN{1'b0}};
++      lookup_itlb_hit_q <= 1'b0;
++      lookup_itlb_perm_fault_q <= 1'b0;
++      lookup_exec_paddr_q <= {`XLEN{1'b0}};
+     end else begin
+       fetch_ctx_candidate_paging_q <= req_paging_w;
+       fetch_ctx_candidate_priv_q <= priv_mode_i;
+       fetch_ctx_candidate_satp_q <= satp_i;
+       fetch_ctx_candidate_svpbmt_en_q <= svpbmt_en_i;
+       fetch_ctx_candidate_pc_q <= fetch_req_pc_i;
++      lookup_itlb_hit_q <= req_itlb_hit_w;
++      lookup_itlb_perm_fault_q <= req_itlb_perm_fault_w;
++      lookup_exec_paddr_q <= req_exec_paddr_w;
+       if (state_q == S_CACHE_READ) begin
+         fetch_ctx_exec_paging_q <= fetch_ctx_candidate_paging_q;
+         fetch_ctx_exec_priv_q <= fetch_ctx_candidate_priv_q;
+@@ -709,9 +733,6 @@ module OooFetchAxiBridge (
+       walk_ppn_q <= 44'd0;
+       walk_pte_addr_q <= {`XLEN{1'b0}};
+       walk_pte_pmp_fault_q <= 1'b0;
+-      lookup_itlb_hit_q <= 1'b0;
+-      lookup_itlb_perm_fault_q <= 1'b0;
+-      lookup_exec_paddr_q <= {`XLEN{1'b0}};
+       paddr0_q <= {`XLEN{1'b0}};
+       paddr1_q <= {`XLEN{1'b0}};
+       packet_cross_page_q <= 1'b0;
+@@ -752,9 +773,6 @@ module OooFetchAxiBridge (
+         walk_second_q <= 1'b0;
+         walk_level_q <= 2'd0;
+         walk_ppn_q <= 44'd0;
+-        lookup_itlb_hit_q <= 1'b0;
+-        lookup_itlb_perm_fault_q <= 1'b0;
+-        lookup_exec_paddr_q <= {`XLEN{1'b0}};
+         paddr0_q <= {`XLEN{1'b0}};
+         paddr1_q <= {`XLEN{1'b0}};
+         packet_cross_page_q <= 1'b0;
+@@ -787,11 +805,10 @@ module OooFetchAxiBridge (
+         end
+ 
+         S_CACHE_READ: begin
+-          // 读地址、paging/priv/satp 均来自上拍锁存 q。SRAM 与 cache
+-          // 判决上下文在本拍同时发射；ITLB translation/permission 与 SRAM
+-          // read 在本边界一起打拍，次拍 S_LOOKUP 只串 registered PA -> PMP。
+-          // 与 lookup 不相关的派生 scratch 也只由这个 registered state 初始化：
+-          // cache/ITLB 本拍只读 pc/context，故这些值在 S_LOOKUP 前落稳即可。
++          // H1 result/turnover. SRAM Q, cache tag shadow, candidate context and
++          // registered ITLB/PA all belong to the preceding request-fire edge.
++          // Scratch initialization is local to this registered state; a miss
++          // transfers candidate to exec at the closing edge before slow work.
+           paddr0_q <= fetch_ctx_candidate_pc_q;
+           paddr1_q <= {`XLEN{1'b0}};
+           packet_cross_page_q <= 1'b0;
+@@ -804,37 +821,36 @@ module OooFetchAxiBridge (
+           resp0_q <= RESP_OK;
+           resp1_q <= RESP_OK;
+           resp0_bytes_q <= 3'd4;
+-          lookup_itlb_hit_q <= req_itlb_hit_w;
+-          lookup_itlb_perm_fault_q <= req_itlb_perm_fault_w;
+-          lookup_exec_paddr_q <= req_exec_paddr_w;
+-          state_q <= S_LOOKUP;
+-        end
+ 
+-        S_LOOKUP: begin
+-          // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 accept 拍锁存值。
+-          // hit 只落入 response q 并进 S_RESP，不允许 cache payload/ready 在本拍
+-          // 组合交付或融合新请求。miss 进入 registered CHECK→AR→R。
+           if (cache_hit_w) begin
+-            inst0_q <= cache_inst0_w;
+-            inst1_q <= cache_inst1_w;
+-            resp0_q <= cache_resp0_w;
+-            resp1_q <= cache_resp1_w;
+-            resp0_bytes_q <= 3'd4;
+-            state_q <= S_RESP;
+-          end else if (fetch_ctx_exec_paging_q &&
++            if (fetch_rsp_fire_w) begin
++              // Old response and optional successor request retire/issue on
++              // one edge. The pre-open read window launches the successor.
++              state_q <= fetch_req_fire_w ? S_CACHE_READ : S_IDLE;
++            end else begin
++              // Backpressure or invalidate-driven fusion downgrade: capture
++              // the precise payload and continue through the registered skid.
++              inst0_q <= cache_inst0_w;
++              inst1_q <= cache_inst1_w;
++              resp0_q <= cache_resp0_w;
++              resp1_q <= cache_resp1_w;
++              resp0_bytes_q <= 3'd4;
++              state_q <= S_RESP;
++            end
++          end else if (fetch_ctx_candidate_paging_q &&
+                        lookup_itlb_perm_fault_q) begin
+             resp0_q <= RESP_OK;
+             resp1_q <= RESP_PAGE_FAULT;
+             resp0_bytes_q <= 3'd0;
+             state_q <= S_RESP;
+-          end else if (fetch_ctx_exec_paging_q && lookup_itlb_hit_q) begin
++          end else if (fetch_ctx_candidate_paging_q && lookup_itlb_hit_q) begin
+             paddr0_q <= lookup_exec_paddr_q;
+             state_q <= S_AR0;
+-          end else if (fetch_ctx_exec_paging_q) begin
+-            if (canonical_sv39(fetch_ctx_exec_pc_q)) begin
++          end else if (fetch_ctx_candidate_paging_q) begin
++            if (canonical_sv39(fetch_ctx_candidate_pc_q)) begin
+               walk_second_q <= 1'b0;
+               walk_level_q <= 2'd2;
+-              walk_ppn_q <= fetch_ctx_exec_satp_q[43:0];
++              walk_ppn_q <= fetch_ctx_candidate_satp_q[43:0];
+               state_q <= S_WALK_CHECK;
+             end else begin
+               resp0_q <= RESP_OK;
+@@ -847,6 +863,12 @@ module OooFetchAxiBridge (
+           end
+         end
+ 
++        S_LOOKUP: begin
++          // Retain the historical encoding for waves/XMR only. Production
++          // transitions never enter it after the II=1 issue/result collapse.
++          state_q <= S_IDLE;
++        end
++
+         S_WALK_CHECK: begin
+           // T4A PTW authorization boundary: compute PTE address and its 8B
+           // implicit-data PMP result locally, then register both.  The next
+@@ -1060,9 +1082,9 @@ module OooFetchAxiBridge (
+         end
+ 
+         S_RESP: begin
+-          // 消费旧响应同拍可 replacement-accept 下一完整请求；本拍仍不读
+-          // SRAM，新 owner 下拍进 S_CACHE_READ；这里只锁住不可重建的请求上下文，
+-          // 派生 scratch 由 S_CACHE_READ 初始化，downstream ready 不会穿透宽 D mux。
++          // Registered skid/slow response. The pre-open SRAM window lets an
++          // atomic replacement fire its read on this edge; the following
++          // S_CACHE_READ cycle is already the successor result cycle.
+           if (fetch_rsp_fire_w) begin
+             if (fetch_req_fire_w) begin
+               state_q <= S_CACHE_READ;
+@@ -1320,7 +1342,6 @@ module OooFetchAxiBridge (
+   reg t3w_assert_itlb_hit_q;
+   reg t3w_assert_itlb_perm_fault_q;
+   reg [`XLEN-1:0] t3w_assert_exec_paddr_q;
+-  reg t3x_assert_scratch_init_q;
+   reg t3z_assert_sample_q;
+   reg t3z_assert_fire_q;
+   reg t3z_assert_flush_q;
+@@ -1361,7 +1382,6 @@ module OooFetchAxiBridge (
+       t3w_assert_itlb_hit_q <= 1'b0;
+       t3w_assert_itlb_perm_fault_q <= 1'b0;
+       t3w_assert_exec_paddr_q <= {`XLEN{1'b0}};
+-      t3x_assert_scratch_init_q <= 1'b0;
+       t3z_assert_sample_q <= 1'b0;
+       t3z_assert_fire_q <= 1'b0;
+       t3z_assert_flush_q <= 1'b0;
+@@ -1437,7 +1457,11 @@ module OooFetchAxiBridge (
+             $error("[T4A-OWNER-MUX] non-S_CACHE_READ owner did not select execution context");
+         end
+ 
+-        if (t4a_assert_exec_capture_q &&
++        // On an H1 hit turnover the old candidate is captured into exec while
++        // the owner mux intentionally exposes the newly accepted candidate.
++        // Once H1 closes into a slow/skid state, the owner must instead be the
++        // old candidate that was transferred to exec on the preceding edge.
++        if (t4a_assert_exec_capture_q && (state_q != S_CACHE_READ) &&
+             ((paging_q !== t3z_assert_active_paging_q) ||
+              (req_priv_q !== t3z_assert_active_priv_q) ||
+              (req_satp_q !== t3z_assert_active_satp_q) ||
+@@ -1471,29 +1495,60 @@ module OooFetchAxiBridge (
+            (walk_pte_pmp_fault_q !== t4a_assert_ptw_fault_q)))
+         $error("[T4A-PTW-AUTH-CAPTURE] PTW address/PMP decision was not captured atomically");
+ 
+-      if ((fetch_cache_read_window_w !== fetch_cache_lookup_issue_w) ||
+-          (fetch_cache_lookup_issue_w !== (state_q == S_CACHE_READ)))
+-        $error("[IFU-T3R-CACHE-ISSUE] SRAM read and semantic lookup escaped registered request state");
+-      if (((state_q == S_CACHE_READ) || (state_q == S_LOOKUP)) &&
+-          (fetch_req_ready_o || fetch_rsp_valid_o || ifu_axi_arvalid_o ||
+-           ifu_axi_awvalid_o || ifu_axi_wvalid_o || ifu_axi_rready_o ||
+-           ifu_axi_bready_o || fetch_cache_fill_valid_w || itlb_fill_valid_w))
+-        $error("[IFU-T3R-CACHE-QUIET] cache read/decision state exposed handshake, AXI traffic, or stale-owner fill");
+-      if (fetch_rsp_valid_o !== (state_q == S_RESP))
+-        $error("[IFU-T3R-RSP-REGISTERED] fetch response valid is not owned exclusively by S_RESP");
++      // II=1 frontend contract. Physical reads are pre-opened from registered
++      // accepting states; only an actual request fire creates an H1 token.
++      if (fetch_cache_lookup_issue_w !== fetch_req_fire_w)
++        $error("[IFU-II1-SEMANTIC-ISSUE] cache semantic issue is not exactly request fire");
++      if (fetch_cache_lookup_issue_w && !fetch_cache_read_window_w)
++        $error("[IFU-II1-ACCEPT-REQUIRES-READ] request fired outside the pre-open SRAM window");
++      if (fetch_cache_read_window_w !==
++          ((state_q == S_IDLE) || (state_q == S_CACHE_READ) ||
++           (state_q == S_RESP)))
++        $error("[IFU-II1-READ-WINDOW] physical SRAM read window escaped registered accepting states");
++      if ((state_q == S_CACHE_READ) &&
++          (ifu_axi_arvalid_o || ifu_axi_awvalid_o || ifu_axi_wvalid_o ||
++           ifu_axi_rready_o || ifu_axi_bready_o ||
++           fetch_cache_fill_valid_w || itlb_fill_valid_w))
++        $error("[IFU-II1-H1-QUIET] H1 result state exposed AXI traffic or stale-owner fill");
++      if (cache_result_window_w !== (state_q == S_CACHE_READ))
++        $error("[IFU-II1-PAYLOAD-WINDOW] raw payload select is not a registered-state owner");
++      if (cache_result_window_w &&
++          ((fetch_rsp_inst0_o !== cache_inst0_w) ||
++           (fetch_rsp_inst1_o !== cache_inst1_w) ||
++           (fetch_rsp_resp0_o !== cache_resp0_w) ||
++           (fetch_rsp_resp1_o !== cache_resp1_w) ||
++           (fetch_rsp_resp0_bytes_o !== 3'd4)))
++        $error("[IFU-II1-PAYLOAD-PRELOAD] H1 did not expose raw SRAM payload independently of valid");
++      if (fetch_rsp_valid_o !== ((state_q == S_RESP) || cache_hit_resp_w))
++        $error("[IFU-II1-RSP-OWNER] response valid escaped H1 fast arm or registered skid");
+       if (fetch_req_fire_w &&
+           !((state_q == S_IDLE) ||
+-            ((state_q == S_RESP) && fetch_rsp_fire_w)))
+-        $error("[IFU-T3R-REQ-OWNER] request fired outside IDLE or atomic response replacement");
+-      if (t3r_assert_prev_valid_q && (state_q == S_LOOKUP) &&
+-          (t3r_assert_prev_state_q != S_CACHE_READ))
+-        $error("[IFU-T3R-LOOKUP-PREDECESSOR] cache decision did not follow registered SRAM read");
++            ((state_q == S_RESP) && fetch_rsp_fire_w) ||
++            ((state_q == S_CACHE_READ) && cache_hit_resp_w &&
++             fetch_rsp_fire_w)))
++        $error("[IFU-II1-REQ-OWNER] request fired outside initial issue or response turnover");
++      if ((state_q == S_CACHE_READ) && !cache_hit_resp_w &&
++          fetch_req_ready_o)
++        $error("[IFU-II1-H1-NONFUSION-READY] non-fusing H1 token accepted a successor");
++      if (cache_hit_resp_w &&
++          (invalidate_valid_i || mmu_flush_i || !cache_hit_w))
++        $error("[IFU-II1-FAST-PRECISE] fused response escaped exact hit/flush/invalidate qualification");
++      if ((req_paging_w && (req_exec_paddr_w !== req_itlb_paddr_w)) ||
++          (!req_paging_w && (req_exec_paddr_w !== fetch_req_pc_i)))
++        $error("[IFU-R2P2-PADDR-PRELOAD] raw translated/bare payload selection escaped paging-only ownership");
++      if ((state_q == S_CACHE_READ) &&
++          fetch_ctx_candidate_paging_q && !lookup_itlb_hit_q &&
++          (cache_hit_resp_w || req_exec_pmp_fault_w ||
++           req_exec1_pmp_fault_w))
++        $error("[IFU-R2P2-TOKEN-GATE] invalid translated payload reached PMP or fast response");
++      if (t3r_assert_prev_valid_q && (state_q == S_LOOKUP))
++        $error("[IFU-II1-LEGACY-LOOKUP] production FSM entered the retired S_LOOKUP encoding");
+       if (t3w_assert_itlb_capture_q && !mmu_flush_i &&
+-          ((state_q != S_LOOKUP) ||
++          ((state_q != S_CACHE_READ) ||
+            (lookup_itlb_hit_q !== t3w_assert_itlb_hit_q) ||
+            (lookup_itlb_perm_fault_q !== t3w_assert_itlb_perm_fault_q) ||
+            (lookup_exec_paddr_q !== t3w_assert_exec_paddr_q)))
+-        $error("[T3W-IFU-ITLB-PMP-BOUNDARY] registered ITLB owner changed before PMP decision");
++        $error("[T3W-IFU-ITLB-PMP-BOUNDARY] request-fire ITLB result did not align with the H1 token");
+ 
+       if (t3r_assert_capture_q && !mmu_flush_i &&
+           ((state_q != S_CACHE_READ) ||
+@@ -1504,22 +1559,6 @@ module OooFetchAxiBridge (
+            (req_svpbmt_en_q !== t3r_assert_svpbmt_q)))
+         $error("[IFU-T3R-REQ-CAPTURE] accepted immutable request context was not captured atomically");
+ 
+-      if (t3x_assert_scratch_init_q && !mmu_flush_i &&
+-          ((state_q != S_LOOKUP) ||
+-           (paddr0_q !== t3r_assert_pc_q) ||
+-           (paddr1_q !== {`XLEN{1'b0}}) ||
+-           (packet_cross_page_q !== 1'b0) ||
+-           (walk_second_q !== 1'b0) ||
+-           (second_page_ready_q !== 1'b0) ||
+-           (fetch_offset_q !== 3'd0) ||
+-           (fetch_data_q !== {`XLEN{1'b0}}) ||
+-           (inst0_q !== {`INST_W{1'b0}}) ||
+-           (inst1_q !== {`INST_W{1'b0}}) ||
+-           (resp0_q !== RESP_OK) ||
+-           (resp1_q !== RESP_OK) ||
+-           (resp0_bytes_q !== 3'd4)))
+-        $error("[IFU-T3X-SCRATCH-INIT] derived request scratch was not initialized at the registered cache-read boundary");
+-
+       if (t3r_assert_rsp_stall_q && !mmu_flush_i &&
+           ((fetch_rsp_valid_o !== 1'b1) ||
+            (fetch_rsp_inst0_o !== t3r_assert_rsp_inst0_q) ||
+@@ -1553,9 +1592,8 @@ module OooFetchAxiBridge (
+       t3z_assert_live_satp_q <= satp_i;
+       t3z_assert_live_svpbmt_q <= svpbmt_en_i;
+       t3z_assert_live_pc_q <= fetch_req_pc_i;
+-      t3w_assert_itlb_capture_q <= (state_q == S_CACHE_READ) && !mmu_flush_i;
+-      t3x_assert_scratch_init_q <= (state_q == S_CACHE_READ) && !mmu_flush_i;
+-      if ((state_q == S_CACHE_READ) && !mmu_flush_i) begin
++      t3w_assert_itlb_capture_q <= fetch_req_fire_w && !mmu_flush_i;
++      if (fetch_req_fire_w && !mmu_flush_i) begin
+         t3w_assert_itlb_hit_q <= req_itlb_hit_w;
+         t3w_assert_itlb_perm_fault_q <= req_itlb_perm_fault_w;
+         t3w_assert_exec_paddr_q <= req_exec_paddr_w;
+diff --git a/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v b/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v
+index 51fd0485b..b39510388 100644
+--- a/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v
++++ b/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v
+@@ -33,6 +33,7 @@ module OooFetchPacketDecode (
+   output [12:0] dec1_bimm_o,
+ 
+   output [`XLEN-1:0] packet_next_pc_o,
++  output [`XLEN-1:0] packet_raw_next_pc_o,
+   // 首个失败 fetch portion 的精确地址；下游以同一 packet owner 同时保存。
+   output [`XLEN-1:0] fault_tval_o
+ );
+@@ -63,6 +64,16 @@ module OooFetchPacketDecode (
+   wire [15:0] half0_w = rsp_inst0_i[15:0];
+   wire [15:0] half1_w = rsp_inst0_i[31:16];
+   wire [15:0] half2_w = rsp_inst1_i[15:0];
++  // R2.3 timing hint: raw packet successor is payload only. It deliberately
++  // ignores response provenance; a miss/fault has no successor-consume token.
++  wire raw_dec0_compressed_w = (half0_w[1:0] != 2'b11);
++  wire [15:0] raw_dec1_half_w =
++      raw_dec0_compressed_w ? half1_w : half2_w;
++  wire raw_dec1_compressed_w = (raw_dec1_half_w[1:0] != 2'b11);
++  wire [3:0] raw_packet_bytes_w =
++      raw_dec0_compressed_w ?
++      (raw_dec1_compressed_w ? 4'd4 : 4'd6) :
++      (raw_dec1_compressed_w ? 4'd6 : 4'd8);
+ 
+   // 长度只能在 prefix 所需 segment 全部 OK 后读取。若 prefix 自身 fault，使用安全 C.NOP
+   // 形状提供确定性 next_pc/inst；fault response 仍在下方胜出，禁止无效 tail bits 吞 fault。
+@@ -150,6 +161,8 @@ module OooFetchPacketDecode (
+        dec1_inst_o[11:8], 1'b0} : 13'b0;
+ 
+   assign packet_next_pc_o = dec1_next_pc_o;
++  assign packet_raw_next_pc_o =
++      rsp_pc_i + {{(`XLEN-4){1'b0}}, raw_packet_bytes_w};
+   assign fault_tval_o =
+       rsp_pc_i + {{(`XLEN-3){1'b0}}, rsp_resp0_bytes_i};
+ 
+diff --git a/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v b/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v
+index 6b4934d05..870e60a26 100644
+--- a/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v
++++ b/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v
+@@ -88,8 +88,12 @@ module OooFetchPacketFifo #(
+   localparam [FETCH_COUNT_W-1:0] FIFO_COUNT_ZERO = {FETCH_COUNT_W{1'b0}};
+   localparam [FETCH_COUNT_W-1:0] FIFO_COUNT_ONE =
+       {{(FETCH_COUNT_W-1){1'b0}}, 1'b1};
++  localparam IMM_LOW_W = 32;
++  localparam IMM_SIGN_COPIES = 4;
++  localparam IMM_SIGN_GROUP_W = (`XLEN - IMM_LOW_W) / IMM_SIGN_COPIES;
++  localparam IMM_STORED_W = IMM_LOW_W + IMM_SIGN_COPIES;
+   localparam HEAD_PACKET_W =
+-      (8 * `XLEN) + (2 * `INST_W) + (2 * `CTRL_BUS_W) +
++      (6 * `XLEN) + (2 * IMM_STORED_W) + (2 * `INST_W) + (2 * `CTRL_BUS_W) +
+       (2 * `OOO_SLOT_STATIC_FACTS_W) + (6 * `REG_ADDR_W) + 4 + 2 +
+       (2 * `BPU_BHT_INDEX_W) + 3;
+ 
+@@ -117,11 +121,11 @@ module OooFetchPacketFifo #(
+   reg [`REG_ADDR_W-1:0] rs1_0_q [0:FETCH_PACKET_COUNT-1];
+   reg [`REG_ADDR_W-1:0] rs2_0_q [0:FETCH_PACKET_COUNT-1];
+   reg [`REG_ADDR_W-1:0] rd0_q [0:FETCH_PACKET_COUNT-1];
+-  reg [`XLEN-1:0] imm0_q [0:FETCH_PACKET_COUNT-1];
++  reg [IMM_STORED_W-1:0] imm0_q [0:FETCH_PACKET_COUNT-1];
+   reg [`REG_ADDR_W-1:0] rs1_1_q [0:FETCH_PACKET_COUNT-1];
+   reg [`REG_ADDR_W-1:0] rs2_1_q [0:FETCH_PACKET_COUNT-1];
+   reg [`REG_ADDR_W-1:0] rd1_q [0:FETCH_PACKET_COUNT-1];
+-  reg [`XLEN-1:0] imm1_q [0:FETCH_PACKET_COUNT-1];
++  reg [IMM_STORED_W-1:0] imm1_q [0:FETCH_PACKET_COUNT-1];
+   reg [1:0] resp0_q [0:FETCH_PACKET_COUNT-1];
+   reg [1:0] resp1_q [0:FETCH_PACKET_COUNT-1];
+   reg pred_taken0_q [0:FETCH_PACKET_COUNT-1];
+@@ -137,6 +141,12 @@ module OooFetchPacketFifo #(
+   // head-pointer/read-mux cone from all head-time classify, RAS, backend-ready
+   // and fetch-flow decisions without adding a visible FIFO cycle.
+   reg [HEAD_PACKET_W-1:0] head_packet_q;
++  wire [IMM_STORED_W-1:0] enqueue_imm0_stored_w =
++      {{IMM_SIGN_COPIES{enqueue_imm0_i[IMM_LOW_W-1]}}, enqueue_imm0_i[IMM_LOW_W-1:0]};
++  wire [IMM_STORED_W-1:0] enqueue_imm1_stored_w =
++      {{IMM_SIGN_COPIES{enqueue_imm1_i[IMM_LOW_W-1]}}, enqueue_imm1_i[IMM_LOW_W-1:0]};
++  wire [IMM_STORED_W-1:0] head_imm0_stored_w;
++  wire [IMM_STORED_W-1:0] head_imm1_stored_w;
+ 
+   integer reset_idx;
+ 
+@@ -164,11 +174,11 @@ module OooFetchPacketFifo #(
+     head_rs1_0_o,
+     head_rs2_0_o,
+     head_rd0_o,
+-    head_imm0_o,
++    head_imm0_stored_w,
+     head_rs1_1_o,
+     head_rs2_1_o,
+     head_rd1_o,
+-    head_imm1_o,
++    head_imm1_stored_w,
+     head_resp0_o,
+     head_resp1_o,
+     head_pred_taken0_o,
+@@ -179,6 +189,20 @@ module OooFetchPacketFifo #(
+     head_bht_valid1_o,
+     head_slot1_valid_o
+   } = head_packet_q;
++  assign head_imm0_o = {
++    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+3]}},
++    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+2]}},
++    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+1]}},
++    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W]}},
++    head_imm0_stored_w[IMM_LOW_W-1:0]
++  };
++  assign head_imm1_o = {
++    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+3]}},
++    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+2]}},
++    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+1]}},
++    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W]}},
++    head_imm1_stored_w[IMM_LOW_W-1:0]
++  };
+   assign count_o = count_q;
+ 
+   always @(posedge clk) begin
+@@ -205,11 +229,11 @@ module OooFetchPacketFifo #(
+         rs1_0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+         rs2_0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+         rd0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+-        imm0_q[reset_idx] <= {`XLEN{1'b0}};
++        imm0_q[reset_idx] <= {IMM_STORED_W{1'b0}};
+         rs1_1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+         rs2_1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+         rd1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
+-        imm1_q[reset_idx] <= {`XLEN{1'b0}};
++        imm1_q[reset_idx] <= {IMM_STORED_W{1'b0}};
+         resp0_q[reset_idx] <= 2'b00;
+         resp1_q[reset_idx] <= 2'b00;
+         pred_taken0_q[reset_idx] <= 1'b0;
+@@ -242,11 +266,11 @@ module OooFetchPacketFifo #(
+         rs1_0_q[tail_q] <= enqueue_rs1_0_i;
+         rs2_0_q[tail_q] <= enqueue_rs2_0_i;
+         rd0_q[tail_q] <= enqueue_rd0_i;
+-        imm0_q[tail_q] <= enqueue_imm0_i;
++        imm0_q[tail_q] <= enqueue_imm0_stored_w;
+         rs1_1_q[tail_q] <= enqueue_rs1_1_i;
+         rs2_1_q[tail_q] <= enqueue_rs2_1_i;
+         rd1_q[tail_q] <= enqueue_rd1_i;
+-        imm1_q[tail_q] <= enqueue_imm1_i;
++        imm1_q[tail_q] <= enqueue_imm1_stored_w;
+         resp0_q[tail_q] <= enqueue_resp0_i;
+         resp1_q[tail_q] <= enqueue_resp1_i;
+         pred_taken0_q[tail_q] <= enqueue_pred_taken0_i;
+@@ -284,11 +308,11 @@ module OooFetchPacketFifo #(
+           enqueue_rs1_0_i,
+           enqueue_rs2_0_i,
+           enqueue_rd0_i,
+-          enqueue_imm0_i,
++          enqueue_imm0_stored_w,
+           enqueue_rs1_1_i,
+           enqueue_rs2_1_i,
+           enqueue_rd1_i,
+-          enqueue_imm1_i,
++          enqueue_imm1_stored_w,
+           enqueue_resp0_i,
+           enqueue_resp1_i,
+           enqueue_pred_taken0_i,
+@@ -363,6 +387,14 @@ module OooFetchPacketFifo #(
+       $error("[CONTRACT-FIFO-CONTROL-KNOWN] FIFO action control contains X/Z");
+       $fatal;
+     end
++    if (!rst && !clear_i && enqueue_i &&
++        ((enqueue_imm0_i[`XLEN-1:IMM_LOW_W] !==
++          {(`XLEN-IMM_LOW_W){enqueue_imm0_i[IMM_LOW_W-1]}}) ||
++         (enqueue_imm1_i[`XLEN-1:IMM_LOW_W] !==
++          {(`XLEN-IMM_LOW_W){enqueue_imm1_i[IMM_LOW_W-1]}}))) begin
++      $error("[IFU-R2P4-IMM-CANONICAL] enqueue immediate is not an RV64 sign extension");
++      $fatal;
++    end
+     if (!rst && (count_q > FETCH_PACKET_COUNT[FETCH_COUNT_W-1:0])) begin
+       $error("[CONTRACT-FIFO-OVFL] OooFetchPacketFifo count_q=%0d exceeds depth=%0d",
+              count_q, FETCH_PACKET_COUNT);
+diff --git a/npc/rv64/vsrc/frontend/OooFetchRequestMux.v b/npc/rv64/vsrc/frontend/OooFetchRequestMux.v
+index 7fa8837ab..553a2b442 100644
+--- a/npc/rv64/vsrc/frontend/OooFetchRequestMux.v
++++ b/npc/rv64/vsrc/frontend/OooFetchRequestMux.v
+@@ -54,10 +54,11 @@ module OooFetchRequestMux (
+ );
+ 
+   wire [`XLEN-1:0] fetch_req_seq_pc_w =
+-      // T3Z: response presence is registered by the Bridge and is sufficient
+-      // to preload the normal replacement candidate.  Waiting for fire would
+-      // feed downstream ready back into the next immutable-context bank D.
+-      (outstanding_valid_i && fetch_rsp_valid_i) ?
++      // R2.1 timing cut: the registered outstanding token owns the Bridge
++      // payload bus before semantic response-valid qualification. Use that raw
++      // packet to preload the replacement PC; flow control still prevents fire
++      // on miss/fault/stall, keeping valid control out of next-PC/SRAM-address.
++      outstanding_valid_i ?
+       fetch_rsp_packet_next_pc_i : next_fetch_pc_i;
+ 
+   assign direct_redirect_fetch_o =
+diff --git a/npc/rv64/vsrc/frontend/OooFrontend.v b/npc/rv64/vsrc/frontend/OooFrontend.v
+index 11887a92c..2dee616e8 100644
+--- a/npc/rv64/vsrc/frontend/OooFrontend.v
++++ b/npc/rv64/vsrc/frontend/OooFrontend.v
+@@ -440,6 +440,7 @@ module OooFrontend #(
+   wire fetch_rsp_can_enqueue_w;
+   wire fetch_rsp_control_stop_w;
+   wire [`XLEN-1:0] fetch_rsp_packet_next_pc_w;
++  wire [`XLEN-1:0] fetch_rsp_packet_raw_next_pc_w;
+   wire fifo_can_accept_rsp_w;
+   wire fifo_clear_w;
+   wire [FETCH_COUNT_W-1:0] fifo_count_q;
+@@ -1048,6 +1049,7 @@ module OooFrontend #(
+     .dec1_branch_o(fetch_dec1_branch_w),
+     .dec1_bimm_o(fetch_dec1_bimm_w),
+     .packet_next_pc_o(fetch_rsp_packet_next_pc_w),
++    .packet_raw_next_pc_o(fetch_rsp_packet_raw_next_pc_w),
+     .fault_tval_o(fetch_dec_fault_tval_w)
+   );
+ 
+@@ -1489,7 +1491,7 @@ module OooFrontend #(
+   OooFetchRequestMux u_fetch_request_mux (
+     .outstanding_valid_i(outstanding_valid_q),
+     .fetch_rsp_valid_i(fetch_rsp_valid_i),
+-    .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
++    .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_raw_next_pc_w),
+     .next_fetch_pc_i(next_fetch_pc_q),
+     .direct_jal_fire_i(direct_jal_fire_w),
+     .direct_ret0_fire_i(direct_ret0_fire_w),
+@@ -2400,6 +2402,18 @@ module OooFrontend #(
+         (fetch_dec1_resp_w !== fetch_rsp_resp1_i))
+       $error("[IFU-FETCH-G2-B6-UU] B=6 32+32 slot1 did not consume second-segment fault");
+   end
++  // R2.3: raw successor payload may be consumed only by a real successful turnover.
++  wire r2p3_raw_successor_fire_w = fetch_req_fire_w && outstanding_valid_q &&
++      !redirect_fetch_req_valid_w && !branch_prefetch_req_valid_w;
++  always @(posedge clk) if (!rst && r2p3_raw_successor_fire_w) begin
++    if (!fetch_rsp_valid_i || !fetch_rsp_fire_w || !fetch_rsp_enqueue_w ||
++        (fetch_dec0_resp_w !== 2'b00) || (fetch_dec1_resp_w !== 2'b00))
++      $error("[IFU-R2P3-RAW-TOKEN] raw successor fired without a successful response owner");
++    if (fetch_rsp_packet_raw_next_pc_w !== fetch_rsp_packet_next_pc_w)
++      $error("[IFU-R2P3-RAW-EQ] consumed raw successor differs from semantic successor");
++    if (fetch_req_pc_o !== fetch_rsp_packet_raw_next_pc_w)
++      $error("[IFU-R2P3-RAW-PC] normal turnover did not select the raw successor payload");
++  end
+ `endif
+ 
+ endmodule

@@ -33,6 +33,15 @@
 `ifndef OOO_ROB_COUNT_W
 `define OOO_ROB_COUNT_W    (`OOO_ROB_INDEX_W + 1)
 `endif
+// v8e ProducerId allocation source：generation 与 raw ROB index 分域。
+// 4 bit 是未来 collision-fence 频率与载体面积的折中，不是“位宽足够安全”的证明；
+// 任意有限宽 active identity 都仍需 global last-reference/no-live-reuse 合同。
+`ifndef OOO_PRODUCER_GEN_W
+`define OOO_PRODUCER_GEN_W  4
+`endif
+`ifndef OOO_PRODUCER_ID_W
+`define OOO_PRODUCER_ID_W   (`OOO_PRODUCER_GEN_W + `OOO_ROB_INDEX_W)
+`endif
 `ifndef OOO_ISSUE_INDEX_W
 `define OOO_ISSUE_INDEX_W  3
 `endif
@@ -49,6 +58,87 @@
 `ifndef OOO_DATA_WORD_CACHE_INDEX_W
 // D-cache 默认保持 4096 项；综合/面积实验可通过同名 define 显式缩小。
 `define OOO_DATA_WORD_CACHE_INDEX_W 12
+`endif
+
+// S2-Q2 v8a：先冻结 context/epoch 的跨层 ABI，当前只用于行为中性的 shadow
+// observation。Q1、active permit、payload 与 dynamic epoch 仍由后续 v8b 激活。
+`ifndef OOO_CONTEXT_ID_W
+`define OOO_CONTEXT_ID_W 8
+`endif
+`ifndef OOO_CONTEXT_ID_LSB
+`define OOO_CONTEXT_ID_LSB 0
+`endif
+`ifndef OOO_CONTEXT_ID_MSB
+`define OOO_CONTEXT_ID_MSB 7
+`endif
+`ifndef OOO_CONTEXT_OWNER_W
+`define OOO_CONTEXT_OWNER_W 3
+`endif
+`ifndef OOO_CONTEXT_OWNER_LSB
+`define OOO_CONTEXT_OWNER_LSB 8
+`endif
+`ifndef OOO_CONTEXT_OWNER_MSB
+`define OOO_CONTEXT_OWNER_MSB 10
+`endif
+`ifndef OOO_CONTEXT_OWNER_PENDING_SYSTEM
+`define OOO_CONTEXT_OWNER_PENDING_SYSTEM 3'd1
+`endif
+`ifndef OOO_CONTEXT_CAUSE_W
+`define OOO_CONTEXT_CAUSE_W 7
+`endif
+`ifndef OOO_CONTEXT_CAUSE_SATP
+`define OOO_CONTEXT_CAUSE_SATP 7'b0000001
+`endif
+`ifndef OOO_CONTEXT_CAUSE_SFENCE_VMA
+`define OOO_CONTEXT_CAUSE_SFENCE_VMA 7'b0000010
+`endif
+`ifndef OOO_CONTEXT_CAUSE_ACCESS_CONTEXT
+`define OOO_CONTEXT_CAUSE_ACCESS_CONTEXT 7'b0000100
+`endif
+`ifndef OOO_CONTEXT_CAUSE_PBMTE
+`define OOO_CONTEXT_CAUSE_PBMTE 7'b0001000
+`endif
+`ifndef OOO_CONTEXT_CAUSE_PMP
+`define OOO_CONTEXT_CAUSE_PMP 7'b0010000
+`endif
+`ifndef OOO_CONTEXT_CAUSE_TRAP
+`define OOO_CONTEXT_CAUSE_TRAP 7'b0100000
+`endif
+`ifndef OOO_CONTEXT_CAUSE_XRET
+`define OOO_CONTEXT_CAUSE_XRET 7'b1000000
+`endif
+`ifndef OOO_CONTEXT_DTLB_CAUSE_MASK
+`define OOO_CONTEXT_DTLB_CAUSE_MASK 7'b1111111
+`endif
+`ifndef OOO_CONTEXT_ITLB_CAUSE_MASK
+`define OOO_CONTEXT_ITLB_CAUSE_MASK 7'b1111011
+`endif
+`ifndef OOO_CONTEXT_FPC_CAUSE_MASK
+`define OOO_CONTEXT_FPC_CAUSE_MASK 7'b1111011
+`endif
+`ifndef OOO_CONTEXT_PAYLOAD_W
+`define OOO_CONTEXT_PAYLOAD_W 256
+`endif
+`ifndef OOO_CONTEXT_GENERATION_W
+`define OOO_CONTEXT_GENERATION_W 8
+`endif
+`ifndef OOO_MMU_EPOCH_W
+`define OOO_MMU_EPOCH_W 2
+`endif
+`ifndef MMU_EPOCH_PHASE_W
+`define MMU_EPOCH_PHASE_W 2
+`endif
+`ifndef MMU_EPOCH_PHASE_CAPTURE
+`define MMU_EPOCH_PHASE_CAPTURE 2'd0
+`endif
+`ifndef MMU_EPOCH_PHASE_SQUASH
+`define MMU_EPOCH_PHASE_SQUASH 2'd1
+`endif
+`ifndef MMU_EPOCH_PHASE_WAIT_QUIET
+`define MMU_EPOCH_PHASE_WAIT_QUIET 2'd2
+`endif
+`ifndef MMU_EPOCH_PHASE_GRANT
+`define MMU_EPOCH_PHASE_GRANT 2'd3
 `endif
 
 `ifndef RESET_PC

@@ -69,6 +69,7 @@ copy_file .github/ai-env/contracts/agent-env-review-routing.json .github/ai-env/
 copy_file .github/ai-env/contracts/agent-env-branch-health.json .github/ai-env/contracts/agent-env-branch-health.json
 copy_file .github/ai-env/contracts/agent-env-rebuild-matrix.json .github/ai-env/contracts/agent-env-rebuild-matrix.json
 copy_file .github/ai-env/contracts/agent-env-delivery.json .github/ai-env/contracts/agent-env-delivery.json
+copy_file .github/ai-env/contracts/agent-env-rtl-task-contract.json .github/ai-env/contracts/agent-env-rtl-task-contract.json
 
 copy_file scripts/github_index_db.py scripts/github_index_db.py
 copy_file scripts/README.md scripts/README.md

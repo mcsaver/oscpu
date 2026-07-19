@@ -54,10 +54,11 @@ module OooFetchRequestMux (
 );
 
   wire [`XLEN-1:0] fetch_req_seq_pc_w =
-      // T3Z: response presence is registered by the Bridge and is sufficient
-      // to preload the normal replacement candidate.  Waiting for fire would
-      // feed downstream ready back into the next immutable-context bank D.
-      (outstanding_valid_i && fetch_rsp_valid_i) ?
+      // R2.1 timing cut: the registered outstanding token owns the Bridge
+      // payload bus before semantic response-valid qualification. Use that raw
+      // packet to preload the replacement PC; flow control still prevents fire
+      // on miss/fault/stall, keeping valid control out of next-PC/SRAM-address.
+      outstanding_valid_i ?
       fetch_rsp_packet_next_pc_i : next_fetch_pc_i;
 
   assign direct_redirect_fetch_o =

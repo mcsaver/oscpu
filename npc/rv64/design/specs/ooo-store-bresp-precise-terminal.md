@@ -107,3 +107,23 @@ bridge `S_DEVICE_WAIT`，从而避免单 FSM/MIQ 与 older store 相互等待。
   双 terminal 各自唯一 CAM hit/同拍 tag 互斥、branch survival、global nuke 与 T4M admission。
 
 本切片提供功能与结构证据；未单独运行综合/STA，不据此宣称 200 MHz 已重新 closure。
+
+## 8. R4-S0 最终属性与 cache 终结语义
+
+SQ owner 从 probe success 起保存 `{original_va, final_pa, final_cacheability, data, strb}`。
+`final_cacheability` 由翻译、权限、PMA 与 leaf PBMT 全部完成后的唯一分类点产生；physical
+drain 必须原样携带，不能因 final PA 落入 PMEM 而把 PBMT NC/IO 重新升级为 cacheable。
+
+聚合 B 的 cache 维护真值冻结如下：
+
+| owner/class | aggregate B | D-cache 动作 |
+| --- | --- | --- |
+| 普通 CACHED store | OKAY | 允许 2 拍 RMW write-update；miss no-allocate |
+| 普通 NC/IO store | OKAY | 若 final PA 可能有 PMEM alias，失效本行；cross-line 同时失效 p1 |
+| 任意普通 store | SLVERR/DECERR | 保守失效 alias；不得 RMW，因为 split 前 beat 可能已部分生效 |
+| HW A/D update | 任意 terminal | valid-only 失效，不占 RMW 两拍窗口 |
+
+精确异常仍由同一 SQ/ROB owner 在 B 后产生，cache maintenance 不能提前释放 owner，也不能
+把 B error 改写为成功。S0 尚未区分 NC 与 IO ordering：两者暂沿保守 serialized 路径；S1
+typed class 后，NC 可在物理 CAM PASS 后按 RVWMO 执行/forward，IO 则必须 ROB-head、禁止
+forward/replay/speculative target。所有 store 不论 class 仍只允许 ROB-head 精确授权产生外部写。

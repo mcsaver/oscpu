@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "contract_name": "local-rtl-task-contract",
+  "engineering_domain": "local-rv64-rtl",
+  "instruction": ".github/instructions/rtl-agent-task-contract.instructions.md",
+  "skill": ".github/skills/prepare-rtl-task-contract/SKILL.md",
+  "generator": ".github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
+  "profile_node": "rtl-task-contract",
+  "task_kinds": [
+    "read-only-review",
+    "implementation",
+    "verification",
+    "ppa-analysis"
+  ],
+  "required_fields": [
+    "schema_version",
+    "contract_type",
+    "task_id",
+    "engineering_domain",
+    "task_kind",
+    "goal",
+    "scope",
+    "context",
+    "deliverables",
+    "success_criteria",
+    "status_policy",
+    "language_policy",
+    "source_contract"
+  ],
+  "required_context": [
+    ".github/AGENTS.md",
+    ".github/instructions/rtl-agent-task-contract.instructions.md"
+  ],
+  "implementation_context": ".github/instructions/rtl-generation-workflow.instructions.md",
+  "command_policy": {
+    "entry_fields": [
+      "command",
+      "mode",
+      "purpose"
+    ],
+    "modes": [
+      "read-only",
+      "write-within-scope"
+    ],
+    "read_only_commands": [
+      "rg",
+      "sed",
+      "git status",
+      "git diff",
+      "git show",
+      "sha256sum"
+    ],
+    "write_scoped_commands": [
+      "apply_patch",
+      "python3",
+      "bash",
+      "make",
+      "cmake",
+      "ninja",
+      "pytest",
+      "iverilog",
+      "verilator",
+      "yosys",
+      "openroad"
+    ],
+    "purpose_catalog": {
+      "rg": {
+        "mode": "read-only",
+        "purpose": "search-allowed-paths",
+        "label_zh": "只读检索允许路径"
+      },
+      "sed": {
+        "mode": "read-only",
+        "purpose": "view-selected-lines",
+        "label_zh": "只读查看指定文本行"
+      },
+      "git status": {
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status",
+        "label_zh": "只读查看工作树状态"
+      },
+      "git diff": {
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff",
+        "label_zh": "只读查看限定差异"
+      },
+      "git show": {
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content",
+        "label_zh": "只读查看版本化内容"
+      },
+      "sha256sum": {
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact",
+        "label_zh": "计算已声明产物哈希"
+      },
+      "apply_patch": {
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths",
+        "label_zh": "修改已声明写路径"
+      },
+      "python3": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script",
+        "label_zh": "运行已声明工作区脚本"
+      },
+      "bash": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script",
+        "label_zh": "运行已声明工作区脚本"
+      },
+      "make": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build",
+        "label_zh": "运行已声明构建"
+      },
+      "cmake": {
+        "mode": "write-within-scope",
+        "purpose": "configure-declared-build",
+        "label_zh": "配置已声明构建"
+      },
+      "ninja": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build",
+        "label_zh": "运行已声明构建"
+      },
+      "pytest": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-tests",
+        "label_zh": "运行已声明测试"
+      },
+      "iverilog": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-rtl-verification",
+        "label_zh": "运行已声明 RTL 验证"
+      },
+      "verilator": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-rtl-verification",
+        "label_zh": "运行已声明 RTL 验证"
+      },
+      "yosys": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-synthesis",
+        "label_zh": "运行已声明综合"
+      },
+      "openroad": {
+        "mode": "write-within-scope",
+        "purpose": "run-declared-ppa-flow",
+        "label_zh": "运行已声明 PPA 流程"
+      }
+    }
+  },
+  "access_defaults": {
+    "workspace_root": ".",
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "audit_commands": [
+    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit",
+    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test",
+    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test",
+    "scripts/agent-e2e.sh --profile agent-system"
+  ]
+}

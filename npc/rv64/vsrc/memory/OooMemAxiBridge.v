@@ -101,6 +101,9 @@ module OooMemAxiBridge (
   // Edge-old bridge residency used only to suppress an SQ bulk release while
   // the exact STORE token still resides in station/active/held-response state.
   output [31:0] mem0_owner_residency_mask_o,
+  // Zero-latency reduction of bridge-owned registered facts.  This is a
+  // local mem0 quiet fact only; it is not the final dual-memory/global quiet.
+  output mem0_idle_o,
   // 当前特权/satp 上下文下数据访问是否经 Sv39 翻译(供后端 load-vs-SQ 判定选 blind 模式)
   output translate_active_o,
 
@@ -1000,6 +1003,20 @@ module OooMemAxiBridge (
       owner_residency_mask_r[rsp_owner_token_q] = 1'b1;
   end
   assign mem0_owner_residency_mask_o = owner_residency_mask_r;
+  // Q0 MMU-epoch barrier fact: do not register this output.  Registering it
+  // would leave one false-idle cycle after a request enters the station.  The
+  // expression intentionally excludes READY/fire/equality/live context inputs
+  // so a future context lock cannot create a quiet/ready combinational loop.
+  wire bridge_registered_facts_idle_w =
+      (state_q == S_IDLE) &&
+      !stg_valid_q &&
+      !drop_rsp_q &&
+      !nokill_busy_w &&
+      !aw_done_q &&
+      !w_done_q &&
+      !dcache_rmw_busy_w &&
+      (owner_residency_mask_r == 32'b0);
+  assign mem0_idle_o = bridge_registered_facts_idle_w;
   assign translate_active_o = ctx_translate_w;
 
   // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
@@ -1672,6 +1689,36 @@ module OooMemAxiBridge (
   end
 
 `ifdef OOO_ASSERT
+  // Q0 bridge-idle contract.  Safety rejects a false quiet while any local
+  // registered owner/channel/macro-tail fact remains.  Completeness rejects a
+  // sticky-low implementation that would deadlock the later epoch barrier.
+  // External AXI RVALID/BVALID inputs are deliberately absent: with no local
+  // owner, unsolicited environment inputs are not bridge residency.
+  always @(posedge clk) begin
+    if (!rst) begin
+      if (mem0_idle_o &&
+          ((state_q != S_IDLE) || stg_valid_q || drop_rsp_q ||
+           nokill_busy_w || aw_done_q || w_done_q || dcache_rmw_busy_w ||
+           mem0_owner_query_valid_o || mem0_station_query_valid_o ||
+           (|mem0_owner_residency_mask_o) ||
+           mem0_rsp_valid_o || mem0_drop0_valid_o || mem0_drop1_valid_o ||
+           lsu_axi_arvalid_o || lsu_axi_rready_o ||
+           lsu_axi_awvalid_o || lsu_axi_wvalid_o || lsu_axi_bready_o)) begin
+        $error("[S2-Q0-BRG-IDLE-SAFETY] idle exposed residual owner/channel @%0t",
+               $time);
+        $fatal;
+      end
+      if (((state_q == S_IDLE) && !stg_valid_q && !drop_rsp_q &&
+           !nokill_busy_w && !aw_done_q && !w_done_q &&
+           !dcache_rmw_busy_w && (owner_residency_mask_r == 32'b0)) &&
+          !mem0_idle_o) begin
+        $error("[S2-Q0-BRG-IDLE-LIVENESS] empty registered state did not report idle @%0t",
+               $time);
+        $fatal;
+      end
+    end
+  end
+
   reg assert_pte_write_deny_r;
   always @(posedge clk) begin
     if (rst) begin

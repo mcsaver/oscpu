@@ -1,0 +1,239 @@
+{
+  "schema": "s2-q2-shadow-foundation-interface-v8a",
+  "contract_lock_sha256": "92c38c83fbd6cefd51921bc139b65acc965fb2e054c2f554086159c39bd160a3",
+  "v7_provenance": {
+    "schema": "s2-q2-live-epoch-interface-v7",
+    "contract_lock_sha256": "d830e31698425f431ad92fc907e2748b151399539e9736a0abfc0ee7d9d2d5fa",
+    "evidence_baseline_sha256": "abfe4e248f27e50d4f6cafc69f7429dba37e36544b3a5d6ec01248993ed1dc88",
+    "contract_file_sha256": "579b7c50af2a17332c3cd4b923e7c9c259439da40be704c5f626947def249ee5",
+    "manifest_file_sha256": "514ccfe4bf6e1c0fef3ecfbd93127495561a447044514d95d502172063719c40",
+    "checker_file_sha256": "f14a9e3a8a8c0ca79f1f6b3955d00678eb39ad5903da7c63e81b47e6817f82e8",
+    "runner_file_sha256": "8f4804333d678d9431c86c889feb7979f3c36d3da88e8840cbd48e6234cea0f4",
+    "source_inventory_file_sha256": "c273e3322b2a61366773a1b849a0991cf110b01a46b6158d32895b59adb1e97e",
+    "release_red_count": 931,
+    "ooo_assert_red_count": 931,
+    "aggregate_red_count": 1862,
+    "aggregate_red_sha256": "fc5baa96190e9bcac70248f912523f8ae9192045885d6023b6cb940f4675a592"
+  },
+  "scope": {
+    "memory_lanes": 1,
+    "issue1_memory_enabled": false,
+    "behavior_neutral_shadow_only": true,
+    "active_context_permit": false,
+    "active_fencei_permit": false,
+    "q1_owner_instantiated": false,
+    "full_identity_safety_claimed": false,
+    "full_context_payload_in_scope": false,
+    "fencei_transaction_in_scope": false,
+    "selective_squash_in_scope": false,
+    "dynamic_epoch_in_scope": false,
+    "structural_pass_is_sufficient": false,
+    "allowed_claim": "v8a shadow interface/checker readiness only"
+  },
+  "deferred_p0_blockers": [
+    {
+      "id": "P0-IFU-ACK-DIRECTION",
+      "disposition": "v8b-required",
+      "exit": "done depends only on sticky ack plus captured/request generation equality; ack_generation has its own exact single-driver equation"
+    },
+    {
+      "id": "P0-HEAD-PRESENT-AND-FLUSH",
+      "disposition": "v8b-required",
+      "exit": "held match includes a live head-present identity-valid fact and global flush has an explicit retain-or-abort rule"
+    },
+    {
+      "id": "P0-FULL-IDENTITY-PROVENANCE-AND-REUSE",
+      "disposition": "v8b-required",
+      "exit": "SQ and owner entries capture full allocation identity and allocation cannot reuse a still-live identity"
+    },
+    {
+      "id": "P0-SAME-OWNER-TYPED-CONTEXT-PAYLOAD",
+      "disposition": "v8b-required",
+      "exit": "prepare identity, operation, CSR operands, SFENCE scope, trap/xRET envelope and redirect payload come from one registered owner bundle"
+    },
+    {
+      "id": "P0-FENCEI-OWNER-DOMAIN",
+      "disposition": "v8b-required",
+      "exit": "FENCE.I prepare/raw/identity are all ROB-owned or all registered pending-system-owned, never cross-domain ANDed"
+    },
+    {
+      "id": "P0-FENCEI-GENERATION-AND-CAPTURE-BLOCK",
+      "disposition": "v8b-required",
+      "exit": "allocated and held generations are distinct registered facts and admission/fill remain blocked through final commit"
+    },
+    {
+      "id": "P0-Q1-ABORT-PRIORITY",
+      "disposition": "v8b-required",
+      "exit": "Q1 spec, RTL and focused tests freeze abort over grant/apply/epoch with held payload clear and no epoch advance"
+    },
+    {
+      "id": "P1-CHECKER-SUPPORT-MODULE-DIRECTIONS",
+      "disposition": "checker-v8b-required",
+      "exit": "audited modules and direction-only support modules are separate locked inventories; known inputs no longer produce canonical clk/rst false RED"
+    }
+  ],
+  "module_files": {
+    "NpcCoreTop": "npc/rv64/vsrc/core/NpcCoreTop.v",
+    "OooCoreTopGlue": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "OooExecuteBackend": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+    "OooAluCoreSlice": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+    "OooAluDecodeBackend": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+    "OooIntBackend": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "OooDispatchBackend": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+    "OooRob": "npc/rv64/vsrc/writeback/OooRob.v"
+  },
+  "required_macro_definitions": [
+    {"name": "OOO_CONTEXT_ID_W", "exact": "8"},
+    {"name": "OOO_CONTEXT_ID_LSB", "exact": "0"},
+    {"name": "OOO_CONTEXT_ID_MSB", "exact": "7"},
+    {"name": "OOO_CONTEXT_OWNER_W", "exact": "3"},
+    {"name": "OOO_CONTEXT_OWNER_LSB", "exact": "8"},
+    {"name": "OOO_CONTEXT_OWNER_MSB", "exact": "10"},
+    {"name": "OOO_CONTEXT_OWNER_PENDING_SYSTEM", "exact": "3'd1"},
+    {"name": "OOO_CONTEXT_CAUSE_W", "exact": "7"},
+    {"name": "OOO_CONTEXT_CAUSE_SATP", "exact": "7'b0000001"},
+    {"name": "OOO_CONTEXT_CAUSE_SFENCE_VMA", "exact": "7'b0000010"},
+    {"name": "OOO_CONTEXT_CAUSE_ACCESS_CONTEXT", "exact": "7'b0000100"},
+    {"name": "OOO_CONTEXT_CAUSE_PBMTE", "exact": "7'b0001000"},
+    {"name": "OOO_CONTEXT_CAUSE_PMP", "exact": "7'b0010000"},
+    {"name": "OOO_CONTEXT_CAUSE_TRAP", "exact": "7'b0100000"},
+    {"name": "OOO_CONTEXT_CAUSE_XRET", "exact": "7'b1000000"},
+    {"name": "OOO_CONTEXT_DTLB_CAUSE_MASK", "exact": "7'b1111111"},
+    {"name": "OOO_CONTEXT_ITLB_CAUSE_MASK", "exact": "7'b1111011"},
+    {"name": "OOO_CONTEXT_FPC_CAUSE_MASK", "exact": "7'b1111011"},
+    {"name": "OOO_CONTEXT_PAYLOAD_W", "exact": "256"},
+    {"name": "OOO_CONTEXT_GENERATION_W", "exact": "8"},
+    {"name": "OOO_MMU_EPOCH_W", "exact": "2"},
+    {"name": "MMU_EPOCH_PHASE_W", "exact": "2"},
+    {"name": "MMU_EPOCH_PHASE_CAPTURE", "exact": "2'd0"},
+    {"name": "MMU_EPOCH_PHASE_SQUASH", "exact": "2'd1"},
+    {"name": "MMU_EPOCH_PHASE_WAIT_QUIET", "exact": "2'd2"},
+    {"name": "MMU_EPOCH_PHASE_GRANT", "exact": "2'd3"}
+  ],
+  "wrapper_bundle": {
+    "modules": [
+      "OooCoreTopGlue",
+      "OooExecuteBackend",
+      "OooAluCoreSlice",
+      "OooAluDecodeBackend",
+      "OooIntBackend",
+      "OooDispatchBackend"
+    ],
+    "inputs": [
+      "head0_context_permit_i",
+      "fencei_retire_permit_i"
+    ],
+    "outputs": [
+      "head0_retire_candidate_valid_o",
+      "head0_identity_valid_o",
+      "head0_identity_o"
+    ]
+  },
+  "required_ports": [
+    {"module": "OooRob", "direction": "input", "port": "head0_context_permit_i"},
+    {"module": "OooRob", "direction": "input", "port": "fencei_retire_permit_i"},
+    {"module": "OooRob", "direction": "output", "port": "head0_retire_candidate_valid_o"},
+    {"module": "OooRob", "direction": "output", "port": "head0_identity_valid_o"},
+    {"module": "OooRob", "direction": "output", "port": "head0_identity_o"}
+  ],
+  "wrapper_width_bundle": {
+    "port": "head0_identity_o",
+    "width_token": "`OOO_CONTEXT_ID_W"
+  },
+  "required_signal_widths": [
+    {"module": "NpcCoreTop", "signal": "ooo_head0_identity_w", "width_token": "`OOO_CONTEXT_ID_W"}
+  ],
+  "instance_connections": [
+    {
+      "host": "NpcCoreTop",
+      "child": "OooCoreTopGlue",
+      "instance": "u_ooo_core",
+      "ports": {
+        "head0_context_permit_i": "head0_context_shadow_permit_w",
+        "fencei_retire_permit_i": "fencei_shadow_permit_w",
+        "head0_retire_candidate_valid_o": "ooo_head0_retire_candidate_valid_w",
+        "head0_identity_valid_o": "ooo_head0_identity_valid_w",
+        "head0_identity_o": "ooo_head0_identity_w"
+      }
+    },
+    {"host": "OooCoreTopGlue", "child": "OooExecuteBackend", "instance": "u_execute_backend", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]},
+    {"host": "OooExecuteBackend", "child": "OooAluCoreSlice", "instance": "u_core_slice", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]},
+    {"host": "OooAluCoreSlice", "child": "OooAluDecodeBackend", "instance": "u_decode_backend", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]},
+    {"host": "OooAluDecodeBackend", "child": "OooIntBackend", "instance": "u_int_backend", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]},
+    {"host": "OooIntBackend", "child": "OooDispatchBackend", "instance": "u_dispatch_backend", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]},
+    {"host": "OooDispatchBackend", "child": "OooRob", "instance": "u_rob", "same_name_ports": ["head0_context_permit_i", "fencei_retire_permit_i", "head0_retire_candidate_valid_o", "head0_identity_valid_o", "head0_identity_o"]}
+  ],
+  "exclusive_instance_outputs": [
+    {"host": "NpcCoreTop", "child": "OooCoreTopGlue", "instance": "u_ooo_core", "port": "head0_retire_candidate_valid_o", "signal": "ooo_head0_retire_candidate_valid_w"},
+    {"host": "NpcCoreTop", "child": "OooCoreTopGlue", "instance": "u_ooo_core", "port": "head0_identity_valid_o", "signal": "ooo_head0_identity_valid_w"},
+    {"host": "NpcCoreTop", "child": "OooCoreTopGlue", "instance": "u_ooo_core", "port": "head0_identity_o", "signal": "ooo_head0_identity_w"},
+    {"host": "OooCoreTopGlue", "child": "OooExecuteBackend", "instance": "u_execute_backend", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooCoreTopGlue", "child": "OooExecuteBackend", "instance": "u_execute_backend", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooCoreTopGlue", "child": "OooExecuteBackend", "instance": "u_execute_backend", "port": "head0_identity_o", "signal": "head0_identity_o"},
+    {"host": "OooExecuteBackend", "child": "OooAluCoreSlice", "instance": "u_core_slice", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooExecuteBackend", "child": "OooAluCoreSlice", "instance": "u_core_slice", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooExecuteBackend", "child": "OooAluCoreSlice", "instance": "u_core_slice", "port": "head0_identity_o", "signal": "head0_identity_o"},
+    {"host": "OooAluCoreSlice", "child": "OooAluDecodeBackend", "instance": "u_decode_backend", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooAluCoreSlice", "child": "OooAluDecodeBackend", "instance": "u_decode_backend", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooAluCoreSlice", "child": "OooAluDecodeBackend", "instance": "u_decode_backend", "port": "head0_identity_o", "signal": "head0_identity_o"},
+    {"host": "OooAluDecodeBackend", "child": "OooIntBackend", "instance": "u_int_backend", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooAluDecodeBackend", "child": "OooIntBackend", "instance": "u_int_backend", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooAluDecodeBackend", "child": "OooIntBackend", "instance": "u_int_backend", "port": "head0_identity_o", "signal": "head0_identity_o"},
+    {"host": "OooIntBackend", "child": "OooDispatchBackend", "instance": "u_dispatch_backend", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooIntBackend", "child": "OooDispatchBackend", "instance": "u_dispatch_backend", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooIntBackend", "child": "OooDispatchBackend", "instance": "u_dispatch_backend", "port": "head0_identity_o", "signal": "head0_identity_o"},
+    {"host": "OooDispatchBackend", "child": "OooRob", "instance": "u_rob", "port": "head0_retire_candidate_valid_o", "signal": "head0_retire_candidate_valid_o"},
+    {"host": "OooDispatchBackend", "child": "OooRob", "instance": "u_rob", "port": "head0_identity_valid_o", "signal": "head0_identity_valid_o"},
+    {"host": "OooDispatchBackend", "child": "OooRob", "instance": "u_rob", "port": "head0_identity_o", "signal": "head0_identity_o"}
+  ],
+  "boolean_requirements": [
+    {"module": "NpcCoreTop", "target": "head0_context_shadow_permit_w", "sources": [], "exact_expression": "1'b1", "forbid_absorbing_constants": false, "forbid_ternary_xor": true},
+    {"module": "NpcCoreTop", "target": "fencei_shadow_permit_w", "sources": [], "exact_expression": "1'b1", "forbid_absorbing_constants": false, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head0_retire_candidate_valid_o", "sources": ["recovering_w", "count_q", "valid_q", "head_q", "head_done_w"], "exact_expression": "!recovering_w && (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] && head_done_w", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head0_identity_valid_o", "sources": ["count_q", "valid_q", "head_q"], "exact_expression": "(count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q]", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head0_base_ready_w", "sources": ["recovering_w", "commit_ready_i", "count_q", "valid_q", "head_q", "head_done_w", "head0_csr_mem_hold_w"], "exact_expression": "!recovering_w && commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] && head_done_w && !head0_csr_mem_hold_w", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "commit0_fire_w", "sources": ["head0_base_ready_w", "head0_context_permit_i", "fencei_retire_permit_i"], "exact_expression": "head0_base_ready_w && head0_context_permit_i && fencei_retire_permit_i", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_is_csr_raw_w", "sources": ["inst_q", "head1_w"], "exact_expression": "(inst_q[head1_w][6:0] == `OPCODE_SYSTEM) && (inst_q[head1_w][14:12] != 3'b000)", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_is_sfence_vma_raw_w", "sources": ["inst_q", "head1_w"], "exact_expression": "(inst_q[head1_w] & 32'hfe007fff) == 32'h12000073", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_is_xret_raw_w", "sources": ["inst_q", "head1_w"], "exact_expression": "(inst_q[head1_w] == 32'h30200073) || (inst_q[head1_w] == 32'h10200073)", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_is_fencei_raw_w", "sources": ["inst_q", "head1_w"], "exact_expression": "inst_q[head1_w] == 32'h0000100f", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_potential_context_boundary_w", "sources": ["head1_is_csr_raw_w", "head1_is_sfence_vma_raw_w", "head1_is_xret_raw_w", "head1_is_fencei_raw_w"], "exact_expression": "head1_is_csr_raw_w || head1_is_sfence_vma_raw_w || head1_is_xret_raw_w || head1_is_fencei_raw_w", "forbid_absorbing_constants": true, "forbid_ternary_xor": true},
+    {"module": "OooRob", "target": "head1_context_boundary_shadow_w", "sources": ["valid_q", "head1_w", "head1_done_w", "head1_exception_w", "head1_potential_context_boundary_w"], "exact_expression": "valid_q[head1_w] && head1_done_w && !head1_exception_w && head1_potential_context_boundary_w", "forbid_absorbing_constants": true, "forbid_ternary_xor": true}
+  ],
+  "signal_dependencies": [
+    {"module": "OooRob", "target": "head0_identity_o", "sources": ["head_q"]}
+  ],
+  "forbidden_dependencies": [
+    {"module": "OooRob", "target": "head0_retire_candidate_valid_o", "sources": ["commit_ready_i", "head0_context_permit_i", "fencei_retire_permit_i", "commit0_fire_w"]},
+    {"module": "OooRob", "target": "head0_identity_valid_o", "sources": ["head_done_w", "recovering_w", "commit_ready_i", "commit0_fire_w"]},
+    {"module": "OooRob", "target": "commit1_fire_w", "sources": ["head1_context_boundary_shadow_w"]}
+  ],
+  "forbidden_live_shapes": [
+    {"module": "NpcCoreTop", "pattern": "\\bOooMmuEpochOwner\\b[\\s\\S]*?\\bu_mmu_epoch_owner\\b", "reason": "v8a must not instantiate Q1"}
+  ],
+  "self_test_inventory": [
+    "exact-instance-accepted",
+    "wrong-instance-map-killed",
+    "missing-context-permit-killed",
+    "missing-fencei-permit-killed",
+    "precommit-commit-ready-bypass-killed",
+    "identity-valid-done-alias-killed",
+    "tie-high-shadow-accepted",
+    "active-shadow-permit-killed",
+    "lane1-csr-self-inequality-killed",
+    "missing-sfence-class-killed",
+    "commit1-shadow-gate-killed",
+    "truncated-identity-width-killed",
+    "child-output-host-override-killed",
+    "q1-live-instance-killed",
+    "deferred-blocker-drift-killed",
+    "v7-provenance-drift-killed",
+    "contract-lock-drift-killed"
+  ],
+  "evidence_baseline": {
+    "expected_live_readiness_rc": 1,
+    "expected_red_count": 314,
+    "expected_red_sha256": "4099e530110b45c5c7948e5db0d0702402178c400157ad9699cd1ca70b4384b0",
+    "expected_self_test_mutations": 17
+  }
+}

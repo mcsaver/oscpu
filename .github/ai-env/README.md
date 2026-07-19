@@ -6,7 +6,7 @@
 
 ## 目录
 
-- `contracts/`：Database / Skill / Agent 三层 contract、delivery contract、runtime artifact contract、branch-health 与 review routing。
+- `contracts/`：Database / Skill / Agent 三层 contract、delivery contract、runtime artifact contract、branch-health、review routing 与本地 RTL 子任务契约。
 - `../skills/`：live skill 规则。
 - `../agents/`：agent profile shim 和 `AGENT_INDEX.md`。
 - `../e2e/`：profile、模块说明和 e2e 调度资料。

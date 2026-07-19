@@ -110,3 +110,19 @@ count 归零。full pop+enqueue 时 tail=head，新包覆盖旧 head，而 shado
   legacy control combination 统一 clear+refetch。
 
 T3V 的译码所有权与验证见 `ooo-fetch-predecode-bundle.md`。
+
+## 6. R2.4 immediate 压缩存储合同（2026-07-15）
+
+`ImmGen` 的 RV64 I/S/B/U/J/default 输出均满足
+`imm[63:32] == {32{imm[31]}}`。FIFO ring 与 registered head shadow 因而只保存
+`imm[31:0]` 以及 4 个独立 sign replicas；每个 replica 只重建高 32 位中的 8 位，
+以限制 head 侧扇出。接口仍保持完整 64-bit `enqueue_imm*_i/head_imm*_o`。
+
+- 未被 `clear_i` 吞掉的 enqueue 必须检查输入高 32 位确为 bit31 符号扩展；否则 fail closed。
+- empty enqueue、ring write、pop-to-shadow 与 full pop+enqueue 必须移动同一压缩字段。
+- `head_imm*_o[31:0]` 逐位等于 stored low word；高 32 位只能由注册 sign replicas 重建。
+- 不允许把该压缩推广到任意非 `ImmGen` 数据，也不允许把 immediate 重新放回 response 组合 decode。
+- 此变换不增加 packet latency/occupancy，不改变 enqueue/pop/clear 优先级或 II=1。
+
+该合同既减少两 lane ×（4-entry ring + head shadow）的冗余符号位，也切断
+`ImmGen` 单个符号选择节点对大量 FIFO D pin 的高扇出；面积和时序必须用 fresh netlist 复核。

@@ -1,0 +1,7 @@
+af8bca984c52a0cd261d37bc82b849a5805411ff1d24167ea4269ac750d47535  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/README.md
+56e3250af185181f6e8d9ed979cb03b233f629f156fc28ea523aa6b5a0fbde91  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/binaries/NpcSimTop-A-R2p4-region
+1185eb1a113599ec4a0f46fdfd6780ec93a6df52b46dd2a318441c18d2e739f0  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/binaries/NpcSimTop-B-R2p5-region
+be050bb9ab4c0e1bd5e6850f4c81fc1ec5841bf8300d06c08f158429f365f785  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/r2p5-only-NpcCoreTop.patch
+f1c8c1e98e0ee66490a5f598a072a2e39cdb8983a6ca8ea1698aa04c70a950f5  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/region-probe.patch
+657c5f9e253810c134829da386e1d1b56bdb350658882e0bdea4ab1940a35788  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/run-core-ab.sh
+907661f0ccd5af111e50208e4911497363d1f12241dddb965342d5110b07ccd2  .github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/artifacts/ppa-r2p5-icache/region-ab/run-region-ab.sh

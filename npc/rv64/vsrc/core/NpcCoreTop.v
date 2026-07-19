@@ -181,6 +181,10 @@ module NpcCoreTop (
   wire [1:0] ooo_mem0_drop1_mmu_epoch_w;
   wire [`XLEN-1:0] ooo_mem0_drop1_fault_tval_w;
   wire [31:0] ooo_mem0_owner_residency_mask_w;
+  // Q0 only: local registered-fact bridge quiet.  The epoch owner will later
+  // combine it with backend/SQ/owner-tracker facts before granting a context
+  // transition; keeping this wire local makes this slice behavior-neutral.
+  wire ooo_mem0_idle_w;
   wire ooo_mem_translate_active_w;
 
   wire ooo_mem_flush_w;
@@ -203,6 +207,19 @@ module NpcCoreTop (
   wire [1:0] ooo_core_retire_count_w;
   wire ooo_pending_system_csr_commit_w;
   wire ooo_head0_csr_commit_w;   // 【serialize Phase1】head0-CSR 队头提交脉冲 → CSR 状态写
+  // S2-Q2 v8a is deliberately behavior-neutral: the future context/FENCE.I
+  // owners observe the ROB head here, while both retire permits remain tied
+  // high until the v8b blockers in the frozen contract are discharged.
+  wire head0_context_shadow_permit_w;
+  wire fencei_shadow_permit_w;
+  wire ooo_head0_retire_candidate_valid_w;
+  wire ooo_head0_identity_valid_w;
+  wire [`OOO_CONTEXT_ID_W-1:0] ooo_head0_identity_w;
+  wire _unused_v8a_shadow_w = ooo_head0_retire_candidate_valid_w |
+                               ooo_head0_identity_valid_w |
+                               (|ooo_head0_identity_w);
+  assign head0_context_shadow_permit_w = 1'b1;
+  assign fencei_shadow_permit_w = 1'b1;
   wire ooo_csr_access_valid_w;
   wire [11:0] ooo_csr_access_addr_w;
   wire [2:0] ooo_csr_access_funct3_w;
@@ -396,6 +413,7 @@ module NpcCoreTop (
     .mem0_station_query_valid_o(ooo_mem0_station_query_valid_w),
     .mem0_station_query_token_o(ooo_mem0_station_query_token_w),
     .mem0_owner_residency_mask_o(ooo_mem0_owner_residency_mask_w),
+    .mem0_idle_o(ooo_mem0_idle_w),
     .translate_active_o(ooo_mem_translate_active_w),
     .lsu_axi_arvalid_o(lsu_raw_arvalid_w),
     .lsu_axi_arready_i(lsu_raw_arready_w),
@@ -621,6 +639,12 @@ module NpcCoreTop (
     .csr_pmpcfg_w(ooo_pmpcfg_w),
     .csr_pmpaddr_w(ooo_pmpaddr_w),
     .commit_ready_i(1'b1),
+    .head0_context_permit_i(head0_context_shadow_permit_w),
+    .fencei_retire_permit_i(fencei_shadow_permit_w),
+    .head0_retire_candidate_valid_o(
+        ooo_head0_retire_candidate_valid_w),
+    .head0_identity_valid_o(ooo_head0_identity_valid_w),
+    .head0_identity_o(ooo_head0_identity_w),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
     .commit0_inst_o(commit0_inst_o),

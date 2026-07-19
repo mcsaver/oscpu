@@ -1,4 +1,4 @@
-work_dir=/tmp/s2-g1-wrapper-green.cB15HS
+work_dir=/tmp/s2-g1-wrapper-green.1rs52t
 static_abi=GREEN_228_checks
 mutation_negative=EXPECTED_FAIL_constant_request_token_1_OF_1
 dynamic_wrapper=GREEN_request_response_MIQ_tracker_station_exact_roundtrip

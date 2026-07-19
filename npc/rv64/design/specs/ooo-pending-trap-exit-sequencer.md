@@ -31,19 +31,24 @@ On a non-reset clock edge:
 1. `clear_exit_i` clears exit valid and exit payload bits.
 2. `clear_arch_i` clears arch-trap valid. Trap payload is not consumed when
    invalid and may retain its previous value. When the clear comes from a
-   wrong-path squash (`clear_arch_squash_i`) and the residual cause is
-   `EXC_ILLEGAL_INST`, the payload (cause/pc/tval) is cleared too, so the
-   drain-exit `drain_trap_payload` path cannot consume stale speculative
-   residue; other causes (page fault/ecall) keep cause/pc for the trap handler.
+   wrong-path squash (`clear_arch_squash_i`), the payload (cause/pc/tval) is
+   cleared for every cause, so the drain-exit `drain_trap_payload` path cannot
+   consume stale speculative residue.
 3. `capture_exit_i` writes `pending_exit_o` from `capture_exit_valid_i` and
    writes the exit payload bits.
 4. `capture_arch_i` writes `pending_arch_trap_o` from
-   `capture_arch_valid_i` and writes trap payload.
+   `capture_arch_valid_i` and writes trap payload, except when
+   `clear_arch_i && clear_arch_squash_i` is asserted on the same edge.  That
+   collision means the observed head belongs to the path being squashed, so
+   squash owns both validity and payload and capture is discarded.
 5. `late_clear_i` has final priority and clears all valid bits and payload.
 
-This priority preserves the old `OooAluFetchCore` behavior: normal clear and
-new capture in the same cycle keep the capture, while a committed backend trap
-late-clear removes stale frontend pending control state.
+Normal non-squash clear and a new capture in the same cycle still keep the new
+capture, while a committed backend trap late-clear removes stale frontend
+pending control state.  The explicit squash/capture exception was added after
+R3.2 changed issue timing enough to expose a wrong-path `illegal` capture on
+the same edge as JALR recovery; allowing capture to win revived an orphan trap
+that later preempted a legal `SFENCE.VMA` drain.
 
 ## Integration Contract
 

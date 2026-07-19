@@ -5,7 +5,8 @@
 // 1 个 Sram4096x199 1RW 同步读宏; valid 保持 ENTRY_COUNT bit FF(SRAM 内容无复位,
 // 全清/失效语义由 valid FF 承担)。
 // 两拍 lookup 协议: lookup_read_en_i 是物理 SRAM 读窗；lookup_en_i 是语义 accept，
-// 只锁存请求上下文并置次拍判决资格。使用方保证 accept=>read，且 read 与 fill 写
+// 只置次拍判决资格。请求上下文无条件采样，dec_en_q 负责限定哪一拍可消费；
+// 使用方保证 accept=>read，且 read 与 fill 写
 // 不同拍；dummy read 只改变无判决资格的 raw rdata，不产生 cache-visible hit/payload。
 module OooFetchPacketCache #(
   parameter INDEX_W = `OOO_FETCH_PACKET_CACHE_INDEX_W,
@@ -49,7 +50,8 @@ module OooFetchPacketCache #(
 
   reg [ENTRY_COUNT-1:0] valid_q;
 
-  // fire 拍锁存的 lookup 请求(判决拍与 SRAM rdata_o 同参照系比较)。
+  // lookup 输入的逐拍影子。只有 dec_en_q=1 的拍才会消费这些寄存器；无条件
+  // 采样可移除 lookup_en_i(含 fast-hit turnover)到宽 context D 端的 CE mux。
   reg dec_en_q;                       // 上拍发射过 lookup → 本拍为判决拍
   reg lkp_paging_q;
   reg [1:0] lkp_priv_q;
@@ -108,7 +110,7 @@ module OooFetchPacketCache #(
       invalidate_valid_i && same_fetch_window(fill_pc_i, invalidate_addr_i);
 
   // ── SRAM 宏(1RW 同步读): 物理读窗与语义 accept 解耦。读窗可提前/持续打开，
-  //    但只有 lookup_en_i 才锁存 context 并使 dec_en_q 在次拍有效。──
+  //    context 每拍采样，但只有 lookup_en_i 才使 dec_en_q 在次拍有效。──
   wire sram_we_w = fill_valid_i && !fill_invalidated_w;
   wire sram_en_w = lookup_read_en_i || sram_we_w;
   // 用 | 零扩展补齐宏 12b 地址口, 避免 INDEX_W=12 时出现 0 次复制拼接(非法)。
@@ -177,13 +179,11 @@ module OooFetchPacketCache #(
     end else begin
       dec_en_q <= lookup_en_i;
     end
-    if (lookup_en_i) begin
-      lkp_paging_q <= lookup_paging_i;
-      lkp_priv_q <= lookup_priv_i;
-      lkp_satp_q <= lookup_satp_i;
-      lkp_pc_q <= lookup_pc_i;
-      lkp_idx_q <= lookup_idx_w;
-    end
+    lkp_paging_q <= lookup_paging_i;
+    lkp_priv_q <= lookup_priv_i;
+    lkp_satp_q <= lookup_satp_i;
+    lkp_pc_q <= lookup_pc_i;
+    lkp_idx_q <= lookup_idx_w;
     // 刀F 时序修复: lkp_inv_q 无条件锁存(去 CE)——CE=fire 含融合 hit 锥, 与 D 端的
     // snoop 地址比较链在 CE-mux 上串联成 top 违例。无条件锁存等价: fire 拍锁的即
     // fire 拍比较; 非 fire 拍锁到的值因 dec_en_q=0 不被消费; 判决拍组合读的是
@@ -225,8 +225,8 @@ module OooFetchPacketCache #(
     end
   end
 
-  // 契约: SRAM 1RW 物理读写不同拍。使用方 FSM 的读窗只含
-  // S_CACHE_READ，fill 写只发生在 S_R0，二者必须互斥。
+  // 契约: SRAM 1RW 物理读写不同拍。使用方 FSM 的预开读窗与最终
+  // S_R0 fill 写必须互斥。
   always @(posedge clk) begin
     if (!rst && lookup_read_en_i && sram_we_w) begin
       $error("[CONTRACT-FPC-1RW] physical read and fill write in same cycle violate 1RW SRAM: lookup_pc=%h fill_pc=%h @%0t",

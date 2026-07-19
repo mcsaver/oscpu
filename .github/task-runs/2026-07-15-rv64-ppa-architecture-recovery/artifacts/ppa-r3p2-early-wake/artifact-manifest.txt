@@ -1,0 +1,20 @@
+R3.2 actual-fire early-wake review artifact
+baseline: df604c0e6c72e53f1572cd0691ab7061271175cf
+patch semantics: pure increment over R3.1 sandbox baseline
+module result: PASS 3/3
+result source: npc/rv64/perf/results/20260715-215027/module-testbench
+
+Files:
+- candidate.patch
+- apply-check.txt
+- design-note.md
+- module-test-summary.txt
+- module-test-markers.txt
+- module-test-logs/tb_ooo_int_issue_queue.log
+- module-test-logs/tb_ooo_dispatch_backend.log
+- module-test-logs/tb_ooo_int_backend.log
+- sandbox-baseline.txt
+- SHA256SUMS
+
+Not run: Linux, full regression, benchmark A/B, synthesis, STA, power.
+Sandbox retained at: /home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox

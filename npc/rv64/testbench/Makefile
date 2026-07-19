@@ -48,6 +48,7 @@ TESTS := \
   tb_ooo_free_list \
   tb_ooo_store_queue \
   tb_ooo_mem_inflight_queue \
+  tb_ooo_mmu_epoch_owner \
   tb_ooo_rob \
   tb_ooo_phys_reg_file \
   tb_ooo_fp_reg_file \
@@ -151,6 +152,7 @@ TB_SRCS_tb_ooo_rename_map := tests/tb_ooo_rename_map.sv $(RTL_OOO_RENAME_MAP)
 TB_SRCS_tb_ooo_free_list := tests/tb_ooo_free_list.sv $(RTL_OOO_FREE_LIST)
 TB_SRCS_tb_ooo_store_queue := tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
 TB_SRCS_tb_ooo_mem_inflight_queue := tests/tb_ooo_mem_inflight_queue.sv $(RTL_OOO_MEM_INFLIGHT_QUEUE)
+TB_SRCS_tb_ooo_mmu_epoch_owner := tests/tb_ooo_mmu_epoch_owner.sv $(RTL_OOO_MMU_EPOCH_OWNER)
 TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG_FILE)
 TB_SRCS_tb_ooo_fp_reg_file := tests/tb_ooo_fp_reg_file.sv $(RTL_OOO_FP_REG_FILE)
@@ -162,7 +164,7 @@ TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DI
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
 TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
-TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
+TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_MEM_OWNER_TRACKER) $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_bitmanip_gate := tests/tb_ooo_bitmanip_gate.sv $(RTL_OOO_BITMANIP_GATE)
 TB_SRCS_tb_ooo_amo_gate := tests/tb_ooo_amo_gate.sv $(RTL_OOO_AMO_GATE)
@@ -229,7 +231,7 @@ TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv 
 TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_XBAR)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
-TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_lsu_axi_lane_adapter := tests/tb_ooo_lsu_axi_lane_adapter.sv $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)

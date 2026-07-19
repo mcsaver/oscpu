@@ -23,13 +23,22 @@ scripts/agent-e2e.sh --profile nemu-ubuntu-full-gate
 
 ## 执行卫生
 
-开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包；未确定 profile 时先省略 `--profile`，根据 `Profile Suggestions` 选择。回查历史 task-run/evidence 时使用 `python3 scripts/github_index_db.py runs --profile <profile>` 与 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+派发本地 RV64 RTL 子 agent 前，先按 `.github/instructions/rtl-agent-task-contract.instructions.md`
+运行 `.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py create/validate/render`；
+契约把路径、读写权限、命令、最小上下文、产物和成功条件绑定到单个节点。对应自动门禁是
+`agent-system` profile 的 `rtl-task-contract` 节点，profile PASS 不替代任何 RTL/PPA 业务 gate。
+
+开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包；未确定 profile 时只省略 `--profile`，仍保留 non-history focus，再根据 `Profile Suggestions` 选择。只有 `recall_status=complete` 才可派发；显式 profile、canonical 规则、独立 focus 缺失或必需 chunk 超出硬预算时必须 fail closed。回查历史 task-run/evidence 时使用 `python3 scripts/github_index_db.py runs --profile <profile>` 与 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+
+CLI/API 与 e2e runner 的 bounded brief 默认预算统一为 2400 tokens，runner 可用 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 显式覆盖；覆盖不改变必需 focus 的 fail-closed 语义。
+
+runner 会把 `task_slug` 拆成最多 8 个去重语义词，并过滤日期、序号及 `agent/e2e/run/rerun/final/test/fix` 等身份噪声；profile 只由 `--profile` 绑定，不重复进入 AND focus。默认 `agent-e2e-<profile>` slug 使用 profile 剩余语义词（如 `agent-e2e-npc-dev` → `npc dev`），只保证 profile smoke 的兼容召回，不代表任务特异 focus；真实任务应显式给出可辨识 slug，纯生命周期 slug 会 fail closed。runner 同时固定 `--focus-scope non-history`：当前 memory/rule/source 可以成为独立 primary focus，旧 task-run/report/evidence 不能为同 slug 重跑自证；手工 `brief` 默认仍保留历史召回兼容，历史证据优先用 `runs`/`evidence` 回查。
 
 不要并发启动多个 `wsl.exe` 跑工程命令；遇到 `Wsl/Service/E_UNEXPECTED`、stale `wsl.exe` 客户端，或 NEMU/NPC 场景互相拖慢，先确认 WSL 状态和 active scenario runtime isolation。日常 NEMU/NPC 并行开发保持默认 `warn`，但超过 86400s 的历史对侧 task-run client 应清理后再补跑当前 gate；严谨复现实验再切到 `strict`。需要加载开发环境时使用 `scripts/agent-run.sh`。外层工具控制符可能拆坏命令，检索多个词使用 `rg -e`。PowerShell 包裹 `wsl.exe -- bash -lc '...'` 时不要裸用 Bash `$var`，否则会先被 PowerShell 展开；一次性命令优先写字面路径或用脚本文件承载复杂逻辑。
 
 Windows `Start-Process wsl.exe` 启动长门时，`-- bash -lc "..."` 必须作为单个 argument string 传入。NEMU slow diagnostic 环境变量关闭 interpreter/fast-path 时，full focused gate 应保留自动 bootargs timeout 与 `NEMU_SYSTEMD_INPUT_CHUNK_BYTES=512` 证据，避免 serial 上传耗时被误判成 guest/NEMU 根因。
 
-收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查当前 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`。每个候选都必须先通过 report 中唯一、精确的 `profile` / `status=completed` / `updated_at` 字段校验；存在普通文件 `run-manifest.json` 时，还必须校验其 JSON 对象、profile/status 一致性，并以 manifest 的带时区 `updated_at` 作为权威新鲜度时间，只有 manifest 缺失的历史 run 才使用 report 时间。task-report mtime 永不参与判定。非法、冲突、重复、NaN/Infinity、无时区或 symlink 输入均 fail closed；多个候选按 UTC 微秒完成时间选最新。缺少证据或 DB 召回产物时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
+收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查 task-run 的 canonical completed report、全 PASS manifest、完整 recall/resolve、可重算 evidence index、hash-bound marker、completion publication 与已发布 DB Markdown 精确集合。触发 mtime 保留微秒，tracked deletion 使用父目录/Git index 基线；Git 枚举失败、未知不存在路径、明显未来 evidence、非法/冲突/重复 JSON、无时区时间、symlink run/evidence/artifact 都 fail closed。`context-brief.md` 必须在硬 token budget 内按序包含 canonical 规则、请求 profile 和独立 focus chunks，且每个 chunk 有完整 metadata/非空正文；`profile-resolve.md` 的 Nodes 必须连续编号、ID 唯一，并与 manifest、report、dispatch、`nodes.tsv` 的节点全元组同序一致；validator 还会递归解析当前 live profile include closure，逐节点复核 `node/source/module/owner/function/status/inputs/outputs`。dispatch 必须严格保持 startup PASS 与逐节点 `in-progress -> PASS` 顺序，全部 payload 字段受绑定；每个节点的首要 evidence 必须是 canonical `evidence/<node_id>.log`，辅助指针也必须指向 actual indexed ordinary asset。run/report/manifest/index/dispatch 的 task/trace/slug 与 report/manifest 语义时间也必须一致。`evidence-index.md` 的 task/profile/count/size、每项路径、普通文件属性与 SHA-256 都会现场重算。report mtime 永不参与判定；多个候选按 UTC 微秒完成时间选最新。recall、resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都传播为非零/blocked。completed 先精确同步 staged Markdown，再生成七 artifact hash-bound marker 与严格 EOF 的 `completion-publication.md`，最后用 `publish-task-run` 原子提交；普通 archive/promote/migrate/backup/rehydrate 不得制造或撤销完成记录，`runs` 不接受缺失/降级 publication contract 的 completed report。失败会撤销本次 live marker/publication并重渲染 blocked；既有已提交 publication 不会被通用 sync 误删。strict guard 同时复核 marker、publication 和 DB/live 精确集合。缺少证据时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
 
 ## 软件流程
 

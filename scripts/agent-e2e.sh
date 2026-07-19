@@ -317,20 +317,30 @@ validate_loaded_profile() {
 }
 
 validate_all_profiles() {
-  local profile rc=0
+  local profile rc=0 catalog_file
+  catalog_file=$(mktemp) || return 1
+  if ! list_profiles > "$catalog_file"; then
+    rm -f -- "$catalog_file"
+    return 1
+  fi
+  if [[ ! -s $catalog_file ]]; then
+    rm -f -- "$catalog_file"
+    return 1
+  fi
   while IFS= read -r profile; do
     reset_profile_arrays
     load_profile "$profile"
     validate_loaded_profile "$profile" || rc=1
     validate_profile_boundary "$profile" || rc=1
-  done < <(list_profiles)
+  done < "$catalog_file"
+  rm -f -- "$catalog_file" || return 1
   return "$rc"
 }
 
 E2E_GUARD_PATHS=()
 E2E_GUARD_PROFILES=()
 E2E_GUARD_PROFILE_REASONS=()
-E2E_GUARD_PROFILE_MTIMES=()
+E2E_GUARD_PROFILE_MTIME_US=()
 E2E_GUARD_AUTO_EVIDENCE_DIRS=()
 
 e2e_guard_add_unique_path() {
@@ -351,27 +361,75 @@ e2e_guard_add_unique_evidence_dir() {
   E2E_GUARD_AUTO_EVIDENCE_DIRS+=("$dir")
 }
 
+e2e_guard_path_mtime_us() {
+  local reason=$1 absolute_path="$E2E_ROOT_DIR/$1" parent index_path deletion_known=0
+  if [[ -e $absolute_path || -L $absolute_path ]]; then
+    python3 - "$absolute_path" <<'PY'
+import os
+import sys
+
+try:
+    mtime_ns = os.lstat(sys.argv[1]).st_mtime_ns
+except OSError:
+    raise SystemExit(1)
+print((mtime_ns + 999) // 1000)
+PY
+    return $?
+  fi
+
+  if git -C "$E2E_ROOT_DIR" ls-files --deleted -- "$reason" 2>/dev/null | grep -Fqx -- "$reason"; then
+    deletion_known=1
+  elif ! git -C "$E2E_ROOT_DIR" diff --cached --quiet --no-renames --diff-filter=D -- "$reason" 2>/dev/null; then
+    deletion_known=1
+  fi
+  [[ $deletion_known -eq 1 ]] || return 1
+
+  parent=$(dirname -- "$absolute_path")
+  while [[ ! -e $parent && $parent != "$E2E_ROOT_DIR" && $parent != / ]]; do
+    parent=$(dirname -- "$parent")
+  done
+  [[ -d $parent ]] || return 1
+  index_path=$(git -C "$E2E_ROOT_DIR" rev-parse --git-path index 2>/dev/null) || return 1
+  [[ $index_path = /* ]] || index_path="$E2E_ROOT_DIR/$index_path"
+  python3 - "$parent" "$index_path" <<'PY'
+import os
+import sys
+
+mtimes = []
+for raw_path in sys.argv[1:]:
+    try:
+        mtimes.append(os.lstat(raw_path).st_mtime_ns)
+    except OSError:
+        pass
+if not mtimes:
+    raise SystemExit(1)
+print((max(mtimes) + 999) // 1000)
+PY
+}
+
 e2e_guard_add_profile() {
-  local profile=$1 reason=$2 i mtime=0
-  if [[ -e $E2E_ROOT_DIR/$reason ]]; then
-    mtime=$(stat -c '%Y' "$E2E_ROOT_DIR/$reason" 2>/dev/null || printf '0')
+  local profile=$1 reason=$2 i mtime_us
+  if ! mtime_us=$(e2e_guard_path_mtime_us "$reason"); then
+    # An unknown nonexistent trigger cannot inherit epoch zero and accept any
+    # historical evidence.  A real tracked deletion uses parent/index mtime.
+    mtime_us=9223372036854775807
   fi
   for i in "${!E2E_GUARD_PROFILES[@]}"; do
     if [[ ${E2E_GUARD_PROFILES[$i]} = "$profile" ]]; then
       E2E_GUARD_PROFILE_REASONS[$i]="${E2E_GUARD_PROFILE_REASONS[$i]}; $reason"
-      if [[ $mtime -gt ${E2E_GUARD_PROFILE_MTIMES[$i]} ]]; then
-        E2E_GUARD_PROFILE_MTIMES[$i]=$mtime
+      if [[ $mtime_us -gt ${E2E_GUARD_PROFILE_MTIME_US[$i]} ]]; then
+        E2E_GUARD_PROFILE_MTIME_US[$i]=$mtime_us
       fi
       return 0
     fi
   done
   E2E_GUARD_PROFILES+=("$profile")
   E2E_GUARD_PROFILE_REASONS+=("$reason")
-  E2E_GUARD_PROFILE_MTIMES+=("$mtime")
+  E2E_GUARD_PROFILE_MTIME_US+=("$mtime_us")
 }
 
 e2e_guard_collect_paths() {
-  local path
+  local path auto_paths auto_paths_sorted collect_rc=0
   E2E_GUARD_PATHS=()
   E2E_GUARD_AUTO_EVIDENCE_DIRS=()
 
@@ -387,16 +445,21 @@ e2e_guard_collect_paths() {
   done
 
   if [[ ${#E2E_GUARD_PATHS[@]} -eq 0 ]]; then
+    auto_paths=$(mktemp) || return 2
+    auto_paths_sorted=$(mktemp) || { rm -f -- "$auto_paths"; return 2; }
+    git -C "$E2E_ROOT_DIR" diff --name-only "$E2E_GUARD_SINCE_REF" -- >> "$auto_paths" 2>/dev/null || collect_rc=1
+    git -C "$E2E_ROOT_DIR" diff --name-only --cached -- >> "$auto_paths" 2>/dev/null || collect_rc=1
+    git -C "$E2E_ROOT_DIR" diff --name-only -- >> "$auto_paths" 2>/dev/null || collect_rc=1
+    git -C "$E2E_ROOT_DIR" ls-files --others --exclude-standard >> "$auto_paths" 2>/dev/null || collect_rc=1
+    if [[ $collect_rc -ne 0 ]] || ! awk 'NF' "$auto_paths" | sort -u > "$auto_paths_sorted"; then
+      rm -f -- "$auto_paths" "$auto_paths_sorted"
+      printf '[agent-e2e-guard] FAIL unable to enumerate changed paths\n' >&2
+      return 2
+    fi
     while IFS= read -r path || [[ -n $path ]]; do
       e2e_guard_add_unique_path "$path"
-    done < <(
-      {
-        git -C "$E2E_ROOT_DIR" diff --name-only "$E2E_GUARD_SINCE_REF" -- 2>/dev/null || true
-        git -C "$E2E_ROOT_DIR" diff --name-only --cached -- 2>/dev/null || true
-        git -C "$E2E_ROOT_DIR" diff --name-only -- 2>/dev/null || true
-        git -C "$E2E_ROOT_DIR" ls-files --others --exclude-standard 2>/dev/null || true
-      } | awk 'NF' | sort -u
-    )
+    done < "$auto_paths_sorted"
+    rm -f -- "$auto_paths" "$auto_paths_sorted" || return 2
   fi
 
   for path in "${E2E_GUARD_PATHS[@]}"; do
@@ -488,10 +551,19 @@ e2e_guard_profiles_for_path() {
 }
 
 e2e_guard_evidence_has_db_recall() {
+  local dir=$1 expected_profile=$2
+  e2e_validate_recall_header context "$dir/context-brief.md" "$expected_profile" || return 1
+  e2e_validate_recall_header resolve "$dir/profile-resolve.md" "$expected_profile" || return 1
+  [[ -f $dir/evidence-index.md && ! -L $dir/evidence-index.md ]] || return 1
+}
+
+e2e_guard_evidence_has_db_archive() {
   local dir=$1
-  [[ -f $dir/context-brief.md ]] || return 1
-  [[ -f $dir/profile-resolve.md ]] || return 1
-  [[ -f $dir/evidence-index.md ]] || return 1
+  [[ ${E2E_GUARD_REQUIRE_DB_ARCHIVE:-1} = 1 ]] || return 0
+  e2e_validate_task_run_db_archive \
+    "$E2E_ROOT_DIR" \
+    "$dir" \
+    "${E2E_GITHUB_INDEX_DB:-.github/cache/github-index.sqlite}"
 }
 
 e2e_guard_evidence_updated_epoch() {
@@ -500,6 +572,7 @@ e2e_guard_evidence_updated_epoch() {
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -507,12 +580,9 @@ evidence_root = Path(sys.argv[1])
 expected_profile = sys.argv[2]
 manifest_path = evidence_root / "run-manifest.json"
 report_path = evidence_root / "task-report.md"
-markdown_field_re = re.compile(
-    r"^-\s+`(profile|status|updated_at)`:\s*(.*?)\s*$"
-)
-plain_field_re = re.compile(
-    r"^(profile|status|updated_at)\s*[:=]\s*(.*?)\s*$"
-)
+resolve_path = evidence_root / "profile-resolve.md"
+markdown_field_re = re.compile(r"^- `([A-Za-z0-9_.-]+)`:\s*(.*?)\s*$")
+max_future_us = time.time_ns() // 1000 + 300 * 1_000_000
 
 
 def parse_epoch_us(raw: object) -> int:
@@ -530,22 +600,26 @@ def parse_epoch_us(raw: object) -> int:
     )
     if value < 0:
         raise ValueError("timestamp predates Unix epoch")
+    if value > max_future_us:
+        raise ValueError("timestamp is implausibly far in the future")
     return value
 
 
 def parse_report_fields(report: str) -> dict[str, str]:
+    lines = report.splitlines()
+    if len(lines) < 5 or lines[:4] != ["# 任务报告", "", "## 基本信息", ""]:
+        raise ValueError("noncanonical report heading")
     fields: dict[str, str] = {}
-    for raw_line in report.splitlines():
-        line = raw_line.strip()
-        match = markdown_field_re.fullmatch(line)
+    index = 4
+    while index < len(lines) and lines[index] != "":
+        match = markdown_field_re.fullmatch(lines[index])
         if match is None:
-            match = plain_field_re.fullmatch(line)
-        if match is None:
-            continue
+            raise ValueError("noncanonical report basic-info field")
         key, value = match.groups()
         if key in fields:
             raise ValueError(f"duplicate report field: {key}")
         fields[key] = value.strip()
+        index += 1
     if fields.get("profile") != expected_profile:
         raise ValueError("report profile mismatch")
     if fields.get("status") != "completed":
@@ -587,6 +661,57 @@ try:
         if manifest.get("status") != "completed":
             raise ValueError("manifest is not completed")
         updated_us = parse_epoch_us(manifest.get("updated_at"))
+        if "started_at" in manifest and parse_epoch_us(manifest.get("started_at")) > updated_us:
+            raise ValueError("manifest started_at is after updated_at")
+        resolve_lines = resolve_path.read_text(encoding="utf-8").splitlines()
+        resolve_fields: dict[str, str] = {}
+        for line in resolve_lines[2:]:
+            if line == "":
+                break
+            match = markdown_field_re.fullmatch(line)
+            if match is None or match.group(1) in resolve_fields:
+                raise ValueError("noncanonical resolve header")
+            resolve_fields[match.group(1)] = match.group(2)
+        expanded_nodes = int(resolve_fields.get("expanded_node_count", ""))
+        node_counts = manifest.get("node_counts")
+        if not isinstance(node_counts, dict) or node_counts.get("total") != expanded_nodes:
+            raise ValueError("manifest/resolve node-count mismatch")
+        node_re = re.compile(
+            r"^([0-9]+)\. `([^`]+)` source=`([^`]+)` module=`([^`]+)` "
+            r"owner=`([^`]+)` function=`([^`]+)`$"
+        )
+        try:
+            nodes_heading = resolve_lines.index("## Nodes")
+        except ValueError as exc:
+            raise ValueError("resolve nodes heading missing") from exc
+        resolve_nodes: list[str] = []
+        resolve_numbers: list[int] = []
+        for line in resolve_lines[nodes_heading + 1 :]:
+            if not line:
+                continue
+            match = node_re.fullmatch(line)
+            if match is None:
+                raise ValueError("noncanonical resolve node")
+            resolve_numbers.append(int(match.group(1)))
+            resolve_nodes.append(match.group(2))
+        if resolve_numbers != list(range(1, expanded_nodes + 1)):
+            raise ValueError("resolve node numbering mismatch")
+        if len(resolve_nodes) != expanded_nodes or len(set(resolve_nodes)) != expanded_nodes:
+            raise ValueError("resolve node IDs are incomplete or duplicated")
+        manifest_nodes = manifest.get("nodes")
+        if not isinstance(manifest_nodes, list) or len(manifest_nodes) != expanded_nodes:
+            raise ValueError("manifest node list mismatch")
+        manifest_node_ids: list[str] = []
+        for node in manifest_nodes:
+            if not isinstance(node, dict) or not isinstance(node.get("node_id"), str):
+                raise ValueError("noncanonical manifest node")
+            if node.get("status") != "PASS":
+                raise ValueError("completed manifest contains a non-PASS node")
+            manifest_node_ids.append(node["node_id"])
+        if manifest_node_ids != resolve_nodes or len(set(manifest_node_ids)) != expanded_nodes:
+            raise ValueError("manifest/resolve node-ID mismatch")
+        if node_counts.get("by_status") != {"PASS": expanded_nodes}:
+            raise ValueError("completed manifest status counts are not all PASS")
 except (
     OSError,
     OverflowError,
@@ -602,9 +727,9 @@ PY
 }
 
 e2e_guard_find_evidence_for_profile() {
-  local profile=$1 min_change_epoch=$2 dir report evidence_root evidence_epoch_us
-  local best_dir= best_epoch_us=-1 min_change_us
-  min_change_us=$((min_change_epoch * 1000000))
+  local profile=$1 min_change_us=$2 dir report evidence_root evidence_real evidence_epoch_us task_root_real
+  local best_dir= best_epoch_us=-1
+  task_root_real=$(realpath -e -- "$E2E_ROOT_DIR/.github/task-runs" 2>/dev/null) || return 1
   for dir in "${E2E_GUARD_EVIDENCE_DIRS[@]}" "${E2E_GUARD_AUTO_EVIDENCE_DIRS[@]}"; do
     [[ -n $dir ]] || continue
     if [[ $dir = /* ]]; then
@@ -612,13 +737,23 @@ e2e_guard_find_evidence_for_profile() {
     else
       evidence_root="$E2E_ROOT_DIR/${dir#./}"
     fi
+    evidence_real=$(realpath -e -- "$evidence_root" 2>/dev/null) || continue
+    [[ $evidence_real = "$evidence_root" && -d $evidence_root && ! -L $evidence_root ]] || continue
+    case "$evidence_real" in
+      "$task_root_real"/*) ;;
+      *) continue ;;
+    esac
     report="$evidence_root/task-report.md"
-    [[ -f $report ]] || continue
-    if e2e_guard_evidence_has_db_recall "$evidence_root" &&
+    [[ -f $report && ! -L $report ]] || continue
+    if e2e_guard_evidence_has_db_recall "$evidence_root" "$profile" &&
+       e2e_guard_evidence_has_db_archive "$evidence_root" &&
+       e2e_validate_task_run_bundle "$evidence_root" "$profile" &&
        evidence_epoch_us=$(e2e_guard_evidence_updated_epoch "$evidence_root" "$profile") &&
        [[ $evidence_epoch_us =~ ^[0-9]+$ ]] &&
        (( evidence_epoch_us >= min_change_us )) &&
-       (( evidence_epoch_us > best_epoch_us )); then
+       (( evidence_epoch_us > best_epoch_us )) &&
+       e2e_validate_evidence_index "$E2E_ROOT_DIR" "$evidence_root" "$profile" &&
+       e2e_validate_completion_marker "$evidence_root" "$profile"; then
       best_epoch_us=$evidence_epoch_us
       best_dir=${dir#./}
     fi
@@ -631,7 +766,7 @@ e2e_guard_run() {
   local path i profile reason evidence missing=0
   E2E_GUARD_PROFILES=()
   E2E_GUARD_PROFILE_REASONS=()
-  E2E_GUARD_PROFILE_MTIMES=()
+  E2E_GUARD_PROFILE_MTIME_US=()
 
   e2e_guard_collect_paths || return $?
   for path in "${E2E_GUARD_PATHS[@]}"; do
@@ -649,7 +784,7 @@ e2e_guard_run() {
   for i in "${!E2E_GUARD_PROFILES[@]}"; do
     profile=${E2E_GUARD_PROFILES[$i]}
     reason=${E2E_GUARD_PROFILE_REASONS[$i]}
-    if evidence=$(e2e_guard_find_evidence_for_profile "$profile" "${E2E_GUARD_PROFILE_MTIMES[$i]}"); then
+    if evidence=$(e2e_guard_find_evidence_for_profile "$profile" "${E2E_GUARD_PROFILE_MTIME_US[$i]}"); then
       printf '[agent-e2e-guard] PASS profile=%s evidence=%s reason=%s\n' "$profile" "$evidence" "$reason"
     else
       printf '[agent-e2e-guard] %s missing_evidence profile=%s reason=%s suggested=\"scripts/agent-e2e.sh --profile %s --task-slug <task> --stop-on-fail\"\n' \
@@ -666,7 +801,7 @@ e2e_guard_run() {
 }
 
 dispatch_profile() {
-  local i node module function owner inputs outputs
+  local i node module function owner inputs outputs source
   for i in "${!PROFILE_NODE_IDS[@]}"; do
     node=${PROFILE_NODE_IDS[$i]}
     module=${PROFILE_MODULES[$i]}
@@ -674,19 +809,26 @@ dispatch_profile() {
     owner=${PROFILE_OWNERS[$i]}
     inputs=${PROFILE_INPUTS[$i]}
     outputs=${PROFILE_OUTPUTS[$i]}
-
-    if ! declare -F "$function" >/dev/null 2>&1; then
-      e2e_record_node "$node" "$owner" "$module" "FAIL" "$inputs" "missing function: $function" "<none>"
-      e2e_append_dispatch "$node" "FAIL" "$owner" "$module" "$function" "$inputs" "missing function" "<none>" "补 scripts/e2e/modules 中的实现"
-      E2E_OVERALL_RC=1
-      [[ $E2E_KEEP_GOING -eq 0 ]] && break
-      continue
-    fi
+    source=${PROFILE_SOURCES[$i]}
 
     E2E_CURRENT_NODE_ID=$node
     E2E_CURRENT_MODULE=$module
     E2E_CURRENT_OWNER=$owner
-    e2e_run_function_node "$node" "$owner" "$module" "$function" "$inputs" "$outputs"
+    E2E_CURRENT_SOURCE_PROFILE=$source
+    E2E_CURRENT_FUNCTION=$function
+
+    if ! declare -F "$function" >/dev/null 2>&1; then
+      E2E_OVERALL_RC=1
+      e2e_record_node "$node" "$owner" "$module" "FAIL" "$inputs" "missing function: $function" "<none>" || true
+      e2e_append_dispatch "$node" "FAIL" "$owner" "$module" "$function" "$inputs" "missing function" "<none>" "补 scripts/e2e/modules 中的实现" || true
+      [[ $E2E_KEEP_GOING -eq 0 ]] && break
+      continue
+    fi
+
+    if ! e2e_run_function_node "$node" "$owner" "$module" "$function" "$inputs" "$outputs"; then
+      E2E_OVERALL_RC=1
+      [[ $E2E_KEEP_GOING -eq 0 ]] && break
+    fi
   done
 }
 
@@ -695,7 +837,7 @@ main() {
 
   if [[ $E2E_LIST_PROFILES -eq 1 ]]; then
     list_profiles
-    exit 0
+    exit $?
   fi
 
   if [[ $E2E_VALIDATE_ALL_PROFILES -eq 1 ]]; then
@@ -722,15 +864,18 @@ main() {
   E2E_STARTED_AT=$(e2e_now)
   E2E_OVERALL_RC=0
   E2E_SKIP_COUNT=0
-  e2e_allocate_run_dir
-  e2e_init_dispatch_log
-  e2e_generate_context_brief
-  e2e_generate_profile_resolve
+  e2e_allocate_run_dir || exit 1
+  e2e_init_dispatch_log || exit 1
+  e2e_generate_context_brief || E2E_OVERALL_RC=1
+  e2e_generate_profile_resolve || E2E_OVERALL_RC=1
 
   echo "[agent-e2e] profile=$E2E_PROFILE"
   echo "[agent-e2e] run_dir=$(e2e_relpath "$E2E_RUN_DIR")"
   dispatch_profile
-  e2e_render_report
+  if ! e2e_render_report; then
+    E2E_OVERALL_RC=1
+    e2e_render_report || true
+  fi
   echo "[agent-e2e] report=$(e2e_relpath "$E2E_REPORT_FILE")"
   echo "[agent-e2e] dispatch=$(e2e_relpath "$E2E_DISPATCH_FILE")"
   exit "$E2E_OVERALL_RC"

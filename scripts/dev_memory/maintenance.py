@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
-import shutil
 import sqlite3
+import stat as stat_module
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -19,6 +21,16 @@ from .queries import *
 _EVIDENCE_UNSAFE_TEXT_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 DB_FIRST_STRICT_LIVE_KINDS = {"memory", "memory-module"}
 DOCTOR_RAW_DRIFT_STATES = {"missing", "stale", "read_error"}
+BACKUP_OBJECT_LAYOUT = "content-addressed-v1"
+BACKUP_FORMAT = "dev-memory-cas-v2"
+BACKUP_OBJECT_ROOT = Path("objects") / "sha256"
+BACKUP_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+BACKUP_CONSISTENCY_VALUES = {"stored-db", "live-copy"}
+BACKUP_GENERATION_FILE = Path(".github/db-backup/.generation")
+
+
+class BackupLayoutError(ValueError):
+    """Raised when a backup root could redirect reads, writes, or cleanup."""
 
 
 def classify_drift(repo_root: Path, row: sqlite3.Row, max_bytes: int) -> str:
@@ -427,9 +439,10 @@ def select_live_document_rows(
         placeholders = ",".join("?" for _ in normalized)
         return conn.execute(
             f"""
-            SELECT f.*, t.content
+            SELECT f.*, t.content, d.content AS stored_content, d.sha256 AS stored_sha256
             FROM files f
             JOIN file_text t ON t.path = f.path
+            LEFT JOIN db_documents d ON d.path = f.path
             WHERE f.path IN ({placeholders})
               AND f.index_status='indexed'
             ORDER BY f.path
@@ -439,9 +452,10 @@ def select_live_document_rows(
     placeholders = ",".join("?" for _ in kinds)
     return conn.execute(
         f"""
-        SELECT f.*, t.content
+        SELECT f.*, t.content, d.content AS stored_content, d.sha256 AS stored_sha256
         FROM files f
         JOIN file_text t ON t.path = f.path
+        LEFT JOIN db_documents d ON d.path = f.path
         WHERE f.kind IN ({placeholders})
           AND f.index_status='indexed'
           AND (
@@ -464,7 +478,7 @@ def select_stored_document_rows(
         placeholders = ",".join("?" for _ in normalized)
         return conn.execute(
             f"""
-            SELECT path, kind, content
+            SELECT path, kind, content, content AS stored_content, sha256 AS stored_sha256
             FROM db_documents
             WHERE path IN ({placeholders})
             ORDER BY path
@@ -474,7 +488,7 @@ def select_stored_document_rows(
     placeholders = ",".join("?" for _ in kinds)
     return conn.execute(
         f"""
-        SELECT path, kind, content
+        SELECT path, kind, content, content AS stored_content, sha256 AS stored_sha256
         FROM db_documents
         WHERE kind IN ({placeholders})
         ORDER BY path
@@ -520,6 +534,376 @@ def indexed_file_from_content(rel_path: str, content: str) -> IndexedFile:
     )
 
 
+def is_task_run_publication_path(path: str) -> bool:
+    parts = Path(path).parts
+    return (
+        len(parts) >= 4
+        and parts[:2] == (".github", "task-runs")
+        and parts[-1] == "completion-publication.md"
+    )
+
+
+def lexical_repository_path(repo_root: Path, path: Path, *, purpose: str) -> Path:
+    """Return an in-repository lexical path without following any symlink component."""
+    candidate = path if path.is_absolute() else repo_root / path
+    candidate = Path(os.path.abspath(candidate))
+    try:
+        relative = candidate.relative_to(repo_root)
+    except ValueError as exc:
+        raise BackupLayoutError(f"{purpose} escapes repository: {path}") from exc
+    current = repo_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise BackupLayoutError(
+                f"{purpose} path must not contain a symlink: {current}"
+            )
+    return candidate
+
+
+def validated_single_link_file(repo_root: Path, path: Path, *, purpose: str) -> Path:
+    """Validate a live source before a command may archive or replace it."""
+    candidate = lexical_repository_path(repo_root, path, purpose=purpose)
+    if not candidate.is_file():
+        raise BackupLayoutError(f"{purpose} is not a regular file: {candidate}")
+    if candidate.stat().st_nlink != 1:
+        raise BackupLayoutError(f"{purpose} must have exactly one link: {candidate}")
+    return candidate
+
+
+def live_document_destination(
+    repo_root: Path,
+    path: Path,
+    *,
+    purpose: str,
+    require_existing: bool,
+) -> tuple[Path, int]:
+    """Preflight a live-file replacement without following aliases or shared inodes."""
+    candidate = lexical_repository_path(repo_root, path, purpose=purpose)
+    relative_parent = candidate.parent.relative_to(repo_root)
+    current = repo_root
+    for part in relative_parent.parts:
+        current = current / part
+        if current.is_symlink():
+            raise BackupLayoutError(
+                f"{purpose} parent must not contain a symlink: {current}"
+            )
+        if current.exists() and not current.is_dir():
+            raise BackupLayoutError(f"{purpose} parent is not a directory: {current}")
+    if candidate.exists():
+        if not candidate.is_file():
+            raise BackupLayoutError(f"{purpose} is not a regular file: {candidate}")
+        if candidate.stat().st_nlink != 1:
+            raise BackupLayoutError(f"{purpose} must have exactly one link: {candidate}")
+        mode = stat_module.S_IMODE(candidate.stat().st_mode)
+    else:
+        if require_existing:
+            raise BackupLayoutError(f"{purpose} is not a regular file: {candidate}")
+        mode = 0o644
+    return candidate, mode
+
+
+def is_canonical_task_run_publication_path(path: str) -> bool:
+    parts = Path(path).parts
+    return (
+        len(parts) == 4
+        and parts[:2] == (".github", "task-runs")
+        and parts[3] == "completion-publication.md"
+    )
+
+
+def canonical_backup_relative_path(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    relative = Path(value)
+    if (
+        relative.is_absolute()
+        or "\x00" in value
+        or "\\" in value
+        or relative.as_posix() != value
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        return None
+    return value
+
+
+def safe_backup_manifest_file(files_dir: Path, rel_path: str) -> Path | None:
+    """Resolve one manifest-owned file without following a path outside files_dir."""
+    canonical = canonical_backup_relative_path(rel_path)
+    if canonical is None:
+        return None
+    relative = Path(canonical)
+    if files_dir.is_symlink():
+        return None
+    candidate = files_dir
+    for part in relative.parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            return None
+    try:
+        ensure_inside_root(files_dir, candidate.parent)
+    except ValueError:
+        return None
+    return candidate
+
+
+def backup_object_reference(digest: str) -> str:
+    if not BACKUP_DIGEST_RE.fullmatch(digest):
+        raise BackupLayoutError(f"invalid backup digest: {digest!r}")
+    return (BACKUP_OBJECT_ROOT / digest[:2] / digest).as_posix()
+
+
+def validate_backup_manifest_entry(entry: object) -> tuple[str, str | None]:
+    if not isinstance(entry, dict):
+        raise BackupLayoutError("backup manifest entry must be an object")
+    rel_path = canonical_backup_relative_path(entry.get("path"))
+    if rel_path is None:
+        raise BackupLayoutError(f"backup manifest contains a noncanonical path: {entry.get('path')!r}")
+    digest = entry.get("sha256")
+    if not isinstance(digest, str) or not BACKUP_DIGEST_RE.fullmatch(digest):
+        raise BackupLayoutError(f"backup manifest contains an invalid digest: {rel_path}")
+    size_bytes = entry.get("size_bytes")
+    if isinstance(size_bytes, bool) or not isinstance(size_bytes, int) or size_bytes < 0:
+        raise BackupLayoutError(f"backup manifest contains an invalid size: {rel_path}")
+    kind = entry.get("kind")
+    if not isinstance(kind, str) or not kind:
+        raise BackupLayoutError(f"backup manifest contains an invalid kind: {rel_path}")
+    mode = entry.get("mode")
+    if mode is not None and (
+        isinstance(mode, bool) or not isinstance(mode, int) or mode < 0 or mode > 0o7777
+    ):
+        raise BackupLayoutError(f"backup manifest contains an invalid mode: {rel_path}")
+    generation = entry.get("generation")
+    if generation is not None and (
+        isinstance(generation, bool) or not isinstance(generation, int) or generation <= 0
+    ):
+        raise BackupLayoutError(f"backup manifest contains an invalid generation: {rel_path}")
+    consistency = entry.get("consistency")
+    if consistency is not None and consistency not in BACKUP_CONSISTENCY_VALUES:
+        raise BackupLayoutError(f"backup manifest contains an invalid consistency: {rel_path}")
+    object_ref = entry.get("backup_object")
+    if object_ref is None:
+        return rel_path, None
+    canonical_object = canonical_backup_relative_path(object_ref)
+    if canonical_object is None or canonical_object != backup_object_reference(digest):
+        raise BackupLayoutError(f"backup manifest object binding mismatch: {rel_path}")
+    return rel_path, canonical_object
+
+
+def backup_entry_file(backup_dir: Path, entry: object) -> Path:
+    rel_path, object_ref = validate_backup_manifest_entry(entry)
+    files_dir = backup_dir / "files"
+    objects_dir = backup_dir / "objects"
+    if files_dir.is_symlink():
+        raise BackupLayoutError(f"backup files directory must not be a symlink: {files_dir}")
+    if objects_dir.is_symlink():
+        raise BackupLayoutError(f"backup objects directory must not be a symlink: {objects_dir}")
+    if object_ref is None:
+        candidate = safe_backup_manifest_file(files_dir, rel_path)
+        if candidate is None:
+            raise BackupLayoutError(f"backup manifest path escapes files directory: {rel_path}")
+    else:
+        candidate = backup_dir
+        for part in Path(object_ref).parts:
+            candidate = candidate / part
+            if candidate.is_symlink():
+                raise BackupLayoutError(
+                    f"backup object path must not contain a symlink: {rel_path}"
+                )
+        try:
+            ensure_inside_root(backup_dir, candidate.parent)
+        except ValueError as exc:
+            raise BackupLayoutError(f"backup object escapes backup directory: {rel_path}") from exc
+    if candidate.is_symlink():
+        raise BackupLayoutError(f"backup payload must not be a symlink: {rel_path}")
+    if candidate.is_file() and candidate.stat().st_nlink != 1:
+        raise BackupLayoutError(f"backup payload must have exactly one link: {rel_path}")
+    return candidate
+
+
+def backup_entry_bytes(backup_dir: Path, entry: object) -> bytes:
+    rel_path, _ = validate_backup_manifest_entry(entry)
+    payload = backup_entry_file(backup_dir, entry)
+    if not payload.is_file():
+        raise BackupLayoutError(f"backup payload is missing: {rel_path}")
+    try:
+        raw = payload.read_bytes()
+    except OSError as exc:
+        raise BackupLayoutError(f"cannot read backup payload {rel_path}: {exc}") from exc
+    if entry.get("size_bytes") != len(raw) or entry.get("sha256") != sha256_bytes(raw):
+        raise BackupLayoutError(f"backup payload size/hash mismatch: {rel_path}")
+    return raw
+
+
+def backup_row_optional(
+    row: sqlite3.Row | dict[str, object], key: str
+) -> object | None:
+    if isinstance(row, sqlite3.Row):
+        return row[key] if key in row.keys() else None
+    return row.get(key)
+
+
+def validate_backup_scope_map(
+    manifest: dict[str, object], key: str, manifest_generation: int
+) -> dict[str, int]:
+    value = manifest.get(key, {})
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise BackupLayoutError(f"backup manifest {key} must be an object")
+    result: dict[str, int] = {}
+    for raw_scope, raw_generation in value.items():
+        if not isinstance(raw_scope, str) or not raw_scope:
+            raise BackupLayoutError(f"backup manifest {key} contains an invalid scope")
+        if isinstance(raw_generation, bool) or not isinstance(raw_generation, int):
+            raise BackupLayoutError(f"backup manifest {key} contains an invalid generation")
+        if raw_generation <= 0 or manifest_generation <= 0 or raw_generation > manifest_generation:
+            raise BackupLayoutError(f"backup manifest {key} generation is out of range")
+        if key == "authoritative_prefixes" and canonical_backup_relative_path(raw_scope) is None:
+            raise BackupLayoutError(f"backup manifest contains a noncanonical authoritative prefix: {raw_scope!r}")
+        result[raw_scope] = raw_generation
+    return result
+
+
+def validate_backup_manifest_metadata(manifest: dict[str, object]) -> tuple[int, dict[str, int], dict[str, int]]:
+    raw_generation = manifest.get("manifest_generation", 0)
+    if isinstance(raw_generation, bool) or not isinstance(raw_generation, int) or raw_generation < 0:
+        raise BackupLayoutError("backup manifest contains an invalid manifest_generation")
+    generation = int(raw_generation)
+    authoritative_kinds = validate_backup_scope_map(manifest, "authoritative_kinds", generation)
+    authoritative_prefixes = validate_backup_scope_map(
+        manifest, "authoritative_prefixes", generation
+    )
+    return generation, authoritative_kinds, authoritative_prefixes
+
+
+def allocate_backup_generation(repo_root: Path, backup_dir: Path) -> int:
+    """Allocate a durable repository-wide generation; concurrent writers remain out of scope."""
+    generation_path = repo_root / BACKUP_GENERATION_FILE
+    generation_parent = generation_path.parent
+    if generation_parent.is_symlink() or generation_path.is_symlink():
+        raise BackupLayoutError(f"backup generation path must not be a symlink: {generation_path}")
+    generation_parent.mkdir(parents=True, exist_ok=True)
+    if generation_path.exists() and not generation_path.is_file():
+        raise BackupLayoutError(f"backup generation path is not a regular file: {generation_path}")
+    if generation_path.is_file() and generation_path.stat().st_nlink != 1:
+        raise BackupLayoutError(f"backup generation path must have exactly one link: {generation_path}")
+    current = 0
+    if generation_path.is_file():
+        try:
+            current = int(generation_path.read_text(encoding="ascii").strip())
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            raise BackupLayoutError(f"cannot read backup generation: {generation_path}: {exc}") from exc
+        if current < 0:
+            raise BackupLayoutError(f"backup generation must be nonnegative: {generation_path}")
+    roots = {generation_parent, backup_dir}
+    for root in roots:
+        if not root.is_dir() or root.is_symlink():
+            continue
+        for manifest_path in root.rglob("manifest.json"):
+            if manifest_path.is_symlink() or not manifest_path.is_file():
+                continue
+            try:
+                value = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if isinstance(value, dict):
+                seen = value.get("manifest_generation", 0)
+                if isinstance(seen, int) and not isinstance(seen, bool) and seen > current:
+                    current = seen
+    generation = max(current + 1, time.time_ns())
+    atomic_replace_bytes(generation_path, f"{generation}\n".encode("ascii"), mode=0o600)
+    return generation
+
+
+def prepare_atomic_replace_bytes(
+    destination: Path, content: bytes, *, mode: int | None = None
+) -> Path:
+    """Prepare durable bytes in the destination directory without changing the target."""
+    if destination.parent.is_symlink() or not destination.parent.is_dir():
+        raise BackupLayoutError(
+            f"atomic replace parent is not an ordinary directory: {destination.parent}"
+        )
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(content)
+            if mode is not None:
+                os.fchmod(handle.fileno(), mode)
+            handle.flush()
+            os.fsync(handle.fileno())
+        prepared = temporary_path
+        temporary_path = None
+        return prepared
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def publish_atomic_replace(prepared: Path, destination: Path) -> None:
+    os.replace(prepared, destination)
+    if hasattr(os, "O_DIRECTORY"):
+        directory_fd = os.open(destination.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+
+
+def atomic_replace_bytes(
+    destination: Path, content: bytes, *, mode: int | None = None
+) -> None:
+    """Publish bytes by replacing the directory entry, never by mutating its inode."""
+    prepared = prepare_atomic_replace_bytes(destination, content, mode=mode)
+    try:
+        publish_atomic_replace(prepared, destination)
+    finally:
+        prepared.unlink(missing_ok=True)
+
+
+def restore_destination_preflight(repo_root: Path, destination: Path) -> list[Path]:
+    """Validate a lexical destination chain and return parents that must be created."""
+    try:
+        relative_parent = destination.parent.relative_to(repo_root)
+    except ValueError as exc:
+        raise BackupLayoutError(f"restore destination escapes repository: {destination}") from exc
+    missing: list[Path] = []
+    current = repo_root
+    for part in relative_parent.parts:
+        current = current / part
+        if current.is_symlink():
+            raise BackupLayoutError(f"restore destination parent must not be a symlink: {current}")
+        if current.exists():
+            if not current.is_dir():
+                raise BackupLayoutError(
+                    f"restore destination parent is not a directory: {current}"
+                )
+        else:
+            missing.append(current)
+    if destination.is_symlink():
+        raise BackupLayoutError(f"restore destination must not be a symlink: {destination}")
+    if destination.exists() and not destination.is_file():
+        raise BackupLayoutError(f"restore destination is not a regular file: {destination}")
+    return missing
+
+
+def backup_entry_is_retained(rel_path: str, entry: dict[str, object]) -> bool:
+    declared_kind = str(entry.get("kind", ""))
+    inferred_kind = infer_kind(rel_path)
+    return (
+        declared_kind == inferred_kind
+        and declared_kind in DB_FIRST_KINDS
+        and not is_task_run_publication_path(rel_path)
+    )
+
+
 def promote_documents(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
@@ -528,6 +912,7 @@ def promote_documents(args: argparse.Namespace) -> int:
     rows = select_live_document_rows(conn, args.path, document_kinds(args))
     rows = [row for row in rows if not is_db_backed_shim(row["path"], row["content"] or "")]
     rows = [row for row in rows if row["kind"] in DB_FIRST_KINDS]
+    rows = [row for row in rows if not is_task_run_publication_path(str(row["path"]))]
     if not rows:
         print("FAIL promote found no retained memory/log documents", file=sys.stderr)
         conn.close()
@@ -570,6 +955,18 @@ def update_stored_document(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
     rel_path = normalize_index_path(args.path)
+    if canonical_backup_relative_path(rel_path) != rel_path:
+        print(
+            f"FAIL update-stored {rel_path}: path must be canonical and repository-relative",
+            file=sys.stderr,
+        )
+        return 2
+    if is_task_run_publication_path(rel_path):
+        print(
+            f"FAIL update-stored {rel_path}: completion publication is owned by publish-task-run",
+            file=sys.stderr,
+        )
+        return 2
     try:
         content = read_update_stored_payload(args, repo_root)
     except (OSError, ValueError, UnicodeDecodeError) as exc:
@@ -591,103 +988,333 @@ def update_stored_document(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
-    conn = open_db(db_path)
-    has_fts5 = init_schema(conn)
-    now = utc_now()
-    with conn:
-        upsert_stored_document(conn, item, has_fts5, now)
-        record_event(
-            conn,
-            "update-stored-document",
-            {"path": rel_path, "size_bytes": item.size_bytes, "sha256": item.sha256},
-        )
-    target = (repo_root / rel_path).resolve()
+    target, mode = live_document_destination(
+        repo_root,
+        repo_root / rel_path,
+        purpose="update-stored destination",
+        require_existing=False,
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = (
+        db_backed_shim(rel_path, args.backup_dir).encode("utf-8")
+        if args.refresh_shim
+        else content.encode("utf-8")
+    )
+    prepared = prepare_atomic_replace_bytes(target, payload, mode=mode)
+    conn: sqlite3.Connection | None = None
     try:
-        ensure_inside_root(repo_root, target)
-    except ValueError as exc:
-        conn.close()
-        print(f"FAIL update-stored {rel_path}: {exc}", file=sys.stderr)
-        return 2
-    if args.refresh_shim:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(db_backed_shim(rel_path, args.backup_dir), encoding="utf-8")
-    else:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
-    refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
-    conn.close()
+        conn = open_db(db_path)
+        has_fts5 = init_schema(conn)
+        now = utc_now()
+        with conn:
+            upsert_stored_document(conn, item, has_fts5, now)
+            record_event(
+                conn,
+                "update-stored-document",
+                {"path": rel_path, "size_bytes": item.size_bytes, "sha256": item.sha256},
+            )
+        publish_atomic_replace(prepared, target)
+        refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
+    finally:
+        prepared.unlink(missing_ok=True)
+        if conn is not None:
+            conn.close()
     print(f"PASS update-stored {rel_path} bytes={item.size_bytes} chunks={len(build_file_chunks(rel_path, item.title, content))}")
     return 0
 
 
 def resolve_backup_dir(repo_root: Path, backup_dir: str) -> Path:
-    target = (repo_root / backup_dir).resolve()
-    ensure_inside_root(repo_root, target)
-    return target
+    return lexical_repository_path(
+        repo_root,
+        Path(backup_dir),
+        purpose="backup directory",
+    )
 
 
 def write_backup_files(
     repo_root: Path,
     backup_dir: Path,
     rows: Sequence[sqlite3.Row | dict[str, object]],
+    *,
+    sync_prefix: str = "",
+    sync_paths: set[str] | None = None,
+    content_source: str = "live",
+    replace_kinds: set[str] | None = None,
 ) -> dict[str, object]:
+    if content_source not in {"live", "stored"}:
+        raise BackupLayoutError(f"unsupported backup content source: {content_source}")
     files_dir = backup_dir / "files"
+    objects_dir = backup_dir / "objects"
     manifest_path = backup_dir / "manifest.json"
+    if files_dir.is_symlink():
+        raise BackupLayoutError(f"backup files directory must not be a symlink: {files_dir}")
+    if objects_dir.is_symlink():
+        raise BackupLayoutError(f"backup objects directory must not be a symlink: {objects_dir}")
+    if manifest_path.is_symlink():
+        raise BackupLayoutError(f"backup manifest must not be a symlink: {manifest_path}")
+    if manifest_path.is_file() and manifest_path.stat().st_nlink != 1:
+        raise BackupLayoutError(f"backup manifest must have exactly one link: {manifest_path}")
     now = utc_now()
     created_at = now
+    previous_generation = 0
+    authoritative_kinds: dict[str, int] = {}
+    authoritative_prefixes: dict[str, int] = {}
     entries_by_path: dict[str, dict[str, object]] = {}
+    cleanup_paths: set[str] = set()
     if manifest_path.is_file():
         try:
             previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(previous, dict) or not isinstance(previous.get("entries", []), list):
+                raise BackupLayoutError(f"invalid backup manifest structure: {manifest_path}")
             created_at = str(previous.get("created_at") or now)
+            (
+                previous_generation,
+                authoritative_kinds,
+                authoritative_prefixes,
+            ) = validate_backup_manifest_metadata(previous)
             for entry in previous.get("entries", []):
-                if isinstance(entry, dict) and "path" in entry:
-                    entries_by_path[str(entry["path"])] = entry
-        except (OSError, json.JSONDecodeError):
-            created_at = now
+                raw_path = entry.get("path") if isinstance(entry, dict) else None
+                if isinstance(raw_path, str) and is_task_run_publication_path(raw_path):
+                    cleanup_paths.add(raw_path)
+                    continue
+                rel_path, _ = validate_backup_manifest_entry(entry)
+                entry_generation = entry.get("generation")
+                if entry_generation is not None and entry_generation > previous_generation:
+                    raise BackupLayoutError(
+                        f"backup entry generation exceeds manifest generation: {rel_path}"
+                    )
+                if rel_path in entries_by_path:
+                    raise BackupLayoutError(f"duplicate backup manifest path: {rel_path}")
+                entries_by_path[rel_path] = dict(entry)
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise BackupLayoutError(f"cannot read valid backup manifest: {manifest_path}: {exc}") from exc
+    for rel_path in sorted(tuple(entries_by_path)):
+        if not is_task_run_publication_path(rel_path):
+            continue
+        entries_by_path.pop(rel_path, None)
+        cleanup_paths.add(rel_path)
+    if sync_prefix:
+        current_paths = sync_paths or set()
+        prefix = sync_prefix.rstrip("/") + "/"
+        for rel_path in sorted(tuple(entries_by_path)):
+            if rel_path.startswith(prefix) and rel_path not in current_paths:
+                entries_by_path.pop(rel_path, None)
+                cleanup_paths.add(rel_path)
+
+    prepared: dict[str, dict[str, object]] = {}
     files_dir.mkdir(parents=True, exist_ok=True)
     for row in rows:
-        rel_path = row["path"]
-        src = (repo_root / rel_path).resolve()
-        ensure_inside_root(repo_root, src)
-        dst = files_dir / rel_path
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        row_content = row["content"] or ""
-        if src.exists():
-            raw = src.read_bytes()
-            try:
-                live_content = raw.decode("utf-8")
-            except UnicodeDecodeError:
-                live_content = ""
-            if row_content and is_db_backed_shim(rel_path, live_content):
-                raw = row_content.encode("utf-8")
-                dst.write_bytes(raw)
-                backup_source = "database"
-            else:
-                shutil.copy2(src, dst)
-                backup_source = "filesystem"
-        else:
+        rel_path = canonical_backup_relative_path(str(row["path"]))
+        if rel_path is None:
+            raise BackupLayoutError(f"backup row contains a noncanonical path: {row['path']!r}")
+        if is_task_run_publication_path(rel_path):
+            raise BackupLayoutError(f"task-run publication is not a rehydratable backup payload: {rel_path}")
+        row_kind = str(row["kind"])
+        if row_kind != infer_kind(rel_path):
+            raise BackupLayoutError(
+                f"backup row kind/path mismatch: {rel_path} declared={row_kind} inferred={infer_kind(rel_path)}"
+            )
+        legacy_dst = safe_backup_manifest_file(files_dir, rel_path)
+        if legacy_dst is None:
+            raise BackupLayoutError(f"backup destination escapes files directory: {rel_path}")
+        try:
+            ensure_inside_root(files_dir, legacy_dst.parent)
+        except ValueError as exc:
+            raise BackupLayoutError(f"backup destination escapes files directory: {rel_path}") from exc
+        if legacy_dst.is_symlink():
+            raise BackupLayoutError(f"backup destination must not be a symlink: {rel_path}")
+        if legacy_dst.exists() and not legacy_dst.is_file():
+            raise BackupLayoutError(f"backup destination is not a regular file: {rel_path}")
+        if legacy_dst.is_file() and legacy_dst.stat().st_nlink != 1:
+            raise BackupLayoutError(f"backup destination must have exactly one link: {rel_path}")
+        row_content = str(row["content"] or "")
+        stored_content_value = backup_row_optional(row, "stored_content")
+        stored_digest_value = backup_row_optional(row, "stored_sha256")
+        stored_raw = (
+            stored_content_value.encode("utf-8")
+            if isinstance(stored_content_value, str)
+            else None
+        )
+        if stored_raw is not None and (
+            not isinstance(stored_digest_value, str)
+            or stored_digest_value != sha256_bytes(stored_raw)
+        ):
+            raise BackupLayoutError(f"stored DB content/hash mismatch: {rel_path}")
+        source_mode = 0o644
+        mode_candidate = repo_root / rel_path
+        try:
+            resolved_mode_candidate = mode_candidate.resolve()
+            ensure_inside_root(repo_root, resolved_mode_candidate)
+            if not mode_candidate.is_symlink() and resolved_mode_candidate.is_file():
+                source_mode = stat_module.S_IMODE(resolved_mode_candidate.stat().st_mode)
+        except (OSError, ValueError):
+            pass
+        if content_source == "stored":
             raw = row_content.encode("utf-8")
-            dst.write_bytes(raw)
             backup_source = "database"
-        entries_by_path[rel_path] = {
-            "path": rel_path,
-            "kind": row["kind"],
-            "size_bytes": len(raw),
-            "sha256": sha256_bytes(raw),
-            "backup_source": backup_source,
-            "archived_at": now,
+            consistency = "stored-db"
+        else:
+            source_path = repo_root / rel_path
+            try:
+                src = source_path.resolve()
+                ensure_inside_root(repo_root, src)
+                if src.exists():
+                    if not src.is_file():
+                        raise BackupLayoutError(f"backup source is not a regular file: {rel_path}")
+                    raw = src.read_bytes()
+                    source_mode = stat_module.S_IMODE(src.stat().st_mode)
+                    try:
+                        live_content = raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        live_content = ""
+                    if is_db_backed_shim(rel_path, live_content):
+                        if stored_raw is None:
+                            raise BackupLayoutError(
+                                f"DB-backed shim has no stored payload: {rel_path}"
+                            )
+                        raw = stored_raw
+                        backup_source = "database"
+                        consistency = "stored-db"
+                    else:
+                        backup_source = "filesystem"
+                        consistency = (
+                            "stored-db" if stored_raw is not None and raw == stored_raw else "live-copy"
+                        )
+                else:
+                    if stored_raw is not None:
+                        raw = stored_raw
+                        consistency = "stored-db"
+                    else:
+                        raw = row_content.encode("utf-8")
+                        consistency = "live-copy"
+                    backup_source = "database"
+            except ValueError as exc:
+                raise BackupLayoutError(f"backup source escapes repository: {rel_path}") from exc
+            except OSError as exc:
+                raise BackupLayoutError(f"cannot read backup source {rel_path}: {exc}") from exc
+        digest = sha256_bytes(raw)
+        object_ref = backup_object_reference(digest)
+        prepared[rel_path] = {
+            "raw": raw,
+            "entry": {
+                "path": rel_path,
+                "kind": row_kind,
+                "size_bytes": len(raw),
+                "sha256": digest,
+                "backup_source": backup_source,
+                "consistency": consistency,
+                "backup_object": object_ref,
+                "mode": source_mode,
+                "archived_at": now,
+            },
         }
+
+    prepared_paths = set(prepared)
+    for rel_path, prepared_row in prepared.items():
+        candidate_entry = prepared_row.get("entry")
+        previous_entry = entries_by_path.get(rel_path)
+        if (
+            isinstance(candidate_entry, dict)
+            and isinstance(previous_entry, dict)
+            and candidate_entry.get("consistency") == "live-copy"
+            and previous_entry.get("consistency", "stored-db") == "stored-db"
+        ):
+            raise BackupLayoutError(
+                f"live-copy cannot replace a stored-db backup entry in the same manifest: {rel_path}"
+            )
+    if replace_kinds is not None:
+        for rel_path in sorted(tuple(entries_by_path)):
+            entry = entries_by_path[rel_path]
+            if str(entry.get("kind", "")) in replace_kinds and rel_path not in prepared_paths:
+                entries_by_path.pop(rel_path, None)
+                cleanup_paths.add(rel_path)
+
+    # Validate every carried payload before writing any new object or manifest.
+    for rel_path, entry in sorted(entries_by_path.items()):
+        if rel_path in prepared_paths:
+            continue
+        if str(entry.get("kind", "")) != infer_kind(rel_path):
+            raise BackupLayoutError(
+                f"carried backup entry kind/path mismatch: {rel_path} "
+                f"declared={entry.get('kind')} inferred={infer_kind(rel_path)}"
+            )
+        backup_entry_bytes(backup_dir, entry)
+
+    generation = allocate_backup_generation(repo_root, backup_dir)
+    if generation <= previous_generation:
+        raise BackupLayoutError("backup generation did not advance")
+    if replace_kinds is not None:
+        for kind in replace_kinds:
+            authoritative_kinds[str(kind)] = generation
+    if sync_prefix:
+        authoritative_prefixes[sync_prefix.rstrip("/")] = generation
+    for prepared_row in prepared.values():
+        entry = prepared_row.get("entry")
+        if isinstance(entry, dict):
+            entry["generation"] = generation
+
+    for rel_path, prepared_row in sorted(prepared.items()):
+        entry = prepared_row["entry"]
+        raw = prepared_row["raw"]
+        if not isinstance(entry, dict) or not isinstance(raw, bytes):
+            raise BackupLayoutError(f"invalid prepared backup row: {rel_path}")
+        _, object_ref = validate_backup_manifest_entry(entry)
+        if object_ref is None:
+            raise BackupLayoutError(f"prepared backup row lacks an object binding: {rel_path}")
+        object_path = backup_dir
+        for part in Path(object_ref).parts:
+            object_path = object_path / part
+            if object_path.is_symlink():
+                raise BackupLayoutError(
+                    f"backup object path must not contain a symlink: {rel_path}"
+                )
+        try:
+            ensure_inside_root(backup_dir, object_path.parent)
+        except ValueError as exc:
+            raise BackupLayoutError(f"backup object escapes backup directory: {rel_path}") from exc
+        if object_path.parent.is_symlink():
+            raise BackupLayoutError(f"backup object directory must not be a symlink: {rel_path}")
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        if object_path.is_symlink() or (object_path.exists() and not object_path.is_file()):
+            raise BackupLayoutError(f"backup object is not an ordinary file: {rel_path}")
+        if object_path.is_file():
+            if object_path.stat().st_nlink != 1 or sha256_bytes(object_path.read_bytes()) != entry["sha256"]:
+                raise BackupLayoutError(f"backup object integrity mismatch: {rel_path}")
+        else:
+            atomic_replace_bytes(object_path, raw)
+        entries_by_path[rel_path] = entry
+
+    # The candidate head is publishable only when every retained payload is readable and bound.
+    for entry in entries_by_path.values():
+        backup_entry_bytes(backup_dir, entry)
+
     manifest = {
         "created_at": created_at,
         "updated_at": now,
         "schema_version": SCHEMA_VERSION,
+        "backup_format": BACKUP_FORMAT,
+        "backup_layout": BACKUP_OBJECT_LAYOUT,
+        "manifest_generation": generation,
+        "authoritative_kinds": dict(sorted(authoritative_kinds.items())),
+        "authoritative_prefixes": dict(sorted(authoritative_prefixes.items())),
         "entries": [entries_by_path[path] for path in sorted(entries_by_path)],
     }
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+    atomic_replace_bytes(
+        manifest_path,
+        (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
     )
+
+    # Legacy path copies are not authoritative once the manifest commits.  Only
+    # remove now-unreferenced legacy files after the old snapshot is unreachable.
+    for rel_path in sorted(cleanup_paths):
+        stale_backup = safe_backup_manifest_file(files_dir, rel_path)
+        if stale_backup is None:
+            continue
+        try:
+            if stale_backup.is_symlink() or stale_backup.is_file():
+                stale_backup.unlink()
+        except OSError:
+            pass
     return manifest
 
 
@@ -698,6 +1325,7 @@ def backup_documents(args: argparse.Namespace) -> int:
     conn = open_db(db_path)
     init_schema(conn)
     rows = select_live_document_rows(conn, args.path, document_kinds(args))
+    rows = [row for row in rows if not is_task_run_publication_path(str(row["path"]))]
     if not rows:
         print("FAIL backup found no indexed documents", file=sys.stderr)
         conn.close()
@@ -727,11 +1355,18 @@ def snapshot_stored_documents(args: argparse.Namespace) -> int:
     conn = open_db(db_path)
     init_schema(conn)
     rows = select_stored_document_rows(conn, args.path, document_kinds(args))
-    if not rows:
+    rows = [row for row in rows if not is_task_run_publication_path(str(row["path"]))]
+    if not rows and args.path:
         print("FAIL snapshot-stored found no stored documents", file=sys.stderr)
         conn.close()
         return 1
-    manifest = write_backup_files(repo_root, backup_dir, rows)
+    manifest = write_backup_files(
+        repo_root,
+        backup_dir,
+        rows,
+        content_source="stored",
+        replace_kinds=set(document_kinds(args)) if not args.path else None,
+    )
     with conn:
         record_event(
             conn,
@@ -762,6 +1397,49 @@ def is_db_backed_shim(path: str, content: str) -> bool:
     return f"# DB-backed {path}" in content and "load --source stored" in content
 
 
+def live_document_item(
+    repo_root: Path,
+    rel_path: str,
+    max_bytes: int,
+    *,
+    purpose: str,
+) -> tuple[Path, IndexedFile]:
+    target = validated_single_link_file(repo_root, repo_root / rel_path, purpose=purpose)
+    stat = target.stat()
+    if stat.st_size > max_bytes:
+        raise BackupLayoutError(f"{purpose} exceeds max bytes: {rel_path}")
+    try:
+        raw = target.read_bytes()
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise BackupLayoutError(f"{purpose} is non-utf8 Markdown: {rel_path}") from exc
+    item = indexed_file_from_content(rel_path, content)
+    item = item.__class__(
+        **{
+            **item.__dict__,
+            "size_bytes": len(raw),
+            "mtime_ns": stat.st_mtime_ns,
+            "sha256": sha256_bytes(raw),
+        }
+    )
+    return target, item
+
+
+def replace_live_document_with_shim(
+    repo_root: Path,
+    rel_path: str,
+    backup_dir: Path,
+) -> None:
+    target, mode = live_document_destination(
+        repo_root,
+        repo_root / rel_path,
+        purpose="shim destination",
+        require_existing=True,
+    )
+    shim = db_backed_shim(rel_path, repo_path(backup_dir.relative_to(repo_root)))
+    atomic_replace_bytes(target, shim.encode("utf-8"), mode=mode)
+
+
 def migrate_to_db(args: argparse.Namespace) -> int:
     if not args.yes:
         print("FAIL migrate requires --yes", file=sys.stderr)
@@ -771,9 +1449,30 @@ def migrate_to_db(args: argparse.Namespace) -> int:
     backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
     conn = open_db(db_path)
     has_fts5 = init_schema(conn)
-    rows = select_live_document_rows(conn, args.path, document_kinds(args))
-    rows = [row for row in rows if not is_db_backed_shim(row["path"], row["content"] or "")]
-    rows = [row for row in rows if row["kind"] in DB_FIRST_KINDS]
+    indexed_rows = select_live_document_rows(conn, args.path, document_kinds(args))
+    indexed_rows = [row for row in indexed_rows if row["kind"] in DB_FIRST_KINDS]
+    indexed_rows = [
+        row for row in indexed_rows if not is_task_run_publication_path(str(row["path"]))
+    ]
+    rows: list[dict[str, object]] = []
+    for indexed_row in indexed_rows:
+        rel_path = str(indexed_row["path"])
+        _, item = live_document_item(
+            repo_root,
+            rel_path,
+            args.max_bytes,
+            purpose="migrate source",
+        )
+        if item.kind != str(indexed_row["kind"]):
+            raise BackupLayoutError(
+                f"migrate indexed kind/path mismatch: {rel_path} "
+                f"declared={indexed_row['kind']} inferred={item.kind}"
+            )
+        if is_db_backed_shim(rel_path, item.content):
+            continue
+        rows.append(
+            {"path": rel_path, "kind": item.kind, "content": item.content, "item": item}
+        )
     if not rows:
         print("FAIL migrate found no retained memory/log documents", file=sys.stderr)
         conn.close()
@@ -781,20 +1480,20 @@ def migrate_to_db(args: argparse.Namespace) -> int:
     now = utc_now()
     with conn:
         for row in rows:
-            upsert_stored_document(conn, row_to_indexed_file(row), has_fts5, now)
+            item = row["item"]
+            if not isinstance(item, IndexedFile):
+                raise BackupLayoutError(f"migrate prepared an invalid row: {row['path']}")
+            upsert_stored_document(conn, item, has_fts5, now)
         record_event(
             conn,
             "migrate-promote-documents",
             {"count": len(rows), "backup_dir": repo_path(backup_dir.relative_to(repo_root))},
         )
-    manifest = write_backup_files(repo_root, backup_dir, rows)
+        manifest = write_backup_files(repo_root, backup_dir, rows, content_source="stored")
     shim_paths: list[str] = []
     for row in rows:
-        rel_path = row["path"]
-        target = (repo_root / rel_path).resolve()
-        ensure_inside_root(repo_root, target)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(db_backed_shim(rel_path, repo_path(backup_dir.relative_to(repo_root))), encoding="utf-8")
+        rel_path = str(row["path"])
+        replace_live_document_with_shim(repo_root, rel_path, backup_dir)
         shim_paths.append(rel_path)
         refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
     with conn:
@@ -820,23 +1519,29 @@ def archive_markdown_candidates(repo_root: Path, requested_paths: Sequence[str])
     seen: set[str] = set()
     for raw_path in requested_paths:
         source = Path(raw_path)
-        if not source.is_absolute():
-            source = repo_root / source
-        source = source.resolve()
-        ensure_inside_root(repo_root, source)
+        source = lexical_repository_path(repo_root, source, purpose="archive source")
         if source.is_dir():
-            paths = sorted(path for path in source.rglob("*.md") if path.is_file())
+            paths = sorted(source.rglob("*.md"))
         elif source.is_file() and source.suffix.lower() == ".md":
             paths = [source]
         else:
             continue
         for path in paths:
+            path = lexical_repository_path(repo_root, path, purpose="archive source")
+            if not path.is_file():
+                continue
+            path = validated_single_link_file(
+                repo_root,
+                path,
+                purpose="archive source",
+            )
             rel_path = repo_path(path.relative_to(repo_root))
             if (
                 rel_path.startswith(".github/cache/")
                 or rel_path.startswith(".github/db-backup/")
                 or rel_path.startswith(".github/tmp/")
                 or is_raw_evidence_path(rel_path)
+                or Path(rel_path).name == "completion-publication.md"
             ):
                 continue
             if rel_path in seen:
@@ -856,7 +1561,26 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
     db_path = (repo_root / args.db).resolve()
     backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
     paths = archive_markdown_candidates(repo_root, args.path)
-    if not paths:
+
+    sync_run_root = ""
+    if getattr(args, "sync_task_run", False):
+        if len(args.path) != 1:
+            print("FAIL archive-markdown --sync-task-run requires exactly one task-run directory", file=sys.stderr)
+            return 2
+        requested = Path(args.path[0])
+        if not requested.is_absolute():
+            requested = repo_root / requested
+        requested = requested.resolve()
+        ensure_inside_root(repo_root, requested)
+        if not requested.is_dir():
+            print("FAIL archive-markdown --sync-task-run target is not a directory", file=sys.stderr)
+            return 2
+        sync_run_root = repo_path(requested.relative_to(repo_root))
+        parts = Path(sync_run_root).parts
+        if len(parts) != 3 or parts[:2] != (".github", "task-runs"):
+            print("FAIL archive-markdown --sync-task-run target is not a task-run root", file=sys.stderr)
+            return 2
+    if not paths and not sync_run_root:
         print("FAIL archive-markdown found no retained memory/log Markdown files", file=sys.stderr)
         return 1
 
@@ -874,17 +1598,51 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
             continue
         item = indexed_file_from_content(rel_path, content)
         rows.append({"path": item.path, "kind": item.kind, "content": item.content, "item": item})
-    if not rows:
+    if not rows and not sync_run_root:
         print(f"PASS archive-markdown stored_documents=0 shims=0 skipped_shims={len(skipped_shims)}")
         return 0
 
-    manifest = write_backup_files(repo_root, backup_dir, rows)
+    sync_live_paths = {repo_path(path.relative_to(repo_root)) for path in paths}
     conn = open_db(db_path)
     has_fts5 = init_schema(conn)
     now = utc_now()
+    pruned_paths: list[str] = []
+    manifest: dict[str, object]
     with conn:
+        if sync_run_root:
+            prefix = sync_run_root + "/"
+            live_paths = sync_live_paths
+            stored_rows = conn.execute(
+                "SELECT path FROM db_documents WHERE substr(path, 1, ?) = ? ORDER BY path",
+                (len(prefix), prefix),
+            ).fetchall()
+            for stored_row in stored_rows:
+                stored_path = str(stored_row["path"])
+                if (
+                    not stored_path.endswith(".md")
+                    or stored_path in live_paths
+                    or is_task_run_publication_path(stored_path)
+                ):
+                    continue
+                delete_document_chunks_for_path(conn, stored_path, has_fts5)
+                conn.execute("DELETE FROM db_documents WHERE path = ?", (stored_path,))
+                delete_index_row(conn, stored_path, has_fts5)
+                pruned_paths.append(stored_path)
         for row in rows:
             upsert_stored_document(conn, row["item"], has_fts5, now)
+        db_rel = repo_path(db_path.relative_to(repo_root)) if db_path.is_relative_to(repo_root) else ""
+        for path in paths:
+            item = index_one_file(repo_root, path, args.max_bytes, db_rel, [])
+            if item is not None:
+                upsert_file(conn, item, has_fts5, now)
+        manifest = write_backup_files(
+            repo_root,
+            backup_dir,
+            rows,
+            sync_prefix=sync_run_root,
+            sync_paths=sync_live_paths,
+            content_source="stored",
+        )
         record_event(
             conn,
             "archive-markdown-files",
@@ -892,6 +1650,8 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
                 "count": len(rows),
                 "backup_dir": repo_path(backup_dir.relative_to(repo_root)),
                 "paths": [str(row["path"]) for row in rows[:20]],
+                "sync_task_run": sync_run_root,
+                "pruned_paths": pruned_paths[:20],
             },
         )
 
@@ -899,24 +1659,256 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
     live_paths: list[str] = []
     for row in rows:
         rel_path = str(row["path"])
-        target = (repo_root / rel_path).resolve()
-        ensure_inside_root(repo_root, target)
         if args.write_shim:
-            target.write_text(db_backed_shim(rel_path, repo_path(backup_dir.relative_to(repo_root))), encoding="utf-8")
+            replace_live_document_with_shim(repo_root, rel_path, backup_dir)
             shim_paths.append(rel_path)
         else:
             live_paths.append(rel_path)
-        refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
+        if args.write_shim:
+            refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
     conn.close()
     print(
         f"PASS archive-markdown stored_documents={len(rows)} live_files={len(live_paths)} shims={len(shim_paths)} "
         f"skipped_shims={len(skipped_shims)} backup_dir={repo_path(backup_dir.relative_to(repo_root))} "
-        f"manifest_entries={len(manifest['entries'])}"
+        f"manifest_entries={len(manifest['entries'])} synced_task_run={sync_run_root or '<none>'} "
+        f"pruned_stale={len(pruned_paths)}"
     )
     for rel_path in [*live_paths, *shim_paths][: args.limit]:
         print(f"  {rel_path}")
     if len(live_paths) + len(shim_paths) > args.limit:
         print(f"  ... {len(live_paths) + len(shim_paths) - args.limit} more")
+    return 0
+
+
+def publish_task_run(args: argparse.Namespace) -> int:
+    """Atomically make one validated task-run completion record DB-visible."""
+    if not args.yes:
+        print("FAIL publish-task-run requires --yes", file=sys.stderr)
+        return 2
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    requested = Path(args.path)
+    if not requested.is_absolute():
+        requested = repo_root / requested
+    if requested.is_symlink():
+        print("FAIL publish-task-run rejects symlink task-run roots", file=sys.stderr)
+        return 2
+    run_dir = requested.resolve()
+    try:
+        ensure_inside_root(repo_root, run_dir)
+        run_rel = repo_path(run_dir.relative_to(repo_root))
+    except ValueError as exc:
+        print(f"FAIL publish-task-run invalid path: {exc}", file=sys.stderr)
+        return 2
+    parts = Path(run_rel).parts
+    if len(parts) != 3 or parts[:2] != (".github", "task-runs") or not run_dir.is_dir():
+        print("FAIL publish-task-run target is not a direct task-run root", file=sys.stderr)
+        return 2
+
+    artifact_names = {
+        "task_report_md_sha256": "task-report.md",
+        "run_manifest_json_sha256": "run-manifest.json",
+        "context_brief_md_sha256": "context-brief.md",
+        "profile_resolve_md_sha256": "profile-resolve.md",
+        "evidence_index_md_sha256": "evidence-index.md",
+        "dispatch_log_md_sha256": "dispatch-log.md",
+        "nodes_tsv_sha256": "nodes.tsv",
+    }
+    required_files = [
+        "complete.marker",
+        "completion-publication.md",
+        *artifact_names.values(),
+    ]
+
+    def read_ordinary(name: str) -> bytes:
+        path = run_dir / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"missing ordinary artifact: {name}")
+        return path.read_bytes()
+
+    def parse_pairs(
+        raw: bytes,
+        heading: list[str],
+        *,
+        require_eof: bool = False,
+    ) -> dict[str, str]:
+        lines = raw.decode("utf-8").splitlines()
+        if lines[: len(heading)] != heading:
+            raise ValueError("noncanonical Markdown heading")
+        fields: dict[str, str] = {}
+        field_re = re.compile(r"^- `([A-Za-z0-9_.-]+)`:\s*(.*?)\s*$")
+        index = len(heading)
+        while index < len(lines) and lines[index] != "":
+            match = field_re.fullmatch(lines[index])
+            if match is None or match.group(1) in fields:
+                raise ValueError("noncanonical or duplicate Markdown field")
+            fields[match.group(1)] = match.group(2)
+            index += 1
+        if require_eof and index != len(lines):
+            raise ValueError("publication has trailing or blank content")
+        return fields
+
+    def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    def reject_constant(value: str) -> object:
+        raise ValueError(f"non-standard JSON constant: {value}")
+
+    try:
+        snapshot = {name: read_ordinary(name) for name in required_files}
+        marker_fields: dict[str, str] = {}
+        for line in snapshot["complete.marker"].decode("utf-8").splitlines():
+            key, separator, value = line.partition("=")
+            if separator != "=" or not key or key in marker_fields:
+                raise ValueError("invalid completion marker")
+            marker_fields[key] = value
+        expected_marker_keys = {"status", "profile", *artifact_names}
+        digest_re = re.compile(r"^[0-9a-f]{64}$")
+        if (
+            set(marker_fields) != expected_marker_keys
+            or marker_fields.get("status") != "complete"
+            or not marker_fields.get("profile")
+        ):
+            raise ValueError("completion marker identity mismatch")
+        for key, name in artifact_names.items():
+            digest = hashlib.sha256(snapshot[name]).hexdigest()
+            if not digest_re.fullmatch(marker_fields.get(key, "")) or marker_fields[key] != digest:
+                raise ValueError(f"completion marker hash mismatch: {name}")
+
+        report_fields = parse_pairs(
+            snapshot["task-report.md"],
+            ["# 任务报告", "", "## 基本信息", ""],
+        )
+        run_id = run_dir.name
+        profile = marker_fields["profile"]
+        required_report = {
+            "task_id": run_id,
+            "trace_id": f"e2e:{run_id}",
+            "graph_template": "modular-agent-e2e",
+            "profile": profile,
+            "graph_mode": "static",
+            "publication_contract": "db-marker-v1",
+            "status": "completed",
+        }
+        if any(report_fields.get(key) != value for key, value in required_report.items()):
+            raise ValueError("task report is not publishable")
+        task_slug = report_fields.get("task_slug", "")
+        if not task_slug:
+            raise ValueError("task slug missing")
+
+        manifest = json.loads(
+            snapshot["run-manifest.json"].decode("utf-8"),
+            object_pairs_hook=unique_object,
+            parse_constant=reject_constant,
+        )
+        if not isinstance(manifest, dict) or any(
+            manifest.get(key) != value
+            for key, value in {
+                "run_id": run_id,
+                "trace_id": f"e2e:{run_id}",
+                "task_slug": task_slug,
+                "profile": profile,
+                "graph_template": "modular-agent-e2e",
+                "graph_mode": "static",
+                "publication_contract": "db-marker-v1",
+                "status": "completed",
+            }.items()
+        ):
+            raise ValueError("run manifest is not publishable")
+
+        publication_fields = parse_pairs(
+            snapshot["completion-publication.md"],
+            ["# Task Run Publication", "", "## 基本信息", ""],
+            require_eof=True,
+        )
+        expected_publication = {
+            "task_id": run_id,
+            "trace_id": f"e2e:{run_id}",
+            "task_slug": task_slug,
+            "profile": profile,
+            "status": "completed",
+            "publication_contract": "db-marker-v1",
+            "marker_sha256": hashlib.sha256(snapshot["complete.marker"]).hexdigest(),
+            **{
+                key: value
+                for key, value in marker_fields.items()
+                if key not in {"status", "profile"}
+            },
+        }
+        if publication_fields != expected_publication:
+            raise ValueError("publication record does not bind the completion snapshot")
+
+        live_markdown: dict[str, str] = {}
+        for path in sorted(run_dir.rglob("*.md")):
+            relative = path.relative_to(run_dir)
+            if relative.parts and relative.parts[0] == "evidence":
+                continue
+            if path.is_symlink() or not path.is_file():
+                raise ValueError("non-ordinary retained Markdown")
+            rel_path = f"{run_rel}/{relative.as_posix()}"
+            live_markdown[rel_path] = path.read_text(encoding="utf-8")
+        publication_rel = f"{run_rel}/completion-publication.md"
+        if publication_rel not in live_markdown:
+            raise ValueError("publication record is outside retained Markdown set")
+        staged_markdown = dict(live_markdown)
+        publication_content = staged_markdown.pop(publication_rel)
+    except (OSError, TypeError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        print(f"FAIL publish-task-run validation: {exc}", file=sys.stderr)
+        return 1
+
+    conn = None
+    try:
+        conn = open_db(db_path)
+        has_fts5 = init_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        for name, raw in snapshot.items():
+            if read_ordinary(name) != raw:
+                raise ValueError(f"artifact changed during publication: {name}")
+        prefix = run_rel + "/"
+        rows = conn.execute(
+            "SELECT path, content FROM db_documents WHERE substr(path, 1, ?) = ? ORDER BY path",
+            (len(prefix), prefix),
+        ).fetchall()
+        stored = {str(row["path"]): str(row["content"] or "") for row in rows}
+        existing_publication = stored.pop(publication_rel, None)
+        if stored != staged_markdown:
+            raise ValueError("staged DB Markdown set or content changed before publication")
+        if existing_publication is not None and existing_publication != publication_content:
+            raise ValueError("conflicting publication record already exists")
+        item = indexed_file_from_content(publication_rel, publication_content)
+        now = utc_now()
+        upsert_stored_document(conn, item, has_fts5, now)
+        upsert_file(conn, item, has_fts5, now)
+        record_event(
+            conn,
+            "publish-task-run",
+            {
+                "run_id": run_dir.name,
+                "profile": marker_fields["profile"],
+                "publication_sha256": item.sha256,
+            },
+        )
+        for name, raw in snapshot.items():
+            if read_ordinary(name) != raw:
+                raise ValueError(f"artifact changed during publication commit: {name}")
+        conn.commit()
+    except (OSError, sqlite3.Error, TypeError, UnicodeError, ValueError) as exc:
+        if conn is not None:
+            conn.rollback()
+        print(f"FAIL publish-task-run transaction: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if conn is not None:
+            conn.close()
+    print(
+        f"PASS publish-task-run run_id={run_dir.name} profile={marker_fields['profile']} "
+        f"publication_sha256={hashlib.sha256(snapshot['completion-publication.md']).hexdigest()}"
+    )
     return 0
 
 
@@ -1338,6 +2330,7 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
                     }
                     for item in stored_items
                 ],
+                content_source="stored",
             )
             stored_index_docs = [item.path for item in stored_items]
             backup_entries_written = len(manifest.get("entries", []))
@@ -1438,44 +2431,130 @@ def restore_backup(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
     backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
-    manifest_path = backup_dir / "manifest.json"
-    if not manifest_path.is_file():
-        print(f"FAIL restore missing manifest: {manifest_path}", file=sys.stderr)
+    manifest, manifest_entries = load_backup_manifest(backup_dir)
+    if manifest is None:
+        print(f"FAIL restore missing manifest: {backup_dir / 'manifest.json'}", file=sys.stderr)
         return 1
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     wanted = {normalize_index_path(path) for path in args.path}
-    restored: list[str] = []
-    conn = open_db(db_path)
-    init_schema(conn)
-    for entry in manifest.get("entries", []):
-        rel_path = entry["path"]
-        if wanted and rel_path not in wanted:
-            continue
-        src = (backup_dir / "files" / rel_path).resolve()
-        dst = (repo_root / rel_path).resolve()
-        ensure_inside_root(backup_dir, src)
-        ensure_inside_root(repo_root, dst)
+    selected_paths = sorted(
+        wanted
+        or {
+            path
+            for path, entry in manifest_entries.items()
+            if backup_entry_is_retained(path, entry)
+        }
+    )
+    missing = sorted(path for path in selected_paths if path not in manifest_entries)
+    if missing:
+        print(f"FAIL restore missing requested paths: {missing}", file=sys.stderr)
+        return 1
+    forbidden = sorted(path for path in selected_paths if is_task_run_publication_path(path))
+    if forbidden:
+        print(f"FAIL restore task-run publication records are not backup-owned: {forbidden}", file=sys.stderr)
+        return 2
+    rejected = sorted(
+        path
+        for path in selected_paths
+        if not backup_entry_is_retained(path, manifest_entries[path])
+    )
+    if rejected:
+        print(f"FAIL restore non-retained requested paths: {rejected}", file=sys.stderr)
+        return 2
+    if not selected_paths:
+        print("FAIL restore found no retained memory/log backup entries", file=sys.stderr)
+        return 1
+
+    prepared: list[tuple[str, Path, bytes, int]] = []
+    missing_parent_dirs: set[Path] = set()
+    for rel_path in selected_paths:
+        entry = manifest_entries[rel_path]
+        src = backup_entry_file(backup_dir, entry)
         if not src.is_file():
             print(f"FAIL restore missing backup file: {src}", file=sys.stderr)
-            conn.close()
             return 1
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-        refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
-        restored.append(rel_path)
-    conn.close()
-    if wanted and wanted.difference(restored):
-        print(f"FAIL restore missing requested paths: {sorted(wanted.difference(restored))}", file=sys.stderr)
-        return 1
+        try:
+            raw = src.read_bytes()
+        except OSError as exc:
+            raise BackupLayoutError(f"cannot read backup payload {rel_path}: {exc}") from exc
+        if (
+            entry.get("size_bytes") != len(raw)
+            or entry.get("sha256") != sha256_bytes(raw)
+        ):
+            print(f"FAIL restore backup size/hash mismatch: {rel_path}", file=sys.stderr)
+            return 1
+        dst = repo_root / rel_path
+        missing_parent_dirs.update(restore_destination_preflight(repo_root, dst))
+        mode_value = entry.get("mode")
+        if isinstance(mode_value, int) and not isinstance(mode_value, bool):
+            mode = mode_value
+        else:
+            _, object_ref = validate_backup_manifest_entry(entry)
+            mode = 0o644 if object_ref is not None else stat_module.S_IMODE(src.stat().st_mode)
+        prepared.append((rel_path, dst, raw, mode))
+
+    conn = open_db(db_path)
+    try:
+        init_schema(conn)
+    except Exception:
+        conn.close()
+        raise
+
+    created_dirs: list[Path] = []
+    staged: list[tuple[str, Path, Path]] = []
+    restored: list[str] = []
+    try:
+        try:
+            for directory in sorted(
+                missing_parent_dirs, key=lambda path: (len(path.parts), str(path))
+            ):
+                if directory.is_symlink():
+                    raise BackupLayoutError(
+                        f"restore destination parent must not be a symlink: {directory}"
+                    )
+                if directory.exists():
+                    if not directory.is_dir():
+                        raise BackupLayoutError(
+                            f"restore destination parent is not a directory: {directory}"
+                        )
+                    continue
+                directory.mkdir()
+                created_dirs.append(directory)
+            for rel_path, dst, raw, mode in prepared:
+                staged.append(
+                    (rel_path, prepare_atomic_replace_bytes(dst, raw, mode=mode), dst)
+                )
+        except Exception:
+            for _, temporary, _ in staged:
+                temporary.unlink(missing_ok=True)
+            for directory in reversed(created_dirs):
+                try:
+                    directory.rmdir()
+                except OSError:
+                    pass
+            raise
+
+        for rel_path, temporary, dst in staged:
+            publish_atomic_replace(temporary, dst)
+            restored.append(rel_path)
+        for rel_path in restored:
+            refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
+    finally:
+        for _, temporary, _ in staged:
+            temporary.unlink(missing_ok=True)
+        conn.close()
     print(f"PASS restore documents={len(restored)} backup_dir={repo_path(backup_dir.relative_to(repo_root))}")
     return 0
 
 
 def latest_backup_dir(repo_root: Path, backup_root: str) -> Path | None:
-    root = (repo_root / backup_root).resolve()
+    root = resolve_backup_dir(repo_root, backup_root)
     if not root.is_dir():
         return None
-    candidates = [path.parent for path in root.rglob("manifest.json") if path.is_file()]
+    candidates: list[Path] = []
+    for path in root.rglob("manifest.json"):
+        path = lexical_repository_path(repo_root, path, purpose="backup manifest")
+        if path.is_file():
+            candidates.append(path.parent)
     if not candidates:
         return None
     return sorted(candidates, key=lambda path: (path.stat().st_mtime_ns, str(path)))[-1]
@@ -1490,40 +2569,126 @@ def resolve_audit_backup_dir(repo_root: Path, backup_dir: str) -> Path | None:
 def resolve_audit_backup_dirs(repo_root: Path, backup_dir: str) -> list[Path]:
     if backup_dir:
         return [resolve_backup_dir(repo_root, backup_dir)]
-    root = (repo_root / DEFAULT_DB_BACKUP_ROOT).resolve()
+    root = resolve_backup_dir(repo_root, DEFAULT_DB_BACKUP_ROOT)
     if not root.is_dir():
         return []
-    return sorted({path.parent for path in root.rglob("manifest.json") if path.is_file()})
+    backup_dirs: set[Path] = set()
+    for path in root.rglob("manifest.json"):
+        path = lexical_repository_path(repo_root, path, purpose="backup manifest")
+        if path.is_file():
+            backup_dirs.add(path.parent)
+    return sorted(backup_dirs)
 
 
 def load_backup_manifest(backup_dir: Path | None) -> tuple[dict[str, object] | None, dict[str, dict[str, object]]]:
     if backup_dir is None:
         return None, {}
+    files_dir = backup_dir / "files"
+    objects_dir = backup_dir / "objects"
     manifest_path = backup_dir / "manifest.json"
+    if files_dir.is_symlink():
+        raise BackupLayoutError(f"backup files directory must not be a symlink: {files_dir}")
+    if objects_dir.is_symlink():
+        raise BackupLayoutError(f"backup objects directory must not be a symlink: {objects_dir}")
+    if manifest_path.is_symlink():
+        raise BackupLayoutError(f"backup manifest must not be a symlink: {manifest_path}")
     if not manifest_path.is_file():
         return None, {}
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    entries = {
-        entry["path"]: entry
-        for entry in manifest.get("entries", [])
-        if isinstance(entry, dict) and "path" in entry
-    }
+    if manifest_path.stat().st_nlink != 1:
+        raise BackupLayoutError(f"backup manifest must have exactly one link: {manifest_path}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise BackupLayoutError(f"cannot read valid backup manifest: {manifest_path}: {exc}") from exc
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("entries", []), list):
+        raise BackupLayoutError(f"invalid backup manifest structure: {manifest_path}")
+    manifest_generation, _, _ = validate_backup_manifest_metadata(manifest)
+    entries: dict[str, dict[str, object]] = {}
+    for entry in manifest.get("entries", []):
+        rel_path, _ = validate_backup_manifest_entry(entry)
+        entry_generation = entry.get("generation")
+        if entry_generation is not None and entry_generation > manifest_generation:
+            raise BackupLayoutError(
+                f"backup entry generation exceeds manifest generation: {rel_path}"
+            )
+        if rel_path in entries:
+            raise BackupLayoutError(f"duplicate backup manifest path: {rel_path}")
+        entries[rel_path] = dict(entry)
     return manifest, entries
 
 
 def load_backup_manifests(backup_dirs: Sequence[Path]) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
     manifests: list[dict[str, object]] = []
-    entries: dict[str, dict[str, object]] = {}
-    ordered_dirs = sorted(backup_dirs, key=lambda path: (path.stat().st_mtime_ns, str(path)) if path.exists() else (0, str(path)))
+    loaded: list[tuple[Path, dict[str, object], dict[str, dict[str, object]]]] = []
+    ordered_dirs = sorted(
+        backup_dirs,
+        key=lambda path: (path.stat().st_mtime_ns, str(path)) if path.exists() else (0, str(path)),
+    )
+    generations: dict[int, tuple[Path, str]] = {}
+    authoritative_kinds: dict[str, int] = {}
+    authoritative_prefixes: dict[str, int] = {}
     for backup_dir in ordered_dirs:
         manifest, manifest_entries = load_backup_manifest(backup_dir)
         if manifest is None:
             continue
+        generation, kind_scopes, prefix_scopes = validate_backup_manifest_metadata(manifest)
+        if generation:
+            identity = sha256_bytes(
+                json.dumps(
+                    manifest,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            )
+            previous = generations.get(generation)
+            if previous is not None and previous[1] != identity:
+                raise BackupLayoutError(
+                    f"conflicting backup manifest generation {generation}: "
+                    f"{previous[0]} and {backup_dir}"
+                )
+            generations[generation] = (backup_dir, identity)
+        for kind, barrier in kind_scopes.items():
+            authoritative_kinds[kind] = max(authoritative_kinds.get(kind, 0), barrier)
+        for prefix, barrier in prefix_scopes.items():
+            authoritative_prefixes[prefix] = max(
+                authoritative_prefixes.get(prefix, 0), barrier
+            )
         manifests.append(manifest)
+        loaded.append((backup_dir, manifest, manifest_entries))
+
+    entries: dict[str, dict[str, object]] = {}
+    entry_scores: dict[str, tuple[int, int]] = {}
+    for order, (backup_dir, _manifest, manifest_entries) in enumerate(loaded):
         for path, entry in manifest_entries.items():
+            generation = int(entry.get("generation") or 0)
+            barrier = authoritative_kinds.get(infer_kind(path), 0)
+            for prefix, prefix_barrier in authoritative_prefixes.items():
+                if path == prefix or path.startswith(prefix.rstrip("/") + "/"):
+                    barrier = max(barrier, prefix_barrier)
+            if generation < barrier:
+                continue
+            if entry.get("consistency", "stored-db") == "live-copy":
+                continue
+            score = (generation, order)
+            previous = entries.get(path)
+            previous_score = entry_scores.get(path)
+            if previous is not None and previous_score is not None:
+                if generation > 0 and generation == previous_score[0] and (
+                    previous.get("sha256") != entry.get("sha256")
+                    or previous.get("size_bytes") != entry.get("size_bytes")
+                    or previous.get("kind") != entry.get("kind")
+                ):
+                    raise BackupLayoutError(
+                        f"conflicting backup entries share generation {generation}: {path}"
+                    )
+                if score < previous_score:
+                    continue
             merged = dict(entry)
             merged["_backup_dir"] = backup_dir
+            merged["_merge_generation"] = generation
             entries[path] = merged
+            entry_scores[path] = score
     return manifests, entries
 
 
@@ -1540,6 +2705,16 @@ def rehydrate_stored_documents(args: argparse.Namespace) -> int:
         return 1
 
     wanted = {normalize_index_path(path) for path in args.path}
+    forbidden_publications = {
+        path for path in wanted if Path(path).name == "completion-publication.md"
+    }
+    if forbidden_publications:
+        print(
+            f"FAIL rehydrate task-run publication records must be reissued by publish-task-run: "
+            f"{sorted(forbidden_publications)[: args.limit]}",
+            file=sys.stderr,
+        )
+        return 2
     if wanted:
         rejected = sorted(path for path in wanted if infer_kind(path) not in DB_FIRST_KINDS)
         if rejected:
@@ -1548,12 +2723,26 @@ def rehydrate_stored_documents(args: argparse.Namespace) -> int:
         selected_paths = sorted(wanted)
     else:
         selected_paths = sorted(
-            path for path in backup_entries.keys() if infer_kind(path) in DB_FIRST_KINDS
+            path
+            for path in backup_entries.keys()
+            if infer_kind(path) in DB_FIRST_KINDS
+            and Path(path).name != "completion-publication.md"
         )
     missing = sorted(path for path in selected_paths if path not in backup_entries)
     if missing:
         print(f"FAIL rehydrate missing backup entries: {missing[: args.limit]}", file=sys.stderr)
         return 1
+    rejected_entries = sorted(
+        path
+        for path in selected_paths
+        if not backup_entry_is_retained(path, backup_entries[path])
+    )
+    if rejected_entries:
+        print(
+            f"FAIL rehydrate manifest kind/path mismatch: {rejected_entries[: args.limit]}",
+            file=sys.stderr,
+        )
+        return 2
     if not selected_paths:
         print("FAIL rehydrate found no retained memory/log backup entries", file=sys.stderr)
         return 1
@@ -1562,15 +2751,24 @@ def rehydrate_stored_documents(args: argparse.Namespace) -> int:
     for rel_path in selected_paths:
         entry = backup_entries[rel_path]
         backup_dir = entry.get("_backup_dir")
-        backup_file = backup_dir / "files" / rel_path if isinstance(backup_dir, Path) else None
+        backup_file = backup_entry_file(backup_dir, entry) if isinstance(backup_dir, Path) else None
         if backup_file is None or not backup_file.is_file():
             print(f"FAIL rehydrate missing backup file: {rel_path}", file=sys.stderr)
             return 1
         try:
-            content = backup_file.read_text(encoding="utf-8")
+            raw = backup_file.read_bytes()
+            content = raw.decode("utf-8")
         except UnicodeDecodeError:
             print(f"FAIL rehydrate non-utf8 backup file: {rel_path}", file=sys.stderr)
             return 2
+        except OSError as exc:
+            raise BackupLayoutError(f"cannot read backup payload {rel_path}: {exc}") from exc
+        if (
+            entry.get("size_bytes") != len(raw)
+            or entry.get("sha256") != sha256_bytes(raw)
+        ):
+            print(f"FAIL rehydrate backup size/hash mismatch: {rel_path}", file=sys.stderr)
+            return 1
         items.append(indexed_file_from_content(rel_path, content))
 
     conn = open_db(db_path)
@@ -1709,19 +2907,53 @@ def audit_db_first(args: argparse.Namespace) -> int:
                 live_content_drift.append(path)
         else:
             live_materialized += 1
-    missing_backup = sorted(path for path in stored if path not in backup_entries)
+    publication_backup_exempt = sorted(
+        path for path in stored if is_canonical_task_run_publication_path(path)
+    )
+    publication_backup_violation = sorted(
+        path for path in publication_backup_exempt if path in backup_entries
+    )
+    backup_kind_mismatch = sorted(
+        path
+        for path, entry in backup_entries.items()
+        if infer_kind(path) in DB_FIRST_KINDS
+        and (
+            str(entry.get("kind", "")) != infer_kind(path)
+            or (path in stored and str(entry.get("kind", "")) != str(stored[path]["kind"]))
+        )
+    )
+    unexpected_backup = sorted(
+        path
+        for path, entry in backup_entries.items()
+        if path not in stored and backup_entry_is_retained(path, entry)
+    )
+    missing_backup = sorted(
+        path
+        for path in stored
+        if path not in backup_entries and path not in publication_backup_exempt
+    )
     backup_hash_mismatch: list[str] = []
     for path, entry in backup_entries.items():
         if path not in stored:
             continue
+        if is_canonical_task_run_publication_path(path):
+            continue
         backup_dir = entry.get("_backup_dir")
-        backup_file = backup_dir / "files" / path if isinstance(backup_dir, Path) else None
+        backup_file = backup_entry_file(backup_dir, entry) if isinstance(backup_dir, Path) else None
         if backup_file is None or not backup_file.is_file():
             missing_backup.append(path)
             continue
-        expected = str(entry.get("sha256", ""))
-        actual = sha256_bytes(backup_file.read_bytes())
-        if expected and actual != expected:
+        raw = backup_file.read_bytes()
+        actual = sha256_bytes(raw)
+        stored_content = str(stored[path]["content"] or "").encode("utf-8")
+        stored_content_sha = sha256_bytes(stored_content)
+        if (
+            entry.get("size_bytes") != len(raw)
+            or entry.get("sha256") != actual
+            or actual != stored[path]["sha256"]
+            or actual != stored_content_sha
+            or len(raw) != len(stored_content)
+        ):
             backup_hash_mismatch.append(path)
     missing_backup = sorted(set(missing_backup))
     backup_hash_mismatch = sorted(set(backup_hash_mismatch))
@@ -1733,6 +2965,9 @@ def audit_db_first(args: argparse.Namespace) -> int:
         or live_read_errors
         or missing_backup
         or backup_hash_mismatch
+        or backup_kind_mismatch
+        or unexpected_backup
+        or publication_backup_violation
         or not manifests
     )
     payload = {
@@ -1756,6 +2991,10 @@ def audit_db_first(args: argparse.Namespace) -> int:
         "live_read_errors": sorted(live_read_errors),
         "missing_backup": missing_backup,
         "backup_hash_mismatch": backup_hash_mismatch,
+        "backup_kind_mismatch": backup_kind_mismatch,
+        "unexpected_backup": unexpected_backup,
+        "publication_backup_exempt": publication_backup_exempt,
+        "publication_backup_violation": publication_backup_violation,
         "strict_live_kinds": sorted(DB_FIRST_STRICT_LIVE_KINDS),
     }
     conn.close()
@@ -1794,6 +3033,9 @@ def audit_db_first(args: argparse.Namespace) -> int:
             "live_read_errors",
             "missing_backup",
             "backup_hash_mismatch",
+            "backup_kind_mismatch",
+            "unexpected_backup",
+            "publication_backup_violation",
         ):
             values = payload[key]
             if values:
@@ -2400,8 +3642,29 @@ def audit_policy_paths(repo_root: Path, policy: dict[str, object]) -> list[str]:
         delivery_contract = str(traceability.get("delivery_contract", ""))
         if delivery_contract and not (repo_root / delivery_contract).is_file():
             errors.append(f"traceability delivery contract missing: {delivery_contract}")
+        rtl_task_contract = str(traceability.get("rtl_task_contract", ""))
+        if rtl_task_contract and not (repo_root / rtl_task_contract).is_file():
+            errors.append(f"traceability RTL task contract missing: {rtl_task_contract}")
     elif traceability:
         errors.append("traceability must be an object")
+
+    task_delegation = policy.get("task_delegation", {})
+    if isinstance(task_delegation, dict):
+        if task_delegation:
+            for field in ("contract", "instruction", "skill", "generator"):
+                path = str(task_delegation.get(field, ""))
+                if not path:
+                    errors.append(f"task_delegation.{field} is required")
+                elif not (repo_root / path).is_file():
+                    errors.append(f"task_delegation {field} missing: {path}")
+            if str(task_delegation.get("profile_node", "")) != "rtl-task-contract":
+                errors.append("task_delegation.profile_node must be rtl-task-contract")
+            if not bool(task_delegation.get("local_rtl_external_access_forbidden", False)):
+                errors.append("task_delegation.local_rtl_external_access_forbidden must be true")
+            if not bool(task_delegation.get("contract_before_dispatch_required", False)):
+                errors.append("task_delegation.contract_before_dispatch_required must be true")
+    elif task_delegation:
+        errors.append("task_delegation must be an object")
 
     state_machine = policy.get("state_machine", {})
     if isinstance(state_machine, dict):

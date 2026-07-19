@@ -1,0 +1,347 @@
+{
+  "schema": "npc-rv64-ppa-baseline-v1",
+  "baseline_id": "r4-p0a-distributed-wb-valid-timing-recovery-20260716",
+  "candidate_id": "r4-p0a-distributed-wb-valid",
+  "status": "correctness_checkpoint",
+  "checkpoint_kind": "timing_recovery",
+  "promotable": false,
+  "comparison_role": "timing_and_semantic_floor_not_seed_not_pareto_baseline",
+  "disposition": "ppa_diagnostic_only",
+  "allowed_claim": "R4-P0A distributed GPR write-valid timing-recovery checkpoint: fixed-image A-B-B-A-A-B counters are cycle-exact with R4-S0, logic-area proxy is 1606094.84, and the exact-5ns RTL proxy has +0.103599802 ns worst-path slack; all nine architecture gates remain RED and Power remains unqualified",
+  "forbidden_claims": [
+    "architecture_feasible_seed",
+    "pareto_front_member",
+    "front_accepted_baseline",
+    "canonical_baseline",
+    "proxy_champion",
+    "final_champion",
+    "qualified_power_improvement"
+  ],
+  "parent_measurement_anchor": "r3p6-recovery-baseline.json",
+  "parent_correctness_checkpoint": "r4-s0-correctness-checkpoint.json",
+  "claim_tier": "rtl_proxy_partial_constraints",
+  "policy": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+  "policy_id": "rv64-complete-ooo-dual-issue-proxy-200mhz-v1",
+  "cohort_id": "r4-p0a-fixed-image-performance-synth-sta-20260716",
+  "design_id": "sha256:5ab313435529cc263bde93704983ea233afc99f327342310086e7b18d8f520da",
+  "created_utc": "2026-07-16T03:36:00.852249Z",
+  "provenance": {
+    "git_head": "31e90c679050a3a9138c967151b240f0fa2ab158",
+    "git_dirty": true,
+    "canonical_architecture_rtl_source_count": 136,
+    "synthesis_elaborated_rtl_input_count": 117,
+    "vsrc_tree_source_count": 140,
+    "simulation_binary": "tmp/2026-07-15-rv64-ppa-architecture-recovery/build-r4-p0a-wb-valid/NpcSimTop",
+    "simulation_binary_sha256": "e047a18f05a76fa3a6a93485a6ffbe855d4ce67eda52911d1c26783f06c4a96f",
+    "simulation_binary_size_bytes": 1476912,
+    "changed_rtl": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "changed_rtl_sha256": "5de4cb65d065533466efe2b8fae0c55ba3983c84ef3a5ab9812733e306790259",
+    "focused_testbench_sha256": "8e14c574b8227eccdfb17158e040d8cb64d0cf5557c990e2afc1723660e0b268",
+    "focused_runner_sha256": "e1a9376f4228279aa153c552db3a0be6f057518704fd08d925a15a866308ffa2",
+    "netlist_run1_sha256": "460ff75ae20e66a5aad58103507aabe63f1c7c09072137c55ce9f70720c45937",
+    "netlist_run2_sha256": "460ff75ae20e66a5aad58103507aabe63f1c7c09072137c55ce9f70720c45937",
+    "netlists_raw_byte_identical": true,
+    "synthesis_metrics_repetitions_identical": true,
+    "sta_semantics_repetitions_identical": true,
+    "aggregate_audit_schema": "npc-rv64-r4-p0a-checkpoint-audit-v2",
+    "aggregate_audit_result": "PASS",
+    "normative_architecture_contract": {
+      "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "version": "v2",
+      "sha256": "f29ea5568045ea5113214eaef866a2e61731f9da5f2919aed162124921ab0050"
+    }
+  },
+  "closed_semantics": [
+    "both integer writeback lanes derive GPR write-valid from their final selected owner",
+    "EX, MEM, MULDIV, CLMUL, and FPWB owners suppress architectural x0 writes on both lanes",
+    "FPWB additionally requires rd_en on both lanes",
+    "the 22-case focused matrix covers two lanes times five nonzero/x0 owner pairs plus both FP rd_en=0 cases",
+    "the full module suite remains 102/102 GREEN",
+    "writeback payload, ROB completion, exception, execute-valid, pipeline, and FSM ownership are unchanged",
+    "fixed-image CoreMark and Dhrystone counters are bit-exact across three candidate repetitions in A-B-B-A-A-B order",
+    "two independent synthesis runs are byte-identical and two independent STA runs are semantically identical"
+  ],
+  "known_semantic_limits": [
+    "the core still has only one complete memory issue/AGU/translation/final-PA/order/cache-admission/completion owner",
+    "the R4-S0 Boolean cacheability ABI has not yet become the typed CACHED/NC/IO ABI",
+    "there is no real load queue and the nine design-bound architecture directed gates are absent",
+    "official, AM, and Difftest same-image functional closure is not present in this checkpoint"
+  ],
+  "eligibility": {
+    "architecture_feasible_seed": false,
+    "pareto_front_member": false,
+    "front_accepted_baseline": false,
+    "canonical_baseline": false,
+    "proxy_champion": false,
+    "final_champion": false
+  },
+  "architecture_contract": {
+    "xlen": 64,
+    "fetch_width": 2,
+    "dispatch_width": 2,
+    "issue_width": 2,
+    "memory_issue_width": 1,
+    "agu_width": 1,
+    "memory_translation_width": 1,
+    "memory_order_check_width": 1,
+    "dcache_request_width": 1,
+    "memory_completion_width": 1,
+    "retire_width": 2,
+    "rob_entries": 16,
+    "int_iq_entries": 8,
+    "fp_iq_entries": 8,
+    "int_prf_entries": 64,
+    "fp_prf_entries": 64,
+    "lq_entries": 0,
+    "sq_entries": 4,
+    "hard_gates_all_green": false,
+    "hard_gate_result": "RED",
+    "gate_results": {
+      "DI-1": "RED",
+      "DI-2": "RED",
+      "DI-3": "RED",
+      "DI-4": "RED",
+      "DI-5": "RED",
+      "OOO-1": "RED",
+      "OOO-2": "RED",
+      "OOO-3": "RED",
+      "OOO-4": "RED"
+    },
+    "blocking_gates": [
+      "DI-1",
+      "DI-2",
+      "DI-3",
+      "DI-4",
+      "DI-5",
+      "OOO-1",
+      "OOO-2",
+      "OOO-3",
+      "OOO-4"
+    ],
+    "known_structural_blockers": [
+      "one complete memory reservation/AGU owner",
+      "one complete translation/final-PA/order/cache-admission/completion owner",
+      "no canonical design-bound nine-gate directed suite",
+      "no real load queue",
+      "NC and IO are not yet distinct typed ordering classes in RTL"
+    ],
+    "evaluator_exit_code": 1,
+    "evaluator_fail_closed": true,
+    "directed_evidence_present": false
+  },
+  "functional": {
+    "focused_wb_valid_matrix": {
+      "passed": 22,
+      "required": 22,
+      "failed": 0,
+      "summary_sha256": "7b089455ddf47c8262abbb189cf23aba9b98361427023f0dfe386fde4c106000",
+      "manifest_sha256": "1e7e331af41d9ab4c13649378b4fa6221f7dbc8fbbaaca06ccbe136ac9c6e9cc"
+    },
+    "module": {
+      "passed": 102,
+      "required": 102,
+      "failed": 0,
+      "summary_sha256": "f9ade4bb4602f3061502b185a561b0bbc5633f13e55643395194a7579e9ae300"
+    },
+    "official_same_image": null,
+    "am_same_image": null,
+    "difftest_same_image": null,
+    "linux_deferred": true
+  },
+  "performance": {
+    "evidence_grade": "fixed_image_interleaved_checkpoint_grade_not_full_promotion_manifest",
+    "evidence_schema": "npc-rv64-performance-evidence-v3",
+    "counter_scope": "pc_bounded_region_v1",
+    "repetitions_per_design": 3,
+    "bit_exact_repetition_counters": true,
+    "interleaved_ab_sequence": [
+      "A",
+      "B",
+      "B",
+      "A",
+      "A",
+      "B"
+    ],
+    "runtime_images_in_every_pre_post_binding": true,
+    "source_input_content_ids": {
+      "r4_s0_A": "83030bf934d4ebd08e2ed90e58ce317955c36b200a2b3eca59cce81db3633196",
+      "r4_p0a_B": "dbf218026d0810cfdeeebae08325b6f229242d0cd3c15d4617ddf44977e8cb7a"
+    },
+    "benchmarks": [
+      {
+        "name": "coremark",
+        "image_path": "am-kernels/benchmarks/coremark/build/coremark-riscv64-npc.bin",
+        "image_size_bytes": 1068536,
+        "image_sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+        "cycles": 4904511,
+        "retired_instructions": 3183617,
+        "cpi": 1.5405468057244323,
+        "throughput_ratio_vs_r4_s0": 1.0,
+        "throughput_ratio_vs_r3p6": 1.0
+      },
+      {
+        "name": "dhrystone_10000",
+        "image_path": "am-kernels/benchmarks/dhrystone/build/dhrystone-riscv64-npc.bin",
+        "image_size_bytes": 1073376,
+        "image_sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+        "cycles": 9481620,
+        "retired_instructions": 4250000,
+        "cpi": 2.230969411764706,
+        "throughput_ratio_vs_r4_s0": 1.0,
+        "throughput_ratio_vs_r3p6": 1.0
+      }
+    ],
+    "geometric_throughput_ratio_vs_r4_s0": 1.0,
+    "geometric_throughput_ratio_vs_r3p6": 1.0,
+    "full_promotion_eligible": false
+  },
+  "timing": {
+    "tier": "rtl_proxy_partial_constraints",
+    "period_ns": 5.0,
+    "target_200mhz_met": true,
+    "minimum_promotion_reserve_ns": 0.1,
+    "reserve_met": true,
+    "worst_path_slack_ns": 0.103599802,
+    "delta_vs_r4_s0_ns": 0.044432018,
+    "wns_ns": 0.0,
+    "tns_ns": 0.0,
+    "violated_path_count": 0,
+    "combinational_loops": 0,
+    "path_count": 40,
+    "independent_repetitions": 2,
+    "fail_closed_runner_version": 2,
+    "post_route_signoff": false
+  },
+  "area": {
+    "metric_kind": "logic_area_proxy_excluding_unknown_macros",
+    "unit": "library_area_unit",
+    "logic_area": 1606094.84,
+    "sequential_area": 446470.64,
+    "delta_vs_r3p6": 290.9200000001583,
+    "ratio_vs_r3p6": 1.0001811678227814,
+    "delta_vs_r4_s0": -328.4399999999441,
+    "ratio_vs_r4_s0": 0.9997955457916422,
+    "strict_area_efficiency_maximum": 1607411.3313313313,
+    "headroom_to_strict_area_efficiency_maximum": 1316.491331331199,
+    "total_area": null,
+    "macro_area_complete": false,
+    "independent_repetitions": 2
+  },
+  "power": {
+    "metric_kind": "unqualified_vectorless_logic_proxy",
+    "diagnostic_vectorless_logic_proxy_w": 0.121,
+    "total_power_w": null,
+    "activity_coverage": null,
+    "macro_power_complete": false,
+    "qualified_for_promotion": false,
+    "eligible_for_power_claim": false,
+    "reason": "No workload VCD/SAIF coverage qualification and no complete SRAM/macro internal plus leakage power models. The 0.121 W vectorless number is diagnostic only."
+  },
+  "promotion_blockers": [
+    "all nine architecture gates are RED",
+    "the design is not eligible for the one-time architecture-feasible seed transition",
+    "the design is not a Pareto-front member, accepted baseline, canonical baseline, or champion",
+    "functional official/AM/Difftest same-image closure is absent",
+    "only one complete memory issue/AGU/translation/order/cache/completion owner exists and no real load queue exists",
+    "typed CACHED/NC/IO ordering classes are not implemented in RTL",
+    "workload power activity and macro internal/leakage power are unqualified",
+    "macro-inclusive total area is unavailable"
+  ],
+  "artifacts": [
+    {
+      "kind": "normative_architecture_ppa_contract_v2",
+      "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "sha256": "f29ea5568045ea5113214eaef866a2e61731f9da5f2919aed162124921ab0050"
+    },
+    {
+      "kind": "checkpoint_aggregate_audit_v2",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/checkpoint-audit-v2.json",
+      "sha256": "2847ae2e1b075ba7743cc8affb1220f185eed4e0dbe176fda0fe2aac6ba54fb8"
+    },
+    {
+      "kind": "checkpoint_aggregate_checker",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/check-r4-p0a-checkpoint.py",
+      "sha256": "eac971119adc219da03f3911f3eb32057d58ebca79242bc6f9c9c75f94b2368e"
+    },
+    {
+      "kind": "focused_matrix_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/p0-a-wb-valid-matrix22-v2/summary.md",
+      "sha256": "7b089455ddf47c8262abbb189cf23aba9b98361427023f0dfe386fde4c106000"
+    },
+    {
+      "kind": "focused_matrix_manifest",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/p0-a-wb-valid-matrix22-v2/SHA256SUMS",
+      "sha256": "1e7e331af41d9ab4c13649378b4fa6221f7dbc8fbbaaca06ccbe136ac9c6e9cc"
+    },
+    {
+      "kind": "module_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-full-module-v2/summary.txt",
+      "sha256": "f9ade4bb4602f3061502b185a561b0bbc5633f13e55643395194a7579e9ae300"
+    },
+    {
+      "kind": "simulation_binary",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/build-r4-p0a-wb-valid/NpcSimTop",
+      "sha256": "e047a18f05a76fa3a6a93485a6ffbe855d4ce67eda52911d1c26783f06c4a96f"
+    },
+    {
+      "kind": "synthesis_run1_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run1/evidence/synthesis/summary.json",
+      "sha256": "66f246db0fb20bbc2391cf93f1092666636800078b9c31abaaf9b9f54dea09d8"
+    },
+    {
+      "kind": "synthesis_run2_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run2/evidence/synthesis/summary.json",
+      "sha256": "66f246db0fb20bbc2391cf93f1092666636800078b9c31abaaf9b9f54dea09d8"
+    },
+    {
+      "kind": "synthesis_run1_inputs_pre",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run1/synth-rtl-inputs.pre.sha256",
+      "sha256": "e915ab86320dea2c6a49f3429cacd3121d79373e029ddee59560abfae0741874"
+    },
+    {
+      "kind": "synthesis_run1_inputs_post",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run1/synth-rtl-inputs.post.sha256",
+      "sha256": "e915ab86320dea2c6a49f3429cacd3121d79373e029ddee59560abfae0741874"
+    },
+    {
+      "kind": "synthesis_run2_inputs_pre",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run2/synth-rtl-inputs.pre.sha256",
+      "sha256": "e915ab86320dea2c6a49f3429cacd3121d79373e029ddee59560abfae0741874"
+    },
+    {
+      "kind": "synthesis_run2_inputs_post",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run2/synth-rtl-inputs.post.sha256",
+      "sha256": "e915ab86320dea2c6a49f3429cacd3121d79373e029ddee59560abfae0741874"
+    },
+    {
+      "kind": "sta_run1_summary_v2",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run1/opensta-exact5ns-v2/summary.json",
+      "sha256": "bbaeef2266b42c1f9de296cd1d1f68e3520241e0d46e184c62208c457a28ba6f"
+    },
+    {
+      "kind": "sta_run2_summary_v2",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/fresh-synth-run2/opensta-exact5ns-v2/summary.json",
+      "sha256": "12550c7aecf4fbcee31cec51cdb8a0ffaf1b05358247514d5b53455e1dc0ac47"
+    },
+    {
+      "kind": "performance_abbaab_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/performance-abbaab/summary.json",
+      "sha256": "c187277d0344e2fb93b7cb792435a7b7c5d1885b38d8f3ec34057a06a2dbc678"
+    },
+    {
+      "kind": "performance_abbaab_manifest",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/performance-abbaab/SHA256SUMS",
+      "sha256": "8e26c2f44b67d84f94b3303c82aedf9509476335deeafa485e36ceabaab0e7d0"
+    },
+    {
+      "kind": "architecture_hard_gates_red",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/r4-p0a-wb-valid/architecture-no-directed-evidence.json",
+      "sha256": "e846e841e16e4a3ff503e6d64a9a2403cbe36348c0296e5a73d7e4007a01041f"
+    },
+    {
+      "kind": "power_qualification_audit",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/power-qualification/README.md",
+      "sha256": "393b6c4347eeef3197551023ea840346685f433e4d9fffa85b5d2b7c22d2c92e"
+    }
+  ]
+}

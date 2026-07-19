@@ -8,6 +8,8 @@ module tb_ooo_int_backend;
   localparam ROB_COUNT_W = 5;
   localparam FREE_COUNT_W = 7;
   localparam ISSUE_COUNT_W = 4;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
   localparam FP_ISSUE_PACKET_W =
       ROB_INDEX_W + `INST_W + (5 * PHY_REG_ADDR_W) + 3;
 
@@ -145,12 +147,22 @@ module tb_ooo_int_backend;
   // Icarus forbids an automatic task local on the RHS of procedural force.
   // The selective-kill task copies its real branch ROB identity here first.
   reg [ROB_INDEX_W-1:0] t3v_force_branch_rob;
+  reg [ROB_INDEX_W-1:0] v8d_force_head_rob;
+  reg [ROB_INDEX_W-1:0] v8d_force_boundary_rob;
+  reg [ROB_INDEX_W-1:0] v8d_force_completion_rob;
+  // Icarus requires procedural force RHS storage at module scope.
+  reg [PRODUCER_ID_W-1:0] v8f_force_producer_id;
 
   wire unused_mem_ready = mem_rsp_ready;
 
   OooIntBackend dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(),
+    .head0_identity_valid_o(),
+    .head0_identity_o(),
     .flush_i(flush),
     .checkpoint_capture_i(1'b0),
     .checkpoint_restore_i(checkpoint_restore),
@@ -3656,6 +3668,582 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // v8f early-wakeup negative: corrupt only the generation carried by a
+  // naturally issued producer.  The raw ROB index remains exact and the
+  // dependent resident entry must not absorb either early or formal wake.
+  task automatic run_v8f_early_wakeup_generation_mismatch;
+    reg [PRODUCER_ID_W-1:0] producer_id;
+    reg [ROB_INDEX_W-1:0] producer_rob;
+    reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+    reg [`XLEN-1:0] prf_before;
+    reg [`XLEN-1:0] rob_data_before;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1400,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd9, 64'h41);
+      set_dispatch1(32'h8000_1404,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd9, 5'd0, 5'd10, 64'h1);
+      #1;
+      tb_check1("v8f early mismatch producer dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("v8f early mismatch dependent dispatch ready",
+                dispatch1_ready, 1'b1);
+      producer_id = dut.u_dispatch_backend.rob_dispatch0_producer_id_w;
+      producer_rob = producer_id[ROB_INDEX_W-1:0];
+      producer_pdest = dut.dispatch0_pdest_w;
+      prf_before = dut.u_phys_reg_file.regs_q[producer_pdest];
+      rob_data_before = dut.u_dispatch_backend.u_rob.data_q[producer_rob];
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f early mismatch producer issues",
+                dut.issue0_fire_w, 1'b1);
+      tb_check1("v8f early mismatch dependent is resident",
+                dut.u_dispatch_backend.u_issue_queue.valid_q[1], 1'b1);
+      tb_check1("v8f early mismatch dependent starts unready",
+                dut.u_dispatch_backend.u_issue_queue.src1_ready_q[1], 1'b0);
+      tb_check1("v8f early mismatch exact positive current",
+                dut.iq_issue0_producer_current_w, 1'b1);
+      tb_check1("v8f early mismatch raw positive control",
+                dut.early_wakeup0_raw_valid_w, 1'b1);
+      tb_check1("v8f early mismatch exact positive effective",
+                dut.early_wakeup0_valid_w, 1'b1);
+
+      v8f_force_producer_id = producer_id;
+      v8f_force_producer_id[ROB_INDEX_W] =
+          ~producer_id[ROB_INDEX_W];
+      force dut.iq_issue0_producer_id_w = v8f_force_producer_id;
+      #1;
+      tb_check32("v8f early mismatch keeps raw index",
+                 {28'b0, dut.iq_issue0_producer_id_w[ROB_INDEX_W-1:0]},
+                 {28'b0, producer_rob});
+      tb_check1("v8f early mismatch current query rejects generation",
+                dut.iq_issue0_producer_current_w, 1'b0);
+      tb_check1("v8f early mismatch raw wake remains non-vacuous",
+                dut.early_wakeup0_raw_valid_w, 1'b1);
+      tb_check1("v8f early mismatch cuts effective wake",
+                dut.early_wakeup0_valid_w, 1'b0);
+      tb_check1("v8f early mismatch lane1 does not issue",
+                dut.issue1_fire_w, 1'b0);
+      tb_check1("v8f early mismatch lane1 has no early wake",
+                dut.early_wakeup1_valid_w, 1'b0);
+      tb_check1("v8f early mismatch has no pre-existing WB0 wake",
+                dut.wb0_valid_w, 1'b0);
+      tb_check1("v8f early mismatch has no pre-existing WB1 wake",
+                dut.wb1_valid_w, 1'b0);
+      tb_check1("v8f early mismatch IQ sees gated early0",
+                dut.u_dispatch_backend.u_issue_queue.early_wakeup0_valid_i,
+                1'b0);
+      tb_check1("v8f early mismatch IQ sees quiet early1",
+                dut.u_dispatch_backend.u_issue_queue.early_wakeup1_valid_i,
+                1'b0);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      release dut.iq_issue0_producer_id_w;
+      #1;
+      tb_check1("v8f early mismatch reaches raw EX0", dut.ex0_valid_q, 1'b1);
+      tb_check32("v8f early mismatch PID is carried into EX0",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dut.ex0_producer_id_q},
+                 {{(32-PRODUCER_ID_W){1'b0}}, v8f_force_producer_id});
+      tb_check1("v8f early mismatch EX0 remains pre-authorized raw",
+                dut.ex0_pre_auth_valid_w, 1'b1);
+      tb_check1("v8f early mismatch EX0 exact-open rejects",
+                dut.ex0_producer_open_w, 1'b0);
+      tb_check1("v8f early mismatch EX0 formal WB is cut",
+                dut.ex0_wb_valid_w, 1'b0);
+      tb_check1("v8f early mismatch dependent remains unready",
+                dut.u_dispatch_backend.u_issue_queue.src1_ready_q[0], 1'b0);
+      tb_check1("v8f early mismatch has no formal IQ wake",
+                dut.u_dispatch_backend.u_issue_queue.wakeup0_valid_i, 1'b0);
+      tb_check1("v8f early mismatch has no public completion",
+                execute0_valid || execute1_valid, 1'b0);
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f early mismatch raw EX0 drains", dut.ex0_valid_q, 1'b0);
+      tb_check1("v8f early mismatch dependent stays blocked",
+                dut.u_dispatch_backend.u_issue_queue.src1_ready_q[0], 1'b0);
+      tb_check64("v8f early mismatch cannot alter PRF",
+                 dut.u_phys_reg_file.regs_q[producer_pdest], prf_before);
+      tb_check1("v8f early mismatch cannot ready BusyTable",
+                dut.u_dispatch_backend.u_busy_table.ready_q[producer_pdest],
+                1'b0);
+      tb_check1("v8f early mismatch cannot mark ROB done",
+                dut.u_dispatch_backend.u_rob.done_q[producer_rob], 1'b0);
+      tb_check64("v8f early mismatch cannot alter ROB data",
+                 dut.u_dispatch_backend.u_rob.data_q[producer_rob],
+                 rob_data_before);
+      $display("[V8F-EARLY-WAKE-GENERATION-MISMATCH] raw=1 current=0 effective=0 dependent-sticky=0 PASS");
+      reset_dut();
+    end
+  endtask
+
+  // v8f EX0 exact-open closure.  First establish a natural exact positive,
+  // then flip only the generation at the registered EX boundary.  The
+  // forwarding-capable bit stays high, so forwarding suppression is not
+  // vacuous.  A raw MulDiv response probes that the stale EX releases WB0.
+  task automatic run_v8f_ex0_completion_generation_mismatch;
+    reg [PRODUCER_ID_W-1:0] producer_id;
+    reg [ROB_INDEX_W-1:0] producer_rob;
+    reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+    reg [`XLEN-1:0] prf_before;
+    reg [`XLEN-1:0] rob_data_before;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1420,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd11, 64'h52);
+      #1;
+      producer_id = dut.u_dispatch_backend.rob_dispatch0_producer_id_w;
+      producer_rob = producer_id[ROB_INDEX_W-1:0];
+      producer_pdest = dut.dispatch0_pdest_w;
+      prf_before = dut.u_phys_reg_file.regs_q[producer_pdest];
+      rob_data_before = dut.u_dispatch_backend.u_rob.data_q[producer_rob];
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f EX0 producer issues", dut.issue0_fire_w, 1'b1);
+      tb_check1("v8f EX0 exact issue is current",
+                dut.iq_issue0_producer_current_w, 1'b1);
+      tb_check1("v8f EX0 exact early wake is effective",
+                dut.early_wakeup0_valid_w, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f EX0 exact positive raw valid", dut.ex0_valid_q, 1'b1);
+      tb_check32("v8f EX0 exact positive carried id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dut.ex0_producer_id_q},
+                 {{(32-PRODUCER_ID_W){1'b0}}, producer_id});
+      tb_check1("v8f EX0 exact positive pre-auth",
+                dut.ex0_pre_auth_valid_w, 1'b1);
+      tb_check1("v8f EX0 exact positive open", dut.ex0_producer_open_w, 1'b1);
+      tb_check1("v8f EX0 exact positive WB", dut.ex0_wb_valid_w, 1'b1);
+      tb_check1("v8f EX0 forwarding bit is non-vacuous",
+                dut.ex0_down_payload_w[144], 1'b1);
+
+      v8f_force_producer_id = producer_id;
+      v8f_force_producer_id[ROB_INDEX_W] =
+          ~producer_id[ROB_INDEX_W];
+      force dut.ex0_producer_id_q = v8f_force_producer_id;
+      #1;
+      tb_check32("v8f stale EX0 keeps raw index",
+                 {28'b0, dut.ex0_rob_idx_q}, {28'b0, producer_rob});
+      tb_check1("v8f stale EX0 remains raw valid", dut.ex0_valid_q, 1'b1);
+      tb_check1("v8f stale EX0 remains pre-auth", dut.ex0_pre_auth_valid_w, 1'b1);
+      tb_check1("v8f stale EX0 exact-open rejects", dut.ex0_producer_open_w, 1'b0);
+      tb_check1("v8f stale EX0 formal WB is cut", dut.ex0_wb_valid_w, 1'b0);
+      tb_check1("v8f stale EX0 PRF write is cut",
+                dut.gpr_wb0_write_valid_w, 1'b0);
+      tb_check1("v8f stale EX0 registered forward is cut",
+                dut.ex0_registered_fwd_valid_w, 1'b0);
+      tb_check1("v8f stale EX0 BusyTable wake is cut",
+                dut.u_dispatch_backend.u_busy_table.wakeup0_valid_i, 1'b0);
+      tb_check1("v8f stale EX0 integer-IQ wake is cut",
+                dut.u_dispatch_backend.u_issue_queue.wakeup0_valid_i, 1'b0);
+      tb_check1("v8f stale EX0 FP-IQ wake is cut",
+                dut.u_fp_backend.int_wake0_valid_i, 1'b0);
+      tb_check1("v8f stale EX0 ROB write is cut",
+                dut.u_dispatch_backend.u_rob.wb0_valid_i, 1'b0);
+      tb_check1("v8f stale EX0 public completion is cut",
+                execute0_valid, 1'b0);
+
+      force dut.muldiv_resp_valid_w = 1'b1;
+      force dut.muldiv_resp_rob_idx_w = 4'd7;
+      force dut.muldiv_resp_pdest_w = 6'd0;
+      force dut.muldiv_resp_data_w = 64'h0000_0000_5a5a_0007;
+      #1;
+      tb_check1("v8f stale EX0 releases WB0 to lower source",
+                dut.muldiv_rsp_to_wb0_w, 1'b1);
+      tb_check1("v8f lower source makes WB0 live", dut.wb0_valid_w, 1'b1);
+      tb_check32("v8f lower source owns released WB0",
+                 {28'b0, dut.wb0_rob_idx_w}, 32'd7);
+      tb_check64("v8f lower source payload is preserved",
+                 dut.wb0_data_w, 64'h0000_0000_5a5a_0007);
+      release dut.muldiv_resp_valid_w;
+      release dut.muldiv_resp_rob_idx_w;
+      release dut.muldiv_resp_pdest_w;
+      release dut.muldiv_resp_data_w;
+      #1;
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      release dut.ex0_producer_id_q;
+      #1;
+      tb_check1("v8f stale EX0 raw stage drains", dut.ex0_valid_q, 1'b0);
+      tb_check64("v8f stale EX0 cannot alter PRF",
+                 dut.u_phys_reg_file.regs_q[producer_pdest], prf_before);
+      tb_check1("v8f stale EX0 cannot ready BusyTable",
+                dut.u_dispatch_backend.u_busy_table.ready_q[producer_pdest],
+                1'b0);
+      tb_check1("v8f stale EX0 cannot mark ROB done",
+                dut.u_dispatch_backend.u_rob.done_q[producer_rob], 1'b0);
+      tb_check64("v8f stale EX0 cannot alter ROB data",
+                 dut.u_dispatch_backend.u_rob.data_q[producer_rob],
+                 rob_data_before);
+      $display("[V8F-EX0-PRODUCER-AUTH] stale generation dropped; WB0 lower-source replacement PASS");
+      reset_dut();
+    end
+  endtask
+
+  // Mirror the registered completion check on EX1.  EX0 remains exact and
+  // occupies WB0; stale EX1 must release WB1 to the same lower-priority raw
+  // response without exposing lane1 side effects.
+  task automatic run_v8f_ex1_completion_generation_mismatch;
+    reg [PRODUCER_ID_W-1:0] producer1_id;
+    reg [ROB_INDEX_W-1:0] producer1_rob;
+    reg [PHY_REG_ADDR_W-1:0] producer1_pdest;
+    reg [`XLEN-1:0] prf_before;
+    reg [`XLEN-1:0] rob_data_before;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1440,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd12, 64'h63);
+      set_dispatch1(32'h8000_1444,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd13, 64'h64);
+      #1;
+      producer1_id = dut.u_dispatch_backend.rob_dispatch1_producer_id_w;
+      producer1_rob = producer1_id[ROB_INDEX_W-1:0];
+      producer1_pdest = dut.dispatch1_new_pdest_probe_w;
+      prf_before = dut.u_phys_reg_file.regs_q[producer1_pdest];
+      rob_data_before = dut.u_dispatch_backend.u_rob.data_q[producer1_rob];
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f EX1 pair issues lane0", dut.issue0_fire_w, 1'b1);
+      tb_check1("v8f EX1 pair issues lane1", dut.issue1_fire_w, 1'b1);
+      tb_check1("v8f EX1 exact issue current",
+                dut.issue1_producer_current_w, 1'b1);
+      tb_check1("v8f EX1 exact early wake effective",
+                dut.early_wakeup1_valid_w, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8f EX1 exact positive EX0 open", dut.ex0_wb_valid_w, 1'b1);
+      tb_check1("v8f EX1 exact positive raw valid", dut.ex1_valid_q, 1'b1);
+      tb_check32("v8f EX1 exact positive carried id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dut.ex1_producer_id_q},
+                 {{(32-PRODUCER_ID_W){1'b0}}, producer1_id});
+      tb_check1("v8f EX1 exact positive open", dut.ex1_producer_open_w, 1'b1);
+      tb_check1("v8f EX1 exact positive WB", dut.ex1_wb_valid_w, 1'b1);
+      tb_check1("v8f EX1 forwarding bit is non-vacuous",
+                dut.ex1_down_payload_w[144], 1'b1);
+
+      v8f_force_producer_id = producer1_id;
+      v8f_force_producer_id[ROB_INDEX_W] =
+          ~producer1_id[ROB_INDEX_W];
+      force dut.ex1_producer_id_q = v8f_force_producer_id;
+      #1;
+      tb_check32("v8f stale EX1 keeps raw index",
+                 {28'b0, dut.ex1_rob_idx_q}, {28'b0, producer1_rob});
+      tb_check1("v8f stale EX1 exact-open rejects", dut.ex1_producer_open_w, 1'b0);
+      tb_check1("v8f stale EX1 formal WB is cut", dut.ex1_wb_valid_w, 1'b0);
+      tb_check1("v8f stale EX1 PRF write is cut",
+                dut.gpr_wb1_write_valid_w, 1'b0);
+      tb_check1("v8f stale EX1 registered forward is cut",
+                dut.ex1_registered_fwd_valid_w, 1'b0);
+      tb_check1("v8f stale EX1 BusyTable wake is cut",
+                dut.u_dispatch_backend.u_busy_table.wakeup1_valid_i, 1'b0);
+      tb_check1("v8f stale EX1 integer-IQ wake is cut",
+                dut.u_dispatch_backend.u_issue_queue.wakeup1_valid_i, 1'b0);
+      tb_check1("v8f stale EX1 FP-IQ wake is cut",
+                dut.u_fp_backend.int_wake1_valid_i, 1'b0);
+      tb_check1("v8f stale EX1 ROB write is cut",
+                dut.u_dispatch_backend.u_rob.wb1_valid_i, 1'b0);
+      tb_check1("v8f stale EX1 public completion is cut",
+                execute1_valid, 1'b0);
+
+      force dut.muldiv_resp_valid_w = 1'b1;
+      force dut.muldiv_resp_rob_idx_w = 4'd14;
+      force dut.muldiv_resp_pdest_w = 6'd0;
+      force dut.muldiv_resp_data_w = 64'h0000_0000_6b6b_000e;
+      #1;
+      tb_check1("v8f stale EX1 leaves exact EX0 on WB0",
+                dut.ex0_wb_valid_w && dut.wb0_valid_w, 1'b1);
+      tb_check1("v8f stale EX1 releases WB1 to lower source",
+                dut.muldiv_rsp_to_wb1_w, 1'b1);
+      tb_check1("v8f lower source makes WB1 live", dut.wb1_valid_w, 1'b1);
+      tb_check32("v8f lower source owns released WB1",
+                 {28'b0, dut.wb1_rob_idx_w}, 32'd14);
+      tb_check64("v8f lower source WB1 payload is preserved",
+                 dut.wb1_data_w, 64'h0000_0000_6b6b_000e);
+      release dut.muldiv_resp_valid_w;
+      release dut.muldiv_resp_rob_idx_w;
+      release dut.muldiv_resp_pdest_w;
+      release dut.muldiv_resp_data_w;
+      #1;
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      release dut.ex1_producer_id_q;
+      #1;
+      tb_check1("v8f stale EX1 raw stage drains", dut.ex1_valid_q, 1'b0);
+      tb_check64("v8f stale EX1 cannot alter PRF",
+                 dut.u_phys_reg_file.regs_q[producer1_pdest], prf_before);
+      tb_check1("v8f stale EX1 cannot ready BusyTable",
+                dut.u_dispatch_backend.u_busy_table.ready_q[producer1_pdest],
+                1'b0);
+      tb_check1("v8f stale EX1 cannot mark ROB done",
+                dut.u_dispatch_backend.u_rob.done_q[producer1_rob], 1'b0);
+      tb_check64("v8f stale EX1 cannot alter ROB data",
+                 dut.u_dispatch_backend.u_rob.data_q[producer1_rob],
+                 rob_data_before);
+      $display("[V8F-EX1-PRODUCER-AUTH] stale generation dropped; WB1 lower-source replacement PASS");
+      reset_dut();
+    end
+  endtask
+
+  // v8d：不用 force 构造真实 branch+ALU 双发。branch 在 EX0 形成 mispredict
+  // boundary 的同拍，严格年轻的 EX1 raw completion 已驻留，但不得穿过
+  // formal-WB/PRF/BusyTable/IQ 副作用入口。该用例在修复前可编译并稳定 RED。
+  task automatic run_v8d_int_ex_completion_kill_cut;
+    reg [ROB_INDEX_W-1:0] branch_rob;
+    reg [ROB_INDEX_W-1:0] younger_rob;
+    reg [PHY_REG_ADDR_W-1:0] younger_pdest;
+    reg [`XLEN-1:0] prf_before;
+    reg [`XLEN-1:0] rob_data_before;
+    begin
+      reset_dut();
+      set_dispatch0(32'h8000_6bc0, make_branch_ctrl(`CMP_OP_EQ),
+                    5'd0, 5'd0, 5'd0, 64'd8);
+      dispatch0_bht_idx = 10'h2e1;
+      set_dispatch1(32'h8000_6bc4,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd9, 64'h55);
+      #1;
+      tb_check1("v8d branch dispatch ready", dispatch0_ready, 1'b1);
+      tb_check1("v8d younger ALU dispatch ready", dispatch1_ready, 1'b1);
+      branch_rob = dut.dispatch0_rob_idx_w;
+      younger_rob = dut.dispatch1_rob_idx_w;
+      younger_pdest = dut.dispatch1_new_pdest_probe_w;
+      prf_before = dut.u_phys_reg_file.regs_q[younger_pdest];
+      rob_data_before = dut.u_dispatch_backend.u_rob.data_q[younger_rob];
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8d branch issues", dut.issue0_ctrlflow_fire_w, 1'b1);
+      tb_check1("v8d younger ALU issues", dut.issue1_fire_w, 1'b1);
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8d resolve valid", branch_resolve_valid, 1'b1);
+      tb_check1("v8d resolve is mispredict", branch_resolve_mispredict, 1'b1);
+      tb_check32("v8d resolve boundary identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, branch_resolve_rob_idx},
+                 {{(32-ROB_INDEX_W){1'b0}}, branch_rob});
+      tb_check1("v8d boundary raw EX0 present", dut.ex0_valid_q, 1'b1);
+      tb_check1("v8d younger raw EX1 present", dut.ex1_valid_q, 1'b1);
+      tb_check1("v8d EX1 is strictly younger",
+                ((younger_rob - dut.rob_head_idx_w) >
+                 (branch_rob - dut.rob_head_idx_w)), 1'b1);
+      tb_check32("v8d raw EX1 identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.ex1_rob_idx_q},
+                 {{(32-ROB_INDEX_W){1'b0}}, younger_rob});
+      tb_check1("v8d boundary completion survives", dut.wb0_valid_w, 1'b1);
+      tb_check32("v8d boundary completion identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.wb0_rob_idx_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, branch_rob});
+      tb_check1("v8d younger formal WB is cut", dut.wb1_valid_w, 1'b0);
+      tb_check1("v8d younger PRF write is cut",
+                dut.gpr_wb1_write_valid_w, 1'b0);
+      tb_check1("v8d younger registered forwarding is cut",
+                dut.ex1_registered_fwd_valid_w, 1'b0);
+      tb_check1("v8d younger BusyTable wake is cut",
+                dut.u_dispatch_backend.u_busy_table.wakeup1_valid_i, 1'b0);
+      tb_check1("v8d younger integer-IQ wake is cut",
+                dut.u_dispatch_backend.u_issue_queue.wakeup1_valid_i, 1'b0);
+      tb_check1("v8d younger FP-IQ integer wake is cut",
+                dut.u_fp_backend.int_wake1_valid_i, 1'b0);
+      tb_check1("v8d younger ROB write is cut",
+                dut.u_dispatch_backend.u_rob.wb1_valid_i, 1'b0);
+      tb_check1("v8d younger public completion is cut", execute1_valid, 1'b0);
+
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("v8d younger raw stage clears", dut.ex1_valid_q, 1'b0);
+      tb_check64("v8d killed producer cannot alter PRF",
+                 dut.u_phys_reg_file.regs_q[younger_pdest], prf_before);
+      tb_check1("v8d killed producer cannot mark BusyTable ready",
+                dut.u_dispatch_backend.u_busy_table.ready_q[younger_pdest],
+                1'b0);
+      tb_check1("v8d killed producer cannot mark ROB done",
+                dut.u_dispatch_backend.u_rob.done_q[younger_rob], 1'b0);
+      tb_check64("v8d killed producer cannot alter ROB data",
+                 dut.u_dispatch_backend.u_rob.data_q[younger_rob],
+                 rob_data_before);
+      tb_check1("v8d killed completion has no delayed pulse",
+                (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) ||
+                (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)),
+                1'b0);
+      $display("[V8D-INT-EX-KILL-CUT] branch=%0d younger=%0d pdest=%0d raw-before=1 raw-after=%0b",
+               branch_rob, younger_rob, younger_pdest, dut.ex1_valid_q);
+      reset_dut();
+    end
+  endtask
+
+  // 补充穷举只审 age/cut 组合函数；真实 root-cause 与 PRF 副作用仍由上面的
+  // 无 force 用例承担。这里遍历全部 head/boundary/completion 4-bit 组合，
+  // 专门防 raw-index 比较、equal 误杀和环回遗漏。
+  task automatic run_v8d_int_ex_kill_age_matrix;
+    integer head_i;
+    integer boundary_i;
+    integer completion_i;
+    integer matrix_checks;
+    integer matrix_failures;
+    reg expected_kill;
+    begin
+      reset_dut();
+      matrix_checks = 0;
+      matrix_failures = 0;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.rob_head_idx_w = v8d_force_head_rob;
+      force dut.branch_resolve_rob_idx_o = v8d_force_boundary_rob;
+      force dut.ex0_valid_q = 1'b1;
+      force dut.ex1_valid_q = 1'b1;
+      force dut.ex0_rob_idx_q = v8d_force_completion_rob;
+      force dut.ex1_rob_idx_q = v8d_force_completion_rob;
+      // v8d 只穷举 circular-age kill 函数。v8f 新增的 exact ProducerId
+      // authorization 由独立反例测试覆盖；此处固定 open，避免仅 force raw
+      // index 却未构造 ROB slot/generation 时把身份失配误记为年龄失败。
+      force dut.ex0_producer_open_w = 1'b1;
+      force dut.ex1_producer_open_w = 1'b1;
+      for (head_i = 0; head_i < 16; head_i = head_i + 1) begin
+        for (boundary_i = 0; boundary_i < 16;
+             boundary_i = boundary_i + 1) begin
+          for (completion_i = 0; completion_i < 16;
+               completion_i = completion_i + 1) begin
+            v8d_force_head_rob = head_i[ROB_INDEX_W-1:0];
+            v8d_force_boundary_rob = boundary_i[ROB_INDEX_W-1:0];
+            v8d_force_completion_rob = completion_i[ROB_INDEX_W-1:0];
+            #1;
+            expected_kill =
+                ((v8d_force_completion_rob - v8d_force_head_rob) >
+                 (v8d_force_boundary_rob - v8d_force_head_rob));
+            matrix_checks = matrix_checks + 2;
+            if ((dut.ex0_kill_now_w !== expected_kill) ||
+                (dut.ex0_wb_valid_w !== !expected_kill))
+              matrix_failures = matrix_failures + 1;
+            if ((dut.ex1_kill_now_w !== expected_kill) ||
+                (dut.ex1_wb_valid_w !== !expected_kill))
+              matrix_failures = matrix_failures + 1;
+          end
+        end
+      end
+      release dut.branch_resolve_mispredict_w;
+      release dut.rob_head_idx_w;
+      release dut.branch_resolve_rob_idx_o;
+      release dut.ex0_valid_q;
+      release dut.ex1_valid_q;
+      release dut.ex0_rob_idx_q;
+      release dut.ex1_rob_idx_q;
+      release dut.ex0_producer_open_w;
+      release dut.ex1_producer_open_w;
+      tb_check32("v8d exhaustive circular-age failures",
+                 matrix_failures, 32'd0);
+      tb_check32("v8d exhaustive circular-age checks",
+                 matrix_checks, 32'd8192);
+      $display("[V8D-INT-EX-KILL-AGE] checks=%0d failures=%0d",
+               matrix_checks, matrix_failures);
+
+      // 一个 strictly-younger raw EX0 不得继续占 completion slot；已存活的
+      // older MulDiv response 必须沿既有优先级落到 WB0，不能被 kill 连带饿死。
+      v8d_force_head_rob = 4'd8;
+      v8d_force_boundary_rob = 4'd9;
+      v8d_force_completion_rob = 4'd10;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.rob_head_idx_w = v8d_force_head_rob;
+      force dut.branch_resolve_rob_idx_o = v8d_force_boundary_rob;
+      force dut.ex0_valid_q = 1'b1;
+      force dut.ex0_rob_idx_q = v8d_force_completion_rob;
+      force dut.ex1_valid_q = 1'b0;
+      force dut.ex0_producer_open_w = 1'b1;
+      force dut.muldiv_resp_valid_w = 1'b1;
+      force dut.muldiv_resp_rob_idx_w = 4'd8;
+      force dut.muldiv_resp_pdest_w = 6'd7;
+      force dut.muldiv_resp_data_w = 64'h1234;
+      #1;
+      tb_check1("v8d killed EX0 frees slot", dut.ex0_kill_now_w, 1'b1);
+      tb_check1("v8d older MulDiv takes freed WB0",
+                dut.muldiv_rsp_to_wb0_w, 1'b1);
+      tb_check1("v8d freed WB0 remains a live completion",
+                dut.wb0_valid_w, 1'b1);
+      tb_check32("v8d freed WB0 carries alternate identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.wb0_rob_idx_w}, 32'd8);
+      release dut.branch_resolve_mispredict_w;
+      release dut.rob_head_idx_w;
+      release dut.branch_resolve_rob_idx_o;
+      release dut.ex0_valid_q;
+      release dut.ex0_rob_idx_q;
+      release dut.ex1_valid_q;
+      release dut.ex0_producer_open_w;
+      release dut.muldiv_resp_valid_w;
+      release dut.muldiv_resp_rob_idx_w;
+      release dut.muldiv_resp_pdest_w;
+      release dut.muldiv_resp_data_w;
+
+      // 当前真实可达拓扑是 boundary EX0 + strictly-younger EX1。补充锁定：
+      // EX0 继续占 WB0 时，被杀 EX1 必须释放 WB1 给更老的 long-op completion。
+      v8d_force_head_rob = 4'd14;
+      v8d_force_boundary_rob = 4'd15;
+      v8d_force_completion_rob = 4'd0;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.rob_head_idx_w = v8d_force_head_rob;
+      force dut.branch_resolve_rob_idx_o = v8d_force_boundary_rob;
+      force dut.ex0_valid_q = 1'b1;
+      force dut.ex0_rob_idx_q = v8d_force_boundary_rob;
+      force dut.ex1_valid_q = 1'b1;
+      force dut.ex1_rob_idx_q = v8d_force_completion_rob;
+      force dut.ex0_producer_open_w = 1'b1;
+      force dut.ex1_producer_open_w = 1'b1;
+      force dut.muldiv_resp_valid_w = 1'b1;
+      force dut.muldiv_resp_rob_idx_w = v8d_force_head_rob;
+      force dut.muldiv_resp_pdest_w = 6'd11;
+      force dut.muldiv_resp_data_w = 64'h5678;
+      #1;
+      tb_check1("v8d boundary EX0 survives", dut.ex0_wb_valid_w, 1'b1);
+      tb_check1("v8d reachable younger EX1 is killed",
+                dut.ex1_kill_now_w, 1'b1);
+      tb_check1("v8d killed EX1 frees WB1",
+                dut.muldiv_rsp_to_wb1_w, 1'b1);
+      tb_check32("v8d freed WB1 carries older alternate identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.wb1_rob_idx_w}, 32'd14);
+      release dut.branch_resolve_mispredict_w;
+      release dut.rob_head_idx_w;
+      release dut.branch_resolve_rob_idx_o;
+      release dut.ex0_valid_q;
+      release dut.ex0_rob_idx_q;
+      release dut.ex1_valid_q;
+      release dut.ex1_rob_idx_q;
+      release dut.ex0_producer_open_w;
+      release dut.ex1_producer_open_w;
+      release dut.muldiv_resp_valid_w;
+      release dut.muldiv_resp_rob_idx_w;
+      release dut.muldiv_resp_pdest_w;
+      release dut.muldiv_resp_data_w;
+      reset_dut();
+    end
+  endtask
+
   // T3S：lane0 memory reservation 必须是严格 non-fallthrough 边界。
   // bridge backpressure 时 reservation payload 保持，IQ raw lane0 不得借
   // 同拍 down-ready replacement 离队；flush 必须在产生副作用前清空。
@@ -5512,7 +6100,14 @@ module tb_ooo_int_backend;
     tb_errors = 0;
     reset_dut();
 
-`ifdef INT_WB_VALID_SOURCE_FOCUSED
+`ifdef INT_EX_KILL_CUT_FOCUSED
+    run_v8d_int_ex_completion_kill_cut();
+    run_v8d_int_ex_kill_age_matrix();
+`elsif INT_EX_PRODUCER_AUTH_FOCUSED
+    run_v8f_early_wakeup_generation_mismatch();
+    run_v8f_ex0_completion_generation_mismatch();
+    run_v8f_ex1_completion_generation_mismatch();
+`elsif INT_WB_VALID_SOURCE_FOCUSED
     run_p0_wb_write_valid_source_matrix();
 `elsif INT_WB_WRITE_VALID_EQUIV_NEGATIVE
     // 只 force shadow，功能 write-enable/PRF/ROB 都不受扰动；精确证明

@@ -6,7 +6,9 @@ module OooRob #(
   parameter ROB_ENTRIES = (1 << `OOO_ROB_INDEX_W),
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
   parameter ROB_COUNT_W = `OOO_ROB_COUNT_W,
-  parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
+  parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
 ) (
   input clk,
   input rst,
@@ -15,6 +17,7 @@ module OooRob #(
   input dispatch0_valid_i,
   output dispatch0_ready_o,
   output [ROB_INDEX_W-1:0] dispatch0_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] dispatch0_producer_id_o,
   input [`XLEN-1:0] dispatch0_pc_i,
   input [`XLEN-1:0] dispatch0_next_pc_i,
   input [`INST_W-1:0] dispatch0_inst_i,
@@ -29,6 +32,7 @@ module OooRob #(
   input dispatch1_valid_i,
   output dispatch1_ready_o,
   output [ROB_INDEX_W-1:0] dispatch1_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] dispatch1_producer_id_o,
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
@@ -56,6 +60,22 @@ module OooRob #(
   input [4:0] wb1_fflags_i,
   input [PHY_REG_ADDR_W-1:0] wb1_pdest_i,   // A1 生产者身份哨兵(UC-A)
 
+  // v8f scoped ProducerId authorization queries.  The current queries serve
+  // issue-time early wake; completion-open additionally requires !done.  All
+  // four are Q-only observations and must never enter transport READY.
+  input current0_query_valid_i,
+  input [PRODUCER_ID_W-1:0] current0_query_producer_id_i,
+  output current0_query_match_o,
+  input current1_query_valid_i,
+  input [PRODUCER_ID_W-1:0] current1_query_producer_id_i,
+  output current1_query_match_o,
+  input completion0_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion0_query_producer_id_i,
+  output completion0_query_match_o,
+  input completion1_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion1_query_producer_id_i,
+  output completion1_query_match_o,
+
   input commit_ready_i,
   input commit1_block_i,
   // 【serialize-at-retire Phase1 §9 修向①】mem 静默门控: head0-CSR 退休拍会触发 serial_flush,
@@ -65,7 +85,16 @@ module OooRob #(
   // commit0_fire(而非 ControlPlane 的 commit_ready)是为避开 commit_ready→commit0_valid→core_commit0_csr
   // 组合环; head0_is_csr_w 只看 inst_q/done/exception, 不依赖 commit_ready。
   input mem_quiet_i,
+  // S2-Q2 v8a：未来 context/FENCE.I owner 的末端准入。当前 live top 精确
+  // tie-high，因此只预埋接口，不改变退休行为。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o,
+  output [PRODUCER_ID_W-1:0] head0_producer_id_o,
   output commit0_valid_o,
+  output [PRODUCER_ID_W-1:0] commit0_producer_id_o,
   output [`XLEN-1:0] commit0_pc_o,
   output [`XLEN-1:0] commit0_next_pc_o,
   output [`INST_W-1:0] commit0_inst_o,
@@ -81,6 +110,7 @@ module OooRob #(
   output [`XLEN-1:0] commit0_tval_o,
 
   output commit1_valid_o,
+  output [PRODUCER_ID_W-1:0] commit1_producer_id_o,
   output [`XLEN-1:0] commit1_pc_o,
   output [`XLEN-1:0] commit1_next_pc_o,
   output [`INST_W-1:0] commit1_inst_o,
@@ -103,18 +133,20 @@ module OooRob #(
 
   // B2 ROB-walk 误预测恢复：给定存活分支 rob_idx，多周期反向 walk 把严格更年轻的 uop squash，
   // 并逐拍(2/拍)emit 其 arch_rd/old_pdest/new_pdest 供 rename 还原 + free-list 回收。
-  // 详见 design/arch/b2-branch-spec-redirect.md §4.1。kill_valid_i 暂由核接 1'b0（投机未启用）→ 本增量行为中性；
-  // walk_* 消费者(rename/free-list 恢复端口)接入见整合切片。
+  // 详见 design/arch/b2-branch-spec-redirect.md §4.1。当前由已寄存、同源的 branch
+  // mispredict packet 驱动；walk_* 已接 rename/free-list 恢复端口。
   input kill_valid_i,
   input [ROB_INDEX_W-1:0] kill_rob_idx_i,    // 存活分支 idx；squash 严格更年轻者(R+1..tail-1)
   output recover_active_o,                   // walk 进行中：核需冻结 dispatch/commit/wb
   output walk0_valid_o,
+  output [PRODUCER_ID_W-1:0] walk0_producer_id_o,
   output [`REG_ADDR_W-1:0] walk0_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] walk0_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] walk0_new_pdest_o,
   output walk0_rd_en_o,
   output walk0_is_fp_o,
   output walk1_valid_o,
+  output [PRODUCER_ID_W-1:0] walk1_producer_id_o,
   output [`REG_ADDR_W-1:0] walk1_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] walk1_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] walk1_new_pdest_o,
@@ -138,6 +170,10 @@ module OooRob #(
   // 【B-FP Phase0 地基】
   reg is_fp_rd_q [0:ROB_ENTRIES-1];
   reg [4:0] fflags_q [0:ROB_ENTRIES-1];
+
+  // v8e P1：每槽最近一次 accepted allocation 的 generation。它只建立
+  // allocation-issued 编码真源；没有 global-live collision fence 时仍不可用于 active 授权。
+  reg [PRODUCER_GEN_W-1:0] slot_generation_q [0:ROB_ENTRIES-1];
 
   reg [ROB_INDEX_W-1:0] head_q;
   reg [ROB_INDEX_W-1:0] tail_q;
@@ -166,6 +202,7 @@ module OooRob #(
   wire [4:0] head1_fflags_w;
   wire commit0_fire_w;
   wire commit1_fire_w;
+  wire head0_base_ready_w;
   wire [1:0] commit_count_w;
   wire [ROB_COUNT_W-1:0] free_slots_w;
   wire dispatch0_fire_w;
@@ -218,17 +255,92 @@ module OooRob #(
 
   assign recover_active_o   = recover_q;
   assign walk0_valid_o      = lane0_sq_w;
+  assign walk0_producer_id_o = {slot_generation_q[walk_ptr_q], walk_ptr_q};
   assign walk0_arch_rd_o    = arch_rd_q[walk_ptr_q];
   assign walk0_old_pdest_o  = old_pdest_q[walk_ptr_q];
   assign walk0_new_pdest_o  = new_pdest_q[walk_ptr_q];
   assign walk0_rd_en_o      = rd_en_q[walk_ptr_q];
   assign walk0_is_fp_o      = is_fp_rd_q[walk_ptr_q];
   assign walk1_valid_o      = lane1_sq_w;
+  assign walk1_producer_id_o = {slot_generation_q[wptr_m1_w], wptr_m1_w};
   assign walk1_arch_rd_o    = arch_rd_q[wptr_m1_w];
   assign walk1_old_pdest_o  = old_pdest_q[wptr_m1_w];
   assign walk1_new_pdest_o  = new_pdest_q[wptr_m1_w];
   assign walk1_rd_en_o      = rd_en_q[wptr_m1_w];
   assign walk1_is_fp_o      = is_fp_rd_q[wptr_m1_w];
+
+  // v8f current/open target authority.  During a selective recovery, valid_q
+  // is cleared over several walk cycles; nevertheless every strictly-younger
+  // target loses side-effect authority on the first kill edge.  Older/equal
+  // survivors remain eligible so their in-flight completion is not lost.
+  function producer_target_killed_now;
+    input [ROB_INDEX_W-1:0] target_idx;
+    reg [ROB_INDEX_W-1:0] target_age;
+    reg [ROB_INDEX_W-1:0] boundary_age;
+    begin
+      target_age = target_idx - head_q;
+      if (kill_valid_i) begin
+        boundary_age = kill_rob_idx_i - head_q;
+        producer_target_killed_now = target_age > boundary_age;
+      end else if (recover_q) begin
+        boundary_age = kill_idx_q - head_q;
+        producer_target_killed_now = target_age > boundary_age;
+      end else begin
+        producer_target_killed_now = 1'b0;
+      end
+    end
+  endfunction
+
+  // Clamp an inactive query to slot zero.  Besides making the simulation
+  // interface deterministic when an unused caller leaves the ID at X, this
+  // keeps inactive dynamic array selects out of the authorization cone.
+  wire [ROB_INDEX_W-1:0] current0_query_idx_w = current0_query_valid_i ?
+      current0_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] current1_query_idx_w = current1_query_valid_i ?
+      current1_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion0_query_idx_w = completion0_query_valid_i ?
+      completion0_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion1_query_idx_w = completion1_query_valid_i ?
+      completion1_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire current0_query_exact_w =
+      {slot_generation_q[current0_query_idx_w], current0_query_idx_w} ==
+      current0_query_producer_id_i;
+  wire current1_query_exact_w =
+      {slot_generation_q[current1_query_idx_w], current1_query_idx_w} ==
+      current1_query_producer_id_i;
+  wire completion0_query_exact_w =
+      {slot_generation_q[completion0_query_idx_w], completion0_query_idx_w} ==
+      completion0_query_producer_id_i;
+  wire completion1_query_exact_w =
+      {slot_generation_q[completion1_query_idx_w], completion1_query_idx_w} ==
+      completion1_query_producer_id_i;
+
+  assign current0_query_match_o = current0_query_valid_i && !rst && !flush_i &&
+      valid_q[current0_query_idx_w] && current0_query_exact_w &&
+      !producer_target_killed_now(current0_query_idx_w);
+  assign current1_query_match_o = current1_query_valid_i && !rst && !flush_i &&
+      valid_q[current1_query_idx_w] && current1_query_exact_w &&
+      !producer_target_killed_now(current1_query_idx_w);
+  assign completion0_query_match_o = completion0_query_valid_i && !rst && !flush_i &&
+      valid_q[completion0_query_idx_w] && !done_q[completion0_query_idx_w] &&
+      completion0_query_exact_w &&
+      !producer_target_killed_now(completion0_query_idx_w);
+  assign completion1_query_match_o = completion1_query_valid_i && !rst && !flush_i &&
+      valid_q[completion1_query_idx_w] && !done_q[completion1_query_idx_w] &&
+      completion1_query_exact_w &&
+      !producer_target_killed_now(completion1_query_idx_w);
+
+  // S2-Q2 v8a shadow：candidate 不读 commit-ready/permit；identity-valid 只回答
+  // 当前 head slot 是否仍 live。8-bit identity 目前只是 ROB index 零扩展，不能
+  // 被解释为带 generation/reuse 安全的 active owner。
+  assign head0_retire_candidate_valid_o =
+      !recovering_w && (count_q != {ROB_COUNT_W{1'b0}}) &&
+      valid_q[head_q] && head_done_w;
+  assign head0_identity_valid_o =
+      (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q];
+  assign head0_identity_o =
+      {{(`OOO_CONTEXT_ID_W-ROB_INDEX_W){1'b0}}, head_q};
+  assign head0_producer_id_o = {slot_generation_q[head_q], head_q};
 
   // 【serialize-at-retire Phase1】识别队头是否为(合法)CSR uop——用于 §9 mem-quiet 门控与禁 CSR 双提交。
   // 只看 inst/done/exception(不依赖 commit_ready), 避免与 core_commit0_csr 成组合环。head0-CSR 队头化后
@@ -237,16 +349,44 @@ module OooRob #(
       (inst_q[head_q][6:0] == `OPCODE_SYSTEM) && (inst_q[head_q][14:12] != 3'b000);
   // head0-CSR 未达 mem_quiet 时冻结其退休(mem 排空后再 commit+serial_flush, 见 §9 修向①)。
   // flag OFF 时不冻结(基线: CSR 走 drain, 退休不触发 serial_flush, 无需 mem 门控)。
-  wire head0_csr_mem_hold_w =
-      `OOO_CSR_QUEUE_HEAD && head0_is_csr_w && !mem_quiet_i;
+  wire head0_csr_mem_hold_w;
+  generate
+    if (`OOO_CSR_QUEUE_HEAD) begin : gen_csr_queue_head_hold
+      assign head0_csr_mem_hold_w = head0_is_csr_w && !mem_quiet_i;
+    end else begin : gen_no_csr_queue_head_hold
+      assign head0_csr_mem_hold_w = 1'b0;
+    end
+  endgenerate
   // head1 是否为 CSR: CSR 必须单发经 commit0 退休(否则经 commit1 会漏掉 head0_csr_commit → serial_flush/
   // csr状态写/rd覆写全不触发, 如 mtvec 静默不写)。故 head1=CSR 时禁 commit1, 逼 CSR 等到自己成 head0。
   wire head1_is_csr_w = valid_q[head1_w] && head1_done_w && !head1_exception_w &&
       (inst_q[head1_w][6:0] == `OPCODE_SYSTEM) && (inst_q[head1_w][14:12] != 3'b000);
-  assign commit0_fire_w = !recovering_w &&
-                          commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) &&
-                          valid_q[head_q] && head_done_w &&
-                          !head0_csr_mem_hold_w;
+  // v8a lane1 只形成 potential context-boundary observation；在 owner/payload
+  // 契约完成前，禁止把这个 shadow 接入 commit1 gate。
+  wire head1_is_csr_raw_w =
+      (inst_q[head1_w][6:0] == `OPCODE_SYSTEM) &&
+      (inst_q[head1_w][14:12] != 3'b000);
+  wire head1_is_sfence_vma_raw_w =
+      (inst_q[head1_w] & 32'hfe007fff) == 32'h12000073;
+  wire head1_is_xret_raw_w =
+      (inst_q[head1_w] == 32'h30200073) ||
+      (inst_q[head1_w] == 32'h10200073);
+  wire head1_is_fencei_raw_w = inst_q[head1_w] == 32'h0000100f;
+  wire head1_potential_context_boundary_w =
+      head1_is_csr_raw_w || head1_is_sfence_vma_raw_w ||
+      head1_is_xret_raw_w || head1_is_fencei_raw_w;
+  wire head1_context_boundary_shadow_w =
+      valid_q[head1_w] && head1_done_w && !head1_exception_w &&
+      head1_potential_context_boundary_w;
+  wire _unused_v8a_lane1_shadow_w = head1_context_boundary_shadow_w;
+
+  assign head0_base_ready_w = !recovering_w && commit_ready_i &&
+                              (count_q != {ROB_COUNT_W{1'b0}}) &&
+                              valid_q[head_q] && head_done_w &&
+                              !head0_csr_mem_hold_w;
+  assign commit0_fire_w = head0_base_ready_w &&
+                          head0_context_permit_i &&
+                          fencei_retire_permit_i;
   // 禁 CSR 双提交(仅 flag ON): (a) head0=CSR 时 serial_flush 刷 younger(含 head1), head1 不得同拍提交;
   //               (b) head1=CSR 时禁 commit1, 逼 CSR 单发经 commit0(否则漏 head0_csr_commit)。
   wire csr_commit1_block_w =
@@ -261,13 +401,27 @@ module OooRob #(
   // Dispatch ready 只看当前已登记的 ROB 空位，不借用同拍 commit 释放的槽。
   // 这样避免 dispatch->issue 旁路和 writeback/commit 之间形成组合环。
   assign free_slots_w = ROB_ENTRIES[ROB_COUNT_W-1:0] - count_q;
-  assign dispatch0_ready_o = !recovering_w && (free_slots_w != {ROB_COUNT_W{1'b0}});
+  // reset/flush 分支会优先吞掉本拍状态更新，因此 ready 必须同步 fail-closed；
+  // 禁止 valid&&ready 宣告 accepted、而 entry/generation 实际未写入。
+  assign dispatch0_ready_o = !rst && !flush_i && !recovering_w &&
+                             (free_slots_w != {ROB_COUNT_W{1'b0}});
   assign dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
-  assign dispatch1_ready_o = !recovering_w && (free_slots_w > {{(ROB_COUNT_W-1){1'b0}}, dispatch0_fire_w});
+  assign dispatch1_ready_o = !rst && !flush_i && !recovering_w &&
+                             (free_slots_w > {{(ROB_COUNT_W-1){1'b0}}, dispatch0_fire_w});
   assign dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   assign dispatch_count_w = {1'b0, dispatch0_fire_w} + {1'b0, dispatch1_fire_w};
   assign dispatch0_rob_idx_o = tail_q;
   assign dispatch1_rob_idx_o = rob_ptr_add(tail_q, {1'b0, dispatch0_fire_w});
+  wire [PRODUCER_GEN_W-1:0] dispatch0_generation_candidate_w =
+      slot_generation_q[dispatch0_rob_idx_o] +
+      {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+  wire [PRODUCER_GEN_W-1:0] dispatch1_generation_candidate_w =
+      slot_generation_q[dispatch1_rob_idx_o] +
+      {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+  assign dispatch0_producer_id_o =
+      {dispatch0_generation_candidate_w, dispatch0_rob_idx_o};
+  assign dispatch1_producer_id_o =
+      {dispatch1_generation_candidate_w, dispatch1_rob_idx_o};
 
 `ifdef DBRA_PROBE
   always @(posedge clk) begin
@@ -278,6 +432,7 @@ module OooRob #(
   end
 `endif
   assign commit0_valid_o = commit0_fire_w;
+  assign commit0_producer_id_o = {slot_generation_q[head_q], head_q};
   assign commit0_pc_o = pc_q[head_q];
   assign commit0_next_pc_o = next_pc_q[head_q];
   assign commit0_inst_o = inst_q[head_q];
@@ -293,6 +448,7 @@ module OooRob #(
   assign commit0_tval_o = head_tval_w;
 
   assign commit1_valid_o = commit1_fire_w;
+  assign commit1_producer_id_o = {slot_generation_q[head1_w], head1_w};
   assign commit1_pc_o = pc_q[head1_w];
   assign commit1_next_pc_o = next_pc_q[head1_w];
   assign commit1_inst_o = inst_q[head1_w];
@@ -334,6 +490,10 @@ module OooRob #(
         tval_q[idx] <= {`XLEN{1'b0}};
         is_fp_rd_q[idx] <= 1'b0;
         fflags_q[idx] <= 5'b00000;
+        // 普通 flush 只清 ROB 本地生命周期，不能让尚在外部 holder 的旧 ID
+        // 与下一 incarnation 立即重名；只有全 reset domain 的 rst 才重置编码源。
+        if (rst)
+          slot_generation_q[idx] <= {PRODUCER_GEN_W{1'b1}};
       end
       recover_q <= 1'b0;
       walk_ptr_q <= {ROB_INDEX_W{1'b0}};
@@ -423,6 +583,8 @@ module OooRob #(
       end
 
       if (dispatch0_fire_w) begin
+        slot_generation_q[dispatch0_rob_idx_o] <=
+            dispatch0_generation_candidate_w;
         valid_q[dispatch0_rob_idx_o] <= 1'b1;
         done_q[dispatch0_rob_idx_o] <= 1'b0;
         pc_q[dispatch0_rob_idx_o] <= dispatch0_pc_i;
@@ -440,6 +602,8 @@ module OooRob #(
         tval_q[dispatch0_rob_idx_o] <= {`XLEN{1'b0}};
       end
       if (dispatch1_fire_w) begin
+        slot_generation_q[dispatch1_rob_idx_o] <=
+            dispatch1_generation_candidate_w;
         valid_q[dispatch1_rob_idx_o] <= 1'b1;
         done_q[dispatch1_rob_idx_o] <= 1'b0;
         pc_q[dispatch1_rob_idx_o] <= dispatch1_pc_i;
@@ -492,6 +656,21 @@ module OooRob #(
       if (commit0_fire_w && !done_q[head_q])
         $error("[T3W-ROB-Q-RETIRE] commit0 bypassed registered done state @%0t",
                $time);
+      // 独立后果而非方程重述：任何 candidate 都必须仍对应 live、done、
+      // 非 recovery 的队头。focused negative 会在非真空 candidate 上强制破坏
+      // identity-valid，证明本断言会真实触发。
+      if ((head0_retire_candidate_valid_o === 1'b1) &&
+          ((head0_identity_valid_o !== 1'b1) ||
+           (head_done_w !== 1'b1) || (recovering_w !== 1'b0))) begin
+        $error("[S2-Q2-V8A-CANDIDATE-LIVE] retire candidate lost live/done/recovery provenance @%0t",
+               $time);
+        $fatal;
+      end
+      if (commit1_fire_w && !commit0_fire_w) begin
+        $error("[S2-Q2-V8A-RETIRE-PREFIX] lane1 retired without the older lane0 @%0t",
+               $time);
+        $fatal;
+      end
       if (commit1_fire_w && !done_q[head1_w])
         $error("[T3W-ROB-Q-RETIRE] commit1 bypassed registered done state @%0t",
                $time);
@@ -526,6 +705,26 @@ module OooRob #(
           (wb1_pdest_i !== new_pdest_q[wb1_rob_idx_i]))
         $error("[FLUSH-CONTRACT UC-A] ROB 生产者撞号 WB1 idx=%0d pdest=%0d != slot.new_pdest=%0d (pc=%h) wrong-path 生产者写复用槽 @%0t",
                wb1_rob_idx_i, wb1_pdest_i, new_pdest_q[wb1_rob_idx_i], pc_q[wb1_rob_idx_i], $time);
+      // P1 shadow 非真空合同：accepted allocation 的公开 ID 必须由该槽
+      // next-generation 与 raw index 同源组成；它不承担 active WB authorization。
+      if (dispatch0_fire_w &&
+          ((dispatch0_producer_id_o[ROB_INDEX_W-1:0] !== dispatch0_rob_idx_o) ||
+           (dispatch0_producer_id_o[PRODUCER_ID_W-1:ROB_INDEX_W] !==
+            dispatch0_generation_candidate_w)))
+        $error("[V8E-PRODUCER-ID-DISPATCH0] allocation identity/source mismatch @%0t",
+               $time);
+      if (dispatch1_fire_w &&
+          ((dispatch1_producer_id_o[ROB_INDEX_W-1:0] !== dispatch1_rob_idx_o) ||
+           (dispatch1_producer_id_o[PRODUCER_ID_W-1:ROB_INDEX_W] !==
+            dispatch1_generation_candidate_w)))
+        $error("[V8E-PRODUCER-ID-DISPATCH1] allocation identity/source mismatch @%0t",
+               $time);
+      if (head0_identity_valid_o &&
+          ((head0_producer_id_o[ROB_INDEX_W-1:0] !== head_q) ||
+           (head0_producer_id_o[PRODUCER_ID_W-1:ROB_INDEX_W] !==
+            slot_generation_q[head_q])))
+        $error("[V8E-PRODUCER-ID-HEAD] live head identity/source mismatch @%0t",
+               $time);
       // INV-4-serial: head0 CSR 退休会在下一拍触发 serial_flush; 退休拍必须已经无在飞内存事务。
       // 当前 mem_quiet_i 接 mem_idle(不含 SQ empty), 这是 §10.4 为避免 younger-store 死锁后的真实契约。
       if (`OOO_CSR_QUEUE_HEAD && commit0_fire_w && head0_is_csr_w && !mem_quiet_i)

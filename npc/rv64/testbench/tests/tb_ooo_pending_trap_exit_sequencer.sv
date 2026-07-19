@@ -6,6 +6,7 @@ module tb_ooo_pending_trap_exit_sequencer;
   reg late_clear_i;
   reg clear_exit_i;
   reg clear_arch_i;
+  reg clear_arch_squash_i;
   reg capture_exit_i;
   reg capture_exit_valid_i;
   reg capture_exit_is_ecall_i;
@@ -30,6 +31,7 @@ module tb_ooo_pending_trap_exit_sequencer;
     .late_clear_i(late_clear_i),
     .clear_exit_i(clear_exit_i),
     .clear_arch_i(clear_arch_i),
+    .clear_arch_squash_i(clear_arch_squash_i),
     .capture_exit_i(capture_exit_i),
     .capture_exit_valid_i(capture_exit_valid_i),
     .capture_exit_is_ecall_i(capture_exit_is_ecall_i),
@@ -66,6 +68,7 @@ module tb_ooo_pending_trap_exit_sequencer;
       late_clear_i = 1'b0;
       clear_exit_i = 1'b0;
       clear_arch_i = 1'b0;
+      clear_arch_squash_i = 1'b0;
       capture_exit_i = 1'b0;
       capture_exit_valid_i = 1'b0;
       capture_exit_is_ecall_i = 1'b0;
@@ -167,6 +170,21 @@ module tb_ooo_pending_trap_exit_sequencer;
     tick();
     expect_state(1'b0, 1'b1, 1'b0, 1'b0, `EXC_INST_ACCESS_FAULT,
                  64'h8000_3000, 64'h8000_3000);
+
+    // A redirect/squash and the wrong-path head trap can be observed in the
+    // same cycle.  Squash owns the younger payload: capture must not revive
+    // an orphan pending trap after the stop sequencer has already cleared.
+    clear_inputs();
+    clear_arch_i = 1'b1;
+    clear_arch_squash_i = 1'b1;
+    capture_arch_i = 1'b1;
+    capture_arch_valid_i = 1'b1;
+    capture_trap_cause_i = `EXC_ILLEGAL_INST;
+    capture_trap_pc_i = 64'h8000_031c;
+    capture_trap_tval_i = 64'hc000_1073;
+    tick();
+    expect_state(1'b0, 1'b1, 1'b0, 1'b0, {`TRAP_CAUSE_W{1'b0}},
+                 {`XLEN{1'b0}}, {`XLEN{1'b0}});
 
     clear_inputs();
     capture_exit_i = 1'b1;

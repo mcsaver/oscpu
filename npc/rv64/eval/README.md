@@ -16,10 +16,24 @@ eval/npc-eval.sh --all            # 模块 TB + riscv-tests + AM cpu-tests(CPI)
 eval/npc-eval.sh --build --all    # 先重建再全量评估
 eval/npc-eval.sh --quick          # 仅 AM cpu-tests CPI（最快性能回归）
 eval/npc-eval.sh --am --tag div-radix4   # 给结果打标签便于对比
+python3 eval/ppa/tools/check.py eval/ppa/baselines/t4t-proxy-seed.json --report-only
+python3 eval/ppa/tools/check.py eval/ppa/baselines/t4t-proxy-seed.json
 eval/npc-eval.sh --bench          # CoreMark/Dhrystone（长）
 eval/npc-eval.sh --difftest        # 计算子集逐指令对照 NEMU(自动建 difftest 核+跑+恢复 perf 基线)
 eval/npc-eval.sh --timing          # Vivado 模块 OOC 取关键模块 Logic Levels(抓时序回归;内存安全)
 eval/npc-eval.sh --fpsmoke         # 硬件 FP IEEE-754 smoke(13项; 补 soft-float AM 测不测硬件FP的盲区)
+
+```
+`eval/ppa/` 是架构/PPA 的机器门禁。普通 `npc-eval.sh` 仍负责跑测试；当前 proxy checker
+负责重新计算 CPI/IPC/throughput、校验证据 SHA 与 claim-tier 一致性，并在
+完整双发射、真 OoO、功能或 5 ns 门槛未闭合时拒绝 baseline promotion。当前 T4T manifest
+故意是 `provisional`：第一条命令以显式 report-only 输出结构报告，第二条严格检查应因
+跨域绑定、性能重复证据和架构定向证据缺失而非零退出。两点比较只用于诊断；冠军晋级必须
+提交完整候选集合给全局 Pareto 入口：
+
+```bash
+python3 eval/ppa/tools/compare.py <baseline.json> <candidate.json> --require-pairwise-eligible
+python3 eval/ppa/tools/front.py <accepted.json> <candidate...> --require-winner <baseline_id>
 ```
 
 ## 产物布局
@@ -44,7 +58,7 @@ NEMU 对 A/D/PMP 与本核有意不同,故只跑 M-mode 计算子集(不含 Sv39
 ## 三大正确性 gate（任何 RTL 改动后必须全绿）
 | gate | 内容 | 当前基准 |
 | --- | --- | --- |
-| 模块 testbench | `testbench/` 当前生产清单（iverilog） | 100/100 |
+| 模块 testbench | `testbench/` 当前 required-set（iverilog） | 102/102 |
 | 官方/特权 riscv-tests | current production sweep（tohost 协议） | 177/177 |
 | AM cpu-tests | current production sweep（ebreak GOOD TRAP） | 59/59 |
 

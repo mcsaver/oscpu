@@ -219,12 +219,12 @@ module tb_ooo_fetch_packet_fifo;
   function automatic [`XLEN-1:0] imm0_of;
     input [`XLEN-1:0] pc;
     input [`INST_W-1:0] inst;
-    begin imm0_of = {pc[31:0], inst}; end
+    begin imm0_of = {{32{inst[31]}}, inst}; end
   endfunction
   function automatic [`XLEN-1:0] imm1_of;
     input [`XLEN-1:0] pc;
     input [`INST_W-1:0] inst;
-    begin imm1_of = ~{pc[31:0], inst}; end
+    begin imm1_of = {{32{~inst[31]}}, ~inst}; end
   endfunction
   // B2 S2: 截断位与 slot0 pred-taken 语义互斥(taken 则截断)
   function automatic slot1_valid_of;

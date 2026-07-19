@@ -89,3 +89,36 @@ wrapper 抽取为纯结构变换：每个 wrapper 只把跨边界信号导出为
   当前单实例独立 wrapper 无收益。
 - `OooIntBackend` 巨石的内部拆分仍是独立战线，不属于本 wrapper 分层范围
   （`OooFpPendingExec` 已随 FP 迁域 A 删除）。
+
+## S2-Q2 v8a neutral shadow 装配边界
+
+`NpcCoreTop` 产生 `head0_context_shadow_permit_w=1'b1` 与
+`fencei_shadow_permit_w=1'b1`，经 `u_ooo_core` 和 execute 子树逐级传到 ROB；ROB 的
+`head0_retire_candidate_valid_o/head0_identity_valid_o/head0_identity_o` 沿同一路径返回。
+
+- Glue 与六层 wrapper 只作同名端口映射，无新增状态、选择器或 writer；identity 全链固定
+  ``[`OOO_CONTEXT_ID_W-1:0]``。
+- 三个 observation 在 v8a 顶层只进入命名 unused sink/验证观测，不得成为 CSR/MMU/FENCE、
+  commit、dispatch、flush 或 epoch 的 active consumer。
+- 顶层 tie-high 是本切片行为等价的充分条件；未来激活 permit 必须先关闭 v8b 的 full identity、
+  same-owner payload、FENCE.I transaction、Q1 abort 和 flush/live-head blocker，不能直接改常量。
+- wrapper 无状态，故 reset/flush/kill 不新增保持规则；identity-valid 由 ROB live slot 单一真源回答。
+
+## R4-S0 memory attribute 装配边界
+
+`OooCoreTopGlue` 只透传 `mem_req_cacheable_o/mem_rsp_cacheable_i`，不得解释 PBMT、PMA、
+VA/PA 范围或重算 cacheability。最终属性的 producer 是 `OooMemAxiBridge` 的 post-translation
+分类点；owner 是 probe 后的 SQ entry；consumer 是 physical drain 与 B-terminal D-cache
+维护。Glue 不拥有其中任何状态。
+
+装配不变量：
+
+- response 的 `{PA, cacheability, fault}` 必须属于同一 memory owner；fault response 不得把
+  cacheability 写入 SQ；
+- SQ drain 的 `{PA, cacheability}` 必须原样回到 bridge 的 `pretrans` request station；Glue
+  不得以 live CSR/PTE 或地址范围覆盖；
+- flush/restore 不得让属性从一个 ROB/SQ token 串到另一个 owner；已发 physical nokill store
+  继续 drain，未发的 killed owner 按既有年龄规则清除；
+- S0 Boolean 只为兼容迁移，NC/IO 合并且 memory datapath 仍单 owner。S1 typed ABI 和 S2
+  双 memory owner 接入时，Glue 只能扩展同构 bundle/transport slot，不得以 lane 编号恢复
+  静态角色或复制 lane0 payload 伪造双端口。

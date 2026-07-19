@@ -157,3 +157,34 @@
 - decision: S1 focused 判 GREEN，但仍是 `intermediate_checkpoint`。未跑 Linux、103 项 full
   regression、benchmark、synth/STA/PPA；合同 102 与现状 103 漂移、九项架构 RED、Power
   unqualified 继续阻止 seed/front/canonical/champion。
+
+## [2026-07-18] r4-s2-q1-mmu-epoch-owner-adoption — PASS_SOURCE_CATALOG_ONLY
+
+- owner: root + independent reviewers
+- action: 将 standalone `OooMmuEpochOwner` 纳入唯一 filelist/Makefile/spec/canonical runner，补齐
+  release/assert 正例、完整 assertion negative、compile-success exact-oracle mutation、lint/style/Yosys
+  与 adoption source manifest；并修复 full module 中 typed response provenance 的悬空 X。
+- result: 正例 `2/2`、negative `4/4`、mutation `7/7`、fresh module aggregate `104/104`；
+  `adoption-sources.sha256` 9/9 OK，adoption checker PASS，独立 source-catalog 审查无 P0/P1/P2。
+- decision: Q1 只判 source-catalog adoption GREEN。leaf 尚未 live instantiate，不产生 selective squash、
+  full quiet、dynamic epoch/wrap、双 memory、Linux、200 MHz 或 PPA 声明。
+
+## [2026-07-18] r4-s2-q2-live-epoch-contract-hardening — EXPECTED_LIVE_RED
+
+- owner: root + independent contract reviewers
+- action: 冻结 mem0-only `CAPTURE→SQUASH→WAIT_QUIET→GRANT` executable manifest；v7 checker 同时覆盖
+  release/`OOO_ASSERT` active source 与 elaborated generate，锁定 concrete macro/layout、exact
+  width/instance/expression/payload、FENCE.I/MIQ/true memory-leaf producer、guarded epoch/ROB/irrevocable
+  storage/reset-arm、set-dominant squash completion、全 writer 唯一性、任意深度 concat、unknown/system
+  task actual、internal any-generate、module lexical scope、exact positive reset/clock event、唯一连续驱动、
+  guarded full ancestor path 与 SQ fill epoch canonical provenance；并新增 exact non-reset path、内嵌 timing
+  control/call actual、unparenthesized procedural span、unknown child/primitive driver、module lexical-only port
+  direction/width、required-port critical symbols、canonical clk/rst ownership 与 runner pre/post source snapshot。
+- result: v7 self-test `162/162`；release 与 `OOO_ASSERT` 各返回 `rc=1`、931 项 RED，聚合 1862 项；RED digest
+  `fc5baa96190e9bcac70248f912523f8ae9192045885d6023b6cb940f4675a592`，contract lock
+  `d830e31698425f431ad92fc907e2748b151399539e9736a0abfc0ee7d9d2d5fa`，baseline lock
+  `abfe4e248f27e50d4f6cafc69f7429dba37e36544b3a5d6ec01248993ed1dc88`；completion marker 仅在全门通过后生成，
+  28-path pre/post snapshot byte-identical，并绑定 self-test/readiness/rc/canonical+pre+post sources/source-check/
+  summary 全部摘要。
+- decision: 这是可审计 implementation gap inventory，不是 live integration 或 final freeze；structural
+  future PASS 也只是 necessary-only，必须继续以 directed RTL/full regression/Linux/PPA 硬门闭合语义。

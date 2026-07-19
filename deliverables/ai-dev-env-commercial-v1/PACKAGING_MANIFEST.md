@@ -8,7 +8,9 @@
 | `.github/ai-env/contracts/agent-env-schema-contract.json` | SQLite schema/API contract |
 | `.github/ai-env/contracts/agent-env-runtime-artifacts.json` | 源码面与运行态 artifact 边界 |
 | `.github/ai-env/contracts/agent-env-delivery.json` | 商业交付 readiness contract |
+| `.github/ai-env/contracts/agent-env-rtl-task-contract.json` | 本地 RTL 子任务最小权限与受阻分流机器合同 |
 | `.github/skills/agent-env-maintenance/SKILL.md` | 标准化维护规则 |
+| `.github/skills/prepare-rtl-task-contract/` | RTL 子任务契约生成、校验、渲染与前向使用规则 |
 | `.github/e2e/profiles/agent-system.tsv` | 交付验收 profile |
 | `scripts/agent-maintain.sh` | 维护总门禁 |
 | `scripts/package-ai-dev-env.sh` | 可交付包生成器 |

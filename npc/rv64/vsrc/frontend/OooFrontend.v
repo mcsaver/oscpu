@@ -440,6 +440,7 @@ module OooFrontend #(
   wire fetch_rsp_can_enqueue_w;
   wire fetch_rsp_control_stop_w;
   wire [`XLEN-1:0] fetch_rsp_packet_next_pc_w;
+  wire [`XLEN-1:0] fetch_rsp_packet_raw_next_pc_w;
   wire fifo_can_accept_rsp_w;
   wire fifo_clear_w;
   wire [FETCH_COUNT_W-1:0] fifo_count_q;
@@ -1048,6 +1049,7 @@ module OooFrontend #(
     .dec1_branch_o(fetch_dec1_branch_w),
     .dec1_bimm_o(fetch_dec1_bimm_w),
     .packet_next_pc_o(fetch_rsp_packet_next_pc_w),
+    .packet_raw_next_pc_o(fetch_rsp_packet_raw_next_pc_w),
     .fault_tval_o(fetch_dec_fault_tval_w)
   );
 
@@ -1489,7 +1491,7 @@ module OooFrontend #(
   OooFetchRequestMux u_fetch_request_mux (
     .outstanding_valid_i(outstanding_valid_q),
     .fetch_rsp_valid_i(fetch_rsp_valid_i),
-    .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
+    .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_raw_next_pc_w),
     .next_fetch_pc_i(next_fetch_pc_q),
     .direct_jal_fire_i(direct_jal_fire_w),
     .direct_ret0_fire_i(direct_ret0_fire_w),
@@ -2399,6 +2401,18 @@ module OooFrontend #(
         (fetch_rsp_inst1_i[1:0] == 2'b11) &&
         (fetch_dec1_resp_w !== fetch_rsp_resp1_i))
       $error("[IFU-FETCH-G2-B6-UU] B=6 32+32 slot1 did not consume second-segment fault");
+  end
+  // R2.3: raw successor payload may be consumed only by a real successful turnover.
+  wire r2p3_raw_successor_fire_w = fetch_req_fire_w && outstanding_valid_q &&
+      !redirect_fetch_req_valid_w && !branch_prefetch_req_valid_w;
+  always @(posedge clk) if (!rst && r2p3_raw_successor_fire_w) begin
+    if (!fetch_rsp_valid_i || !fetch_rsp_fire_w || !fetch_rsp_enqueue_w ||
+        (fetch_dec0_resp_w !== 2'b00) || (fetch_dec1_resp_w !== 2'b00))
+      $error("[IFU-R2P3-RAW-TOKEN] raw successor fired without a successful response owner");
+    if (fetch_rsp_packet_raw_next_pc_w !== fetch_rsp_packet_next_pc_w)
+      $error("[IFU-R2P3-RAW-EQ] consumed raw successor differs from semantic successor");
+    if (fetch_req_pc_o !== fetch_rsp_packet_raw_next_pc_w)
+      $error("[IFU-R2P3-RAW-PC] normal turnover did not select the raw successor payload");
   end
 `endif
 

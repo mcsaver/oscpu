@@ -541,3 +541,39 @@ CsrFile exact effective-value classifier
 
 上述任一环缺失时，只能记录 intermediate GREEN；整个 S2 exact-owner epoch checkpoint 仍必须保持
 **implementation RED**。
+
+## 9. Q0 implementation status: local bridge registered-fact idle
+
+Q0 has now implemented and verified only the `bridge explicit registered idle`
+input fact named in the completion condition above. The output is not itself
+registered; it is a zero-latency reduction of bridge/D-cache registered facts,
+which avoids the one-cycle false-idle hole after request fire.
+
+The focused release/assert runs cover station, AR/R, AW/W/B, S_RESP, real RMW,
+and PTW A/D paths. A state-only implementation and a sticky-low implementation
+both fail at unique expected markers. The full source-bound bridge and
+`NpcCoreTop` wrapper runners also pass after rebinding their manifests.
+
+Detailed evidence and `/tmp` provenance are in
+`s2-q0-bridge-idle-checkpoint.md`. This closes only Q0. Sections 4.2--4.6,
+the standalone epoch owner, the effective-value classifier, pre-transition
+lock/selective squash, grant-gated state update, and the true second memory path
+remain RED.
+
+## 9. Q0 implementation status: local bridge registered-fact idle
+
+Q0 has now implemented and verified only the `bridge explicit registered idle`
+input fact named in the completion condition above. The output is not itself
+registered; it is a zero-latency reduction of bridge/D-cache registered facts,
+which avoids the one-cycle false-idle hole after request fire.
+
+The focused release/assert runs cover station, AR/R, AW/W/B, S_RESP, real RMW,
+and PTW A/D paths. A state-only implementation and a sticky-low implementation
+both fail at unique expected markers. The full source-bound bridge and
+`NpcCoreTop` wrapper runners also pass after rebinding their manifests.
+
+Detailed evidence and `/tmp` provenance are in
+`s2-q0-bridge-idle-checkpoint.md`. This closes only Q0. Sections 4.2--4.6,
+the standalone epoch owner, the effective-value classifier, pre-transition
+lock/selective squash, grant-gated state update, and the true second memory path
+remain RED.

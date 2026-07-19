@@ -163,6 +163,7 @@ module tb_ooo_fetch_page_end_fault;
     .dec1_branch_o(dec1_branch),
     .dec1_bimm_o(dec1_bimm),
     .packet_next_pc_o(packet_next_pc),
+    .packet_raw_next_pc_o(),
     .fault_tval_o(dec_fault_tval)
   );
 

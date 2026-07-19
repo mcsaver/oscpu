@@ -1,0 +1,33 @@
+{
+  "schema": "npc-rv64-ppa-baseline-index-v1",
+  "canonical": null,
+  "engineering_recovery_baseline": "r3p6-recovery-baseline.json",
+  "architecture_feasible_seed": null,
+  "architecture_feasible_seed_transition": {
+    "transition_id": "r3p6-infeasible-anchor-to-first-feasible-seed-v1",
+    "source_anchor": "r3p6-recovery-baseline.json",
+    "one_time": true,
+    "second_transition_allowed": false,
+    "unqualified_power_front_accepted": false,
+    "unqualified_power_canonical": false,
+    "unqualified_power_ppa_champion": false,
+    "unqualified_total_area_front_accepted": false,
+    "unqualified_total_area_canonical": false
+  },
+  "implementation_correctness_checkpoints": [
+    "r4-s0-correctness-checkpoint.json",
+    "r4-p0a-timing-recovery-checkpoint.json"
+  ],
+  "provisional_seed": "t4t-proxy-seed.json",
+  "historical_performance_anchor": "g2-performance-anchor.json",
+  "promotion_blockers": [
+    "same-design source/config/binary/image/netlist/STA binding",
+    "same-image official/AM/difftest functional summaries for R3.6",
+    "frontend II=1 directed evidence",
+    "complete pair matrix including load/load, load/store, store/load, and store/store",
+    "two independent AGU/translation/LSQ/cache-request memory issue owners",
+    "true-OoO long-latency directed evidence",
+    "first architecture-feasible seed satisfying the one-time R3.6 transition",
+    "qualified workload power with macro internal/leakage power"
+  ]
+}

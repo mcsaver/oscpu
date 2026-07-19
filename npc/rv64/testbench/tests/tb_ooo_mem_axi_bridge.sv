@@ -68,6 +68,7 @@ module tb_ooo_mem_axi_bridge #(
   wire mem0_station_query_valid;
   wire [4:0] mem0_station_query_token;
   wire [31:0] mem0_owner_residency_mask;
+  wire mem0_idle;
   reg [1:0] owner_kind_model [0:31];
   reg [1:0] owner_epoch_model [0:31];
   reg [`XLEN-1:0] owner_tval_model [0:31];
@@ -232,6 +233,7 @@ module tb_ooo_mem_axi_bridge #(
     .mem0_station_query_valid_o(mem0_station_query_valid),
     .mem0_station_query_token_o(mem0_station_query_token),
     .mem0_owner_residency_mask_o(mem0_owner_residency_mask),
+    .mem0_idle_o(mem0_idle),
     .translate_active_o(mem_translate_active),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
@@ -3531,6 +3533,136 @@ module tb_ooo_mem_axi_bridge #(
     end
   endtask
 
+  // S2-Q0: prove the local bridge quiet fact over real request/AXI paths.
+  // The short hierarchical RMW pulse isolates the D-cache registered tail
+  // term structurally; the subsequent store_rmw task proves the reachable RMW
+  // trajectory.  Neither observation is a claim of final global memory quiet.
+  task automatic s2_q0_bridge_registered_facts_idle;
+    localparam [`XLEN-1:0] READ_ADDR = 64'h0000_0000_8000_f000;
+    localparam [`XLEN-1:0] WRITE_ADDR = 64'h0000_0000_8000_f080;
+    begin
+      clear_inputs();
+      tick();
+      #1;
+      tb_check1("S2-Q0 empty bridge reports idle", mem0_idle, 1'b1);
+
+      // External VALID alone is not bridge ownership.  The fire edge creates
+      // a station owner while the FSM is still S_IDLE, which kills a broken
+      // state-only implementation and a one-cycle delayed idle register.
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = READ_ADDR;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1("S2-Q0 presented unowned request leaves idle", mem0_idle, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("S2-Q0 station owner clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 station window remains FSM idle",
+                dut.state_q == 4'd0, 1'b1);
+      tb_check1("S2-Q0 station fact is registered", dut.stg_valid_q, 1'b1);
+
+      tick();
+      #1;
+      tb_check1("S2-Q0 lookup owner clears idle", mem0_idle, 1'b0);
+      tick();
+      #1;
+      tb_check1("S2-Q0 stalled AR owner clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 stalled AR is presented", lsu_axi_arvalid, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("S2-Q0 R drain owner clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 R drain ready", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0123_4567_89ab_cdef;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("S2-Q0 held response clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 held response visible", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("S2-Q0 read terminal restores idle", mem0_idle, 1'b1);
+
+      // A typed pretranslated NC store gives independent AW/W ownership and
+      // a real aggregate-B/S_RESP trajectory without a cache RMW dependency.
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_NC;
+      mem0_req_cacheable = 1'b0;
+      mem0_req_addr = WRITE_ADDR;
+      mem0_req_wdata = 64'h55aa_0123_4567_89ab;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("S2-Q0 write station clears idle", mem0_idle, 1'b0);
+      tick();
+      #1;
+      tb_check1("S2-Q0 AW/W owner clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 AW/W both presented",
+                lsu_axi_awvalid & lsu_axi_wvalid, 1'b1);
+      lsu_axi_awready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      #1;
+      tb_check1("S2-Q0 AW-only completion still non-idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 W remains owned", lsu_axi_wvalid, 1'b1);
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("S2-Q0 B wait clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 B wait ready", lsu_axi_bready, 1'b1);
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b00;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("S2-Q0 write S_RESP clears idle", mem0_idle, 1'b0);
+      tb_check1("S2-Q0 write response visible", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      clear_inputs();
+      #1;
+      tb_check1("S2-Q0 write terminal restores idle", mem0_idle, 1'b1);
+
+      // Isolate the registered D-cache macro tail term.  This is structural
+      // coverage only; the normal store task immediately below supplies the
+      // reachable RMW trace.
+      force dut.u_dcache.rmw_pending_q = 1'b1;
+      #1;
+      tb_check1("S2-Q0 isolated RMW tail clears idle", mem0_idle, 1'b0);
+      release dut.u_dcache.rmw_pending_q;
+      // Verilog release leaves a procedural reg at the forced value until its
+      // owning always block assigns it again; one edge performs that clear.
+      tick();
+      #1;
+      tb_check1("S2-Q0 released RMW tail restores idle", mem0_idle, 1'b1);
+
+      store_rmw_write_update_and_bubble();
+      #1;
+      tb_check1("S2-Q0 reachable RMW path terminates idle", mem0_idle, 1'b1);
+
+      // The hardware A/D path exercises PTW read ownership plus an escaped
+      // AW/W/B maintenance drain.  It returns through an exact drop terminal.
+      s2_g1_focused_killed_ad_maintenance();
+      #1;
+      tb_check1("S2-Q0 PTW A/D drain terminates idle", mem0_idle, 1'b1);
+      $display("[S2-Q0-BRG-IDLE][PASS] station+AR/R+AW/W/B+S_RESP+RMW+PTW-AD");
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active | mem0_rsp_cacheable;
@@ -3614,6 +3746,7 @@ module tb_ooo_mem_axi_bridge #(
       5: s2_g1_focused_killed_ad_maintenance();
       6: s2_g1_focused_killed_write_mismatch_failclosed();
       7: s2_g1_focused_prewrite_kill_no_authority();
+      8: s2_q0_bridge_registered_facts_idle();
       default: begin
         $display("[S2-G1-BRG-FOCUSED][FAIL] unsupported case=%0d", S2_G1_CASE);
         tb_errors = tb_errors + 1;

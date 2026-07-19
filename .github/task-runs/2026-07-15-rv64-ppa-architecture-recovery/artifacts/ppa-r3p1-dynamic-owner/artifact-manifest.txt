@@ -1,0 +1,9 @@
+baseline_commit 6695728f68d6f62952a35f1b8ee90d8fff331c06
+patch_lines 1667
+patch_files 8
+module_tests 3
+apply_checks PASS
+construction_sandbox removed_after_export
+linux not_run
+synthesis not_run
+sta not_run

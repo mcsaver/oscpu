@@ -8,6 +8,7 @@ module tb_ooo_memory_request_gate;
   reg pending_system_satp_write_commit;
   reg pending_system_sfence_commit;
 
+  reg pending_system_fencei_commit;
   reg stop_pending;
   reg backend_drained;
 
@@ -39,7 +40,7 @@ module tb_ooo_memory_request_gate;
     .checkpoint_mem_flush_i(checkpoint_mem_flush),
     .pending_system_satp_write_commit_i(pending_system_satp_write_commit),
     .pending_system_sfence_commit_i(pending_system_sfence_commit),
-    .pending_system_fencei_commit_i(1'b0),
+    .pending_system_fencei_commit_i(pending_system_fencei_commit),
     .stop_pending_i(stop_pending),
     .backend_drained_i(backend_drained),
     .core_mem_req_valid_i(core_mem_req_valid),
@@ -93,6 +94,7 @@ module tb_ooo_memory_request_gate;
       pending_system_satp_write_commit = 1'b0;
       pending_system_sfence_commit = 1'b0;
       stop_pending = 1'b0;
+      pending_system_fencei_commit = 1'b0;
       backend_drained = 1'b0;
       core_mem_req_valid = 1'b0;
       core_mem_req_write = 1'b0;
@@ -146,6 +148,22 @@ module tb_ooo_memory_request_gate;
     #1;
     tb_check1("sfence mmu flush next cycle", mmu_flush, 1'b1);
 
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
+    pending_system_sfence_commit = 1'b0;
+    #1;
+    tb_check1("sfence mmu flush single pulse", mmu_flush, 1'b0);
+
+    // R2.5: ordinary stores no longer drive I$ invalidation.  The architected
+    // self-modifying-code visibility event remains the serialized FENCE.I
+    // commit, which must still generate the registered mmu_flush pulse.
+    pending_system_fencei_commit = 1'b1;
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
+    pending_system_fencei_commit = 1'b0;
+    #1;
+    tb_check1("fence.i mmu flush next cycle", mmu_flush, 1'b1);
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
+    #1;
+    tb_check1("fence.i mmu flush single pulse", mmu_flush, 1'b0);
     tb_finish("tb_ooo_memory_request_gate");
   end
 endmodule

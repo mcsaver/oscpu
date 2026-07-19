@@ -63,16 +63,22 @@ module OooClmulUnit #(
       {1'b0, rhs_right_shift_q[`XLEN-1:1]};
   wire iter_last_w = iter_q == 7'd63;
 
-  // UC-A mispredict-kill: age 表达式逐字复用 OooFpArithGate fp_meta_killed(严格年轻 '>', 环形模减)。
-  function clmul_killed;
-    input [ROB_INDEX_W-1:0] idx;
-    clmul_killed = kill_valid_i &&
-        ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
-  endfunction
+  // UC-A mispredict-kill: age 表达式与 MulDiv 同构（严格年轻 '>'，环形模减）。
+  // 禁止把 kill/head/cut 作为 function 的 ambient 依赖：Icarus
+  // 不会在只变化这些自由变量时稳定重算连续赋值，会让
+  // matching kill 同拍漏出 stale response。三个 ROB index 等宽模减，
+  // 自然覆盖 tail/head 环回；严格 '>' 保留 kill 点自身。
+  wire [ROB_INDEX_W-1:0] kill_age_thresh_w =
+      kill_rob_idx_i - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] kill_age_resp_w =
+      resp_rob_idx_q - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] kill_age_req_w =
+      req_rob_idx_i - rob_head_idx_i;
   wire kill_inflight_w =
       ((state_q == STATE_RUN) || (state_q == STATE_RESP)) &&
-      clmul_killed(resp_rob_idx_q);
-  wire kill_new_req_w = req_fire_w && clmul_killed(req_rob_idx_i);
+      kill_valid_i && (kill_age_resp_w > kill_age_thresh_w);
+  wire kill_new_req_w =
+      req_fire_w && kill_valid_i && (kill_age_req_w > kill_age_thresh_w);
 
   assign req_ready_o = state_q == STATE_IDLE;
   assign resp_valid_o = (state_q == STATE_RESP) && !kill_inflight_w;

@@ -2,7 +2,8 @@
 
 > 模块：`OooIntBackend`、`OooDispatchBackend`、`OooIntIssueQueue`、
 > `OooPhysRegFile`。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：T3M 接口冻结，等待 RTL、功能与 fresh 5 ns 裁决。
+> 状态：T3M sticky-only 合同已落地；2026-07-19 v8d 进一步补齐整数 EX completion
+> 在 selective-kill 同拍的授权截断。fresh 5 ns/PPA 仍须由独立 current-design 证据裁决。
 
 ## 1. 目的、根因与范围
 
@@ -68,7 +69,9 @@ cycle N+1：dependent 最早可 select，并从 regs_q 读到新值。
 1. **dispatch + WB**：新 consumer 的 `src*_ready_next` 必须 OR 匹配的正式 wake；N 拍不
    issue，N 沿同时入队/写 PRF/置 ready，N+1 可发射，唯一 pulse 不丢。
 2. **compaction + WB**：未 fire survivor 搬移时必须在 next-state 合并 wake，不能只复制旧 ready。
-3. **kill + WB**：严格年轻后缀被清；存活前缀吸收 wake。kill 当拍 issue=0、dispatch=0。
+3. **kill + WB**：严格年轻 raw EX completion 先在 WB/PRF/Busy/IQ/ROB 入口组合失去授权，
+   不属于 formal WB；存活的 boundary/equal 与 older completion 才可被前缀吸收并 wake。
+   kill 当拍 issue=0、dispatch=0，stage `kill_i` 负责沿上清状态，不能替代同沿副作用截断。
 4. **双 WB / 双源**：src1/src2 可分别匹配 lane0/lane1，同沿后均 ready；同地址双写仍由
    PRF 既有 write1 后写覆盖给出确定值。
 5. **flush + WB**：flush/recover 胜出；IQ 不保留项，PRF 从 committed GPR 恢复，旧 wake/write
@@ -121,5 +124,7 @@ write-through。mutation 必须编译成功并由行为/断言杀死，编译失
 
 ## 7. 变更记录
 
+- 2026-07-19（v8d）：补充 raw/effective completion、strict-younger kill 与 survivor-WB 合同；
+  禁止用“ROB 后续 squash”解释 pre-ROB PRF/wakeup 副作用。
 - 2026-07-13：T3M 接口冻结；定义 EX sticky-only、PRF stored-only、碰撞/flush/kill
   合同、可证伪门禁与 fresh 5 ns 裁决口径。

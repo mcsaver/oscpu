@@ -1,3 +1,3 @@
 [S2-G1-BRG-RSP-OWNER] response transport mismatched edge-old owner @19
-FATAL: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v:1871:
+FATAL: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v:1918:
        Time: 19  Scope: tb_ooo_mem_axi_bridge.dut

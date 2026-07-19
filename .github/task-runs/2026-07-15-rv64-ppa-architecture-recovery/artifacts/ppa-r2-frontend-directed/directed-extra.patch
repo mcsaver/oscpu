@@ -1,0 +1,699 @@
+diff --git a/npc/rv64/testbench/Makefile b/npc/rv64/testbench/Makefile
+index 862ec982d..a94e90079 100644
+--- a/npc/rv64/testbench/Makefile
++++ b/npc/rv64/testbench/Makefile
+@@ -215,7 +215,7 @@ TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate
+ TB_SRCS_tb_pipe_stage_reg := tests/tb_pipe_stage_reg.sv $(RTL_PIPE_STAGE_REG)
+ TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
+ TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
+-TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
++TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_axi_access_attrs := tests/tb_ooo_fetch_axi_access_attrs.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+ TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+diff --git a/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv b/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv
+index b58ac8302..77d4bc19f 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv
+@@ -15,6 +15,7 @@ module tb_ooo_fetch_axi_bridge;
+   reg fetch_req_valid;
+   wire fetch_req_ready;
+   reg [`XLEN-1:0] fetch_req_pc;
++  reg tb_decode_follow_en;
+   wire [`XLEN-1:0] fetch_req_owner_pc;
+   wire fetch_rsp_valid;
+   reg fetch_rsp_ready;
+@@ -32,6 +33,18 @@ module tb_ooo_fetch_axi_bridge;
+   wire ifu_axi_rready;
+   reg [`XLEN-1:0] ifu_axi_rdata;
+   reg [1:0] ifu_axi_rresp;
++  wire [`XLEN-1:0] tb_dec0_pc;
++  wire [`XLEN-1:0] tb_dec0_next_pc;
++  wire [`INST_W-1:0] tb_dec0_inst;
++  wire [1:0] tb_dec0_resp;
++  wire [`XLEN-1:0] tb_dec1_pc;
++  wire [`XLEN-1:0] tb_dec1_next_pc;
++  wire [`INST_W-1:0] tb_dec1_inst;
++  wire [1:0] tb_dec1_resp;
++  wire [`XLEN-1:0] tb_packet_next_pc;
++  wire [`XLEN-1:0] fetch_req_pc_to_dut =
++      (tb_decode_follow_en && fetch_rsp_valid) ?
++      tb_packet_next_pc : fetch_req_pc;
+   // HW-managed A 更新写通道
+   wire ifu_axi_awvalid;
+   reg ifu_axi_awready;
+@@ -48,6 +61,7 @@ module tb_ooo_fetch_axi_bridge;
+   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
+   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
+   localparam [3:0] S_IDLE_TB = 4'd0;
++  localparam [3:0] S_AR0_TB = 4'd3;
+   localparam [3:0] S_WALK_AR_TB = 4'd1;
+   localparam [3:0] S_R0_TB = 4'd4;
+   localparam [3:0] S_RESP_TB = 4'd7;
+@@ -75,6 +89,8 @@ module tb_ooo_fetch_axi_bridge;
+   localparam [`XLEN-1:0] NO_ACCESS_PA = 64'h0000_0000_8200_c000;
+   localparam [`XLEN-1:0] SATP_VALUE =
+       64'h8000_0000_0000_0000 | (ROOT_PT >> 12);
++  localparam [`XLEN-1:0] SATP_ASID1 =
++      SATP_VALUE | 64'h0000_1000_0000_0000;
+   localparam [`XLEN-1:0] PTE_NONLEAF_FLAGS = 64'h001;
+   localparam [`XLEN-1:0] PTE_USER_X_FLAGS = 64'h0df;
+   localparam [`XLEN-1:0] PTE_USER_X_NO_ACCESS_FLAGS = 64'h09f;
+@@ -87,6 +103,19 @@ module tb_ooo_fetch_axi_bridge;
+   localparam [`XLEN-1:0] FUSION_BEAT1 = 64'h0020_0113_0000_0013;
+   localparam [`XLEN-1:0] FUSION_BEAT2 = 64'h0030_0193_0000_0013;
+   localparam [`XLEN-1:0] FUSION_BEAT3 = 64'h0040_0213_0000_0013;
++  // Directed II=1 contexts use distinct FPC and ITLB indices.  U/ASID0 owns
++  // a two-RVC 4B footprint; S/ASID1 owns a conventional 8B packet.
++  localparam [`XLEN-1:0] PAGED_U_PC = USER_VA + 64'h40;
++  localparam [`XLEN-1:0] PAGED_U_PA = USER_PA + 64'h40;
++  localparam [`XLEN-1:0] PAGED_S_PC = SUP_VA + 64'h80;
++  localparam [`XLEN-1:0] PAGED_S_PA = SUP_PA + 64'h80;
++  localparam [`XLEN-1:0] PAGED_U_BEAT = 64'h0000_0000_0001_0001;
++  localparam [`XLEN-1:0] PAGED_S_BEAT = 64'h0050_0293_0060_0313;
++  // Mixed packet: C.NOP followed by 32-bit ADDI, hence packet-next-PC=PC+6.
++  localparam [`XLEN-1:0] MIXED_PC = 64'h0000_0000_8000_1242;
++  localparam [`XLEN-1:0] MIXED_NEXT_PC = MIXED_PC + 64'd6;
++  localparam [`XLEN-1:0] MIXED_BEAT = 64'h0000_0010_0093_0001;
++  localparam [`XLEN-1:0] MIXED_NEXT_BEAT = 64'h0000_0000_0001_0001;
+   localparam [`XLEN-1:0] CROSS_FIRST_BEAT = 64'hcccc_cccc_97de_1693;
+   localparam [`XLEN-1:0] CROSS_SECOND_BEAT = 64'h0073_0016_8693_0024;
+   localparam [`XLEN-1:0] CROSS_MERGED_BEAT = 64'h0016_8693_0024_1693;
+@@ -108,7 +137,7 @@ module tb_ooo_fetch_axi_bridge;
+     .pmpaddr_i(pmpaddr),
+     .fetch_req_valid_i(fetch_req_valid),
+     .fetch_req_ready_o(fetch_req_ready),
+-    .fetch_req_pc_i(fetch_req_pc),
++    .fetch_req_pc_i(fetch_req_pc_to_dut),
+     .fetch_req_owner_pc_o(fetch_req_owner_pc),
+     .fetch_rsp_valid_o(fetch_rsp_valid),
+     .fetch_rsp_ready_i(fetch_rsp_ready),
+@@ -138,6 +167,34 @@ module tb_ooo_fetch_axi_bridge;
+     .ifu_axi_bresp_i(ifu_axi_bresp)
+   );
+ 
++  // Test-only production decoder recurrence.  When enabled, a valid bridge
++  // response directly supplies the successor request PC through the same
++  // packet decoder used by OooFrontend.
++  OooFetchPacketDecode u_tb_packet_decode (
++    .rsp_pc_i(fetch_req_owner_pc),
++    .rsp_inst0_i(fetch_rsp_inst0),
++    .rsp_resp0_i(fetch_rsp_resp0),
++    .rsp_inst1_i(fetch_rsp_inst1),
++    .rsp_resp1_i(fetch_rsp_resp1),
++    .rsp_resp0_bytes_i(fetch_rsp_resp0_bytes),
++    .dec0_pc_o(tb_dec0_pc),
++    .dec0_next_pc_o(tb_dec0_next_pc),
++    .dec0_inst_o(tb_dec0_inst),
++    .dec0_resp_o(tb_dec0_resp),
++    .dec0_control_stop_o(),
++    .dec1_pc_o(tb_dec1_pc),
++    .dec1_next_pc_o(tb_dec1_next_pc),
++    .dec1_inst_o(tb_dec1_inst),
++    .dec1_resp_o(tb_dec1_resp),
++    .dec1_control_stop_o(),
++    .dec0_branch_o(),
++    .dec0_bimm_o(),
++    .dec1_branch_o(),
++    .dec1_bimm_o(),
++    .packet_next_pc_o(tb_packet_next_pc),
++    .fault_tval_o()
++  );
++
+   always #5 clk = ~clk;
+ 
+   task automatic tb_check2;
+@@ -207,6 +264,26 @@ module tb_ooo_fetch_axi_bridge;
+     end
+   endfunction
+ 
++  // Independent packet-length oracle cross-checks the production decoder used
++  // by the test-only response -> successor recurrence.
++  function [`XLEN-1:0] packet_next_pc_from_rsp;
++    input [`XLEN-1:0] pc;
++    input [`INST_W-1:0] inst0;
++    input [`INST_W-1:0] inst1;
++    reg first_compressed;
++    reg second_compressed;
++    reg [15:0] second_halfword;
++    begin
++      first_compressed = (inst0[1:0] != 2'b11);
++      second_halfword = first_compressed ? inst0[31:16] : inst1[15:0];
++      second_compressed = (second_halfword[1:0] != 2'b11);
++      packet_next_pc_from_rsp =
++          pc +
++          (first_compressed ? 64'd2 : 64'd4) +
++          (second_compressed ? 64'd2 : 64'd4);
++    end
++  endfunction
++
+   task automatic tick;
+     begin
+       @(posedge clk);
+@@ -228,6 +305,7 @@ module tb_ooo_fetch_axi_bridge;
+       pmpaddr = PMP_ALLOW_ALL_ADDR;
+       fetch_req_valid = 1'b0;
+       fetch_req_pc = {`XLEN{1'b0}};
++      tb_decode_follow_en = 1'b0;
+       fetch_rsp_ready = 1'b0;
+       ifu_axi_arready = 1'b1;
+       ifu_axi_rvalid = 1'b0;
+@@ -257,6 +335,7 @@ module tb_ooo_fetch_axi_bridge;
+       pmpaddr = PMP_ALLOW_ALL_ADDR;
+       fetch_req_valid = 1'b0;
+       fetch_req_pc = {`XLEN{1'b0}};
++      tb_decode_follow_en = 1'b0;
+       fetch_rsp_ready = 1'b0;
+       ifu_axi_arready = 1'b1;
+       ifu_axi_rvalid = 1'b0;
+@@ -324,13 +403,14 @@ module tb_ooo_fetch_axi_bridge;
+     end
+   endtask
+ 
+-  task automatic start_fetch;
++  task automatic start_fetch_ctx;
+     input [1023:0] what;
+     input [`XLEN-1:0] pc;
+     input [1:0] req_priv;
++    input [`XLEN-1:0] req_satp;
+     begin
+       priv_mode = req_priv;
+-      satp = SATP_VALUE;
++      satp = req_satp;
+       fetch_req_pc = pc;
+       fetch_req_valid = 1'b1;
+       #1;
+@@ -341,6 +421,15 @@ module tb_ooo_fetch_axi_bridge;
+     end
+   endtask
+ 
++  task automatic start_fetch;
++    input [1023:0] what;
++    input [`XLEN-1:0] pc;
++    input [1:0] req_priv;
++    begin
++      start_fetch_ctx(what, pc, req_priv, SATP_VALUE);
++    end
++  endtask
++
+   task automatic expect_ar;
+     input [1023:0] what;
+     input [`XLEN-1:0] exp_addr;
+@@ -421,19 +510,29 @@ module tb_ooo_fetch_axi_bridge;
+     end
+   endtask
+ 
+-  task automatic drive_fetch_packet;
++  task automatic drive_fetch_packet_bytes;
+     input [1023:0] what;
+     input [`XLEN-1:0] paddr;
+     input [`XLEN-1:0] packet;
++    input integer byte_count;
+     integer offset;
+     begin
+-      for (offset = 0; offset < 8; offset = offset + 2) begin
++      for (offset = 0; offset < byte_count; offset = offset + 2) begin
+         expect_ar(what, paddr + offset);
+         drive_fetch_halfword(packet, offset[2:0]);
+       end
+     end
+   endtask
+ 
++  task automatic drive_fetch_packet;
++    input [1023:0] what;
++    input [`XLEN-1:0] paddr;
++    input [`XLEN-1:0] packet;
++    begin
++      drive_fetch_packet_bytes(what, paddr, packet, 8);
++    end
++  endtask
++
+   task automatic walk_to_fetch;
+     input [1023:0] what;
+     input [`XLEN-1:0] vaddr;
+@@ -451,6 +550,24 @@ module tb_ooo_fetch_axi_bridge;
+     end
+   endtask
+ 
++  task automatic walk_to_fetch_bytes;
++    input [1023:0] what;
++    input [`XLEN-1:0] vaddr;
++    input [`XLEN-1:0] paddr;
++    input [`XLEN-1:0] leaf_flags;
++    input [`XLEN-1:0] inst_beat;
++    input integer byte_count;
++    begin
++      expect_ar(what, pte_addr(ROOT_PT, vaddr, 2'd2));
++      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
++      expect_ar(what, pte_addr(L1_PT, vaddr, 2'd1));
++      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
++      expect_ar(what, pte_addr(L0_PT, vaddr, 2'd0));
++      drive_r(pte_for_page(paddr, leaf_flags), RESP_OK);
++      drive_fetch_packet_bytes(what, paddr, inst_beat, byte_count);
++    end
++  endtask
++
+   task automatic walk_to_fetch_page_fault;
+     input [1023:0] what;
+     input [`XLEN-1:0] vaddr;
+@@ -715,7 +832,7 @@ module tb_ooo_fetch_axi_bridge;
+                 dut.u_fetch_packet_cache.sram_en_w, 1'b1);
+       tick();
+ 
+-      for (beat = 0; beat < 32; beat = beat + 1) begin
++      for (beat = 0; beat < 64; beat = beat + 1) begin
+         if ((beat & 1) == 0) begin
+           current_pc = FUSION_PC1;
+           current_packet = FUSION_BEAT1;
+@@ -753,7 +870,7 @@ module tb_ooo_fetch_axi_bridge;
+         tick();
+       end
+ 
+-      // The 32nd turnover launched PC1.  Drain that tail response without a
++      // The 64th turnover launched PC1.  Drain that tail response without a
+       // replacement and prove the elastic H1 owner returns directly to IDLE.
+       fetch_req_valid = 1'b0;
+       fetch_req_pc = {`XLEN{1'b0}};
+@@ -768,7 +885,410 @@ module tb_ooo_fetch_axi_bridge;
+       #1;
+       tb_check1("II1 burst drains directly to idle",
+                 dut.state_q == S_IDLE_TB, 1'b1);
+-      $display("[II1-IFU-HIT-TURNOVER] 32 consecutive response+request turnovers passed");
++      $display("[II1-IFU-HIT-TURNOVER] 64 consecutive response+request turnovers passed");
++    end
++  endtask
++
++  // Paging-on II=1 contract: alternate two independently warmed translation
++  // and packet-cache contexts for the policy baseline of 64 consecutive H1
++  // turnovers.  Every cycle must retire one response and issue one successor.
++  task automatic check_paging_context_ii1_turnover;
++    integer beat;
++    reg [`XLEN-1:0] current_pc;
++    reg [`XLEN-1:0] current_pa;
++    reg [`XLEN-1:0] current_satp;
++    reg [1:0] current_priv;
++    reg [`XLEN-1:0] current_packet;
++    reg [`XLEN-1:0] next_pc;
++    reg [`XLEN-1:0] next_satp;
++    reg [1:0] next_priv;
++    begin
++      reset_protocol_case();
++
++      start_fetch_ctx("paging II1 warm U request", PAGED_U_PC,
++                      `PRIV_U, SATP_VALUE);
++      walk_to_fetch_bytes("paging II1 warm U walk/fill", PAGED_U_PC,
++                          PAGED_U_PA, PTE_USER_X_FLAGS,
++                          PAGED_U_BEAT, 4);
++      expect_rsp("paging II1 warm U response",
++                 RESP_OK, RESP_OK, PAGED_U_BEAT);
++
++      start_fetch_ctx("paging II1 warm S/ASID1 request", PAGED_S_PC,
++                      `PRIV_S, SATP_ASID1);
++      walk_to_fetch("paging II1 warm S/ASID1 walk/fill", PAGED_S_PC,
++                    PAGED_S_PA, PTE_SUP_X_FLAGS, PAGED_S_BEAT);
++      expect_rsp("paging II1 warm S/ASID1 response",
++                 RESP_OK, RESP_OK, PAGED_S_BEAT);
++
++      fetch_rsp_ready = 1'b1;
++      priv_mode = `PRIV_U;
++      satp = SATP_VALUE;
++      fetch_req_pc = PAGED_U_PC;
++      fetch_req_valid = 1'b1;
++      #1;
++      tb_check1("paging II1 seed accepted", fetch_req_ready, 1'b1);
++      tb_check1("paging II1 seed ITLB context hit",
++                dut.req_itlb_context_hit_w, 1'b1);
++      tb_check1("paging II1 seed ITLB permission passes",
++                dut.req_itlb_perm_fault_w, 1'b0);
++      tick();
++
++      for (beat = 0; beat < 64; beat = beat + 1) begin
++        if ((beat & 1) == 0) begin
++          current_pc = PAGED_U_PC;
++          current_pa = PAGED_U_PA;
++          current_priv = `PRIV_U;
++          current_satp = SATP_VALUE;
++          current_packet = PAGED_U_BEAT;
++          next_pc = PAGED_S_PC;
++          next_priv = `PRIV_S;
++          next_satp = SATP_ASID1;
++        end else begin
++          current_pc = PAGED_S_PC;
++          current_pa = PAGED_S_PA;
++          current_priv = `PRIV_S;
++          current_satp = SATP_ASID1;
++          current_packet = PAGED_S_BEAT;
++          next_pc = PAGED_U_PC;
++          next_priv = `PRIV_U;
++          next_satp = SATP_VALUE;
++        end
++
++        fetch_req_pc = next_pc;
++        priv_mode = next_priv;
++        satp = next_satp;
++        fetch_req_valid = 1'b1;
++        #1;
++        tb_check1("paging II1 remains in H1",
++                  dut.state_q == S_CACHE_READ_TB, 1'b1);
++        tb_check64_local("paging II1 candidate PC",
++                         dut.fetch_ctx_candidate_pc_q, current_pc);
++        tb_check2("paging II1 candidate privilege",
++                  dut.fetch_ctx_candidate_priv_q, current_priv);
++        tb_check64_local("paging II1 candidate SATP",
++                         dut.fetch_ctx_candidate_satp_q, current_satp);
++        tb_check1("paging II1 candidate paging enabled",
++                  dut.fetch_ctx_candidate_paging_q, 1'b1);
++        tb_check1("paging II1 registered ITLB hit",
++                  dut.lookup_itlb_hit_q, 1'b1);
++        tb_check1("paging II1 registered permission passes",
++                  dut.lookup_itlb_perm_fault_q, 1'b0);
++        tb_check64_local("paging II1 registered physical owner",
++                         dut.lookup_exec_paddr_q, current_pa);
++        tb_check1("paging II1 FPC context hit",
++                  dut.fetch_cache_context_unused_w, 1'b1);
++        tb_check1("paging II1 raw FPC hit", dut.cache_hit_raw_w, 1'b1);
++        tb_check1("paging II1 first fixed PMP window passes",
++                  dut.req_exec_pmp_fault_w, 1'b0);
++        tb_check1("paging II1 second fixed PMP window passes",
++                  dut.req_exec1_pmp_fault_w, 1'b0);
++        tb_check1("paging II1 fusion hit qualifies",
++                  dut.cache_hit_fusion_w, 1'b1);
++        tb_check1("paging II1 response valid", fetch_rsp_valid, 1'b1);
++        tb_check64_local("paging II1 response owner",
++                         fetch_req_owner_pc, current_pc);
++        tb_check32_local("paging II1 response inst0",
++                         fetch_rsp_inst0,
++                         current_packet[`INST_W-1:0]);
++        tb_check32_local("paging II1 response inst1",
++                         fetch_rsp_inst1,
++                         current_packet[`XLEN-1:`INST_W]);
++        tb_check1("paging II1 response split is four bytes",
++                  fetch_rsp_resp0_bytes == 3'd4, 1'b1);
++        tb_check1("paging II1 successor accepted",
++                  fetch_req_ready, 1'b1);
++        tb_check1("paging II1 response fires",
++                  dut.fetch_rsp_fire_w, 1'b1);
++        tb_check1("paging II1 successor fires",
++                  dut.fetch_req_fire_w, 1'b1);
++        tb_check1("paging II1 successor issues FPC read",
++                  dut.fetch_cache_lookup_issue_w, 1'b1);
++        tb_check1("paging II1 emits no AXI AR", ifu_axi_arvalid, 1'b0);
++        tb_check1("paging II1 performs no FPC fill",
++                  dut.fetch_cache_fill_valid_w, 1'b0);
++        tb_check1("paging II1 performs no ITLB fill",
++                  dut.itlb_fill_valid_w, 1'b0);
++        tick();
++      end
++
++      fetch_req_valid = 1'b0;
++      fetch_req_pc = {`XLEN{1'b0}};
++      #1;
++      tb_check1("paging II1 tail response valid", fetch_rsp_valid, 1'b1);
++      tb_check64_local("paging II1 tail owner",
++                       fetch_req_owner_pc, PAGED_U_PC);
++      tb_check32_local("paging II1 tail inst0", fetch_rsp_inst0,
++                       PAGED_U_BEAT[`INST_W-1:0]);
++      tick();
++      fetch_rsp_ready = 1'b0;
++      #1;
++      tb_check1("paging II1 drains to idle",
++                dut.state_q == S_IDLE_TB, 1'b1);
++      $display("[II1-PAGING-CONTEXT] 64 U/ASID0 <-> S/ASID1 turnovers passed");
++    end
++  endtask
++
++  // The packet and translation entries warmed above remain live.  Exercise
++  // each authority gate separately: a conservative 8B fast-gate rejection
++  // must downgrade to exact 2B reads, whereas an exact first-halfword PMP
++  // denial and an ITLB permission denial must return architectural faults.
++  task automatic check_paging_fast_gate_policy;
++    begin
++      tb_check1("paging policy starts idle",
++                dut.state_q == S_IDLE_TB, 1'b1);
++
++      // TOR0 allows [0,U_PA+4), TOR1 denies [U_PA+4,U_PA+8).  The cached
++      // two-C packet needs only the first four bytes, so fixed checker #1 must
++      // reject the fast path while exact halfword reads remain legal.
++      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
++      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
++      pmpcfg[0 +: 8] = 8'h0c;
++      pmpcfg[8 +: 8] = 8'h08;
++      pmpcfg[16 +: 8] = 8'h1f;
++      pmpaddr[0 +: `XLEN] = (PAGED_U_PA + 64'd4) >> 2;
++      pmpaddr[`XLEN +: `XLEN] = (PAGED_U_PA + 64'd8) >> 2;
++      pmpaddr[2*`XLEN +: `XLEN] = {`XLEN{1'b1}};
++      fetch_rsp_ready = 1'b1;
++      start_fetch_ctx("paging policy conservative-gate request",
++                      PAGED_U_PC, `PRIV_U, SATP_VALUE);
++      #1;
++      tb_check1("paging policy conservative gate reaches H1",
++                dut.state_q == S_CACHE_READ_TB, 1'b1);
++      tb_check1("paging policy conservative gate has raw FPC hit",
++                dut.cache_hit_raw_w, 1'b1);
++      tb_check1("paging policy conservative gate has ITLB hit",
++                dut.lookup_itlb_hit_q, 1'b1);
++      tb_check1("paging policy first fixed window passes",
++                dut.req_exec_pmp_fault_w, 1'b0);
++      tb_check1("paging policy second fixed window rejects",
++                dut.req_exec1_pmp_fault_w, 1'b1);
++      tb_check1("paging policy reject suppresses fast response",
++                fetch_rsp_valid, 1'b0);
++      tb_check1("paging policy reject suppresses turnover",
++                fetch_req_ready, 1'b0);
++      tick();
++      #1;
++      tb_check1("paging policy reject downgrades to exact fetch",
++                dut.state_q == S_AR0_TB, 1'b1);
++      drive_fetch_packet_bytes("paging policy exact four-byte refill",
++                               PAGED_U_PA, PAGED_U_BEAT, 4);
++      expect_rsp("paging policy exact four-byte response",
++                 RESP_OK, RESP_OK, PAGED_U_BEAT);
++
++      // Restoring allow-all exposes the same refilled packet as a fast hit,
++      // proving the conservative rejection was only a performance downgrade.
++      pmpcfg = PMP_ALLOW_ALL_CFG;
++      pmpaddr = PMP_ALLOW_ALL_ADDR;
++      fetch_rsp_ready = 1'b1;
++      start_fetch_ctx("paging policy post-downgrade fast request",
++                      PAGED_U_PC, `PRIV_U, SATP_VALUE);
++      #1;
++      tb_check1("paging policy post-downgrade fast response",
++                fetch_rsp_valid, 1'b1);
++      tb_check1("paging policy post-downgrade raw hit",
++                dut.cache_hit_raw_w, 1'b1);
++      tick();
++      fetch_rsp_ready = 1'b0;
++
++      // No PMP entries in U mode is default-deny.  A raw cache/ITLB hit must
++      // first downgrade, then the exact 2B checker returns access fault at
++      // byte offset zero without presenting an AXI request.
++      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
++      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
++      fetch_rsp_ready = 1'b1;
++      start_fetch_ctx("paging policy exact-PMP-deny request",
++                      PAGED_U_PC, `PRIV_U, SATP_VALUE);
++      #1;
++      tb_check1("paging policy exact-PMP-deny raw hit",
++                dut.cache_hit_raw_w, 1'b1);
++      tb_check1("paging policy exact-PMP-deny ITLB hit",
++                dut.lookup_itlb_hit_q, 1'b1);
++      tb_check1("paging policy exact-PMP-deny closes fast gate",
++                dut.req_exec_pmp_fault_w, 1'b1);
++      tb_check1("paging policy exact-PMP-deny emits no H1 response",
++                fetch_rsp_valid, 1'b0);
++      tick();
++      #1;
++      tb_check1("paging policy exact-PMP-deny reaches S_AR0",
++                dut.state_q == S_AR0_TB, 1'b1);
++      tb_check1("paging policy exact-PMP-deny exact checker faults",
++                dut.fetch_current_pmp_fault_w, 1'b1);
++      tb_check1("paging policy exact-PMP-deny suppresses AR",
++                ifu_axi_arvalid, 1'b0);
++      tick();
++      #1;
++      tb_check1("paging policy exact-PMP-deny response valid",
++                fetch_rsp_valid, 1'b1);
++      tb_check2("paging policy exact-PMP-deny access fault",
++                fetch_rsp_resp1, RESP_ACCESS_FAULT);
++      tb_check1("paging policy exact-PMP-deny split zero",
++                fetch_rsp_resp0_bytes == 3'd0, 1'b1);
++      tick();
++      fetch_rsp_ready = 1'b0;
++      pmpcfg = PMP_ALLOW_ALL_CFG;
++      pmpaddr = PMP_ALLOW_ALL_ADDR;
++
++      // Reuse the U PTE under S privilege.  The ITLB context still matches
++      // SATP+VA, but the current privilege permission check must fail.  FPC
++      // privilege tagging independently prevents a packet-cache hit.
++      fetch_rsp_ready = 1'b1;
++      priv_mode = `PRIV_S;
++      satp = SATP_VALUE;
++      fetch_req_pc = PAGED_U_PC;
++      fetch_req_valid = 1'b1;
++      #1;
++      tb_check1("paging policy permission request accepted",
++                fetch_req_ready, 1'b1);
++      tb_check1("paging policy permission ITLB context matches",
++                dut.req_itlb_context_hit_w, 1'b1);
++      tb_check1("paging policy permission issue faults",
++                dut.req_itlb_perm_fault_w, 1'b1);
++      tick();
++      fetch_req_valid = 1'b0;
++      fetch_req_pc = {`XLEN{1'b0}};
++      #1;
++      tb_check1("paging policy privilege tag blocks FPC context",
++                dut.fetch_cache_context_unused_w, 1'b0);
++      tb_check1("paging policy privilege tag blocks raw FPC hit",
++                dut.cache_hit_raw_w, 1'b0);
++      tb_check1("paging policy permission fault registered",
++                dut.lookup_itlb_perm_fault_q, 1'b1);
++      tb_check1("paging policy permission emits no AXI AR",
++                ifu_axi_arvalid, 1'b0);
++      tb_check1("paging policy permission H1 emits no response",
++                fetch_rsp_valid, 1'b0);
++      tick();
++      #1;
++      tb_check1("paging policy permission response valid",
++                fetch_rsp_valid, 1'b1);
++      tb_check2("paging policy permission page fault",
++                fetch_rsp_resp1, RESP_PAGE_FAULT);
++      tb_check1("paging policy permission split zero",
++                fetch_rsp_resp0_bytes == 3'd0, 1'b1);
++      tick();
++      fetch_rsp_ready = 1'b0;
++
++      // Full SATP (including ASID) participates in both tags.  End with this
++      // negative lookup because the cancellation flush intentionally clears
++      // the warmed packet cache and ITLB.
++      priv_mode = `PRIV_U;
++      satp = SATP_ASID1;
++      fetch_req_pc = PAGED_U_PC;
++      fetch_req_valid = 1'b1;
++      #1;
++      tb_check1("paging policy ASID mismatch request accepted",
++                fetch_req_ready, 1'b1);
++      tb_check1("paging policy ASID mismatch ITLB misses",
++                dut.req_itlb_context_hit_w, 1'b0);
++      tick();
++      fetch_req_valid = 1'b0;
++      fetch_req_pc = {`XLEN{1'b0}};
++      #1;
++      tb_check1("paging policy ASID mismatch blocks FPC context",
++                dut.fetch_cache_context_unused_w, 1'b0);
++      tb_check1("paging policy ASID mismatch blocks raw FPC hit",
++                dut.cache_hit_raw_w, 1'b0);
++      tb_check1("paging policy ASID mismatch has no ITLB hit",
++                dut.lookup_itlb_hit_q, 1'b0);
++      tb_check1("paging policy ASID mismatch emits no response",
++                fetch_rsp_valid, 1'b0);
++      tick();
++      #1;
++      tb_check1("paging policy ASID mismatch enters walk check",
++                dut.state_q == S_WALK_CHECK_TB, 1'b1);
++      mmu_flush = 1'b1;
++      tick();
++      mmu_flush = 1'b0;
++      #1;
++      tb_check1("paging policy ASID mismatch cancel returns idle",
++                dut.state_q == S_IDLE_TB, 1'b1);
++      $display("[II1-PAGING-AUTHORITY] conservative downgrade, exact PMP fault, ITLB permission, and ASID isolation passed");
++    end
++  endtask
++
++  // Use the production OooFetchPacketDecode output as the live successor PC.
++  // MIXED_PC ends at address ...42 so its +6 successor occupies a different
++  // direct-mapped FPC index (...48), allowing both entries to stay resident.
++  task automatic check_mixed_rvc_decoder_follow;
++    begin
++      reset_protocol_case();
++      priv_mode = `PRIV_M;
++      satp = {`XLEN{1'b0}};
++
++      start_fetch_ctx("mixed decoder warm C+32 request", MIXED_PC,
++                      `PRIV_M, {`XLEN{1'b0}});
++      drive_fetch_packet_bytes("mixed decoder warm C+32 fill",
++                               MIXED_PC, MIXED_BEAT, 6);
++      expect_rsp("mixed decoder warm C+32 response",
++                 RESP_OK, RESP_OK, MIXED_BEAT);
++
++      start_fetch_ctx("mixed decoder warm successor request", MIXED_NEXT_PC,
++                      `PRIV_M, {`XLEN{1'b0}});
++      drive_fetch_packet_bytes("mixed decoder warm successor fill",
++                               MIXED_NEXT_PC, MIXED_NEXT_BEAT, 4);
++      expect_rsp("mixed decoder warm successor response",
++                 RESP_OK, RESP_OK, MIXED_NEXT_BEAT);
++
++      fetch_rsp_ready = 1'b1;
++      start_fetch_ctx("mixed decoder seed request", MIXED_PC,
++                      `PRIV_M, {`XLEN{1'b0}});
++      tb_decode_follow_en = 1'b1;
++      fetch_req_valid = 1'b1;
++      // This sentinel proves the request accepted below comes from the decoder
++      // mux rather than the manually driven fallback PC.
++      fetch_req_pc = 64'hffff_ffff_ffff_fffe;
++      #1;
++      tb_check1("mixed decoder seed H1 hit", fetch_rsp_valid, 1'b1);
++      tb_check64_local("mixed decoder slot0 PC",
++                       tb_dec0_pc, MIXED_PC);
++      tb_check64_local("mixed decoder slot0 next PC",
++                       tb_dec0_next_pc, MIXED_PC + 64'd2);
++      tb_check32_local("mixed decoder slot0 decompressed C.NOP",
++                       tb_dec0_inst, 32'h0000_0013);
++      tb_check2("mixed decoder slot0 response",
++                tb_dec0_resp, RESP_OK);
++      tb_check64_local("mixed decoder slot1 PC",
++                       tb_dec1_pc, MIXED_PC + 64'd2);
++      tb_check64_local("mixed decoder slot1 next PC",
++                       tb_dec1_next_pc, MIXED_NEXT_PC);
++      tb_check32_local("mixed decoder slot1 32-bit ADDI",
++                       tb_dec1_inst, 32'h0010_0093);
++      tb_check2("mixed decoder slot1 response",
++                tb_dec1_resp, RESP_OK);
++      tb_check64_local("mixed decoder production packet next PC",
++                       tb_packet_next_pc, MIXED_NEXT_PC);
++      tb_check64_local("mixed decoder independent length oracle",
++                       packet_next_pc_from_rsp(fetch_req_owner_pc,
++                                               fetch_rsp_inst0,
++                                               fetch_rsp_inst1),
++                       MIXED_NEXT_PC);
++      tb_check64_local("mixed decoder drives bridge successor input",
++                       fetch_req_pc_to_dut, MIXED_NEXT_PC);
++      tb_check1("mixed decoder response fires",
++                dut.fetch_rsp_fire_w, 1'b1);
++      tb_check1("mixed decoder successor fires",
++                dut.fetch_req_fire_w, 1'b1);
++      tick();
++
++      fetch_req_valid = 1'b0;
++      #1;
++      tb_check1("mixed decoder successor H1 hit",
++                fetch_rsp_valid, 1'b1);
++      tb_check64_local("mixed decoder successor owner",
++                       fetch_req_owner_pc, MIXED_NEXT_PC);
++      tb_check32_local("mixed decoder successor inst0",
++                       fetch_rsp_inst0,
++                       MIXED_NEXT_BEAT[`INST_W-1:0]);
++      tb_check64_local("mixed decoder successor packet next PC",
++                       tb_packet_next_pc, MIXED_NEXT_PC + 64'd4);
++      tick();
++      tb_decode_follow_en = 1'b0;
++      fetch_rsp_ready = 1'b0;
++      fetch_req_pc = {`XLEN{1'b0}};
++      #1;
++      tb_check1("mixed decoder recurrence drains to idle",
++                dut.state_q == S_IDLE_TB, 1'b1);
++      $display("[II1-MIXED-DECODE-FOLLOW] production decoder C+32 successor turnover passed");
+     end
+   endtask
+ 
+@@ -1101,6 +1621,10 @@ module tb_ooo_fetch_axi_bridge;
+               fetch_rsp_valid, 1'b0);
+     $display("[II1-IFU-MMU-FLUSH-PROXY] H1 hit and successor cancelled (not a branch-redirect port)");
+ 
++    check_paging_context_ii1_turnover();
++    check_paging_fast_gate_policy();
++    check_mixed_rvc_decoder_follow();
++
+     // ===== T4A PTW READ authorization：deny 判决必须寄存并抑制 AR =====
+     reset_protocol_case();
+     pmpcfg = {`PMP_CFG_BUS_W{1'b0}};

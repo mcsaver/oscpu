@@ -1,0 +1,39 @@
+--- tmp/r2p5-region-ab/A/npc/rv64/vsrc/core/NpcCoreTop.v	2026-07-15 21:29:22.432949716 +0800
++++ tmp/r2p5-region-ab/B/npc/rv64/vsrc/core/NpcCoreTop.v	2026-07-15 21:30:01.660942833 +0800
+@@ -193,20 +193,6 @@
+   wire [`XLEN-1:0] ooo_csr_ret_target_w;
+   wire [`TRAP_CAUSE_W-1:0] ooo_csr_ecall_cause_w;
+ 
+-  // mem1(双发射 load 第二端口)死硅删除后,icache 失效只由 mem0 store fire 触发。
+-  // 【拓扑防火墙 v2(2026-07-11)】盲失效打一拍: 斩断 backend AGU→fetch 融合关断→
+-  // dec→pred 的跨域缝合(25ns 传递闭包的 13.5ns 切点)。SMC 语义合法: 无 fence.i
+-  // 的自修改代码无架构承诺(NEMU 参考模型无 icache, difftest 不敏感), 盲失效晚
+-  // 一拍仍是 fence.i 之外的保守防线; fence.i 走 mmu_flush 全清不受影响。
+-  reg icache_inv_valid_q;
+-  reg [`XLEN-1:0] icache_inv_addr_q;
+-  always @(posedge clk) begin
+-    icache_inv_valid_q <= !rst && ooo_mem0_req_valid_w && ooo_mem0_req_ready_w &&
+-                          ooo_mem0_req_write_w;
+-    icache_inv_addr_q <= ooo_mem0_req_addr_w;
+-  end
+-  wire ooo_icache_invalidate_valid_w = icache_inv_valid_q;
+-  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w = icache_inv_addr_q;
+ 
+   // Bridge-side logical low-window ABI.  Registered lane adapters below own
+   // the conversion to the standard AXI byte-lane ABI exported by NpcCoreTop.
+@@ -235,8 +221,13 @@
+     .clk(clk),
+     .rst(rst),
+     .mmu_flush_i(ooo_mmu_flush_w),
+-    .invalidate_valid_i(ooo_icache_invalidate_valid_w),
+-    .invalidate_addr_i(ooo_icache_invalidate_addr_w),
++    // R2.5 coherence contract: an ordinary store does not make instruction
++    // bytes visible to fetch.  Software must execute FENCE.I, whose serialized
++    // commit reaches this bridge through mmu_flush_i and clears the whole I$.
++    // Keep the generic bridge/cache invalidate ABI, but do not reconnect it to
++    // a speculative or completed LSU store without a new coherence contract.
++    .invalidate_valid_i(1'b0),
++    .invalidate_addr_i({`XLEN{1'b0}}),
+     .priv_mode_i(ooo_priv_mode_w),
+     .satp_i(ooo_satp_w),
+     .svpbmt_en_i(ooo_svpbmt_en_w),

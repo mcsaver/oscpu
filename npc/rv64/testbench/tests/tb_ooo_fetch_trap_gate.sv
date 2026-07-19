@@ -64,6 +64,11 @@ module tb_ooo_fetch_trap_gate;
   OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(),
+    .head0_identity_valid_o(),
+    .head0_identity_o(),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
@@ -81,6 +86,7 @@ module tb_ooo_fetch_trap_gate;
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(1'b1),
     .mem_req_write_o(mem_req_write),
+    .mem_req_cacheable_o(),
     .mem_req_addr_o(mem_req_addr),
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
@@ -89,6 +95,8 @@ module tb_ooo_fetch_trap_gate;
     .mem_rsp_rdata_i({`XLEN{1'b0}}),
     .mem_rsp_error_i(1'b0),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_rsp_cacheable_i(1'b1),
+    .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS

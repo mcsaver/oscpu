@@ -17,7 +17,7 @@
 
 ### 2. Skill = 标准化处理规则层
 
-- 真实入口：`.github/skills/*/SKILL.md`，当前默认 skill 为 `.github/skills/agent-env-maintenance/SKILL.md`。
+- 真实入口：`.github/skills/*/SKILL.md`。环境维护使用 `.github/skills/agent-env-maintenance/SKILL.md`；本地 RTL 子任务派发使用 `.github/skills/prepare-rtl-task-contract/SKILL.md`。
 - 保存对象：短小、可直接读取、可复用的流程规则；复杂细节转交 scripts、instructions 或 live reference。
 - 文件语义：Skill 是 active rule pack，必须 live 可读，不迁成数据库 shim；用 `python3 scripts/github_index_db.py skill-audit` 检查 frontmatter、命名和体量。
 - 不承担职责：不保存长期事实，不保存单次 task-run 证据，不隐藏重型执行逻辑。
@@ -27,6 +27,7 @@
 - 真实入口：`.github/agents/*.agent.md`、`ysyx-coordinator` 图任务模型、`agent-system` 架构 agent、`.github/ai-env/contracts/agent-env-policy.json`、`.github/ai-env/contracts/agent-env-review-routing.json`、`.github/ai-env/contracts/agent-env-branch-health.json`、`.github/ai-env/contracts/agent-env-observability.json`、`.github/ai-env/contracts/agent-env-state-traceability.json`、`.github/ai-env/contracts/agent-env-delivery.json`、`scripts/package-ai-dev-env.sh`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`。
 - 保存对象：角色边界、调度图、review routing、branch-health dashboard、observability contract、state traceback contract、delivery contract、e2e profile、自动检查节点、task-run 证据包和商业交付包。
 - 文件语义：Agent 负责把用户目标映射成图节点并收口验证；每个跨层任务至少留下 profile resolve、task report、dispatch log 或等价证据；权限、MCP、retention、CI/nightly 规则由 `.github/ai-env/contracts/agent-env-policy.json` 统一声明。
+- 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小权限边界，并由 `agent-system` 的 `rtl-task-contract` 节点执行正反例门禁；平台 review 只隔离当前节点。
 - 不承担职责：不绕过 Database 写回事实；不把 Skill 内容复制进每个 agent profile；不让单个 profile 承担所有维护逻辑。
 
 ## 维护闭环
@@ -49,6 +50,9 @@ scripts/agent-maintain.sh --mode check
 - `python3 scripts/github_index_db.py state-audit`
 - `python3 scripts/github_index_db.py policy-audit`
 - `python3 scripts/github_index_db.py skill-audit`
+- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit`
+- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test`
+- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test`
 - `python3 scripts/github_index_db.py branch-health-report`
 - `python3 scripts/github_index_db.py branch-health-audit`
 - `python3 scripts/github_index_db.py audit-db-first`

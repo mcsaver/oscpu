@@ -1,5 +1,55 @@
 #!/usr/bin/env bash
 
+e2e_github_index_backup_entry_valid() {
+  local backup_dir="$1"
+  local rel_path="$2"
+  local expected_file="${3:-}"
+  python3 - "$backup_dir" "$rel_path" "$expected_file" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path, PurePosixPath
+
+backup_dir = Path(sys.argv[1]).resolve()
+rel_path = sys.argv[2]
+expected_file = Path(sys.argv[3]) if sys.argv[3] else None
+relative = PurePosixPath(rel_path)
+if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+    raise SystemExit(f"noncanonical backup path: {rel_path}")
+manifest_path = backup_dir / "manifest.json"
+if manifest_path.is_symlink() or not manifest_path.is_file():
+    raise SystemExit(f"missing ordinary backup manifest: {manifest_path}")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+entries = [entry for entry in manifest.get("entries", []) if entry.get("path") == rel_path]
+if len(entries) != 1:
+    raise SystemExit(f"backup entry cardinality mismatch: {rel_path}")
+entry = entries[0]
+digest = entry.get("sha256")
+if not isinstance(digest, str) or len(digest) != 64:
+    raise SystemExit(f"invalid backup digest: {rel_path}")
+object_ref = entry.get("backup_object")
+if object_ref is None:
+    payload_parts = ("files", *relative.parts)
+else:
+    expected_ref = f"objects/sha256/{digest[:2]}/{digest}"
+    if object_ref != expected_ref:
+        raise SystemExit(f"backup object binding mismatch: {rel_path}")
+    payload_parts = PurePosixPath(object_ref).parts
+payload = backup_dir
+for part in payload_parts:
+    payload = payload / part
+    if payload.is_symlink():
+        raise SystemExit(f"backup payload path contains symlink: {rel_path}")
+if not payload.is_file() or payload.stat().st_nlink != 1:
+    raise SystemExit(f"missing ordinary backup payload: {rel_path}")
+raw = payload.read_bytes()
+if entry.get("size_bytes") != len(raw) or hashlib.sha256(raw).hexdigest() != digest:
+    raise SystemExit(f"backup payload size/hash mismatch: {rel_path}")
+if expected_file is not None and raw != expected_file.read_bytes():
+    raise SystemExit(f"backup payload content mismatch: {rel_path}")
+PY
+}
+
 e2e_github_index_contract() {
   echo "[github-index] contract"
   local rc=0
@@ -12,6 +62,7 @@ e2e_github_index_contract() {
     scripts/dev_memory/maintenance.py \
     scripts/dev_memory/cli.py \
     scripts/dev_memory/__main__.py \
+    scripts/e2e/tests/task_run_publication_regression.py \
     .github/e2e/modules/github-index.md \
     .github/e2e/profiles/github-index.tsv || rc=1
 
@@ -23,7 +74,8 @@ e2e_github_index_contract() {
      grep -Fq -- 'def load_chunks' "$E2E_ROOT_DIR/scripts/dev_memory/queries.py" &&
      grep -Fq -- 'def memory_api' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def migrate_to_db' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
-     grep -Fq -- 'def archive_markdown_files' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py"; then
+     grep -Fq -- 'def archive_markdown_files' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def publish_task_run' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py"; then
     printf 'PASS github-index implementation lives in dev_memory package with compatibility wrapper\n'
   else
     printf 'FAIL github-index implementation package layout drifted\n'
@@ -43,7 +95,7 @@ e2e_github_index_contract() {
       scripts/e2e/modules/github_index.sh \
       .github/e2e/modules/github-index.md \
       .github/e2e/profiles/github-index.tsv >/dev/null 2>&1; then
-    printf 'PASS github-index persistent sources are tracked\n'
+    printf 'PASS github-index core persistent sources are tracked; publication regression executable is present\n'
   else
     printf 'FAIL github-index persistent sources are not tracked\n'
     rc=1
@@ -131,6 +183,7 @@ e2e_github_index_contract() {
      grep -Fq -- 'stored_index_docs' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'store-evidence-index-documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'archive-markdown' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'publish-task-run' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'index-evidence' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- '--backup-dir' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'snapshot-stored' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
@@ -145,6 +198,8 @@ e2e_github_index_contract() {
 
   echo "[github-index] e2e task-run archive hook"
   if grep -Fq -- 'e2e_archive_task_run_markdown_to_db' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'publish-task-run "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- '--sync-task-run' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'e2e_index_task_run_evidence_assets' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'index-evidence "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- '--backup-dir "$backup_dir"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
@@ -199,6 +254,8 @@ e2e_github_index_contract() {
      grep -Fq -- 'def agent_runs' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_evidence' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_usage' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '--focus-scope' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'append_excluded_kinds' "$E2E_ROOT_DIR/scripts/dev_memory/queries.py" &&
      grep -Fq -- '--profile-limit' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'profile-catalog' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'resolve-profile' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
@@ -218,7 +275,18 @@ e2e_github_index_contract() {
   fi
 
   echo "[github-index] python syntax"
-  python3 -m py_compile "$E2E_ROOT_DIR/scripts/github_index_db.py" "$E2E_ROOT_DIR"/scripts/dev_memory/*.py || rc=1
+  python3 - "$E2E_ROOT_DIR/scripts/github_index_db.py" "$E2E_ROOT_DIR"/scripts/dev_memory/*.py <<'PY' || rc=1
+import sys
+from pathlib import Path
+
+for raw_path in sys.argv[1:]:
+    path = Path(raw_path)
+    compile(path.read_text(encoding="utf-8"), str(path), "exec")
+PY
+
+  echo "[github-index] atomic task-run publication regression"
+  PYTHONDONTWRITEBYTECODE=1 \
+    python3 "$E2E_ROOT_DIR/scripts/e2e/tests/task_run_publication_regression.py" || rc=1
 
   echo "[github-index] temporary rebuild/stat/query/summary/load/show/doctor smoke"
   local tmp_dir tmp_db
@@ -310,7 +378,7 @@ e2e_github_index_contract() {
       --repo-root "$E2E_ROOT_DIR" \
       --db "$tmp_db" \
       --limit 1 \
-      --max-tokens 400
+      --max-tokens 800
   ) || rc=1
   printf '%s\n' "$shim_load_out"
   if grep -Fq -- 'load=AGENTS.md mode=path' <<< "$shim_load_out" &&
@@ -371,11 +439,54 @@ e2e_github_index_contract() {
 
 mini live source
 EOF
-  mkdir -p "$mini_repo/.github/memory"
+  cat > "$mini_repo/.github/AGENTS.md" <<'EOF'
+# Mini Canonical AGENTS
+
+__BRIEF_CANONICAL_REQUIRED__
+EOF
+  mkdir -p "$mini_repo/.github/memory/modules"
   cat > "$mini_repo/.github/memory/project-status.md" <<'EOF'
 # Mini Project Status
 
 mini retained memory source
+EOF
+  {
+    printf '# Brief Focus Memory\n\nBRIEF_PRIORITY_FOCUS CURRENT MEMORY FOCUS '
+    for _ in $(seq 1 260); do
+      printf 'priorityfiller '
+    done
+    printf '\n'
+  } > "$mini_repo/.github/memory/modules/brief-focus.md"
+  mkdir -p "$mini_repo/.github/task-runs/blocked-self"
+  cat > "$mini_repo/.github/task-runs/blocked-self/context-brief.md" <<'EOF'
+# Agent Brief
+
+- `ok`: false
+- `recall_status`: failed
+- `profile`: github-index
+- `terms`: HISTORY SELF LOOP
+EOF
+  cat > "$mini_repo/.github/task-runs/blocked-self/task-report.md" <<'EOF'
+# 任务报告
+
+## 基本信息
+
+- `task_id`: blocked-self
+- `task_slug`: history-self-loop
+- `profile`: github-index
+- `status`: blocked
+EOF
+  mkdir -p "$mini_repo/.github/task-runs/history-saturation"
+  {
+    printf '# Agent Brief\n'
+    for history_id in $(seq -w 1 140); do
+      printf '\n## Historical hit %s\n\nSATURATED LIVE FOCUS\n' "$history_id"
+    done
+  } > "$mini_repo/.github/task-runs/history-saturation/context-brief.md"
+  cat > "$mini_repo/.github/z-current-focus.md" <<'EOF'
+# Current Focus
+
+SATURATED LIVE FOCUS
 EOF
   mkdir -p "$mini_repo/.github/agents"
   cat > "$mini_repo/.github/agents/demo.agent.md" <<'EOF'
@@ -388,6 +499,10 @@ EOF
 # node_id|module|function|owner_agent|inputs|outputs
 base-smoke|agent-system|e2e_base_smoke|agent-system|base profile input|base profile output
 EOF
+  cat > "$mini_repo/.github/e2e/profiles/github-index.tsv" <<'EOF'
+# node_id|module|function|owner_agent|inputs|outputs
+github-index-smoke|github-index|e2e_github_index_contract|github-index|__BRIEF_PROFILE_REQUIRED__|brief profile output
+EOF
   cat > "$mini_repo/.github/e2e/profiles/nemu-ubuntu-full-gate.tsv" <<'EOF'
 # node_id|module|function|owner_agent|inputs|outputs
 @include|base-gate||||
@@ -398,9 +513,38 @@ EOF
 
 full Ubuntu rootfs systemd guest gate profile
 EOF
+  mkdir -p "$mini_repo/.github/instructions" "$mini_repo/.github/shujuku_aireview"
+  for focus_id in 1 2 3 4; do
+    printf '# Focus Limit %s\n\nFOCUS_LIMIT_MARKER rule-%s\n' \
+      "$focus_id" "$focus_id" \
+      > "$mini_repo/.github/instructions/focus-limit-$focus_id.instructions.md"
+  done
+  cat > "$mini_repo/.github/shujuku_aireview/old-focus.md" <<'EOF'
+# Historical Review Focus
+
+BRIEF_PRIORITY_FOCUS __EXCLUDED_REVIEW_FOCUS__
+EOF
+  {
+    printf '# Oversized Load Candidate\n\nLOAD_BUDGET_SHARED LOAD_ONLY_OVERSIZE '
+    for _ in $(seq 1 260); do
+      printf 'oversizefiller '
+    done
+    printf '\n'
+  } > "$mini_repo/.github/instructions/a-budget-oversize.instructions.md"
+  cat > "$mini_repo/.github/instructions/z-budget-small.instructions.md" <<'EOF'
+# Small Load Candidate
+
+LOAD_BUDGET_SHARED __SMALL_LATER_CHUNK__
+EOF
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" migrate \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --path .github/memory/modules/brief-focus.md \
+    --backup-dir .github/db-backup/test \
+    --yes || rc=1
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" refresh .github/agents/demo.agent.md \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
@@ -411,7 +555,9 @@ EOF
     --backup-dir .github/db-backup/test \
     --yes || rc=1
   if grep -Fq -- 'DB-backed .github/memory/project-status.md' "$mini_repo/.github/memory/project-status.md" &&
-     [[ -f "$mini_repo/.github/db-backup/test/files/.github/memory/project-status.md" ]]; then
+     e2e_github_index_backup_entry_valid \
+       "$mini_repo/.github/db-backup/test" \
+       .github/memory/project-status.md; then
     printf 'PASS github-index migrate leaves retained memory shim and backup\n'
   else
     printf 'FAIL github-index migrate did not leave retained memory shim and backup\n'
@@ -448,6 +594,21 @@ EOF
     printf 'PASS github-index update-stored changes database-owned content\n'
   else
     printf 'FAIL github-index update-stored did not change stored content\n'
+    rc=1
+  fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" snapshot-stored \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --path .github/memory/project-status.md \
+    --backup-dir .github/db-backup/test \
+    --yes || rc=1
+  if e2e_github_index_backup_entry_valid \
+       "$mini_repo/.github/db-backup/test" \
+       .github/memory/project-status.md \
+       "$mini_repo/updated-memory.md"; then
+    printf 'PASS github-index snapshots update-stored content before three-way audit\n'
+  else
+    printf 'FAIL github-index update-stored snapshot did not bind DB and CAS content\n'
     rc=1
   fi
   cat > "$mini_repo/shim-payload.md" <<'EOF'
@@ -604,26 +765,519 @@ PY
     printf 'FAIL github-index JSONL API did not serve expected stored memory data\n'
     rc=1
   fi
+  echo "[github-index] strict brief/load budget and recall contract"
+  if python3 - "$E2E_ROOT_DIR/scripts/github_index_db.py" "$mini_repo" "$mini_db" <<'PY'
+import json
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+script = Path(sys.argv[1])
+repo = Path(sys.argv[2])
+db = Path(sys.argv[3])
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            *args,
+            "--repo-root",
+            str(repo),
+            "--db",
+            str(db),
+        ],
+        cwd=repo,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=20,
+    )
+
+
+def payload(result: subprocess.CompletedProcess[str]) -> object:
+    if not result.stdout.strip():
+        raise AssertionError(
+            f"missing JSON output rc={result.returncode} stderr={result.stderr.strip()}"
+        )
+    return json.loads(result.stdout)
+
+
+def api(request: dict[str, object]) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+    result = run_cli("api", "--request", json.dumps(request, separators=(",", ":")))
+    value = payload(result)
+    assert isinstance(value, dict)
+    return result, value
+
+
+conn = sqlite3.connect(db)
+canonical_tokens = conn.execute(
+    "SELECT token_estimate FROM file_chunks WHERE path=? ORDER BY ordinal LIMIT 1",
+    (".github/AGENTS.md",),
+).fetchone()[0]
+profile_tokens = conn.execute(
+    "SELECT token_estimate FROM file_chunks WHERE path=? ORDER BY ordinal LIMIT 1",
+    (".github/e2e/profiles/github-index.tsv",),
+).fetchone()[0]
+focus_tokens = conn.execute(
+    "SELECT token_estimate FROM db_document_chunks WHERE path=? ORDER BY ordinal LIMIT 1",
+    (".github/memory/modules/brief-focus.md",),
+).fetchone()[0]
+focus_limit_matches = conn.execute(
+    "SELECT COUNT(DISTINCT path) FROM file_chunks WHERE text LIKE ?",
+    ("%FOCUS_LIMIT_MARKER%",),
+).fetchone()[0]
+profile_dedup_matches = conn.execute(
+    "SELECT COUNT(*) FROM file_chunks WHERE path=? AND text LIKE ?",
+    (".github/e2e/profiles/github-index.tsv", "%__BRIEF_PROFILE_REQUIRED__%"),
+).fetchone()[0]
+conn.close()
+
+tight_budget = int(canonical_tokens) + int(profile_tokens) + int(focus_tokens)
+priority_result = run_cli(
+    "brief",
+    "BRIEF_PRIORITY_FOCUS",
+    "--profile",
+    "github-index",
+    "--focus-limit",
+    "1",
+    "--max-tokens",
+    str(tight_budget),
+    "--json",
+)
+priority = payload(priority_result)
+assert isinstance(priority, dict)
+priority_paths = [chunk["path"] for chunk in priority["chunks"]]
+assert priority_result.returncode == 0, priority
+assert priority["ok"] is True and priority["recall_status"] == "complete", priority
+assert priority["token_estimate"] <= priority["max_tokens"] == tight_budget, priority
+assert priority_paths[:3] == [
+    ".github/AGENTS.md",
+    ".github/e2e/profiles/github-index.tsv",
+    ".github/memory/modules/brief-focus.md",
+], priority_paths
+assert priority["primary_focus"]["path"] == ".github/memory/modules/brief-focus.md"
+assert priority["focus_match_count"] == 1
+assert priority["focus_selected_count"] == 1
+assert all(not path.startswith(".github/shujuku_aireview/") for path in priority_paths)
+
+api_priority_result, api_priority = api(
+    {
+        "op": "brief",
+        "terms": "BRIEF_PRIORITY_FOCUS",
+        "profile": "github-index",
+        "focus_limit": 1,
+        "max_tokens": tight_budget,
+    }
+)
+assert api_priority_result.returncode == 0, api_priority
+assert api_priority["ok"] is True and api_priority["recall_status"] == "complete"
+assert api_priority["token_estimate"] <= api_priority["max_tokens"]
+
+history_all_result = run_cli(
+    "brief",
+    "HISTORY",
+    "SELF",
+    "LOOP",
+    "--profile",
+    "github-index",
+    "--json",
+)
+history_all = payload(history_all_result)
+assert isinstance(history_all, dict)
+assert history_all_result.returncode == 0, history_all
+assert history_all["focus_scope"] == "all"
+assert history_all["primary_focus"]["path"].startswith(".github/task-runs/blocked-self/")
+assert history_all["primary_focus"]["kind"] in {"task-report", "task-run"}
+
+history_scoped_result = run_cli(
+    "brief",
+    "HISTORY",
+    "SELF",
+    "LOOP",
+    "--profile",
+    "github-index",
+    "--focus-scope",
+    "non-history",
+    "--json",
+)
+history_scoped = payload(history_scoped_result)
+assert isinstance(history_scoped, dict)
+assert history_scoped_result.returncode != 0, history_scoped
+assert history_scoped["ok"] is False and history_scoped["recall_status"] == "failed"
+assert history_scoped["focus_scope"] == "non-history"
+assert history_scoped["primary_focus"] is None
+assert history_scoped["focus_match_count"] == 0
+
+api_history_scoped_result, api_history_scoped = api(
+    {
+        "op": "brief",
+        "terms": "HISTORY SELF LOOP",
+        "profile": "github-index",
+        "focus_scope": "non-history",
+    }
+)
+assert api_history_scoped_result.returncode != 0, api_history_scoped
+assert api_history_scoped["ok"] is False
+assert api_history_scoped["primary_focus"] is None
+
+memory_scoped_result = run_cli(
+    "brief",
+    "CURRENT",
+    "MEMORY",
+    "FOCUS",
+    "--profile",
+    "github-index",
+    "--focus-scope",
+    "non-history",
+    "--json",
+)
+memory_scoped = payload(memory_scoped_result)
+assert isinstance(memory_scoped, dict)
+assert memory_scoped_result.returncode == 0, memory_scoped
+assert memory_scoped["primary_focus"]["path"] == ".github/memory/modules/brief-focus.md"
+assert memory_scoped["primary_focus"]["index_status"] == "stored"
+
+def assert_saturated_non_history_focus() -> None:
+    result = run_cli(
+        "brief",
+        "SATURATED",
+        "LIVE",
+        "FOCUS",
+        "--profile",
+        "github-index",
+        "--focus-scope",
+        "non-history",
+        "--json",
+    )
+    value = payload(result)
+    assert isinstance(value, dict)
+    assert result.returncode == 0, value
+    assert value["primary_focus"]["path"] == ".github/z-current-focus.md", value
+    assert value["primary_focus"]["kind"] == "markdown", value
+
+
+assert_saturated_non_history_focus()
+conn = sqlite3.connect(db)
+original_fts = conn.execute("SELECT value FROM meta WHERE key='fts5'").fetchone()[0]
+conn.execute("UPDATE meta SET value='0' WHERE key='fts5'")
+conn.commit()
+conn.close()
+try:
+    assert_saturated_non_history_focus()
+    like_history_result = run_cli(
+        "brief",
+        "HISTORY",
+        "SELF",
+        "LOOP",
+        "--profile",
+        "github-index",
+        "--focus-scope",
+        "non-history",
+        "--json",
+    )
+    like_history = payload(like_history_result)
+    assert like_history_result.returncode != 0, like_history
+    assert like_history["primary_focus"] is None
+finally:
+    conn = sqlite3.connect(db)
+    conn.execute("UPDATE meta SET value=? WHERE key='fts5'", (original_fts,))
+    conn.commit()
+    conn.close()
+
+default_priority_result = run_cli(
+    "brief",
+    "BRIEF_PRIORITY_FOCUS",
+    "--profile",
+    "github-index",
+    "--focus-limit",
+    "1",
+    "--json",
+)
+default_priority = payload(default_priority_result)
+assert isinstance(default_priority, dict)
+assert default_priority_result.returncode == 0, default_priority
+assert default_priority["ok"] is True and default_priority["recall_status"] == "complete"
+assert default_priority["max_tokens"] == 2400
+
+api_default_result, api_default = api(
+    {
+        "op": "brief",
+        "terms": "BRIEF_PRIORITY_FOCUS",
+        "profile": "github-index",
+        "focus_limit": 1,
+    }
+)
+assert api_default_result.returncode == 0, api_default
+assert api_default["ok"] is True and api_default["recall_status"] == "complete"
+assert api_default["max_tokens"] == 2400
+
+priority_underflow_result = run_cli(
+    "brief",
+    "BRIEF_PRIORITY_FOCUS",
+    "--profile",
+    "github-index",
+    "--focus-limit",
+    "1",
+    "--max-tokens",
+    str(tight_budget - 1),
+    "--json",
+)
+priority_underflow = payload(priority_underflow_result)
+assert isinstance(priority_underflow, dict)
+assert priority_underflow_result.returncode != 0, priority_underflow
+assert priority_underflow["ok"] is False and priority_underflow["recall_status"] == "failed"
+assert priority_underflow["primary_focus"]["path"] == ".github/memory/modules/brief-focus.md"
+assert ".github/memory/modules/brief-focus.md#chunk-0001" in priority_underflow["omitted_by_budget"]
+assert "primary focus exceeds remaining token budget" in priority_underflow["error"]
+
+limit_result = run_cli(
+    "brief",
+    "FOCUS_LIMIT_MARKER",
+    "--profile",
+    "github-index",
+    "--focus-limit",
+    "2",
+    "--max-tokens",
+    "2000",
+    "--json",
+)
+limited = payload(limit_result)
+assert isinstance(limited, dict)
+limited_focus_paths = [
+    chunk["path"]
+    for chunk in limited["chunks"]
+    if chunk["path"].startswith(".github/instructions/focus-limit-")
+]
+assert focus_limit_matches >= 4
+assert limit_result.returncode == 0, limited
+assert limited["focus_limit"] == 2
+assert limited["focus_match_count"] == 2
+assert limited["focus_selected_count"] <= 2
+assert len(limited_focus_paths) <= 2, limited_focus_paths
+assert limited["token_estimate"] <= limited["max_tokens"]
+
+no_focus_result = run_cli(
+    "brief",
+    "NO_INDEPENDENT_FOCUS_MATCH_7F31",
+    "--profile",
+    "github-index",
+    "--max-tokens",
+    "1200",
+    "--json",
+)
+no_focus = payload(no_focus_result)
+assert isinstance(no_focus, dict)
+assert no_focus_result.returncode != 0
+assert no_focus["ok"] is False and no_focus["recall_status"] == "failed"
+assert no_focus["primary_focus"] is None
+assert no_focus["focus_match_count"] == 0
+assert "no independent primary focus match" in no_focus["error"]
+
+api_no_focus_result, api_no_focus = api(
+    {
+        "op": "brief",
+        "terms": "NO_INDEPENDENT_FOCUS_MATCH_7F31",
+        "profile": "github-index",
+        "max_tokens": 1200,
+    }
+)
+assert api_no_focus_result.returncode != 0
+assert api_no_focus["ok"] is False and api_no_focus["recall_status"] == "failed"
+assert api_no_focus["primary_focus"] is None
+
+profile_dedup_result = run_cli(
+    "brief",
+    "__BRIEF_PROFILE_REQUIRED__",
+    "--profile",
+    "github-index",
+    "--max-tokens",
+    "1200",
+    "--json",
+)
+profile_dedup = payload(profile_dedup_result)
+assert isinstance(profile_dedup, dict)
+assert profile_dedup_matches >= 1
+assert profile_dedup_result.returncode != 0
+assert profile_dedup["ok"] is False and profile_dedup["recall_status"] == "failed"
+assert profile_dedup["primary_focus"] is None
+assert profile_dedup["focus_match_count"] == 0
+assert "no independent primary focus match" in profile_dedup["error"]
+
+missing_result = run_cli(
+    "brief",
+    "--profile",
+    "missing-profile",
+    "--max-tokens",
+    "1000",
+    "--json",
+)
+missing = payload(missing_result)
+assert isinstance(missing, dict)
+assert missing_result.returncode != 0
+assert missing["ok"] is False and missing["recall_status"] == "failed"
+assert ".github/e2e/profiles/missing-profile.tsv" in missing["required_missing_paths"]
+assert missing["token_estimate"] <= missing["max_tokens"]
+
+api_missing_result, api_missing = api(
+    {
+        "op": "brief",
+        "profile": "missing-profile",
+        "max_tokens": 1000,
+    }
+)
+assert api_missing_result.returncode != 0
+assert api_missing["ok"] is False and api_missing["recall_status"] == "failed"
+
+oversize_brief_result = run_cli(
+    "brief",
+    "BRIEF_PRIORITY_FOCUS",
+    "--profile",
+    "github-index",
+    "--focus-limit",
+    "1",
+    "--max-tokens",
+    "50",
+    "--json",
+)
+oversize_brief = payload(oversize_brief_result)
+assert isinstance(oversize_brief, dict)
+assert oversize_brief_result.returncode != 0
+assert oversize_brief["ok"] is False and oversize_brief["recall_status"] == "failed"
+assert oversize_brief["token_estimate"] <= oversize_brief["max_tokens"] == 50
+assert "token budget" in oversize_brief["error"]
+
+api_oversize_brief_result, api_oversize_brief = api(
+    {
+        "op": "brief",
+        "terms": "BRIEF_PRIORITY_FOCUS",
+        "profile": "github-index",
+        "focus_limit": 1,
+        "max_tokens": 50,
+    }
+)
+assert api_oversize_brief_result.returncode != 0
+assert api_oversize_brief["ok"] is False
+assert api_oversize_brief["recall_status"] == "failed"
+assert api_oversize_brief["token_estimate"] <= api_oversize_brief["max_tokens"] == 50
+
+load_result = run_cli(
+    "load",
+    "LOAD_BUDGET_SHARED",
+    "--source",
+    "live",
+    "--mode",
+    "like",
+    "--limit",
+    "4",
+    "--max-tokens",
+    "200",
+    "--json",
+)
+loaded = payload(load_result)
+assert isinstance(loaded, list)
+assert load_result.returncode == 0, load_result.stderr
+assert [chunk["path"] for chunk in loaded] == [
+    ".github/instructions/z-budget-small.instructions.md"
+], loaded
+assert sum(chunk["token_estimate"] for chunk in loaded) <= 200
+
+api_load_result, api_loaded = api(
+    {
+        "op": "load",
+        "terms": "LOAD_BUDGET_SHARED",
+        "source": "live",
+        "mode": "like",
+        "limit": 4,
+        "max_tokens": 200,
+    }
+)
+assert api_load_result.returncode == 0, api_loaded
+assert api_loaded["ok"] is True
+assert [chunk["path"] for chunk in api_loaded["chunks"]] == [
+    ".github/instructions/z-budget-small.instructions.md"
+]
+assert api_loaded["token_estimate"] <= api_loaded["max_tokens"] == 200
+
+only_oversize_result = run_cli(
+    "load",
+    "LOAD_ONLY_OVERSIZE",
+    "--source",
+    "live",
+    "--mode",
+    "like",
+    "--limit",
+    "4",
+    "--max-tokens",
+    "200",
+    "--json",
+)
+assert only_oversize_result.returncode != 0
+assert "exceed max_tokens=200" in only_oversize_result.stderr
+
+api_oversize_result, api_oversize = api(
+    {
+        "op": "load",
+        "terms": "LOAD_ONLY_OVERSIZE",
+        "source": "live",
+        "mode": "like",
+        "limit": 4,
+        "max_tokens": 200,
+    }
+)
+assert api_oversize_result.returncode != 0
+assert api_oversize["ok"] is False
+assert api_oversize["chunks"] == []
+assert api_oversize["token_estimate"] == 0
+assert api_oversize["max_tokens"] == 200
+
+print(
+    "PASS strict brief/load recall contract "
+    f"tight_budget={tight_budget} focus_limit_matches={focus_limit_matches}"
+)
+PY
+  then
+    printf 'PASS github-index enforces canonical/profile/focus priority and fail-closed budgets\n'
+  else
+    printf 'FAIL github-index strict brief/load recall contract drifted\n'
+    rc=1
+  fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown \
+    .github/task-runs/blocked-self \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/test \
+    --yes || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown \
+    .github/task-runs/history-saturation \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/test \
+    --yes || rc=1
   local brief_out brief_api_out
   brief_out=$(
-    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief updated \
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief BRIEF_PRIORITY_FOCUS \
       --repo-root "$mini_repo" \
       --db "$mini_db" \
       --profile github-index \
-      --max-tokens 700
+      --max-tokens 1200
   ) || rc=1
   printf '%s\n' "$brief_out"
   brief_api_out=$(
     python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
       --repo-root "$mini_repo" \
       --db "$mini_db" \
-      --request '{"op":"brief","terms":"updated","profile":"github-index","max_tokens":700}'
+      --request '{"op":"brief","terms":"BRIEF_PRIORITY_FOCUS","profile":"github-index","max_tokens":1200}'
   ) || rc=1
   printf '%s\n' "$brief_api_out"
   if grep -Fq -- '# Agent Brief' <<< "$brief_out" &&
+     grep -Fq -- '- `recall_status`: complete' <<< "$brief_out" &&
      grep -Fq -- 'updated in stored db' <<< "$brief_out" &&
      grep -Fq -- '"op": "brief"' <<< "$brief_api_out" &&
-     grep -Fq -- '"ok": true' <<< "$brief_api_out"; then
+     grep -Fq -- '"ok": true' <<< "$brief_api_out" &&
+     grep -Fq -- '"recall_status": "complete"' <<< "$brief_api_out"; then
     printf 'PASS github-index brief returns live-or-stored startup context for agents\n'
   else
     printf 'FAIL github-index brief did not return expected startup context\n'
@@ -749,7 +1403,7 @@ EOF
 - `graph_template`: modular-agent-e2e
 - `profile`: github-index
 - `graph_mode`: static
-- `status`: completed
+- `status`: blocked
 - `started_at`: 2026-06-12 00:00:00 +0800
 - `updated_at`: 2026-06-12 00:00:02 +0800
 
@@ -804,7 +1458,10 @@ EOF
      grep -Fq -- '"assets": 3' <<< "$evidence_index_out" &&
      grep -Fq -- '.github/task-runs/demo/evidence-index.md' <<< "$evidence_index_out" &&
      grep -Fq -- '"stored_index_docs": [' <<< "$evidence_index_out" &&
-     [[ -f "$mini_repo/.github/db-backup/stored-snapshot/files/.github/task-runs/demo/evidence-index.md" ]] &&
+     e2e_github_index_backup_entry_valid \
+       "$mini_repo/.github/db-backup/stored-snapshot" \
+       .github/task-runs/demo/evidence-index.md \
+       "$mini_repo/.github/task-runs/demo/evidence-index.md" &&
      grep -Fq -- '.github/task-runs/demo/evidence/note.md' "$mini_repo/.github/task-runs/demo/evidence-index.md" &&
      grep -Fq -- '__DEMO_MARKDOWN_MARKER__' "$mini_repo/.github/task-runs/demo/evidence-index.md"; then
     printf 'PASS github-index indexes raw evidence assets and stores generated evidence-index docs\n'
@@ -822,7 +1479,10 @@ EOF
     --yes || rc=1
   if grep -Fq -- 'demo run completed' "$mini_repo/.github/task-runs/demo/task-report.md" &&
      ! grep -Fq -- 'DB-backed .github/task-runs/demo/task-report.md' "$mini_repo/.github/task-runs/demo/task-report.md" &&
-     [[ -f "$mini_repo/.github/db-backup/test/files/.github/task-runs/demo/task-report.md" ]]; then
+     e2e_github_index_backup_entry_valid \
+       "$mini_repo/.github/db-backup/test" \
+       .github/task-runs/demo/task-report.md \
+       "$mini_repo/.github/task-runs/demo/task-report.md"; then
     printf 'PASS github-index archives task-run Markdown to DB while keeping live file and backup\n'
   else
     printf 'FAIL github-index archive-markdown did not preserve live task-run Markdown\n'
@@ -995,7 +1655,7 @@ PY
   if grep -Fq -- '"op": "runs"' <<< "$runs_out" &&
      grep -Fq -- '"run_id": "demo"' <<< "$runs_out" &&
      grep -Fq -- '"profile": "github-index"' <<< "$runs_out" &&
-     grep -Fq -- '"status": "completed"' <<< "$runs_out" &&
+     grep -Fq -- '"status": "blocked"' <<< "$runs_out" &&
      grep -Fq -- '"profile_resolve_path": ".github/task-runs/demo/profile-resolve.md"' <<< "$runs_out" &&
      grep -Fq -- '"evidence_index_path": ".github/task-runs/demo/evidence-index.md"' <<< "$runs_out" &&
      grep -Fq -- '"evidence_asset_count": 3' <<< "$runs_out" &&
@@ -1401,6 +2061,21 @@ PY
     --repo-root "$mini_repo" \
     --db "$mini_db" \
     --from-file .github/memory/project-status.md || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" snapshot-stored \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --path .github/memory/project-status.md \
+    --backup-dir .github/db-backup/test \
+    --yes || rc=1
+  if e2e_github_index_backup_entry_valid \
+       "$mini_repo/.github/db-backup/test" \
+       .github/memory/project-status.md \
+       "$mini_repo/.github/memory/project-status.md"; then
+    printf 'PASS github-index snapshots repaired strict live truth before final audit\n'
+  else
+    printf 'FAIL github-index strict live repair did not refresh the authoritative backup\n'
+    rc=1
+  fi
   local usage_out usage_api_out
   usage_out=$(
     python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" usage \
@@ -1448,16 +2123,19 @@ PY
     printf 'FAIL github-index materialize did not restore stored content\n'
     rc=1
   fi
+  printf '# temporary live corruption before restore\n' \
+    > "$mini_repo/.github/memory/project-status.md"
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" restore \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
     --backup-dir .github/db-backup/test \
     --path .github/memory/project-status.md \
     --yes || rc=1
-  if grep -Fq -- 'mini retained memory source' "$mini_repo/.github/memory/project-status.md"; then
-    printf 'PASS github-index restore recovers original retained memory file from backup\n'
+  if grep -Fq -- 'updated in stored db' "$mini_repo/.github/memory/project-status.md" &&
+     grep -Fq -- 'local strict live drift' "$mini_repo/.github/memory/project-status.md"; then
+    printf 'PASS github-index restore recovers current retained memory truth from backup\n'
   else
-    printf 'FAIL github-index restore did not recover original retained memory file\n'
+    printf 'FAIL github-index restore did not recover current retained memory truth\n'
     rc=1
   fi
 

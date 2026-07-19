@@ -1,0 +1,16 @@
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-STALL] IQ valid held under ready=0 and drained after release PASS
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=0 fixed=1 expected=1
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=1 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=2 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=3 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=4 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=5 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=6 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=7 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FIXED-CLASS] class=8 fixed=0 expected=0
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-KILL] younger suffix removed, early-woken survivor fired PASS
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[R3P2-FLUSH] flush dominates matching early wake and clears IQ PASS
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_issue_queue.log:[RESULT] PASS
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_backend.log:[R3.2-RAW64] fired=64 committed=64 cycles=66
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_int_backend.log:[RESULT] PASS
+/home/lyg/PA/ysyx-workbench/tmp/r3p2-early-wake-sandbox/npc/rv64/perf/results/20260715-215027/module-testbench/logs/tb_ooo_dispatch_backend.log:[RESULT] PASS

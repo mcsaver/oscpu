@@ -1,0 +1,401 @@
+diff --git a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+index 83735b203..5dbb8e822 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+@@ -113,6 +113,7 @@ module tb_ooo_dispatch_backend;
+     .flush_i(flush),
+     .kill_rob_idx_i(kill_rob_idx),
+     .issue_mem_block_i(1'b0),
++    .lane0_owner_present_i(1'b0),
+     .sq_alloc0_ready_i(1'b1),
+     .sq_alloc1_ready_i(1'b1),
+     .branch_mispredict_valid_i(branch_mispredict_valid),
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+index bb09f6a5a..ab96911e7 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+@@ -3195,14 +3195,17 @@ module tb_ooo_int_backend;
+     reg [`XLEN-1:0] held_imm;
+     reg [`CTRL_BUS_W-1:0] held_ctrl;
+     reg [ROB_INDEX_W-1:0] held_rob;
++    reg [ROB_INDEX_W-1:0] younger_rob;
+     integer hold_cycles;
+     integer younger_fire_count;
+     integer younger_commit_count;
++    integer younger_wb_count;
+     integer observe_cycles;
+     begin
+       reset_dut();
+       younger_fire_count = 0;
+       younger_commit_count = 0;
++      younger_wb_count = 0;
+       mem_req_ready = 1'b0;
+       set_dispatch0(32'h8000_6c00,
+                     make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+@@ -3241,21 +3244,28 @@ module tb_ooo_int_backend;
+       `TB_TICK(clk);
+       clear_dispatch();
+       #1;
+-      tb_check32("T3S younger remains in IQ while held",
++      tb_check32("T3S younger enters IQ while held",
+                  {28'b0, issue_count}, 32'd1);
+-      // T3V 物理数据面探针：reservation 驻留时，generic issue0/ALU0 已经
+-      // 观察到完全不同的 younger raw packet；memory AGU/request 仍只能来自 Q。
+-      tb_check1("T3V held memory excludes generic issue0 owner",
+-                dut.issue0_valid_w, 1'b0);
+-      tb_check64("T3V younger raw ALU is independently perturbed",
+-                 dut.issue0_alu_result_w, 64'd9);
+-      tb_check64("T3V dedicated memory AGU ignores raw ALU",
++      // T3V：resident memory reservation 是虚拟 lane0 owner。IQ 的 raw lane0
++      // 必须保持安静，但 oldest-ready simple integer 可从真实 lane1 前进。
++      tb_check1("T3V held memory excludes raw IQ lane0 owner",
++                dut.iq_issue0_valid_w, 1'b0);
++      tb_check1("T3V held memory promotes younger simple to lane1",
++                dut.issue1_valid_w, 1'b1);
++      tb_check1("T3V promoted younger lane1 is fireable",
++                dut.issue1_fire_w, 1'b1);
++      tb_check32("T3V promoted younger lane1 keeps PC",
++                 dut.issue1_pc_w[31:0], 32'h8000_6c04);
++      tb_check64("T3V promoted younger lane1 computes nine",
++                 dut.issue1_alu_result_w, 64'd9);
++      younger_rob = dut.issue1_rob_idx_w;
++      tb_check64("T3V dedicated memory AGU ignores lane1 ALU",
+                  dut.mem_issue_res_eff_addr_w, 64'h8000_0310);
+       for (hold_cycles = 0; hold_cycles < 3;
+            hold_cycles = hold_cycles + 1) begin
+         tb_check1("T3S stalled reservation remains valid",
+                   dut.mem_issue_res_valid_q, 1'b1);
+-        tb_check1("T3S stalled reservation keeps IQ frozen",
++        tb_check1("T3S stalled reservation keeps raw IQ lane0 frozen",
+                   dut.iq_issue0_ready_w, 1'b0);
+         tb_check64("T3S stalled reservation PC stable",
+                    dut.mem_issue_res_pc_q, held_pc);
+@@ -3271,9 +3281,33 @@ module tb_ooo_int_backend;
+                    dut.mem_issue_res_ctrl_q, held_ctrl);
+           tb_errors = tb_errors + 1;
+         end
++        if (dut.issue0_fire_w &&
++            (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
++        if (dut.issue1_fire_w &&
++            (dut.issue1_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
+         `TB_TICK(clk);
+         #1;
++        if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V promoted younger WB0 data", dut.wb0_data_w, 64'd9);
++        end
++        if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V promoted younger WB1 data", dut.wb1_data_w, 64'd9);
++        end
++        tb_check1("T3V younger WB cannot pass older load",
++                  commit0_valid || commit1_valid, 1'b0);
+       end
++      tb_check32("T3V promoted younger leaves IQ while held",
++                 {28'b0, issue_count}, 32'd0);
++      tb_check1("T3V raw IQ lane0 remains quiet after promotion",
++                dut.iq_issue0_valid_w, 1'b0);
++      tb_check1("T3V lane1 does not replay promoted younger",
++                dut.issue1_valid_w, 1'b0);
++      tb_check32("T3V promoted younger writes back exactly once while held",
++                 younger_wb_count, 32'd1);
+ 
+       mem_req_ready = 1'b1;
+       #1;
+@@ -3286,37 +3320,34 @@ module tb_ooo_int_backend;
+                  dut.miq_push_addr_w, 64'h8000_0310);
+       tb_check1("T3V memory consume excludes generic issue0 fire",
+                 dut.issue0_fire_w, 1'b0);
++      tb_check1("T3V memory consume has no younger lane1 replay",
++                dut.issue1_fire_w, 1'b0);
+       `TB_TICK(clk);
+       #1;
+       tb_check1("T3S consumed reservation clears",
+                 dut.mem_issue_res_valid_q, 1'b0);
+       tb_check1("T3S no same-cycle full-pop refill",
+                 dut.mem_issue_res_capture_w, 1'b0);
+-      // T3V 不能只在 invalid generic owner 上读取脏 ALU payload。station 释放后，
+-      // held younger 必须成为一个真实 raw owner，且全程只 fire/commit 一次。
+-      tb_check1("T3V released younger becomes valid generic owner",
+-                dut.issue0_valid_w, 1'b1);
+-      tb_check32("T3V released younger keeps PC",
+-                 dut.issue0_pc_w[31:0], 32'h8000_6c04);
+-      tb_check64("T3V released younger computes nine",
+-                 dut.issue0_alu_result_w, 64'd9);
+-      tb_check1("T3V released younger really fires",
+-                dut.issue0_fire_w, 1'b1);
+-      if (dut.issue0_fire_w &&
+-          (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+-        younger_fire_count = younger_fire_count + 1;
+-
+-      `TB_TICK(clk);
+-      #1;
+-      if (dut.issue0_fire_w &&
+-          (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+-        younger_fire_count = younger_fire_count + 1;
+-      tb_check32("T3V released younger leaves IQ",
++      // younger 已在 reservation hold 窗口从 lane1 exactly-once 执行；station
++      // 释放后不能在 lane0/lane1 重新出现，也不能越过未完成的 older load 提交。
++      if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++        younger_wb_count = younger_wb_count + 1;
++        tb_check64("T3V no duplicate younger WB0 after release",
++                   dut.wb0_data_w, 64'd9);
++      end
++      if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++        younger_wb_count = younger_wb_count + 1;
++        tb_check64("T3V no duplicate younger WB1 after release",
++                   dut.wb1_data_w, 64'd9);
++      end
++      tb_check32("T3V released station keeps younger out of IQ",
+                  {28'b0, issue_count}, 32'd0);
+-      tb_check1("T3V released younger reaches formal WB",
+-                dut.wb0_valid_w, 1'b1);
+-      tb_check64("T3V released younger WB data",
+-                 dut.wb0_data_w, 64'd9);
++      tb_check1("T3V released station has no lane0 replay",
++                dut.issue0_valid_w || dut.issue0_fire_w, 1'b0);
++      tb_check1("T3V released station has no lane1 replay",
++                dut.issue1_valid_w || dut.issue1_fire_w, 1'b0);
++      tb_check32("T3V younger WB remains exactly once after release",
++                 younger_wb_count, 32'd1);
+       tb_check1("T3V younger formal WB cannot pass older load",
+                 commit0_valid || commit1_valid, 1'b0);
+ 
+@@ -3347,6 +3378,17 @@ module tb_ooo_int_backend;
+         if (dut.issue0_fire_w &&
+             (dut.issue0_pc_w[31:0] == 32'h8000_6c04))
+           younger_fire_count = younger_fire_count + 1;
++        if (dut.issue1_fire_w &&
++            (dut.issue1_pc_w[31:0] == 32'h8000_6c04))
++          younger_fire_count = younger_fire_count + 1;
++        if (dut.wb0_valid_w && (dut.wb0_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V younger later WB0 data", dut.wb0_data_w, 64'd9);
++        end
++        if (dut.wb1_valid_w && (dut.wb1_rob_idx_w == younger_rob)) begin
++          younger_wb_count = younger_wb_count + 1;
++          tb_check64("T3V younger later WB1 data", dut.wb1_data_w, 64'd9);
++        end
+         if (commit0_valid && (commit0_pc[31:0] == 32'h8000_6c04)) begin
+           younger_commit_count = younger_commit_count + 1;
+           tb_check64("T3V younger later commit0 data", commit0_data, 64'd9);
+@@ -3360,12 +3402,14 @@ module tb_ooo_int_backend;
+       end
+       tb_check32("T3V younger fires exactly once",
+                  younger_fire_count, 32'd1);
++      tb_check32("T3V younger writes back exactly once",
++                 younger_wb_count, 32'd1);
+       tb_check32("T3V younger commits exactly once",
+                  younger_commit_count, 32'd1);
+       tb_check32("T3V release sequence drains ROB",
+                  {27'b0, rob_count}, 32'd0);
+-      $display("[T3V-MEM-RES-RELEASE] younger_fire=%0d younger_commit=%0d",
+-               younger_fire_count, younger_commit_count);
++      $display("[T3V-MEM-RES-RELEASE] younger_fire=%0d younger_wb=%0d younger_commit=%0d",
++               younger_fire_count, younger_wb_count, younger_commit_count);
+       $display("[T3S-MEM-RES-HOLD] cycles=%0d rob=%0d addr=0x%08h younger_iq=%0d",
+                hold_cycles, held_rob, held_imm[31:0], issue_count);
+ 
+diff --git a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+index adda95655..581bda579 100644
+--- a/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
++++ b/npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+@@ -23,6 +23,7 @@ module tb_ooo_int_issue_queue;
+   reg rst;
+   reg flush;
+   reg issue_mem_block;
++  reg lane0_owner_present;
+   reg dispatch0_valid;
+   wire dispatch0_ready;
+   reg [`XLEN-1:0] dispatch0_pc;
+@@ -102,6 +103,7 @@ module tb_ooo_int_issue_queue;
+     .rst(rst),
+     .flush_i(flush),
+     .issue_mem_block_i(issue_mem_block),
++    .lane0_owner_present_i(lane0_owner_present),
+     .dispatch0_valid_i(dispatch0_valid),
+     .dispatch0_ready_o(dispatch0_ready),
+     .dispatch0_pc_i(dispatch0_pc),
+@@ -192,6 +194,7 @@ module tb_ooo_int_issue_queue;
+     begin
+       flush = 1'b0;
+       issue_mem_block = 1'b0;
++      lane0_owner_present = 1'b0;
+       dispatch0_valid = 1'b0;
+       dispatch0_pc = 32'h0;
+       dispatch0_inst = 32'h0;
+@@ -567,11 +570,66 @@ module tb_ooo_int_issue_queue;
+     tb_check1("next-cycle issue from queue", issue0_valid, 1'b1);
+     tb_check32("next-cycle issue pc", issue0_pc, 32'h8000_0000);
+     tb_check32("next-cycle issue imm", issue0_imm, 32'h8000_0010);
+-    tb_check1("single entry keeps issue1 idle", issue1_valid, 1'b0);
++    tb_check1("owner absent: single entry uses issue0 only", issue1_valid, 1'b0);
+     `TB_TICK(clk);
+     clear_inputs();
+     #1;
+     tb_check1("empty after single issue", empty, 1'b1);
++    // ===== T4S：registered virtual lane0 owner 允许 issue1-alone promotion =====
++    set_dispatch0(32'h8000_0200, 4'd13,
++                  6'd1, 1'b1, 6'd2, 1'b1, 6'd52);
++    `TB_TICK(clk);
++    clear_inputs();
++    lane0_owner_present = 1'b1;
++    issue0_ready = 1'b1;
++    issue1_ready = 1'b0;
++    #1;
++    tb_check32("T4S sole simple resident count", {28'b0, count}, 32'd1);
++    tb_check1("T4S virtual owner suppresses issue0", issue0_valid, 1'b0);
++    tb_check1("T4S sole simple promotes to issue1", issue1_valid, 1'b1);
++    tb_check32("T4S promoted simple identity", issue1_pc, 32'h8000_0200);
++    `TB_TICK(clk);
++    #1;
++    tb_check32("T4S issue1 backpressure preserves count", {28'b0, count}, 32'd1);
++    tb_check1("T4S issue1 backpressure keeps valid", issue1_valid, 1'b1);
++    tb_check32("T4S issue1 backpressure keeps payload", issue1_pc, 32'h8000_0200);
++    issue1_ready = 1'b1;
++    `TB_TICK(clk);
++    clear_inputs();
++    issue0_ready = 1'b1;
++    issue1_ready = 1'b1;
++    #1;
++    tb_check1("T4S issue1-alone compaction drains sole simple", empty, 1'b1);
++
++    // virtual owner 下 complex 留队，但扫描继续找到更年轻 eligible simple。
++    set_dispatch0(32'h8000_0204, 4'd14,
++                  6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
++    dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
++    dispatch0_ctrl[`CTRL_RD_EN_BIT] = 1'b0;
++    dispatch0_ctrl[`CTRL_NEED_WB_BIT] = 1'b0;
++    set_dispatch1(32'h8000_0208, 4'd15,
++                  6'd5, 1'b1, 6'd6, 1'b1, 6'd53);
++    `TB_TICK(clk);
++    clear_inputs();
++    lane0_owner_present = 1'b1;
++    #1;
++    tb_check32("T4S branch-simple resident count", {28'b0, count}, 32'd2);
++    tb_check1("T4S branch cannot leak through issue0 owner", issue0_valid, 1'b0);
++    tb_check1("T4S younger simple selected on issue1", issue1_valid, 1'b1);
++    tb_check32("T4S issue1 skips complex branch", issue1_pc, 32'h8000_0208);
++    `TB_TICK(clk);
++    #1;
++    tb_check32("T4S complex branch remains after issue1 pop", {28'b0, count}, 32'd1);
++    tb_check1("T4S complex branch still blocked by virtual owner", issue0_valid, 1'b0);
++    tb_check1("T4S no eligible issue1 behind sole branch", issue1_valid, 1'b0);
++    lane0_owner_present = 1'b0;
++    #1;
++    tb_check1("T4S owner release restores issue0", issue0_valid, 1'b1);
++    tb_check32("T4S restored issue0 branch identity", issue0_pc, 32'h8000_0204);
++    `TB_TICK(clk);
++    clear_inputs();
++    #1;
++    tb_check1("T4S complex remainder drains once owner clears", empty, 1'b1);
+ 
+     // ===== S3 双发 N+1 契约:双 dispatch 次拍程序序双发 =====
+     set_dispatch0(32'h8000_0010, 4'd2, 6'd1, 1'b1, 6'd2, 1'b1, 6'd34);
+diff --git a/npc/rv64/vsrc/execute/OooIntBackend.v b/npc/rv64/vsrc/execute/OooIntBackend.v
+index ea0bd16bc..d30384e23 100644
+--- a/npc/rv64/vsrc/execute/OooIntBackend.v
++++ b/npc/rv64/vsrc/execute/OooIntBackend.v
+@@ -342,6 +342,9 @@ module OooIntBackend #(
+   wire branch_resolve_mispredict_w;
+   wire sq_alloc0_ready_w;
+   wire sq_alloc1_ready_w;
++  // T4S：前置声明，reservation Q 作为 dispatch/IQ 的 registered virtual lane0 owner。
++  reg mem_issue_res_valid_q;
++
+ 
+   wire unused_issue_ctrl_bits_w =
+       (|{issue0_ctrl_w[42:24], issue0_ctrl_w[15:0]}) |
+@@ -360,6 +363,7 @@ module OooIntBackend #(
+     .kill_rob_idx_i(branch_resolve_rob_idx_o),   // B2 ROB-walk：mispredict 控制流 rob_idx（与 mispredict 同拍）
+     .branch_mispredict_valid_i(branch_resolve_mispredict_w),  // B2 片4：ROB-walk kill 触发
+     .issue_mem_block_i(mem_issue_block_w),
++    .lane0_owner_present_i(mem_issue_res_valid_q),
+     .sq_alloc0_ready_i(sq_alloc0_ready_w),
+     .sq_alloc1_ready_i(sq_alloc1_ready_w),
+     .dispatch0_valid_i(dispatch0_valid_i && d0_fp_ok_w),
+@@ -536,7 +540,6 @@ module OooIntBackend #(
+   // T3T 起 IQ 只允许“前方无更老 valid 项”的 memory 晋升，故驻留项不会挡住
+   // 更老 raw uop；执行 owner 只读 reservation valid，不再组合读取 IQ select/年龄。
+   // ===========================================================================
+-  reg mem_issue_res_valid_q;
+   reg [`XLEN-1:0] mem_issue_res_pc_q;
+   reg [`XLEN-1:0] mem_issue_res_next_pc_q;
+   reg [`XLEN-1:0] mem_issue_res_pred_npc_q;
+@@ -2343,6 +2346,9 @@ module OooIntBackend #(
+       if (mem_issue_res_valid_q && issue0_valid_w)
+         $error("[T3V-MEM-RAW-OWNER-OVERLAP] memory and generic issue0 owners overlap @%0t",
+                $time);
++      if (mem_issue_res_valid_q && iq_issue0_valid_w)
++        $error("[T4S-MEM-RES-IQ-LANE0-QUIET] reservation owner did not suppress raw IQ lane0 @%0t",
++               $time);
+       if (mem_issue_res_consume_fire_w && issue0_fire_w)
+         $error("[T3V-MEM-DATAPLANE-ISOLATION] memory consume overlapped generic issue0 fire @%0t",
+                $time);
+diff --git a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+index f6b87ed7d..aefbbcef4 100644
+--- a/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
++++ b/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+@@ -18,6 +18,8 @@ module OooDispatchBackend #(
+   input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // T3N：已寄存 coherent resolve packet 的 rob_idx
+   input branch_mispredict_valid_i,          // T3N：已寄存 coherent resolve packet 的 mispredict valid
+   input issue_mem_block_i,
++  // Registered terminal owner already occupying logical lane0.
++  input lane0_owner_present_i,
+   // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
+   // 需要 SQ slot, 满则反压。
+   input sq_alloc0_ready_i,
+@@ -594,6 +596,7 @@ module OooDispatchBackend #(
+     .rst(rst),
+     .flush_i(flush_i),
+     .issue_mem_block_i(issue_mem_block_i),
++    .lane0_owner_present_i(lane0_owner_present_i),
+     .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
+     .dispatch0_ready_o(iq_dispatch0_ready_w),
+     .dispatch0_pc_i(dispatch0_pc_i),
+diff --git a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+index c927d5383..8a31fc182 100644
+--- a/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
++++ b/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+@@ -18,6 +18,9 @@ module OooIntIssueQueue #(
+   input rst,
+   input flush_i,
+   input issue_mem_block_i,
++  // T4S：已寄存的外部 terminal owner 占有逻辑 lane0；不得连接组合 capture/ready。
++  input lane0_owner_present_i,
++
+ 
+   input dispatch0_valid_i,
+   output dispatch0_ready_o,
+@@ -262,7 +265,9 @@ module OooIntIssueQueue #(
+   // select 唯一真源=已寄存阵列项。mode 下 branch/JAL/JALR 原"禁 bypass"特例随之普适化,
+   // pred_npc→mispredict→redirect→前端预测后继 的组合环由结构保证不存在。
+   always @(*) begin
+-    issue0_found_r = 1'b0;
++    // T4S：registered external owner 是虚拟 lane0，扫描器仍可寻找 issue1 simple。
++    // issue0_idx 保持默认值，但 valid 端必须显式屏蔽，避免制造假 resident owner。
++    issue0_found_r = lane0_owner_present_i;
+     issue1_found_r = 1'b0;
+     older_valid_seen_r = 1'b0;
+     entry_load_r = 1'b0;
+@@ -320,7 +325,7 @@ module OooIntIssueQueue #(
+   // 【P5 刀 B】issue payload 直读寄存阵列(dispatch 活值直通臂已删):
+   // pred_npc 恒取寄存 pred_npc_q,pred_npc→mispredict→redirect→前端预测→pred_npc 的
+   // 组合环 loop-free 性质由"select 唯一真源=寄存项"结构直接保证,不再依赖控制流禁 bypass 特例。
+-  assign issue0_valid_o = issue0_found_r && !recover_active_i && !kill_valid_i;
++  assign issue0_valid_o = issue0_found_r && !lane0_owner_present_i && !recover_active_i && !kill_valid_i;
+   assign issue0_pc_o = pc_q[issue0_idx_r];
+   assign issue0_next_pc_o = next_pc_q[issue0_idx_r];
+   assign issue0_pred_npc_o = pred_npc_q[issue0_idx_r];
+@@ -600,6 +605,9 @@ module OooIntIssueQueue #(
+   // 不消费 valid_next_r 写入计划,若互斥被破坏,kill 拍的新写项会被静默丢弃而非入队。
+   always @(posedge clk) begin
+     if (!rst) begin
++      if (lane0_owner_present_i && issue0_valid_o)
++        $error("[IQ-LANE0-OWNER-EXCLUSIVE] virtual lane0 owner exposed resident issue0 @%0t",
++               $time);
+       if (issue0_valid_o && !valid_q[issue0_idx_r])
+         $error("[IQ-NO-BYPASS] issue0 select 源非寄存 valid_q 项: idx=%0d @%0t",
+                issue0_idx_r, $time);

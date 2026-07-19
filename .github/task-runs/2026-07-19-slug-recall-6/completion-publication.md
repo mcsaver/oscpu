@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-slug-recall-6
+- `trace_id`: e2e:2026-07-19-slug-recall-6
+- `task_slug`: slug-recall
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: a7deb5cdce0100ca1bdaaaa7326f98d55f16bfc2d709484fbbc662bf1a399126
+- `task_report_md_sha256`: d81b1b181423168f55dbfe409e9de117bd0c547944db05b94c1033c4752a5118
+- `run_manifest_json_sha256`: 3e842b0b284498e813ceef3ce1218d270ddae878def75b653aa952979d1dbf06
+- `context_brief_md_sha256`: dfaa40bc3ace89b5a566ae4491c740f5e7fc055815a614d70becd77631b3a401
+- `profile_resolve_md_sha256`: 848e738541006a520215f10fbdd6895161697d78d798cd29aa45decdfbcfdb5c
+- `evidence_index_md_sha256`: b659574fe449716d8189c2809b854d2b27770c59f3cd933a556e5dd3a6ce6316
+- `dispatch_log_md_sha256`: 019a60a814c4ec5f743458bd9aed96ad20e545339d99e7f994a517ec037bd405
+- `nodes_tsv_sha256`: 8d8fe5d568770a6005f7a7f092ed82211731b1d8c23eba9e35343e66c9c7c126

@@ -1,0 +1,165 @@
+{
+  "schema": "npc-rv64-ppa-baseline-v1",
+  "baseline_id": "t4t-20260715-proxy-seed",
+  "status": "provisional",
+  "claim_tier": "rtl_proxy_partial_constraints",
+  "policy": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+  "policy_id": "rv64-complete-ooo-dual-issue-proxy-200mhz-v1",
+  "cohort_id": "provisional-unbound-t4t-20260715",
+  "design_id": "unbound",
+  "created_utc": "2026-07-15T06:00:00Z",
+  "provenance": {
+    "git_head": "31e90c679050a3a9138c967151b240f0fa2ab158",
+    "git_dirty": true,
+    "staged_source_index_fingerprint_sha256": "b9249eddb9be8ad2c168e01005be5f31faff0965ecdd1a964c9a2067e9b1ff3f",
+    "synthesis_rtl_manifest": {
+      "path": "tmp/2026-07-15-rv64-t4t-dcache-tag-mask/synth-rtl-inputs.post.sha256",
+      "sha256": "365551862f1e98afc0406fae873ce110cac9e41edf8646d2c5ced635e543683d"
+    },
+    "same_design_across_functional_performance_synthesis_sta": false,
+    "binding_note": "Functional/benchmark artifacts do not yet carry the complete source/config/binary/image binding of the T4T synthesis manifest."
+  },
+  "architecture_contract": {
+    "xlen": 64,
+    "fetch_width": 2,
+    "dispatch_width": 2,
+    "issue_width": 2,
+    "memory_issue_width": 1,
+    "agu_width": 1,
+    "memory_translation_width": 1,
+    "memory_order_check_width": 1,
+    "dcache_request_width": 1,
+    "retire_width": 2,
+    "rob_entries": 16,
+    "int_iq_entries": 8,
+    "fp_iq_entries": 8,
+    "int_prf_entries": 64,
+    "fp_prf_entries": 64,
+    "lq_entries": 0,
+    "sq_entries": 4,
+    "directed_evidence": {
+      "frontend_ii1": false,
+      "width_continuity": false,
+      "pair_matrix": false,
+      "dual_memory_issue": false,
+      "no_static_lane_semantics": false,
+      "true_ooo_long_latency": false,
+      "selective_scheduling": false,
+      "memory_ordering": false,
+      "speculation_recovery": false
+    },
+    "directed_metrics": {
+      "frontend_packets_observed": null,
+      "frontend_max_initiation_interval": null,
+      "independent_alu_ipc": null,
+      "dual_memory_issue_ipc": null,
+      "minimum_younger_completed_before_old": null,
+      "rob_peak": null,
+      "pair_matrix_passed": [],
+      "true_ooo_passed": []
+    },
+    "note": "This seed is intentionally architecture-infeasible: current cache-hit FSM has II=3, lane1 is statically simple-ALU-only, and the memory datapath has only one AGU/translation/issue owner."
+  },
+  "functional": {
+    "module": {"passed": 102, "required": 102, "failed": 0},
+    "official": {"passed": 177, "required": 177, "failed": 0},
+    "am": {"passed": 59, "required": 59, "failed": 0},
+    "difftest_mismatches": 0,
+    "coremark": {"pass": true, "iterations": 10, "crc": "0xfcaf", "good_trap_count": 1},
+    "dhrystone": {"pass": true, "runs": 10000, "good_trap_count": 1},
+    "linux_deferred": true
+  },
+  "performance": {
+    "qualified_mhz": 200.0,
+    "cpi_scope": "whole_program",
+    "benchmarks": [
+      {
+        "name": "coremark",
+        "cycles": 6556915,
+        "retired_instructions": 3218532,
+        "cpi": 2.037237784182,
+        "ipc": 0.490860717273,
+        "throughput_mips": 98.172143455
+      },
+      {
+        "name": "dhrystone_10000",
+        "cycles": 11916217,
+        "retired_instructions": 4260665,
+        "cpi": 2.796797448286,
+        "ipc": 0.357551813633,
+        "throughput_mips": 71.510362727
+      }
+    ],
+    "weighted_throughput_mips": 83.787383227
+  },
+  "timing": {
+    "tier": "rtl_proxy_partial_constraints",
+    "period_ns": 5.0,
+    "qualified_mhz": 200.0,
+    "wns_ns": 0.0,
+    "tns_ns": 0.0,
+    "worst_path_slack_ns": 0.179479554,
+    "violated_path_count": 0,
+    "combinational_loops": 0,
+    "ideal_clock": true,
+    "parasitics_kind": "none",
+    "macro_model_kind": "placeholder",
+    "missing_input_delay": 304,
+    "missing_output_delay": 1906,
+    "unconstrained_endpoints": 1908,
+    "netlist_sha256": "1f2c397512c27c6884e7ff17280430b6ee3559b29d9d1fb1978fe09f8e79e285"
+  },
+  "area": {
+    "metric_kind": "logic_area_proxy_excluding_unknown_macros",
+    "unit": "library_area_unit",
+    "logic_area": 1622367.04,
+    "total_area": null,
+    "macro_area_complete": false,
+    "unknown_cell_types": [
+      "Sram4096x199",
+      "Sram4096x113",
+      "OooFpArithGate",
+      "OooBranchDirectionPredictor"
+    ]
+  },
+  "power": {
+    "metric_kind": "vectorless_logic_proxy",
+    "logic_proxy_w": 0.118,
+    "total_power_w": null,
+    "activity_coverage": null,
+    "macro_power_complete": false,
+    "qualified_for_promotion": false
+  },
+  "artifacts": [
+    {
+      "kind": "module_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-t4t-dcache-tag-mask/evidence/module-regression-final/summary.txt",
+      "sha256": "b9c56d18c07fe3b7fdc0ff73ba9fba101b51689a8c0c2e154919e857bd1e3b9d"
+    },
+    {
+      "kind": "core_regression_wrapper",
+      "path": ".github/task-runs/2026-07-15-rv64-t4t-dcache-tag-mask/evidence/core-regression-final-wrapper.log",
+      "sha256": "134eb23116e9cb2fd8a247e00db2dd1c0f9d6521e4c7507b160c2875555adf1f"
+    },
+    {
+      "kind": "benchmark_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-t4t-dcache-tag-mask/evidence/bench-results-final/summary.md",
+      "sha256": "249a7a23bf7d443d5a780d3e8a4a77f64b99fc2f139d3f44a182f048ffcea413"
+    },
+    {
+      "kind": "sta_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-t4t-dcache-tag-mask/evidence/opensta-fresh-t4t-final/summary.json",
+      "sha256": "26ad6b1c7e125d9503ebccd780cbcf48eb90f897ac67c5bcd40c7fb3f7dd6365"
+    },
+    {
+      "kind": "synthesis_rtl_manifest",
+      "path": "tmp/2026-07-15-rv64-t4t-dcache-tag-mask/synth-rtl-inputs.post.sha256",
+      "sha256": "365551862f1e98afc0406fae873ce110cac9e41edf8646d2c5ced635e543683d"
+    },
+    {
+      "kind": "mapped_netlist",
+      "path": "tmp/2026-07-15-rv64-t4t-dcache-tag-mask/sta-build/NpcTop-200MHz/NpcTop.netlist.v",
+      "sha256": "1f2c397512c27c6884e7ff17280430b6ee3559b29d9d1fb1978fe09f8e79e285"
+    }
+  ]
+}

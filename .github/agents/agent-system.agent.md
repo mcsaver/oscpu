@@ -14,6 +14,7 @@ tools: [read, edit, search, agent, todo]
 5. 维护 `.github/agentic-hardware-blueprint.md`，让工作区保有稳定的体系结构说明
 6. 维护 `.github/memory/` 中与 agent 环境相关的记忆，避免规则漂移和历史经验流失
 7. 维护 `.github/e2e/**`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`、`scripts/e2e/**` 与 `.github/instructions/agent-e2e-workflow.instructions.md`，让规则发现、模块合约、profile 编排、环境自检、最小 smoke 和 task-run 证据包形成可执行闭环
+8. 维护本地 RTL 子任务契约的 instruction、skill、canonical JSON、生成器与 `rtl-task-contract` profile 节点，让子 agent 范围在派发前可生成、可校验、可审计
 
 ## 开始工作前
 

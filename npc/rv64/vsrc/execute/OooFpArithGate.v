@@ -1405,11 +1405,16 @@ module OooFpArithGate (
   reg meta_double_q [1:5];
   reg [1:0] meta_kind_q [1:5];
 
-  function fp_meta_killed;
+  // Pure circular-age helper: every semantic dependency is an explicit formal.
+  // Keeping kill/head/cut as ambient function reads makes Icarus retain a stale
+  // out_valid value when only one of those inputs changes inside a cycle.
+  function fp_meta_younger;
     input [`OOO_ROB_INDEX_W-1:0] idx;
+    input [`OOO_ROB_INDEX_W-1:0] boundary_idx;
+    input [`OOO_ROB_INDEX_W-1:0] head_idx;
     begin
-      fp_meta_killed = kill_valid_i &&
-          ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+      fp_meta_younger =
+          (idx - head_idx) > (boundary_idx - head_idx);
     end
   endfunction
 
@@ -1443,14 +1448,20 @@ module OooFpArithGate (
       mul_a2_value_q <= {`XLEN{1'b0}}; mul_a2_fflags_q <= 5'b0;
     end else begin
       meta_valid_q[1] <= launch_valid_i &&
-                         !fp_meta_killed(launch_rob_idx_i);
+                         !(kill_valid_i &&
+                           fp_meta_younger(launch_rob_idx_i,
+                                           kill_rob_idx_i,
+                                           rob_head_idx_i));
       meta_rob_q[1] <= launch_rob_idx_i;
       meta_pdest_q[1] <= launch_pdest_i;
       meta_double_q[1] <= double_i;
       meta_kind_q[1] <= launch_kind_i;
       for (mi = 2; mi <= 5; mi = mi + 1) begin
         meta_valid_q[mi] <= meta_valid_q[mi-1] &&
-                            !fp_meta_killed(meta_rob_q[mi-1]);
+                            !(kill_valid_i &&
+                              fp_meta_younger(meta_rob_q[mi-1],
+                                              kill_rob_idx_i,
+                                              rob_head_idx_i));
         meta_rob_q[mi] <= meta_rob_q[mi-1];
         meta_pdest_q[mi] <= meta_pdest_q[mi-1];
         meta_double_q[mi] <= meta_double_q[mi-1];
@@ -1474,7 +1485,11 @@ module OooFpArithGate (
     end
   end
 
-  assign out_valid_o = meta_valid_q[5] && !fp_meta_killed(meta_rob_q[5]);
+  assign out_valid_o =
+      meta_valid_q[5] &&
+      !(kill_valid_i && fp_meta_younger(meta_rob_q[5],
+                                        kill_rob_idx_i,
+                                        rob_head_idx_i));
   assign out_rob_idx_o = meta_rob_q[5];
   assign out_pdest_o = meta_pdest_q[5];
   assign out_value_o =

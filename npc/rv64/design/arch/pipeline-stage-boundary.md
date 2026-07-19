@@ -1,7 +1,7 @@
 # 规范：流水线级间边界显式化（宪法级架构治理）—— 边界清单 + 六类契约 + 分阶段实施
 
-> 状态：**spec 先行（2026-07-08 冻结，基于四路只读侦查的 RTL 实测基线；PipeStageReg 原语
-> 与 focused TB 已落地，边界提取未动 RTL）**。
+> 状态：**P1/P2 边界已落地；2026-07-19 v8d 已把整数 EX0/EX1 的 selective
+> completion kill 接入该边界。** 下文保留 2026-07-08 的开工基线与历史验证记录。
 > 定位：把乱序核的级间边界**显式化、归一化**——弹性边界（队列解耦）保留并确认契约，
 > 隐藏在功能模块内部的刚性边界（一拍寄存簇）提取为 `vsrc/pipeline/PipeStageReg` 实例；
 > flush 单点化搭车；综合侧用 `keep_hierarchy` 兑现 ABC 沿寄存器切 cone 的收益。
@@ -22,7 +22,7 @@
 
 | 候选边界 | 实测现状 | 治理动作分类 |
 | --- | --- | --- |
-| EX→WB | **唯一真实 stage 寄存簇**：`OooIntBackend.v` `ex0/ex1_*_q`（valid1+rob4+pdest6+result64+exception1+cause5+tval64 = 145b/lane ×2）。无条件每拍写、无 stall 保持（下游 ROB wb 口恒收）、flush 单臂清、kill 不清（晚到 wb 由 ROB squash 吞）——语义就是 down_ready≡1 的退化 PipeStageReg | **提取**（第一刀，最机械） |
+| EX→WB | **唯一真实 stage 寄存簇**：`OooIntBackend.v` `ex0/ex1_*_q`（valid1+rob4+pdest6+result64+exception1+cause5+tval64 = 145b/lane ×2）。当前仍是 down_ready≡1 的退化 PipeStageReg；nuke flush 清空，branch mispredict 同拍以 head-relative strict-younger 年龄形成 selective `kill_i`，并在消费沿前生成 effective completion valid | **已提取；v8d 已补完成授权截断** |
 | Decode→Rename | **零寄存融合拍**：`OooAluDecodeBackend`/`DecodeStage` 全组合（0 个 posedge 块），上游最近寄存是 PacketFifo | **重新流水化**（插寄存=新增流水级，改 IPC，须单独决策） |
 | Rename→Dispatch | **零寄存融合拍**：rename map 读/freelist/busytable 全组合同拍写入 IQ/ROB 阵列；`OooDispatchBackend` 仅 kill_valid_q/kill_idx_q 一对破环寄存 | 同上 |
 | Issue→RegRead→EX | **零寄存融合拍**：resident IQ 的 WB wakeup→select 组合直通 PRF 写读旁路→ALU/AGU→ex_q；dispatch→issue 同拍 bypass 已于 2026-07-09 删除。issue0 current-result→issue1 mux 的合法 true arm由 RAW-I1 证明不可达，但 2026-07-12 首次 A/B 与 2026-07-13 current-top retry 均因 full-chip PPA/timing 回退而还原。当前 production A top40=`1 fetch+39 MIQ`，且 `check_setup` 的109环精确分成108条 long-op response→full-WB→PRF/IQ→branch-kill feedback 与1条 FP admission credit真环；不能再把旧 frontend-only 排序当现状 | 同上（且触碰唤醒时序，风险最高）；首选只把 long-op 排除出同拍 select/read0–3 bypass，full WB/state wakeup 保留 |
@@ -65,7 +65,7 @@
 | 阶段 | 内容 | 判定 |
 | --- | --- | --- |
 | P0（本轮已完成） | 本 spec 冻结 + PipeStageReg 原语 + focused TB + yosys `KEEP_HIERARCHY_MODULES` 机制接入 | TB PASS；机制 PoC 全通过 |
-| P1（**2026-07-08 已完成**） | **EX→WB 提取第一刀**：`OooIntBackend` 的 ex0/ex1 簇替换为两个 `PipeStageReg #(.WIDTH(144))` 实例（valid 由原语持有，payload 144b/lane）。原 always 各赋值臂等价改写为组合 up_valid/up_payload 生成（"功能模块退化为纯组合+写入下一级寄存器"目标形态）；mem_pending/AMO FSM 共用 always 块原地不动。down_ready 接常 1（ROB wb 口恒收的现状语义），kill_i 接常 0（现状：kill 不清 ex_q），flush_i 接 `flush_i\|\|checkpoint_restore_i`（原 flush 臂等价）。原"未命中臂写全 0 payload"语义不保留（valid=0 拍 payload 留脏，已核对无 valid=0 读 payload 消费点）。原语自带 PSR-HOLD/PSR-FLUSH-EMPTY 断言随 CORE_SRCS 进 check-contract 计数（+2） | focused TB（tb_ooo_int_backend）PASS + 全量 module TB 85/85 + lint + check-contract（tohost 回归留给重构整体收口） |
+| P1（**2026-07-08 已完成，2026-07-19 v8d 修订 kill 合同**） | **EX→WB 提取第一刀**：`OooIntBackend` 的 ex0/ex1 簇替换为两个 `PipeStageReg #(.WIDTH(144))` 实例（valid 由原语持有，payload 144b/lane）。down_ready 接常 1；flush_i 接 `flush_i\|\|checkpoint_restore_i`。v8d 以 `age=rob_idx-rob_head`、strict `>` 形成逐 lane `kill_i`；raw valid 只表示 stage 占用，WB/PRF/Busy/IQ/ROB/public completion 与低优先级源补位只读 effective valid。boundary/equal 与 older survivor 保留；不得再依赖 ROB walk 事后吸收来撤回 pre-ROB 副作用。原"未命中臂写全 0 payload"语义不保留（valid=0 拍 payload 留脏，已核对无 valid=0 读 payload 消费点） | 2026-07-08 历史门：focused + module 85/85；v8d 的 current-source 门独立记录在对应 task-run，不与历史计数混称 |
 | P2（**2026-07-08 已完成**） | **FP exec1 簇提取**：`OooFpBackend` exec1_*_q（valid1+payload 81b，带 IQ 反压占用语义）替换为 `PipeStageReg #(.WIDTH(81)) u_exec1_stage`。payload 布局 `{rob[80:77], pdest[76:71], dst_gpr[70], dst_en[69], value[68:5], fflags[4:0]}`。端口契约：flush_i=`flush_i`（recover/checkpoint 不清 exec1——与 IntBackend 不同的现状语义）、kill_i=`exec1_kill_w`（年龄比较留使用方，rob 取 down_payload 位段）、up_valid_i=`issue_fire_w && issue_is_comb_w`、down_ready_i=`!arith_out_valid_w`（唯一阻塞源=arith 完成仲裁优先）、**up_ready_o 悬空**——issue_ready_w 保留 `!exec1_valid_q` 项（现行反压比原语 up_ready 更严，语义中性提取不做省 1 拍微优化）。消费点经 `exec1_*_q` 位段别名 wire 零文本改动；原 flush 清零 payload 变留脏安全（全消费点经 exec1_take_w/exec1_valid_q 门控）。done FIFO（同 always 块但 next-state 零交叉）与 long meta/hold 簇（两相写违反单装载契约）、`OooFpArithGate` 多级 meta 链（kill 前视耦合）**不提取**——exec1 是本模块唯一可提取纯流水簇 | tb_ooo_int_backend PASS + 全量 module TB 85/85 + lint + check-contract（计数 17 不变：PSR 断言按文件计，P1 已计入） |
 | P3（**2026-07-08 机制完成+首批数据**） | keep_hierarchy 全核对照实验：7 大模块 keep 下 ABC **分模块独立 mapping 实锤**——`OooMemAxiBridge` 66034 gates/area 131k/delay 45、`OooFetchAxiBridge` 93412 gates/area 175k/delay 50（两 cache 控制逻辑 stdcell 成本首次量化）。**发现并修复哈希 paramod 漏保**：参数值长时 yosys 用 `$paramod$<hash>\Mod` 形态（模块名在末尾），原 glob 尾部强制 `\*` 匹配不上致 7 keep 5 漏——yosys.tcl setattr 补 `=*\$module` 后缀 pattern（小例 PoC 验证）。**修复版全核综合 4670s 跑通**(此前 flatten 全核 6000s×2 timeout)：ABC 分 10 块独立 mapping——IntBackend 95250 gates/197k area/delay 89、FetchAxiBridge 93412/175k/50、MemAxiBridge 66269/132k/47、FpBackend 50545/107k/**90**、IntIssueQueue 30656/55k/27、Rob 15230/46k/14、Frontend 14497/27k/37、NpcTop 剩余 59395/113k/61、PipeStageReg×2 各 5 gates；总 stdcell 面积 ~855k(不含 4 黑盒宏)。关键路径大户=IntBackend(89)/FpBackend(90)——与"Issue→RegRead→EX 全核最深组合锥"侦查结论互证。宏合同 checker 新网表全 PASS+iEDA 兼容 PASS。`OooFpArithGate` 内部子模块化仍单独立项 | **全核综合首次闭合** |
 | P4（**2026-07-09 切消费点完成**） | **flush 单点化——fetch 侧 redirect PC 单真源落地**（见 §5）：shadow 全绿（86 TB+riscv 177+AM+CoreMark 全程 OOO_ASSERT 零 fire）后一次切齐——`OooRedirectArbiter` 转正（生产实例迁 `OooFrontend`，trap 口=E1>E5>E6 pre-mux age0 / branch 口=E3 真 rob_idx / direct 口=E4 head−1 哨兵）；`OooFetchRequestMux` 三元链删除（赢家透传+core_branch_resolve 兜底，valid 成员集不动）；`OooFetchPcOutstandingSequencer` E1/E3/E4/E5/E6 六处 PC 写删除（记账全保留，含 :263 系 override 臂记账），换文本最后唯一 arb 终写；E7/E8/E9 排除集臂原样保留（新增 INV-3c 钉互斥）。GAP-2 甲门删除=唯一行为变化面（全 flag=0 负载不可达，INV-3b 0 fire 实证，升格哨兵）；GAP-1 双落点由构造消灭。glue shadow 段删除（NUKE-SRC-EQ 保留钉 nuke 源）；断言基线 21→20。刀 0 前置探针（mux E4 链 vs direct_fire_succ 两平行编码，shadow 未覆盖点）module TB 86+CoreMark 零 fire 后才动刀。后端 kill/nuke 通道零触碰（arbiter kill_idx/reason/flush_backend unused-sink） | ✅ fetch 侧完成。验证=focused TB 重写 PASS+module TB 86/86+lint 双变体+check-contract 20≥20+负测试（错接 arbiter branch 口 pc 源 INV-1 623 fire→复原 0 fire）+切换后 CoreMark 0xfcaf/0.966 持平零 fire；大节点回归（riscv/AM/linux-mini）主控统一跑。**GAP-4 后端扁平 OR 收敛（消费 kill_idx/reason/flush_backend）另立刀**；E2/E5-head0 支 flag=0 零 exercise 照旧 |
@@ -121,6 +121,12 @@
    in-flight wb——三条"看似可简化实为承重"的现状，动前先读对应注释与 TB。
 
 ## 8. 变更记录
+
+- 2026-07-19（v8d）：整数 EX0/EX1 raw stage valid 与 effective completion valid 分离；
+  branch mispredict 同拍按 head-relative strict-younger 选择性截断，stage `kill_i` 同源清状态，
+  WB/PRF/BusyTable/INT-IQ/FP-IQ/ROB/public completion 共享授权事件。现有控制流拓扑中
+  strictly-younger EX1 动态可达；EX0 对称门用于合同完整与未来拓扑漂移防护，不把 forced
+  EX0 matrix 越级表述为当前动态可达性。
 
 - 2026-07-09（P4 切消费点完成）：`OooRedirectArbiter` 转正为 fetch 侧 redirect PC 单真源。
   刀 0（探针）：OooFrontend 加 mux-vs-succ 探针断言（mux E4 链与 direct_fire_succ 两平行

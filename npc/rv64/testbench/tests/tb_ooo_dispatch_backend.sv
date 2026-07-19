@@ -8,6 +8,8 @@ module tb_ooo_dispatch_backend;
   localparam ROB_COUNT_W = 5;
   localparam FREE_COUNT_W = 7;
   localparam ISSUE_COUNT_W = 4;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
 
   reg clk;
   reg rst;
@@ -51,6 +53,13 @@ module tb_ooo_dispatch_backend;
   reg [`TRAP_CAUSE_W-1:0] wb1_cause;
   reg [`XLEN-1:0] wb1_tval;
 
+  reg completion0_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion0_query_producer_id;
+  wire completion0_query_match;
+  reg completion1_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion1_query_producer_id;
+  wire completion1_query_match;
+
   wire issue0_valid;
   reg issue0_ready;
   wire [`XLEN-1:0] issue0_pc;
@@ -58,6 +67,8 @@ module tb_ooo_dispatch_backend;
   wire [`INST_W-1:0] issue0_inst;
   wire [`CTRL_BUS_W-1:0] issue0_ctrl;
   wire [ROB_INDEX_W-1:0] issue0_rob_idx;
+  wire [PRODUCER_ID_W-1:0] issue0_producer_id;
+  wire issue0_producer_current;
   wire [PHY_REG_ADDR_W-1:0] issue0_src1_preg;
   wire [PHY_REG_ADDR_W-1:0] issue0_src2_preg;
   wire [PHY_REG_ADDR_W-1:0] issue0_pdest;
@@ -70,6 +81,8 @@ module tb_ooo_dispatch_backend;
   wire [`INST_W-1:0] issue1_inst;
   wire [`CTRL_BUS_W-1:0] issue1_ctrl;
   wire [ROB_INDEX_W-1:0] issue1_rob_idx;
+  wire [PRODUCER_ID_W-1:0] issue1_producer_id;
+  wire issue1_producer_current;
   wire [PHY_REG_ADDR_W-1:0] issue1_src1_preg;
   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg;
   wire [PHY_REG_ADDR_W-1:0] issue1_pdest;
@@ -110,9 +123,15 @@ module tb_ooo_dispatch_backend;
   OooDispatchBackend dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(),
+    .head0_identity_valid_o(),
+    .head0_identity_o(),
     .flush_i(flush),
     .kill_rob_idx_i(kill_rob_idx),
     .issue_mem_block_i(1'b0),
+    .universal_owner_present_i(1'b0),
     .sq_alloc0_ready_i(1'b1),
     .sq_alloc1_ready_i(1'b1),
     .branch_mispredict_valid_i(branch_mispredict_valid),
@@ -121,6 +140,8 @@ module tb_ooo_dispatch_backend;
     .dispatch0_pc_i(dispatch0_pc),
     .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
     .dispatch0_pred_npc_i('0),
+    .dispatch0_bht_idx_i({`BPU_BHT_INDEX_W{1'b0}}),
+    .dispatch0_pred_taken_i(1'b0),
     .dispatch0_inst_i(dispatch0_inst),
     .dispatch0_ctrl_i(dispatch0_ctrl),
     .dispatch0_rs1_arch_i(dispatch0_rs1_arch),
@@ -140,6 +161,8 @@ module tb_ooo_dispatch_backend;
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
     .dispatch1_pred_npc_i('0),
+    .dispatch1_bht_idx_i({`BPU_BHT_INDEX_W{1'b0}}),
+    .dispatch1_pred_taken_i(1'b0),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_ctrl_i(dispatch1_ctrl),
     .dispatch1_rs1_arch_i(dispatch1_rs1_arch),
@@ -173,6 +196,16 @@ module tb_ooo_dispatch_backend;
     .wb1_cause_i(wb1_cause),
     .wb1_tval_i(wb1_tval),
     .wb1_fflags_i(5'b00000),
+    .completion0_query_valid_i(completion0_query_valid),
+    .completion0_query_producer_id_i(completion0_query_producer_id),
+    .completion0_query_match_o(completion0_query_match),
+    .completion1_query_valid_i(completion1_query_valid),
+    .completion1_query_producer_id_i(completion1_query_producer_id),
+    .completion1_query_match_o(completion1_query_match),
+    .early_wakeup0_valid_i(1'b0),
+    .early_wakeup0_pdest_i({PHY_REG_ADDR_W{1'b0}}),
+    .early_wakeup1_valid_i(1'b0),
+    .early_wakeup1_pdest_i({PHY_REG_ADDR_W{1'b0}}),
     .issue0_valid_o(issue0_valid),
     .issue0_ready_i(issue0_ready),
     .issue0_pc_o(issue0_pc),
@@ -180,10 +213,14 @@ module tb_ooo_dispatch_backend;
     .issue0_inst_o(issue0_inst),
     .issue0_ctrl_o(issue0_ctrl),
     .issue0_rob_idx_o(issue0_rob_idx),
+    .issue0_producer_id_o(issue0_producer_id),
+    .issue0_producer_current_o(issue0_producer_current),
     .issue0_src1_preg_o(issue0_src1_preg),
     .issue0_src2_preg_o(issue0_src2_preg),
     .issue0_pdest_o(issue0_pdest),
+    .issue0_fixed_gpr_producer_o(),
     .issue0_imm_o(issue0_imm),
+    .issue_pair_swapped_o(),
     .issue1_valid_o(issue1_valid),
     .issue1_ready_i(issue1_ready),
     .issue1_pc_o(issue1_pc),
@@ -191,12 +228,16 @@ module tb_ooo_dispatch_backend;
     .issue1_inst_o(issue1_inst),
     .issue1_ctrl_o(issue1_ctrl),
     .issue1_rob_idx_o(issue1_rob_idx),
+    .issue1_producer_id_o(issue1_producer_id),
+    .issue1_producer_current_o(issue1_producer_current),
     .issue1_src1_preg_o(issue1_src1_preg),
     .issue1_src2_preg_o(issue1_src2_preg),
     .issue1_pdest_o(issue1_pdest),
+    .issue1_fixed_gpr_producer_o(),
     .issue1_imm_o(issue1_imm),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
+    .mem_quiet_i(1'b1),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),
     .commit0_next_pc_o(commit0_next_pc),
@@ -282,6 +323,10 @@ module tb_ooo_dispatch_backend;
       wb1_exception = 1'b0;
       wb1_cause = {`TRAP_CAUSE_W{1'b0}};
       wb1_tval = 32'h0;
+      completion0_query_valid = 1'b0;
+      completion0_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion1_query_valid = 1'b0;
+      completion1_query_producer_id = {PRODUCER_ID_W{1'b0}};
     end
   endtask
 
@@ -293,7 +338,15 @@ module tb_ooo_dispatch_backend;
       issue1_ready = 1'b1;
       commit_ready = 1'b1;
       clear_inputs();
+      dispatch0_valid = 1'b1;
+      dispatch1_valid = 1'b1;
+      #1;
+      tb_check1("v8e dispatch parent reset blocks lane0", dispatch0_ready,
+                1'b0);
+      tb_check1("v8e dispatch parent reset blocks lane1", dispatch1_ready,
+                1'b0);
       `TB_TICK(clk);
+      clear_inputs();
       rst = 1'b0;
       #1;
     end
@@ -336,6 +389,97 @@ module tb_ooo_dispatch_backend;
       dispatch1_rs2_arch = rs2;
       dispatch1_rd_arch = rd;
       dispatch1_imm = pc + 32'h20;
+    end
+  endtask
+
+  // v8f bridge check: ROB-created ProducerId must reach both IQ issue ports;
+  // current and completion-open decisions are then returned through distinct
+  // query channels without entering issue READY.
+  task automatic run_v8f_query_bridge;
+    reg [PRODUCER_ID_W-1:0] id0;
+    reg [PRODUCER_ID_W-1:0] id1;
+    reg [PRODUCER_ID_W-1:0] wrong0;
+    reg [PRODUCER_ID_W-1:0] wrong1;
+    reg [PHY_REG_ADDR_W-1:0] pdest0;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8000_1300,
+                    5'd1, 1'b1, 5'd2, 1'b1, 5'd20, 1'b1);
+      set_dispatch1(32'h8000_1304,
+                    5'd3, 1'b1, 5'd4, 1'b1, 5'd21, 1'b1);
+      #1;
+      id0 = dut.rob_dispatch0_producer_id_w;
+      id1 = dut.rob_dispatch1_producer_id_w;
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      pdest0 = issue0_pdest;
+      tb_check1("v8f bridge issue0 resident", issue0_valid, 1'b1);
+      tb_check1("v8f bridge issue1 resident", issue1_valid, 1'b1);
+      tb_check32("v8f bridge issue0 carries ROB id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id0});
+      tb_check32("v8f bridge issue1 carries ROB id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, id1});
+      tb_check1("v8f bridge issue0 current", issue0_producer_current, 1'b1);
+      tb_check1("v8f bridge issue1 current", issue1_producer_current, 1'b1);
+
+      wrong0 = id0;
+      wrong0[ROB_INDEX_W] = ~id0[ROB_INDEX_W];
+      wrong1 = id1;
+      wrong1[ROB_INDEX_W] = ~id1[ROB_INDEX_W];
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = wrong1;
+      #1;
+      tb_check1("v8f bridge query0 exact open",
+                completion0_query_match, 1'b1);
+      tb_check1("v8f bridge query1 wrong generation closed",
+                completion1_query_match, 1'b0);
+      completion0_query_producer_id = wrong0;
+      completion1_query_producer_id = id1;
+      #1;
+      tb_check1("v8f bridge query0 wrong generation closed",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f bridge query1 exact open",
+                completion1_query_match, 1'b1);
+
+      wb0_valid = 1'b1;
+      wb0_rob_idx = id0[ROB_INDEX_W-1:0];
+      wb0_pdest = pdest0;
+      wb0_data = 64'h0000_0000_1300_0020;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = id1;
+      #1;
+      tb_check1("v8f bridge done issue remains current",
+                issue0_producer_current, 1'b1);
+      tb_check1("v8f bridge done completion closes",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f bridge other completion remains open",
+                completion1_query_match, 1'b1);
+
+      flush = 1'b1;
+      #1;
+      tb_check1("v8f bridge flush masks issue0 current",
+                issue0_producer_current, 1'b0);
+      tb_check1("v8f bridge flush masks issue1 current",
+                issue1_producer_current, 1'b0);
+      tb_check1("v8f bridge flush masks completion0",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f bridge flush masks completion1",
+                completion1_query_match, 1'b0);
+      $display("[V8F-DISPATCH-QUERY-BRIDGE] carrier/current/open/wrong-gen/done/flush PASS");
+      reset_dut();
     end
   endtask
 
@@ -464,7 +608,14 @@ module tb_ooo_dispatch_backend;
 
     // 隔离 T3B 周期场景并恢复 canonical free-list/ROB 索引，避免前序合法
     // 分配轮转让定向使用的 pdest32/rob0 变成脆弱隐含前提。
+    set_dispatch0(32'h8000_0028, 5'd1, 1'b1, 5'd2, 1'b1, 5'd8, 1'b1);
+    set_dispatch1(32'h8000_002c, 5'd3, 1'b1, 5'd4, 1'b1, 5'd9, 1'b1);
     flush = 1'b1;
+    #1;
+    tb_check1("v8e dispatch parent flush blocks lane0", dispatch0_ready,
+              1'b0);
+    tb_check1("v8e dispatch parent flush blocks lane1", dispatch1_ready,
+              1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -571,6 +722,7 @@ module tb_ooo_dispatch_backend;
     tb_check32("flush restores freelist", {25'b0, free_count}, 32'd32);
     tb_check32("flush clears rob", {27'b0, rob_count}, 32'd0);
     tb_check32("flush clears issue queue", {28'b0, issue_count}, 32'd0);
+    $display("[V8E-DISPATCH-RESET-FLUSH-PASS] parent ready is fail-closed on reset and flush with presented valid");
 
     // T3N：branch resolve 已在 IntBackend 打成 coherent q packet，本层必须
     // 直接消费该拍 kill。用一个 done head、存活 branch 与 younger 构造
@@ -669,6 +821,8 @@ module tb_ooo_dispatch_backend;
                {27'b0, rob_count}, 32'd0);
     tb_check32("T3N direct-kill cleanup IQ",
                {28'b0, issue_count}, 32'd0);
+
+    run_v8f_query_bridge();
 
     tb_finish("tb_ooo_dispatch_backend");
   end

@@ -171,7 +171,14 @@ module OooAluCoreSlice #(
   output [ROB_INDEX_W-1:0] rob_head_idx_o,
   output [1:0] retire_count_o,
   output [`XLEN-1:0] a0_data_o,
-  output [`XLEN * `REG_NUM - 1:0] debug_gprs_o
+  output [`XLEN * `REG_NUM - 1:0] debug_gprs_o,
+
+  // S2-Q2 v8a：无状态、同名 shadow transport。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
   wire [PHY_REG_ADDR_W-1:0] commit0_old_pdest_w;
@@ -196,6 +203,11 @@ module OooAluCoreSlice #(
     .ISSUE_COUNT_W(ISSUE_COUNT_W)
   ) u_decode_backend (
     .clk(clk),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
     .rst(rst),
     .flush_i(flush_i),
     .checkpoint_capture_i(checkpoint_capture_i),

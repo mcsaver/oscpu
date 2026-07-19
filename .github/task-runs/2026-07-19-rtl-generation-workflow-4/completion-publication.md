@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-rtl-generation-workflow-4
+- `trace_id`: e2e:2026-07-19-rtl-generation-workflow-4
+- `task_slug`: rtl-generation-workflow
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 8a57ae0d12e725ce38c4f9d56eb9f8bf69269c850d8ddfedaf28995264ad09ba
+- `task_report_md_sha256`: 8d9a7e352d524765a4b1b0a9012e6a66b6ae0d4461c679516b8c4e4f12c81c97
+- `run_manifest_json_sha256`: f0cb7567eb7b89f79828f41aa90130402d51f02decf2689b055dc427415632f3
+- `context_brief_md_sha256`: da928d08ccfc747389031766e92d22114132c3ba41c722036fd3864760148513
+- `profile_resolve_md_sha256`: 77ad081e4a38ecf46f7e6c62f5380063a97b0daceb83f1a2919832dc25e8dcea
+- `evidence_index_md_sha256`: 3387a951f98850706e309b139011a3ab31b85656512c5451538f325e8ba93f26
+- `dispatch_log_md_sha256`: 3fc4977fa4d1cd3a6da719c0ebcd720e0fcf388e5ee074da973d8fbf918e4c1e
+- `nodes_tsv_sha256`: 6b26ed6273ff60109016c24ebfab6648816ebd2a269b26e583f6c7796209d0d7

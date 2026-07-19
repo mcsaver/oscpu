@@ -1,0 +1,17 @@
+df604c0e6c72e53f1572cd0691ab7061271175cf
+df604c0e6c72e53f1572cd0691ab7061271175cf 5e32790aa2967ee5ba4998390c9a9b85df5f6966 r3p1-minimal-semantic-port
+npc/rv64/design/specs/ooo-int-issue-queue.md
+npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+npc/rv64/vsrc/execute/OooIntBackend.v
+npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v
+npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+ npc/rv64/design/specs/ooo-int-issue-queue.md       |  55 ++--
+ .../testbench/tests/tb_ooo_dispatch_backend.sv     |   6 +
+ npc/rv64/testbench/tests/tb_ooo_int_backend.sv     | 288 +++++++++++++++------
+ npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv |  91 ++++++-
+ npc/rv64/vsrc/execute/OooIntBackend.v              | 125 +++++++--
+ npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v |  17 ++
+ npc/rv64/vsrc/scheduling/OooIntIssueQueue.v        |  88 ++++++-
+ 7 files changed, 548 insertions(+), 122 deletions(-)

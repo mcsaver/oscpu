@@ -106,6 +106,22 @@ static DebugCycleEvent g_recent_debug[kRecentDebugRingSize] = {};
 static uint64_t    g_recent_debug_count = 0;
 static ExitEvent   g_exit_event   = {};
 static TrapEvent   g_trap_event   = {};
+struct RegionProbeState {
+  bool enabled;
+  bool start_seen;
+  bool end_seen;
+  npc_word_t start_pc;
+  npc_word_t end_pc;
+  uint64_t start_pc_hits;
+  uint64_t end_pc_hits;
+  uint64_t start_cycle;
+  uint64_t end_cycle;
+  uint64_t start_retired;
+  uint64_t end_retired;
+  uint32_t start_lane;
+  uint32_t end_lane;
+};
+static RegionProbeState g_region_probe = {};
 static npc_word_t  g_shadow_gpr[32] = {};
 static uint64_t    g_shadow_fpr[32] = {};   // 阶段2 FPR shadow: 逐提交精确 FP arch 值(对称 GPR)
 // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
@@ -793,6 +809,95 @@ static void maybe_log_ecall_trap(uint32_t kind, uint32_t cause,
 
 static void on_sigint(int) { g_stop_requested = 1; }
 
+static void configure_region_probe(void) {
+  g_region_probe = {};
+
+  const char *start_s = std::getenv("NPC_REGION_START_PC");
+  const char *end_s = std::getenv("NPC_REGION_END_PC");
+  if (!start_s || !end_s || start_s[0] == '\0' || end_s[0] == '\0') return;
+
+  char *start_end = nullptr;
+  char *end_end = nullptr;
+  const uint64_t start = std::strtoull(start_s, &start_end, 0);
+  const uint64_t end = std::strtoull(end_s, &end_end, 0);
+  if (start_end == start_s || *start_end != '\0' ||
+      end_end == end_s || *end_end != '\0') {
+    LogBothTag("region_probe", "ERROR invalid NPC_REGION_START_PC/END_PC");
+    return;
+  }
+
+  g_region_probe.enabled = true;
+  g_region_probe.start_pc = (npc_word_t)start;
+  g_region_probe.end_pc = (npc_word_t)end;
+  LogBothTag("region_probe",
+             "enabled start=0x%016" NPC_PRIxWORD
+             " end=0x%016" NPC_PRIxWORD,
+             g_region_probe.start_pc, g_region_probe.end_pc);
+}
+
+static void observe_region_boundary(const CommitEvent &event,
+                                    uint32_t commit_lane) {
+  if (!g_region_probe.enabled) return;
+
+  const uint64_t cycle_retire = g_commit_event_count;
+  const uint64_t retired_before =
+      npc_stats()->commits - cycle_retire + commit_lane;
+
+  if (event.pc == g_region_probe.start_pc) {
+    ++g_region_probe.start_pc_hits;
+    if (!g_region_probe.start_seen) {
+      g_region_probe.start_seen = true;
+      g_region_probe.start_cycle = npc_stats()->cycles;
+      g_region_probe.start_retired = retired_before;
+      g_region_probe.start_lane = commit_lane;
+      LogBothTag("region_probe",
+                 "BOUNDARY kind=start pc=0x%016" NPC_PRIxWORD
+                 " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
+                 event.pc,
+                 (unsigned long long)g_region_probe.start_cycle,
+                 (unsigned long long)g_region_probe.start_retired,
+                 g_region_probe.start_lane,
+                 (unsigned long long)cycle_retire);
+    }
+  }
+
+  if (event.pc == g_region_probe.end_pc) {
+    ++g_region_probe.end_pc_hits;
+    if (!g_region_probe.end_seen) {
+      g_region_probe.end_seen = true;
+      g_region_probe.end_cycle = npc_stats()->cycles;
+      g_region_probe.end_retired = retired_before;
+      g_region_probe.end_lane = commit_lane;
+      LogBothTag("region_probe",
+                 "BOUNDARY kind=end pc=0x%016" NPC_PRIxWORD
+                 " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
+                 event.pc,
+                 (unsigned long long)g_region_probe.end_cycle,
+                 (unsigned long long)g_region_probe.end_retired,
+                 g_region_probe.end_lane,
+                 (unsigned long long)cycle_retire);
+      if (g_region_probe.start_seen) {
+        LogBothTag("region_probe",
+                   "RESULT start_hits=%llu end_hits=%llu start_cycle=%llu"
+                   " end_cycle=%llu cycles=%llu start_retired=%llu"
+                   " end_retired=%llu retired=%llu",
+                   (unsigned long long)g_region_probe.start_pc_hits,
+                   (unsigned long long)g_region_probe.end_pc_hits,
+                   (unsigned long long)g_region_probe.start_cycle,
+                   (unsigned long long)g_region_probe.end_cycle,
+                   (unsigned long long)(g_region_probe.end_cycle -
+                                        g_region_probe.start_cycle),
+                   (unsigned long long)g_region_probe.start_retired,
+                   (unsigned long long)g_region_probe.end_retired,
+                   (unsigned long long)(g_region_probe.end_retired -
+                                        g_region_probe.start_retired));
+      } else {
+        LogBothTag("region_probe", "ERROR end boundary observed before start");
+      }
+    }
+  }
+}
+
 static void clear_cycle_events(void) {
   for (uint32_t i = 0; i < kMaxCommitEventsPerCycle; ++i) {
     g_commit_events[i].valid = false;
@@ -804,6 +909,7 @@ static void clear_cycle_events(void) {
 
 static void reset_event_state(void) {
   clear_cycle_events();
+  configure_region_probe();
   memset(g_shadow_gpr, 0, sizeof(g_shadow_gpr));
   memset(g_recent_commits, 0, sizeof(g_recent_commits));
   memset(g_recent_commit_seq, 0, sizeof(g_recent_commit_seq));
@@ -2285,6 +2391,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
         const CommitEvent &event = g_commit_events[commit_idx];
         if (!event.valid) continue;
 
+        observe_region_boundary(event, commit_idx);
         ++executed;
         trace_commit(event);
 #if CONFIG_NPC_DIFFTEST

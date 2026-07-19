@@ -1,0 +1,25 @@
+module-test-logs/tb_ooo_dispatch_backend.log:51:[PASS] tb_ooo_dispatch_backend
+module-test-logs/tb_ooo_dispatch_backend.log:53:[RESULT] PASS
+module-test-logs/tb_ooo_int_issue_queue.log:64:[R3-CAP-PAIR] class=0 complex_older=0 issue={1,1} universal_pc=0000000082000004 alu_pc=0000000082000000 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:65:[R3-CAP-PAIR] class=0 complex_older=1 issue={1,1} universal_pc=0000000082000020 alu_pc=0000000082000024 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:66:[R3-CAP-PAIR] class=1 complex_older=0 issue={1,1} universal_pc=0000000082000044 alu_pc=0000000082000040 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:67:[R3-CAP-PAIR] class=1 complex_older=1 issue={1,1} universal_pc=0000000082000060 alu_pc=0000000082000064 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:68:[R3-CAP-PAIR] class=2 complex_older=0 issue={1,1} universal_pc=0000000082000084 alu_pc=0000000082000080 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:69:[R3-CAP-PAIR] class=2 complex_older=1 issue={1,1} universal_pc=00000000820000a0 alu_pc=00000000820000a4 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:70:[R3-CAP-PAIR] class=3 complex_older=0 issue={1,1} universal_pc=00000000820000c4 alu_pc=00000000820000c0 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:71:[R3-CAP-PAIR] class=3 complex_older=1 issue={1,1} universal_pc=00000000820000e0 alu_pc=00000000820000e4 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:72:[R3-CAP-PAIR] class=4 complex_older=0 issue={1,1} universal_pc=0000000082000104 alu_pc=0000000082000100 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:73:[R3-CAP-PAIR] class=4 complex_older=1 issue={1,1} universal_pc=0000000082000120 alu_pc=0000000082000124 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:74:[R3P1-READY-MATRIX] ready=00 effective_universal=0 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:75:[R3P1-READY-MATRIX] ready=01 effective_universal=0 count=1
+module-test-logs/tb_ooo_int_issue_queue.log:76:[R3P1-READY-MATRIX] ready=10 effective_universal=0 count=2
+module-test-logs/tb_ooo_int_issue_queue.log:77:[R3P1-READY-MATRIX] ready=11 effective_universal=1 count=0
+module-test-logs/tb_ooo_int_issue_queue.log:78:[R3P1-REGISTERED-OWNER-SOLE-ALU] PASS
+module-test-logs/tb_ooo_int_issue_queue.log:79:[PASS] tb_ooo_int_issue_queue
+module-test-logs/tb_ooo_int_issue_queue.log:81:[RESULT] PASS
+module-test-logs/tb_ooo_int_backend.log:92:[T3V-MEM-RES-RELEASE] younger_fire=1 younger_wb=1 younger_commit=1
+module-test-logs/tb_ooo_int_backend.log:101:[R3-ALU-TERMINAL-NO-LSU] live=1 fire=1 req=0 push=0
+module-test-logs/tb_ooo_int_backend.log:102:[R3P1-SWAPPED-MMIO-ATOMIC] wait=0 PASS
+module-test-logs/tb_ooo_int_backend.log:103:[R3P1-DIVU-8-YOUNGER] cycles=39 mask=ff commits=9 PASS
+module-test-logs/tb_ooo_int_backend.log:104:[PASS] tb_ooo_int_backend
+module-test-logs/tb_ooo_int_backend.log:106:[RESULT] PASS

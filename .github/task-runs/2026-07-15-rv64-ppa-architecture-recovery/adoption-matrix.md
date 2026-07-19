@@ -38,10 +38,36 @@
 - 当前 S1 typed ABI 已以 content-addressed bundle/point/ledger 登记在 development 与
   high-uncertainty；后续 S1-ID/S2 继续走同一 development path。九项 DI/OOO 未全绿前，
   任何点都不得进入 feasible Pareto/promotion。
-- required module set 当前为 103，而 hash-bound 合同/policy 仍为 102。新增 typed classifier 测试必须
-  在 development regression 中执行；在合同/provenance/test 原子更新前，该漂移是 promotion
-  blocker，不能用 102 或 103 的单一 PASS 数字掩盖。
+- required module set 当前为 104，而历史 hash-bound 合同/policy 仍落后于 live inventory。typed
+  classifier 与 Q1 epoch-owner 均已在 fresh development regression 中执行；在合同/provenance/test
+  inventory 原子更新前，该漂移仍是 promotion blocker，不能用 102、103 或 104 的单一 PASS 数字掩盖。
 - 新 archive 已强制完整点绑定 content-addressed source bundle，且 complete `design_id` 必须等于
   bundle SHA；S1 bundle 已逐 member 对 source-set manifest 复核。但现有 normative
   `front.py/check.py` 尚未改成从该 bundle 恢复执行，因此 formal promotion 仍不得借 companion
   registry 绕过原 checker。
+- S2-Q0 bridge registered-fact idle 继续按第1节作为 intermediate checkpoint：正例、mutation
+  反例和 source-bound wrapper 已闭合，但 epoch owner、完整 context barrier、第二 memory
+  datapath 与 200 MHz 均未闭合，因此只保留在 development branch，不进入 feasible Pareto
+  archive 或任何 champion 裁决。
+- S2-Q1 epoch owner 已完成 source-catalog adoption：canonical exact-oracle runner 与正式
+  104-test module aggregate GREEN；但 leaf 尚未 live 实例化，所有 PPA 轴仍为
+  unqualified/null，继续只属于 development/high-uncertainty，不进入 feasible/front/champion。
+- S2-Q2 已形成 `CAPTURE→SQUASH→WAIT_QUIET→GRANT` 的 mem0-only contract/checker hardening
+  checkpoint，尚不称 implementation-ready/final interface freeze。v7 已冻结 identity-mismatch
+  owner/CSR 原子 abort、generation-matched sticky IFU ack、独立 FENCE.I store+IFU serialization、
+  deferred writer、active-source 预处理、精确 packed range、concrete payload/cause 宏值、registered
+  quiet/memory ack、真实 IFU leaf、grant 原子 consumer、valid epoch-capture next-state、全 writer 唯一性、
+  SQ fill epoch exact mux/MIQ provenance 与全实例名；release/`OOO_ASSERT` 双变体、elaborated generate、
+  FENCE.I/MIQ/true memory-leaf producer、exact payload、guarded epoch/ROB/irrevocable storage 和
+  set-dominant squash completion、reset/non-reset writer arm、exact positive reset/clock event、完整 ancestor
+  guard path、module lexical declaration/source binding、唯一 module-scope continuous driver、internal any-generate、
+  任意深度 concatenated/indexed LHS 与 escaped/imported/package/hierarchical/system task actual 也已 fail-closed；
+  新增 exact `rst:false` non-reset path、statement event/delay/wait、embedded call actual、`always @ signal`
+  procedural span、unknown child/primitive output driver、header/module-scope-only port direction/width、required
+  port critical-symbol audit、canonical `clk/rst` input ownership，以及 runner 28-path pre/post source snapshot。
+  当前 checker 自测 162/162，对 live RTL release/`OOO_ASSERT` 各列出 931 项、聚合
+  1862 项 contract/baseline/RED-digest 锁定的预期 RED；它只形成
+  下一实现切片的可审计缺口清单，
+  不构成 architecture point。lane1 boundary、younger-SQ deadlock、IFU stale fill/old-generation ack、
+  FENCE.I early-retire、same-edge ingress、dynamic epoch/wrap 与 atomic apply/abort 的 directed/mutation 未绿前，仍不得进入
+  feasible/development complete point 或产生任何 PPA 数字。

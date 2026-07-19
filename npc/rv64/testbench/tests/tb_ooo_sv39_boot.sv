@@ -104,6 +104,7 @@ module tb_ooo_sv39_boot;
   reg saw_sfence_commit;
   reg saw_sret_commit;
   reg debug_sv39;
+  reg v8a_eq_trace;
   reg [`XLEN-1:0] expected_minstret_q;
 
   NpcCoreTop dut (
@@ -613,6 +614,29 @@ module tb_ooo_sv39_boot;
   end
 
   always @(posedge clk) begin
+    // Candidate-vs-pre-snapshot equivalence uses only the pre-existing
+    // NpcCoreTop ABI.  The runner extracts these deterministic lines and
+    // compares them byte-for-byte for release and OOO_ASSERT builds.
+    if (v8a_eq_trace && !rst) begin
+      $display("[S2-Q2-V8A-OLD-ABI-TRACE] cyc=%0d ifu=%b:%016x:%0d:%0d:%b lsu_r=%b:%016x:%0d:%b lsu_w=%b:%016x:%b:%016x:%02x:%b c0=%b:%016x:%08x:%016x:%b:%0d:%016x:%b:%b c1=%b:%016x:%08x:%016x:%b:%0d:%016x:%b:%b trap=%b:%0d:%016x:%016x exit=%b:%b:%b:%016x:%016x halt=%b dbg=%016x:%0d rc=%0d fc=%0d rob=%0d iq=%0d gprs=%h",
+               cycle_count,
+               ifu_axi_arvalid, ifu_axi_araddr, ifu_axi_arsize,
+               ifu_axi_arprot, ifu_axi_rready,
+               lsu_axi_arvalid, lsu_axi_araddr, lsu_axi_arsize,
+               lsu_axi_rready,
+               lsu_axi_awvalid, lsu_axi_awaddr, lsu_axi_wvalid,
+               lsu_axi_wdata, lsu_axi_wstrb, lsu_axi_bready,
+               commit0_valid, commit0_pc, commit0_inst, commit0_next_pc,
+               commit0_rd_en, commit0_rd_addr, commit0_rd_data,
+               commit0_exception, commit0_write,
+               commit1_valid, commit1_pc, commit1_inst, commit1_next_pc,
+               commit1_rd_en, commit1_rd_addr, commit1_rd_data,
+               commit1_exception, commit1_write,
+               trap_valid, trap_cause, trap_pc, trap_tval,
+               exit_valid, exit_is_ecall, exit_is_ebreak, exit_code,
+               exit_pc, halted, debug_pc, debug_state, retire_count,
+               free_count, rob_count, issue_count, debug_gprs);
+    end
     if (debug_sv39 && !rst) begin
       if (commit0_valid || commit1_valid ||
           dut.u_ooo_core.pending_system_capture_head0_w ||
@@ -696,6 +720,7 @@ module tb_ooo_sv39_boot;
     saw_sfence_commit = 1'b0;
     saw_sret_commit = 1'b0;
     debug_sv39 = $test$plusargs("debug_sv39");
+    v8a_eq_trace = $test$plusargs("S2_Q2_V8A_EQ_TRACE");
     cycle_count = 0;
     `TB_TICK(clk);
     rst = 1'b0;

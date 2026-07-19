@@ -69,6 +69,23 @@ power。三轴互不支配者保留为 Pareto front；加权分只用于合格 P
 
 ## 当前状态
 
+- S2-Q1 `OooMmuEpochOwner` 已完成 source-catalog adoption，无条件 GREEN：canonical 正例 2/2、
+  assertion negatives 4/4、compile-success exact mutations 7/7、lint/style/Yosys/adoption 全绿，
+  fresh module aggregate 104/104；但尚无 live instance，因此 live integration、双 memory、Linux、
+  200 MHz 与 PPA 均保持 RED/unqualified。
+- S2-Q2 仍是 mem0-only live implementation RED；v7 executable contract/checker 已收口到
+  release/`OOO_ASSERT` 双变体 162/162 self-test、各 931/聚合 1862 项预期 live RED，contract/baseline/RED
+  digest 分离锁定。结构门只证明
+  下一原子实现的缺口清单可自动发现与审计，不证明 selective squash/full quiet/atomic grant、
+  dynamic epoch/wrap、双 memory、Linux 或 PPA。
+- AI 开发环境 v10 已闭合 live-profile-bound completion 与 transactional DB publication：节点前八元组
+  现场回绑当前 profile include closure，首要 evidence 固定为 canonical node-owned log；dispatch 全序、
+  11 字段 payload、逐资产 index 与七 artifact marker 均 fail-closed。generic sync 不得制造或撤销
+  publication，只有 `publish-task-run` 可在单 SQLite 事务提交严格 EOF 完成记录；DB-first audit 将该不可恢复事务记录从 backup 必需项中精确豁免并反向禁止备份，普通 backup/snapshot 也不得吸收 publication，真实回归 14/14。brief 默认预算已与 CLI/API 对齐为 2400，1906 exact/少 1 token 边界仍 fail-closed。
+  正式证据 `.github/task-runs/2026-07-18-github-index-5/`（agent-system 9/9）、
+  `.github/task-runs/2026-07-18-agent-system-5/`（github-index 1/1）与
+  `.github/task-runs/2026-07-18-rv64-ppa-3/`（npc-dev 5/5）均 completed 且
+  `publication_valid=true`。这只证明 AI 工作流可信度，不改变 Q1/Q2 或 PPA 的 RED 边界。
 - S1 typed correctness 已闭合；S2-G1 compatibility token/tuple + effective-kill
   子阶段为 intermediate GREEN，整个 R4-S1-ID 因真实 epoch 未完成仍为 RED：
   backend effective-kill/AMO restore/stale-drain、bridge killed escaped-write
@@ -513,3 +530,284 @@ S1.2 已登记为 development + high-uncertainty，而不是 Pareto 点；point 
 `876339a2057f20afc1705b2c46917d1dd1713bc64998c563185fc1f6ab5014f6`。下一完整 correctness
 checkpoint 是 `R4-S1-ID exact-owner-provenance`：先在现有单宽链闭合真实
 `{owner_kind, owner_token, mmu_epoch}` 与 ABA/kill/drop 生命周期，再启用第二 AGU。
+
+## R4-S2-Q0 local bridge registered-fact idle
+
+Following the committed S2 exact-owner compatibility checkpoint, Q0 adds an
+explicit local `mem0_idle_o` to `OooMemAxiBridge` and source-binds it through
+`NpcCoreTop` without consuming it in control. The fact is a combinational
+conjunction of registered FSM/station/drop/nokill/partial-write/D-cache-RMW and
+owner-residency state. It intentionally excludes READY/fire/equality/context
+inputs and is not re-registered, preventing both a quiet combinational loop and
+a one-cycle false-idle window.
+
+Focused release/assert runs are 2/2 PASS across station, AR/R, AW/W/B, S_RESP,
+reachable RMW, and PTW A/D paths. The state-only and sticky-low mutations each
+terminate at one exact expected fatal. The existing bridge compatibility and
+133-entry wrapper source-bound integration runners both pass after rerun; all
+15 + 18 + 133 live manifest entries recheck OK.
+
+All ten related `/tmp` runner directories, including failed attempts and the
+final wrapper main run, were copied path-for-path into the workspace. The
+checker passed with 66 files, 17 directories, 0 links, and 146,778,084 file
+bytes. The durable `system-tmp.tar.zst` SHA-256 is
+`57ebc9ec18527051081131b359eb38f2745daf9e0f4d9af41bf8ba4e49af3ccb`.
+
+This is only an intermediate Q0 GREEN. The standalone epoch owner, exact
+effective context classifier, pre-transition lock/selective squash, full quiet,
+grant-gated CSR/trap/xRET/SFENCE state update, true dual-memory datapath, and
+200 MHz/PPA qualification remain RED/unqualified. It is not an
+architecture-feasible seed or Pareto point.
+
+## R4-S2-Q1 MMU epoch owner source-catalog closure
+
+Q1 has advanced from leaf-only focused GREEN to a registered source-catalog checkpoint:
+
+- the canonical runner is now the only runnable entry and binds release/assert positives,
+  four full-message assertion negatives, seven compile-success unique-oracle source
+  mutations, strict release/assert lint, style, Yosys, adoption contract, source hashes,
+  and tool versions;
+- the exact helper oracle checks the held pre-increment epoch, the formal module harness
+  sees both the focused marker and exact shared PASS line, and the leaf appears exactly
+  once in `print-synth-rtl`;
+- fresh module regression is `104/104 PASS`. The first aggregate run exposed a
+  pre-existing partial typed-ABI migration in `tb_ooo_priv_system`: new response
+  provenance/owner ports floated and generated `X`. The TB now reuses
+  `OooTypedPmaChecker`, latches request owner/epoch/tval into the response, and
+  models drop/residency explicitly; its focused rerun and the full aggregate pass with
+  assertions still enabled.
+
+Evidence is under
+`evidence/r4-s2-q1-mmu-epoch-owner-adoption-green/`. This checkpoint still does
+not instantiate Q1 in the live core. ROB precommit qualification, effective CsrFile
+old→next classification, capture-only blocking, selective memory squash, complete quiet,
+grant-gated apply/invalidate/LR-clear, live epoch propagation, dual memory, Linux,
+200 MHz, and PPA remain RED or unqualified.
+
+## R4-S2-Q2 live epoch atomic-slice contract/checker hardening checkpoint
+
+Q2 remains an implementation RED. Its next atomic slice is captured as an executable,
+machine-mapped hardening checkpoint rather than an informal wiring sketch; it is not yet called an
+implementation-ready/final interface freeze:
+
+- the barrier order is `CAPTURE -> SQUASH -> WAIT_QUIET -> GRANT`. Younger SQ/fetch work is
+  selectively squashed by held ROB age before SQ quiet is sampled; the Q2 full-quiet result is
+  forbidden from feeding the existing `OooRob.mem_quiet_i`, closing the head-boundary/younger-SQ
+  deadlock found by independent review;
+- every potential context/I-side boundary is forbidden from commit1. Q1 accepts only a stable
+  head0 identity, and its request is generated from a commit-ready-independent precommit plus
+  CsrFile legality/WARL/PMP-lock normalized old-to-next result;
+- IFU uses generation-matched sticky drain-and-block: context/FENCE.I requests capture generation,
+  ack only after fetch/PTW/FPC cancel-or-drain, and top rechecks returned generation. FENCE.I has a
+  separate store-retire+mem-idle+IFU-drain retire permit and still cannot advance the data-MMU epoch;
+- capture block gates only new owner creation. Existing reservation/buffer/MIQ/SQ nokill/AMO/
+  AXI/PTW/RMW work must continue to drain, and bridge level flush cannot substitute for selective
+  age-based squash;
+- the interface manifest fixes the NpcCoreTop owner host, CsrFile/Q1 same-edge consumers, five-level
+  wrapper bundle, ROB permit/precommit path, full-quiet dependencies, forbidden capture-block sinks,
+  and valid-owner dynamic-epoch captures.
+- v7 requires exact current-vs-held head equality plus one registered abort fire shared
+  by the sticky Q1 owner and CsrFile reservation, exact canonical boolean equations, a registered
+  CsrFile writer reservation with deferred competing trap/IRQ sources, unique-next writers for
+  privilege/context/deferred payload plus six trap-envelope CSRs, LR and IFU/FENCE transaction state;
+  canonical named DTLB/ITLB/FPC, redirect-arbiter/PC-writer and pending-clear leaves are exact-mapped;
+- the checker now preprocesses the default active source and locks the full non-evidence manifest
+  projection, exact `[WIDTH-1:0]` ranges, concrete payload/cause macro values, strict reset/unique-next
+  control flow, all canonical instance names, registered quiet/memory ack, real IFU leaves, atomic
+  grant consumers, valid epoch-capture next state, whole-module writer uniqueness, and the exact
+  `sq_mode ? miq_head_epoch : reservation_epoch` SQ-fill route with canonical MIQ provenance, plus
+  forbidden legacy `mmu_flush`/FENCE.I-to-data-epoch paths. v7 additionally rejects non-reset next writes under
+  any path other than exact `rst:false`, live uppercase reset identifiers, nested event/delay/wait controls,
+  embedded system/unknown output actuals, `always @ signal` procedural fakes, unknown child/primitive output
+  drivers, task-local port direction/width shadows, and host/child-driven canonical `clk/rst`; required ports are
+  included in the critical-symbol audit.
+
+The upgraded checker self-test kills 162/162 parser/connectivity, inactive-source, same-host dummy,
+partial/alias writers, lexical/generate shadowing, variable-initializer and procedural-continuous fake
+drivers, escaped/imported/package/hierarchical/system task actuals, nested selectors/concatenated LHS,
+inexact reset/clock/ancestor guards, polarity/equality, phase-enum, stale-generation/non-sticky ack,
+typed-mask concrete value, exact-width/payload, producer-map, guarded MIQ/SQ/owner storage, true
+memory-leaf and set-dominant completion cases. Both release and `OOO_ASSERT` variants intentionally
+return `rc=1` with 931 structural RED items, for an aggregate 1862-item inventory; the runner locks the
+RED-line SHA-256 `fc5baa96190e9bcac70248f912523f8ae9192045885d6023b6cb940f4675a592`,
+the v7 contract lock `d830e31698425f431ad92fc907e2748b151399539e9736a0abfc0ee7d9d2d5fa`,
+and the separately reviewed evidence-baseline lock
+`abfe4e248f27e50d4f6cafc69f7429dba37e36544b3a5d6ec01248993ed1dc88`.
+The runner removes the previous completion marker before work and recreates it only after all locked
+checks and source hashes pass. It snapshots the exact 28-path inventory before checker reads and after
+readiness, requires the two snapshots byte-identical, then binds self-test, readiness, rc, canonical/pre/post
+source inventories, source-check and summary digests; an interrupted, drifting or partially replaced rerun
+cannot masquerade as complete evidence.
+This is an auditable missing-interface inventory, not a failed claim of integration. Evidence is in
+`evidence/r4-s2-q2-live-epoch-readiness-red/`. Even a future structural PASS remains necessary-only;
+lane1, SQ deadlock, IFU stale fill, grant-edge ingress, unused ports, effective no-op, atomic apply,
+dynamic epoch, terminal exactly-once, stale response and wrap mutations must still pass before live
+integration can turn GREEN.
+
+## AI development workflow v10 audited closure
+
+This round also hardened the workflow that discovers, executes and publishes the hardware evidence:
+
+- the completed bundle is no longer merely self-consistent. The validator recursively reads the current
+  live profile include closure and compares every node's ID, source profile, module, owner, function,
+  status, inputs and outputs. The primary evidence is the canonical node-owned log; auxiliary pointers
+  must still be actual indexed ordinary assets;
+- dispatch is exact-order (`context-brief PASS`, `profile-resolve PASS`, then every node
+  `in-progress -> PASS`) with all eleven payload fields bound. The evidence index recomputes the asset
+  set, sizes and hashes, and the completion marker binds report, manifest, context, resolve, index,
+  dispatch and `nodes.tsv`;
+- staged Markdown synchronization is exact across retained DB/index/backup state while protecting an
+  already committed publication. Only `publish-task-run` may submit a strict-EOF
+  `completion-publication.md`, and it validates the snapshot and writes stored/index rows in one SQLite
+  transaction. Generic archive/promote/update/migrate/backup/rehydrate paths cannot create or revoke it;
+- the real-SQLite regression is 14/14 and covers pre-publication invisibility, idempotent publication and
+  canonical final-result recovery, post-publication generic sync, trailing content, marker and staged-set
+  mutation, DB-open failure, canonical publication backup ownership, all-shim stale pruning, rehydrate,
+  direct/nested generic writes, ordinary backup/snapshot route isolation and contract/
+  nested-report downgrade attempts. Independent reviewers' globally consistent tuple rewrite and
+  wrong-owner real-evidence mutations are now explicit negatives.
+
+The pre-memory completed evidence is `.github/task-runs/2026-07-18-github-index-5/` for the 9-node
+agent-system profile, `.github/task-runs/2026-07-18-agent-system-5/` for the github-index profile and
+`.github/task-runs/2026-07-18-rv64-ppa-3/` for the 5-node npc-dev profile; all are DB-published and report
+`publication_valid=true`. This workflow result does not promote Q1 or
+Q2 and makes no claim about live dual memory, Linux, 200 MHz, area, power or full PPA.
+
+## R4-S2-Q2 v8a satisfiable shadow-foundation correction
+
+Independent counterexample review invalidated the previous assumption that Q2 v7 could be
+implemented directly. The v7 files and 28-path evidence remain byte-preserved, but v7 is now treated
+as a historical missing-interface inventory rather than a satisfiable full-RTL contract. The blocking
+counterexamples are:
+
+- IFU `done` was required to depend on an ack-generation output while its exact RHS excluded that
+  output;
+- held-head equality omitted a live head-present fact and did not define global-flush ownership;
+- the advertised 8-bit identity stopped at the ROB output while SQ/owner provenance remained a
+  4-bit index with no reuse guard;
+- CsrFile prepare carried identity but not the same owner's operation/CSR/SFENCE/trap/xRET payload;
+- FENCE.I ANDed a ROB retirement candidate with a frontend head even though the real instruction is
+  owned by the registered pending-system path;
+- FENCE.I request/ack generation had no satisfiable allocation/held timing or independent capture
+  block;
+- the live Q1 spec/RTL had no abort although v7 relied on abort to leave sticky grant;
+- v7's canonical clock/reset audit did not load twelve existing child direction definitions and thus
+  produced six false RED items per variant.
+
+The replacement `s2-q2-shadow-foundation-interface-v8a` deliberately narrows the next implementation
+atom to a reversible neutral shadow:
+
+- all 26 ABI macros remain required;
+- ROB precommit is independent of commit-ready, while a separate identity-valid fact observes whether
+  the captured slot is still the live head;
+- two permit inputs and three observation outputs traverse the exact seven-edge wrapper chain;
+- both permits are exact tie-high at `NpcCoreTop`, so the slice cannot activate a barrier or FENCE.I;
+- CSR/SFENCE/xRET/FENCE.I lane1 potential classification is frozen as shadow logic, and commit1 is
+  explicitly forbidden from depending on that shadow in v8a;
+- the eight deferred P0/P1 blockers and their machine-verifiable exit criteria are part of the contract
+  lock. Full payload, FENCE.I transaction, Q1 instance, selective squash, dynamic epoch and identity
+  safety are out of v8a scope.
+
+The new checker reuses the reviewed v7 active-source parser helpers without modifying v7. Its 17/17
+self-tests kill missing/wrong wrapper maps, active permit substitutions, commit-ready precommit,
+done-aliased identity-valid, classifier shortcuts, commit1 activation, truncated identity, host override,
+dummy Q1 and contract/provenance drift. Release and `OOO_ASSERT` each intentionally report 157
+structural RED items; aggregate is 314 with RED SHA-256
+`4099e530110b45c5c7948e5db0d0702402178c400157ad9699cd1ca70b4384b0`. The v8a contract lock is
+`92c38c83fbd6cefd51921bc139b65acc965fb2e054c2f554086159c39bd160a3`; evidence-baseline lock is
+`1dc0a5b68d8bfd9cc8e312cabe911236ee2ee2b3ec0b3f215ce132e6fbed98e9`.
+
+Evidence is under `evidence/r4-s2-q2-shadow-foundation-v8a-red/`. The runner binds 18 pre/post source
+hashes, self-test, readiness, rc and summary; the source inventory digest is
+`595463ce58364ddad450699d30cbe0e2f47c764bcdaac28b3a7f1b4f4c1de951`. A separate historical check
+reconfirmed v7 self-test 162/162, all 28 source hashes, and the exact four v7 task-run file hashes.
+
+Implementer/reviewer conflict is resolved only for the **contract scope**: the reviewer counterexamples
+are now explicit deferrals rather than hidden assumptions. RTL remains untouched and v8a readiness is
+RED. The next safe implementation atom is the neutral wrapper/precommit shadow followed by focused
+behavior-equivalence tests. Active identity/generation, full Q2, Linux, 200 MHz and PPA remain open.
+
+## Compound-slug recall root-cause correction
+
+The first real `npc-dev --task-slug rv64-q2-v8a-contract` run was correctly blocked before dispatch:
+the runner had passed both the profile and the whole hyphenated slug as literal AND focus terms. Since
+the shared query tokenizer intentionally splits only whitespace, a new identity string could not match
+an independent current chunk. Retrying after archiving the failed run exposed a deeper counterexample:
+the old failed `context-brief.md` or blocked task identity could itself satisfy the same terms and turn a
+later run green without new current context.
+
+The root fix keeps the general search contract intact and changes the runner boundary instead:
+
+- task slugs are split into at most eight deduplicated alphanumeric/CJK semantic terms; numeric and
+  lifecycle-only terms are removed, profile is carried only by `--profile`, and an empty semantic set
+  fails closed;
+- `brief` now has an explicit `focus_scope` with backward-compatible default `all`; the e2e runner and
+  canonical startup commands require `non-history`;
+- `task-report`, `dispatch-log`, `task-run` and `task-evidence` are excluded in both live/stored FTS and
+  LIKE SQL before the result limit, so more than 128 historical hits cannot hide a current focus;
+- the emitted context records `focus_scope=non-history`, and the bundle validator rejects a historical
+  third/primary chunk even if the header is forged.
+
+The database regression covers default historical compatibility, failed-context and blocked-report
+identity, CLI/API failure under non-history scope, DB-first stored memory, FTS/LIKE parity and a 140-hit
+historical saturation case. The runner regression locks `rv64-q2-v8a-contract-rerun-2 -> rv64 q2 v8a
+contract`, `agent-e2e-npc-dev -> npc dev`, lifecycle-only failure, exact argv/profile separation and
+history-primary artifact rejection. Successful development runs are
+`.github/task-runs/2026-07-19-slug-recall-3/` (`github-index`) and
+`.github/task-runs/2026-07-19-slug-recall-5/` (`agent-system`). Earlier blocked runs remain retained as
+diagnostic evidence; they are not rewritten as completed. This workflow correction does not change the
+v8a RED inventory or claim any RTL/PPA progress.
+
+## R4-S2-Q2 v8a neutral shadow RTL implementation dispatch
+
+The implementation atom is now contract-ready, but not yet claimed GREEN. The complete stage-0
+interface freeze, six cross-module contracts, reset/flush priority table, requirements, protocol,
+state-machine analysis, invariants, datapath constraints, nine-item RTL topology and completion
+definition are recorded in `s2-q2-shadow-foundation-v8a-rtl-derivation.md` before any RTL edit.
+
+The design remains an `intermediate_checkpoint`: only the exact tie-high wrapper/precommit shadow may
+be implemented. Q1, active permits, full identity/payload, FENCE.I transaction, selective squash,
+dynamic epoch, dual memory, Linux, timing and PPA promotion remain outside this dispatch.
+
+## R4-S2-Q2 v8a tie-high scoped neutral shadow foundation GREEN
+
+The dispatched v8a atom is now implemented and auditable. The 26 ABI macros, two downstream permit
+inputs and three upstream observation outputs traverse the exact seven-edge wrapper chain. Both permits
+are tied high only at `NpcCoreTop`; the observations have no active consumer. ROB exposes a
+commit-ready/permit-independent candidate, a done/recovery-independent live-head fact and an exact
+zero-extended ROB-index observation. The old head0 readiness equation is preserved as a named base and
+only qualified by the two permits; lane1 CSR/SFENCE.VMA/xRET/FENCE.I classifiers remain shadow-only.
+
+Independent review found two delivery-critical blind spots and they are now closed: `commit1_fire_w`
+is exact-locked to its legacy RHS and asserted to imply `commit0_fire_w`; a two-ready-entry test lowers
+each permit separately and proves neither lane retires and count remains 2. A whole-tree census finds
+exactly 15 affected instances (7 RTL + 8 direct TB), with all five named ports present, nonempty permit
+inputs and no positional connections. A supplemental checker also locks all six raw/potential/shadow
+non-dependencies, exact identity zero extension, scalar ABI and base-ready confinement; its canonical
+fixture and 4/4 targeted mutations pass, while the frozen checker remains byte-preserved and passes
+17/17 mutations.
+
+The canonical green runner passes release/`OOO_ASSERT` focused tests, explicit
+`OOO_CSR_QUEUE_HEAD=0/1`, a candidate-live assertion negative, source stability and exact legacy
+equivalence. Candidate and SHA-bound pre-edit source bundle each emit 1036-line legacy ABI traces in
+both configurations and compare byte-identical. Fresh module regression is 104/104; RTL style and
+contract pass with 289 immediate assertions against the 89 baseline.
+
+Global strict lint and forced full default build remain RED on 115 Verilator warnings. This is not
+waived: the latest normalized warning signature byte-matches the pre-edit snapshot (108
+`TIMESCALEMOD`, 2 `PINCONNECTEMPTY`, 4 `LATCH`, 1 `UNOPTFLAT`) and `-Wno-fatal` parse/elaboration
+passes, so no v8a-specific diagnostic was introduced. Evidence is under
+`evidence/r5-s2-q2-shadow-foundation-v8a-green/`, with the independent disposition in
+`s2-q2-shadow-foundation-v8a-final-review.md`.
+
+A final reviewer-persona audit also caught a canonical-runner false-green: the supplemental checker
+had accidentally been nested inside the structural-RED branch, so it was skipped on the normal PASS
+path while stale logs remained available. The runner now deletes those logs and its marker first,
+executes the supplemental gate unconditionally, exact-locks census=15, reruns every broad gate itself,
+and SHA-locks the pre-lint baseline before resealing evidence. The corrected runner then passed from
+scratch; this workflow correction is part of the delivered result rather than an undocumented manual
+workaround.
+
+The only allowed status is **v8a tie-high scoped neutral shadow foundation GREEN; global lint/build
+RED**. Active permit/Q1/full identity/generation/epoch/FENCE.I transaction/formal equivalence/Linux/
+200 MHz/area/power/PPA remain unproved and cannot be inferred from this checkpoint.

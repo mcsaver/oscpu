@@ -11,7 +11,9 @@
 > 目录与 owner。但这些 owner 之间的关系主要是**历史演化**出来的，而不是先有一张架构图、再让代码服从它。
 > 本文件就是那张图。下一步重构应**反过来用本文件约束实现**。
 >
-> **版本**：v0.3（2026-07-11，同步 current topology 与开放合同；v0.2 为 2026-07-03
+> **版本**：v0.5（2026-07-16，冻结 R4-S1.0 typed memory ABI；v0.4 为
+> 2026-07-15 不可用 PPA 交换的双发射/真 OoO 能力底线，v0.3 为 2026-07-11 current
+> topology 同步版，v0.2 为 2026-07-03
 > 重读版，v0.1 为 2026-06-29 草案）。当前 `as-is` 快照见
 > **`rtl-ground-truth-2026-07-11.md`**；07-03 时点证据保留在
 > `history/rtl-ground-truth-2026-07-03.md`（已归档）。
@@ -531,6 +533,94 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
 > 经 ROB 队头串行存在。任何新指令默认走域 A；**严禁**再用新的 `stop_pending`/drain 旁路"绕过建正式 OoO 结构"。
 > 每拆除一类，必须删掉对应 pending owner 并在 §8.3 标注完成，不允许只加不减。
 
+
+### 8.5 【宪法】不可退化能力（architecture non-regression floor）
+
+频率、面积和功耗优化不得删除或静态封死下列能力。详细的机器验收、基线和 PPA 裁决见
+`rv64-architecture-ppa-contract.md`；本节是其顶层架构依据。
+
+1. **完整双发射不是“双 lane 外形”**：稳态 fetch/rename/dispatch/issue/execute/retire 均须能
+   达到 2 uop/cycle；独立整数序列的稳态 IPC 必须不低于 1.90。允许共享 divider 和非对称
+   非内存执行单元，但调度器必须做动态 steering/promotion，使任意程序序位置的常见
+   `ALU+ALU`、`ALU+branch/jump`、`ALU+load/store` 都能形成同拍 pair。永久
+   “lane1 仅 simple-ALU”、把 lane1 memory owner tie-off、或用 lane 编号代替资源冲突判断，
+   均只是近似双发射，不得作为最终候选。
+   最终 memory datapath 必须有两个独立 terminal owner：可以实例化两个 LSU，也可以在一个
+   LSU 模块内实现真正双通道；两路均须具有独立 AGU、翻译接纳、LSQ/SQ 物理地址消歧查询、
+   cache request admission 和 issue credit。无真实地址/银行/序列化冲突的 `load+load`、
+   `load+store`、`store+load`、`store+store` 必须能形成同拍 pair。只有一个 AGU/翻译
+   入口、把第二条 memory 仅移出 IQ
+   后排队，或以单 reservation 静态串行全部 memory，均不属于完整双发射。
+2. **真 OoO 不是“有 ROB/IQ 的顺序核”**：老 load miss、Mul/Div 或共享资源阻塞时，至少 8 条
+   无依赖年轻 ALU 必须能在老指令完成前 select/execute/complete；retire 仍严格按序。memory
+   依赖与顺序只能由 LSQ/SQ/LQ、地址/年龄/依赖事实约束，禁止用“存在任意更老 IQ valid”冻结
+   全部年轻指令。
+3. **前端供给率是架构能力**：cache-hit、无 redirect、下游 ready 的稳态必须接受并交付
+   1 fetch packet/cycle。允许多拍 latency，不允许最终 initiation interval 大于 1；若同步 SRAM
+   或时序切分增加 latency，必须用 elastic pipeline、credit/tag 和 selective squash 吸收，不能
+   退回单事务 FSM。
+4. **精确恢复不打折**：wrong-path request/uop 必须按 tag/年龄 selective squash；已 fire AXI
+   owner 只 drain、不撤回；store/AMO/CSR/异常副作用继续服从 §7。恢复吞吐不得重新引入
+   response→request、writeback→select 或 ready→valid 的跨阶段组合回环。
+5. **能力先于 PPA 排名**：未通过上述定向动态测试的设计不能进入 PPA Pareto 集，即使其
+   WNS、逻辑面积或 vectorless power 更好。临时实验可以保留证据，但必须标为
+   `architecture_infeasible`，不得替换基线。
+
+### 8.6 【宪法】最终 memory class 与双 memory owner
+
+完整双发射的 memory datapath 还必须满足以下不可降级合同；它们细化 §8.5，不允许以
+“功能大致相同”的单 FSM/静态 lane 近似替代：
+
+1. **属性只在 final-PA 边界合并一次**：翻译、权限、PMP/PMA 与 leaf PBMT 结束后产生
+   `attr_valid + class[1:0]`，合法类恰为 `CACHED/NC/IO`；fault 是独立 terminal，不能编码成
+   可路由的第四类。PA/class/epoch 一旦写入 LQ/SQ owner，到 release 前不可变。target bridge、
+   cache 与 SQ 不得再次按地址重解释 PBMT/PMA。
+2. **NC 与 IO 不能用一个 serialized bit 永久合并**：NC 是不可缓存但幂等的普通内存，
+   物理 store CAM PASS 后可在 ROB-head 前执行并允许 full-cover SQ forwarding；IO 是非幂等
+   强序设备，load 必须 ROB-head、older drain terminal、全局 IO domain idle，且禁止 forward、
+   prefetch、merge、replay 或 speculative target。所有 store 仍只在 ROB-head 精确授权后产生
+   外部 write。
+3. **两个 translation owner 必须真实独立**：两个同构 request/response transport slot 各有
+   valid/ready，并以 `{owner_kind, owner_token, mmu_epoch}` 识别；port 号没有 load/store 或
+   程序序角色。两个 hit 必须能同拍 accept/完成；共享 PTW/A-D slow path 可以排队，但不得在
+   ready 后丢掉第二个 miss，也不得让一个 miss 阻塞另一端口 hit。
+4. **两个 data owner 必须贯穿端到端**：两路各有 AGU、translation ingress、final-PA register、
+   物理 SQ CAM query、cache admission 与 tagged completion。允许 2-bank cache 的 same-bank
+   replay、共享 refill/uncached/IO slow path；不允许把 lane1 请求仅搬入单 reservation 后继续
+   全串行。cache maintenance 与 lookup 同拍时 maintenance 获胜，受影响 lookup replay。
+5. **精确 store side effect 仍为单授权域**：双 AGU/双 translation/双 admission 不等于双重
+   非精确写。外部 store side effect 仍由 ROB-head commit-authorized owner 按程序序发出；
+   aggregate B error 对可能已部分生效的 alias 做保守失效，并回到同一个 ROB/SQ token。
+
+R4-S0 只完成 Boolean final-cacheability 的单 owner 正确性闭环（PBMT NC/IO PMEM bypass、SQ
+保存/回传、B terminal alias 维护）；NC/IO 尚合并，translation/cache/completion 尚单通道，
+所以九项架构门继续 fail-closed RED。R4-S1 先迁 typed class/token/epoch，R4-S2 再实现上述
+端到端双 owner；任何中间态都只能是 `correctness_checkpoint`，不得晋升完整架构或 PPA winner。
+
+#### 8.6.1 R4-S1.0 typed ABI 合同冻结
+
+R4-S1.0 的规范真源为
+[`ooo-memory-typed-abi.md`](../specs/ooo-memory-typed-abi.md)。顶层不可变语义如下：
+
+- class 固定编码为 `CACHED=2'b00`、`NC=2'b01`、`IO=2'b10`、
+  `RSVD=2'b11`；`attr_valid` 只认可前三类，RSVD 永不进入 owner；
+- fault 是独立 terminal。翻译/PBMT/PMP/PMA 等 pre-target fault 必须
+  `fault_valid && !attr_valid` 且无 target side effect；AXI R/B 等 post-target fault 保留
+  已锁存 attr/class/PA，以便精确归因和保守 cache alias 维护；
+- owner identity 固定为 `{owner_kind[1:0],owner_token[4:0],mmu_epoch[1:0]}`。
+  kind 编码为 LOAD=`00`、STORE=`01`、ATOMIC=`10`、RESERVED=`11`；
+  PTW/A-D/split/retry 是原 owner 的 phase，不能更换 kind/token；
+- token 在一个逻辑 memory uop 第一次进入 memory reservation 时分配一次，直到 load/atomic
+  completion 或 killed response drain、store aggregate B terminal 才释放；store probe 与
+  physical drain 必须复用同一 token，allocator 不得与任一 live owner 冲突；
+- epoch 只在有效 translation context 改变且 memory context quiet 时推进；request、response
+  与 LQ/SQ owner 全程携带并 exact-match。PA/class/epoch/token 一旦写入 owner，到 release
+  前不可变，pretranslated drain 禁止重新分类；
+- S1.0 只是 docs-only `spec_frozen`；S1.1 已实现 typed PMA/classifier 叶模块，但当前 live
+  bridge/backend/SQ transaction path 仍是 S0 Boolean single owner。第二 issue memory owner、
+  双 AGU、双 translation slot、双物理 order query、双 cache admission 与双 tagged completion
+  在 R4-S2 证据齐备前继续 RED；叶模块存在不改变 DI/OOO/PPA 裁决。
+
 ---
 
 ## 9. 现状 ↔ 目标 差距表（gap analysis）
@@ -560,9 +650,11 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
 2. **新增路径需登记**：新的指令生命周期轨迹（§4）、新数据对象字段（§5）、新状态写者（§6）、
    新 redirect/flush 源（§7.3）、新 pending owner（§8.2）——一律先在本文件登记，否则视为违宪。
 3. **域 B 单调收缩**：任何改动不得扩大 `stop_pending` 的覆盖范围；新指令默认走域 A。
-4. **与其它文档关系**：本文件=宪法（normative 顶层）；`ROADMAP.md`=流程/优先级/时序 track；
+4. **能力单调不降**：任何 PPA 优化不得把 §8.5 的完整双发射、真 OoO 或 frontend II=1
+   退化为近似实现；共享资源冲突必须由动态 owner/credit 表达，不能静态绑定 lane 编号。
+5. **与其它文档关系**：本文件=宪法（normative 顶层）；`ROADMAP.md`=流程/优先级/时序 track；
    `specs/*.md`=逐模块实现规范；三者冲突时，架构问题以本文件为准、流程问题以 ROADMAP 为准。
-5. **证据纪律**：本文件每条【现状】都应可被 `file:line` 审计；行号随重构漂移时，
+6. **证据纪律**：本文件每条【现状】都应可被 `file:line` 审计；行号随重构漂移时，
    在对应迭代的 task-run 里更新，不让宪法与代码静默脱节。
 
 ---

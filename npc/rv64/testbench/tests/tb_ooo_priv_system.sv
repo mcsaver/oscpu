@@ -29,6 +29,13 @@ module tb_ooo_priv_system;
   wire mem_req_probe;
   wire mem_req_pretrans;
   wire mem_req_nokill;
+  wire mem_req_attr_valid;
+  wire [1:0] mem_req_class;
+  wire mem_req_cacheable;
+  wire [1:0] mem_req_owner_kind;
+  wire [4:0] mem_req_owner_token;
+  wire [1:0] mem_req_mmu_epoch;
+  wire [`XLEN-1:0] mem_req_fault_tval;
   wire [`XLEN-1:0] mem_req_addr;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [`STRB_W-1:0] mem_req_wstrb;
@@ -36,6 +43,18 @@ module tb_ooo_priv_system;
   wire mem_rsp_ready;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
+  reg mem_rsp_attr_valid;
+  reg [1:0] mem_rsp_class;
+  reg mem_rsp_cacheable;
+  reg [1:0] mem_rsp_owner_kind;
+  reg [4:0] mem_rsp_owner_token;
+  reg [1:0] mem_rsp_mmu_epoch;
+  reg [`XLEN-1:0] mem_rsp_fault_tval;
+  wire tb_rsp_pma_fault;
+  wire tb_rsp_pma_attr_valid;
+  wire [1:0] tb_rsp_pma_class;
+  wire [31:0] mem_bridge_owner_residency_mask =
+      mem_rsp_valid ? (32'b1 << mem_rsp_owner_token) : 32'b0;
 
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
@@ -121,9 +140,26 @@ module tb_ooo_priv_system;
   wire tb_csr_irq_external_w = irq_external;
   `include "tb_ooo_core_top_glue_csr.svh"
 
+  // 本 TB 在 Bare 模式下扮演翻译/PMA 响应端；复用平台 PMA 真源，
+  // 不从旧 cacheable Boolean 反推 typed provenance。
+  OooTypedPmaChecker u_tb_response_pma (
+    .paddr_i(mem_req_addr),
+    .access_size_i(4'd8),
+    .access_read_i(mem_req_valid && !mem_req_write),
+    .access_write_i(mem_req_valid && mem_req_write),
+    .fault_o(tb_rsp_pma_fault),
+    .attr_valid_o(tb_rsp_pma_attr_valid),
+    .class_o(tb_rsp_pma_class)
+  );
+
   OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
+    .head0_context_permit_i(1'b1),
+    .fencei_retire_permit_i(1'b1),
+    .head0_retire_candidate_valid_o(),
+    .head0_identity_valid_o(),
+    .head0_identity_o(),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
@@ -144,6 +180,15 @@ module tb_ooo_priv_system;
     .mem_req_probe_o(mem_req_probe),
     .mem_req_pretrans_o(mem_req_pretrans),
     .mem_req_nokill_o(mem_req_nokill),
+    .mem_req_attr_valid_o(mem_req_attr_valid),
+    .mem_req_class_o(mem_req_class),
+    .mem_req_cacheable_o(mem_req_cacheable),
+    .mem_req_owner_kind_o(mem_req_owner_kind),
+    .mem_req_owner_token_o(mem_req_owner_token),
+    .mem_req_mmu_epoch_o(mem_req_mmu_epoch),
+    .mem_req_fault_tval_o(mem_req_fault_tval),
+    .mem_req_device_release_o(),
+    .mem_req_device_cancel_o(),
     .mem_req_addr_o(mem_req_addr),
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
@@ -152,9 +197,48 @@ module tb_ooo_priv_system;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_rsp_attr_valid_i(mem_rsp_attr_valid),
+    .mem_rsp_class_i(mem_rsp_class),
+    .mem_rsp_cacheable_i(mem_rsp_cacheable),
+    .mem_rsp_owner_kind_i(mem_rsp_owner_kind),
+    .mem_rsp_owner_token_i(mem_rsp_owner_token),
+    .mem_rsp_mmu_epoch_i(mem_rsp_mmu_epoch),
+    .mem_rsp_fault_tval_i(mem_rsp_fault_tval),
+    .mem_expected_valid_o(),
+    .mem_expected_owner_kind_o(),
+    .mem_expected_owner_token_o(),
+    .mem_expected_mmu_epoch_o(),
+    .mem_expected_tval_valid_o(),
+    .mem_expected_fault_tval_o(),
+    .mem_expected_effective_killed_o(),
+    .mem_owner_query_valid_i(mem_rsp_valid),
+    .mem_owner_query_token_i(mem_rsp_owner_token),
+    .mem_tracker_expected_valid_o(),
+    .mem_tracker_expected_owner_kind_o(),
+    .mem_tracker_expected_owner_token_o(),
+    .mem_tracker_expected_mmu_epoch_o(),
+    .mem_station_query_valid_i(1'b0),
+    .mem_station_query_token_i(5'b00000),
+    .mem_station_expected_valid_o(),
+    .mem_station_expected_owner_kind_o(),
+    .mem_station_expected_owner_token_o(),
+    .mem_station_expected_mmu_epoch_o(),
+    .mem_drop0_valid_i(flush && mem_rsp_valid),
+    .mem_drop0_owner_kind_i(mem_rsp_owner_kind),
+    .mem_drop0_owner_token_i(mem_rsp_owner_token),
+    .mem_drop0_mmu_epoch_i(mem_rsp_mmu_epoch),
+    .mem_drop0_fault_tval_i(mem_rsp_fault_tval),
+    .mem_drop1_valid_i(1'b0),
+    .mem_drop1_owner_kind_i(2'b00),
+    .mem_drop1_owner_token_i(5'b00000),
+    .mem_drop1_mmu_epoch_i(2'b00),
+    .mem_drop1_fault_tval_i({`XLEN{1'b0}}),
+    .mem_bridge_owner_residency_mask_i(
+        mem_bridge_owner_residency_mask),
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
+    .csr_frm_w(3'b000),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
     .commit0_valid_o(commit0_valid),
@@ -570,6 +654,13 @@ module tb_ooo_priv_system;
       mem_rsp_valid = 1'b0;
       mem_rsp_rdata = {`XLEN{1'b0}};
       mem_rsp_error = 1'b0;
+      mem_rsp_attr_valid = 1'b0;
+      mem_rsp_class = `OOO_MEM_CLASS_RSVD;
+      mem_rsp_cacheable = 1'b0;
+      mem_rsp_owner_kind = 2'b00;
+      mem_rsp_owner_token = 5'b00000;
+      mem_rsp_mmu_epoch = 2'b00;
+      mem_rsp_fault_tval = {`XLEN{1'b0}};
       program_mode = mode_i;
       cycle_count = 0;
       commit_total = 0;
@@ -684,6 +775,13 @@ module tb_ooo_priv_system;
       mem_rsp_valid <= 1'b0;
       mem_rsp_rdata <= {`XLEN{1'b0}};
       mem_rsp_error <= 1'b0;
+      mem_rsp_attr_valid <= 1'b0;
+      mem_rsp_class <= `OOO_MEM_CLASS_RSVD;
+      mem_rsp_cacheable <= 1'b0;
+      mem_rsp_owner_kind <= 2'b00;
+      mem_rsp_owner_token <= 5'b00000;
+      mem_rsp_mmu_epoch <= 2'b00;
+      mem_rsp_fault_tval <= {`XLEN{1'b0}};
     end else begin
       if (mem_rsp_valid && mem_rsp_ready) mem_rsp_valid <= 1'b0;
       if (mem_req_valid && mem_req_ready) begin
@@ -693,7 +791,15 @@ module tb_ooo_priv_system;
         mem_rsp_rdata <= mem_req_probe ? mem_req_addr :
                          (!mem_req_write ? 64'h0000_0000_1234_5678 :
                                            {`XLEN{1'b0}});
-        mem_rsp_error <= 1'b0;
+        mem_rsp_error <= tb_rsp_pma_fault;
+        mem_rsp_attr_valid <= tb_rsp_pma_attr_valid;
+        mem_rsp_class <= tb_rsp_pma_class;
+        mem_rsp_cacheable <= tb_rsp_pma_attr_valid &&
+            (tb_rsp_pma_class == `OOO_MEM_CLASS_CACHED);
+        mem_rsp_owner_kind <= mem_req_owner_kind;
+        mem_rsp_owner_token <= mem_req_owner_token;
+        mem_rsp_mmu_epoch <= mem_req_mmu_epoch;
+        mem_rsp_fault_tval <= mem_req_fault_tval;
       end
     end
   end

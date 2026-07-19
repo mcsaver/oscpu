@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-18-github-index-9
+- `trace_id`: e2e:2026-07-18-github-index-9
+- `task_slug`: github-index
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 12c9f95a7bdd8769bff5d8bf30e468be4d79b8668974771afa17f7ce1207f2cb
+- `task_report_md_sha256`: b119e96bfad87b78033acf9dfd9f80706a8b6f7df3d78f56c37a27654685fba5
+- `run_manifest_json_sha256`: 8f08a1eed615e16bf763654025f7e0ab5ec9821880c078bb1d64af75fab9f3de
+- `context_brief_md_sha256`: 68a1fa37db6d814554aff0c720d09af628474f2f28b13aaac08848458d289fb4
+- `profile_resolve_md_sha256`: 848e738541006a520215f10fbdd6895161697d78d798cd29aa45decdfbcfdb5c
+- `evidence_index_md_sha256`: 50d5fcd086131f91bb58dba06456b2974f6af6caa51eb674a86a36fb0c6439b4
+- `dispatch_log_md_sha256`: 17c510f421f83c7707ced3ce377e64cfb58640cc767d56762985daf89b0fbd13
+- `nodes_tsv_sha256`: 9bdb090a9b62c2e2d646e048d09b4ed6a8112724f6f8df0bf4df5c7bf678c98b

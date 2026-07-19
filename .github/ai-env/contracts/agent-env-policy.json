@@ -64,6 +64,7 @@
     "delivery_contract": ".github/ai-env/contracts/agent-env-delivery.json",
     "review_routing": ".github/ai-env/contracts/agent-env-review-routing.json",
     "branch_health_dashboard": ".github/ai-env/contracts/agent-env-branch-health.json",
+    "rtl_task_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
     "source_report": "user-supplied:deep-research-report.md",
     "required_ids": [
       "R1",
@@ -76,6 +77,15 @@
       "R8",
       "R9"
     ]
+  },
+  "task_delegation": {
+    "contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
+    "instruction": ".github/instructions/rtl-agent-task-contract.instructions.md",
+    "skill": ".github/skills/prepare-rtl-task-contract/SKILL.md",
+    "generator": ".github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
+    "profile_node": "rtl-task-contract",
+    "local_rtl_external_access_forbidden": true,
+    "contract_before_dispatch_required": true
   },
   "state_machine": {
     "instruction": ".github/instructions/agent-env-state-machine.instructions.md",

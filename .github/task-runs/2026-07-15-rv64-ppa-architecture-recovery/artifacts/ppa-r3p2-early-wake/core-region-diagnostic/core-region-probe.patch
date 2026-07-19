@@ -1,0 +1,13 @@
+--- a/npc/rv64/csrc/cpu/cpu-exec.cpp
++++ b/npc/rv64/csrc/cpu/cpu-exec.cpp
+@@ -119,8 +119,8 @@
+   uint32_t end_lane;
+ };
+ static RegionProbeState g_region_probe = {};
+-static constexpr npc_word_t kRegionStartPc = 0x0000000080000334ull;
+-static constexpr npc_word_t kRegionEndPc = 0x000000008000047cull;
++static constexpr npc_word_t kRegionStartPc = 0x00000000800017a8ull;
++static constexpr npc_word_t kRegionEndPc = 0x00000000800017b0ull;
+ static npc_word_t  g_shadow_gpr[32] = {};
+ static uint64_t    g_shadow_fpr[32] = {};   // 阶段2 FPR shadow: 逐提交精确 FP arch 值(对称 GPR)
+ // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。

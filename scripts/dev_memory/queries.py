@@ -324,6 +324,19 @@ def build_chunk_like_where(terms: Sequence[str], params: list[object]) -> str:
     return " AND ".join(clauses) if clauses else "1=1"
 
 
+def append_excluded_kinds(
+    where: list[str],
+    params: list[object],
+    field: str,
+    excluded_kinds: Sequence[str],
+) -> None:
+    kinds = sorted({str(kind).strip() for kind in excluded_kinds if str(kind).strip()})
+    if not kinds:
+        return
+    where.append(f"{field} NOT IN ({','.join('?' for _ in kinds)})")
+    params.extend(kinds)
+
+
 def query_chunk_rows_like(
     conn: sqlite3.Connection,
     terms: Sequence[str],
@@ -331,6 +344,7 @@ def query_chunk_rows_like(
     kind: str | None,
     status: str | None,
     limit: int,
+    excluded_kinds: Sequence[str] = (),
 ) -> tuple[str, list[sqlite3.Row]]:
     params: list[object] = []
     where = [build_chunk_like_where(terms, params)]
@@ -343,6 +357,7 @@ def query_chunk_rows_like(
     if status:
         where.append("f.index_status = ?")
         params.append(status)
+    append_excluded_kinds(where, params, "f.kind", excluded_kinds)
     params.append(limit)
     rows = conn.execute(
         f"""
@@ -365,6 +380,7 @@ def query_chunk_rows_fts(
     kind: str | None,
     status: str | None,
     limit: int,
+    excluded_kinds: Sequence[str] = (),
 ) -> tuple[str, list[sqlite3.Row]]:
     where = ["chunk_fts MATCH ?"]
     params: list[object] = [fts_query_expression(terms)]
@@ -377,6 +393,7 @@ def query_chunk_rows_fts(
     if status:
         where.append("f.index_status = ?")
         params.append(status)
+    append_excluded_kinds(where, params, "f.kind", excluded_kinds)
     params.append(limit)
     rows = conn.execute(
         f"""
@@ -429,6 +446,7 @@ def query_stored_rows_like(
     path_prefix: str | None,
     kind: str | None,
     limit: int,
+    excluded_kinds: Sequence[str] = (),
 ) -> tuple[str, list[sqlite3.Row]]:
     params: list[object] = []
     where = [build_chunk_like_where(terms, params).replace("f.", "d.")]
@@ -438,6 +456,7 @@ def query_stored_rows_like(
     if kind:
         where.append("d.kind = ?")
         params.append(kind)
+    append_excluded_kinds(where, params, "d.kind", excluded_kinds)
     params.append(limit)
     rows = conn.execute(
         f"""
@@ -459,6 +478,7 @@ def query_stored_rows_fts(
     path_prefix: str | None,
     kind: str | None,
     limit: int,
+    excluded_kinds: Sequence[str] = (),
 ) -> tuple[str, list[sqlite3.Row]]:
     where = ["document_fts MATCH ?"]
     params: list[object] = [fts_query_expression(terms)]
@@ -468,6 +488,7 @@ def query_stored_rows_fts(
     if kind:
         where.append("d.kind = ?")
         params.append(kind)
+    append_excluded_kinds(where, params, "d.kind", excluded_kinds)
     params.append(limit)
     rows = conn.execute(
         f"""
@@ -515,11 +536,11 @@ def select_chunks_with_budget(rows: Sequence[sqlite3.Row], max_tokens: int) -> l
     used = 0
     for row in rows:
         tokens = int(row["token_estimate"] or 0)
-        if selected and used + tokens > max_tokens:
-            break
+        if used + tokens > max_tokens:
+            continue
         selected.append(row)
         used += tokens
-        if used >= max_tokens:
+        if used == max_tokens:
             break
     return selected
 
@@ -626,6 +647,14 @@ def load_chunks(args: argparse.Namespace) -> int:
             )
     selected = select_chunks_with_budget(rows[: args.limit * 4], args.max_tokens)[: args.limit]
     token_total = sum(int(row["token_estimate"] or 0) for row in selected)
+    if rows and not selected:
+        conn.close()
+        print(
+            f"FAIL matching chunks exceed max_tokens={args.max_tokens}; "
+            "no chunk can be loaded without exceeding the budget",
+            file=sys.stderr,
+        )
+        return 2
     if args.json:
         payload = []
         for row in selected:

@@ -10,7 +10,9 @@ module OooDispatchBackend #(
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
   parameter ROB_COUNT_W = `OOO_ROB_COUNT_W,
   parameter FREE_COUNT_W = `OOO_FREE_COUNT_W,
-  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W
+  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
 ) (
   input clk,
   input rst,
@@ -18,6 +20,9 @@ module OooDispatchBackend #(
   input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // T3N：已寄存 coherent resolve packet 的 rob_idx
   input branch_mispredict_valid_i,          // T3N：已寄存 coherent resolve packet 的 mispredict valid
   input issue_mem_block_i,
+  // Registered downstream occupancy of the physical Universal terminal.
+  // Kept separate from memory dispatch blocking and combinational ready.
+  input universal_owner_present_i,
   // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
   // 需要 SQ slot, 满则反压。
   input sq_alloc0_ready_i,
@@ -89,6 +94,23 @@ module OooDispatchBackend #(
   input [`XLEN-1:0] wb1_tval_i,
   input [4:0] wb1_fflags_i,
 
+  // v8f EX-stage exact completion query.  ProducerId is carried by the EX
+  // stage; OooRob returns a Q-only current/open decision used before any WB
+  // side effect.  Mismatch is consumed-and-dropped by the caller.
+  input completion0_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion0_query_producer_id_i,
+  output completion0_query_match_o,
+  input completion1_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion1_query_producer_id_i,
+  output completion1_query_match_o,
+
+  // R3.2 actual-fire lookahead wake.  These pulses update only IQ sticky
+  // readiness; formal WB remains the sole BusyTable/PRF completion source.
+  input early_wakeup0_valid_i,
+  input [PHY_REG_ADDR_W-1:0] early_wakeup0_pdest_i,
+  input early_wakeup1_valid_i,
+  input [PHY_REG_ADDR_W-1:0] early_wakeup1_pdest_i,
+
   // 【B-FP 簇】FP wakeup(整数 IQ 的 fp_src2 监听) + FP walk 分流输出
   input fp_wake0_valid_i,
   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
@@ -111,15 +133,19 @@ module OooDispatchBackend #(
   output [`INST_W-1:0] issue0_inst_o,
   output [`CTRL_BUS_W-1:0] issue0_ctrl_o,
   output [ROB_INDEX_W-1:0] issue0_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] issue0_producer_id_o,
+  output issue0_producer_current_o,
   output [PHY_REG_ADDR_W-1:0] issue0_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_pdest_o,
+  output issue0_fixed_gpr_producer_o,
   output issue0_fp_pdest_o,
   output issue0_fp_st_src_en_o,
   output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
   output [`XLEN-1:0] issue0_imm_o,
   output [`BPU_BHT_INDEX_W-1:0] issue0_bht_idx_o,
   output issue0_pred_taken_o,
+  output issue_pair_swapped_o,
 
   output issue1_valid_o,
   input issue1_ready_i,
@@ -129,9 +155,12 @@ module OooDispatchBackend #(
   output [`INST_W-1:0] issue1_inst_o,
   output [`CTRL_BUS_W-1:0] issue1_ctrl_o,
   output [ROB_INDEX_W-1:0] issue1_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] issue1_producer_id_o,
+  output issue1_producer_current_o,
   output [PHY_REG_ADDR_W-1:0] issue1_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_pdest_o,
+  output issue1_fixed_gpr_producer_o,
   output issue1_fp_pdest_o,
   output issue1_fp_st_src_en_o,
   output [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg_o,
@@ -192,7 +221,14 @@ module OooDispatchBackend #(
   output rob_recover_active_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
-  output [ISSUE_COUNT_W-1:0] issue_count_o
+  output [ISSUE_COUNT_W-1:0] issue_count_o,
+
+  // S2-Q2 v8a：末级 wrapper 只把 permit/facts 映射到 canonical ROB。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
   // 【B-FP 簇】FP 算术(非 mem)不进整数 IQ(在 FP IQ); FP mem 正常进(mem 通道)。
@@ -215,6 +251,13 @@ module OooDispatchBackend #(
   wire rob_dispatch1_ready_w;
   wire [ROB_INDEX_W-1:0] rob_dispatch0_idx_w;
   wire [ROB_INDEX_W-1:0] rob_dispatch1_idx_w;
+  wire [PRODUCER_ID_W-1:0] rob_dispatch0_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_dispatch1_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_head0_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_commit0_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_commit1_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_walk0_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_walk1_producer_id_w;
   wire [ROB_INDEX_W-1:0] rob_head_idx_w;
   wire rob_head_valid_w;
   wire [ROB_COUNT_W-1:0] rob_count_w;
@@ -311,7 +354,10 @@ module OooDispatchBackend #(
   wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
   wire rob_kill_valid_w = rob_walk_mode_w && branch_mispredict_valid_i;
   wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_rob_idx_i;
-  wire dispatch_freeze_w = rob_recover_active_w || rob_kill_valid_w;
+  // reset/flush 与 child state-update priority 同域：parent ready 也必须拉低，
+  // 否则上游会观察到一次并未被 ROB/IQ/rename 接受的伪 fire。
+  wire dispatch_freeze_w = rst || flush_i ||
+                           rob_recover_active_w || rob_kill_valid_w;
   assign dispatch0_ready_o = rob_slot0_ready_w &&
                              (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
                              free_ok0_w && sq_ok0_w &&
@@ -449,9 +495,9 @@ module OooDispatchBackend #(
     .query_raw_ready_o(busy_raw_unused_w)
   );
 
-  // B2 ROB-walk 恢复数据通路（Step A：结构接通、行为中性——kill 源暂 0 → recover 永不触发 → 各 mux 选常规路径）。
-  // （walk/kill 相关声明已前置到 dispatch_freeze_w 之前，此处只留驱动逻辑。）
-  // B2 Step B：后端显式 branch/JALR mispredict(branch_mispredict_valid_i) 驱动 ROB-walk kill；
+  // B2 ROB-walk 恢复数据通路；walk/kill 相关声明已前置到 dispatch_freeze_w
+  // 之前，此处只留驱动逻辑。后端显式 branch/JALR mispredict
+  // (branch_mispredict_valid_i) 驱动 ROB-walk kill；
   // kill_rob_idx 来自后端解析控制流 rob_idx（ROB-walk 全阵列 restore，无 checkpoint）。
   // 旧版在这里把组合 branch resolve 再寄存一拍以断环；T3N 已把完整 resolve
   // packet 在 OooIntBackend 统一寄存，故本层直接消费 q，保持 issue→ROB/IQ kill
@@ -477,14 +523,23 @@ module OooDispatchBackend #(
     .ROB_ENTRIES(ROB_ENTRY_COUNT),
     .ROB_INDEX_W(ROB_INDEX_W),
     .ROB_COUNT_W(ROB_COUNT_W),
-    .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) u_rob (
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
+    .head0_producer_id_o(rob_head0_producer_id_w),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(rob_dispatch0_ready_w),
     .dispatch0_rob_idx_o(rob_dispatch0_idx_w),
+    .dispatch0_producer_id_o(rob_dispatch0_producer_id_w),
     .dispatch0_pc_i(dispatch0_pc_i),
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
     .dispatch0_inst_i(dispatch0_inst_i),
@@ -499,6 +554,7 @@ module OooDispatchBackend #(
     .dispatch1_valid_i(dispatch1_fire_w),
     .dispatch1_ready_o(rob_dispatch1_ready_w),
     .dispatch1_rob_idx_o(rob_dispatch1_idx_w),
+    .dispatch1_producer_id_o(rob_dispatch1_producer_id_w),
     .dispatch1_pc_i(dispatch1_pc_i),
     .dispatch1_next_pc_i(dispatch1_next_pc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
@@ -526,10 +582,23 @@ module OooDispatchBackend #(
     .wb1_cause_i(wb1_cause_i),
     .wb1_tval_i(wb1_tval_i),
     .wb1_fflags_i(wb1_fflags_i),
+    .current0_query_valid_i(issue0_valid_o),
+    .current0_query_producer_id_i(issue0_producer_id_o),
+    .current0_query_match_o(issue0_producer_current_o),
+    .current1_query_valid_i(issue1_valid_o),
+    .current1_query_producer_id_i(issue1_producer_id_o),
+    .current1_query_match_o(issue1_producer_current_o),
+    .completion0_query_valid_i(completion0_query_valid_i),
+    .completion0_query_producer_id_i(completion0_query_producer_id_i),
+    .completion0_query_match_o(completion0_query_match_o),
+    .completion1_query_valid_i(completion1_query_valid_i),
+    .completion1_query_producer_id_i(completion1_query_producer_id_i),
+    .completion1_query_match_o(completion1_query_match_o),
     .commit_ready_i(commit_ready_i),
     .commit1_block_i(commit1_block_i),
     .mem_quiet_i(mem_quiet_i),
     .commit0_valid_o(commit0_valid_o),
+    .commit0_producer_id_o(rob_commit0_producer_id_w),
     .commit0_pc_o(commit0_pc_o),
     .commit0_next_pc_o(commit0_next_pc_o),
     .commit0_inst_o(commit0_inst_o),
@@ -544,6 +613,7 @@ module OooDispatchBackend #(
     .commit0_cause_o(commit0_cause_o),
     .commit0_tval_o(commit0_tval_o),
     .commit1_valid_o(commit1_valid_o),
+    .commit1_producer_id_o(rob_commit1_producer_id_w),
     .commit1_pc_o(commit1_pc_o),
     .commit1_next_pc_o(commit1_next_pc_o),
     .commit1_inst_o(commit1_inst_o),
@@ -566,11 +636,13 @@ module OooDispatchBackend #(
     .kill_rob_idx_i(rob_kill_idx_w),
     .recover_active_o(rob_recover_active_w),
     .walk0_valid_o(rob_walk0_valid_w),
+    .walk0_producer_id_o(rob_walk0_producer_id_w),
     .walk0_arch_rd_o(rob_walk0_arch_rd_w),
     .walk0_old_pdest_o(rob_walk0_old_pdest_w),
     .walk0_new_pdest_o(rob_walk0_new_pdest_w),
     .walk0_rd_en_o(rob_walk0_rd_en_w),
     .walk1_valid_o(rob_walk1_valid_w),
+    .walk1_producer_id_o(rob_walk1_producer_id_w),
     .walk1_arch_rd_o(rob_walk1_arch_rd_w),
     .walk1_old_pdest_o(rob_walk1_old_pdest_w),
     .walk1_new_pdest_o(rob_walk1_new_pdest_w),
@@ -588,12 +660,14 @@ module OooDispatchBackend #(
     .ENTRY_INDEX_W(ISSUE_ENTRY_INDEX_W),
     .ENTRY_COUNT_W(ISSUE_COUNT_W),
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
-    .ROB_INDEX_W(ROB_INDEX_W)
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) u_issue_queue (
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
     .issue_mem_block_i(issue_mem_block_i),
+    .universal_owner_present_i(universal_owner_present_i),
     .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
     .dispatch0_ready_o(iq_dispatch0_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
@@ -601,7 +675,9 @@ module OooDispatchBackend #(
     .dispatch0_pred_npc_i(dispatch0_pred_npc_i),
     .dispatch0_inst_i(dispatch0_inst_i),
     .dispatch0_ctrl_i(dispatch0_ctrl_i),
+    .dispatch0_is_fp_i(dispatch0_is_fp_i),
     .dispatch0_rob_idx_i(rob_dispatch0_idx_w),
+    .dispatch0_producer_id_i(rob_dispatch0_producer_id_w),
     .dispatch0_src1_preg_i(dispatch0_src1_preg_w),
     .dispatch0_src1_ready_i(!dispatch0_uses_rs1_w || dispatch0_src1_ready_w),
     .dispatch0_src2_preg_i(dispatch0_src2_preg_w),
@@ -623,7 +699,9 @@ module OooDispatchBackend #(
     .dispatch1_pred_npc_i(dispatch1_pred_npc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
     .dispatch1_ctrl_i(dispatch1_ctrl_i),
+    .dispatch1_is_fp_i(dispatch1_is_fp_i),
     .dispatch1_rob_idx_i(rob_dispatch1_idx_w),
+    .dispatch1_producer_id_i(rob_dispatch1_producer_id_w),
     .dispatch1_src1_preg_i(dispatch1_src1_preg_w),
     .dispatch1_src1_ready_i(!dispatch1_uses_rs1_w || dispatch1_src1_ready_w),
     .dispatch1_src2_preg_i(dispatch1_src2_preg_w),
@@ -641,6 +719,10 @@ module OooDispatchBackend #(
     .wakeup0_pdest_i(wb0_pdest_i),
     .wakeup1_valid_i(wb1_valid_i),
     .wakeup1_pdest_i(wb1_pdest_i),
+    .early_wakeup0_valid_i(early_wakeup0_valid_i),
+    .early_wakeup0_pdest_i(early_wakeup0_pdest_i),
+    .early_wakeup1_valid_i(early_wakeup1_valid_i),
+    .early_wakeup1_pdest_i(early_wakeup1_pdest_i),
     .fp_wake0_valid_i(fp_wake0_valid_i),
     .fp_wake0_preg_i(fp_wake0_preg_i),
     .fp_wake1_valid_i(fp_wake1_valid_i),
@@ -653,15 +735,18 @@ module OooDispatchBackend #(
     .issue0_inst_o(issue0_inst_o),
     .issue0_ctrl_o(issue0_ctrl_o),
     .issue0_rob_idx_o(issue0_rob_idx_o),
+    .issue0_producer_id_o(issue0_producer_id_o),
     .issue0_src1_preg_o(issue0_src1_preg_o),
     .issue0_src2_preg_o(issue0_src2_preg_o),
     .issue0_pdest_o(issue0_pdest_o),
+    .issue0_fixed_gpr_producer_o(issue0_fixed_gpr_producer_o),
     .issue0_fp_pdest_o(issue0_fp_pdest_o),
     .issue0_fp_st_src_en_o(issue0_fp_st_src_en_o),
     .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg_o),
     .issue0_imm_o(issue0_imm_o),
     .issue0_bht_idx_o(issue0_bht_idx_o),
     .issue0_pred_taken_o(issue0_pred_taken_o),
+    .issue_pair_swapped_o(issue_pair_swapped_o),
     .issue1_valid_o(issue1_valid_o),
     .issue1_ready_i(issue1_ready_i),
     .issue1_pc_o(issue1_pc_o),
@@ -670,9 +755,11 @@ module OooDispatchBackend #(
     .issue1_inst_o(issue1_inst_o),
     .issue1_ctrl_o(issue1_ctrl_o),
     .issue1_rob_idx_o(issue1_rob_idx_o),
+    .issue1_producer_id_o(issue1_producer_id_o),
     .issue1_src1_preg_o(issue1_src1_preg_o),
     .issue1_src2_preg_o(issue1_src2_preg_o),
     .issue1_pdest_o(issue1_pdest_o),
+    .issue1_fixed_gpr_producer_o(issue1_fixed_gpr_producer_o),
     .issue1_fp_pdest_o(issue1_fp_pdest_o),
     .issue1_fp_st_src_en_o(issue1_fp_st_src_en_o),
     .issue1_fp_st_src_preg_o(issue1_fp_st_src_preg_o),
@@ -712,6 +799,11 @@ module OooDispatchBackend #(
                          rob_dispatch0_ready_w | rob_dispatch1_ready_w |
                          iq_dispatch0_ready_w | iq_dispatch1_ready_w |
                          rob_empty_w | rob_full_w | iq_empty_w | iq_full_w |
+                         (|rob_head0_producer_id_w) |
+                         (|rob_commit0_producer_id_w) |
+                         (|rob_commit1_producer_id_w) |
+                         (|rob_walk0_producer_id_w) |
+                         (|rob_walk1_producer_id_w) |
                          (|rename0_new_pdest_unused_w) |
                          (|rename1_new_pdest_unused_w) | (|debug_map_unused_w);
 

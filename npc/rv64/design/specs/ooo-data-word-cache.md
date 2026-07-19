@@ -32,6 +32,7 @@
 | `fill_valid_i/fill_addr_i/fill_data_i` | 输入 | 读 miss 回填对齐 8B line，全 1 掩码整行写。合法集成的 carrying contract 是：`fill_valid_i -> fill_addr_i` 为 PMEM cacheable 且 8B 对齐，并且该拍与 lookup 发射、RMW 发射、RMW 判决三个 SRAM owner 互斥。地址 mux 直接用 `fill_valid_i` 选 fill index；真正 en/we/wmask/valid 更新仍由重判 cacheable 的 `fill_we` 授权。 |
 | `store_commit_i/store_addr_i/store_wdata_i/store_wstrb_i` | 输入 | store/A-D 维护脉冲。`store_rmw_en_i=1`(真 store commit)：**2 拍 RMW write-update**——commit 拍占宏口读 `st_idx` 并锁存上下文，次拍 valid+tag match 则以 wmask 写 line 内被覆盖的 data 字节，并以全 1 tag mask 幂等写回锁存 tag；miss 无动作(write-no-allocate)；跨线 store 的下一行(p1)仍在 commit 拍无条件清 valid(跨线 RMW 不做，保守失效)，本行照常线内合并。`store_wdata_i` 为窗口数据(低位起，与 wstrb 位对齐)。 |
 | `store_rmw_en_i` | 输入 | 0 = HW A/D PTE 写回维护路：保持无条件失效(清 valid FF，不读不写宏，0 额外拍，含跨线 p1)——该拍桥的 read 续访问可能同拍发 lookup(宏读口不空闲)。 |
+| `store_cacheable_i` | 输入 | **最终事务属性**，只能来自翻译、权限、PMA 与 leaf PBMT 全部完成后的分类结果。它与 `store_addr_i` 是否落入 PMEM 是两个不同真值：后者只回答“是否可能存在 cache alias”，前者回答“本次事务是否允许 RMW 保热”。`0`（当前 S0 合并表示 NC/IO）必须失效 alias，禁止 RMW。 |
 | `rmw_busy_o` | 输出 | RMW 判决拍(commit 次拍)恒且仅该拍为 1：宏口被 RMW 占用，桥必须压 `stage_advance`(刀 M 后; 原 req_ready)/不发 lookup(store 后 1 bubble)。 |
 
 已删除端口(2026-07-08 SRAM 化)：`req_hit_o/req_data_o/walk_hit_o/walk_data_o`(并入
@@ -117,6 +118,16 @@ queue-notify DMA 完成事件驱动的运行期端口，不是把旧 store 死�
 - **DWC-I13 fill address timing cut**：`sram_addr` 的 fill 优先选择条件是原始
   `fill_valid_i`；`sram_en/we/wmask` 与 `valid_q` 更新的 fill 条件仍是合法 `fill_we`。
   该切分不得改变 write eligibility、1RW owner 互斥或 DMA valid 优先级。
+- **DWC-I14 地址属性与事务属性分离（R4-S0）**：`cacheable_addr(store_addr_i)` 只决定
+  PMEM PA 是否可能有旧 alias；`store_cacheable_i` 是 post-translation 最终事务属性。只有
+  `B=OKAY && store_rmw_en_i && store_cacheable_i && address_cacheable` 才允许 RMW；NC/IO、
+  A/D 维护或任意聚合 B error 都必须清 PMEM alias。不得用 PA 落在 PMEM 重新覆盖 PBMT。
+- **DWC-I15 error/uncached 保守失效**：聚合 B error 到达时，外部写可能已有部分 beat 生效，
+  因而不能以“事务失败”保留旧 line；本行必须失效，跨 8B line 时 p1 也必须失效。
+  NC/IO 即便 B=OKAY 也走同一失效类别，避免同 PA 的 cached mapping 读到旧值。
+- **DWC-I16 维护优先于未来双 lookup**：S0 仍是单个 1RW macro。未来改为双 bank/双 lookup
+  时，同拍 DMA/store/error maintenance 与任一 lookup 冲突必须由 maintenance 获胜，受影响
+  lookup 显式 replay；禁止以端口号静态丢弃 maintenance，也禁止让旧 alias 报 hit。
 
 ## 5. debug/common 审核
 
@@ -162,6 +173,10 @@ tick 后判决拍观测)：
 - MMIO/uncacheable store 无 RMW(busy 恒 0) + lookup miss；
 - DMA 全失效先预热多个不同 cache line，再覆盖 lookup 判决、lookup 发射、fill、RMW 发射和
   RMW 判决冲突；每种重合都要求所有旧 line miss，事件后的 fresh refill 才能重新 hit。
+- R4-S0：PBMT NC/IO 对 PMEM hot line 的 bypass+失效、cacheable/NC/IO 的 B OKAY/error
+  真值表、cross-line 两行失效以及 aggregate B error 后 alias miss。
+- 非真空负向探针：故意让 invalidate-class store 后 `valid_q` 保持为 1，必须精确命中
+  `DWC-STORE-INVALIDATE` 并以非零状态退出；仅有正常路径 PASS 不能证明该断言承重。
 
 桥侧配套(`tb_ooo_mem_axi_bridge`)：post-commit/post-drain 同址读命中合并后
 line(不发 AR)；`store_rmw_write_update_and_bubble` 定向审核 RMW 判决拍压

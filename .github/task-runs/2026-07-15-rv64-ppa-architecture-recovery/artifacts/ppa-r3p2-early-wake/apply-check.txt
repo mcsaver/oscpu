@@ -1,0 +1,13 @@
+PASS: sandbox frozen index baseline
+  git apply --cached --check candidate.patch
+
+PASS: sandbox implemented worktree reverse check
+  git apply --reverse --check candidate.patch
+
+EXPECTED PREREQUISITE BLOCK: canonical working tree at export
+  candidate.patch is deliberately a pure R3.2 increment over commit df604c0
+  (R3.1). The current canonical working tree contains the divergent T4S
+  lane-owner implementation and does not yet contain R3/R3.1 capability
+  steering. Direct canonical git apply --check therefore rejects prerequisite
+  hunks in OooIntIssueQueue.v, tb_ooo_dispatch_backend.sv, and the IQ spec.
+  Apply/accept R3/R3.1 first, then apply this increment.

@@ -95,6 +95,9 @@ for case_id in 1 2 3 4; do
     >"$negative_sim" 2>&1
   negative_rc=$?
   set -e
+  # Icarus prints one trailing blank after some $fatal source locations.  Keep
+  # committed evidence diff-check clean without changing any marker/content.
+  sed -i 's/[[:space:]]\+$//' "$negative_sim"
   if [[ $negative_rc -eq 0 ]]; then
     printf 'bridge focused negative case %s unexpectedly passed\n' \
       "$case_id" >&2

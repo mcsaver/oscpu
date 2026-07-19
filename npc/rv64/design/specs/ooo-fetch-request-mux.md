@@ -20,8 +20,10 @@
 
 `OooFetchRequestMux` 承接 `OooFrontend`（原 `OooAluFetchCore`，已重构删除）中 fetch request PC 来源选择的纯组合逻辑：
 
-- 计算顺序 fetch PC：若 registered outstanding response 已呈现 valid，则预装
-  response packet next PC；否则使用 `next_fetch_pc_q`。不得等待 ready/fire。
+- 计算顺序 fetch PC：若 registered outstanding owner 存在，则从 Bridge raw payload
+  预装 response packet next PC；无 owner 才使用 `next_fetch_pc_q`。该数据选择不得依赖
+  response valid/ready/fire；miss/fault/stall 时上游 flow control 禁止 request fire，
+  所以预装值是 don’t-care，不形成架构 token。
 - 计算 redirect fetch 是否能在本拍发起，并选择 redirect target。
 - 在 redirect、branch prefetch 和顺序取指三类来源中选择最终 `fetch_req_pc_o`。
 
@@ -34,7 +36,8 @@
 输入信号分为四类：
 
 - 顺序 PC：`outstanding_valid_i`、`fetch_rsp_valid_i`、
-  `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`。
+  `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`；其中 `fetch_rsp_valid_i` 只供
+  协议可观察性，不得回流顺序 PC 数据 mux。
 - redirect predicate：direct JAL/return、direct jump spec（B2 非返回 JALR 投机续取）、
   lane0 branch to lane1 return、pending JALR/no-link commit、direct branch resolve、
   normal branch resolve、branch speculation restore、untracked branch resolve、
@@ -55,8 +58,10 @@
 ## 不变量
 
 - Redirect request 优先级高于 branch prefetch，高于顺序取指。
-- Response stall 时顺序 candidate 可以预装 successor，但上游 request valid 仍被
-  outstanding/flow control 关闭；candidate 是 don't-care，不改变 active owner。
+- outstanding token 有效时顺序 candidate 必须无条件预装 raw packet successor，
+  包括 response valid 尚未成立的 H1 miss/fault 判决窗口；上游 request valid 仍被
+  outstanding/flow control 关闭，candidate 是 don’t-care，不改变 active owner。
+- PMP/ITLB response-valid 控制锥不得进入 packet-next-PC 数据选择。
 - Branch fallthrough 已有匹配 outstanding 时，redirect request valid 必须为假。
 - Redirect target（P4 单源）：`redirect_valid_i` 拍恒透传 `redirect_pc_i`（arbiter 年龄律
   赢家）；无赢家拍恒兜底 `core_branch_resolve_next_pc_i`。守卫=`OooRedirectMuxChecker`
@@ -71,3 +76,17 @@
 - 不维护 outstanding/discard 状态。
 - 不写 FIFO，不处理 response ready/enqueue/drop。
 - 不解释 instruction、branch compare、BTB/BHT/RAS 或 CSR trap cause。
+
+## R2.3 raw successor 消费边界（2026-07-15）
+
+`fetch_rsp_packet_next_pc_i` 在本模块边界上的物理含义收窄为
+`OooFetchPacketDecode.packet_raw_next_pc_o`：它只驱动顺序 request candidate，
+不得进入 FIFO、预测、异常或 architected PC 状态。registered `outstanding_valid_i`
+只选择 payload；真正请求是否 fire 仍由独立 FlowControl/Bridge response token 决定。
+
+因此必须同时满足：
+
+- 成功 packet 上 raw successor 与 response-aware semantic successor 逐位相等；
+- miss/fault/flush/invalidate/redirect 上即使 raw payload 任意变化，也不得产生 request fire；
+- `fetch_rsp_valid_i`、PMP、ITLB permission 和 response provenance 不得回流本数据 mux；
+- 删除 token gate 或把 raw 口接到语义消费者，均属于硬约束失败。

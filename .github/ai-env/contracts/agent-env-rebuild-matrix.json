@@ -140,6 +140,8 @@
     "evidence": [
       {"type": "path", "value": ".github/instructions/agent-env-state-machine.instructions.md"},
       {"type": "path", "value": ".github/ai-env/contracts/agent-env-state-traceability.json"},
+      {"type": "path", "value": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"},
+      {"type": "path", "value": ".github/instructions/rtl-agent-task-contract.instructions.md"},
       {"type": "path", "value": ".github/e2e/profiles/agent-system.tsv"},
       {"type": "path", "value": "scripts/e2e/modules/agent_system.sh"},
       {"type": "path", "value": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/run-manifest.json"}
@@ -147,10 +149,13 @@
     "verification": [
       "python3 scripts/github_index_db.py state-audit --run-id 2026-06-13-agent-env-state-reviewer-inspector",
       "python3 scripts/github_index_db.py report-audit",
+      "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit",
+      "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test",
+      "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test",
       "python3 scripts/github_index_db.py evidence --run-id 2026-06-13-agent-env-state-reviewer-inspector --kind json",
       "scripts/agent-e2e.sh --profile agent-system --task-slug agent-env-state-reviewer-inspector"
     ],
-    "next_action": "后续可接入远端 PR reviewer assignment；当前已完成本地 state_traceback、Reviewer/Inspector profile 节点和 state-audit 自动维护门。"
+    "next_action": "后续可接入远端 PR reviewer assignment；当前已完成本地 state_traceback、Reviewer/Inspector、RTL 子任务最小权限契约和 mutation-negative 自动维护门。"
   },
     {
       "id": "R8",
@@ -162,10 +167,14 @@
       "evidence": [
         {"type": "path", "value": ".github/instructions/agent-env-layer-contract.instructions.md"},
         {"type": "path", "value": ".github/instructions/agent-env-state-machine.instructions.md"},
-        {"type": "path", "value": ".github/skills/agent-env-maintenance/SKILL.md"}
+        {"type": "path", "value": ".github/instructions/rtl-agent-task-contract.instructions.md"},
+        {"type": "path", "value": ".github/skills/agent-env-maintenance/SKILL.md"},
+        {"type": "path", "value": ".github/skills/prepare-rtl-task-contract/SKILL.md"}
       ],
       "verification": [
         "python3 scripts/github_index_db.py skill-audit",
+        "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test",
+        "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test",
         "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence"
       ],
       "next_action": "继续把可复用流程规则沉淀为短小 live Skill；长规则作为 live instructions 或脚本引用。"

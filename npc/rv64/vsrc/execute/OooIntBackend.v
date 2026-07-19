@@ -8,7 +8,9 @@ module OooIntBackend #(
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
   parameter ROB_COUNT_W = `OOO_ROB_COUNT_W,
   parameter FREE_COUNT_W = `OOO_FREE_COUNT_W,
-  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W
+  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
 ) (
   input clk,
   input rst,
@@ -206,7 +208,14 @@ module OooIntBackend #(
   // 【P4 shadow】ROB 队头指针观测口（→AluDecodeBackend→AluCoreSlice→ExecuteBackend→glue）：
   // 供 OooCoreTopGlue 的 shadow RedirectArbiter 年龄律（age = rob_idx - head）；也是
   // flush 单点化真 arbiter 收敛所需的 plumbing（pipeline-stage-boundary.md §5），非一次性。
-  output [ROB_INDEX_W-1:0] rob_head_idx_o
+  output [ROB_INDEX_W-1:0] rob_head_idx_o,
+
+  // S2-Q2 v8a：无状态、同名 shadow transport。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
   localparam [1:0] CLMUL_OP_LOW = 2'd0;
@@ -221,6 +230,30 @@ module OooIntBackend #(
   localparam [1:0] MEM_OWNER_EPOCH_BASE = 2'b00;
   localparam integer BRANCH_RESOLVE_PAYLOAD_W =
       (2 * `XLEN) + ROB_INDEX_W + `BPU_BHT_INDEX_W + 5;
+  // Registered EX completion packet, low to high:
+  // tval/cause/exception/result/pdest/raw-ROB/fwd/generation.  Derive every
+  // boundary from public width parameters; default 64/6/4/4 retains the
+  // historical [148:0] layout (fwd=144, raw ROB=[143:140]).
+  localparam integer EX_STAGE_TVAL_LSB = 0;
+  localparam integer EX_STAGE_TVAL_MSB = EX_STAGE_TVAL_LSB + `XLEN - 1;
+  localparam integer EX_STAGE_CAUSE_LSB = EX_STAGE_TVAL_MSB + 1;
+  localparam integer EX_STAGE_CAUSE_MSB =
+      EX_STAGE_CAUSE_LSB + `TRAP_CAUSE_W - 1;
+  localparam integer EX_STAGE_EXCEPTION_BIT = EX_STAGE_CAUSE_MSB + 1;
+  localparam integer EX_STAGE_RESULT_LSB = EX_STAGE_EXCEPTION_BIT + 1;
+  localparam integer EX_STAGE_RESULT_MSB = EX_STAGE_RESULT_LSB + `XLEN - 1;
+  localparam integer EX_STAGE_PDEST_LSB = EX_STAGE_RESULT_MSB + 1;
+  localparam integer EX_STAGE_PDEST_MSB =
+      EX_STAGE_PDEST_LSB + PHY_REG_ADDR_W - 1;
+  localparam integer EX_STAGE_ROB_IDX_LSB = EX_STAGE_PDEST_MSB + 1;
+  localparam integer EX_STAGE_ROB_IDX_MSB =
+      EX_STAGE_ROB_IDX_LSB + ROB_INDEX_W - 1;
+  localparam integer EX_STAGE_FWD_BIT = EX_STAGE_ROB_IDX_MSB + 1;
+  localparam integer EX_STAGE_GEN_LSB = EX_STAGE_FWD_BIT + 1;
+  localparam integer EX_STAGE_GEN_MSB =
+      EX_STAGE_GEN_LSB + PRODUCER_GEN_W - 1;
+  localparam integer EX_STAGE_BASE_PAYLOAD_W = EX_STAGE_GEN_LSB;
+  localparam integer EX_STAGE_PAYLOAD_W = EX_STAGE_GEN_MSB + 1;
 
   wire wb0_valid_w;
   wire [ROB_INDEX_W-1:0] wb0_rob_idx_w;
@@ -239,9 +272,21 @@ module OooIntBackend #(
   // R3.2 EX registers carry one forwarding-valid bit above the legacy
   // formal-WB payload; all legacy field positions remain unchanged.
   wire ex0_valid_q;
-  wire [144:0] ex0_down_payload_w;
+  wire [EX_STAGE_PAYLOAD_W-1:0] ex0_down_payload_w;
   wire ex1_valid_q;
-  wire [144:0] ex1_down_payload_w;
+  wire [EX_STAGE_PAYLOAD_W-1:0] ex1_down_payload_w;
+  // v8d：raw stage valid 只表示物理寄存器占用；selective recovery 同拍
+  // 必须先形成 effective completion，才能进入 WB/PRF/wakeup/ROB 副作用面。
+  wire ex0_kill_now_w;
+  wire ex1_kill_now_w;
+  wire [PRODUCER_ID_W-1:0] ex0_producer_id_q;
+  wire [PRODUCER_ID_W-1:0] ex1_producer_id_q;
+  wire ex0_pre_auth_valid_w;
+  wire ex1_pre_auth_valid_w;
+  wire ex0_producer_open_w;
+  wire ex1_producer_open_w;
+  wire ex0_wb_valid_w;
+  wire ex1_wb_valid_w;
   // 真实 integer PRF write event 与送往 FP IQ 的 formal sticky wake
   // 共用同一 valid 真源，过滤 FP-only/probe/x0 completion 的 p0 tag。
   wire gpr_wb0_write_valid_w;
@@ -259,6 +304,8 @@ module OooIntBackend #(
   wire [`INST_W-1:0] iq_issue0_inst_w;
   wire [`CTRL_BUS_W-1:0] iq_issue0_ctrl_w;
   wire [ROB_INDEX_W-1:0] iq_issue0_rob_idx_w;
+  wire [PRODUCER_ID_W-1:0] iq_issue0_producer_id_w;
+  wire iq_issue0_producer_current_w;
   wire [PHY_REG_ADDR_W-1:0] iq_issue0_src1_preg_w;
   wire [PHY_REG_ADDR_W-1:0] iq_issue0_src2_preg_w;
   wire [PHY_REG_ADDR_W-1:0] iq_issue0_pdest_w;
@@ -293,16 +340,25 @@ module OooIntBackend #(
   wire [`INST_W-1:0] issue1_inst_w;
   wire [`CTRL_BUS_W-1:0] issue1_ctrl_w;
   wire [ROB_INDEX_W-1:0] issue1_rob_idx_w;
+  wire [PRODUCER_ID_W-1:0] issue1_producer_id_w;
+  wire issue1_producer_current_w;
   wire [PHY_REG_ADDR_W-1:0] issue1_src1_preg_w;
   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg_w;
   wire [PHY_REG_ADDR_W-1:0] issue1_pdest_w;
   wire issue1_fixed_gpr_producer_w;
   wire [`XLEN-1:0] issue1_imm_w;
   wire mem_issue_block_w = mem_issue_block_i || checkpoint_quiesce_i;
-  wire early_wakeup0_valid_w =
+  wire early_wakeup0_raw_valid_w =
       issue0_fire_w && iq_issue0_fixed_gpr_producer_w;
-  wire early_wakeup1_valid_w =
+  wire early_wakeup1_raw_valid_w =
       issue1_fire_w && issue1_fixed_gpr_producer_w;
+  // v8f: issue-time sticky wake is a side effect.  It is legal only while the
+  // carried ProducerId is the current ROB incarnation; the Q-only query does
+  // not feed resident select or issue READY.
+  wire early_wakeup0_valid_w =
+      early_wakeup0_raw_valid_w && iq_issue0_producer_current_w;
+  wire early_wakeup1_valid_w =
+      early_wakeup1_raw_valid_w && issue1_producer_current_w;
 
   // 【B-FP 簇】dispatch 分流: FP 算术/跨域 → FpBackend.disp; FP load → fpld_alloc
   // (lane0/lane1 均可, 每拍一条); FP store → fpst_query(数据源进整数 IQ fp_src2)。
@@ -424,9 +480,16 @@ module OooIntBackend #(
     .ROB_INDEX_W(ROB_INDEX_W),
     .ROB_COUNT_W(ROB_COUNT_W),
     .FREE_COUNT_W(FREE_COUNT_W),
-    .ISSUE_COUNT_W(ISSUE_COUNT_W)
+    .ISSUE_COUNT_W(ISSUE_COUNT_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) u_dispatch_backend (
     .clk(clk),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
     .rst(rst),
     .flush_i(flush_i),
     .kill_rob_idx_i(branch_resolve_rob_idx_o),   // B2 ROB-walk：mispredict 控制流 rob_idx（与 mispredict 同拍）
@@ -500,6 +563,12 @@ module OooIntBackend #(
     .wb1_cause_i(wb1_cause_w),
     .wb1_tval_i(wb1_tval_w),
     .wb1_fflags_i(wb1_fflags_w),
+    .completion0_query_valid_i(ex0_pre_auth_valid_w),
+    .completion0_query_producer_id_i(ex0_producer_id_q),
+    .completion0_query_match_o(ex0_producer_open_w),
+    .completion1_query_valid_i(ex1_pre_auth_valid_w),
+    .completion1_query_producer_id_i(ex1_producer_id_q),
+    .completion1_query_match_o(ex1_producer_open_w),
     .early_wakeup0_valid_i(early_wakeup0_valid_w),
     .early_wakeup0_pdest_i(iq_issue0_pdest_w),
     .early_wakeup1_valid_i(early_wakeup1_valid_w),
@@ -512,6 +581,8 @@ module OooIntBackend #(
     .issue0_inst_o(iq_issue0_inst_w),
     .issue0_ctrl_o(iq_issue0_ctrl_w),
     .issue0_rob_idx_o(iq_issue0_rob_idx_w),
+    .issue0_producer_id_o(iq_issue0_producer_id_w),
+    .issue0_producer_current_o(iq_issue0_producer_current_w),
     .issue0_src1_preg_o(iq_issue0_src1_preg_w),
     .issue0_src2_preg_o(iq_issue0_src2_preg_w),
     .issue0_pdest_o(iq_issue0_pdest_w),
@@ -533,6 +604,8 @@ module OooIntBackend #(
     .issue1_inst_o(issue1_inst_w),
     .issue1_ctrl_o(issue1_ctrl_w),
     .issue1_rob_idx_o(issue1_rob_idx_w),
+    .issue1_producer_id_o(issue1_producer_id_w),
+    .issue1_producer_current_o(issue1_producer_current_w),
     .issue1_src1_preg_o(issue1_src1_preg_w),
     .issue1_src2_preg_o(issue1_src2_preg_w),
     .issue1_pdest_o(issue1_pdest_w),
@@ -623,7 +696,9 @@ module OooIntBackend #(
   reg mem_issue_res_pred_taken_q;
   reg [`INST_W-1:0] mem_issue_res_inst_q;
   reg [`CTRL_BUS_W-1:0] mem_issue_res_ctrl_q;
-  reg [ROB_INDEX_W-1:0] mem_issue_res_rob_idx_q;
+  reg [PRODUCER_ID_W-1:0] mem_issue_res_producer_id_q;
+  wire [ROB_INDEX_W-1:0] mem_issue_res_rob_idx_q =
+      mem_issue_res_producer_id_q[ROB_INDEX_W-1:0];
   reg [PHY_REG_ADDR_W-1:0] mem_issue_res_src1_preg_q;
   reg [PHY_REG_ADDR_W-1:0] mem_issue_res_src2_preg_q;
   reg [PHY_REG_ADDR_W-1:0] mem_issue_res_pdest_q;
@@ -793,17 +868,17 @@ module OooIntBackend #(
   // R3.2 forwarding is strictly EX-register -> consumer.  PRF remains
   // stored-only; no WB/result combinational arm is added inside the PRF.
   wire ex0_registered_fwd_valid_w =
-      ex0_valid_q && ex0_down_payload_w[144];
+      ex0_wb_valid_w && ex0_down_payload_w[EX_STAGE_FWD_BIT];
   wire ex1_registered_fwd_valid_w =
-      ex1_valid_q && ex1_down_payload_w[144];
+      ex1_wb_valid_w && ex1_down_payload_w[EX_STAGE_FWD_BIT];
   wire [PHY_REG_ADDR_W-1:0] ex0_registered_fwd_pdest_w =
-      ex0_down_payload_w[139:134];
+      ex0_down_payload_w[EX_STAGE_PDEST_MSB:EX_STAGE_PDEST_LSB];
   wire [PHY_REG_ADDR_W-1:0] ex1_registered_fwd_pdest_w =
-      ex1_down_payload_w[139:134];
+      ex1_down_payload_w[EX_STAGE_PDEST_MSB:EX_STAGE_PDEST_LSB];
   wire [`XLEN-1:0] ex0_registered_fwd_data_w =
-      ex0_down_payload_w[133:70];
+      ex0_down_payload_w[EX_STAGE_RESULT_MSB:EX_STAGE_RESULT_LSB];
   wire [`XLEN-1:0] ex1_registered_fwd_data_w =
-      ex1_down_payload_w[133:70];
+      ex1_down_payload_w[EX_STAGE_RESULT_MSB:EX_STAGE_RESULT_LSB];
 
   wire issue0_src1_ex0_fwd_hit_w =
       ex0_registered_fwd_valid_w &&
@@ -873,7 +948,7 @@ module OooIntBackend #(
       mem_issue_res_pred_taken_q <= 1'b0;
       mem_issue_res_inst_q <= {`INST_W{1'b0}};
       mem_issue_res_ctrl_q <= {`CTRL_BUS_W{1'b0}};
-      mem_issue_res_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      mem_issue_res_producer_id_q <= {PRODUCER_ID_W{1'b0}};
       mem_issue_res_src1_preg_q <= {PHY_REG_ADDR_W{1'b0}};
       mem_issue_res_src2_preg_q <= {PHY_REG_ADDR_W{1'b0}};
       mem_issue_res_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
@@ -901,7 +976,7 @@ module OooIntBackend #(
       mem_issue_res_pred_taken_q <= iq_issue0_pred_taken_w;
       mem_issue_res_inst_q <= iq_issue0_inst_w;
       mem_issue_res_ctrl_q <= iq_issue0_ctrl_w;
-      mem_issue_res_rob_idx_q <= iq_issue0_rob_idx_w;
+      mem_issue_res_producer_id_q <= iq_issue0_producer_id_w;
       mem_issue_res_src1_preg_q <= iq_issue0_src1_preg_w;
       mem_issue_res_src2_preg_q <= iq_issue0_src2_preg_w;
       mem_issue_res_pdest_q <= iq_issue0_pdest_w;
@@ -925,12 +1000,12 @@ module OooIntBackend #(
 `ifdef OOO_ASSERT
   localparam integer MEM_ISSUE_RES_PAYLOAD_W =
       (7 * `XLEN) + `BPU_BHT_INDEX_W + `INST_W + `CTRL_BUS_W +
-      ROB_INDEX_W + (4 * PHY_REG_ADDR_W) + 3;
+      PRODUCER_ID_W + (4 * PHY_REG_ADDR_W) + 3;
   wire [MEM_ISSUE_RES_PAYLOAD_W-1:0] mem_issue_res_payload_w =
       {mem_issue_res_pc_q, mem_issue_res_next_pc_q,
        mem_issue_res_pred_npc_q, mem_issue_res_bht_idx_q,
        mem_issue_res_pred_taken_q, mem_issue_res_inst_q,
-       mem_issue_res_ctrl_q, mem_issue_res_rob_idx_q,
+       mem_issue_res_ctrl_q, mem_issue_res_producer_id_q,
        mem_issue_res_src1_preg_q, mem_issue_res_src2_preg_q,
        mem_issue_res_pdest_q, mem_issue_res_fp_pdest_q,
        mem_issue_res_fp_st_en_q, mem_issue_res_fp_st_preg_q,
@@ -939,7 +1014,7 @@ module OooIntBackend #(
   wire [MEM_ISSUE_RES_PAYLOAD_W-1:0] mem_issue_res_capture_payload_w =
       {iq_issue0_pc_w, iq_issue0_next_pc_w, iq_issue0_pred_npc_w,
        iq_issue0_bht_idx_w, iq_issue0_pred_taken_w, iq_issue0_inst_w,
-       iq_issue0_ctrl_w, iq_issue0_rob_idx_w,
+       iq_issue0_ctrl_w, iq_issue0_producer_id_w,
        iq_issue0_src1_preg_w, iq_issue0_src2_preg_w,
        iq_issue0_pdest_w, iq_issue0_fp_pdest_w,
        iq_issue0_fp_st_en_w, iq_issue0_fp_st_preg_w,
@@ -1662,25 +1737,26 @@ module OooIntBackend #(
       !sq_mode_w || (sq_empty_w && !drain_inflight_q);
   // 【级间边界治理 P1】EX→WB 级间寄存簇提取为 PipeStageReg 实例
   // (spec: design/arch/pipeline-stage-boundary.md §4 P1——全核唯一真实 stage 寄存簇)。
-  // payload 位段布局(145b/lane): bit144=fwd_valid；原 144b formal-WB
+  // payload 位段布局(default 149b/lane): high generation, bit144=fwd_valid；
+  // 原 144b formal-WB
   // 位段保持原位：{rob[143:140], pdest[139:134], result[133:70],
   // exception[69], cause[68:64], tval[63:0]}。
   // up_valid/up_payload 由原 always 各赋值臂等价改写的组合逻辑生成(assign 在原
   // always 块位置, 见后文; 声明前置——iverilog 14 拒绝前向引用)。
   wire ex0_up_valid_w;
-  wire [144:0] ex0_up_payload_w;
+  wire [EX_STAGE_PAYLOAD_W-1:0] ex0_up_payload_w;
   wire ex0_up_ready_unused_w;
   wire ex1_up_valid_w;
-  wire [144:0] ex1_up_payload_w;
+  wire [EX_STAGE_PAYLOAD_W-1:0] ex1_up_payload_w;
   wire ex1_up_ready_unused_w;
 
-  PipeStageReg #(.WIDTH(145)) u_ex0_stage (
+  PipeStageReg #(.WIDTH(EX_STAGE_PAYLOAD_W)) u_ex0_stage (
     .clk(clk),
     .rst(rst),
     // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
     .flush_i(flush_i || checkpoint_restore_i),
-    // kill: 现状契约 = ROB-walk kill 不清 EX→WB 级, 晚到 wb 由 ROB squash 吞(spec §3⑥/§4 P1)
-    .kill_i(1'b0),
+    // selective kill 在消费沿前已组合切掉 completion；原语负责沿上清 raw stage。
+    .kill_i(ex0_kill_now_w),
     .up_valid_i(ex0_up_valid_w),
     // up_ready: down_ready 恒 1 → up_ready 恒 1, 上游 issue 无反压消费点(现状语义)
     .up_ready_o(ex0_up_ready_unused_w),
@@ -1690,13 +1766,13 @@ module OooIntBackend #(
     .down_ready_i(1'b1),
     .down_payload_o(ex0_down_payload_w)
   );
-  PipeStageReg #(.WIDTH(145)) u_ex1_stage (
+  PipeStageReg #(.WIDTH(EX_STAGE_PAYLOAD_W)) u_ex1_stage (
     .clk(clk),
     .rst(rst),
     // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
     .flush_i(flush_i || checkpoint_restore_i),
-    // kill: 现状契约 = ROB-walk kill 不清 EX→WB 级, 晚到 wb 由 ROB squash 吞(spec §3⑥/§4 P1)
-    .kill_i(1'b0),
+    // selective kill 在消费沿前已组合切掉 completion；原语负责沿上清 raw stage。
+    .kill_i(ex1_kill_now_w),
     .up_valid_i(ex1_up_valid_w),
     // up_ready: down_ready 恒 1 → up_ready 恒 1, 上游 issue 无反压消费点(现状语义)
     .up_ready_o(ex1_up_ready_unused_w),
@@ -1710,20 +1786,102 @@ module OooIntBackend #(
   // _q 别名: 语义仍是寄存器输出(寄存器在 PipeStageReg 内), 下游 wb mux 读点零文本改动;
   // 提取见 design/arch/pipeline-stage-boundary.md P1。payload 仅 exN_valid_q=1 拍有效
   // (flush/未装载拍留脏——全核 valid-only 惯例, 消费方不得在 valid=0 时读)。
-  wire [ROB_INDEX_W-1:0] ex0_rob_idx_q = ex0_down_payload_w[143:140];
-  wire [PHY_REG_ADDR_W-1:0] ex0_pdest_q = ex0_down_payload_w[139:134];
-  wire [`XLEN-1:0] ex0_result_q = ex0_down_payload_w[133:70];
-  wire ex0_exception_q = ex0_down_payload_w[69];
-  wire [`TRAP_CAUSE_W-1:0] ex0_cause_q = ex0_down_payload_w[68:64];
-  wire [`XLEN-1:0] ex0_tval_q = ex0_down_payload_w[63:0];
-  wire [ROB_INDEX_W-1:0] ex1_rob_idx_q = ex1_down_payload_w[143:140];
-  wire [PHY_REG_ADDR_W-1:0] ex1_pdest_q = ex1_down_payload_w[139:134];
-  wire [`XLEN-1:0] ex1_result_q = ex1_down_payload_w[133:70];
-  wire ex1_exception_q = ex1_down_payload_w[69];
-  wire [`TRAP_CAUSE_W-1:0] ex1_cause_q = ex1_down_payload_w[68:64];
-  wire [`XLEN-1:0] ex1_tval_q = ex1_down_payload_w[63:0];
+  assign ex0_producer_id_q =
+      {ex0_down_payload_w[EX_STAGE_GEN_MSB:EX_STAGE_GEN_LSB],
+       ex0_down_payload_w[EX_STAGE_ROB_IDX_MSB:EX_STAGE_ROB_IDX_LSB]};
+  wire [ROB_INDEX_W-1:0] ex0_rob_idx_q =
+      ex0_producer_id_q[ROB_INDEX_W-1:0];
+  wire [PHY_REG_ADDR_W-1:0] ex0_pdest_q =
+      ex0_down_payload_w[EX_STAGE_PDEST_MSB:EX_STAGE_PDEST_LSB];
+  wire [`XLEN-1:0] ex0_result_q =
+      ex0_down_payload_w[EX_STAGE_RESULT_MSB:EX_STAGE_RESULT_LSB];
+  wire ex0_exception_q = ex0_down_payload_w[EX_STAGE_EXCEPTION_BIT];
+  wire [`TRAP_CAUSE_W-1:0] ex0_cause_q =
+      ex0_down_payload_w[EX_STAGE_CAUSE_MSB:EX_STAGE_CAUSE_LSB];
+  wire [`XLEN-1:0] ex0_tval_q =
+      ex0_down_payload_w[EX_STAGE_TVAL_MSB:EX_STAGE_TVAL_LSB];
+  assign ex1_producer_id_q =
+      {ex1_down_payload_w[EX_STAGE_GEN_MSB:EX_STAGE_GEN_LSB],
+       ex1_down_payload_w[EX_STAGE_ROB_IDX_MSB:EX_STAGE_ROB_IDX_LSB]};
+  wire [ROB_INDEX_W-1:0] ex1_rob_idx_q =
+      ex1_producer_id_q[ROB_INDEX_W-1:0];
+  wire [PHY_REG_ADDR_W-1:0] ex1_pdest_q =
+      ex1_down_payload_w[EX_STAGE_PDEST_MSB:EX_STAGE_PDEST_LSB];
+  wire [`XLEN-1:0] ex1_result_q =
+      ex1_down_payload_w[EX_STAGE_RESULT_MSB:EX_STAGE_RESULT_LSB];
+  wire ex1_exception_q = ex1_down_payload_w[EX_STAGE_EXCEPTION_BIT];
+  wire [`TRAP_CAUSE_W-1:0] ex1_cause_q =
+      ex1_down_payload_w[EX_STAGE_CAUSE_MSB:EX_STAGE_CAUSE_LSB];
+  wire [`XLEN-1:0] ex1_tval_q =
+      ex1_down_payload_w[EX_STAGE_TVAL_MSB:EX_STAGE_TVAL_LSB];
+
+  // v8d INT-EX-K1/K3/K4：与 ROB/IQ/FP/long-op 共用等宽环形年龄律。
+  // boundary 本身 age 相等必须存活；只清严格年轻后缀。这里不能只依赖
+  // ROB squash，因为 PRF write、BusyTable/IQ wake 均发生在 ROB 入口之前。
+  wire [ROB_INDEX_W-1:0] ex_kill_boundary_age_w =
+      branch_resolve_rob_idx_o - rob_head_idx_w;
+  wire [ROB_INDEX_W-1:0] ex0_completion_age_w =
+      ex0_rob_idx_q - rob_head_idx_w;
+  wire [ROB_INDEX_W-1:0] ex1_completion_age_w =
+      ex1_rob_idx_q - rob_head_idx_w;
+  assign ex0_kill_now_w =
+      branch_resolve_mispredict_w && ex0_valid_q &&
+      (ex0_completion_age_w > ex_kill_boundary_age_w);
+  assign ex1_kill_now_w =
+      branch_resolve_mispredict_w && ex1_valid_q &&
+      (ex1_completion_age_w > ex_kill_boundary_age_w);
+  assign ex0_pre_auth_valid_w = ex0_valid_q && !ex0_kill_now_w &&
+                                !rst && !flush_i && !checkpoint_restore_i;
+  assign ex1_pre_auth_valid_w = ex1_valid_q && !ex1_kill_now_w &&
+                                !rst && !flush_i && !checkpoint_restore_i;
+  assign ex0_wb_valid_w = ex0_pre_auth_valid_w && ex0_producer_open_w;
+  assign ex1_wb_valid_w = ex1_pre_auth_valid_w && ex1_producer_open_w;
+
+`ifdef OOO_ASSERT
+  // 独立按 raw identity/年龄检查副作用资格；compile-success mutation 若恢复
+  // raw-valid 直通，会精确命中该 marker，而不是靠编译失败造 RED。
+  always @(posedge clk) begin
+    if (!rst && ex0_kill_now_w && ex0_wb_valid_w)
+      $error("[INT-EX0-COMPLETION-KILL-CUT] younger raw EX0 exposed completion @%0t",
+             $time);
+    if (!rst && ex1_kill_now_w && ex1_wb_valid_w)
+      $error("[INT-EX1-COMPLETION-KILL-CUT] younger raw EX1 exposed completion @%0t",
+             $time);
+    if (!rst && branch_resolve_mispredict_w && ex0_valid_q &&
+        (ex0_completion_age_w <= ex_kill_boundary_age_w) &&
+        !ex0_pre_auth_valid_w)
+      $error("[INT-EX0-COMPLETION-SURVIVOR] older/equal EX0 was suppressed @%0t",
+             $time);
+    if (!rst && branch_resolve_mispredict_w && ex1_valid_q &&
+        (ex1_completion_age_w <= ex_kill_boundary_age_w) &&
+        !ex1_pre_auth_valid_w)
+      $error("[INT-EX1-COMPLETION-SURVIVOR] older/equal EX1 was suppressed @%0t",
+             $time);
+    if (!rst && ex0_wb_valid_w && !ex0_producer_open_w)
+      $error("[V8F-EX0-COMPLETION-AUTH] completion escaped exact-open gate @%0t",
+             $time);
+    if (!rst && ex1_wb_valid_w && !ex1_producer_open_w)
+      $error("[V8F-EX1-COMPLETION-AUTH] completion escaped exact-open gate @%0t",
+             $time);
+    if (!rst && early_wakeup0_valid_w && !iq_issue0_producer_current_w)
+      $error("[V8F-EARLY0-CURRENT-AUTH] early wake escaped current-ID gate @%0t",
+             $time);
+    if (!rst && early_wakeup1_valid_w && !issue1_producer_current_w)
+      $error("[V8F-EARLY1-CURRENT-AUTH] early wake escaped current-ID gate @%0t",
+             $time);
+    if (!rst && iq_issue0_valid_w &&
+        (iq_issue0_producer_id_w[ROB_INDEX_W-1:0] != iq_issue0_rob_idx_w))
+      $error("[V8F-ISSUE0-PID-INDEX] pid=%h raw=%h @%0t",
+             iq_issue0_producer_id_w, iq_issue0_rob_idx_w, $time);
+    if (!rst && issue1_valid_w &&
+        (issue1_producer_id_w[ROB_INDEX_W-1:0] != issue1_rob_idx_w))
+      $error("[V8F-ISSUE1-PID-INDEX] pid=%h raw=%h @%0t",
+             issue1_producer_id_w, issue1_rob_idx_w, $time);
+  end
+`endif
+
   wire [1:0] wb_free_count_w =
-      {1'b0, !ex0_valid_q} + {1'b0, !ex1_valid_q};
+      {1'b0, !ex0_wb_valid_w} + {1'b0, !ex1_wb_valid_w};
   wire wb_slot_free_w = (wb_free_count_w != 2'b00);
   wire miq_probe_needs_wb_w =
       !miq_head_effective_killed_w && (mem_rsp_fault_w || !sq_mode_w);
@@ -2766,8 +2924,8 @@ module OooIntBackend #(
   // 生成——"功能模块退化为纯组合 + 写入下一级 PipeStageReg"的目标形态
   // (design/arch/pipeline-stage-boundary.md §4 P1; 实例与位段布局见声明处)。
   // 原"未命中臂写全 0 payload"语义不保留: PipeStageReg 在 up_valid=0 拍不锁存 payload
-  // (留脏), 下游 wb0/wb1 mux 全部以 exN_valid_q 为最高优先选择条件, wb_free_count_w
-  // 只读 valid——已逐点核对, 无 valid=0 读 payload 的消费点。
+  // (留脏), 下游 wb0/wb1 mux 全部以 exN_wb_valid_w 为最高优先选择条件,
+  // wb_free_count_w 只读 effective valid——已逐点核对, 无 valid=0 读 payload 的消费点。
   // T3V：generic ex0 只接 raw non-memory；reservation 的三个本地终结
   // (SQ forward / failed SC / precise misalign)直接从 Q 形成独立 completion。
   wire mem_issue_res_local_complete_w =
@@ -2796,9 +2954,13 @@ module OooIntBackend #(
       {`TRAP_CAUSE_W{1'b0}};
   wire [`XLEN-1:0] ex0_up_tval_w =
       ex0_up_exception_w ? mem_issue_res_eff_addr_w : {`XLEN{1'b0}};
+  wire [PRODUCER_ID_W-1:0] ex0_up_producer_id_w =
+      ex0_up_from_mem_w ? mem_issue_res_producer_id_q :
+                          iq_issue0_producer_id_w;
   assign ex0_up_payload_w =
-      {early_wakeup0_valid_w && !ex0_up_from_mem_w,
-       ex0_up_from_mem_w ? mem_issue_res_rob_idx_q : issue0_rob_idx_w,
+      {ex0_up_producer_id_w[PRODUCER_ID_W-1:ROB_INDEX_W],
+       early_wakeup0_valid_w && !ex0_up_from_mem_w,
+       ex0_up_producer_id_w[ROB_INDEX_W-1:0],
        ex0_up_from_mem_w ? mem_issue_res_pdest_q : issue0_pdest_w,
        ex0_up_result_w,
        ex0_up_exception_w, ex0_up_cause_w, ex0_up_tval_w};
@@ -2810,8 +2972,10 @@ module OooIntBackend #(
   wire [`TRAP_CAUSE_W-1:0] ex1_up_cause_w = {`TRAP_CAUSE_W{1'b0}};
   wire [`XLEN-1:0] ex1_up_tval_w = {`XLEN{1'b0}};
   assign ex1_up_payload_w =
-      {early_wakeup1_valid_w,
-       issue1_rob_idx_w, issue1_pdest_w, ex1_up_result_w,
+      {issue1_producer_id_w[PRODUCER_ID_W-1:ROB_INDEX_W],
+       early_wakeup1_valid_w,
+       issue1_producer_id_w[ROB_INDEX_W-1:0],
+       issue1_pdest_w, ex1_up_result_w,
        ex1_up_exception_w, ex1_up_cause_w, ex1_up_tval_w};
 
   always @(posedge clk) begin
@@ -3075,26 +3239,26 @@ module OooIntBackend #(
       mem_rsp_final_fire_w && !miq_head_effective_killed_w;
   wire mem_wb_fire_w = mem_legacy_wb_fire_w || miq_load_wb_fire_w ||
                        miq_probe_wb_fire_w || miq_drain_wb_fire_w;
-  wire mem_rsp_to_wb0_w = mem_wb_fire_w && !ex0_valid_q;
+  wire mem_rsp_to_wb0_w = mem_wb_fire_w && !ex0_wb_valid_w;
   wire mem_rsp_to_wb1_w = mem_wb_fire_w && !mem_rsp_to_wb0_w;
   // mem1(双发射 load 第二端口)死硅删除:第二 load 响应通道(mem1_rsp_to_wb*)整条移除。
   wire muldiv_rsp_to_wb0_w =
-      muldiv_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w;
+      muldiv_resp_valid_w && !ex0_wb_valid_w && !mem_rsp_to_wb0_w;
   wire muldiv_rsp_to_wb1_w =
-      muldiv_resp_valid_w && !muldiv_rsp_to_wb0_w && !ex1_valid_q &&
+      muldiv_resp_valid_w && !muldiv_rsp_to_wb0_w && !ex1_wb_valid_w &&
       !mem_rsp_to_wb1_w;
   wire clmul_rsp_to_wb0_w =
-      clmul_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
+      clmul_resp_valid_w && !ex0_wb_valid_w && !mem_rsp_to_wb0_w &&
       !muldiv_rsp_to_wb0_w;
   wire clmul_rsp_to_wb1_w =
-      clmul_resp_valid_w && !clmul_rsp_to_wb0_w && !ex1_valid_q &&
+      clmul_resp_valid_w && !clmul_rsp_to_wb0_w && !ex1_wb_valid_w &&
       !mem_rsp_to_wb1_w && !muldiv_rsp_to_wb1_w;
   // 【B-FP 簇】FP 完成事务(ROB done 载体)第五源, 最低优先, ready 反压回 FpBackend。
   wire fpwb_to_wb0_w =
-      fpwb_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
+      fpwb_valid_w && !ex0_wb_valid_w && !mem_rsp_to_wb0_w &&
       !muldiv_rsp_to_wb0_w && !clmul_rsp_to_wb0_w;
   wire fpwb_to_wb1_w =
-      fpwb_valid_w && !fpwb_to_wb0_w && !ex1_valid_q && !mem_rsp_to_wb1_w &&
+      fpwb_valid_w && !fpwb_to_wb0_w && !ex1_wb_valid_w && !mem_rsp_to_wb1_w &&
       !muldiv_rsp_to_wb1_w && !clmul_rsp_to_wb1_w;
   assign fpwb_ready_w = fpwb_to_wb0_w || fpwb_to_wb1_w;
   // 【B-FP 簇】FP load: NaN-box(FLW 高 32 全 1)后进 ROB data(commit 写架构 FPR)
@@ -3134,33 +3298,33 @@ module OooIntBackend #(
   assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
 
   assign wb0_valid_w =
-      ex0_valid_q || mem_rsp_to_wb0_w ||
+      ex0_wb_valid_w || mem_rsp_to_wb0_w ||
       muldiv_rsp_to_wb0_w || clmul_rsp_to_wb0_w || fpwb_to_wb0_w;
-  assign wb0_rob_idx_w = ex0_valid_q ? ex0_rob_idx_q :
+  assign wb0_rob_idx_w = ex0_wb_valid_w ? ex0_rob_idx_q :
                          mem_rsp_to_wb0_w ? miq_head_rob_w :
                          muldiv_rsp_to_wb0_w ? muldiv_resp_rob_idx_w :
                          clmul_rsp_to_wb0_w ? clmul_resp_rob_idx_w :
                                               fpwb_rob_idx_w;
-  assign wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
+  assign wb0_pdest_w = ex0_wb_valid_w ? ex0_pdest_q :
                        mem_rsp_to_wb0_w ? mem_rsp_int_pdest_w :
                        muldiv_rsp_to_wb0_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb0_w ? clmul_resp_pdest_w :
                        (fpwb_rd_en_w ? fpwb_pdest_w
                                      : {PHY_REG_ADDR_W{1'b0}});
-  assign wb0_data_w = ex0_valid_q ? ex0_result_q :
+  assign wb0_data_w = ex0_wb_valid_w ? ex0_result_q :
                       mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
                       muldiv_rsp_to_wb0_w ? muldiv_resp_data_w :
                       clmul_rsp_to_wb0_w ? clmul_resp_data_w :
                                            fpwb_data_w;
-  assign wb0_exception_w = ex0_valid_q ? ex0_exception_q :
+  assign wb0_exception_w = ex0_wb_valid_w ? ex0_exception_q :
                            mem_rsp_to_wb0_w ?
                              ((miq_probe_wb_fire_w || miq_drain_wb_fire_w) ?
                                 mem_rsp_fault_w : mem_rsp_error_i) :
                                                1'b0;
-  assign wb0_cause_w = ex0_valid_q ? ex0_cause_q :
+  assign wb0_cause_w = ex0_wb_valid_w ? ex0_cause_q :
                        mem_rsp_to_wb0_w ? mem_rsp_wb_cause_w :
                                            {`TRAP_CAUSE_W{1'b0}};
-  assign wb0_tval_w = ex0_valid_q ? ex0_tval_q :
+  assign wb0_tval_w = ex0_wb_valid_w ? ex0_tval_q :
                       mem_rsp_to_wb0_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
@@ -3168,33 +3332,33 @@ module OooIntBackend #(
   assign wb0_fflags_w = fpwb_to_wb0_w ? fpwb_fflags_w : 5'b00000;
   assign wb1_fflags_w = fpwb_to_wb1_w ? fpwb_fflags_w : 5'b00000;
   assign wb1_valid_w =
-      ex1_valid_q || mem_rsp_to_wb1_w ||
+      ex1_wb_valid_w || mem_rsp_to_wb1_w ||
       muldiv_rsp_to_wb1_w || clmul_rsp_to_wb1_w || fpwb_to_wb1_w;
-  assign wb1_rob_idx_w = ex1_valid_q ? ex1_rob_idx_q :
+  assign wb1_rob_idx_w = ex1_wb_valid_w ? ex1_rob_idx_q :
                          mem_rsp_to_wb1_w ? miq_head_rob_w :
                          muldiv_rsp_to_wb1_w ? muldiv_resp_rob_idx_w :
                          clmul_rsp_to_wb1_w ? clmul_resp_rob_idx_w :
                                               fpwb_rob_idx_w;
-  assign wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
+  assign wb1_pdest_w = ex1_wb_valid_w ? ex1_pdest_q :
                        mem_rsp_to_wb1_w ? mem_rsp_int_pdest_w :
                        muldiv_rsp_to_wb1_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb1_w ? clmul_resp_pdest_w :
                        (fpwb_rd_en_w ? fpwb_pdest_w
                                      : {PHY_REG_ADDR_W{1'b0}});
-  assign wb1_data_w = ex1_valid_q ? ex1_result_q :
+  assign wb1_data_w = ex1_wb_valid_w ? ex1_result_q :
                       mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
                       muldiv_rsp_to_wb1_w ? muldiv_resp_data_w :
                       clmul_rsp_to_wb1_w ? clmul_resp_data_w :
                                            fpwb_data_w;
-  assign wb1_exception_w = ex1_valid_q ? ex1_exception_q :
+  assign wb1_exception_w = ex1_wb_valid_w ? ex1_exception_q :
                            mem_rsp_to_wb1_w ?
                              ((miq_probe_wb_fire_w || miq_drain_wb_fire_w) ?
                                 mem_rsp_fault_w : mem_rsp_error_i) :
                                                1'b0;
-  assign wb1_cause_w = ex1_valid_q ? ex1_cause_q :
+  assign wb1_cause_w = ex1_wb_valid_w ? ex1_cause_q :
                        mem_rsp_to_wb1_w ? mem_rsp_wb_cause_w :
                                            {`TRAP_CAUSE_W{1'b0}};
-  assign wb1_tval_w = ex1_valid_q ? ex1_tval_q :
+  assign wb1_tval_w = ex1_wb_valid_w ? ex1_tval_q :
                       mem_rsp_to_wb1_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
@@ -3217,13 +3381,13 @@ module OooIntBackend #(
   wire fpwb_gpr_pdest_nonzero_w =
       fpwb_rd_en_w && (fpwb_pdest_w != {PHY_REG_ADDR_W{1'b0}});
   assign gpr_wb0_write_valid_w =
-      (ex0_valid_q && ex0_wb_pdest_nonzero_w) ||
+      (ex0_wb_valid_w && ex0_wb_pdest_nonzero_w) ||
       (mem_rsp_to_wb0_w && mem_wb_pdest_nonzero_w) ||
       (muldiv_rsp_to_wb0_w && muldiv_wb_pdest_nonzero_w) ||
       (clmul_rsp_to_wb0_w && clmul_wb_pdest_nonzero_w) ||
       (fpwb_to_wb0_w && fpwb_gpr_pdest_nonzero_w);
   assign gpr_wb1_write_valid_w =
-      (ex1_valid_q && ex1_wb_pdest_nonzero_w) ||
+      (ex1_wb_valid_w && ex1_wb_pdest_nonzero_w) ||
       (mem_rsp_to_wb1_w && mem_wb_pdest_nonzero_w) ||
       (muldiv_rsp_to_wb1_w && muldiv_wb_pdest_nonzero_w) ||
       (clmul_rsp_to_wb1_w && clmul_wb_pdest_nonzero_w) ||
@@ -3238,11 +3402,11 @@ module OooIntBackend #(
       wb1_valid_w && (wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}});
   wire [4:0] wb0_source_onehot_w = {
       fpwb_to_wb0_w, clmul_rsp_to_wb0_w, muldiv_rsp_to_wb0_w,
-      mem_rsp_to_wb0_w, ex0_valid_q
+      mem_rsp_to_wb0_w, ex0_wb_valid_w
   };
   wire [4:0] wb1_source_onehot_w = {
       fpwb_to_wb1_w, clmul_rsp_to_wb1_w, muldiv_rsp_to_wb1_w,
-      mem_rsp_to_wb1_w, ex1_valid_q
+      mem_rsp_to_wb1_w, ex1_wb_valid_w
   };
   wire [2:0] wb0_source_count_w =
       {2'b00, wb0_source_onehot_w[0]} +

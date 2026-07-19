@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-18-brief-recall-contract-final/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-18-brief-recall-contract-final/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-18-brief-recall-contract-final/evidence",
+    "evidence_index": ".github/task-runs/2026-07-18-brief-recall-contract-final/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-18-brief-recall-contract-final/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-18-brief-recall-contract-final/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-18-brief-recall-contract-final",
+    "run_manifest": ".github/task-runs/2026-07-18-brief-recall-contract-final/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-18-brief-recall-contract-final/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 1,
+    "by_kind": {
+      "log": 1
+    },
+    "total_size_bytes": 75790
+  },
+  "final_result": "profile=github-index 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "221e730ce",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-18-brief-recall-contract-final/evidence/github-index-contract.log",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": "SQLite index can build, query and doctor .github metadata without owning originals",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    }
+  ],
+  "profile": "github-index",
+  "run_id": "2026-07-18-brief-recall-contract-final",
+  "schema_version": 1,
+  "started_at": "2026-07-18 17:53:50 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=github-index 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "brief-recall-contract-final",
+  "trace_id": "e2e:2026-07-18-brief-recall-contract-final",
+  "updated_at": "2026-07-18 17:53:56 +0800"
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "workflow-remediation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只读复核 RTL 子任务契约 v2 是否关闭自由文本写命令、仓库外合同输入和 CLI 假绿三个 P1，并寻找最多一个新 P0/P1 反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/skills/prepare-rtl-task-contract",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
+      ".github/e2e/profiles/agent-system.tsv",
+      "scripts/e2e/modules/agent_system.sh",
+      "scripts/agent-maintain.sh",
+      ".github/AGENTS.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "只读定位三个 P1 的实现与门禁"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "只读查看指定证据行，不使用 -i"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ]
+  },
+  "deliverables": [
+    "中文短报告：逐项裁决三个 P1 是否关闭；最多补充一个新 P0/P1，须含路径、行号、反例和最小修正",
+    "声明是否发生文件写入、网络、账号、凭据或外部服务访问"
+  ],
+  "success_criteria": [
+    "核对结构化命令、repo realpath containment 与真实 CLI 正负向子进程路径",
+    "只读且不扩大白名单，不传播父目标状态"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

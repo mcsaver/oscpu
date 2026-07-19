@@ -99,3 +99,18 @@ slot response 选择：
 - T4G / IFU-TVAL-G1 已关闭：真实 bridge page-end 矩阵检查 F=2/4/6 的
   `fault_tval=packet_pc+F`；decoder、FIFO、lane0/lane1 capture 与 drain 分层正向
   回归通过，且丢 offset、FIFO 换回 slot PC、lane0/lane1 回退 PC 四个动态变异均被拒绝。
+
+## 7. R2.3 raw successor 与语义 successor 分离（2026-07-15）
+
+`packet_next_pc_o` 继续是 response-aware 的语义结果：fault prefix 必须使用安全长度，
+并且所有 FIFO、预测、异常和 architected PC 消费者都只能使用该输出。
+
+`packet_raw_next_pc_o` 只按 raw packet 中两条指令的 2B/4B prefix 计算长度，
+不读取 `resp0/resp1/split`。它只允许作为 registered outstanding owner 下的下一拍
+FPC SRAM 地址预装提示；miss、fault、flush、invalidate 或 redirect 没有 successor
+consume token 时，该值是不可消费的 don’t-care。
+
+当 `resp0=OK && resp1=OK` 时，raw 与 semantic successor 必须逐位相等；
+失败 response 则允许二者不同，并由 `IFU-R2P3-RAW-EQ` 及 directed fault poison
+用例证明语义输出不受无效 raw tail 影响。这个分离不得复制 RVC 解压或 ISA decode；
+raw 口只拥有两级 2-bit length hint，完整 RVC/response 解释仍唯一属于本模块。

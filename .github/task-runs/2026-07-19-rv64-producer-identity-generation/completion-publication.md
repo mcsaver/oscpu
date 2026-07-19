@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-rv64-producer-identity-generation
+- `trace_id`: e2e:2026-07-19-rv64-producer-identity-generation
+- `task_slug`: rv64-producer-identity-generation
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 6f5d36150bfbaf39a7a9e1a2343e061a69b7c338613f8eef10648fd13fee394c
+- `task_report_md_sha256`: effb806349164b9b67f80dbf8b6b775c226ada488049e5bde193ae5ca021b7d9
+- `run_manifest_json_sha256`: e3dfab86d500cd7cb1db156aed028b90e3d9f6b6ef6b2be07ef5583f2f6695bd
+- `context_brief_md_sha256`: 5bea98de61135b236c0338ee63bd0af3438814608e2685880afeaa612cbf18b5
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: b70b50bf422c2c7167de826aa30d196a0db50a865f0c7381352517b02a573cce
+- `dispatch_log_md_sha256`: 17dfab6ca69b654612aea0ebfc99042bfdd95df32d21ebbc88693a1800ca422b
+- `nodes_tsv_sha256`: ce62f132c291fa2bbf19e92bddfb966abb11b8581da92d68b1b2a00e8e664e20

@@ -35,6 +35,7 @@
 - `artifacts`:
 - `logs_or_traces`:
 - `linked_memory_updates`:
+- `subagent_contracts`: `<契约路径 + SHA-256；无子 agent 时写不适用>`
 
 ## 当前阻塞点
 

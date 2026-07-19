@@ -1,0 +1,44 @@
+{
+  "schema": "npc-rv64-ppa-counterexample-regression-v1",
+  "cases": [
+    {
+      "id": "proxy-area-regression-hidden-by-performance",
+      "target": "proxy_champion",
+      "per_benchmark_ratio": {
+        "coremark": 1.11,
+        "dhrystone_10000": 1.11
+      },
+      "performance_ratio": 1.11,
+      "area_ratio": 0.9174311926605504,
+      "power_ratio": null,
+      "expected_relation": "tradeoff",
+      "expected_blocker": "area efficiency floor failed"
+    },
+    {
+      "id": "final-power-regression-hidden-by-performance-and-area",
+      "target": "final_champion",
+      "per_benchmark_ratio": {
+        "coremark": 1.5,
+        "dhrystone_10000": 1.5
+      },
+      "performance_ratio": 1.5,
+      "area_ratio": 1.5,
+      "power_ratio": 0.5,
+      "expected_relation": "tradeoff",
+      "expected_blocker": "power efficiency floor failed"
+    },
+    {
+      "id": "per-benchmark-regression-hidden-by-geomean",
+      "target": "proxy_champion",
+      "per_benchmark_ratio": {
+        "coremark": 0.5,
+        "dhrystone_10000": 2
+      },
+      "performance_ratio": 1,
+      "area_ratio": 1.0101010101010102,
+      "power_ratio": null,
+      "expected_relation": "candidate_dominates",
+      "expected_blocker": "per-benchmark performance floor failed"
+    }
+  ]
+}

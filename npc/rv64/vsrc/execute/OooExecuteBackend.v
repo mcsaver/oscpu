@@ -173,7 +173,14 @@ module OooExecuteBackend #(
   output pending_branch_taken_w,
   output [ROB_COUNT_W-1:0] rob_count_o,
   // 【P4 shadow】ROB 队头指针透传（AluCoreSlice→本层→OooCoreTopGlue，纯观测端口）
-  output [ROB_INDEX_W-1:0] rob_head_idx_o
+  output [ROB_INDEX_W-1:0] rob_head_idx_o,
+
+  // S2-Q2 v8a：无状态、同名 shadow transport。
+  input head0_context_permit_i,
+  input fencei_retire_permit_i,
+  output head0_retire_candidate_valid_o,
+  output head0_identity_valid_o,
+  output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
 );
 
 
@@ -194,6 +201,11 @@ module OooExecuteBackend #(
     .ISSUE_COUNT_W(ISSUE_COUNT_W)
   ) u_core_slice (
     .clk(clk),
+    .head0_context_permit_i(head0_context_permit_i),
+    .fencei_retire_permit_i(fencei_retire_permit_i),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
+    .head0_identity_valid_o(head0_identity_valid_o),
+    .head0_identity_o(head0_identity_o),
     .rst(rst),
     .flush_i(core_local_flush_w),
     .checkpoint_capture_i(core_checkpoint_capture_w),

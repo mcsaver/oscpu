@@ -1,0 +1,3008 @@
+{
+  "schema": "s2-q2-live-epoch-interface-v7",
+  "contract_lock_sha256": "d830e31698425f431ad92fc907e2748b151399539e9736a0abfc0ee7d9d2d5fa",
+  "canonical_reset_predicate": "rst",
+  "unique_combinational_driver_policy": {
+    "legal_driver_kinds": [
+      "module-scope-assign",
+      "module-scope-wire-declaration-assignment"
+    ],
+    "audited_collections": [
+      "boolean_requirements",
+      "exact_next_expressions",
+      "epoch_register_captures",
+      "next_signal_source_groups"
+    ],
+    "age_provenance_targets": [
+      "OooStoreQueue.context_squash_age_scan_done_w",
+      "OooMemOwnerTracker.context_squash_age_scan_done_w"
+    ],
+    "reject_variable_initializers": true,
+    "reject_procedural_or_generate_scope": true,
+    "reject_concat_compound_or_subroutine_writers": true,
+    "reject_unknown_or_output_instance_drivers": true
+  },
+  "canonical_sequential_writer_policy": {
+    "event_control": "always-at-exact-posedge-clk",
+    "reset_predicate": "exact-positive-rst",
+    "reset_identifier_must_be_declared_constant": true,
+    "nonreset_if_ancestors": [
+      {"condition": "rst", "arm": "false"}
+    ],
+    "forbid_nested_event_delay_wait": true
+  },
+  "canonical_control_source_policy": {
+    "modules": [
+      "CsrFile",
+      "NpcCoreTop",
+      "OooControlPlane",
+      "OooFetchAxiBridge",
+      "OooIntBackend",
+      "OooMemInflightQueue",
+      "OooMemOwnerTracker",
+      "OooMmuEpochOwner",
+      "OooStoreQueue"
+    ],
+    "signals": ["clk", "rst"],
+    "require_lexical_input_port": true,
+    "forbid_host_or_instance_output_driver": true
+  },
+  "critical_symbol_declaration_policy": {
+    "require_exactly_one_declaration": true,
+    "require_host_module_lexical_scope": true,
+    "audit_targets_and_frozen_sources": true,
+    "audit_required_ports": true,
+    "audit_reset_and_clock": true,
+    "audit_instance_map_signals": true
+  },
+  "scope": {
+    "memory_lanes": 1,
+    "issue1_memory_enabled": false,
+    "live_integration_expected": false,
+    "structural_pass_is_sufficient": false,
+    "ifu_policy": "generation-matched-sticky-drain-and-block",
+    "fencei_policy": "separate-serialize-no-data-epoch"
+  },
+  "evidence_baseline": {
+    "expected_live_readiness_rc": 1,
+    "expected_red_count": 1862,
+    "expected_red_sha256": "fc5baa96190e9bcac70248f912523f8ae9192045885d6023b6cb940f4675a592",
+    "expected_self_test_mutations": 162
+  },
+  "self_test_inventory": [
+    "exact-live-instance",
+    "comment-declaration-only-killed",
+    "wrong-named-connection-killed",
+    "dummy-wrong-host-killed",
+    "same-host-dummy-instance-killed",
+    "transitive-forbidden-alias-killed",
+    "pure-constant-quiet-killed",
+    "pure-constant-lane1-classifier-killed",
+    "absorbing-constant-quiet-killed",
+    "wide-absorbing-constant-killed",
+    "ternary-boolean-bypass-killed",
+    "absorbing-constant-lane1-killed",
+    "lane1-self-inequality-classifier-killed",
+    "missing-squash-ack-killed",
+    "grant-ready-loop-killed",
+    "missing-atomic-consumer-killed",
+    "legacy-context-write-bypass-killed",
+    "unique-reset-logical-not-killed",
+    "unique-reset-bitwise-not-killed",
+    "unique-reset-zero-compare-killed",
+    "unique-reset-composite-killed",
+    "extra-sensitivity-event-unique-next-killed",
+    "procedural-local-reset-shadow-killed",
+    "procedural-local-next-shadow-killed",
+    "nonreset-conditional-unique-next-killed",
+    "statement-event-unique-next-killed",
+    "uppercase-live-reset-input-killed",
+    "uppercase-localparam-reset-literal-accepted",
+    "legacy-constant-write-killed",
+    "nonreset-constant-tail-override-killed",
+    "multiple-sequential-writers-killed",
+    "blocking-sequential-writer-killed",
+    "always-ff-second-writer-killed",
+    "negedge-second-writer-killed",
+    "always-latch-second-writer-killed",
+    "initial-writer-killed",
+    "continuous-writer-killed",
+    "scalar-lhs-part-select-killed",
+    "scalar-rhs-part-select-killed",
+    "indexed-array-unique-next-accepted",
+    "indexed-array-second-dimension-writer-killed",
+    "nested-index-second-writer-killed",
+    "task-output-actual-writer-killed",
+    "task-inout-actual-writer-killed",
+    "task-ref-actual-writer-killed",
+    "imported-package-task-output-actual-writer-killed",
+    "hierarchical-task-actual-writer-killed",
+    "escaped-bare-task-actual-writer-killed",
+    "escaped-package-task-actual-writer-killed",
+    "escaped-hierarchical-task-actual-writer-killed",
+    "punctuation-only-escaped-task-actual-killed",
+    "system-readmemh-array-writer-killed",
+    "system-output-actual-writer-killed",
+    "readonly-system-diagnostic-accepted",
+    "embedded-system-output-expression-killed",
+    "embedded-unknown-call-expression-killed",
+    "nested-concat-unique-next-writer-killed",
+    "dead-generate-unique-next-writer-killed",
+    "generate-for-replicated-writer-killed",
+    "named-generate-shadow-unique-next-killed",
+    "procedural-local-state-shadow-unique-next-killed",
+    "typedef-local-shadow-unique-next-killed",
+    "registered-writer-breaks-combinational-loop",
+    "sequential-delay-not-a-combinational-dependency",
+    "dummy-width-parameter-killed",
+    "dummy-identity-port-width-killed",
+    "noncanonical-packed-ranges-killed",
+    "adjacent-port-width-misattribution-killed",
+    "internal-identity-signal-width-killed",
+    "held-head-match-bypass-killed",
+    "inverted-held-head-equality-killed",
+    "inverted-grant-source-killed",
+    "phase-nonzero-instead-of-enum-killed",
+    "stale-generation-ack-killed",
+    "nonsticky-request-pulse-done-killed",
+    "wrong-typed-leaf-mask-killed",
+    "early-translation-invalidate-killed",
+    "memory-squash-done-or-killed",
+    "wrong-held-identity-payload-slice-killed",
+    "valid-epoch-capture-constant-killed",
+    "sq-fill-epoch-constant-alias-killed",
+    "miq-push-port-map-killed",
+    "miq-push-valid-alias-killed",
+    "miq-push-epoch-alias-killed",
+    "miq-head-epoch-source-killed",
+    "miq-head-host-override-killed",
+    "miq-epoch-storage-width-killed",
+    "miq-epoch-capture-constant-killed",
+    "miq-epoch-capture-wrong-edge-killed",
+    "guarded-reset-logical-not-killed",
+    "guarded-reset-bitwise-not-killed",
+    "guarded-reset-zero-compare-killed",
+    "guarded-reset-composite-killed",
+    "extra-sensitivity-event-guarded-capture-killed",
+    "procedural-local-shadow-guarded-capture-killed",
+    "procedural-local-source-shadow-guarded-capture-killed",
+    "typedef-local-shadow-guarded-array-killed",
+    "guarded-capture-extra-outer-condition-killed",
+    "guarded-capture-statement-event-killed",
+    "guarded-capture-delay-control-killed",
+    "guarded-capture-wait-control-killed",
+    "miq-epoch-capture-dead-generate-killed",
+    "miq-epoch-capture-extra-alias-writer-killed",
+    "miq-epoch-capture-concat-writer-killed",
+    "guarded-capture-after-reset-else-killed",
+    "guarded-capture-writer-region-swap-killed",
+    "nested-concat-guarded-array-writer-killed",
+    "dead-generate-else-guarded-capture-killed",
+    "dead-generate-critical-equation-killed",
+    "wire-declaration-continuous-equation-accepted",
+    "logic-initializer-not-combinational-equation-killed",
+    "initializer-plus-live-blocking-driver-killed",
+    "exact-equation-extra-driver-killed",
+    "exact-equation-concat-writer-killed",
+    "exact-equation-task-actual-writer-killed",
+    "procedural-continuous-canonical-equation-killed",
+    "named-generate-shadow-canonical-equation-killed",
+    "implicit-net-rhs-not-a-declaration-killed",
+    "port-range-reference-not-a-declaration-killed",
+    "unparenthesized-always-procedural-assign-killed",
+    "unknown-child-output-extra-driver-killed",
+    "known-child-input-consumer-accepted",
+    "lexical-header-port-direction-shadow-killed",
+    "canonical-reset-host-driver-killed",
+    "canonical-clock-child-output-driver-killed",
+    "fencei-frontend-producer-map-killed",
+    "fencei-execute-producer-map-killed",
+    "fencei-exclusive-output-local-driver-killed",
+    "nested-concat-exclusive-output-writer-killed",
+    "context-payload-identity-exact-nonoverlap-accepted",
+    "context-payload-identity-wrong-slice-killed",
+    "context-payload-identity-shifted-source-killed",
+    "context-payload-identity-whole-bus-writer-killed",
+    "context-payload-identity-overlap-writer-killed",
+    "dead-generate-payload-slice-writer-killed",
+    "named-generate-shadow-payload-writer-killed",
+    "procedural-continuous-payload-writer-killed",
+    "nested-concat-payload-writer-killed",
+    "memory-squash-true-leaf-maps-killed",
+    "memory-squash-extra-host-done-driver-killed",
+    "memory-squash-leaf-constant-done-killed",
+    "memory-squash-leaf-request-echo-done-killed",
+    "memory-squash-set-dominant-seen-formulas-locked",
+    "memory-squash-staggered-leaf-pulses-retained",
+    "memory-squash-request-cycle-dual-done-retained",
+    "memory-squash-owner-rob-age-capture-killed",
+    "memory-squash-owner-irrevocable-provenance-killed",
+    "memory-squash-leaf-age-provenance-killed",
+    "dead-generate-age-provenance-killed",
+    "age-provenance-variable-initializer-killed",
+    "age-provenance-extra-driver-killed",
+    "named-generate-shadow-age-provenance-killed",
+    "multiple-combinational-next-drivers-killed",
+    "concrete-macro-layout-and-cause-values-locked",
+    "inactive-canonical-active-constant-killed",
+    "release-canonical-assert-mutated-killed",
+    "assert-canonical-release-mutated-killed",
+    "dead-explicit-generate-instance-killed",
+    "dead-implicit-generate-instance-killed",
+    "named-generate-local-producer-map-killed",
+    "runner-pre-post-source-snapshot-locked",
+    "missing-critical-child-definition-fails-closed"
+  ],
+  "phase_order": [
+    "CAPTURE",
+    "SQUASH",
+    "WAIT_QUIET",
+    "GRANT"
+  ],
+  "same_cycle_hazards": [
+    "owner_alloc",
+    "sq_bind_or_fill",
+    "reservation_or_buffer_capture",
+    "terminal_ingress",
+    "bridge_station_ingress",
+    "ptw_or_rmw_station_ingress",
+    "ifu_or_fpc_fill"
+  ],
+  "module_files": {
+    "NpcCoreTop": "npc/rv64/vsrc/core/NpcCoreTop.v",
+    "OooCoreTopGlue": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "OooExecuteBackend": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+    "OooAluCoreSlice": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+    "OooAluDecodeBackend": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+    "OooIntBackend": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "OooMemOwnerTracker": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+    "OooMemInflightQueue": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+    "OooStoreQueue": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+    "OooDispatchBackend": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+    "OooRob": "npc/rv64/vsrc/writeback/OooRob.v",
+    "CsrFile": "npc/rv64/vsrc/core/CsrFile.v",
+    "OooControlPlane": "npc/rv64/vsrc/control/OooControlPlane.v",
+    "OooFrontend": "npc/rv64/vsrc/frontend/OooFrontend.v",
+    "OooMemoryAccess": "npc/rv64/vsrc/memory/OooMemoryAccess.v",
+    "OooMemoryRequestGate": "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
+    "OooMemAxiBridge": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+    "OooSv39Tlb": "npc/rv64/vsrc/memory/OooSv39Tlb.v",
+    "OooMmuEpochOwner": "npc/rv64/vsrc/memory/OooMmuEpochOwner.v",
+    "OooFetchAxiBridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+    "OooFetchPacketCache": "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+    "OooRedirectArbiter": "npc/rv64/vsrc/control/OooRedirectArbiter.v",
+    "OooFetchPcOutstandingSequencer": "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v"
+  },
+  "context_cause_bits": {
+    "SATP": "`OOO_CONTEXT_CAUSE_SATP",
+    "SFENCE_VMA": "`OOO_CONTEXT_CAUSE_SFENCE_VMA",
+    "ACCESS_CONTEXT": "`OOO_CONTEXT_CAUSE_ACCESS_CONTEXT",
+    "PBMTE": "`OOO_CONTEXT_CAUSE_PBMTE",
+    "PMP": "`OOO_CONTEXT_CAUSE_PMP",
+    "TRAP": "`OOO_CONTEXT_CAUSE_TRAP",
+    "XRET": "`OOO_CONTEXT_CAUSE_XRET"
+  },
+  "leaf_cause_masks": {
+    "DTLB": "`OOO_CONTEXT_DTLB_CAUSE_MASK",
+    "ITLB": "`OOO_CONTEXT_ITLB_CAUSE_MASK",
+    "FPC": "`OOO_CONTEXT_FPC_CAUSE_MASK"
+  },
+  "leaf_cause_membership": {
+    "DTLB": ["SATP", "SFENCE_VMA", "ACCESS_CONTEXT", "PBMTE", "PMP", "TRAP", "XRET"],
+    "ITLB": ["SATP", "SFENCE_VMA", "PBMTE", "PMP", "TRAP", "XRET"],
+    "FPC": ["SATP", "SFENCE_VMA", "PBMTE", "PMP", "TRAP", "XRET"]
+  },
+  "payload_fields": {
+    "IDENTITY": {
+      "msb": "`OOO_CONTEXT_ID_MSB",
+      "lsb": "`OOO_CONTEXT_ID_LSB",
+      "width": "`OOO_CONTEXT_ID_W"
+    },
+    "OWNER": {
+      "msb": "`OOO_CONTEXT_OWNER_MSB",
+      "lsb": "`OOO_CONTEXT_OWNER_LSB",
+      "width": "`OOO_CONTEXT_OWNER_W"
+    }
+  },
+  "required_macro_definitions": [
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_ID_W", "exact": "8"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_ID_LSB", "exact": "0"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_ID_MSB", "exact": "7"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_OWNER_W", "exact": "3"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_OWNER_LSB", "exact": "8"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_OWNER_MSB", "exact": "10"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_OWNER_PENDING_SYSTEM", "exact": "3'd1"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_W", "exact": "7"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_SATP", "exact": "7'b0000001"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_SFENCE_VMA", "exact": "7'b0000010"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_ACCESS_CONTEXT", "exact": "7'b0000100"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_PBMTE", "exact": "7'b0001000"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_PMP", "exact": "7'b0010000"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_TRAP", "exact": "7'b0100000"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_CAUSE_XRET", "exact": "7'b1000000"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_DTLB_CAUSE_MASK", "exact": "7'b1111111"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_ITLB_CAUSE_MASK", "exact": "7'b1111011"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_FPC_CAUSE_MASK", "exact": "7'b1111011"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_PAYLOAD_W", "exact": "256"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_CONTEXT_GENERATION_W", "exact": "8"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "OOO_MMU_EPOCH_W", "exact": "2"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "MMU_EPOCH_PHASE_W", "exact": "2"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "MMU_EPOCH_PHASE_CAPTURE", "exact": "2'd0"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "MMU_EPOCH_PHASE_SQUASH", "exact": "2'd1"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "MMU_EPOCH_PHASE_WAIT_QUIET", "exact": "2'd2"},
+    {"file": "npc/rv64/vsrc/include/define.v", "name": "MMU_EPOCH_PHASE_GRANT", "exact": "2'd3"}
+  ],
+  "required_ports": [
+    {"module": "OooRob", "direction": "output", "port": "head0_retire_candidate_valid_o"},
+    {"module": "OooRob", "direction": "output", "port": "head0_identity_o"},
+    {"module": "OooRob", "direction": "input", "port": "head0_context_permit_i"},
+    {"module": "OooRob", "direction": "input", "port": "fencei_retire_permit_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_prepare_valid_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_prepare_identity_i"},
+    {"module": "CsrFile", "direction": "output", "port": "context_effective_o"},
+    {"module": "CsrFile", "direction": "output", "port": "context_cause_o"},
+    {"module": "CsrFile", "direction": "output", "port": "context_payload_o"},
+    {"module": "CsrFile", "direction": "input", "port": "context_apply_valid_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_apply_payload_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_abort_valid_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_boundary_active_i"},
+    {"module": "CsrFile", "direction": "input", "port": "context_reserve_valid_i"},
+    {"module": "CsrFile", "direction": "output", "port": "context_reserve_ready_o"},
+    {"module": "CsrFile", "direction": "output", "port": "context_writer_owned_o"},
+    {"module": "OooIntBackend", "direction": "input", "port": "mem_context_capture_block_i"},
+    {"module": "OooIntBackend", "direction": "input", "port": "current_mmu_epoch_i"},
+    {"module": "OooIntBackend", "direction": "input", "port": "mem_context_squash_valid_i"},
+    {"module": "OooIntBackend", "direction": "input", "port": "mem_context_squash_identity_i"},
+    {"module": "OooIntBackend", "direction": "output", "port": "mem_context_squash_done_o"},
+    {"module": "OooIntBackend", "direction": "input", "port": "lr_context_clear_i"},
+    {"module": "OooIntBackend", "direction": "input", "port": "head0_context_permit_i"},
+    {"module": "OooIntBackend", "direction": "input", "port": "fencei_retire_permit_i"},
+    {"module": "OooIntBackend", "direction": "output", "port": "head0_retire_candidate_valid_o"},
+    {"module": "OooIntBackend", "direction": "output", "port": "head0_identity_o"},
+    {"module": "OooIntBackend", "direction": "output", "port": "mem_epoch_context_quiet_o"},
+    {"module": "OooIntBackend", "direction": "output", "port": "mem_epoch_owner_live_empty_o"},
+    {"module": "OooIntBackend", "direction": "output", "port": "mem_epoch_ingress_idle_o"},
+    {"module": "OooDispatchBackend", "direction": "input", "port": "fencei_retire_permit_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "translation_context_invalidate_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "translation_context_cause_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "context_boundary_grant_fire_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "context_boundary_grant_payload_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "fencei_ifu_cancel_done_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "fencei_ifu_ack_generation_i"},
+    {"module": "OooCoreTopGlue", "direction": "input", "port": "fencei_ifu_quiet_i"},
+    {"module": "OooCoreTopGlue", "direction": "output", "port": "fencei_squash_valid_o"},
+    {"module": "OooCoreTopGlue", "direction": "output", "port": "fencei_squash_generation_o"},
+    {"module": "OooCoreTopGlue", "direction": "output", "port": "fencei_commit_fire_o"},
+    {"module": "OooControlPlane", "direction": "input", "port": "context_boundary_grant_fire_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "context_boundary_grant_payload_i"},
+    {"module": "OooControlPlane", "direction": "output", "port": "context_boundary_redirect_valid_o"},
+    {"module": "OooControlPlane", "direction": "output", "port": "context_boundary_redirect_pc_o"},
+    {"module": "OooControlPlane", "direction": "input", "port": "head0_retire_candidate_valid_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "mem_retire_quiet_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "mem_idle_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "head0_fencei_raw_w"},
+    {"module": "OooControlPlane", "direction": "input", "port": "core_commit0_valid_w"},
+    {"module": "OooControlPlane", "direction": "input", "port": "fencei_ifu_cancel_done_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "fencei_ifu_ack_generation_i"},
+    {"module": "OooControlPlane", "direction": "input", "port": "fencei_ifu_quiet_i"},
+    {"module": "OooControlPlane", "direction": "output", "port": "fencei_retire_permit_o"},
+    {"module": "OooControlPlane", "direction": "output", "port": "fencei_squash_valid_o"},
+    {"module": "OooControlPlane", "direction": "output", "port": "fencei_squash_generation_o"},
+    {"module": "OooControlPlane", "direction": "output", "port": "fencei_commit_fire_o"},
+    {"module": "OooFrontend", "direction": "input", "port": "context_boundary_redirect_valid_i"},
+    {"module": "OooFrontend", "direction": "input", "port": "context_boundary_redirect_pc_i"},
+    {"module": "OooFrontend", "direction": "output", "port": "head0_fencei_raw_w"},
+    {"module": "OooExecuteBackend", "direction": "output", "port": "core_commit0_valid_w"},
+    {"module": "OooExecuteBackend", "direction": "output", "port": "core_mem_idle_w"},
+    {"module": "OooExecuteBackend", "direction": "output", "port": "core_mem_retire_quiet_w"},
+    {"module": "OooMemInflightQueue", "direction": "input", "port": "push_valid_i"},
+    {"module": "OooMemInflightQueue", "direction": "input", "port": "push_mmu_epoch_i"},
+    {"module": "OooMemInflightQueue", "direction": "output", "port": "head_mmu_epoch_o"},
+    {"module": "OooStoreQueue", "direction": "input", "port": "context_squash_valid_i"},
+    {"module": "OooStoreQueue", "direction": "input", "port": "context_squash_identity_i"},
+    {"module": "OooStoreQueue", "direction": "output", "port": "context_squash_done_o"},
+    {"module": "OooStoreQueue", "direction": "input", "port": "rob_head_idx_i"},
+    {"module": "OooStoreQueue", "direction": "input", "port": "alloc0_rob_idx_i"},
+    {"module": "OooStoreQueue", "direction": "input", "port": "alloc1_rob_idx_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "context_squash_valid_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "context_squash_identity_i"},
+    {"module": "OooMemOwnerTracker", "direction": "output", "port": "context_squash_done_o"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "rob_head_idx_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "alloc0_rob_idx_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "alloc0_epoch_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "irrevocable_valid_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "irrevocable_kind_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "irrevocable_token_i"},
+    {"module": "OooMemOwnerTracker", "direction": "input", "port": "irrevocable_epoch_i"},
+    {"module": "OooMemoryAccess", "direction": "input", "port": "translation_context_invalidate_i"},
+    {"module": "OooMemoryAccess", "direction": "input", "port": "translation_context_cause_i"},
+    {"module": "OooMemoryRequestGate", "direction": "input", "port": "translation_context_invalidate_i"},
+    {"module": "OooMemoryRequestGate", "direction": "input", "port": "translation_context_cause_i"},
+    {"module": "OooMemAxiBridge", "direction": "input", "port": "translation_context_invalidate_i"},
+    {"module": "OooMemAxiBridge", "direction": "input", "port": "translation_context_cause_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "context_capture_block_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "context_squash_valid_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "context_squash_generation_i"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "context_squash_done_o"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "context_squash_ack_generation_o"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "context_quiet_o"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "translation_context_invalidate_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "translation_context_cause_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "fencei_squash_valid_i"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "fencei_squash_generation_i"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "fencei_squash_done_o"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "fencei_squash_ack_generation_o"},
+    {"module": "OooFetchAxiBridge", "direction": "input", "port": "fencei_commit_fire_i"},
+    {"module": "OooFetchAxiBridge", "direction": "output", "port": "fetch_req_ready_o"},
+    {"module": "OooMmuEpochOwner", "direction": "input", "port": "abort_i"}
+  ],
+  "wrapper_bundle": {
+    "modules": [
+      "OooCoreTopGlue",
+      "OooExecuteBackend",
+      "OooAluCoreSlice",
+      "OooAluDecodeBackend"
+    ],
+    "inputs": [
+      "mem_context_capture_block_i",
+      "current_mmu_epoch_i",
+      "head0_context_permit_i",
+      "mem_context_squash_valid_i",
+      "mem_context_squash_identity_i",
+      "lr_context_clear_i"
+    ],
+    "outputs": [
+      "head0_retire_candidate_valid_o",
+      "head0_identity_o",
+      "mem_epoch_context_quiet_o",
+      "mem_epoch_owner_live_empty_o",
+      "mem_epoch_ingress_idle_o",
+      "mem_context_squash_done_o"
+    ]
+  },
+  "wrapper_width_bundle": {
+    "modules": [
+      "OooCoreTopGlue",
+      "OooExecuteBackend",
+      "OooAluCoreSlice",
+      "OooAluDecodeBackend"
+    ],
+    "ports": {
+      "mem_context_squash_identity_i": "`OOO_CONTEXT_ID_W",
+      "head0_identity_o": "`OOO_CONTEXT_ID_W"
+    }
+  },
+  "fencei_wrapper_bundle": {
+    "modules": [
+      "OooExecuteBackend",
+      "OooAluCoreSlice",
+      "OooAluDecodeBackend"
+    ],
+    "input": "fencei_retire_permit_i"
+  },
+  "instance_connections": [
+    {
+      "host": "NpcCoreTop",
+      "child": "OooMmuEpochOwner",
+      "instance": "u_mmu_epoch_owner",
+      "ports": {
+        "request_valid_i": "mmu_epoch_request_valid_w",
+        "request_ready_o": "mmu_epoch_request_ready_w",
+        "request_cause_i": "csr_context_cause_w",
+        "request_payload_i": "csr_context_payload_w",
+        "mem_context_quiet_i": "mmu_epoch_full_quiet_w",
+        "owner_live_empty_i": "backend_mem_epoch_owner_live_empty_w",
+        "capture_block_o": "mmu_epoch_capture_block_w",
+        "grant_valid_o": "mmu_epoch_grant_valid_w",
+        "grant_ready_i": "mmu_epoch_grant_ready_w",
+        "abort_i": "mmu_epoch_abort_fire_w",
+        "grant_cause_o": "mmu_epoch_grant_cause_w",
+        "grant_payload_o": "mmu_epoch_grant_payload_w",
+        "mmu_epoch_o": "current_mmu_epoch_w"
+      }
+    },
+    {
+      "host": "NpcCoreTop",
+      "child": "CsrFile",
+      "instance": "u_csr_file",
+      "ports": {
+        "context_prepare_valid_i": "ooo_head0_retire_candidate_valid_w",
+        "context_prepare_identity_i": "ooo_head0_identity_w",
+        "context_effective_o": "csr_context_effective_w",
+        "context_cause_o": "csr_context_cause_w",
+        "context_payload_o": "csr_context_payload_w",
+        "context_apply_valid_i": "mmu_epoch_grant_fire_w",
+        "context_apply_payload_i": "mmu_epoch_grant_payload_w",
+        "context_abort_valid_i": "mmu_epoch_abort_fire_w",
+        "context_boundary_active_i": "mmu_epoch_capture_block_w",
+        "context_reserve_valid_i": "mmu_epoch_request_fire_w",
+        "context_reserve_ready_o": "csr_context_reserve_ready_w",
+        "context_writer_owned_o": "csr_context_writer_owned_w"
+      }
+    },
+    {
+      "host": "NpcCoreTop",
+      "child": "OooFetchAxiBridge",
+      "instance": "u_ooo_fetch_bridge",
+      "ports": {
+        "context_capture_block_i": "mmu_epoch_capture_block_w",
+        "context_squash_valid_i": "mmu_epoch_selective_squash_valid_w",
+        "context_squash_generation_i": "mmu_epoch_boundary_generation_w",
+        "context_squash_done_o": "ifu_context_squash_done_w",
+        "context_squash_ack_generation_o": "ifu_context_squash_ack_generation_w",
+        "context_quiet_o": "ifu_context_quiet_w",
+        "translation_context_invalidate_i": "translation_context_invalidate_w",
+        "translation_context_cause_i": "mmu_epoch_grant_cause_w",
+        "fencei_squash_valid_i": "fencei_squash_valid_w",
+        "fencei_squash_generation_i": "fencei_squash_generation_w",
+        "fencei_squash_done_o": "fencei_ifu_cancel_done_w",
+        "fencei_squash_ack_generation_o": "fencei_ifu_ack_generation_w",
+        "fencei_commit_fire_i": "fencei_commit_fire_w"
+      }
+    },
+    {
+      "host": "OooDispatchBackend",
+      "child": "OooRob",
+      "instance": "u_rob",
+      "ports": {
+        "head0_retire_candidate_valid_o": "head0_retire_candidate_valid_o",
+        "head0_identity_o": "head0_identity_o",
+        "head0_context_permit_i": "head0_context_permit_i",
+        "fencei_retire_permit_i": "fencei_retire_permit_i",
+        "mem_quiet_i": "mem_quiet_i"
+      }
+    },
+    {
+      "host": "NpcCoreTop",
+      "child": "OooCoreTopGlue",
+      "instance": "u_ooo_core",
+      "ports": {
+        "mem_context_capture_block_i": "mmu_epoch_capture_block_w",
+        "current_mmu_epoch_i": "current_mmu_epoch_w",
+        "head0_context_permit_i": "head0_context_permit_w",
+        "mem_context_squash_valid_i": "mmu_epoch_selective_squash_valid_w",
+        "mem_context_squash_identity_i": "mmu_epoch_held_identity_w",
+        "lr_context_clear_i": "lr_context_clear_w",
+        "head0_retire_candidate_valid_o": "ooo_head0_retire_candidate_valid_w",
+        "head0_identity_o": "ooo_head0_identity_w",
+        "mem_epoch_context_quiet_o": "backend_mem_epoch_context_quiet_w",
+        "mem_epoch_owner_live_empty_o": "backend_mem_epoch_owner_live_empty_w",
+        "mem_epoch_ingress_idle_o": "backend_mem_epoch_ingress_idle_w",
+        "mem_context_squash_done_o": "backend_mem_context_squash_done_w",
+        "translation_context_invalidate_i": "translation_context_invalidate_w",
+        "translation_context_cause_i": "mmu_epoch_grant_cause_w",
+        "context_boundary_grant_fire_i": "mmu_epoch_grant_fire_w",
+        "context_boundary_grant_payload_i": "mmu_epoch_grant_payload_w",
+        "fencei_ifu_cancel_done_i": "fencei_ifu_cancel_done_w",
+        "fencei_ifu_ack_generation_i": "fencei_ifu_ack_generation_w",
+        "fencei_ifu_quiet_i": "ifu_context_quiet_w",
+        "fencei_squash_valid_o": "fencei_squash_valid_w",
+        "fencei_squash_generation_o": "fencei_squash_generation_w",
+        "fencei_commit_fire_o": "fencei_commit_fire_w"
+      }
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooExecuteBackend",
+      "instance": "u_execute_backend",
+      "ports": {
+        "fencei_retire_permit_i": "fencei_retire_permit_w",
+        "core_commit0_valid_w": "core_commit0_valid_w",
+        "core_mem_idle_w": "core_mem_idle_w",
+        "core_mem_retire_quiet_w": "core_mem_retire_quiet_w"
+      },
+      "same_name_ports": [
+        "mem_context_capture_block_i",
+        "current_mmu_epoch_i",
+        "head0_context_permit_i",
+        "mem_context_squash_valid_i",
+        "mem_context_squash_identity_i",
+        "lr_context_clear_i",
+        "head0_retire_candidate_valid_o",
+        "head0_identity_o",
+        "mem_epoch_context_quiet_o",
+        "mem_epoch_owner_live_empty_o",
+        "mem_epoch_ingress_idle_o",
+        "mem_context_squash_done_o"
+      ]
+    },
+    {
+      "host": "OooExecuteBackend",
+      "child": "OooAluCoreSlice",
+      "instance": "u_core_slice",
+      "same_name_ports": [
+        "mem_context_capture_block_i",
+        "current_mmu_epoch_i",
+        "head0_context_permit_i",
+        "fencei_retire_permit_i",
+        "mem_context_squash_valid_i",
+        "mem_context_squash_identity_i",
+        "lr_context_clear_i",
+        "head0_retire_candidate_valid_o",
+        "head0_identity_o",
+        "mem_epoch_context_quiet_o",
+        "mem_epoch_owner_live_empty_o",
+        "mem_epoch_ingress_idle_o",
+        "mem_context_squash_done_o"
+      ]
+    },
+    {
+      "host": "OooAluCoreSlice",
+      "child": "OooAluDecodeBackend",
+      "instance": "u_decode_backend",
+      "same_name_ports": [
+        "mem_context_capture_block_i",
+        "current_mmu_epoch_i",
+        "head0_context_permit_i",
+        "fencei_retire_permit_i",
+        "mem_context_squash_valid_i",
+        "mem_context_squash_identity_i",
+        "lr_context_clear_i",
+        "head0_retire_candidate_valid_o",
+        "head0_identity_o",
+        "mem_epoch_context_quiet_o",
+        "mem_epoch_owner_live_empty_o",
+        "mem_epoch_ingress_idle_o",
+        "mem_context_squash_done_o"
+      ]
+    },
+    {
+      "host": "OooAluDecodeBackend",
+      "child": "OooIntBackend",
+      "instance": "u_int_backend",
+      "same_name_ports": [
+        "mem_context_capture_block_i",
+        "current_mmu_epoch_i",
+        "head0_context_permit_i",
+        "fencei_retire_permit_i",
+        "mem_context_squash_valid_i",
+        "mem_context_squash_identity_i",
+        "lr_context_clear_i",
+        "head0_retire_candidate_valid_o",
+        "head0_identity_o",
+        "mem_epoch_context_quiet_o",
+        "mem_epoch_owner_live_empty_o",
+        "mem_epoch_ingress_idle_o",
+        "mem_context_squash_done_o"
+      ]
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooDispatchBackend",
+      "instance": "u_dispatch_backend",
+      "ports": {
+        "head0_context_permit_i": "head0_context_permit_i",
+        "fencei_retire_permit_i": "fencei_retire_permit_i",
+        "head0_retire_candidate_valid_o": "head0_retire_candidate_valid_o",
+        "head0_identity_o": "head0_identity_o",
+        "mem_quiet_i": "mem_idle_o"
+      }
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooMemoryAccess",
+      "instance": "u_memory_access",
+      "ports": {
+        "translation_context_invalidate_i": "translation_context_invalidate_i",
+        "translation_context_cause_i": "translation_context_cause_i"
+      }
+    },
+    {
+      "host": "OooMemoryAccess",
+      "child": "OooMemoryRequestGate",
+      "instance": "u_memory_request_gate",
+      "ports": {
+        "translation_context_invalidate_i": "translation_context_invalidate_i",
+        "translation_context_cause_i": "translation_context_cause_i"
+      }
+    },
+    {
+      "host": "NpcCoreTop",
+      "child": "OooMemAxiBridge",
+      "instance": "u_ooo_mem_bridge",
+      "ports": {
+        "translation_context_invalidate_i": "translation_context_invalidate_w",
+        "translation_context_cause_i": "mmu_epoch_grant_cause_w"
+      }
+    },
+    {
+      "host": "OooMemAxiBridge",
+      "child": "OooSv39Tlb",
+      "instance": "u_dtlb",
+      "ports": {
+        "clear_i": "dtlb_context_invalidate_w"
+      }
+    },
+    {
+      "host": "OooFetchAxiBridge",
+      "child": "OooSv39Tlb",
+      "instance": "u_itlb",
+      "ports": {
+        "clear_i": "itlb_context_invalidate_w",
+        "fill_valid_i": "itlb_fill_valid_w"
+      }
+    },
+    {
+      "host": "OooFetchAxiBridge",
+      "child": "OooFetchPacketCache",
+      "instance": "u_fetch_packet_cache",
+      "ports": {
+        "clear_i": "fetch_context_invalidate_w",
+        "fill_valid_i": "fetch_cache_fill_valid_w"
+      }
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemOwnerTracker",
+      "instance": "u_mem_owner_tracker",
+      "ports": {
+        "alloc0_valid_i": "mem_issue_res_capture_candidate_w",
+        "alloc0_epoch_i": "current_mmu_epoch_i",
+        "alloc0_rob_idx_i": "iq_issue0_rob_idx_w",
+        "rob_head_idx_i": "rob_head_idx_w",
+        "irrevocable_valid_i": "mem_req_fire_any_w",
+        "irrevocable_kind_i": "mem_req_owner_kind_o",
+        "irrevocable_token_i": "mem_req_owner_token_o",
+        "irrevocable_epoch_i": "mem_req_mmu_epoch_o",
+        "context_squash_valid_i": "mem_context_squash_valid_i",
+        "context_squash_identity_i": "mem_context_squash_identity_i",
+        "context_squash_done_o": "owner_context_squash_done_w"
+      }
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemInflightQueue",
+      "instance": "u_mem_inflight_queue",
+      "ports": {
+        "push_valid_i": "miq_push_valid_w",
+        "push_mmu_epoch_i": "miq_push_mmu_epoch_w",
+        "head_mmu_epoch_o": "miq_head_mmu_epoch_w"
+      }
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooStoreQueue",
+      "instance": "u_store_queue",
+      "ports": {
+        "owner_bind_valid_i": "sq_owner_bind_valid_w",
+        "owner_bind_mmu_epoch_i": "mem_issue_res_mmu_epoch_q",
+        "fill0_mmu_epoch_i": "sq_fill_mmu_epoch_w",
+        "rob_head_idx_i": "rob_head_idx_w",
+        "alloc0_rob_idx_i": "sq_alloc0_rob_w",
+        "alloc1_rob_idx_i": "dispatch1_rob_idx_w",
+        "context_squash_valid_i": "mem_context_squash_valid_i",
+        "context_squash_identity_i": "mem_context_squash_identity_i",
+        "context_squash_done_o": "sq_context_squash_done_w"
+      }
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooControlPlane",
+      "instance": "u_control_plane",
+      "ports": {
+        "context_boundary_grant_fire_i": "context_boundary_grant_fire_i",
+        "context_boundary_grant_payload_i": "context_boundary_grant_payload_i",
+        "context_boundary_redirect_valid_o": "context_boundary_redirect_valid_w",
+        "context_boundary_redirect_pc_o": "context_boundary_redirect_pc_w",
+        "head0_retire_candidate_valid_i": "head0_retire_candidate_valid_o",
+        "mem_retire_quiet_i": "core_mem_retire_quiet_w",
+        "mem_idle_i": "core_mem_idle_w",
+        "head0_fencei_raw_w": "head0_fencei_raw_w",
+        "core_commit0_valid_w": "core_commit0_valid_w",
+        "fencei_ifu_cancel_done_i": "fencei_ifu_cancel_done_i",
+        "fencei_ifu_ack_generation_i": "fencei_ifu_ack_generation_i",
+        "fencei_ifu_quiet_i": "fencei_ifu_quiet_i",
+        "fencei_retire_permit_o": "fencei_retire_permit_w",
+        "fencei_squash_valid_o": "fencei_squash_valid_o",
+        "fencei_squash_generation_o": "fencei_squash_generation_o",
+        "fencei_commit_fire_o": "fencei_commit_fire_o"
+      }
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooFrontend",
+      "instance": "u_frontend",
+      "ports": {
+        "context_boundary_redirect_valid_i": "context_boundary_redirect_valid_w",
+        "context_boundary_redirect_pc_i": "context_boundary_redirect_pc_w",
+        "head0_fencei_raw_w": "head0_fencei_raw_w"
+      }
+    },
+    {
+      "host": "OooFrontend",
+      "child": "OooRedirectArbiter",
+      "instance": "u_redirect_arbiter",
+      "ports": {
+        "trap_valid_i": "commit_trap_valid_w",
+        "trap_pc_i": "commit_trap_pc_w"
+      }
+    },
+    {
+      "host": "OooFrontend",
+      "child": "OooFetchPcOutstandingSequencer",
+      "instance": "u_fetch_pc_outstanding",
+      "ports": {
+        "redirect_valid_i": "redirect_valid_w",
+        "redirect_pc_i": "redirect_pc_w"
+      }
+    }
+  ],
+  "exclusive_instance_outputs": [
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooFrontend",
+      "instance": "u_frontend",
+      "port": "head0_fencei_raw_w",
+      "signal": "head0_fencei_raw_w"
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooExecuteBackend",
+      "instance": "u_execute_backend",
+      "port": "core_commit0_valid_w",
+      "signal": "core_commit0_valid_w"
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooExecuteBackend",
+      "instance": "u_execute_backend",
+      "port": "core_mem_idle_w",
+      "signal": "core_mem_idle_w"
+    },
+    {
+      "host": "OooCoreTopGlue",
+      "child": "OooExecuteBackend",
+      "instance": "u_execute_backend",
+      "port": "core_mem_retire_quiet_w",
+      "signal": "core_mem_retire_quiet_w"
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemInflightQueue",
+      "instance": "u_mem_inflight_queue",
+      "port": "head_mmu_epoch_o",
+      "signal": "miq_head_mmu_epoch_w"
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooStoreQueue",
+      "instance": "u_store_queue",
+      "port": "context_squash_done_o",
+      "signal": "sq_context_squash_done_w"
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemOwnerTracker",
+      "instance": "u_mem_owner_tracker",
+      "port": "context_squash_done_o",
+      "signal": "owner_context_squash_done_w"
+    }
+  ],
+  "exact_payload_slices": [
+    {
+      "module": "CsrFile",
+      "signal": "context_payload_o",
+      "field": "IDENTITY",
+      "source": "context_prepare_identity_i",
+      "msb": "`OOO_CONTEXT_ID_MSB",
+      "lsb": "`OOO_CONTEXT_ID_LSB",
+      "assignment_kind": "continuous"
+    }
+  ],
+  "guarded_indexed_captures": [
+    {
+      "module": "OooMemInflightQueue",
+      "register": "mmu_epoch_q",
+      "index": "tail_q",
+      "source": "push_mmu_epoch_i",
+      "guard": "push_fire_w",
+      "canonical_ancestors": [
+        {"condition": "rst", "arm": "false"},
+        {"condition": "flush_i", "arm": "false"},
+        {"condition": "push_fire_w", "arm": "true"}
+      ],
+      "allowed_writes": [
+        {"index": "i", "source": "{MMU_EPOCH_W{1'b0}}", "op": "<=", "region": "reset"},
+        {"index": "wr[ENTRY_W-1:0]", "source": "mmu_epoch_q[src]", "op": "<=", "region": "nonreset"},
+        {"index": "tail_q", "source": "push_mmu_epoch_i", "op": "<=", "region": "nonreset"}
+      ]
+    },
+    {
+      "module": "OooStoreQueue",
+      "register": "rob_idx_q",
+      "index": "alloc0_idx_w",
+      "source": "alloc0_rob_idx_i",
+      "guard": "alloc0_fire_w",
+      "canonical_ancestors": [
+        {"condition": "rst", "arm": "false"},
+        {"condition": "flush_valid_i", "arm": "false"},
+        {"condition": "alloc0_fire_w", "arm": "true"}
+      ],
+      "allowed_writes": [
+        {"index": "i", "source": "{ROB_INDEX_W{1'b0}}", "op": "<=", "region": "reset"},
+        {"index": "alloc0_idx_w", "source": "alloc0_rob_idx_i", "op": "<=", "region": "nonreset"},
+        {"index": "alloc1_idx_w", "source": "alloc1_rob_idx_i", "op": "<=", "region": "nonreset"}
+      ]
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "register": "rob_idx_q",
+      "index": "alloc0_token_o",
+      "source": "alloc0_rob_idx_i",
+      "guard": "alloc0_fire_w",
+      "canonical_ancestors": [
+        {"condition": "rst", "arm": "false"},
+        {"condition": "alloc0_fire_w", "arm": "true"}
+      ],
+      "allowed_writes": [
+        {"index": "i", "source": "{ROB_INDEX_W{1'b0}}", "op": "<=", "region": "reset"},
+        {"index": "alloc0_token_o", "source": "alloc0_rob_idx_i", "op": "<=", "region": "nonreset"}
+      ]
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "register": "irrevocable_q",
+      "index": "irrevocable_token_i",
+      "source": "1'b1",
+      "guard": "irrevocable_fire_w",
+      "canonical_ancestors": [
+        {"condition": "rst", "arm": "false"},
+        {"condition": "irrevocable_fire_w", "arm": "true"}
+      ],
+      "allowed_writes": [
+        {"index": "i", "source": "1'b0", "op": "<=", "region": "reset"},
+        {"index": "alloc0_token_o", "source": "1'b0", "op": "<=", "region": "nonreset"},
+        {"index": "irrevocable_token_i", "source": "1'b1", "op": "<=", "region": "nonreset"}
+      ]
+    }
+  ],
+  "signal_dependencies": [
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_full_quiet_w",
+      "sources": [
+        "backend_mem_epoch_context_quiet_w",
+        "ooo_mem0_idle_w",
+        "ifu_context_quiet_w",
+        "backend_mem_epoch_ingress_idle_w",
+        "mmu_epoch_wait_quiet_enable_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_registered_quiet_next_w",
+      "sources": [
+        "mmu_epoch_registered_quiet_q",
+        "mmu_epoch_registered_quiet_set_w",
+        "mmu_epoch_registered_quiet_clear_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_grant_ready_w",
+      "sources": [
+        "mmu_epoch_held_head_match_w",
+        "head0_base_ready_w",
+        "mmu_epoch_registered_quiet_q",
+        "csr_context_writer_owned_w",
+        "mmu_epoch_identity_mismatch_recovery_q"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_held_head_match_w",
+      "sources": [
+        "ooo_head0_identity_w",
+        "mmu_epoch_held_identity_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_held_identity_w",
+      "sources": [
+        "mmu_epoch_grant_payload_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_selective_squash_valid_w",
+      "sources": [
+        "mmu_epoch_phase_q",
+        "mmu_epoch_squash_sent_q"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_request_valid_w",
+      "sources": [
+        "ooo_head0_retire_candidate_valid_w",
+        "csr_context_effective_w",
+        "csr_context_reserve_ready_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_request_fire_w",
+      "sources": [
+        "mmu_epoch_request_valid_w",
+        "mmu_epoch_request_ready_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_boundary_generation_w",
+      "sources": [
+        "mmu_epoch_transaction_generation_q"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_wait_quiet_enable_w",
+      "sources": [
+        "backend_mem_context_squash_done_w",
+        "ifu_context_squash_current_done_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "ifu_context_squash_current_done_w",
+      "sources": [
+        "ifu_context_squash_done_w",
+        "ifu_context_squash_ack_generation_w",
+        "mmu_epoch_boundary_generation_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "head0_context_permit_w",
+      "sources": [
+        "csr_context_effective_w",
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_held_head_match_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_identity_mismatch_recovery_w",
+      "sources": [
+        "mmu_epoch_grant_valid_w",
+        "mmu_epoch_held_head_match_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_phase_next_w",
+      "sources": [
+        "mmu_epoch_request_fire_w",
+        "backend_mem_context_squash_done_w",
+        "ifu_context_squash_done_w",
+        "mmu_epoch_registered_quiet_q",
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_abort_fire_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_squash_sent_next_w",
+      "sources": [
+        "mmu_epoch_squash_sent_q",
+        "mmu_epoch_selective_squash_valid_w",
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_abort_fire_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_transaction_generation_next_w",
+      "sources": [
+        "mmu_epoch_transaction_generation_q",
+        "mmu_epoch_request_fire_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_identity_mismatch_recovery_next_w",
+      "sources": [
+        "mmu_epoch_identity_mismatch_recovery_q",
+        "mmu_epoch_identity_mismatch_recovery_w",
+        "mmu_epoch_abort_fire_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_abort_fire_w",
+      "sources": [
+        "mmu_epoch_identity_mismatch_recovery_q",
+        "mmu_epoch_grant_valid_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_grant_fire_w",
+      "sources": [
+        "mmu_epoch_grant_valid_w",
+        "mmu_epoch_grant_ready_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "translation_context_invalidate_w",
+      "sources": [
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_grant_cause_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "lr_context_clear_w",
+      "sources": [
+        "mmu_epoch_grant_fire_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "context_boundary_pending_clear_w",
+      "sources": [
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_grant_payload_w"
+      ]
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "context_boundary_redirect_fire_w",
+      "sources": [
+        "mmu_epoch_grant_fire_w",
+        "mmu_epoch_grant_payload_w"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_writer_owned_o",
+      "sources": [
+        "context_writer_owner_q"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_reserve_ready_o",
+      "sources": [
+        "context_writer_owner_q",
+        "context_legacy_active_q",
+        "context_deferred_writer_valid_q"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_writer_owner_next_w",
+      "sources": [
+        "context_writer_owner_q",
+        "context_reserve_valid_i",
+        "context_apply_valid_i",
+        "context_abort_valid_i",
+        "context_deferred_writer_pending_q"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_legacy_writer_valid_w",
+      "sources": [
+        "csr_commit_i",
+        "trap_mem_valid_i",
+        "trap_ex_valid_i",
+        "trap_irq_valid_i",
+        "mret_valid_i",
+        "sret_valid_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_enqueue_w",
+      "sources": [
+        "context_boundary_active_i",
+        "context_legacy_writer_valid_w"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_legacy_active_next_w",
+      "sources": [
+        "context_legacy_active_q",
+        "context_legacy_writer_valid_w",
+        "context_apply_valid_i",
+        "context_abort_valid_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_writer_valid_next_w",
+      "sources": [
+        "context_deferred_writer_valid_q",
+        "context_deferred_enqueue_w",
+        "context_apply_valid_i",
+        "context_abort_valid_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_writer_cause_next_w",
+      "sources": [
+        "context_deferred_writer_cause_q",
+        "context_deferred_enqueue_w",
+        "context_legacy_writer_cause_w"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_writer_payload_next_w",
+      "sources": [
+        "context_deferred_writer_payload_q",
+        "context_deferred_enqueue_w",
+        "context_legacy_writer_payload_w"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_writer_owner_next_w",
+      "sources": [
+        "context_deferred_writer_owner_q",
+        "context_deferred_enqueue_w",
+        "context_legacy_writer_owner_w"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "target": "state_next_w",
+      "sources": [
+        "request_fire_w",
+        "full_quiet_w",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "target": "held_cause_next_w",
+      "sources": [
+        "request_fire_w",
+        "request_cause_i",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "target": "held_payload_next_w",
+      "sources": [
+        "request_fire_w",
+        "request_payload_i",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_state_write_select_w",
+      "sources": [
+        "context_apply_valid_i",
+        "context_boundary_active_i",
+        "csr_commit_i",
+        "trap_mem_valid_i",
+        "trap_ex_valid_i",
+        "trap_irq_valid_i",
+        "mret_valid_i",
+        "sret_valid_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_state_apply_fire_w",
+      "sources": [
+        "context_apply_valid_i",
+        "legacy_context_write_fire_w"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_payload_o",
+      "sources": [
+        "context_prepare_identity_i",
+        "context_normalized_next_w",
+        "context_effect_mask_w"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_issue_res_capture_candidate_w",
+      "sources": [
+        "mem_context_capture_block_i"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_squash_done_o",
+      "sources": [
+        "mem_context_squash_ack_q",
+        "mem_context_squash_identity_q",
+        "mem_context_squash_identity_i"
+      ]
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "context_squash_age_scan_done_w",
+      "sources": [
+        "valid_q",
+        "request_sent_q",
+        "rob_idx_q",
+        "rob_head_idx_i",
+        "context_squash_identity_i"
+      ]
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "context_squash_age_scan_done_w",
+      "sources": [
+        "live_q",
+        "kind_q",
+        "rob_idx_q",
+        "irrevocable_q",
+        "rob_head_idx_i",
+        "context_squash_identity_i"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_context_quiet_o",
+      "sources": [
+        "mem_idle_o",
+        "mem_retire_quiet_o",
+        "mem_context_squash_done_o",
+        "mem_epoch_ingress_idle_o"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_owner_live_empty_o",
+      "sources": [
+        "mem_owner_live_count_w",
+        "mem_terminal_pending_count_w"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_ingress_idle_o",
+      "sources": [
+        "mem_owner_alloc_ingress_w",
+        "sq_owner_bind_ingress_w",
+        "mem_terminal_ingress_w",
+        "mem_bridge_station_ingress_w",
+        "mem_ptw_rmw_ingress_w"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "lr_reservation_clear_w",
+      "sources": [
+        "lr_context_clear_i"
+      ]
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "reservation_valid_next_w",
+      "sources": [
+        "reservation_valid_q",
+        "reservation_set_w",
+        "lr_context_clear_i"
+      ]
+    },
+    {
+      "module": "OooRob",
+      "target": "commit0_fire_w",
+      "sources": [
+        "head0_context_permit_i",
+        "fencei_retire_permit_i"
+      ]
+    },
+    {
+      "module": "OooRob",
+      "target": "commit1_fire_w",
+      "sources": [
+        "head1_context_boundary_w"
+      ]
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_context_boundary_w",
+      "sources": [
+        "valid_q",
+        "head1_w",
+        "head1_done_w",
+        "head1_exception_w",
+        "head1_potential_context_boundary_w"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "context_squash_done_o",
+      "sources": [
+        "fetch_context_squash_ack_q",
+        "fetch_context_squash_generation_q",
+        "context_squash_generation_i",
+        "context_squash_ack_generation_o"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_squash_generation_next_w",
+      "sources": [
+        "fetch_context_squash_generation_q",
+        "context_squash_valid_i",
+        "context_squash_generation_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_squash_ack_next_w",
+      "sources": [
+        "fetch_context_squash_ack_q",
+        "context_squash_valid_i",
+        "fetch_transport_cancel_done_w",
+        "fetch_ptw_cancel_done_w",
+        "fetch_fpc_cancel_done_w"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_req_ready_o",
+      "sources": [
+        "fetch_req_ready_base_w",
+        "context_capture_block_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_done_o",
+      "sources": [
+        "fencei_squash_ack_q",
+        "fencei_squash_generation_q",
+        "fencei_squash_generation_i",
+        "fencei_squash_ack_generation_o"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_generation_next_w",
+      "sources": [
+        "fencei_squash_generation_q",
+        "fencei_squash_valid_i",
+        "fencei_squash_generation_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_ack_next_w",
+      "sources": [
+        "fencei_squash_ack_q",
+        "fencei_squash_valid_i",
+        "fetch_transport_cancel_done_w",
+        "fetch_ptw_cancel_done_w",
+        "fetch_fpc_cancel_done_w"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "itlb_fill_valid_w",
+      "sources": [
+        "itlb_fill_candidate_w",
+        "context_capture_block_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_cache_fill_valid_w",
+      "sources": [
+        "fetch_cache_fill_candidate_w",
+        "context_capture_block_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "context_quiet_o",
+      "sources": [
+        "fetch_request_outstanding_q",
+        "fetch_fill_pending_q",
+        "fpc_write_pending_q"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fpc_translation_invalidate_w",
+      "sources": [
+        "translation_context_invalidate_i",
+        "translation_context_cause_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_invalidate_w",
+      "sources": [
+        "fpc_translation_invalidate_w",
+        "fencei_commit_fire_i"
+      ]
+    },
+    {
+      "module": "OooMemAxiBridge",
+      "target": "dtlb_context_invalidate_w",
+      "sources": [
+        "translation_context_invalidate_i",
+        "translation_context_cause_i"
+      ]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "itlb_context_invalidate_w",
+      "sources": [
+        "translation_context_invalidate_i",
+        "translation_context_cause_i"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "pending_system_clear_w",
+      "sources": [
+        "legacy_pending_system_clear_w",
+        "context_boundary_pending_system_clear_w"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_pending_system_clear_w",
+      "sources": [
+        "context_boundary_grant_fire_i",
+        "context_boundary_payload_owner_is_pending_system_w"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_payload_owner_is_pending_system_w",
+      "sources": [
+        "context_boundary_grant_payload_i"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "core_local_flush_w",
+      "sources": [
+        "context_boundary_grant_fire_i"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_redirect_valid_o",
+      "sources": [
+        "context_boundary_grant_fire_i"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_redirect_pc_o",
+      "sources": [
+        "context_boundary_grant_payload_i"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_prepare_valid_w",
+      "sources": [
+        "head0_retire_candidate_valid_i",
+        "head0_fencei_raw_w"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_serial_ready_next_w",
+      "sources": [
+        "mem_retire_quiet_i",
+        "mem_idle_i",
+        "fencei_ifu_cancel_current_done_w",
+        "fencei_ifu_quiet_i",
+        "fencei_prepare_valid_w"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_ifu_cancel_current_done_w",
+      "sources": [
+        "fencei_ifu_cancel_done_i",
+        "fencei_ifu_ack_generation_i",
+        "fencei_transaction_generation_q"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_retire_permit_o",
+      "sources": [
+        "head0_fencei_raw_w",
+        "fencei_serial_ready_q"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_squash_valid_o",
+      "sources": [
+        "fencei_prepare_valid_w",
+        "fencei_squash_sent_q"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_squash_generation_o",
+      "sources": [
+        "fencei_transaction_generation_q"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_squash_sent_next_w",
+      "sources": [
+        "fencei_squash_sent_q",
+        "fencei_squash_valid_o",
+        "fencei_commit_fire_o"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_transaction_generation_next_w",
+      "sources": [
+        "fencei_transaction_generation_q",
+        "fencei_squash_valid_o"
+      ]
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_commit_fire_o",
+      "sources": [
+        "core_commit0_valid_w",
+        "head0_fencei_raw_w",
+        "fencei_serial_ready_q"
+      ]
+    },
+    {
+      "module": "OooFrontend",
+      "target": "commit_trap_valid_w",
+      "sources": [
+        "context_boundary_redirect_valid_i"
+      ]
+    },
+    {
+      "module": "OooFrontend",
+      "target": "commit_trap_pc_w",
+      "sources": [
+        "context_boundary_redirect_pc_i"
+      ]
+    }
+  ],
+  "forbidden_dependencies": [
+    {"module": "OooIntBackend", "source": "mem_context_capture_block_i", "target": "mem_issue_block_w"},
+    {"module": "OooIntBackend", "source": "mem_context_capture_block_i", "target": "issue0_mem_req_valid_w"},
+    {"module": "OooIntBackend", "source": "mem_context_capture_block_i", "target": "mem_req_valid_o"}
+    ,
+    {"module": "NpcCoreTop", "source": "head0_context_permit_w", "target": "mmu_epoch_grant_ready_w"},
+    {"module": "NpcCoreTop", "source": "ooo_commit0_fire_w", "target": "mmu_epoch_grant_ready_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_grant_fire_w", "target": "mmu_epoch_grant_ready_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_identity_mismatch_recovery_w", "target": "mmu_epoch_grant_ready_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_held_head_match_w", "target": "mmu_epoch_abort_fire_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_request_ready_w", "target": "csr_context_effective_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_grant_ready_w", "target": "csr_context_effective_w"},
+    {"module": "NpcCoreTop", "source": "head0_context_permit_w", "target": "csr_context_effective_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_grant_fire_w", "target": "fencei_commit_fire_w"},
+    {"module": "NpcCoreTop", "source": "fencei_commit_fire_w", "target": "mmu_epoch_request_valid_w"},
+    {"module": "NpcCoreTop", "source": "fencei_commit_fire_w", "target": "translation_context_invalidate_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_request_ready_w", "target": "mmu_epoch_request_valid_w"},
+    {"module": "NpcCoreTop", "source": "mmu_epoch_grant_ready_w", "target": "mmu_epoch_request_valid_w"},
+    {"module": "NpcCoreTop", "source": "head0_context_permit_w", "target": "mmu_epoch_request_valid_w"},
+    {"module": "NpcCoreTop", "source": "ooo_commit0_fire_w", "target": "mmu_epoch_request_valid_w"},
+    {"module": "CsrFile", "source": "csr_commit_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "trap_mem_valid_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "trap_ex_valid_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "trap_irq_valid_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "mret_valid_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "sret_valid_i", "target": "context_writer_owned_o"},
+    {"module": "CsrFile", "source": "context_apply_valid_i", "target": "context_writer_owned_o"}
+    ,
+    {"module": "CsrFile", "source": "csr_commit_i", "target": "context_reserve_ready_o"},
+    {"module": "CsrFile", "source": "trap_mem_valid_i", "target": "context_reserve_ready_o"},
+    {"module": "CsrFile", "source": "trap_ex_valid_i", "target": "context_reserve_ready_o"},
+    {"module": "CsrFile", "source": "trap_irq_valid_i", "target": "context_reserve_ready_o"},
+    {"module": "CsrFile", "source": "mret_valid_i", "target": "context_reserve_ready_o"},
+    {"module": "CsrFile", "source": "sret_valid_i", "target": "context_reserve_ready_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_capture_block_i", "target": "ifu_axi_arvalid_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_capture_block_i", "target": "ifu_axi_rready_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_capture_block_i", "target": "ifu_axi_awvalid_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_capture_block_i", "target": "ifu_axi_wvalid_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_capture_block_i", "target": "ifu_axi_bready_o"},
+    {"module": "OooFetchAxiBridge", "source": "context_squash_valid_i", "target": "context_squash_done_o"},
+    {"module": "OooFetchAxiBridge", "source": "fencei_squash_valid_i", "target": "fencei_squash_done_o"},
+    {"module": "OooMemAxiBridge", "source": "fencei_commit_fire_i", "target": "dtlb_context_invalidate_w"},
+    {"module": "OooFetchAxiBridge", "source": "fencei_commit_fire_i", "target": "itlb_context_invalidate_w"},
+    {"module": "OooMemAxiBridge", "source": "mmu_flush_i", "target": "dtlb_context_invalidate_w"},
+    {"module": "OooFetchAxiBridge", "source": "mmu_flush_i", "target": "itlb_context_invalidate_w"},
+    {"module": "OooControlPlane", "source": "pending_system_fencei_commit_w", "target": "legacy_mmu_flush_w"}
+  ],
+  "forbidden_direct_dependencies": [
+    {"module": "OooFrontend", "source": "context_boundary_redirect_valid_i", "target": "next_fetch_pc_q"},
+    {"module": "OooFrontend", "source": "context_boundary_redirect_pc_i", "target": "next_fetch_pc_q"},
+    {"module": "OooFrontend", "source": "context_boundary_redirect_valid_i", "target": "fetch_req_pc_o"},
+    {"module": "OooFrontend", "source": "context_boundary_redirect_pc_i", "target": "fetch_req_pc_o"}
+  ],
+  "boolean_requirements": [
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_held_head_match_w",
+      "sources": ["ooo_head0_identity_w", "mmu_epoch_held_identity_w"],
+      "positive_sources": ["ooo_head0_identity_w", "mmu_epoch_held_identity_w"],
+      "required_operators": ["=="],
+      "equality_pair": ["ooo_head0_identity_w", "mmu_epoch_held_identity_w"],
+      "exact_expression": "ooo_head0_identity_w == mmu_epoch_held_identity_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_grant_ready_w",
+      "sources": ["mmu_epoch_held_head_match_w", "head0_base_ready_w", "mmu_epoch_registered_quiet_q", "csr_context_writer_owned_w", "mmu_epoch_identity_mismatch_recovery_q"],
+      "positive_sources": ["mmu_epoch_held_head_match_w", "head0_base_ready_w", "mmu_epoch_registered_quiet_q", "csr_context_writer_owned_w"],
+      "negated_sources": ["mmu_epoch_identity_mismatch_recovery_q"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "mmu_epoch_held_head_match_w && head0_base_ready_w && mmu_epoch_registered_quiet_q && csr_context_writer_owned_w && !mmu_epoch_identity_mismatch_recovery_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_identity_mismatch_recovery_w",
+      "sources": ["mmu_epoch_grant_valid_w", "mmu_epoch_held_head_match_w"],
+      "positive_sources": ["mmu_epoch_grant_valid_w"],
+      "negated_sources": ["mmu_epoch_held_head_match_w"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "mmu_epoch_grant_valid_w && !mmu_epoch_held_head_match_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_abort_fire_w",
+      "sources": ["mmu_epoch_identity_mismatch_recovery_q", "mmu_epoch_grant_valid_w"],
+      "positive_sources": ["mmu_epoch_identity_mismatch_recovery_q", "mmu_epoch_grant_valid_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "mmu_epoch_identity_mismatch_recovery_q && mmu_epoch_grant_valid_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_wait_quiet_enable_w",
+      "sources": ["backend_mem_context_squash_done_w", "ifu_context_squash_current_done_w"],
+      "positive_sources": ["backend_mem_context_squash_done_w", "ifu_context_squash_current_done_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "backend_mem_context_squash_done_w && ifu_context_squash_current_done_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "ifu_context_squash_current_done_w",
+      "sources": ["ifu_context_squash_done_w", "ifu_context_squash_ack_generation_w", "mmu_epoch_boundary_generation_w"],
+      "positive_sources": ["ifu_context_squash_done_w", "ifu_context_squash_ack_generation_w", "mmu_epoch_boundary_generation_w"],
+      "required_operators": ["&&", "=="],
+      "exact_expression": "ifu_context_squash_done_w && (ifu_context_squash_ack_generation_w == mmu_epoch_boundary_generation_w)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_full_quiet_w",
+      "sources": ["backend_mem_epoch_context_quiet_w", "ooo_mem0_idle_w", "ifu_context_quiet_w", "backend_mem_epoch_ingress_idle_w", "mmu_epoch_wait_quiet_enable_w"],
+      "positive_sources": ["backend_mem_epoch_context_quiet_w", "ooo_mem0_idle_w", "ifu_context_quiet_w", "backend_mem_epoch_ingress_idle_w", "mmu_epoch_wait_quiet_enable_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "backend_mem_epoch_context_quiet_w && ooo_mem0_idle_w && ifu_context_quiet_w && backend_mem_epoch_ingress_idle_w && mmu_epoch_wait_quiet_enable_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_selective_squash_valid_w",
+      "sources": ["mmu_epoch_phase_q", "mmu_epoch_squash_sent_q"],
+      "positive_sources": ["mmu_epoch_phase_q"],
+      "required_operators": ["&&", "!", "=="],
+      "negated_sources": ["mmu_epoch_squash_sent_q"],
+      "exact_expression": "(mmu_epoch_phase_q == MMU_EPOCH_PHASE_SQUASH) && !mmu_epoch_squash_sent_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_request_valid_w",
+      "sources": ["ooo_head0_retire_candidate_valid_w", "csr_context_effective_w", "csr_context_reserve_ready_w"],
+      "positive_sources": ["ooo_head0_retire_candidate_valid_w", "csr_context_effective_w", "csr_context_reserve_ready_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "ooo_head0_retire_candidate_valid_w && csr_context_effective_w && csr_context_reserve_ready_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_grant_fire_w",
+      "sources": ["mmu_epoch_grant_valid_w", "mmu_epoch_grant_ready_w"],
+      "positive_sources": ["mmu_epoch_grant_valid_w", "mmu_epoch_grant_ready_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "mmu_epoch_grant_valid_w && mmu_epoch_grant_ready_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "head0_context_permit_w",
+      "sources": ["csr_context_effective_w", "mmu_epoch_grant_fire_w", "mmu_epoch_held_head_match_w"],
+      "positive_sources": ["mmu_epoch_grant_fire_w", "mmu_epoch_held_head_match_w"],
+      "negated_sources": ["csr_context_effective_w"],
+      "required_operators": ["!", "||", "&&"],
+      "exact_expression": "!csr_context_effective_w || (mmu_epoch_grant_fire_w && mmu_epoch_held_head_match_w)",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_is_csr_raw_w",
+      "sources": ["inst_q", "head1_w"],
+      "positive_sources": ["inst_q", "head1_w"],
+      "required_operators": ["==", "&&"],
+      "exact_expression": "(inst_q[head1_w][6:0] == `OPCODE_SYSTEM) && (inst_q[head1_w][14:12] != 3'b000)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_is_sfence_vma_raw_w",
+      "sources": ["inst_q", "head1_w"],
+      "positive_sources": ["inst_q", "head1_w"],
+      "required_operators": ["&", "=="],
+      "exact_expression": "(inst_q[head1_w] & 32'hfe007fff) == 32'h12000073",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_is_xret_raw_w",
+      "sources": ["inst_q", "head1_w"],
+      "positive_sources": ["inst_q", "head1_w"],
+      "required_operators": ["==", "||"],
+      "exact_expression": "(inst_q[head1_w] == 32'h30200073) || (inst_q[head1_w] == 32'h10200073)",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_is_fencei_raw_w",
+      "sources": ["inst_q", "head1_w"],
+      "positive_sources": ["inst_q", "head1_w"],
+      "required_operators": ["=="],
+      "exact_expression": "inst_q[head1_w] == 32'h0000100f",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_potential_context_boundary_w",
+      "sources": ["head1_is_csr_raw_w", "head1_is_sfence_vma_raw_w", "head1_is_xret_raw_w", "head1_is_fencei_raw_w"],
+      "positive_sources": ["head1_is_csr_raw_w", "head1_is_sfence_vma_raw_w", "head1_is_xret_raw_w", "head1_is_fencei_raw_w"],
+      "required_operators": ["||"],
+      "exact_expression": "head1_is_csr_raw_w || head1_is_sfence_vma_raw_w || head1_is_xret_raw_w || head1_is_fencei_raw_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "head1_context_boundary_w",
+      "sources": ["valid_q", "head1_w", "head1_done_w", "head1_exception_w", "head1_potential_context_boundary_w"],
+      "positive_sources": ["valid_q", "head1_w", "head1_done_w", "head1_potential_context_boundary_w"],
+      "negated_sources": ["head1_exception_w"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "valid_q[head1_w] && head1_done_w && !head1_exception_w && head1_potential_context_boundary_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooRob",
+      "target": "commit0_fire_w",
+      "sources": ["head0_base_ready_w", "head0_context_permit_i", "fencei_retire_permit_i"],
+      "positive_sources": ["head0_base_ready_w", "head0_context_permit_i", "fencei_retire_permit_i"],
+      "required_operators": ["&&"],
+      "exact_expression": "head0_base_ready_w && head0_context_permit_i && fencei_retire_permit_i",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "reservation_valid_next_w",
+      "sources": ["reservation_valid_q", "reservation_set_w", "lr_context_clear_i"],
+      "positive_sources": ["reservation_valid_q", "reservation_set_w"],
+      "negated_sources": ["lr_context_clear_i"],
+      "required_operators": ["||", "&&", "!"],
+      "exact_expression": "(reservation_valid_q || reservation_set_w) && !lr_context_clear_i",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "context_quiet_o",
+      "sources": ["fetch_request_outstanding_q", "fetch_fill_pending_q", "fpc_write_pending_q"],
+      "negated_sources": ["fetch_request_outstanding_q", "fetch_fill_pending_q", "fpc_write_pending_q"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "!fetch_request_outstanding_q && !fetch_fill_pending_q && !fpc_write_pending_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "context_squash_done_o",
+      "sources": ["fetch_context_squash_ack_q", "fetch_context_squash_generation_q", "context_squash_generation_i"],
+      "positive_sources": ["fetch_context_squash_ack_q", "fetch_context_squash_generation_q", "context_squash_generation_i"],
+      "required_operators": ["&&", "=="],
+      "exact_expression": "fetch_context_squash_ack_q && (fetch_context_squash_generation_q == context_squash_generation_i)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_done_o",
+      "sources": ["fencei_squash_ack_q", "fencei_squash_generation_q", "fencei_squash_generation_i"],
+      "positive_sources": ["fencei_squash_ack_q", "fencei_squash_generation_q", "fencei_squash_generation_i"],
+      "required_operators": ["&&", "=="],
+      "exact_expression": "fencei_squash_ack_q && (fencei_squash_generation_q == fencei_squash_generation_i)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_req_ready_o",
+      "sources": ["fetch_req_ready_base_w", "context_capture_block_i"],
+      "positive_sources": ["fetch_req_ready_base_w"],
+      "negated_sources": ["context_capture_block_i"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "fetch_req_ready_base_w && !context_capture_block_i",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "itlb_fill_valid_w",
+      "sources": ["itlb_fill_candidate_w", "context_capture_block_i"],
+      "positive_sources": ["itlb_fill_candidate_w"],
+      "negated_sources": ["context_capture_block_i"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "itlb_fill_candidate_w && !context_capture_block_i",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_cache_fill_valid_w",
+      "sources": ["fetch_cache_fill_candidate_w", "context_capture_block_i"],
+      "positive_sources": ["fetch_cache_fill_candidate_w"],
+      "negated_sources": ["context_capture_block_i"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "fetch_cache_fill_candidate_w && !context_capture_block_i",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fpc_translation_invalidate_w",
+      "sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "positive_sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "required_operators": ["&&", "&", "|"],
+      "exact_expression": "translation_context_invalidate_i && |(translation_context_cause_i & `OOO_CONTEXT_FPC_CAUSE_MASK)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_invalidate_w",
+      "sources": ["fpc_translation_invalidate_w", "fencei_commit_fire_i"],
+      "positive_sources": ["fpc_translation_invalidate_w", "fencei_commit_fire_i"],
+      "required_operators": ["||"],
+      "exact_expression": "fpc_translation_invalidate_w || fencei_commit_fire_i",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooMemAxiBridge",
+      "target": "dtlb_context_invalidate_w",
+      "sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "positive_sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "required_operators": ["&&", "&", "|"],
+      "exact_expression": "translation_context_invalidate_i && |(translation_context_cause_i & `OOO_CONTEXT_DTLB_CAUSE_MASK)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "itlb_context_invalidate_w",
+      "sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "positive_sources": ["translation_context_invalidate_i", "translation_context_cause_i"],
+      "required_operators": ["&&", "&", "|"],
+      "exact_expression": "translation_context_invalidate_i && |(translation_context_cause_i & `OOO_CONTEXT_ITLB_CAUSE_MASK)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_payload_owner_is_pending_system_w",
+      "sources": ["context_boundary_grant_payload_i"],
+      "positive_sources": ["context_boundary_grant_payload_i"],
+      "required_operators": ["=="],
+      "exact_expression": "context_boundary_grant_payload_i[`OOO_CONTEXT_OWNER_MSB:`OOO_CONTEXT_OWNER_LSB] == `OOO_CONTEXT_OWNER_PENDING_SYSTEM",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "context_boundary_pending_system_clear_w",
+      "sources": ["context_boundary_grant_fire_i", "context_boundary_payload_owner_is_pending_system_w"],
+      "positive_sources": ["context_boundary_grant_fire_i", "context_boundary_payload_owner_is_pending_system_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "context_boundary_grant_fire_i && context_boundary_payload_owner_is_pending_system_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "pending_system_clear_w",
+      "sources": ["legacy_pending_system_clear_w", "context_boundary_pending_system_clear_w"],
+      "positive_sources": ["legacy_pending_system_clear_w", "context_boundary_pending_system_clear_w"],
+      "required_operators": ["||"],
+      "exact_expression": "legacy_pending_system_clear_w || context_boundary_pending_system_clear_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_prepare_valid_w",
+      "sources": ["head0_retire_candidate_valid_i", "head0_fencei_raw_w"],
+      "positive_sources": ["head0_retire_candidate_valid_i", "head0_fencei_raw_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "head0_retire_candidate_valid_i && head0_fencei_raw_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_ifu_cancel_current_done_w",
+      "sources": ["fencei_ifu_cancel_done_i", "fencei_ifu_ack_generation_i", "fencei_transaction_generation_q"],
+      "positive_sources": ["fencei_ifu_cancel_done_i", "fencei_ifu_ack_generation_i", "fencei_transaction_generation_q"],
+      "required_operators": ["&&", "=="],
+      "exact_expression": "fencei_ifu_cancel_done_i && (fencei_ifu_ack_generation_i == fencei_transaction_generation_q)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_serial_ready_next_w",
+      "sources": ["fencei_prepare_valid_w", "mem_retire_quiet_i", "mem_idle_i", "fencei_ifu_cancel_current_done_w", "fencei_ifu_quiet_i"],
+      "positive_sources": ["fencei_prepare_valid_w", "mem_retire_quiet_i", "mem_idle_i", "fencei_ifu_cancel_current_done_w", "fencei_ifu_quiet_i"],
+      "required_operators": ["&&"],
+      "exact_expression": "fencei_prepare_valid_w && mem_retire_quiet_i && mem_idle_i && fencei_ifu_cancel_current_done_w && fencei_ifu_quiet_i",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_retire_permit_o",
+      "sources": ["head0_fencei_raw_w", "fencei_serial_ready_q"],
+      "positive_sources": ["fencei_serial_ready_q"],
+      "negated_sources": ["head0_fencei_raw_w"],
+      "required_operators": ["!", "||"],
+      "exact_expression": "!head0_fencei_raw_w || fencei_serial_ready_q",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_squash_valid_o",
+      "sources": ["fencei_prepare_valid_w", "fencei_squash_sent_q"],
+      "positive_sources": ["fencei_prepare_valid_w"],
+      "negated_sources": ["fencei_squash_sent_q"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "fencei_prepare_valid_w && !fencei_squash_sent_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooControlPlane",
+      "target": "fencei_commit_fire_o",
+      "sources": ["core_commit0_valid_w", "head0_fencei_raw_w", "fencei_serial_ready_q"],
+      "positive_sources": ["core_commit0_valid_w", "head0_fencei_raw_w", "fencei_serial_ready_q"],
+      "required_operators": ["&&"],
+      "exact_expression": "core_commit0_valid_w && head0_fencei_raw_w && fencei_serial_ready_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_deferred_enqueue_w",
+      "sources": ["context_boundary_active_i", "context_legacy_writer_valid_w"],
+      "positive_sources": ["context_boundary_active_i", "context_legacy_writer_valid_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "context_boundary_active_i && context_legacy_writer_valid_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_state_apply_fire_w",
+      "sources": ["context_apply_valid_i", "legacy_context_write_fire_w"],
+      "positive_sources": ["context_apply_valid_i"],
+      "negated_sources": ["legacy_context_write_fire_w"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "context_apply_valid_i && !legacy_context_write_fire_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_writer_owned_o",
+      "sources": ["context_writer_owner_q"],
+      "positive_sources": ["context_writer_owner_q"],
+      "required_operators": [],
+      "exact_expression": "context_writer_owner_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "CsrFile",
+      "target": "context_reserve_ready_o",
+      "sources": ["context_writer_owner_q", "context_legacy_active_q", "context_deferred_writer_valid_q"],
+      "negated_sources": ["context_writer_owner_q", "context_legacy_active_q", "context_deferred_writer_valid_q"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "!context_writer_owner_q && !context_legacy_active_q && !context_deferred_writer_valid_q",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_held_identity_w",
+      "sources": ["mmu_epoch_grant_payload_w"],
+      "positive_sources": ["mmu_epoch_grant_payload_w"],
+      "required_operators": [],
+      "exact_expression": "mmu_epoch_grant_payload_w[`OOO_CONTEXT_ID_MSB:`OOO_CONTEXT_ID_LSB]",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "translation_context_invalidate_w",
+      "sources": ["mmu_epoch_grant_fire_w", "mmu_epoch_grant_cause_w"],
+      "positive_sources": ["mmu_epoch_grant_fire_w", "mmu_epoch_grant_cause_w"],
+      "required_operators": ["&&", "|"],
+      "exact_expression": "mmu_epoch_grant_fire_w && |mmu_epoch_grant_cause_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "lr_context_clear_w",
+      "sources": ["mmu_epoch_grant_fire_w"],
+      "positive_sources": ["mmu_epoch_grant_fire_w"],
+      "required_operators": [],
+      "exact_expression": "mmu_epoch_grant_fire_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_registered_quiet_set_w",
+      "sources": ["mmu_epoch_phase_q", "mmu_epoch_full_quiet_w"],
+      "positive_sources": ["mmu_epoch_phase_q", "mmu_epoch_full_quiet_w"],
+      "required_operators": ["==", "&&"],
+      "exact_expression": "(mmu_epoch_phase_q == `MMU_EPOCH_PHASE_WAIT_QUIET) && mmu_epoch_full_quiet_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_registered_quiet_clear_w",
+      "sources": ["mmu_epoch_grant_fire_w", "mmu_epoch_abort_fire_w"],
+      "positive_sources": ["mmu_epoch_grant_fire_w", "mmu_epoch_abort_fire_w"],
+      "required_operators": ["||"],
+      "exact_expression": "mmu_epoch_grant_fire_w || mmu_epoch_abort_fire_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "NpcCoreTop",
+      "target": "mmu_epoch_registered_quiet_next_w",
+      "sources": ["mmu_epoch_registered_quiet_q", "mmu_epoch_registered_quiet_set_w", "mmu_epoch_registered_quiet_clear_w"],
+      "positive_sources": ["mmu_epoch_registered_quiet_q", "mmu_epoch_registered_quiet_set_w"],
+      "negated_sources": ["mmu_epoch_registered_quiet_clear_w"],
+      "required_operators": ["||", "&&", "!"],
+      "exact_expression": "(mmu_epoch_registered_quiet_q || mmu_epoch_registered_quiet_set_w) && !mmu_epoch_registered_quiet_clear_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_sq_done_seen_next_w",
+      "sources": ["mem_context_sq_done_seen_q", "mem_context_squash_valid_i", "sq_context_squash_done_w"],
+      "positive_sources": ["mem_context_sq_done_seen_q", "sq_context_squash_done_w"],
+      "negated_sources": ["mem_context_squash_valid_i"],
+      "required_operators": ["&&", "||", "!"],
+      "exact_expression": "(mem_context_sq_done_seen_q && !mem_context_squash_valid_i) || sq_context_squash_done_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_owner_done_seen_next_w",
+      "sources": ["mem_context_owner_done_seen_q", "mem_context_squash_valid_i", "owner_context_squash_done_w"],
+      "positive_sources": ["mem_context_owner_done_seen_q", "owner_context_squash_done_w"],
+      "negated_sources": ["mem_context_squash_valid_i"],
+      "required_operators": ["&&", "||", "!"],
+      "exact_expression": "(mem_context_owner_done_seen_q && !mem_context_squash_valid_i) || owner_context_squash_done_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_squash_all_done_w",
+      "sources": ["mem_context_sq_done_seen_next_w", "mem_context_owner_done_seen_next_w"],
+      "positive_sources": ["mem_context_sq_done_seen_next_w", "mem_context_owner_done_seen_next_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "mem_context_sq_done_seen_next_w && mem_context_owner_done_seen_next_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_squash_ack_next_w",
+      "sources": ["mem_context_squash_ack_q", "mem_context_squash_all_done_w", "mem_context_squash_valid_i"],
+      "positive_sources": ["mem_context_squash_ack_q", "mem_context_squash_all_done_w"],
+      "negated_sources": ["mem_context_squash_valid_i"],
+      "required_operators": ["||", "&&", "!"],
+      "exact_expression": "(mem_context_squash_ack_q && !mem_context_squash_valid_i) || mem_context_squash_all_done_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "context_squash_apply_done_w",
+      "sources": ["context_squash_valid_i", "context_squash_age_scan_done_w"],
+      "positive_sources": ["context_squash_valid_i", "context_squash_age_scan_done_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "context_squash_valid_i && context_squash_age_scan_done_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "context_squash_ack_next_w",
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_apply_done_w"],
+      "positive_sources": ["context_squash_ack_q", "context_squash_apply_done_w"],
+      "negated_sources": ["context_squash_valid_i"],
+      "required_operators": ["&&", "||", "!"],
+      "exact_expression": "(context_squash_ack_q && !context_squash_valid_i) || context_squash_apply_done_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "context_squash_done_o",
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_identity_q", "context_squash_identity_i"],
+      "positive_sources": ["context_squash_ack_q", "context_squash_identity_q", "context_squash_identity_i"],
+      "negated_sources": ["context_squash_valid_i"],
+      "required_operators": ["&&", "!", "=="],
+      "exact_expression": "context_squash_ack_q && !context_squash_valid_i && (context_squash_identity_q == context_squash_identity_i)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "context_squash_apply_done_w",
+      "sources": ["context_squash_valid_i", "context_squash_age_scan_done_w"],
+      "positive_sources": ["context_squash_valid_i", "context_squash_age_scan_done_w"],
+      "required_operators": ["&&"],
+      "exact_expression": "context_squash_valid_i && context_squash_age_scan_done_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "context_squash_ack_next_w",
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_apply_done_w"],
+      "positive_sources": ["context_squash_ack_q", "context_squash_apply_done_w"],
+      "negated_sources": ["context_squash_valid_i"],
+      "required_operators": ["&&", "||", "!"],
+      "exact_expression": "(context_squash_ack_q && !context_squash_valid_i) || context_squash_apply_done_w",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "context_squash_done_o",
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_identity_q", "context_squash_identity_i"],
+      "positive_sources": ["context_squash_ack_q", "context_squash_identity_q", "context_squash_identity_i"],
+      "negated_sources": ["context_squash_valid_i"],
+      "required_operators": ["&&", "!", "=="],
+      "exact_expression": "context_squash_ack_q && !context_squash_valid_i && (context_squash_identity_q == context_squash_identity_i)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_squash_done_o",
+      "sources": ["mem_context_squash_ack_q", "mem_context_squash_identity_q", "mem_context_squash_identity_i"],
+      "positive_sources": ["mem_context_squash_ack_q", "mem_context_squash_identity_q", "mem_context_squash_identity_i"],
+      "required_operators": ["&&", "=="],
+      "exact_expression": "mem_context_squash_ack_q && (mem_context_squash_identity_q == mem_context_squash_identity_i)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_ingress_idle_o",
+      "sources": ["mem_owner_alloc_ingress_w", "sq_owner_bind_ingress_w", "mem_terminal_ingress_w", "mem_bridge_station_ingress_w", "mem_ptw_rmw_ingress_w"],
+      "negated_sources": ["mem_owner_alloc_ingress_w", "sq_owner_bind_ingress_w", "mem_terminal_ingress_w", "mem_bridge_station_ingress_w", "mem_ptw_rmw_ingress_w"],
+      "required_operators": ["&&", "!"],
+      "exact_expression": "!mem_owner_alloc_ingress_w && !sq_owner_bind_ingress_w && !mem_terminal_ingress_w && !mem_bridge_station_ingress_w && !mem_ptw_rmw_ingress_w",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_owner_live_empty_o",
+      "sources": ["mem_owner_live_count_w", "mem_terminal_pending_count_w"],
+      "positive_sources": ["mem_owner_live_count_w", "mem_terminal_pending_count_w"],
+      "required_operators": ["==", "&&"],
+      "exact_expression": "(mem_owner_live_count_w == 0) && (mem_terminal_pending_count_w == 0)",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_epoch_context_quiet_o",
+      "sources": ["mem_idle_o", "mem_retire_quiet_o", "mem_context_squash_done_o", "mem_epoch_ingress_idle_o"],
+      "positive_sources": ["mem_idle_o", "mem_retire_quiet_o", "mem_context_squash_done_o", "mem_epoch_ingress_idle_o"],
+      "required_operators": ["&&"],
+      "exact_expression": "mem_idle_o && mem_retire_quiet_o && mem_context_squash_done_o && mem_epoch_ingress_idle_o",
+      "forbidden_operators": ["||"],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_squash_ack_next_w",
+      "sources": ["fetch_context_squash_ack_q", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w", "context_squash_valid_i"],
+      "positive_sources": ["fetch_context_squash_ack_q", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w"],
+      "negated_sources": ["context_squash_valid_i"],
+      "required_operators": ["||", "&&", "!"],
+      "exact_expression": "(fetch_context_squash_ack_q || (fetch_transport_cancel_done_w && fetch_ptw_cancel_done_w && fetch_fpc_cancel_done_w)) && !context_squash_valid_i",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_ack_next_w",
+      "sources": ["fencei_squash_ack_q", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w", "fencei_squash_valid_i"],
+      "positive_sources": ["fencei_squash_ack_q", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w"],
+      "negated_sources": ["fencei_squash_valid_i"],
+      "required_operators": ["||", "&&", "!"],
+      "exact_expression": "(fencei_squash_ack_q || (fetch_transport_cancel_done_w && fetch_ptw_cancel_done_w && fetch_fpc_cancel_done_w)) && !fencei_squash_valid_i",
+      "forbidden_operators": [],
+      "forbid_absorbing_constants": true,
+      "forbid_ternary_xor": true
+    }
+  ],
+  "required_port_widths": [
+    {"module": "OooRob", "port": "head0_identity_o", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "CsrFile", "port": "context_prepare_identity_i", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "CsrFile", "port": "context_cause_o", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "CsrFile", "port": "context_payload_o", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "CsrFile", "port": "context_apply_payload_i", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "OooIntBackend", "port": "mem_context_squash_identity_i", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooIntBackend", "port": "current_mmu_epoch_i", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "port": "mem_req_mmu_epoch_o", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "port": "head0_identity_o", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooDispatchBackend", "port": "head0_identity_o", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooCoreTopGlue", "port": "translation_context_cause_i", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "OooCoreTopGlue", "port": "context_boundary_grant_payload_i", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "OooControlPlane", "port": "context_boundary_grant_payload_i", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "OooCoreTopGlue", "port": "fencei_ifu_ack_generation_i", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooCoreTopGlue", "port": "fencei_squash_generation_o", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooControlPlane", "port": "fencei_ifu_ack_generation_i", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooControlPlane", "port": "fencei_squash_generation_o", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooControlPlane", "port": "context_boundary_redirect_pc_o", "width_token": "`XLEN"},
+    {"module": "OooFrontend", "port": "context_boundary_redirect_pc_i", "width_token": "`XLEN"},
+    {"module": "OooMemoryAccess", "port": "translation_context_cause_i", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "OooMemoryRequestGate", "port": "translation_context_cause_i", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "OooMemAxiBridge", "port": "translation_context_cause_i", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "OooFetchAxiBridge", "port": "translation_context_cause_i", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "OooFetchAxiBridge", "port": "context_squash_generation_i", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooFetchAxiBridge", "port": "context_squash_ack_generation_o", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooFetchAxiBridge", "port": "fencei_squash_generation_i", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooFetchAxiBridge", "port": "fencei_squash_ack_generation_o", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooMemInflightQueue", "port": "push_mmu_epoch_i", "width_token": "MMU_EPOCH_W"},
+    {"module": "OooMemInflightQueue", "port": "head_mmu_epoch_o", "width_token": "MMU_EPOCH_W"},
+    {"module": "OooStoreQueue", "port": "fill0_mmu_epoch_i", "width_token": "MMU_EPOCH_W"},
+    {"module": "OooStoreQueue", "port": "context_squash_identity_i", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooStoreQueue", "port": "rob_head_idx_i", "width_token": "ROB_INDEX_W"},
+    {"module": "OooStoreQueue", "port": "alloc0_rob_idx_i", "width_token": "ROB_INDEX_W"},
+    {"module": "OooStoreQueue", "port": "alloc1_rob_idx_i", "width_token": "ROB_INDEX_W"},
+    {"module": "OooMemOwnerTracker", "port": "context_squash_identity_i", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooMemOwnerTracker", "port": "rob_head_idx_i", "width_token": "ROB_INDEX_W"},
+    {"module": "OooMemOwnerTracker", "port": "alloc0_rob_idx_i", "width_token": "ROB_INDEX_W"},
+    {"module": "OooMemOwnerTracker", "port": "alloc0_epoch_i", "width_token": "EPOCH_W"},
+    {"module": "OooMemOwnerTracker", "port": "irrevocable_kind_i", "width_token": "KIND_W"},
+    {"module": "OooMemOwnerTracker", "port": "irrevocable_token_i", "width_token": "TOKEN_W"},
+    {"module": "OooMemOwnerTracker", "port": "irrevocable_epoch_i", "width_token": "EPOCH_W"},
+    {"module": "OooMmuEpochOwner", "port": "mmu_epoch_o", "width_token": "`OOO_MMU_EPOCH_W"}
+  ],
+  "required_signal_widths": [
+    {"module": "NpcCoreTop", "signal": "ooo_head0_identity_w", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "NpcCoreTop", "signal": "mmu_epoch_held_identity_w", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "NpcCoreTop", "signal": "mmu_epoch_grant_payload_w", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "NpcCoreTop", "signal": "csr_context_payload_w", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "NpcCoreTop", "signal": "mmu_epoch_grant_cause_w", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "NpcCoreTop", "signal": "csr_context_cause_w", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "NpcCoreTop", "signal": "mmu_epoch_boundary_generation_w", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "NpcCoreTop", "signal": "ifu_context_squash_ack_generation_w", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "NpcCoreTop", "signal": "fencei_squash_generation_w", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "NpcCoreTop", "signal": "fencei_ifu_ack_generation_w", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "NpcCoreTop", "signal": "current_mmu_epoch_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "CsrFile", "signal": "context_deferred_writer_cause_q", "width_token": "`OOO_CONTEXT_CAUSE_W"},
+    {"module": "CsrFile", "signal": "context_deferred_writer_payload_q", "width_token": "`OOO_CONTEXT_PAYLOAD_W"},
+    {"module": "CsrFile", "signal": "context_deferred_writer_owner_q", "width_token": "`OOO_CONTEXT_OWNER_W"},
+    {"module": "OooFetchAxiBridge", "signal": "fetch_context_squash_generation_q", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooFetchAxiBridge", "signal": "fencei_squash_generation_q", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooControlPlane", "signal": "fencei_transaction_generation_q", "width_token": "`OOO_CONTEXT_GENERATION_W"},
+    {"module": "OooIntBackend", "signal": "mem_context_squash_identity_q", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooIntBackend", "signal": "mem_context_squash_identity_next_w", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooIntBackend", "signal": "mem_issue_res_mmu_epoch_q", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "mem_issue_res_mmu_epoch_next_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "mem_mmu_epoch_q", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "mem_mmu_epoch_next_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "mem_buffer_mmu_epoch_q", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "mem_buffer_mmu_epoch_next_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "miq_head_mmu_epoch_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "miq_push_mmu_epoch_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooIntBackend", "signal": "sq_fill_mmu_epoch_w", "width_token": "`OOO_MMU_EPOCH_W"},
+    {"module": "OooMemInflightQueue", "signal": "mmu_epoch_q", "width_token": "MMU_EPOCH_W"},
+    {"module": "OooStoreQueue", "signal": "context_squash_identity_q", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooStoreQueue", "signal": "context_squash_identity_next_w", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooMemOwnerTracker", "signal": "context_squash_identity_q", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooMemOwnerTracker", "signal": "context_squash_identity_next_w", "width_token": "`OOO_CONTEXT_ID_W"},
+    {"module": "OooMemOwnerTracker", "signal": "rob_idx_q", "width_token": "ROB_INDEX_W"}
+  ],
+  "instance_parameters": [
+    {
+      "host": "NpcCoreTop",
+      "child": "OooMmuEpochOwner",
+      "instance": "u_mmu_epoch_owner",
+      "parameters": {
+        "CAUSE_W": "`OOO_CONTEXT_CAUSE_W",
+        "PAYLOAD_W": "`OOO_CONTEXT_PAYLOAD_W"
+      }
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemInflightQueue",
+      "instance": "u_mem_inflight_queue",
+      "parameters": {"MMU_EPOCH_W": "`OOO_MMU_EPOCH_W"}
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooStoreQueue",
+      "instance": "u_store_queue",
+      "parameters": {"MMU_EPOCH_W": "`OOO_MMU_EPOCH_W"}
+    },
+    {
+      "host": "OooIntBackend",
+      "child": "OooMemOwnerTracker",
+      "instance": "u_mem_owner_tracker",
+      "parameters": {"EPOCH_W": "`OOO_MMU_EPOCH_W"}
+    }
+  ],
+  "epoch_named_connections": [
+    {"module": "OooIntBackend", "port": "alloc0_epoch_i", "signal": "current_mmu_epoch_i"},
+    {"module": "OooIntBackend", "port": "push_mmu_epoch_i", "signal": "miq_push_mmu_epoch_w"},
+    {"module": "OooIntBackend", "port": "irrevocable_epoch_i", "signal": "mem_req_mmu_epoch_o"},
+    {"module": "OooIntBackend", "port": "owner_bind_mmu_epoch_i", "signal": "mem_issue_res_mmu_epoch_q"},
+    {"module": "OooIntBackend", "port": "fill0_mmu_epoch_i", "signal": "sq_fill_mmu_epoch_w"}
+  ],
+  "exact_next_expressions": [
+    {
+      "module": "OooIntBackend",
+      "target": "mem_context_squash_identity_next_w",
+      "sources": ["mem_context_squash_identity_q", "mem_context_squash_valid_i", "mem_context_squash_identity_i"],
+      "exact_expression": "mem_context_squash_valid_i ? mem_context_squash_identity_i : mem_context_squash_identity_q"
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "mem_req_fire_any_w",
+      "sources": ["mem_req_valid_o", "mem_req_ready_i"],
+      "exact_expression": "mem_req_valid_o && mem_req_ready_i"
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "miq_push_valid_w",
+      "sources": ["mem_req_fire_any_w"],
+      "exact_expression": "mem_req_fire_any_w"
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "miq_push_mmu_epoch_w",
+      "sources": ["mem_req_mmu_epoch_o"],
+      "exact_expression": "mem_req_mmu_epoch_o"
+    },
+    {
+      "module": "OooMemInflightQueue",
+      "target": "push_fire_w",
+      "sources": ["push_valid_i", "full_o", "flush_i"],
+      "exact_expression": "push_valid_i && !full_o && !flush_i"
+    },
+    {
+      "module": "OooMemInflightQueue",
+      "target": "head_mmu_epoch_o",
+      "sources": ["mmu_epoch_q", "head_q"],
+      "exact_expression": "mmu_epoch_q[head_q]"
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "alloc0_fire_w",
+      "sources": ["alloc0_valid_i", "alloc0_ready_o", "flush_valid_i"],
+      "exact_expression": "alloc0_valid_i && alloc0_ready_o && !flush_valid_i"
+    },
+    {
+      "module": "OooStoreQueue",
+      "target": "context_squash_identity_next_w",
+      "sources": ["context_squash_identity_q", "context_squash_valid_i", "context_squash_identity_i"],
+      "exact_expression": "context_squash_valid_i ? context_squash_identity_i : context_squash_identity_q"
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "alloc0_fire_w",
+      "sources": ["alloc0_valid_i", "alloc0_ready_o"],
+      "exact_expression": "alloc0_valid_i && alloc0_ready_o"
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "irrevocable_fire_w",
+      "sources": ["irrevocable_valid_i", "live_q", "irrevocable_token_i", "kind_q", "irrevocable_kind_i", "epoch_q", "irrevocable_epoch_i"],
+      "exact_expression": "irrevocable_valid_i && live_q[irrevocable_token_i] && (kind_q[irrevocable_token_i] == irrevocable_kind_i) && (epoch_q[irrevocable_token_i] == irrevocable_epoch_i)"
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "target": "context_squash_identity_next_w",
+      "sources": ["context_squash_identity_q", "context_squash_valid_i", "context_squash_identity_i"],
+      "exact_expression": "context_squash_valid_i ? context_squash_identity_i : context_squash_identity_q"
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fetch_context_squash_generation_next_w",
+      "sources": ["fetch_context_squash_generation_q", "context_squash_valid_i", "context_squash_generation_i"],
+      "exact_expression": "context_squash_valid_i ? context_squash_generation_i : fetch_context_squash_generation_q"
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "target": "fencei_squash_generation_next_w",
+      "sources": ["fencei_squash_generation_q", "fencei_squash_valid_i", "fencei_squash_generation_i"],
+      "exact_expression": "fencei_squash_valid_i ? fencei_squash_generation_i : fencei_squash_generation_q"
+    },
+    {
+      "module": "OooIntBackend",
+      "target": "sq_fill_mmu_epoch_w",
+      "sources": ["sq_mode_w", "miq_head_mmu_epoch_w", "mem_issue_res_mmu_epoch_q"],
+      "exact_expression": "sq_mode_w ? miq_head_mmu_epoch_w : mem_issue_res_mmu_epoch_q"
+    }
+  ],
+  "epoch_register_captures": [
+    {
+      "module": "OooIntBackend",
+      "register": "mem_issue_res_mmu_epoch_q",
+      "next_signal": "mem_issue_res_mmu_epoch_next_w",
+      "capture_fire": "mem_issue_res_capture_w",
+      "signal": "current_mmu_epoch_i",
+      "exact_expression": "mem_issue_res_capture_w ? current_mmu_epoch_i : mem_issue_res_mmu_epoch_q"
+    },
+    {
+      "module": "OooIntBackend",
+      "register": "mem_mmu_epoch_q",
+      "next_signal": "mem_mmu_epoch_next_w",
+      "capture_fire": "issue0_mem_request_fire_w",
+      "signal": "mem_issue_res_mmu_epoch_q",
+      "exact_expression": "issue0_mem_request_fire_w ? mem_issue_res_mmu_epoch_q : mem_mmu_epoch_q"
+    },
+    {
+      "module": "OooIntBackend",
+      "register": "mem_buffer_mmu_epoch_q",
+      "next_signal": "mem_buffer_mmu_epoch_next_w",
+      "capture_fire": "issue0_mem_buffer_fire_w",
+      "signal": "mem_issue_res_mmu_epoch_q",
+      "exact_expression": "issue0_mem_buffer_fire_w ? mem_issue_res_mmu_epoch_q : mem_buffer_mmu_epoch_q"
+    }
+  ],
+  "unique_next_writes": [
+    {"module": "CsrFile", "register": "priv_mode_q", "next_signal": "context_priv_mode_next_w"},
+    {"module": "CsrFile", "register": "csr_mstatus_q", "next_signal": "context_mstatus_next_w"},
+    {"module": "CsrFile", "register": "csr_satp_q", "next_signal": "context_satp_next_w"},
+    {"module": "CsrFile", "register": "csr_menvcfg_q", "next_signal": "context_menvcfg_next_w"},
+    {"module": "CsrFile", "register": "csr_pmpcfg_q", "next_signal": "context_pmpcfg_next_w", "allow_indexed": true},
+    {"module": "CsrFile", "register": "csr_pmpaddr_q", "next_signal": "context_pmpaddr_next_w", "allow_indexed": true},
+    {"module": "CsrFile", "register": "csr_mepc_q", "next_signal": "context_mepc_next_w"},
+    {"module": "CsrFile", "register": "csr_sepc_q", "next_signal": "context_sepc_next_w"},
+    {"module": "CsrFile", "register": "csr_mcause_q", "next_signal": "context_mcause_next_w"},
+    {"module": "CsrFile", "register": "csr_scause_q", "next_signal": "context_scause_next_w"},
+    {"module": "CsrFile", "register": "csr_mtval_q", "next_signal": "context_mtval_next_w"},
+    {"module": "CsrFile", "register": "csr_stval_q", "next_signal": "context_stval_next_w"},
+    {"module": "CsrFile", "register": "context_writer_owner_q", "next_signal": "context_writer_owner_next_w"},
+    {"module": "CsrFile", "register": "context_legacy_active_q", "next_signal": "context_legacy_active_next_w"},
+    {"module": "CsrFile", "register": "context_deferred_writer_valid_q", "next_signal": "context_deferred_writer_valid_next_w"},
+    {"module": "CsrFile", "register": "context_deferred_writer_cause_q", "next_signal": "context_deferred_writer_cause_next_w"},
+    {"module": "CsrFile", "register": "context_deferred_writer_payload_q", "next_signal": "context_deferred_writer_payload_next_w"},
+    {"module": "CsrFile", "register": "context_deferred_writer_owner_q", "next_signal": "context_deferred_writer_owner_next_w"},
+    {"module": "OooIntBackend", "register": "reservation_valid_q", "next_signal": "reservation_valid_next_w"},
+    {"module": "OooIntBackend", "register": "mem_context_squash_identity_q", "next_signal": "mem_context_squash_identity_next_w"},
+    {"module": "OooIntBackend", "register": "mem_context_sq_done_seen_q", "next_signal": "mem_context_sq_done_seen_next_w"},
+    {"module": "OooIntBackend", "register": "mem_context_owner_done_seen_q", "next_signal": "mem_context_owner_done_seen_next_w"},
+    {"module": "OooIntBackend", "register": "mem_context_squash_ack_q", "next_signal": "mem_context_squash_ack_next_w"},
+    {"module": "OooIntBackend", "register": "mem_issue_res_mmu_epoch_q", "next_signal": "mem_issue_res_mmu_epoch_next_w"},
+    {"module": "OooIntBackend", "register": "mem_mmu_epoch_q", "next_signal": "mem_mmu_epoch_next_w"},
+    {"module": "OooIntBackend", "register": "mem_buffer_mmu_epoch_q", "next_signal": "mem_buffer_mmu_epoch_next_w"},
+    {"module": "NpcCoreTop", "register": "mmu_epoch_phase_q", "next_signal": "mmu_epoch_phase_next_w"},
+    {"module": "NpcCoreTop", "register": "mmu_epoch_squash_sent_q", "next_signal": "mmu_epoch_squash_sent_next_w"},
+    {"module": "NpcCoreTop", "register": "mmu_epoch_transaction_generation_q", "next_signal": "mmu_epoch_transaction_generation_next_w"},
+    {"module": "NpcCoreTop", "register": "mmu_epoch_identity_mismatch_recovery_q", "next_signal": "mmu_epoch_identity_mismatch_recovery_next_w"},
+    {"module": "NpcCoreTop", "register": "mmu_epoch_registered_quiet_q", "next_signal": "mmu_epoch_registered_quiet_next_w"},
+    {"module": "OooMmuEpochOwner", "register": "state_q", "next_signal": "state_next_w"},
+    {"module": "OooMmuEpochOwner", "register": "held_cause_q", "next_signal": "held_cause_next_w"},
+    {"module": "OooMmuEpochOwner", "register": "held_payload_q", "next_signal": "held_payload_next_w"},
+    {"module": "OooStoreQueue", "register": "context_squash_identity_q", "next_signal": "context_squash_identity_next_w"},
+    {"module": "OooStoreQueue", "register": "context_squash_ack_q", "next_signal": "context_squash_ack_next_w"},
+    {"module": "OooMemOwnerTracker", "register": "context_squash_identity_q", "next_signal": "context_squash_identity_next_w"},
+    {"module": "OooMemOwnerTracker", "register": "context_squash_ack_q", "next_signal": "context_squash_ack_next_w"},
+    {"module": "OooFetchAxiBridge", "register": "fetch_context_squash_generation_q", "next_signal": "fetch_context_squash_generation_next_w"},
+    {"module": "OooFetchAxiBridge", "register": "fetch_context_squash_ack_q", "next_signal": "fetch_context_squash_ack_next_w"},
+    {"module": "OooFetchAxiBridge", "register": "fencei_squash_generation_q", "next_signal": "fencei_squash_generation_next_w"},
+    {"module": "OooFetchAxiBridge", "register": "fencei_squash_ack_q", "next_signal": "fencei_squash_ack_next_w"},
+    {"module": "OooControlPlane", "register": "fencei_serial_ready_q", "next_signal": "fencei_serial_ready_next_w"},
+    {"module": "OooControlPlane", "register": "fencei_squash_sent_q", "next_signal": "fencei_squash_sent_next_w"},
+    {"module": "OooControlPlane", "register": "fencei_transaction_generation_q", "next_signal": "fencei_transaction_generation_next_w"}
+  ],
+  "next_signal_source_groups": [
+    {
+      "module": "CsrFile",
+      "next_signals": [
+        "context_priv_mode_next_w",
+        "context_mstatus_next_w",
+        "context_satp_next_w",
+        "context_menvcfg_next_w",
+        "context_pmpcfg_next_w",
+        "context_pmpaddr_next_w",
+        "context_mepc_next_w",
+        "context_sepc_next_w",
+        "context_mcause_next_w",
+        "context_scause_next_w",
+        "context_mtval_next_w",
+        "context_stval_next_w"
+      ],
+      "sources": [
+        "context_state_write_select_w",
+        "context_apply_payload_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": [
+        "context_writer_owner_next_w"
+      ],
+      "sources": [
+        "context_reserve_valid_i",
+        "context_apply_valid_i",
+        "context_abort_valid_i"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "next_signals": [
+        "state_next_w"
+      ],
+      "sources": [
+        "request_fire_w",
+        "full_quiet_w",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "next_signals": [
+        "held_cause_next_w"
+      ],
+      "sources": [
+        "request_fire_w",
+        "request_cause_i",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "OooMmuEpochOwner",
+      "next_signals": [
+        "held_payload_next_w"
+      ],
+      "sources": [
+        "request_fire_w",
+        "request_payload_i",
+        "grant_fire_w",
+        "abort_i"
+      ]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": ["context_legacy_active_next_w"],
+      "sources": ["context_legacy_active_q", "context_legacy_writer_valid_w", "context_apply_valid_i", "context_abort_valid_i"]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": ["context_deferred_writer_valid_next_w"],
+      "sources": ["context_deferred_writer_valid_q", "context_deferred_enqueue_w", "context_apply_valid_i", "context_abort_valid_i"]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": ["context_deferred_writer_cause_next_w"],
+      "sources": ["context_deferred_writer_cause_q", "context_deferred_enqueue_w", "context_legacy_writer_cause_w"]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": ["context_deferred_writer_payload_next_w"],
+      "sources": ["context_deferred_writer_payload_q", "context_deferred_enqueue_w", "context_legacy_writer_payload_w"]
+    },
+    {
+      "module": "CsrFile",
+      "next_signals": ["context_deferred_writer_owner_next_w"],
+      "sources": ["context_deferred_writer_owner_q", "context_deferred_enqueue_w", "context_legacy_writer_owner_w"]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "next_signals": ["fetch_context_squash_generation_next_w"],
+      "sources": ["fetch_context_squash_generation_q", "context_squash_valid_i", "context_squash_generation_i"]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "next_signals": ["fetch_context_squash_ack_next_w"],
+      "sources": ["fetch_context_squash_ack_q", "context_squash_valid_i", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w"]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "next_signals": ["fencei_squash_generation_next_w"],
+      "sources": ["fencei_squash_generation_q", "fencei_squash_valid_i", "fencei_squash_generation_i"]
+    },
+    {
+      "module": "OooFetchAxiBridge",
+      "next_signals": ["fencei_squash_ack_next_w"],
+      "sources": ["fencei_squash_ack_q", "fencei_squash_valid_i", "fetch_transport_cancel_done_w", "fetch_ptw_cancel_done_w", "fetch_fpc_cancel_done_w"]
+    },
+    {
+      "module": "OooControlPlane",
+      "next_signals": ["fencei_serial_ready_next_w"],
+      "sources": ["fencei_prepare_valid_w", "mem_retire_quiet_i", "mem_idle_i", "fencei_ifu_cancel_current_done_w", "fencei_ifu_quiet_i"]
+    },
+    {
+      "module": "OooControlPlane",
+      "next_signals": ["fencei_squash_sent_next_w"],
+      "sources": ["fencei_squash_sent_q", "fencei_squash_valid_o", "fencei_commit_fire_o"]
+    },
+    {
+      "module": "OooControlPlane",
+      "next_signals": ["fencei_transaction_generation_next_w"],
+      "sources": ["fencei_transaction_generation_q", "fencei_squash_valid_o"]
+    },
+    {
+      "module": "NpcCoreTop",
+      "next_signals": ["mmu_epoch_registered_quiet_next_w"],
+      "sources": ["mmu_epoch_registered_quiet_q", "mmu_epoch_registered_quiet_set_w", "mmu_epoch_registered_quiet_clear_w"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_context_squash_identity_next_w"],
+      "sources": ["mem_context_squash_identity_q", "mem_context_squash_valid_i", "mem_context_squash_identity_i"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_context_sq_done_seen_next_w"],
+      "sources": ["mem_context_sq_done_seen_q", "mem_context_squash_valid_i", "sq_context_squash_done_w"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_context_owner_done_seen_next_w"],
+      "sources": ["mem_context_owner_done_seen_q", "mem_context_squash_valid_i", "owner_context_squash_done_w"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_context_squash_ack_next_w"],
+      "sources": ["mem_context_squash_ack_q", "mem_context_squash_all_done_w", "mem_context_squash_valid_i"]
+    },
+    {
+      "module": "OooStoreQueue",
+      "next_signals": ["context_squash_identity_next_w"],
+      "sources": ["context_squash_identity_q", "context_squash_valid_i", "context_squash_identity_i"]
+    },
+    {
+      "module": "OooStoreQueue",
+      "next_signals": ["context_squash_ack_next_w"],
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_apply_done_w"]
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "next_signals": ["context_squash_identity_next_w"],
+      "sources": ["context_squash_identity_q", "context_squash_valid_i", "context_squash_identity_i"]
+    },
+    {
+      "module": "OooMemOwnerTracker",
+      "next_signals": ["context_squash_ack_next_w"],
+      "sources": ["context_squash_ack_q", "context_squash_valid_i", "context_squash_apply_done_w"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_issue_res_mmu_epoch_next_w"],
+      "sources": ["mem_issue_res_mmu_epoch_q", "mem_issue_res_capture_w", "current_mmu_epoch_i"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_mmu_epoch_next_w"],
+      "sources": ["mem_mmu_epoch_q", "issue0_mem_request_fire_w", "mem_issue_res_mmu_epoch_q"]
+    },
+    {
+      "module": "OooIntBackend",
+      "next_signals": ["mem_buffer_mmu_epoch_next_w"],
+      "sources": ["mem_buffer_mmu_epoch_q", "issue0_mem_buffer_fire_w", "mem_issue_res_mmu_epoch_q"]
+    }
+  ],
+  "semantic_gates": [
+    "abort_dominates_grant_apply_and_epoch_advance",
+    "abort_edge_keeps_capture_block_and_forbids_commit_invalidate_lr_redirect",
+    "abort_releases_only_held_csr_owner_and_preserves_deferred_writer",
+    "ifu_ack_sticky_until_next_request_and_only_after_fetch_ptw_fpc_cancel_or_drain",
+    "ifu_generation_reuse_only_after_all_old_references_empty",
+    "fencei_waits_store_retire_mem_idle_current_generation_ifu_done_and_ifu_quiet",
+    "fencei_commit_does_not_request_or_advance_data_mmu_epoch",
+    "deferred_legacy_writer_eventually_arbitrates_exactly_once",
+    "context_apply_and_legacy_write_are_mutually_exclusive",
+    "registered_quiet_and_memory_squash_ack_are_sticky_and_generation_matched",
+    "all_epoch_captures_use_active_valid_next_state_and_canonical_owner_leaves",
+    "active_preprocessed_source_matches_every_frozen_critical_equation",
+    "payload_fields_and_typed_cause_masks_match_concrete_macro_values",
+    "every_context_register_has_one_canonical_procedural_writer",
+    "sq_fill_epoch_mux_sources_are_canonical",
+    "fencei_producer_outputs_are_exact_and_host_local_single_source",
+    "csr_payload_identity_has_one_exact_nonoverlapping_slice_writer",
+    "miq_request_fire_is_accepted_exactly_once_and_replays_captured_epoch_until_pop",
+    "memory_squash_true_leaves_preserve_strict_age_irrevocable_and_single_store_release",
+    "memory_squash_leaf_pulses_are_set_dominant_and_losslessly_aggregated",
+    "canonical_instances_exist_in_release_and_ooo_assert_elaboration"
+  ],
+  "required_mutations": [
+    "inverted_held_identity_equality",
+    "inverted_grant_source",
+    "phase_nonzero_instead_of_phase_equals_squash",
+    "stale_ifu_generation_ack",
+    "nonsticky_ifu_done_pulse",
+    "capture_block_gates_registered_axi_continuation",
+    "fencei_retires_before_store_or_ifu_drain",
+    "fencei_advances_data_epoch",
+    "same_host_dummy_leaf_instance",
+    "typed_leaf_wrong_cause_mask",
+    "boundary_redirect_bypasses_arbiter",
+    "raw_legacy_writer_bypasses_defer",
+    "legacy_constant_register_write",
+    "multiple_sequential_register_drivers",
+    "blocking_register_write",
+    "wide_absorbing_constant",
+    "ternary_boolean_bypass",
+    "truncated_internal_identity_or_generation",
+    "off_by_one_or_symbolic_packed_range",
+    "nonreset_constant_tail_override",
+    "sequential_delay_disguised_as_combinational_dependency",
+    "lane1_classifier_self_inequality_or_missing_boundary_class",
+    "inactive_conditional_canonical_equation",
+    "canonical_instance_source_or_sink_tied_constant",
+    "unused_fetch_admission_or_fill_gate",
+    "memory_squash_done_uses_or_or_nonsticky_ack",
+    "registered_quiet_is_combinational_or_not_unique_next",
+    "early_translation_invalidate_or_lr_clear",
+    "wrong_held_identity_payload_slice",
+    "overlapping_or_out_of_range_payload_fields",
+    "duplicate_cause_bit_or_wrong_leaf_mask_value",
+    "epoch_capture_valid_branch_constant_or_alias",
+    "dummy_memory_owner_or_store_queue_instance",
+    "always_ff_negedge_latch_initial_or_continuous_register_writer",
+    "sq_fill_epoch_constant_alias_or_wrong_provenance",
+    "fencei_producer_output_alias_or_wrong_instance_map",
+    "payload_identity_wrong_slice_shifted_source_or_overlapping_writer",
+    "miq_parent_fire_when_full_or_flush",
+    "miq_push_epoch_constant_or_live_current_alias",
+    "miq_head_reads_tail_or_live_current_epoch",
+    "memory_squash_true_leaf_constant_or_request_echo_done",
+    "memory_squash_clear_dominates_leaf_done_or_all_done",
+    "memory_squash_owner_rob_or_irrevocable_provenance_missing",
+    "memory_squash_store_double_release_or_fired_owner_killed",
+    "dead_generate_critical_equation_or_instance",
+    "scalar_or_multidimensional_partial_register_writer",
+    "task_output_inout_ref_register_writer"
+  ],
+  "forbidden_constant_epoch_ports": [
+    "alloc0_epoch_i",
+    "owner_bind_mmu_epoch_i",
+    "fill0_mmu_epoch_i"
+  ]
+}

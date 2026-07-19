@@ -124,6 +124,14 @@ module tb_ooo_fetch_request_mux;
                fetch_rsp_packet_next_pc);
 
     reset_inputs();
+    outstanding_valid = 1'b1;
+    fetch_rsp_valid = 1'b0;
+    fetch_rsp_packet_next_pc = 64'h0000_0000_0000_1180;
+    #1;
+    check_xlen("outstanding owner preloads raw packet pc before valid",
+               fetch_req_pc, fetch_rsp_packet_next_pc);
+
+    reset_inputs();
     fetch_rsp_valid = 1'b1;
     #1;
     check_xlen("stale response without owner does not preload", fetch_req_pc,
@@ -191,7 +199,8 @@ module tb_ooo_fetch_request_mux;
     #1;
     tb_check1("outstanding blocks redirect request", redirect_fetch_req_valid,
               1'b0);
-    check_xlen("blocked redirect falls to seq", fetch_req_pc, next_fetch_pc);
+    check_xlen("blocked redirect keeps outstanding raw packet preload",
+               fetch_req_pc, fetch_rsp_packet_next_pc);
 
     reset_inputs();
     direct_jal_fire = 1'b1;

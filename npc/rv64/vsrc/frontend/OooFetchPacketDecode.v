@@ -33,6 +33,7 @@ module OooFetchPacketDecode (
   output [12:0] dec1_bimm_o,
 
   output [`XLEN-1:0] packet_next_pc_o,
+  output [`XLEN-1:0] packet_raw_next_pc_o,
   // 首个失败 fetch portion 的精确地址；下游以同一 packet owner 同时保存。
   output [`XLEN-1:0] fault_tval_o
 );
@@ -63,6 +64,16 @@ module OooFetchPacketDecode (
   wire [15:0] half0_w = rsp_inst0_i[15:0];
   wire [15:0] half1_w = rsp_inst0_i[31:16];
   wire [15:0] half2_w = rsp_inst1_i[15:0];
+  // R2.3 timing hint: raw packet successor is payload only. It deliberately
+  // ignores response provenance; a miss/fault has no successor-consume token.
+  wire raw_dec0_compressed_w = (half0_w[1:0] != 2'b11);
+  wire [15:0] raw_dec1_half_w =
+      raw_dec0_compressed_w ? half1_w : half2_w;
+  wire raw_dec1_compressed_w = (raw_dec1_half_w[1:0] != 2'b11);
+  wire [3:0] raw_packet_bytes_w =
+      raw_dec0_compressed_w ?
+      (raw_dec1_compressed_w ? 4'd4 : 4'd6) :
+      (raw_dec1_compressed_w ? 4'd6 : 4'd8);
 
   // 长度只能在 prefix 所需 segment 全部 OK 后读取。若 prefix 自身 fault，使用安全 C.NOP
   // 形状提供确定性 next_pc/inst；fault response 仍在下方胜出，禁止无效 tail bits 吞 fault。
@@ -150,6 +161,8 @@ module OooFetchPacketDecode (
        dec1_inst_o[11:8], 1'b0} : 13'b0;
 
   assign packet_next_pc_o = dec1_next_pc_o;
+  assign packet_raw_next_pc_o =
+      rsp_pc_i + {{(`XLEN-4){1'b0}}, raw_packet_bytes_w};
   assign fault_tval_o =
       rsp_pc_i + {{(`XLEN-3){1'b0}}, rsp_resp0_bytes_i};
 

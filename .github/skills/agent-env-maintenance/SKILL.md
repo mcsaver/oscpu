@@ -24,8 +24,9 @@ description: 维护 YSYX AI 开发环境三层架构时使用：数据库长期�
 9. 修改商业交付面、旧产物归档、包内容或包内敏感路径规则时同步 `.github/ai-env/contracts/agent-env-delivery.json`，运行 `scripts/package-ai-dev-env.sh`，并确认 `python3 scripts/github_index_db.py delivery-audit` 通过。
 10. 修改 agent 权限、retention、CI/nightly、FSM、交付或证据策略时同步 `.github/ai-env/contracts/agent-env-policy.json`，并确认 `python3 scripts/github_index_db.py policy-audit` 通过。
 11. 修改 review 路由、分支健康或 dashboard 口径时同步 `.github/ai-env/contracts/agent-env-review-routing.json` 与 `.github/ai-env/contracts/agent-env-branch-health.json`，并确认 `python3 scripts/github_index_db.py branch-health-audit` 通过。
-12. 维护完成后运行 `scripts/agent-maintain.sh --mode check`。若触及 e2e/profile/脚本，再运行相关 `scripts/agent-e2e.sh --profile <profile>`。
-13. 最后更新 `project-status` 与 `memory/modules/agent-system.md`，并为跨层任务留下 `.github/task-runs/<日期-任务名>/` 证据包。
+12. 修改本地 RTL 子 agent 派发边界时同步 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、`.github/instructions/rtl-agent-task-contract.instructions.md`、`.github/skills/prepare-rtl-task-contract/` 与 `rtl-task-contract` profile 节点，并运行脚本 `audit/self-test/cli-self-test`。
+13. 维护完成后运行 `scripts/agent-maintain.sh --mode check`。若触及 e2e/profile/脚本，再运行相关 `scripts/agent-e2e.sh --profile <profile>`。
+14. 最后更新 `project-status` 与 `memory/modules/agent-system.md`，并为跨层任务留下 `.github/task-runs/<日期-任务名>/` 证据包。
 
 ## 边界
 

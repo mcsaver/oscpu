@@ -6,6 +6,8 @@ module tb_ooo_rob;
   localparam ROB_INDEX_W = 4;
   localparam ROB_COUNT_W = 5;
   localparam PHY_REG_ADDR_W = 6;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
 
   reg clk;
   reg rst;
@@ -13,6 +15,7 @@ module tb_ooo_rob;
   reg dispatch0_valid;
   wire dispatch0_ready;
   wire [ROB_INDEX_W-1:0] dispatch0_rob_idx;
+  wire [PRODUCER_ID_W-1:0] dispatch0_producer_id;
   reg [`XLEN-1:0] dispatch0_pc;
   reg [`INST_W-1:0] dispatch0_inst;
   reg dispatch0_rd_en;
@@ -22,6 +25,7 @@ module tb_ooo_rob;
   reg dispatch1_valid;
   wire dispatch1_ready;
   wire [ROB_INDEX_W-1:0] dispatch1_rob_idx;
+  wire [PRODUCER_ID_W-1:0] dispatch1_producer_id;
   reg [`XLEN-1:0] dispatch1_pc;
   reg [`INST_W-1:0] dispatch1_inst;
   reg dispatch1_rd_en;
@@ -34,14 +38,36 @@ module tb_ooo_rob;
   reg wb0_exception;
   reg [`TRAP_CAUSE_W-1:0] wb0_cause;
   reg [`XLEN-1:0] wb0_tval;
+  reg [PHY_REG_ADDR_W-1:0] wb0_pdest;
   reg wb1_valid;
   reg [ROB_INDEX_W-1:0] wb1_rob_idx;
   reg [`XLEN-1:0] wb1_data;
   reg wb1_exception;
   reg [`TRAP_CAUSE_W-1:0] wb1_cause;
   reg [`XLEN-1:0] wb1_tval;
+  reg [PHY_REG_ADDR_W-1:0] wb1_pdest;
+  reg current0_query_valid;
+  reg [PRODUCER_ID_W-1:0] current0_query_producer_id;
+  wire current0_query_match;
+  reg current1_query_valid;
+  reg [PRODUCER_ID_W-1:0] current1_query_producer_id;
+  wire current1_query_match;
+  reg completion0_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion0_query_producer_id;
+  wire completion0_query_match;
+  reg completion1_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion1_query_producer_id;
+  wire completion1_query_match;
   reg commit_ready;
+  reg mem_quiet;
+  reg head0_context_permit;
+  reg fencei_retire_permit;
+  wire head0_retire_candidate_valid;
+  wire head0_identity_valid;
+  wire [`OOO_CONTEXT_ID_W-1:0] head0_identity;
+  wire [PRODUCER_ID_W-1:0] head0_producer_id;
   wire commit0_valid;
+  wire [PRODUCER_ID_W-1:0] commit0_producer_id;
   wire [`XLEN-1:0] commit0_pc;
   wire [`XLEN-1:0] commit0_next_pc;
   wire [`INST_W-1:0] commit0_inst;
@@ -54,6 +80,7 @@ module tb_ooo_rob;
   wire [`TRAP_CAUSE_W-1:0] commit0_cause;
   wire [`XLEN-1:0] commit0_tval;
   wire commit1_valid;
+  wire [PRODUCER_ID_W-1:0] commit1_producer_id;
   wire [`XLEN-1:0] commit1_pc;
   wire [`XLEN-1:0] commit1_next_pc;
   wire [`INST_W-1:0] commit1_inst;
@@ -85,11 +112,13 @@ module tb_ooo_rob;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
   wire recover_active;
   wire walk0_valid;
+  wire [PRODUCER_ID_W-1:0] walk0_producer_id;
   wire [`REG_ADDR_W-1:0] walk0_arch_rd;
   wire [PHY_REG_ADDR_W-1:0] walk0_old_pdest;
   wire [PHY_REG_ADDR_W-1:0] walk0_new_pdest;
   wire walk0_rd_en;
   wire walk1_valid;
+  wire [PRODUCER_ID_W-1:0] walk1_producer_id;
   wire [`REG_ADDR_W-1:0] walk1_arch_rd;
   wire [PHY_REG_ADDR_W-1:0] walk1_old_pdest;
   wire [PHY_REG_ADDR_W-1:0] walk1_new_pdest;
@@ -104,6 +133,7 @@ module tb_ooo_rob;
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_rob_idx_o(dispatch0_rob_idx),
+    .dispatch0_producer_id_o(dispatch0_producer_id),
     .dispatch0_pc_i(dispatch0_pc),
     .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
     .dispatch0_inst_i(dispatch0_inst),
@@ -115,6 +145,7 @@ module tb_ooo_rob;
     .dispatch1_valid_i(dispatch1_valid),
     .dispatch1_ready_o(dispatch1_ready),
     .dispatch1_rob_idx_o(dispatch1_rob_idx),
+    .dispatch1_producer_id_o(dispatch1_producer_id),
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
     .dispatch1_inst_i(dispatch1_inst),
@@ -130,6 +161,7 @@ module tb_ooo_rob;
     .wb0_cause_i(wb0_cause),
     .wb0_tval_i(wb0_tval),
     .wb0_fflags_i(5'b00000),
+    .wb0_pdest_i(wb0_pdest),
     .wb1_valid_i(wb1_valid),
     .wb1_rob_idx_i(wb1_rob_idx),
     .wb1_data_i(wb1_data),
@@ -137,9 +169,30 @@ module tb_ooo_rob;
     .wb1_cause_i(wb1_cause),
     .wb1_tval_i(wb1_tval),
     .wb1_fflags_i(5'b00000),
+    .wb1_pdest_i(wb1_pdest),
+    .current0_query_valid_i(current0_query_valid),
+    .current0_query_producer_id_i(current0_query_producer_id),
+    .current0_query_match_o(current0_query_match),
+    .current1_query_valid_i(current1_query_valid),
+    .current1_query_producer_id_i(current1_query_producer_id),
+    .current1_query_match_o(current1_query_match),
+    .completion0_query_valid_i(completion0_query_valid),
+    .completion0_query_producer_id_i(completion0_query_producer_id),
+    .completion0_query_match_o(completion0_query_match),
+    .completion1_query_valid_i(completion1_query_valid),
+    .completion1_query_producer_id_i(completion1_query_producer_id),
+    .completion1_query_match_o(completion1_query_match),
     .commit_ready_i(commit_ready),
+    .head0_context_permit_i(head0_context_permit),
+    .fencei_retire_permit_i(fencei_retire_permit),
+    .head0_retire_candidate_valid_o(head0_retire_candidate_valid),
+    .head0_identity_valid_o(head0_identity_valid),
+    .head0_identity_o(head0_identity),
+    .head0_producer_id_o(head0_producer_id),
     .commit1_block_i(1'b0),
+    .mem_quiet_i(mem_quiet),
     .commit0_valid_o(commit0_valid),
+    .commit0_producer_id_o(commit0_producer_id),
     .commit0_pc_o(commit0_pc),
     .commit0_next_pc_o(commit0_next_pc),
     .commit0_inst_o(commit0_inst),
@@ -152,6 +205,7 @@ module tb_ooo_rob;
     .commit0_cause_o(commit0_cause),
     .commit0_tval_o(commit0_tval),
     .commit1_valid_o(commit1_valid),
+    .commit1_producer_id_o(commit1_producer_id),
     .commit1_pc_o(commit1_pc),
     .commit1_next_pc_o(commit1_next_pc),
     .commit1_inst_o(commit1_inst),
@@ -170,11 +224,13 @@ module tb_ooo_rob;
     .kill_rob_idx_i(kill_rob_idx),
     .recover_active_o(recover_active),
     .walk0_valid_o(walk0_valid),
+    .walk0_producer_id_o(walk0_producer_id),
     .walk0_arch_rd_o(walk0_arch_rd),
     .walk0_old_pdest_o(walk0_old_pdest),
     .walk0_new_pdest_o(walk0_new_pdest),
     .walk0_rd_en_o(walk0_rd_en),
     .walk1_valid_o(walk1_valid),
+    .walk1_producer_id_o(walk1_producer_id),
     .walk1_arch_rd_o(walk1_arch_rd),
     .walk1_old_pdest_o(walk1_old_pdest),
     .walk1_new_pdest_o(walk1_new_pdest),
@@ -278,14 +334,27 @@ module tb_ooo_rob;
       wb0_exception = 1'b0;
       wb0_cause = 5'd0;
       wb0_tval = 32'h0;
+      wb0_pdest = {PHY_REG_ADDR_W{1'b0}};
       wb1_valid = 1'b0;
       wb1_rob_idx = 4'd0;
       wb1_data = 32'h0;
       wb1_exception = 1'b0;
       wb1_cause = 5'd0;
       wb1_tval = 32'h0;
+      wb1_pdest = {PHY_REG_ADDR_W{1'b0}};
+      current0_query_valid = 1'b0;
+      current0_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      current1_query_valid = 1'b0;
+      current1_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion0_query_valid = 1'b0;
+      completion0_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion1_query_valid = 1'b0;
+      completion1_query_producer_id = {PRODUCER_ID_W{1'b0}};
       kill_valid = 1'b0;
       kill_rob_idx = 4'd0;
+      head0_context_permit = 1'b1;
+      fencei_retire_permit = 1'b1;
+      mem_quiet = 1'b1;
     end
   endtask
 
@@ -295,9 +364,507 @@ module tb_ooo_rob;
       rst = 1'b1;
       commit_ready = 1'b1;
       clear_inputs();
+      dispatch0_valid = 1'b1;
+      dispatch1_valid = 1'b1;
+      #1;
+      tb_check1("v8e reset blocks presented lane0 allocation",
+                dispatch0_ready, 1'b0);
+      tb_check1("v8e reset blocks presented lane1 allocation",
+                dispatch1_ready, 1'b0);
       `TB_TICK(clk);
+      clear_inputs();
       rst = 1'b0;
       #1;
+    end
+  endtask
+
+  task automatic exercise_v8a_lane1_boundary;
+    input [`INST_W-1:0] boundary_inst;
+    input [3:0] expected_class;
+    input [`XLEN-1:0] base_pc;
+    begin
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = base_pc;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = base_pc + 32'd4;
+      dispatch1_inst = boundary_inst;
+      #1;
+      saved0 = dispatch0_rob_idx;
+      saved1 = dispatch1_rob_idx;
+      `TB_TICK(clk);
+      clear_inputs();
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = base_pc + 32'd1;
+      wb1_valid = 1'b1;
+      wb1_rob_idx = saved1;
+      wb1_data = base_pc + 32'd2;
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("v8a lane1 csr raw classifier", dut.head1_is_csr_raw_w,
+                expected_class[0]);
+      tb_check1("v8a lane1 sfence raw classifier", dut.head1_is_sfence_vma_raw_w,
+                expected_class[1]);
+      tb_check1("v8a lane1 xret raw classifier", dut.head1_is_xret_raw_w,
+                expected_class[2]);
+      tb_check1("v8a lane1 fencei raw classifier", dut.head1_is_fencei_raw_w,
+                expected_class[3]);
+      tb_check1("v8a lane1 boundary shadow live",
+                dut.head1_context_boundary_shadow_w, 1'b1);
+      tb_check1("v8a lane1 boundary does not gate commit0", commit0_valid, 1'b1);
+      tb_check1("v8a lane1 boundary does not gate commit1", commit1_valid, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("v8a lane1 boundary pair retired", {27'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic exercise_v8e_producer_id_source;
+    reg [PRODUCER_ID_W-1:0] first_slot0_id;
+    reg [PRODUCER_ID_W-1:0] first_slot1_id;
+    reg [PRODUCER_ID_W-1:0] first_slot2_id;
+    reg [PRODUCER_ID_W-1:0] rejected_candidate_id;
+    reg [PRODUCER_ID_W-1:0] branch_wrap_old_id;
+    reg [PRODUCER_ID_W-1:0] branch_wrap_new_id;
+    integer fill_pair;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0e00;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = 32'h8000_0e04;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      tb_check32("v8e first lane0 producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 32'h0000_0000);
+      tb_check32("v8e first lane1 producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch1_producer_id},
+                 32'h0000_0001);
+      first_slot0_id = dispatch0_producer_id;
+      first_slot1_id = dispatch1_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      #1;
+      tb_check32("v8e live head producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, head0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot0_id});
+      tb_check32("v8e commit carrier matches live head",
+                 {{(32-PRODUCER_ID_W){1'b0}}, commit0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot0_id});
+      tb_check32("v8e commit1 carrier matches second live slot",
+                 {{(32-PRODUCER_ID_W){1'b0}}, commit1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot1_id});
+
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0e08;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      first_slot2_id = dispatch0_producer_id;
+      tb_check32("v8e third allocation producer id",
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot2_id},
+                 32'h0000_0002);
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      kill_valid = 1'b1;
+      kill_rob_idx = {ROB_INDEX_W{1'b0}};
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      #1;
+      tb_check1("v8e recovery exposes walk pair", walk0_valid && walk1_valid,
+                1'b1);
+      tb_check32("v8e walk0 carrier matches youngest slot",
+                 {{(32-PRODUCER_ID_W){1'b0}}, walk0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot2_id});
+      tb_check32("v8e walk1 carrier matches next-youngest slot",
+                 {{(32-PRODUCER_ID_W){1'b0}}, walk1_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, first_slot1_id});
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+
+      // Ordinary pipeline flush drains ROB-local lifetime but must preserve the
+      // encoding source: the next incarnation of slot 0 advances generation.
+      flush = 1'b1;
+      dispatch0_valid = 1'b1;
+      dispatch1_valid = 1'b1;
+      #1;
+      tb_check1("v8e flush blocks presented lane0 allocation",
+                dispatch0_ready, 1'b0);
+      tb_check1("v8e flush blocks presented lane1 allocation",
+                dispatch1_ready, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0e10;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      tb_check32("v8e flush reuses raw slot zero",
+                 {{(32-ROB_INDEX_W){1'b0}}, dispatch0_rob_idx},
+                 32'h0000_0000);
+      tb_check32("v8e flush preserves generation source",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 (32'h1 << ROB_INDEX_W));
+      tb_check1("v8e same raw slot gets a distinct finite id",
+                dispatch0_producer_id != first_slot0_id, 1'b1);
+
+      // A presented valid while full is not an accepted allocation and must
+      // not advance any slot generation. Fill all 16 slots, hold one rejected
+      // request for two edges, then flush and observe exactly one increment.
+      reset_dut();
+      commit_ready = 1'b0;
+      for (fill_pair = 0; fill_pair < 8; fill_pair = fill_pair + 1) begin
+        dispatch0_valid = 1'b1;
+        dispatch1_valid = 1'b1;
+        dispatch0_pc = 32'h8000_0e40 + (fill_pair * 8);
+        dispatch1_pc = 32'h8000_0e44 + (fill_pair * 8);
+        dispatch0_inst = 32'h0000_0013;
+        dispatch1_inst = 32'h0000_0013;
+        `TB_TICK(clk);
+        clear_inputs();
+        commit_ready = 1'b0;
+      end
+      #1;
+      tb_check1("v8e fill reaches full", full, 1'b1);
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0ef0;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      tb_check1("v8e full rejects presented allocation", dispatch0_ready,
+                1'b0);
+      rejected_candidate_id = dispatch0_producer_id;
+      `TB_TICK(clk);
+      #1;
+      tb_check32("v8e candidate stable across first rejected edge",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, rejected_candidate_id});
+      `TB_TICK(clk);
+      #1;
+      tb_check32("v8e candidate stable across second rejected edge",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, rejected_candidate_id});
+      flush = 1'b1;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0ef4;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      tb_check32("v8e rejected valid does not advance generation",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 (32'h1 << ROB_INDEX_W));
+
+      // Real selective recovery across the ring: advance an empty ROB to
+      // tail=15, allocate survivor branch@15 plus old@0, squash old@0 through
+      // the production walk, then reuse slot 0 without a global flush.
+      reset_dut();
+      commit_ready = 1'b0;
+      for (fill_pair = 0; fill_pair < 7; fill_pair = fill_pair + 1) begin
+        dispatch0_valid = 1'b1;
+        dispatch1_valid = 1'b1;
+        dispatch0_pc = 32'h8000_1000 + (fill_pair * 8);
+        dispatch1_pc = 32'h8000_1004 + (fill_pair * 8);
+        dispatch0_inst = 32'h0000_0013;
+        dispatch1_inst = 32'h0000_0013;
+        `TB_TICK(clk);
+        clear_inputs();
+        commit_ready = 1'b0;
+      end
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1038;
+      dispatch0_inst = 32'h0000_0013;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      for (fill_pair = 0; fill_pair < 7; fill_pair = fill_pair + 1) begin
+        wb0_valid = 1'b1;
+        wb0_rob_idx = fill_pair * 2;
+        wb1_valid = 1'b1;
+        wb1_rob_idx = (fill_pair * 2) + 1;
+        `TB_TICK(clk);
+        clear_inputs();
+        commit_ready = 1'b0;
+      end
+      wb0_valid = 1'b1;
+      wb0_rob_idx = 4'd14;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b1;
+      for (fill_pair = 0; fill_pair < 8; fill_pair = fill_pair + 1) begin
+        `TB_TICK(clk);
+        clear_inputs();
+        commit_ready = 1'b1;
+      end
+      #1;
+      tb_check32("v8e ring setup drains at tail fifteen",
+                 {27'b0, count}, 32'd0);
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_10f0;
+      dispatch0_inst = 32'h0000_0063;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = 32'h8000_10f4;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      tb_check32("v8e real-walk survivor branch slot",
+                 {{(32-ROB_INDEX_W){1'b0}}, dispatch0_rob_idx}, 32'd15);
+      tb_check32("v8e real-walk old producer slot",
+                 {{(32-ROB_INDEX_W){1'b0}}, dispatch1_rob_idx}, 32'd0);
+      branch_wrap_old_id = dispatch1_producer_id;
+      tb_check32("v8e real-walk old slot generation preserved by commit",
+                 {{(32-PRODUCER_ID_W){1'b0}}, branch_wrap_old_id},
+                 (32'h1 << ROB_INDEX_W));
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd15;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      #1;
+      tb_check1("v8e real-walk squashes old slot zero", walk0_valid, 1'b1);
+      tb_check32("v8e real-walk carries old slot identity",
+                 {{(32-PRODUCER_ID_W){1'b0}}, walk0_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, branch_wrap_old_id});
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_10f8;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      branch_wrap_new_id = dispatch0_producer_id;
+      tb_check32("v8e real-walk reuses raw slot zero",
+                 {{(32-ROB_INDEX_W){1'b0}}, dispatch0_rob_idx}, 32'd0);
+      tb_check1("v8e real-walk old/new producer ids differ",
+                branch_wrap_new_id != branch_wrap_old_id, 1'b1);
+      tb_check32("v8e real-walk new slot generation preserved by recovery",
+                 {{(32-PRODUCER_ID_W){1'b0}}, branch_wrap_new_id},
+                 ((32'h2 & ((32'h1 << PRODUCER_GEN_W) - 1)) << ROB_INDEX_W));
+
+      // Hard reset is permitted to restart the finite encoding only because
+      // the task contract requires the whole producer-holder reset domain to
+      // drain together.
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0e20;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      tb_check32("v8e hard reset restarts producer encoding",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch0_producer_id},
+                 32'h0000_0000);
+      $display("[V8E-PRODUCER-ID-SOURCE-PASS] dual allocation/reset-flush handshake/stall/commit/ring-walk carriers covered");
+      reset_dut();
+    end
+  endtask
+
+  task automatic exercise_v8e_finite_wrap_red;
+    reg [PRODUCER_ID_W-1:0] incarnation0_id;
+    reg [PRODUCER_ID_W-1:0] incarnation1_id;
+    reg [PRODUCER_ID_W-1:0] incarnation2_id;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0f00;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      incarnation0_id = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      flush = 1'b1;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0f04;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      incarnation1_id = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      flush = 1'b1;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0f08;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      incarnation2_id = dispatch0_producer_id;
+      tb_check1("v8e wrap characterization first two ids differ",
+                incarnation0_id != incarnation1_id, 1'b1);
+      tb_check1("v8e finite generation eventually repeats full id",
+                incarnation2_id == incarnation0_id, 1'b1);
+      tb_check1("v8e allocation stays ready at repeated id",
+                dispatch0_ready, 1'b1);
+      $display("[V8E-FINITE-WRAP-RED] GEN_W=%0d full identity repeats while allocation remains ready; global collision fence is still absent",
+               PRODUCER_GEN_W);
+      tb_finish("tb_ooo_rob_v8e_finite_wrap_red");
+    end
+  endtask
+
+  // v8f query contract: "current" authorizes issue-time observations while
+  // "completion-open" additionally requires !done.  Exact generation and
+  // first-cycle selective-recovery masking are checked independently of the
+  // legacy raw-index WB interface.
+  task automatic exercise_v8f_producer_queries;
+    reg [PRODUCER_ID_W-1:0] id0;
+    reg [PRODUCER_ID_W-1:0] id1;
+    reg [PRODUCER_ID_W-1:0] id2;
+    reg [PRODUCER_ID_W-1:0] wrong_id;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1100;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = 32'h8000_1104;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      id0 = dispatch0_producer_id;
+      id1 = dispatch1_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = id0;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      current1_query_valid = 1'b1;
+      current1_query_producer_id = id1;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = id1;
+      #1;
+      tb_check1("v8f live id0 is current", current0_query_match, 1'b1);
+      tb_check1("v8f live id0 completion is open",
+                completion0_query_match, 1'b1);
+      tb_check1("v8f live id1 is current", current1_query_match, 1'b1);
+      tb_check1("v8f live id1 completion is open",
+                completion1_query_match, 1'b1);
+
+      wrong_id = id0;
+      wrong_id[ROB_INDEX_W] = ~id0[ROB_INDEX_W];
+      current0_query_producer_id = wrong_id;
+      completion0_query_producer_id = wrong_id;
+      #1;
+      tb_check1("v8f wrong generation is not current",
+                current0_query_match, 1'b0);
+      tb_check1("v8f wrong generation completion is closed",
+                completion0_query_match, 1'b0);
+
+      current0_query_producer_id = id0;
+      completion0_query_producer_id = id0;
+      wb0_valid = 1'b1;
+      wb0_rob_idx = id0[ROB_INDEX_W-1:0];
+      wb0_pdest = {PHY_REG_ADDR_W{1'b0}};
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = id0;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      current1_query_valid = 1'b1;
+      current1_query_producer_id = id1;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = id1;
+      #1;
+      tb_check1("v8f done slot remains current", current0_query_match, 1'b1);
+      tb_check1("v8f done slot completion closes",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f other live slot remains current",
+                current1_query_match, 1'b1);
+      tb_check1("v8f other live slot remains completion-open",
+                completion1_query_match, 1'b1);
+
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1108;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      id2 = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = id2;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id2;
+      current1_query_valid = 1'b1;
+      current1_query_producer_id = id1;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = id1;
+      kill_valid = 1'b1;
+      kill_rob_idx = id1[ROB_INDEX_W-1:0];
+      #1;
+      tb_check1("v8f kill-start target is still physically live",
+                dut.valid_q[id2[ROB_INDEX_W-1:0]], 1'b1);
+      tb_check1("v8f kill-start masks younger current query",
+                current0_query_match, 1'b0);
+      tb_check1("v8f kill-start masks younger completion query",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f kill boundary remains current",
+                current1_query_match, 1'b1);
+      tb_check1("v8f kill boundary remains completion-open",
+                completion1_query_match, 1'b1);
+
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = id2;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id2;
+      current1_query_valid = 1'b1;
+      current1_query_producer_id = id1;
+      completion1_query_valid = 1'b1;
+      completion1_query_producer_id = id1;
+      #1;
+      tb_check1("v8f recovery window is active", recover_active, 1'b1);
+      tb_check1("v8f recovery overlay masks younger current query",
+                current0_query_match, 1'b0);
+      tb_check1("v8f recovery overlay masks younger completion query",
+                completion0_query_match, 1'b0);
+      tb_check1("v8f recovery preserves boundary current query",
+                current1_query_match, 1'b1);
+      tb_check1("v8f recovery preserves boundary completion query",
+                completion1_query_match, 1'b1);
+
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1110;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      id0 = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = id0;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      flush = 1'b1;
+      #1;
+      tb_check1("v8f flush masks current query", current0_query_match, 1'b0);
+      tb_check1("v8f flush masks completion query",
+                completion0_query_match, 1'b0);
+      $display("[V8F-ROB-PRODUCER-QUERY] exact/current/open/done/kill/recovery/flush PASS");
+      reset_dut();
     end
   endtask
 
@@ -305,6 +872,24 @@ module tb_ooo_rob;
     tb_errors = 0;
     reset_dut();
     tb_check1("reset empty", empty, 1'b1);
+    tb_check1("v8a reset candidate low", head0_retire_candidate_valid, 1'b0);
+    tb_check1("v8a reset identity invalid", head0_identity_valid, 1'b0);
+
+    exercise_v8e_producer_id_source();
+
+    if ($test$plusargs("V8E_SOURCE_ONLY")) begin
+      tb_finish("tb_ooo_rob_v8e_source_only");
+    end
+
+    if ($test$plusargs("V8E_FINITE_WRAP_RED")) begin
+      if (PRODUCER_GEN_W != 1) begin
+        $display("[CHECK-FAIL] v8e finite-wrap characterization requires PRODUCER_GEN_W=1");
+        $fatal;
+      end
+      exercise_v8e_finite_wrap_red();
+    end
+
+    exercise_v8f_producer_queries();
 
     // Kept behind a plusarg so the normal regression remains positive while
     // the task-run negative runner can prove the dual-WB owner contract fires.
@@ -326,6 +911,209 @@ module tb_ooo_rob;
       $display("[CHECK-FAIL] dual-WB collision contract did not terminate");
       $fatal;
     end
+
+    // The v8a negative is intentionally non-vacuous: create a live/done head
+    // while commit_ready is low, then corrupt only the independent identity
+    // observation. OOO_ASSERT must terminate on the frozen marker.
+    if ($test$plusargs("S2_Q2_V8A_CANDIDATE_LIVE_NEGATIVE")) begin
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0a00;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      saved0 = dispatch0_rob_idx;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = 32'h0a00_0001;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      #1;
+      if (head0_retire_candidate_valid !== 1'b1) begin
+        $display("[CHECK-FAIL] v8a negative setup never reached a live candidate");
+        $fatal;
+      end
+      force dut.head0_identity_valid_o = 1'b0;
+      `TB_TICK(clk);
+      release dut.head0_identity_valid_o;
+      $display("[CHECK-FAIL] v8a candidate-live assertion did not terminate");
+      $fatal;
+    end
+
+    // The numeric generate specialization used to keep the disabled dependency
+    // cone canonical must preserve explicitly-enabled CSR queue-head behavior.
+    if ($test$plusargs("S2_Q2_V8A_CSR_QH_ENABLED")) begin
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0a40;
+      dispatch0_inst = 32'h0010_1073;  // csrrw x0,fflags,x0
+      #1;
+      saved0 = dispatch0_rob_idx;
+      `TB_TICK(clk);
+      clear_inputs();
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = 32'h0a40_0001;
+      `TB_TICK(clk);
+      clear_inputs();
+      mem_quiet = 1'b0;
+      #1;
+      tb_check1("v8a csr-qh setup has live candidate",
+                head0_retire_candidate_valid, 1'b1);
+      tb_check1("v8a csr-qh enabled holds commit while memory busy",
+                commit0_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("v8a csr-qh enabled releases on memory quiet",
+                commit0_valid, 1'b1);
+      $display("[S2-Q2-V8A-CSR-QH-PASS] explicit macro-enable behavior preserved");
+      `TB_TICK(clk);
+      clear_inputs();
+      reset_dut();
+    end
+
+    if ($test$plusargs("S2_Q2_V8A_CSR_QH_EXPLICIT_ZERO")) begin
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0a80;
+      dispatch0_inst = 32'h0010_1073;
+      #1;
+      saved0 = dispatch0_rob_idx;
+      `TB_TICK(clk);
+      clear_inputs();
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = 32'h0a80_0001;
+      `TB_TICK(clk);
+      clear_inputs();
+      mem_quiet = 1'b0;
+      #1;
+      tb_check1("v8a csr-qh explicit zero keeps legacy retirement",
+                commit0_valid, 1'b1);
+      $display("[S2-Q2-V8A-CSR-QH-ZERO-PASS] explicit numeric zero remains disabled");
+      `TB_TICK(clk);
+      clear_inputs();
+      reset_dut();
+    end
+
+    // v8a public observation and neutral permit behavior.  The candidate must
+    // ignore commit_ready, while either permit can independently hold commit0.
+    commit_ready = 1'b0;
+    dispatch0_valid = 1'b1;
+    dispatch0_pc = 32'h8000_0b00;
+    dispatch0_inst = 32'h0000_0013;
+    #1;
+    saved0 = dispatch0_rob_idx;
+    `TB_TICK(clk);
+    clear_inputs();
+    commit_ready = 1'b0;
+    #1;
+    tb_check1("v8a live head identity valid before done", head0_identity_valid, 1'b1);
+    tb_check1("v8a candidate low before registered done", head0_retire_candidate_valid, 1'b0);
+    tb_check32("v8a first public identity", {{(32-`OOO_CONTEXT_ID_W){1'b0}}, head0_identity},
+               {{(32-ROB_INDEX_W){1'b0}}, saved0});
+    wb0_valid = 1'b1;
+    wb0_rob_idx = saved0;
+    wb0_data = 32'h0b00_0001;
+    `TB_TICK(clk);
+    clear_inputs();
+    commit_ready = 1'b0;
+    #1;
+    tb_check1("v8a candidate bypasses commit ready", head0_retire_candidate_valid, 1'b1);
+    tb_check1("v8a commit still obeys commit ready", commit0_valid, 1'b0);
+
+    commit_ready = 1'b1;
+    head0_context_permit = 1'b0;
+    #1;
+    tb_check1("v8a context permit independently blocks commit0", commit0_valid, 1'b0);
+    tb_check1("v8a context block preserves candidate", head0_retire_candidate_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    commit_ready = 1'b1;
+    fencei_retire_permit = 1'b0;
+    #1;
+    tb_check1("v8a fencei permit independently blocks commit0", commit0_valid, 1'b0);
+    tb_check1("v8a fencei block preserves candidate", head0_retire_candidate_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    commit_ready = 1'b1;
+    #1;
+    tb_check1("v8a tie-high permits preserve legacy retirement", commit0_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("v8a candidate falls after retirement", head0_retire_candidate_valid, 1'b0);
+    tb_check1("v8a identity invalid after retirement", head0_identity_valid, 1'b0);
+
+    // A two-ready-entry case closes the retirement-prefix invariant: either
+    // permit must hold both lanes and preserve the ROB state, never allow the
+    // younger lane to bypass the blocked head.
+    dispatch0_valid = 1'b1;
+    dispatch0_pc = 32'h8000_0b10;
+    dispatch0_inst = 32'h0000_0013;
+    dispatch1_valid = 1'b1;
+    dispatch1_pc = 32'h8000_0b14;
+    dispatch1_inst = 32'h0000_0013;
+    #1;
+    saved0 = dispatch0_rob_idx;
+    saved1 = dispatch1_rob_idx;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("v8a ready pair identity valid", head0_identity_valid, 1'b1);
+    tb_check32("v8a second public identity", {{(32-`OOO_CONTEXT_ID_W){1'b0}}, head0_identity},
+               {{(32-ROB_INDEX_W){1'b0}}, saved0});
+    wb0_valid = 1'b1;
+    wb0_rob_idx = saved0;
+    wb0_data = 32'h0b10_0001;
+    wb1_valid = 1'b1;
+    wb1_rob_idx = saved1;
+    wb1_data = 32'h0b14_0002;
+    `TB_TICK(clk);
+    clear_inputs();
+    head0_context_permit = 1'b0;
+    #1;
+    tb_check1("v8a context permit blocks ready pair commit0", commit0_valid, 1'b0);
+    tb_check1("v8a context permit blocks ready pair commit1", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("v8a context block preserves ready pair", {27'b0, count}, 32'd2);
+    fencei_retire_permit = 1'b0;
+    #1;
+    tb_check1("v8a fencei permit blocks ready pair commit0", commit0_valid, 1'b0);
+    tb_check1("v8a fencei permit blocks ready pair commit1", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("v8a fencei block preserves ready pair", {27'b0, count}, 32'd2);
+    tb_check1("v8a ready pair retires with both permits", commit0_valid, 1'b1);
+    tb_check1("v8a retirement prefix permits lane1", commit1_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("v8a ready pair drained", {27'b0, count}, 32'd0);
+
+    // Cover every raw lane1 classifier with a simultaneously-retiring pair.
+    // Queue-head CSR mode intentionally changes the legacy CSR dual-retire
+    // contract, so its dedicated build runs the non-CSR FENCE.I case only.
+    if (!`OOO_CSR_QUEUE_HEAD) begin
+      exercise_v8a_lane1_boundary(32'h0010_1073, 4'b0001,
+                                  32'h8000_0b20);
+      exercise_v8a_lane1_boundary(32'h1200_0073, 4'b0010,
+                                  32'h8000_0b30);
+      exercise_v8a_lane1_boundary(32'h3020_0073, 4'b0100,
+                                  32'h8000_0b40);
+      exercise_v8a_lane1_boundary(32'h0000_100f, 4'b1000,
+                                  32'h8000_0b50);
+    end else begin
+      exercise_v8a_lane1_boundary(32'h0000_100f, 4'b1000,
+                                  32'h8000_0b50);
+    end
+    $display("[S2-Q2-V8A-DYNAMIC-PASS] candidate/identity/permit/retire-prefix/all-lane1-shadow coverage is non-vacuous");
+    reset_dut();
 
     dispatch0_valid = 1'b1;
     dispatch0_pc = 32'h8000_0000;
@@ -361,6 +1149,7 @@ module tb_ooo_rob;
     wb1_valid = 1'b1;
     wb1_rob_idx = saved1;
     wb1_data = 32'h2222_0002;
+    wb1_pdest = 6'd33;
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -369,6 +1158,7 @@ module tb_ooo_rob;
     wb0_valid = 1'b1;
     wb0_rob_idx = saved0;
     wb0_data = 32'h1111_0001;
+    wb0_pdest = 6'd32;
     #1;
     tb_check1("writeback edge required before commit0", commit0_valid, 1'b0);
     tb_check1("head blocks younger before registered done", commit1_valid, 1'b0);

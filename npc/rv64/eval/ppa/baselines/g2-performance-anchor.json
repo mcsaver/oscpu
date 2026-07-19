@@ -1,0 +1,27 @@
+{
+  "schema": "npc-rv64-historical-performance-anchor-v1",
+  "anchor_id": "g2-ifu-fetch-20260712",
+  "status": "historical_reference_only",
+  "source_identity": {
+    "base_git_head": "2579f5d20a13ab1ae90ba62777fb937f20ec3a0d",
+    "working_tree_vsrc_diff_sha256": "b4ef7a66e4af081216b9ea045025b9d24f7855b5d023b985e2a177254a26c91e",
+    "landed_commit": "b1b1156db64ee49e0f21c375b55c3b944cc260f0",
+    "landed_commit_equivalence_proven": false
+  },
+  "performance": {
+    "benchmark": "coremark",
+    "cycles": 2852201,
+    "retired_instructions": 3218573,
+    "cpi": 0.886169429744175,
+    "reported_cpi": 0.886,
+    "coremark_per_mhz": 3.561
+  },
+  "timing": {
+    "period_ns": 5.0,
+    "wns_ns": -9.99,
+    "tns_ns": -121006.91,
+    "claim": "diagnostic_only"
+  },
+  "evidence": ".github/task-runs/2026-07-12-rv64-ifu-fetch-g2/task-report.md",
+  "warning": "Not source-compatible with T4T and never eligible for PPA score; used only as a throughput recovery target."
+}

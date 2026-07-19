@@ -146,6 +146,12 @@ def build_parser() -> argparse.ArgumentParser:
     brief_cmd.add_argument("--max-tokens", type=int, default=2400)
     brief_cmd.add_argument("--core-limit", type=int, default=1)
     brief_cmd.add_argument("--focus-limit", type=int, default=8)
+    brief_cmd.add_argument(
+        "--focus-scope",
+        choices=["all", "non-history"],
+        default="all",
+        help="allow all focus kinds, or require current non-history focus only",
+    )
     brief_cmd.add_argument("--profile-limit", type=int, default=5)
     brief_cmd.add_argument("--json", action="store_true")
     brief_cmd.set_defaults(func=agent_brief)
@@ -340,8 +346,22 @@ def build_parser() -> argparse.ArgumentParser:
     archive_markdown_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     archive_markdown_cmd.add_argument("--limit", type=int, default=20)
     archive_markdown_cmd.add_argument("--write-shim", action="store_true")
+    archive_markdown_cmd.add_argument(
+        "--sync-task-run",
+        action="store_true",
+        help="for one task-run directory, atomically prune stored Markdown paths absent from the live run",
+    )
     archive_markdown_cmd.add_argument("--yes", action="store_true")
     archive_markdown_cmd.set_defaults(func=archive_markdown_files)
+
+    publish_task_run_cmd = subparsers.add_parser(
+        "publish-task-run",
+        help="atomically publish one marker-bound completed task run after staged Markdown sync",
+    )
+    add_common_db_args(publish_task_run_cmd)
+    publish_task_run_cmd.add_argument("path")
+    publish_task_run_cmd.add_argument("--yes", action="store_true")
+    publish_task_run_cmd.set_defaults(func=publish_task_run)
 
     index_evidence_cmd = subparsers.add_parser(
         "index-evidence",
@@ -645,7 +665,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             conn.close()
         print(f"PASS init db={db_path}")
         return 0
-    exit_code = args.func(args)
+    try:
+        exit_code = args.func(args)
+    except (BackupLayoutError, OSError, sqlite3.Error) as exc:
+        print(f"FAIL {args.command}: {exc}", file=sys.stderr)
+        exit_code = 2
     record_cli_access(args, exit_code)
     return exit_code
 

@@ -88,8 +88,12 @@ module OooFetchPacketFifo #(
   localparam [FETCH_COUNT_W-1:0] FIFO_COUNT_ZERO = {FETCH_COUNT_W{1'b0}};
   localparam [FETCH_COUNT_W-1:0] FIFO_COUNT_ONE =
       {{(FETCH_COUNT_W-1){1'b0}}, 1'b1};
+  localparam IMM_LOW_W = 32;
+  localparam IMM_SIGN_COPIES = 4;
+  localparam IMM_SIGN_GROUP_W = (`XLEN - IMM_LOW_W) / IMM_SIGN_COPIES;
+  localparam IMM_STORED_W = IMM_LOW_W + IMM_SIGN_COPIES;
   localparam HEAD_PACKET_W =
-      (8 * `XLEN) + (2 * `INST_W) + (2 * `CTRL_BUS_W) +
+      (6 * `XLEN) + (2 * IMM_STORED_W) + (2 * `INST_W) + (2 * `CTRL_BUS_W) +
       (2 * `OOO_SLOT_STATIC_FACTS_W) + (6 * `REG_ADDR_W) + 4 + 2 +
       (2 * `BPU_BHT_INDEX_W) + 3;
 
@@ -117,11 +121,11 @@ module OooFetchPacketFifo #(
   reg [`REG_ADDR_W-1:0] rs1_0_q [0:FETCH_PACKET_COUNT-1];
   reg [`REG_ADDR_W-1:0] rs2_0_q [0:FETCH_PACKET_COUNT-1];
   reg [`REG_ADDR_W-1:0] rd0_q [0:FETCH_PACKET_COUNT-1];
-  reg [`XLEN-1:0] imm0_q [0:FETCH_PACKET_COUNT-1];
+  reg [IMM_STORED_W-1:0] imm0_q [0:FETCH_PACKET_COUNT-1];
   reg [`REG_ADDR_W-1:0] rs1_1_q [0:FETCH_PACKET_COUNT-1];
   reg [`REG_ADDR_W-1:0] rs2_1_q [0:FETCH_PACKET_COUNT-1];
   reg [`REG_ADDR_W-1:0] rd1_q [0:FETCH_PACKET_COUNT-1];
-  reg [`XLEN-1:0] imm1_q [0:FETCH_PACKET_COUNT-1];
+  reg [IMM_STORED_W-1:0] imm1_q [0:FETCH_PACKET_COUNT-1];
   reg [1:0] resp0_q [0:FETCH_PACKET_COUNT-1];
   reg [1:0] resp1_q [0:FETCH_PACKET_COUNT-1];
   reg pred_taken0_q [0:FETCH_PACKET_COUNT-1];
@@ -137,6 +141,12 @@ module OooFetchPacketFifo #(
   // head-pointer/read-mux cone from all head-time classify, RAS, backend-ready
   // and fetch-flow decisions without adding a visible FIFO cycle.
   reg [HEAD_PACKET_W-1:0] head_packet_q;
+  wire [IMM_STORED_W-1:0] enqueue_imm0_stored_w =
+      {{IMM_SIGN_COPIES{enqueue_imm0_i[IMM_LOW_W-1]}}, enqueue_imm0_i[IMM_LOW_W-1:0]};
+  wire [IMM_STORED_W-1:0] enqueue_imm1_stored_w =
+      {{IMM_SIGN_COPIES{enqueue_imm1_i[IMM_LOW_W-1]}}, enqueue_imm1_i[IMM_LOW_W-1:0]};
+  wire [IMM_STORED_W-1:0] head_imm0_stored_w;
+  wire [IMM_STORED_W-1:0] head_imm1_stored_w;
 
   integer reset_idx;
 
@@ -164,11 +174,11 @@ module OooFetchPacketFifo #(
     head_rs1_0_o,
     head_rs2_0_o,
     head_rd0_o,
-    head_imm0_o,
+    head_imm0_stored_w,
     head_rs1_1_o,
     head_rs2_1_o,
     head_rd1_o,
-    head_imm1_o,
+    head_imm1_stored_w,
     head_resp0_o,
     head_resp1_o,
     head_pred_taken0_o,
@@ -179,6 +189,20 @@ module OooFetchPacketFifo #(
     head_bht_valid1_o,
     head_slot1_valid_o
   } = head_packet_q;
+  assign head_imm0_o = {
+    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+3]}},
+    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+2]}},
+    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W+1]}},
+    {IMM_SIGN_GROUP_W{head_imm0_stored_w[IMM_LOW_W]}},
+    head_imm0_stored_w[IMM_LOW_W-1:0]
+  };
+  assign head_imm1_o = {
+    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+3]}},
+    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+2]}},
+    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W+1]}},
+    {IMM_SIGN_GROUP_W{head_imm1_stored_w[IMM_LOW_W]}},
+    head_imm1_stored_w[IMM_LOW_W-1:0]
+  };
   assign count_o = count_q;
 
   always @(posedge clk) begin
@@ -205,11 +229,11 @@ module OooFetchPacketFifo #(
         rs1_0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
         rs2_0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
         rd0_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
-        imm0_q[reset_idx] <= {`XLEN{1'b0}};
+        imm0_q[reset_idx] <= {IMM_STORED_W{1'b0}};
         rs1_1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
         rs2_1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
         rd1_q[reset_idx] <= {`REG_ADDR_W{1'b0}};
-        imm1_q[reset_idx] <= {`XLEN{1'b0}};
+        imm1_q[reset_idx] <= {IMM_STORED_W{1'b0}};
         resp0_q[reset_idx] <= 2'b00;
         resp1_q[reset_idx] <= 2'b00;
         pred_taken0_q[reset_idx] <= 1'b0;
@@ -242,11 +266,11 @@ module OooFetchPacketFifo #(
         rs1_0_q[tail_q] <= enqueue_rs1_0_i;
         rs2_0_q[tail_q] <= enqueue_rs2_0_i;
         rd0_q[tail_q] <= enqueue_rd0_i;
-        imm0_q[tail_q] <= enqueue_imm0_i;
+        imm0_q[tail_q] <= enqueue_imm0_stored_w;
         rs1_1_q[tail_q] <= enqueue_rs1_1_i;
         rs2_1_q[tail_q] <= enqueue_rs2_1_i;
         rd1_q[tail_q] <= enqueue_rd1_i;
-        imm1_q[tail_q] <= enqueue_imm1_i;
+        imm1_q[tail_q] <= enqueue_imm1_stored_w;
         resp0_q[tail_q] <= enqueue_resp0_i;
         resp1_q[tail_q] <= enqueue_resp1_i;
         pred_taken0_q[tail_q] <= enqueue_pred_taken0_i;
@@ -284,11 +308,11 @@ module OooFetchPacketFifo #(
           enqueue_rs1_0_i,
           enqueue_rs2_0_i,
           enqueue_rd0_i,
-          enqueue_imm0_i,
+          enqueue_imm0_stored_w,
           enqueue_rs1_1_i,
           enqueue_rs2_1_i,
           enqueue_rd1_i,
-          enqueue_imm1_i,
+          enqueue_imm1_stored_w,
           enqueue_resp0_i,
           enqueue_resp1_i,
           enqueue_pred_taken0_i,
@@ -361,6 +385,14 @@ module OooFetchPacketFifo #(
           ((enqueue_i === 1'b0) || (enqueue_i === 1'b1)) &&
           ((pop_i === 1'b0) || (pop_i === 1'b1)))) begin
       $error("[CONTRACT-FIFO-CONTROL-KNOWN] FIFO action control contains X/Z");
+      $fatal;
+    end
+    if (!rst && !clear_i && enqueue_i &&
+        ((enqueue_imm0_i[`XLEN-1:IMM_LOW_W] !==
+          {(`XLEN-IMM_LOW_W){enqueue_imm0_i[IMM_LOW_W-1]}}) ||
+         (enqueue_imm1_i[`XLEN-1:IMM_LOW_W] !==
+          {(`XLEN-IMM_LOW_W){enqueue_imm1_i[IMM_LOW_W-1]}}))) begin
+      $error("[IFU-R2P4-IMM-CANONICAL] enqueue immediate is not an RV64 sign extension");
       $fatal;
     end
     if (!rst && (count_q > FETCH_PACKET_COUNT[FETCH_COUNT_W-1:0])) begin

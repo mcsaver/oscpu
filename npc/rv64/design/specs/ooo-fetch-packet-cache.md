@@ -12,8 +12,8 @@
 本 spec 只冻结 cache 边界：
 
 - lookup context、exact PC hit 和 packet payload 读出；
-- fill、store-driven invalidate 和整体 clear；
-- self-modifying-code 相关的 8B store footprint 失效；
+- fill、generic address invalidate 和整体 clear；
+- generic invalidate 端口的保守 8B footprint（不等于生产 ordinary-store 一致性源）；
 - debug/common 旁挂审核方式；
 - 进入 Yosys macro/OOC/SRAM 方案前必须保留的行为不变量。
 
@@ -32,9 +32,24 @@
 | `lookup_hit_o` | 输出 | 判决拍有效：`lookup_context_hit_o`、exact PC，且 semantic accept 拍与判决拍两拍窗口内均无 store footprint 重叠时为 1。非判决拍恒 0。 |
 | `lookup_inst*/lookup_resp*` | 输出 | 判决拍的 SRAM 读出 payload。只有 `lookup_hit_o=1` 时才有语义。 |
 | `fill_valid_i/fill_*` | 输入 | 在 `posedge clk` 写入一条 packet(SRAM 写口)；若同拍 store footprint 与 fill PC 重叠，fill 必须被阻止。 |
-| `invalidate_valid_i/invalidate_addr_i` | 输入 | 已提交 store 驱动的 SMC 失效。盲失效：直接清 7 邻域 index 的 valid FF，不读 pc 比较。 |
+| `invalidate_valid_i/invalidate_addr_i` | 输入 | generic 精确地址维护钩子；断言时按保守 8B footprint 盲清 7 邻域 index valid，不读 pc 比较。R2.5 生产 `NpcCoreTop` 必须把两端口常零，普通 store 不得驱动。 |
 | `clear_i` | 输入 | fence.i/sfence/satp 类整体失效入口。reset/clear 只清 valid。 |
 
+### 2.1 R2.5 生产取指可见性合同
+
+- 普通 load/store 的完成、提交或 AXI write fire **都不是**取指可见性事件，不得逐项驱动
+  `invalidate_*`。自修改代码在执行 `FENCE.I` 之前读取旧取指内容是允许的；软件负责在写入
+  指令字节后执行 `FENCE.I`。
+- `FENCE.I` 是 stop/drain 序列化指令；其 commit 形成 `mmu_flush_i`，桥把该信号送到本模块
+  `clear_i`，整体清 `valid_q`，并由既有 redirect/refetch 从 fence 后继 PC 重新取指。
+- satp write 与 SFENCE.VMA 仍共享 `mmu_flush_i`，因此继续整体清 I$ 与 ITLB；R2.5 不削弱
+  这些既有 clear、在飞 AXI drain 或 refetch 语义。
+- generic `invalidate_*` ABI 暂时保留，供模块级 footprint 验证或未来有独立合同的 coherent
+  producer 使用；本次候选不删除 cache/bridge 端口及其内部逻辑。未来若要在生产顶层重新接入，
+  必须先定义 producer owner、提交点、宽度/地址 footprint、与 fill/lookup 的竞争和 PPA 代价。
+
+下文沿用的 “store footprint / SMC invalidate” 是 generic `invalidate_addr_i` 的历史几何
+命名，只规定**端口被断言时** cache 如何保守失效，不授权 ordinary store 成为生产驱动源。
 ## 3. 状态与时序模型
 
 - 默认 `INDEX_W=12`、`ENTRY_COUNT=4096`，直映 VIVT。
@@ -80,6 +95,11 @@
   `[FPC-ACCEPT-REQUIRES-READ]` 精确报错。
 - **FPC-I12 dummy-read noninterference**：没有 `lookup_en_i` 的物理读不得置判决资格，次拍
   `lookup_context_hit_o/lookup_hit_o` 必须仍为 0；raw payload 只有 hit 时才有语义。
+- **FPC-I13 production ordinary-store disconnect**：生产 `NpcCoreTop` 中 bridge
+  `invalidate_valid_i` 必须为常 0，`invalidate_addr_i` 必须为常 0；store valid/ready/write/
+  addr 不得经寄存或组合路径接入。
+- **FPC-I14 architected visibility**：`FENCE.I` commit 必须继续经 `mmu_flush_i -> clear_i`
+  整体失效 I$/ITLB，并保留 stop/drain、redirect/refetch 语义。
 
 ## 5. debug/common 审核
 
@@ -108,7 +128,7 @@
 - bare mode 下忽略 priv/satp 的 packet hit；
 - 同 index 但 exact PC mismatch 时 context hit、packet miss；
 - paged mode 下 priv/satp mismatch miss 与 context match hit；
-- store-driven invalidate 清掉重叠 packet 且保留其他 packet；
+- generic invalidate 钩子清掉重叠 packet 且保留其他 packet；
 - 8B store footprint 对 `pc=base+4/base+6` 高半取指包失效；
 - 同拍 store footprint 阻止同窗口 fill；
 - blocked fill 后 refill 可见；
@@ -207,3 +227,7 @@ v1 采用 **SRAM-macro-inside-module boundary**：模块名 `OooFetchPacketCache
   S_IDLE/S_RESP/S_LOOKUP 预开读窗，accept 仍单独锁存 context/判决资格。新增 FPC-I11/I12、
   facts、dummy-read/S_RESP/fill 动态覆盖和两个精确 negative marker；不改变 1-cycle latency、
   1RW 宏、cache-visible 命中语义或 819200 state-bit 合同。
+- 2026-07-15(R2.5)：冻结生产取指可见性合同：普通 store 不逐项失效 I$，自修改代码只由
+  `FENCE.I` 建立取指可见性；`NpcCoreTop` 将 generic `invalidate_*` 常零，保留 cache/bridge
+  端口和模块级 footprint 行为。永久结构门同时验证 ordinary-store 拓扑为 RED，以及
+  `FENCE.I -> mmu_flush -> I$/ITLB clear` 全链不断。

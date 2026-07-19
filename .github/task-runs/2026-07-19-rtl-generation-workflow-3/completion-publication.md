@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-19-rtl-generation-workflow-3
+- `trace_id`: e2e:2026-07-19-rtl-generation-workflow-3
+- `task_slug`: rtl-generation-workflow
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 505c2038fd87e8f3a66c90fca301ce9b4ae140a61d0ca2bf1f0445e9cd34dc1c
+- `task_report_md_sha256`: 82fe76d71bfeb99a731a9cd28a6dc783c52f522f37dbdfd00a053609b7da1fd8
+- `run_manifest_json_sha256`: 676319e51b010daa32aa749d7124b56487ff96abc7689e789a655f7f4182fe4f
+- `context_brief_md_sha256`: 660721904f5932dd9984c4878a8556a4493868a756ad2f9b07c8e3556f7ee85a
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: b73462b491158ea9ce521c7660d5d55e17810946fe92126d1a0fa65db4a32462
+- `dispatch_log_md_sha256`: 2b3e29a5e70209f1170db3bcd39ae22f7c2fede252a1bb0e5dad0f3b212f5261
+- `nodes_tsv_sha256`: b93a28ab86edf210ef4b8ea964e7c6287f0ec8f7469578d45c521cf36b96a194
