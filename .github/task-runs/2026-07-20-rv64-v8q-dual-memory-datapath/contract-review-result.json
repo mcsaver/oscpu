@@ -1,0 +1,17 @@
+{
+  "verdict": "gap",
+  "reviewer": "v8o_di4_contract_review",
+  "contract_json": ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-contract-review.json",
+  "contract_json_sha256": "80cdbc9c6fbf1cca3e322acf2ef872bc0b521bd1dc719109c93dbcadd3ce255d",
+  "blocker_ids": [
+    "F0-G01_RESET_SEMANTICS_UNDEFINED",
+    "F0-G02_FAIRNESS_BOUND_LACKS_PROGRESS_ASSUMPTION",
+    "F0-G03_ILLEGAL_DUAL_TYPE_FAIL_CLOSED_SCOPE",
+    "F0-G04_MUTATION_AND_EVIDENCE_ACCEPTANCE_NOT_CLOSED",
+    "F0-G05_SOURCE_CLOSURE_AND_FRESHNESS"
+  ],
+  "claim_boundary_ok": true,
+  "tools_used": false,
+  "filesystem_writes": false,
+  "network_or_external_access": false
+}

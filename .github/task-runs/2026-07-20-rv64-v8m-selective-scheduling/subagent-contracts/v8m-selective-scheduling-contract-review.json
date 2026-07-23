@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8m-selective-scheduling-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据冻结事实复核 OOO-2 选择性调度原子切片的根因、硬门条件、定向场景与结论边界是否充分",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/subagent-contracts/v8m-selective-scheduling-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "OOO-2 规范要求资源阻塞只影响依赖项或同资源项，registered Universal owner 驻留时 sole ready ALU-capable uop 必须经独立 terminal 前进。",
+      "OooIntBackend 将 mem_issue_res_valid_q 作为 universal_owner_present_i 传入 DispatchBackend；iq_issue0_ready_w 在该 owner 驻留时为零，但 issue1_ready_w 不读取 mem_issue_res_valid_q。",
+      "DispatchBackend 将 universal_owner_present_i 透传到 OooIntIssueQueue；IQ 在 owner 驻留时屏蔽 issue0_valid_o，但 issue1_valid_o 不受 owner 屏蔽。",
+      "OooIntIssueSelect8 在 owner 驻留时令 issue1_onehot_w=first_alu_onehot_w 且 issue1_found_o=first_alu_valid_w，因此 Universal 端口局部停止不等于所有发射冻结。",
+      "现有 standalone IQ 用例已证明 registered owner 驻留时 sole ALU 可从 issue1 drain，但缺少由真实 mem_issue_res_valid_q 建立 owner 的 backend 端到端场景，也缺少 architecture-current.json 中 selective_scheduling 的设计绑定证据。",
+      "拟议静态硬门保留对任意 older-valid 阻塞的否定检查；若检测到 iq_issue0_ready_w 的 reservation 局部停止，仅在 owner 从 backend 经 dispatch/IQ 到 selector、selector 选择 first ready ALU 到 issue1、IQ issue1 未被 owner 屏蔽且 backend issue1 ready 独立于 reservation 的完整链路都存在时才放行。",
+      "拟议 backend 定向场景先在 mem_req_ready=0 下建立真实 memory reservation，再让 older dependent ALU 与同资源 memory 留在 IQ，同时证明 younger independent ALU 经 issue1 fire；记录 blocked_dependents_only=true、younger_independent_issued=true、different_resource_issued=true、global_freeze_cycles=0。",
+      "拟议负向变异分别切断 backend owner 绑定、dispatch 透传、selector owner-to-first-ALU 选择、IQ issue1 owner 独立性和 backend issue1 ready 独立性，要求静态或定向测试检出；其余 DI/OOO 门继续保持 RED，不进入 PPA。"
+    ]
+  },
+  "deliverables": [
+    "严格输出一个 JSON 对象，字段为 verdict(pass|gap)、findings(数组)、required_counterexamples(数组)、claim_boundary(字符串)；不得输出 JSON 之外文本"
+  ],
+  "success_criteria": [
+    "若 pass，明确说明完整链路硬门和真实 reservation 场景足以支持仅 OOO-2 scoped GREEN；若 gap，给出可落地到静态审计、定向 TB 或 compile-success mutation 的具体缺口；不得把其它架构门或 PPA 晋级"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

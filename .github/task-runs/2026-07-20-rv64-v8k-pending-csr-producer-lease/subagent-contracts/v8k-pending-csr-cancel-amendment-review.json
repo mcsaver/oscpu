@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8k-pending-csr-cancel-amendment-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Review the local RV64 RTL contract amendment that replaces full pending clear feedback with feedback-free admission-cancel witnesses plus a proven direct-flush mutex",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/rtl-derivation.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-pending-csr-cancel-amendment-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/rtl-derivation.md"
+    ]
+  },
+  "deliverables": [
+    "Return JSON only: verdict pass or gap, blockers with cycle trace and observable effect, residual risks, overclaims"
+  ],
+  "success_criteria": [
+    "No combinational holder-ready feedback and no reachable ROB enqueue without same-edge full ProducerId lease birth"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

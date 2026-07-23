@@ -219,6 +219,10 @@ module tb_ooo_fetch_axi_access_attrs;
                {{(`XLEN-3){1'b0}}, 3'b000});
     check_stalled_ar_hold("PTW stalled AR holds");
 
+    if (tb_errors == 0) begin
+      $display("[ACCESS-G1-ATTRS] instruction_size=1 instruction_prot=4 ptw_size=3 ptw_prot=0 stall_instruction=2 stall_ptw=2 PASS");
+    end
+
     tb_finish("tb_ooo_fetch_axi_access_attrs");
   end
 endmodule

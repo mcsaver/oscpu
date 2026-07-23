@@ -33,6 +33,9 @@ module OooRob #(
   output dispatch1_ready_o,
   output [ROB_INDEX_W-1:0] dispatch1_rob_idx_o,
   output [PRODUCER_ID_W-1:0] dispatch1_producer_id_o,
+  // Q-only candidate for an atomic two-lane parent decision.  Unlike the
+  // standalone lane1 presentation above, it never depends on lane0 fire.
+  output [PRODUCER_ID_W-1:0] dispatch1_pair_producer_id_o,
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
@@ -62,7 +65,7 @@ module OooRob #(
 
   // v8f scoped ProducerId authorization queries.  The current queries serve
   // issue-time early wake; completion-open additionally requires !done.  All
-  // four are Q-only observations and must never enter transport READY.
+  // queries are Q-only observations and must never enter transport READY.
   input current0_query_valid_i,
   input [PRODUCER_ID_W-1:0] current0_query_producer_id_i,
   output current0_query_match_o,
@@ -75,6 +78,32 @@ module OooRob #(
   input completion1_query_valid_i,
   input [PRODUCER_ID_W-1:0] completion1_query_producer_id_i,
   output completion1_query_match_o,
+  input completion2_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion2_query_producer_id_i,
+  output completion2_query_match_o,
+  input completion3_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion3_query_producer_id_i,
+  output completion3_query_match_o,
+  input completion4_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion4_query_producer_id_i,
+  output completion4_query_match_o,
+  input completion5_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion5_query_producer_id_i,
+  output completion5_query_match_o,
+  input completion6_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion6_query_producer_id_i,
+  output completion6_query_match_o,
+  input completion7_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion7_query_producer_id_i,
+  output completion7_query_match_o,
+  // v8j registered branch-resolve authority.  Unlike completion queries,
+  // this edge-old lookup deliberately ignores the current kill input: the
+  // only current kill source is the authorized branch itself, so reading it
+  // here would close a combinational self-feedback loop.  Prior recovery is
+  // still a hard death edge through recover_q.
+  input resolve_query_valid_i,
+  input [PRODUCER_ID_W-1:0] resolve_query_producer_id_i,
+  output resolve_query_match_o,
 
   input commit_ready_i,
   input commit1_block_i,
@@ -93,6 +122,8 @@ module OooRob #(
   output head0_identity_valid_o,
   output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o,
   output [PRODUCER_ID_W-1:0] head0_producer_id_o,
+  output head0_owner_open_o,
+  output head0_launch_open_o,
   output commit0_valid_o,
   output [PRODUCER_ID_W-1:0] commit0_producer_id_o,
   output [`XLEN-1:0] commit0_pc_o,
@@ -273,17 +304,26 @@ module OooRob #(
   // is cleared over several walk cycles; nevertheless every strictly-younger
   // target loses side-effect authority on the first kill edge.  Older/equal
   // survivors remain eligible so their in-flight completion is not lost.
-  function producer_target_killed_now;
+  // This function is called concurrently by every current/completion query.
+  // Its age temporaries must be per invocation; a static Verilog function can
+  // cross-contaminate parallel dynamic-index calls and fabricate a kill even
+  // when kill_valid_i/recover_q are both zero.
+  function automatic producer_target_killed_now;
     input [ROB_INDEX_W-1:0] target_idx;
+    input [ROB_INDEX_W-1:0] head_idx;
+    input current_kill_valid;
+    input [ROB_INDEX_W-1:0] current_kill_idx;
+    input recovery_valid;
+    input [ROB_INDEX_W-1:0] recovery_kill_idx;
     reg [ROB_INDEX_W-1:0] target_age;
     reg [ROB_INDEX_W-1:0] boundary_age;
     begin
-      target_age = target_idx - head_q;
-      if (kill_valid_i) begin
-        boundary_age = kill_rob_idx_i - head_q;
+      target_age = target_idx - head_idx;
+      if (current_kill_valid) begin
+        boundary_age = current_kill_idx - head_idx;
         producer_target_killed_now = target_age > boundary_age;
-      end else if (recover_q) begin
-        boundary_age = kill_idx_q - head_q;
+      end else if (recovery_valid) begin
+        boundary_age = recovery_kill_idx - head_idx;
         producer_target_killed_now = target_age > boundary_age;
       end else begin
         producer_target_killed_now = 1'b0;
@@ -302,6 +342,20 @@ module OooRob #(
       completion0_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
   wire [ROB_INDEX_W-1:0] completion1_query_idx_w = completion1_query_valid_i ?
       completion1_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion2_query_idx_w = completion2_query_valid_i ?
+      completion2_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion3_query_idx_w = completion3_query_valid_i ?
+      completion3_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion4_query_idx_w = completion4_query_valid_i ?
+      completion4_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion5_query_idx_w = completion5_query_valid_i ?
+      completion5_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion6_query_idx_w = completion6_query_valid_i ?
+      completion6_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion7_query_idx_w = completion7_query_valid_i ?
+      completion7_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] resolve_query_idx_w = resolve_query_valid_i ?
+      resolve_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
   wire current0_query_exact_w =
       {slot_generation_q[current0_query_idx_w], current0_query_idx_w} ==
       current0_query_producer_id_i;
@@ -314,21 +368,99 @@ module OooRob #(
   wire completion1_query_exact_w =
       {slot_generation_q[completion1_query_idx_w], completion1_query_idx_w} ==
       completion1_query_producer_id_i;
+  wire completion2_query_exact_w =
+      {slot_generation_q[completion2_query_idx_w], completion2_query_idx_w} ==
+      completion2_query_producer_id_i;
+  wire completion3_query_exact_w =
+      {slot_generation_q[completion3_query_idx_w], completion3_query_idx_w} ==
+      completion3_query_producer_id_i;
+  wire completion4_query_exact_w =
+      {slot_generation_q[completion4_query_idx_w], completion4_query_idx_w} ==
+      completion4_query_producer_id_i;
+  wire completion5_query_exact_w =
+      {slot_generation_q[completion5_query_idx_w], completion5_query_idx_w} ==
+      completion5_query_producer_id_i;
+  wire completion6_query_exact_w =
+      {slot_generation_q[completion6_query_idx_w], completion6_query_idx_w} ==
+      completion6_query_producer_id_i;
+  wire completion7_query_exact_w =
+      {slot_generation_q[completion7_query_idx_w], completion7_query_idx_w} ==
+      completion7_query_producer_id_i;
+  wire resolve_query_exact_w =
+      {slot_generation_q[resolve_query_idx_w], resolve_query_idx_w} ==
+      resolve_query_producer_id_i;
 
   assign current0_query_match_o = current0_query_valid_i && !rst && !flush_i &&
       valid_q[current0_query_idx_w] && current0_query_exact_w &&
-      !producer_target_killed_now(current0_query_idx_w);
+      !producer_target_killed_now(current0_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
   assign current1_query_match_o = current1_query_valid_i && !rst && !flush_i &&
       valid_q[current1_query_idx_w] && current1_query_exact_w &&
-      !producer_target_killed_now(current1_query_idx_w);
-  assign completion0_query_match_o = completion0_query_valid_i && !rst && !flush_i &&
+      !producer_target_killed_now(current1_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  // Keep killed-now as an explicit Q-only term.  Besides documenting the
+  // authorization boundary, the named term prevents a simulator from
+  // treating the dynamic-slot function call as the sole reevaluation key
+  // when query-valid toggles with the same raw index.
+  wire completion0_query_live_w = completion0_query_valid_i && !rst && !flush_i &&
       valid_q[completion0_query_idx_w] && !done_q[completion0_query_idx_w] &&
-      completion0_query_exact_w &&
-      !producer_target_killed_now(completion0_query_idx_w);
+      completion0_query_exact_w;
+  wire completion0_query_killed_w =
+      producer_target_killed_now(completion0_query_idx_w, head_q,
+                                 kill_valid_i, kill_rob_idx_i,
+                                 recover_q, kill_idx_q);
+  assign completion0_query_match_o =
+      completion0_query_live_w && !completion0_query_killed_w;
   assign completion1_query_match_o = completion1_query_valid_i && !rst && !flush_i &&
       valid_q[completion1_query_idx_w] && !done_q[completion1_query_idx_w] &&
       completion1_query_exact_w &&
-      !producer_target_killed_now(completion1_query_idx_w);
+      !producer_target_killed_now(completion1_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion2_query_match_o = completion2_query_valid_i && !rst && !flush_i &&
+      valid_q[completion2_query_idx_w] && !done_q[completion2_query_idx_w] &&
+      completion2_query_exact_w &&
+      !producer_target_killed_now(completion2_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion3_query_match_o = completion3_query_valid_i && !rst && !flush_i &&
+      valid_q[completion3_query_idx_w] && !done_q[completion3_query_idx_w] &&
+      completion3_query_exact_w &&
+      !producer_target_killed_now(completion3_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion4_query_match_o = completion4_query_valid_i && !rst && !flush_i &&
+      valid_q[completion4_query_idx_w] && !done_q[completion4_query_idx_w] &&
+      completion4_query_exact_w &&
+      !producer_target_killed_now(completion4_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion5_query_match_o = completion5_query_valid_i && !rst && !flush_i &&
+      valid_q[completion5_query_idx_w] && !done_q[completion5_query_idx_w] &&
+      completion5_query_exact_w &&
+      !producer_target_killed_now(completion5_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion6_query_match_o = completion6_query_valid_i && !rst && !flush_i &&
+      valid_q[completion6_query_idx_w] && !done_q[completion6_query_idx_w] &&
+      completion6_query_exact_w &&
+      !producer_target_killed_now(completion6_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  assign completion7_query_match_o = completion7_query_valid_i && !rst && !flush_i &&
+      valid_q[completion7_query_idx_w] && !done_q[completion7_query_idx_w] &&
+      completion7_query_exact_w &&
+      !producer_target_killed_now(completion7_query_idx_w, head_q,
+                                  kill_valid_i, kill_rob_idx_i,
+                                  recover_q, kill_idx_q);
+  // V8J cycle-free resolve query: do not replace !recover_q with recovering_w
+  // and do not call producer_target_killed_now() here.  Either change reads
+  // kill_valid_i and creates resolve->kill->resolve feedback.
+  assign resolve_query_match_o = resolve_query_valid_i && !rst && !flush_i &&
+      !recover_q && valid_q[resolve_query_idx_w] &&
+      !done_q[resolve_query_idx_w] && resolve_query_exact_w;
 
   // S2-Q2 v8a shadow：candidate 不读 commit-ready/permit；identity-valid 只回答
   // 当前 head slot 是否仍 live。8-bit identity 目前只是 ROB index 零扩展，不能
@@ -341,6 +473,15 @@ module OooRob #(
   assign head0_identity_o =
       {{(`OOO_CONTEXT_ID_W-ROB_INDEX_W){1'b0}}, head_q};
   assign head0_producer_id_o = {slot_generation_q[head_q], head_q};
+  // An already-issued physical write remains owned across a selective
+  // recovery of younger ROB entries.  Keep this ownership fact independent
+  // of the stricter first-launch admission gate below.
+  assign head0_owner_open_o = !rst &&
+      (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] &&
+      !done_q[head_q];
+  assign head0_launch_open_o = !rst && !flush_i && !recovering_w &&
+      (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] &&
+      !done_q[head_q];
 
   // 【serialize-at-retire Phase1】识别队头是否为(合法)CSR uop——用于 §9 mem-quiet 门控与禁 CSR 双提交。
   // 只看 inst/done/exception(不依赖 commit_ready), 避免与 core_commit0_csr 成组合环。head0-CSR 队头化后
@@ -422,6 +563,13 @@ module OooRob #(
       {dispatch0_generation_candidate_w, dispatch0_rob_idx_o};
   assign dispatch1_producer_id_o =
       {dispatch1_generation_candidate_w, dispatch1_rob_idx_o};
+  wire [ROB_INDEX_W-1:0] dispatch1_pair_idx_w =
+      rob_ptr_add(tail_q, 2'd1);
+  wire [PRODUCER_GEN_W-1:0] dispatch1_pair_generation_candidate_w =
+      slot_generation_q[dispatch1_pair_idx_w] +
+      {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+  assign dispatch1_pair_producer_id_o =
+      {dispatch1_pair_generation_candidate_w, dispatch1_pair_idx_w};
 
 `ifdef DBRA_PROBE
   always @(posedge clk) begin
@@ -718,6 +866,90 @@ module OooRob #(
            (dispatch1_producer_id_o[PRODUCER_ID_W-1:ROB_INDEX_W] !==
             dispatch1_generation_candidate_w)))
         $error("[V8E-PRODUCER-ID-DISPATCH1] allocation identity/source mismatch @%0t",
+               $time);
+      if (dispatch1_pair_producer_id_o[ROB_INDEX_W-1:0] !==
+          rob_ptr_add(tail_q, 2'd1))
+        $error("[V8G-ROB-PAIR-CANDIDATE] pair lane1 candidate depends on fire @%0t",
+               $time);
+      if (dispatch0_producer_id_o === dispatch1_pair_producer_id_o)
+        $error("[V8H-ROB-PAIR-PID-DISTINCT] pair candidates share one ProducerId @%0t",
+               $time);
+      if (dispatch0_fire_w &&
+          (dispatch1_producer_id_o !== dispatch1_pair_producer_id_o))
+        $error("[V8G-ROB-PAIR-ACTUAL] accepted pair lane1 identity diverged @%0t",
+               $time);
+      if (completion2_query_match_o &&
+          (!completion2_query_valid_i ||
+           !valid_q[completion2_query_idx_w] ||
+           done_q[completion2_query_idx_w] ||
+           !completion2_query_exact_w ||
+           producer_target_killed_now(completion2_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8G-ROB-MEM-COMPLETION-QUERY] query2 escaped exact-open gate @%0t",
+               $time);
+      if (completion3_query_match_o &&
+          (!completion3_query_valid_i ||
+           !valid_q[completion3_query_idx_w] ||
+           done_q[completion3_query_idx_w] ||
+           !completion3_query_exact_w ||
+           producer_target_killed_now(completion3_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8H-ROB-MULDIV-COMPLETION-QUERY] query3 escaped exact-open gate @%0t",
+               $time);
+      if (completion4_query_match_o &&
+          (!completion4_query_valid_i ||
+           !valid_q[completion4_query_idx_w] ||
+           done_q[completion4_query_idx_w] ||
+           !completion4_query_exact_w ||
+           producer_target_killed_now(completion4_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8H-ROB-CLMUL-COMPLETION-QUERY] query4 escaped exact-open gate @%0t",
+               $time);
+      if (completion5_query_match_o &&
+          (!completion5_query_valid_i ||
+           !valid_q[completion5_query_idx_w] ||
+           done_q[completion5_query_idx_w] ||
+           !completion5_query_exact_w ||
+           producer_target_killed_now(completion5_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8I-ROB-FP-RESULT-QUERY] query5 escaped exact-open gate @%0t",
+               $time);
+      if (completion6_query_match_o &&
+          (!completion6_query_valid_i ||
+           !valid_q[completion6_query_idx_w] ||
+           done_q[completion6_query_idx_w] ||
+           !completion6_query_exact_w ||
+           producer_target_killed_now(completion6_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8I-ROB-FP-FORMAL-QUERY] query6 escaped exact-open gate @%0t",
+               $time);
+      if (completion7_query_match_o &&
+          (!completion7_query_valid_i ||
+           !valid_q[completion7_query_idx_w] ||
+           done_q[completion7_query_idx_w] ||
+           !completion7_query_exact_w ||
+           producer_target_killed_now(completion7_query_idx_w, head_q,
+                                      kill_valid_i, kill_rob_idx_i,
+                                      recover_q, kill_idx_q)))
+        $error("[V8S-ROB-MEM1-COMPLETION-QUERY] query7 escaped exact-open gate @%0t",
+               $time);
+      if (resolve_query_match_o &&
+          (!resolve_query_valid_i || rst || flush_i || recover_q ||
+           !valid_q[resolve_query_idx_w] || done_q[resolve_query_idx_w] ||
+           !resolve_query_exact_w))
+        $error("[V8J-ROB-RESOLVE-QUERY] resolve query escaped exact edge-old gate @%0t",
+               $time);
+      if (kill_valid_i && resolve_query_valid_i &&
+          (resolve_query_idx_w == kill_rob_idx_i) &&
+          !rst && !flush_i && !recover_q &&
+          valid_q[resolve_query_idx_w] && !done_q[resolve_query_idx_w] &&
+          resolve_query_exact_w && !resolve_query_match_o)
+        $error("[V8J-ROB-RESOLVE-SELF-KILL] boundary P rejected itself @%0t",
                $time);
       if (head0_identity_valid_o &&
           ((head0_producer_id_o[ROB_INDEX_W-1:0] !== head_q) ||

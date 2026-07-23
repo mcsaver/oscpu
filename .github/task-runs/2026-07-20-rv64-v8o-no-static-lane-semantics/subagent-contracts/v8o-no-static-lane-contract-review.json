@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8o-no-static-lane-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据随附本地RTL工程事实，审查v8o DI-4原子合同是否足以排除静态dispatch位置语义、串行伪装、身份替换与checker假绿，并给出严格PASS或可执行GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/contract.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/subagent-contracts/v8o-no-static-lane-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围只允许提升DI-4 no_static_lane_semantics；DI-1/2/3/5、OOO-3/4、总体架构和PPA必须保持未提升，OOO-1/2仅可保留独立同设计证据。",
+      "slot0/slot1定义为同一dispatch package中被接受的程序序位置；物理issue0是Universal，物理issue1是simple-ALU terminal，终端不等同程序lane。",
+      "生产链为ctrl_is_alu_terminal_capable到alu_terminal_capable_q逐entry存储与压缩，再到OooIntIssueSelect8的alu_capable_i和issue_pair_swapped动态终端分配。",
+      "现有R3矩阵已覆盖branch、jal、jalr、load、store两个程序顺序和同拍双fire，但缺muldiv、非零generation完整ProducerId与DI-4设计绑定证据。",
+      "architecture_hard_gates.py未识别实际ctrl_is_alu_terminal_capable名称，导致capability_predicate为假时两个source检查经not predicate真空通过；合同要求先修复并以源码反例单测拒绝。",
+      "拟定基线为6类乘2位置共12场景，每场景复杂uop与独立simple ALU均先resident再同拍fire，检查PC、ctrl类、非零generation完整ProducerId和exactly-once drain。",
+      "机器指标要求12个program_slot_permutation布尔值全真、static_lane_role_violations=0、same_cycle_pair_fires=12、exact_full_pid_matches=24，release与OOO_ASSERT一致。",
+      "拟定compile-success变异覆盖禁用swap、静态entry capability、slot1 capability capture丢失、MulDiv误归ALU、第二终端串行化、完整ProducerId损坏；每个必须先成功elaborate且激活后被语义拒绝。",
+      "证据命令精确为make -C npc/rv64 check-no-static-lane-semantics，绑定完整vsrc design_id、精确provenance、唯一PASS marker并原子保留同设计兄弟记录；最终DI-4绿但overall必须红。",
+      "本子任务是本地RV64 RTL只读审查；no tools、no shell、no file access、no network、no accounts、no credentials、no external services、no writes。"
+    ]
+  },
+  "deliverables": [
+    "返回单个JSON对象：verdict为pass或gap；blockers数组逐项含id、counterexample、required_executable_evidence；false_green_risks数组；claim_boundary；若pass则blockers必须为空。"
+  ],
+  "success_criteria": [
+    "逐项挑战slot定义、resident非真空性、同拍fire、六类双位置、full ProducerId、checker非真空、compile-success变异、provenance和只提升DI-4边界，并输出可直接转成TB/变异/静态单测的结论。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

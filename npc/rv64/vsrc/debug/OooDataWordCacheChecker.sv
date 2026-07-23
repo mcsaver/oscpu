@@ -14,6 +14,9 @@ module OooDataWordCacheChecker (
   input wire clk,
   input wire rst,
   input wire dma_invalidate_all_i,
+  input wire peer_invalidate_valid_i,
+  input wire [`XLEN-1:0] peer_invalidate_addr_i,
+  input wire [`STRB_W-1:0] peer_invalidate_wstrb_i,
 
   input wire [`XLEN-1:0] req_lookup_addr_i,
   input wire [3:0] req_nbytes_i,
@@ -60,6 +63,19 @@ module OooDataWordCacheChecker (
     end
   endfunction
 
+  function normalized_wstrb_legal;
+    input [`STRB_W-1:0] wstrb;
+    begin
+      case (wstrb)
+        8'h01,
+        8'h03,
+        8'h0f,
+        8'hff: normalized_wstrb_legal = 1'b1;
+        default: normalized_wstrb_legal = 1'b0;
+      endcase
+    end
+  endfunction
+
   wire req_nbytes_legal_w =
       (req_nbytes_i >= 4'd1) && (req_nbytes_i <= 4'd8);
   wire [4:0] req_window_end_w =
@@ -70,6 +86,15 @@ module OooDataWordCacheChecker (
   wire [4:0] store_window_end_w =
       {1'b0, store_addr_i[2:0]} + {1'b0, store_nbytes_w};
   wire store_line_cross_w = store_window_end_w > 5'd8;
+  wire [3:0] peer_nbytes_w =
+      nbytes_from_wstrb(peer_invalidate_wstrb_i);
+  wire [4:0] peer_window_end_w =
+      {1'b0, peer_invalidate_addr_i[2:0]} + {1'b0, peer_nbytes_w};
+  wire peer_line_cross_w = peer_window_end_w > 5'd8;
+  wire [`XLEN-1:0] peer_line0_w =
+      {peer_invalidate_addr_i[`XLEN-1:3], 3'b000};
+  wire [`XLEN-1:0] peer_line1_w =
+      peer_line0_w + {{(`XLEN-4){1'b0}}, 4'd8};
 
   // 发射拍锁存(判决拍参照系): lookup_hit_i 对应上一拍的 lookup_addr_i。
   reg lookup_pend_q;
@@ -109,10 +134,14 @@ module OooDataWordCacheChecker (
   assign facts_w[`OOO_DWC_STORE_RMW_ISSUE] = store_rmw_issue_w;
   assign facts_w[`OOO_DWC_STORE_RMW_BUSY] = rmw_busy_i;
   assign facts_w[`OOO_DWC_DMA_INVALIDATE_ALL] = dma_invalidate_all_i;
+  assign facts_w[`OOO_DWC_PEER_INVALIDATE] = peer_invalidate_valid_i;
+  assign facts_w[`OOO_DWC_PEER_LINE_CROSS] =
+      peer_invalidate_valid_i && peer_line_cross_w;
 
   wire _unused_facts_w =
       |facts_w | (|walk_lookup_addr_i) | (|fill_addr_i) |
-      (|store_addr_i) | (|store_wdata_i) | (|store_wstrb_i);
+      (|store_addr_i) | (|store_wdata_i) | (|store_wstrb_i) |
+      (|peer_invalidate_addr_i) | (|peer_invalidate_wstrb_i);
 
 `ifdef OOO_ASSERT
   always @(posedge clk) begin
@@ -174,6 +203,28 @@ module OooDataWordCacheChecker (
   always @(posedge clk) begin
     if (!rst && dma_invalidate_all_i && lookup_hit_i) begin
       $error("[DWC-DMA-HIT] lookup hit survived invalidate-all @%0t", $time);
+      $fatal;
+    end
+  end
+
+  always @(posedge clk) begin
+    if (!rst && peer_invalidate_valid_i &&
+        !normalized_wstrb_legal(peer_invalidate_wstrb_i)) begin
+      $error("[DWC-PEER-WSTRB] peer maintenance mask is not normalized: addr=%h wstrb=%h @%0t",
+             peer_invalidate_addr_i, peer_invalidate_wstrb_i, $time);
+      $fatal;
+    end
+  end
+
+  // The exact decision address is the preceding issue address.  Compare full
+  // 8B line addresses so same-index/different-tag aliases are not confused.
+  always @(posedge clk) begin
+    if (!rst && peer_invalidate_valid_i && lookup_hit_i &&
+        ((({lookup_addr_q[`XLEN-1:3], 3'b000}) == peer_line0_w) ||
+         (peer_line_cross_w &&
+          (({lookup_addr_q[`XLEN-1:3], 3'b000}) == peer_line1_w)))) begin
+      $error("[DWC-PEER-HIT-BLOCK] exact peer-invalidated lookup returned hit @%0t",
+             $time);
       $fatal;
     end
   end

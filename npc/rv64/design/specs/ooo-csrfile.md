@@ -1,7 +1,8 @@
 # 规范：控制状态寄存器文件 CsrFile
 
 > 模块：`vsrc/core/CsrFile.v`。模板见 `../arch/SPEC-TEMPLATE.md`。状态：主路径已实现；
-> xRET current-mode 合同已冻结由上游 classifier 负责；`minstret` 系统级输入合同仍有开放项。
+> xRET current-mode 合同已冻结由上游 classifier 负责；`minstret` 系统级输入合同已由
+> 2026-07-21 V9C 当前设计程序级证据关闭。
 > 由 `core/NpcCoreTop.v` 直接例化，`OooCoreTopGlue` 只导出 CSR access/trap/fflags/retire 事件并消费状态。
 
 ## 1. 目的与范围
@@ -71,11 +72,13 @@ trap/exit/privileged boundary 优先级阻断 younger probe 的消费。
   `mcountinhibit.IR` 抑制。
 - **CSR-I4（系统合同）**：`instret_inc_i` 必须来自唯一 ISA-retirement 计数源：异常项
   不计，实际退休的 control-path 指令各计一次。
-- **INSTRET-G1（2026-07-14 T4J RTL 已实现）**：`NpcCoreTop` 接入 output mux 的最终
+- **INSTRET-G1（2026-07-21 V9C CLOSED）**：`NpcCoreTop` 接入 output mux 的最终
   `retire_count_o`；该值只按最终 commit lane 的 `valid && !exception` 计数，故异常项不计，
-  mret/sret/wfi/sfence/fence.i 等实际产生的 control pseudo-commit 各计一次。focused TB
-  已覆盖 0/1/2、异常过滤、control 优先级、`mcountinhibit.IR` 与显式 minstret 写优先；
-  ROADMAP 要求的程序级 exception/control delta 长回归仍需独立留证后再宣称全局关闭。
+  mret/sret/wfi/sfence/fence.i 等在实际产生合法 control pseudo-commit 时各计一次。focused TB
+  覆盖 0/1/2、异常过滤、control 优先级、`mcountinhibit.IR` 与显式 minstret 写优先；V9C
+  全核 Sv39 程序进一步证明异常 lane 2/2 零增量、MRET/SRET/SFENCE.VMA=1/6/1、控制提交
+  8/8 精确单增量和 1052 次 CsrFile 边沿增量，并以 3/3 current-source 可编译 RTL
+  验证变体锁定 final-mux 与 CsrFile 消费边。WFI 能力范围仍由独立 `WFI-G1` 决策负责。
 
 ## 5. 关键路径
 Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器加法器(16 CARRY4,专用进位,快);
@@ -90,6 +93,8 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
 - T3K：standalone TB 交叉 main/probe 地址与合法性，覆盖 read-only write-intent、
   privilege、TVM、counter-enable，并证明 probe 无副作用与 policy 写入边沿的
   pre-edge→post-edge 翻转；结构/变异检查证明 commit/pending 不再进入 probe 锥。
+- INSTRET-G1：`make -C npc/rv64 check-instret-retirement`；证据入口
+  `npc/rv64/eval/ppa/evidence/instret-retirement-current.json`，PPA 声明保持 `UNQUALIFIED`。
 
 ## 7. 变更记录
 - 2026-06-28：逆向文档化(M/S 特权 / trap-return 栈 / 委托 / PMP/satp/counters / 不变量)。
@@ -100,3 +105,5 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
   final module 87/87；CsrFile 边界不需改 RTL。
 - 2026-07-13：冻结 T3K 双视图 legality 合同：head-only probe 与
   commit/pending main access 解耦，共用唯一纯组合 predicate，保持 pre-edge 语义。
+- 2026-07-21：V9C 以全核程序事件清单、逐拍 CsrFile 增量和三类可编译 RTL 验证变体
+  关闭 `INSTRET-G1`；生产 RTL 无需修改。

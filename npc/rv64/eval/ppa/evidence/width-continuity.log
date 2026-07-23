@@ -1,0 +1,62 @@
+DI-2 local RV64 seven-boundary width-continuity evidence
+task_run_id=2026-07-21-rv64-v9a-width-continuity
+suite_run_id=v9a-di2-20260723T020653Z-3332463
+generated_at_utc=2026-07-23T02:10:54.593664+00:00
+design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+rtl_file_count=145
+provenance_sha256=000f43f2870548fee60832fb4ce37362f83642900af7a597a1ed97b970edcec7
+source_manifest_sha256=fe48cf9869463566b3acde8a42e8fdd9cead4501da8c85158cf135fa7e7e300e
+trace_sha256=1bb38f328b19b3c1f6371b513883975e5cc3756bb49365ffdd1245f2ef966ab1
+focused_profiles=assert,release
+compile_success_rtl_mutations=11
+adjacent_regressions=8
+fixed_window_stall_probe=dynamic_reject
+boundary fetch total=128 peak=2 dual_cycles=64
+boundary decode total=128 peak=2 dual_cycles=64
+boundary rename total=128 peak=2 dual_cycles=64
+boundary dispatch total=128 peak=2 dual_cycles=64
+boundary issue total=128 peak=2 dual_cycles=64
+boundary execute total=128 peak=2 dual_cycles=64
+boundary retire total=128 peak=2 dual_cycles=64
+dimension decode_to_backend decode_lane1_backend_cut
+dimension dispatch_width iq_lane1_sink_cut,rob_lane1_sink_cut
+dimension ex_stage_capture ex1_stage_capture_cut
+dimension ex_stage_payload ex1_stage_payload_alias
+dimension execute_width ex1_stage_capture_cut
+dimension fetch_identity fetch_lane1_payload_alias
+dimension iq_sink iq_lane1_sink_cut
+dimension issue_width issue_lane1_terminal_cut
+dimension payload_data ex1_stage_payload_alias,fetch_lane1_payload_alias,lane1_immediate_alias
+dimension pid_lifecycle ex1_stage_payload_alias,retire_lane1_event_cut,wb1_rob_sink_cut
+dimension rename_sink rename_lane1_sink_cut
+dimension retire_width retire_lane1_event_cut
+dimension rob_sink rob_lane1_sink_cut
+dimension wb_sink wb1_rob_sink_cut
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/assert/logs/tb_ooo_core_top_glue_v9a_width_continuity.log f4975547db5833d5307e2201fb2a6b585ab91f6dfd3c61cd2caf5c7859220881
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/release/logs/tb_ooo_core_top_glue_v9a_width_continuity.log 6f97997c7e1e93ec1d8c70507c089e3b8a11d01d8c6efde556b419b4f1b1a279
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_alu_decode_backend.log bed13a0f7bfcb21f83af1e85565204d66b95f54c83657829953c427d868cf781
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log c30783136c5cef24ff25e98430dd9ff0f714f4be1de1bd9223caeb0ff7181741
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_dispatch_backend.log cfa927e58cfa6081cbb973adbe3891c3f3346dd2f567d50341655697071f7fb9
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log d2a5184d17d6469628191ea18e60e729808796c27d03c236928013595941319b
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_backend.log c99798c4710ca05ab15dce3ad1f6f178bfb8e9cd7b6921c5eb727c6d2c0afafb
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_issue_queue.log d6dafc5afb5040b8a1ace73bd49c9dbfc951c74273dd50d74e7f76c8cb6419e4
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_rob.log 333f85a16a88f627eeab1152e660da73bb5cc8ace4fe4bb800b38590dbeb97c4
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_pipe_stage_reg.log 008b8024d745924ecfe8a7f7b659538169f20fe8f988e076a0dbea8e4114aa5b
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.post.sha256 b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.pre.sha256 b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/stall-probe/logs/tb_ooo_core_top_glue_v9a_width_stall_probe.log db49febde64a6fb854b5701a96e41a0d40801b1259f790583b0767b558f52308
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/same-design-predecessors.log a706f08ad2e0dcb563819b4c13eb57e50715ae10a11df4d8beb8fbfecd6882c3
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/suite-run-id.txt 6b6579c51316d9fc96fceda589b1a8e8b47cef8030e11896426e87a0bada5eb4
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/decode_lane1_backend_cut.log 0439ce164c470d91f42fe86f1b1096f9b61719f2d637cf18d987b0712920fa67
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_capture_cut.log 4829cdc39b775879124f45a438659b966c9cca0a65bcbf9da7c9dcb1992ba02c
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_payload_alias.log af7be465dfd7d3869851a957ae3fcdea872510dfd46b2481db5c07e9185129de
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/fetch_lane1_payload_alias.log b17004c4819024e4439ce84ac4415dd9aee810628ad63138e4c2ebf314b64025
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/iq_lane1_sink_cut.log 15a9f1c9749c48a5cddbeb1fe62647bb3015d3701f189d031e5eadc0eabf98dc
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/issue_lane1_terminal_cut.log 320fcb5c088e48c4c15b57483c8975b13ab2a1ba0621dd6bf029be7c1564f8cc
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/lane1_immediate_alias.log bc6fdb3c715be7db38cfd4182ed847d9003cf449525b4da4014bce0885d71979
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rename_lane1_sink_cut.log ca368cf1a9d78dc03fe836c1e2b3c5e08c9f2bed9a1504dfbd84f47eb734e6ec
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/retire_lane1_event_cut.log 0bfba592dc1d4493cdfcea11c3598364de8f6574a4389669b9cc9731b65ebae2
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rob_lane1_sink_cut.log f8c9257a5c510416c9a4d8efab74d6ce66478fa2409f87c608b87e42059ab7a8
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/summary.json de33fe43e45498f6216c6a4a2f0b59cd47dbf7081a3856820442b210dbc4e2b6
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/wb1_rob_sink_cut.log ef0b246cda7f5d628ea6ed75c720245f0d4cdd5de32a6418cdbe5825ad175ef0
+[ARCH-GATE] width_continuity PASS suite_run_id=v9a-di2-20260723T020653Z-3332463 design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2 trace_sha256=1bb38f328b19b3c1f6371b513883975e5cc3756bb49365ffdd1245f2ef966ab1 mutations=11

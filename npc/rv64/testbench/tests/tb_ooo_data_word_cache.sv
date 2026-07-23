@@ -18,6 +18,9 @@ module tb_ooo_data_word_cache;
   reg clk;
   reg rst;
   reg dma_invalidate_all;
+  reg peer_invalidate_valid;
+  reg [`XLEN-1:0] peer_invalidate_addr;
+  reg [`STRB_W-1:0] peer_invalidate_wstrb;
 
   reg [`XLEN-1:0] req_lookup_addr;
   reg [3:0] req_nbytes;
@@ -43,6 +46,13 @@ module tb_ooo_data_word_cache;
   reg [`XLEN-1:0] store_wdata;
   reg [`STRB_W-1:0] store_wstrb;
   wire rmw_busy;
+  wire legacy_req_cacheable;
+  wire legacy_req_line_cross;
+  wire legacy_walk_cacheable;
+  wire legacy_lookup_hit;
+  wire [`XLEN-1:0] legacy_lookup_line;
+  wire legacy_rmw_busy;
+  integer dwc_mutation_case;
 
   localparam [`XLEN-1:0] WORD0 = `NPC_AXI_PMEM_BASE + 64'h0000_1000;
   localparam [`XLEN-1:0] WORD1 = `NPC_AXI_PMEM_BASE + 64'h0000_1008;
@@ -51,10 +61,15 @@ module tb_ooo_data_word_cache;
   localparam [`XLEN-1:0] ALIAS0 = WORD0 + 64'h0000_8000;
   localparam [`XLEN-1:0] MMIO_WORD = 64'h0000_0000_1000_0000;
 
-  OooDataWordCache dut (
+  OooDataWordCache #(
+    .ENABLE_PEER_INVALIDATE(1)
+  ) dut (
     .clk(clk),
     .rst(rst),
     .dma_invalidate_all_i(dma_invalidate_all),
+    .peer_invalidate_valid_i(peer_invalidate_valid),
+    .peer_invalidate_addr_i(peer_invalidate_addr),
+    .peer_invalidate_wstrb_i(peer_invalidate_wstrb),
     .req_lookup_addr_i(req_lookup_addr),
     .req_nbytes_i(req_nbytes),
     .req_cacheable_o(req_cacheable),
@@ -77,10 +92,47 @@ module tb_ooo_data_word_cache;
     .rmw_busy_o(rmw_busy)
   );
 
+  // Parameter-off closure instance.  It receives the same otherwise legal
+  // traffic and even an asserted peer input, but peer maintenance must have
+  // no influence on hit/valid or SRAM ownership in the legacy configuration.
+  OooDataWordCache #(
+    .ENABLE_PEER_INVALIDATE(0)
+  ) dut_peer_disabled (
+    .clk(clk),
+    .rst(rst),
+    .dma_invalidate_all_i(dma_invalidate_all),
+    .peer_invalidate_valid_i(peer_invalidate_valid),
+    .peer_invalidate_addr_i(peer_invalidate_addr),
+    .peer_invalidate_wstrb_i(peer_invalidate_wstrb),
+    .req_lookup_addr_i(req_lookup_addr),
+    .req_nbytes_i(req_nbytes),
+    .req_cacheable_o(legacy_req_cacheable),
+    .req_line_cross_o(legacy_req_line_cross),
+    .walk_lookup_addr_i(walk_lookup_addr),
+    .walk_cacheable_o(legacy_walk_cacheable),
+    .lookup_en_i(lookup_en),
+    .lookup_addr_i(lookup_addr),
+    .lookup_hit_o(legacy_lookup_hit),
+    .lookup_line_o(legacy_lookup_line),
+    .fill_valid_i(fill_valid),
+    .fill_addr_i(fill_addr),
+    .fill_data_i(fill_data),
+    .store_commit_i(store_commit),
+    .store_rmw_en_i(store_rmw_en),
+    .store_cacheable_i(store_cacheable),
+    .store_addr_i(store_addr),
+    .store_wdata_i(store_wdata),
+    .store_wstrb_i(store_wstrb),
+    .rmw_busy_o(legacy_rmw_busy)
+  );
+
   OooDataWordCacheChecker u_checker (
     .clk(clk),
     .rst(rst),
     .dma_invalidate_all_i(dma_invalidate_all),
+    .peer_invalidate_valid_i(peer_invalidate_valid),
+    .peer_invalidate_addr_i(peer_invalidate_addr),
+    .peer_invalidate_wstrb_i(peer_invalidate_wstrb),
     .req_lookup_addr_i(req_lookup_addr),
     .req_nbytes_i(req_nbytes),
     .req_cacheable_i(req_cacheable),
@@ -124,6 +176,9 @@ module tb_ooo_data_word_cache;
     begin
       req_lookup_addr = WORD0;
       dma_invalidate_all = 1'b0;
+      peer_invalidate_valid = 1'b0;
+      peer_invalidate_addr = {`XLEN{1'b0}};
+      peer_invalidate_wstrb = 8'h01;
       req_nbytes = 4'd8;
       walk_lookup_addr = WORD0;
       lookup_en = 1'b0;
@@ -193,6 +248,242 @@ module tb_ooo_data_word_cache;
       tick();
       lookup_en = 1'b0;
       #1;
+    end
+  endtask
+
+  task automatic pulse_peer_invalidate;
+    input [`XLEN-1:0] addr;
+    input [`STRB_W-1:0] strb;
+    begin
+      peer_invalidate_addr = addr;
+      peer_invalidate_wstrb = strb;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      peer_invalidate_valid = 1'b0;
+      #1;
+    end
+  endtask
+
+  // F1 peer-maintenance direct-cache matrix.  This deliberately exercises
+  // visibility conflicts independently of bridge/F0 transport so an SRAM
+  // write cannot hide an incorrect valid-bit merge.
+  task automatic peer_invalidate_conflicts;
+    integer size_i;
+    integer off_i;
+    reg [`STRB_W-1:0] mask_r;
+    reg cross_r;
+    begin
+      // Basic exact-line clear plus parameter-off closure.  Both instances
+      // receive the event; only the explicitly enabled instance may react.
+      fill_word(WORD0, 64'h1020_3040_5060_7080);
+      pulse_peer_invalidate(WORD0, 8'hff);
+      issue_lookup(WORD0);
+      tb_check1("peer invalidates enabled exact line", lookup_hit, 1'b0);
+      tb_check1("parameter-off peer input preserves legacy hit",
+                legacy_lookup_hit, 1'b1);
+      tb_check64("parameter-off peer input preserves legacy data",
+                 legacy_lookup_line, 64'h1020_3040_5060_7080);
+      tb_check1("peer-only event is not legacy RMW owner",
+                legacy_rmw_busy, 1'b0);
+
+      // Exact lookup decision and peer event overlap: enabled cache must mask
+      // hit before the clearing edge; disabled cache proves the line was hot.
+      fill_word(WORD0, 64'h1111_aaaa_2222_bbbb);
+      lookup_addr = WORD0;
+      lookup_en = 1'b1;
+      tick();
+      lookup_en = 1'b0;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      #1;
+      tb_check1("peer masks exact lookup decision immediately",
+                lookup_hit, 1'b0);
+      tb_check1("parameter-off exact lookup remains hot",
+                legacy_lookup_hit, 1'b1);
+      tick();
+      peer_invalidate_valid = 1'b0;
+      #1;
+
+      // An unrelated exact line is neither combinationally masked nor lost
+      // by the peer event's per-entry valid merge.
+      fill_word(WORD0, 64'h3333_cccc_4444_dddd);
+      fill_word(WORD2, 64'h5555_eeee_6666_ffff);
+      lookup_addr = WORD2;
+      lookup_en = 1'b1;
+      tick();
+      lookup_en = 1'b0;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      #1;
+      tb_check1("unrelated lookup survives peer decision cycle",
+                lookup_hit, 1'b1);
+      tick();
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(WORD2);
+      tb_check1("unrelated line remains valid after peer edge",
+                lookup_hit, 1'b1);
+
+      // Different-index fill must remain visible in the same peer edge.
+      fill_word(WORD0, 64'h7777_0000_8888_1111);
+      fill_addr = WORD2;
+      fill_data = 64'h9999_2222_aaaa_3333;
+      fill_valid = 1'b1;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      fill_valid = 1'b0;
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("peer clears its line beside unrelated fill",
+                lookup_hit, 1'b0);
+      issue_lookup(WORD2);
+      tb_check1("different-index fill survives peer edge",
+                lookup_hit, 1'b1);
+      tb_check64("different-index fill data remains visible", lookup_line,
+                 64'h9999_2222_aaaa_3333);
+
+      // Same-index/different-tag fill may write the macro, but peer clear is
+      // the final valid update.  Parameter-off cache exposes that fill data.
+      fill_addr = ALIAS0;
+      fill_data = 64'hbbbb_4444_cccc_5555;
+      fill_valid = 1'b1;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      fill_valid = 1'b0;
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(ALIAS0);
+      tb_check1("same-index alias fill hidden by peer clear",
+                lookup_hit, 1'b0);
+      tb_check1("parameter-off alias fill remains visible",
+                legacy_lookup_hit, 1'b1);
+      tb_check64("parameter-off alias fill data", legacy_lookup_line,
+                 64'hbbbb_4444_cccc_5555);
+
+      // Same exact fill conflict has the same clear-wins visibility rule.
+      fill_addr = WORD0;
+      fill_data = 64'hdddd_6666_eeee_7777;
+      fill_valid = 1'b1;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      fill_valid = 1'b0;
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("same-exact fill hidden by peer clear", lookup_hit, 1'b0);
+      tb_check1("parameter-off same-exact fill remains visible",
+                legacy_lookup_hit, 1'b1);
+
+      // Peer on an RMW decision edge must hide the macro write at the exact
+      // target index.
+      fill_word(WORD0, 64'h0123_4567_89ab_cdef);
+      store_addr = WORD0;
+      store_wstrb = 8'h0f;
+      store_wdata = 64'h0000_0000_5566_7788;
+      store_rmw_en = 1'b1;
+      store_cacheable = 1'b1;
+      store_commit = 1'b1;
+      tick();
+      store_commit = 1'b0;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      #1;
+      tb_check1("peer plus exact RMW decision keeps busy cadence",
+                rmw_busy, 1'b1);
+      tick();
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("peer clear wins over exact RMW visibility",
+                lookup_hit, 1'b0);
+
+      // A different-index RMW remains visible while the peer target clears.
+      fill_word(WORD0, 64'h1111_2222_3333_4444);
+      fill_word(WORD2, 64'haaaa_bbbb_cccc_dddd);
+      store_addr = WORD2;
+      store_wstrb = 8'h0f;
+      store_wdata = 64'h0000_0000_1122_3344;
+      store_rmw_en = 1'b1;
+      store_cacheable = 1'b1;
+      store_commit = 1'b1;
+      tick();
+      store_commit = 1'b0;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      peer_invalidate_valid = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("peer target clears beside unrelated RMW",
+                lookup_hit, 1'b0);
+      issue_lookup(WORD2);
+      tb_check1("different-index RMW survives peer edge",
+                lookup_hit, 1'b1);
+      tb_check64("different-index RMW data remains visible", lookup_line,
+                 64'haaaa_bbbb_1122_3344);
+
+      // Exhaust the frozen normalized-mask ABI: 1/2/4/8 bytes at every byte
+      // offset.  The first line always clears; p1 clears iff off+size>8.
+      for (size_i = 1; size_i <= 8; size_i = size_i * 2) begin
+        case (size_i)
+          1: mask_r = 8'h01;
+          2: mask_r = 8'h03;
+          4: mask_r = 8'h0f;
+          default: mask_r = 8'hff;
+        endcase
+        for (off_i = 0; off_i < 8; off_i = off_i + 1) begin
+          cross_r = ((off_i + size_i) > 8);
+          fill_word(WORD0, 64'h0a0b_0c0d_0e0f_1011);
+          fill_word(WORD1, 64'h1213_1415_1617_1819);
+          pulse_peer_invalidate(WORD0 + off_i, mask_r);
+          issue_lookup(WORD0);
+          tb_check1("mask/offset enumeration clears first line",
+                    lookup_hit, 1'b0);
+          issue_lookup(WORD1);
+          tb_check1("mask/offset enumeration p1 result",
+                    lookup_hit, !cross_r);
+        end
+      end
+
+      // Reset wins over peer/DMA/lookup/pending visibility from the first
+      // sampled reset edge and none of those events is replayed on release.
+      fill_word(WORD0, 64'hfeed_face_cafe_beef);
+      lookup_addr = WORD0;
+      lookup_en = 1'b1;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      dma_invalidate_all = 1'b1;
+      rst = 1'b1;
+      tick();
+      lookup_en = 1'b0;
+      #1;
+      tb_check1("sampled reset suppresses enabled old lookup", lookup_hit,
+                1'b0);
+      tb_check1("sampled reset suppresses legacy old lookup",
+                legacy_lookup_hit, 1'b0);
+      tb_check1("sampled reset clears enabled RMW busy", rmw_busy, 1'b0);
+      tick();
+      peer_invalidate_valid = 1'b0;
+      dma_invalidate_all = 1'b0;
+      rst = 1'b0;
+      tick();
+      issue_lookup(WORD0);
+      tb_check1("reset release does not replay old valid", lookup_hit, 1'b0);
+      fill_word(WORD0, 64'h2468_ace0_1357_9bdf);
+      issue_lookup(WORD0);
+      tb_check1("post-reset refill recovers", lookup_hit, 1'b1);
     end
   endtask
 
@@ -303,11 +594,34 @@ module tb_ooo_data_word_cache;
     tb_errors = 0;
     clk = 1'b0;
     rst = 1'b1;
+    dwc_mutation_case = 0;
+    if (!$value$plusargs("DWC_MUTATION_CASE=%d", dwc_mutation_case))
+      dwc_mutation_case = 0;
     clear_inputs();
     tick();
     tick();
     rst = 1'b0;
     #1;
+
+    if (dwc_mutation_case == 8) begin
+      $display("[V8R-MUT-ACTIVE:fill_wins_peer]");
+      fill_addr = WORD0;
+      fill_data = 64'h1234_5678_9abc_def0;
+      fill_valid = 1'b1;
+      peer_invalidate_addr = WORD0;
+      peer_invalidate_wstrb = 8'hff;
+      peer_invalidate_valid = 1'b1;
+      tick();
+      fill_valid = 1'b0;
+      peer_invalidate_valid = 1'b0;
+      issue_lookup(WORD0);
+      if (lookup_hit) begin
+        $display("[V8R-MUT-FILL-WINS-PEER] same-index fill revived peer-cleared valid");
+        $fatal;
+      end
+      $display("[V8R-MUT-NOT-REJECTED] case=8");
+      $fatal;
+    end
 
     // 纯地址组合视图: 同拍观测(0-cycle 合同保持)
     req_lookup_addr = WORD0;
@@ -461,6 +775,7 @@ module tb_ooo_data_word_cache;
     store_cacheable = 1'b1;
 
     dma_invalidate_conflicts();
+    peer_invalidate_conflicts();
 
     // MMIO: 组合视图不 cacheable, store commit 无 RMW(busy 恒 0), 判决必 miss
     commit_store(MMIO_WORD, 8'b1111_1111,
@@ -473,6 +788,15 @@ module tb_ooo_data_word_cache;
     issue_lookup(MMIO_WORD);
     tb_check1("mmio lookup miss", lookup_hit, 1'b0);
 
+`ifdef OOO_DWC_PEER_INVALID_MASK_NEGATIVE
+    peer_invalidate_addr = WORD0 + 64'd2;
+    peer_invalidate_wstrb = 8'h05;
+    peer_invalidate_valid = 1'b1;
+    tick();
+    $display("[NEGATIVE-FAIL] invalid peer mask was not rejected");
+    $fatal;
+`else
     tb_finish("tb_ooo_data_word_cache");
+`endif
   end
 endmodule

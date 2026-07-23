@@ -931,7 +931,7 @@ def scan_files(
     seen: set[str] = set()
 
     def append_path(path: Path) -> None:
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             return
         rel_path = repo_path(path.relative_to(repo_root))
         if rel_path in seen:
@@ -941,8 +941,38 @@ def scan_files(
         if item is not None:
             results.append(item)
 
-    for path in sorted(github_root.rglob("*")):
-        append_path(path)
+    def should_prune_dir(path: Path) -> bool:
+        rel_path = repo_path(path.relative_to(repo_root))
+        normalized = rel_path.rstrip("/")
+        if matches_exclude(normalized, excludes):
+            return True
+        if normalized in {
+            ".github/cache",
+            ".github/db-backup",
+            ".github/tmp",
+            ".github/runtime-artifacts",
+        }:
+            return True
+        return normalized.startswith(".github/task-runs/") and (
+            normalized.endswith("/evidence") or "/evidence/" in normalized
+        )
+
+    def append_tree(root: Path) -> None:
+        if root.is_symlink() or should_prune_dir(root):
+            return
+        for current, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+            current_path = Path(current)
+            kept_dirs: list[str] = []
+            for dirname in sorted(dirnames):
+                candidate = current_path / dirname
+                if candidate.is_symlink() or should_prune_dir(candidate):
+                    continue
+                kept_dirs.append(dirname)
+            dirnames[:] = kept_dirs
+            for filename in sorted(filenames):
+                append_path(current_path / filename)
+
+    append_tree(github_root)
     for raw_include in includes:
         target = (repo_root / raw_include).resolve()
         try:
@@ -950,8 +980,7 @@ def scan_files(
         except ValueError:
             continue
         if target.is_dir():
-            for path in sorted(target.rglob("*")):
-                append_path(path)
+            append_tree(target)
         elif target.exists():
             append_path(target)
     return results
@@ -987,25 +1016,40 @@ def rebuild(args: argparse.Namespace) -> int:
     now = utc_now()
     items = scan_files(repo_root, github_root, db_path, args.max_bytes, args.exclude, args.include)
     seen = {item.path for item in items}
+    db_rel_path = repo_path(db_path.relative_to(repo_root)) if db_path.is_relative_to(repo_root) else ""
+    scope_prefixes: list[str] = [repo_path(github_root.relative_to(repo_root)).rstrip("/")]
+    for raw_include in args.include:
+        target = (repo_root / raw_include).resolve()
+        try:
+            ensure_inside_root(repo_root, target)
+        except ValueError:
+            continue
+        prefix = repo_path(target.relative_to(repo_root)).rstrip("/")
+        if prefix not in scope_prefixes:
+            scope_prefixes.append(prefix)
+
+    def path_in_rebuild_scope(path: str) -> bool:
+        return any(
+            prefix in {"", "."} or path == prefix or path.startswith(prefix + "/")
+            for prefix in scope_prefixes
+        )
+
+    indexed_paths = [row["path"] for row in conn.execute("SELECT path FROM files ORDER BY path")]
+    missing_paths = [
+        path
+        for path in indexed_paths
+        if path not in seen
+        and path_in_rebuild_scope(path)
+        and not should_skip_path(path, db_rel_path, args.exclude)
+    ]
     try:
         with conn:
             for item in items:
                 upsert_file(conn, item, has_fts5, now)
-            placeholders = ",".join("?" for _ in seen)
-            if seen:
-                conn.execute(
-                    f"""
-                    UPDATE files
-                    SET exists_flag=0, index_status='missing', updated_at=?
-                    WHERE path NOT IN ({placeholders})
-                    """,
-                    (now, *sorted(seen)),
-                )
-            else:
-                conn.execute(
-                    "UPDATE files SET exists_flag=0, index_status='missing', updated_at=?",
-                    (now,),
-                )
+            conn.executemany(
+                "UPDATE files SET exists_flag=0, index_status='missing', updated_at=? WHERE path=?",
+                [(now, path) for path in missing_paths],
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)",
                 ("last_rebuild_at", now),
@@ -1028,6 +1072,7 @@ def rebuild(args: argparse.Namespace) -> int:
                     if db_path.is_relative_to(repo_root)
                     else str(db_path),
                     "files": len(items),
+                    "missing_marked": len(missing_paths),
                     "fts5": has_fts5,
                     "exclude": args.exclude,
                     "include": args.include,

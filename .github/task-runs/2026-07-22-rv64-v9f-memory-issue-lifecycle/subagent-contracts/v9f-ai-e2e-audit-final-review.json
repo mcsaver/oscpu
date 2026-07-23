@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-ai-environment-task",
+  "task_id": "v9f-ai-e2e-audit-final-review",
+  "engineering_domain": "local-rv64-ai-development-workflow",
+  "task_kind": "read-only-review",
+  "goal": "Review the local task-run manifest indexing and state traceback wiring fixes for exact set semantics, fail-closed behavior, finalization order, and bounded claims",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "scripts/dev_memory/maintenance.py",
+      "scripts/e2e/modules/github_index.sh",
+      "scripts/e2e/modules/agent_system.sh",
+      ".github/task-runs/2026-07-22-agent-system-observability-run-manifest-revtag-v9f/task-report.md",
+      ".github/task-runs/2026-07-22-agent-system-state-traceability-observability-revtag-v9f/task-report.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/task-report.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-ai-e2e-audit-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/instructions/agent-env-layer-contract.instructions.md",
+      ".github/instructions/agent-e2e-workflow.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Work object: authorized local RV64 development workspace AI evidence workflow only; no network, remote host, account, credential, third-party service, or production RTL operation is in scope.",
+      "Root cause A: validate_state_traceback_payload passed a raw run_id to task_run_report_fields, whose argument is a task-run root; the fix constructs .github/task-runs/<run_id> before reading task-report.md.",
+      "Root cause B: the observability and trace contracts require top-level run-manifest.json in evidence_assets, while index-evidence previously accepted only ordinary /evidence/ assets; the fix admits only the exact path .github/task-runs/<run>/run-manifest.json in addition to ordinary assets.",
+      "Aggregation contract: evidence-index.md and run-manifest evidence count, bytes, kind summary, and list remain ordinary-assets-only; the canonical manifest is a DB trace pointer and is excluded from these aggregates.",
+      "Runtime validator contract: ordinary DB rows must equal manifest asset_count, the canonical manifest must have exactly one row with kind=json, no other non-ordinary path is allowed, and total DB rows must equal ordinary+1.",
+      "Schema fact: evidence_assets.path is TEXT PRIMARY KEY, so a duplicate path cannot satisfy an exact row-count check while hiding a missing distinct path.",
+      "github-index behavioral probes cover two consecutive indexes, manifest SHA/size refresh without duplicates, manifest deletion cleanup, peer-run isolation, restoration, and render-manifest then index then validate ordering; temporary fixture Markdown is archived before DB-first audits.",
+      "agent-system behavioral probe builds an in-memory completed seven-state report and calls validate_state_traceback_payload with run_id, requiring no errors and current_state=persist.",
+      "Forward test 1: github-index profile run 2026-07-22-agent-system-observability-run-manifest-revtag-v9f completed 1/1; targeted artifact/trace/state audits all PASS with manifest ordinary asset_count=2 and DB rows=3.",
+      "Forward test 2: agent-system profile run 2026-07-22-agent-system-state-traceability-observability-revtag-v9f completed 10/10; targeted artifact/trace/state audits all PASS with manifest ordinary asset_count=12 and DB rows=13.",
+      "A DB-only reindex of the associated finalized npc-dev V9F run also produced targeted artifact/trace/state PASS without rewriting its published evidence-index; this is a backfill demonstration, not an automatic historical migration claim.",
+      "Two earlier github-index runs remain blocked evidence: the first exposed a fixture missing the production db.raw_evidence_index_only policy and unarchived fixture Markdown; the second had a PASS node but correctly failed overall because its task slug lacked an independent non-history focus. Neither is counted as completion evidence.",
+      "Claim boundary: only a conforming run whose manifest is finalized and then reindexed may claim DB = ordinary_assets union exactly one canonical run-manifest.json; historical runs are not automatically migrated, and DB count greater than or equal to manifest count is not accepted as consistency proof.",
+      "Production RV64 Verilog files were not modified by this workflow fix; architecture-stable remains GAP with 41 blockers and PPA remains UNQUALIFIED/promotion_eligible=false.",
+      "Review for counterexamples involving duplicate paths, extra top-level pointers, stale metadata, deleted manifest rows, cross-run cleanup, post-index manifest mutation, non-final historical runs, and state report path selection. Do not infer broader RTL, system, PPA, or historical migration claims."
+    ]
+  },
+  "deliverables": [
+    "Return JSON only with verdict PASS or GAP, blocker_counterexamples, residual_risks, accepted_claim, and rejected_overclaims"
+  ],
+  "success_criteria": [
+    "PASS only if the stated exact-set invariant and state traceback path selection are supported by the supplied implementation and forward-test facts",
+    "Any plausible blocker-level counterexample within the frozen final-state scope must produce GAP",
+    "Historical migration, arbitrary DB surplus, production RTL closure, full-core arch-stable, or PPA promotion must remain rejected overclaims"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_earlier_blocked_runs": true,
+    "candidate_review_is_not_formal_pass": true
+  },
+  "language_policy": {
+    "domain_accurate_wording": true,
+    "local_engineering_scope_explicit": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/instructions/agent-e2e-workflow.instructions.md"
+}

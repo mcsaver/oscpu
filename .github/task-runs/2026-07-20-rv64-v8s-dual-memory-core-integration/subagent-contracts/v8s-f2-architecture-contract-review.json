@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8s-f2-architecture-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定材料复核：判断 F2 canonical 双内存接入方案是否保持精确 owner、store 副作用和双完成语义，并指出必须先闭合的反例或遗漏",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-architecture-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "领域仅为本地 RV64 Verilog/SystemVerilog OoO 核的流水线、事务、时序和验证合同；无网络、账号、凭据、外部服务或外部写入。",
+      "F2 退出条件是 canonical core 内双 request、双 MIQ、双 response 端到端接入，两个不同 bank 的普通 load 可同拍 request fire 并在两个 formal WB credit 可用时同拍 complete；F3 final-PA SQ byte query 尚不在本轮，因此 DI-5/OOO-3 保持 RED。",
+      "当前后端已有两个非 fall-through 的普通 memory reservation owner，但 terminal1 只有 terminal0 edge-old 为空时才消费；所有普通请求仍复用一个 request 口、一个 4-entry MIQ 队头和一个 response completion source。",
+      "候选方案按地址页内稳定位 addr[3] 把两个 reservation 动态路由到 bank0/bank1；同 bank 按 ROB 相对 head 的年龄只准较老者，不同 bank 可同拍 fire；本地异常或 SQ 全覆盖前递继续各自进入 EX0/EX1 formal completion。",
+      "bank0 保留现有 LEGACY AMO/LR/SC、SQ physical drain 和 buffer 单例；bank1 只接 ordinary LOAD/PROBE。普通 store probe 按 addr[3] 路由，后续已授权 SQ physical write 可经 bank0，F1 peer maintenance 在其 B terminal conservative invalidate 另一 cache。",
+      "每 bank 使用独立 MIQ 与完整 expected tuple；两个 bridge 的 tracker/station query 都读取同一个 edge-old owner tracker 表，四个 bridge drop terminal 和两个 MIQ response terminal都进入可多 ingress 的 lossless terminal collector；residency mask取两 bank并集。",
+      "后端 ROB completion-open 查询新增独立 mem1 查询口；response arbitration 先保留 edge-old EX0/EX1 占用，再给 mem0/mem1 分配至多两个不同 formal WB slot。两个 exact-open response 只有在各自 collector terminal credit和各自唯一 WB credit同时存在时才 ready；同 PID 同拍必须 fail closed。",
+      "canonical NpcCoreTop 将单 OooMemAxiBridge 替换为已验证的 OooDualMemBridgeWrapper，两个完整 response/expected/query/drop/residency 面逐层穿过 OooCoreTopGlue、OooExecuteBackend、OooAluCoreSlice、OooAluDecodeBackend 到 OooIntBackend；共享 AXI 仍由 wrapper 内 F0 arbiter合并。",
+      "实现阶段明确不宣称 final-PA SQ alias forwarding/replay、64-cycle IPC、等容量双 bank、architecture GREEN 或 PPA promotion；若只能证明部分接线则声明 architecture checkpoint 而非 F2 complete。"
+    ]
+  },
+  "deliverables": [
+    "给出 verdict=PASS/GAP/INCONCLUSIVE；逐项检查 bank 路由、singleton 特殊路径、双 MIQ identity、双 ROB-open/WB credit、terminal collector、flush/kill、hierarchy 接线；列出反例、unknowns、替代假设与范围扩展请求。"
+  ],
+  "success_criteria": [
+    "结论必须明确候选方案能否作为 F2 实现合同；任何 GAP 都要给可执行的 RTL/TB/assertion 闭合条件，且不把未随附事实当作已审查。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-architecture-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地RV64 RTL工程事实复核F3最终物理地址SQ字节查询契约，寻找会导致错误放行、错误前递、死锁、身份混淆或越级结论的反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-architecture-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围仅限本地RV64双发射OoO RTL的memory pipeline、transaction ordering、timing与verification；禁止网络、账号、凭据、外部服务和任何写入。",
+      "每个bridge在成功得到typed final PA后进入注册SQ_QUERY态；DTLB hit、PTW miss和A/D续访汇合，allow才进cache/NC/IO，forward走正式bridge response，replay仅保持并逐拍重查。",
+      "backend只在query kind/token/epoch与edge-old tracker表精确一致时把token映射到full ProducerId；失配强制replay，禁止raw ROB index或token数值猜年龄。",
+      "SQ按head到tail扫描更老且非terminal store，以最终物理字节地址逐byte选择youngest-older数据；unknown或非法provenance、任一older IO屏障、部分覆盖均replay，全覆盖可跨多个store合成forward，无重叠allow。",
+      "query decision严格one-hot，flush或kill优先；replay/forward不得产生cache、AXI或device admission，forward仍受bank-local MIQ、exact response identity、terminal与global WB/FP sink credit约束。",
+      "两路query完全独立且可同拍；decision不得进入request-ready、reservation capture、owner allocation、另一lane payload或SRAM address bits；query只观察edge-old SQ Q。",
+      "canonical ENABLE_DUAL_MEM=1关闭旧issue-stage VA blind/forward gate；legacy default-off兼容可保留旧路径。当前只允许final_pa_sq_ordering_checkpoint，F4、DI-5、OOO-3、overall和PPA promotion仍未闭合。"
+    ]
+  },
+  "deliverables": [
+    "给出PASS或GAP、逐项P0/P1反例、必要假设、替代契约、未知项、scope_extension_request以及confidence_and_basis；不得把限定材料复核冒充完整仓库审查"
+  ],
+  "success_criteria": [
+    "明确判断六类契约是否足以进入实现；任何GAP都必须给出可执行directed test、assertion或compile-success mutation，且不强制固定发现数量"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

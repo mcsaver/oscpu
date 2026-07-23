@@ -866,6 +866,12 @@ main() {
   E2E_SKIP_COUNT=0
   e2e_allocate_run_dir || exit 1
   e2e_init_dispatch_log || exit 1
+  if e2e_refresh_live_index_for_recall; then
+    E2E_LIVE_INDEX_REFRESH_OK=1
+  else
+    E2E_LIVE_INDEX_REFRESH_OK=0
+    E2E_OVERALL_RC=1
+  fi
   e2e_generate_context_brief || E2E_OVERALL_RC=1
   e2e_generate_profile_resolve || E2E_OVERALL_RC=1
 

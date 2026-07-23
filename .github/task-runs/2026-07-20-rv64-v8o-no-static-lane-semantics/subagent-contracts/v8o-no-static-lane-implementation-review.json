@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8o-no-static-lane-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据随附冻结机器事实，对已实现的v8o DI-4门禁做独立反例审查；判断是否仍可能由静态dispatch位置绑定、旁路、串行fire、控制类别名、ProducerId替换、未激活变异、陈旧证据或越级发布造成假绿。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/runner-summary.log",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/subagent-contracts/v8o-no-static-lane-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围只允许确认当前完整vsrc design_id sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293下的DI-4；OOO-1/2是同design独立保留，overall保持RED，未运行或发布PPA。",
+      "生产RTL功能未修改；实际链为ctrl_is_alu_terminal_capable、alu_terminal_capable_q逐entry捕获与压缩、select_alu_capable_w投影、OooIntIssueSelect8 swap_w和issue_pair_swapped。",
+      "源码检查器对实际路径分别要求predicate_def等于1、predicate_ref不少于3、metadata_decl等于1、dispatch_capture等于2、compaction_copy等于1、selector_projection等于1、selector_input等于1，以及swap_def、swap_issue0、swap_issue1、swap_output、swap_iq_binding各等于1；任一缺失为RED。",
+      "静态单测共22项通过，含实际predicate缺失、静态entry capability、slot1 capture丢失、dynamic swap缺失、注释不可满足、精确命令和provenance陈旧回放拒绝。",
+      "release与OOO_ASSERT各自独立输出完整向量：12个permutation、static_lane_role_violations等于0、same_cycle_pair_fires等于12、exact_full_pid_matches等于24、accepted等于24、fired等于24；两模式未聚合借数。",
+      "每个正向场景要求两个dispatch位置同沿valid和ready均为真，输入处冻结package位置、PC、真实ctrl和完整ProducerId；issue关闭一整拍并观察两个不同resident entry、ctrl、PID、capability和selector projection后才开放fire。",
+      "六类branch、jal、jalr、load、store、muldiv由冻结输入ctrl互斥解码，不由循环标签置coverage；每类slot0和slot1各一次，复杂uop只在Universal issue0、simple ALU只在物理issue1，slot1复杂情形要求swap。",
+      "24个输入事务使用互异且generation非零的完整ProducerId；accepted mask在dispatch握手冻结，fired mask仅在正确物理终端canonical valid和ready同沿fire且packed PID逐位匹配时消费，最终两mask相等且队列逐场景排空。",
+      "一槽空闲负例真实得到slot0 accepted等于1、slot1 accepted等于0、coverage_credit等于0，证明分周期接受不计入program-slot permutation。",
+      "六个临时源码变异disable_pair_swap、static_entry_capability、slot1_capability_capture、muldiv_as_alu、serialize_second_terminal、corrupt_full_pid均记录独立source SHA与elaborated image SHA，成功编译、命中指定场景activation并由专属CHECK-FAIL拒绝。",
+      "永久命令make -C npc/rv64 check-no-static-lane-semantics最终报告profiles等于2/2、permutations等于12/12、mutations等于6/6、DI-4 GREEN、OOO-1 GREEN、OOO-2 GREEN、overall RED。",
+      "发布前后比较directed tests map，只允许no_static_lane_semantics新增或替换；其它同design兄弟记录逐对象相等，最终GREEN集合精确为DI-4、OOO-1、OOO-2。",
+      "证据记录精确命令、唯一ARCH-GATE PASS marker、完整vsrc design_id和13项精确proof provenance；子任务合同JSON哈希仅标记协作合同，不充当RTL或设计合同摘要。",
+      "本子任务是本地RV64 RTL只读审查；no tools、no shell、no file access、no network、no accounts、no credentials、no external services、no writes。"
+    ]
+  },
+  "deliverables": [
+    "返回单个JSON对象：verdict为pass或gap；blockers数组逐项给出counterexample和required_executable_evidence；counterexamples数组记录尝试及是否已被现有证据拒绝；claim_boundary与residual_risks必须明确。"
+  ],
+  "success_criteria": [
+    "优先尝试推翻同包slot绑定、两entry resident、canonical同沿双fire、六类互斥ctrl、24个full PID账本、checker非真空、六个变异激活、provenance与DI-4-only发布；若无可执行阻断反例则pass且blockers为空。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,24 @@
+{
+  "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_mem_axi_bridge RTL_OOO_MEM_AXI_BRIDGE=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/OooMemAxiBridge.v BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/result run",
+  "compile_succeeded": true,
+  "compiled_image_sha256": "328b5098dbcf84695d1b0def08f81b21a9e07dfd150db45fcceb83c1a0373ce9",
+  "description": "Restore the obsolete allow-implies-lookup assertion; a valid station decision without response credit must reject it.",
+  "name": "bridge-no-credit-broad-assertion",
+  "return_code": 2,
+  "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+  "simulation_rejected_variant": true,
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "sha256": "737b977f16787c911d551d87a2b809793ec379efa5e77a01de3ff463ed3b6323"
+    },
+    {
+      "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/OooMemAxiBridge.v",
+      "sha256": "27652514a97ffe82ed33cc104e9270a9182126786e5dd8d7333bd03ad77a05ef"
+    }
+  ],
+  "stimulus_reached": true,
+  "target_assertion": "[V9L-SQ-LOOKAHEAD-CREDIT]",
+  "target_assertion_count": 1,
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/result/logs/tb_ooo_mem_axi_bridge.log"
+}

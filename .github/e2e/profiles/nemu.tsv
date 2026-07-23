@@ -1,3 +1,4 @@
 @include|abstract-machine||||
 nemu-config-probe|nemu|e2e_nemu_config_probe|nemu|nemu Kconfig/configs/device filelist|NEMU 当前配置和参考入口可见
-nemu-add-smoke|nemu|e2e_nemu_am_add_smoke|nemu|当前 NEMU AM-compatible 配置 + cpu-tests add|NEMU reference 最小 smoke PASS 或配置边界 SKIP
+nemu-reference-config-contract|nemu|e2e_nemu_reference_config_contract|nemu|NEMU build target/ISA + reference smoke profile binding|host-native RISC-V 接受且 AM/SHARE/非 RISC-V/缺失配置 fail closed
+nemu-add-smoke|nemu|e2e_nemu_native_add_smoke|nemu|当前 NEMU host-native reference 配置 + cpu-tests add|NEMU reference 最小 smoke PASS 或配置边界 SKIP

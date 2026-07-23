@@ -101,11 +101,23 @@ module tb_ooo_sv39_boot;
   reg [`XLEN-1:0] wdata_q;
   reg [`STRB_W-1:0] wstrb_q;
   reg saw_satp_commit;
+  reg saw_mret_commit;
   reg saw_sfence_commit;
   reg saw_sret_commit;
   reg debug_sv39;
   reg v8a_eq_trace;
   reg [`XLEN-1:0] expected_minstret_q;
+  reg [`XLEN-1:0] instret_prev_q;
+  reg [1:0] instret_prev_count_q;
+  reg instret_delta_valid_q;
+  integer instret_delta_checks;
+  integer instret_exception_lanes;
+  integer instret_exception_zero_lanes;
+  integer instret_mret_commits;
+  integer instret_sret_commits;
+  integer instret_sfence_commits;
+  integer instret_control_commits;
+  integer instret_control_exact_commits;
 
   NpcCoreTop dut (
     .clk(clk),
@@ -503,6 +515,7 @@ module tb_ooo_sv39_boot;
       if (valid) begin
         if ((inst[6:0] == `OPCODE_SYSTEM) && (inst[14:12] != 3'b000) &&
             (inst[31:20] == `CSR_SATP)) saw_satp_commit <= 1'b1;
+        if (inst == inst_mret()) saw_mret_commit <= 1'b1;
         if (inst == inst_sfence_vma()) saw_sfence_commit <= 1'b1;
         if (inst == inst_sret()) saw_sret_commit <= 1'b1;
       end
@@ -601,6 +614,17 @@ module tb_ooo_sv39_boot;
   always @(posedge clk) begin
     if (rst) begin
       expected_minstret_q <= {`XLEN{1'b0}};
+      instret_prev_q <= {`XLEN{1'b0}};
+      instret_prev_count_q <= 2'd0;
+      instret_delta_valid_q <= 1'b0;
+      instret_delta_checks <= 0;
+      instret_exception_lanes <= 0;
+      instret_exception_zero_lanes <= 0;
+      instret_mret_commits <= 0;
+      instret_sret_commits <= 0;
+      instret_sfence_commits <= 0;
+      instret_control_commits <= 0;
+      instret_control_exact_commits <= 0;
     end else begin
       // 独立从最终可见退休 lane 计数；异常 lane 不属于 minstret。
       // 该 oracle 跨越 mret/sret/sfence/ecall/page-fault，防止隐藏退休源
@@ -610,6 +634,95 @@ module tb_ooo_sv39_boot;
           {{(`XLEN-1){1'b0}}, commit1_valid && !commit1_exception};
       observe_commit(commit0_valid, commit0_inst);
       observe_commit(commit1_valid, commit1_inst);
+
+      // INSTRET-G1 program-level contract.  This checker samples only the
+      // final visible commit interface and the architectural minstret state.
+      if (retire_count !==
+          ({1'b0, commit0_valid && !commit0_exception} +
+           {1'b0, commit1_valid && !commit1_exception})) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] INSTRET final-lane population count cyc=%0d count=%0d c0=%b/%b c1=%b/%b",
+                 cycle_count, retire_count,
+                 commit0_valid, commit0_exception,
+                 commit1_valid, commit1_exception);
+      end
+      if (retire_count === 2'b11) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] INSTRET count uses invalid encoding 3 cyc=%0d",
+                 cycle_count);
+      end
+
+      // CsrFile applies the previous edge's final count.  No instruction in
+      // this program writes minstret or sets mcountinhibit.IR.
+      if (instret_delta_valid_q) begin
+        instret_delta_checks <= instret_delta_checks + 1;
+        if (dut.u_csr_file.csr_minstret_q !==
+            (instret_prev_q +
+             {{(`XLEN-2){1'b0}}, instret_prev_count_q})) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] INSTRET CsrFile edge delta cyc=%0d old=%0d count=%0d got=%0d",
+                   cycle_count, instret_prev_q, instret_prev_count_q,
+                   dut.u_csr_file.csr_minstret_q);
+        end
+      end
+      instret_prev_q <= dut.u_csr_file.csr_minstret_q;
+      instret_prev_count_q <= retire_count;
+      instret_delta_valid_q <= 1'b1;
+
+      instret_exception_lanes <= instret_exception_lanes +
+          ((commit0_valid && commit0_exception) ? 1 : 0) +
+          ((commit1_valid && commit1_exception) ? 1 : 0);
+      if (commit0_valid && commit0_exception) begin
+        if (!commit1_valid && (retire_count == 2'd0)) begin
+          instret_exception_zero_lanes <= instret_exception_zero_lanes + 1;
+        end else begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] INSTRET lane0 precise exception must add zero and suppress lane1 cyc=%0d count=%0d c1=%b",
+                   cycle_count, retire_count, commit1_valid);
+        end
+      end
+      if (commit1_valid && commit1_exception) begin
+        if (retire_count == {1'b0, commit0_valid && !commit0_exception}) begin
+          instret_exception_zero_lanes <= instret_exception_zero_lanes + 1;
+        end else begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] INSTRET lane1 exception contributed to count cyc=%0d count=%0d c0=%b/%b",
+                   cycle_count, retire_count, commit0_valid, commit0_exception);
+        end
+      end
+
+      instret_mret_commits <= instret_mret_commits +
+          ((commit0_valid && (commit0_inst == inst_mret())) ? 1 : 0) +
+          ((commit1_valid && (commit1_inst == inst_mret())) ? 1 : 0);
+      instret_sret_commits <= instret_sret_commits +
+          ((commit0_valid && (commit0_inst == inst_sret())) ? 1 : 0) +
+          ((commit1_valid && (commit1_inst == inst_sret())) ? 1 : 0);
+      instret_sfence_commits <= instret_sfence_commits +
+          ((commit0_valid && (commit0_inst == inst_sfence_vma())) ? 1 : 0) +
+          ((commit1_valid && (commit1_inst == inst_sfence_vma())) ? 1 : 0);
+      if (commit0_valid &&
+          ((commit0_inst == inst_mret()) ||
+           (commit0_inst == inst_sret()) ||
+           (commit0_inst == inst_sfence_vma()))) begin
+        instret_control_commits <= instret_control_commits + 1;
+        if (!commit0_exception && !commit1_valid && (retire_count == 2'd1)) begin
+          instret_control_exact_commits <= instret_control_exact_commits + 1;
+        end else begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] INSTRET control pseudo-commit must be one non-exception lane cyc=%0d inst=%08x count=%0d ex=%b c1=%b",
+                   cycle_count, commit0_inst, retire_count,
+                   commit0_exception, commit1_valid);
+        end
+      end
+      if (commit1_valid &&
+          ((commit1_inst == inst_mret()) ||
+           (commit1_inst == inst_sret()) ||
+           (commit1_inst == inst_sfence_vma()))) begin
+        instret_control_commits <= instret_control_commits + 1;
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] INSTRET control pseudo-commit appeared on lane1 cyc=%0d inst=%08x",
+                 cycle_count, commit1_inst);
+      end
     end
   end
 
@@ -717,6 +830,7 @@ module tb_ooo_sv39_boot;
     data_store_writes = 0;
     stored_data_q = {`XLEN{1'b0}};
     saw_satp_commit = 1'b0;
+    saw_mret_commit = 1'b0;
     saw_sfence_commit = 1'b0;
     saw_sret_commit = 1'b0;
     debug_sv39 = $test$plusargs("debug_sv39");
@@ -739,6 +853,7 @@ module tb_ooo_sv39_boot;
     tb_check1("sv39 boot exits via ebreak", exit_is_ebreak, 1'b1);
     tb_check1("sv39 boot no fatal trap", trap_valid, 1'b0);
     tb_check1("satp commit observed", saw_satp_commit, 1'b1);
+    tb_check1("mret commit observed", saw_mret_commit, 1'b1);
     tb_check1("sfence commit observed", saw_sfence_commit, 1'b1);
     tb_check1("sret commit observed", saw_sret_commit, 1'b1);
     tb_check64("sv39 load value", gpr(5'd6), DATA_VALUE);
@@ -789,6 +904,26 @@ module tb_ooo_sv39_boot;
     tb_check64("u-mode load fault handler marker", gpr(5'd1), 64'h5a);
     tb_check64("minstret equals final non-exception commit lanes",
                dut.u_csr_file.csr_minstret_q, expected_minstret_q);
+    if (instret_delta_checks == 0) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] INSTRET CsrFile edge-delta checker was vacuous");
+    end
+    if ((instret_exception_lanes != 2) ||
+        (instret_exception_zero_lanes != instret_exception_lanes)) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] INSTRET exception coverage expected=2 lanes=%0d zero_delta=%0d",
+               instret_exception_lanes, instret_exception_zero_lanes);
+    end
+    if ((instret_mret_commits != 1) || (instret_sret_commits != 6) ||
+        (instret_sfence_commits != 1) ||
+        (instret_control_commits != 8) ||
+        (instret_control_exact_commits != 8)) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] INSTRET control coverage expected=1/6/1/8 mret=%0d sret=%0d sfence=%0d exact=%0d total=%0d",
+               instret_mret_commits, instret_sret_commits,
+               instret_sfence_commits, instret_control_exact_commits,
+               instret_control_commits);
+    end
     if (ifu_page_walk_reads == 0) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] IFU page-table walk was not observed");
@@ -813,15 +948,32 @@ module tb_ooo_sv39_boot;
     $display("[INFO] sv39 page walks ifu=%0d ifu_fault=%0d lsu=%0d lsu_fault=%0d data_load=%0d data_store=%0d",
              ifu_page_walk_reads, ifu_fault_walk_reads, lsu_page_walk_reads,
              lsu_fault_walk_reads, data_load_reads, data_store_writes);
-    if (lsu_page_walk_reads != 1) begin
+    // Canonical dual-memory routes DATA and DATA+8 to different banks.  Each
+    // bridge owns a private DTLB, so the translated load and store seed one
+    // walk per bank; neither may repeat within its bank.
+    if (lsu_page_walk_reads != 2) begin
       tb_errors = tb_errors + 1;
-      $display("[CHECK-FAIL] DTLB should let translated store reuse load translation, lsu_walk=%0d",
+      $display("[CHECK-FAIL] dual-bank private DTLBs should issue exactly two data walks, lsu_walk=%0d",
                lsu_page_walk_reads);
     end
     if (ifu_page_walk_reads > 4) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] ITLB should bound same-superpage instruction walks, ifu_walk=%0d",
                ifu_page_walk_reads);
+    end
+
+    if (tb_errors == 0) begin
+      $display("[INSTRET-G1-PROGRAM] exception_lanes=%0d exception_zero_delta=%0d mret=%0d sret=%0d sfence_vma=%0d control_exact=%0d control_total=%0d csr_delta_checks=%0d PASS",
+               instret_exception_lanes, instret_exception_zero_lanes,
+               instret_mret_commits, instret_sret_commits,
+               instret_sfence_commits, instret_control_exact_commits,
+               instret_control_commits, instret_delta_checks);
+    end else begin
+      $display("[INSTRET-G1-PROGRAM] exception_lanes=%0d exception_zero_delta=%0d mret=%0d sret=%0d sfence_vma=%0d control_exact=%0d control_total=%0d csr_delta_checks=%0d FAIL",
+               instret_exception_lanes, instret_exception_zero_lanes,
+               instret_mret_commits, instret_sret_commits,
+               instret_sfence_commits, instret_control_exact_commits,
+               instret_control_commits, instret_delta_checks);
     end
 
     tb_finish("tb_ooo_sv39_boot");

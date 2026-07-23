@@ -1,0 +1,5 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-07-19-rv64-integer-longop-producer-lease/evidence/software-flow-contract.log	software-flow	e2e_software_flow_contract
+npc-sim-contract	npc	npc	PASS	npc/sim + backend manifests	NPC 开发环境入口只检查 NPC 仿真后端合同	.github/task-runs/2026-07-19-rv64-integer-longop-producer-lease/evidence/npc-sim-contract.log	npc-dev	e2e_npc_sim_contract
+npc-single-contract	npc	npc	PASS	npc/single Makefile/Kconfig/vsrc/csrc	NPC single 后端合约入口存在	.github/task-runs/2026-07-19-rv64-integer-longop-producer-lease/evidence/npc-single-contract.log	npc-dev	e2e_npc_single_contract
+npc-soc-contract	npc	npc	PASS	npc/soc + ysyxSoC CPU ABI	NPC SoC 后端合约入口存在	.github/task-runs/2026-07-19-rv64-integer-longop-producer-lease/evidence/npc-soc-contract.log	npc-dev	e2e_npc_soc_contract
+npc-rv64-contract	npc	npc	PASS	npc/rv64 + Linux README	NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate	.github/task-runs/2026-07-19-rv64-integer-longop-producer-lease/evidence/npc-rv64-contract.log	npc-dev	e2e_npc_rv64_contract

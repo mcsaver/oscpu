@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9a-di2-final-evidence-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 双发射 OoO 处理器 DI-2 修订后最终 Verilog/SystemVerilog 与 EDA 证据，重点确认 EX0/EX1 前一拍 capture 的 full ProducerId/pdest/result/exception/cause/tval/fwd 在下一拍 PipeStageReg down-side逐 lane 对账、ex1 stage payload alias 反例动态拒绝、八个 adjacent regression TB 源均进入 exact provenance，并重新裁决固定七边界、同 design 九门和 PPA 未资格化边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/rtl-derivation.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/holder-census-delta.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
+      "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/width_continuity_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/width-continuity.log",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/subagent-contracts/v9a-di2-final-evidence-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "先复核 v2 两项 blocker 是否由当前 TB、mutation 和 exact provenance 关闭，再按 boundary/event/identity/window/sink/mutation/provenance/drain/claim 九类给出 PASS、GAP 或 inconclusive；列出剩余假绿路径、证据限制及 scope_extension_request"
+  ],
+  "success_criteria": [
+    "只有当前 suite 的七边界逐拍 exact dual、前后拍 EX full payload、固定窗口负探针、11 项 compile-success mutation、73 项 exact provenance、同 design 九门及 PPA=UNQUALIFIED 均一致时，才授权 scoped DI-2 GREEN；否则给出精确 blocker"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,27 @@
+{
+  "schema": "rtl-implementation-review-result-v1",
+  "contract": "subagent-contracts/v8k-pending-csr-implementation-review.json",
+  "contract_sha256": "1f6f5ff4f3bcea2742d58ead169ab2c80ca80765b45659132b47f1ecc294a5c7",
+  "actual_access": {
+    "tools": false,
+    "shell": false,
+    "filesystem": false,
+    "network": false,
+    "writes": false,
+    "input": "frozen self-contained implementation and evidence summary"
+  },
+  "verdict": "pass",
+  "blockers": [],
+  "evidence_blind_spots": [
+    "The complete pending_jump_resolve_ready/outcome handshake was not independently expanded; correctness relies on outcomes remaining valid until ready and on the three outcomes being exhaustive.",
+    "No independent full combinational-cone or SCC proof was supplied; cross-module no-feedback depends on the recorded elaboration/lint evidence.",
+    "The reviewer did not inspect the mutation runner or raw logs, so it cannot independently exclude marker-only or string-audit false positives.",
+    "The same-edge age and side-effect protocol between core_local_flush and ROB commit0 was not independently expanded."
+  ],
+  "residual_risks": [
+    "The raw-ready self-lock counterexample is closed by the qualified equation, directed tests and compile-success mutation.",
+    "A ready=0 outcome followed by ready=1 cross-cycle case should remain in regression so a future pulse-only outcome cannot lose a true clear.",
+    "The pending_jump_clear/admission_clear/system_valid/dispatch0_ready cone should remain covered by SCC or full lint regression."
+  ],
+  "overclaims": []
+}

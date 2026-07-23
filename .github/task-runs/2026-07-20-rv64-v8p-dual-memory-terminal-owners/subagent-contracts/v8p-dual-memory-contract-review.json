@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8p-dual-memory-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地RV64 RTL工程事实，审查v8p DI-3双内存terminal-owner合同是否存在握手分裂、owner泄漏、年龄越过、SQ双bind丢失、假双AGU或证据假绿，并给出严格pass或gap。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/contract.md",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/subagent-contracts/v8p-dual-memory-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Claim仅允许提升DI-3 pair_matrix；DI-5、OOO-3、overall和PPA继续RED，既有DI-4/OOO-1/OOO-2必须对新完整RTL digest重跑后才可保留。",
+      "现状：IQ只允许一个memory进入Universal；backend只有mem_issue_res_valid_q，issue1 memory分类、地址和请求常零；owner tracker已有alloc0/alloc1，SQ已有双dispatch alloc但只有一个owner bind。",
+      "设计：仅普通整数load/store可形成LL、LS、SL、SS pair；AMO、LR、SC和FP memory不得进入第二terminal。IQ以逐entry metadata选择两个最老ready resident项。",
+      "原子握手：两个reservation都空、恢复门关闭、两个current PID各获tracker credit时，issue0和issue1只能同拍双fire；任一路失败则两路均留在IQ。ready不能读取bridge、cache或request ready。",
+      "两个reservation各自保存完整payload、非零generation full ProducerId、kind/token/epoch/tval和源值；两者各有独立captured-data AGU/LSU，capture拍禁止request或local completion。",
+      "下游仍共享单request、translation、cache、MIQ push和response。bank0是较老owner；bank1只在edge-old bank0无效时允许consume，因此不会越过bank0。",
+      "store-store同拍capture必须通过新增SQ bind0/bind1，以full PID和ROB tag各命中一个不同SQ entry并保存两个不同token；单mux bind不合格。",
+      "owner tracker alloc0 ready独立于alloc1；alloc1 token scan可排除alloc0 claim。双capture token/PID必须不同；handoff不free，local/cancel/SQ-qualified release只能exactly once终止。",
+      "优先级：reset或global flush/restore，大于selective kill，大于downstream consume，大于IQ capture，大于hold。STORE取消仍由SQ authority qualified release，非STORE送lossless terminal collector。",
+      "定向证据要求release/assert各自证明15项pair matrix、四种memory pair、完整PID scoreboard、双reservation/双token/双AGU、双SQ bind、split-credit和cancel反例，并用compile-success activated mutations拒绝tieoff、alias、fallthrough、age bypass和checker vacuity。",
+      "本子任务是普通本地RTL只读合同审查；no tools、no shell、no file access、no network、no accounts、no credentials、no external services、no writes。"
+    ]
+  },
+  "deliverables": [
+    "返回单个JSON对象：verdict为pass或gap；blockers逐项含id、counterexample、required_contract_change、required_executable_evidence；false_green_risks数组；claim_boundary；若pass则blockers为空。"
+  ],
+  "success_criteria": [
+    "逐项挑战双fire原子性、ready DAG、两bank独立性、full PID/token守恒、flush/kill、年龄顺序、SQ双bind、双AGU非空壳、15项pair证据、mutation激活和DI-3-only边界，结论必须可直接转成合同/TB/断言修改。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

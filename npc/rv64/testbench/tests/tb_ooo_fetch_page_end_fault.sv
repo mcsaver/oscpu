@@ -73,6 +73,8 @@ module tb_ooo_fetch_page_end_fault;
   localparam [`XLEN-1:0] PC_FFA = 64'h0000_0000_0000_4ffa;
   localparam [`XLEN-1:0] PC_FFC = 64'h0000_0000_0000_4ffc;
   localparam [`XLEN-1:0] PC_FFE = 64'h0000_0000_0000_4ffe;
+  localparam [`XLEN-1:0] PC_STALE_PREFILL = 64'h0000_0000_0000_6000;
+  localparam [`XLEN-1:0] PC_F0 = 64'h0000_0000_0000_7000;
   localparam [`XLEN-1:0] NEXT_PAGE_VA = 64'h0000_0000_0000_5000;
   localparam [`XLEN-1:0] SATP_VALUE =
       64'h8000_0000_0000_0000 | (ROOT_PT >> 12);
@@ -97,6 +99,14 @@ module tb_ooo_fetch_page_end_fault;
   integer raw_frontier_f2_rows_q;
   integer raw_frontier_f4_rows_q;
   integer raw_frontier_f6_rows_q;
+  integer fault_stall_rows_q;
+  integer fault_stall_cycles_q;
+  integer fault_post_accept_quiet_cycles_q;
+  reg preserve_state_for_next_case_q;
+  reg positive_control_monitor_q;
+  integer positive_control_instruction_ar_count_q;
+  integer positive_control_cache_fill_count_q;
+  integer positive_control_sram_write_count_q;
 
   OooFetchAxiBridge u_bridge (
     .clk(clk),
@@ -186,6 +196,18 @@ module tb_ooo_fetch_page_end_fault;
           fault_post_frontier_ar_count_q <=
               fault_post_frontier_ar_count_q + 1;
       end
+    end
+    if (positive_control_monitor_q) begin
+      if ((ifu_axi_arvalid === 1'b1) &&
+          (ifu_axi_arprot === 3'b100))
+        positive_control_instruction_ar_count_q <=
+            positive_control_instruction_ar_count_q + 1;
+      if (u_bridge.fetch_cache_fill_valid_w === 1'b1)
+        positive_control_cache_fill_count_q <=
+            positive_control_cache_fill_count_q + 1;
+      if (u_bridge.u_fetch_packet_cache.sram_we_w === 1'b1)
+        positive_control_sram_write_count_q <=
+            positive_control_sram_write_count_q + 1;
     end
   end
 
@@ -560,6 +582,194 @@ module tb_ooo_fetch_page_end_fault;
     end
   endtask
 
+  // 先完成一笔四个 halfword 都非零的 8B packet，再不复位进入下一笔 fault。
+  // 下一笔只覆盖 successful prefix；若 S_CACHE_READ 未清空 scratch，未取回 suffix
+  // 会保留这笔 transaction 的旧值，tail-zero oracle 因而不是复位零值假绿。
+  task automatic prefill_stale_packet_for_next_case;
+    reg [`XLEN-1:0] packet;
+    integer waits;
+    integer offset;
+    begin
+      packet = 64'h8877_6657_4433_2213;
+      preserve_state_for_next_case_q = 1'b0;
+      positive_control_monitor_q = 1'b0;
+      reset_case();
+      positive_control_instruction_ar_count_q = 0;
+      positive_control_cache_fill_count_q = 0;
+      positive_control_sram_write_count_q = 0;
+      positive_control_monitor_q = 1'b1;
+      rsp_pc = PC_STALE_PREFILL;
+      fetch_req_pc = PC_STALE_PREFILL;
+      fetch_req_valid = 1'b1;
+      #1;
+      tb_check1("G2 stale prefill request accepted", fetch_req_ready, 1'b1);
+      tick();
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+
+      expect_ar("G2 stale prefill root PTE",
+                pte_addr(ROOT_PT, PC_STALE_PREFILL, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS));
+      expect_ar("G2 stale prefill L1 PTE",
+                pte_addr(L1_PT, PC_STALE_PREFILL, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS));
+      expect_ar("G2 stale prefill L0 PTE",
+                pte_addr(L0_PT, PC_STALE_PREFILL, 2'd0));
+      drive_r(pte_for_page(FETCH_PA_PAGE, PTE_USER_X_FLAGS));
+
+      for (offset = 0; offset < 8; offset = offset + 2) begin
+        expect_ar("G2 stale prefill instruction halfword",
+                  FETCH_PA_PAGE + {61'd0, offset[2:0]});
+        drive_fetch_halfword(packet, offset[2:0]);
+      end
+
+      waits = 0;
+      while ((fetch_rsp_valid !== 1'b1) && (waits < 30)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1("G2 stale prefill response arrives", fetch_rsp_valid, 1'b1);
+      tb_check32("G2 stale prefill raw low word",
+                 fetch_rsp_inst0, packet[31:0]);
+      tb_check32("G2 stale prefill raw high word",
+                 fetch_rsp_inst1, packet[63:32]);
+      check_resp("G2 stale prefill raw resp0", fetch_rsp_resp0, RESP_OK);
+      check_resp("G2 stale prefill raw resp1", fetch_rsp_resp1, RESP_OK);
+      tb_check1("G2 stale prefill canonical success split",
+                fetch_rsp_resp0_bytes == 3'd4, 1'b1);
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+      tb_check1("G2 stale prefill retires to request-ready",
+                fetch_req_ready, 1'b1);
+      tb_check1("G2 positive control presents four instruction AR offers",
+                positive_control_instruction_ar_count_q == 4, 1'b1);
+      tb_check1("G2 positive control presents one packet-cache fill",
+                positive_control_cache_fill_count_q == 1, 1'b1);
+      tb_check1("G2 positive control presents one effective SRAM write",
+                positive_control_sram_write_count_q == 1, 1'b1);
+      positive_control_monitor_q = 1'b0;
+      preserve_state_for_next_case_q = 1'b1;
+      $display("[G2-STALE-PREFILL] pc=%016x raw=%016x no_reset_next=1 PASS",
+               PC_STALE_PREFILL, packet);
+      $display("[G2-POSITIVE-CONTROL] instruction_ar=%0d cache_fill=%0d sram_write=%0d PASS",
+               positive_control_instruction_ar_count_q,
+               positive_control_cache_fill_count_q,
+               positive_control_sram_write_count_q);
+    end
+  endtask
+
+  // response ABI 的零 frontier 可达性：第一页根 PTE 即 V=0，故不存在成功
+  // instruction byte。bridge 必须输出 split=0/全零 raw packet；decoder 在读取
+  // 任一长度位前让两个 slot 都消费 page fault 并净化为 NOP。
+  task automatic run_first_page_f0_fault;
+    integer waits;
+    reg [`INST_W-1:0] held_inst0;
+    reg [`INST_W-1:0] held_inst1;
+    reg [1:0] held_resp0;
+    reg [1:0] held_resp1;
+    reg [2:0] held_frontier;
+    begin
+      fault_txn_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
+      reset_case();
+      fault_cache_fill_count_q = 0;
+      fault_sram_write_count_q = 0;
+      fault_monitor_cycles_q = 0;
+      fault_frontier_cycles_q = 0;
+      fault_instruction_ar_count_q = 0;
+      fault_post_frontier_ar_count_q = 0;
+      fault_txn_monitor_q = 1'b1;
+      rsp_pc = PC_F0;
+      fetch_req_pc = PC_F0;
+      fetch_req_valid = 1'b1;
+      #1;
+      tb_check1("G2 F0 fetch request accepted", fetch_req_ready, 1'b1);
+      tick();
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+
+      expect_ar("G2 F0 root PTE", pte_addr(ROOT_PT, PC_F0, 2'd2));
+      fault_frontier_seen_q = 1'b1;
+      drive_r({`XLEN{1'b0}});
+      tb_check1("G2 F0 frontier immediately blocks younger AR",
+                ifu_axi_arvalid, 1'b0);
+
+      waits = 0;
+      while ((fetch_rsp_valid !== 1'b1) && (waits < 30)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1("G2 F0 response arrives", fetch_rsp_valid, 1'b1);
+      held_inst0 = fetch_rsp_inst0;
+      held_resp0 = fetch_rsp_resp0;
+      held_inst1 = fetch_rsp_inst1;
+      held_resp1 = fetch_rsp_resp1;
+      held_frontier = fetch_rsp_resp0_bytes;
+      tb_check32("G2 F0 raw low word is zero", held_inst0, 32'd0);
+      tb_check32("G2 F0 raw high word is zero", held_inst1, 32'd0);
+      check_resp("G2 F0 raw prefix owner", held_resp0, RESP_OK);
+      check_resp("G2 F0 raw fault owner", held_resp1, RESP_PAGE_FAULT);
+      tb_check1("G2 F0 raw split is zero", held_frontier == 3'd0, 1'b1);
+      check_resp("G2 F0 decoded slot0 fault", dec0_resp, RESP_PAGE_FAULT);
+      check_resp("G2 F0 decoded slot1 inherited fault",
+                 dec1_resp, RESP_PAGE_FAULT);
+      tb_check32("G2 F0 decoded slot0 sanitized", dec0_inst, 32'h0000_0013);
+      tb_check32("G2 F0 decoded slot1 sanitized", dec1_inst, 32'h0000_0013);
+      check_xlen("G2 F0 precise fault tval", dec_fault_tval, PC_F0);
+
+      fetch_req_pc = PC_F0 ^ 64'h0000_0000_0000_0882;
+      fetch_req_valid = 1'b1;
+      #1;
+      tb_check1("G2 F0 stalled owner blocks alternate request",
+                fetch_req_ready, 1'b0);
+      repeat (2) begin
+        tick();
+        tb_check1("G2 F0 stalled response remains valid",
+                  fetch_rsp_valid, 1'b1);
+        tb_check32("G2 F0 stalled low word stable",
+                   fetch_rsp_inst0, held_inst0);
+        tb_check32("G2 F0 stalled high word stable",
+                   fetch_rsp_inst1, held_inst1);
+        check_resp("G2 F0 stalled resp0 stable", fetch_rsp_resp0, held_resp0);
+        check_resp("G2 F0 stalled resp1 stable", fetch_rsp_resp1, held_resp1);
+        tb_check1("G2 F0 stalled frontier stable",
+                  fetch_rsp_resp0_bytes == held_frontier, 1'b1);
+        tb_check1("G2 F0 stalled owner keeps alternate request blocked",
+                  fetch_req_ready, 1'b0);
+      end
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+      repeat (2) begin
+        tb_check1("G2 F0 accepted response is no longer valid",
+                  fetch_rsp_valid, 1'b0);
+        tb_check1("G2 F0 post-accept window has no younger AR",
+                  ifu_axi_arvalid, 1'b0);
+        tb_check1("G2 F0 post-accept window has no cache fill",
+                  u_bridge.fetch_cache_fill_valid_w, 1'b0);
+        tb_check1("G2 F0 post-accept window has no SRAM write",
+                  u_bridge.u_fetch_packet_cache.sram_we_w, 1'b0);
+        tick();
+      end
+      tb_check1("G2 F0 emits zero instruction-data AR",
+                fault_instruction_ar_count_q == 0, 1'b1);
+      tb_check1("G2 F0 emits no younger AR",
+                fault_post_frontier_ar_count_q == 0, 1'b1);
+      tb_check1("G2 F0 emits no packet-cache fill",
+                fault_cache_fill_count_q == 0, 1'b1);
+      tb_check1("G2 F0 emits no effective SRAM write",
+                fault_sram_write_count_q == 0, 1'b1);
+      $display("[G2-BRIDGE-F0] split=0 raw_zero=1 decoded_fault=2/2 sanitized=1/1 instruction_ar=%0d stall_cycles=2 post_accept_quiet_cycles=2 younger_ar=%0d cache_fill=%0d sram_write=%0d PASS",
+               fault_instruction_ar_count_q, fault_post_frontier_ar_count_q,
+               fault_cache_fill_count_q, fault_sram_write_count_q);
+      fault_txn_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
+    end
+  endtask
+
   task automatic run_case;
     input [1023:0] what;
     input [`XLEN-1:0] pc;
@@ -573,6 +783,11 @@ module tb_ooo_fetch_page_end_fault;
     reg [`XLEN-1:0] raw_packet;
     reg prefix_ok;
     reg tail_zero;
+    reg [`INST_W-1:0] held_inst0;
+    reg [1:0] held_resp0;
+    reg [`INST_W-1:0] held_inst1;
+    reg [1:0] held_resp1;
+    reg [2:0] held_frontier;
     begin
       first_page_bytes = 4096 - pc[11:0];
       // 是否为 fault 行直接取既有 matrix owner 期望，避免 monitor 与 DUT/driver
@@ -583,7 +798,13 @@ module tb_ooo_fetch_page_end_fault;
 
       fault_txn_monitor_q = 1'b0;
       fault_frontier_seen_q = 1'b0;
-      reset_case();
+      if (preserve_state_for_next_case_q) begin
+        preserve_state_for_next_case_q = 1'b0;
+        tb_check1("G2 preserved-state case starts request-ready",
+                  fetch_req_ready, 1'b1);
+      end else begin
+        reset_case();
+      end
       fault_cache_fill_count_q = 0;
       fault_sram_write_count_q = 0;
       fault_monitor_cycles_q = 0;
@@ -617,8 +838,41 @@ module tb_ooo_fetch_page_end_fault;
         tick();
         waits = waits + 1;
       end
-      tb_check1(what, fetch_rsp_valid, 1'b1);
+      tb_check1({what, " response arrives"}, fetch_rsp_valid, 1'b1);
       if (fetch_rsp_valid === 1'b1) begin
+        if (fault_case) begin
+          held_inst0 = fetch_rsp_inst0;
+          held_resp0 = fetch_rsp_resp0;
+          held_inst1 = fetch_rsp_inst1;
+          held_resp1 = fetch_rsp_resp1;
+          held_frontier = fetch_rsp_resp0_bytes;
+          fetch_req_pc = pc ^ 64'h0000_0000_0000_0882;
+          fetch_req_valid = 1'b1;
+          #1;
+          tb_check1({what, " stalled owner blocks alternate request"},
+                    fetch_req_ready, 1'b0);
+          repeat (2) begin
+            tick();
+            tb_check1({what, " stalled owner keeps alternate request blocked"},
+                      fetch_req_ready, 1'b0);
+            tb_check1({what, " stalled response remains valid"},
+                      fetch_rsp_valid, 1'b1);
+            tb_check32({what, " stalled inst0 stable"},
+                       fetch_rsp_inst0, held_inst0);
+            check_resp({what, " stalled resp0 stable"},
+                       fetch_rsp_resp0, held_resp0);
+            tb_check32({what, " stalled inst1 stable"},
+                       fetch_rsp_inst1, held_inst1);
+            check_resp({what, " stalled resp1 stable"},
+                       fetch_rsp_resp1, held_resp1);
+            tb_check1({what, " stalled frontier stable"},
+                      fetch_rsp_resp0_bytes == held_frontier, 1'b1);
+          end
+          fetch_req_valid = 1'b0;
+          fetch_req_pc = {`XLEN{1'b0}};
+          fault_stall_rows_q = fault_stall_rows_q + 1;
+          fault_stall_cycles_q = fault_stall_cycles_q + 2;
+        end
         $display("[G2-MATRIX] %0s pc=%016x raw=%0b/%0b decoded=%0b/%0b expected=%0b/%0b",
                  what, pc, fetch_rsp_resp0, fetch_rsp_resp1,
                  dec0_resp, dec1_resp, exp_dec0_resp, exp_dec1_resp);
@@ -627,6 +881,12 @@ module tb_ooo_fetch_page_end_fault;
                    pc + ((first_beat[1:0] == 2'b11) ? 64'd4 : 64'd2));
         check_resp({what, " slot0 response"}, dec0_resp, exp_dec0_resp);
         check_resp({what, " slot1 response"}, dec1_resp, exp_dec1_resp);
+        if (exp_dec0_resp != RESP_OK)
+          tb_check32({what, " slot0 faulted inst is NOP"},
+                     dec0_inst, 32'h0000_0013);
+        if (exp_dec1_resp != RESP_OK)
+          tb_check32({what, " slot1 faulted inst is NOP"},
+                     dec1_inst, 32'h0000_0013);
         if (fault_case) begin
           raw_packet = {fetch_rsp_inst1, fetch_rsp_inst0};
           prefix_ok = 1'b0;
@@ -685,11 +945,35 @@ module tb_ooo_fetch_page_end_fault;
                    raw_packet);
         end
       end
-      fault_txn_monitor_q = 1'b0;
-      fault_frontier_seen_q = 1'b0;
       fetch_rsp_ready = 1'b1;
       tick();
       fetch_rsp_ready = 1'b0;
+      if (fault_case) begin
+        repeat (2) begin
+          tb_check1({what, " accepted fault response is no longer valid"},
+                    fetch_rsp_valid, 1'b0);
+          tb_check1({what, " post-accept window has no younger AR"},
+                    ifu_axi_arvalid, 1'b0);
+          tb_check1({what, " post-accept window has no cache fill"},
+                    u_bridge.fetch_cache_fill_valid_w, 1'b0);
+          tb_check1({what, " post-accept window has no SRAM write"},
+                    u_bridge.u_fetch_packet_cache.sram_we_w, 1'b0);
+          tick();
+        end
+        fault_post_accept_quiet_cycles_q =
+            fault_post_accept_quiet_cycles_q + 2;
+        tb_check1({what, " late fault transaction emits no younger AR"},
+                  fault_post_frontier_ar_count_q == 0, 1'b1);
+        tb_check1({what, " late fault transaction emits no cache fill"},
+                  fault_cache_fill_count_q == 0, 1'b1);
+        tb_check1({what, " late fault transaction emits no SRAM write"},
+                  fault_sram_write_count_q == 0, 1'b1);
+        $display("[G2-POST-ACCEPT-QUIET] %0s cycles=2 younger_ar=%0d cache_fill=%0d sram_write=%0d PASS",
+                 what, fault_post_frontier_ar_count_q,
+                 fault_cache_fill_count_q, fault_sram_write_count_q);
+      end
+      fault_txn_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
     end
   endtask
 
@@ -707,6 +991,14 @@ module tb_ooo_fetch_page_end_fault;
     raw_frontier_f2_rows_q = 0;
     raw_frontier_f4_rows_q = 0;
     raw_frontier_f6_rows_q = 0;
+    fault_stall_rows_q = 0;
+    fault_stall_cycles_q = 0;
+    fault_post_accept_quiet_cycles_q = 0;
+    preserve_state_for_next_case_q = 1'b0;
+    positive_control_monitor_q = 1'b0;
+    positive_control_instruction_ar_count_q = 0;
+    positive_control_cache_fill_count_q = 0;
+    positive_control_sram_write_count_q = 0;
 
     // PC=FFA：本页还剩 6B。C+32 与 32+C 的两条指令都完整落在本页；
     // 32+32 仅第二条跨页。旧 word-resp 映射会把前两种的 slot1 错报为 fault。
@@ -742,22 +1034,39 @@ module tb_ooo_fetch_page_end_fault;
     run_case("G2 FFE 32+32", PC_FFE, 64'h0010_0093_0010_0093,
              RESP_PAGE_FAULT, RESP_PAGE_FAULT);
 
+    // 使用上一笔完整非零 packet 污染 scratch，然后无复位重放 F=2 fault。
+    prefill_stale_packet_for_next_case();
+    run_case("G2 FFE C+32 after stale prefill", PC_FFE,
+             64'hfeed_0010_0093_0001, RESP_OK, RESP_PAGE_FAULT);
+
+    run_first_page_f0_fault();
+
     // IFU-ACCESS-G1：把 second-page A=0 与 exact 2B footprint、prefix provenance、
     // A-update re-walk，以及 mmu_flush write-drain 绑定到同一真实跨页请求。
     run_second_page_ad_success();
     run_second_page_ad_flush_drop();
 
-    tb_check1("G2 raw fault matrix covers four F=2 rows",
-              raw_frontier_f2_rows_q == 4, 1'b1);
+    tb_check1("G2 raw fault matrix covers five F=2 rows",
+              raw_frontier_f2_rows_q == 5, 1'b1);
     tb_check1("G2 raw fault matrix covers three F=4 rows",
               raw_frontier_f4_rows_q == 3, 1'b1);
     tb_check1("G2 raw fault matrix covers one F=6 row",
               raw_frontier_f6_rows_q == 1, 1'b1);
+    tb_check1("G2 all fault rows hold response under backpressure",
+              fault_stall_rows_q == 9, 1'b1);
+    tb_check1("G2 fault response stability spans eighteen cycles",
+              fault_stall_cycles_q == 18, 1'b1);
+    tb_check1("G2 post-accept quiet window spans eighteen cycles",
+              fault_post_accept_quiet_cycles_q == 18, 1'b1);
     $display("[G2-RAW-FAULT-SUMMARY] F2=%0d F4=%0d F6=%0d total=%0d",
              raw_frontier_f2_rows_q, raw_frontier_f4_rows_q,
              raw_frontier_f6_rows_q,
              raw_frontier_f2_rows_q + raw_frontier_f4_rows_q +
              raw_frontier_f6_rows_q);
+    $display("[G2-CURRENT-DESIGN] matrix_rows=13 fault_rows=9 F2=5 F4=3 F6=1 stall_rows=%0d stall_cycles=%0d post_accept_quiet_cycles=%0d payload_stability=1 stale_prefill=1 PASS",
+             fault_stall_rows_q, fault_stall_cycles_q,
+             fault_post_accept_quiet_cycles_q);
+    $display("[TVAL-G1-PAGE-END] PF=9 F2=5 F4=3 F6=1 tval=packet_pc+F PASS");
 
     tb_finish("tb_ooo_fetch_page_end_fault");
   end

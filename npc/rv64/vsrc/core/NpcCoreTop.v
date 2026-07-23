@@ -170,6 +170,19 @@ module NpcCoreTop (
   wire [4:0] ooo_mem0_owner_query_token_w;
   wire ooo_mem0_station_query_valid_w;
   wire [4:0] ooo_mem0_station_query_token_w;
+  wire ooo_mem0_sq_query_valid_w;
+  wire [1:0] ooo_mem0_sq_query_owner_kind_w;
+  wire [4:0] ooo_mem0_sq_query_owner_token_w;
+  wire [1:0] ooo_mem0_sq_query_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem0_sq_query_paddr_w;
+  wire ooo_mem0_sq_query_attr_valid_w;
+  wire [1:0] ooo_mem0_sq_query_class_w;
+  wire [`STRB_W-1:0] ooo_mem0_sq_query_wstrb_w;
+  wire ooo_mem0_sq_query_allow_w;
+  wire ooo_mem0_sq_query_forward_w;
+  wire ooo_mem0_sq_query_replay_w;
+  wire ooo_mem0_sq_query_retry_ready_w;
+  wire [`XLEN-1:0] ooo_mem0_sq_query_forward_data_w;
   wire ooo_mem0_drop0_valid_w;
   wire [1:0] ooo_mem0_drop0_owner_kind_w;
   wire [4:0] ooo_mem0_drop0_owner_token_w;
@@ -186,6 +199,81 @@ module NpcCoreTop (
   // transition; keeping this wire local makes this slice behavior-neutral.
   wire ooo_mem0_idle_w;
   wire ooo_mem_translate_active_w;
+  wire ooo_mem1_req_valid_w;
+  wire ooo_mem1_req_ready_w;
+  wire ooo_mem1_req_write_w;
+  wire ooo_mem1_req_probe_w;
+  wire ooo_mem1_req_pretrans_w;
+  wire ooo_mem1_req_nokill_w;
+  wire ooo_mem1_req_attr_valid_w;
+  wire [1:0] ooo_mem1_req_class_w;
+  wire ooo_mem1_req_cacheable_w;
+  wire [1:0] ooo_mem1_req_owner_kind_w;
+  wire [4:0] ooo_mem1_req_owner_token_w;
+  wire [1:0] ooo_mem1_req_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem1_req_fault_tval_w;
+  wire [`XLEN-1:0] ooo_mem1_req_addr_w;
+  wire [`XLEN-1:0] ooo_mem1_req_wdata_w;
+  wire [`STRB_W-1:0] ooo_mem1_req_wstrb_w;
+  wire ooo_mem1_req_device_release_w;
+  wire ooo_mem1_req_device_cancel_w;
+  wire ooo_mem1_rsp_valid_w;
+  wire ooo_mem1_rsp_ready_w;
+  wire [`XLEN-1:0] ooo_mem1_rsp_rdata_w;
+  wire ooo_mem1_rsp_error_w;
+  wire ooo_mem1_rsp_page_fault_w;
+  wire ooo_mem1_rsp_attr_valid_w;
+  wire [1:0] ooo_mem1_rsp_class_w;
+  wire ooo_mem1_rsp_cacheable_w;
+  wire [1:0] ooo_mem1_rsp_owner_kind_w;
+  wire [4:0] ooo_mem1_rsp_owner_token_w;
+  wire [1:0] ooo_mem1_rsp_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem1_rsp_fault_tval_w;
+  wire ooo_mem1_expected_valid_w;
+  wire [1:0] ooo_mem1_expected_owner_kind_w;
+  wire [4:0] ooo_mem1_expected_owner_token_w;
+  wire [1:0] ooo_mem1_expected_mmu_epoch_w;
+  wire ooo_mem1_expected_tval_valid_w;
+  wire [`XLEN-1:0] ooo_mem1_expected_fault_tval_w;
+  wire ooo_mem1_expected_effective_killed_w;
+  wire ooo_mem1_tracker_expected_valid_w;
+  wire [1:0] ooo_mem1_tracker_expected_owner_kind_w;
+  wire [4:0] ooo_mem1_tracker_expected_owner_token_w;
+  wire [1:0] ooo_mem1_tracker_expected_mmu_epoch_w;
+  wire ooo_mem1_station_expected_valid_w;
+  wire [1:0] ooo_mem1_station_expected_owner_kind_w;
+  wire [4:0] ooo_mem1_station_expected_owner_token_w;
+  wire [1:0] ooo_mem1_station_expected_mmu_epoch_w;
+  wire ooo_mem1_owner_query_valid_w;
+  wire [4:0] ooo_mem1_owner_query_token_w;
+  wire ooo_mem1_station_query_valid_w;
+  wire [4:0] ooo_mem1_station_query_token_w;
+  wire ooo_mem1_sq_query_valid_w;
+  wire [1:0] ooo_mem1_sq_query_owner_kind_w;
+  wire [4:0] ooo_mem1_sq_query_owner_token_w;
+  wire [1:0] ooo_mem1_sq_query_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem1_sq_query_paddr_w;
+  wire ooo_mem1_sq_query_attr_valid_w;
+  wire [1:0] ooo_mem1_sq_query_class_w;
+  wire [`STRB_W-1:0] ooo_mem1_sq_query_wstrb_w;
+  wire ooo_mem1_sq_query_allow_w;
+  wire ooo_mem1_sq_query_forward_w;
+  wire ooo_mem1_sq_query_replay_w;
+  wire ooo_mem1_sq_query_retry_ready_w;
+  wire [`XLEN-1:0] ooo_mem1_sq_query_forward_data_w;
+  wire ooo_mem1_drop0_valid_w;
+  wire [1:0] ooo_mem1_drop0_owner_kind_w;
+  wire [4:0] ooo_mem1_drop0_owner_token_w;
+  wire [1:0] ooo_mem1_drop0_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem1_drop0_fault_tval_w;
+  wire ooo_mem1_drop1_valid_w;
+  wire [1:0] ooo_mem1_drop1_owner_kind_w;
+  wire [4:0] ooo_mem1_drop1_owner_token_w;
+  wire [1:0] ooo_mem1_drop1_mmu_epoch_w;
+  wire [`XLEN-1:0] ooo_mem1_drop1_fault_tval_w;
+  wire [31:0] ooo_mem1_owner_residency_mask_w;
+  wire ooo_mem1_idle_w;
+  wire ooo_mem1_translate_active_w;
 
   wire ooo_mem_flush_w;
   wire ooo_mmu_flush_w;
@@ -334,7 +422,7 @@ module NpcCoreTop (
     .ifu_axi_bresp_i(ifu_axi_bresp_i)
   );
 
-  OooMemAxiBridge u_ooo_mem_bridge (
+  OooDualMemBridgeWrapper u_ooo_dual_mem_bridge (
     .clk(clk),
     .rst(rst),
     .flush_i(ooo_mem_flush_w),
@@ -346,103 +434,207 @@ module NpcCoreTop (
     .svpbmt_en_i(ooo_svpbmt_en_w),
     .pmpcfg_i(ooo_pmpcfg_w),
     .pmpaddr_i(ooo_pmpaddr_w),
-    .mem0_req_valid_i(ooo_mem0_req_valid_w),
-    .mem0_req_ready_o(ooo_mem0_req_ready_w),
-    .mem0_req_write_i(ooo_mem0_req_write_w),
-    .mem0_req_probe_i(ooo_mem0_req_probe_w),
-    .mem0_req_pretrans_i(ooo_mem0_req_pretrans_w),
-    .mem0_req_nokill_i(ooo_mem0_req_nokill_w),
-    .mem0_req_attr_valid_i(ooo_mem0_req_attr_valid_w),
-    .mem0_req_class_i(ooo_mem0_req_class_w),
-    .mem0_req_cacheable_i(ooo_mem0_req_cacheable_w),
-    .mem0_req_owner_kind_i(ooo_mem0_req_owner_kind_w),
-    .mem0_req_owner_token_i(ooo_mem0_req_owner_token_w),
-    .mem0_req_mmu_epoch_i(ooo_mem0_req_mmu_epoch_w),
-    .mem0_req_fault_tval_i(ooo_mem0_req_fault_tval_w),
-    .mem0_expected_valid_i(ooo_mem0_expected_valid_w),
-    .mem0_expected_owner_kind_i(ooo_mem0_expected_owner_kind_w),
-    .mem0_expected_owner_token_i(ooo_mem0_expected_owner_token_w),
-    .mem0_expected_mmu_epoch_i(ooo_mem0_expected_mmu_epoch_w),
-    .mem0_expected_tval_valid_i(ooo_mem0_expected_tval_valid_w),
-    .mem0_expected_fault_tval_i(ooo_mem0_expected_fault_tval_w),
-    .mem0_expected_effective_killed_i(
+    .lane0_req_valid_i(ooo_mem0_req_valid_w),
+    .lane0_req_ready_o(ooo_mem0_req_ready_w),
+    .lane0_req_write_i(ooo_mem0_req_write_w),
+    .lane0_req_probe_i(ooo_mem0_req_probe_w),
+    .lane0_req_pretrans_i(ooo_mem0_req_pretrans_w),
+    .lane0_req_nokill_i(ooo_mem0_req_nokill_w),
+    .lane0_req_attr_valid_i(ooo_mem0_req_attr_valid_w),
+    .lane0_req_class_i(ooo_mem0_req_class_w),
+    .lane0_req_cacheable_i(ooo_mem0_req_cacheable_w),
+    .lane0_req_owner_kind_i(ooo_mem0_req_owner_kind_w),
+    .lane0_req_owner_token_i(ooo_mem0_req_owner_token_w),
+    .lane0_req_mmu_epoch_i(ooo_mem0_req_mmu_epoch_w),
+    .lane0_req_fault_tval_i(ooo_mem0_req_fault_tval_w),
+    .lane0_expected_valid_i(ooo_mem0_expected_valid_w),
+    .lane0_expected_owner_kind_i(ooo_mem0_expected_owner_kind_w),
+    .lane0_expected_owner_token_i(ooo_mem0_expected_owner_token_w),
+    .lane0_expected_mmu_epoch_i(ooo_mem0_expected_mmu_epoch_w),
+    .lane0_expected_tval_valid_i(ooo_mem0_expected_tval_valid_w),
+    .lane0_expected_fault_tval_i(ooo_mem0_expected_fault_tval_w),
+    .lane0_expected_effective_killed_i(
         ooo_mem0_expected_effective_killed_w),
-    .mem0_tracker_expected_valid_i(ooo_mem0_tracker_expected_valid_w),
-    .mem0_tracker_expected_owner_kind_i(
+    .lane0_tracker_expected_valid_i(ooo_mem0_tracker_expected_valid_w),
+    .lane0_tracker_expected_owner_kind_i(
         ooo_mem0_tracker_expected_owner_kind_w),
-    .mem0_tracker_expected_owner_token_i(
+    .lane0_tracker_expected_owner_token_i(
         ooo_mem0_tracker_expected_owner_token_w),
-    .mem0_tracker_expected_mmu_epoch_i(
+    .lane0_tracker_expected_mmu_epoch_i(
         ooo_mem0_tracker_expected_mmu_epoch_w),
-    .mem0_station_expected_valid_i(ooo_mem0_station_expected_valid_w),
-    .mem0_station_expected_owner_kind_i(
+    .lane0_station_expected_valid_i(ooo_mem0_station_expected_valid_w),
+    .lane0_station_expected_owner_kind_i(
         ooo_mem0_station_expected_owner_kind_w),
-    .mem0_station_expected_owner_token_i(
+    .lane0_station_expected_owner_token_i(
         ooo_mem0_station_expected_owner_token_w),
-    .mem0_station_expected_mmu_epoch_i(
+    .lane0_station_expected_mmu_epoch_i(
         ooo_mem0_station_expected_mmu_epoch_w),
-    .mem0_device_release_i(ooo_mem0_req_device_release_w),
-    .mem0_device_cancel_i(ooo_mem0_req_device_cancel_w),
-    .mem0_req_addr_i(ooo_mem0_req_addr_w),
-    .mem0_req_wdata_i(ooo_mem0_req_wdata_w),
-    .mem0_req_wstrb_i(ooo_mem0_req_wstrb_w),
-    .mem0_rsp_valid_o(ooo_mem0_rsp_valid_w),
-    .mem0_rsp_ready_i(ooo_mem0_rsp_ready_w),
-    .mem0_rsp_rdata_o(ooo_mem0_rsp_rdata_w),
-    .mem0_rsp_error_o(ooo_mem0_rsp_error_w),
-    .mem0_rsp_page_fault_o(ooo_mem0_rsp_page_fault_w),
-    .mem0_rsp_attr_valid_o(ooo_mem0_rsp_attr_valid_w),
-    .mem0_rsp_class_o(ooo_mem0_rsp_class_w),
-    .mem0_rsp_cacheable_o(ooo_mem0_rsp_cacheable_w),
-    .mem0_rsp_owner_kind_o(ooo_mem0_rsp_owner_kind_w),
-    .mem0_rsp_owner_token_o(ooo_mem0_rsp_owner_token_w),
-    .mem0_rsp_mmu_epoch_o(ooo_mem0_rsp_mmu_epoch_w),
-    .mem0_rsp_fault_tval_o(ooo_mem0_rsp_fault_tval_w),
-    .mem0_drop0_valid_o(ooo_mem0_drop0_valid_w),
-    .mem0_drop0_owner_kind_o(ooo_mem0_drop0_owner_kind_w),
-    .mem0_drop0_owner_token_o(ooo_mem0_drop0_owner_token_w),
-    .mem0_drop0_mmu_epoch_o(ooo_mem0_drop0_mmu_epoch_w),
-    .mem0_drop0_fault_tval_o(ooo_mem0_drop0_fault_tval_w),
-    .mem0_drop1_valid_o(ooo_mem0_drop1_valid_w),
-    .mem0_drop1_owner_kind_o(ooo_mem0_drop1_owner_kind_w),
-    .mem0_drop1_owner_token_o(ooo_mem0_drop1_owner_token_w),
-    .mem0_drop1_mmu_epoch_o(ooo_mem0_drop1_mmu_epoch_w),
-    .mem0_drop1_fault_tval_o(ooo_mem0_drop1_fault_tval_w),
-    .mem0_owner_query_valid_o(ooo_mem0_owner_query_valid_w),
-    .mem0_owner_query_token_o(ooo_mem0_owner_query_token_w),
-    .mem0_station_query_valid_o(ooo_mem0_station_query_valid_w),
-    .mem0_station_query_token_o(ooo_mem0_station_query_token_w),
-    .mem0_owner_residency_mask_o(ooo_mem0_owner_residency_mask_w),
-    .mem0_idle_o(ooo_mem0_idle_w),
-    .translate_active_o(ooo_mem_translate_active_w),
-    .lsu_axi_arvalid_o(lsu_raw_arvalid_w),
-    .lsu_axi_arready_i(lsu_raw_arready_w),
-    .lsu_axi_araddr_o(lsu_raw_araddr_w),
-    .lsu_axi_arid_o(lsu_axi_arid_o),
-    .lsu_axi_arlen_o(lsu_axi_arlen_o),
-    .lsu_axi_arsize_o(lsu_raw_arsize_w),
-    .lsu_axi_arburst_o(lsu_axi_arburst_o),
-    .lsu_axi_arprot_o(lsu_raw_arprot_w),
-    .lsu_axi_rvalid_i(lsu_raw_rvalid_w),
-    .lsu_axi_rready_o(lsu_raw_rready_w),
-    .lsu_axi_rdata_i(lsu_raw_rdata_w),
-    .lsu_axi_rresp_i(lsu_raw_rresp_w),
-    .lsu_axi_awvalid_o(lsu_raw_awvalid_w),
-    .lsu_axi_awready_i(lsu_raw_awready_w),
-    .lsu_axi_awaddr_o(lsu_raw_awaddr_w),
-    .lsu_axi_awid_o(lsu_axi_awid_o),
-    .lsu_axi_awlen_o(lsu_axi_awlen_o),
-    .lsu_axi_awsize_o(lsu_raw_awsize_w),
-    .lsu_axi_awburst_o(lsu_axi_awburst_o),
-    .lsu_axi_wvalid_o(lsu_raw_wvalid_w),
-    .lsu_axi_wready_i(lsu_raw_wready_w),
-    .lsu_axi_wdata_o(lsu_raw_wdata_w),
-    .lsu_axi_wstrb_o(lsu_raw_wstrb_w),
-    .lsu_axi_wlast_o(lsu_axi_wlast_o),
-    .lsu_axi_bvalid_i(lsu_raw_bvalid_w),
-    .lsu_axi_bready_o(lsu_raw_bready_w),
-    .lsu_axi_bresp_i(lsu_raw_bresp_w)
+    .lane0_device_release_i(ooo_mem0_req_device_release_w),
+    .lane0_device_cancel_i(ooo_mem0_req_device_cancel_w),
+    .lane0_req_addr_i(ooo_mem0_req_addr_w),
+    .lane0_req_wdata_i(ooo_mem0_req_wdata_w),
+    .lane0_req_wstrb_i(ooo_mem0_req_wstrb_w),
+    .lane0_rsp_valid_o(ooo_mem0_rsp_valid_w),
+    .lane0_rsp_ready_i(ooo_mem0_rsp_ready_w),
+    .lane0_rsp_rdata_o(ooo_mem0_rsp_rdata_w),
+    .lane0_rsp_error_o(ooo_mem0_rsp_error_w),
+    .lane0_rsp_page_fault_o(ooo_mem0_rsp_page_fault_w),
+    .lane0_rsp_attr_valid_o(ooo_mem0_rsp_attr_valid_w),
+    .lane0_rsp_class_o(ooo_mem0_rsp_class_w),
+    .lane0_rsp_cacheable_o(ooo_mem0_rsp_cacheable_w),
+    .lane0_rsp_owner_kind_o(ooo_mem0_rsp_owner_kind_w),
+    .lane0_rsp_owner_token_o(ooo_mem0_rsp_owner_token_w),
+    .lane0_rsp_mmu_epoch_o(ooo_mem0_rsp_mmu_epoch_w),
+    .lane0_rsp_fault_tval_o(ooo_mem0_rsp_fault_tval_w),
+    .lane0_drop0_valid_o(ooo_mem0_drop0_valid_w),
+    .lane0_drop0_owner_kind_o(ooo_mem0_drop0_owner_kind_w),
+    .lane0_drop0_owner_token_o(ooo_mem0_drop0_owner_token_w),
+    .lane0_drop0_mmu_epoch_o(ooo_mem0_drop0_mmu_epoch_w),
+    .lane0_drop0_fault_tval_o(ooo_mem0_drop0_fault_tval_w),
+    .lane0_drop1_valid_o(ooo_mem0_drop1_valid_w),
+    .lane0_drop1_owner_kind_o(ooo_mem0_drop1_owner_kind_w),
+    .lane0_drop1_owner_token_o(ooo_mem0_drop1_owner_token_w),
+    .lane0_drop1_mmu_epoch_o(ooo_mem0_drop1_mmu_epoch_w),
+    .lane0_drop1_fault_tval_o(ooo_mem0_drop1_fault_tval_w),
+    .lane0_owner_query_valid_o(ooo_mem0_owner_query_valid_w),
+    .lane0_owner_query_token_o(ooo_mem0_owner_query_token_w),
+    .lane0_station_query_valid_o(ooo_mem0_station_query_valid_w),
+    .lane0_station_query_token_o(ooo_mem0_station_query_token_w),
+    .lane0_sq_query_valid_o(ooo_mem0_sq_query_valid_w),
+    .lane0_sq_query_owner_kind_o(ooo_mem0_sq_query_owner_kind_w),
+    .lane0_sq_query_owner_token_o(ooo_mem0_sq_query_owner_token_w),
+    .lane0_sq_query_mmu_epoch_o(ooo_mem0_sq_query_mmu_epoch_w),
+    .lane0_sq_query_paddr_o(ooo_mem0_sq_query_paddr_w),
+    .lane0_sq_query_attr_valid_o(ooo_mem0_sq_query_attr_valid_w),
+    .lane0_sq_query_class_o(ooo_mem0_sq_query_class_w),
+    .lane0_sq_query_wstrb_o(ooo_mem0_sq_query_wstrb_w),
+    .lane0_sq_query_allow_i(ooo_mem0_sq_query_allow_w),
+    .lane0_sq_query_forward_i(ooo_mem0_sq_query_forward_w),
+    .lane0_sq_query_replay_i(ooo_mem0_sq_query_replay_w),
+    .lane0_sq_query_retry_ready_i(ooo_mem0_sq_query_retry_ready_w),
+    .lane0_sq_query_forward_data_i(ooo_mem0_sq_query_forward_data_w),
+    .lane0_owner_residency_mask_o(ooo_mem0_owner_residency_mask_w),
+    .lane0_idle_o(ooo_mem0_idle_w),
+    .lane0_translate_active_o(ooo_mem_translate_active_w),
+    .lane1_req_valid_i(ooo_mem1_req_valid_w),
+    .lane1_req_ready_o(ooo_mem1_req_ready_w),
+    .lane1_req_write_i(ooo_mem1_req_write_w),
+    .lane1_req_probe_i(ooo_mem1_req_probe_w),
+    .lane1_req_pretrans_i(ooo_mem1_req_pretrans_w),
+    .lane1_req_nokill_i(ooo_mem1_req_nokill_w),
+    .lane1_req_attr_valid_i(ooo_mem1_req_attr_valid_w),
+    .lane1_req_class_i(ooo_mem1_req_class_w),
+    .lane1_req_cacheable_i(ooo_mem1_req_cacheable_w),
+    .lane1_req_owner_kind_i(ooo_mem1_req_owner_kind_w),
+    .lane1_req_owner_token_i(ooo_mem1_req_owner_token_w),
+    .lane1_req_mmu_epoch_i(ooo_mem1_req_mmu_epoch_w),
+    .lane1_req_fault_tval_i(ooo_mem1_req_fault_tval_w),
+    .lane1_expected_valid_i(ooo_mem1_expected_valid_w),
+    .lane1_expected_owner_kind_i(ooo_mem1_expected_owner_kind_w),
+    .lane1_expected_owner_token_i(ooo_mem1_expected_owner_token_w),
+    .lane1_expected_mmu_epoch_i(ooo_mem1_expected_mmu_epoch_w),
+    .lane1_expected_tval_valid_i(ooo_mem1_expected_tval_valid_w),
+    .lane1_expected_fault_tval_i(ooo_mem1_expected_fault_tval_w),
+    .lane1_expected_effective_killed_i(
+        ooo_mem1_expected_effective_killed_w),
+    .lane1_tracker_expected_valid_i(ooo_mem1_tracker_expected_valid_w),
+    .lane1_tracker_expected_owner_kind_i(
+        ooo_mem1_tracker_expected_owner_kind_w),
+    .lane1_tracker_expected_owner_token_i(
+        ooo_mem1_tracker_expected_owner_token_w),
+    .lane1_tracker_expected_mmu_epoch_i(
+        ooo_mem1_tracker_expected_mmu_epoch_w),
+    .lane1_station_expected_valid_i(ooo_mem1_station_expected_valid_w),
+    .lane1_station_expected_owner_kind_i(
+        ooo_mem1_station_expected_owner_kind_w),
+    .lane1_station_expected_owner_token_i(
+        ooo_mem1_station_expected_owner_token_w),
+    .lane1_station_expected_mmu_epoch_i(
+        ooo_mem1_station_expected_mmu_epoch_w),
+    .lane1_device_release_i(ooo_mem1_req_device_release_w),
+    .lane1_device_cancel_i(ooo_mem1_req_device_cancel_w),
+    .lane1_req_addr_i(ooo_mem1_req_addr_w),
+    .lane1_req_wdata_i(ooo_mem1_req_wdata_w),
+    .lane1_req_wstrb_i(ooo_mem1_req_wstrb_w),
+    .lane1_rsp_valid_o(ooo_mem1_rsp_valid_w),
+    .lane1_rsp_ready_i(ooo_mem1_rsp_ready_w),
+    .lane1_rsp_rdata_o(ooo_mem1_rsp_rdata_w),
+    .lane1_rsp_error_o(ooo_mem1_rsp_error_w),
+    .lane1_rsp_page_fault_o(ooo_mem1_rsp_page_fault_w),
+    .lane1_rsp_attr_valid_o(ooo_mem1_rsp_attr_valid_w),
+    .lane1_rsp_class_o(ooo_mem1_rsp_class_w),
+    .lane1_rsp_cacheable_o(ooo_mem1_rsp_cacheable_w),
+    .lane1_rsp_owner_kind_o(ooo_mem1_rsp_owner_kind_w),
+    .lane1_rsp_owner_token_o(ooo_mem1_rsp_owner_token_w),
+    .lane1_rsp_mmu_epoch_o(ooo_mem1_rsp_mmu_epoch_w),
+    .lane1_rsp_fault_tval_o(ooo_mem1_rsp_fault_tval_w),
+    .lane1_drop0_valid_o(ooo_mem1_drop0_valid_w),
+    .lane1_drop0_owner_kind_o(ooo_mem1_drop0_owner_kind_w),
+    .lane1_drop0_owner_token_o(ooo_mem1_drop0_owner_token_w),
+    .lane1_drop0_mmu_epoch_o(ooo_mem1_drop0_mmu_epoch_w),
+    .lane1_drop0_fault_tval_o(ooo_mem1_drop0_fault_tval_w),
+    .lane1_drop1_valid_o(ooo_mem1_drop1_valid_w),
+    .lane1_drop1_owner_kind_o(ooo_mem1_drop1_owner_kind_w),
+    .lane1_drop1_owner_token_o(ooo_mem1_drop1_owner_token_w),
+    .lane1_drop1_mmu_epoch_o(ooo_mem1_drop1_mmu_epoch_w),
+    .lane1_drop1_fault_tval_o(ooo_mem1_drop1_fault_tval_w),
+    .lane1_owner_query_valid_o(ooo_mem1_owner_query_valid_w),
+    .lane1_owner_query_token_o(ooo_mem1_owner_query_token_w),
+    .lane1_station_query_valid_o(ooo_mem1_station_query_valid_w),
+    .lane1_station_query_token_o(ooo_mem1_station_query_token_w),
+    .lane1_sq_query_valid_o(ooo_mem1_sq_query_valid_w),
+    .lane1_sq_query_owner_kind_o(ooo_mem1_sq_query_owner_kind_w),
+    .lane1_sq_query_owner_token_o(ooo_mem1_sq_query_owner_token_w),
+    .lane1_sq_query_mmu_epoch_o(ooo_mem1_sq_query_mmu_epoch_w),
+    .lane1_sq_query_paddr_o(ooo_mem1_sq_query_paddr_w),
+    .lane1_sq_query_attr_valid_o(ooo_mem1_sq_query_attr_valid_w),
+    .lane1_sq_query_class_o(ooo_mem1_sq_query_class_w),
+    .lane1_sq_query_wstrb_o(ooo_mem1_sq_query_wstrb_w),
+    .lane1_sq_query_allow_i(ooo_mem1_sq_query_allow_w),
+    .lane1_sq_query_forward_i(ooo_mem1_sq_query_forward_w),
+    .lane1_sq_query_replay_i(ooo_mem1_sq_query_replay_w),
+    .lane1_sq_query_retry_ready_i(ooo_mem1_sq_query_retry_ready_w),
+    .lane1_sq_query_forward_data_i(ooo_mem1_sq_query_forward_data_w),
+    .lane1_owner_residency_mask_o(ooo_mem1_owner_residency_mask_w),
+    .lane1_idle_o(ooo_mem1_idle_w),
+    .lane1_translate_active_o(ooo_mem1_translate_active_w),
+    .d_axi_arvalid_o(lsu_raw_arvalid_w),
+    .d_axi_arready_i(lsu_raw_arready_w),
+    .d_axi_araddr_o(lsu_raw_araddr_w),
+    .d_axi_arid_o(lsu_axi_arid_o),
+    .d_axi_arlen_o(lsu_axi_arlen_o),
+    .d_axi_arsize_o(lsu_raw_arsize_w),
+    .d_axi_arburst_o(lsu_axi_arburst_o),
+    .d_axi_arprot_o(lsu_raw_arprot_w),
+    .d_axi_rvalid_i(lsu_raw_rvalid_w),
+    .d_axi_rready_o(lsu_raw_rready_w),
+    .d_axi_rdata_i(lsu_raw_rdata_w),
+    .d_axi_rresp_i(lsu_raw_rresp_w),
+    .d_axi_awvalid_o(lsu_raw_awvalid_w),
+    .d_axi_awready_i(lsu_raw_awready_w),
+    .d_axi_awaddr_o(lsu_raw_awaddr_w),
+    .d_axi_awid_o(lsu_axi_awid_o),
+    .d_axi_awlen_o(lsu_axi_awlen_o),
+    .d_axi_awsize_o(lsu_raw_awsize_w),
+    .d_axi_awburst_o(lsu_axi_awburst_o),
+    .d_axi_wvalid_o(lsu_raw_wvalid_w),
+    .d_axi_wready_i(lsu_raw_wready_w),
+    .d_axi_wdata_o(lsu_raw_wdata_w),
+    .d_axi_wstrb_o(lsu_raw_wstrb_w),
+    .d_axi_wlast_o(lsu_axi_wlast_o),
+    .d_axi_bvalid_i(lsu_raw_bvalid_w),
+    .d_axi_bready_o(lsu_raw_bready_w),
+    .d_axi_bresp_i(lsu_raw_bresp_w)
   );
+
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst &&
+        (ooo_mem_translate_active_w !== ooo_mem1_translate_active_w))
+      $error("[V8S-DUAL-BRIDGE-CONTEXT] bridge translation contexts diverged @%0t",
+             $time);
+  end
+`endif
 
   wire lsu_raw_ar_pmem_w =
       ((lsu_raw_araddr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
@@ -507,7 +699,8 @@ module NpcCoreTop (
     .ROB_COUNT_W(`OOO_ROB_COUNT_W),
     .FREE_COUNT_W(`OOO_FREE_COUNT_W),
     .ISSUE_COUNT_W(`OOO_ISSUE_COUNT_W),
-    .FETCH_PACKET_COUNT_W(`OOO_FETCH_PACKET_COUNT_W)
+    .FETCH_PACKET_COUNT_W(`OOO_FETCH_PACKET_COUNT_W),
+    .ENABLE_DUAL_MEM(1)
   ) u_ooo_core (
     .clk(clk),
     .rst(rst),
@@ -580,6 +773,19 @@ module NpcCoreTop (
         ooo_mem0_station_expected_owner_token_w),
     .mem_station_expected_mmu_epoch_o(
         ooo_mem0_station_expected_mmu_epoch_w),
+    .mem_sq_query_valid_i(ooo_mem0_sq_query_valid_w),
+    .mem_sq_query_owner_kind_i(ooo_mem0_sq_query_owner_kind_w),
+    .mem_sq_query_owner_token_i(ooo_mem0_sq_query_owner_token_w),
+    .mem_sq_query_mmu_epoch_i(ooo_mem0_sq_query_mmu_epoch_w),
+    .mem_sq_query_paddr_i(ooo_mem0_sq_query_paddr_w),
+    .mem_sq_query_attr_valid_i(ooo_mem0_sq_query_attr_valid_w),
+    .mem_sq_query_class_i(ooo_mem0_sq_query_class_w),
+    .mem_sq_query_wstrb_i(ooo_mem0_sq_query_wstrb_w),
+    .mem_sq_query_allow_o(ooo_mem0_sq_query_allow_w),
+    .mem_sq_query_forward_o(ooo_mem0_sq_query_forward_w),
+    .mem_sq_query_replay_o(ooo_mem0_sq_query_replay_w),
+    .mem_sq_query_retry_ready_o(ooo_mem0_sq_query_retry_ready_w),
+    .mem_sq_query_forward_data_o(ooo_mem0_sq_query_forward_data_w),
     .mem_drop0_valid_i(ooo_mem0_drop0_valid_w),
     .mem_drop0_owner_kind_i(ooo_mem0_drop0_owner_kind_w),
     .mem_drop0_owner_token_i(ooo_mem0_drop0_owner_token_w),
@@ -592,6 +798,86 @@ module NpcCoreTop (
     .mem_drop1_fault_tval_i(ooo_mem0_drop1_fault_tval_w),
     .mem_bridge_owner_residency_mask_i(ooo_mem0_owner_residency_mask_w),
     .mem_translate_active_i(ooo_mem_translate_active_w),
+    .mem1_req_valid_o(ooo_mem1_req_valid_w),
+    .mem1_req_ready_i(ooo_mem1_req_ready_w),
+    .mem1_req_write_o(ooo_mem1_req_write_w),
+    .mem1_req_probe_o(ooo_mem1_req_probe_w),
+    .mem1_req_pretrans_o(ooo_mem1_req_pretrans_w),
+    .mem1_req_nokill_o(ooo_mem1_req_nokill_w),
+    .mem1_req_attr_valid_o(ooo_mem1_req_attr_valid_w),
+    .mem1_req_class_o(ooo_mem1_req_class_w),
+    .mem1_req_cacheable_o(ooo_mem1_req_cacheable_w),
+    .mem1_req_owner_kind_o(ooo_mem1_req_owner_kind_w),
+    .mem1_req_owner_token_o(ooo_mem1_req_owner_token_w),
+    .mem1_req_mmu_epoch_o(ooo_mem1_req_mmu_epoch_w),
+    .mem1_req_fault_tval_o(ooo_mem1_req_fault_tval_w),
+    .mem1_req_device_release_o(ooo_mem1_req_device_release_w),
+    .mem1_req_device_cancel_o(ooo_mem1_req_device_cancel_w),
+    .mem1_req_addr_o(ooo_mem1_req_addr_w),
+    .mem1_req_wdata_o(ooo_mem1_req_wdata_w),
+    .mem1_req_wstrb_o(ooo_mem1_req_wstrb_w),
+    .mem1_rsp_valid_i(ooo_mem1_rsp_valid_w),
+    .mem1_rsp_ready_o(ooo_mem1_rsp_ready_w),
+    .mem1_rsp_rdata_i(ooo_mem1_rsp_rdata_w),
+    .mem1_rsp_error_i(ooo_mem1_rsp_error_w),
+    .mem1_rsp_page_fault_i(ooo_mem1_rsp_page_fault_w),
+    .mem1_rsp_attr_valid_i(ooo_mem1_rsp_attr_valid_w),
+    .mem1_rsp_class_i(ooo_mem1_rsp_class_w),
+    .mem1_rsp_cacheable_i(ooo_mem1_rsp_cacheable_w),
+    .mem1_rsp_owner_kind_i(ooo_mem1_rsp_owner_kind_w),
+    .mem1_rsp_owner_token_i(ooo_mem1_rsp_owner_token_w),
+    .mem1_rsp_mmu_epoch_i(ooo_mem1_rsp_mmu_epoch_w),
+    .mem1_rsp_fault_tval_i(ooo_mem1_rsp_fault_tval_w),
+    .mem1_expected_valid_o(ooo_mem1_expected_valid_w),
+    .mem1_expected_owner_kind_o(ooo_mem1_expected_owner_kind_w),
+    .mem1_expected_owner_token_o(ooo_mem1_expected_owner_token_w),
+    .mem1_expected_mmu_epoch_o(ooo_mem1_expected_mmu_epoch_w),
+    .mem1_expected_tval_valid_o(ooo_mem1_expected_tval_valid_w),
+    .mem1_expected_fault_tval_o(ooo_mem1_expected_fault_tval_w),
+    .mem1_expected_effective_killed_o(ooo_mem1_expected_effective_killed_w),
+    .mem1_owner_query_valid_i(ooo_mem1_owner_query_valid_w),
+    .mem1_owner_query_token_i(ooo_mem1_owner_query_token_w),
+    .mem1_tracker_expected_valid_o(ooo_mem1_tracker_expected_valid_w),
+    .mem1_tracker_expected_owner_kind_o(
+        ooo_mem1_tracker_expected_owner_kind_w),
+    .mem1_tracker_expected_owner_token_o(
+        ooo_mem1_tracker_expected_owner_token_w),
+    .mem1_tracker_expected_mmu_epoch_o(
+        ooo_mem1_tracker_expected_mmu_epoch_w),
+    .mem1_station_query_valid_i(ooo_mem1_station_query_valid_w),
+    .mem1_station_query_token_i(ooo_mem1_station_query_token_w),
+    .mem1_station_expected_valid_o(ooo_mem1_station_expected_valid_w),
+    .mem1_station_expected_owner_kind_o(
+        ooo_mem1_station_expected_owner_kind_w),
+    .mem1_station_expected_owner_token_o(
+        ooo_mem1_station_expected_owner_token_w),
+    .mem1_station_expected_mmu_epoch_o(
+        ooo_mem1_station_expected_mmu_epoch_w),
+    .mem1_sq_query_valid_i(ooo_mem1_sq_query_valid_w),
+    .mem1_sq_query_owner_kind_i(ooo_mem1_sq_query_owner_kind_w),
+    .mem1_sq_query_owner_token_i(ooo_mem1_sq_query_owner_token_w),
+    .mem1_sq_query_mmu_epoch_i(ooo_mem1_sq_query_mmu_epoch_w),
+    .mem1_sq_query_paddr_i(ooo_mem1_sq_query_paddr_w),
+    .mem1_sq_query_attr_valid_i(ooo_mem1_sq_query_attr_valid_w),
+    .mem1_sq_query_class_i(ooo_mem1_sq_query_class_w),
+    .mem1_sq_query_wstrb_i(ooo_mem1_sq_query_wstrb_w),
+    .mem1_sq_query_allow_o(ooo_mem1_sq_query_allow_w),
+    .mem1_sq_query_forward_o(ooo_mem1_sq_query_forward_w),
+    .mem1_sq_query_replay_o(ooo_mem1_sq_query_replay_w),
+    .mem1_sq_query_retry_ready_o(ooo_mem1_sq_query_retry_ready_w),
+    .mem1_sq_query_forward_data_o(ooo_mem1_sq_query_forward_data_w),
+    .mem1_drop0_valid_i(ooo_mem1_drop0_valid_w),
+    .mem1_drop0_owner_kind_i(ooo_mem1_drop0_owner_kind_w),
+    .mem1_drop0_owner_token_i(ooo_mem1_drop0_owner_token_w),
+    .mem1_drop0_mmu_epoch_i(ooo_mem1_drop0_mmu_epoch_w),
+    .mem1_drop0_fault_tval_i(ooo_mem1_drop0_fault_tval_w),
+    .mem1_drop1_valid_i(ooo_mem1_drop1_valid_w),
+    .mem1_drop1_owner_kind_i(ooo_mem1_drop1_owner_kind_w),
+    .mem1_drop1_owner_token_i(ooo_mem1_drop1_owner_token_w),
+    .mem1_drop1_mmu_epoch_i(ooo_mem1_drop1_mmu_epoch_w),
+    .mem1_drop1_fault_tval_i(ooo_mem1_drop1_fault_tval_w),
+    .mem1_bridge_owner_residency_mask_i(ooo_mem1_owner_residency_mask_w),
+    .mem1_translate_active_i(ooo_mem1_translate_active_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
     .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),

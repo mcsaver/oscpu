@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-implementation-evidence-rereview-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 RV64 双发射 OoO 核 F3 final-PA SQ query 与双 bank retry holder 的 RTL、定向验证、语义变异和所有权守恒证据，优先寻找阻止 checkpoint 的 P0 反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/result.json",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/prove-v8t-retry-holder-conservation.py",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/check-v8t-final-pa-sq-query.py",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/mutate-v8t-final-pa-sq-query.py",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-implementation-evidence-rereview-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP；若 GAP，仅列可复现的 P0 RTL 或验证缺口、精确信号锚点及最小 directed/assertion/mutation 补强；若无 P0，明确 F3 checkpoint 可接受且全核 architecture 仍为 RED、PPA 仍为 UNQUALIFIED"
+  ],
+  "success_criteria": [
+    "实际读取限定 RTL 与证据；逐项核对 query outcome、bank identity、capture-hold-reissue-cancel、older-store 仲裁、admission fence、int/FP sink、fault/late response、holder census、mutation activation 与 claim boundary；结论有可审计依据"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

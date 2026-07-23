@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "contract_sha256": "33f07265df261edf560000f7ee2e54690cac3191b371e28db37a6ca79492daaf",
+  "review_mode": "two-independent-self-contained-no-tools",
+  "claim_boundary": {
+    "approved_scope": "Enter bounded RTL implementation and verification for DI-3 pair_matrix only.",
+    "not_yet_green": ["DI-3"],
+    "must_remain_red": ["DI-5", "OOO-3", "overall", "PPA"],
+    "excluded_second_terminal_classes": ["AMO", "LR", "SC", "FP memory"],
+    "fresh_same_digest_rerun_required": ["DI-4", "OOO-1", "OOO-2"]
+  }
+}

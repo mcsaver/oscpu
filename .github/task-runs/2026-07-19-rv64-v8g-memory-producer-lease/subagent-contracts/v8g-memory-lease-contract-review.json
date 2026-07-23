@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8g-memory-lease-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只读复核本地 RV64 RTL 的异步内存 ProducerId 租约冻结合同，寻找同沿复用、双发射 ready、迟到响应、STORE B terminal 或 token 提前释放反例；不得修改文件或调用工具。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/contract.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/holder-census.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/subagent-contracts/v8g-memory-lease-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/holder-census.md",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease/rtl-derivation.md"
+    ]
+  },
+  "deliverables": [
+    "按严重度列出可执行反例、组合环风险与合同缺格；若无 blocker，明确给出可进入 RTL 的 scoped verdict。"
+  ],
+  "success_criteria": [
+    "输出覆盖 lane0/lane1 mandatory/optional、edge-old free/release、LOAD/PROBE/AMO/DRAIN completion 与 token/PID 一一映射，且无任何工具调用、文件写入或外部访问。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

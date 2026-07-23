@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8f-test-design-readonly",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立审计当前 v8f 四个模块 TB 与既有 runner 模式，把八条机器退出条件映射为正向、反例和 compile-success mutation 覆盖，并指出最多三个会造成假绿的缺口",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/contract.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/rtl-derivation.md",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      ".github/task-runs/2026-07-19-rv64-v8d-int-ex-completion-kill-cut/run-focused.sh",
+      ".github/task-runs/2026-07-19-rv64-v8e-producer-id-source/run-producer-id-source.sh",
+      ".github/task-runs/2026-07-19-rv64-v8e-producer-id-source/mutate-rob-producer-id.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/contract.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/rtl-derivation.md"
+    ]
+  },
+  "deliverables": [
+    "中文覆盖矩阵：已有正向/反例、缺失 mutation、runner fail-closed 要求及最多三个 P0/P1 假绿缺口"
+  ],
+  "success_criteria": [
+    "八条机器退出条件均映射到精确 TB 行或明确缺口",
+    "mutation 建议必须能编译且由定向检查检出，不能只建议文本搜索"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

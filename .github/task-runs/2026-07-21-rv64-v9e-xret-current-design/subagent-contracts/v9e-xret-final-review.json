@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9e-xret-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently review the local RV64 XRET-G1 current-design closure evidence and the fail-closed architecture workflow source-binding correction, while preserving the full-core architecture-stable and PPA claim boundary.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/review-packet.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/subagent-contracts/v9e-xret-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Authorized scope is the local RV64 Verilog/SystemVerilog dual-issue OoO processor, its local testbench, and generated evidence only; no network, remote host, account, credential, or external service is involved.",
+      "Production RTL is unchanged by V9E. Current complete RTL identity is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc. The claim is only XRET-G1=CLOSED for that identity; full-core ARCH_STABLE remains GAP, PPA UNQUALIFIED, and promotion_eligible=false.",
+      "OooFetchHeadClassifyGate is the sole current-mode legality source; head0 and lane1 architectural-exception exclusions are owned by OooPendingDispatchArbiter and OooPendingLane1CaptureGate; OooPendingTrapExitSequencer retains precise metadata; OooCsrTrapRequestMux routes the held exception or legal xRET request; CsrFile does not redecode legality.",
+      "The focused seven-case matrix has three legal and four illegal cases with raw instruction preservation. Four full-core programs prove legal MRET/SRET request-commit-return, illegal MRET/SRET precise exception routing, zero illegal return request and commit, exact PC/tval, and older lane0 retirement for lane1 illegal SRET.",
+      "Eight compile-success local RTL verification variants cover MRET/SRET legality, false-closed legal MRET, head0/lane1 exception-versus-system routing, precise PC, and precise tval; all 8/8 are dynamically rejected. Two verification-only zero-observer sensitivity configurations compile and are rejected 2/2. The source is unchanged and the module aggregate is 109/109.",
+      "Two consecutive canonical commands make -C npc/rv64 check-xret-current-mode produced identical result, raw-log, variant-summary, module-summary, focused-log, and program-log SHA-256 values. Dedicated XRET tests pass 10/10 and the combined arch-stable semantic suite passes 68/68.",
+      "Adding the independent XRET Makefile target changed only the recorded npc/rv64/Makefile hash in the nine-record architecture manifest. The first fail-closed provenance rebind made all nine architecture gates GREEN; the subsequent arch-stable forward test found four optional source_manifest copies, which were then included in the corrected tool and rebound under an unchanged non-source-binding semantic projection. Both audits are retained.",
+      "Final directed architecture result is 9/9 GREEN. The final arch-stable audit has no architecture provenance or canonical-reevaluation blocker but remains GAP with 44 unrelated blockers, PPA UNQUALIFIED, and promotion disabled."
+    ]
+  },
+  "deliverables": [
+    "Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL or evidence counterexample; adjudicate the seven-case matrix, illegal/legal request and commit paths, eight RTL variants, two observer configurations, and the two-pass provenance correction; then state residual limitations and the exact claim boundary."
+  ],
+  "success_criteria": [
+    "No unresolved P0/P1 XRET semantic or evidence-integrity defect; keep full-core ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is identified."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8z-frontend-ii1-contract-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 前端 DI-1 的调用链与初始证据计划：判断 FPC cache-hit 64-cycle turnover 加真实 OooFrontend request/response/outstanding/FIFO 闭环 64-cycle turnover 是否足以证明 initiation interval=1，并优先寻找组合证据缺口、ready/valid 反例、假绿 metric 或越级声明",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFetchFlowControl.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+      "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/subagent-contracts/v8z-frontend-ii1-contract-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出 verdict=PASS、GAP 或 INCONCLUSIVE；给出实际 module/signal/transaction 调用链、阻塞反例、证据组合是否充分、必须新增的 focused 场景与 compile-success RTL source mutation、claim_boundary、unknowns、scope_extension_request 和 confidence_and_basis"
+  ],
+  "success_criteria": [
+    "只有当计划能用本地动态轨迹覆盖真实 FPC cache-hit、OooFrontend outstanding turnover、response enqueue/FIFO credit、连续 successor PC 和 backpressure 稳定性，且变异能分别切断承重点并由 oracle 拒绝时才判 PASS；否则给出可直接落成 testbench、checker 或 evidence gate 的 GAP，不得把 DI-1 外推为 DI-2、overall architecture 或 PPA"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "rtl-contract-amendment-review-result-v1",
+  "contract": "subagent-contracts/v8k-pending-csr-cancel-amendment-review.json",
+  "contract_sha256": "41dd305ada3b9794f31da994e50cbf75f39b427d9df86a5f6a1038fc80a3e29c",
+  "actual_access": {
+    "tools": false,
+    "shell": false,
+    "filesystem": false,
+    "network": false,
+    "writes": false,
+    "input": "frozen self-contained equations, counterexample, tests and lint summary"
+  },
+  "review_iterations": [
+    {
+      "verdict": "gap",
+      "blockers": [
+        "Raw pending_jump_resolve_ready was initially granted cancel capability without an outcome qualifier; ready held high with all outcomes low could cancel pre-ROB pending CSR forever."
+      ],
+      "disposition": "Replaced raw ready with ready && (misaligned || nolink_commit || redirect_after_dispatch), then added stuck-ready, per-outcome, held-outcome/cross-ready tests and the pending_jump_ready_overcancels compile-success mutation."
+    },
+    {
+      "verdict": "pass",
+      "blockers": [],
+      "residual_risks": [
+        "Full bounded progress still relies on backend_drained_q, dispatch0_ready and the eventual release of other true admission-clear witnesses.",
+        "The feedback-free leaf equation still requires ControlPlane elaboration/lint to catch future cross-module feedback redefinitions.",
+        "Standalone Boolean tests do not replace integration assertions for system fire versus pending clear and same-edge full ProducerId birth."
+      ],
+      "overclaims": [
+        "The reduced jump-clear equation is a safe upper cover under the pending-system/direct-flush mutex, not globally Boolean-equivalent to the complete clear equation.",
+        "Focused leaf tests and enumerated mutations do not prove every future admission-clear polarity or omission."
+      ]
+    }
+  ],
+  "final_verdict": "pass"
+}

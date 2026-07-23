@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8n-true-ooo-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据随附的本地 RV64 Verilog/SystemVerilog 工程事实，审查 OOO-1 长延迟旁路契约是否足以排除假绿，并给出可执行反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/rtl-derivation.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/subagent-contracts/v8n-true-ooo-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围只允许提升 OOO-1；必须保留已证明的 OOO-2，整体架构仍为 RED，禁止据此进入 PPA。",
+      "旧 load 必须真实 dispatch、请求被接受并驻留 MIQ/tracker；旧 MUL/DIV 必须真实进入迭代单元，三者均保留完整 ProducerId。",
+      "每类场景必须真实双发射八个独立年轻 ALU，在旧操作完成前以八个不同完整 ProducerId exactly-once 完成，并观测 ROB 峰值至少九。",
+      "年轻完成允许乱序，但旧操作 formal WB 前不得退休；随后九条必须按记录的 ProducerId 和 PC 顺序 exactly-once 退休并排空 ROB/IQ/free-list。",
+      "测量窗口排除 reset、flush、checkpoint restore、ROB kill/recovery，并确认普通 issue/WB gate 开放，取消或错误路径 uop 不计数。",
+      "load 场景是对齐、cacheable、无 fault、无 store 的普通 load，只证明 latency tolerance，不证明 OOO-3 memory ordering。",
+      "现有 issue1_ready_w 不读取 miq_head_valid_w 或 muldiv_owner_valid_w；反例应分别加入 MIQ 全局冻结、MulDiv 全局冻结以及破坏 ROB 头按序退休边界。",
+      "所有变异必须编译和 elaboration 成功、被 focused test 以 CHECK-FAIL v8n 拒绝，并验证 canonical source 前后哈希一致。",
+      "证据命令固定为 make -C npc/rv64 check-true-ooo-long-latency，记录需绑定完整 RTL design_id、精确 provenance、唯一 PASS marker，且原子合并不能擦除其它同 design/schema 记录。"
+    ]
+  },
+  "deliverables": [
+    "仅输出严格 JSON：verdict 为 pass 或 gap；列出 blockers、false_green_risks、required_counterexamples、recommended_refinements，每项必须可由定向 TB、静态 checker 或 compile-success mutation 执行。"
+  ],
+  "success_criteria": [
+    "只有在三类 owner、完整身份、八个年轻完成、按序退休、反例敏感性、证据互不擦除均可证伪且无阻断缺口时 verdict=pass；否则 verdict=gap 并给出最小修订。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -51,7 +51,7 @@ MAX_CAP_PF = "0.500"
 # 位宽真源 = NpcTop.netlist.v 实例连接(与 RTL module 声明一致):
 #   Sram*: vsrc/sram/Sram4096x{199,113}.v
 #   OooFpArithGate: vsrc/execute/OooFpArithGate.v (XLEN=64, ROB_IDX=4,
-#     PHY_REG_ADDR=6, fflags=5, rm=3, kind=2)
+#     ProducerId=8, PHY_REG_ADDR=6, fflags=5, rm=3, kind=2)
 #   OooBranchDirectionPredictor: vsrc/frontend/OooBranchDirectionPredictor.v
 #     (BPU_BHT_INDEX_W=10; 每路 lookup static fallback 仅 1 bit)
 CELLS = [
@@ -85,7 +85,7 @@ CELLS = [
         ("subtract_addend_i", 1, "input"),
         ("rm_i", 3, "input"),
         ("launch_valid_i", 1, "input"),
-        ("launch_rob_idx_i", 4, "input"),
+        ("launch_producer_id_i", 8, "input"),
         ("launch_pdest_i", 6, "input"),
         ("launch_kind_i", 2, "input"),
         ("kill_valid_i", 1, "input"),
@@ -99,10 +99,13 @@ CELLS = [
         ("fma_fflags_o", 5, "output"),
         ("done_o", 1, "output"),
         ("out_valid_o", 1, "output"),
+        ("out_producer_id_o", 8, "output"),
         ("out_rob_idx_o", 4, "output"),
         ("out_pdest_o", 6, "output"),
         ("out_value_o", 64, "output"),
         ("out_fflags_o", 5, "output"),
+        ("owner_valid_o", 5, "output"),
+        ("owner_producer_id_o", 40, "output"),
     ]),
     ("OooBranchDirectionPredictor", "clk", [
         ("rst", 1, "input"),

@@ -1,5 +1,9 @@
 # RV64 v8f integer EX ProducerId formal-completion 合同
 
+> Post-review notice: sections 2/3/5 中涉及 WB credit、ready 与 stale
+> same-cycle replacement 的陈述由 `contract-amendment-v8f1.md` 取代。
+> 原文保留，用于审计独立复核所发现并纠正的 pre-RTL 假设。
+
 ## 1. 设计状态与完成定义
 
 - `design_state`: `intermediate_checkpoint`

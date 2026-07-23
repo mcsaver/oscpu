@@ -1,0 +1,569 @@
+{
+  "schema_version": "rv64-producer-holder-census-v1",
+  "scope": {
+    "source_root": "npc/rv64/vsrc",
+    "topology_root": "NpcTop->NpcCoreTop->OooCoreTopGlue->OooIntBackend",
+    "coverage_granularity": "field-plus-packed-stage",
+    "field_level_complete": true,
+    "instance_graph_complete": false,
+    "semantic_complete": false
+  },
+  "status_ledger": {
+    "current_production_holder_census": "STATIC_FIELD_COMPLETE",
+    "global_no_live_reuse": "DYNAMIC_EVIDENCE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa_promotion": "UNPROMOTED"
+  },
+  "direct_full_p_fields": [
+    {
+      "id": "pending-system-producer",
+      "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "module": "OooPendingSystemSequencer",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+producer_id_o\\s*=\\s*producer_id_q",
+      "notes": "Only dispatched pending system work owns a full P; metadata-only pre-dispatch state is exempt."
+    },
+    {
+      "id": "clmul-producer",
+      "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+      "module": "OooClmulUnit",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+owner_producer_id_o\\s*=\\s*producer_id_q",
+      "notes": "The owner output feeds the IntBackend Q-only lease union."
+    },
+    {
+      "id": "fp-arith-stage-producers",
+      "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "module": "OooFpArithGate",
+      "symbol": "meta_producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "owner_producer_id_o.*meta_producer_id_q",
+      "notes": "All five valid arithmetic metadata stages are exported to the FP live-mask scan."
+    },
+    {
+      "id": "fp-done-fifo-producers",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "symbol": "df_producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "completion_pending_mask_r\\[df_producer_id_q\\[pk\\]\\]",
+      "notes": "Every valid/tombstone FIFO slot remains a lease holder through its pop edge."
+    },
+    {
+      "id": "fp-exec1-packed-alias",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "symbol": "exec1_producer_id_q",
+      "classification": "PACKED_ALIAS",
+      "coverage_anchor": "exec1_producer_live_mask_w\\s*=",
+      "notes": "Alias of u_exec1_stage down payload; validity comes only from exec1_valid_q."
+    },
+    {
+      "id": "fp-long-producer",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "symbol": "long_producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "long_producer_live_mask_w\\s*=",
+      "notes": "Registered divide/sqrt metadata owner."
+    },
+    {
+      "id": "integer-ex0-packed-alias",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "ex0_producer_id_q",
+      "classification": "PACKED_ALIAS",
+      "coverage_anchor": "ex0_producer_live_mask_w\\s*=",
+      "notes": "Alias of u_ex0_stage registered payload."
+    },
+    {
+      "id": "integer-ex1-packed-alias",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "ex1_producer_id_q",
+      "classification": "PACKED_ALIAS",
+      "coverage_anchor": "ex1_producer_live_mask_w\\s*=",
+      "notes": "Alias of u_ex1_stage registered payload."
+    },
+    {
+      "id": "memory-reservation-producer",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_issue_res_producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "mem_res_producer_live_mask_w\\s*=",
+      "notes": "Registered reservation P covers the IQ-to-tracker handoff and local execution residence."
+    },
+    {
+      "id": "memory-reservation1-producer",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_issue1_res_producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "mem_res_producer_live_mask_w\\s*=",
+      "notes": "The second atomic memory-pair reservation contributes its full P to the same registered live-mask union."
+    },
+    {
+      "id": "checkpoint-irrevocable-write-producer",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "checkpoint_irrevocable_write_pid_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "checkpoint_irrevocable_write_live_mask_w\\s*=",
+      "notes": "A fired physical store/AMO retains its full ProducerId through B/formal-WB and exact lane0 ROB retirement; its onehot mask keeps the finite-generation birth fence closed after tracker terminal release."
+    },
+    {
+      "id": "memory-retry0-producer-cache",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_retry0_producer_id_q",
+      "classification": "REDUNDANT_IDENTITY_CACHE",
+      "coverage_anchor": "mem_retry0_tracker_exact_w.*mem_retry0_producer_id_q",
+      "notes": "Bank0 retry holder retains full P while the authoritative live identity remains in the owner tracker."
+    },
+    {
+      "id": "memory-retry1-producer-cache",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_retry1_producer_id_q",
+      "classification": "REDUNDANT_IDENTITY_CACHE",
+      "coverage_anchor": "mem_retry1_tracker_exact_w.*mem_retry1_producer_id_q",
+      "notes": "Bank1 retry holder retains full P while the authoritative live identity remains in the owner tracker."
+    },
+    {
+      "id": "memory-pending-producer-cache",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_producer_id_q",
+      "classification": "REDUNDANT_IDENTITY_CACHE",
+      "coverage_anchor": "mem_amo_launch_authorized_w.*mem_producer_id_q",
+      "notes": "Legacy exclusive-memory cache is continuously tied back to the tracker token/P mapping."
+    },
+    {
+      "id": "muldiv-producer",
+      "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "module": "OooMulDivUnit",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+owner_producer_id_o\\s*=\\s*producer_id_q",
+      "notes": "One registered long-operation owner feeds the IntBackend lease union."
+    },
+    {
+      "id": "memory-tracker-producer-map",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "module": "OooMemOwnerTracker",
+      "symbol": "producer_id_q",
+      "classification": "TRACKER_MAP",
+      "coverage_anchor": "assign\\s+producer_live_mask_o\\s*=\\s*producer_live_q",
+      "notes": "Every live owner token maps to exactly one full P and the registered P mask."
+    },
+    {
+      "id": "store-queue-producers",
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "module": "OooStoreQueue",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "snoop_producer_id_o.*producer_id_q",
+      "notes": "SQ P is independently checked against the global mask before and after token bind."
+    },
+    {
+      "id": "load-queue-producers",
+      "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "module": "OooLoadQueue",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "producer_live_mask_o\\s*=\\s*producer_live_mask_r",
+      "notes": "Every retire-resident or killed-drain LQ entry contributes its complete P to the IntBackend birth-fence union until exact ROB release or memory terminal."
+    },
+    {
+      "id": "fp-iq-producers",
+      "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "module": "OooFpIssueQueue",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "producer_live_mask_r\\[producer_id_q\\[k\\]\\]",
+      "notes": "Q-only FP IQ scan; dispatch D, ready, and next-state are absent."
+    },
+    {
+      "id": "integer-iq-producers",
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "module": "OooIntIssueQueue",
+      "symbol": "producer_id_q",
+      "classification": "DIRECT_HOLDER",
+      "coverage_anchor": "producer_live_mask_r\\[producer_id_q\\[lease_i\\]\\]",
+      "notes": "The only full-P field in an integer IQ entry is the uop owner; sources are physical-register tags."
+    }
+  ],
+  "combinational_full_p_regs": [
+    {
+      "id": "integer-iq-next-producer",
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "module": "OooIntIssueQueue",
+      "symbol": "producer_id_next_r",
+      "classification": "COMBINATIONAL_NEXT_EXEMPT",
+      "coverage_anchor": "producer_id_next_r\\[write_i\\]\\s*=\\s*producer_id_q\\[compact_i\\]",
+      "notes": "Combinational compaction next-state only; it is explicitly forbidden from the edge-old lease mask. Any additional exact-width reg/logic must be classified rather than escaping through a non-_q name."
+    }
+  ],
+  "generation_authorities": [
+    {
+      "id": "rob-slot-generation",
+      "path": "npc/rv64/vsrc/writeback/OooRob.v",
+      "module": "OooRob",
+      "symbol": "slot_generation_q",
+      "coverage_anchor": "dispatch0_generation_candidate_w\\s*=\\s*slot_generation_q",
+      "notes": "Sole generation source; allocation writes the same explicitly width-bounded candidate that is exported."
+    }
+  ],
+  "packed_full_p_stages": [
+    {
+      "id": "fp-issue-packet",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "instance": "u_fp_issue_stage",
+      "coverage_anchor": "issue_stage_producer_live_mask_w\\s*=",
+      "notes": "Registered full-P issue packet."
+    },
+    {
+      "id": "fp-exec1-packet",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "instance": "u_exec1_stage",
+      "coverage_anchor": "exec1_producer_live_mask_w\\s*=",
+      "notes": "Registered full-P combinational-result packet."
+    },
+    {
+      "id": "integer-ex0-packet",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "instance": "u_ex0_stage",
+      "coverage_anchor": "ex0_producer_live_mask_w\\s*=",
+      "notes": "Registered lane0 execute packet with split generation/index payload fields."
+    },
+    {
+      "id": "integer-ex1-packet",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "instance": "u_ex1_stage",
+      "coverage_anchor": "ex1_producer_live_mask_w\\s*=",
+      "notes": "Registered lane1 execute packet with split generation/index payload fields."
+    },
+    {
+      "id": "branch-resolve-packet",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "instance": "u_branch_resolve_stage",
+      "coverage_anchor": "branch_producer_live_mask_w\\s*=",
+      "notes": "Only cross-cycle integer branch-resolution packet."
+    }
+  ],
+  "token_q_fields": [
+    {
+      "id": "memory-reservation-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_issue_res_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_issue_res_owner_token_q\\s*<=\\s*mem_owner_alloc0_token_w",
+      "notes": "Atomic tracker allocation and reservation capture use the same token."
+    },
+    {
+      "id": "memory-reservation1-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_issue1_res_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_issue1_res_owner_token_q\\s*<=\\s*mem_owner_alloc1_token_w",
+      "notes": "The second memory-pair reservation captures the second tracker allocation token on the same atomic handoff."
+    },
+    {
+      "id": "memory-retry0-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_retry0_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_retry0_owner_mask_w\\s*=\\s*mem_retry0_valid_q",
+      "notes": "Bank0 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal."
+    },
+    {
+      "id": "memory-retry1-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_retry1_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_retry1_owner_mask_w\\s*=\\s*mem_retry1_valid_q",
+      "notes": "Bank1 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal."
+    },
+    {
+      "id": "memory-pending-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_amo_tracker_exact_w\\s*=\\s*mem_owner_live_mask_w\\[mem_owner_token_q\\]",
+      "notes": "Exclusive-memory resident token is reauthorized through the tracker."
+    },
+    {
+      "id": "memory-buffer-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_buffer_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_buffer_owner_mask_w\\s*=\\s*mem_buffer_valid_q",
+      "notes": "Request buffer token contributes to the assertion-only raw indirect reference."
+    },
+    {
+      "id": "bridge-active-token",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "symbol": "active_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "owner_residency_mask_r\\[active_owner_token_q\\]",
+      "notes": "Active bridge transaction is exported in the residency mask."
+    },
+    {
+      "id": "bridge-response-token",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "symbol": "rsp_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "owner_residency_mask_r\\[rsp_owner_token_q\\]",
+      "notes": "Response-resident transaction remains in the bridge residency mask."
+    },
+    {
+      "id": "bridge-stage-token",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "symbol": "stg_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "owner_residency_mask_r\\[stg_owner_token_q\\]",
+      "notes": "Input station token remains in the bridge residency mask."
+    },
+    {
+      "id": "bridge-verified-token-alias",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "symbol": "verified_owner_token_q",
+      "classification": "DERIVED_ALIAS",
+      "coverage_anchor": "active_owner_token_q\\s*==\\s*verified_owner_token_q",
+      "notes": "Derived tracker echo is only consumed with the active resident token."
+    },
+    {
+      "id": "miq-owner-tokens",
+      "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "module": "OooMemInflightQueue",
+      "symbol": "owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+occupancy_token_mask_o\\s*=\\s*live_token_mask_r",
+      "notes": "All valid MIQ entries contribute a token bit."
+    },
+    {
+      "id": "terminal-output0-token",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "module": "OooMemOwnerTerminalCollector",
+      "symbol": "out0_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+deq0_token_o\\s*=\\s*out0_token_q",
+      "notes": "Output-resident terminal remains represented by pending_q."
+    },
+    {
+      "id": "terminal-output1-token",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "module": "OooMemOwnerTerminalCollector",
+      "symbol": "out1_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "assign\\s+deq1_token_o\\s*=\\s*out1_token_q",
+      "notes": "Second output-resident terminal remains represented by pending_q."
+    },
+    {
+      "id": "tracker-next-token-cursor",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "module": "OooMemOwnerTracker",
+      "symbol": "next_token_q",
+      "classification": "ALLOCATOR_CURSOR_EXEMPT",
+      "coverage_anchor": "alloc0_token_r\\s*=\\s*next_token_q",
+      "notes": "Allocation cursor is not a live owner; allocation still scans the edge-old live_q bitmap."
+    },
+    {
+      "id": "store-queue-owner-tokens",
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "module": "OooStoreQueue",
+      "symbol": "owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "snoop_owner_token_o.*owner_token_q",
+      "notes": "Every bound SQ owner exports valid/token for the global raw-reference assertion."
+    }
+  ],
+  "token_set_holders": [
+    {
+      "id": "memory-tracker-live-set",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "module": "OooMemOwnerTracker",
+      "coverage_anchor": "assign\\s+live_mask_o\\s*=\\s*live_q",
+      "notes": "Canonical token lifetime authority."
+    },
+    {
+      "id": "terminal-pending-set",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "module": "OooMemOwnerTerminalCollector",
+      "coverage_anchor": "assign\\s+pending_mask_o\\s*=\\s*pending_q",
+      "notes": "Queued and output-resident terminal tokens."
+    },
+    {
+      "id": "bridge-residency-set",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "coverage_anchor": "assign\\s+mem0_owner_residency_mask_o\\s*=\\s*owner_residency_mask_r",
+      "notes": "Station, active transaction, and response residence."
+    }
+  ],
+  "required_anchors": [
+    {
+      "id": "dispatch-complete-union",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "complete_producer_live_mask_w\\s*=\\s*producer_live_mask_i\\s*\\|\\s*int_iq_producer_live_mask_w"
+    },
+    {
+      "id": "dispatch-lane0-full-p-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "!complete_producer_live_mask_w\\[\\s*rob_dispatch0_producer_id_w\\s*\\]"
+    },
+    {
+      "id": "dispatch-pair-full-p-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "!complete_producer_live_mask_w\\[\\s*rob_dispatch1_pair_producer_id_w\\s*\\]"
+    },
+    {
+      "id": "dispatch-lane1-full-p-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "!complete_producer_live_mask_w\\[\\s*rob_dispatch1_producer_id_w\\s*\\]"
+    },
+    {
+      "id": "intiq-q-only-mask",
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "module": "OooIntIssueQueue",
+      "pattern": "if\\s*\\(valid_q\\[lease_i\\]\\)\\s*producer_live_mask_r\\[producer_id_q\\[lease_i\\]\\]\\s*=\\s*1'b1"
+    },
+    {
+      "id": "intbackend-transient-union",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "pattern": "transient_producer_live_mask_w\\s*=\\s*mem_res_producer_live_mask_w\\s*\\|\\s*ex0_producer_live_mask_w\\s*\\|\\s*ex1_producer_live_mask_w\\s*\\|\\s*branch_producer_live_mask_w\\s*\\|\\s*checkpoint_irrevocable_write_live_mask_w"
+    },
+    {
+      "id": "intbackend-external-union",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "pattern": "external_producer_live_mask_w\\s*=\\s*mem_owner_producer_live_mask_w.*pending_system_producer_live_mask_w\\s*\\|\\s*transient_producer_live_mask_w"
+    },
+    {
+      "id": "mem-tracker-q-mask",
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "module": "OooMemOwnerTracker",
+      "pattern": "assign\\s+producer_live_mask_o\\s*=\\s*producer_live_q"
+    },
+    {
+      "id": "fp-complete-mask",
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "module": "OooFpBackend",
+      "pattern": "assign\\s+producer_live_mask_o\\s*=\\s*fp_iq_producer_live_mask_w.*completion_pending_mask_r"
+    },
+    {
+      "id": "rob-generation-wide-add",
+      "path": "npc/rv64/vsrc/writeback/OooRob.v",
+      "module": "OooRob",
+      "pattern": "dispatch0_generation_candidate_w\\s*=.*\\{\\{\\(PRODUCER_GEN_W-1\\)\\{1'b0\\}\\},\\s*1'b1\\}.*dispatch1_generation_candidate_w\\s*=.*\\{\\{\\(PRODUCER_GEN_W-1\\)\\{1'b0\\}\\},\\s*1'b1\\}.*dispatch1_pair_generation_candidate_w\\s*=.*\\{\\{\\(PRODUCER_GEN_W-1\\)\\{1'b0\\}\\},\\s*1'b1\\}"
+    },
+    {
+      "id": "rob-allocation-stores-candidate",
+      "path": "npc/rv64/vsrc/writeback/OooRob.v",
+      "module": "OooRob",
+      "pattern": "slot_generation_q\\[dispatch0_rob_idx_o\\]\\s*<=\\s*dispatch0_generation_candidate_w.*slot_generation_q\\[dispatch1_rob_idx_o\\]\\s*<=\\s*dispatch1_generation_candidate_w"
+    },
+    {
+      "id": "storequeue-owner-snoop",
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "module": "OooStoreQueue",
+      "pattern": "assign\\s+snoop_owner_valid_o\\[gs\\]\\s*=\\s*valid_q\\[gs\\]\\s*&&\\s*owner_valid_q\\[gs\\].*snoop_owner_token_o.*owner_token_q\\[gs\\]"
+    },
+    {
+      "id": "v8l-mem-handoff-assert",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "mem_issue_res_capture_candidate_w\\s*&&\\s*!mem_owner_alloc0_ready_w\\s*&&\\s*\\(iq_issue0_ready_w\\s*\\|\\|\\s*mem_issue_res_capture_w\\)"
+    },
+    {
+      "id": "v8l-indirect-tracker-assert",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "v8l_indirect_resident_mask_w\\s*&\\s*~mem_owner_live_mask_w"
+    },
+    {
+      "id": "v8l-sq-global-assert",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "sq_snoop_valid_w\\[v8l_assert_i\\].*!producer_live_mask_w\\[sq_snoop_producer_id_w"
+    }
+  ],
+  "forbidden_anchors": [
+    {
+      "id": "intiq-next-state-mask",
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "module": "OooIntIssueQueue",
+      "pattern": "producer_live_mask_r\\s*\\[\\s*producer_id_next_r"
+    },
+    {
+      "id": "dispatch-lane0-raw-index-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "complete_producer_live_mask_w\\s*\\[\\s*rob_dispatch0_producer_id_w\\s*\\[\\s*ROB_INDEX_W"
+    },
+    {
+      "id": "dispatch-lane1-raw-index-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "complete_producer_live_mask_w\\s*\\[\\s*rob_dispatch1_producer_id_w\\s*\\[\\s*ROB_INDEX_W"
+    },
+    {
+      "id": "dispatch-pair-raw-index-guard",
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "module": "OooDispatchBackend",
+      "pattern": "complete_producer_live_mask_w\\s*\\[\\s*rob_dispatch1_pair_producer_id_w\\s*\\[\\s*ROB_INDEX_W"
+    }
+  ],
+  "dynamic_evidence_contract": {
+    "required_markers": [
+      "V8L-INTIQ-DEATH-EDGE",
+      "V8L-FINITE-GENERATION-WRAP",
+      "V8L-TRANSIENT-HOLDER-CENSUS",
+      "V8L-MEM-HANDOFF-BACKPRESSURE",
+      "V8L-MEM-INDIRECT-TRACKER"
+    ],
+    "required_generation_width": 1,
+    "compile_success_mutations_required": true,
+    "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
+  },
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "freeze_evidence": {
+    "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
+    "dynamic_log": {
+      "kind": "holder_lifecycle_log",
+      "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
+      "sha256": "82143f9e166465572fc58cdf42c3d07b4a3e9d1d3a78224edb2b9748c6b43a97"
+    },
+    "mutation_summary": {
+      "kind": "mutation_summary",
+      "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
+      "sha256": "494048b7248b2b1d3c76c3c034c91003fb102b1677ab4e0b0919cb8bc773b707"
+    }
+  }
+}

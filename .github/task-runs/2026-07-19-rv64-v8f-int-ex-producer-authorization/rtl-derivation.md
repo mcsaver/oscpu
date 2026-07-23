@@ -1,5 +1,8 @@
 # v8f RTL derivation（RTL 前冻结）
 
+> Post-review notice: 下方 query/ready 与 stale same-cycle replacement 假设
+> 由 `contract-amendment-v8f1.md` 取代；原文保留以便审计纠偏过程。
+
 ## 四阶段推导
 
 1. **行为**：当前 generation 的 integer EX formal completion 正常生效；非当前 generation 的

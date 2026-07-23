@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8r-dual-memory-bridge-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附冻结事实，复核本地 RV64 Verilog/SystemVerilog F1 双 bridge/cache-hit wrapper 的实现与 fresh 执行证据是否足以授予唯一叶级 claim，并主动寻找假绿、mutation 失配和越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/cache/OooDataWordCache.v",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/tests/tb_ooo_data_word_cache.sv",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/evidence/focused/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/subagent-contracts/v8r-dual-memory-bridge-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地 RV64 Verilog/SystemVerilog 数字电路实现与验证证据复核；不使用工具、shell、文件访问、网络、账号、凭据或外部服务，不修改任何文件，结论仅限下述冻结材料。",
+      "合同复审已关闭 B1-B4 的文本语义缺口并把 B5 保留为 execution-pending；只有 fresh RTL/TB/checker/mutation/aggregate 同 closure 全过后才允许 dual_bridge_cache_hit_leaf_verified。",
+      "F1 wrapper 固定实例 u_bridge0、u_bridge1、u_miss_arbiter；两 bridge peer 模式显式开启，lane0 producer 的 valid/address/wstrb 原样交叉至 lane1 consumer，反向同理；READY 与 response 各 lane 独立，wrapper 无功能状态且未接 NpcCoreTop/NpcTop。",
+      "bridge 的 peer maintenance valid/address/wstrb 逐拍直接来自既有 dcache_store_commit_w 与同一 dcache_store_addr_w/dcache_store_wstrb_w；请求、AW/W、裸 BVALID 或 F0 lane 信息不构成维护授权；默认参数关闭保持既有单 bridge 行为。",
+      "D-cache peer 事件由默认关闭参数门控，只接受规范化 01/03/0f/ff 掩码，按 addr 低三位加字节数判定最多两条 8B line；同拍 exact lookup 组合屏蔽，DMA 同拍屏蔽并以全局 valid 清除优先，local fill/store 后逐 entry peer clear 最终获胜且 peer 不占 SRAM owner。",
+      "wrapper 只允许两 bridge 都 idle 时采样 mmu_flush；合法 flush 拍两路 request READY 为零且 TLB 旧 context hit 由 clear 门控，非 idle flush 由 DMBW-MMU-FLUSH-NONIDLE assertion-negative 检出；同步 reset 保证从首次采样沿后冷启动、无旧 response/maintenance 或解除后重放。",
+      "fresh run_id=v8r-f1-20260720T052716Z-935556，source_closure_sha256=05743bcd448bae5da16110a5a0a8644e74de87fde8bf6047b324c904eb1cfc18；pre/post closure 与 architecture manifest digest 均一致。",
+      "RTL SHA256 为 wrapper a92661bf8f3d424f21c9569d3ca2a3526c2594580f6be00e8eac55d6d0111364、bridge e78cbdf527b4414c3e1f1e2c4e6e09bf85314053212399408cc45cb9b2f7fd51、dcache 50ee1121c91ec92bcc8c53b1bbb9715ca719c3181b403c1944c3634f7653c57d。",
+      "F1 fail-closed source/claim checker 10 项 unit test全过，F0兼容 checker 12项全过；RTL style、全局 interface contract、Verilator wrapper release/assert 均 PASS，期间全局 census 门发现并补登记第二 memory reservation 的 full-P 与 owner token 后 9项自测重新 PASS。",
+      "wrapper、D-cache、legacy single bridge 的 release/assert 六个真实仿真 profile 均 PASS；directed wrapper 覆盖真实 miss/fill 后双 hot response 四种 READY、双向 hit-under-peer-miss、AW/W/B 反压不过早维护、B terminal 同拍 exact lookup、local RMW、B error invalidation、cross-line、DMA 双 lookup、双 DTLB flush rewalk 与 sampled reset overlap。",
+      "assert-negative 中非法 05 peer mask 由 D-cache 与独立 checker 同一 DWC-PEER-WSTRB 语义检出且只有一个 fatal；非 idle MMU flush 由唯一 DMBW-MMU-FLUSH-NONIDLE 语义检出，两个负例均非零退出且未到 escape marker。",
+      "十项 mutation disconnect_peer_valid、self_only_peer、swap_peer_addr、request_time_maintenance、b_ok_only_peer、drop_cross_line_peer、remove_same_cycle_hit_block、fill_wins_peer、gate_lane1_ready_on_arbiter_idle、merge_dual_response 均 compile success、elaborated、activated，并各自由一个 V8R 目标反例与一个 fatal 拒绝，无 assertion 抢先。",
+      "swap_peer_addr 首次暴露同值假绿：consumer 当前 load 的 self payload 恰与 producer地址相同；最终探针仅对该 mutation 固定未授权 self payload 为不同地址，建立非对称接线反例后由目标 marker 检出，其它 profile 与 mutation 不受该 force。",
+      "永久入口 make -C npc/rv64 check-dual-memory-bridge-wrapper 已 PASS，且内部重跑旧 make -C npc/rv64 check-dual-memory-fabric-foundation PASS；F0 checker仅精确放行 memory/OooDualMemBridgeWrapper.v:u_miss_arbiter，任何 core/top 或其它实例仍 fail closed。",
+      "唯一可授予范围是未接 canonical core 的 dual_bridge_cache_hit_leaf_verified；DI-5、OOO-3、overall 保持 RED，PPA UNQUALIFIED；不证明第二 MIQ、final-PA SQ query、formal WB credit、same-lane hit-under-own-miss、未来双 B 同拍冲突、IPC、综合/STA/power 或 canonical integration。"
+    ]
+  },
+  "deliverables": [
+    "返回严格 JSON，包含 verdict(pass/gap/inconclusive)、evidence_consistency、contract_compliance、mutation_adequacy、counterexamples、remaining_blockers、unknowns、assumptions、alternative_hypotheses、scope_extension_request、claim_boundary_ok、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "独立检查冻结事实之间是否自洽，逐项复核关键时序、跨接、同拍 stale-hit、reset/flush、negative 与 mutation 是否能支撑唯一叶级 claim；任何未闭合项必须明确为 blocker 或剩余风险，信息不足允许 inconclusive，禁止把 F1 外推为总体架构或 PPA 完成。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

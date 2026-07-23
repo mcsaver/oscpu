@@ -12,6 +12,10 @@
 > **R3.3：已冻结 packed-age balanced-select 合同，RTL/验证待本轮候选落地**；
 > **R3.4：已冻结 ALU terminal true-by-construction 物理裁剪合同，待 R3.3 后实施**。
 > **v8f：已冻结 ProducerId 单一 holder 合同，RTL 落地中；raw ROB index 将只由 PID 低位派生**。
+> **v8n：同一 vsrc 闭包下 scoped OOO-1 已由真实 load miss、迭代 MUL/DIV、双 lane
+> 非空接受、完整 ProducerId 账本与定向变异证据验证；整体架构仍 RED，不能外推 OOO-3 或 PPA**。
+> **v8o：DI-4 无静态 lane 语义已由 12 个双位置能力排列、24 个完整 ProducerId、
+> split-accept 反例与 6 个已激活变异固化为常驻门；只提升 DI-4，整体架构仍 RED**。
 
 ## 1. 目的与范围
 保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 full-WB wakeup
@@ -241,6 +245,25 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   加 8 条独立 younger ALU 还必须得到 younger formal-WB mask `ff`、ROB old+8 occupancy、
   9 条程序序 retire 和 ROB/IQ/free-list 全恢复。上述是模块级功能证据，不替代 Linux、
   fresh 综合或 STA。
+- scoped OOO-1 的永久门是 `make -C npc/rv64 check-true-ooo-long-latency`。release 与
+  `OOO_ASSERT` 都必须分别覆盖真实接受并保持 owner-live 的 cacheable load miss、迭代 MUL
+  和迭代 DIV：每类在 old formal WB 前观测 8 个不同 young 的 issue accept 与 authorized
+  exactly-once WB、4 次双 terminal 同拍 accept，以及 old+8 young 的 9 项真实 ROB full-PID
+  集合；old 完成后只允许按记录 PID/PC 顺序 exactly-once retire 并排空 holder/free-list。
+  门还必须用 compile-success、已激活的源码变异拒绝串行 issue、MIQ/MulDiv lane1 freeze、
+  提前退休及 load/MulDiv owner/response PID 截断。该门只提升 OOO-1；异常/device load、
+  store/内存顺序、流水取消、完整恢复、OOO-3 与 PPA 均不在证明范围。
+- DI-4 的永久门是 `make -C npc/rv64 check-no-static-lane-semantics`。它必须在 release 与
+  `OOO_ASSERT` 两种 profile 下，对 branch/JAL/JALR/load/store/MulDiv 分别覆盖 complex uop
+  位于两个 accepted dispatch 位置的 12 个排列；每例在同一上升沿接受两个非空 uop，随后
+  至少完整驻留一拍，再由动态 capability steering 同拍从两个 terminal fire。证据必须按
+  冻结的 accepted ctrl 与 actual-fire 分类，完整匹配 24 个非零 generation ProducerId，
+  并保留只有一个空闲 IQ entry 时 slot0 接受、slot1 backpressure、credit=0 的 split-accept
+  反例。门还必须用 compile-success、已激活的 6 个变异拒绝 pair-swap 禁用、静态 entry
+  capability、slot1 capability 丢失、MulDiv 误标 ALU、第二 terminal 串行化和 full-PID
+  损坏；checker 对 production predicate/metadata/capture/compaction/selector/swap/binding 使用
+  精确结构计数，并绑定 source/image SHA 与原子 manifest 合并，防止注释占位、空覆盖和
+  stale replay。该门只提升 DI-4；DI-1/2/3/5、OOO-3/4 与 PPA 均不在证明范围。
 
 ## 6. 变更记录
 - 2026-06-28：逆向文档化(压缩程序序队列/2 唤醒/2 oldest-ready 发射/dispatch 旁路/快路径/不变量)。
@@ -289,3 +312,12 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   tag-match forward。定向覆盖 64 级连续 RAW、dual producer/consumer、stall、kill/flush，
   以及 load/AMO/MulDiv/CLMUL/CSR/FP/branch/illegal 排除矩阵。只建立功能候选，不替代
   fresh synthesis/STA/power 与 benchmark A/B。
+- 2026-07-20 v8n：不修改生产 RTL 功能，在既有实现上建立 scoped OOO-1 常驻证据门。
+  三类长延迟 owner 的 release/assert 基线、完整 ProducerId/ROB/commit 账本、7 个已激活
+  compile-success mutation、exact provenance 与原子证据合并均通过独立反例审查；OOO-2
+  只保留同 design_id 的既有记录，整体架构和 PPA 继续 RED。
+- 2026-07-20 v8o：不修改生产 RTL 功能，修复 architecture checker 未识别真实
+  `ctrl_is_alu_terminal_capable` 导致的 vacuous DI-4 source check，并把 12 个双位置能力排列、
+  24 个完整 PID、split-accept 反例、6 个已激活 compile-success mutation、exact provenance
+  与原子 manifest sibling-preservation 固化为 `check-no-static-lane-semantics`。只将同一
+  design_id 的 DI-4 提升为 GREEN，并保留 OOO-1/OOO-2；整体架构和 PPA 继续 RED。

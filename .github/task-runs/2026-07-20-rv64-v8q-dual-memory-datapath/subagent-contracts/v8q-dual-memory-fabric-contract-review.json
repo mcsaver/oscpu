@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-dual-memory-fabric-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附事实复核本地 RV64 Verilog 双桥共享 AXI miss fabric F0 合同，寻找 owner 锁持有、AW/W 独立反压、响应隔离、公平、复位与 DI-5 声明边界反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地 RV64 Verilog/SystemVerilog 数字电路；F0 是未接入 canonical core 的可综合双上游到单下游 AXI miss 仲裁叶模块，网络、账号、凭据和外部服务均禁止。",
+      "每个上游 bridge 为单 outstanding、单 beat AXI master；read 使用 AR 后 R terminal，write 的 AW/W 可独立或同拍 fire，只有聚合 B fire 是 write terminal。",
+      "F0 五态为 IDLE、READ_ADDR、READ_RESP、WRITE_DATA、WRITE_RESP；IDLE 只在时钟沿捕获合法 lane owner/type，不做 fall-through，read 锁到 R fire，write 锁到 B fire。",
+      "write phase 用 aw_seen_q 与 w_seen_q；已 fire channel 不再展示 VALID，未 fire channel保持，二者都完成才进入 WRITE_RESP；AR/AW/W fire 均不得提前释放 owner。",
+      "lane 同拍 read-present 与 write-present 同时为真属于合同违例：release fail-closed 不捕获，OOO_ASSERT 报错；非 owner 的 request READY 与 response VALID 恒为零。",
+      "两 lane 同时合法请求按 rr_q 选择；rr_q 只在 R/B terminal 更新为另一 lane，当前事务期间 owner_q/is_write_q 冻结，目标是持续竞争时 bounded fairness。",
+      "stall DAG 固定为 request Q/FSM 到 registered owner、downstream mux/ready、phase Q、response demux、lane ready、terminal；禁止 response READY 回到新 request selection。",
+      "F0 无 flush 和 ProducerId/token/class；锁定事务必须 drain，流水取消由上游 bridge/MIQ 处理，RESP 逐位透传，arbiter lane bit不是 architectural completion authority。",
+      "最终 S2 仍需两个 bridge/DTLB/cache、两 MIQ、两 final-PA physical SQ byte queries、peer cache invalidation、双 completion 与 64-cycle IPC>=1.90；F0 只能声明 dual_axi_miss_fabric_leaf_verified，DI-5/OOO-3/overall/PPA 全保持 RED。",
+      "计划的 executable evidence 为 release/assert 定向 TB、AR/R/AW/W/B 反压与 AW/W skew、公平/隔离检查、七个 compile-success activated mutation 和 fail-closed source/claim checker；文本审查意见本身不授权 GREEN。"
+    ]
+  },
+  "deliverables": [
+    "返回严格 JSON：verdict=pass|gap，blockers 数组，counterexamples 数组（每项含场景、预期违例、应落成的 TB/mutation/checker），claim_boundary_ok 布尔值，contract_compliance 对象。"
+  ],
+  "success_criteria": [
+    "明确 PASS 或 GAP；覆盖 owner hold、AW/W skew、response isolation、bounded fairness、非法 read+write、reset/flush 边界和 F0 不越级到 DI-5，并把每个可操作反例映射为可执行证据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

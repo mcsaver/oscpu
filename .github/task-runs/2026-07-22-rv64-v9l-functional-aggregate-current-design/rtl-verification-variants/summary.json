@@ -1,0 +1,140 @@
+{
+  "all_rejected": true,
+  "compile_success_required": true,
+  "counts": {
+    "compile_succeeded": 4,
+    "focused_release_passed": 1,
+    "focused_release_required": 1,
+    "rejected": 4,
+    "required": 4
+  },
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "focused_release": {
+    "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_int_backend TB_IVFLAGS_tb_ooo_int_backend=-DV8S_DUAL_MEMORY_FOCUSED BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/result run",
+    "compile_succeeded": true,
+    "compiled_image_sha256": "0787001aa55dc4a4e24c50ea0fa411db1ebe40045e5fa5af6d450a3ffec93b3b",
+    "description": "Production retry-holder assertion accepts a distinct station transaction while retaining the same-bank admission fence.",
+    "name": "retry-distinct-residency-release",
+    "passed": true,
+    "required_marker": "[V9L-RETRY-DISTINCT-RESIDENCY] retry0 + distinct station load PASS",
+    "required_marker_count": 1,
+    "return_code": 0,
+    "scope": "local RV64 Verilog/SystemVerilog focused release test",
+    "sources": [
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "sha256": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "sha256": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9"
+      }
+    ],
+    "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/result/logs/tb_ooo_int_backend.log"
+  },
+  "passed": true,
+  "schema": "rv64-v9l-rtl-verification-variants-v1",
+  "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+  "variants": [
+    {
+      "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_store_queue RTL_OOO_STORE_QUEUE=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/OooStoreQueue.v BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/result run",
+      "compile_succeeded": true,
+      "compiled_image_sha256": "dfc07462b6606a465f0bfb9826313ff588363ee408b4178e6f62259c34a7a72d",
+      "description": "Replace post-launch ROB owner authorization with the stricter first-launch admission signal; selective recovery must reject it.",
+      "name": "sq-launch-admission-substitution",
+      "return_code": 2,
+      "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+      "simulation_rejected_variant": true,
+      "sources": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+        },
+        {
+          "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/OooStoreQueue.v",
+          "sha256": "aaaf5463cc59244c1263b0c709342306021cfc1c64eeb066cfff710d0ffe48e1"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+          "sha256": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70"
+        }
+      ],
+      "stimulus_reached": true,
+      "target_assertion": "[V9L-SQ-POST-LAUNCH-OWNER]",
+      "target_assertion_count": 1,
+      "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/result/logs/tb_ooo_store_queue.log"
+    },
+    {
+      "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_store_queue TB_IVFLAGS_tb_ooo_store_queue=-DV9L_SQ_OWNER_OPEN_NEGATIVE BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/result run",
+      "compile_succeeded": true,
+      "compiled_image_sha256": "3fd70363d1e10d37323188847418c6c0f1b5311c810603e44d53e414ee6387a0",
+      "description": "Withdraw exact ROB owner authorization from a live nonterminal issued store; the production assertion must reject the edge.",
+      "name": "sq-owner-authorization-negative-stimulus",
+      "return_code": 2,
+      "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+      "simulation_rejected_variant": true,
+      "sources": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+          "sha256": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70"
+        }
+      ],
+      "stimulus_reached": true,
+      "target_assertion": "[V9L-SQ-POST-LAUNCH-OWNER]",
+      "target_assertion_count": 1,
+      "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/result/logs/tb_ooo_store_queue.log"
+    },
+    {
+      "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_mem_axi_bridge RTL_OOO_MEM_AXI_BRIDGE=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/OooMemAxiBridge.v BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/result run",
+      "compile_succeeded": true,
+      "compiled_image_sha256": "328b5098dbcf84695d1b0def08f81b21a9e07dfd150db45fcceb83c1a0373ce9",
+      "description": "Restore the obsolete allow-implies-lookup assertion; a valid station decision without response credit must reject it.",
+      "name": "bridge-no-credit-broad-assertion",
+      "return_code": 2,
+      "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+      "simulation_rejected_variant": true,
+      "sources": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+          "sha256": "737b977f16787c911d551d87a2b809793ec379efa5e77a01de3ff463ed3b6323"
+        },
+        {
+          "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/OooMemAxiBridge.v",
+          "sha256": "27652514a97ffe82ed33cc104e9270a9182126786e5dd8d7333bd03ad77a05ef"
+        }
+      ],
+      "stimulus_reached": true,
+      "target_assertion": "[V9L-SQ-LOOKAHEAD-CREDIT]",
+      "target_assertion_count": 1,
+      "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/bridge-no-credit-broad-assertion/result/logs/tb_ooo_mem_axi_bridge.log"
+    },
+    {
+      "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_int_backend RTL_OOO_INT_BACKEND=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/OooIntBackend.v TB_IVFLAGS_tb_ooo_int_backend=-DV8S_DUAL_MEMORY_FOCUSED BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/result run",
+      "compile_succeeded": true,
+      "compiled_image_sha256": "fb4fc371e0b0ef4c5a96304065f8f59773074c846c2ba9f031db1df4ae6d320e",
+      "description": "Restore the obsolete any-load residency exclusion; a distinct station token beside retry0 must reject the over-constrained variant.",
+      "name": "retry-distinct-residency-broad-assertion",
+      "return_code": 2,
+      "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+      "simulation_rejected_variant": true,
+      "sources": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "sha256": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f"
+        },
+        {
+          "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/OooIntBackend.v",
+          "sha256": "a4058169d01696d2190df168eb587c19410321594dad8699d4ab355a6a1eb7a1"
+        }
+      ],
+      "stimulus_reached": true,
+      "target_assertion": "[V9L-RETRY-OWNER-DISJOINT]",
+      "target_assertion_count": 1,
+      "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/result/logs/tb_ooo_int_backend.log"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8y-speculation-recovery-contract-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附冻结事实，独立复核本地 RV64 SystemVerilog OOO-4 定向证据方案，寻找多控制流在途、最老分支误预测恢复、错误路径流水事务选择性清除、已发射 AXI 读事务排空以及恰好一次完成和退休映射中的假绿与缺失反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/subagent-contracts/v8y-speculation-recovery-contract-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "生产链事实：控制流只由整数后端 lane0 发射，解析包与 raw EX0 的完整 ProducerId 同沿写入单级寄存器；下一拍经 ROB exact-open 与 raw EX0 identity 授权，误预测解析当拍关闭新 issue，并以分支 ROB 索引为边界只清除严格年轻项。",
+      "既有动态事实：T3N 已见两条分支同时驻留且首条正确解析时次条晋升；V8D 以真实分支加年轻 ALU 同拍发射证明误预测当拍切断年轻 EX 完成副作用；V8X 以真实后端 MIQ 加双内存桥证明一个已握手 AXI 读事务与一个 station 事务在选择性恢复后按精确 owner 身份排空且无写回、提交或 cache fill。",
+      "拟新增控制流场景：先让更老 ALU D 完成但保持未退休，再让两条均配置为预测错误的分支 A、B 同时驻留；最老选择器必须只发射 A，A 的解析恢复必须阻止 B 发射、解析和分支预测器更新；随后 D 与 A 各完成和退休一次，B 完成和退休均为零，ROB、IQ、恢复状态与生产者 holder 全部排空。",
+      "架构门固定要求七项指标：multiple_controls_inflight、oldest_mispredict_wins、wrong_path_selective_squash、fired_axi_drained 为真，exactly_once_complete_violations、exactly_once_retire_violations、ghost_after_recovery 为零；当前 architecture-current 缺少 speculation_recovery 记录，OOO-4 必须保持 RED。",
+      "拟建永久套件：V8Y 控制流 focused release/assert、V8D 年轻 EX 清除、V8X 已发射 AXI 排空、compile-success RTL 验证变异、源文件前后哈希、精确 provenance、专用证据生成器与 make -C npc/rv64 check-speculation-recovery；只允许晋级 OOO-4，DI-1、DI-2、整体架构与 PPA 继续 RED 或 unqualified。"
+    ]
+  },
+  "deliverables": [
+    "输出结构化 verdict、逐项指标的必要动态见证、可编译 RTL 验证变异矩阵、假绿风险、剩余未知项、范围扩展请求与明确的声明边界。"
+  ],
+  "success_criteria": [
+    "只有当七项 OOO-4 指标均由非真空动态见证和至少一个相关 compile-success RTL 验证变异约束，且不能由互不相关日志的简单布尔拼接伪造时才可判定方案充分；否则明确列出 GAP、反例及所需可执行证据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

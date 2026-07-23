@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-dual-memory-axi-fabric-v8q-rerun
+- `trace_id`: e2e:2026-07-20-dual-memory-axi-fabric-v8q-rerun
+- `task_slug`: dual-memory-axi-fabric-v8q-rerun
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: dc240b18af5c40198e5dc55d89ccc68f0b66da4736aaab3eece1f707899efd5e
+- `task_report_md_sha256`: fa2e2b144d7fe90f15755c26fd607cc3bd1c9dc8648a07ce4034dd8612158874
+- `run_manifest_json_sha256`: bd215667f985491ae4081ccbb8e56fc221c9ae495ae1b65812957d1aaecbd7dc
+- `context_brief_md_sha256`: eaf77f04b8df443227df797abb57b725b5243cfa1d3921de984580f5f5631213
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 823a7a4c77de46231835afab478f83845d4493d4e58795f468892a645505ee83
+- `dispatch_log_md_sha256`: c770d5c076f07f87fa6e4f517e31eebe49e2c184ac6205e9175d2bfd8decca68
+- `nodes_tsv_sha256`: f016ff698c887adb009fc042e76893021b02f6794a0117a779a2fb9579c4e49f

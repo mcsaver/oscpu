@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9f-proof-model-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend reservation terminal 请求握手和 OooMemInflightQueue DRAIN flush 证据模型，寻找可编译但未被五个定向 RTL verification variants 覆盖的 P0/P1 生命周期反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-proof-model-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前单端口拓扑将 plain-memory pair 原子捕获到 terminal0 和 terminal1；edge-old terminal0 有效时 terminal1 禁止 look-through。",
+      "正向事务为 terminal0 的 Sv39 跨页本地 load 地址异常与 terminal1 的正常 load；terminal0 当拍本地终结，terminal1 下一拍 request fire、terminal consume、request mux owner 和 MIQ birth 必须一致。",
+      "MEM variant A 删除 issue1 request-valid 的 edge-old terminal0 排除项，目标是产生 request handshake 和 MIQ birth 但 terminal1 不 consume。",
+      "MEM variant B 删除 terminal1 consume 的 edge-old terminal0 排除项，目标是 terminal1 consume 但没有 request handshake 或 MIQ birth。",
+      "MEM variant C 关闭 terminal1 正常 request-valid，目标是证明正常 terminal1 launch 正向 oracle 非真空。",
+      "MIQ variant D 删除 flush compaction 对同拍 fired head 的排除，目标是已消费 DRAIN 在 flush 后重新出现。",
+      "MIQ variant E 关闭 DRAIN keep-set，目标是未消费 committed DRAIN 被 flush 错误丢弃。",
+      "baseline focused logs 对每个阶段给出非零事件计数；所有 variant 必须唯一文本锚定、编译成功、动态被对应 marker 拒绝，且源文件前后 SHA 相同。"
+    ]
+  },
+  "deliverables": [
+    "按 P0/P1/P2 列出 proof-model 缺口、具体幸存反例、是否应增加 variant 或 oracle，并给出 PASS 或 GAP"
+  ],
+  "success_criteria": [
+    "明确判断五个 variant 是否覆盖 request-without-consume、consume-without-request、false-close、consumed-DRAIN replay 和 unconsumed-DRAIN overdrop，并指出任何仍可能假绿的当前合同反例"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

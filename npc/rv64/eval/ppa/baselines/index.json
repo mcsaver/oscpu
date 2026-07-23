@@ -21,12 +21,10 @@
   "provisional_seed": "t4t-proxy-seed.json",
   "historical_performance_anchor": "g2-performance-anchor.json",
   "promotion_blockers": [
-    "same-design source/config/binary/image/netlist/STA binding",
-    "same-image official/AM/difftest functional summaries for R3.6",
-    "frontend II=1 directed evidence",
-    "complete pair matrix including load/load, load/store, store/load, and store/store",
-    "two independent AGU/translation/LSQ/cache-request memory issue owners",
-    "true-OoO long-latency directed evidence",
+    "full-core architecture debt ledger has unresolved P0/P1 entries",
+    "full-core producer/holder census lacks instance-graph and semantic lifecycle closure",
+    "same-design current 109-module/177-official/59-AM/applicable-DiffTest functional aggregate",
+    "arch-stable exact input binding for RTL/config/filelist/spec/tests/tools/liberty/macros/SDC/run parameters/images",
     "first architecture-feasible seed satisfying the one-time R3.6 transition",
     "qualified workload power with macro internal/leakage power"
   ]

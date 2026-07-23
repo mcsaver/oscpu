@@ -2,11 +2,19 @@
 `include "define.v"
 
 module tb_ooo_pending_system_sequencer;
+  localparam ROB_INDEX_W = `OOO_ROB_INDEX_W;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+  localparam [PRODUCER_ID_W-1:0] PID_A = 32'h0000_0035;
+  localparam [PRODUCER_ID_W-1:0] PID_B = 32'h0000_002a;
+
   reg clk;
   reg rst;
   reg clear;
   reg clear_dispatched;
   reg dispatch_fire;
+  reg producer_death;
+  reg [PRODUCER_ID_W-1:0] dispatch_producer_id;
   reg capture_irq;
   reg [`XLEN-1:0] capture_irq_pc;
   reg [`TRAP_CAUSE_W-1:0] capture_irq_cause;
@@ -47,10 +55,16 @@ module tb_ooo_pending_system_sequencer;
   wire [`XLEN-1:0] next_pc;
   wire [`XLEN-1:0] csr_rdata;
   wire [`TRAP_CAUSE_W-1:0] irq_cause;
+  wire producer_valid;
+  wire [PRODUCER_ID_W-1:0] producer_id;
 
   integer errors;
 
-  OooPendingSystemSequencer dut (
+  OooPendingSystemSequencer #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) dut (
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
@@ -58,6 +72,8 @@ module tb_ooo_pending_system_sequencer;
     .refresh_rdata_i(1'b0),
     .refresh_rdata_value_i({`XLEN{1'b0}}),
     .dispatch_fire_i(dispatch_fire),
+    .producer_death_i(producer_death),
+    .dispatch_producer_id_i(dispatch_producer_id),
     .capture_irq_i(capture_irq),
     .capture_irq_pc_i(capture_irq_pc),
     .capture_irq_cause_i(capture_irq_cause),
@@ -96,7 +112,9 @@ module tb_ooo_pending_system_sequencer;
     .inst_o(inst),
     .next_pc_o(next_pc),
     .csr_rdata_o(csr_rdata),
-    .irq_cause_o(irq_cause)
+    .irq_cause_o(irq_cause),
+    .producer_valid_o(producer_valid),
+    .producer_id_o(producer_id)
   );
 
   initial clk = 1'b0;
@@ -158,6 +176,8 @@ module tb_ooo_pending_system_sequencer;
       clear = 1'b0;
       clear_dispatched = 1'b0;
       dispatch_fire = 1'b0;
+      producer_death = 1'b0;
+      dispatch_producer_id = {PRODUCER_ID_W{1'b0}};
       capture_irq = 1'b0;
       capture_irq_pc = 64'h0000_0000_8000_1000;
       capture_irq_cause = 5'd7;
@@ -205,6 +225,7 @@ module tb_ooo_pending_system_sequencer;
       tb_check1({name, " sfence"}, sfence, 1'b0);
       tb_check1({name, " fencei"}, fencei, 1'b0);
       tb_check1({name, " irq"}, irq, 1'b0);
+      tb_check1({name, " producer valid"}, producer_valid, 1'b0);
     end
   endtask
 
@@ -234,18 +255,7 @@ module tb_ooo_pending_system_sequencer;
     tb_check64("irq csr rdata zero", csr_rdata, {`XLEN{1'b0}});
     tb_check_cause("irq cause code", irq_cause, 5'd11);
 
-    clear_inputs();
-    dispatch_fire = 1'b1;
-    clear_dispatched = 1'b1;
-    tick();
-    tb_check1("dispatch wins over clear dispatched", dispatched, 1'b1);
-    tb_check64("dispatch preserves pc", pc, 64'h0000_0000_8000_1234);
-
-    clear_inputs();
-    clear_dispatched = 1'b1;
-    tick();
-    tb_check1("clear dispatched only", valid, 1'b1);
-    tb_check1("clear dispatched bit", dispatched, 1'b0);
+    tb_check1("irq has no producer lease", producer_valid, 1'b0);
 
     clear_inputs();
     clear = 1'b1;
@@ -256,63 +266,104 @@ module tb_ooo_pending_system_sequencer;
     clear_inputs();
     capture_head0 = 1'b1;
     capture_head0_csr = 1'b1;
-    capture_head0_mret = 1'b1;
-    capture_head0_sfence = 1'b1;
-    capture_head0_fencei = 1'b1;
     tick();
     tb_check1("head0 valid", valid, 1'b1);
     tb_check1("head0 csr", csr, 1'b1);
-    tb_check1("head0 mret", mret, 1'b1);
-    tb_check1("head0 sfence", sfence, 1'b1);
-    tb_check1("head0 fencei", fencei, 1'b1);
+    tb_check1("head0 mret clear", mret, 1'b0);
+    tb_check1("head0 sfence clear", sfence, 1'b0);
+    tb_check1("head0 fencei clear", fencei, 1'b0);
     tb_check1("head0 irq clear", irq, 1'b0);
     tb_check64("head0 pc", pc, 64'h0000_0000_8000_2000);
     tb_check_inst("head0 inst", inst, 32'h3050_9073);
     tb_check64("head0 csr rdata", csr_rdata, 64'h1111_2222_3333_4444);
+    tb_check1("head0 pre-ROB has no lease", producer_valid, 1'b0);
 
     clear_inputs();
-    capture_irq = 1'b1;
-    capture_head0 = 1'b1;
-    capture_head0_csr = 1'b1;
+    dispatch_fire = 1'b1;
+    dispatch_producer_id = PID_A;
     tick();
-    tb_check1("irq priority valid", valid, 1'b1);
-    tb_check1("irq priority flag", irq, 1'b1);
-    tb_check1("irq priority csr", csr, 1'b0);
-    tb_check64("irq priority pc", pc, 64'h0000_0000_8000_1000);
+    tb_check1("head0 dispatched", dispatched, 1'b1);
+    tb_check1("head0 lease born", producer_valid, 1'b1);
+    if (producer_id !== PID_A) begin
+      $display("FAIL head0 lease pid actual=%0h expected=%0h", producer_id, PID_A);
+      errors = errors + 1;
+    end
+
+    clear_inputs();
+    tick();
+    tb_check1("head0 lease holds", producer_valid, 1'b1);
+    tb_check64("head0 live payload holds", pc, 64'h0000_0000_8000_2000);
+
+    clear_inputs();
+    producer_death = 1'b1;
+    clear = 1'b1;
+    tick();
+    expect_idle("head0 exact producer death wins ordinary clear cross");
 
     clear_inputs();
     capture_lane1 = 1'b1;
     capture_lane1_csr = 1'b1;
-    capture_lane1_ecall = 1'b1;
-    capture_lane1_wfi = 1'b1;
-    capture_lane1_fencei = 1'b1;
     tick();
     tb_check1("lane1 valid", valid, 1'b1);
     tb_check1("lane1 csr", csr, 1'b1);
-    tb_check1("lane1 ecall", ecall, 1'b1);
-    tb_check1("lane1 wfi", wfi, 1'b1);
-    tb_check1("lane1 fencei", fencei, 1'b1);
+    tb_check1("lane1 ecall clear", ecall, 1'b0);
+    tb_check1("lane1 wfi clear", wfi, 1'b0);
+    tb_check1("lane1 fencei clear", fencei, 1'b0);
     tb_check1("lane1 dispatched reset", dispatched, 1'b0);
+    tb_check1("lane1 pre-ROB has no lease", producer_valid, 1'b0);
     tb_check64("lane1 pc", pc, 64'h0000_0000_8000_3002);
     tb_check_inst("lane1 inst", inst, 32'h1020_0073);
     tb_check64("lane1 next pc", next_pc, 64'h0000_0000_8000_3006);
 
     clear_inputs();
     dispatch_fire = 1'b1;
+    dispatch_producer_id = PID_B;
     tick();
     tb_check1("lane1 dispatched", dispatched, 1'b1);
+    tb_check1("lane1 lease born", producer_valid, 1'b1);
+    if (producer_id !== PID_B) begin
+      $display("FAIL lane1 lease pid actual=%0h expected=%0h", producer_id, PID_B);
+      errors = errors + 1;
+    end
+
+    // Backend-global flush is the only non-commit death witness.  The parent
+    // drives this reset from the exact same core_local_flush used by the ROB.
+    clear_inputs();
+    rst = 1'b1;
+    tick();
+    expect_idle("backend flush reset kills lease");
+    rst = 1'b0;
+    tick();
+
+    // Non-CSR pending controls remain pre-ROB and never manufacture a PID.
     clear_inputs();
     capture_head0 = 1'b1;
-    dispatch_fire = 1'b1;
+    capture_head0_ecall = 1'b1;
     tick();
-    tb_check1("capture clears dispatched", dispatched, 1'b0);
-    tb_check64("capture over dispatch pc", pc, 64'h0000_0000_8000_2000);
+    tb_check1("ecall pending valid", valid, 1'b1);
+    tb_check1("ecall flag", ecall, 1'b1);
+    tb_check1("ecall has no producer lease", producer_valid, 1'b0);
 
     clear_inputs();
     clear = 1'b1;
-    capture_head0 = 1'b1;
     tick();
-    expect_idle("clear wins over capture");
+    expect_idle("ordinary clear remains pre-ROB only");
+
+    // Empty capture priority is preserved without permitting recapture of a
+    // non-empty owner.
+    clear_inputs();
+    capture_irq = 1'b1;
+    capture_head0 = 1'b1;
+    capture_head0_csr = 1'b1;
+    tick();
+    tb_check1("empty irq priority flag", irq, 1'b1);
+    tb_check1("empty irq priority csr clear", csr, 1'b0);
+    tb_check1("empty irq priority no lease", producer_valid, 1'b0);
+
+    clear_inputs();
+    clear = 1'b1;
+    tick();
+    expect_idle("priority capture ordinary clear");
 
     if (errors == 0) begin
       $display("PASS tb_ooo_pending_system_sequencer");

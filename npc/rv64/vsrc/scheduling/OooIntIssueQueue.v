@@ -23,6 +23,13 @@ module OooIntIssueQueue #(
   // resource-owner fact, not a dispatch or program-order lane.  It must not
   // be driven from combinational ready.
   input universal_owner_present_i,
+  // v8u/F4 Q-only refill face.  When enabled, resident entries 0/1 may be
+  // exposed on the existing issue payload buses as an ordinary memory pair,
+  // while both regular issue valids remain low.  READY only controls the
+  // atomic dequeue of those two registered entries.
+  input memory_pair_peek_enable_i,
+  output memory_pair_peek_valid_o,
+  input memory_pair_peek_ready_i,
 
   input dispatch0_valid_i,
   output dispatch0_ready_o,
@@ -136,6 +143,10 @@ module OooIntIssueQueue #(
   output [ENTRY_COUNT_W-1:0] count_o,
   output empty_o,
   output full_o,
+  // v8l: edge-old resident owner projection.  This mask is deliberately
+  // generated from valid_q/producer_id_q only; dispatch D, select/fire,
+  // ready and next-state are forbidden from the lease cone.
+  output [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_o,
 
   // B2 ROB-walk：误预测时 squash 比 kill_rob_idx 更年轻(age 更大)的 IQ entry（程序序后缀），
   // recover 期冻结发射。in-core 暂 kill 接 0、recover 接 ROB.recover_active → 行为中性。
@@ -171,6 +182,9 @@ module OooIntIssueQueue #(
   // beside the payload.  The oldest-first scan reads one bit per entry rather
   // than repeatedly decoding the wide ctrl bus on the select critical path.
   reg alu_terminal_capable_q [0:ENTRY_COUNT-1];
+  // v8p: capability of the second physical memory terminal.  It is separate
+  // from ALU capability and excludes AMO/LR/SC and every FP memory operation.
+  reg plain_memory_terminal_capable_q [0:ENTRY_COUNT-1];
   // R3.2: compact one predecoded bit with each entry.  This is strictly the
   // fixed-latency integer GPR producer domain; it is not a lane capability.
   reg fixed_gpr_producer_q [0:ENTRY_COUNT-1];
@@ -196,6 +210,7 @@ module OooIntIssueQueue #(
   reg fp_st_ready_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] imm_next_r [0:ENTRY_COUNT-1];
   reg alu_terminal_capable_next_r [0:ENTRY_COUNT-1];
+  reg plain_memory_terminal_capable_next_r [0:ENTRY_COUNT-1];
   reg fixed_gpr_producer_next_r [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W-1:0] count_next_r;
   reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
@@ -207,10 +222,12 @@ module OooIntIssueQueue #(
   wire [7:0] select_base_ready_w;
   wire [7:0] select_memory_w;
   wire [7:0] select_alu_capable_w;
+  wire [7:0] select_plain_memory_capable_w;
   wire [7:0] select_eligible_w;
   wire issue0_found_w;
   wire issue1_found_w;
   wire issue_pair_swapped_w;
+  wire memory_pair_peek_found_w;
   wire [ENTRY_INDEX_W-1:0] issue0_idx_w;
   wire [ENTRY_INDEX_W-1:0] issue1_idx_w;
   wire [7:0] issue0_onehot_w;
@@ -262,6 +279,8 @@ module OooIntIssueQueue #(
 
   wire issue0_fire_w = issue0_valid_o && issue0_ready_i;
   wire issue1_fire_w = issue1_valid_o && issue1_ready_i;
+  wire memory_pair_peek_fire_w =
+      memory_pair_peek_valid_o && memory_pair_peek_ready_i;
   wire [ENTRY_COUNT_W-1:0] free_slots_w =
       ENTRY_COUNT[ENTRY_COUNT_W-1:0] - count_q;
   wire dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
@@ -342,6 +361,16 @@ module OooIntIssueQueue #(
     end
   endfunction
 
+  function ctrl_is_plain_memory_terminal_capable;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      ctrl_is_plain_memory_terminal_capable =
+          ctrl[`CTRL_VALID_BIT] && ctrl[`CTRL_NEED_MEM_BIT] &&
+          (ctrl[`CTRL_LOAD_BIT] || ctrl[`CTRL_STORE_BIT]) &&
+          !ctrl[`CTRL_AMO_BIT];
+    end
+  endfunction
+
   function inst_is_clmul;
     input [`INST_W-1:0] inst;
     begin
@@ -402,6 +431,8 @@ module OooIntIssueQueue #(
           ctrl_q[select_g][`CTRL_AMO_BIT];
       assign select_alu_capable_w[select_g] =
           alu_terminal_capable_q[select_g];
+      assign select_plain_memory_capable_w[select_g] =
+          plain_memory_terminal_capable_q[select_g];
       assign select_base_ready_w[select_g] =
           valid_q[select_g] &&
           !(issue_mem_block_i &&
@@ -418,7 +449,9 @@ module OooIntIssueQueue #(
     .base_ready_i(select_base_ready_w),
     .memory_i(select_memory_w),
     .alu_capable_i(select_alu_capable_w),
+    .plain_memory_capable_i(select_plain_memory_capable_w),
     .universal_owner_present_i(universal_owner_present_i),
+    .memory_pair_peek_enable_i(memory_pair_peek_enable_i),
     .eligible_o(select_eligible_w),
     .issue0_found_o(issue0_found_w),
     .issue0_idx_o(issue0_idx_w),
@@ -426,7 +459,8 @@ module OooIntIssueQueue #(
     .issue1_found_o(issue1_found_w),
     .issue1_idx_o(issue1_idx_w),
     .issue1_onehot_o(issue1_onehot_w),
-    .issue_pair_swapped_o(issue_pair_swapped_w)
+    .issue_pair_swapped_o(issue_pair_swapped_w),
+    .memory_pair_peek_valid_o(memory_pair_peek_found_w)
   );
 
   assign dispatch0_ready_o = (free_slots_w != {ENTRY_COUNT_W{1'b0}});
@@ -437,6 +471,8 @@ module OooIntIssueQueue #(
   // 组合环 loop-free 性质由"select 唯一真源=寄存项"结构直接保证,不再依赖控制流禁 bypass 特例。
   assign issue0_valid_o = issue0_found_w && !universal_owner_present_i &&
                           !recover_active_i && !kill_valid_i;
+  assign memory_pair_peek_valid_o = memory_pair_peek_found_w &&
+      !recover_active_i && !kill_valid_i;
   assign issue_pair_swapped_o = issue_pair_swapped_w && issue0_valid_o && issue1_valid_o;
   assign issue0_pc_o = pc_q[issue0_idx_w];
   assign issue0_next_pc_o = next_pc_q[issue0_idx_w];
@@ -484,6 +520,20 @@ module OooIntIssueQueue #(
   assign empty_o = (count_q == {ENTRY_COUNT_W{1'b0}});
   assign full_o = (count_q == ENTRY_COUNT[ENTRY_COUNT_W-1:0]);
 
+  // v8l finite-generation lease: the integer IQ's only full-P field is the
+  // uop owner producer_id_q.  Source dependencies are physical-register tags
+  // plus sticky-ready bits, so there is no second source ProducerId to decode.
+  reg [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_r;
+  always @(*) begin : producer_live_mask_blk
+    integer lease_i;
+    producer_live_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
+    for (lease_i = 0; lease_i < ENTRY_COUNT; lease_i = lease_i + 1) begin
+      if (valid_q[lease_i])
+        producer_live_mask_r[producer_id_q[lease_i]] = 1'b1;
+    end
+  end
+  assign producer_live_mask_o = producer_live_mask_r;
+
   // 【P5 刀 B】issue fire 恒为寄存项 fire(dispatch 活值当拍被发射的情形不复存在),
   // 压缩逻辑直接消费 issue*_fire_w;dispatch fire 无条件写阵列。
   always @(*) begin
@@ -510,11 +560,14 @@ module OooIntIssueQueue #(
       pdest_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
       imm_next_r[compact_i] = {`XLEN{1'b0}};
       alu_terminal_capable_next_r[compact_i] = 1'b0;
+      plain_memory_terminal_capable_next_r[compact_i] = 1'b0;
       fixed_gpr_producer_next_r[compact_i] = 1'b0;
     end
 
     for (compact_i = 0; compact_i < ENTRY_COUNT; compact_i = compact_i + 1) begin
       if (valid_q[compact_i] &&
+          !(memory_pair_peek_fire_w &&
+            ((compact_i == 0) || (compact_i == 1))) &&
           !(issue0_fire_w &&
             (compact_i[ENTRY_INDEX_W-1:0] == issue0_idx_w)) &&
           !(issue1_fire_w &&
@@ -555,6 +608,8 @@ module OooIntIssueQueue #(
         imm_next_r[write_i] = imm_q[compact_i];
         alu_terminal_capable_next_r[write_i] =
             alu_terminal_capable_q[compact_i];
+        plain_memory_terminal_capable_next_r[write_i] =
+            plain_memory_terminal_capable_q[compact_i];
         fixed_gpr_producer_next_r[write_i] =
             fixed_gpr_producer_q[compact_i];
         write_i = write_i + 1;
@@ -601,6 +656,10 @@ module OooIntIssueQueue #(
       alu_terminal_capable_next_r[write_i] =
           ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) &&
           !dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i;
+      plain_memory_terminal_capable_next_r[write_i] =
+          ctrl_is_plain_memory_terminal_capable(dispatch0_ctrl_i) &&
+          !dispatch0_is_fp_i && !dispatch0_fp_pdest_i &&
+          !dispatch0_fp_st_src_en_i;
       fixed_gpr_producer_next_r[write_i] =
           ctrl_is_fixed_gpr_producer(
               dispatch0_ctrl_i, dispatch0_inst_i, dispatch0_is_fp_i,
@@ -647,6 +706,10 @@ module OooIntIssueQueue #(
       alu_terminal_capable_next_r[write_i] =
           ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&
           !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i;
+      plain_memory_terminal_capable_next_r[write_i] =
+          ctrl_is_plain_memory_terminal_capable(dispatch1_ctrl_i) &&
+          !dispatch1_is_fp_i && !dispatch1_fp_pdest_i &&
+          !dispatch1_fp_st_src_en_i;
       fixed_gpr_producer_next_r[write_i] =
           ctrl_is_fixed_gpr_producer(
               dispatch1_ctrl_i, dispatch1_inst_i, dispatch1_is_fp_i,
@@ -694,6 +757,7 @@ module OooIntIssueQueue #(
         fp_st_ready_q[reset_i] <= 1'b0;
         imm_q[reset_i] <= {`XLEN{1'b0}};
         alu_terminal_capable_q[reset_i] <= 1'b0;
+        plain_memory_terminal_capable_q[reset_i] <= 1'b0;
         fixed_gpr_producer_q[reset_i] <= 1'b0;
       end
     end else if (kill_valid_i) begin
@@ -750,6 +814,8 @@ module OooIntIssueQueue #(
         imm_q[reset_i] <= imm_next_r[reset_i];
         alu_terminal_capable_q[reset_i] <=
             alu_terminal_capable_next_r[reset_i];
+        plain_memory_terminal_capable_q[reset_i] <=
+            plain_memory_terminal_capable_next_r[reset_i];
         fixed_gpr_producer_q[reset_i] <=
             fixed_gpr_producer_next_r[reset_i];
       end
@@ -798,6 +864,37 @@ module OooIntIssueQueue #(
       if (universal_owner_present_i && issue0_valid_o)
         $error("[IQ-UNIVERSAL-OWNER-EXCLUSIVE] registered owner overlapped resident issue0 @%0t",
                $time);
+      if (memory_pair_peek_valid_o &&
+          (issue0_valid_o || issue1_valid_o))
+        $error("[V8U-IQ-PAIR-PEEK-EXCLUSIVE] pair peek overlapped regular issue @%0t",
+               $time);
+      if (memory_pair_peek_valid_o &&
+          ((issue0_idx_w != {ENTRY_INDEX_W{1'b0}}) ||
+           (issue1_idx_w != {{(ENTRY_INDEX_W-1){1'b0}}, 1'b1}) ||
+           !plain_memory_terminal_capable_q[0] ||
+           !plain_memory_terminal_capable_q[1] ||
+           !select_base_ready_w[0] || !select_base_ready_w[1]))
+        $error("[V8U-IQ-PAIR-PEEK-IDENTITY] pair peek was not ready resident entries 0/1 @%0t",
+               $time);
+      if (memory_pair_peek_fire_w &&
+          (!memory_pair_peek_enable_i || !universal_owner_present_i))
+        $error("[V8U-IQ-PAIR-PEEK-FIRE] pair dequeue lacked Q-only owner enable @%0t",
+               $time);
+      if (memory_pair_peek_fire_w &&
+          ((!valid_q[0]) || (!valid_q[1]) ||
+           (count_q < {{(ENTRY_COUNT_W-2){1'b0}}, 2'd2}) ||
+           issue0_fire_w || issue1_fire_w ||
+           (issue0_producer_id_o != producer_id_q[0]) ||
+           (issue1_producer_id_o != producer_id_q[1])))
+        $error("[V8U-IQ-PAIR-PEEK-POP2] pair dequeue was not an exclusive exact entry0/entry1 pop2 @%0t",
+               $time);
+      if (memory_pair_peek_fire_w &&
+          ({1'b0, count_next_r} !==
+           ({1'b0, count_q} - {{ENTRY_COUNT_W-1{1'b0}}, 2'd2} +
+            {{ENTRY_COUNT_W{1'b0}}, dispatch0_fire_w} +
+            {{ENTRY_COUNT_W{1'b0}}, dispatch1_fire_w})))
+        $error("[V8U-IQ-PAIR-PEEK-COUNT] pair dequeue count delta was not pop2 plus accepted dispatch @%0t",
+               $time);
       if (issue0_valid_o && issue1_valid_o &&
           (issue0_idx_w == issue1_idx_w))
         $error("[IQ-DYNAMIC-OWNER-DUP] one entry selected by both terminals idx=%0d @%0t",
@@ -823,10 +920,17 @@ module OooIntIssueQueue #(
         $error("[IQ-CTRL-LANE0-OWNER] issue1 selected control-flow idx=%0d rob=%0d @%0t",
                issue1_idx_w, issue1_rob_idx_o, $time);
       if (issue1_valid_o &&
-          (!ctrl_is_alu_terminal_capable(issue1_ctrl_o) ||
-           issue1_fp_pdest_o || issue1_fp_st_src_en_o))
-        $error("[IQ-ALU-TERMINAL-CAPABILITY] issue1 selected non-simple uop idx=%0d rob=%0d ctrl=%h @%0t",
+          !(ctrl_is_alu_terminal_capable(issue1_ctrl_o) ||
+            plain_memory_terminal_capable_q[issue1_idx_w]) )
+        $error("[V8P-IQ-TERMINAL1-CAPABILITY] issue1 selected unsupported uop idx=%0d rob=%0d ctrl=%h @%0t",
                issue1_idx_w, issue1_rob_idx_o, issue1_ctrl_o, $time);
+      if (issue1_valid_o && select_memory_w[issue1_idx_w] &&
+          !(issue0_valid_o && select_memory_w[issue0_idx_w] &&
+            (issue0_idx_w < issue1_idx_w) &&
+            plain_memory_terminal_capable_q[issue0_idx_w] &&
+            plain_memory_terminal_capable_q[issue1_idx_w]))
+        $error("[V8P-IQ-MEMORY-PAIR-AGE] issue1 memory lacks older issue0 memory owner @%0t",
+               $time);
       if (kill_valid_i && (dispatch0_valid_i || dispatch1_valid_i))
         $error("[IQ-KILL-NO-DISPATCH] kill 拍收到 dispatch valid(上游 freeze 契约被破坏) @%0t",
                $time);
@@ -846,6 +950,18 @@ module OooIntIssueQueue #(
           (issue1_producer_id_o[ROB_INDEX_W-1:0] != issue1_rob_idx_o))
         $error("[V8F-IQ-ISSUE1-PID-INDEX] pid=%h raw=%h @%0t",
                issue1_producer_id_o, issue1_rob_idx_o, $time);
+      for (pack_assert_i = 0; pack_assert_i < ENTRY_COUNT;
+           pack_assert_i = pack_assert_i + 1) begin
+        if (valid_q[pack_assert_i] &&
+            (^producer_id_q[pack_assert_i] === 1'bx)) begin
+          $error("[V8L-INT-IQ-LEASE-KNOWN] valid entry has unknown PID idx=%0d @%0t",
+                 pack_assert_i, $time);
+        end else if (valid_q[pack_assert_i] &&
+                     !producer_live_mask_o[producer_id_q[pack_assert_i]]) begin
+          $error("[V8L-INT-IQ-LEASE-DECODE] valid entry missing from Q-only mask idx=%0d pid=%h @%0t",
+                 pack_assert_i, producer_id_q[pack_assert_i], $time);
+        end
+      end
       // T3M：任一被 select 的整数源都必须已经在前一上升沿落入 sticky
       // ready。full WB 当拍 pulse 不能替代这个状态；负变异把 wake CAM 重新
       // OR 进 entry_ready 时会精准命中本 marker。

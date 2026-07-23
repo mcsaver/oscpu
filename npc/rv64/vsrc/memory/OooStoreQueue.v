@@ -15,6 +15,7 @@
 module OooStoreQueue #(
   parameter ENTRY_COUNT_W = 2,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + `OOO_PRODUCER_GEN_W,
   parameter OWNER_TOKEN_W = 5,
   parameter MMU_EPOCH_W = 2
 )(
@@ -31,23 +32,39 @@ module OooStoreQueue #(
 
   input rob_head_valid_i,
   input [ROB_INDEX_W-1:0] rob_head_idx_i,
+  input [PRODUCER_ID_W-1:0] rob_head_producer_id_i,
+  input rob_head_owner_open_i,
+  input rob_head_launch_open_i,
 
   // Dispatch allocation is in program order.  Slot1 may allocate only with slot0.
   input alloc0_valid_i,
   output alloc0_ready_o,
   input [ROB_INDEX_W-1:0] alloc0_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] alloc0_producer_id_i,
   input alloc1_valid_i,
   output alloc1_ready_o,
   input [ROB_INDEX_W-1:0] alloc1_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] alloc1_producer_id_i,
 
   // The backend binds the exact owner once, at memory-reservation capture.
   // Dispatch allocation alone never invents or consumes an owner token.
   input owner_bind_valid_i,
   input [ROB_INDEX_W-1:0] owner_bind_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] owner_bind_producer_id_i,
   input [1:0] owner_bind_kind_i,
   input [OWNER_TOKEN_W-1:0] owner_bind_token_i,
   input [MMU_EPOCH_W-1:0] owner_bind_mmu_epoch_i,
   input [`XLEN-1:0] owner_bind_fault_tval_i,
+  // A memory-memory issue pair binds two independently allocated STORE
+  // owners in the same edge.  This is a second exact CAM update, not a
+  // readiness/credit path: dispatch has already guaranteed both SQ entries.
+  input owner_bind1_valid_i,
+  input [ROB_INDEX_W-1:0] owner_bind1_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] owner_bind1_producer_id_i,
+  input [1:0] owner_bind1_kind_i,
+  input [OWNER_TOKEN_W-1:0] owner_bind1_token_i,
+  input [MMU_EPOCH_W-1:0] owner_bind1_mmu_epoch_i,
+  input [`XLEN-1:0] owner_bind1_fault_tval_i,
 
   // Probe-success fill, indexed by ROB tag.  VA is retained for forwarding/tval;
   // PA is retained solely for the later pretranslated physical write.
@@ -99,12 +116,14 @@ module OooStoreQueue #(
   // writeback-to-commit bypass cannot strand the entry.
   input release_valid_i,
   input [ROB_INDEX_W-1:0] release_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] release_producer_id_i,
   output release_ready_o,
   output release_fire_o,
 
   // Physical-write request.  Fire marks request_sent but never releases the entry.
   output req_valid_o,
   output [ROB_INDEX_W-1:0] req_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] req_producer_id_o,
   output [1:0] req_owner_kind_o,
   output [OWNER_TOKEN_W-1:0] req_owner_token_o,
   output [MMU_EPOCH_W-1:0] req_mmu_epoch_o,
@@ -127,8 +146,8 @@ module OooStoreQueue #(
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_valid_o,
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_addr_valid_o,
   output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_addr_o,
-  // Canonical physical query view for the future dual-load ordering stage.
-  // Keep snoop_addr_o as the existing VA view until that stage is integrated.
+  // Canonical physical query view.  Legacy snoop_addr_o remains the VA-only
+  // compatibility observation; v8t/F3 decisions use the explicit query faces.
   output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_paddr_o,
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_attr_valid_o,
   output [(1 << ENTRY_COUNT_W) * 2 - 1:0] snoop_class_o,
@@ -136,9 +155,43 @@ module OooStoreQueue #(
   output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_data_o,
   output [(1 << ENTRY_COUNT_W) * `STRB_W - 1:0] snoop_strb_o,
   output [(1 << ENTRY_COUNT_W) * ROB_INDEX_W - 1:0] snoop_rob_idx_o,
+  output [(1 << ENTRY_COUNT_W) * PRODUCER_ID_W - 1:0]
+      snoop_producer_id_o,
+  // Observational owner-token view for the global holder census.  Consumers
+  // must qualify each token with snoop_owner_valid_o; neither signal
+  // participates in allocation, forwarding, request, or release decisions.
+  output [(1 << ENTRY_COUNT_W)-1:0] snoop_owner_valid_o,
+  output [(1 << ENTRY_COUNT_W) * OWNER_TOKEN_W - 1:0]
+      snoop_owner_token_o,
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_request_sent_o,
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_terminal_o,
   output [ENTRY_COUNT_W-1:0] snoop_head_o,
+
+  // v8t/F3 canonical final-PA byte queries.  The backend first maps each
+  // bridge owner token to its exact edge-old full ProducerId; the SQ then
+  // observes only registered entry state and returns one of
+  // allow/forward/replay.  replay means hold the bridge-local query and try
+  // again -- it is not a ROB redirect or token reallocation.
+  input query0_valid_i,
+  input [PRODUCER_ID_W-1:0] query0_producer_id_i,
+  input [`XLEN-1:0] query0_paddr_i,
+  input query0_attr_valid_i,
+  input [1:0] query0_class_i,
+  input [`STRB_W-1:0] query0_strb_i,
+  output query0_allow_o,
+  output query0_forward_o,
+  output query0_replay_o,
+  output [`XLEN-1:0] query0_forward_data_o,
+  input query1_valid_i,
+  input [PRODUCER_ID_W-1:0] query1_producer_id_i,
+  input [`XLEN-1:0] query1_paddr_i,
+  input query1_attr_valid_i,
+  input [1:0] query1_class_i,
+  input [`STRB_W-1:0] query1_strb_i,
+  output query1_allow_o,
+  output query1_forward_o,
+  output query1_replay_o,
+  output [`XLEN-1:0] query1_forward_data_o,
   output [ENTRY_COUNT_W:0] count_o
 );
 
@@ -165,6 +218,7 @@ module OooStoreQueue #(
   reg [`XLEN-1:0] data_q [0:ENTRY_COUNT-1];
   reg [`STRB_W-1:0] strb_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
+  reg [PRODUCER_ID_W-1:0] producer_id_q [0:ENTRY_COUNT-1];
 
   integer i;
 `ifdef OOO_ASSERT
@@ -212,6 +266,7 @@ module OooStoreQueue #(
   wire [ENTRY_COUNT-1:0] terminal_hit_w;
   wire [ENTRY_COUNT-1:0] terminal1_hit_w;
   wire [ENTRY_COUNT-1:0] owner_bind_hit_w;
+  wire [ENTRY_COUNT-1:0] owner_bind1_hit_w;
 `ifdef OOO_ASSERT
   // fault_tval is capture provenance, not CAM identity.  These echo-only
   // comparators disappear from non-assert production logic and never gate a
@@ -226,7 +281,14 @@ module OooStoreQueue #(
     for (gc = 0; gc < ENTRY_COUNT; gc = gc + 1) begin : gen_cam
       assign owner_bind_hit_w[gc] = owner_bind_valid_i &&
           (owner_bind_kind_i == OWNER_KIND_STORE) && valid_q[gc] &&
-          !owner_valid_q[gc] && (rob_idx_q[gc] == owner_bind_rob_idx_i);
+          !owner_valid_q[gc] &&
+          (producer_id_q[gc] == owner_bind_producer_id_i) &&
+          (rob_idx_q[gc] == owner_bind_rob_idx_i);
+      assign owner_bind1_hit_w[gc] = owner_bind1_valid_i &&
+          (owner_bind1_kind_i == OWNER_KIND_STORE) && valid_q[gc] &&
+          !owner_valid_q[gc] &&
+          (producer_id_q[gc] == owner_bind1_producer_id_i) &&
+          (rob_idx_q[gc] == owner_bind1_rob_idx_i);
       assign fill_hit0_w[gc] =
           fill0_valid_i && valid_q[gc] && owner_valid_q[gc] &&
           !filled_q[gc] && (rob_idx_q[gc] == fill0_rob_idx_i) &&
@@ -249,7 +311,11 @@ module OooStoreQueue #(
            (owner_bind_hit_w[gc] &&
             (owner_bind_kind_i == terminal_owner_kind_i) &&
             (owner_bind_token_i == terminal_owner_token_i) &&
-            (owner_bind_mmu_epoch_i == terminal_mmu_epoch_i)));
+            (owner_bind_mmu_epoch_i == terminal_mmu_epoch_i)) ||
+           (owner_bind1_hit_w[gc] &&
+            (owner_bind1_kind_i == terminal_owner_kind_i) &&
+            (owner_bind1_token_i == terminal_owner_token_i) &&
+            (owner_bind1_mmu_epoch_i == terminal_mmu_epoch_i)));
       assign terminal1_hit_w[gc] =
           terminal1_valid_i && valid_q[gc] && !terminal_q[gc] &&
           (rob_idx_q[gc] == terminal1_rob_idx_i) &&
@@ -260,7 +326,11 @@ module OooStoreQueue #(
            (owner_bind_hit_w[gc] &&
             (owner_bind_kind_i == terminal1_owner_kind_i) &&
             (owner_bind_token_i == terminal1_owner_token_i) &&
-            (owner_bind_mmu_epoch_i == terminal1_mmu_epoch_i)));
+            (owner_bind_mmu_epoch_i == terminal1_mmu_epoch_i)) ||
+           (owner_bind1_hit_w[gc] &&
+            (owner_bind1_kind_i == terminal1_owner_kind_i) &&
+            (owner_bind1_token_i == terminal1_owner_token_i) &&
+            (owner_bind1_mmu_epoch_i == terminal1_mmu_epoch_i)));
 `ifdef OOO_ASSERT
       assign fill0_tval_echo_hit_w[gc] = fill_hit0_w[gc] &&
           (fault_tval_q[gc] == fill0_fault_tval_i);
@@ -270,12 +340,16 @@ module OooStoreQueue #(
           ((owner_valid_q[gc] &&
             (fault_tval_q[gc] == terminal_fault_tval_i)) ||
            (owner_bind_hit_w[gc] &&
-            (owner_bind_fault_tval_i == terminal_fault_tval_i)));
+            (owner_bind_fault_tval_i == terminal_fault_tval_i)) ||
+           (owner_bind1_hit_w[gc] &&
+            (owner_bind1_fault_tval_i == terminal_fault_tval_i)));
       assign terminal1_tval_echo_hit_w[gc] = terminal1_hit_w[gc] &&
           ((owner_valid_q[gc] &&
             (fault_tval_q[gc] == terminal1_fault_tval_i)) ||
            (owner_bind_hit_w[gc] &&
-            (owner_bind_fault_tval_i == terminal1_fault_tval_i)));
+            (owner_bind_fault_tval_i == terminal1_fault_tval_i)) ||
+           (owner_bind1_hit_w[gc] &&
+            (owner_bind1_fault_tval_i == terminal1_fault_tval_i)));
 `endif
     end
   endgenerate
@@ -284,8 +358,11 @@ module OooStoreQueue #(
       head_valid_w && owner_valid_q[head_q] && filled_q[head_q] &&
       !request_sent_q[head_q] &&
       attr_valid_q[head_q] && !terminal_q[head_q] && rob_head_valid_i &&
+      rob_head_launch_open_i &&
+      (producer_id_q[head_q] == rob_head_producer_id_i) &&
       (rob_idx_q[head_q] == rob_head_idx_i);
   assign req_rob_idx_o = rob_idx_q[head_q];
+  assign req_producer_id_o = producer_id_q[head_q];
   assign req_owner_kind_o = owner_kind_q[head_q];
   assign req_owner_token_o = owner_token_q[head_q];
   assign req_mmu_epoch_o = mmu_epoch_q[head_q];
@@ -304,7 +381,9 @@ module OooStoreQueue #(
   wire terminal_head_now_w = terminal_hit_w[head_q] ||
                              terminal1_hit_w[head_q];
   assign release_ready_o =
-      head_valid_w && (rob_idx_q[head_q] == release_rob_idx_i) &&
+      head_valid_w &&
+      (producer_id_q[head_q] == release_producer_id_i) &&
+      (rob_idx_q[head_q] == release_rob_idx_i) &&
       (terminal_q[head_q] || terminal_head_now_w);
   assign release_fire_o = release_valid_i && release_ready_o;
 
@@ -313,6 +392,206 @@ module OooStoreQueue #(
       (count_q < (ENTRY_COUNT_CONST - {{ENTRY_COUNT_W{1'b0}}, 1'b1}));
   assign count_o = count_q;
   assign snoop_head_o = head_q;
+
+  // Physical byte CAM semantics:
+  //   * head-to-tail traversal means a later matching entry is the younger
+  //     older store and overwrites the byte selected by an earlier entry;
+  //   * a not-yet-filled/invalid-typed older entry, or any older IO store,
+  //     is a conservative ordering poison and therefore replays;
+  //   * complete coverage may be assembled from multiple ordinary stores;
+  //     partial coverage waits rather than reading memory and merging;
+  //   * terminal stores are already externally complete and no longer block.
+  reg query0_allow_r;
+  reg query0_forward_r;
+  reg query0_replay_r;
+  reg [`XLEN-1:0] query0_forward_data_r;
+  always @(*) begin : query0_phys_byte_cam_blk
+    integer entry_i;
+    integer load_byte_i;
+    integer store_byte_i;
+    reg [ENTRY_COUNT_W-1:0] entry_idx_r;
+    reg entry_older_r;
+    reg poison_r;
+    reg overlap_r;
+    reg [`STRB_W-1:0] covered_r;
+    reg [`XLEN-1:0] load_byte_addr_r;
+    reg [`XLEN-1:0] store_byte_addr_r;
+    query0_allow_r = 1'b0;
+    query0_forward_r = 1'b0;
+    query0_replay_r = 1'b0;
+    query0_forward_data_r = {`XLEN{1'b0}};
+    poison_r = 1'b0;
+    overlap_r = 1'b0;
+    covered_r = {`STRB_W{1'b0}};
+    entry_idx_r = {ENTRY_COUNT_W{1'b0}};
+    entry_older_r = 1'b0;
+    load_byte_addr_r = {`XLEN{1'b0}};
+    store_byte_addr_r = {`XLEN{1'b0}};
+    for (entry_i = 0; entry_i < ENTRY_COUNT; entry_i = entry_i + 1) begin
+      entry_idx_r = head_q + entry_i[ENTRY_COUNT_W-1:0];
+      entry_older_r = request_sent_q[entry_idx_r] ||
+          ((producer_id_q[entry_idx_r] != query0_producer_id_i) &&
+           (rob_dist(rob_idx_q[entry_idx_r], rob_head_idx_i) <
+            rob_dist(query0_producer_id_i[ROB_INDEX_W-1:0],
+                     rob_head_idx_i)));
+      if (valid_q[entry_idx_r] && entry_older_r &&
+          !terminal_q[entry_idx_r]) begin
+        if (!filled_q[entry_idx_r] ||
+            !typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                 class_q[entry_idx_r]) ||
+            (strb_q[entry_idx_r] == {`STRB_W{1'b0}})) begin
+          poison_r = 1'b1;
+        end else if ((query0_class_i == `OOO_MEM_CLASS_IO) ||
+                     (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)) begin
+          poison_r = 1'b1;
+        end else begin
+          for (load_byte_i = 0; load_byte_i < `STRB_W;
+               load_byte_i = load_byte_i + 1) begin
+            for (store_byte_i = 0; store_byte_i < `STRB_W;
+                 store_byte_i = store_byte_i + 1) begin
+              load_byte_addr_r = query0_paddr_i + load_byte_i;
+              store_byte_addr_r = paddr_q[entry_idx_r] + store_byte_i;
+              if (query0_strb_i[load_byte_i] &&
+                  strb_q[entry_idx_r][store_byte_i] &&
+                  (load_byte_addr_r == store_byte_addr_r)) begin
+                overlap_r = 1'b1;
+                if (class_q[entry_idx_r] != query0_class_i) begin
+                  poison_r = 1'b1;
+                end else begin
+                  covered_r[load_byte_i] = 1'b1;
+                  query0_forward_data_r[load_byte_i*8 +: 8] =
+                      data_q[entry_idx_r][store_byte_i*8 +: 8];
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    // Plain case/default is intentionally four-state fail-closed in
+    // simulation: any unknown validity, age basis, poison, overlap or
+    // coverage fact can only select replay (or all-zero when query-valid is
+    // not exactly one), never an optimistic memory admission.
+    case (query0_valid_i)
+      1'b1: begin
+        case ({typed_attr_admitted(query0_attr_valid_i, query0_class_i),
+               (|query0_strb_i), rob_head_valid_i, poison_r})
+          4'b1110: begin
+            case (overlap_r)
+              1'b0: query0_allow_r = 1'b1;
+              1'b1: begin
+                case ((covered_r & query0_strb_i) == query0_strb_i)
+                  1'b1: query0_forward_r = 1'b1;
+                  default: query0_replay_r = 1'b1;
+                endcase
+              end
+              default: query0_replay_r = 1'b1;
+            endcase
+          end
+          default: query0_replay_r = 1'b1;
+        endcase
+      end
+      default: begin end
+    endcase
+  end
+  assign query0_allow_o = query0_allow_r;
+  assign query0_forward_o = query0_forward_r;
+  assign query0_replay_o = query0_replay_r;
+  assign query0_forward_data_o = query0_forward_data_r;
+
+  reg query1_allow_r;
+  reg query1_forward_r;
+  reg query1_replay_r;
+  reg [`XLEN-1:0] query1_forward_data_r;
+  always @(*) begin : query1_phys_byte_cam_blk
+    integer entry_i;
+    integer load_byte_i;
+    integer store_byte_i;
+    reg [ENTRY_COUNT_W-1:0] entry_idx_r;
+    reg entry_older_r;
+    reg poison_r;
+    reg overlap_r;
+    reg [`STRB_W-1:0] covered_r;
+    reg [`XLEN-1:0] load_byte_addr_r;
+    reg [`XLEN-1:0] store_byte_addr_r;
+    query1_allow_r = 1'b0;
+    query1_forward_r = 1'b0;
+    query1_replay_r = 1'b0;
+    query1_forward_data_r = {`XLEN{1'b0}};
+    poison_r = 1'b0;
+    overlap_r = 1'b0;
+    covered_r = {`STRB_W{1'b0}};
+    entry_idx_r = {ENTRY_COUNT_W{1'b0}};
+    entry_older_r = 1'b0;
+    load_byte_addr_r = {`XLEN{1'b0}};
+    store_byte_addr_r = {`XLEN{1'b0}};
+    for (entry_i = 0; entry_i < ENTRY_COUNT; entry_i = entry_i + 1) begin
+      entry_idx_r = head_q + entry_i[ENTRY_COUNT_W-1:0];
+      entry_older_r = request_sent_q[entry_idx_r] ||
+          ((producer_id_q[entry_idx_r] != query1_producer_id_i) &&
+           (rob_dist(rob_idx_q[entry_idx_r], rob_head_idx_i) <
+            rob_dist(query1_producer_id_i[ROB_INDEX_W-1:0],
+                     rob_head_idx_i)));
+      if (valid_q[entry_idx_r] && entry_older_r &&
+          !terminal_q[entry_idx_r]) begin
+        if (!filled_q[entry_idx_r] ||
+            !typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                 class_q[entry_idx_r]) ||
+            (strb_q[entry_idx_r] == {`STRB_W{1'b0}})) begin
+          poison_r = 1'b1;
+        end else if ((query1_class_i == `OOO_MEM_CLASS_IO) ||
+                     (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)) begin
+          poison_r = 1'b1;
+        end else begin
+          for (load_byte_i = 0; load_byte_i < `STRB_W;
+               load_byte_i = load_byte_i + 1) begin
+            for (store_byte_i = 0; store_byte_i < `STRB_W;
+                 store_byte_i = store_byte_i + 1) begin
+              load_byte_addr_r = query1_paddr_i + load_byte_i;
+              store_byte_addr_r = paddr_q[entry_idx_r] + store_byte_i;
+              if (query1_strb_i[load_byte_i] &&
+                  strb_q[entry_idx_r][store_byte_i] &&
+                  (load_byte_addr_r == store_byte_addr_r)) begin
+                overlap_r = 1'b1;
+                if (class_q[entry_idx_r] != query1_class_i) begin
+                  poison_r = 1'b1;
+                end else begin
+                  covered_r[load_byte_i] = 1'b1;
+                  query1_forward_data_r[load_byte_i*8 +: 8] =
+                      data_q[entry_idx_r][store_byte_i*8 +: 8];
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    case (query1_valid_i)
+      1'b1: begin
+        case ({typed_attr_admitted(query1_attr_valid_i, query1_class_i),
+               (|query1_strb_i), rob_head_valid_i, poison_r})
+          4'b1110: begin
+            case (overlap_r)
+              1'b0: query1_allow_r = 1'b1;
+              1'b1: begin
+                case ((covered_r & query1_strb_i) == query1_strb_i)
+                  1'b1: query1_forward_r = 1'b1;
+                  default: query1_replay_r = 1'b1;
+                endcase
+              end
+              default: query1_replay_r = 1'b1;
+            endcase
+          end
+          default: query1_replay_r = 1'b1;
+        endcase
+      end
+      default: begin end
+    endcase
+  end
+  assign query1_allow_o = query1_allow_r;
+  assign query1_forward_o = query1_forward_r;
+  assign query1_replay_o = query1_replay_r;
+  assign query1_forward_data_o = query1_forward_data_r;
 
   genvar gs;
   generate
@@ -330,6 +609,11 @@ module OooStoreQueue #(
       assign snoop_data_o[gs * `XLEN +: `XLEN] = data_q[gs];
       assign snoop_strb_o[gs * `STRB_W +: `STRB_W] = strb_q[gs];
       assign snoop_rob_idx_o[gs * ROB_INDEX_W +: ROB_INDEX_W] = rob_idx_q[gs];
+      assign snoop_producer_id_o[
+          gs * PRODUCER_ID_W +: PRODUCER_ID_W] = producer_id_q[gs];
+      assign snoop_owner_valid_o[gs] = valid_q[gs] && owner_valid_q[gs];
+      assign snoop_owner_token_o[
+          gs * OWNER_TOKEN_W +: OWNER_TOKEN_W] = owner_token_q[gs];
       assign snoop_request_sent_o[gs] = valid_q[gs] && request_sent_q[gs];
       assign snoop_terminal_o[gs] = valid_q[gs] && terminal_q[gs];
     end
@@ -375,6 +659,8 @@ module OooStoreQueue #(
           owner_release_mask_r[owner_token_q[owner_release_i]] = 1'b1;
         else if (owner_bind_hit_w[owner_release_i])
           owner_release_mask_r[owner_bind_token_i] = 1'b1;
+        else if (owner_bind1_hit_w[owner_release_i])
+          owner_release_mask_r[owner_bind1_token_i] = 1'b1;
       end
     end
   end
@@ -402,6 +688,7 @@ module OooStoreQueue #(
         data_q[i] <= {`XLEN{1'b0}};
         strb_q[i] <= {`STRB_W{1'b0}};
         rob_idx_q[i] <= {ROB_INDEX_W{1'b0}};
+        producer_id_q[i] <= {PRODUCER_ID_W{1'b0}};
       end
     end else begin
       // CAM updates are accepted even on a squash cycle; a surviving older owner
@@ -413,6 +700,12 @@ module OooStoreQueue #(
           owner_token_q[i] <= owner_bind_token_i;
           mmu_epoch_q[i] <= owner_bind_mmu_epoch_i;
           fault_tval_q[i] <= owner_bind_fault_tval_i;
+        end else if (owner_bind1_hit_w[i]) begin
+          owner_valid_q[i] <= 1'b1;
+          owner_kind_q[i] <= owner_bind1_kind_i;
+          owner_token_q[i] <= owner_bind1_token_i;
+          mmu_epoch_q[i] <= owner_bind1_mmu_epoch_i;
+          fault_tval_q[i] <= owner_bind1_fault_tval_i;
         end
         if (fill_hit0_w[i]) begin
           filled_q[i] <= 1'b1;
@@ -477,6 +770,7 @@ module OooStoreQueue #(
           attr_valid_q[alloc0_idx_w] <= 1'b0;
           class_q[alloc0_idx_w] <= `OOO_MEM_CLASS_RSVD;
           rob_idx_q[alloc0_idx_w] <= alloc0_rob_idx_i;
+          producer_id_q[alloc0_idx_w] <= alloc0_producer_id_i;
         end
         if (alloc1_fire_w) begin
           valid_q[alloc1_idx_w] <= 1'b1;
@@ -487,6 +781,7 @@ module OooStoreQueue #(
           attr_valid_q[alloc1_idx_w] <= 1'b0;
           class_q[alloc1_idx_w] <= `OOO_MEM_CLASS_RSVD;
           rob_idx_q[alloc1_idx_w] <= alloc1_rob_idx_i;
+          producer_id_q[alloc1_idx_w] <= alloc1_producer_id_i;
         end
         tail_q <= tail_q +
             {{(ENTRY_COUNT_W-1){1'b0}}, alloc0_fire_w} +
@@ -501,7 +796,10 @@ module OooStoreQueue #(
 
 `ifdef OOO_ASSERT
   integer owner_bind_hit_count_r;
+  integer owner_bind1_hit_count_r;
   integer owner_bind_token_dup_count_r;
+  integer owner_bind1_token_dup_count_r;
+  integer owner_bind_cross_hit_count_r;
   integer fill0_hit_count_r;
   integer fill1_hit_count_r;
   integer terminal_hit_count_r;
@@ -514,7 +812,10 @@ module OooStoreQueue #(
     integer k;
     active_count_r = 0;
     owner_bind_hit_count_r = 0;
+    owner_bind1_hit_count_r = 0;
     owner_bind_token_dup_count_r = 0;
+    owner_bind1_token_dup_count_r = 0;
+    owner_bind_cross_hit_count_r = 0;
     fill0_hit_count_r = 0;
     fill1_hit_count_r = 0;
     terminal_hit_count_r = 0;
@@ -526,9 +827,16 @@ module OooStoreQueue #(
     for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
       if (valid_q[k] && request_sent_q[k]) active_count_r = active_count_r + 1;
       if (owner_bind_hit_w[k]) owner_bind_hit_count_r = owner_bind_hit_count_r + 1;
+      if (owner_bind1_hit_w[k])
+        owner_bind1_hit_count_r = owner_bind1_hit_count_r + 1;
+      if (owner_bind_hit_w[k] && owner_bind1_hit_w[k])
+        owner_bind_cross_hit_count_r = owner_bind_cross_hit_count_r + 1;
       if (owner_bind_valid_i && owner_valid_q[k] &&
           (owner_token_q[k] == owner_bind_token_i))
         owner_bind_token_dup_count_r = owner_bind_token_dup_count_r + 1;
+      if (owner_bind1_valid_i && owner_valid_q[k] &&
+          (owner_token_q[k] == owner_bind1_token_i))
+        owner_bind1_token_dup_count_r = owner_bind1_token_dup_count_r + 1;
       if (fill_hit0_w[k]) fill0_hit_count_r = fill0_hit_count_r + 1;
       if (fill_hit1_w[k]) fill1_hit_count_r = fill1_hit_count_r + 1;
       if (terminal_hit_w[k]) terminal_hit_count_r = terminal_hit_count_r + 1;
@@ -551,14 +859,54 @@ module OooStoreQueue #(
                  owner_bind_kind_i, $time);
         $fatal;
       end
+      if (owner_bind1_valid_i &&
+          (owner_bind1_kind_i != OWNER_KIND_STORE)) begin
+        $display("[V8P-SQ-BIND1-KIND] non-STORE owner kind=%0d @%0t",
+                 owner_bind1_kind_i, $time);
+        $fatal;
+      end
+      if (owner_bind_valid_i &&
+          (owner_bind_producer_id_i[ROB_INDEX_W-1:0] !=
+           owner_bind_rob_idx_i)) begin
+        $display("[V8G-SQ-BIND-PID-INDEX] pid=%h raw=%h @%0t",
+                 owner_bind_producer_id_i, owner_bind_rob_idx_i, $time);
+        $fatal;
+      end
+      if (owner_bind1_valid_i &&
+          (owner_bind1_producer_id_i[ROB_INDEX_W-1:0] !=
+           owner_bind1_rob_idx_i)) begin
+        $display("[V8P-SQ-BIND1-PID-INDEX] pid=%h raw=%h @%0t",
+                 owner_bind1_producer_id_i, owner_bind1_rob_idx_i, $time);
+        $fatal;
+      end
       if (owner_bind_valid_i && (owner_bind_hit_count_r != 1)) begin
         $display("[S2-G1-SQ-BIND-HIT] bind hit count=%0d rob=%0d @%0t",
                  owner_bind_hit_count_r, owner_bind_rob_idx_i, $time);
         $fatal;
       end
+      if (owner_bind1_valid_i && (owner_bind1_hit_count_r != 1)) begin
+        $display("[V8P-SQ-BIND1-HIT] bind hit count=%0d rob=%0d @%0t",
+                 owner_bind1_hit_count_r, owner_bind1_rob_idx_i, $time);
+        $fatal;
+      end
       if (owner_bind_valid_i && (owner_bind_token_dup_count_r != 0)) begin
         $display("[S2-G1-SQ-BIND-DUP-TOKEN] token=%0d already live @%0t",
                  owner_bind_token_i, $time);
+        $fatal;
+      end
+      if (owner_bind1_valid_i &&
+          (owner_bind1_token_dup_count_r != 0)) begin
+        $display("[V8P-SQ-BIND1-DUP-TOKEN] token=%0d already live @%0t",
+                 owner_bind1_token_i, $time);
+        $fatal;
+      end
+      if (owner_bind_valid_i && owner_bind1_valid_i &&
+          ((owner_bind_producer_id_i == owner_bind1_producer_id_i) ||
+           (owner_bind_rob_idx_i == owner_bind1_rob_idx_i) ||
+           (owner_bind_token_i == owner_bind1_token_i) ||
+           (owner_bind_cross_hit_count_r != 0))) begin
+        $display("[V8P-SQ-DUAL-BIND-DISTINCT] dual binds alias pid/rob/token/entry @%0t",
+                 $time);
         $fatal;
       end
       if (fill0_valid_i && (fill0_hit_count_r != 1)) begin
@@ -589,6 +937,16 @@ module OooStoreQueue #(
       if (fill1_valid_i && !fill1_attr_admitted_w)
         $error("[S1-TYPED-SQ-FILL1] successful probe lacks legal typed attr @%0t",
                $time);
+      if (fill0_valid_i && (fill0_strb_i == {`STRB_W{1'b0}})) begin
+        $display("[V8T-SQ-FILL0-DATA-VALID] successful fill has no enabled data byte @%0t",
+                 $time);
+        $fatal;
+      end
+      if (fill1_valid_i && (fill1_strb_i == {`STRB_W{1'b0}})) begin
+        $display("[V8T-SQ-FILL1-DATA-VALID] successful fill has no enabled data byte @%0t",
+                 $time);
+        $fatal;
+      end
       if (fill0_valid_i &&
           (fill0_cacheable_i !==
            (fill0_attr_admitted_w &&
@@ -601,8 +959,68 @@ module OooStoreQueue #(
             (fill1_class_i == `OOO_MEM_CLASS_CACHED))))
         $error("[S1-TYPED-SQ-LEGACY1] fill1 Boolean diverged from typed attr @%0t",
                $time);
+      if (query0_valid_i) begin
+        case ({query0_allow_o, query0_forward_o, query0_replay_o})
+          3'b100,
+          3'b010,
+          3'b001: begin end
+          default: begin
+            $display("[V8T-SQ-QUERY0-ONEHOT] query decision is not known one-hot @%0t",
+                     $time);
+            $fatal;
+          end
+        endcase
+        if ((^query0_producer_id_i === 1'bx) ||
+            (^query0_paddr_i === 1'bx) ||
+            (^query0_strb_i === 1'bx)) begin
+          $display("[V8T-SQ-QUERY0-KNOWN] exact query payload contains unknown bits @%0t",
+                   $time);
+          $fatal;
+        end
+      end else if (query0_allow_o || query0_forward_o || query0_replay_o) begin
+        $display("[V8T-SQ-QUERY0-QUIET] invalid query produced a decision @%0t",
+                 $time);
+        $fatal;
+      end
+      if (query1_valid_i) begin
+        case ({query1_allow_o, query1_forward_o, query1_replay_o})
+          3'b100,
+          3'b010,
+          3'b001: begin end
+          default: begin
+            $display("[V8T-SQ-QUERY1-ONEHOT] query decision is not known one-hot @%0t",
+                     $time);
+            $fatal;
+          end
+        endcase
+        if ((^query1_producer_id_i === 1'bx) ||
+            (^query1_paddr_i === 1'bx) ||
+            (^query1_strb_i === 1'bx)) begin
+          $display("[V8T-SQ-QUERY1-KNOWN] exact query payload contains unknown bits @%0t",
+                   $time);
+          $fatal;
+        end
+      end else if (query1_allow_o || query1_forward_o || query1_replay_o) begin
+        $display("[V8T-SQ-QUERY1-QUIET] invalid query produced a decision @%0t",
+                 $time);
+        $fatal;
+      end
+      if (query0_valid_i && query1_valid_i &&
+          (query0_producer_id_i == query1_producer_id_i)) begin
+        $display("[V8T-SQ-DUAL-QUERY-DISTINCT] two bank queries named one full PID @%0t",
+                 $time);
+        $fatal;
+      end
       if (req_fire_i && !req_valid_o)
         $error("[T4N-SQ-REQ-FIRE] physical request fire without eligible head @%0t", $time);
+      if (req_valid_o &&
+          ((req_producer_id_o !== producer_id_q[head_q]) ||
+           (req_producer_id_o !== rob_head_producer_id_i) ||
+           !rob_head_launch_open_i)) begin
+        $display("[V8G-SQ-REQ-PID] physical request escaped full-PID/head-open gate @%0t",
+                 $time);
+        $fatal;
+      end
       if (req_cacheable_o !==
           (req_attr_valid_o && (req_class_o == `OOO_MEM_CLASS_CACHED)))
         $error("[S1-TYPED-SQ-LEGACY-REQ] request Boolean diverged from typed attr @%0t",
@@ -620,6 +1038,13 @@ module OooStoreQueue #(
       if (release_valid_i && !release_ready_o)
         $error("[T4N-SQ-RELEASE] ROB released nonterminal/nonhead store rob=%0d @%0t",
                release_rob_idx_i, $time);
+      if (release_valid_i &&
+          (release_producer_id_i[ROB_INDEX_W-1:0] !=
+           release_rob_idx_i)) begin
+        $display("[V8G-SQ-RELEASE-PID-INDEX] pid=%h raw=%h @%0t",
+                 release_producer_id_i, release_rob_idx_i, $time);
+        $fatal;
+      end
       if (terminal_valid_i && (terminal_hit_count_r != 1)) begin
         $display("[T4N-SQ-TERMINAL0-HIT] terminal0 hit count=%0d rob=%0d @%0t",
                  terminal_hit_count_r, terminal_rob_idx_i, $time);
@@ -656,6 +1081,24 @@ module OooStoreQueue #(
             (assert_i[ENTRY_COUNT_W-1:0] != head_q))
           $error("[T4N-SQ-PHYSICAL-HEAD] accepted owner is not physical head entry=%0d @%0t",
                  assert_i, $time);
+        if (valid_q[assert_i] && request_sent_q[assert_i] &&
+            !terminal_q[assert_i] &&
+            ((!rob_head_valid_i) || (!rob_head_owner_open_i) ||
+             (assert_i[ENTRY_COUNT_W-1:0] != head_q) ||
+             (rob_idx_q[assert_i] != rob_head_idx_i) ||
+             (producer_id_q[assert_i] != rob_head_producer_id_i))) begin
+          $display("[V9L-SQ-POST-LAUNCH-OWNER] issued store lost exact ROB-head ownership before B token=%0d pid=%h @%0t",
+                   owner_token_q[assert_i], producer_id_q[assert_i], $time);
+          $fatal;
+        end
+        if (valid_q[assert_i] &&
+            (producer_id_q[assert_i][ROB_INDEX_W-1:0] !=
+             rob_idx_q[assert_i])) begin
+          $display("[V8G-SQ-PID-INDEX] entry=%0d pid=%h raw=%h @%0t",
+                   assert_i, producer_id_q[assert_i], rob_idx_q[assert_i],
+                   $time);
+          $fatal;
+        end
         if (flush_valid_i && flush_all_i && valid_q[assert_i] &&
             request_sent_q[assert_i] && !survive_r[assert_i]) begin
           $display("[T4N-SQ-GLOBAL-SURVIVE] global flush lost accepted store rob=%0d @%0t",

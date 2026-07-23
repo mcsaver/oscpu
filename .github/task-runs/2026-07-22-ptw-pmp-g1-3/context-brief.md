@@ -1,0 +1,195 @@
+# Agent Brief
+
+- `ok`: true
+- `recall_status`: complete
+- `source`: live-or-stored
+- `profile`: github-index
+- `terms`: ptw pmp g1
+- `focus_scope`: non-history
+- `token_estimate`: 2252 / 2400
+
+## Profile Suggestions
+- `github-index` score=16 matched=requested-profile command=`scripts/agent-e2e.sh --profile github-index`
+- `nemu` score=2 matched=g1, pmp command=`scripts/agent-e2e.sh --profile nemu`
+
+## Commands
+- `python3 scripts/github_index_db.py brief <terms> --profile <profile> --focus-scope non-history`
+- `python3 scripts/github_index_db.py load --source auto --path <path>`
+- `python3 scripts/github_index_db.py audit-db-first`
+- `python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence`
+- `scripts/agent-e2e.sh --list-profiles`
+- `scripts/agent-e2e.sh --profile github-index`
+
+## Missing Paths
+- `.github/agents/github-index.agent.md`
+- `.github/memory/modules/github-index.md`
+
+## Chunks
+
+### .github/AGENTS.md#chunk-0001
+
+- `kind`: agent-rule
+- `lines`: 1-15
+- `tokens`: 328
+- `heading`: AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+- `summary`: > 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent / > （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等） / > 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。 / > / > 与本文件协作的入口文件分两类： / > 根...
+
+# AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+
+> 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent
+> （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等）
+> 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。
+>
+> 与本文件协作的入口文件分两类：
+> 根目录 `AGENTS.md` / 其他兼容入口文件是兼容 shim，保留最小可执行契约并回链本文件；
+> `.github/copilot-instructions.md` 不是薄指针，而是 GitHub Copilot 专属工程级补充规则。
+> 多份文件出现重叠时，以本文件作为跨 agent 通用基线；Copilot 的额外构建、调试与记录细则再叠加读取 `copilot-instructions.md`。
+>
+> 当前阶段的目标是“工程规则自动发现与会话恢复”，不是“插件式 UI 扩展”。因此本仓库优先补齐兼容 shim，不主动引入 `.codex-plugin/` 或 `.agents/plugins/marketplace.json`。
+
+---
+
+### .github/e2e/profiles/github-index.tsv#chunk-0001
+
+- `kind`: e2e-profile
+- `lines`: 1-2
+- `tokens`: 67
+- `heading`: node_id|module|function|owner_agent|inputs|outputs
+- `summary`: github-index-contract|github-index|e2e_github_index_contract|agent-system|scripts/github_index_db.py + .github files|SQLite index can build, query and doctor .github metadata without owning originals
+
+# node_id|module|function|owner_agent|inputs|outputs
+github-index-contract|github-index|e2e_github_index_contract|agent-system|scripts/github_index_db.py + .github files|SQLite index can build, query and doctor .github metadata without owning originals
+
+### .github/memory/modules/npc.md#chunk-0009
+
+- `kind`: memory-module
+- `lines`: 45-50
+- `tokens`: 164
+- `heading`: 架构边界
+- `summary`: - `IFU-ACCESS-G1` 已在 debt ledger 中 `CLOSED` 且 `current_design_bound=true`；`IFU-TVAL-G1`、`PTW-PMP-G1`、LSU split transaction、full-core freeze 和 PPA 保持独立。 / - 共享冻结验证器变化时，直接绑定该工具的 CLOSED results 必须重跑 canonical；九个 directed records 从 DI-2 根入口按阶段依赖重建，不能从 DI-1 直接启动...
+
+### 架构边界
+
+- `IFU-ACCESS-G1` 已在 debt ledger 中 `CLOSED` 且 `current_design_bound=true`；`IFU-TVAL-G1`、`PTW-PMP-G1`、LSU split transaction、full-core freeze 和 PPA 保持独立。
+- 共享冻结验证器变化时，直接绑定该工具的 CLOSED results 必须重跑 canonical；九个 directed records 从 DI-2 根入口按阶段依赖重建，不能从 DI-1 直接启动并越过 sibling inventory 合同。
+- final full-core audit 为 GAP、38 blockers、PPA UNQUALIFIED、promotion false；所有 CLOSED debt 的当前 evidence binding 通过。
+
+### AGENTS.md#chunk-0001
+
+- `kind`: agent-shim
+- `lines`: 1-19
+- `tokens`: 896
+- `heading`: AGENTS.md
+- `summary`: > 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。 / > / > 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。 / 1. 使用中文；复杂任务先分析再动手。 / 2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues...
+
+# AGENTS.md
+
+> 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+>
+> 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。
+
+1. 使用中文；复杂任务先分析再动手。
+2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues.md` 以及相关 `modules/*.md` / `instructions/*.instructions.md`；AI 环境入口见 `AI_ENVIRONMENT.md`；非平凡任务优先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包。
+3. 跨模块或涉及 `>= 3` 个文件的任务，先摸清调用链、依赖关系和数据流，再改文件。
+4. 修 bug 先定位 root cause，禁止症状级补丁；真正修改后必须给出验证证据。
+5. 完成任务后必须更新 `.github/memory/project-status.md` 和相关 `.github/memory/modules/*.md`；若任务属于跨模块、图任务或长链调试，还应同步更新 `.github/task-runs/`。
+6. 若任务是 AI 开发环境整理、e2e、自检或降低不确定性，先读取 `AI_ENVIRONMENT.md`、`.github/instructions/agent-env-layer-contract.instructions.md`、`.github/instructions/agent-e2e-workflow.instructions.md` 和 `.github/e2e/README.md`，再用 `scripts/agent-e2e.sh --list-profiles` 选 profile 并生成 task-run 证据包。
+7. Windows 侧访问本 WSL 工作区时，PowerShell 只作为 `wsl.exe` 启动器，工程命令统一交给 Ubuntu：`wsl.exe -d Ubuntu --cd /home/lyg/PA/ysyx-workbench -- bash -lc '<cmd>'`；若 agent/CLI 已在 WSL/Linux 原生 shell 内运行，则直接使用原生命令，不再套 `wsl.exe`。Windows/Codex→WSL 工程命令默认 single-flight：主 agent 可以把当前唯一 shell ownership 交给一个契约授权的子 agent，但该节点执行期间其它 agent 不得并发运行工程命令；无 shell 推理或自包含材料复核仍可并行。复杂控制流、管道和 Bash 变量放入仓库脚本，避免被 PowerShell 预先解释。
+8. 历史 task-run/evidence 回查使用 `python3 scripts/github_index_db.py runs --profile <profile>` 和 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+9. 交付前必须显式切换“实现者人格”和“审查者人格”：实现者给出交付证据，审查者优先寻找反例、覆盖洞、假绿和越级结论；冲突未解决时只能交付子任务状态和剩余风险。
+10. 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`；若提示缺少 profile evidence 或 DB 召回产物，必须运行建议的 profile 生成 `.github/task-runs/` 证据，或在回复和 memory 中写明豁免理由。
+11. 派发本地 RV64 RTL 子 agent 前读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，用 `.github/skills/prepare-rtl-task-contract/` 明确 RTL/spec/TB/evidence 输入、输出路径、结构化 `command/mode/purpose`、最小上下文、产物和成功条件；只读任务只消费合同列出的本地工程材料并使用不落盘命令，其它资料另建研究节点。
+
+请直接打开 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+
+### .github/copilot-instructions.md#chunk-0001
+
+- `kind`: instruction
+- `lines`: 1-2
+- `tokens`: 11
+- `heading`: YSYX 工作区 — 全局指导规范
+- `summary`: YSYX 工作区 — 全局指导规范
+
+# YSYX 工作区 — 全局指导规范
+
+### .github/memory/project-status.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-2
+- `tokens`: 8
+- `heading`: YSYX 项目状态总览
+- `summary`: YSYX 项目状态总览
+
+# YSYX 项目状态总览
+
+### .github/memory/known-issues.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-4
+- `tokens`: 35
+- `heading`: 已知问题与调试历史
+- `summary`: > 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+# 已知问题与调试历史
+
+> 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+### .github/e2e/README.md#chunk-0001
+
+- `kind`: markdown
+- `lines`: 1-2
+- `tokens`: 6
+- `heading`: Agent E2E Profiles
+- `summary`: Agent E2E Profiles
+
+# Agent E2E Profiles
+
+### .github/memory/modules/npc.md#chunk-0005
+
+- `kind`: memory-module
+- `lines`: 20-25
+- `tokens`: 179
+- `heading`: 架构边界与下一项
+- `summary`: - `IFU-TVAL-G1` 已在 debt ledger 中 `CLOSED` 且 `current_design_bound=true`；所有既有 CLOSED result/raw artifact 通过账本哈希匹配。 / - full-core audit 仍为 `GAP`、37 blockers；PPA `UNQUALIFIED`、promotion false。V2 PASS 只覆盖 fault 检出后的 cause/PC/tval owner 生命周期，不替代最初的 AXI/PMP/PMEM...
+
+### 架构边界与下一项
+
+- `IFU-TVAL-G1` 已在 debt ledger 中 `CLOSED` 且 `current_design_bound=true`；所有既有 CLOSED result/raw artifact 通过账本哈希匹配。
+- full-core audit 仍为 `GAP`、37 blockers；PPA `UNQUALIFIED`、promotion false。V2 PASS 只覆盖 fault 检出后的 cause/PC/tval owner 生命周期，不替代最初的 AXI/PMP/PMEM fault 检出证明。
+- 下一项 P0 为 `PTW-PMP-G1`：验证 PTE WRITE allow/deny、deny 周期无 AXI `AWVALID/WVALID` owner，以及对应 source mutation 的动态拒绝；继续沿用 versioned RTL task contract 和 Windows→WSL single-flight。
+
+### npc/rv64/design/arch/rv64-200mhz-completion-design.md#chunk-0016
+
+- `kind`: markdown
+- `lines`: 143-170
+- `tokens`: 558
+- `heading`: F1：关闭已知正确性合同
+- `summary`: 按独立 slice 顺序处理，每项必须有定向 RED、非真空断言、focused GREEN 与整核回归： / 1. **FDG-G1（CLOSED 2026-07-12）**：arch trap 不得送 backend；旧 RTL 四类非法 FP / 精确 RED，修复后 focused 4/4、断言负探针、module 87/87、Difftest-ON AM 59/59、 / official 177/177 均通过； / 2. **XRET-G1（CLOSED 2026-07-12）**：MRET/S...
+
+### F1：关闭已知正确性合同
+
+按独立 slice 顺序处理，每项必须有定向 RED、非真空断言、focused GREEN 与整核回归：
+
+1. **FDG-G1（CLOSED 2026-07-12）**：arch trap 不得送 backend；旧 RTL 四类非法 FP
+   精确 RED，修复后 focused 4/4、断言负探针、module 87/87、Difftest-ON AM 59/59、
+   official 177/177 均通过；
+2. **XRET-G1（CLOSED 2026-07-12）**：MRET/SRET current-mode 合法性；旧 RTL 三类反例
+   精确 RED，修复后真实编码 head0/lane1 integration、module 87/87、AM 59/59、
+   official 177/177 均通过；
+3. **MEM-ISSUE-G1（CLOSED 2026-07-12）**：lane0 memory exception 与 lane1 normal
+   memory 共享端口时，IQ dequeue、request mux 与 MIQ owner 必须同源；旧 RTL 精确出现
+   `fire=1/request=0` 丢事务，审查又用 head-blocked LR 锁住首版 `request=1/fire=0`
+   幽灵 MIQ。最终正反例、module 87/87、Difftest-ON AM 59/59、official 177/177 均通过；
+4. **IFU-AXI-G1（CLOSED 2026-07-12）**：A/D partial write 遇 flush 以 sticky drop
+   保持 AW/W/B owner；旧 RTL bridge+xbar RED，修复后 focused 2/2、module 88/88、
+   AM 59/59、official p-mode 153/153；
+5. **IFU-FETCH-G2（CLOSED 2026-07-12）**：bridge 保留 first/second-page byte-segment
+   response 与 split，decoder 单点按 C/32 完整 range 映射；旧 RTL 真实 Sv39 12 行矩阵
+   精确 4 RED，current module 89/89、AM 59/59、official 177/177；
+6. IFU-ACCESS-G1：精确 physical footprint、PMP/RRESP；其 IFU-LANE1-OWNER 子节点还需保留
+   pred-NT branch 后的 lane1 page/access fault，并允许 actual-taken squash；
+7. IFU-TVAL-G1：跨 segment 变长指令 faulting-portion `mtval/stval`；
+8. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
+9. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
+10. INSTRET-G1：唯一 ISA retirement 源；
+11. store/device：late B error、翻译后地址分类、lane/size 与排序合同。

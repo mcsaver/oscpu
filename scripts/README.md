@@ -16,6 +16,8 @@
   不承载 NEMU 专有构建语义。
 - `scripts/dev_memory/`：SQLite index、memory/log stored document、audit、rehydrate、evidence asset 实现。
 - `scripts/e2e/`：e2e profile 执行库、模块 gate 和 task-run report 逻辑。
+- `scripts/e2e/lib/common.sh` 的文件标记查询必须在 `pipefail` 下保持精确；不得使用会因 `grep -q`
+  提前命中而把 producer `SIGPIPE` 误报成 false negative 的管道。
 
 ## 常用 Gate
 

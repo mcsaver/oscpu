@@ -9,6 +9,7 @@ module tb_ooo_store_queue;
 
   localparam ENTRY_COUNT_W = 2;
   localparam ROB_INDEX_W = `OOO_ROB_INDEX_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + `OOO_PRODUCER_GEN_W;
 
   reg clk;
   reg rst;
@@ -18,16 +19,29 @@ module tb_ooo_store_queue;
   reg [ROB_INDEX_W-1:0] flush_boundary_rob;
   reg rob_head_valid;
   reg [ROB_INDEX_W-1:0] rob_head_idx;
+  reg [PRODUCER_ID_W-1:0] rob_head_producer_id;
+  reg rob_head_owner_open;
+  reg rob_head_launch_open;
   reg alloc0_valid;
   reg [ROB_INDEX_W-1:0] alloc0_rob_idx;
+  reg [PRODUCER_ID_W-1:0] alloc0_producer_id;
   reg alloc1_valid;
   reg [ROB_INDEX_W-1:0] alloc1_rob_idx;
+  reg [PRODUCER_ID_W-1:0] alloc1_producer_id;
   reg owner_bind_valid;
   reg [ROB_INDEX_W-1:0] owner_bind_rob_idx;
+  reg [PRODUCER_ID_W-1:0] owner_bind_producer_id;
   reg [1:0] owner_bind_kind;
   reg [4:0] owner_bind_token;
   reg [1:0] owner_bind_mmu_epoch;
   reg [`XLEN-1:0] owner_bind_fault_tval;
+  reg owner_bind1_valid;
+  reg [ROB_INDEX_W-1:0] owner_bind1_rob_idx;
+  reg [PRODUCER_ID_W-1:0] owner_bind1_producer_id;
+  reg [1:0] owner_bind1_kind;
+  reg [4:0] owner_bind1_token;
+  reg [1:0] owner_bind1_mmu_epoch;
+  reg [`XLEN-1:0] owner_bind1_fault_tval;
   reg fill0_valid;
   reg [ROB_INDEX_W-1:0] fill0_rob_idx;
   reg [1:0] fill0_owner_kind;
@@ -68,7 +82,20 @@ module tb_ooo_store_queue;
   reg [`XLEN-1:0] terminal1_fault_tval;
   reg release_valid;
   reg [ROB_INDEX_W-1:0] release_rob_idx;
+  reg [PRODUCER_ID_W-1:0] release_producer_id;
   reg req_fire;
+  reg query0_valid;
+  reg [PRODUCER_ID_W-1:0] query0_producer_id;
+  reg [`XLEN-1:0] query0_paddr;
+  reg query0_attr_valid;
+  reg [1:0] query0_class;
+  reg [`STRB_W-1:0] query0_strb;
+  reg query1_valid;
+  reg [PRODUCER_ID_W-1:0] query1_producer_id;
+  reg [`XLEN-1:0] query1_paddr;
+  reg query1_attr_valid;
+  reg [1:0] query1_class;
+  reg [`STRB_W-1:0] query1_strb;
 
   wire alloc0_ready;
   wire alloc1_ready;
@@ -76,6 +103,7 @@ module tb_ooo_store_queue;
   wire release_fire;
   wire req_valid;
   wire [ROB_INDEX_W-1:0] req_rob_idx;
+  wire [PRODUCER_ID_W-1:0] req_producer_id;
   wire [1:0] req_owner_kind;
   wire [4:0] req_owner_token;
   wire [1:0] req_mmu_epoch;
@@ -97,15 +125,28 @@ module tb_ooo_store_queue;
   wire [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_data;
   wire [(1 << ENTRY_COUNT_W) * `STRB_W - 1:0] snoop_strb;
   wire [(1 << ENTRY_COUNT_W) * ROB_INDEX_W - 1:0] snoop_rob_idx;
+  wire [(1 << ENTRY_COUNT_W) * PRODUCER_ID_W - 1:0]
+      snoop_producer_id;
+  wire [(1 << ENTRY_COUNT_W)-1:0] snoop_owner_valid;
+  wire [(1 << ENTRY_COUNT_W) * 5 - 1:0] snoop_owner_token;
   wire [(1 << ENTRY_COUNT_W)-1:0] snoop_request_sent;
   wire [(1 << ENTRY_COUNT_W)-1:0] snoop_terminal;
   wire [ENTRY_COUNT_W-1:0] snoop_head;
   wire [ENTRY_COUNT_W:0] count;
   wire [31:0] owner_release_mask;
+  wire query0_allow;
+  wire query0_forward;
+  wire query0_replay;
+  wire [`XLEN-1:0] query0_forward_data;
+  wire query1_allow;
+  wire query1_forward;
+  wire query1_replay;
+  wire [`XLEN-1:0] query1_forward_data;
 
   OooStoreQueue #(
     .ENTRY_COUNT_W(ENTRY_COUNT_W),
-    .ROB_INDEX_W(ROB_INDEX_W)
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) dut (
     .clk(clk),
     .rst(rst),
@@ -115,18 +156,31 @@ module tb_ooo_store_queue;
     .flush_boundary_rob_i(flush_boundary_rob),
     .rob_head_valid_i(rob_head_valid),
     .rob_head_idx_i(rob_head_idx),
+    .rob_head_producer_id_i(rob_head_producer_id),
+    .rob_head_owner_open_i(rob_head_owner_open),
+    .rob_head_launch_open_i(rob_head_launch_open),
     .alloc0_valid_i(alloc0_valid),
     .alloc0_ready_o(alloc0_ready),
     .alloc0_rob_idx_i(alloc0_rob_idx),
+    .alloc0_producer_id_i(alloc0_producer_id),
     .alloc1_valid_i(alloc1_valid),
     .alloc1_ready_o(alloc1_ready),
     .alloc1_rob_idx_i(alloc1_rob_idx),
+    .alloc1_producer_id_i(alloc1_producer_id),
     .owner_bind_valid_i(owner_bind_valid),
     .owner_bind_rob_idx_i(owner_bind_rob_idx),
+    .owner_bind_producer_id_i(owner_bind_producer_id),
     .owner_bind_kind_i(owner_bind_kind),
     .owner_bind_token_i(owner_bind_token),
     .owner_bind_mmu_epoch_i(owner_bind_mmu_epoch),
     .owner_bind_fault_tval_i(owner_bind_fault_tval),
+    .owner_bind1_valid_i(owner_bind1_valid),
+    .owner_bind1_rob_idx_i(owner_bind1_rob_idx),
+    .owner_bind1_producer_id_i(owner_bind1_producer_id),
+    .owner_bind1_kind_i(owner_bind1_kind),
+    .owner_bind1_token_i(owner_bind1_token),
+    .owner_bind1_mmu_epoch_i(owner_bind1_mmu_epoch),
+    .owner_bind1_fault_tval_i(owner_bind1_fault_tval),
     .fill0_valid_i(fill0_valid),
     .fill0_rob_idx_i(fill0_rob_idx),
     .fill0_owner_kind_i(fill0_owner_kind),
@@ -167,10 +221,12 @@ module tb_ooo_store_queue;
     .terminal1_fault_tval_i(terminal1_fault_tval),
     .release_valid_i(release_valid),
     .release_rob_idx_i(release_rob_idx),
+    .release_producer_id_i(release_producer_id),
     .release_ready_o(release_ready),
     .release_fire_o(release_fire),
     .req_valid_o(req_valid),
     .req_rob_idx_o(req_rob_idx),
+    .req_producer_id_o(req_producer_id),
     .req_owner_kind_o(req_owner_kind),
     .req_owner_token_o(req_owner_token),
     .req_mmu_epoch_o(req_mmu_epoch),
@@ -194,9 +250,32 @@ module tb_ooo_store_queue;
     .snoop_data_o(snoop_data),
     .snoop_strb_o(snoop_strb),
     .snoop_rob_idx_o(snoop_rob_idx),
+    .snoop_producer_id_o(snoop_producer_id),
+    .snoop_owner_valid_o(snoop_owner_valid),
+    .snoop_owner_token_o(snoop_owner_token),
     .snoop_request_sent_o(snoop_request_sent),
     .snoop_terminal_o(snoop_terminal),
     .snoop_head_o(snoop_head),
+    .query0_valid_i(query0_valid),
+    .query0_producer_id_i(query0_producer_id),
+    .query0_paddr_i(query0_paddr),
+    .query0_attr_valid_i(query0_attr_valid),
+    .query0_class_i(query0_class),
+    .query0_strb_i(query0_strb),
+    .query0_allow_o(query0_allow),
+    .query0_forward_o(query0_forward),
+    .query0_replay_o(query0_replay),
+    .query0_forward_data_o(query0_forward_data),
+    .query1_valid_i(query1_valid),
+    .query1_producer_id_i(query1_producer_id),
+    .query1_paddr_i(query1_paddr),
+    .query1_attr_valid_i(query1_attr_valid),
+    .query1_class_i(query1_class),
+    .query1_strb_i(query1_strb),
+    .query1_allow_o(query1_allow),
+    .query1_forward_o(query1_forward),
+    .query1_replay_o(query1_replay),
+    .query1_forward_data_o(query1_forward_data),
     .count_o(count)
   );
 
@@ -227,11 +306,31 @@ module tb_ooo_store_queue;
     end
   endfunction
 
+  // Keep the low ROB slot constant while making the allocation generation
+  // explicit.  v8g checks below deliberately flip only the generation field.
+  function automatic [PRODUCER_ID_W-1:0] producer_id_for_rob;
+    input [ROB_INDEX_W-1:0] ridx;
+    begin
+      producer_id_for_rob = {
+          {`OOO_PRODUCER_GEN_W{1'b1}}, ridx};
+    end
+  endfunction
+
+  function automatic [PRODUCER_ID_W-1:0] wrong_generation_for_rob;
+    input [ROB_INDEX_W-1:0] ridx;
+    begin
+      wrong_generation_for_rob = producer_id_for_rob(ridx);
+      wrong_generation_for_rob[ROB_INDEX_W] =
+          !wrong_generation_for_rob[ROB_INDEX_W];
+    end
+  endfunction
+
   task automatic bind_one;
     input [ROB_INDEX_W-1:0] ridx;
     begin
       owner_bind_valid = 1'b1;
       owner_bind_rob_idx = ridx;
+      owner_bind_producer_id = producer_id_for_rob(ridx);
       owner_bind_kind = 2'b01;
       owner_bind_token = ridx;
       owner_bind_mmu_epoch = ridx[1:0];
@@ -246,6 +345,7 @@ module tb_ooo_store_queue;
     begin
       alloc0_valid = 1'b1;
       alloc0_rob_idx = ridx;
+      alloc0_producer_id = producer_id_for_rob(ridx);
       `TB_TICK(clk);
       alloc0_valid = 1'b0;
       bind_one(ridx);
@@ -279,6 +379,82 @@ module tb_ooo_store_queue;
     end
   endtask
 
+  task automatic fill_one_typed;
+    input [ROB_INDEX_W-1:0] ridx;
+    input [`XLEN-1:0] pa;
+    input [`XLEN-1:0] data;
+    input [`STRB_W-1:0] strb;
+    input attr_valid;
+    input [1:0] mem_class;
+    begin
+      fill0_valid = 1'b1;
+      fill0_rob_idx = ridx;
+      fill0_owner_kind = 2'b01;
+      fill0_owner_token = ridx;
+      fill0_mmu_epoch = ridx[1:0];
+      fill0_fault_tval = owner_tval_for_rob(ridx);
+      fill0_vaddr = pa ^ 64'h0000_0000_4000_0000;
+      fill0_paddr = pa;
+      fill0_attr_valid = attr_valid;
+      fill0_class = mem_class;
+      fill0_cacheable = attr_valid &&
+                        (mem_class == `OOO_MEM_CLASS_CACHED);
+      fill0_data = data;
+      fill0_strb = strb;
+      `TB_TICK(clk);
+      fill0_valid = 1'b0;
+      fill0_attr_valid = 1'b0;
+      fill0_class = `OOO_MEM_CLASS_RSVD;
+      fill0_cacheable = 1'b0;
+    end
+  endtask
+
+  task automatic query_ports_idle;
+    begin
+      query0_valid = 1'b0;
+      query0_producer_id = '0;
+      query0_paddr = '0;
+      query0_attr_valid = 1'b0;
+      query0_class = `OOO_MEM_CLASS_RSVD;
+      query0_strb = '0;
+      query1_valid = 1'b0;
+      query1_producer_id = '0;
+      query1_paddr = '0;
+      query1_attr_valid = 1'b0;
+      query1_class = `OOO_MEM_CLASS_RSVD;
+      query1_strb = '0;
+    end
+  endtask
+
+  task automatic clear_speculative_sq;
+    begin
+      query_ports_idle();
+      flush_valid = 1'b1;
+      flush_all = 1'b1;
+      flush_rob_head = rob_head_idx;
+      `TB_TICK(clk);
+      flush_valid = 1'b0;
+      flush_all = 1'b0;
+      #1;
+      tb_check32("F3 query fixture clears SQ", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic drive_query0;
+    input [ROB_INDEX_W-1:0] load_rob;
+    input [`XLEN-1:0] pa;
+    input [`STRB_W-1:0] strb;
+    begin
+      query0_valid = 1'b1;
+      query0_producer_id = producer_id_for_rob(load_rob);
+      query0_paddr = pa;
+      query0_attr_valid = 1'b1;
+      query0_class = `OOO_MEM_CLASS_CACHED;
+      query0_strb = strb;
+      #1;
+    end
+  endtask
+
   task automatic send_terminal;
     input [ROB_INDEX_W-1:0] ridx;
     begin
@@ -298,6 +474,7 @@ module tb_ooo_store_queue;
     begin
       release_valid = 1'b1;
       release_rob_idx = ridx;
+      release_producer_id = producer_id_for_rob(ridx);
       #1;
       tb_check1("precise release emits owner token", owner_release_mask[ridx], 1'b1);
       `TB_TICK(clk);
@@ -319,6 +496,9 @@ module tb_ooo_store_queue;
       fill_one(ridx, va, pa, 64'hb000_0000_0000_0000 | ridx);
       rob_head_valid = 1'b1;
       rob_head_idx = ridx;
+      rob_head_producer_id = producer_id_for_rob(ridx);
+      rob_head_owner_open = 1'b1;
+      rob_head_launch_open = 1'b1;
       #1;
       tb_check1("request_sent flush setup request", req_valid, 1'b1);
       req_fire = 1'b1;
@@ -354,6 +534,236 @@ module tb_ooo_store_queue;
     end
   endtask
 
+  task automatic final_pa_query_matrix;
+    begin
+      rob_head_valid = 1'b1;
+      rob_head_idx = 4'd0;
+      rob_head_producer_id = producer_id_for_rob(4'd0);
+      rob_head_launch_open = 1'b0;
+      query_ports_idle();
+
+      // No older store: memory admission is legal.
+      drive_query0(4'd4, 64'h0000_0000_9000_0000, 8'hff);
+      tb_check32("F3 empty SQ query is onehot allow",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      query_ports_idle();
+
+      // Known-invalid typed metadata and an empty byte mask are never an
+      // optimistic memory admission, even when the SQ is empty.
+      query0_valid = 1'b1;
+      query0_producer_id = producer_id_for_rob(4'd4);
+      query0_paddr = 64'h0000_0000_9000_0100;
+      query0_attr_valid = 1'b0;
+      query0_class = `OOO_MEM_CLASS_CACHED;
+      query0_strb = 8'hff;
+      #1;
+      tb_check32("F3 invalid query attr replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      query0_attr_valid = 1'b1;
+      query0_class = `OOO_MEM_CLASS_RSVD;
+      #1;
+      tb_check32("F3 reserved query class replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      query0_class = `OOO_MEM_CLASS_CACHED;
+      query0_strb = 8'h00;
+      #1;
+      tb_check32("F3 empty query byte mask replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      query0_attr_valid = 1'bx;
+      query0_strb = 8'hff;
+      #1;
+      tb_check32("F3 unknown typed-valid replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      query_ports_idle();
+
+      // A shifted load view must compare byte addresses, not word tags.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_0000,
+                     64'h8877_6655_4433_2211, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9000_0002, 8'h0f);
+      tb_check32("F3 shifted full cover is onehot forward",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      check64("F3 shifted forward byte placement", query0_forward_data,
+              64'h0000_0000_6655_4433);
+      clear_speculative_sq();
+
+      // Full ProducerId age is circular around the edge-old ROB head.  A
+      // store at slot15 is older than a load at slot1 when head=14; reversing
+      // the two slots makes the store younger and therefore invisible.
+      rob_head_idx = 4'd14;
+      rob_head_producer_id = producer_id_for_rob(4'd14);
+      alloc_one(4'd15);
+      fill_one_typed(4'd15, 64'h0000_0000_9050_0000,
+                     64'h1111_2222_3333_4444, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd1, 64'h0000_0000_9050_0000, 8'hff);
+      tb_check32("F3 ROB-wrap older store forwards",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      clear_speculative_sq();
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9050_0080,
+                     64'h5555_6666_7777_8888, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd15, 64'h0000_0000_9050_0080, 8'hff);
+      tb_check32("F3 ROB-wrap younger store is excluded",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      clear_speculative_sq();
+      rob_head_idx = 4'd0;
+      rob_head_producer_id = producer_id_for_rob(4'd0);
+
+      // Equal full ProducerId is not an older store.  This is a no-live-reuse
+      // defensive boundary and must not become <= age look-through.
+      alloc_one(4'd4);
+      fill_one_typed(4'd4, 64'h0000_0000_9050_0100,
+                     64'h9999_aaaa_bbbb_cccc, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9050_0100, 8'hff);
+      tb_check32("F3 same PID store is excluded",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      clear_speculative_sq();
+
+      // A recycled ProducerId generation at the same ROB slot is distinct,
+      // but its circular distance is still equal.  Equality must not be
+      // interpreted as an older store.
+      alloc_one(4'd4);
+      fill_one_typed(4'd4, 64'h0000_0000_9050_0180,
+                     64'hdddd_eeee_ffff_0001, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      query0_valid = 1'b1;
+      query0_producer_id = wrong_generation_for_rob(4'd4);
+      query0_paddr = 64'h0000_0000_9050_0180;
+      query0_attr_valid = 1'b1;
+      query0_class = `OOO_MEM_CLASS_CACHED;
+      query0_strb = 8'hff;
+      #1;
+      tb_check32("F3 same-age different-generation store is excluded",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      clear_speculative_sq();
+
+      // Multiple older stores may assemble coverage; the younger older store
+      // overwrites bytes selected earlier in the head-to-tail walk.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9100_0000,
+                     64'h0000_0000_4433_2211, 8'h0f, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      alloc_one(4'd2);
+      fill_one_typed(4'd2, 64'h0000_0000_9100_0002,
+                     64'h0000_0000_0000_bbaa, 8'h03, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9100_0000, 8'h0f);
+      tb_check32("F3 merged youngest cover is onehot forward",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      check64("F3 merged youngest bytes win", query0_forward_data,
+              64'h0000_0000_bbaa_2211);
+      clear_speculative_sq();
+
+      // Partial overlap cannot read memory and merge later.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9200_0000,
+                     64'h0000_0000_0000_2211, 8'h03, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9200_0000, 8'h0f);
+      tb_check32("F3 partial overlap is onehot replay",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      clear_speculative_sq();
+
+      // Unknown address/provenance and IO ordering are fail-closed.
+      alloc_one(4'd1);
+      drive_query0(4'd4, 64'h0000_0000_9300_0000, 8'hff);
+      tb_check32("F3 unfilled older store replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      clear_speculative_sq();
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9300_3000,
+                     64'h2222_2222_2222_2222, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_IO);
+      drive_query0(4'd4, 64'h0000_0000_9300_4000, 8'hff);
+      tb_check32("F3 older IO store replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      clear_speculative_sq();
+
+      // A terminal store is no longer an ordering/forwarding source.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9400_0000,
+                     64'h3333_3333_3333_3333, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      send_terminal(4'd1);
+      drive_query0(4'd4, 64'h0000_0000_9400_0000, 8'hff);
+      tb_check32("F3 terminal older store is excluded",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      clear_speculative_sq();
+
+      // The two banks are independent: one may forward while the other
+      // conservatively replays on partial coverage in the same cycle.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9500_0000,
+                     64'h8877_6655_4433_2211, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9500_0000, 8'hff);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd5);
+      query1_paddr = 64'h0000_0000_9500_0006;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'h0f;
+      #1;
+      tb_check32("F3 dual bank0 forwards",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      tb_check32("F3 dual bank1 replays",
+                 {29'b0, query1_replay, query1_forward, query1_allow}, 32'd4);
+      check64("F3 dual bank0 full data", query0_forward_data,
+              64'h8877_6655_4433_2211);
+      clear_speculative_sq();
+
+      // Both bank query faces can forward asymmetric payloads in the same
+      // cycle.  This catches query1 PA/data aliases to query0.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9580_0000,
+                     64'h0123_4567_89ab_cdef, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      alloc_one(4'd2);
+      fill_one_typed(4'd2, 64'h0000_0000_9580_0080,
+                     64'hfedc_ba98_7654_3210, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9580_0000, 8'hff);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd5);
+      query1_paddr = 64'h0000_0000_9580_0080;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'hff;
+      #1;
+      tb_check32("F3 dual forward bank0 onehot",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      tb_check32("F3 dual forward bank1 onehot",
+                 {29'b0, query1_replay, query1_forward, query1_allow}, 32'd2);
+      check64("F3 dual forward bank0 data", query0_forward_data,
+              64'h0123_4567_89ab_cdef);
+      check64("F3 dual forward bank1 data", query1_forward_data,
+              64'hfedc_ba98_7654_3210);
+      clear_speculative_sq();
+
+      // One unknown older placeholder must independently replay both bank
+      // faces; neither decision may borrow peer query metadata.
+      alloc_one(4'd1);
+      drive_query0(4'd4, 64'h0000_0000_9590_0000, 8'hff);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd5);
+      query1_paddr = 64'h0000_0000_9590_0080;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'hff;
+      #1;
+      tb_check32("F3 dual retry bank0 onehot",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      tb_check32("F3 dual retry bank1 onehot",
+                 {29'b0, query1_replay, query1_forward, query1_allow}, 32'd4);
+      clear_speculative_sq();
+      $display("[V8T-F3-SQ-QUERY] allow/forward/merge/youngest/partial/poison/terminal/dual PASS");
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -364,16 +774,29 @@ module tb_ooo_store_queue;
     flush_boundary_rob = '0;
     rob_head_valid = 1'b0;
     rob_head_idx = '0;
+    rob_head_producer_id = '0;
+    rob_head_owner_open = 1'b0;
+    rob_head_launch_open = 1'b0;
     alloc0_valid = 1'b0;
     alloc0_rob_idx = '0;
+    alloc0_producer_id = '0;
     alloc1_valid = 1'b0;
     alloc1_rob_idx = '0;
+    alloc1_producer_id = '0;
     owner_bind_valid = 1'b0;
     owner_bind_rob_idx = '0;
+    owner_bind_producer_id = '0;
     owner_bind_kind = 2'b01;
     owner_bind_token = 5'd0;
     owner_bind_mmu_epoch = 2'b00;
     owner_bind_fault_tval = '0;
+    owner_bind1_valid = 1'b0;
+    owner_bind1_rob_idx = '0;
+    owner_bind1_producer_id = '0;
+    owner_bind1_kind = 2'b01;
+    owner_bind1_token = 5'd0;
+    owner_bind1_mmu_epoch = 2'b00;
+    owner_bind1_fault_tval = '0;
     fill0_valid = 1'b0;
     fill0_rob_idx = '0;
     fill0_owner_kind = 2'b01;
@@ -414,7 +837,9 @@ module tb_ooo_store_queue;
     terminal1_fault_tval = '0;
     release_valid = 1'b0;
     release_rob_idx = '0;
+    release_producer_id = '0;
     req_fire = 1'b0;
+    query_ports_idle();
     repeat (2) `TB_TICK(clk);
     rst = 1'b0;
     #1;
@@ -424,11 +849,36 @@ module tb_ooo_store_queue;
 
     // Four stores, with the first two allocated together.
     alloc0_valid = 1'b1; alloc0_rob_idx = 4'd3;
+    alloc0_producer_id = producer_id_for_rob(4'd3);
     alloc1_valid = 1'b1; alloc1_rob_idx = 4'd4;
+    alloc1_producer_id = producer_id_for_rob(4'd4);
     `TB_TICK(clk);
     alloc0_valid = 1'b0; alloc1_valid = 1'b0;
-    bind_one(4'd3);
-    bind_one(4'd4);
+    owner_bind_valid = 1'b1;
+    owner_bind_rob_idx = 4'd3;
+    owner_bind_producer_id = producer_id_for_rob(4'd3);
+    owner_bind_kind = 2'b01;
+    owner_bind_token = 5'd3;
+    owner_bind_mmu_epoch = 2'b11;
+    owner_bind_fault_tval = owner_tval_for_rob(4'd3);
+    owner_bind1_valid = 1'b1;
+    owner_bind1_rob_idx = 4'd4;
+    owner_bind1_producer_id = producer_id_for_rob(4'd4);
+    owner_bind1_kind = 2'b01;
+    owner_bind1_token = 5'd4;
+    owner_bind1_mmu_epoch = 2'b00;
+    owner_bind1_fault_tval = owner_tval_for_rob(4'd4);
+    `TB_TICK(clk);
+    owner_bind_valid = 1'b0;
+    owner_bind1_valid = 1'b0;
+    #1;
+    tb_check32("dual bind creates both exact owners",
+               {30'b0, snoop_owner_valid[1:0]}, 32'd3);
+    tb_check32("dual bind bank0 token",
+               {27'b0, snoop_owner_token[0*5 +: 5]}, 32'd3);
+    tb_check32("dual bind bank1 token",
+               {27'b0, snoop_owner_token[1*5 +: 5]}, 32'd4);
+    $display("[V8P-SQ-DUAL-BIND] two exact STORE owners bound on one edge PASS");
     alloc_one(4'd6);
     alloc_one(4'd9);
     #1;
@@ -471,12 +921,26 @@ module tb_ooo_store_queue;
 
     rob_head_valid = 1'b1;
     rob_head_idx = 4'd4;
+    rob_head_producer_id = producer_id_for_rob(4'd4);
+    rob_head_owner_open = 1'b1;
+    rob_head_launch_open = 1'b1;
     #1;
     tb_check1("physical head mismatch blocks request", req_valid, 1'b0);
     rob_head_idx = 4'd3;
+    rob_head_producer_id = wrong_generation_for_rob(4'd3);
+    #1;
+    tb_check1("same ROB slot wrong generation blocks request", req_valid, 1'b0);
+    rob_head_producer_id = producer_id_for_rob(4'd3);
     #1;
     tb_check1("head match exposes request", req_valid, 1'b1);
     tb_check32("head request ROB", {28'b0, req_rob_idx}, 32'd3);
+    tb_check32("head request full producer ID",
+               {{(32-PRODUCER_ID_W){1'b0}}, req_producer_id},
+               {{(32-PRODUCER_ID_W){1'b0}}, producer_id_for_rob(4'd3)});
+    tb_check32("head snoop full producer ID",
+               {{(32-PRODUCER_ID_W){1'b0}},
+                snoop_producer_id[0*PRODUCER_ID_W +: PRODUCER_ID_W]},
+               {{(32-PRODUCER_ID_W){1'b0}}, producer_id_for_rob(4'd3)});
     tb_check32("head request owner kind", {30'b0, req_owner_kind}, 32'd1);
     tb_check32("head request owner token", {27'b0, req_owner_token}, 32'd3);
     tb_check32("head request owner epoch", {30'b0, req_mmu_epoch}, 32'd3);
@@ -508,12 +972,33 @@ module tb_ooo_store_queue;
     tb_check32("request fire keeps owner", {28'b0, count}, 32'd4);
     tb_check1("request at-most-once", req_valid, 1'b0);
     tb_check1("request-sent visible", snoop_request_sent[0], 1'b1);
+    tb_check1("request-sent is not terminal", snoop_terminal[0], 1'b0);
+    release_rob_idx = 4'd3;
+    release_producer_id = producer_id_for_rob(4'd3);
+    #1;
     tb_check1("pre-B release blocked", release_ready, 1'b0);
+    $display("[V8G-SQ-POST-LAUNCH] request_sent retains live nonterminal full-PID owner until exact B PASS");
     check64("forwarding VA persists", snoop_addr[0*`XLEN +: `XLEN],
             64'h0000_0000_0000_1000);
 
+`ifdef V9L_SQ_OWNER_OPEN_NEGATIVE
+    // Compile-success negative stimulus: an issued physical write remains
+    // nonterminal, but its exact ROB owner authorization is withdrawn.  The
+    // production post-launch assertion must reject this edge before the
+    // ordinary selective-recovery scenario below can continue.
+    rob_head_owner_open = 1'b0;
+    #1;
+    $display("[V9L-SQ-OWNER-OPEN-NEGATIVE-STIMULUS] nonterminal issued store owner authorization closed");
+    `TB_TICK(clk);
+    $display("[V9L-SQ-OWNER-OPEN-NEGATIVE-STIMULUS][FAIL] production assertion accepted a closed owner");
+    $fatal;
+`endif
+
     // Active owner survives a branch flush; only strictly younger-than-boundary
-    // suffix (rob9) is removed.
+    // suffix (rob9) is removed.  A real ROB recovery closes first-launch
+    // admission for several cycles, but must not revoke the exact older owner
+    // of an already-issued physical write.
+    rob_head_launch_open = 1'b0;
     flush_valid = 1'b1;
     flush_all = 1'b0;
     flush_rob_head = 4'd3;
@@ -527,6 +1012,11 @@ module tb_ooo_store_queue;
     tb_check32("branch flush keeps active prefix", {28'b0, count}, 32'd3);
     tb_check1("active owner survives branch", snoop_request_sent[0], 1'b1);
     tb_check1("younger suffix removed", snoop_valid[3], 1'b0);
+    repeat (2) `TB_TICK(clk);
+    tb_check1("selective recovery retains exact physical owner",
+              snoop_request_sent[0], 1'b1);
+    rob_head_launch_open = 1'b1;
+    $display("[V9L-SQ-RECOVERY-OWNER] launch admission closed while exact issued owner remained open PASS");
 
     // Event 2: B response terminal.  Owner still resident and becomes releasable.
     send_terminal(4'd3);
@@ -534,14 +1024,21 @@ module tb_ooo_store_queue;
     tb_check32("B terminal keeps owner", {28'b0, count}, 32'd3);
     tb_check1("terminal visible", snoop_terminal[0], 1'b1);
     release_rob_idx = 4'd3;
+    release_producer_id = wrong_generation_for_rob(4'd3);
+    #1;
+    tb_check1("same ROB slot wrong generation blocks release",
+              release_ready, 1'b0);
+    release_producer_id = producer_id_for_rob(4'd3);
     #1;
     tb_check1("terminal enables release", release_ready, 1'b1);
+    $display("[V8G-SQ-FULL-PID] bind/request/release full generation contract PASS");
 
     // Event 3: ROB commit/release.  Only now does the physical head advance.
     release_one(4'd3);
     #1;
     tb_check32("ROB release removes owner", {28'b0, count}, 32'd2);
     rob_head_idx = 4'd4;
+    rob_head_producer_id = producer_id_for_rob(4'd4);
     #1;
     tb_check1("second store follows physical order", req_valid, 1'b1);
     tb_check32("second request ROB", {28'b0, req_rob_idx}, 32'd4);
@@ -560,6 +1057,7 @@ module tb_ooo_store_queue;
     // Probe fault terminal can arrive without fill/request, and same-cycle
     // terminal+ROB release is accepted through the terminal bypass.
     rob_head_idx = 4'd6;
+    rob_head_producer_id = producer_id_for_rob(4'd6);
     terminal_valid = 1'b1;
     terminal_rob_idx = 4'd6;
     terminal_owner_kind = 2'b01;
@@ -568,6 +1066,7 @@ module tb_ooo_store_queue;
     terminal_fault_tval = owner_tval_for_rob(4'd6);
     release_valid = 1'b1;
     release_rob_idx = 4'd6;
+    release_producer_id = producer_id_for_rob(4'd6);
     #1;
     tb_check1("same-cycle terminal release ready", release_ready, 1'b1);
     `TB_TICK(clk);
@@ -605,10 +1104,13 @@ module tb_ooo_store_queue;
     send_terminal(4'd12);
     release_valid = 1'b1;
     release_rob_idx = 4'd12;
+    release_producer_id = producer_id_for_rob(4'd12);
     alloc0_valid = 1'b1;
     alloc0_rob_idx = 4'd13;
+    alloc0_producer_id = producer_id_for_rob(4'd13);
     alloc1_valid = 1'b1;
     alloc1_rob_idx = 4'd14;
+    alloc1_producer_id = producer_id_for_rob(4'd14);
     #1;
     tb_check1("release+alloc release ready", release_ready, 1'b1);
     tb_check1("release+alloc alloc0 ready", alloc0_ready, 1'b1);
@@ -667,6 +1169,9 @@ module tb_ooo_store_queue;
              64'h0000_0000_8000_5000, 64'hf5f5_f5f5_f5f5_f5f5);
     rob_head_valid = 1'b1;
     rob_head_idx = 4'd15;
+    rob_head_producer_id = producer_id_for_rob(4'd15);
+    rob_head_owner_open = 1'b1;
+    rob_head_launch_open = 1'b1;
     #1;
     tb_check1("terminal+release+flush request visible", req_valid, 1'b1);
     req_fire = 1'b1;
@@ -680,6 +1185,7 @@ module tb_ooo_store_queue;
     terminal_fault_tval = owner_tval_for_rob(4'd15);
     release_valid = 1'b1;
     release_rob_idx = 4'd15;
+    release_producer_id = producer_id_for_rob(4'd15);
     flush_valid = 1'b1;
     flush_all = 1'b1;
     flush_rob_head = 4'd15;
@@ -703,10 +1209,12 @@ module tb_ooo_store_queue;
     // and the existing same-cycle terminal→release bypass must remain exact.
     alloc0_valid = 1'b1;
     alloc0_rob_idx = 4'd1;
+    alloc0_producer_id = producer_id_for_rob(4'd1);
     `TB_TICK(clk);
     alloc0_valid = 1'b0;
     owner_bind_valid = 1'b1;
     owner_bind_rob_idx = 4'd1;
+    owner_bind_producer_id = producer_id_for_rob(4'd1);
     owner_bind_kind = 2'b01;
     owner_bind_token = 5'd1;
     owner_bind_mmu_epoch = 2'b01;
@@ -719,6 +1227,7 @@ module tb_ooo_store_queue;
     terminal1_fault_tval = owner_tval_for_rob(4'd1);
     release_valid = 1'b1;
     release_rob_idx = 4'd1;
+    release_producer_id = producer_id_for_rob(4'd1);
     #1;
     tb_check1("bind+terminal1 release ready", release_ready, 1'b1);
     tb_check32("bind+terminal1 exact owner mask", owner_release_mask, 32'h0000_0002);
@@ -730,6 +1239,19 @@ module tb_ooo_store_queue;
     tb_check32("bind+terminal1 release leaves empty", {28'b0, count}, 32'd0);
     $display("[S2-G1-SQ-BIND-TERMINAL1] same-cycle exact owner terminal/release PASS");
 
+    final_pa_query_matrix();
+`ifdef V8T_X_FAULT_INJECTION
+    // Negative nonvacuity profile: an exact query face may not contain an
+    // unknown ProducerId.  OOO_ASSERT must terminate on the named oracle.
+    query_ports_idle();
+    query0_valid = 1'b1;
+    query0_producer_id = {PRODUCER_ID_W{1'bx}};
+    query0_paddr = 64'h0000_0000_95f0_0000;
+    query0_attr_valid = 1'b1;
+    query0_class = `OOO_MEM_CLASS_CACHED;
+    query0_strb = 8'hff;
+    `TB_TICK(clk);
+`endif
     tb_finish("tb_ooo_store_queue");
   end
 endmodule

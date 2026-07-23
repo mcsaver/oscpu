@@ -1,0 +1,82 @@
+{
+  "verdict": "PASS",
+  "findings": [
+    {
+      "gate": "oldest_mispredict_wins",
+      "status": "PASS",
+      "basis": "linear D0/A1/B2 与 wrap D14/A15/B0 均证明 A、B 同时驻留且独立就绪时只有最老 A 发射和解析；B 的发射、解析、完成、退休均为零。对应 oldest-selection 与 ROB-wrap-tail 变异均被检出。"
+    },
+    {
+      "gate": "wrong_path_selective_squash",
+      "status": "PASS",
+      "basis": "恢复后严格年轻 B 从 ROB、IQ 和全局 holder census 清除，older D 与 boundary A 保持 exact-open；V8D 检查 8192 次且 failures=0，IQ suffix-holder mutation 同时覆盖清除承重点。"
+    },
+    {
+      "gate": "exactly_once_completion_retirement",
+      "status": "PASS",
+      "basis": "两种 ROB 布局均得到 D/A completion=1、retire=1，B completion=0、retire=0；completion replay 与 retire owner remap 变异被拒绝，集成计数 complete_violations=0、retire_violations=0。"
+    },
+    {
+      "gate": "fired_axi_drained",
+      "status": "PASS",
+      "basis": "真实 backend MIQ 加双 memory bridge 轨迹得到 ar=1、drop/pop/terminal=2、wb/commit/fill=0、quiet=6；active selective recovery 与 killed-station promotion 变异均被拒绝。"
+    },
+    {
+      "gate": "ghost_after_recovery",
+      "status": "PASS",
+      "basis": "恢复后 holder 与最终 ROB、IQ、free-list、EX、memory owner、terminal collector 全部守恒归零；assert/release 集成结果均为 ghosts=0。"
+    },
+    {
+      "gate": "evidence_binding",
+      "status": "PASS",
+      "basis": "27 文件最终源清单 pre/post 字节一致，源聚合摘要及 pre/post 清单文件摘要均冻结；52 文件硬门 provenance 和 architecture gate 日志另有独立摘要，全部绑定同一 design_id。"
+    }
+  ],
+  "lifecycle_corrections": [
+    {
+      "correction": "从 architecture proof 清单移除 mutable dispatch-log.md",
+      "status": "PASS",
+      "reason": "dispatch-log.md 是 reviewer 返回后仍会更新的协调审计记录，不是 RTL、testbench、定向 oracle 或架构 gate 的语义输入。将其留在 task-run/数据库审计层，同时从冻结 proof 输入中排除，切断了‘审查记录更新导致既有硬门摘要自失效’的生命周期自污染，不削弱 OOO-4 技术证据。"
+    },
+    {
+      "correction": "runner 开始时移除旧 speculation_recovery 记录，再重建 OOO-3 和 OOO-4",
+      "status": "PASS",
+      "reason": "该顺序消除了旧 OOO-4 记录被本轮运行误复用的可能，并满足 OOO-3 pair-matrix 阶段的 phase-local sibling 拒绝规则。最终 architecture-current 同时包含七项同 design_id 定向记录，且最终静态 gate 在重建后执行，因此未形成 stale-record 假绿或循环自证。"
+    }
+  ],
+  "counterexamples": {
+    "unresolved": [],
+    "closed": [
+      "年轻分支 B 抢先发射或解析",
+      "ROB 15→0 环回导致年龄比较反转",
+      "恢复误删 older D 或 boundary A",
+      "严格年轻事务残留于 ROB、IQ、EX 或 holder census",
+      "完成重放、退休 owner 重映射或恢复后 ghost side effect",
+      "已握手 AXI 读被撤回，或 killed station 发出第二次 AR",
+      "后置 dispatch-log 更新污染冻结证据摘要",
+      "旧 speculation_recovery 记录被本轮 gate 复用"
+    ]
+  },
+  "assumptions": [
+    "OOO-3 对 sibling 记录的拒绝属于阶段局部契约，而非最终 architecture-current 必须永久不含 OOO-4 的全局不变量。",
+    "随附的 design_id、唯一 marker、运行结果、摘要和 metric mapping 准确描述同一最终运行。",
+    "self-contained 材料中的 pre/post 与 provenance 摘要是在最终记录重建完成后生成。"
+  ],
+  "claim_boundary": {
+    "OOO-4": "GREEN",
+    "overall_architecture": "RED（DI-1、DI-2 仍为 RED）",
+    "PPA": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "repository_wide_independent_audit": false
+  },
+  "unknowns": [
+    "本 no-tools 节点未重新计算合同、源清单、gate 日志或 provenance 文件的 SHA-256。",
+    "未直接检查 runner 的文件更新原子性、原始波形或冻结摘要之外的 RTL 路径。",
+    "F2 testbench include 修正仅按随附事实判定为验证基础设施变化，未独立复核其 diff。"
+  ],
+  "scope_extension_request": null,
+  "confidence_and_basis": {
+    "level": "high-within-frozen-material",
+    "basis": "五类 OOO-4 核心反例及两类生命周期自污染反例均由双布局轨迹、assert/release 双配置、完整守恒账本、真实 AXI drain、9/9 compile-success 变异、6/6 相邻回归和同源 pre/post/provenance 摘要交叉关闭；结论不外推到 overall architecture 或 PPA。"
+  }
+}

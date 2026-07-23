@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8r-dual-memory-bridge-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附冻结事实复核本地 RV64 Verilog F1 双 bridge/cache-hit wrapper 与 peer maintenance 合同，寻找 owner authority、same-cycle stale-hit、valid priority、hit-under-miss、flush/reset 和声明边界反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/subagent-contracts/v8r-dual-memory-bridge-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地 RV64 Verilog/SystemVerilog 数字电路设计与验证；本任务是未接 canonical core 的 F1 叶级装配审查，网络、账号、凭据、外部服务、shell、工具、文件访问和写入均禁止。",
+      "F1 wrapper 无自有状态，固定实例化 u_bridge0、u_bridge1 和已验证的 u_miss_arbiter；两 bridge 各自保留 station、DTLB、D-cache、FSM、exact identity 与 response。",
+      "wrapper 共享 clk、同步高有效 rst、pipeline flush、MMU flush、DMA invalidate 与 CSR/PMP context，暴露两组完整且独立的 request、expected、tracker、station、device、response、drop、query、residency、idle、translate 接口。",
+      "laneN request READY 和 response 只能由 bridgeN 驱动；wrapper 不允许以 arbiter idle、peer busy、另一 lane response READY 或维护事件做全局门控或把两个 response 压成单 mux。",
+      "cache hit 位于 F0 arbiter 之前，只有 miss、PTW、store、A-D raw AXI 进入 F0；一侧 miss owner 锁到 R 或 B terminal 不得阻塞另一侧 hot request 的 admission、lookup 或 response。",
+      "bridge producer 的 peer_maintenance_valid、addr、wstrb 必须逐拍直接复用既有 dcache_store_commit_w 与同一个 local maintenance payload，禁止从裸 BVALID、AW/W fire、request bus、地址 bank 位或 arbiter lane bit重建。",
+      "既有 dcache_store_commit_w 已要求 tracker 与 sticky identity 精确、write 已不可撤并且当前 expected identity 或 captured killed-write maintenance authority成立，覆盖授权 data-store 与 A-D B terminal。",
+      "只有当前 exact、未 killed、all-OK、final-CACHED data store可在本地做 RMW；B error、NC/IO、A-D 和 killed escaped terminal只允许 valid maintenance；peer consumer永远只失效不 RMW。",
+      "D-cache peer invalidate 输入为 valid、addr、wstrb，参数默认关闭；F1 wrapper显式打开并把 lane0 producer交叉到 lane1 consumer、lane1 producer交叉到 lane0 consumer。",
+      "peer invalidate 是无反压一拍 valid-only sideband，不占 Sram4096x113 的 lookup、fill、RMW-read、RMW-write 四类 1RW owner；首 line无条件清 valid，addr低位加wstrb字节数跨8B时也清次 line。",
+      "valid 优先级固定 rst 大于 DMA full invalidate 大于 peer line invalidate 大于 local fill/store；同地址 fill或RMW即使写宏，peer clear仍让行不可见。",
+      "lookup 判决使用已锁存 exact tag/index；若 peer event首行或次行命中该 exact line，当拍 lookup_hit必须组合屏蔽，不能只等时钟沿清 valid而暴露一个 stale-hit窗口。",
+      "pipeline flush由两 bridge独立执行既有 exact owner、drop与escaped-write drain合同；F0已锁 AXI继续drain；MMU flush同拍清两 DTLB但不清物理D-cache，DMA同拍清两D-cache，reset同域冷启动且不重放维护。",
+      "共享 F0 使同拍最多一份 bridge获得真实 B terminal；若未来结构改变允许双 B，则必须另行冻结双维护冲突合同，当前 F1不声称处理该扩展。",
+      "计划证据包含真实miss/fill预热后的同拍双hit与exact token、双向hit-under-peer-miss、peer B后miss、B与lookup同拍stale-hit阻断、跨线次行、非相关lookup、DMA双cache、结构checker和十族compile-success activated mutation。",
+      "唯一允许的完成声明是 dual_bridge_cache_hit_leaf_verified；wrapper未接NpcCoreTop或NpcTop，无第二MIQ、bank route、final-PA SQ query、formal WB credit或IPC证据，故DI-5、OOO-3、overall保持RED，复制两份32KB D-cache使PPA unqualified。"
+    ]
+  },
+  "deliverables": [
+    "返回严格 JSON：verdict 为 pass、gap 或 inconclusive；blockers、counterexamples、unknowns、assumptions、alternative_hypotheses、scope_extension_request 数组不限数量；每个可操作反例给出 scenario、violated_invariant、required_executable_evidence；另含 claim_boundary_ok、contract_compliance、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "明确覆盖 owner maintenance authority、交叉连接、same-cycle hit block、valid priority、双response、hit-under-miss、flush/MMU/DMA/reset与不越级声明；信息不足可inconclusive，不得臆测未随附事实。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8n-true-ooo-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据冻结的本地 RV64 RTL 与验证事实，作为独立审查者寻找 scoped OOO-1 GREEN 的实现或证据反例，并核对状态边界、身份绑定、非空执行与证据账本。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/contract.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/true_ooo_long_latency_evidence.py",
+      "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/subagent-contracts/v8n-true-ooo-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "本轮未修改生产 RTL 功能；当前完整 vsrc 闭包 design_id 为 sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293，验证目标是确认既有实现已满足限定 OOO-1，而不是借测试修改宣称新增微架构。",
+      "release 与 OOO_ASSERT 模式下，load_miss、MUL、DIV 三类场景均通过：旧生产者以非零 generation 的完整 ProducerId 被真实接受并持续 owner-live，且其 formal WB 前有八个不同年轻生产者完成 issue accept 和 authorized exactly-once WB。",
+      "每类场景都记录四个 issue0&&issue1 同周期接受；实际 ROB valid entry 与完整 PID 集合峰值为 old 加八个 young 共九项，集合逐项相等，因而串行执行、假双发射或仅统计派发数不能满足。",
+      "load 场景把真实 cacheable、无 fault、无 store 的请求接受进 MIQ/tracker 后暂缓响应；MUL/DIV 场景要求真实迭代 owner state。八次年轻 issue/WB 每拍都校验 old exact owner live，old WB 前禁止任何 commit。",
+      "old formal WB 后，九项 commit0/commit1 必须按派发账本的完整 PID 与 PC 严格有序、exactly-once 退休；收尾要求 ROB、IQ、MIQ、tracker、MulDiv owner 与 free-list 账本排空守恒。",
+      "七个实际源码 compile-success 变异均有 activation marker 并由专属 CHECK-FAIL 拒绝：serial_issue1、miq_issue1_freeze、muldiv_issue1_freeze、retire_before_head_done、load_owner_pid_truncate、muldiv_owner_pid_truncate、muldiv_resp_pid_truncate。",
+      "永久命令 make -C npc/rv64 check-true-ooo-long-latency 报告 baselines=6/6 mutations=7/7 OOO-1=GREEN OOO-2=GREEN overall=RED；release/assert 都必须通过且每个变异必须先编译和激活再被语义拒绝。",
+      "checker 只接受上述精确命令，核对 OOO-1 exact provenance、完整 vsrc 闭包 design_id、定量 marker、源码前后哈希不变与证据账本守恒；证据 JSON 生成器不得自行提升其它门。",
+      "共享证据合并器只保留同 schema 且同 design_id 的 sibling 记录；单测覆盖保留 OOO-2、stale design 不继承，以及 replace 前注入故障时旧清单字节不变且可解析。",
+      "本轮允许提升的唯一新门是 OOO-1；OOO-2 仅保留已有同设计记录；OOO-3、异常或不可缓存 load、store/内存顺序、流水取消、完整分支恢复、其它架构门及 PPA 均未证明，整体架构仍 RED。"
+    ]
+  },
+  "deliverables": [
+    "仅输出严格 JSON：verdict 为 pass 或 gap；给出 blockers、counterexamples、evidence_binding_review、claim_boundary 和 residual_risks。gap 必须附最小可执行修订；pass 必须说明为何现有 scoped claim 不是假绿且不得越级到 OOO-3/PPA。"
+  ],
+  "success_criteria": [
+    "只有在接受/owner-live/formal-WB/commit 的完整 ProducerId 绑定、双 lane 非空性、九项 ROB 真实集合、七个激活变异、exact provenance、原子证据合并与状态边界均无可执行反例时才可 pass。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

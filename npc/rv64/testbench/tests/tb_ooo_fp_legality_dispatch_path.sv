@@ -16,6 +16,11 @@ module tb_ooo_fp_legality_dispatch_path;
   wire arch_trap;
   wire frontend_backend_valid;
   wire [`OOO_SLOT_STATIC_FACTS_W-1:0] static_facts;
+  integer illegal_fp_cases;
+  integer illegal_classified_cases;
+  integer arch_trap_cases;
+  integer fp_disabled_cases;
+  integer backend_blocked_cases;
 
   DecodeUnit u_decode (
     .inst_i(inst),
@@ -90,6 +95,15 @@ module tb_ooo_fp_legality_dispatch_path;
       tb_check1({label, " classified arch trap"}, arch_trap, 1'b1);
       tb_check1({label, " excluded from FP cluster"}, fp_enabled, 1'b0);
       tb_check1({label, " blocked before backend"}, frontend_backend_valid, 1'b0);
+      illegal_fp_cases = illegal_fp_cases + 1;
+      if (illegal_raw === 1'b1)
+        illegal_classified_cases = illegal_classified_cases + 1;
+      if (arch_trap === 1'b1)
+        arch_trap_cases = arch_trap_cases + 1;
+      if (fp_enabled === 1'b0)
+        fp_disabled_cases = fp_disabled_cases + 1;
+      if (frontend_backend_valid === 1'b0)
+        backend_blocked_cases = backend_blocked_cases + 1;
     end
   endtask
 
@@ -97,6 +111,11 @@ module tb_ooo_fp_legality_dispatch_path;
     tb_errors = 0;
     inst = {`INST_W{1'b0}};
     frm = 3'b000;
+    illegal_fp_cases = 0;
+    illegal_classified_cases = 0;
+    arch_trap_cases = 0;
+    fp_disabled_cases = 0;
+    backend_blocked_cases = 0;
     #1;
 
     expect_rejected(
@@ -121,6 +140,19 @@ module tb_ooo_fp_legality_dispatch_path;
     tb_check1("legal FADD.S no illegal", illegal_raw, 1'b0);
     tb_check1("legal FADD.S no trap", arch_trap, 1'b0);
     tb_check1("legal FADD.S reaches backend", frontend_backend_valid, 1'b1);
+
+    if ((illegal_fp_cases == 4) &&
+        (illegal_classified_cases == 4) &&
+        (arch_trap_cases == 4) &&
+        (fp_disabled_cases == 4) &&
+        (backend_blocked_cases == 4) &&
+        (fp_raw === 1'b1) &&
+        (fp_enabled === 1'b1) &&
+        (illegal_raw === 1'b0) &&
+        (arch_trap === 1'b0) &&
+        (frontend_backend_valid === 1'b1)) begin
+      $display("[FDG-G1-FOCUSED] illegal_fp_cases=4 illegal_classified=4 arch_trap=4 fp_disabled=4 backend_blocked=4 legal_fp_cases=1 legal_backend_present=1 PASS");
+    end
 
     tb_finish("tb_ooo_fp_legality_dispatch_path");
   end

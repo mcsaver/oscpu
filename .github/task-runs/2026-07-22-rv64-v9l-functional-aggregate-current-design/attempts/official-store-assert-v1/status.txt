@@ -1,0 +1,356 @@
+riscv-clean                  PASS
+build-rv64ui-p-add           PASS
+rv64ui-p-add                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-addi          PASS
+rv64ui-p-addi                PASS       tohost=0x0000000080001000
+build-rv64ui-p-addiw         PASS
+rv64ui-p-addiw               PASS       tohost=0x0000000080001000
+build-rv64ui-p-addw          PASS
+rv64ui-p-addw                PASS       tohost=0x0000000080001000
+build-rv64ui-p-and           PASS
+rv64ui-p-and                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-andi          PASS
+rv64ui-p-andi                PASS       tohost=0x0000000080001000
+build-rv64ui-p-auipc         PASS
+rv64ui-p-auipc               PASS       tohost=0x0000000080001000
+build-rv64ui-p-beq           PASS
+rv64ui-p-beq                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-bge           PASS
+rv64ui-p-bge                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-bgeu          PASS
+rv64ui-p-bgeu                PASS       tohost=0x0000000080001000
+build-rv64ui-p-blt           PASS
+rv64ui-p-blt                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-bltu          PASS
+rv64ui-p-bltu                PASS       tohost=0x0000000080001000
+build-rv64ui-p-bne           PASS
+rv64ui-p-bne                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-fence_i       PASS
+rv64ui-p-fence_i             PASS       tohost=0x0000000080001000
+build-rv64ui-p-jal           PASS
+rv64ui-p-jal                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-jalr          PASS
+rv64ui-p-jalr                PASS       tohost=0x0000000080001000
+build-rv64ui-p-lb            PASS
+rv64ui-p-lb                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-lbu           PASS
+rv64ui-p-lbu                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-ld            PASS
+rv64ui-p-ld                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-ld_st         PASS
+rv64ui-p-ld_st               PASS       tohost=0x0000000080002000
+build-rv64ui-p-lh            PASS
+rv64ui-p-lh                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-lhu           PASS
+rv64ui-p-lhu                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-lui           PASS
+rv64ui-p-lui                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-lw            PASS
+rv64ui-p-lw                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-lwu           PASS
+rv64ui-p-lwu                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-ma_data       PASS
+rv64ui-p-ma_data             FAIL       exit=134 tohost=0x0000000080002000
+build-rv64ui-p-or            PASS
+rv64ui-p-or                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-ori           PASS
+rv64ui-p-ori                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-sb            PASS
+rv64ui-p-sb                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-sd            PASS
+rv64ui-p-sd                  FAIL       exit=134 tohost=0x0000000080001000
+build-rv64ui-p-sh            PASS
+rv64ui-p-sh                  PASS       tohost=0x0000000080001000
+build-rv64ui-p-simple        PASS
+rv64ui-p-simple              PASS       tohost=0x0000000080001000
+build-rv64ui-p-sll           PASS
+rv64ui-p-sll                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-slli          PASS
+rv64ui-p-slli                PASS       tohost=0x0000000080001000
+build-rv64ui-p-slliw         PASS
+rv64ui-p-slliw               PASS       tohost=0x0000000080001000
+build-rv64ui-p-sllw          PASS
+rv64ui-p-sllw                PASS       tohost=0x0000000080001000
+build-rv64ui-p-slt           PASS
+rv64ui-p-slt                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-slti          PASS
+rv64ui-p-slti                PASS       tohost=0x0000000080001000
+build-rv64ui-p-sltiu         PASS
+rv64ui-p-sltiu               PASS       tohost=0x0000000080001000
+build-rv64ui-p-sltu          PASS
+rv64ui-p-sltu                PASS       tohost=0x0000000080001000
+build-rv64ui-p-sra           PASS
+rv64ui-p-sra                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-srai          PASS
+rv64ui-p-srai                PASS       tohost=0x0000000080001000
+build-rv64ui-p-sraiw         PASS
+rv64ui-p-sraiw               PASS       tohost=0x0000000080001000
+build-rv64ui-p-sraw          PASS
+rv64ui-p-sraw                PASS       tohost=0x0000000080001000
+build-rv64ui-p-srl           PASS
+rv64ui-p-srl                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-srli          PASS
+rv64ui-p-srli                PASS       tohost=0x0000000080001000
+build-rv64ui-p-srliw         PASS
+rv64ui-p-srliw               PASS       tohost=0x0000000080001000
+build-rv64ui-p-srlw          PASS
+rv64ui-p-srlw                PASS       tohost=0x0000000080001000
+build-rv64ui-p-st_ld         PASS
+rv64ui-p-st_ld               PASS       tohost=0x0000000080001000
+build-rv64ui-p-sub           PASS
+rv64ui-p-sub                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-subw          PASS
+rv64ui-p-subw                PASS       tohost=0x0000000080001000
+build-rv64ui-p-sw            PASS
+rv64ui-p-sw                  FAIL       exit=134 tohost=0x0000000080001000
+build-rv64ui-p-xor           PASS
+rv64ui-p-xor                 PASS       tohost=0x0000000080001000
+build-rv64ui-p-xori          PASS
+rv64ui-p-xori                PASS       tohost=0x0000000080001000
+build-rv64um-p-div           PASS
+rv64um-p-div                 PASS       tohost=0x0000000080001000
+build-rv64um-p-divu          PASS
+rv64um-p-divu                PASS       tohost=0x0000000080001000
+build-rv64um-p-divuw         PASS
+rv64um-p-divuw               PASS       tohost=0x0000000080001000
+build-rv64um-p-divw          PASS
+rv64um-p-divw                PASS       tohost=0x0000000080001000
+build-rv64um-p-mul           PASS
+rv64um-p-mul                 PASS       tohost=0x0000000080001000
+build-rv64um-p-mulh          PASS
+rv64um-p-mulh                PASS       tohost=0x0000000080001000
+build-rv64um-p-mulhsu        PASS
+rv64um-p-mulhsu              PASS       tohost=0x0000000080001000
+build-rv64um-p-mulhu         PASS
+rv64um-p-mulhu               PASS       tohost=0x0000000080001000
+build-rv64um-p-mulw          PASS
+rv64um-p-mulw                PASS       tohost=0x0000000080001000
+build-rv64um-p-rem           PASS
+rv64um-p-rem                 PASS       tohost=0x0000000080001000
+build-rv64um-p-remu          PASS
+rv64um-p-remu                PASS       tohost=0x0000000080001000
+build-rv64um-p-remuw         PASS
+rv64um-p-remuw               PASS       tohost=0x0000000080001000
+build-rv64um-p-remw          PASS
+rv64um-p-remw                PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoadd_d      PASS
+rv64ua-p-amoadd_d            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoadd_w      PASS
+rv64ua-p-amoadd_w            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoand_d      PASS
+rv64ua-p-amoand_d            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoand_w      PASS
+rv64ua-p-amoand_w            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomax_d      PASS
+rv64ua-p-amomax_d            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomax_w      PASS
+rv64ua-p-amomax_w            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomaxu_d     PASS
+rv64ua-p-amomaxu_d           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomaxu_w     PASS
+rv64ua-p-amomaxu_w           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomin_d      PASS
+rv64ua-p-amomin_d            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amomin_w      PASS
+rv64ua-p-amomin_w            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amominu_d     PASS
+rv64ua-p-amominu_d           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amominu_w     PASS
+rv64ua-p-amominu_w           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoor_d       PASS
+rv64ua-p-amoor_d             PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoor_w       PASS
+rv64ua-p-amoor_w             PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoswap_d     PASS
+rv64ua-p-amoswap_d           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoswap_w     PASS
+rv64ua-p-amoswap_w           PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoxor_d      PASS
+rv64ua-p-amoxor_d            PASS       tohost=0x0000000080001000
+build-rv64ua-p-amoxor_w      PASS
+rv64ua-p-amoxor_w            PASS       tohost=0x0000000080001000
+build-rv64ua-p-lrsc          PASS
+rv64ua-p-lrsc                PASS       tohost=0x0000000080001000
+build-rv64uc-p-rvc           PASS
+rv64uc-p-rvc                 PASS       tohost=0x0000000080003000
+build-rv64uf-p-fadd          PASS
+rv64uf-p-fadd                PASS       tohost=0x0000000080001000
+build-rv64uf-p-fclass        PASS
+rv64uf-p-fclass              PASS       tohost=0x0000000080001000
+build-rv64uf-p-fcmp          PASS
+rv64uf-p-fcmp                PASS       tohost=0x0000000080001000
+build-rv64uf-p-fcvt          PASS
+rv64uf-p-fcvt                PASS       tohost=0x0000000080001000
+build-rv64uf-p-fcvt_w        PASS
+rv64uf-p-fcvt_w              PASS       tohost=0x0000000080001000
+build-rv64uf-p-fdiv          PASS
+rv64uf-p-fdiv                PASS       tohost=0x0000000080001000
+build-rv64uf-p-fmadd         PASS
+rv64uf-p-fmadd               PASS       tohost=0x0000000080001000
+build-rv64uf-p-fmin          PASS
+rv64uf-p-fmin                PASS       tohost=0x0000000080001000
+build-rv64uf-p-ldst          PASS
+rv64uf-p-ldst                PASS       tohost=0x0000000080001000
+build-rv64uf-p-move          PASS
+rv64uf-p-move                PASS       tohost=0x0000000080001000
+build-rv64uf-p-recoding      PASS
+rv64uf-p-recoding            PASS       tohost=0x0000000080001000
+build-rv64ud-p-fadd          PASS
+rv64ud-p-fadd                PASS       tohost=0x0000000080001000
+build-rv64ud-p-fclass        PASS
+rv64ud-p-fclass              PASS       tohost=0x0000000080001000
+build-rv64ud-p-fcmp          PASS
+rv64ud-p-fcmp                PASS       tohost=0x0000000080001000
+build-rv64ud-p-fcvt          PASS
+rv64ud-p-fcvt                PASS       tohost=0x0000000080001000
+build-rv64ud-p-fcvt_w        PASS
+rv64ud-p-fcvt_w              PASS       tohost=0x0000000080001000
+build-rv64ud-p-fdiv          PASS
+rv64ud-p-fdiv                PASS       tohost=0x0000000080001000
+build-rv64ud-p-fmadd         PASS
+rv64ud-p-fmadd               PASS       tohost=0x0000000080001000
+build-rv64ud-p-fmin          PASS
+rv64ud-p-fmin                PASS       tohost=0x0000000080001000
+build-rv64ud-p-ldst          PASS
+rv64ud-p-ldst                PASS       tohost=0x0000000080001000
+build-rv64ud-p-move          PASS
+rv64ud-p-move                PASS       tohost=0x0000000080002000
+build-rv64ud-p-recoding      PASS
+rv64ud-p-recoding            PASS       tohost=0x0000000080001000
+build-rv64ud-p-structural    PASS
+rv64ud-p-structural          PASS       tohost=0x0000000080001000
+build-rv64uzba-p-add_uw      PASS
+rv64uzba-p-add_uw            PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh1add      PASS
+rv64uzba-p-sh1add            PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh1add_uw   PASS
+rv64uzba-p-sh1add_uw         PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh2add      PASS
+rv64uzba-p-sh2add            PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh2add_uw   PASS
+rv64uzba-p-sh2add_uw         PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh3add      PASS
+rv64uzba-p-sh3add            PASS       tohost=0x0000000080001000
+build-rv64uzba-p-sh3add_uw   PASS
+rv64uzba-p-sh3add_uw         PASS       tohost=0x0000000080001000
+build-rv64uzba-p-slli_uw     PASS
+rv64uzba-p-slli_uw           PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-andn        PASS
+rv64uzbb-p-andn              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-clz         PASS
+rv64uzbb-p-clz               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-clzw        PASS
+rv64uzbb-p-clzw              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-cpop        PASS
+rv64uzbb-p-cpop              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-cpopw       PASS
+rv64uzbb-p-cpopw             PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-ctz         PASS
+rv64uzbb-p-ctz               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-ctzw        PASS
+rv64uzbb-p-ctzw              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-max         PASS
+rv64uzbb-p-max               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-maxu        PASS
+rv64uzbb-p-maxu              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-min         PASS
+rv64uzbb-p-min               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-minu        PASS
+rv64uzbb-p-minu              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-orc_b       PASS
+rv64uzbb-p-orc_b             PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-orn         PASS
+rv64uzbb-p-orn               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-rev8        PASS
+rv64uzbb-p-rev8              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-rol         PASS
+rv64uzbb-p-rol               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-rolw        PASS
+rv64uzbb-p-rolw              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-ror         PASS
+rv64uzbb-p-ror               PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-rori        PASS
+rv64uzbb-p-rori              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-roriw       PASS
+rv64uzbb-p-roriw             PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-rorw        PASS
+rv64uzbb-p-rorw              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-sext_b      PASS
+rv64uzbb-p-sext_b            PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-sext_h      PASS
+rv64uzbb-p-sext_h            PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-xnor        PASS
+rv64uzbb-p-xnor              PASS       tohost=0x0000000080001000
+build-rv64uzbb-p-zext_h      PASS
+rv64uzbb-p-zext_h            PASS       tohost=0x0000000080001000
+build-rv64uzbc-p-clmul       PASS
+rv64uzbc-p-clmul             PASS       tohost=0x0000000080001000
+build-rv64uzbc-p-clmulh      PASS
+rv64uzbc-p-clmulh            PASS       tohost=0x0000000080001000
+build-rv64uzbc-p-clmulr      PASS
+rv64uzbc-p-clmulr            PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bclr        PASS
+rv64uzbs-p-bclr              PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bclri       PASS
+rv64uzbs-p-bclri             PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bext        PASS
+rv64uzbs-p-bext              PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bexti       PASS
+rv64uzbs-p-bexti             PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-binv        PASS
+rv64uzbs-p-binv              PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-binvi       PASS
+rv64uzbs-p-binvi             PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bset        PASS
+rv64uzbs-p-bset              PASS       tohost=0x0000000080001000
+build-rv64uzbs-p-bseti       PASS
+rv64uzbs-p-bseti             PASS       tohost=0x0000000080001000
+build-rv64mi-p-breakpoint    PASS
+rv64mi-p-breakpoint          PASS       tohost=0x0000000080001000
+build-rv64mi-p-csr           PASS
+rv64mi-p-csr                 PASS       tohost=0x0000000080001000
+build-rv64mi-p-illegal       PASS
+rv64mi-p-illegal             PASS       tohost=0x0000000080001000
+build-rv64mi-p-instret_overflow PASS
+rv64mi-p-instret_overflow    PASS       tohost=0x0000000080001000
+build-rv64mi-p-ld-misaligned PASS
+rv64mi-p-ld-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-lh-misaligned PASS
+rv64mi-p-lh-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-lw-misaligned PASS
+rv64mi-p-lw-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-ma_addr       PASS
+rv64mi-p-ma_addr             FAIL       exit=134 tohost=0x0000000080001000
+build-rv64mi-p-ma_fetch      PASS
+rv64mi-p-ma_fetch            PASS       tohost=0x0000000080001000
+build-rv64mi-p-mcsr          PASS
+rv64mi-p-mcsr                PASS       tohost=0x0000000080001000
+build-rv64mi-p-pmpaddr       PASS
+rv64mi-p-pmpaddr             PASS       tohost=0x0000000080001000
+build-rv64mi-p-sbreak        PASS
+rv64mi-p-sbreak              PASS       good-trap tohost=0x0000000080001000
+build-rv64mi-p-scall         PASS
+rv64mi-p-scall               PASS       tohost=0x0000000080001000
+build-rv64mi-p-sd-misaligned PASS
+rv64mi-p-sd-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-sh-misaligned PASS
+rv64mi-p-sh-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-sw-misaligned PASS
+rv64mi-p-sw-misaligned       PASS       tohost=0x0000000080001000
+build-rv64mi-p-zicntr        PASS
+rv64mi-p-zicntr              PASS       tohost=0x0000000080001000
+build-rv64si-p-csr           PASS
+rv64si-p-csr                 PASS       tohost=0x0000000080001000
+build-rv64si-p-dirty         PASS
+rv64si-p-dirty               PASS       tohost=0x0000000080001000
+build-rv64si-p-icache-alias  PASS
+rv64si-p-icache-alias        PASS       tohost=0x0000000080001000
+build-rv64si-p-ma_fetch      PASS
+rv64si-p-ma_fetch            PASS       tohost=0x0000000080001000
+build-rv64si-p-sbreak        PASS
+rv64si-p-sbreak              PASS       good-trap tohost=0x0000000080001000
+build-rv64si-p-scall         PASS
+rv64si-p-scall               PASS       tohost=0x0000000080001000
+build-rv64si-p-wfi           PASS
+rv64si-p-wfi                 PASS       tohost=0x0000000080001000
+riscv-tests-count            INFO       177 tests attempted

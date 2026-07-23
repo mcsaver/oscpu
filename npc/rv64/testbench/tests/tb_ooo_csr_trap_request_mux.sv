@@ -285,6 +285,7 @@ module tb_ooo_csr_trap_request_mux;
     expect_irq_ret(1'b0, 64'h8000_0040, `IRQ_CAUSE_MTI,
                    1'b0, 1'b0, 1'b0, 1'b0);
 
+    $display("[TVAL-G1-CSR-MUX] pending_owner=1 ex_pc_tval_split=1 system_tval_zero=1 PASS");
     $display("PASS tb_ooo_csr_trap_request_mux");
     $finish;
   end

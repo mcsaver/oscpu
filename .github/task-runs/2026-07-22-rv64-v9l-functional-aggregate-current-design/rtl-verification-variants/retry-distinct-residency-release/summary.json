@@ -1,0 +1,23 @@
+{
+  "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_int_backend TB_IVFLAGS_tb_ooo_int_backend=-DV8S_DUAL_MEMORY_FOCUSED BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/result run",
+  "compile_succeeded": true,
+  "compiled_image_sha256": "0787001aa55dc4a4e24c50ea0fa411db1ebe40045e5fa5af6d450a3ffec93b3b",
+  "description": "Production retry-holder assertion accepts a distinct station transaction while retaining the same-bank admission fence.",
+  "name": "retry-distinct-residency-release",
+  "passed": true,
+  "required_marker": "[V9L-RETRY-DISTINCT-RESIDENCY] retry0 + distinct station load PASS",
+  "required_marker_count": 1,
+  "return_code": 0,
+  "scope": "local RV64 Verilog/SystemVerilog focused release test",
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f"
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "sha256": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9"
+    }
+  ],
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-release/result/logs/tb_ooo_int_backend.log"
+}

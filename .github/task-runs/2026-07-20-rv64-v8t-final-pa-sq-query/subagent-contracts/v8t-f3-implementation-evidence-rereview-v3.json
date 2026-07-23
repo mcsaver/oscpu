@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-implementation-evidence-rereview-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "完成 RV64 双发射 OoO 核 F3 final-PA SQ query 与双 bank retry holder 的证据绑定复核，核对 fresh runner、38 项语义变异、37 项动态拒绝、holder 穷举和源码闭包是否支持 checkpoint",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/evidence/focused",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/prove-v8t-retry-holder-conservation.py",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/check-v8t-final-pa-sq-query.py",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/mutate-v8t-final-pa-sq-query.py",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-implementation-evidence-rereview-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP；确认每项 mutation 已激活且由预期 oracle 动态拒绝、proof 与单测通过、source pre/post digest 一致、F0/F1/F2 前置通过，并维持全核 architecture=RED、PPA=UNQUALIFIED、promotion=false 的边界"
+  ],
+  "success_criteria": [
+    "实际读取 evidence/focused 的 result、summary、proof、source closure 与必要 mutation activation；仅在 fresh 证据和已审 RTL 一致且无 P0 时接受 F3 checkpoint"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

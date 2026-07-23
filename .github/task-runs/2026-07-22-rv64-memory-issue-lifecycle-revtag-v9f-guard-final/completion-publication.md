@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-22-rv64-memory-issue-lifecycle-revtag-v9f-guard-final
+- `trace_id`: e2e:2026-07-22-rv64-memory-issue-lifecycle-revtag-v9f-guard-final
+- `task_slug`: rv64-memory-issue-lifecycle-revtag-v9f
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 2462e55d5cb4bd6d927df28a9593bc4d6e22a66002d6ae2f55bcab2326f92247
+- `task_report_md_sha256`: 27710e422a5f8cd8f74e05222abc39cc54533a0895a8277cd755ccaf2ab2fd6c
+- `run_manifest_json_sha256`: 976817187b8313002addd64661f1490637f9d14a8da1685aa028cb755e6c568b
+- `context_brief_md_sha256`: 8792bc3acb4cb0fcfbabc593ce8092101c4c6f80d1a370cd595c5485718614c8
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 9d958075ffdd78d1ece9a0df5ee8c6107557230e78da2af536dbafff6b64e4cf
+- `dispatch_log_md_sha256`: 682e58fe4a547f243f8dae0d6cc82adad2f57f3b60cbd592336764c5889cd741
+- `nodes_tsv_sha256`: dbf1b994b9528f399b5d2249de3a566e570f7b91b7588c0f7525ffeeaf23f7a3

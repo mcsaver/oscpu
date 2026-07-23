@@ -2,7 +2,9 @@
 
 module OooMulDivUnit #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
-  parameter ROB_INDEX_W = `OOO_ROB_INDEX_W
+  parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
 ) (
   input clk,
   input rst,
@@ -14,7 +16,7 @@ module OooMulDivUnit #(
 
   input req_valid_i,
   output req_ready_o,
-  input [ROB_INDEX_W-1:0] req_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] req_producer_id_i,
   input [PHY_REG_ADDR_W-1:0] req_pdest_i,
   input [`INST_W-1:0] req_inst_i,
   input [`XLEN-1:0] req_src1_i,
@@ -24,8 +26,12 @@ module OooMulDivUnit #(
   output resp_valid_o,
   input resp_ready_i,
   output [ROB_INDEX_W-1:0] resp_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] resp_producer_id_o,
   output [PHY_REG_ADDR_W-1:0] resp_pdest_o,
-  output [`XLEN-1:0] resp_data_o
+  output [`XLEN-1:0] resp_data_o,
+
+  output owner_valid_o,
+  output [PRODUCER_ID_W-1:0] owner_producer_id_o
 );
 
   localparam STATE_IDLE = 3'd0;
@@ -36,13 +42,13 @@ module OooMulDivUnit #(
 
   reg [2:0] state_q;
   // T3Q: 非穿透请求级只捕获完整 payload；abs/CLZ/3x 与迭代状态初始化统一从下一拍 Q 侧出发。
-  reg [ROB_INDEX_W-1:0] req_rob_idx_q;
+  // v8h: ProducerId 是 holder 唯一身份状态；raw ROB index 只从低位投影。
+  reg [PRODUCER_ID_W-1:0] producer_id_q;
   reg [PHY_REG_ADDR_W-1:0] req_pdest_q;
   reg [`INST_W-1:0] req_inst_q;
   reg [`XLEN-1:0] req_src1_q;
   reg [`XLEN-1:0] req_src2_q;
   reg req_word_q;
-  reg [ROB_INDEX_W-1:0] resp_rob_idx_q;
   reg [PHY_REG_ADDR_W-1:0] resp_pdest_q;
   reg [`XLEN-1:0] resp_data_q;
 
@@ -245,33 +251,33 @@ module OooMulDivUnit #(
   // 不进连续赋值敏感列表(hidden dependency), kill 脉冲被无视——展开为显式 wire。
   // 两仿真器中仅展开形态在 iverilog 下正确(另一家两形态一致)。函数体引用模块级变量禁令家族。
   wire [ROB_INDEX_W-1:0] kill_age_thresh_w = kill_rob_idx_i - rob_head_idx_i;
-  wire [ROB_INDEX_W-1:0] kill_age_resp_w = resp_rob_idx_q - rob_head_idx_i;
-  wire [ROB_INDEX_W-1:0] kill_age_buf_w = req_rob_idx_q - rob_head_idx_i;
-  wire [ROB_INDEX_W-1:0] kill_age_req_w = req_rob_idx_i - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] owner_rob_idx_w =
+      producer_id_q[ROB_INDEX_W-1:0];
+  wire [ROB_INDEX_W-1:0] kill_age_owner_w = owner_rob_idx_w - rob_head_idx_i;
   wire kill_inflight_w =
-      kill_valid_i &&
-      (((state_q == STATE_REQ_BUF) && (kill_age_buf_w > kill_age_thresh_w)) ||
-       (((state_q == STATE_MUL_RUN) || (state_q == STATE_DIV_RUN) ||
-         (state_q == STATE_RESP)) && (kill_age_resp_w > kill_age_thresh_w)));
-  wire kill_new_req_w = req_fire_w && kill_valid_i && (kill_age_req_w > kill_age_thresh_w);
+      (state_q != STATE_IDLE) && kill_valid_i &&
+      (kill_age_owner_w > kill_age_thresh_w);
 
-  assign req_ready_o = state_q == STATE_IDLE;
+  assign req_ready_o = (state_q == STATE_IDLE) && !rst && !flush_i && !kill_valid_i;
   // 组合抹 resp_valid_o(载重项, 对齐 FP out_valid_o 的 && !killed): kill 命中 STATE_RESP 当拍即不写脏值
-  assign resp_valid_o = (state_q == STATE_RESP) && !kill_inflight_w;
-  assign resp_rob_idx_o = resp_rob_idx_q;
+  assign resp_valid_o = (state_q == STATE_RESP) && !rst && !flush_i &&
+                        !kill_inflight_w;
+  assign resp_rob_idx_o = owner_rob_idx_w;
+  assign resp_producer_id_o = producer_id_q;
   assign resp_pdest_o = resp_pdest_q;
   assign resp_data_o = resp_data_q;
+  assign owner_valid_o = state_q != STATE_IDLE;
+  assign owner_producer_id_o = producer_id_q;
 
   always @(posedge clk) begin
     if (rst || flush_i) begin
       state_q <= STATE_IDLE;
-      req_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      producer_id_q <= {PRODUCER_ID_W{1'b0}};
       req_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       req_inst_q <= {`INST_W{1'b0}};
       req_src1_q <= {`XLEN{1'b0}};
       req_src2_q <= {`XLEN{1'b0}};
       req_word_q <= 1'b0;
-      resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
       resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       resp_data_q <= {`XLEN{1'b0}};
       div_dividend_q <= {`XLEN{1'b0}};
@@ -295,21 +301,20 @@ module OooMulDivUnit #(
     end else if (kill_inflight_w) begin
       // UC-A/T3Q: kill 命中缓冲或在飞 op → 强制回 IDLE，抹身份防止下一拍初始化或脏写回。
       state_q <= STATE_IDLE;
-      req_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      producer_id_q <= {PRODUCER_ID_W{1'b0}};
       req_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       req_inst_q <= {`INST_W{1'b0}};
       req_src1_q <= {`XLEN{1'b0}};
       req_src2_q <= {`XLEN{1'b0}};
       req_word_q <= 1'b0;
-      resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
       resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       resp_data_q <= {`XLEN{1'b0}};
     end else begin
       case (state_q)
         STATE_IDLE: begin
-          if (req_fire_w && !kill_new_req_w) begin
+          if (req_fire_w) begin
             // 非穿透边界：该拍只锁存请求，禁止从外部 payload 直接初始化运算数据通路。
-            req_rob_idx_q <= req_rob_idx_i;
+            producer_id_q <= req_producer_id_i;
             req_pdest_q <= req_pdest_i;
             req_inst_q <= req_inst_i;
             req_src1_q <= req_src1_i;
@@ -320,7 +325,6 @@ module OooMulDivUnit #(
         end
 
         STATE_REQ_BUF: begin
-          resp_rob_idx_q <= req_rob_idx_q;
           resp_pdest_q <= req_pdest_q;
           if (!req_is_div_w) begin
             if (mul_any_zero_w) begin
@@ -391,7 +395,7 @@ module OooMulDivUnit #(
         STATE_RESP: begin
           if (resp_ready_i) begin
             state_q <= STATE_IDLE;
-            resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+            producer_id_q <= {PRODUCER_ID_W{1'b0}};
             resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
             resp_data_q <= {`XLEN{1'b0}};
           end
@@ -399,6 +403,7 @@ module OooMulDivUnit #(
 
         default: begin
           state_q <= STATE_IDLE;
+          producer_id_q <= {PRODUCER_ID_W{1'b0}};
         end
       endcase
     end
@@ -407,7 +412,7 @@ module OooMulDivUnit #(
 `ifdef OOO_ASSERT
   // MD-I8: capture 后必须先驻留非穿透请求级，且完整 payload 与 capture 拍逐位一致。
   reg md_req_capture_pending_q;
-  reg [ROB_INDEX_W-1:0] md_req_rob_idx_q;
+  reg [PRODUCER_ID_W-1:0] md_req_producer_id_q;
   reg [PHY_REG_ADDR_W-1:0] md_req_pdest_q;
   reg [`INST_W-1:0] md_req_inst_q;
   reg [`XLEN-1:0] md_req_src1_q;
@@ -419,7 +424,7 @@ module OooMulDivUnit #(
     end else begin
       if (md_req_capture_pending_q) begin
         if ((state_q != STATE_REQ_BUF) ||
-            (req_rob_idx_q !== md_req_rob_idx_q) ||
+            (producer_id_q !== md_req_producer_id_q) ||
             (req_pdest_q !== md_req_pdest_q) ||
             (req_inst_q !== md_req_inst_q) ||
             (req_src1_q !== md_req_src1_q) ||
@@ -430,9 +435,9 @@ module OooMulDivUnit #(
         end
         md_req_capture_pending_q <= 1'b0;
       end
-      if ((state_q == STATE_IDLE) && req_fire_w && !kill_new_req_w) begin
+      if ((state_q == STATE_IDLE) && req_fire_w) begin
         md_req_capture_pending_q <= 1'b1;
-        md_req_rob_idx_q <= req_rob_idx_i;
+        md_req_producer_id_q <= req_producer_id_i;
         md_req_pdest_q <= req_pdest_i;
         md_req_inst_q <= req_inst_i;
         md_req_src1_q <= req_src1_i;
@@ -441,6 +446,17 @@ module OooMulDivUnit #(
       end
       if ((state_q == STATE_REQ_BUF) && req_ready_o) begin
         $error("[MD-I8] request buffer 驻留时错误开放 ready @%0t", $time);
+        $fatal;
+      end
+      if ((owner_valid_o !== (state_q != STATE_IDLE)) ||
+          (owner_producer_id_o !== producer_id_q) ||
+          (resp_rob_idx_o !== producer_id_q[ROB_INDEX_W-1:0]) ||
+          (resp_producer_id_o !== producer_id_q)) begin
+        $error("[V8H-MD-PID-PROJECTION] holder identity projection mismatch @%0t", $time);
+        $fatal;
+      end
+      if ((rst || flush_i || kill_valid_i) && req_ready_o) begin
+        $error("[V8H-MD-REQ-GUARD] request ready during reset/flush/kill @%0t", $time);
         $fatal;
       end
     end

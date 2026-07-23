@@ -1,16 +1,26 @@
 `include "include/define.v"
 
 module tb_ooo_csr_access_request_mux;
+  localparam ROB_INDEX_W = `OOO_ROB_INDEX_W;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+  localparam [PRODUCER_ID_W-1:0] PID_A = {PRODUCER_ID_W{1'b0}};
+  localparam [PRODUCER_ID_W-1:0] PID_STALE_GEN =
+      {1'b1, {(PRODUCER_ID_W-1){1'b0}}};
+
   reg core_commit0_valid_i;
   reg core_commit0_exception_i;
   reg [`XLEN-1:0] core_commit0_pc_i;
   reg [`INST_W-1:0] core_commit0_inst_i;
+  reg [PRODUCER_ID_W-1:0] core_commit0_producer_id_i;
   reg pending_system_i;
   reg pending_system_csr_i;
   reg pending_system_dispatched_i;
   reg pending_system_sfence_i;
   reg [`XLEN-1:0] pending_system_pc_i;
   reg [`INST_W-1:0] pending_system_inst_i;
+  reg pending_system_producer_valid_i;
+  reg [PRODUCER_ID_W-1:0] pending_system_producer_id_i;
   reg dispatch_valid_i;
   reg dispatch0_system_i;
   reg dispatch1_barrier_i;
@@ -24,6 +34,7 @@ module tb_ooo_csr_access_request_mux;
 
   wire core_commit0_csr_o;
   wire pending_system_csr_commit_o;
+  wire head0_csr_commit_o;
   wire head1_csr_probe_o;
   wire csr_access_valid_o;
   wire [`INST_W-1:0] csr_access_inst_o;
@@ -40,17 +51,24 @@ module tb_ooo_csr_access_request_mux;
   wire pending_system_satp_write_commit_o;
   wire pending_system_sfence_commit_o;
 
-  OooCsrAccessRequestMux dut (
+  OooCsrAccessRequestMux #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) dut (
     .core_commit0_valid_i(core_commit0_valid_i),
     .core_commit0_exception_i(core_commit0_exception_i),
     .core_commit0_pc_i(core_commit0_pc_i),
     .core_commit0_inst_i(core_commit0_inst_i),
+    .core_commit0_producer_id_i(core_commit0_producer_id_i),
     .pending_system_i(pending_system_i),
     .pending_system_csr_i(pending_system_csr_i),
     .pending_system_dispatched_i(pending_system_dispatched_i),
     .pending_system_sfence_i(pending_system_sfence_i),
     .pending_system_pc_i(pending_system_pc_i),
     .pending_system_inst_i(pending_system_inst_i),
+    .pending_system_producer_valid_i(pending_system_producer_valid_i),
+    .pending_system_producer_id_i(pending_system_producer_id_i),
     .dispatch_valid_i(dispatch_valid_i),
     .dispatch0_system_i(dispatch0_system_i),
     .dispatch1_barrier_i(dispatch1_barrier_i),
@@ -63,6 +81,7 @@ module tb_ooo_csr_access_request_mux;
     .debug_gprs_i(debug_gprs_i),
     .core_commit0_csr_o(core_commit0_csr_o),
     .pending_system_csr_commit_o(pending_system_csr_commit_o),
+    .head0_csr_commit_o(head0_csr_commit_o),
     .head1_csr_probe_o(head1_csr_probe_o),
     .csr_access_valid_o(csr_access_valid_o),
     .csr_access_inst_o(csr_access_inst_o),
@@ -95,12 +114,15 @@ module tb_ooo_csr_access_request_mux;
       core_commit0_exception_i = 1'b0;
       core_commit0_pc_i = 64'h8000_1000;
       core_commit0_inst_i = csr_inst(`CSR_MSTATUS, 3'b010, 5'd5);
+      core_commit0_producer_id_i = PID_A;
       pending_system_i = 1'b0;
       pending_system_csr_i = 1'b0;
       pending_system_dispatched_i = 1'b0;
       pending_system_sfence_i = 1'b0;
       pending_system_pc_i = 64'h8000_1000;
       pending_system_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
+      pending_system_producer_valid_i = 1'b0;
+      pending_system_producer_id_i = PID_A;
       dispatch_valid_i = 1'b0;
       dispatch0_system_i = 1'b0;
       dispatch1_barrier_i = 1'b0;
@@ -141,6 +163,7 @@ module tb_ooo_csr_access_request_mux;
   task expect_access;
     input exp_core_csr;
     input exp_pending_commit;
+    input exp_head0_commit;
     input exp_head1_probe;
     input exp_valid;
     input [`INST_W-1:0] exp_inst;
@@ -151,6 +174,7 @@ module tb_ooo_csr_access_request_mux;
       #1;
       if (core_commit0_csr_o !== exp_core_csr ||
           pending_system_csr_commit_o !== exp_pending_commit ||
+          head0_csr_commit_o !== exp_head0_commit ||
           head1_csr_probe_o !== exp_head1_probe ||
           csr_access_valid_o !== exp_valid ||
           csr_access_inst_o !== exp_inst ||
@@ -162,9 +186,10 @@ module tb_ooo_csr_access_request_mux;
           csr_access_need_write_o !== exp_need_write ||
           pending_system_satp_write_commit_o !== exp_satp_commit ||
           pending_system_sfence_commit_o !== exp_sfence_commit) begin
-        $display("FAIL core=%0b pend=%0b probe=%0b valid=%0b inst=%0h addr=%0h funct3=%0h rs1=%0d data=%0h need=%0b satp=%0b sfence=%0b",
+        $display("FAIL core=%0b pend=%0b head0=%0b probe=%0b valid=%0b inst=%0h addr=%0h funct3=%0h rs1=%0d data=%0h need=%0b satp=%0b sfence=%0b",
                  core_commit0_csr_o, pending_system_csr_commit_o,
-                 head1_csr_probe_o, csr_access_valid_o, csr_access_inst_o,
+                 head0_csr_commit_o, head1_csr_probe_o,
+                 csr_access_valid_o, csr_access_inst_o,
                  csr_access_addr_o, csr_access_funct3_o,
                  csr_access_rs1_idx_o, csr_access_rs1_data_o,
                  csr_access_need_write_o,
@@ -177,13 +202,13 @@ module tb_ooo_csr_access_request_mux;
 
   initial begin
     clear_inputs();
-    expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     head0_csr_raw_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b0, 1'b1, head_inst0_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b1, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b1, head_inst0_i);
 
@@ -193,7 +218,7 @@ module tb_ooo_csr_access_request_mux;
     dispatch_valid_i = 1'b1;
     dispatch1_barrier_i = 1'b1;
     head1_csr_raw_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b1, 1'b1, head_inst1_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b1, 1'b1, head_inst1_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b1, head_inst1_i);
 
@@ -202,7 +227,7 @@ module tb_ooo_csr_access_request_mux;
     dispatch0_system_i = 1'b1;
     dispatch1_barrier_i = 1'b1;
     head1_csr_raw_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
 
@@ -214,7 +239,7 @@ module tb_ooo_csr_access_request_mux;
     dispatch_valid_i = 1'b1;
     dispatch1_barrier_i = 1'b1;
     head1_csr_raw_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b1, 1'b1, pending_system_inst_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b1, 1'b1, pending_system_inst_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b1, head_inst1_i);
 
@@ -230,7 +255,8 @@ module tb_ooo_csr_access_request_mux;
     dispatch1_barrier_i = 1'b1;
     head0_csr_raw_i = 1'b1;
     head1_csr_raw_i = 1'b1;
-    expect_access(1'b1, 1'b0, 1'b1, 1'b1, core_commit0_inst_i,
+    expect_access(1'b1, 1'b0, `OOO_CSR_QUEUE_HEAD, 1'b1, 1'b1,
+                  core_commit0_inst_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b1, head_inst1_i);
 
@@ -238,20 +264,55 @@ module tb_ooo_csr_access_request_mux;
     pending_system_i = 1'b1;
     pending_system_csr_i = 1'b1;
     pending_system_dispatched_i = 1'b1;
+    pending_system_producer_valid_i = 1'b1;
     core_commit0_valid_i = 1'b1;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
-    expect_access(1'b1, 1'b1, 1'b0, 1'b1, core_commit0_inst_i,
+    expect_access(1'b1, 1'b1, 1'b0, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b1, 1'b1, 1'b0);
     expect_probe(1'b0, head_inst0_i);
+
+    // Same ROB index with a different generation is a stale ProducerId, not
+    // the pending owner.  The raw lease seals the head0 fallback as well.
+    clear_inputs();
+    pending_system_i = 1'b1;
+    pending_system_csr_i = 1'b1;
+    pending_system_dispatched_i = 1'b1;
+    pending_system_producer_valid_i = 1'b1;
+    pending_system_producer_id_i = PID_A;
+    core_commit0_valid_i = 1'b1;
+    core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
+    core_commit0_producer_id_i = PID_STALE_GEN;
+    expect_access(1'b1, 1'b0, 1'b0, 1'b0, 1'b1,
+                  core_commit0_inst_i, 1'b1, 1'b0, 1'b0);
+
+    // Raw-only and logical-only malformed states both fail closed.  These are
+    // combinational unit counterexamples; integration assertions make them
+    // fatal if either state is ever reached in the core.
+    clear_inputs();
+    pending_system_producer_valid_i = 1'b1;
+    core_commit0_valid_i = 1'b1;
+    core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
+    expect_access(1'b1, 1'b0, 1'b0, 1'b0, 1'b1,
+                  core_commit0_inst_i, 1'b1, 1'b0, 1'b0);
 
     clear_inputs();
     pending_system_i = 1'b1;
     pending_system_csr_i = 1'b1;
     pending_system_dispatched_i = 1'b1;
+    core_commit0_valid_i = 1'b1;
+    core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
+    expect_access(1'b1, 1'b0, 1'b0, 1'b0, 1'b1,
+                  core_commit0_inst_i, 1'b1, 1'b0, 1'b0);
+
+    clear_inputs();
+    pending_system_i = 1'b1;
+    pending_system_csr_i = 1'b1;
+    pending_system_dispatched_i = 1'b1;
+    pending_system_producer_valid_i = 1'b1;
     pending_system_pc_i = 64'h8000_1004;
     core_commit0_valid_i = 1'b1;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
-    expect_access(1'b1, 1'b0, 1'b0, 1'b1, core_commit0_inst_i,
+    expect_access(1'b1, 1'b0, 1'b0, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
 
@@ -259,9 +320,10 @@ module tb_ooo_csr_access_request_mux;
     pending_system_i = 1'b1;
     pending_system_csr_i = 1'b1;
     pending_system_dispatched_i = 1'b1;
+    pending_system_producer_valid_i = 1'b1;
     core_commit0_valid_i = 1'b1;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b010, 5'd0);
-    expect_access(1'b1, 1'b1, 1'b0, 1'b1, core_commit0_inst_i,
+    expect_access(1'b1, 1'b1, 1'b0, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b0, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
     if (csr_access_set_clear_noop_o !== 1'b1) begin
@@ -274,7 +336,7 @@ module tb_ooo_csr_access_request_mux;
     pending_system_sfence_i = 1'b1;
     stop_pending_i = 1'b1;
     drain_complete_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
                   1'b1, 1'b0, 1'b1);
     expect_probe(1'b0, head_inst0_i);
 
@@ -282,14 +344,14 @@ module tb_ooo_csr_access_request_mux;
     pending_system_i = 1'b1;
     pending_system_sfence_i = 1'b1;
     stop_pending_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     core_commit0_valid_i = 1'b1;
     core_commit0_exception_i = 1'b1;
-    expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
+    expect_access(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
     expect_probe(1'b0, head_inst0_i);
 

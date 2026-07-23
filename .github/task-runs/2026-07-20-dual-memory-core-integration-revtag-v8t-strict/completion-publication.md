@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-dual-memory-core-integration-revtag-v8t-strict
+- `trace_id`: e2e:2026-07-20-dual-memory-core-integration-revtag-v8t-strict
+- `task_slug`: dual-memory-core-integration-revtag-v8t
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: dc22a4fb7870d997f6f0c19f1a039774420fbba4ff17cd0ef726095456804cbd
+- `task_report_md_sha256`: 42dc35b49f5b476befc3293fdb52a7bc7522401c6e9f314ad290f5ab2b15dbc3
+- `run_manifest_json_sha256`: 72da9d9c4768b4821fbdeae82deb9d50184ef7fcdee7cfee1b356ba282809229
+- `context_brief_md_sha256`: 908acb1f9cad0a50281b5853c65eb384cfd1a8402e4a46c6c6eee363078e5691
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 31c17b01dfdd166476eed994d3131fb00ad464baa8f8d01574d15f6cfdbbe792
+- `dispatch_log_md_sha256`: 24b65a8bd459561aa930cb7bdd77536a429d66b7fbad12606723a531f52a3673
+- `nodes_tsv_sha256`: d5f696edf3c2fecb7a567e91e0f4f2f664d34f64dd56aef793500cd9112dcc51

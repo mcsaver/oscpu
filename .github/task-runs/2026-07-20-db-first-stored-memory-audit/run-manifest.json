@@ -1,0 +1,78 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/evidence",
+    "evidence_index": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-20-db-first-stored-memory-audit",
+    "run_manifest": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 2,
+    "by_kind": {
+      "log": 2
+    },
+    "total_size_bytes": 80247
+  },
+  "final_result": "profile=github-index 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "ef967abae",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-20-db-first-stored-memory-audit/evidence/github-index-contract.log",
+      "function": "e2e_github_index_contract",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": "SQLite index can build, query and doctor .github metadata without owning originals",
+      "owner_agent": "agent-system",
+      "source_profile": "github-index",
+      "status": "PASS"
+    }
+  ],
+  "profile": "github-index",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-20-db-first-stored-memory-audit",
+  "schema_version": 1,
+  "started_at": "2026-07-20 07:38:23 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "db-first-stored-memory-audit",
+  "trace_id": "e2e:2026-07-20-db-first-stored-memory-audit",
+  "updated_at": "2026-07-20 07:38:52 +0800"
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8p-dual-memory-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据冻结的本地RV64 RTL实现与验证事实，独立复核DI-3双普通整数内存terminal-owner实现是否存在可执行假绿、身份泄漏、部分birth、年龄越过、特殊内存误接纳或证据越级，并给出pass或gap。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/contract.md",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/pair-matrix.log",
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/runner-summary.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/subagent-contracts/v8p-dual-memory-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地RV64 Verilog/SystemVerilog双发射OoO核；合同JSON之外不得读文件、用shell、联网、访问账号凭据或写盘。",
+      "当前完整vsrc design_id为sha256:913023efa40ab33e4505bde3561a9fce3b392b3b44c90c8f3e5bbc9ab67195de；证据manifest仅含同digest的pair_matrix、no_static_lane_semantics、selective_scheduling、true_ooo_long_latency。",
+      "DI-3正向链为resident IQ逐entry plain-memory capability到packed-age index0/index1选择，到同沿issue0/issue1双fire，到两个非fallthrough reservation Q，到两个不同tracker token/full PID，到两个captured-data LSU/AGU；共享request/translation/cache/MIQ/response仍串行。",
+      "AMO、LR、SC、FP load和FP store在两个程序次序共10个resident双entry案例中均不产生issue1、alloc1、bank1或SQ bind1；合法LL/LS/SL/SS四类各真实双fire一次。",
+      "Tracker在仅一个物理token空闲时出现ready0=1、ready1=0，但alloc0_fire=alloc1_fire=0，下一拍live_count和两PID lease不变；collector在双dequeue stall下同沿保存7个稀疏exact-live tuple并exactly-once排空。",
+      "四个memory pair记录8个互异且generation非零的full ProducerId；每对两个reservation next-Q同时有效、token不同、两个AGU地址由不同捕获base/imm产生；强制扰动live raw源不改变AGU。",
+      "bank1只有edge-old bank0无效才consume，shared request grant也排在bank0之后；flush后tracker live_count、collector pending_count和两bank valid均归零。",
+      "store-store同capture通过SQ owner_bind0/owner_bind1按full PID命中两个entry，并观察到两个valid和分别等于bank0/bank1的不同token。",
+      "release与OOO_ASSERT各自独立通过backend、tracker、7-ingress collector和store queue共8个baseline；完整backend非focused release/assert也各自通过。",
+      "15个compile-success/elaborated/activated定向变异全部被专属oracle拒绝：serialize pair、split ready、bank1 tieoff、owner1 tieoff、alloc0-only birth、token alias、raw fallthrough、AGU1复制bank0、SQ bind1丢失/交叉、special misadmission、bank1 age bypass、PID1截断、bank1 cancel leak、source-checker vacuity。",
+      "architecture checker逐段验证resident capability、atomic dual birth、双Q、双captured AGU、age serialization、双SQ bind、7-ingress collector和full PID；25个checker单测加3个manifest单测通过。",
+      "允许声明仅为DI-3 pair_matrix GREEN；同digest DI-4、OOO-1、OOO-2经fresh rerun为GREEN；DI-1、DI-2、DI-5、OOO-3、OOO-4与overall保持RED，PPA未获promotion资格。"
+    ]
+  },
+  "deliverables": [
+    "返回单个JSON对象：verdict为pass或gap；blockers数组逐项给出counterexample、被哪条现有证据覆盖或尚缺的executable evidence；false_green_risks；claim_boundary；不得建议越级提升DI-5、OOO-3、overall或PPA。"
+  ],
+  "success_criteria": [
+    "逐项挑战原子双fire与双birth、full PID/token守恒、双AGU非空壳、特殊内存排除、bank年龄、SQ双bind、七入口取消守恒、mutation激活与同digest证据发布；若无可执行反例则verdict=pass且blockers为空。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,87 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "contract_json_sha256": "afb5c8ab14f0fe23c03d5bf629ed59282c143abbdff7832387a11b1b3dcb148c",
+  "false_green_risks": [
+    {
+      "id": "partial_pair_fire_or_birth",
+      "counterexample": "Only issue0 or alloc0 commits when exactly one tracker token is free.",
+      "coverage": "ready0=1 and ready1=0 produces zero pair fires and zero births; live count and both leases remain unchanged; split-ready and alloc0-only mutations are rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "pid_or_token_identity_leak",
+      "counterexample": "The two operations share a token, truncate generation, or inherit the other lane's producer identity.",
+      "coverage": "Four memory pairs use eight distinct non-zero-generation full ProducerIds and distinct tokens; token-alias and PID1-truncation mutations are rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "empty_second_agu",
+      "counterexample": "Bank1 is nominal only, copies bank0 address operands, or reads perturbed live raw inputs.",
+      "coverage": "Both next reservations are valid and their AGUs use independently captured base/immediate values; raw perturbation has no effect; raw-fallthrough and AGU1-copy mutations are rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "special_memory_misadmission",
+      "counterexample": "AMO, LR, SC or FP memory enters the ordinary integer second terminal.",
+      "coverage": "Ten two-order cases produce no issue1, alloc1, bank1 or SQ bind1; the special-misadmission mutation is rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "bank1_age_bypass",
+      "counterexample": "Bank1 enters the shared request path while older bank0 is blocked.",
+      "coverage": "Bank1 consumes only when edge-old bank0 is empty and shared request grants bank0 first; the age-bypass mutation is rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "sq_owner_misbinding",
+      "counterexample": "Store-store binds only one owner, crosses the two owners, or matches a truncated identity.",
+      "coverage": "The same capture edge binds both SQ entries by full ProducerId to distinct bank0/bank1 tokens; missing and crossed bind1 mutations are rejected.",
+      "status": "rejected"
+    },
+    {
+      "id": "cancel_loss",
+      "counterexample": "Dual dequeue stall or bank1 cancellation loses, duplicates, or leaks a terminal tuple.",
+      "coverage": "Seven sparse exact-live tuples are retained under stall and drained exactly once; the bank1-cancel-leak mutation is rejected; flush clears tracker, collector and both banks.",
+      "status": "rejected"
+    },
+    {
+      "id": "inactive_mutation_or_vacuous_checker",
+      "counterexample": "A mutation is absent from the elaborated image or an empty structural shell satisfies the source checker.",
+      "coverage": "All 15 mutations compile, elaborate, activate and are rejected by dedicated oracles; source-checker vacuity and 28 checker/manifest unit tests pass.",
+      "status": "rejected"
+    },
+    {
+      "id": "stale_or_overbroad_release",
+      "counterexample": "Evidence from another RTL digest is borrowed or DI-3 is promoted to overall/PPA.",
+      "coverage": "All four manifest records bind design_id sha256:913023efa40ab33e4505bde3561a9fce3b392b3b44c90c8f3e5bbc9ab67195de; release/assert evidence is independent and the architecture boundary remains RED outside the named gates.",
+      "status": "rejected"
+    }
+  ],
+  "claim_boundary": {
+    "design_id": "sha256:913023efa40ab33e4505bde3561a9fce3b392b3b44c90c8f3e5bbc9ab67195de",
+    "green_claim": "DI-3 pair_matrix only",
+    "preserved_fresh_reruns": [
+      "DI-4",
+      "OOO-1",
+      "OOO-2"
+    ],
+    "red_or_unqualified": [
+      "DI-1",
+      "DI-2",
+      "DI-5",
+      "OOO-3",
+      "OOO-4",
+      "overall",
+      "PPA"
+    ],
+    "serialized_downstream": [
+      "shared request",
+      "translation",
+      "cache",
+      "MIQ",
+      "response"
+    ],
+    "contract_hash_scope": "The collaboration-contract SHA-256 binds only its JSON file and never substitutes for RTL or executable evidence."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "rtl-task-contract-workflow-review-result-v1",
+  "contract": "subagent-contracts/v8k-native-no-tools-workflow-review.json",
+  "contract_sha256": "9ef57a6f9e93bdb5ca3f9713a72ea618c3a2e9fe1eddecabf6002b67ff6bf0fb",
+  "actual_access": {
+    "tools": false,
+    "shell": false,
+    "filesystem": false,
+    "network": false,
+    "writes": false,
+    "input": "exact rendered self-contained supplied_material"
+  },
+  "verdict": "pass",
+  "blockers": [],
+  "residual_risks": [
+    "The reviewer intentionally did not read the JSON, recompute its SHA-256 or inspect implementation files because the contract granted no such access.",
+    "Backward compatibility was judged from the supplied audit and self-test facts and was not independently replayed by the reviewer."
+  ],
+  "overclaims": []
+}

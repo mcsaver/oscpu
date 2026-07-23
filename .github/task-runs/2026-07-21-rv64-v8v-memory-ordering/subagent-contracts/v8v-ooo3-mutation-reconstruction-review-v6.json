@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8v-ooo3-mutation-reconstruction-review-v6",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据冻结材料复核 F2 双 memory RTL compile-success mutation 的非空变更与摘要哈希绑定",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/subagent-contracts/v8v-ooo3-mutation-reconstruction-review-v6.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "duplicate_bridge_drop_token 的 live old anchor 第二项为 mem1_drop0_owner_token_i，mutant new 第二项为 mem_drop0_owner_token_i，二者字节长度分别为 119 与 118。",
+      "memory_ordering_evidence.py 对 18 个 F2 mutation 从 live OooIntBackend 或 OooCoreSliceControlGate 源码选择唯一 anchor，生成 mutant bytes，并拒绝 old 等于 new 或 mutant bytes 等于 source bytes。",
+      "该 evidence builder 对每项重建 mutant SHA-256，并要求逐项等于 mutation-summary.log 中对应 name 的 mutant_sha256；mutation identity set 也必须精确等于 18 项规范集合。",
+      "本节点只判断 mutation 非空性、哈希可重建性和证据覆盖洞，不外推 DI-1、DI-2、OOO-4、overall architecture 或 PPA。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive，并列出影响结论的 RTL 验证反例、替代假设、未知项和置信依据。"
+  ],
+  "success_criteria": [
+    "明确裁决 duplicate_bridge_drop_token 是否为 byte-identical no-op，并复核全部 18 项 live-source reconstruction 规则能否拒绝假激活摘要。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

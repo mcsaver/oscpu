@@ -1,0 +1,30 @@
+{
+  "verdict": "gap",
+  "blocker_ids": ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"],
+  "false_green_ids": ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"],
+  "required_counterexample_ids": [
+    "CE_SERIAL_ISSUE1",
+    "CE_MIQ_GLOBAL_FREEZE",
+    "CE_MULDIV_GLOBAL_FREEZE",
+    "CE_OWNER_EARLY_DROP",
+    "CE_PID_TRUNCATION",
+    "CE_DUPLICATE_WB",
+    "CE_NONHEAD_RETIRE",
+    "CE_FAKE_ROB_PEAK",
+    "CE_KILLED_COMPLETION",
+    "CE_EVIDENCE_COLLISION",
+    "CE_PROVENANCE_TAMPER"
+  ],
+  "disposition": {
+    "B1": "bound dispatch/issue/request/owner/WB/retire events to production accept and eligibility predicates",
+    "B2": "required four dual-issue accept cycles per old-owner class and added serial_issue1 mutation",
+    "B3": "checked exact old owner continuously at every scored young issue and WB",
+    "B4": "primed non-zero generations and added load completion, MulDiv owner, and MulDiv response PID truncation mutations",
+    "B5": "scoreboards consume only authorized full-PID EX WB and Q-only commit events",
+    "B6": "added activated retire-before-head-done mutation and non-resetting order ledger",
+    "B7": "enumerated nine valid ROB entries/full-PID set and checked all holder/count drains",
+    "B8": "separated full vsrc design_id from exact proof provenance inventory",
+    "B9": "added sibling-preservation and pre-replace fault-injection unit tests for atomic manifest merge"
+  },
+  "note": "Initial no-tools review result summarized without treating the JSON-contract SHA as a design digest; revision review is separately hash-bound."
+}

@@ -13,12 +13,72 @@ e2e_nemu_config_probe() {
     nemu/src/device/filelist.mk
 }
 
-e2e_nemu_am_add_smoke() {
+e2e_nemu_reference_config_contract() {
+  local repo_root temp_root rc=0
+  repo_root=$E2E_ROOT_DIR
+  temp_root=$(mktemp -d "${TMPDIR:-/tmp}/nemu-reference-config.XXXXXX") || return 1
+  mkdir -p "$temp_root/nemu"
+
+  if ! (
+    E2E_ROOT_DIR=$temp_root
+    printf 'CONFIG_ISA="riscv64"\nCONFIG_TARGET_NATIVE_ELF=y\n' \
+      > "$temp_root/nemu/.config"
+    e2e_nemu_native_reference_compatible || exit 10
+
+    printf 'CONFIG_ISA="riscv32"\nCONFIG_TARGET_NATIVE_ELF=y\n' \
+      > "$temp_root/nemu/.config"
+    e2e_nemu_native_reference_compatible || exit 16
+
+    printf 'CONFIG_ISA="riscv64"\nCONFIG_TARGET_SHARE=y\n' \
+      > "$temp_root/nemu/.config"
+    if e2e_nemu_native_reference_compatible; then exit 11; fi
+
+    printf 'CONFIG_ISA="riscv64"\nCONFIG_TARGET_AM=y\n' \
+      > "$temp_root/nemu/.config"
+    AGENT_E2E_FORCE_SMOKE=1
+    export AGENT_E2E_FORCE_SMOKE
+    if e2e_nemu_native_reference_compatible; then exit 12; fi
+
+    printf 'CONFIG_ISA="x86"\nCONFIG_TARGET_NATIVE_ELF=y\n' \
+      > "$temp_root/nemu/.config"
+    if e2e_nemu_native_reference_compatible; then exit 13; fi
+
+    printf 'CONFIG_TARGET_NATIVE_ELF=y\n' > "$temp_root/nemu/.config"
+    if e2e_nemu_native_reference_compatible; then exit 14; fi
+
+    rm -f "$temp_root/nemu/.config"
+    if e2e_nemu_native_reference_compatible; then exit 15; fi
+  ); then
+    printf 'FAIL NEMU reference config selector accepted an incompatible target/ISA\n'
+    rc=1
+  else
+    printf 'PASS NEMU reference config selector accepts only host-native RISC-V\n'
+  fi
+  rm -rf -- "$temp_root"
+
+  if grep -Fq 'Application on Abstract-Machine (DON'"'"'T CHOOSE)' \
+      "$repo_root/nemu/Kconfig" &&
+     grep -Fq 'e2e_nemu_native_add_smoke' \
+      "$repo_root/.github/e2e/profiles/nemu.tsv" &&
+     grep -Fq 'e2e_nemu_native_add_smoke' \
+      "$repo_root/.github/e2e/profiles/quick.tsv" &&
+     ! grep -Eq 'e2e_nemu_am_add_smoke|e2e_nemu_am_compatible' \
+      "$repo_root/.github/e2e/profiles/nemu.tsv" \
+      "$repo_root/.github/e2e/profiles/quick.tsv"; then
+    printf 'PASS NEMU reference profiles bind host-native smoke semantics\n'
+  else
+    printf 'FAIL NEMU reference profile/config contract drifted\n'
+    rc=1
+  fi
+  return "$rc"
+}
+
+e2e_nemu_native_add_smoke() {
   local arch
   arch=$(e2e_default_nemu_arch)
-  if ! e2e_nemu_am_compatible; then
-    echo "[nemu] SKIP: $(e2e_nemu_config_summary)，不是 CONFIG_TARGET_AM=y"
-    echo "[nemu] next: 需要 AM smoke 时先切 riscv32-am_defconfig/riscv64-am_defconfig，或设置 AGENT_E2E_FORCE_SMOKE=1"
+  if ! e2e_nemu_native_reference_compatible; then
+    echo "[nemu] SKIP: $(e2e_nemu_config_summary)，不是匹配 riscv32/riscv64 的 host-native reference 配置"
+    echo "[nemu] next: cpu-tests reference smoke 需要 TARGET_NATIVE_ELF 与明确匹配的 RISC-V ISA"
     return 77
   fi
 

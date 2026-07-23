@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8s-f2-implementation-evidence-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 v8s/F2 architecture_checkpoint 的 canonical hierarchy 证据和两个新增边界场景是否关闭前次 GAP，并继续寻找可执行反例或越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/static/source-checks.json",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/static/checker-unit.log",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/profiles/focused-assert.run.log",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-implementation-evidence-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "fresh run v8s-f2-20260720T075628Z-1005155 为 PASS，claim=architecture_checkpoint，source closure=0c5e703a13a86f84ccfdaf0d84c41b6e27220e03ebb70484364ad4d06a488bbf；6 profiles与11/11 compile-success/elaborated/activated/target-rejected mutations PASS。",
+      "同 closure 的 fail-closed source checker passed=true，共17项；hierarchy.default_off_reusable_chain counts backend/decode/slice/execute/glue各1，explicit_parameter_handoff decode/slice/execute/glue各1，canonical_enable_exactly_once count=1。",
+      "hierarchy.canonical_dual_wrapper_topology counts dual_wrapper=1、legacy_bridge=0、core_glue=1；wrapper_lane_faces_not_crossed lane0=62 exact=true且lane1=62 exact=true；core_mem1_face_not_tied_or_crossed port_count=61；NpcCoreTop release/assert和NpcSimTop assert+stats lint均PASS。",
+      "checker 13个 mutation-negative unit tests PASS，包括 canonical disable、parameter handoff藏入注释、wrapper lane cross、second MIQ removal、mem1 ROB query alias、bank1 tieoff、second WB slot removal、collector shrink、second SQ fill removal及claim inflation；因此结构 PASS 不是只读元数据自证。",
+      "新增真实 ROB 环绕 directed：从 reset 通过真实dispatch/commit把空ROB head推到15，再同bank创建raw index15 older与0 younger，marker V8S-ROB-WRAP-AGE报告 head=15 older=15 younger=0 ordered=1，在release与assert均PASS。",
+      "新增双EX全占槽 directed：EX0/EX1同时占WB0/WB1时mem0/mem1 response ready均为0并保持，下一拍两个槽释放后两response同拍恢复、分占WB0/WB1且exactly once，marker V8S-DUAL-EX-WB-HOLD在release与assert均PASS；checker也有两个marker removal负向单测。",
+      "F1 predecessor fresh PASS且canonical_stage=F2_PROMOTED；DI-5、OOO-3、overall仍RED，PPA UNQUALIFIED，promotion=false；F3 final-PA SQ query/forward/replay、F4 sustained IPC/system workload/equal-capacity banking/arch-stable PPA absent，full-top动态系统验证与形式完备性均不在本轮证据内。",
+      "本节点仍只消费冻结的bounded outcome，不读取raw RTL/log/checker源码也不复算hash；只能做限定材料复核，不得声称repository audit。"
+    ]
+  },
+  "deliverables": [
+    "输出 PASS/GAP/INCONCLUSIVE，并给出 evidence_consistency、hierarchy_gap_disposition、new_boundary_disposition、counterexamples、remaining_blockers、unknowns、alternative_hypotheses、scope_extension_request、claim_boundary_ok、confidence_and_basis"
+  ],
+  "success_criteria": [
+    "只有 canonical hierarchy 的有效参数、实例 census、旧单路缺失与负向自测形成非循环证据且两个新增场景关闭残余洞时才可授予 architecture_checkpoint；更高架构或PPA结论始终禁止"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

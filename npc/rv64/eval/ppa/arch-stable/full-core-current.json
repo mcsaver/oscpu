@@ -1,0 +1,45 @@
+{
+  "schema": "npc-rv64-arch-stable-candidate-v1",
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "scope": {
+    "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+    "product": "local NpcTop RV64 dual-issue out-of-order processor RTL",
+    "excluded_debt_ids": []
+  },
+  "artifacts": {
+    "debt_ledger": "npc/rv64/design/arch/architecture-debt-ledger.json",
+    "architecture_evidence": "npc/rv64/eval/ppa/evidence/architecture-current.json",
+    "architecture_result": ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/architecture-result.json",
+    "holder_census": "npc/rv64/design/arch/producer-holder-census.json",
+    "functional_aggregate": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+    "cohort_inventory": null
+  },
+  "freeze_inputs": {
+    "config": [],
+    "generated_headers": [],
+    "filelists": [],
+    "specifications": [],
+    "test_sources": [],
+    "tool_versions": [],
+    "liberty": [],
+    "macros": [],
+    "constraints": [],
+    "images": [],
+    "binaries": [],
+    "workflow": []
+  },
+  "run_parameters": {
+    "top": "NpcTop",
+    "clock_port": "clk",
+    "period_ns": 5.0,
+    "synthesis_seed": 0,
+    "threads": 1
+  },
+  "claim": {
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "canonical": null,
+    "architecture_feasible_seed": null
+  }
+}

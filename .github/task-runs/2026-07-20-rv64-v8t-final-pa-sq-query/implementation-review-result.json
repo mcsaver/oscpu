@@ -1,0 +1,39 @@
+{
+  "schema": "v8t-f3-independent-implementation-review/v1",
+  "reviewer_task": "/root/v8t_f3_impl_rereview_v2",
+  "contract_json": ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-functional-closure-review-v5.json",
+  "contract_json_sha256": "454009f9698d152c82375fdb1b5fdd864060bedc854753dc0516e05360ec56d3",
+  "verdict": "PASS",
+  "authorized_claim": "final_pa_sq_ordering_checkpoint",
+  "reviewed_candidate_run_id": "v8t-f3-20260720T133351Z-1183319",
+  "reviewed_source_closure_sha256": "0be0d3ee3424ee816fe11d0176f2fc5e71849e24bedb764025f4e2dcc8212063",
+  "reviewed_candidate_result_sha256": "030047748ddb9b75bb18e8be2cc164bbc576752d038682c8109c342ee40b8a0a",
+  "reviewed_mutation_summary_sha256": "71c3b1812387bf8f8be68a572b9cb491177c00d66105d5ca02a8175466399af6",
+  "reviewed_runner_status": "PASS",
+  "reviewed_mutations": 38,
+  "reviewed_dynamic_rejections": 37,
+  "reviewed_profiles": 11,
+  "reviewed_retry_holder_proof": "PASS",
+  "reviewed_predecessors": {
+    "F0": "PASS",
+    "F1": "PASS",
+    "F2": "PASS"
+  },
+  "unresolved_blockers": {
+    "P0": [],
+    "P1": []
+  },
+  "claim_boundary": {
+    "architecture": "RED",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "confidence": "high",
+  "scope": "F3 final-PA SQ ordering and dual-bank retry-holder checkpoint only",
+  "prior_review_disposition": {
+    "v2": "GAP: declared result path did not bind evidence/focused",
+    "v3": "PASS on the earlier implementation closure; superseded by finalizer source changes",
+    "v4": "GAP: stale/wrong-run review overlay could authorize a different run",
+    "v5": "PASS: exact run/closure/result/mutation/contract binding and immutable candidate"
+  }
+}

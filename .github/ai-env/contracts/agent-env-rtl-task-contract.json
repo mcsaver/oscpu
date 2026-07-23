@@ -12,6 +12,23 @@
     "verification",
     "ppa-analysis"
   ],
+  "wording_profile": {
+    "profile": "rv64-hardware-professional",
+    "reference": ".github/agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording",
+    "domain_reference": "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+    "preserve_backticked_identifiers": true,
+    "hardware_context_prefix_required": true,
+    "preserve_technical_vocabulary": true,
+    "keyword_blacklist_forbidden": true,
+    "does_not_change_capabilities": true,
+    "positive_local_scope_preamble_required": true,
+    "ambiguity_context_dimensions": [
+      "object",
+      "level",
+      "scope",
+      "engineering-purpose"
+    ]
+  },
   "required_fields": [
     "schema_version",
     "contract_type",
@@ -32,6 +49,49 @@
     ".github/instructions/rtl-agent-task-contract.instructions.md"
   ],
   "implementation_context": ".github/instructions/rtl-generation-workflow.instructions.md",
+  "context_policy": {
+    "fields": [
+      "required_files",
+      "material_mode",
+      "supplied_material"
+    ],
+    "material_modes": [
+      "workspace-files",
+      "prompt-supplied-self-contained"
+    ],
+    "default_mode": "workspace-files",
+    "no_tools_mode": "prompt-supplied-self-contained",
+    "no_tools_usage": "exceptional-bounded-evidence-review",
+    "no_tools_task_kinds": [
+      "read-only-review"
+    ]
+  },
+  "reasoning_policy": {
+    "required_outlets": [
+      "unknowns",
+      "assumptions",
+      "counterexamples",
+      "alternative_hypotheses",
+      "scope_extension_request",
+      "confidence_and_basis"
+    ],
+    "inconclusive_allowed": true,
+    "forced_pass_forbidden": true,
+    "fixed_finding_cap_forbidden": true,
+    "scope_extension_requires_new_contract": true,
+    "no_tools_claim_scope": "bounded-supplied-material-only"
+  },
+  "dispatch_policy": {
+    "canonical_pipeline": [
+      "create",
+      "validate",
+      "render"
+    ],
+    "rendered_prompt_boundary": "verbatim",
+    "validation_failure_result_status": "candidate-only",
+    "scope_extension_action": "new-versioned-contract",
+    "platform_interruption_effect": "current-review-node-only"
+  },
   "command_policy": {
     "entry_fields": [
       "command",
@@ -169,7 +229,7 @@
   "language_policy": {
     "preserve_rtl_identifiers": true,
     "domain_accurate_wording": true,
-    "platform_check_bypass_is_not_an_objective": true
+    "wording_preserves_task_semantics": true
   },
   "audit_commands": [
     "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit",

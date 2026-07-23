@@ -1,0 +1,121 @@
+{
+  "verdict": "pass",
+  "evidence_consistency": {
+    "status": "consistent",
+    "basis": [
+      "fresh run 的 pre/post source closure 与 architecture manifest digest 一致，并给出 wrapper、bridge、D-cache 的独立 SHA-256。",
+      "source/claim、F0 compatibility、style、全局 interface contract、release/assert 与永久入口在同一 fresh closure 下 PASS。",
+      "holder census 首次遗漏已修正、自测，并在随后整包 fresh run 中重新验证，没有复用旧结果。",
+      "负向测试均以预期语义、非零退出且未到 escape marker 结束；mutation 均报告 compile、elaborate、activate 和目标拒绝。"
+    ],
+    "limitation": "本结论只判断随附冻结事实是否自洽；no-tools reviewer 未读取 RTL、TB、日志或复算哈希，不能声称完整独立仓库审计。"
+  },
+  "contract_compliance": {
+    "status": "satisfied_for_leaf_claim",
+    "basis": [
+      "B1-B4 已关闭，B5 要求的 fresh RTL/TB/checker/mutation/aggregate closure 已完成。",
+      "wrapper 实例边界、双向 peer 接线、lane-local READY/response、maintenance 来源、flush/reset 与 default-off legacy 行为均有对应检查或仿真证据。",
+      "永久入口同时重跑 F0，且 F0 checker 只精确放行 wrapper 内 u_miss_arbiter，core/top 与其它实例继续 fail closed。"
+    ],
+    "qualification": "只支持未接 canonical core 的叶级结论。"
+  },
+  "mutation_adequacy": {
+    "status": "adequate_for_stated_leaf",
+    "strengths": [
+      "十项 mutation 覆盖 peer 有效性/方向/自身回环/地址接线、maintenance 时点、B 错误、跨线、同拍 hit 屏蔽、fill/peer 优先级、READY 隔离与双 response 独立性。",
+      "每项均成功编译、展开、激活，由单一 V8R 目标 marker 和单一 fatal 拒绝且无无关 assertion 抢先。",
+      "swap_peer_addr 的同值假绿被显式识别，并用 mutation-only 非对称 self payload 建立可区分反例。"
+    ],
+    "residual_risk": [
+      "定向 mutation 不等价于形式完备性。",
+      "reviewer 未读取 marker、fatal、mutation diff 原文，不能独立排除 oracle 与实现的共同错误。"
+    ]
+  },
+  "counterexamples": [
+    {
+      "scenario": "swap_peer_addr 在 producer 与 consumer 地址相同时假绿",
+      "disposition": "resolved",
+      "reason": "最终 mutation-only 不同 self payload 建立非对称反例并检出。"
+    },
+    {
+      "scenario": "AW/W 已握手但 B 未终结时过早 maintenance",
+      "disposition": "rejected_by_evidence",
+      "reason": "directed backpressure 与 request_time_maintenance mutation 覆盖。"
+    },
+    {
+      "scenario": "B error 导致错误维护或陈旧 cache line",
+      "disposition": "rejected_by_evidence",
+      "reason": "B-error invalidation 与 b_ok_only_peer mutation 覆盖。"
+    },
+    {
+      "scenario": "peer store 与 consumer exact lookup 同拍返回旧 hot data",
+      "disposition": "rejected_by_evidence",
+      "reason": "B terminal overlap 与 remove_same_cycle_hit_block mutation 覆盖。"
+    },
+    {
+      "scenario": "跨 8B line 只失效第一条 line",
+      "disposition": "rejected_by_evidence",
+      "reason": "cross-line directed test 与 drop_cross_line_peer mutation 覆盖。"
+    },
+    {
+      "scenario": "未来双 B terminal 同拍冲突",
+      "disposition": "not_evaluated_out_of_scope",
+      "reason": "冻结事实明确排除。"
+    },
+    {
+      "scenario": "same-lane hit-under-own-miss",
+      "disposition": "not_evaluated_out_of_scope",
+      "reason": "仅证明跨 lane hit-under-peer-miss。"
+    }
+  ],
+  "remaining_blockers": [],
+  "unknowns": [
+    "未独立核验合同 JSON SHA-256 或 source closure 内容。",
+    "未独立查看仿真日志、波形、checker 源码、mutation patch 或 aggregate 报告。",
+    "未形式证明 TB/checker 与 RTL 不共享错误规范解释。",
+    "未验证 canonical integration、第二 MIQ、final-PA SQ query、formal WB credit、双 B、IPC、综合、STA 或功耗。"
+  ],
+  "assumptions": [
+    "冻结事实真实、完整且对应 run v8r-f1-20260720T052716Z-935556。",
+    "所列 PASS 均在给定 closure 下实际执行所得。",
+    "每项 mutation marker/fatal 来自指定语义差异且 activation 足以排除未生效。",
+    "leaf claim 的规范含义严格等于所述未接 canonical core 的 F1 wrapper 边界。"
+  ],
+  "alternative_hypotheses": [
+    {
+      "hypothesis": "checker 与 RTL 共享同一错误而整包假绿",
+      "assessment": "不能由摘要彻底排除，但独立 negative、十项 mutation、directed scenarios 与永久入口的交叉证据使其不足以阻止限定叶级 claim。"
+    },
+    {
+      "hypothesis": "swap_peer_addr 的 mutation-only force 制造不现实状态",
+      "assessment": "其用途仅是打破测试同值不可观测性，未改变授权接线语义；作为 mutation 可辨识性探针合理。"
+    },
+    {
+      "hypothesis": "holder census 后补登记掩盖更广资源归属问题",
+      "assessment": "后续 9 项自测与整包 fresh PASS 支持漏项已闭环；未审原始 census，保留低度未知。"
+    }
+  ],
+  "scope_extension_request": [],
+  "claim_boundary_ok": {
+    "status": true,
+    "authorized_claim": "dual_bridge_cache_hit_leaf_verified",
+    "required_qualifier": "仅限未接 NpcCoreTop/NpcTop 或其它 canonical core 的双 bridge wrapper 叶级实现与所列行为。",
+    "forbidden_inferences": [
+      "DI-5 或 OOO-3 已完成",
+      "overall 可由 RED 升级",
+      "PPA 已获得资格",
+      "canonical integration 已验证",
+      "第二 MIQ、final-PA SQ query、formal WB credit、same-lane hit-under-own-miss、未来双 B、IPC、综合、STA 或 power 已证明"
+    ]
+  },
+  "confidence_and_basis": {
+    "level": "moderate_high",
+    "basis": "在冻结事实真实完整前提下，fresh closure、正负向验证、mutation 激活/拒绝、兼容入口与明确边界形成一致证据链，足以授予唯一叶级 claim；no-tools 限制阻止置信度提升为 high。",
+    "repository_audit_claimed": false
+  },
+  "contract_binding": {
+    "path": ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/subagent-contracts/v8r-dual-memory-bridge-implementation-review.json",
+    "sha256": "3c20605c0a004b364b0e218271aa977e1f16ef07ff43e83c74f0a110bf757fe7",
+    "sha256_independently_verified": false
+  }
+}

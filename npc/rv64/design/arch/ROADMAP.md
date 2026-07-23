@@ -2,15 +2,22 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-15。
+> **最近更新**：2026-07-21。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
-> `.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/`；2026-07-11 历史快照：
+> `../../eval/ppa/evidence/architecture-current.json`、
+> `.github/task-runs/2026-07-21-rv64-v9a-width-continuity/`；2026-07-11 历史快照：
 > `rtl-ground-truth-2026-07-11.md`；架构原则：
 > `ooo-core-architecture.md`；逐模块合同：`../specs/README.md`。
 >
 > 本文件只保存当前优先级、依赖和验收标准。已完成方案、失败实验和逐轮性能明细应进入
 > `history/`、task-run 或 Git 历史，不继续堆在 active backlog 中。
+
+<!-- ARCH-DEBT-P0: FDG-G1,XRET-G1,MEM-ISSUE-G1,IFU-AXI-G1,IFU-FETCH-G2,IFU-ACCESS-G1,IFU-TVAL-G1,PTW-PMP-G1,INSTRET-G1 -->
+<!-- ARCH-DEBT-P1: F0-G1,MIQ-FLUSH-G1,STORE-BRESP-G1,FENCE-G1,A-COHERENCE-G1,CONTROL-EVENT-G1,SERIALIZE-G1,WFI-G1,SFENCE-SINVAL-G1,VECTORED-TRAP-G1,DEBUG-TRIGGER-G1 -->
+
+以上两行是 `architecture-debt-ledger.json` 的机器清单锚点。新增、删除或重分级 P0/P1
+必须同时修改机器账本；冻结检查器要求两侧 exact-membership，并以本文件 SHA 使旧账本失效。
 
 ---
 
@@ -33,7 +40,7 @@
 | gate | 2026-07-14 可采信结果 | 当前边界 |
 | --- | --- | --- |
 | official riscv-tests | 177/177 逐项 PASS | current-config sweep 非 Difftest；F0 另有 Difftest-ON AM gate |
-| module testbench | 100/100 真 PASS | 当前生产清单；100 份 raw log 由 task-run SHA manifest 锁定 |
+| module testbench | 历史 100/100 真 PASS；当前 required inventory=109 | V9G 已在当前 design_id 下由 `testbench/Makefile` 的 `TESTS` 动态推导并取得 109/109；该 module-only aggregate 不替代仍缺失的同 cohort official/AM/DiffTest aggregate |
 | AM cpu-tests | 59/59 真 PASS | `fp-difftest-probe` 明确 Difftest ON |
 | benchmark/DPI | CoreMark、Dhrystone-10000、sized DPI PASS | Dhrystone 默认500000在20min timeout，未宣称长跑 PASS |
 | lint/build | Verilator build + lint 零告警 | 不替代功能和合同 gate |
@@ -41,7 +48,24 @@
 F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍不得只凭外层摘要扩写为
 功能、Linux 或物理签核完成。
 
-### 1.3 PPA / 性能
+### 1.3 2026-07-22 full-core freeze 资格
+
+- DI-1..DI-5、OOO-1..OOO-4 已在同一
+  `design_id=sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc`
+  下 9/9 GREEN；这是必要条件，不替代全核债务、holder census 或功能 aggregate。
+- 当前 full-core `ARCH_STABLE=GAP`：`INSTRET-G1` 已由 V9C 当前设计程序级证据关闭，
+  `FDG-G1` 已由 V9D focused、全核程序、6/6 可编译 RTL 验证变体和 1/1 commit-observer
+  非空性探针重新绑定当前设计；`XRET-G1` 已由 V9E 七点 current-mode 矩阵、四条全核程序
+  语义标记、8/8 可编译 RTL 验证变体和 2/2 CSR-request/commit observer 探针重新绑定当前设计，
+  `MEM-ISSUE-G1`/`MIQ-FLUSH-G1` 已由 V9F 重新绑定，`IFU-AXI-G1` 已由 V9G 的 3/3
+  定向矩阵、109/109 module aggregate 和 18/18 current-source 可编译 RTL 验证变体重新绑定；
+  `CONTROL-EVENT-G1`、`SERIALIZE-G1` 仍开放；其余历史 P0 证据尚未全部重新绑定当前设计；census 的实例图和语义闭包
+  仍为 RED；当前 109 项模块与 official/AM/DiffTest 尚无同源 aggregate。
+- `architecture-debt-ledger.json` 是 active P0/P1 裁决的机器真源；
+  `eval/ppa/tools/arch_stable_freeze.py` 负责 exact-input audit。资格闭合前只允许诊断性
+  synthesis/STA，PPA 保持 `UNQUALIFIED`、`promotion_eligible=false`。
+
+### 1.4 PPA / 性能
 
 - CoreMark 当前回归：`6563047 cycles / 3218532 commits / CPI 2.039`；不能外推为所有
   workload 的加权 CPI。
@@ -56,47 +80,59 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 
 | ID | 项目 | 当前证据 | 关闭标准 |
 | --- | --- | --- | --- |
-| FDG-G1 | **CLOSED 2026-07-12**：`arch_trap` head0 不得呈现 backend | 旧 RTL 四类非法 FP 精确 RED；断言负探针非真空；focused 4/4 | module 87/87、AM Difftest ON 59/59、official 177/177；后续只防回退 |
-| XRET-G1 | **CLOSED 2026-07-12**：MRET/SRET current-mode 合法性 | 旧 RTL MRET-from-S/U、SRET-from-U 精确 RED；真实编码 integration 覆盖 head0/lane1 | classifier + CsrFile 边界合同已冻结；module 87/87、AM 59/59、official 177/177；后续只防回退 |
-| MEM-ISSUE-G1 | **CLOSED 2026-07-12**：lane1 memory dequeue/request/MIQ owner 同源 | 旧 RTL `fire=1/request=0` 丢事务；reviewer 负探针再锁 `request=1/fire=0` 幽灵 MIQ | eligible/available 单一事实 + MEM-I1/I2；module 87/87、AM Difftest ON 59/59、official 177/177 |
-| IFU-AXI-G1 | **CLOSED 2026-07-12**：A-update AW/W/B 随 flush 完整排水 | 旧 RTL bridge 22 RED、bridge+xbar owner deadlock 3 RED | sticky drop + 独立 shadow；focused 2/2、module 88/88、AM 59/59、official p-mode 153/153 |
-| IFU-FETCH-G2 | **CLOSED 2026-07-12**：跨页 second-page page-fault byte provenance | 旧 RTL 真实 Sv39 12 行矩阵精确 4 RED；当前 12/12 + poison + reviewer 8/8 | bridge segment split + decoder 单一长度 owner；module 89/89、lint/style/contract/build |
+| FDG-G1 | **CLOSED；V9D 于 2026-07-21 重绑当前设计**：`arch_trap` head0 不得呈现 backend | current focused：4 类非法 FP 均分类为 `arch_trap` 且 backend 0 呈现，1 个合法 FADD.S 正控制到达 backend；全核程序精确捕获 1 次非法指令 trap，capture PC/tval 与 CSR `mepc/mtval` 各 1/1，known commit observer 1 hit、非法 FP 0 提交、handler/MRET 完成；6/6 current-source 可编译 RTL 验证变体及 1/1 commit-observer 探针被动态拒绝 | `make -C npc/rv64 check-fdg-arch-trap`；module 109/109，同一 `design_id=sha256:6236b1…f2f3dc`；未生成当前 official/AM/DiffTest 同源 aggregate，后续只防回退 |
+| XRET-G1 | **CLOSED；V9E 于 2026-07-21 重绑当前设计**：MRET/SRET current-mode 合法性与精确异常 | current focused：7 点矩阵覆盖合法 MRET@M、SRET@S/M 和非法 MRET@S/U、SRET@U、SRET@S+TSR；全核合法 MRET/SRET 各 1 次 CSR 请求/提交/返回，非法 head0 MRET 与 lane1 SRET 各精确 capture 1 次、CSR 请求 0、提交 0、`mepc/mtval` 精确，lane1 更老 ADDI 正常退休；8/8 current-source 可编译 RTL 验证变体与 2/2 observer 探针被动态拒绝 | `make -C npc/rv64 check-xret-current-mode`；module 109/109，同一 `design_id=sha256:6236b1…f2f3dc`；未生成当前 official/AM/DiffTest 同源 aggregate，后续只防回退 |
+| MEM-ISSUE-G1 | **CLOSED；V9F 于 2026-07-22 重绑当前设计**：单端口 terminal1 request-fire/consume/MIQ owner birth 同一事务 | 普通双 memory uop 原子捕获；terminal0 本地地址异常时 terminal1 保持，下拍 request fire/consume/birth 各 1；15 字段身份一致，两拍反压期间 fire/consume/birth 均 0；terminal0 竞争获得端口 fire 时 terminal1 保持且 MIQ 归属 terminal0；成功发射后 3 拍无重复；8/8 可编译 RTL 验证变体被动态拒绝 | `make -C npc/rv64 check-memory-issue-lifecycle`；module 109/109，同一 `design_id=sha256:6236b1…f2f3dc`；未生成当前 official/AM/DiffTest 同源 aggregate，PPA 仍不合格化 |
+| IFU-AXI-G1 | **CLOSED；V9G 于 2026-07-22 重绑当前设计**：A-update AW/W/B 随 flush 完整排水 | current focused 3/3：AW-first/W-first、flush 同拍 first/last AW/W、AW+W+B 同拍、both-done+B-error、两拍冲刷保持、drop quiet；AxiXbar 两拍 BREADY 背压期间不提前释放 owner，后继 master 地址/数据/响应保持；18/18 current-source 可编译 RTL 验证变体被动态拒绝 | `make -C npc/rv64 check-ifu-axi-flush-drain`；module 109/109，同一 `design_id=sha256:6236b1…f2f3dc`；生产 RTL 未修改，未生成当前 official/AM/DiffTest 同源 aggregate，PPA 仍不合格化 |
+| IFU-FETCH-G2 | **CLOSED；V9H 于 2026-07-22 重绑当前设计**：跨页 second-page page-fault byte provenance | current focused：13 行 page-end 矩阵含 9 条 F2/F4/F6 fault（5/3/1），每条两拍 response backpressure 锁定事务 owner、接受后两拍禁止年轻 AR/fill/SRAM write；成功 packet 后不复位再执行 F2 证明 tail 清零非 reset-vacuous；真实 invalid-PTE F0 与 decoder F0/poison 分别覆盖零前缀和 fault suffix 净化；16/16 current-source 可编译 RTL 验证变体被动态拒绝 | `make -C npc/rv64 check-ifu-fetch-provenance`；focused 2/2、module 109/109，同一 `design_id=sha256:6236b1…f2f3dc`；生产 RTL 未修改，PMP/RRESP、完整物理 footprint、lane1 capture、fault-`tval` lifecycle 与 PTW write PMP 保持独立，PPA 仍不合格化 |
 | IFU-ACCESS-G1 | **CLOSED 2026-07-13**：精确2B footprint、PMP/RRESP 与 lane1 owner | 旧 RTL 34 RED；current F=0/2/4/6、M-fill→S、RRESP/owner/guard-page 全绿 | exact EXEC access + sized DPI + branch resolve owner 常驻回归 |
 | IFU-TVAL-G1 | **CLOSED 2026-07-14**：faulting-portion `mtval/stval` | T4G 真实 page-end offset2/4/6 与 16-bit control | packet-level fault address 跨 FIFO/branch/pending owner 保持 |
 | PTW-PMP-G1 | **CLOSED 2026-07-14**：I/D walker PTE WRITE 独立 PMP 判定 | R-only PTE deny、RW allow 与 flush/drop 正反例 | READ grant 不替代 WRITE grant；deny 无 AW/W |
-| INSTRET-G1 | 唯一 ISA-retirement 计数源 | **T4J RTL/focused 已实现**：core/final count 均滤 exception，CsrFile 接 final lanes；等待程序级证据 | exception 不计、control retire 各计一次的程序回归 |
+| INSTRET-G1 | **CLOSED 2026-07-21**：唯一 ISA-retirement 计数源 | V9C 全核 Sv39 程序：异常 lane 2/2 零增量，MRET/SRET/SFENCE.VMA=1/6/1，控制提交 8/8 精确单增量，CsrFile 边沿检查 1052 次；3/3 current-source 可编译 RTL 验证变体被动态拒绝 | `make -C npc/rv64 check-instret-retirement`；同一 `design_id=sha256:6236b1…f2f3dc`，后续只防回退 |
 
 原则：P0 未闭合前不扩大 ROB/IQ/MLP；扩并行会增加状态交叠并放大上述边界。
 
 ## 3. P1 — 状态一致性、平台语义与验证基础设施
 
-### 3.1 验证结果聚合（F0 已完成，2026-07-11）
+### 3.1 验证结果聚合（`F0-G1`：历史完成，当前冻结证据待刷新）
 
 - module runner 已同时裁决 compile/sim rc、TB 自身 PASS、FAIL/error 与失败型 `$finish`；
   三个陈旧 TB 已刷新 current contract。
 - AM runner 已上传单项失败并拒绝缺项/重复/未知/损坏行；`fp-difftest-probe` 的 FP
   destination-domain 根因已修复。
-- F0 当时 gate 为 module 86/86、AM 59/59（Difftest ON）、official 177/177；后续切片已把
-  current module gate 推进到 89/89。结果传播只需防回退，可补 child-command 注入失败 fixture
-  锁定 core-regress 的 `OVERALL_RC` 合同。
+- F0 历史 gate 为 module 86/86、AM 59/59（Difftest ON）、official 177/177；当前生产
+  `TESTS` 清单已演进为 109 项。full-core freeze 必须重新生成同一 design_id 的
+  109/109 + 177/177 + 59/59 + applicable DiffTest=0 aggregate，禁止把 86/89/100/102 等历史
+  计数改写为当前覆盖。
 
 ### 3.2 memory / flush
 
-- MIQ flush + DRAIN pop 同拍：局部动态已复现；补完整 NpcCoreTop 波形或常驻 checker。
-- retired store late B error：明确 PMEM 永不报错的平台合同，或选择可承载精确错误的退休策略。
-- 普通 FENCE：当前 legal no-op；用 RVWMO/多 observer litmus 决定实现范围。
+- `MIQ-FLUSH-G1`：**CLOSED；V9F 于 2026-07-22 重绑当前设计**。环形队列的
+  LOAD/PROBE/DRAIN 混合集合证明流水线冲刷只保留未消费 DRAIN，从 keep-set
+  精确扣除同拍 fired head，并保持 owner identity 与 wrapped FIFO 顺序；2/2
+  可编译 RTL 验证变体被动态拒绝；额外锁定 valid head 但 no-pop-fire 时不得误扣除，
+  MIQ 共 3/3 变体被动态拒绝；`pop_fire` 还必须满足 exact-owner match，owner mismatch
+  由 `OOO_ASSERT` 定义为非法接口激励。DRAIN 结论只到
+  transport-irrevocable/nokill 物理写请求边界，不等同于已架构退休。
+- `STORE-BRESP-G1`：retired/device late-B error 已由当前 OOO-3 的 request/B/retirement
+  生命周期、精确 cause/tval 和编译成功 RTL 验证变异闭合；账本保存同源证据，后续只防回退。
+- `FENCE-G1`：V9M 已把普通 FENCE 的 pending-system full-drain 合同绑定当前 design-id；
+  store→FENCE→device-read 定向程序观测到完整 memory-idle 等待，CoreGlue→ControlPlane
+  `mem_idle` 运行时连接检查通过，两份可编译负向 RTL 版本被对应 testbench 精确检出，当前模块
+  aggregate 为 109/109。该单项现为 `CLOSED`，不外推 full-core ARCH_STABLE 或 PPA。
 - Sv39 device mapping 与标准 lane/size 已由 T4I bridge+xbar+device/DPI 联测关闭；动态设备内部
   B `SLVERR` 的退休后精确 trap 仍需 ROB owner 或无副作用 write-probe，不能由静态 PMA 冒充。
-- A 扩展能力声明限定为 single-hart local model；多主平台需要 reservation invalidation 与
-  coherent/exclusive transport。
+- `A-COHERENCE-G1`：A 扩展当前仅声明 single-hart local model；若 full-core 产品 cohort 明确
+  排除多主 coherence，可用规范合同解析为 `EXCLUDED_BY_COHORT`，否则保持范围决议未闭合。
 
 ### 3.3 control plane
 
-- B2 后续：在已完成 fetch-PC 单源化基础上，统一 kill/reason/flush_backend 的消费合同。
-- B7 serialize-at-retire：仍是高风险专项；必须在 P0 与验证聚合修复后，再评估
+- `CONTROL-EVENT-G1`：在已完成 fetch-PC 单源化基础上，统一流水取消、原因编码与
+  `flush_backend` 的单一 control-event 生产者和消费合同。
+- `SERIALIZE-G1`：serialize-at-retire 仍是高风险专项；必须在 P0 与验证聚合修复后，再评估
   `OOO_CSR_QUEUE_HEAD=1` 和 system/trap ROB 公民化。
-- true WFI、selective SFENCE/SINVAL、vectored trap、完整 debug/trigger 作为独立能力项，
-  不与当前合同修复混刀。
+- `WFI-G1`、`SFENCE-SINVAL-G1`、`VECTORED-TRAP-G1`、`DEBUG-TRIGGER-G1` 作为独立能力项；
+  full-core cohort 必须逐项明确 required 或由规范合同显式排除，不与当前合同修复混刀。
 
 ## 4. P2 — 性能与 PPA 演进
 
@@ -135,17 +171,22 @@ burst refill 与独立 PTW 资源；并须同刀设计 response identity、kill/
   arbiter 已进入生产路径。
 - B4：pending branch/jump/memory、prefetch/BTC、synthetic lane1-ret 等可分离死模块已删除；
   剩余大文件拆分与 owner 归位仍是维护性 backlog。
-- XRET-G1：classifier current-mode legality 已闭合；S-mode MRET 与 U-mode lane1 SRET 均以
-  precise illegal-instruction 进入 CsrFile trap，`mepc/mtval` 与 no-xRET-commit 常驻回归通过。
-- MEM-ISSUE-G1：lane0 exception 与 lane1 normal memory 的端口资格、IQ fire、request mux 与
-  MIQ owner 已收敛到不依赖 ready 的 eligible/available 单一事实；正向 co-fire 与 head-blocked
-  反例均为常驻回归，`MEM-I1/I2` 立即断言基线已提升到 37。
+- XRET-G1：classifier current-mode legality 已闭合并由 V9E 重绑当前设计；S-mode MRET 与
+  U-mode lane1 SRET 均以 precise illegal-instruction 进入 CsrFile trap，`mepc/mtval`、
+  no-xRET-request/commit、合法 MRET/SRET 正控制与 lane1 更老指令退休均有可执行证据。
+- MEM-ISSUE-G1：当前两级 memory reservation terminal 路径已以接受握手
+  `valid && ready` 定义 request fire；terminal consume 与 MIQ owner birth 与该 fire 同拍一致。
+  edge-old terminal0 本地终结时 terminal1 不 look-through；下拍发射、反压保持、
+  15 字段事务身份与禁止重复发射均为常驻定向回归。
 - IFU-AXI-G1：A-update write owner 与 fetch semantic owner 已分离；flush 只 sticky-drop 旧语义，
-  AW/W/B 完整排空后回 IDLE。bridge 22 RED、bridge+xbar 3 RED 与 12 条非真空断言均已闭合。
+  AW/W/B 完整排空后回 IDLE。V9G 已在当前 design_id 下锁定同拍/错拍 AW/W/B、BRESP
+  优先级、两拍冲刷与 AxiXbar BREADY 背压 owner 释放；18/18 可编译 RTL 验证变体均被动态拒绝。
 - IFU-FETCH-G2：bridge 已用 3-bit split 保存 first/second-page response provenance，decoder
-  按真实 C/32 byte range 映射并净化 faulted inst；真实 Sv39 B=2/4/6 矩阵与 semihost poison
-  常驻。PMP/RRESP/物理读宽、branch 后 lane1 page/access-fault capture、faulting-portion tval
-  明确仍在开放项。
+  按真实 C/32 byte range 映射并净化 faulted inst；V9H 在当前 design_id 下锁定 13 行
+  page-end 矩阵、真实 invalid-PTE F0、成功 packet 后无复位 stale-tail 反例、两拍 response
+  backpressure 与接受后静默，并动态拒绝 16/16 个 current-source 可编译 RTL 验证变体。
+  PMP/RRESP、完整物理 footprint、branch 后 lane1 page/access-fault capture、faulting-portion
+  tval 与 PTW write PMP 明确仍由独立条目跟踪。
 - IFU-ACCESS/TVAL/PTW-PMP：exact halfword access、lane1 owner、faulting-portion tval 与 I/D
   PTE WRITE authorization 已分别由 IFU-ACCESS-G1、T4G、T4F 关闭。
 - T4I standard AXI lane：LSU adapter、AWSIZE、AW/W/B owner 与标准设备/DPI lane 已闭合；

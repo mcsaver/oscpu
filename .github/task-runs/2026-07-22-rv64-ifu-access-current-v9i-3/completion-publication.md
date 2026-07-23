@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-22-rv64-ifu-access-current-v9i-3
+- `trace_id`: e2e:2026-07-22-rv64-ifu-access-current-v9i-3
+- `task_slug`: rv64-ifu-access-current-v9i
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 0c9816df84fb4e64fc81b6649380e91dc670155f6bc085b6f46c0b652db37caf
+- `task_report_md_sha256`: d11f5cc60780c61853f0edb361dd3de9deac7bd92fa547662dbbf5cddd1250b9
+- `run_manifest_json_sha256`: f214939ce557d52537ec55ee577c25282f1340267bcd959846c4d514d237be49
+- `context_brief_md_sha256`: a4710628bdc42431d70fa55ed9dd0feaad378498c9fe8efd991794e0cefd346a
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 063732282e50f0951fd406af19d547c58c8665bb962909f3176659ad3f184adf
+- `dispatch_log_md_sha256`: b02770c682058f8c372273b51c993175bf9daf83e18681caf0b329c2cef825bd
+- `nodes_tsv_sha256`: da78452776c97345b697d6a7cc4e765ba22e087f86453726d84d8a108b374fdc

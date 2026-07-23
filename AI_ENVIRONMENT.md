@@ -9,14 +9,23 @@
 3. 读取相关 `instructions/*.instructions.md`、module memory 和模块 README/spec。
 4. 按目标选择 domain profile；AI 环境改动用 `agent-system`，RV64 PPA 同时考虑 `npc`、
    `verilator-tapeout`、`yosys-sta`，不能用环境 profile 代替业务 gate。
-5. 派发本地 RV64 RTL 子 agent 时，先用 `.github/skills/prepare-rtl-task-contract/` 生成并校验
-   最小权限契约；平台 review 只隔离当前子任务，不自动关闭长期父目标。
+5. 派发本地 RV64 RTL 子 agent 时，用 `.github/skills/prepare-rtl-task-contract/` 的 canonical
+   `create → validate → render` 生成并原样派发最小权限契约；validate 失败或手改边界的结果只记
+   `candidate-only`，范围扩展另建 versioned JSON。主 agent 使用 `rv64-hardware-professional` 术语描述任务，
+   `render` 追加 RV64 微架构/RTL/验证/PPA 语境、正向本地作用域声明和多义术语的对象/层级/作用域/
+   工程目的限定，且不改变既有工具或推理能力；平台 review 只隔离当前子任务并留在主 agent 记录中，
+   不自动关闭长期父目标。用户可见进度与终审摘要也先写具体 module/signal/transaction、EDA 动作和证据，
+   协调状态单独落 task-run，不反复复制到 RTL 技术正文；该分层不得削减负向 RTL 版本、断言或覆盖能力。
 6. 实施、验证、记录后运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。
 
 `brief` 只有在 Markdown/JSON 明确给出 `recall_status=complete` 时才算召回成功；显式 profile、
 canonical 规则或独立关键词 focus 缺失，以及任何必需 chunk 装不进 `max_tokens`，都会非零退出并
 标记 `recall_status=failed`。CLI/API 与 e2e runner 的 bounded brief 默认预算统一为 2400 tokens，
 runner 可用 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 显式覆盖；调用方不得把预算失败降级为 WARN 后继续宣称 profile GREEN。
+
+runner 从 `task_slug` 提取独立 focus 时会过滤生命周期噪声。版本/迭代身份必须写成受控相邻片段 `revtag-v<数字><可选字母>`，只有该显式片段会从 focus 删除；裸 `v8`、`v2ray`、内部 `v8a` 等继续参与召回，畸形或重复 `revtag` 直接失败。task slug 本身仍原样进入 report/manifest/DB，因此身份可审计、领域语义不靠启发式猜测，non-history fail-closed 边界不变。
+
+收尾阶段若用本轮稳定结论作为 task-specific e2e 的独立 focus，先通过 `update-stored` 发布 project/module memory，再使用其中已经存在的领域词构造 slug。旧 task-run 仍不得自证，`no independent primary focus match` 的 blocked run 只保留为顺序反例，不能替代 completed evidence。
 
 e2e runner 只接受原子落盘且顶层头字段唯一的召回产物：`context-brief.md` 必须以
 `# Agent Brief` 开头并绑定 `ok=true`、`recall_status=complete`、请求 profile、硬 token budget，且
@@ -119,12 +128,21 @@ python3 scripts/github_index_db.py delivery-audit
 ## 新增规则
 
 - 新增 skill：创建 `.github/skills/<name>/SKILL.md`，再运行 `python3 scripts/github_index_db.py skill-audit`。
-- 本地 RTL 子任务派发：先运行 `rtl_task_contract.py create/validate/render`，把 JSON 路径和 SHA-256
-  写入当前 task-run 的 dispatch log；`agent-system` profile 的 `rtl-task-contract` 节点负责正例和
-  mutation 反例门禁。
+- 本地 RTL 子任务派发：先运行 `rtl_task_contract.py create/validate/render`；`create` 自动声明输出
+  JSON 自路径，`render` 自动绑定该 JSON 的路径与 SHA-256（不绑定设计 `contract.md`）。把这两项
+  逐字写入当前 task-run 的 dispatch log。Windows/Codex→WSL 工程命令按 single-flight 调度，当前唯一
+  shell ownership 可以交给一个契约授权节点。需要发现遗漏或核对源码时默认使用 `workspace-files`；
+  只有限定材料复核才使用 `--self-contained-no-tools` 和 `--supplied-material`，使 JSON 原生声明
+  `allowed_commands=[]`、无写路径，并只消费提示中冻结的 RTL 材料。所有模式都保留 unknowns、替代假设、反例、
+  `scope_extension_request`、置信依据和 `inconclusive` 出口，不得强制 PASS 或设置固定发现数量上限。
+  任务自然语言使用 `rv64-hardware-professional` 术语；子 agent 渲染提示不携带 `review_pending` 等协调
+  状态，真实 RTL 标识符及 CPU 特权/保护/访问异常术语不改写。该措辞剖面不使用关键词黑名单，并与
+  能力分档正交。`agent-system` profile 的 `rtl-task-contract` 节点负责 workspace-files、no-tools、硬件
+  语境渲染和合同范围反例门禁。
 - 新增 agent：创建或更新 `.github/agents/<name>.agent.md`，并同步 `.github/agents/AGENT_INDEX.md`。
 - 新增长期工作流：先写 path-specific instruction，再接入相关 agent、profile/module contract 和反例 gate；单次 task-run 只能留证，不能成为规则依赖。
 - 新增 e2e profile：添加 `.github/e2e/profiles/<name>.tsv`，必要时补 `.github/e2e/modules/<module>.md` 和 `scripts/e2e/modules/*.sh`，再运行 `scripts/agent-e2e.sh --validate-all-profiles`。
+- 修改 live skill/instruction/profile 后，手工 `brief` 前对相关路径运行 `github_index_db.py refresh`；正式 `agent-e2e.sh` 会在生成 startup brief 前自动重建 active live 索引并留下 `context-live-index-refresh.log`，目录级排除 retained/history，且 missing 状态只更新实际扫描且未排除的路径，从流程上拒绝旧规则 chunk 假装成当前召回而不破坏 DB-first memory 状态。
 
 ## 禁放目录
 

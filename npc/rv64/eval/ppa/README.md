@@ -5,6 +5,41 @@ dual-issue out-of-order core. Functional, architectural, evidence, and timing
 gates are evaluated before any balanced score. A score can never compensate
 for a failed hard gate or a regressed qualified axis.
 
+## Full-core architecture-stable audit
+
+正式 PPA 之前先运行本地 RV64 RTL full-core 冻结资格门：
+
+```bash
+bash npc/rv64/eval/ppa/run-arch-stable-audit.sh
+```
+
+普通模式验证检查器正例/反例、重新生成 exact-input 结果并复核其 digest；当前存在真实架构
+债务时命令仍成功交付 `architecture_freeze=GAP`，但绝不授予稳定资格。只有 promotion
+入口使用以下命令，且所有 P0/P1、holder census、同源功能 aggregate 和冻结输入全部闭合时
+才允许返回成功：
+
+```bash
+bash npc/rv64/eval/ppa/run-arch-stable-audit.sh --require-stable
+```
+
+机器入口为 `arch-stable/full-core-current.json`，P0/P1 真源为
+`../../design/arch/architecture-debt-ledger.json`；`TESTS` 清单由当前
+`../../testbench/Makefile` 动态推导，不接受历史固定计数。该门只签发架构稳定 cohort，结果
+始终保持 `ppa=UNQUALIFIED`、`promotion_eligible=false`，后续仍需独立建立正式 PPA 基线。
+
+冻结声明与 normative cohort 均使用带 `kind/path/sha256` 的 artifact；config、generated
+header、RTL/test filelist、全部 design spec、完整 testbench source/support/runner、EDA 工具
+可执行文件及版本输出、Liberty/macro inventory、SDC、程序镜像、仿真器和冻结工作流自身必须
+exact-membership 一致。检查器会调用当前架构 hard-gate 与 producer-holder census builder
+重算 source closure，不接受仅填写 GREEN/PASS 的摘要。
+
+同源 functional aggregate 必须逐项绑定模块测试的 compile/simulation rc 与唯一 PASS 原始日志；
+official 177/177、AM 59/59、DiffTest mismatch=0、CoreMark 10 次且 CRC `0xfcaf`、
+Dhrystone 10000 次及 GOOD TRAP 均需绑定冻结 config/simulator/image 和原始日志。测试清单比较采用
+无重复的 exact set，不把合法的清单排序差异误判为功能变化。每个语义 marker 必须作为完整行
+恰好出现一次；空日志、重复 marker、非 canonical 路径，以及通过 symlink、hardlink 或等价
+device/inode 身份复用同一日志文件，均按结构错误拒绝。
+
 ## Claim tiers
 
 - proxy_champion compares fixed-image performance and logic-area proxy. Power

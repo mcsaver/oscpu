@@ -1,0 +1,19 @@
+{
+  "verdict": "pass",
+  "findings": [
+    "根因定位充分：mem_issue_res_valid_q 所代表的 registered Universal owner 只使 iq_issue0_ready_w 和 issue0_valid_o 局部停止；issue1_ready_w 不依赖该 reservation，且 OooIntIssueSelect8 将 first_alu_onehot_w/first_alu_valid_w 导向 issue1，因此不能把 issue0 停止判成全局冻结。",
+    "静态硬门必须作为不可拆分的语义链审计：backend owner 绑定→dispatch/IQ 透传→selector 的 owner-to-first-ready-ALU 选择→IQ 不以 owner 屏蔽 issue1→backend issue1 ready 独立于 reservation。只有五段同时成立，才可窄化豁免 reservation 导致的 issue0 局部停止；任意 unrelated older-valid 全局阻塞仍应判 RED。",
+    "真实 backend 定向场景足以覆盖关键反例：在 mem_req_ready=0 下由真实 memory 事务建立并保持 mem_issue_res_valid_q，使 older dependent ALU 和同资源 memory 保持不可发射，同时用事务标签确认 younger independent ALU 经 issue1 完成 valid&&ready 握手；blocked_dependents_only、younger_independent_issued、different_resource_issued 和 global_freeze_cycles=0 共同区分选择性阻塞与全局冻结。",
+    "定向证据不得把流水取消或分支恢复杀掉的 uop 计为有效前进；采样窗口应排除或显式标记 flush/kill，并校验 issue1 payload 的事务标签及生产者归属。OOO-2 只要求调度 terminal 的有效握手，不据此外推完成资格、写回或提交正确性。",
+    "五个逐边定向变异形成充分的假绿防线，但每个变异必须先 compile-success，再由静态审计或定向 TB 因目标语义断裂而失败；语法错误、未 elaboration 或无关断言失败不能作为检出证据。",
+    "architecture-current.json 中 selective_scheduling 的设计绑定和上述静态、正向及负向证据落地前，当前状态仍应保持 RED；绑定完成后才足以支持仅 OOO-2 scoped GREEN。"
+  ],
+  "required_counterexamples": [
+    "保持真实 mem_issue_res_valid_q owner 多周期驻留，同时只有一个带明确事务标签的 independent ALU ready；证明它从 issue1 valid&&ready fire，且窗口内 global_freeze_cycles=0。",
+    "在同一窗口保留更老的 dependent ALU 和同资源 memory；证明二者分别因生产者未完成和 Universal 资源占用而被阻塞，不能误从 issue1 发射。",
+    "加入更老但与 owner 无依赖、且不使用 Universal 资源的 ALU；若它因 older-valid 或 reservation 被全局抑制，静态门或 TB 必须失败。",
+    "分别切断 backend 的 mem_issue_res_valid_q owner 绑定、dispatch/IQ owner 透传、selector 的 first-ready-ALU 导向、IQ issue1 的 owner 独立性、backend issue1_ready_w 的 reservation 独立性；每个变异均须编译成功且被独立检出。",
+    "对 issue1 fire 的计数加入 flush/kill 与事务标签核对：被流水取消或分支恢复杀掉的条目不得冒充目标 younger independent ALU，其他 uop 的握手也不得满足该断言。"
+  ],
+  "claim_boundary": "完整链路硬门、真实 reservation backend 场景、精确事务身份检查、compile-success 逐边负向变异及 architecture-current.json 设计绑定齐备后，只能把 OOO-2 selective scheduling 标为 scoped GREEN；该结论不覆盖 DI/其他 OOO 门、分支恢复、完成资格、生产者写回归属、提交正确性，也不授权进入 PPA，其余门继续保持 RED。"
+}

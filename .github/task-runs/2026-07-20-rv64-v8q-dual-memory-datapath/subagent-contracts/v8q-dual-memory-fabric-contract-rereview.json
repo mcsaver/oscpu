@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-dual-memory-fabric-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对照首轮F0-G01至F0-G05逐项复核合同与fresh证据是否真正闭合；仅依据随附事实返回pass或gap",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract-review-result.json",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract-review-resolution.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "仅限本地RV64 RTL合同复核；不得使用工具、shell、文件系统、网络、账号、凭据、外部服务或写盘。",
+      "F0-G01已冻结全系统同沿同步高有效reset：rst组合期所有握手输出静默，沿上state/owner/type/rr/seen全清零，系统共同放弃reset前事务；fresh release/assert TB逐项进入READ_ADDR、READ_RESP、AW-only、W-only、WRITE_RESP后reset，并证明解除后孤儿R/B不被消费或暴露。",
+      "F0-G02已改为事务界公平：仅在两个lane每个IDLE捕获点持续合法请求且获选事务最终terminal的progress假设下，等待lane必须在terminal后的下一个IDLE捕获点获选；无progress不声明周期界。fresh公平TB与fixed_lane0_priority、rr_update_on_capture变异闭合。",
+      "F0-G03明确read-present=ARVALID、write-present=AWVALID或WVALID，检查覆盖所有非reset状态；IDLE任一lane违例时release/assert均全局不捕获，状态和所有握手不变，assert额外以ARB-REQ-CLASS-ONEHOT非零退出；另一lane同时合法也不得通过。",
+      "F0-G04固定12个变异族，每项独立记录compile_success、elaborated、activated、target_rejected并要求唯一目标failure：read/write早释、两个seen tieoff、R/B广播、RREADY交换、固定优先、rr提前更新、IDLE fallthrough、reset残留；fresh run 12/12通过。",
+      "F0-G05 runner绑定RTL、TB、checker、mutator、runner、spec/contract、filelist/Makefile、architecture checker/manifest完整闭包；run_id=v8q-f0-20260720T030524Z-846580，RTL sha=f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7，closure sha=54018702734699fc4df6aeb14f20c0d6b69b56167f210e8b376c53839e444ce8，pre/post一致；唯一总PASS在所有profile、10个checker负例及12变异后生成。",
+      "claim checker剥离注释后fail-closed检查唯一非空module、五态、owner/type、seen、exact isolation、rr写点、reset与assert marker，并证明canonical vsrc无实例；architecture checker仍为DI-5/OOO-3/overall RED、PPA UNQUALIFIED，canonical architecture manifest摘要未修改。"
+    ]
+  },
+  "deliverables": [
+    "返回严格JSON：verdict=pass|gap；gap_status对象逐项列出F0-G01至F0-G05为closed或open及理由；remaining_blockers数组；claim_boundary_ok；contract_compliance必须明确tools_used=false、filesystem_reads=false、writes=false、network=false。"
+  ],
+  "success_criteria": [
+    "五个原始GAP必须逐项有明确合同语义和对应可执行fresh证据；任一仅文本声明、旧digest、未激活mutation、非唯一失败或越级claim均判gap，否则pass且remaining_blockers为空。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

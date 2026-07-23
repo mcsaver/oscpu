@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "task_id": "v8l-global-producer-implementation-review",
+  "scope": "local RV64 RTL ProducerId holder census and no-live-reuse evidence review",
+  "objective": "Review only the supplied implementation and evidence digest for blockers, common-mode false-green risks, and claim-boundary violations.",
+  "permissions": {
+    "tools": "none",
+    "filesystem": "none",
+    "network": "none",
+    "shell": "none",
+    "writes": "none"
+  },
+  "required_checks": [
+    "Every current registered full ProducerId or owner token holder is either directly represented in the union or tied to a live tracker entry.",
+    "Birth uses one exported full ProducerId and is blocked by the edge-old full-P holder union; death does not permit same-edge reuse.",
+    "The memory IntIQ-to-tracker handoff has no backpressure or transfer-edge lease hole.",
+    "The independent tests and compile-success mutations do not merely restate production mask logic.",
+    "Static evidence cannot self-promote dynamic, architecture, or PPA claims.",
+    "Any conclusion remains scoped to the supplied local RTL facts and evidence."
+  ],
+  "forbidden_actions": [
+    "Do not request or use tools.",
+    "Do not infer security, network, deployment, architecture-wide GREEN, or PPA promotion.",
+    "Do not treat a marker string alone as proof when the digest supplies no independent consequence."
+  ],
+  "output_schema": {
+    "verdict": "pass|gap|fail",
+    "blockers": ["string"],
+    "false_green_risks": ["string"],
+    "residual_risks": ["string"],
+    "overclaims": ["string"],
+    "claim_boundary": "string"
+  }
+}

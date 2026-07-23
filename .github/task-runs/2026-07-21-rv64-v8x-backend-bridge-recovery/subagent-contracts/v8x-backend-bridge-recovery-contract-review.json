@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8x-backend-bridge-recovery-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "工作对象为本地 RV64 Verilog/SystemVerilog 处理器工程；只依据随附硬件事实审查 backend MIQ 与真实 dual-memory bridge 的选择性分支恢复联合轨迹是否足以关闭 V8W verification gap，并主动寻找假绿反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/SPEC.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/subagent-contracts/v8x-backend-bridge-recovery-contract-review.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "待验证轨迹为同 bank MIQ [A,B] 与 bridge active=A/station=B；A/B 均是 younger ordinary LOAD，older branch 的单拍 mispredict 只使 backend MIQ owner effective-killed，wrapper global flush 保持 0。",
+      "A 已经完成一次 AXI AR handshake并在 READ_DATA 等待 R；B 只驻留 bridge station。A 的迟到 R 必须产生 drop(A) 并精确 pop MIQ head A，禁止 WB、commit、cache fill或第二个 AR。",
+      "A pop 后，station B 必须晋升 active；backend MIQ persistent killed bit此时对 B 成为 exact head authority，bridge 在 pre-AXI 状态产生 drop(B)，backend精确 pop B。",
+      "最终要求 drop/MIQ-pop/collector-terminal 均精确两次且身份顺序 A 后 B；tracker、collector、MIQ、ROB和两个 bridge归零/idle，A/B无 WB或commit，共享 AXI AR fire 总数仍为1。",
+      "接口直接连接 backend request、expected、tracker-expected、station-expected、SQ-query、drop、owner-residency和translate信号到 OooDualMemBridgeWrapper；不由 testbench 伪造 bridge ready/response/drop/SQ allow。",
+      "至少一个 compile-success RTL mutation 必须破坏承重跨模块边并由focused test拒绝；相邻 V8W backend、bridge、wrapper和integration回归仍需通过。",
+      "本切片只关闭该联合动态覆盖洞；OOO-4、DI-5、OOO-3、overall架构继续RED，PPA为UNQUALIFIED且promotion_eligible=false。"
+    ]
+  },
+  "deliverables": [
+    "仅输出严格 JSON，字段 verdict(pass或gap)、blockers、false_green_risks、required_observations、required_mutations、recommended_refinements；每项必须落到本地 RV64 RTL 信号或仿真事件。"
+  ],
+  "success_criteria": [
+    "只有当真实连接、身份顺序、exactly-once terminal、无目标/WB副作用、最终守恒以及compile-success变异敏感性都可独立证伪时 verdict=pass；否则 verdict=gap并给出最小修订。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

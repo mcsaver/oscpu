@@ -2,6 +2,9 @@
 
 ##结果文件：由 prepare-result 在实际运行测试前初始化
 RESULT = .result
+# 可选的逐项原始仿真日志目录。默认留空以保持交互行为；F0-G1 同版本
+# 功能聚合设置该目录，使 59 个本地 RV64 测试各自保留独立原始输出。
+RAW_LOG_DIR ?=
 
 ##颜色定义
 COLOR_RED   = \033[1;31m
@@ -25,7 +28,19 @@ $(ALL): %: Makefile.%
 ##4.删除临时Makefile
 Makefile.%: tests/%.c latest | prepare-result
 	@/bin/echo -e "NAME = $*\nSRCS = $<\ninclude $${AM_HOME}/Makefile" > $@
-	@if make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS); then \
+	@raw_log=""; \
+	if [ -n "$(RAW_LOG_DIR)" ]; then \
+		mkdir -p "$(RAW_LOG_DIR)"; \
+		raw_log="$(RAW_LOG_DIR)/$*.log"; \
+	fi; \
+	if [ -n "$$raw_log" ]; then \
+		make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS) >"$$raw_log" 2>&1; \
+		rc=$$?; \
+	else \
+		make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS); \
+		rc=$$?; \
+	fi; \
+	if [ "$$rc" -eq 0 ]; then \
 		printf "[%14s] $(COLOR_GREEN)PASS$(COLOR_NONE)\n" $* >> $(RESULT); \
 	else \
 		printf "[%14s] $(COLOR_RED)***FAIL***$(COLOR_NONE)\n" $* >> $(RESULT); \

@@ -1,0 +1,21 @@
+{
+  "contract_json": ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/subagent-contracts/v8y-speculation-recovery-contract-review-v1.json",
+  "contract_json_sha256": "0ea2cc8e0297d9e2d5ac0672853fcda0e7a7e5316adeba50ab6407192f8e18a4",
+  "mode": "self-contained-no-tools",
+  "verdict": "gap",
+  "blockers": [
+    "add a real oldest-mispredict versus younger-mispredict control scenario",
+    "cover circular ROB age across index wrap",
+    "derive completion and retirement violations from full-ProducerId ledgers",
+    "activate every metric with related compile-success RTL verification mutations",
+    "bind V8Y, V8D and V8X under one production RTL digest and suite run"
+  ],
+  "implemented_response": {
+    "linear_and_wrap_ledgers": true,
+    "same_binary_v8y_v8d_v8x": true,
+    "full_pid_completion_retire_counts": true,
+    "mutation_matrix_size": 9,
+    "dedicated_hash_bound_evidence": true
+  },
+  "claim_boundary": "Review did not promote OOO-4.  Promotion requires the implemented executable evidence to pass; DI-1, DI-2, overall architecture and PPA remain excluded."
+}

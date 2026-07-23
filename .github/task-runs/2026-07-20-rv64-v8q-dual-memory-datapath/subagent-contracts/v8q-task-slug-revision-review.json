@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-task-slug-revision-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只根据冻结材料复审本地 e2e task-slug 显式 revision 归一化是否关闭误删与假非空反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "scripts/e2e/lib/report.sh",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-task-slug-revision-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "算法：只有受控相邻片段 revtag-v加数字及可选字母被视为 revision；畸形或重复 revtag 非零。裸 v8、v2ray、内部 v8a 保留。revision 删除在去 stopword、数字、重复及截断前完成；过滤为空非零；task_slug 原文仍绑定 report、manifest、DB。",
+      "回归：受控 contract-revtag-v8q 删除 revision；纯生命周期加 revtag-v8q 非零；畸形 revtag-latest 非零；JavaScript V8、v2ray、内部 v8a 保留；八个业务词加 revision 仍保留八词。",
+      "forward evidence：函数 smoke、agent-system 10/10 completed、recall_status complete、strict guard PASS；run 前后既有 freshness 输入 SHA 与 mtime 不变。"
+    ]
+  },
+  "deliverables": [
+    "返回严格 JSON，逐项裁决 SLUG-G01 与 SLUG-G02，并列出仍存 blocker 或反例"
+  ],
+  "success_criteria": [
+    "不得调用工具、shell、文件系统或网络；不得写文件；只评价归一化与审计身份边界"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

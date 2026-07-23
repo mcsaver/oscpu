@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8s-f2-implementation-evidence-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对冻结的 v8s/F2 canonical 双 memory 实现与验证证据做独立反例审查，判断证据是否只足以支持 architecture_checkpoint，并指出假绿、覆盖洞或越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/profile-summary.log",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-implementation-evidence-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "冻结运行 v8s-f2-20260720T074315Z-998765 为 PASS，claim=architecture_checkpoint，source closure=31854bae188c2099c96b98aa2971359bafc4c6045efed1cdcb1fbd9c14f8f62e；F1 predecessor fresh PASS 且 canonical_stage=F2_PROMOTED。",
+      "6 个 profile 全部 PASS：focused release/assert、legacy assert、NpcCoreTop release/assert lint、NpcSimTop assert+stats lint；full-top 只声明 lint/elaboration，不声明动态系统验证。",
+      "11 项 compile-success mutation 均 elaborated、activated、target-rejected：bank1 tieoff、bank swap、same-bank age invert、MIQ1 completion alias、double WB0 claim、SQ terminal1 tieoff、duplicate drop token、killed mem1 WB escape、ordinary-store direct write、singleton priority bypass、release-edge lookthrough。",
+      "实现事实：captured addr[3] 分 bank；不同 bank 双 grant、同 bank 按 edge-old ROB distance 选较老；独立双 MIQ/expected/ROB-open/response/drop/residency；全局两槽 WB；32-token/10-ingress terminal pending set；双 SQ fill/terminal；ordinary store 仅 probe；singleton launch 与 release edge 均禁 ordinary lookthrough；kill 屏蔽副作用但 identity 保留到 exact terminal。",
+      "Directed 覆盖不同 bank 双 fire/双 WB、同 bank older、反向 mapping、非对称 request/response backpressure、consume 00/01/10/11、EX 占 WB0 后 memory hold/recovery、双 store probe success/fault、singleton launch/release、selective kill race 和 full flush 双 exact-drop。",
+      "硬边界：DI-5、OOO-3、overall 均 RED，PPA UNQUALIFIED，promotion=false；F3 final-PA SQ byte query/forward/replay 与 F4 64-cycle sustained IPC/system workload/equal-capacity banking/arch-stable PPA 均 absent。",
+      "本节点只收到冻结事实与 outcome matrix，不读取 raw RTL/log/checker/mutator，不复算 hash，因此只能做限定材料一致性与反例复核，不能声称 repository audit 或形式完备性。"
+    ]
+  },
+  "deliverables": [
+    "输出 PASS/GAP/INCONCLUSIVE，并分别给出 evidence_consistency、contract_coverage、mutation_adequacy、counterexamples、remaining_blockers、unknowns、alternative_hypotheses、scope_extension_request、claim_boundary_ok、confidence_and_basis"
+  ],
+  "success_criteria": [
+    "优先寻找 request/consume、ROB age、双 MIQ identity、global WB、terminal/SQ、kill/drop、singleton 与 hierarchy 的共同错误或假绿；PASS 只授权 architecture_checkpoint"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

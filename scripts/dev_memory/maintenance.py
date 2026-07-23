@@ -2097,17 +2097,23 @@ def evidence_asset_candidates(repo_root: Path, requested_paths: Sequence[str]) -
             continue
         for path in paths:
             rel_path = repo_path(path.relative_to(repo_root))
+            run_root = task_run_root_from_rel_path(rel_path)
+            relative_parts = Path(rel_path).parts[3:] if run_root else ()
+            is_run_manifest = (
+                run_root.startswith(".github/task-runs/")
+                and len(relative_parts) == 1
+                and relative_parts[0] == "run-manifest.json"
+            )
             if (
                 rel_path.startswith(".github/cache/")
                 or rel_path.startswith(".github/db-backup/")
                 or rel_path.startswith(".github/tmp/")
-                or not is_raw_evidence_path(rel_path)
-                or is_evidence_pointer_path(rel_path)
+                or (not is_raw_evidence_path(rel_path) and not is_run_manifest)
+                or (is_evidence_pointer_path(rel_path) and not is_run_manifest)
             ):
                 continue
             if ".git/" in rel_path or rel_path in seen:
                 continue
-            run_root = task_run_root_from_rel_path(rel_path)
             run_id = task_run_id_from_rel_path(rel_path)
             if not run_root or not run_id:
                 continue
@@ -2165,13 +2171,18 @@ def write_evidence_index_markdown(
 ) -> str:
     target = repo_root / run_root / "evidence-index.md"
     run_id = Path(run_root).name
+    ordinary_assets = [
+        asset
+        for asset in assets
+        if not is_evidence_pointer_path(str(asset.get("path", "")))
+    ]
     fields: dict[str, str] = {}
     if assets:
         fields = {
             "task_slug": str(assets[0].get("task_slug", "")),
             "profile": str(assets[0].get("profile", "")),
         }
-    total_bytes = sum(int(asset.get("size_bytes", 0)) for asset in assets)
+    total_bytes = sum(int(asset.get("size_bytes", 0)) for asset in ordinary_assets)
     lines = [
         "# Evidence Index",
         "",
@@ -2180,13 +2191,13 @@ def write_evidence_index_markdown(
         f"- `task_id`: {run_id}",
         f"- `task_slug`: {fields.get('task_slug', '')}",
         f"- `profile`: {fields.get('profile', '')}",
-        f"- `asset_count`: {len(assets)}",
+        f"- `asset_count`: {len(ordinary_assets)}",
         f"- `total_size_bytes`: {total_bytes}",
         "",
         "## 证据资产",
         "",
     ]
-    for asset in sorted(assets, key=lambda item: str(item["path"])):
+    for asset in sorted(ordinary_assets, key=lambda item: str(item["path"])):
         markers = json.loads(str(asset.get("markers") or "{}"))
         marker_text = json.dumps(markers, ensure_ascii=False, sort_keys=True)
         lines.extend(
@@ -4674,13 +4685,50 @@ def validate_runtime_artifact_run(
     else:
         errors.append("run manifest evidence must be an object")
 
-    asset_count = conn.execute(
-        "SELECT COUNT(*) AS c FROM evidence_assets WHERE run_id = ?",
+    asset_rows = conn.execute(
+        "SELECT path, kind FROM evidence_assets WHERE run_id = ? ORDER BY path",
         (run_id,),
-    ).fetchone()["c"]
-    if int(asset_count) < expected_assets:
+    ).fetchall()
+    asset_paths = [str(row["path"]) for row in asset_rows]
+    evidence_prefix = evidence_dir.rstrip("/") + "/" if evidence_dir else ""
+    ordinary_paths = [
+        path
+        for path in asset_paths
+        if evidence_prefix and path.startswith(evidence_prefix)
+    ]
+    manifest_path = f".github/task-runs/{run_id}/run-manifest.json"
+    manifest_rows = [
+        row
+        for row in asset_rows
+        if str(row["path"]) == manifest_path
+    ]
+    unexpected_paths = [
+        path
+        for path in asset_paths
+        if path not in ordinary_paths and path != manifest_path
+    ]
+    if len(ordinary_paths) != expected_assets:
         errors.append(
-            f"evidence_assets rows for run {run_id} below manifest asset_count: {asset_count} < {expected_assets}"
+            f"ordinary evidence_assets rows for run {run_id} differ from manifest asset_count: "
+            f"{len(ordinary_paths)} != {expected_assets}"
+        )
+    if len(manifest_rows) != 1:
+        errors.append(
+            f"run manifest evidence asset count must be exactly one: {len(manifest_rows)}"
+        )
+    elif str(manifest_rows[0]["kind"]) != "json":
+        errors.append(
+            f"run manifest evidence kind must be json, got {manifest_rows[0]['kind']}"
+        )
+    if unexpected_paths:
+        errors.append(
+            "unexpected non-ordinary evidence asset paths: " + ", ".join(unexpected_paths)
+        )
+    expected_db_assets = expected_assets + 1
+    if len(asset_rows) != expected_db_assets:
+        errors.append(
+            f"evidence_assets rows for run {run_id} must equal ordinary+manifest: "
+            f"{len(asset_rows)} != {expected_db_assets}"
         )
     raw_doc_count = conn.execute(
         """
@@ -4696,7 +4744,9 @@ def validate_runtime_artifact_run(
     return {
         "run_id": run_id,
         "manifest_asset_count": expected_assets,
-        "db_evidence_assets": int(asset_count),
+        "db_evidence_assets": len(asset_rows),
+        "db_ordinary_evidence_assets": len(ordinary_paths),
+        "db_manifest_assets": len(manifest_rows),
         "raw_db_documents": int(raw_doc_count),
         "total_size_bytes": total_size,
     }, errors
@@ -5183,7 +5233,12 @@ def validate_state_traceback_payload(
         if not str(traceback.get("rollback_target", "")):
             errors.append("non-completed run state_traceback.rollback_target must be set")
 
-    report_fields = task_run_report_fields(repo_root, conn, run_id)
+    run_root = f".github/task-runs/{run_id}"
+    report_fields = task_run_report_fields(
+        repo_root=repo_root,
+        conn=conn,
+        run_root=run_root,
+    )
     for field in sorted(STATE_TRACEBACK_REQUIRED_FIELDS):
         if field not in report_fields:
             errors.append(f"task report missing state traceback field: {field}")

@@ -38,13 +38,24 @@ module OooDataWordCache #(
   // 深度/宽度与 Sram4096x113 定死(4096 项=INDEX_W 12, tag 49b+data 64b=113b),
   // 参数仅作文档化, 改值必须换宏(OOO_ASSERT 有 elaboration 检查)。
   parameter INDEX_W = `OOO_DATA_WORD_CACHE_INDEX_W,
-  parameter ENTRY_COUNT = (1 << INDEX_W)
+  parameter ENTRY_COUNT = (1 << INDEX_W),
+  // Legacy single-bridge users leave this disabled.  The F1 dual-bridge
+  // wrapper enables it explicitly and cross-connects only authorized peer
+  // B-terminal maintenance; the sideband changes valid visibility only.
+  parameter ENABLE_PEER_INVALIDATE = 0
 ) (
   input clk,
   input rst,
   // Full invalidate after the synchronous virtio DMA batch has completed.
   // This is not a SRAM-port owner: only valid visibility changes.
   input dma_invalidate_all_i,
+
+  // Authorized peer store/A-D B-terminal maintenance.  addr is the original
+  // byte PA and wstrb is a normalized low-contiguous 1/2/4/8-byte mask.
+  // This input never owns, reads, or writes the SRAM macro.
+  input peer_invalidate_valid_i,
+  input [`XLEN-1:0] peer_invalidate_addr_i,
+  input [`STRB_W-1:0] peer_invalidate_wstrb_i,
 
   // ---- 纯地址 0-cycle 组合视图(桥 accept 拍决策用, 不查存储阵列) ----
   input [`XLEN-1:0] req_lookup_addr_i,
@@ -118,6 +129,19 @@ module OooDataWordCache #(
     end
   endfunction
 
+  function normalized_wstrb_legal;
+    input [`STRB_W-1:0] wstrb;
+    begin
+      case (wstrb)
+        8'h01,
+        8'h03,
+        8'h0f,
+        8'hff: normalized_wstrb_legal = 1'b1;
+        default: normalized_wstrb_legal = 1'b0;
+      endcase
+    end
+  endfunction
+
   // 字节使能 → 位掩码展开(RMW 判决拍的 data 段 wmask)
   function [`XLEN-1:0] expand_bytemask;
     input [`STRB_W-1:0] mask;
@@ -151,6 +175,25 @@ module OooDataWordCache #(
   // 跨线溢出部分由 p1 保守失效兜底)
   wire [`STRB_W-1:0] st_line_mask_w = store_wstrb_i << st_off_w;
   wire [`XLEN-1:0] st_line_data_w = store_wdata_i << {st_off_w, 3'b000};
+
+  // ---- peer valid-only maintenance address derivation ----
+  // Keep the raw byte PA until this boundary.  The first line is its aligned
+  // 8B line; a legal normalized mask can affect only that line and p1.
+  wire peer_invalidate_event_w =
+      (ENABLE_PEER_INVALIDATE != 0) && peer_invalidate_valid_i;
+  wire peer_address_cacheable_w = cacheable_addr(peer_invalidate_addr_i);
+  wire peer_invalidate_apply_w =
+      peer_invalidate_event_w && peer_address_cacheable_w;
+  wire [3:0] peer_nbytes_w =
+      nbytes_from_wstrb(peer_invalidate_wstrb_i);
+  wire peer_cross_w =
+      ({1'b0, peer_invalidate_addr_i[2:0]} + peer_nbytes_w) > 5'd8;
+  wire [`XLEN-1:0] peer_line0_addr_w =
+      {peer_invalidate_addr_i[`XLEN-1:3], 3'b000};
+  wire [`XLEN-1:0] peer_line1_addr_w =
+      peer_line0_addr_w + {{(`XLEN-4){1'b0}}, 4'd8};
+  wire [INDEX_W-1:0] peer_idx0_w = line_index(peer_line0_addr_w);
+  wire [INDEX_W-1:0] peer_idx1_w = line_index(peer_line1_addr_w);
 
   // ---- store RMW 2 拍机构 ----
   // commit 拍(发射): 占宏口读 st_idx, 同拍锁存 store 上下文。
@@ -243,10 +286,24 @@ module OooDataWordCache #(
     end
   end
 
+  // The lookup decision is for the address locked on the preceding issue
+  // edge.  A peer B terminal is combinationally visible in that decision
+  // cycle, so an exact affected line cannot fuse a stale response before the
+  // valid clear becomes visible on the next edge.
+  wire peer_lookup_line0_match_w =
+      (lookup_idx_q == peer_idx0_w) &&
+      (lookup_tag_q == line_tag(peer_line0_addr_w));
+  wire peer_lookup_line1_match_w =
+      (lookup_idx_q == peer_idx1_w) &&
+      (lookup_tag_q == line_tag(peer_line1_addr_w));
+  wire peer_lookup_conflict_w = peer_invalidate_apply_w &&
+      (peer_lookup_line0_match_w ||
+       (peer_cross_w && peer_lookup_line1_match_w));
+
   assign lookup_hit_o =
       lookup_pend_q && lookup_cacheable_q && valid_q[lookup_idx_q] &&
       (sram_rdata_w[TAG_W+`XLEN-1:`XLEN] == lookup_tag_q) &&
-      !dma_invalidate_all_i;
+      !dma_invalidate_all_i && !peer_lookup_conflict_w;
   assign lookup_line_o = sram_rdata_w[`XLEN-1:0];
 
   // ---- valid FF 维护 ----
@@ -275,10 +332,83 @@ module OooDataWordCache #(
           valid_q[st_idx_p1_w] <= 1'b0;
         end
       end
+      // Per-entry merge, deliberately after all local updates.  A different
+      // index fill/store remains visible; the same index (even another tag)
+      // is conservatively cleared, so peer invalidation wins only where it
+      // targets.  DMA remains the global outer priority above this block.
+      if (peer_invalidate_apply_w) begin
+        valid_q[peer_idx0_w] <= 1'b0;
+        if (peer_cross_w)
+          valid_q[peer_idx1_w] <= 1'b0;
+      end
     end
   end
 
 `ifdef OOO_ASSERT
+  // Both the local producer ABI and the peer consumer ABI use normalized,
+  // low-contiguous masks relative to the original byte PA.  Sparse, zero, or
+  // AXI-lane-shifted masks would make the line-span calculation ambiguous.
+  always @(posedge clk) begin
+    if (!rst && store_commit_i && !normalized_wstrb_legal(store_wstrb_i)) begin
+      $error("[DWC-STORE-WSTRB] store maintenance mask is not normalized: addr=%h wstrb=%h @%0t",
+             store_addr_i, store_wstrb_i, $time);
+      $fatal;
+    end
+    if (!rst && peer_invalidate_event_w &&
+        !normalized_wstrb_legal(peer_invalidate_wstrb_i)) begin
+      $error("[DWC-PEER-WSTRB] peer maintenance mask is not normalized: addr=%h wstrb=%h @%0t",
+             peer_invalidate_addr_i, peer_invalidate_wstrb_i, $time);
+      $fatal;
+    end
+  end
+
+  always @(posedge clk) begin
+    if (!rst && peer_lookup_conflict_w && lookup_hit_o) begin
+      $error("[DWC-PEER-HIT-BLOCK] peer-invalidated exact lookup returned hit: addr=%h @%0t",
+             peer_invalidate_addr_i, $time);
+      $fatal;
+    end
+  end
+
+  // A peer-only event must not create a fifth 1RW owner.  Concurrent local
+  // owners retain their ordinary macro use and are checked by DWC-SRAM-1RW.
+  always @(posedge clk) begin
+    if (!rst && peer_invalidate_event_w && !lookup_en_i && !fill_valid_i &&
+        !rmw_start_w && !rmw_pending_q && sram_en_w) begin
+      $error("[DWC-PEER-NO-SRAM-OWNER] peer-only event enabled SRAM @%0t",
+             $time);
+      $fatal;
+    end
+  end
+
+  reg peer_invalidate_check_q;
+  reg [INDEX_W-1:0] peer_invalidate_idx0_q;
+  reg [INDEX_W-1:0] peer_invalidate_idx1_q;
+  reg peer_invalidate_cross_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      peer_invalidate_check_q <= 1'b0;
+      peer_invalidate_idx0_q <= {INDEX_W{1'b0}};
+      peer_invalidate_idx1_q <= {INDEX_W{1'b0}};
+      peer_invalidate_cross_q <= 1'b0;
+    end else begin
+      peer_invalidate_check_q <= peer_invalidate_apply_w;
+      if (peer_invalidate_apply_w) begin
+        peer_invalidate_idx0_q <= peer_idx0_w;
+        peer_invalidate_idx1_q <= peer_idx1_w;
+        peer_invalidate_cross_q <= peer_cross_w;
+      end
+      if (peer_invalidate_check_q &&
+          (valid_q[peer_invalidate_idx0_q] ||
+           (peer_invalidate_cross_q &&
+            valid_q[peer_invalidate_idx1_q]))) begin
+        $error("[DWC-PEER-INVALIDATE] peer target retained a visible valid bit @%0t",
+               $time);
+        $fatal;
+      end
+    end
+  end
+
   // Delayed maintenance witness: an invalidate-class terminal must make both
   // affected valid bits unobservable on the following cycle.  Checking one
   // cycle later avoids sampling pre-NBA state on the commit edge.

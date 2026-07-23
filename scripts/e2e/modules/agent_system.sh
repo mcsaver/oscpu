@@ -1664,7 +1664,8 @@ EOF
       "$guard_evidence" "$guard_report_only" \
       "$guard_context_injected" "$guard_context_profile_mismatch" \
       "$guard_context_indented_heading" "$guard_context_truncated" \
-      "$guard_context_empty_chunks" "$guard_resolve_injected" \
+      "$guard_context_empty_chunks" "$guard_context_history_primary" \
+      "$guard_resolve_injected" \
       "$guard_resolve_profile_mismatch" "$guard_resolve_indented_heading" \
       "$guard_resolve_truncated" "$guard_resolve_duplicate_nodes" \
       "$guard_manifest_skip" "$guard_identity_mismatch" "$guard_time_mismatch" \
@@ -1891,13 +1892,26 @@ EOF
   fi
   if grep -Fq 'e2e_generate_context_brief' "$report_sh" &&
      grep -Fq 'e2e_context_brief_terms' "$report_sh" &&
+     grep -Fq 'e2e_refresh_live_index_for_recall()' "$report_sh" &&
+     grep -Fq 'github_index_db.py" rebuild' "$report_sh" &&
+     grep -Fq -- '--exclude .github/task-runs' "$report_sh" &&
+     grep -Fq -- '--exclude .github/memory' "$report_sh" &&
+     grep -Fq -- '--exclude .github/archive' "$report_sh" &&
+     grep -Fq -- '--exclude .github/shujuku_aireview' "$report_sh" &&
+     grep -Fq 'E2E_LIVE_INDEX_REFRESH_OK' "$report_sh" &&
      grep -Fq 'E2E_CONTEXT_BRIEF_FILE' "$report_sh" &&
      grep -Fq 'github_index_db.py" brief "${brief_terms[@]}"' "$report_sh" &&
      grep -Fq -- '--focus-scope non-history' "$report_sh" &&
+     grep -Fq 'e2e_refresh_live_index_for_recall' "$runner_sh" &&
+     awk '
+       /e2e_refresh_live_index_for_recall/ && refresh == 0 { refresh = NR }
+       /e2e_generate_context_brief/ && generate == 0 { generate = NR }
+       END { exit !(refresh > 0 && generate > refresh) }
+     ' "$runner_sh" &&
      ! grep -Fq 'brief "$E2E_PROFILE" "$E2E_TASK_SLUG"' "$report_sh"; then
-    printf 'PASS report.sh derives semantic focus terms and requires non-history recall\n'
+    printf 'PASS report.sh refreshes live index before bounded non-history recall\n'
   else
-    printf 'FAIL report.sh context brief term/scope contract missing\n'
+    printf 'FAIL report.sh live-index refresh or context brief contract missing\n'
     rc=1
   fi
   if awk '
@@ -1938,16 +1952,33 @@ EOF
 
   local brief_probe_root brief_probe_context brief_probe_resolve brief_probe_rc
   local compound_slug_terms default_slug_terms lifecycle_slug_terms lifecycle_slug_rc
+  local controlled_revision_terms lifecycle_revision_terms lifecycle_revision_rc
+  local v8_business_terms v2ray_business_terms eight_term_revision_terms
+  local malformed_revision_terms malformed_revision_rc
   local node_probe_root
   local render_probe_workspace render_probe_root render_probe_stage render_probe_failed
   compound_slug_terms=$(e2e_context_brief_terms "rv64-q2-v8a-contract-rerun-2")
   default_slug_terms=$(e2e_context_brief_terms "agent-e2e-npc-dev")
+  controlled_revision_terms=$(e2e_context_brief_terms "no-tools-rtl-subagent-contract-revtag-v8q")
+  v8_business_terms=$(e2e_context_brief_terms "node-javascript-engine-v8")
+  v2ray_business_terms=$(e2e_context_brief_terms "network-client-v2ray")
+  eight_term_revision_terms=$(e2e_context_brief_terms "one-two-three-four-five-six-seven-eight-revtag-v8q")
   lifecycle_slug_rc=0
   lifecycle_slug_terms=$(e2e_context_brief_terms "agent-e2e-run-rerun-final-2026-2") || lifecycle_slug_rc=$?
+  lifecycle_revision_rc=0
+  lifecycle_revision_terms=$(e2e_context_brief_terms "agent-e2e-run-revtag-v8q") || lifecycle_revision_rc=$?
+  malformed_revision_rc=0
+  malformed_revision_terms=$(e2e_context_brief_terms "rtl-contract-revtag-latest") || malformed_revision_rc=$?
   if [[ $compound_slug_terms == $'rv64\nq2\nv8a\ncontract' ]] &&
      [[ $default_slug_terms == $'npc\ndev' ]] &&
-     [[ $lifecycle_slug_rc -ne 0 && -z $lifecycle_slug_terms ]]; then
-    printf 'PASS context brief term normalization splits semantics and rejects lifecycle-only slugs\n'
+     [[ $controlled_revision_terms == $'no\ntools\nrtl\nsubagent\ncontract' ]] &&
+     [[ $v8_business_terms == $'node\njavascript\nengine\nv8' ]] &&
+     [[ $v2ray_business_terms == $'network\nclient\nv2ray' ]] &&
+     [[ $eight_term_revision_terms == $'one\ntwo\nthree\nfour\nfive\nsix\nseven\neight' ]] &&
+     [[ $lifecycle_slug_rc -ne 0 && -z $lifecycle_slug_terms ]] &&
+     [[ $lifecycle_revision_rc -ne 0 && -z $lifecycle_revision_terms ]] &&
+     [[ $malformed_revision_rc -ne 0 && -z $malformed_revision_terms ]]; then
+    printf 'PASS context brief term normalization uses explicit revision metadata and preserves business version terms\n'
   else
     printf 'FAIL context brief term normalization accepted identity noise or lost semantic terms\n'
     rc=1
@@ -2720,6 +2751,73 @@ e2e_agent_system_state_traceback() {
     rc=1
   fi
 
+  if python3 - "$E2E_ROOT_DIR" <<'PY'
+import sqlite3
+import sys
+import tempfile
+from pathlib import Path
+
+source_root = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(source_root))
+
+from scripts.dev_memory.core import init_schema
+from scripts.dev_memory.maintenance import validate_state_traceback_payload
+
+run_id = "state-probe"
+sequence = [
+    "recall_context",
+    "classify_layer",
+    "plan_graph",
+    "implement",
+    "verify",
+    "inspect",
+    "persist",
+]
+traceback = {
+    "state_sequence": sequence,
+    "current_state": "persist",
+    "failure_state": "",
+    "rollback_target": "",
+    "failure_reason": "",
+    "reviewer": "ysyx-coordinator",
+    "inspector": "agent-system",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+}
+manifest = {"status": "completed", "state_traceback": traceback}
+
+with tempfile.TemporaryDirectory() as tmp:
+    repo_root = Path(tmp).resolve()
+    report = repo_root / ".github/task-runs" / run_id / "task-report.md"
+    report.parent.mkdir(parents=True)
+    report.write_text(
+        "# 任务报告\n\n"
+        + "\n".join(f"- `{key}`: {value}" for key, value in traceback.items())
+        + "\n",
+        encoding="utf-8",
+    )
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_schema(conn)
+    try:
+        result, errors = validate_state_traceback_payload(
+            repo_root,
+            conn,
+            run_id,
+            manifest,
+        )
+    finally:
+        conn.close()
+
+ok = not errors and result.get("current_state") == "persist"
+raise SystemExit(0 if ok else 1)
+PY
+  then
+    printf 'PASS targeted state audit resolves task report from canonical task-run root\n'
+  else
+    printf 'FAIL targeted state audit did not resolve canonical task-run report fields\n'
+    rc=1
+  fi
+
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" state-audit || rc=1
   return "$rc"
 }
@@ -2809,6 +2907,13 @@ e2e_agent_system_rtl_task_contract() {
     "$npc_doc" \
     "$profile_doc" || rc=1
 
+  if (set -o pipefail; e2e_file_contains "$skill_doc" 'name: prepare-rtl-task-contract'); then
+    printf 'PASS file marker lookup remains exact under pipefail\n'
+  else
+    printf 'FAIL file marker lookup reported a pipefail/SIGPIPE false negative\n'
+    rc=1
+  fi
+
   if e2e_file_contains "$instruction_doc" 'engineering_domain' &&
      e2e_file_contains "$instruction_doc" 'allowed_paths' &&
      e2e_file_contains "$instruction_doc" 'write_paths' &&
@@ -2818,8 +2923,29 @@ e2e_agent_system_rtl_task_contract() {
      e2e_file_contains "$instruction_doc" 'required_context' &&
      e2e_file_contains "$instruction_doc" 'deliverables' &&
      e2e_file_contains "$instruction_doc" 'success_criteria' &&
+     e2e_file_contains "$instruction_doc" 'JSON 的仓库相对路径' &&
+     e2e_file_contains "$instruction_doc" '该文件 SHA-256' &&
+     e2e_file_contains "$instruction_doc" '哈希只绑定该 JSON' &&
+     e2e_file_contains "$instruction_doc" '工程 shell 为 single-flight' &&
+     e2e_file_contains "$instruction_doc" '文本反例不是验证证据' &&
+     e2e_file_contains "$instruction_doc" 'JSON 精确声明 `allowed_commands=[]`、`write_paths=[]`' &&
+     e2e_file_contains "$instruction_doc" '不执行工程命令或仓库读取' &&
+     e2e_file_contains "$instruction_doc" 'prompt-supplied-self-contained' &&
+     e2e_file_contains "$instruction_doc" '`--self-contained-no-tools`' &&
+     e2e_file_contains "$instruction_doc" '默认只读探索' &&
+     e2e_file_contains "$instruction_doc" '限定材料复核' &&
+     e2e_file_contains "$instruction_doc" '`scope_extension_request`' &&
+     e2e_file_contains "$instruction_doc" '信息不足时允许 `inconclusive`' &&
+     e2e_file_contains "$instruction_doc" '不得设置固定 blocker/发现数量' &&
+     e2e_file_contains "$instruction_doc" '校验器必须拒绝' &&
      e2e_file_contains "$instruction_doc" '`review_pending`' &&
-     e2e_file_contains "$instruction_doc" '父目标保持 `active`'; then
+     e2e_file_contains "$instruction_doc" '父目标保持 `active`' &&
+     e2e_file_contains "$instruction_doc" '`rv64-hardware-professional`' &&
+     e2e_file_contains "$instruction_doc" '本地作用域开场' &&
+     e2e_file_contains "$instruction_doc" '对象、层级、作用域和工程目的' &&
+     e2e_file_contains "$instruction_doc" '不附加平台处理' &&
+     e2e_file_contains "$instruction_doc" '关键词拒绝' &&
+     e2e_file_contains "$instruction_doc" '不改变工具、shell、路径、上下文或推理能力'; then
     printf 'PASS RTL task instruction binds scope, outputs, evidence and review containment\n'
   else
     printf 'FAIL RTL task instruction missing required scope or review containment fields\n'
@@ -2832,6 +2958,40 @@ e2e_agent_system_rtl_task_contract() {
      e2e_file_contains "$skill_doc" 'rtl_task_contract.py render' &&
      e2e_file_contains "$skill_doc" 'rtl_task_contract.py cli-self-test' &&
      e2e_file_contains "$skill_doc" '--allow-read-command' &&
+     e2e_file_contains "$skill_doc" '该哈希只绑定 JSON' &&
+     e2e_file_contains "$skill_doc" 'single-flight' &&
+     e2e_file_contains "$skill_doc" '文本反例本身不能作为 GREEN 证据' &&
+     e2e_file_contains "$skill_doc" '`allowed_commands=[]`、`write_paths=[]`' &&
+     e2e_file_contains "$skill_doc" '不执行工程命令或仓库读取' &&
+     e2e_file_contains "$skill_doc" 'prompt-supplied-self-contained' &&
+     e2e_file_contains "$skill_doc" '--self-contained-no-tools' &&
+     e2e_file_contains "$skill_doc" '默认只读探索' &&
+     e2e_file_contains "$skill_doc" '限定材料复核' &&
+     e2e_file_contains "$skill_doc" '`scope_extension_request`' &&
+     e2e_file_contains "$skill_doc" '允许 `inconclusive`' &&
+     e2e_file_contains "$skill_doc" '`rv64-hardware-professional`' &&
+     e2e_file_contains "$skill_doc" '对象、层级、作用域和工程目的' &&
+     e2e_file_contains "$skill_doc" '.github/agentic-hardware-blueprint.md' &&
+     e2e_file_contains "$skill_doc" '不进入子 agent 渲染提示' &&
+     e2e_file_contains "$skill_doc" '不建立关键词黑名单' &&
+     e2e_file_contains "$skill_doc" '不改变任何工具、shell、路径或推理能力' &&
+     e2e_file_contains "$contract_doc" '"default_mode": "workspace-files"' &&
+     e2e_file_contains "$contract_doc" '"no_tools_mode": "prompt-supplied-self-contained"' &&
+     e2e_file_contains "$contract_doc" '"no_tools_usage": "exceptional-bounded-evidence-review"' &&
+     e2e_file_contains "$contract_doc" '"reasoning_policy"' &&
+     e2e_file_contains "$contract_doc" '"fixed_finding_cap_forbidden": true' &&
+     e2e_file_contains "$contract_doc" '"no_tools_task_kinds"' &&
+     e2e_file_contains "$contract_doc" '"wording_profile"' &&
+     e2e_file_contains "$contract_doc" '"profile": "rv64-hardware-professional"' &&
+     e2e_file_contains "$contract_doc" '"reference": ".github/agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording"' &&
+     e2e_file_contains "$contract_doc" '"domain_reference": "npc/rv64/design/arch/rv64-hardware-wording-profile.md"' &&
+     e2e_file_contains "$contract_doc" '"keyword_blacklist_forbidden": true' &&
+     e2e_file_contains "$contract_doc" '"does_not_change_capabilities": true' &&
+     e2e_file_contains "$contract_doc" '"positive_local_scope_preamble_required": true' &&
+     e2e_file_contains "$contract_doc" '"engineering-purpose"' &&
+     e2e_file_contains "$contract_tool" 'fixed finding count caps are forbidden' &&
+     e2e_file_contains "$contract_tool" '措辞剖面：`rv64-hardware-professional`' &&
+     e2e_file_contains "$contract_tool" 'rendered hardware prompt leaked coordinator-only wording' &&
      e2e_file_contains "$skill_meta" 'Use $prepare-rtl-task-contract'; then
     printf 'PASS RTL task skill is discoverable and exposes create/validate/render\n'
   else
@@ -2842,8 +3002,16 @@ e2e_agent_system_rtl_task_contract() {
   if e2e_file_contains "$policy_doc" '"task_delegation"' &&
      e2e_file_contains "$policy_doc" '"contract_before_dispatch_required": true' &&
      e2e_file_contains "$policy_doc" '"local_rtl_external_access_forbidden": true' &&
+     e2e_file_contains "$policy_doc" '"hardware_wording_profile_required": true' &&
+     e2e_file_contains "$policy_doc" '"positive_local_scope_preamble_required": true' &&
+     e2e_file_contains "$policy_doc" '"ambiguous_terms_require_hardware_context": true' &&
+     e2e_file_contains "$policy_doc" '"rendered_prompt_platform_meta_forbidden": true' &&
+     e2e_file_contains "$policy_doc" '"wording_profile_changes_capabilities": false' &&
+     e2e_file_contains "$policy_doc" '"wording_keyword_blacklist_forbidden": true' &&
      e2e_file_contains "$coordinator_doc" '$prepare-rtl-task-contract' &&
+     e2e_file_contains "$coordinator_doc" '`rv64-hardware-professional`' &&
      e2e_file_contains "$npc_doc" 'rtl-agent-task-contract.instructions.md' &&
+     e2e_file_contains "$npc_doc" '`rv64-hardware-professional`' &&
      e2e_file_contains "$profile_doc" 'rtl-task-contract|agent-system|e2e_agent_system_rtl_task_contract|agent-system|'; then
     printf 'PASS policy, coordinator, NPC agent and profile route through the task contract\n'
   else

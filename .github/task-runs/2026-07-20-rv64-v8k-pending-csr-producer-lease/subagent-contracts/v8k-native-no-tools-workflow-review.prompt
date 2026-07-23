@@ -1,0 +1,69 @@
+# 本地 RTL 子任务契约 `v8k-native-no-tools-workflow-review`
+
+- 工程领域：本地 RV64 Verilog/SystemVerilog 数字电路设计、验证或 PPA
+- 任务类型：`read-only-review`
+- 执行模式：`self-contained-no-tools`（无工具、无 shell、无文件访问）
+- 目标：Review whether the local RV64 RTL native self-contained no-tools contract is privilege-exact, backward-compatible, and accurately worded without claiming to bypass platform review
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-native-no-tools-workflow-review.json`
+- 合同 JSON SHA-256：`9ef57a6f9e93bdb5ca3f9713a72ea618c3a2e9fe1eddecabf6002b67ff6bf0fb`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+- 本提示是该 JSON 通过校验后的渲染结果。需要复核哈希时只核对上述路径；不得把该哈希与同名设计合同混用。
+
+## 路径与权限
+
+来源路径（仅作 provenance；子 agent 不得自行读取）：
+- .github/ai-env/contracts/agent-env-rtl-task-contract.json
+- .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/skills/prepare-rtl-task-contract/SKILL.md
+- AI_ENVIRONMENT.md
+- scripts/e2e/modules/agent_system.sh
+- .github/AGENTS.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-native-no-tools-workflow-review.json
+
+允许写入：
+- 无（只读）
+
+允许命令：
+- 无（self-contained no-tools）
+
+Canonical 审计用途（固定枚举，不接受任务自定义文本，不授予参数、选项或额外能力）：
+- 无；子 agent 只消费合同内随附材料
+
+`read-only` 只授权无落盘副作用的调用；禁止 `sed -i`、重定向和其它写型选项。
+
+外部访问边界：不联网，不访问账号、凭据或外部服务；不处理工作区外路径。
+
+## 最小上下文
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+
+## 自包含随附材料
+
+- 变更目的：为本地 RV64 RTL 只读 reviewer 建立机器可校验的最小权限执行模式，不以改变、规避或削弱平台审查为目标。
+- canonical context_policy 规定 material_mode 为 workspace-files 或 prompt-supplied-self-contained；no-tools 只允许 task_kind=read-only-review。
+- prompt-supplied-self-contained 合同必须精确声明 allowed_commands=[]、write_paths=[]、四项外部访问均为 false、supplied_material 非空且每项单行。
+- 渲染提示将 allowed_paths 标为仅作 provenance，并明确 no tools、no shell、no filesystem、no network、no accounts、no credentials、no external services。
+- workspace-files 仍要求非空 canonical commands；旧版仅含 required_files 的 context 保持 validate/render 兼容。
+- 本地 audit 已 PASS；self-test 20/20 PASS；CLI self-test 18/18 PASS，覆盖空材料、夹带命令、多行材料、实现任务滥用等 fail-closed 反例。
+- 请只审查权限声明一致性、向后兼容、提示边界和是否存在误导性安全措辞；不要推断 RTL 功能、PPA 或平台审核结果。
+
+## 交付物
+
+- Return JSON only with verdict pass or gap, blockers, residual risks, and overclaims
+
+## 成功条件
+
+- PASS only if JSON and rendered execution authority are identical and no wording claims platform-review avoidance
+
+## 协作约束
+
+- 保留真实 RTL 标识符和信号语义；正文使用流水取消、分支恢复、完成资格、生产者归属、事务标签、定向变异和独立反例复核等准确硬件语义。
+- 不得扩大路径、写权限、命令或外部访问范围；需要扩展时先返回主 agent 生成新版契约。
+- Windows/Codex 经 WSL 访问本工作区时，工程 shell 为 single-flight：由主 agent 串行调度；子 agent 不与其它 agent 并发启动 `wsl.exe`。
+- 本任务为 self-contained no-tools：不得调用工具、shell、文件系统、网络、账号、凭据或外部服务；只使用上方随附材料。
+- 平台暂不处理本任务时，仅把当前子任务记为 `review_pending`，保留原始请求与契约证据，父目标保持 `active`；不得通过改变 RTL 语义来重试。

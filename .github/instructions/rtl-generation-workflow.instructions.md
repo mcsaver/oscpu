@@ -20,6 +20,14 @@ applyTo: "**/*.{v,sv,vh,svh}"
 契约中能编码的部分优先转成立即断言（`always @(posedge clk) if (违约) $error(...)`，禁 SVA `|->`）。
 digital_logic_experiment 等非 rv64 核 RTL 不强制本阶段，直接从阶段 1 开始。
 
+### 分阶段永久门的前向兼容
+
+F0/F1/F2 等分阶段实现的永久 target 必须把“跨阶段长期不变量”和“当前阶段拓扑”分开检查：前者在
+后续阶段继续执行，后者只接受合同列出的精确且互斥状态。阶段晋级时，旧 target 不得继续把“尚未
+接入 canonical”之类历史拓扑写成永久不变量；应要求新阶段的显式 handoff（参数值、实例 census、
+旧实例缺失、claim/RED/PPA 边界），并由新 target fresh 调用兼容后的前置 target。额外实例、混合拓扑、
+缺失 handoff 或前置门回归都必须 fail closed；不能为了让旧门通过而删除前置验证。
+
 ## 阶段 1 — 需求
 
 把任务转写为可验证的需求清单：

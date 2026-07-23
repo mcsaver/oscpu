@@ -1,0 +1,53 @@
+{
+  "schema": "v8s-f2-bounded-rereview/v1",
+  "task_id": "v8s-f2-implementation-evidence-rereview",
+  "contract_json": ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-implementation-evidence-rereview.json",
+  "contract_json_sha256": "4de07763032377e66b92e5a23394a4a727c81a6a2e327e74d83713fc0922cd6b",
+  "review_mode": "prompt-supplied-self-contained",
+  "verdict": "PASS",
+  "authorized_claim": "architecture_checkpoint",
+  "parent_goal_state": "active",
+  "hierarchy_gap_disposition": {
+    "status": "closed",
+    "basis": [
+      "default-off reusable backend/decode/slice/execute/glue chain and explicit four-layer parameter handoff each passed exact-count checks",
+      "canonical ENABLE_DUAL_MEM count is exactly one",
+      "canonical topology census is dual_wrapper=1, legacy_bridge=0, core_glue=1",
+      "both wrapper lane faces are exact and core mem1 face is neither tied off nor crossed",
+      "NpcCoreTop release/assert and NpcSimTop assert+stats lint passed",
+      "13 mutation-negative checker tests rejected canonical disable, comment-only handoff, lane cross, missing MIQ/query/WB/SQ resources, collector shrink and claim inflation"
+    ]
+  },
+  "new_boundary_disposition": {
+    "rob_wrap_age": {
+      "status": "closed",
+      "evidence": "A real dispatch/commit sequence advanced the empty ROB head to 15; same-bank raw indices 15 and 0 selected 15 as older and retired in order in release/assert."
+    },
+    "dual_ex_full_wb": {
+      "status": "closed",
+      "evidence": "With EX0/EX1 occupying WB0/WB1, both memory responses held ready low; after release both resumed together, used distinct slots and completed exactly once in release/assert."
+    }
+  },
+  "remaining_blockers": {
+    "for_architecture_checkpoint": [],
+    "for_higher_claims": [
+      "F3 final-PA SQ byte query/forward/replay is absent",
+      "F4 sustained IPC/system workload/equal-capacity banking/architecture-stable PPA is absent",
+      "full-top dynamic system validation is absent",
+      "formal completeness is not claimed",
+      "DI-5, OOO-3 and overall remain RED; PPA remains UNQUALIFIED; promotion remains false"
+    ]
+  },
+  "scope_extension_request": {
+    "required": false,
+    "reason": "No additional material or permission is needed for the bounded architecture_checkpoint; higher claims require separate F3/F4 contracts."
+  },
+  "claim_boundary_ok": true,
+  "confidence": "moderate_high",
+  "limitations": [
+    "The reviewer did not access raw RTL, logs, checker source, mutator source or waveforms.",
+    "The reviewer did not independently recompute contract or source-closure hashes.",
+    "Targeted directed tests and mutations are not a formal completeness proof.",
+    "This PASS is a bounded-material rereview, not a repository audit."
+  ]
+}

@@ -67,6 +67,24 @@ module tb_ooo_mem_axi_bridge #(
   wire [4:0] mem0_owner_query_token;
   wire mem0_station_query_valid;
   wire [4:0] mem0_station_query_token;
+  wire mem0_sq_query_valid;
+  wire [1:0] mem0_sq_query_owner_kind;
+  wire [4:0] mem0_sq_query_owner_token;
+  wire [1:0] mem0_sq_query_mmu_epoch;
+  wire [`XLEN-1:0] mem0_sq_query_paddr;
+  wire mem0_sq_query_attr_valid;
+  wire [1:0] mem0_sq_query_class;
+  wire [`STRB_W-1:0] mem0_sq_query_wstrb;
+  reg mem0_sq_query_force_forward;
+  reg mem0_sq_query_force_replay;
+  reg mem0_sq_query_retry_ready;
+  reg [`XLEN-1:0] mem0_sq_query_forward_data;
+  wire mem0_sq_query_allow = mem0_sq_query_valid &&
+      !mem0_sq_query_force_forward && !mem0_sq_query_force_replay;
+  wire mem0_sq_query_forward = mem0_sq_query_valid &&
+      mem0_sq_query_force_forward;
+  wire mem0_sq_query_replay = mem0_sq_query_valid &&
+      mem0_sq_query_force_replay;
   wire [31:0] mem0_owner_residency_mask;
   wire mem0_idle;
   reg [1:0] owner_kind_model [0:31];
@@ -86,6 +104,7 @@ module tb_ooo_mem_axi_bridge #(
   wire lsu_axi_awvalid;
   reg lsu_axi_awready;
   wire [`XLEN-1:0] lsu_axi_awaddr;
+  wire [2:0] lsu_axi_awsize;
   wire lsu_axi_wvalid;
   reg lsu_axi_wready;
   wire [`XLEN-1:0] lsu_axi_wdata;
@@ -163,6 +182,9 @@ module tb_ooo_mem_axi_bridge #(
     .flush_i(flush),
     .mmu_flush_i(mmu_flush),
     .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all),
+    .peer_invalidate_valid_i(1'b0),
+    .peer_invalidate_addr_i({`XLEN{1'b0}}),
+    .peer_invalidate_wstrb_i({`STRB_W{1'b0}}),
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
     .satp_i(satp),
@@ -232,9 +254,25 @@ module tb_ooo_mem_axi_bridge #(
     .mem0_owner_query_token_o(mem0_owner_query_token),
     .mem0_station_query_valid_o(mem0_station_query_valid),
     .mem0_station_query_token_o(mem0_station_query_token),
+    .mem0_sq_query_valid_o(mem0_sq_query_valid),
+    .mem0_sq_query_owner_kind_o(mem0_sq_query_owner_kind),
+    .mem0_sq_query_owner_token_o(mem0_sq_query_owner_token),
+    .mem0_sq_query_mmu_epoch_o(mem0_sq_query_mmu_epoch),
+    .mem0_sq_query_paddr_o(mem0_sq_query_paddr),
+    .mem0_sq_query_attr_valid_o(mem0_sq_query_attr_valid),
+    .mem0_sq_query_class_o(mem0_sq_query_class),
+    .mem0_sq_query_wstrb_o(mem0_sq_query_wstrb),
+    .mem0_sq_query_allow_i(mem0_sq_query_allow),
+    .mem0_sq_query_forward_i(mem0_sq_query_forward),
+    .mem0_sq_query_replay_i(mem0_sq_query_replay),
+    .mem0_sq_query_retry_ready_i(mem0_sq_query_retry_ready),
+    .mem0_sq_query_forward_data_i(mem0_sq_query_forward_data),
     .mem0_owner_residency_mask_o(mem0_owner_residency_mask),
     .mem0_idle_o(mem0_idle),
     .translate_active_o(mem_translate_active),
+    .peer_maintenance_valid_o(),
+    .peer_maintenance_addr_o(),
+    .peer_maintenance_wstrb_o(),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
@@ -246,6 +284,7 @@ module tb_ooo_mem_axi_bridge #(
     .lsu_axi_awvalid_o(lsu_axi_awvalid),
     .lsu_axi_awready_i(lsu_axi_awready),
     .lsu_axi_awaddr_o(lsu_axi_awaddr),
+    .lsu_axi_awsize_o(lsu_axi_awsize),
     .lsu_axi_wvalid_o(lsu_axi_wvalid),
     .lsu_axi_wready_i(lsu_axi_wready),
     .lsu_axi_wdata_o(lsu_axi_wdata),
@@ -272,6 +311,32 @@ module tb_ooo_mem_axi_bridge #(
       owner_epoch_model[mem0_req_owner_token] <= mem0_req_mmu_epoch;
       owner_tval_model[mem0_req_owner_token] <= mem0_req_fault_tval;
       mem0_req_owner_token <= mem0_req_owner_token + 5'd1;
+    end
+  end
+
+  // V9K PTW-PMP temporal monitor.  A denied 8B PTE A/D update owns a quiet
+  // interval from the checker decision through the exact response terminal.
+  // This checker is intentionally independent of AWREADY/WREADY so an illegal
+  // one-cycle AW/W pulse cannot escape merely by handshaking immediately.
+  reg v9k_ptw_pmp_deny_pending_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      v9k_ptw_pmp_deny_pending_q <= 1'b0;
+    end else begin
+      if ((v9k_ptw_pmp_deny_pending_q ||
+           (!dut.cpu_kill_w && dut.walk_ad_write_deny_w)) &&
+          (lsu_axi_awvalid || lsu_axi_wvalid)) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] [V9K-LSU-PTW-PMP-DENY-QUIET] pending deny exposed AW/W before response terminal @%0t",
+                 $time);
+      end
+      if (!dut.cpu_kill_w && dut.walk_ad_write_deny_w) begin
+        v9k_ptw_pmp_deny_pending_q <= 1'b1;
+      end else if (v9k_ptw_pmp_deny_pending_q &&
+                   ((mem0_rsp_valid && mem0_rsp_ready) ||
+                    mem0_drop0_valid)) begin
+        v9k_ptw_pmp_deny_pending_q <= 1'b0;
+      end
     end
   end
 
@@ -318,6 +383,10 @@ module tb_ooo_mem_axi_bridge #(
       s2_active_tracker_mutate = 1'b0;
       s2_active_tval_mutate = 1'b0;
       s2_expected_effective_killed = 1'b0;
+      mem0_sq_query_force_forward = 1'b0;
+      mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_retry_ready = 1'b1;
+      mem0_sq_query_forward_data = {`XLEN{1'b0}};
       mem0_device_release = 1'b0;
       mem0_device_cancel = 1'b0;
       mem0_req_addr = {`XLEN{1'b0}};
@@ -375,6 +444,9 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("dma masks cached decision", dut.dcache_lookup_hit_w, 1'b0);
       tb_check1("dma masks hit fusion", dut.lookup_hit_fusion_w, 1'b0);
       tb_check1("dma decision has no stale response", mem0_rsp_valid, 1'b0);
+      tb_check1("dma query decision has no early AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
       tb_check1("dma decision refetches PMEM", lsu_axi_arvalid, 1'b1);
       tb_check64("dma refetch address", lsu_axi_araddr, DMA_ADDR);
       tick();
@@ -401,6 +473,7 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_arready = 1'b1;
       tick();
       mem0_req_valid = 1'b0;
+      tick();
       tick();
       #1;
       tb_check1("post-dma line hits", mem0_rsp_valid, 1'b1);
@@ -442,6 +515,14 @@ module tb_ooo_mem_axi_bridge #(
         lsu_axi_rvalid = 1'b0;
         #1;
       end
+      tb_check1("T4M device reaches final-PA SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check64("T4M device SQ query uses translated PA",
+                 mem0_sq_query_paddr, DEVICE_PA);
+      tb_check1("T4M device SQ query remains AR quiet",
+                lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
     end
   endtask
 
@@ -679,9 +760,8 @@ module tb_ooo_mem_axi_bridge #(
   endfunction
 
   // 【刀 M·寄存站】读请求 fire 拍只进寄存站(零计算, 不发 lookup/AR); 次拍
-  // stage_advance 发 dcache SRAM 读(不发 AR); 再次拍 S_LOOKUP 判决 miss 后才发
-  // AR——本 task 只用于 miss 场景, AR 检查较 SRAM 同步读版再右移一拍, task 结束
-  // 时桥已进 S_READ_DATA(对调用方等价)。
+  // stage_advance 只锁存最终 PA；随后 S_SQ_QUERY 拍给出完整查询并发 dcache
+  // SRAM 读，再次拍 S_LOOKUP 判决 miss 后才发 AR。本 task 只用于 miss 场景。
   task automatic issue_mem0_read_strb;
     input [`XLEN-1:0] addr;
     input [`STRB_W-1:0] strb;
@@ -705,11 +785,18 @@ module tb_ooo_mem_axi_bridge #(
       tick();
       mem0_req_valid = 1'b0;
       #1;
-      // advance 拍: 寄存站项进 FSM 并发 dcache lookup, AR 最早在判决拍。
+      // advance 拍: 寄存站项仅进最终 PA 查询边界，不得提前发 lookup/AR。
       tb_check1("mem0 read advance no AR", lsu_axi_arvalid, 1'b0);
-      tb_check1("mem0 read req lookup at advance", dut.req_read_lookup_fire_w,
-                1'b1);
-      tb_check1("mem0 read speculative lookup at advance",
+      tb_check1("mem0 read no req lookup before PA query",
+                dut.req_read_lookup_fire_w, 1'b0);
+      tick();
+      #1;
+      tb_check1("mem0 read final-PA query valid", mem0_sq_query_valid, 1'b1);
+      tb_check64("mem0 read final-PA query address", mem0_sq_query_paddr,
+                 addr);
+      tb_check1("mem0 read req lookup at allowed PA query",
+                dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("mem0 read speculative lookup at allowed PA query",
                 dut.req_read_lookup_issue_w, 1'b1);
       tick();
       #1;
@@ -726,7 +813,7 @@ module tb_ooo_mem_axi_bridge #(
 
   task automatic read_arsize_tracks_load_mask;
     begin
-      issue_mem0_read_strb(64'h0000_0000_8000_1005, 8'b0010_0000);
+      issue_mem0_read_strb(64'h0000_0000_8000_1005, 8'b0000_0001);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = 64'h0102_0304_0506_0708;
       tick();
@@ -754,7 +841,7 @@ module tb_ooo_mem_axi_bridge #(
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_1005;
-      mem0_req_wstrb = 8'b0010_0000;
+      mem0_req_wstrb = 8'b0000_0001;
       lsu_axi_arready = 1'b1;   // 陷阱: advance/判决拍均不得发 AR
       #1;
       tb_check1("cached window read ready", mem0_req_ready, 1'b1);
@@ -889,7 +976,8 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_arready = 1'b0;
       tick();
       mem0_req_valid = 1'b0;
-      tick();                    // advance -> S_LOOKUP
+      tick();                    // advance -> S_SQ_QUERY
+      tick();                    // allowed query -> S_LOOKUP
       #1;
       tb_check1("T4E data stalled AR is presented", lsu_axi_arvalid, 1'b1);
       held_araddr = lsu_axi_araddr;
@@ -1027,10 +1115,16 @@ module tb_ooo_mem_axi_bridge #(
       // correct-path load; it advances immediately after the B/drop terminal.
       tb_check1("write drain invalidate lets staged load advance",
                 dut.stage_advance_w, 1'b1);
-      tb_check1("write drain staged load owns req lookup",
-                dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("write drain staged load has no pre-query lookup",
+                dut.req_read_lookup_fire_w, 1'b0);
       tb_check1("write drain never exposes response", mem0_rsp_valid, 1'b0);
       lsu_axi_arready = 1'b1;
+      tick();
+      #1;
+      tb_check1("write drain staged load reaches PA query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check1("write drain PA query owns lookup",
+                dut.req_read_lookup_fire_w, 1'b1);
       tick();
       #1;
       // 判决拍: 0x8000_4100 未 fill → miss 发 AR, 走通整条 skid load。
@@ -1215,6 +1309,10 @@ module tb_ooo_mem_axi_bridge #(
       // next read must miss and refill the externally visible value.
       #1;
       tb_check1("post-drain read advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("post-drain read query owns lookup",
+                dut.req_read_lookup_fire_w, 1'b1);
       tick();
       #1;
       tb_check1("post-drain read refetches invalidated line", lsu_axi_arvalid, 1'b1);
@@ -1446,6 +1544,14 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_rvalid = 1'b0;
 
       #1;
+      tb_check1("sv39 translated load reaches SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check64("sv39 translated SQ query physical",
+                 mem0_sq_query_paddr, DATA_PA);
+      tb_check1("sv39 translated SQ query has no data AR",
+                lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
       tb_check1("sv39 translated data AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 translated data AR physical", lsu_axi_araddr, DATA_PA);
       tb_check64("sv39 translated data AR size",
@@ -1525,9 +1631,10 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_arready = 1'b0;
       #1;
       tb_check1("sv39 walk-hit waits PTE", lsu_axi_rready, 1'b1);
-      // T4C: S_WALK_R owns the leaf-derived payload even before RVALID, while
-      // enable remains low.  Poison the live RDATA so a qualified-fire mux
-      // regression selects the stale paddr_q and is directly observable.
+      // T4C: S_WALK_R may derive a leaf PA, but the cache macro is deliberately
+      // dark until that PA is registered and accepted by the SQ query.
+      // Poison the live RDATA to prove the unregistered leaf cannot enter the
+      // cache-address cone.
       // Level-2 leaves preserve PTE[53:28] and replace PTE[27:10] with the
       // virtual-page offset.  Flip PTE bit 28 so the poison is guaranteed to
       // change the derived PA (bit 30), rather than an ignored superpage bit.
@@ -1541,21 +1648,29 @@ module tb_ooo_mem_axi_bridge #(
                  DATA_PA ^ 64'h0000_0000_4000_0000);
       tb_check1("T4C poison differs from fallback",
                 (dut.walk_leaf_paddr_w !== dut.paddr_q), 1'b1);
-      tb_check64("T4C walk wait selects leaf payload",
-                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
+      tb_check64("T4C walk wait keeps registered cache address",
+                 dut.dcache_lookup_addr_w, dut.paddr_q);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = SUPERPAGE_PTE;
       #1;
       tb_check1("T4C qualified walk keeps owner",
                 dut.walk_lookup_payload_owner_w, 1'b1);
-      tb_check1("T4C qualified walk issues lookup",
-                dut.dcache_lookup_en_w, 1'b1);
-      tb_check64("T4C qualified walk selects leaf PA",
-                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
-      $display("[T4C-WALK-PAYLOAD-OWNER] waiting=owner/no-en qualified=owner/en");
+      tb_check1("T4C qualified walk still suppresses lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("T4C qualified walk still uses registered cache address",
+                 dut.dcache_lookup_addr_w, dut.paddr_q);
       tick();
       lsu_axi_rvalid = 1'b0;
       #1;
+      tb_check1("T4C registered leaf reaches SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check64("T4C SQ query carries registered leaf PA",
+                 mem0_sq_query_paddr, DATA_PA);
+      tb_check1("T4C SQ allow owns the only cache lookup",
+                dut.dcache_lookup_en_w, 1'b1);
+      tb_check64("T4C SQ lookup uses registered leaf PA",
+                 dut.dcache_lookup_addr_w, DATA_PA);
+      $display("[T4C-WALK-PAYLOAD-OWNER] walk=no-en registered-SQ=owner/en");
       tb_check1("sv39 walk-hit no data AR", lsu_axi_arvalid, 1'b0);
       tick();
       #1;
@@ -1633,6 +1748,14 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("PBMT/PMP legal leaf fills DTLB", dut.dtlb_fill_valid_w, 1'b1);
       tick();
       lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP NC reaches final-PA SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check64("PBMT/PMP NC SQ query physical",
+                 mem0_sq_query_paddr, DATA_PA);
+      tb_check1("PBMT/PMP NC query has no target side effect",
+                lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("PBMT/PMP NC bypass presents exact AR", lsu_axi_arvalid, 1'b1);
       lsu_axi_arready = 1'b1;
@@ -1826,6 +1949,14 @@ module tb_ooo_mem_axi_bridge #(
                  {30'b0, (pbmt == 2'b01) ? `OOO_MEM_CLASS_NC :
                                            `OOO_MEM_CLASS_IO});
       tb_check1("PBMT PMEM hot line cannot respond", mem0_rsp_valid, 1'b0);
+      tb_check1("PBMT PMEM reaches final-PA SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check64("PBMT PMEM SQ query physical",
+                 mem0_sq_query_paddr, DATA_PA);
+      tb_check1("PBMT PMEM SQ query has no AR",
+                lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
       if (pbmt == 2'b01) begin
         tb_check1("PBMT NC enters exact read owner",
                   dut.state_q == 4'd3, 1'b1);
@@ -1870,7 +2001,7 @@ module tb_ooo_mem_axi_bridge #(
 
   // HW-managed A/D（Svadu，对齐 NEMU）：leaf 真权限过但 A=0(任意)/D=0(store) 不再 page fault，
   // 而是经 S_AD_UPDATE 写回 leaf PTE 置 A(D) 位、填 TLB 后续原访问：
-  //   A=0 load  → 写 PTE|A → load miss 续 S_READ_ADDR(data AR) → 返回数据；
+  //   A=0 load  → 写 PTE|A → 最终 PA SQ 查询 → load miss data AR → 返回数据；
   //   D=0 store → 写 PTE|A|D → 续 S_WRITE_REQ(store AW/W→DATA_PA→B) 后完成。
   // 两情形置位后 PTE 均 == SUPERPAGE_PTE(A=1,D=1)。
   task automatic sv39_leaf_ad_update;
@@ -1879,7 +2010,10 @@ module tb_ooo_mem_axi_bridge #(
     input [`XLEN-1:0] leaf_flags;
     reg [`XLEN-1:0] orig_pte;
     reg [`XLEN-1:0] ad_pte;
+    integer stall_cycle;
     begin
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
       orig_pte = (SUPERPAGE_PPN << 10) | leaf_flags;
       ad_pte = orig_pte | 64'h40 | (write_access ? 64'h80 : 64'h0);
       priv_mode = `PRIV_S;
@@ -1913,6 +2047,10 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = orig_pte;
       #1;
+      tb_check1("V9K LSU PTE WRITE checker grants RW region",
+                dut.walk_pte_write_pmp_fault_w, 1'b0);
+      tb_check1("V9K LSU allow has no deny event",
+                dut.walk_ad_write_deny_w, 1'b0);
       tb_check1("T4C A/D-needed walk keeps payload owner",
                 dut.walk_lookup_payload_owner_w, 1'b1);
       tb_check1("T4C A/D-needed walk suppresses lookup",
@@ -1926,16 +2064,70 @@ module tb_ooo_mem_axi_bridge #(
       #1;
       tb_check1("sv39 A/D update issues AW", lsu_axi_awvalid, 1'b1);
       tb_check1("sv39 A/D update issues W", lsu_axi_wvalid, 1'b1);
+      tb_check1("V9K LSU PTE write uses 8B AWSIZE",
+                lsu_axi_awsize == 3'd3, 1'b1);
       tb_check64("sv39 A/D update write PTE address", lsu_axi_awaddr,
                  ROOT_PT + 64'd16);
+      tb_check64("V9K LSU allow AWADDR equals checked PTE address",
+                 lsu_axi_awaddr, dut.walk_pte_addr_w);
       tb_check64("sv39 A/D update write PTE data", lsu_axi_wdata, ad_pte);
       tb_check1("sv39 A/D update write full strb", &lsu_axi_wstrb, 1'b1);
-      lsu_axi_awready = 1'b1;
-      lsu_axi_wready = 1'b1;
-      tick();
-      lsu_axi_awready = 1'b0;
-      lsu_axi_wready = 1'b0;
+
+      // Hold both channels for two cycles, then exercise both legal channel
+      // orders across the load-A and store-D rows.
+      for (stall_cycle = 0; stall_cycle < 2;
+           stall_cycle = stall_cycle + 1) begin
+        tb_check1("V9K LSU stalled PTE AW remains valid",
+                  lsu_axi_awvalid, 1'b1);
+        tb_check64("V9K LSU stalled PTE AWADDR remains checked address",
+                   lsu_axi_awaddr, ROOT_PT + 64'd16);
+        tb_check1("V9K LSU stalled PTE AW keeps 8B AWSIZE",
+                  lsu_axi_awsize == 3'd3, 1'b1);
+        tb_check1("V9K LSU stalled PTE W remains valid",
+                  lsu_axi_wvalid, 1'b1);
+        tb_check64("V9K LSU stalled PTE WDATA remains stable",
+                   lsu_axi_wdata, ad_pte);
+        tb_check1("V9K LSU stalled PTE WSTRB remains full",
+                  &lsu_axi_wstrb, 1'b1);
+        tick();
+      end
+
+      if (write_access) begin
+        lsu_axi_awready = 1'b1;
+        tick();                   // store-D row: AW first
+        lsu_axi_awready = 1'b0;
+        #1;
+        tb_check1("V9K LSU accepted PTE AW is not reissued",
+                  lsu_axi_awvalid, 1'b0);
+        tb_check1("V9K LSU AW-first keeps PTE W pending",
+                  lsu_axi_wvalid, 1'b1);
+        tb_check64("V9K LSU AW-first keeps PTE WDATA stable",
+                   lsu_axi_wdata, ad_pte);
+        lsu_axi_wready = 1'b1;
+        tick();                   // delayed W
+        lsu_axi_wready = 1'b0;
+      end else begin
+        lsu_axi_wready = 1'b1;
+        tick();                   // load-A row: W first
+        lsu_axi_wready = 1'b0;
+        #1;
+        tb_check1("V9K LSU accepted PTE W is not reissued",
+                  lsu_axi_wvalid, 1'b0);
+        tb_check1("V9K LSU W-first keeps PTE AW pending",
+                  lsu_axi_awvalid, 1'b1);
+        tb_check64("V9K LSU W-first keeps PTE AWADDR stable",
+                   lsu_axi_awaddr, ROOT_PT + 64'd16);
+        lsu_axi_awready = 1'b1;
+        tick();                   // delayed AW
+        lsu_axi_awready = 1'b0;
+      end
+
       #1;
+      tb_check1("V9K LSU accepted PTE AW remains non-reissued",
+                lsu_axi_awvalid, 1'b0);
+      tb_check1("V9K LSU accepted PTE W remains non-reissued",
+                lsu_axi_wvalid, 1'b0);
+      tb_check1("V9K LSU PTE write waits for B", lsu_axi_bready, 1'b1);
       lsu_axi_bvalid = 1'b1;
       lsu_axi_bresp = 2'b00;
       tick();
@@ -1971,7 +2163,15 @@ module tb_ooo_mem_axi_bridge #(
         tick();
         mem0_rsp_ready = 1'b0;
       end else begin
-        // 续 load miss：S_READ_ADDR → data AR(DATA_PA) → R → 返回数据。
+        // 续 load miss：先以最终 PA 做 SQ 查询，allow 后再发 data AR。
+        #1;
+        tb_check1("sv39 A/D update load reaches SQ query",
+                  mem0_sq_query_valid, 1'b1);
+        tb_check64("sv39 A/D update load SQ query PA",
+                   mem0_sq_query_paddr, DATA_PA_AD);
+        tb_check1("sv39 A/D update load query has no data AR",
+                  lsu_axi_arvalid, 1'b0);
+        tick();
         #1;
         tb_check1("sv39 A/D update load issues data AR", lsu_axi_arvalid,
                   1'b1);
@@ -2001,6 +2201,9 @@ module tb_ooo_mem_axi_bridge #(
       mmu_flush = 1'b0;
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
+      $display("[V9K-LSU-PTW-PMP-WRITE-ALLOW] op=%0s read=allow write=allow checker=grant ad_update=1 awaddr=checked aw=once w=once awsize=3 split=%0s stall=2 payload=stable b_after_both=1",
+               write_access ? "store" : "load",
+               write_access ? "aw-first" : "w-first");
     end
   endtask
 
@@ -2011,7 +2214,11 @@ module tb_ooo_mem_axi_bridge #(
     input [1023:0] what;
     input write_access;
     input [`XLEN-1:0] leaf_flags;
+    input partial_cover;
+    input integer response_ready_delay;
     reg [`XLEN-1:0] orig_pte;
+    reg [4:0] deny_owner_token;
+    integer hold_cycle;
     begin
       mmu_flush = 1'b1;
       tick();
@@ -2031,6 +2238,7 @@ module tb_ooo_mem_axi_bridge #(
       mem0_req_addr = DATA_VA_AD;
       mem0_req_wdata = 64'h1234_5678_9abc_def0;
       mem0_req_wstrb = {`STRB_W{1'b1}};
+      deny_owner_token = mem0_req_owner_token;
       lsu_axi_arready = 1'b0;
       lsu_axi_awready = 1'b0;
       lsu_axi_wready = 1'b0;
@@ -2038,6 +2246,10 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1(what, mem0_req_ready, 1'b1);
       tick();
       mem0_req_valid = 1'b0;
+      // Poison the live request inputs after acceptance; the response must
+      // retain the registered load/store owner, token, epoch and original VA.
+      mem0_req_write = !write_access;
+      mem0_req_addr = DATA_VA_AD + 64'h80;
       tick();
       #1;
       tb_check1("T4F LSU PTE read remains allowed", lsu_axi_arvalid, 1'b1);
@@ -2051,6 +2263,14 @@ module tb_ooo_mem_axi_bridge #(
       lsu_axi_rdata = orig_pte;
       lsu_axi_rresp = 2'b00;
       lsu_axi_rvalid = 1'b1;
+      if (partial_cover) begin
+        pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+        pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+        pmpcfg[0 +: 8] = 8'h0b;
+        pmpcfg[8 +: 8] = 8'h1f;
+        pmpaddr[0 +: `XLEN] = (ROOT_PT + 64'd20) >> 2;
+        pmpaddr[`XLEN +: `XLEN] = {`XLEN{1'b1}};
+      end
       #1;
       tb_check1("T4F LSU final data PMP remains allowed",
                 dut.walk_leaf_pmp_fault_w, 1'b0);
@@ -2060,6 +2280,12 @@ module tb_ooo_mem_axi_bridge #(
                 1'b1);
       tb_check1("T4F LSU denied PTE emits no AW", lsu_axi_awvalid, 1'b0);
       tb_check1("T4F LSU denied PTE emits no W", lsu_axi_wvalid, 1'b0);
+      // Keep both AXI write READY inputs high throughout the response window.
+      // Any illegal AW/W pulse is therefore a real same-cycle handshake, not
+      // merely a VALID waveform that depends on downstream backpressure.
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      mem0_rsp_ready = (response_ready_delay == 0);
       tick();
       lsu_axi_rvalid = 1'b0;
       lsu_axi_rdata = {`XLEN{1'b0}};
@@ -2067,17 +2293,88 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("T4F LSU deny returns response", mem0_rsp_valid, 1'b1);
       tb_check1("T4F LSU deny is access fault", mem0_rsp_error, 1'b1);
       tb_check1("T4F LSU deny is not page fault", mem0_rsp_page_fault, 1'b0);
+      tb_check1("V9K LSU deny response owner kind is stable",
+                mem0_rsp_owner_kind == (write_access ? 2'b01 : 2'b00), 1'b1);
+      tb_check1("V9K LSU deny response owner token is stable",
+                mem0_rsp_owner_token == deny_owner_token, 1'b1);
+      tb_check1("V9K LSU deny response epoch is stable",
+                mem0_rsp_mmu_epoch == 2'b01, 1'b1);
+      tb_check64("V9K LSU deny response fault tval is original VA",
+                 mem0_rsp_fault_tval, DATA_VA_AD);
       tb_check1("T4F LSU response still has no AW", lsu_axi_awvalid, 1'b0);
       tb_check1("T4F LSU response still has no W", lsu_axi_wvalid, 1'b0);
-      mem0_rsp_ready = 1'b1;
+      // The first visible response cycle above is stall cycle 1 whenever the
+      // requested delay is nonzero.  Check every remaining stalled cycle.
+      for (hold_cycle = 1; hold_cycle < response_ready_delay;
+           hold_cycle = hold_cycle + 1) begin
+        tick();
+        #1;
+        tb_check1("V9K LSU held deny response remains valid",
+                  mem0_rsp_valid, 1'b1);
+        tb_check1("V9K LSU held deny remains access fault",
+                  mem0_rsp_error, 1'b1);
+        tb_check1("V9K LSU held deny remains non-page-fault",
+                  mem0_rsp_page_fault, 1'b0);
+        tb_check1("V9K LSU held deny owner kind remains stable",
+                  mem0_rsp_owner_kind ==
+                      (write_access ? 2'b01 : 2'b00), 1'b1);
+        tb_check1("V9K LSU held deny owner token remains stable",
+                  mem0_rsp_owner_token == deny_owner_token, 1'b1);
+        tb_check1("V9K LSU held deny epoch remains stable",
+                  mem0_rsp_mmu_epoch == 2'b01, 1'b1);
+        tb_check64("V9K LSU held deny fault tval remains original VA",
+                   mem0_rsp_fault_tval, DATA_VA_AD);
+        tb_check1("V9K LSU held deny response has no AW",
+                  lsu_axi_awvalid, 1'b0);
+        tb_check1("V9K LSU held deny response has no W",
+                  lsu_axi_wvalid, 1'b0);
+      end
+      // For a nonzero delay, also check the terminal handshake cycle.  For
+      // delay zero the initial response checks above already observe READY=1.
+      if (response_ready_delay != 0) begin
+        mem0_rsp_ready = 1'b1;
+        #1;
+        tb_check1("V9K LSU deny handshake response remains valid",
+                  mem0_rsp_valid, 1'b1);
+        tb_check1("V9K LSU deny handshake remains access fault",
+                  mem0_rsp_error, 1'b1);
+        tb_check1("V9K LSU deny handshake remains non-page-fault",
+                  mem0_rsp_page_fault, 1'b0);
+        tb_check1("V9K LSU deny handshake owner token remains stable",
+                  mem0_rsp_owner_token == deny_owner_token, 1'b1);
+        tb_check64("V9K LSU deny handshake fault tval remains original VA",
+                   mem0_rsp_fault_tval, DATA_VA_AD);
+        tb_check1("V9K LSU deny handshake has no AW",
+                  lsu_axi_awvalid, 1'b0);
+        tb_check1("V9K LSU deny handshake has no W",
+                  lsu_axi_wvalid, 1'b0);
+      end
       tick();
       mem0_rsp_ready = 1'b0;
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
       pmpcfg = PMP_ALLOW_ALL_CFG;
       pmpaddr = PMP_ALLOW_ALL_ADDR;
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
-      $display("[T4F-LSU-PTW-PMP-WRITE] op=%0s read=allow write=deny access-fault aw=0 w=0",
-               write_access ? "store" : "load");
+      $display("[T4F-LSU-PTW-PMP-WRITE] op=%0s mode=%0s read=allow write=deny access-fault aw=0 w=0 owner=stable response-delay=%0d awready=1 wready=1 interval=through-handshake",
+               write_access ? "store" : "load",
+               partial_cover ? "partial8" : "readonly",
+               response_ready_delay);
+    end
+  endtask
+
+  task automatic sv39_ad_write_pmp_deny_sweep;
+    input [1023:0] what;
+    input write_access;
+    input [`XLEN-1:0] leaf_flags;
+    input partial_cover;
+    begin
+      sv39_ad_write_pmp_deny(what, write_access, leaf_flags, partial_cover, 0);
+      sv39_ad_write_pmp_deny(what, write_access, leaf_flags, partial_cover, 1);
+      sv39_ad_write_pmp_deny(what, write_access, leaf_flags, partial_cover, 2);
+      sv39_ad_write_pmp_deny(what, write_access, leaf_flags, partial_cover, 3);
+      sv39_ad_write_pmp_deny(what, write_access, leaf_flags, partial_cover, 5);
     end
   endtask
 
@@ -2454,7 +2751,11 @@ module tb_ooo_mem_axi_bridge #(
       mem0_req_class = `OOO_MEM_CLASS_RSVD;
       mem0_req_cacheable = 1'b0;
       #1;
-      tick();   // C 判决拍 miss→AR fire→S_READ_DATA
+      tick();   // C 的最终 PA SQ allow 拍：登记 cache lookup
+      #1;
+      tb_check1("nokill-hold base read AR after SQ query",
+                lsu_axi_arvalid, 1'b1);
+      tick();   // C 的 S_LOOKUP miss 拍：AR fire→S_READ_DATA
       lsu_axi_arready = 1'b0;
       // flush 拍: C(S_READ_DATA)本地释放; 站内 nokill 项不得被清除
       flush = 1'b1;
@@ -2501,140 +2802,407 @@ module tb_ooo_mem_axi_bridge #(
     end
   endtask
 
-  // ===== 刀D 融合拍定向用例(load hit 流 1 拍/load 契约) =====
-  // 【时序 T2】融合谓词已 tie-0(链头退回 FF), FUSION_EN=0 跳过融合契约用例;
-  // 将来重新使能融合时改回 1。(c)(d) 的 flush 关断/miss 拍禁 advance 两用例
-  // 与 tie-0 兼容, 保持常开。
-  localparam FUSION_EN = 1'b1;
+  // v8t/F3: the registered final-PA SQ query is now the sole cache-lookup
+  // owner for ordinary loads.  Retain hit/miss/flush coverage without assuming
+  // the removed same-bank back-to-back load timing (backend admission forbids
+  // a second ordinary load while this bridge has an active/station load).
   task automatic dcache_hit_fusion_cases;
     begin
-      if (FUSION_EN) begin
-      // (a) 融合拍 back-to-back: 两个 hit load 连发, 稳态 1 拍/load
+      // (a) Hot line: request -> registered query/lookup -> hit-fusion response.
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_1000;
-      mem0_req_wstrb = {`STRB_W{1'b1}};
-      mem0_rsp_ready = 1'b1;
-      lsu_axi_arready = 1'b1;   // 陷阱: 全程不得发 AR
-      #1;
-      tb_check1("fusion load1 ready", mem0_req_ready, 1'b1);
-      tick();                    // fire load1 进寄存站
-      #1;
-      tb_check1("fusion load1 advance lookup", dut.req_read_lookup_fire_w,
-                1'b1);
-      tick();                    // advance: load1 发 lookup, load2 fire 进站
-      #1;
-      // 判决拍=融合拍: load1 rsp 组合交付, 同拍 advance load2 发 lookup
-      tb_check1("fusion beat rsp valid (1-cycle hit)", mem0_rsp_valid, 1'b1);
-      tb_check64("fusion beat rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
-      tb_check1("fusion beat advances next", dut.stage_advance_w, 1'b1);
-      tb_check1("fusion beat next lookup fires", dut.req_read_lookup_fire_w,
-                1'b1);
-      tick();                    // 融合拍结束: load2 进判决拍
-      mem0_req_valid = 1'b0;
-      #1;
-      tb_check1("fusion back-to-back second rsp", mem0_rsp_valid, 1'b1);
-      tb_check64("fusion second rdata", mem0_rsp_rdata,
-                 64'h0102_0304_0506_0708);
-      tb_check1("fusion no AR throughout", lsu_axi_arvalid, 1'b0);
-      tick();                    // load2 消费, 站空回 IDLE
-      mem0_rsp_ready = 1'b0;
-      lsu_axi_arready = 1'b0;
-      #1;
-      tb_check1("fusion drain back to ready", mem0_req_ready, 1'b1);
-
-      // (b) rsp 反压: hit 拍 rsp_ready=0 → 组合 rsp 不消费, 落寄存 S_RESP(skid)
-      mem0_req_valid = 1'b1;
-      mem0_req_write = 1'b0;
-      mem0_req_addr = 64'h0000_0000_8000_1000;
-      mem0_req_wstrb = {`STRB_W{1'b1}};
-      mem0_rsp_ready = 1'b0;
-      #1;
-      tick();                    // fire
-      mem0_req_valid = 1'b0;
-      #1;
-      tick();                    // advance 发 lookup
-      #1;
-      tb_check1("stalled hit rsp valid", mem0_rsp_valid, 1'b1);
-      tick();                    // 落寄存进 S_RESP
-      #1;
-      tb_check1("skid holds rsp", mem0_rsp_valid, 1'b1);
-      tb_check64("skid holds rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
-      mem0_rsp_ready = 1'b1;
-      tick();                    // 消费
-      mem0_rsp_ready = 1'b0;
-
-      end  // FUSION_EN (a)(b)
-
-      // (d) miss 拍禁 advance: miss load 判决拍时站中已有下一项——advance 必须
-      // 等 S_RESP 消费拍(mutation 杀手: advance 放宽到 miss 拍会覆写 paddr_q,
-      // AR 地址错/事务丢失)
-      mem0_req_valid = 1'b1;
-      mem0_req_write = 1'b0;
-      mem0_req_addr = 64'h0000_0000_8000_4000;  // 冷地址(miss), 与 0x8000_1000 不同 index
       mem0_req_wstrb = {`STRB_W{1'b1}};
       mem0_rsp_ready = 1'b1;
       lsu_axi_arready = 1'b1;
       #1;
-      tick();                    // fire miss-load 进寄存站
-      mem0_req_addr = 64'h0000_0000_8000_1000;  // 下一项(hit 地址)排队
-      #1;
-      tick();                    // advance: miss-load 发 lookup, 下一项 fire 进站
+      tb_check1("query hit request ready", mem0_req_ready, 1'b1);
+      tick();
       mem0_req_valid = 1'b0;
+      tick();
       #1;
-      // miss 判决拍: 站有项但不得 advance(否则 paddr_q 被覆写)
-      tb_check1("miss beat no advance", dut.stage_advance_w, 1'b0);
-      tb_check1("miss beat no rsp", mem0_rsp_valid, 1'b0);
-      tb_check1("miss beat AR fires", lsu_axi_arvalid, 1'b1);
-      tb_check64("miss beat AR addr intact", lsu_axi_araddr,
-                 64'h0000_0000_8000_4000);
-      tick();                    // AR 握手 → S_READ_DATA
+      tb_check1("query hit final-PA boundary", mem0_sq_query_valid, 1'b1);
+      tb_check1("query hit lookup owner", dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("query hit no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("query hit response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("query hit response data", mem0_rsp_rdata,
+                 64'h0102_0304_0506_0708);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("query hit drains to ready", mem0_req_ready, 1'b1);
+
+      // (b) Cold line still takes the normal miss/refill/held-response path.
+      issue_mem0_read(64'h0000_0000_8000_4000);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = 64'hdead_beef_0000_4000;
       lsu_axi_rresp = 2'b00;
-      #1;
-      tick();                    // R beat → fill+S_RESP
+      tick();
       lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("miss resolved rsp", mem0_rsp_valid, 1'b1);
-      tb_check64("miss resolved rdata", mem0_rsp_rdata,
+      tb_check1("query miss resolved response", mem0_rsp_valid, 1'b1);
+      tb_check64("query miss resolved data", mem0_rsp_rdata,
                  64'hdead_beef_0000_4000);
-      tick();                    // S_RESP 消费拍: 同拍 advance 下一项(hit)发 lookup
-      #1;                        // 下一项判决拍
-      if (FUSION_EN) begin
-        tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
-        tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
-      end else begin
-        tick();                  // T2: 落寄存, S_RESP 拍交付
-        #1;
-        tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
-        tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
-      end
+      mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
       lsu_axi_arready = 1'b0;
       #1;
 
-      // (c) flush(kill)拍融合关断: 判决拍撞 flush → 谓词含 !cpu_kill,
-      // rsp 不得组合交付(p42 型污染防线), flush 分支释放 S_LOOKUP
+      // (c) Flush at the query boundary suppresses lookup/response and drops
+      // the registered active owner exactly.
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_1000;
       mem0_req_wstrb = {`STRB_W{1'b1}};
-      mem0_rsp_ready = 1'b1;
-      #1;
-      tick();                    // fire
+      tick();
       mem0_req_valid = 1'b0;
+      tick();
       #1;
-      tick();                    // advance 发 lookup
+      tb_check1("flush test reaches query", mem0_sq_query_valid, 1'b1);
       flush = 1'b1;
       #1;
-      tb_check1("flush beat masks fusion rsp", mem0_rsp_valid, 1'b0);
-      tick();                    // flush 分支释放 S_LOOKUP
+      tb_check1("flush masks query valid", mem0_sq_query_valid, 1'b0);
+      tb_check1("flush masks query lookup", dut.req_read_lookup_fire_w, 1'b0);
+      tb_check1("flush query has no response", mem0_rsp_valid, 1'b0);
+      tick();
       flush = 1'b0;
+      #1;
+      tb_check1("flush query returns ready", mem0_req_ready, 1'b1);
+    end
+  endtask
+
+  // v8t/F3 directed decision lifecycle: replay without retry credit must hold
+  // the registered final-PA owner without touching cache/AXI/response state;
+  // credit transfers that exact owner out non-terminally.  Forward captures a
+  // held response and later flushes through the existing exact drop terminal.
+  task automatic final_pa_sq_query_decisions;
+    localparam [`XLEN-1:0] REPLAY_PA = 64'h0000_0000_8000_b000;
+    localparam [`XLEN-1:0] FORWARD_PA = 64'h0000_0000_8000_b080;
+    localparam [`XLEN-1:0] FORWARD_DATA = 64'hf3f3_8877_6655_4433;
+    reg [4:0] replay_token;
+    reg [4:0] forward_token;
+    integer hold_i;
+    begin
+      clear_inputs();
+      tick();
+
+      replay_token = mem0_req_owner_token;
+      mem0_sq_query_force_replay = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      lsu_axi_arready = 1'b1;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = REPLAY_PA;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1("F3 replay request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      for (hold_i = 0; hold_i < 3; hold_i = hold_i + 1) begin
+        tb_check1("F3 replay query held valid", mem0_sq_query_valid, 1'b1);
+        tb_check32("F3 replay query exact token",
+                   {27'b0, mem0_sq_query_owner_token},
+                   {27'b0, replay_token});
+        tb_check32("F3 replay query exact kind",
+                   {30'b0, mem0_sq_query_owner_kind}, 32'd0);
+        tb_check32("F3 replay query exact epoch",
+                   {30'b0, mem0_sq_query_mmu_epoch}, 32'd1);
+        tb_check64("F3 replay query stable PA",
+                   mem0_sq_query_paddr, REPLAY_PA);
+        tb_check32("F3 replay query onehot decision",
+                   {29'b0, mem0_sq_query_replay,
+                    mem0_sq_query_forward, mem0_sq_query_allow}, 32'd4);
+        tb_check1("F3 replay without credit does not fire",
+                  dut.sq_query_retry_fire_w, 1'b0);
+        tb_check1("F3 replay has no cache lookup",
+                  dut.dcache_lookup_en_w, 1'b0);
+        tb_check1("F3 replay has no AXI target",
+                  lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+        tb_check1("F3 replay has no response/drop terminal",
+                  mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+        tick();
+        #1;
+      end
+      mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("F3 replay credit fires exact handoff",
+                dut.sq_query_retry_fire_w, 1'b1);
+      tb_check1("F3 replay handoff remains terminal quiet",
+                mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+      tick();
+      mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_retry_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("F3 replay handoff releases bridge", mem0_idle, 1'b1);
+      tb_check1("F3 replay handoff clears query", mem0_sq_query_valid, 1'b0);
+      tb_check1("F3 replay handoff emits no response/drop",
+                mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+
+      clear_inputs();
+      tick();
+      forward_token = mem0_req_owner_token;
+      mem0_sq_query_force_forward = 1'b1;
+      mem0_sq_query_forward_data = FORWARD_DATA;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = FORWARD_PA;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("F3 forward query valid", mem0_sq_query_valid, 1'b1);
+      tb_check32("F3 forward query exact token",
+                 {27'b0, mem0_sq_query_owner_token},
+                 {27'b0, forward_token});
+      tb_check64("F3 forward query exact PA",
+                 mem0_sq_query_paddr, FORWARD_PA);
+      tb_check32("F3 forward query onehot decision",
+                 {29'b0, mem0_sq_query_replay,
+                  mem0_sq_query_forward, mem0_sq_query_allow}, 32'd2);
+      tb_check1("F3 forward has no target lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("F3 forward has no AXI target",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tick();
+      mem0_sq_query_force_forward = 1'b0;
+      #1;
+      for (hold_i = 0; hold_i < 3; hold_i = hold_i + 1) begin
+        tb_check1("F3 forwarded response held", mem0_rsp_valid, 1'b1);
+        tb_check64("F3 forwarded response data held",
+                   mem0_rsp_rdata, FORWARD_DATA);
+        tb_check32("F3 forwarded response exact token",
+                   {27'b0, mem0_rsp_owner_token},
+                   {27'b0, forward_token});
+        tb_check1("F3 forwarded hold has no AXI target",
+                  lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+        tick();
+        #1;
+      end
+      flush = 1'b1;
+      #1;
+      tb_check1("F3 forwarded flush masks response", mem0_rsp_valid, 1'b0);
+      tb_check1("F3 forwarded flush emits exact drop", mem0_drop0_valid, 1'b1);
+      tb_check32("F3 forwarded flush drop token",
+                 {27'b0, mem0_drop0_owner_token},
+                 {27'b0, forward_token});
+      tb_check1("F3 forwarded flush has no target",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("F3 forwarded flush releases bridge", mem0_idle, 1'b1);
+      tb_check1("F3 forwarded flush has no ghost response/drop",
+                mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+      $display("[V8T-F3-BRIDGE-QUERY] replay hold/handoff + forward hold/drop PASS");
+    end
+  endtask
+
+  task automatic v8u_seed_hot_line;
+    input [`XLEN-1:0] addr;
+    input [`XLEN-1:0] data;
+    begin
+      issue_mem0_read(addr);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = data;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("F4 seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("F4 seed response data", mem0_rsp_rdata, data);
+      mem0_rsp_ready = 1'b1;
+      tick();
       mem0_rsp_ready = 1'b0;
       #1;
-      tb_check1("flush drained back to ready", mem0_req_ready, 1'b1);
+      tb_check1("F4 seed bridge idle", mem0_idle, 1'b1);
+    end
+  endtask
+
+  // v8u/F4 bridge-local throughput proof.  A/B/C are first filled through the
+  // production miss path.  On the hot stream, A uses normal F3 query; A's hit
+  // response and station B query/lookup share one cycle, then B's response and
+  // station C query/lookup share the next.  C is accepted into the station on
+  // the A->B edge, proving station drain/refill ownership as well.
+  task automatic v8u_station_lookahead_hit_stream;
+    localparam [`XLEN-1:0] A_PA = 64'h0000_0000_8000_e000;
+    localparam [`XLEN-1:0] B_PA = 64'h0000_0000_8000_e008;
+    localparam [`XLEN-1:0] C_PA = 64'h0000_0000_8000_e010;
+    localparam [`XLEN-1:0] A_DATA = 64'ha0a0_0000_0000_0001;
+    localparam [`XLEN-1:0] B_DATA = 64'hb0b0_0000_0000_0002;
+    localparam [`XLEN-1:0] C_DATA = 64'hc0c0_0000_0000_0003;
+    reg [4:0] a_token;
+    reg [4:0] b_token;
+    reg [4:0] c_token;
+    begin
+      clear_inputs();
+      tick();
+      v8u_seed_hot_line(A_PA, A_DATA);
+      v8u_seed_hot_line(B_PA, B_DATA);
+      v8u_seed_hot_line(C_PA, C_DATA);
+
+      mem0_rsp_ready = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      a_token = mem0_req_owner_token;
+      b_token = a_token + 5'd1;
+      c_token = a_token + 5'd2;
+
+      // A enters station.
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = A_PA;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1("F4 A request ready", mem0_req_ready, 1'b1);
+      tick();
+
+      // A advances active while B refills station on the same edge.
+      mem0_req_addr = B_PA;
+      #1;
+      tb_check1("F4 B station refill ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("F4 A normal query valid", mem0_sq_query_valid, 1'b1);
+      tb_check32("F4 A normal query token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, a_token});
+      tb_check64("F4 A normal lookup PA", dut.dcache_lookup_addr_w, A_PA);
+      tb_check1("F4 A normal lookup fire", dut.dcache_lookup_en_w, 1'b1);
+      tick();
+
+      // A response may be held while the read-only B SQ query remains
+      // visible.  READY must gate only the cache lookup/station advance, not
+      // the query itself; this is the structural cut that keeps SQ ordering
+      // outside the response-credit cone.
+      mem0_rsp_ready = 1'b0;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = C_PA;
+      #1;
+      tb_check1("F4 stalled A response remains valid", mem0_rsp_valid, 1'b1);
+      tb_check1("F4 stalled B station query remains valid",
+                mem0_sq_query_valid, 1'b1);
+      tb_check32("F4 stalled B station query token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, b_token});
+      tb_check1("F4 stalled B query does not fire lookup",
+                dut.station_sq_lookahead_lookup_fire_w, 1'b0);
+      tb_check1("F4 stalled B query keeps D-cache disabled",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("F4 stalled station cannot accept C refill",
+                mem0_req_ready, 1'b0);
+      // Once A receives credit, A response, B next lookup and C station
+      // refill all coincide.
+      mem0_rsp_ready = 1'b1;
+      #1;
+      tb_check1("F4 A hot response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("F4 A hot response data", mem0_rsp_rdata, A_DATA);
+      tb_check32("F4 A response token", {27'b0, mem0_rsp_owner_token},
+                 {27'b0, a_token});
+      tb_check1("F4 B station query valid", mem0_sq_query_valid, 1'b1);
+      tb_check32("F4 B station query token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, b_token});
+      tb_check64("F4 B station query PA", mem0_sq_query_paddr, B_PA);
+      tb_check1("F4 B station fast lookup fire",
+                dut.station_sq_lookahead_lookup_fire_w, 1'b1);
+      tb_check64("F4 B lookup PA", dut.dcache_lookup_addr_w, B_PA);
+      tb_check1("F4 C refill ready on A completion", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+
+      // B response immediately follows; C receives the next lookup.
+      #1;
+      tb_check1("F4 B hot response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("F4 B hot response data", mem0_rsp_rdata, B_DATA);
+      tb_check32("F4 B response token", {27'b0, mem0_rsp_owner_token},
+                 {27'b0, b_token});
+      tb_check1("F4 C station query valid", mem0_sq_query_valid, 1'b1);
+      tb_check32("F4 C station query token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, c_token});
+      tb_check64("F4 C station query PA", mem0_sq_query_paddr, C_PA);
+      tb_check1("F4 C station fast lookup fire",
+                dut.station_sq_lookahead_lookup_fire_w, 1'b1);
+      tb_check64("F4 C lookup PA", dut.dcache_lookup_addr_w, C_PA);
+      tick();
+
+      #1;
+      tb_check1("F4 C hot response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("F4 C hot response data", mem0_rsp_rdata, C_DATA);
+      tb_check32("F4 C response token", {27'b0, mem0_rsp_owner_token},
+                 {27'b0, c_token});
+      tb_check1("F4 empty station has no lookahead query",
+                mem0_sq_query_valid, 1'b0);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("F4 hot stream bridge idle", mem0_idle, 1'b1);
+      $display("[V8U-F4-BRIDGE-STREAM] A/B/C consecutive hot responses and lookups PASS");
+    end
+  endtask
+
+  // v9l: sample the response-credit boundary on a real edge.  A hot current
+  // response may expose the next station's read-only SQ query while credit is
+  // low, but it must not launch the synchronous cache lookup.  On the edge it
+  // falls back to the registered S_RESP path; this task resets immediately
+  // after observing that boundary so the independent F4 throughput proof
+  // keeps its original no-stall cycle schedule.
+  task automatic v9l_station_lookahead_waits_for_credit;
+    localparam [`XLEN-1:0] A_PA = 64'h0000_0000_8000_e100;
+    localparam [`XLEN-1:0] B_PA = 64'h0000_0000_8000_e108;
+    localparam [`XLEN-1:0] A_DATA = 64'ha1a1_0000_0000_0001;
+    localparam [`XLEN-1:0] B_DATA = 64'hb1b1_0000_0000_0002;
+    begin
+      clear_inputs();
+      tick();
+      v8u_seed_hot_line(A_PA, A_DATA);
+      v8u_seed_hot_line(B_PA, B_DATA);
+
+      mem0_rsp_ready = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = A_PA;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_addr = B_PA;
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("V9L current hot load launches normal lookup",
+                dut.dcache_lookup_en_w, 1'b1);
+      tick();
+
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("V9L no-credit current response remains visible",
+                mem0_rsp_valid, 1'b1);
+      tb_check1("V9L no-credit station SQ query remains visible",
+                mem0_sq_query_valid, 1'b1);
+      tb_check1("V9L no-credit station SQ decision is allow",
+                mem0_sq_query_allow, 1'b1);
+      tb_check1("V9L no-credit station lookup remains closed",
+                dut.dcache_lookup_en_w, 1'b0);
+      tick();
+      #1;
+      tb_check1("V9L sampled response remains registered",
+                mem0_rsp_valid, 1'b1);
+      tb_check1("V9L sampled no-credit edge launched no lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+
+      rst = 1'b1;
+      clear_inputs();
+      tick();
+      tick();
+      rst = 1'b0;
+      #1;
+      tb_check1("V9L credit-boundary fixture resets idle", mem0_idle, 1'b1);
+      $display("[V9L-SQ-LOOKAHEAD-CREDIT] no-credit allow waited without SRAM lookup PASS");
     end
   endtask
 
@@ -2688,12 +3256,16 @@ module tb_ooo_mem_axi_bridge #(
                 dut.req_read_lookup_fire_w, 1'b0);
       tb_check1("spec PMP denied macro enable is low",
                 dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("F3 PMP access fault never reaches SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check1("spec PMP denied read has no AXI AR", lsu_axi_arvalid,
                 1'b0);
       tick();
       #1;
       tb_check1("spec PMP denied hit cannot fuse",
                 dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("F3 PMP fault response stays out of SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check1("spec PMP denied response valid", mem0_rsp_valid, 1'b1);
       tb_check1("spec PMP denied response is access fault",
                 mem0_rsp_error, 1'b1);
@@ -2777,8 +3349,10 @@ module tb_ooo_mem_axi_bridge #(
       tick();
       lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("spec DTLB fill leaf hits hot line",
-                dut.dcache_lookup_hit_w, 1'b1);
+      tb_check1("spec DTLB fill leaf reaches final-PA query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check1("spec DTLB fill query owns lookup",
+                dut.req_read_lookup_fire_w, 1'b1);
       tb_check1("spec DTLB fill leaf has no data AR", lsu_axi_arvalid,
                 1'b0);
       tick();
@@ -2811,6 +3385,8 @@ module tb_ooo_mem_axi_bridge #(
                 dut.req_read_lookup_fire_w, 1'b0);
       tb_check1("spec DTLB denied macro enable is low",
                 dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("F3 DTLB permission fault never reaches SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check64("spec DTLB denied lookup keeps translated PA",
                  dut.dcache_lookup_addr_w, SPEC_USER_PA);
       tb_check1("spec DTLB denied advance has no data AR", lsu_axi_arvalid,
@@ -2819,6 +3395,8 @@ module tb_ooo_mem_axi_bridge #(
       #1;
       tb_check1("spec DTLB denied hit cannot fuse",
                 dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("F3 DTLB fault response stays out of SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check1("spec DTLB denied response valid", mem0_rsp_valid, 1'b1);
       tb_check1("spec DTLB denied response error", mem0_rsp_error, 1'b1);
       tb_check1("spec DTLB denied response is page fault",
@@ -2847,6 +3425,7 @@ module tb_ooo_mem_axi_bridge #(
       #1;
       tick();
       mem0_req_valid = 1'b0;
+      tick();
       #1;
       tb_check1("spec DTLB post-fault authorized lookup",
                 dut.req_read_lookup_fire_w, 1'b1);
@@ -2930,13 +3509,17 @@ module tb_ooo_mem_axi_bridge #(
                 dut.walk_lookup_payload_owner_w, 1'b1);
       tb_check1("T4C invalid PTE suppresses lookup",
                 dut.dcache_lookup_en_w, 1'b0);
-      tb_check64("T4C invalid PTE still selects leaf payload",
-                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
+      tb_check1("F3 invalid PTE never reaches SQ query",
+                mem0_sq_query_valid, 1'b0);
+      tb_check64("T4C invalid PTE keeps registered active address",
+                 dut.dcache_lookup_addr_w, dut.paddr_q);
       tick();
       lsu_axi_rvalid = 1'b0;
       #1;
       tb_check1("spec stale TLB invalid PTE response valid",
                 mem0_rsp_valid, 1'b1);
+      tb_check1("F3 invalid PTE response stays out of SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check1("spec stale TLB invalid PTE response error",
                 mem0_rsp_error, 1'b1);
       tb_check1("spec stale TLB invalid PTE is page fault",
@@ -2963,6 +3546,7 @@ module tb_ooo_mem_axi_bridge #(
       #1;
       tick();
       mem0_req_valid = 1'b0;
+      tick();
       #1;
       tb_check1("spec stale TLB post-fault physical lookup authorized",
                 dut.req_read_lookup_fire_w, 1'b1);
@@ -3007,7 +3591,10 @@ module tb_ooo_mem_axi_bridge #(
       mem0_req_write = 1'b1;
       mem0_req_addr = addr;
       mem0_req_wdata = 64'h5100_0000_0000_0000 + mode;
-      mem0_req_wstrb = 8'h3c;
+      // The bridge request ABI is normalized relative to addr; this test is
+      // about AXI hold stability, so use a legal 4-byte mask rather than an
+      // AXI-lane-shifted value.
+      mem0_req_wstrb = 8'h0f;
       #1;
       tb_check1("S2-G1 write-hold request ready", mem0_req_ready, 1'b1);
       tick();
@@ -3155,6 +3742,20 @@ module tb_ooo_mem_axi_bridge #(
       tick();
       mem0_req_valid = 1'b0;
       flush = 1'b1;
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("S2-G1 replace stalls nokill station without response credit",
+                dut.stage_advance_w, 1'b0);
+      tb_check1("S2-G1 replace stalled station still queries tracker",
+                mem0_station_query_valid, 1'b1);
+      tb_check1("S2-G1 replace drop is raw before response credit",
+                mem0_drop0_valid, 1'b1);
+      tb_check1("S2-G1 replace raw drop keeps nokill station",
+                mem0_drop1_valid, 1'b0);
+      tb_check32("S2-G1 replace raw drop old rsp token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, old_token});
+      tb_check64("S2-G1 replace raw drop old rsp tval",
+                 mem0_drop0_fault_tval, OLD_ADDR);
       mem0_rsp_ready = 1'b1;
       #1;
       tb_check1("S2-G1 replace advances nokill station", dut.stage_advance_w, 1'b1);
@@ -3189,6 +3790,7 @@ module tb_ooo_mem_axi_bridge #(
       tick();
       mem0_rsp_ready = 1'b0;
       flush = 1'b0;
+      $display("[V8G-BRG-DROP-READY-CUT] S_RESP kill terminal is independent of response credit and station advance PASS");
       $display("[S2-G1-BRG-ATOMIC-REPLACE][PASS] old=%0d new=%0d",
                old_token, new_token);
     end
@@ -3410,6 +4012,8 @@ module tb_ooo_mem_axi_bridge #(
                 dut.dtlb_fill_valid_w, 1'b0);
       tb_check1("S2-G1 killed A/D late B has no response",
                 mem0_rsp_valid, 1'b0);
+      tb_check1("F3 killed A/D late B has no SQ query",
+                mem0_sq_query_valid, 1'b0);
       tb_check1("S2-G1 killed A/D late B is exact drop terminal",
                 mem0_drop0_valid, 1'b1);
       tb_check32("S2-G1 killed A/D drop token",
@@ -3425,6 +4029,151 @@ module tb_ooo_mem_axi_bridge #(
                 dut.dcache_store_commit_w, 1'b0);
       tb_check1("S2-G1 killed A/D drop pulses once", mem0_drop0_valid, 1'b0);
       $display("[S2-G1-BRG-KILLED-AD-MAINT][PASS] token=%0d", token);
+    end
+  endtask
+
+  // V8W OOO-4 selective-only A/D drain.  Unlike the older maintenance case,
+  // this trajectory never raises the full-core flush input: an exact
+  // branch-recovery kill alone must latch the escaped PTE-write obligation,
+  // preserve the independently stalled AW/W channels, wait for the late B,
+  // and emit one exact drop without continuing the original data access.
+  task automatic v8w_selective_recovery_drains_ad_write;
+    reg [4:0] token;
+    reg [`XLEN-1:0] orig_pte;
+    reg [`XLEN-1:0] held_awaddr;
+    reg [`XLEN-1:0] held_wdata;
+    reg [`STRB_W-1:0] held_wstrb;
+    integer stall_i;
+    begin
+      clear_inputs();
+      tick();
+      token = mem0_req_owner_token;
+      orig_pte = (SUPERPAGE_PPN << 10) | LEAF_NO_ACCESS_FLAGS;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA_AD;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("V8W selective A/D request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("V8W selective A/D walk AR", lsu_axi_arvalid, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = orig_pte;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("V8W selective A/D presents AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("V8W selective A/D presents W", lsu_axi_wvalid, 1'b1);
+      held_awaddr = lsu_axi_awaddr;
+      held_wdata = lsu_axi_wdata;
+      held_wstrb = lsu_axi_wstrb;
+
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W selective A/D keeps global flush low", flush, 1'b0);
+      tb_check1("V8W selective A/D exact recovery authority",
+                dut.active_selective_recovery_w, 1'b1);
+      tb_check1("V8W selective A/D captures maintenance authority",
+                dut.killed_write_maintenance_capture_w, 1'b1);
+      tb_check1("V8W selective A/D kill edge has no early terminal",
+                mem0_drop0_valid, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      #1;
+      tb_check1("V8W selective A/D drain obligation is sticky",
+                dut.drop_rsp_q, 1'b1);
+      tb_check1("V8W selective A/D maintenance authority is sticky",
+                dut.killed_write_maintenance_authorized_q, 1'b1);
+      tb_check1("V8W selective A/D AW remains presented",
+                lsu_axi_awvalid, 1'b1);
+      tb_check1("V8W selective A/D W remains presented",
+                lsu_axi_wvalid, 1'b1);
+      tb_check64("V8W selective A/D stalled AW address stable",
+                 lsu_axi_awaddr, held_awaddr);
+      tb_check64("V8W selective A/D stalled W data stable",
+                 lsu_axi_wdata, held_wdata);
+      tb_check32("V8W selective A/D stalled W mask stable",
+                 {{(32-`STRB_W){1'b0}}, lsu_axi_wstrb},
+                 {{(32-`STRB_W){1'b0}}, held_wstrb});
+
+      // AW and W are independent registered AXI owners.  Accept AW first,
+      // hold W for two further cycles, then accept W while B remains absent.
+      lsu_axi_awready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      #1;
+      tb_check1("V8W selective A/D completed AW stays retired",
+                lsu_axi_awvalid, 1'b0);
+      tb_check1("V8W selective A/D stalled W remains valid",
+                lsu_axi_wvalid, 1'b1);
+      for (stall_i = 0; stall_i < 2; stall_i = stall_i + 1) begin
+        tb_check64("V8W selective A/D W data stable across stall",
+                   lsu_axi_wdata, held_wdata);
+        tb_check32("V8W selective A/D W mask stable across stall",
+                   {{(32-`STRB_W){1'b0}}, lsu_axi_wstrb},
+                   {{(32-`STRB_W){1'b0}}, held_wstrb});
+        tb_check1("V8W selective A/D no terminal before W/B",
+                  mem0_drop0_valid, 1'b0);
+        tick();
+        #1;
+      end
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("V8W selective A/D completed W stays retired",
+                lsu_axi_wvalid, 1'b0);
+      tb_check1("V8W selective A/D waits B", lsu_axi_bready, 1'b1);
+
+      for (stall_i = 0; stall_i < 3; stall_i = stall_i + 1) begin
+        tb_check1("V8W selective A/D late-B wait keeps drain sticky",
+                  dut.drop_rsp_q, 1'b1);
+        tb_check1("V8W selective A/D late-B wait has no response",
+                  mem0_rsp_valid, 1'b0);
+        tb_check1("V8W selective A/D late-B wait has no SQ query",
+                  mem0_sq_query_valid, 1'b0);
+        tb_check1("V8W selective A/D late-B wait has no terminal",
+                  mem0_drop0_valid, 1'b0);
+        tick();
+        #1;
+      end
+
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b00;
+      #1;
+      tb_check1("V8W selective A/D late B invalidates PTE alias",
+                dut.dcache_store_commit_w, 1'b1);
+      tb_check1("V8W selective A/D late B forbids data RMW",
+                dut.dcache_store_rmw_en_w, 1'b0);
+      tb_check1("V8W selective A/D late B forbids DTLB fill",
+                dut.dtlb_fill_valid_w, 1'b0);
+      tb_check1("V8W selective A/D late B has no CPU response",
+                mem0_rsp_valid, 1'b0);
+      tb_check1("V8W selective A/D late B has no SQ query",
+                mem0_sq_query_valid, 1'b0);
+      tb_check1("V8W selective A/D late B emits exact drop",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W selective A/D drop token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("V8W selective A/D terminal pulses once",
+                mem0_drop0_valid, 1'b0);
+      tb_check1("V8W selective A/D authority consumed once",
+                dut.killed_write_maintenance_authorized_q, 1'b0);
+      tb_check1("V8W selective A/D drain reaches idle", mem0_idle, 1'b1);
+      tb_check1("V8W selective A/D never used global flush", flush, 1'b0);
+      $display("[V8W-OOO4-SELECTIVE-AD-DRAIN][PASS] token=%0d", token);
     end
   endtask
 
@@ -3530,6 +4279,341 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("S2-G1 prewrite kill produced no cache maintenance",
                 dut.dcache_store_commit_w, 1'b0);
       $display("[S2-G1-BRG-PREWRITE-KILL][PASS]");
+    end
+  endtask
+
+  // V8W OOO-4: a branch-selective recovery can invalidate the exact active
+  // MIQ load without asserting the full-core flush.  In production dual-LSU
+  // mode the backend then withholds SQ retry credit, so the bridge itself must
+  // terminate the exact owner before any data AR/cache lookup is created.
+  task automatic v8w_selective_recovery_cancels_sq_query;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_f180;
+    reg [4:0] token;
+    begin
+      clear_inputs();
+      mem0_sq_query_force_replay = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("V8W selective SQ query reached", mem0_sq_query_valid, 1'b1);
+      token = mem0_sq_query_owner_token;
+      tb_check1("V8W selective SQ query has no pre-recovery AR",
+                lsu_axi_arvalid, 1'b0);
+
+      // This is an RTL branch-recovery condition, not a global flush.
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W exact killed SQ query is masked",
+                mem0_sq_query_valid, 1'b0);
+      tb_check1("V8W exact killed SQ query emits one terminal",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W exact killed SQ query terminal token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tb_check1("V8W exact killed SQ query has no data AR",
+                lsu_axi_arvalid, 1'b0);
+      tb_check1("V8W exact killed SQ query has no cache lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("V8W exact killed SQ owner drains to idle", mem0_idle, 1'b1);
+      tb_check1("V8W exact killed SQ terminal pulses once",
+                mem0_drop0_valid, 1'b0);
+      tb_check1("V8W exact killed SQ owner has no ghost response",
+                mem0_rsp_valid, 1'b0);
+      $display("[V8W-OOO4-SQ-SELECTIVE-RECOVERY][PASS] token=%0d", token);
+    end
+  endtask
+
+  // V8W OOO-4: once a PTE AR handshake has occurred, selective recovery must
+  // keep RREADY asserted until that response is consumed.  A non-leaf result
+  // belongs to the recovered load and therefore must not launch a subsequent
+  // page-table level request.
+  task automatic v8w_selective_recovery_drains_ptw_without_continuation;
+    localparam [`XLEN-1:0] NONLEAF_PTE = 64'h0000_0000_0020_0001;
+    reg [4:0] token;
+    begin
+      clear_inputs();
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("V8W PTW presents first PTE AR", lsu_axi_arvalid, 1'b1);
+      token = mem0_owner_query_token;
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("V8W PTW waits for first PTE R", lsu_axi_rready, 1'b1);
+
+      s2_expected_effective_killed = 1'b1;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = NONLEAF_PTE;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("V8W recovered PTW still drains current R",
+                lsu_axi_rready, 1'b1);
+      tb_check1("V8W recovered PTW terminal waits for current R",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W recovered PTW terminal token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      s2_expected_effective_killed = 1'b0;
+      #1;
+      tb_check1("V8W recovered PTW does not present next PTE AR",
+                lsu_axi_arvalid, 1'b0);
+      tb_check1("V8W recovered PTW drains to idle", mem0_idle, 1'b1);
+      tb_check1("V8W recovered PTW has no CPU response",
+                mem0_rsp_valid, 1'b0);
+      tb_check1("V8W recovered PTW terminal pulses once",
+                mem0_drop0_valid, 1'b0);
+      $display("[V8W-OOO4-PTW-DRAIN-NO-CONTINUE][PASS] token=%0d", token);
+    end
+  endtask
+
+  // V8W OOO-4 delayed-return coverage: recovery may precede the outstanding
+  // PTE R beat by an arbitrary number of cycles.  Once the bridge records the
+  // drain obligation, it must keep RREADY and the exact owner snapshot even if
+  // the live effective-killed input is no longer asserted by the testbench.
+  task automatic v8w_selective_recovery_sticky_delayed_r;
+    localparam [`XLEN-1:0] NONLEAF_PTE = 64'h0000_0000_0020_0001;
+    reg [4:0] token;
+    integer hold_cycle;
+    begin
+      clear_inputs();
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA + 64'h1000;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("V8W delayed PTW presents PTE AR",
+                lsu_axi_arvalid, 1'b1);
+      token = mem0_owner_query_token;
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("V8W delayed PTW waits for R", lsu_axi_rready, 1'b1);
+
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W delayed PTW recognizes exact recovery",
+                dut.active_selective_recovery_w, 1'b1);
+      tb_check1("V8W delayed PTW has no terminal before R",
+                mem0_drop0_valid, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      #1;
+      tb_check1("V8W delayed PTW records sticky drain",
+                dut.drop_rsp_q, 1'b1);
+
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        tb_check1("V8W delayed PTW holds RREADY",
+                  lsu_axi_rready, 1'b1);
+        tb_check1("V8W delayed PTW presents no continuation AR",
+                  lsu_axi_arvalid, 1'b0);
+        tb_check1("V8W delayed PTW presents no CPU response",
+                  mem0_rsp_valid, 1'b0);
+        tb_check1("V8W delayed PTW has no early terminal",
+                  mem0_drop0_valid, 1'b0);
+        tick();
+        #1;
+      end
+
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = NONLEAF_PTE;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("V8W delayed PTW drains late R",
+                lsu_axi_rready, 1'b1);
+      tb_check1("V8W delayed PTW emits exact late terminal",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W delayed PTW terminal token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tb_check1("V8W delayed PTW late R starts no next AR",
+                lsu_axi_arvalid, 1'b0);
+      tb_check1("V8W delayed PTW late R has no CPU response",
+                mem0_rsp_valid, 1'b0);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("V8W delayed PTW releases after late R",
+                mem0_idle, 1'b1);
+      tb_check1("V8W delayed PTW terminal pulses once",
+                mem0_drop0_valid, 1'b0);
+      tb_check1("V8W delayed PTW never continues walk",
+                lsu_axi_arvalid, 1'b0);
+      $display("[V8W-OOO4-PTW-STICKY-DELAYED-R][PASS] token=%0d hold=%0d",
+               token, hold_cycle);
+    end
+  endtask
+
+  // V8W OOO-4 holder coverage: an active owner and the single-entry request
+  // station may both be younger than the same recovered branch.  The active
+  // owner terminates first; the station then promotes only far enough to bind
+  // its exact MIQ identity and terminates without reaching a target.
+  task automatic v8w_selective_recovery_drains_active_and_station;
+    localparam [`XLEN-1:0] ACTIVE_ADDR = 64'h0000_0000_8000_f200;
+    localparam [`XLEN-1:0] STATION_ADDR = 64'h0000_0000_8000_f280;
+    reg [4:0] active_token;
+    reg [4:0] station_token;
+    begin
+      clear_inputs();
+      mem0_sq_query_force_replay = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      active_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = ACTIVE_ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      station_token = mem0_req_owner_token;
+      mem0_req_addr = STATION_ADDR;
+      #1;
+      tb_check1("V8W station refill is ready with active advance",
+                mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("V8W active holder reaches SQ query",
+                mem0_sq_query_valid, 1'b1);
+      tb_check32("V8W active holder query token",
+                 {27'b0, mem0_sq_query_owner_token},
+                 {27'b0, active_token});
+      tb_check1("V8W younger station holder is resident",
+                mem0_station_query_valid, 1'b1);
+
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W active holder recovery terminal",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W active holder recovery token",
+                 {27'b0, mem0_drop0_owner_token},
+                 {27'b0, active_token});
+      tb_check1("V8W active holder recovery has no target",
+                lsu_axi_arvalid | dut.dcache_lookup_en_w, 1'b0);
+      tick();
+      #1;
+      tb_check1("V8W station remains registered after active terminal",
+                mem0_station_query_valid, 1'b1);
+      tb_check32("V8W station retains exact token",
+                 {27'b0, mem0_station_query_token},
+                 {27'b0, station_token});
+      tb_check1("V8W active terminal does not repeat",
+                mem0_drop0_valid, 1'b0);
+
+      // IDLE promotes the station on this edge.  The still-asserted MIQ
+      // effective-killed fact then matches its new active identity.
+      tick();
+      #1;
+      tb_check1("V8W promoted station query remains masked",
+                mem0_sq_query_valid, 1'b0);
+      tb_check1("V8W promoted station emits exact terminal",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("V8W promoted station terminal token",
+                 {27'b0, mem0_drop0_owner_token},
+                 {27'b0, station_token});
+      tb_check1("V8W promoted station has no target",
+                lsu_axi_arvalid | dut.dcache_lookup_en_w, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("V8W active and station holders drain to idle",
+                mem0_idle, 1'b1);
+      tb_check1("V8W holder terminal count is exact",
+                mem0_drop0_valid, 1'b0);
+      $display("[V8W-OOO4-ACTIVE-STATION-RECOVERY][PASS] active=%0d station=%0d",
+               active_token, station_token);
+    end
+  endtask
+
+  // V8W OOO-4 authority coverage: the effective-killed fact is meaningful
+  // only together with all independent identity views.  Toggle each view
+  // combinationally and restore it before the clock edge so the baseline can
+  // prove that no raw flag creates a recovery terminal.
+  task automatic v8w_selective_recovery_requires_exact_identity;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_f300;
+    begin
+      clear_inputs();
+      mem0_sq_query_force_replay = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("V8W authority test reaches SQ query",
+                mem0_sq_query_valid, 1'b1);
+
+      s2_active_identity_mutate = 1'b1;
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W MIQ identity mismatch blocks selective recovery",
+                dut.active_selective_recovery_w, 1'b0);
+      tb_check1("V8W MIQ identity mismatch emits no terminal",
+                mem0_drop0_valid, 1'b0);
+      s2_active_identity_mutate = 1'b0;
+      s2_expected_effective_killed = 1'b0;
+      #1;
+
+      s2_active_tracker_mutate = 1'b1;
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W tracker identity mismatch blocks selective recovery",
+                dut.active_selective_recovery_w, 1'b0);
+      tb_check1("V8W tracker identity mismatch emits no terminal",
+                mem0_drop0_valid, 1'b0);
+      s2_active_tracker_mutate = 1'b0;
+      s2_expected_effective_killed = 1'b0;
+      #1;
+
+      force dut.active_sticky_identity_match_w = 1'b0;
+      s2_expected_effective_killed = 1'b1;
+      #1;
+      tb_check1("V8W sticky identity mismatch blocks selective recovery",
+                dut.active_selective_recovery_w, 1'b0);
+      tb_check1("V8W sticky identity mismatch emits no terminal",
+                mem0_drop0_valid, 1'b0);
+      s2_expected_effective_killed = 1'b0;
+      release dut.active_sticky_identity_match_w;
+      #1;
+
+      flush = 1'b1;
+      #1;
+      tb_check1("V8W authority test global cleanup terminal",
+                mem0_drop0_valid, 1'b1);
+      tick();
+      flush = 1'b0;
+      mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("V8W authority test cleanup reaches idle", mem0_idle, 1'b1);
+      $display("[V8W-OOO4-RECOVERY-AUTHORITY][PASS]");
     end
   endtask
 
@@ -3686,6 +4770,9 @@ module tb_ooo_mem_axi_bridge #(
     read_arsize_tracks_load_mask();
     cached_window_shift_and_cross_block();
     dcache_hit_fusion_cases();
+    final_pa_sq_query_decisions();
+    v9l_station_lookahead_waits_for_credit();
+    v8u_station_lookahead_hit_stream();
     dma_invalidate_blocks_hit_fusion();
     speculative_cache_hit_cannot_bypass_pmp();
     speculative_cache_hit_cannot_bypass_dtlb_permission();
@@ -3694,10 +4781,13 @@ module tb_ooo_mem_axi_bridge #(
     flushed_store_does_not_poison_dcache();
     b_error_invalidates_possible_partial_store_alias();
     store_rmw_write_update_and_bubble();
-    sv39_ad_write_pmp_deny("T4F load A-update PTE write denied", 1'b0,
-                           LEAF_NO_ACCESS_FLAGS);
-    sv39_ad_write_pmp_deny("T4F store D-update PTE write denied", 1'b1,
-                           LEAF_NO_DIRTY_FLAGS);
+    sv39_ad_write_pmp_deny_sweep("T4F load A-update PTE write denied", 1'b0,
+                                 LEAF_NO_ACCESS_FLAGS, 1'b0);
+    sv39_ad_write_pmp_deny_sweep("T4F store D-update PTE write denied", 1'b1,
+                                 LEAF_NO_DIRTY_FLAGS, 1'b0);
+    sv39_ad_write_pmp_deny_sweep(
+        "V9K load 8B partial-cover PTE write denied", 1'b0,
+        LEAF_NO_ACCESS_FLAGS, 1'b1);
     sv39_leaf_ad_update("sv39 A=0 load triggers HW A update", 1'b0,
                        LEAF_NO_ACCESS_FLAGS);
     sv39_leaf_ad_update("sv39 D=0 store triggers HW D update", 1'b1,
@@ -3724,6 +4814,13 @@ module tb_ooo_mem_axi_bridge #(
     s2_g1_write_valid_hold_case(2);
     s2_g1_dual_drop_distinct_tuple();
     s2_g1_rsp_flush_nokill_atomic_replace();
+    s2_g1_focused_killed_ad_maintenance();
+    v8w_selective_recovery_cancels_sq_query();
+    v8w_selective_recovery_drains_ptw_without_continuation();
+    v8w_selective_recovery_sticky_delayed_r();
+    v8w_selective_recovery_drains_active_and_station();
+    v8w_selective_recovery_requires_exact_identity();
+    v8w_selective_recovery_drains_ad_write();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);
     tb_finish("tb_ooo_mem_axi_bridge");
@@ -3747,6 +4844,12 @@ module tb_ooo_mem_axi_bridge #(
       6: s2_g1_focused_killed_write_mismatch_failclosed();
       7: s2_g1_focused_prewrite_kill_no_authority();
       8: s2_q0_bridge_registered_facts_idle();
+      9: v8w_selective_recovery_cancels_sq_query();
+      10: v8w_selective_recovery_drains_ptw_without_continuation();
+      11: v8w_selective_recovery_drains_active_and_station();
+      12: v8w_selective_recovery_requires_exact_identity();
+      13: v8w_selective_recovery_sticky_delayed_r();
+      14: v8w_selective_recovery_drains_ad_write();
       default: begin
         $display("[S2-G1-BRG-FOCUSED][FAIL] unsupported case=%0d", S2_G1_CASE);
         tb_errors = tb_errors + 1;

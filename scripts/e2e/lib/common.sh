@@ -62,7 +62,17 @@ e2e_file_text() {
 
 e2e_file_contains() {
   local file=$1 pattern=$2
-  e2e_file_text "$file" | grep -Fq -- "$pattern"
+  local abs="$E2E_ROOT_DIR/$file"
+  if [[ ! -f $abs ]]; then
+    return 1
+  fi
+  if grep -Fq -- "DB-backed $file" "$abs" 2>/dev/null; then
+    # Process substitution keeps an early grep -q match from turning the
+    # producer's SIGPIPE into a false negative when the caller uses pipefail.
+    grep -Fq -- "$pattern" < <(e2e_file_text "$file")
+  else
+    grep -Fq -- "$pattern" "$abs"
+  fi
 }
 
 e2e_profile_runtime_scenario() {
@@ -290,11 +300,13 @@ e2e_nemu_config_summary() {
   printf 'nemu/.config isa=%s target=%s' "${isa:-unknown}" "$target"
 }
 
-e2e_nemu_am_compatible() {
-  if [[ ${AGENT_E2E_FORCE_SMOKE:-0} = 1 ]]; then
-    return 0
-  fi
-  grep -q '^CONFIG_TARGET_AM=y' "$E2E_ROOT_DIR/nemu/.config" 2>/dev/null
+e2e_nemu_native_reference_compatible() {
+  # cpu-tests 的 riscv*-nemu 平台需要宿主 NEMU 可执行文件。TARGET_AM 会把
+  # NEMU 自身构建成 AM 镜像，并经 platform/nemu.mk 递归调用同一构建入口；
+  # TARGET_SHARE 则只生成 DiffTest 共享库，二者都不是该 smoke 的执行目标。
+  local config="$E2E_ROOT_DIR/nemu/.config"
+  grep -q '^CONFIG_TARGET_NATIVE_ELF=y' "$config" 2>/dev/null &&
+    grep -Eq '^CONFIG_ISA="riscv(32|64)"$' "$config" 2>/dev/null
 }
 
 e2e_default_nemu_arch() {

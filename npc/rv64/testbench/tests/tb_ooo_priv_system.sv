@@ -3,6 +3,8 @@
 `include "rv32_encode.svh"
 
 module tb_ooo_priv_system;
+  localparam PRODUCER_ID_W =
+      `OOO_ROB_INDEX_W + `OOO_PRODUCER_GEN_W;
   reg clk;
   reg rst;
   reg flush;
@@ -101,10 +103,13 @@ module tb_ooo_priv_system;
   localparam [3:0] MODE_MRET_S_ILLEGAL = 4'd5;
   localparam [3:0] MODE_SRET_U_ILLEGAL = 4'd6;
   localparam [3:0] MODE_FENCE_ORDERING = 4'd7;
+  localparam [3:0] MODE_FDG_ARCH_TRAP = 4'd8;
   localparam [`XLEN-1:0] BASE_PC = 64'h0000_0000_8000_0000;
   localparam [`XLEN-1:0] HANDLER_PC = 64'h0000_0000_8000_0080;
   localparam [`XLEN-1:0] S_ENTRY_PC = 64'h0000_0000_8000_0040;
   localparam [`XLEN-1:0] S_HANDLER_PC = 64'h0000_0000_8000_0100;
+  localparam [`INST_W-1:0] FDG_ILLEGAL_FP_INST =
+      {7'b0111111, 5'd3, 5'd2, 3'b000, 5'd1, `OPCODE_OP_FP};
 
   reg [3:0] program_mode;
   integer cycle_count;
@@ -123,6 +128,13 @@ module tb_ooo_priv_system;
   reg saw_illegal_xret_csr_request;
   reg [31:0] t3k_lane1_candidate_count;
   reg [31:0] t3k_lane1_match_count;
+  reg [31:0] v8k_dispatch_count;
+  reg [31:0] v8k_birth_count;
+  reg [31:0] v8k_exact_commit_count;
+  reg [31:0] v8k_death_count;
+  reg v8k_birth_check_pending_q;
+  reg v8k_death_check_pending_q;
+  reg [PRODUCER_ID_W-1:0] v8k_expected_pid_q;
   reg [31:0] fence_commit_count;
   reg [31:0] fence_store_probe_count;
   reg [31:0] fence_store_drain_count;
@@ -130,9 +142,27 @@ module tb_ooo_priv_system;
   integer fence_mem_ready_hold_count;
   reg saw_fence_lane1_capture;
   reg saw_fence_drain_wait;
+  reg saw_fence_busy_mem_idle_binding;
+  reg fence_mem_idle_binding_mismatch;
   reg fence_retired_before_store_drain;
   reg device_read_before_store_drain;
   reg device_read_before_fence_retire;
+  reg [31:0] fdg_arch_trap_capture_count;
+  reg [31:0] fdg_capture_pc_match_count;
+  reg [31:0] fdg_capture_tval_match_count;
+  reg [31:0] fdg_ordinary_backend_present_count;
+  reg [31:0] fdg_core_backend_present_count;
+  reg [31:0] fdg_commit_oracle_hit_count;
+  reg [31:0] fdg_illegal_fp_commit_count;
+  reg [31:0] xret_legal_csr_request_count;
+  reg [31:0] xret_legal_commit_count;
+  reg [31:0] xret_arch_trap_capture_count;
+  reg [31:0] xret_capture_pc_match_count;
+  reg [31:0] xret_capture_tval_match_count;
+  reg [31:0] xret_request_oracle_hit_count;
+  reg [31:0] xret_illegal_csr_request_count;
+  reg [31:0] xret_commit_oracle_hit_count;
+  reg [31:0] xret_illegal_commit_count;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
   wire tb_csr_irq_software_w = irq_software;
@@ -235,6 +265,60 @@ module tb_ooo_priv_system;
     .mem_drop1_fault_tval_i({`XLEN{1'b0}}),
     .mem_bridge_owner_residency_mask_i(
         mem_bridge_owner_residency_mask),
+    .mem_sq_query_valid_i(1'b0),
+    .mem_sq_query_owner_kind_i(2'b00),
+    .mem_sq_query_owner_token_i(5'b00000),
+    .mem_sq_query_mmu_epoch_i(2'b00),
+    .mem_sq_query_paddr_i({`XLEN{1'b0}}),
+    .mem_sq_query_attr_valid_i(1'b0),
+    .mem_sq_query_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem_sq_query_wstrb_i({`STRB_W{1'b0}}),
+    .mem_sq_query_allow_o(),
+    .mem_sq_query_forward_o(),
+    .mem_sq_query_replay_o(),
+    .mem_sq_query_retry_ready_o(),
+    .mem_sq_query_forward_data_o(),
+    .mem1_req_ready_i(1'b0),
+    .mem1_rsp_valid_i(1'b0),
+    .mem1_rsp_rdata_i({`XLEN{1'b0}}),
+    .mem1_rsp_error_i(1'b0),
+    .mem1_rsp_page_fault_i(1'b0),
+    .mem1_rsp_attr_valid_i(1'b0),
+    .mem1_rsp_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem1_rsp_cacheable_i(1'b0),
+    .mem1_rsp_owner_kind_i(2'b00),
+    .mem1_rsp_owner_token_i(5'b00000),
+    .mem1_rsp_mmu_epoch_i(2'b00),
+    .mem1_rsp_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_owner_query_valid_i(1'b0),
+    .mem1_owner_query_token_i(5'b00000),
+    .mem1_station_query_valid_i(1'b0),
+    .mem1_station_query_token_i(5'b00000),
+    .mem1_sq_query_valid_i(1'b0),
+    .mem1_sq_query_owner_kind_i(2'b00),
+    .mem1_sq_query_owner_token_i(5'b00000),
+    .mem1_sq_query_mmu_epoch_i(2'b00),
+    .mem1_sq_query_paddr_i({`XLEN{1'b0}}),
+    .mem1_sq_query_attr_valid_i(1'b0),
+    .mem1_sq_query_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem1_sq_query_wstrb_i({`STRB_W{1'b0}}),
+    .mem1_sq_query_allow_o(),
+    .mem1_sq_query_forward_o(),
+    .mem1_sq_query_replay_o(),
+    .mem1_sq_query_retry_ready_o(),
+    .mem1_sq_query_forward_data_o(),
+    .mem1_drop0_valid_i(1'b0),
+    .mem1_drop0_owner_kind_i(2'b00),
+    .mem1_drop0_owner_token_i(5'b00000),
+    .mem1_drop0_mmu_epoch_i(2'b00),
+    .mem1_drop0_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_drop1_valid_i(1'b0),
+    .mem1_drop1_owner_kind_i(2'b00),
+    .mem1_drop1_owner_token_i(5'b00000),
+    .mem1_drop1_mmu_epoch_i(2'b00),
+    .mem1_drop1_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_bridge_owner_residency_mask_i(32'b0),
+    .mem1_translate_active_i(1'b0),
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
@@ -628,6 +712,26 @@ module tb_ooo_priv_system;
             default: begin end
           endcase
         end
+        MODE_FDG_ARCH_TRAP: begin
+          case (addr)
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h080);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_MTVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_addi(5'd6, 5'd0, 12'h041);
+            BASE_PC + 64'h10: program_word = FDG_ILLEGAL_FP_INST;
+            BASE_PC + 64'h14: program_word = inst_addi(5'd7, 5'd0, 12'h047);
+            BASE_PC + 64'h18: program_word = inst_ebreak();
+            HANDLER_PC + 64'h00: program_word = inst_csrrs(5'd8, `CSR_MCAUSE, 5'd0);
+            HANDLER_PC + 64'h04: program_word = inst_csrrs(5'd9, `CSR_MEPC, 5'd0);
+            HANDLER_PC + 64'h08: program_word = inst_csrrs(5'd10, `CSR_MTVAL, 5'd0);
+            HANDLER_PC + 64'h0c: program_word = inst_addi(5'd12, 5'd9, 12'h000);
+            HANDLER_PC + 64'h10: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+            HANDLER_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd9);
+            HANDLER_PC + 64'h18: program_word = inst_addi(5'd11, 5'd0, 12'h04d);
+            HANDLER_PC + 64'h1c: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
         default: begin end
       endcase
     end
@@ -678,6 +782,13 @@ module tb_ooo_priv_system;
       saw_illegal_xret_csr_request = 1'b0;
       t3k_lane1_candidate_count = 32'd0;
       t3k_lane1_match_count = 32'd0;
+      v8k_dispatch_count = 32'd0;
+      v8k_birth_count = 32'd0;
+      v8k_exact_commit_count = 32'd0;
+      v8k_death_count = 32'd0;
+      v8k_birth_check_pending_q = 1'b0;
+      v8k_death_check_pending_q = 1'b0;
+      v8k_expected_pid_q = {PRODUCER_ID_W{1'b0}};
       fence_commit_count = 32'd0;
       fence_store_probe_count = 32'd0;
       fence_store_drain_count = 32'd0;
@@ -685,9 +796,27 @@ module tb_ooo_priv_system;
       fence_mem_ready_hold_count = 0;
       saw_fence_lane1_capture = 1'b0;
       saw_fence_drain_wait = 1'b0;
+      saw_fence_busy_mem_idle_binding = 1'b0;
+      fence_mem_idle_binding_mismatch = 1'b0;
       fence_retired_before_store_drain = 1'b0;
       device_read_before_store_drain = 1'b0;
       device_read_before_fence_retire = 1'b0;
+      fdg_arch_trap_capture_count = 32'd0;
+      fdg_capture_pc_match_count = 32'd0;
+      fdg_capture_tval_match_count = 32'd0;
+      fdg_ordinary_backend_present_count = 32'd0;
+      fdg_core_backend_present_count = 32'd0;
+      fdg_commit_oracle_hit_count = 32'd0;
+      fdg_illegal_fp_commit_count = 32'd0;
+      xret_legal_csr_request_count = 32'd0;
+      xret_legal_commit_count = 32'd0;
+      xret_arch_trap_capture_count = 32'd0;
+      xret_capture_pc_match_count = 32'd0;
+      xret_capture_tval_match_count = 32'd0;
+      xret_request_oracle_hit_count = 32'd0;
+      xret_illegal_csr_request_count = 32'd0;
+      xret_commit_oracle_hit_count = 32'd0;
+      xret_illegal_commit_count = 32'd0;
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -838,13 +967,269 @@ module tb_ooo_priv_system;
       fence_device_read_count <= 32'd0;
       saw_fence_lane1_capture <= 1'b0;
       saw_fence_drain_wait <= 1'b0;
+      saw_fence_busy_mem_idle_binding <= 1'b0;
+      fence_mem_idle_binding_mismatch <= 1'b0;
       fence_retired_before_store_drain <= 1'b0;
       device_read_before_store_drain <= 1'b0;
       device_read_before_fence_retire <= 1'b0;
+      v8k_dispatch_count <= 32'd0;
+      v8k_birth_count <= 32'd0;
+      v8k_exact_commit_count <= 32'd0;
+      v8k_death_count <= 32'd0;
+      v8k_birth_check_pending_q <= 1'b0;
+      v8k_death_check_pending_q <= 1'b0;
+      v8k_expected_pid_q <= {PRODUCER_ID_W{1'b0}};
+      fdg_arch_trap_capture_count <= 32'd0;
+      fdg_capture_pc_match_count <= 32'd0;
+      fdg_capture_tval_match_count <= 32'd0;
+      fdg_ordinary_backend_present_count <= 32'd0;
+      fdg_core_backend_present_count <= 32'd0;
+      fdg_commit_oracle_hit_count <= 32'd0;
+      fdg_illegal_fp_commit_count <= 32'd0;
+      xret_legal_csr_request_count <= 32'd0;
+      xret_legal_commit_count <= 32'd0;
+      xret_arch_trap_capture_count <= 32'd0;
+      xret_capture_pc_match_count <= 32'd0;
+      xret_capture_tval_match_count <= 32'd0;
+      xret_request_oracle_hit_count <= 32'd0;
+      xret_illegal_csr_request_count <= 32'd0;
+      xret_commit_oracle_hit_count <= 32'd0;
+      xret_illegal_commit_count <= 32'd0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       observe_commit(commit0_valid, commit0_pc, commit0_inst);
       observe_commit(commit1_valid, commit1_pc, commit1_inst);
+
+      // XRET-G1 legal controls use the same CsrFile request and architectural
+      // commit interfaces as the illegal-return zero-side-effect oracles.
+      if (program_mode == MODE_ECALL_MRET) begin
+        if (tb_csr_real_mret_valid_w &&
+            (dut.pending_system_pc_q == (HANDLER_PC + 64'h14))) begin
+          xret_legal_csr_request_count <=
+              xret_legal_csr_request_count + 32'd1;
+        end
+        xret_legal_commit_count <= xret_legal_commit_count +
+            (commit0_valid && (commit0_pc == (HANDLER_PC + 64'h14)) &&
+             (commit0_inst == inst_mret())) +
+            (commit1_valid && (commit1_pc == (HANDLER_PC + 64'h14)) &&
+             (commit1_inst == inst_mret()));
+      end else if (program_mode == MODE_SMODE_BOOT) begin
+        if (tb_csr_sret_valid_w &&
+            (dut.pending_system_pc_q == (S_HANDLER_PC + 64'h14))) begin
+          xret_legal_csr_request_count <=
+              xret_legal_csr_request_count + 32'd1;
+        end
+        xret_legal_commit_count <= xret_legal_commit_count +
+            (commit0_valid && (commit0_pc == (S_HANDLER_PC + 64'h14)) &&
+             (commit0_inst == inst_sret())) +
+            (commit1_valid && (commit1_pc == (S_HANDLER_PC + 64'h14)) &&
+             (commit1_inst == inst_sret()));
+      end
+
+      if ((program_mode == MODE_MRET_S_ILLEGAL) ||
+          (program_mode == MODE_SRET_U_ILLEGAL)) begin
+        if (dut.u_control_plane.pending_trap_exit_capture_arch_w &&
+            dut.u_control_plane.pending_trap_exit_capture_arch_valid_w) begin
+          xret_arch_trap_capture_count <=
+              xret_arch_trap_capture_count + 32'd1;
+          if (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (dut.u_control_plane.pending_trap_exit_capture_pc_w ==
+                S_ENTRY_PC)) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (dut.u_control_plane.pending_trap_exit_capture_pc_w ==
+                (S_ENTRY_PC + 64'h04)))) begin
+            xret_capture_pc_match_count <=
+                xret_capture_pc_match_count + 32'd1;
+          end
+          if (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (dut.u_control_plane.pending_trap_exit_capture_tval_w ==
+                64'h0000_0000_3020_0073)) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (dut.u_control_plane.pending_trap_exit_capture_tval_w ==
+                64'h0000_0000_1020_0073))) begin
+            xret_capture_tval_match_count <=
+                xret_capture_tval_match_count + 32'd1;
+          end
+        end
+
+        // Each illegal program first executes one known-legal MRET to enter
+        // S/U mode.  These exact hits prove both zero oracles are live.
+        if (tb_csr_real_mret_valid_w &&
+            (((program_mode == MODE_MRET_S_ILLEGAL) &&
+              (dut.pending_system_pc_q == (BASE_PC + 64'h24))) ||
+             ((program_mode == MODE_SRET_U_ILLEGAL) &&
+              (dut.pending_system_pc_q == (BASE_PC + 64'h1c))))) begin
+          xret_request_oracle_hit_count <=
+              xret_request_oracle_hit_count + 32'd1;
+        end
+        xret_commit_oracle_hit_count <= xret_commit_oracle_hit_count +
+            (commit0_valid && (commit0_inst == inst_mret()) &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit0_pc == (BASE_PC + 64'h24))) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit0_pc == (BASE_PC + 64'h1c))))) +
+            (commit1_valid && (commit1_inst == inst_mret()) &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit1_pc == (BASE_PC + 64'h24))) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit1_pc == (BASE_PC + 64'h1c)))));
+
+`ifdef XRET_CSR_REQUEST_ORACLE_SENSITIVITY
+        if (tb_csr_real_mret_valid_w &&
+            (((program_mode == MODE_MRET_S_ILLEGAL) &&
+              (dut.pending_system_pc_q == (BASE_PC + 64'h24))) ||
+             ((program_mode == MODE_SRET_U_ILLEGAL) &&
+              (dut.pending_system_pc_q == (BASE_PC + 64'h1c))))) begin
+          xret_illegal_csr_request_count <=
+              xret_illegal_csr_request_count + 32'd1;
+        end
+`else
+        if (((program_mode == MODE_MRET_S_ILLEGAL) &&
+             tb_csr_real_mret_valid_w &&
+             (dut.pending_system_pc_q == S_ENTRY_PC)) ||
+            ((program_mode == MODE_SRET_U_ILLEGAL) &&
+             tb_csr_sret_valid_w &&
+             (dut.pending_system_pc_q == (S_ENTRY_PC + 64'h04)))) begin
+          xret_illegal_csr_request_count <=
+              xret_illegal_csr_request_count + 32'd1;
+        end
+`endif
+
+`ifdef XRET_COMMIT_ORACLE_SENSITIVITY
+        xret_illegal_commit_count <= xret_illegal_commit_count +
+            (commit0_valid && (commit0_inst == inst_mret()) &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit0_pc == (BASE_PC + 64'h24))) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit0_pc == (BASE_PC + 64'h1c))))) +
+            (commit1_valid && (commit1_inst == inst_mret()) &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit1_pc == (BASE_PC + 64'h24))) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit1_pc == (BASE_PC + 64'h1c)))));
+`else
+        xret_illegal_commit_count <= xret_illegal_commit_count +
+            (commit0_valid &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit0_pc == S_ENTRY_PC) &&
+               (commit0_inst == inst_mret())) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit0_pc == (S_ENTRY_PC + 64'h04)) &&
+               (commit0_inst == inst_sret())))) +
+            (commit1_valid &&
+             (((program_mode == MODE_MRET_S_ILLEGAL) &&
+               (commit1_pc == S_ENTRY_PC) &&
+               (commit1_inst == inst_mret())) ||
+              ((program_mode == MODE_SRET_U_ILLEGAL) &&
+               (commit1_pc == (S_ENTRY_PC + 64'h04)) &&
+               (commit1_inst == inst_sret()))));
+`endif
+      end
+
+      // v8k real forward path: the lane1 CSRRW at BASE+0x0c is captured
+      // pre-ROB, then re-dispatched through lane0.  Birth is edge-old (no mask
+      // on the enqueue edge), the next cycle holds the exact full PID in the
+      // shared census, and only the exact PID+PC commit can kill it.
+      if (v8k_birth_check_pending_q) begin
+        if (!dut.pending_system_producer_valid_w ||
+            (dut.pending_system_producer_id_w != v8k_expected_pid_q) ||
+            !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.producer_live_mask_w[
+                v8k_expected_pid_q]) begin
+          $fatal(1, "[V8K-PRIV-BIRTH] enqueue failed to create exact live lease expected=%h held=%h valid=%b",
+                 v8k_expected_pid_q, dut.pending_system_producer_id_w,
+                 dut.pending_system_producer_valid_w);
+        end
+        v8k_birth_count <= v8k_birth_count + 32'd1;
+        v8k_birth_check_pending_q <= 1'b0;
+      end
+      if ((program_mode == MODE_ECALL_MRET) &&
+          dut.system_csr_dispatch_fire_w &&
+          (dut.pending_system_pc_q == (BASE_PC + 64'h0c))) begin
+        if (!dut.core_dispatch0_fire_w ||
+            dut.pending_system_producer_valid_w ||
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.producer_live_mask_w[
+                dut.core_dispatch0_producer_id_w]) begin
+          $fatal(1, "[V8K-PRIV-DISPATCH] birth edge was not edge-old/core-fire exact pid=%h",
+                 dut.core_dispatch0_producer_id_w);
+        end
+        v8k_dispatch_count <= v8k_dispatch_count + 32'd1;
+        v8k_expected_pid_q <= dut.core_dispatch0_producer_id_w;
+        v8k_birth_check_pending_q <= 1'b1;
+      end
+      if ((program_mode == MODE_ECALL_MRET) &&
+          dut.pending_system_csr_commit_w &&
+          (dut.pending_system_pc_q == (BASE_PC + 64'h0c))) begin
+        if (!dut.pending_system_producer_valid_w ||
+            (dut.pending_system_producer_id_w != v8k_expected_pid_q) ||
+            (dut.core_commit0_producer_id_w != v8k_expected_pid_q) ||
+            (dut.core_commit0_pc_w != (BASE_PC + 64'h0c)) ||
+            dut.head0_csr_commit_w ||
+            !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.producer_live_mask_w[
+                v8k_expected_pid_q]) begin
+          $fatal(1, "[V8K-PRIV-EXACT-COMMIT] pending CSR lacked sole PID/PC/live witness expected=%h held=%h commit=%h pc=%h head0=%b",
+                 v8k_expected_pid_q, dut.pending_system_producer_id_w,
+                 dut.core_commit0_producer_id_w, dut.core_commit0_pc_w,
+                 dut.head0_csr_commit_w);
+        end
+        v8k_exact_commit_count <= v8k_exact_commit_count + 32'd1;
+        v8k_death_check_pending_q <= 1'b1;
+      end
+      if (v8k_death_check_pending_q) begin
+        if (dut.pending_system_producer_valid_w ||
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.producer_live_mask_w[
+                v8k_expected_pid_q]) begin
+          $fatal(1, "[V8K-PRIV-DEATH] exact commit did not release raw lease/mask pid=%h",
+                 v8k_expected_pid_q);
+        end
+        v8k_death_count <= v8k_death_count + 32'd1;
+        v8k_death_check_pending_q <= 1'b0;
+      end
+      if (program_mode == MODE_FDG_ARCH_TRAP) begin
+        if (dut.u_control_plane.pending_trap_exit_capture_arch_w &&
+            dut.u_control_plane.pending_trap_exit_capture_arch_valid_w) begin
+          fdg_arch_trap_capture_count <=
+              fdg_arch_trap_capture_count + 32'd1;
+          if (dut.u_control_plane.pending_trap_exit_capture_pc_w ==
+              (BASE_PC + 64'h10)) begin
+            fdg_capture_pc_match_count <=
+                fdg_capture_pc_match_count + 32'd1;
+          end
+          if (dut.u_control_plane.pending_trap_exit_capture_tval_w ==
+              {{(`XLEN-`INST_W){1'b0}}, FDG_ILLEGAL_FP_INST}) begin
+            fdg_capture_tval_match_count <=
+                fdg_capture_tval_match_count + 32'd1;
+          end
+        end
+        if (dut.dispatch0_arch_trap_w &&
+            (dut.head_pc_w == (BASE_PC + 64'h10)) &&
+            dut.u_frontend.frontend_dispatch_to_backend_valid_w) begin
+          fdg_ordinary_backend_present_count <=
+              fdg_ordinary_backend_present_count + 32'd1;
+        end
+        if (dut.dispatch0_arch_trap_w &&
+            (dut.head_pc_w == (BASE_PC + 64'h10)) &&
+            (dut.core_dispatch0_valid_w || dut.core_dispatch1_valid_w)) begin
+          fdg_core_backend_present_count <=
+              fdg_core_backend_present_count + 32'd1;
+        end
+        fdg_commit_oracle_hit_count <= fdg_commit_oracle_hit_count +
+            (commit0_valid && (commit0_pc == (BASE_PC + 64'h0c)) &&
+             (commit0_inst == inst_addi(5'd6, 5'd0, 12'h041))) +
+            (commit1_valid && (commit1_pc == (BASE_PC + 64'h0c)) &&
+             (commit1_inst == inst_addi(5'd6, 5'd0, 12'h041)));
+`ifdef FDG_COMMIT_ORACLE_SENSITIVITY
+        // Verification-only sensitivity configuration: point the exact same
+        // commit-valid/PC observation chain at the known older ADDI.  The
+        // illegal-commit zero oracle must become non-zero and reject the run.
+        fdg_illegal_fp_commit_count <= fdg_illegal_fp_commit_count +
+            (commit0_valid && (commit0_pc == (BASE_PC + 64'h0c))) +
+            (commit1_valid && (commit1_pc == (BASE_PC + 64'h0c)));
+`else
+        fdg_illegal_fp_commit_count <= fdg_illegal_fp_commit_count +
+            (commit0_valid && (commit0_pc == (BASE_PC + 64'h10))) +
+            (commit1_valid && (commit1_pc == (BASE_PC + 64'h10)));
+`endif
+      end
       if (program_mode == MODE_FENCE_ORDERING) begin
         if ((commit0_valid && (commit0_inst == inst_fence())) ||
             (commit1_valid && (commit1_inst == inst_fence()))) begin
@@ -888,6 +1273,17 @@ module tb_ooo_priv_system;
             (dut.pending_system_inst_q == inst_fence()) &&
             !dut.core_mem_idle_w && !dut.drain_complete_w) begin
           saw_fence_drain_wait <= 1'b1;
+        end
+        // FENCE-G1：程序在完整 memory-owner graph 非 idle 的周期，独立核对
+        // CoreGlue 到 ControlPlane 的 mem_idle 端口仍消费同一个真实信号。
+        // 该观测使跨模块常量化连接的可编译负向 RTL 版本必然被本程序检出。
+        if (dut.pending_system_q &&
+            (dut.pending_system_inst_q == inst_fence()) &&
+            !dut.core_mem_idle_w) begin
+          if (dut.u_control_plane.mem_idle_i === dut.core_mem_idle_w)
+            saw_fence_busy_mem_idle_binding <= 1'b1;
+          else
+            fence_mem_idle_binding_mismatch <= 1'b1;
         end
       end
       // MODE_ECALL_MRET 的 0x08/0x0c 包是真实 decode/classify 链产生的
@@ -945,6 +1341,11 @@ module tb_ooo_priv_system;
                t3k_lane1_candidate_count, 32'd1);
     tb_check32("T3K lane1 capture/probe/legality match count",
                t3k_lane1_match_count, 32'd1);
+    tb_check32("V8K pending CSR real dispatch count", v8k_dispatch_count, 32'd1);
+    tb_check32("V8K pending CSR exact lease birth count", v8k_birth_count, 32'd1);
+    tb_check32("V8K pending CSR exact commit count",
+               v8k_exact_commit_count, 32'd1);
+    tb_check32("V8K pending CSR exact lease death count", v8k_death_count, 32'd1);
     tb_check1("mret synthetic commit observed", saw_mret_commit, 1'b1);
     tb_check1("sfence synthetic commit observed", saw_sfence_commit, 1'b1);
     tb_check1("wfi synthetic commit observed", saw_wfi_commit, 1'b1);
@@ -956,6 +1357,19 @@ module tb_ooo_priv_system;
     tb_check64("post mret body executed", gpr(5'd7), 64'h7);
     tb_check64("older alu survived system drain", gpr(5'd4), 64'h14);
     tb_check32("backend drained after ebreak", {27'b0, rob_count}, 32'd0);
+    tb_check32("XRET-G1 legal MRET CsrFile request count",
+               xret_legal_csr_request_count, 32'd1);
+    tb_check32("XRET-G1 legal MRET commit count",
+               xret_legal_commit_count, 32'd1);
+    if ((xret_legal_csr_request_count == 32'd1) &&
+        (xret_legal_commit_count == 32'd1) &&
+        (gpr(5'd7) == 64'h7) && (rob_count == 5'd0)) begin
+      $display("[XRET-G1-PROGRAM-LEGAL-MRET] csr_request=1 commit=1 return=1 backend_drained=1 PASS");
+    end else begin
+      $display("[XRET-G1-PROGRAM-LEGAL-MRET] csr_request=%0d commit=%0d return=%0d backend_drained=%0d FAIL",
+               xret_legal_csr_request_count, xret_legal_commit_count,
+               (gpr(5'd7) == 64'h7), (rob_count == 5'd0));
+    end
 
     reset_dut(MODE_IRQ_WFI);
     irq_timer = 1'b1;
@@ -986,6 +1400,19 @@ module tb_ooo_priv_system;
     tb_check64("s-mode handler body executed", gpr(5'd10), 64'h66);
     tb_check64("post sret body executed", gpr(5'd7), 64'h77);
     tb_check32("s-mode backend drained after ebreak", {27'b0, rob_count}, 32'd0);
+    tb_check32("XRET-G1 legal SRET CsrFile request count",
+               xret_legal_csr_request_count, 32'd1);
+    tb_check32("XRET-G1 legal SRET commit count",
+               xret_legal_commit_count, 32'd1);
+    if ((xret_legal_csr_request_count == 32'd1) &&
+        (xret_legal_commit_count == 32'd1) &&
+        (gpr(5'd7) == 64'h77) && (rob_count == 5'd0)) begin
+      $display("[XRET-G1-PROGRAM-LEGAL-SRET] csr_request=1 commit=1 return=1 backend_drained=1 PASS");
+    end else begin
+      $display("[XRET-G1-PROGRAM-LEGAL-SRET] csr_request=%0d commit=%0d return=%0d backend_drained=%0d FAIL",
+               xret_legal_csr_request_count, xret_legal_commit_count,
+               (gpr(5'd7) == 64'h77), (rob_count == 5'd0));
+    end
 
     reset_dut(MODE_SBI_ECALL);
     run_until_exit(1000);
@@ -1044,6 +1471,42 @@ module tb_ooo_priv_system;
     tb_check64("s-mode mret handler body", gpr(5'd11), 64'h76);
     tb_check64("s-mode mret returns after fault", gpr(5'd7), 64'h75);
     tb_check32("s-mode mret backend drained", {27'b0, rob_count}, 32'd0);
+    tb_check32("s-mode illegal mret architectural-trap capture count",
+               xret_arch_trap_capture_count, 32'd1);
+    tb_check32("s-mode illegal mret capture PC match count",
+               xret_capture_pc_match_count, 32'd1);
+    tb_check32("s-mode illegal mret capture tval match count",
+               xret_capture_tval_match_count, 32'd1);
+    tb_check32("s-mode illegal mret request oracle hit count",
+               xret_request_oracle_hit_count, 32'd1);
+    tb_check32("s-mode illegal mret CSR request count",
+               xret_illegal_csr_request_count, 32'd0);
+    tb_check32("s-mode illegal mret commit oracle hit count",
+               xret_commit_oracle_hit_count, 32'd1);
+    tb_check32("s-mode illegal mret commit count",
+               xret_illegal_commit_count, 32'd0);
+    if ((xret_arch_trap_capture_count == 32'd1) &&
+        (xret_capture_pc_match_count == 32'd1) &&
+        (xret_capture_tval_match_count == 32'd1) &&
+        (xret_request_oracle_hit_count == 32'd1) &&
+        (xret_illegal_csr_request_count == 32'd0) &&
+        (xret_commit_oracle_hit_count == 32'd1) &&
+        (xret_illegal_commit_count == 32'd0) && saw_handler_fetch &&
+        (gpr(5'd8) == {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ILLEGAL_INST}) &&
+        (gpr(5'd12) == S_ENTRY_PC) &&
+        (gpr(5'd10) == 64'h0000_0000_3020_0073) &&
+        (gpr(5'd7) == 64'h75) && (rob_count == 5'd0)) begin
+      $display("[XRET-G1-PROGRAM-ILLEGAL-MRET] arch_trap_capture=1 capture_pc_match=1 capture_tval_match=1 request_oracle_hits=1 csr_request=0 commit_oracle_hits=1 commit=0 handler=1 cause=2 csr_mepc_match=1 csr_mtval_match=1 return=1 backend_drained=1 PASS");
+    end else begin
+      $display("[XRET-G1-PROGRAM-ILLEGAL-MRET] arch_trap_capture=%0d capture_pc_match=%0d capture_tval_match=%0d request_oracle_hits=%0d csr_request=%0d commit_oracle_hits=%0d commit=%0d handler=%0d cause=%0d csr_mepc_match=%0d csr_mtval_match=%0d return=%0d backend_drained=%0d FAIL",
+               xret_arch_trap_capture_count, xret_capture_pc_match_count,
+               xret_capture_tval_match_count, xret_request_oracle_hit_count,
+               xret_illegal_csr_request_count, xret_commit_oracle_hit_count,
+               xret_illegal_commit_count, saw_handler_fetch, gpr(5'd8),
+               (gpr(5'd12) == S_ENTRY_PC),
+               (gpr(5'd10) == 64'h0000_0000_3020_0073),
+               (gpr(5'd7) == 64'h75), (rob_count == 5'd0));
+    end
 
     reset_dut(MODE_SRET_U_ILLEGAL);
     run_until_exit(1000);
@@ -1063,6 +1526,44 @@ module tb_ooo_priv_system;
     tb_check64("u-mode lane1 sret handler body", gpr(5'd11), 64'h76);
     tb_check64("u-mode lane1 sret returns after fault", gpr(5'd7), 64'h75);
     tb_check32("u-mode lane1 sret backend drained", {27'b0, rob_count}, 32'd0);
+    tb_check32("u-mode illegal sret architectural-trap capture count",
+               xret_arch_trap_capture_count, 32'd1);
+    tb_check32("u-mode illegal sret capture PC match count",
+               xret_capture_pc_match_count, 32'd1);
+    tb_check32("u-mode illegal sret capture tval match count",
+               xret_capture_tval_match_count, 32'd1);
+    tb_check32("u-mode illegal sret request oracle hit count",
+               xret_request_oracle_hit_count, 32'd1);
+    tb_check32("u-mode illegal sret CSR request count",
+               xret_illegal_csr_request_count, 32'd0);
+    tb_check32("u-mode illegal sret commit oracle hit count",
+               xret_commit_oracle_hit_count, 32'd1);
+    tb_check32("u-mode illegal sret commit count",
+               xret_illegal_commit_count, 32'd0);
+    if ((xret_arch_trap_capture_count == 32'd1) &&
+        (xret_capture_pc_match_count == 32'd1) &&
+        (xret_capture_tval_match_count == 32'd1) &&
+        (xret_request_oracle_hit_count == 32'd1) &&
+        (xret_illegal_csr_request_count == 32'd0) &&
+        (xret_commit_oracle_hit_count == 32'd1) &&
+        (xret_illegal_commit_count == 32'd0) && saw_handler_fetch &&
+        (gpr(5'd8) == {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ILLEGAL_INST}) &&
+        (gpr(5'd12) == (S_ENTRY_PC + 64'h04)) &&
+        (gpr(5'd10) == 64'h0000_0000_1020_0073) &&
+        (gpr(5'd6) == 64'h65) && (gpr(5'd7) == 64'h75) &&
+        (rob_count == 5'd0)) begin
+      $display("[XRET-G1-PROGRAM-ILLEGAL-SRET] arch_trap_capture=1 capture_pc_match=1 capture_tval_match=1 request_oracle_hits=1 csr_request=0 commit_oracle_hits=1 commit=0 handler=1 cause=2 csr_mepc_match=1 csr_mtval_match=1 older_lane0=1 return=1 backend_drained=1 PASS");
+    end else begin
+      $display("[XRET-G1-PROGRAM-ILLEGAL-SRET] arch_trap_capture=%0d capture_pc_match=%0d capture_tval_match=%0d request_oracle_hits=%0d csr_request=%0d commit_oracle_hits=%0d commit=%0d handler=%0d cause=%0d csr_mepc_match=%0d csr_mtval_match=%0d older_lane0=%0d return=%0d backend_drained=%0d FAIL",
+               xret_arch_trap_capture_count, xret_capture_pc_match_count,
+               xret_capture_tval_match_count, xret_request_oracle_hit_count,
+               xret_illegal_csr_request_count, xret_commit_oracle_hit_count,
+               xret_illegal_commit_count, saw_handler_fetch, gpr(5'd8),
+               (gpr(5'd12) == (S_ENTRY_PC + 64'h04)),
+               (gpr(5'd10) == 64'h0000_0000_1020_0073),
+               (gpr(5'd6) == 64'h65), (gpr(5'd7) == 64'h75),
+               (rob_count == 5'd0));
+    end
 
     reset_dut(MODE_FENCE_ORDERING);
     run_until_exit(1000);
@@ -1073,6 +1574,9 @@ module tb_ooo_priv_system;
               saw_fence_lane1_capture, 1'b1);
     tb_check1("fence waits while memory system is not idle",
               saw_fence_drain_wait, 1'b1);
+    tb_check1("fence control plane consumes core memory idle",
+              saw_fence_busy_mem_idle_binding &&
+              !fence_mem_idle_binding_mismatch, 1'b1);
     tb_check32("ordinary fence retires exactly once",
                fence_commit_count, 32'd1);
     tb_check32("older store probes exactly once",
@@ -1091,6 +1595,82 @@ module tb_ooo_priv_system;
                gpr(5'd4), 64'h0000_0000_1234_5678);
     tb_check32("fence ordering backend drained after ebreak",
                {27'b0, rob_count}, 32'd0);
+    // FENCE-G1 证据 marker：把完整定向程序的控制流、访存顺序与最终状态
+    // 收敛为一条可由 evidence checker 精确解析的本地 RV64 仿真事实。
+    if (exit_valid && exit_is_ebreak && !trap_valid &&
+        saw_fence_lane1_capture && saw_fence_drain_wait &&
+        saw_fence_busy_mem_idle_binding &&
+        !fence_mem_idle_binding_mismatch &&
+        (fence_commit_count == 32'd1) &&
+        (fence_store_probe_count == 32'd1) &&
+        (fence_store_drain_count == 32'd1) &&
+        (fence_device_read_count == 32'd1) &&
+        !fence_retired_before_store_drain &&
+        !device_read_before_store_drain &&
+        !device_read_before_fence_retire &&
+        (gpr(5'd4) == 64'h0000_0000_1234_5678) &&
+        (rob_count == 5'd0)) begin
+      $display("[FENCE-G1-PROGRAM] exit=1 ebreak=1 trap=0 lane1_capture=1 full_memory_wait=1 mem_idle_binding=1 fence_commit=1 store_probe=1 store_drain=1 device_read=1 fence_before_store=0 device_before_store=0 device_before_fence=0 readback_match=1 backend_drained=1 PASS");
+    end else begin
+      $display("[FENCE-G1-PROGRAM] exit=%0d ebreak=%0d trap=%0d lane1_capture=%0d full_memory_wait=%0d mem_idle_binding=%0d fence_commit=%0d store_probe=%0d store_drain=%0d device_read=%0d fence_before_store=%0d device_before_store=%0d device_before_fence=%0d readback_match=%0d backend_drained=%0d FAIL",
+               exit_valid, exit_is_ebreak, trap_valid,
+               saw_fence_lane1_capture, saw_fence_drain_wait,
+               (saw_fence_busy_mem_idle_binding &&
+                !fence_mem_idle_binding_mismatch),
+               fence_commit_count, fence_store_probe_count,
+               fence_store_drain_count, fence_device_read_count,
+               fence_retired_before_store_drain,
+               device_read_before_store_drain,
+               device_read_before_fence_retire,
+               (gpr(5'd4) == 64'h0000_0000_1234_5678),
+               (rob_count == 5'd0));
+    end
+
+    reset_dut(MODE_FDG_ARCH_TRAP);
+    run_until_exit(1000);
+    tb_check1("FDG program reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("FDG program exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("FDG program no terminal trap", trap_valid, 1'b0);
+    tb_check1("FDG program enters m handler", saw_handler_fetch, 1'b1);
+    tb_check1("FDG handler returns with mret", saw_mret_commit, 1'b1);
+    tb_check32("FDG exact arch-trap capture count",
+               fdg_arch_trap_capture_count, 32'd1);
+    tb_check32("FDG capture PC exact-match count",
+               fdg_capture_pc_match_count, 32'd1);
+    tb_check32("FDG capture tval exact-match count",
+               fdg_capture_tval_match_count, 32'd1);
+    tb_check32("FDG ordinary backend present count",
+               fdg_ordinary_backend_present_count, 32'd0);
+    tb_check32("FDG core backend present count",
+               fdg_core_backend_present_count, 32'd0);
+    tb_check32("FDG illegal FP commit count",
+               fdg_illegal_fp_commit_count, 32'd0);
+    tb_check32("FDG commit oracle known-transaction hit count",
+               fdg_commit_oracle_hit_count, 32'd1);
+    tb_check64("FDG illegal FP mcause", gpr(5'd8),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ILLEGAL_INST});
+    tb_check64("FDG illegal FP mepc", gpr(5'd12), BASE_PC + 64'h10);
+    tb_check64("FDG illegal FP mtval", gpr(5'd10),
+               {{(`XLEN-`INST_W){1'b0}}, FDG_ILLEGAL_FP_INST});
+    tb_check64("FDG older integer operation retires", gpr(5'd6), 64'h41);
+    tb_check64("FDG handler body executes", gpr(5'd11), 64'h4d);
+    tb_check64("FDG returns after illegal FP", gpr(5'd7), 64'h47);
+    tb_check32("FDG backend drained after ebreak", {27'b0, rob_count}, 32'd0);
+    if (tb_errors == 0) begin
+      $display("[FDG-G1-PROGRAM] arch_trap_capture=%0d capture_pc_match=%0d capture_tval_match=%0d ordinary_backend_present=%0d core_backend_present=%0d commit_oracle_hits=%0d illegal_fp_commit=%0d handler=%0d mret=%0d cause=%0d csr_mepc_match=%0d csr_mtval_match=%0d PASS",
+               fdg_arch_trap_capture_count,
+               fdg_capture_pc_match_count,
+               fdg_capture_tval_match_count,
+               fdg_ordinary_backend_present_count,
+               fdg_core_backend_present_count,
+               fdg_commit_oracle_hit_count,
+               fdg_illegal_fp_commit_count,
+               saw_handler_fetch,
+               saw_mret_commit,
+               gpr(5'd8),
+               gpr(5'd12) == (BASE_PC + 64'h10),
+               gpr(5'd10) == {{(`XLEN-`INST_W){1'b0}}, FDG_ILLEGAL_FP_INST});
+    end
 
     tb_finish("tb_ooo_priv_system");
   end

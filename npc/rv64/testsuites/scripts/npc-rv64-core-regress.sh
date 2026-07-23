@@ -8,6 +8,7 @@ ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)
 # 此前本脚本以 NPC_HOME 兼职 rv64 路径且允许环境覆盖,环境有 NPC_HOME=npc 时
 # 内部所有路径(build/testbench/日志)静默漂移到 npc/ 下。
 NPC_RV64_HOME=${NPC_RV64_HOME:-$ROOT_DIR/npc/rv64}
+NPC_RV64_BIN=${NPC_RV64_BIN:-$NPC_RV64_HOME/build/NpcSimTop}
 AM_HOME=${AM_HOME:-$ROOT_DIR/abstract-machine}
 NEMU_HOME=${NEMU_HOME:-$ROOT_DIR/nemu}
 ARTIFACT_ROOT=${ARTIFACT_ROOT:-$NPC_RV64_HOME/testsuites/core-tests}
@@ -299,7 +300,7 @@ run_riscv_test() {
     return 0
   fi
 
-  if "$NPC_RV64_HOME/build/NpcSimTop" -b --no-diff --max-cycles "$RISCV_MAX_CYCLES" \
+  if "$NPC_RV64_BIN" -b --no-diff --max-cycles "$RISCV_MAX_CYCLES" \
       --tohost="$tohost" "$bin" >"$log" 2>&1; then
     if grep -q 'TOHOST PASS' "$log"; then
       status_line "$name" PASS "tohost=$tohost"

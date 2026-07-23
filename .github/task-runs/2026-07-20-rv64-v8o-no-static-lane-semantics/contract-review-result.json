@@ -1,0 +1,56 @@
+{
+  "verdict": "gap",
+  "contract_json_sha256": "5cec136cf10d731263c42ab963c2852b16ea23fd03196ddbf655bbe1176ed5b7",
+  "blockers": [
+    {
+      "id": "G01_ACCEPTED_PACKAGE_SLOT_BINDING",
+      "counterexample": "scenario labels can claim slot permutations even when the two positions do not accept on one edge",
+      "required_executable_evidence": "same-edge dispatch handshakes freeze expectations; a split-accept case receives no coverage credit"
+    },
+    {
+      "id": "G02_RESIDENT_NON_VACUITY",
+      "counterexample": "dispatch bypass or sequential admission can imitate a pair without two resident entries",
+      "required_executable_evidence": "hold issue for a full cycle and inspect two distinct resident identities, controls and capability bits"
+    },
+    {
+      "id": "G03_CANONICAL_SAME_CYCLE_FIRE",
+      "counterexample": "valid, grant or adjacent-cycle events can be mistaken for same-cycle terminal acceptance",
+      "required_executable_evidence": "count only issue0_valid&&issue0_ready and issue1_valid&&issue1_ready on the same edge"
+    },
+    {
+      "id": "G04_CLASS_AND_DYNAMIC_ROLE_CROSS",
+      "counterexample": "labels can hide aliased control encodings or an incorrectly ALU-capable complex class",
+      "required_executable_evidence": "derive mutually exclusive class and slot from accepted control, inspect stored capability, and bind each identity to its physical terminal"
+    },
+    {
+      "id": "G05_IMMUTABLE_FULL_PRODUCER_ID",
+      "counterexample": "expectations reconstructed from outputs or unordered/truncated comparison can accept swapped or duplicate identities",
+      "required_executable_evidence": "freeze 24 distinct non-zero-generation IDs at input and consume each exactly once at the correct fire"
+    },
+    {
+      "id": "G06_STATIC_CHECKER_FAIL_CLOSED",
+      "counterexample": "adding the real predicate name alone can retain an empty-target or comment-only false green",
+      "required_executable_evidence": "independent non-zero unambiguous match inventories and predicate/metadata/static-entry/dynamic-swap fixtures"
+    },
+    {
+      "id": "G07_MUTATION_ACTIVATION_AND_TARGETED_KILL",
+      "counterexample": "compile failure, unelaborated source, no activation, timeout or unrelated assertion can be misreported as mutation rejection",
+      "required_executable_evidence": "source/image hashes, compile success, activation marker and dedicated semantic failure for every mutation"
+    },
+    {
+      "id": "G08_PROVENANCE_AND_MODE_ATOMICITY",
+      "counterexample": "stale TB/checker logs or cross-mode metric aggregation can be paired with a current RTL digest",
+      "required_executable_evidence": "independent full release/assert vectors plus exact content-addressed proof provenance and stale replay rejection"
+    },
+    {
+      "id": "G09_DI4_ONLY_PUBLICATION_GUARD",
+      "counterexample": "DI-4 publication can overpromote other gates, overall architecture or mismatched-design siblings",
+      "required_executable_evidence": "only the DI-4 record may change; same-design siblings remain equal and the evaluated overall result stays RED"
+    }
+  ],
+  "claim_boundary": {
+    "promotable_after_closure": "DI-4 no_static_lane_semantics only",
+    "not_promoted": ["DI-1", "DI-2", "DI-3", "DI-5", "OOO-3", "OOO-4", "overall architecture", "PPA"],
+    "semantic_limit": "issue-queue program-position steering and same-edge terminal consumption, not architectural completion or recovery"
+  }
+}

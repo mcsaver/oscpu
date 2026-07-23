@@ -17,6 +17,8 @@
 //    执行簇 meta kill。
 module OooFpBackend #(
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W,
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
 ) (
   input clk,
@@ -40,7 +42,7 @@ module OooFpBackend #(
 
   input disp_valid_i,
   output disp_ready_o,
-  input [ROB_INDEX_W-1:0] disp_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] disp_producer_id_i,
   input [`INST_W-1:0] disp_inst_i,
   input disp_double_i,
   input disp_frd_en_i,
@@ -62,7 +64,7 @@ module OooFpBackend #(
   // lane1 FP 算术(与 lane0 同构; 同拍双 FP 算术=FP IQ 双 alloc, FreeList alloc1)
   input disp1_valid_i,
   output disp1_ready_o,
-  input [ROB_INDEX_W-1:0] disp1_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] disp1_producer_id_i,
   input [`INST_W-1:0] disp1_inst_i,
   input disp1_double_i,
   input disp1_frd_en_i,
@@ -125,12 +127,24 @@ module OooFpBackend #(
   input [`XLEN-1:0] gpr_read_data_i,
 
   output fpwb_valid_o,
+  output [PRODUCER_ID_W-1:0] fpwb_producer_id_o,
   output [ROB_INDEX_W-1:0] fpwb_rob_idx_o,
   output [PHY_REG_ADDR_W-1:0] fpwb_pdest_o,
   output fpwb_rd_en_o,
   output [`XLEN-1:0] fpwb_data_o,
   output [4:0] fpwb_fflags_o,
   input fpwb_ready_i,
+
+  // Raw execution candidate query and parent-authorized actual side effect.
+  // Authorization must never feed raw source take/ready or the credit view.
+  output result_query_valid_o,
+  output [PRODUCER_ID_W-1:0] result_query_producer_id_o,
+  input result_authorized_i,
+
+  // Q-only lease views. completion_pending is exactly the occupied done-FIFO
+  // token set; producer_live is the union of all six FP holder classes.
+  output [(1 << PRODUCER_ID_W)-1:0] completion_pending_mask_o,
+  output [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_o,
 
   input commit0_fp_valid_i,
   input [`REG_ADDR_W-1:0] commit0_fp_arch_i,
@@ -452,6 +466,7 @@ module OooFpBackend #(
   wire iq_dispatch1_ready_w;
   wire issue_valid_w;
   wire issue_ready_w;
+  wire [PRODUCER_ID_W-1:0] issue_producer_id_w;
   wire [ROB_INDEX_W-1:0] issue_rob_idx_w;
   wire [`INST_W-1:0] issue_inst_w;
   wire issue_double_w;
@@ -461,6 +476,7 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] issue_gpr_preg_w;
   wire iq_issue_valid_w;
   wire iq_issue_ready_w;
+  wire [PRODUCER_ID_W-1:0] iq_issue_producer_id_w;
   wire [ROB_INDEX_W-1:0] iq_issue_rob_idx_w;
   wire [`INST_W-1:0] iq_issue_inst_w;
   wire iq_issue_double_w;
@@ -471,9 +487,12 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] iq_issue_fs2_preg_w;
   wire [PHY_REG_ADDR_W-1:0] iq_issue_fs3_preg_w;
   wire [PHY_REG_ADDR_W-1:0] iq_issue_gpr_preg_w;
+  wire [(1 << PRODUCER_ID_W)-1:0] fp_iq_producer_live_mask_w;
   OooFpIssueQueue #(
     .ENTRY_INDEX_W(FP_IQ_ENTRY_INDEX_W),
     .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W),
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
   ) u_fp_issue_queue (
     .clk(clk),
@@ -485,7 +504,7 @@ module OooFpBackend #(
     .recover_active_i(recover_active_i),
     .dispatch_valid_i(disp_fire_w),
     .dispatch_ready_o(iq_dispatch_ready_w),
-    .dispatch_rob_idx_i(disp_rob_idx_i),
+    .dispatch_producer_id_i(disp_producer_id_i),
     .dispatch_inst_i(disp_inst_i),
     .dispatch_double_i(disp_double_i),
     .dispatch_pdest_i(disp_frd_en_i ? freelist_alloc0_preg_w
@@ -506,7 +525,7 @@ module OooFpBackend #(
     .dispatch_gpr_ready_i(disp_gpr_src_ready_i),
     .dispatch1_valid_i(disp1_fire_w),
     .dispatch1_ready_o(iq_dispatch1_ready_w),
-    .dispatch1_rob_idx_i(disp1_rob_idx_i),
+    .dispatch1_producer_id_i(disp1_producer_id_i),
     .dispatch1_inst_i(disp1_inst_i),
     .dispatch1_double_i(disp1_double_i),
     .dispatch1_pdest_i(disp1_frd_en_i ? freelist_alloc1_preg_w
@@ -535,6 +554,7 @@ module OooFpBackend #(
     .int_wake1_preg_i(int_wake1_preg_i),
     .issue_valid_o(iq_issue_valid_w),
     .issue_ready_i(iq_issue_ready_w),
+    .issue_producer_id_o(iq_issue_producer_id_w),
     .issue_rob_idx_o(iq_issue_rob_idx_w),
     .issue_inst_o(iq_issue_inst_w),
     .issue_double_o(iq_issue_double_w),
@@ -545,7 +565,8 @@ module OooFpBackend #(
     .issue_fs2_preg_o(iq_issue_fs2_preg_w),
     .issue_fs3_preg_o(iq_issue_fs3_preg_w),
     .issue_gpr_preg_o(iq_issue_gpr_preg_w),
-    .count_o(fp_iq_count_w)
+    .count_o(fp_iq_count_w),
+    .producer_live_mask_o(fp_iq_producer_live_mask_w)
   );
 
   // T3Q：FP IQ 选择与 PRF/执行之间的真实 non-fallthrough packet 边界。
@@ -553,9 +574,9 @@ module OooFpBackend #(
   // 进入既有 exec1/arith/long 寄存边界。kill 拍禁止 refill，避免 IQ 旧组合输出
   // 在 ROB-walk 同拍重新装入已被 squash 的 younger uop。
   localparam FP_ISSUE_PACKET_W =
-      ROB_INDEX_W + `INST_W + (5 * PHY_REG_ADDR_W) + 3;
+      PRODUCER_ID_W + `INST_W + (5 * PHY_REG_ADDR_W) + 3;
   wire [FP_ISSUE_PACKET_W-1:0] fp_issue_stage_up_payload_w =
-      {iq_issue_rob_idx_w, iq_issue_inst_w, iq_issue_double_w,
+      {iq_issue_producer_id_w, iq_issue_inst_w, iq_issue_double_w,
        iq_issue_pdest_w, iq_issue_dst_gpr_w, iq_issue_dst_en_w,
        iq_issue_fs1_preg_w, iq_issue_fs2_preg_w, iq_issue_fs3_preg_w,
        iq_issue_gpr_preg_w};
@@ -572,10 +593,11 @@ module OooFpBackend #(
   // 同时禁止 down_fire，才能让 older survivor 留在 stage、younger 只被 kill 清除。
   assign issue_valid_w = fp_issue_stage_valid_w &&
                          !flush_i && !kill_valid_i;
-  assign {issue_rob_idx_w, issue_inst_w, issue_double_w,
+  assign {issue_producer_id_w, issue_inst_w, issue_double_w,
           issue_pdest_w, issue_dst_gpr_w, issue_dst_en_w,
           issue_fs1_preg_w, issue_fs2_preg_w, issue_fs3_preg_w,
           issue_gpr_preg_w} = fp_issue_stage_down_payload_w;
+  assign issue_rob_idx_w = issue_producer_id_w[ROB_INDEX_W-1:0];
 
   PipeStageReg #(
     .WIDTH(FP_ISSUE_PACKET_W)
@@ -660,11 +682,13 @@ module OooFpBackend #(
                          (issue_inst_w[6:0] == `OPCODE_NMADD);
 
   // ===========================================================================
-  // 完成 FIFO(深 8; 统一出 fpwb → ROB done/int PRF)。发射预算: FIFO 余量必须
-  // 覆盖"本拍入队+arith 在飞(最多 5)"——count<=2 才允许发射, arith out 恒有位。
+  // 完成 FIFO(深 8; 统一出 fpwb → ROB done/int PRF)。v8i 不再用
+  // fifo_count<=2 的经验预算；每个 post-launch Q holder 都代表一个已经取得的
+  // completion credit，精确占用必须始终 <= FIFO 物理深度。
   // ===========================================================================
+  localparam DONE_FIFO_W = 3;
+  localparam DONE_FIFO_N = (1 << DONE_FIFO_W);
   reg [3:0] done_fifo_count_q;
-  wire done_fifo_room_w = (done_fifo_count_q <= 4'd2);
 
   // 执行资源 ready
   wire long_div_busy_w;
@@ -673,6 +697,19 @@ module OooFpBackend #(
   // 的 down_valid_o 驱动; 声明前置，iverilog 14 拒绝前向引用(issue_ready_w 引用)
   wire exec1_valid_q;
   reg long_meta_valid_q;
+  wire [4:0] arith_owner_valid_w;
+  wire [5*PRODUCER_ID_W-1:0] arith_owner_producer_id_w;
+  wire [4:0] arith_owner_count_w =
+      {4'b0000, arith_owner_valid_w[0]} +
+      {4'b0000, arith_owner_valid_w[1]} +
+      {4'b0000, arith_owner_valid_w[2]} +
+      {4'b0000, arith_owner_valid_w[3]} +
+      {4'b0000, arith_owner_valid_w[4]};
+  wire [4:0] execution_credit_used_w =
+      {1'b0, done_fifo_count_q} + arith_owner_count_w +
+      {4'b0000, exec1_valid_q} + {4'b0000, long_meta_valid_q};
+  wire execution_credit_open_w =
+      execution_credit_used_w < DONE_FIFO_N;
   wire long_busy_any_w = long_div_busy_w || long_sqrt_busy_w;
   wire issue_is_comb_w = op_sgnj_w || op_minmax_w || op_cmp_w || op_class_w ||
                          op_mv_to_gpr_w || op_mv_to_fpr_w || op_cvt_to_gpr_w ||
@@ -681,7 +718,7 @@ module OooFpBackend #(
   // (long_done_hold)被更高优先级 arith/exec1 阻塞时 meta 尚未取——此窗口若发新 long op 会覆写旧 op 的
   // meta+清 done_hold → 旧 op 结果丢失永不退休(fp-difftest-probe: fdiv 完成被 arith 阻塞, fsqrt issue 覆写 fdiv)。
   // meta_valid 覆盖 issue→consume 全程, gate 它保证前一 long op 的完成被消费后才发下一条。
-  assign issue_ready_w = done_fifo_room_w &&
+  assign issue_ready_w = execution_credit_open_w &&
                          (!op_long_w || (!long_busy_any_w && !long_meta_valid_q)) &&
                          (!issue_is_comb_w || !exec1_valid_q);
   wire issue_fire_w = issue_valid_w && issue_ready_w;
@@ -697,12 +734,18 @@ module OooFpBackend #(
   wire [4:0] arith_fma_ff_unused_w;
   wire arith_done_unused_w;
   wire arith_out_valid_w;
+  wire [PRODUCER_ID_W-1:0] arith_out_producer_id_w;
   wire [ROB_INDEX_W-1:0] arith_out_rob_w;
   wire [PHY_REG_ADDR_W-1:0] arith_out_pdest_w;
   wire [`XLEN-1:0] arith_out_value_w;
   wire [4:0] arith_out_fflags_w;
 
-  OooFpArithGate u_fp_arith (
+  OooFpArithGate #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W),
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
+  ) u_fp_arith (
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
@@ -723,25 +766,29 @@ module OooFpBackend #(
     .fma_fflags_o(arith_fma_ff_unused_w),
     .done_o(arith_done_unused_w),
     .launch_valid_i(issue_fire_w && op_arith_w),
-    .launch_rob_idx_i(issue_rob_idx_w),
+    .launch_producer_id_i(issue_producer_id_w),
     .launch_pdest_i(issue_pdest_w),
     .launch_kind_i(arith_kind_w),
     .kill_valid_i(kill_valid_i),
     .kill_rob_idx_i(kill_rob_idx_i),
     .rob_head_idx_i(rob_head_idx_i),
     .out_valid_o(arith_out_valid_w),
+    .out_producer_id_o(arith_out_producer_id_w),
     .out_rob_idx_o(arith_out_rob_w),
     .out_pdest_o(arith_out_pdest_w),
     .out_value_o(arith_out_value_w),
-    .out_fflags_o(arith_out_fflags_w)
+    .out_fflags_o(arith_out_fflags_w),
+    .owner_valid_o(arith_owner_valid_w),
+    .owner_producer_id_o(arith_owner_producer_id_w)
   );
 
   // div/sqrt: 单在飞(busy 背压); meta 在本层寄存(long_meta_valid_q 声明已前置)
-  reg [ROB_INDEX_W-1:0] long_rob_q;
+  reg [PRODUCER_ID_W-1:0] long_producer_id_q;
   reg [PHY_REG_ADDR_W-1:0] long_pdest_q;
   wire [ROB_INDEX_W-1:0] kill_age_w =
       kill_rob_idx_i - rob_head_idx_i;
-  wire [ROB_INDEX_W-1:0] long_age_w = long_rob_q - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] long_age_w =
+      long_producer_id_q[ROB_INDEX_W-1:0] - rob_head_idx_i;
   wire long_kill_w = kill_valid_i && long_meta_valid_q &&
       (long_age_w > kill_age_w);
   wire long_done_w;
@@ -775,7 +822,7 @@ module OooFpBackend #(
   always @(posedge clk) begin
     if (rst || flush_i) begin
       long_meta_valid_q <= 1'b0;
-      long_rob_q <= {ROB_INDEX_W{1'b0}};
+      long_producer_id_q <= {PRODUCER_ID_W{1'b0}};
       long_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       long_done_hold_q <= 1'b0;
       long_result_hold_q <= {`XLEN{1'b0}};
@@ -783,7 +830,7 @@ module OooFpBackend #(
     end else begin
       if (issue_fire_w && op_long_w) begin
         long_meta_valid_q <= 1'b1;
-        long_rob_q <= issue_rob_idx_w;
+        long_producer_id_q <= issue_producer_id_w;
         long_pdest_q <= issue_pdest_w;
         long_done_hold_q <= 1'b0;
       end else if (long_done_w) begin
@@ -883,25 +930,32 @@ module OooFpBackend #(
 
   // ===========================================================================
   // exec1 级间寄存(P2 提取刀): 组合类结果的 1 拍 stage 簇归一为 PipeStageReg。
-  // payload 81b 布局 {rob[80:77],pdest[76:71],dst_gpr[70],dst_en[69],value[68:5],fflags[4:0]}。
+  // v8i payload 只保存 full ProducerId，raw ROB index由低位投影。
   // flush 后 payload 留脏(原语惯例)——全部消费点经 exec1_take_w/exec1_valid_q 门控,
   // 无 valid=0 读 payload。位段别名 wire 使下游消费点零文本改动。
   // ===========================================================================
-  wire [80:0] exec1_stage_payload_w;
+  localparam EXEC1_STAGE_W =
+      PRODUCER_ID_W + PHY_REG_ADDR_W + 1 + 1 + `XLEN + 5;
+  wire [EXEC1_STAGE_W-1:0] exec1_stage_payload_w;
   wire exec1_stage_up_ready_unused_w; // issue_ready_w 保留 !exec1_valid_q 项(语义中性), up_ready_o 悬空
-  wire [ROB_INDEX_W-1:0] exec1_rob_q = exec1_stage_payload_w[80:77];
-  wire [PHY_REG_ADDR_W-1:0] exec1_pdest_q = exec1_stage_payload_w[76:71];
-  wire exec1_dst_gpr_q = exec1_stage_payload_w[70];
-  wire exec1_dst_en_q = exec1_stage_payload_w[69];
-  wire [`XLEN-1:0] exec1_value_q = exec1_stage_payload_w[68:5];
-  wire [4:0] exec1_fflags_q = exec1_stage_payload_w[4:0];
+  wire [PRODUCER_ID_W-1:0] exec1_producer_id_q;
+  wire [PHY_REG_ADDR_W-1:0] exec1_pdest_q;
+  wire exec1_dst_gpr_q;
+  wire exec1_dst_en_q;
+  wire [`XLEN-1:0] exec1_value_q;
+  wire [4:0] exec1_fflags_q;
+  assign {exec1_producer_id_q, exec1_pdest_q, exec1_dst_gpr_q,
+          exec1_dst_en_q, exec1_value_q, exec1_fflags_q} =
+      exec1_stage_payload_w;
+  wire [ROB_INDEX_W-1:0] exec1_rob_q =
+      exec1_producer_id_q[ROB_INDEX_W-1:0];
   // kill 年龄判定留使用方(原语契约⑥): rob 从 down_payload 位段取, 环形 age 比较
   wire [ROB_INDEX_W-1:0] exec1_age_w = exec1_rob_q - rob_head_idx_i;
   wire exec1_kill_w = kill_valid_i && exec1_valid_q &&
       (exec1_age_w > kill_age_w);
 
   PipeStageReg #(
-    .WIDTH(81)
+    .WIDTH(EXEC1_STAGE_W)
   ) u_exec1_stage (
     .clk(clk),
     .rst(rst),
@@ -909,7 +963,7 @@ module OooFpBackend #(
     .kill_i(exec1_kill_w),
     .up_valid_i(issue_fire_w && issue_is_comb_w),
     .up_ready_o(exec1_stage_up_ready_unused_w),
-    .up_payload_i({issue_rob_idx_w, issue_pdest_w, issue_dst_gpr_w,
+    .up_payload_i({issue_producer_id_w, issue_pdest_w, issue_dst_gpr_w,
                    issue_dst_en_w, comb_value_w, comb_fflags_w}),
     .down_valid_o(exec1_valid_q),
     .down_ready_i(!arith_out_valid_w), // 唯一阻塞源=arith 完成仲裁优先
@@ -930,8 +984,17 @@ module OooFpBackend #(
   wire long_take_w = long_take_candidate_w && !long_kill_w;
   assign long_take_pre_w = long_take_w;
 
+  wire fp_result_raw_valid_w =
+      !rst && !flush_i &&
+      (arith_out_valid_w || exec1_take_w || long_take_w);
+  assign result_query_valid_o = fp_result_raw_valid_w;
+  assign result_query_producer_id_o =
+      arith_out_valid_w ? arith_out_producer_id_w :
+      exec1_take_w ? exec1_producer_id_q : long_producer_id_q;
+  // One actual fact drives every early result side effect and the owner-token
+  // push.  A closed result still consumes its raw source but leaves no state.
   assign fp_result_wb_valid_w =
-      arith_out_valid_w || exec1_take_w || long_take_w;
+      fp_result_raw_valid_w && result_authorized_i;
   assign fp_result_wb_preg_w =
       arith_out_valid_w ? arith_out_pdest_w :
       exec1_take_w ? exec1_pdest_q : long_pdest_q;
@@ -943,9 +1006,8 @@ module OooFpBackend #(
       arith_out_valid_w ? 1'b1 :
       exec1_take_w ? (exec1_dst_en_q && !exec1_dst_gpr_q) : 1'b1;
 
-  wire [ROB_INDEX_W-1:0] done_in_rob_w =
-      arith_out_valid_w ? arith_out_rob_w :
-      exec1_take_w ? exec1_rob_q : long_rob_q;
+  wire [PRODUCER_ID_W-1:0] done_in_producer_id_w =
+      result_query_producer_id_o;
   wire [4:0] done_in_fflags_w =
       arith_out_valid_w ? arith_out_fflags_w :
       exec1_take_w ? exec1_fflags_q : long_fflags_hold_q;
@@ -953,10 +1015,11 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] done_in_pdest_w = fp_result_wb_preg_w;
   wire [`XLEN-1:0] done_in_value_w = fp_result_wb_value_w;
 
-  // FIFO(4 项×(rob+pdest+rd_en+value+fflags)); 深 8 计数上限但物理 8 项
-  localparam DONE_FIFO_W = 3;
-  localparam DONE_FIFO_N = (1 << DONE_FIFO_W);
-  reg [ROB_INDEX_W-1:0] df_rob_q [0:DONE_FIFO_N-1];
+  // FIFO(8 项×(full PID+pdest+rd_en+value+fflags)).  occupied valid is
+  // explicit because it is both the pending completion capability and the
+  // Q-only lease source for dispatch reuse fencing.
+  reg df_valid_q [0:DONE_FIFO_N-1];
+  reg [PRODUCER_ID_W-1:0] df_producer_id_q [0:DONE_FIFO_N-1];
   // kill 时 FIFO 存量 squash: 被 kill 指令的完成事务若滞留 FIFO, pop 后会把
   // 重放后同号新 ROB entry 标 done(撞号)→ 状态分叉。killed 项 pop 拍静默丢弃。
   reg df_killed_q [0:DONE_FIFO_N-1];
@@ -971,14 +1034,64 @@ module OooFpBackend #(
   wire df_empty_w = (done_fifo_count_q == 4'd0);
   wire df_head_killed_w = df_killed_q[df_head_q];
   // killed 项自弹(不需要下游 ready); 活项按下游 ready 弹
-  wire df_pop_w = !df_empty_w && (df_head_killed_w || fpwb_ready_i);
+  wire df_pop_w = !df_empty_w && df_valid_q[df_head_q] &&
+                  (df_head_killed_w || fpwb_ready_i);
 
-  assign fpwb_valid_o = !df_empty_w && !df_head_killed_w;
-  assign fpwb_rob_idx_o = df_rob_q[df_head_q];
+  assign fpwb_valid_o = !df_empty_w && df_valid_q[df_head_q] &&
+                        !df_head_killed_w;
+  assign fpwb_producer_id_o = df_producer_id_q[df_head_q];
+  assign fpwb_rob_idx_o = fpwb_producer_id_o[ROB_INDEX_W-1:0];
   assign fpwb_pdest_o = df_pdest_q[df_head_q];
   assign fpwb_rd_en_o = df_rd_en_q[df_head_q];
   assign fpwb_data_o = df_value_q[df_head_q];
   assign fpwb_fflags_o = df_fflags_q[df_head_q];
+
+  // FIFO occupancy is the cross-cycle completion-owner scoreboard.  Killed
+  // tombstones remain owners until their raw self-pop edge.
+  reg [(1 << PRODUCER_ID_W)-1:0] completion_pending_mask_r;
+  reg [(1 << PRODUCER_ID_W)-1:0] arith_producer_live_mask_r;
+  always @(*) begin : fp_pending_mask_blk
+    integer pk;
+    completion_pending_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
+    for (pk = 0; pk < DONE_FIFO_N; pk = pk + 1) begin
+      if (df_valid_q[pk])
+        completion_pending_mask_r[df_producer_id_q[pk]] = 1'b1;
+    end
+  end
+  always @(*) begin : fp_arith_live_mask_blk
+    integer ak;
+    arith_producer_live_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
+    for (ak = 0; ak < 5; ak = ak + 1) begin
+      if (arith_owner_valid_w[ak])
+        arith_producer_live_mask_r[
+            arith_owner_producer_id_w[ak*PRODUCER_ID_W +: PRODUCER_ID_W]] =
+            1'b1;
+    end
+  end
+
+  function [(1 << PRODUCER_ID_W)-1:0] fp_pid_onehot;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    begin
+      fp_pid_onehot = {(1 << PRODUCER_ID_W){1'b0}};
+      fp_pid_onehot[producer_id] = 1'b1;
+    end
+  endfunction
+
+  wire [(1 << PRODUCER_ID_W)-1:0] issue_stage_producer_live_mask_w =
+      fp_issue_stage_valid_w ? fp_pid_onehot(issue_producer_id_w) :
+      {(1 << PRODUCER_ID_W){1'b0}};
+  wire [(1 << PRODUCER_ID_W)-1:0] exec1_producer_live_mask_w =
+      exec1_valid_q ? fp_pid_onehot(exec1_producer_id_q) :
+      {(1 << PRODUCER_ID_W){1'b0}};
+  wire [(1 << PRODUCER_ID_W)-1:0] long_producer_live_mask_w =
+      long_meta_valid_q ? fp_pid_onehot(long_producer_id_q) :
+      {(1 << PRODUCER_ID_W){1'b0}};
+
+  assign completion_pending_mask_o = completion_pending_mask_r;
+  assign producer_live_mask_o = fp_iq_producer_live_mask_w |
+      issue_stage_producer_live_mask_w | arith_producer_live_mask_r |
+      exec1_producer_live_mask_w | long_producer_live_mask_w |
+      completion_pending_mask_r;
 
   integer dfi;
   always @(posedge clk) begin
@@ -987,7 +1100,8 @@ module OooFpBackend #(
       df_tail_q <= {DONE_FIFO_W{1'b0}};
       done_fifo_count_q <= 4'd0;
       for (dfi = 0; dfi < DONE_FIFO_N; dfi = dfi + 1) begin
-        df_rob_q[dfi] <= {ROB_INDEX_W{1'b0}};
+        df_valid_q[dfi] <= 1'b0;
+        df_producer_id_q[dfi] <= {PRODUCER_ID_W{1'b0}};
         df_killed_q[dfi] <= 1'b0;
         df_pdest_q[dfi] <= {PHY_REG_ADDR_W{1'b0}};
         df_rd_en_q[dfi] <= 1'b0;
@@ -999,15 +1113,17 @@ module OooFpBackend #(
       if (kill_valid_i) begin : df_kill_blk
         integer dk;
         for (dk = 0; dk < DONE_FIFO_N; dk = dk + 1) begin
-          if (((df_rob_q[dk] - rob_head_idx_i) >
+          if (df_valid_q[dk] &&
+              ((df_producer_id_q[dk][ROB_INDEX_W-1:0] - rob_head_idx_i) >
                (kill_rob_idx_i - rob_head_idx_i)))
             df_killed_q[dk] <= 1'b1;
         end
       end
       if (df_push_w) begin
-        df_rob_q[df_tail_q] <= done_in_rob_w;
+        df_valid_q[df_tail_q] <= 1'b1;
+        df_producer_id_q[df_tail_q] <= done_in_producer_id_w;
         df_killed_q[df_tail_q] <= kill_valid_i &&
-            ((done_in_rob_w - rob_head_idx_i) >
+            ((done_in_producer_id_w[ROB_INDEX_W-1:0] - rob_head_idx_i) >
              (kill_rob_idx_i - rob_head_idx_i));
         df_pdest_q[df_tail_q] <= done_in_pdest_w;
         df_rd_en_q[df_tail_q] <= done_in_rd_en_w;
@@ -1016,14 +1132,52 @@ module OooFpBackend #(
         df_tail_q <= df_tail_q + {{(DONE_FIFO_W-1){1'b0}}, 1'b1};
       end
       if (df_pop_w) begin
+        df_valid_q[df_head_q] <= 1'b0;
         df_head_q <= df_head_q + {{(DONE_FIFO_W-1){1'b0}}, 1'b1};
       end
+      // Full replacement is normally unreachable under launch credit, but
+      // keep simultaneous same-slot push/pop atomic if a direct harness
+      // constructs it: the newly pushed owner remains resident.
+      if (df_push_w && df_pop_w && (df_tail_q == df_head_q))
+        df_valid_q[df_tail_q] <= 1'b1;
       done_fifo_count_q <= done_fifo_count_q +
                            {3'b000, df_push_w} - {3'b000, df_pop_w};
     end
   end
 
 `ifdef OOO_ASSERT
+  // Any push must leave the new token intact for the full following cycle.
+  // This also covers the otherwise unreachable full-FIFO same-slot
+  // pop+push replacement and proves that an edge-old kill write cannot leak
+  // its tombstone bit into the newly pushed PID.
+  reg df_push_check_q;
+  reg [DONE_FIFO_W-1:0] df_push_check_slot_q;
+  reg [PRODUCER_ID_W-1:0] df_push_check_producer_id_q;
+  reg df_push_check_killed_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      df_push_check_q <= 1'b0;
+      df_push_check_slot_q <= {DONE_FIFO_W{1'b0}};
+      df_push_check_producer_id_q <= {PRODUCER_ID_W{1'b0}};
+      df_push_check_killed_q <= 1'b0;
+    end else begin
+      if (df_push_check_q &&
+          (!df_valid_q[df_push_check_slot_q] ||
+           (df_producer_id_q[df_push_check_slot_q] !=
+            df_push_check_producer_id_q) ||
+           (df_killed_q[df_push_check_slot_q] != df_push_check_killed_q))) begin
+        $error("[V8I-FP-FIFO-PUSH-ATOMIC] pushed token/payload/tombstone did not survive one cycle");
+        $fatal;
+      end
+      df_push_check_q <= df_push_w;
+      df_push_check_slot_q <= df_tail_q;
+      df_push_check_producer_id_q <= done_in_producer_id_w;
+      df_push_check_killed_q <= kill_valid_i &&
+          ((done_in_producer_id_w[ROB_INDEX_W-1:0] - rob_head_idx_i) >
+           (kill_rob_idx_i - rob_head_idx_i));
+    end
+  end
+
   // T3Q issue-packet 承重合同：ROB kill/全局 flush 拍不得把 raw stage
   // valid 当作 launch；refill/pop 已由显式 gate 禁止，PipeStageReg 负责 hold/kill。
   always @(posedge clk) begin
@@ -1083,6 +1237,95 @@ module OooFpBackend #(
       $error("[FP-COMPLETION-KILL-NOW] killed exec1 completed on kill edge");
     if (!rst && !flush_i && long_kill_w && long_take_w)
       $error("[FP-COMPLETION-KILL-NOW] killed long completed on kill edge");
+  end
+
+  always @(posedge clk) begin : v8i_fp_lease_assert_blk
+    integer fk;
+    integer fj;
+    integer fifo_valid_count;
+    if (!rst) begin
+      fifo_valid_count = 0;
+      for (fk = 0; fk < DONE_FIFO_N; fk = fk + 1) begin
+        if (df_valid_q[fk]) begin
+          fifo_valid_count = fifo_valid_count + 1;
+          if ((^df_producer_id_q[fk] === 1'bx) ||
+              !completion_pending_mask_o[df_producer_id_q[fk]]) begin
+            $error("[V8L-FP-FIFO-PENDING] occupied token has unknown PID or is missing from pending mask");
+            $fatal;
+          end
+        end
+        for (fj = fk + 1; fj < DONE_FIFO_N; fj = fj + 1) begin
+          if (df_valid_q[fk] && df_valid_q[fj] &&
+              (df_producer_id_q[fk] == df_producer_id_q[fj])) begin
+            $error("[V8I-FP-FIFO-PID-UNIQUE] duplicate completion owner token");
+            $fatal;
+          end
+        end
+      end
+      if (fifo_valid_count != done_fifo_count_q) begin
+        $error("[V8I-FP-FIFO-OCCUPANCY] valid/count diverged valid=%0d count=%0d",
+               fifo_valid_count, done_fifo_count_q);
+        $fatal;
+      end
+      if (execution_credit_used_w > DONE_FIFO_N) begin
+        $error("[V8I-FP-LAUNCH-CREDIT] post-launch occupancy overflowed FIFO depth");
+        $fatal;
+      end
+      if (issue_fire_w && !execution_credit_open_w) begin
+        $error("[V8I-FP-LAUNCH-CREDIT] execution launched without credit");
+        $fatal;
+      end
+      if (fp_issue_stage_valid_w &&
+          (^issue_producer_id_w === 1'bx)) begin
+        $error("[V8L-FP-ISSUE-LEASE-KNOWN] valid issue packet has unknown PID");
+        $fatal;
+      end
+      if (exec1_valid_q &&
+          (^exec1_producer_id_q === 1'bx)) begin
+        $error("[V8L-FP-EXEC1-LEASE-KNOWN] valid exec1 packet has unknown PID");
+        $fatal;
+      end
+      if (long_meta_valid_q &&
+          (^long_producer_id_q === 1'bx)) begin
+        $error("[V8L-FP-LONG-LEASE-KNOWN] valid long-op metadata has unknown PID");
+        $fatal;
+      end
+      for (fk = 0; fk < 5; fk = fk + 1) begin
+        if (arith_owner_valid_w[fk] &&
+            (^arith_owner_producer_id_w[
+                fk*PRODUCER_ID_W +: PRODUCER_ID_W] === 1'bx)) begin
+          $error("[V8L-FP-ARITH-LEASE-KNOWN] valid arithmetic owner has unknown PID");
+          $fatal;
+        end
+      end
+      if (df_push_w && (done_fifo_count_q >= DONE_FIFO_N) && !df_pop_w) begin
+        $error("[V8I-FP-FIFO-OVERFLOW] authorized result had no physical slot");
+        $fatal;
+      end
+      if (fp_result_wb_valid_w &&
+          (!result_query_valid_o || !result_authorized_i)) begin
+        $error("[V8I-FP-RESULT-ACTUAL] early side effect escaped authorization");
+        $fatal;
+      end
+      if (fpwb_valid_o &&
+          !completion_pending_mask_o[fpwb_producer_id_o]) begin
+        $error("[V8I-FP-FORMAL-OWNER] formal head lacks pending capability");
+        $fatal;
+      end
+      if (issue_valid_w &&
+          (issue_rob_idx_w !== issue_producer_id_w[ROB_INDEX_W-1:0])) begin
+        $error("[V8I-FP-ISSUE-PID-PROJECTION] issue raw index diverged from PID");
+        $fatal;
+      end
+      if (result_query_valid_o &&
+          (result_query_producer_id_o[ROB_INDEX_W-1:0] !==
+           (arith_out_valid_w ? arith_out_rob_w :
+            exec1_take_w ? exec1_rob_q :
+            long_producer_id_q[ROB_INDEX_W-1:0]))) begin
+        $error("[V8I-FP-RESULT-PID-PROJECTION] result raw index diverged from PID");
+        $fatal;
+      end
+    end
   end
 `endif
 

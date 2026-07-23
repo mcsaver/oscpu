@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-pending-csr-producer-lease
+- `trace_id`: e2e:2026-07-20-pending-csr-producer-lease
+- `task_slug`: pending-csr-producer-lease
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 8c313a2f1789933d650b7e86dd2dab4c9eaad4c4b840ea5c421d96256c37cb12
+- `task_report_md_sha256`: 46be629ae77b9c16d143085d56a535b2f132ad8a546822a3409e1ea335407105
+- `run_manifest_json_sha256`: 754e6ea5d45eee4949eb124e54c96d3a9a6328c170d9405f2fbc8d4a15e509bb
+- `context_brief_md_sha256`: 344797c027696ed55fca37d97e1af680076ec4a8276be40bb22ec95b7ef6f2d0
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 9a565b2da7731a1f519a6d87990042f0027817460c0f46cb9f1756942bc90559
+- `dispatch_log_md_sha256`: 73d1fff03669647d2174fb3c03a381a5aa9ed0cf4d364b4b65145b7a04b72d47
+- `nodes_tsv_sha256`: e90a7ab791557f048f08d2248760d5f84eab75625c0167c69a163561ec10ca27

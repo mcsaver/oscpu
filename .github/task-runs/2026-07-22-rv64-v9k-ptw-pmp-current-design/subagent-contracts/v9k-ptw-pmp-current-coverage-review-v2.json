@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9k-ptw-pmp-current-coverage-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的当前设计事实，复核 OooFetchAxiBridge 与 OooMemAxiBridge 的 PTW PTE 8B WRITE PMP 判定、A/D 更新事务、异常响应 owner 和 AXI AW/W 静默合同，尝试构造仍可通过现有 oracle 的具体周期级反例，并对 PTW-PMP-G1 给出限定 PASS 或 GAP",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/ptw-pmp-current.json",
+      "npc/rv64/eval/ppa/evidence/ptw-pmp.log",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/architecture-source-provenance-rebind.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/subagent-contracts/v9k-ptw-pmp-current-coverage-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整 RV64 RTL 设计标识为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；本切片未修改生产 RTL，所有结论仅限 PTW-PMP-G1。",
+      "IFU 的 u_walk_pte_write_pmp_checker 输入为已锁存的 walk_pte_addr_q、8 字节、PRIV_S、WRITE；LSU 对应输入为 walk_pte_addr_w、8 字节、PRIV_S、WRITE。",
+      "PmpChecker 静态合同要求以访问末字节计算完整覆盖，并按首个重叠 entry 判定；IFU 与 LSU 都有 8B PTE WRITE 仅覆盖前 4B 时必须拒绝的动态反例。",
+      "IFU granted A-update 行直接观察 checker grant、无 deny event、进入 S_AD_UPDATE、AWVALID、WVALID、AWSIZE=3、完整 WSTRB 和 B 完成后重走 leaf。",
+      "IFU denied 行覆盖 F=0 以及 F=2、F=4、F=6 第二页 A=0 leaf：PTE READ 和最终 2B EXEC 允许，PTE 8B WRITE 拒绝，保留精确 successful prefix，响应为 instruction access fault，deny、response 与 held-response 周期均无更年轻 AR、AW、W。",
+      "LSU granted 行在 task 内独立设置 PMP allow-all，分别覆盖 load-A 与 store-D，直接观察 checker grant、无 deny event、S_AD_UPDATE 的 AWVALID、WVALID、AWSIZE=3 和后续原 load/store 完成。",
+      "LSU denied 行覆盖 load-A、store-D 和 load-A 的 8B partial-cover；接受请求后替换 live request 输入，响应仍保持原 owner kind、token、mmu_epoch 与原始虚拟地址 fault_tval，且返回 access fault 而非 page fault，deny 与 response 周期均无 PTE AW/W。",
+      "当前源码负向 RTL 变体共 18 个，IFU 9 个、LSU 9 个；每侧分别改变 WRITE request、PTE address、S-mode、8B width、deny branch、granted allow、access-fault class、AWVALID quiet、WVALID quiet，全部编译成功并被指定周期 oracle 动态检出，生产 RTL 前后字节一致。",
+      "canonical make -C npc/rv64 check-ptw-pmp 已通过 focused 2/2、动态模块 aggregate 109/109、负向 RTL 变体 18/18、证据单元测试 9/9；证据生成器还检查 16 项静态/动态不变量。",
+      "证据结果 SHA-256 为 48f01990877fc701c9d392dd8a7f4632298ac5b27955f95acee93d4a1b851926，原始日志 SHA-256 为 80c4603e73742963a49f3ea6d0b61499829043479971a087dbd826368478a22f，债务账本将 PTW-PMP-G1 标为 current_design_bound CLOSED。",
+      "V1 审查提出的 current-source 绑定、IFU F=2/4/6、LSU owner 快照、allow checker grant 与 AWSIZE、8B 宽度区分、AW/W 静默、错误响应类别及 address/privilege/access-type 变体均已转成上述直接 testbench、静态审计或编译成功负向 RTL 变体。",
+      "directed architecture 来源重绑定仅更新 Makefile、IFU TB、LSU TB 的来源哈希；三个 V9K 前版本均由精确字节反向重建匹配旧 SHA，九条 record 的非来源语义投影不变，9/9 directed gates 为 GREEN。",
+      "全核 architecture freeze 仍为 GAP 且有 36 个其它 blocker；PPA 为 UNQUALIFIED，promotion_eligible=false，本复核不得外推到完整核心或正式 PPA。"
+    ]
+  },
+  "deliverables": [
+    "按 V1 缺口逐项判断是否消除；给出 checker tuple、IFU frontier、LSU response owner、AW/W 状态译码和 18 个负向 RTL 变体之间的反例分析；若仍有 GAP，必须给出可执行的本地 RV64 周期场景及缺失 oracle；同时列出 unknowns、scope_extension_request、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "结论必须为严格限定的 PASS、GAP 或 inconclusive；PASS 需要说明为何无法构造与全部随附 oracle 相容的具体反例，GAP 需要指出信号、周期、owner 与可新增 testbench/断言；不得把冻结材料复核外推为仓库全量独立审查、全核 arch-stable 或 PPA 资格。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

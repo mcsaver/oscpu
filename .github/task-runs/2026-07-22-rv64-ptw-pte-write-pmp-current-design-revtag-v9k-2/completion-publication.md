@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-22-rv64-ptw-pte-write-pmp-current-design-revtag-v9k-2
+- `trace_id`: e2e:2026-07-22-rv64-ptw-pte-write-pmp-current-design-revtag-v9k-2
+- `task_slug`: rv64-ptw-pte-write-pmp-current-design-revtag-v9k
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 8abbd54b242dd7003a25b0ef2036541f10467145ddbfc6cbe887867b5c955209
+- `task_report_md_sha256`: 1fa080b86622eb2a6f5183ff65e22c6330696050944019067e9cd64b5feb438e
+- `run_manifest_json_sha256`: 24c6786cf1f04f7f1f61124a766c85db49cc38b35d1381c3c550c85d0d4fe67d
+- `context_brief_md_sha256`: 32cf870ac6d94703c279e0c05a8002adbe0e95ab2e93555c5bb6e001a16e58f0
+- `profile_resolve_md_sha256`: 77ad081e4a38ecf46f7e6c62f5380063a97b0daceb83f1a2919832dc25e8dcea
+- `evidence_index_md_sha256`: abc7912ce1a7153b830dae69c8b071b4ac28271e3a9f810302be2d4b546044af
+- `dispatch_log_md_sha256`: 5f635d9d0dd6cb309e68fd51502683f194894dede47d2a4709f2b44aaf90ff0f
+- `nodes_tsv_sha256`: 4b172b84fd44a723f0690afb765b50322c75031c3ca39391b30f96e42b55ecde

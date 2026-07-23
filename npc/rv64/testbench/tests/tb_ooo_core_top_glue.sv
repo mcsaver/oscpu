@@ -10,6 +10,7 @@ module tb_ooo_core_top_glue;
   reg flush;
   reg run;
   reg commit_ready;
+  reg fetch_req_admit;
 
   wire fetch_req_valid;
   wire fetch_req_ready;
@@ -24,6 +25,9 @@ module tb_ooo_core_top_glue;
   wire mem_req_valid;
   wire mem_req_ready;
   wire mem_req_write;
+  wire mem_req_probe;
+  wire mem_req_pretrans;
+  wire mem_req_nokill;
   wire [1:0] mem_req_owner_kind;
   wire [4:0] mem_req_owner_token;
   wire [1:0] mem_req_mmu_epoch;
@@ -163,6 +167,8 @@ module tb_ooo_core_top_glue;
   localparam [4:0] MODE_ECALL = 5'd17;
   localparam [4:0] MODE_FMV_W_X = 5'd18;
   localparam [4:0] MODE_FETCH_ACCESS_FAULT = 5'd19;
+  localparam [4:0] MODE_FRONTEND_II1 = 5'd20;
+  localparam [4:0] MODE_WIDTH_CONTINUITY = 5'd21;
   // Deliberately use a raw instruction whose 18-bit T3W static pack is
   // non-zero.  PacketDecode must replace it with a NOP on the fault path,
   // and the FIFO must store the sanitized NOP's all-zero static pack.
@@ -207,6 +213,9 @@ module tb_ooo_core_top_glue;
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(mem_req_ready),
     .mem_req_write_o(mem_req_write),
+    .mem_req_probe_o(mem_req_probe),
+    .mem_req_pretrans_o(mem_req_pretrans),
+    .mem_req_nokill_o(mem_req_nokill),
     .mem_req_attr_valid_o(),
     .mem_req_class_o(),
     .mem_req_cacheable_o(),
@@ -259,6 +268,60 @@ module tb_ooo_core_top_glue;
     .mem_drop1_mmu_epoch_i(2'b00),
     .mem_drop1_fault_tval_i({`XLEN{1'b0}}),
     .mem_bridge_owner_residency_mask_i(mem_bridge_owner_residency_mask),
+    .mem_sq_query_valid_i(1'b0),
+    .mem_sq_query_owner_kind_i(2'b00),
+    .mem_sq_query_owner_token_i(5'b00000),
+    .mem_sq_query_mmu_epoch_i(2'b00),
+    .mem_sq_query_paddr_i({`XLEN{1'b0}}),
+    .mem_sq_query_attr_valid_i(1'b0),
+    .mem_sq_query_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem_sq_query_wstrb_i({`STRB_W{1'b0}}),
+    .mem_sq_query_allow_o(),
+    .mem_sq_query_forward_o(),
+    .mem_sq_query_replay_o(),
+    .mem_sq_query_retry_ready_o(),
+    .mem_sq_query_forward_data_o(),
+    .mem1_req_ready_i(1'b0),
+    .mem1_rsp_valid_i(1'b0),
+    .mem1_rsp_rdata_i({`XLEN{1'b0}}),
+    .mem1_rsp_error_i(1'b0),
+    .mem1_rsp_page_fault_i(1'b0),
+    .mem1_rsp_attr_valid_i(1'b0),
+    .mem1_rsp_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem1_rsp_cacheable_i(1'b0),
+    .mem1_rsp_owner_kind_i(2'b00),
+    .mem1_rsp_owner_token_i(5'b00000),
+    .mem1_rsp_mmu_epoch_i(2'b00),
+    .mem1_rsp_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_owner_query_valid_i(1'b0),
+    .mem1_owner_query_token_i(5'b00000),
+    .mem1_station_query_valid_i(1'b0),
+    .mem1_station_query_token_i(5'b00000),
+    .mem1_sq_query_valid_i(1'b0),
+    .mem1_sq_query_owner_kind_i(2'b00),
+    .mem1_sq_query_owner_token_i(5'b00000),
+    .mem1_sq_query_mmu_epoch_i(2'b00),
+    .mem1_sq_query_paddr_i({`XLEN{1'b0}}),
+    .mem1_sq_query_attr_valid_i(1'b0),
+    .mem1_sq_query_class_i(`OOO_MEM_CLASS_RSVD),
+    .mem1_sq_query_wstrb_i({`STRB_W{1'b0}}),
+    .mem1_sq_query_allow_o(),
+    .mem1_sq_query_forward_o(),
+    .mem1_sq_query_replay_o(),
+    .mem1_sq_query_retry_ready_o(),
+    .mem1_sq_query_forward_data_o(),
+    .mem1_drop0_valid_i(1'b0),
+    .mem1_drop0_owner_kind_i(2'b00),
+    .mem1_drop0_owner_token_i(5'b00000),
+    .mem1_drop0_mmu_epoch_i(2'b00),
+    .mem1_drop0_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_drop1_valid_i(1'b0),
+    .mem1_drop1_owner_kind_i(2'b00),
+    .mem1_drop1_owner_token_i(5'b00000),
+    .mem1_drop1_mmu_epoch_i(2'b00),
+    .mem1_drop1_fault_tval_i({`XLEN{1'b0}}),
+    .mem1_bridge_owner_residency_mask_i(32'b0),
+    .mem1_translate_active_i(1'b0),
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
@@ -519,8 +582,24 @@ module tb_ooo_core_top_glue;
 
   function [`INST_W-1:0] program_word;
     input [`XLEN-1:0] addr;
+    reg [`XLEN-1:0] width_sequence;
+    reg [4:0] width_rd;
+    reg [11:0] width_imm;
     begin
-      if (program_mode == MODE_RVC_CADDIW) begin
+      if (program_mode == MODE_FRONTEND_II1) begin
+        // DI-1 focused stream: two independent architectural NOPs per packet.
+        // The unbounded sequential image prevents a control-flow stop from
+        // entering the 64-cycle frontend turnover window.
+        program_word = inst_addi(5'd0, 5'd0, 12'd0);
+      end else if (program_mode == MODE_WIDTH_CONTINUITY) begin
+        // V9A DI-2: independent integer ALU stream.  Every source is x0, so
+        // there is no RAW dependency.  PC-derived nonzero rd/imm values make
+        // both lanes and every transaction payload observably different.
+        width_sequence = (addr - `RESET_PC) >> 2;
+        width_rd = (width_sequence % 30) + 1;
+        width_imm = width_sequence[11:0] + 12'd1;
+        program_word = inst_addi(width_rd, 5'd0, width_imm);
+      end else if (program_mode == MODE_RVC_CADDIW) begin
         program_word = {program_half(addr + 32'd2), program_half(addr)};
       end else if (program_mode == MODE_EBREAK && addr == 32'h8000_0000) begin
         program_word = inst_ebreak();
@@ -777,6 +856,7 @@ module tb_ooo_core_top_glue;
       flush = 1'b0;
       run = 1'b1;
       commit_ready = 1'b1;
+      fetch_req_admit = 1'b1;
       fetch_rsp_valid = 1'b0;
       fetch_rsp_inst0 = {`INST_W{1'b0}};
       fetch_rsp_inst1 = {`INST_W{1'b0}};
@@ -834,7 +914,8 @@ module tb_ooo_core_top_glue;
     end
   endtask
 
-  assign fetch_req_ready = !fetch_rsp_valid || fetch_rsp_ready;
+  assign fetch_req_ready = fetch_req_admit &&
+                           (!fetch_rsp_valid || fetch_rsp_ready);
   assign mem_req_ready = !mem_rsp_valid || mem_rsp_ready;
 
   always @(posedge clk) begin
@@ -894,7 +975,12 @@ module tb_ooo_core_top_glue;
         mem_station_query_owner_kind <= mem_req_owner_kind;
         mem_station_query_token <= mem_req_owner_token;
         mem_station_query_mmu_epoch <= mem_req_mmu_epoch;
-        if (mem_req_write) begin
+        if (mem_req_probe) begin
+          // SQ-mode STORE first performs a side-effect-free translation/
+          // protection probe.  Bare mode returns VA==PA; only the later
+          // pretranslated nokill drain may update the memory model.
+          mem_rsp_rdata <= mem_req_addr;
+        end else if (mem_req_write) begin
           if (mem_req_addr == 64'h0000_0000_8000_0040) begin
             if (mem_req_wstrb[0]) begin
               data_mem_word[7:0] <= mem_req_wdata[7:0];
@@ -1117,8 +1203,1219 @@ module tb_ooo_core_top_glue;
     end
   end
 
+`ifdef V8Z_FRONTEND_II1_FOCUSED
+  integer v8z_request_count;
+  integer v8z_response_count;
+  integer v8z_enqueue_count;
+  integer v8z_dequeue_count;
+  integer v8z_window_accepted;
+  integer v8z_window_responses;
+  integer v8z_window_enqueues;
+  integer v8z_window_dequeues;
+  integer v8z_window_sequences;
+  integer v8z_window_stalls;
+  integer v8z_redirect_cycles;
+  reg v8z_last_request_valid;
+  reg [`XLEN-1:0] v8z_last_request_pc;
+  reg [`XLEN-1:0] v8z_request_pc_ledger [0:255];
+  reg [`XLEN-1:0] v8z_enqueue_pc_ledger [0:255];
+
+  task automatic v8z_sample_frontend_cycle;
+    input require_turnover_i;
+    input require_sink_i;
+    input count_window_i;
+    reg request_fire;
+    reg response_fire;
+    reg enqueue_fire;
+    reg dequeue_fire;
+    reg request_sequence_ok;
+    reg redirect_or_stop;
+    begin
+      request_fire = fetch_req_valid && fetch_req_ready;
+      response_fire = fetch_rsp_valid && fetch_rsp_ready;
+      enqueue_fire = dut.u_frontend.fetch_rsp_enqueue_w;
+      dequeue_fire = dut.u_frontend.fifo_pop_w;
+      request_sequence_ok = !v8z_last_request_valid ||
+          (fetch_req_pc == (v8z_last_request_pc + 64'd8));
+      redirect_or_stop = dut.u_frontend.redirect_valid_w ||
+          dut.u_frontend.direct_frontend_flush_w ||
+          dut.u_frontend.resolve_redirect_block_w ||
+          dut.u_frontend.direct_redirect_fetch_w ||
+          dut.u_frontend.fetch_request_blocked_by_trap_w ||
+          dut.u_frontend.stop_pending_busy_w ||
+          dut.u_frontend.halted_q || dut.u_frontend.trap_valid_q ||
+          dut.u_frontend.exit_valid_q ||
+          dut.u_frontend.discard_fetch_rsp_q;
+
+      if (response_fire) begin
+        if (v8z_response_count >= v8z_request_count) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] response has no accepted request owner pc=0x%016x",
+                   fetch_req_owner_pc);
+        end else if (fetch_req_owner_pc !==
+                     v8z_request_pc_ledger[v8z_response_count]) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] response owner=0x%016x expected request=0x%016x index=%0d",
+                   fetch_req_owner_pc,
+                   v8z_request_pc_ledger[v8z_response_count],
+                   v8z_response_count);
+        end
+        v8z_response_count = v8z_response_count + 1;
+      end
+
+      if (request_fire) begin
+        if (!request_sequence_ok) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] request successor=0x%016x previous=0x%016x",
+                   fetch_req_pc, v8z_last_request_pc);
+        end
+        if (response_fire &&
+            (fetch_req_pc !== (fetch_req_owner_pc + 64'd8))) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] turnover successor=0x%016x response owner=0x%016x",
+                   fetch_req_pc, fetch_req_owner_pc);
+        end
+        v8z_request_pc_ledger[v8z_request_count] = fetch_req_pc;
+        v8z_request_count = v8z_request_count + 1;
+        v8z_last_request_pc = fetch_req_pc;
+        v8z_last_request_valid = 1'b1;
+      end
+
+      if (enqueue_fire) begin
+        if (!response_fire) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] enqueue without response fire");
+        end
+        if ((dut.u_frontend.fetch_dec0_pc_w !== fetch_req_owner_pc) ||
+            (dut.u_frontend.fetch_dec1_pc_w !==
+             (fetch_req_owner_pc + 64'd4))) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] enqueue pc0=0x%016x pc1=0x%016x response owner=0x%016x",
+                   dut.u_frontend.fetch_dec0_pc_w,
+                   dut.u_frontend.fetch_dec1_pc_w,
+                   fetch_req_owner_pc);
+        end
+        v8z_enqueue_pc_ledger[v8z_enqueue_count] =
+            dut.u_frontend.fetch_dec0_pc_w;
+        v8z_enqueue_count = v8z_enqueue_count + 1;
+      end
+
+      if (dequeue_fire) begin
+        if (v8z_dequeue_count >= v8z_enqueue_count) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] dequeue has no enqueued packet pc=0x%016x",
+                   dut.u_frontend.fifo_head_pc0_w);
+        end else if (dut.u_frontend.fifo_head_pc0_w !==
+                     v8z_enqueue_pc_ledger[v8z_dequeue_count]) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] dequeue pc=0x%016x expected enqueue=0x%016x index=%0d",
+                   dut.u_frontend.fifo_head_pc0_w,
+                   v8z_enqueue_pc_ledger[v8z_dequeue_count],
+                   v8z_dequeue_count);
+        end
+        if (dut.u_frontend.fifo_head_pc1_w !==
+            (dut.u_frontend.fifo_head_pc0_w + 64'd4)) begin
+          tb_errors = tb_errors + 1;
+          $display("[V8Z-PC-LEDGER][FAIL] dequeue lane PCs are not one instruction apart");
+        end
+        v8z_dequeue_count = v8z_dequeue_count + 1;
+      end
+
+      if (require_turnover_i) begin
+        tb_check1("V8Z response valid every required turnover cycle",
+                  fetch_rsp_valid, 1'b1);
+        tb_check1("V8Z response ready every required turnover cycle",
+                  fetch_rsp_ready, 1'b1);
+        tb_check1("V8Z response fires every required turnover cycle",
+                  response_fire, 1'b1);
+        tb_check1("V8Z response enqueues every required turnover cycle",
+                  enqueue_fire, 1'b1);
+        tb_check1("V8Z successor request fires every required turnover cycle",
+                  request_fire, 1'b1);
+        tb_check1("V8Z frontend retains one outstanding owner",
+                  dut.u_frontend.outstanding_valid_q, 1'b1);
+        tb_check1("V8Z response has FIFO enqueue credit",
+                  dut.u_frontend.fetch_rsp_can_enqueue_w, 1'b1);
+        tb_check1("V8Z FIFO reserve admits successor",
+                  dut.u_frontend.fifo_reserve_available_w, 1'b1);
+      end
+      if (require_sink_i)
+        tb_check1("V8Z FIFO sink consumes one packet", dequeue_fire, 1'b1);
+
+      if (count_window_i) begin
+        if (request_fire)
+          v8z_window_accepted = v8z_window_accepted + 1;
+        if (response_fire)
+          v8z_window_responses = v8z_window_responses + 1;
+        if (enqueue_fire)
+          v8z_window_enqueues = v8z_window_enqueues + 1;
+        if (dequeue_fire)
+          v8z_window_dequeues = v8z_window_dequeues + 1;
+        if (request_fire && request_sequence_ok)
+          v8z_window_sequences = v8z_window_sequences + 1;
+        if (!(request_fire && response_fire && enqueue_fire &&
+              dequeue_fire && request_sequence_ok))
+          v8z_window_stalls = v8z_window_stalls + 1;
+      end
+
+      if (redirect_or_stop)
+        v8z_redirect_cycles = v8z_redirect_cycles + 1;
+      tb_check1("V8Z trajectory has no redirect or control stop",
+                redirect_or_stop, 1'b0);
+    end
+  endtask
+
+  initial begin : v8z_frontend_ii1_focused
+    integer beat;
+    integer wait_cycle;
+    integer held_request_count;
+    integer held_response_count;
+    integer held_enqueue_count;
+    reg [`XLEN-1:0] held_owner_pc;
+    reg [`INST_W-1:0] held_inst0;
+    reg [`INST_W-1:0] held_inst1;
+
+    tb_errors = 0;
+    v8z_request_count = 0;
+    v8z_response_count = 0;
+    v8z_enqueue_count = 0;
+    v8z_dequeue_count = 0;
+    v8z_window_accepted = 0;
+    v8z_window_responses = 0;
+    v8z_window_enqueues = 0;
+    v8z_window_dequeues = 0;
+    v8z_window_sequences = 0;
+    v8z_window_stalls = 0;
+    v8z_redirect_cycles = 0;
+    v8z_last_request_valid = 1'b0;
+    v8z_last_request_pc = {`XLEN{1'b0}};
+
+    reset_dut(MODE_FRONTEND_II1, 32'h0000_0000);
+
+    // Prologue: record the seed request, then one response/enqueue cycle.  The
+    // following cycle has independent request, response, enqueue and FIFO
+    // dequeue owners and is the first post-warmup measurement cycle.
+    v8z_sample_frontend_cycle(1'b0, 1'b0, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    v8z_sample_frontend_cycle(1'b1, 1'b0, 1'b0);
+    `TB_TICK(clk);
+    #1;
+
+    for (beat = 0; beat < 64; beat = beat + 1) begin
+      v8z_sample_frontend_cycle(1'b1, 1'b1, 1'b1);
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check32("V8Z accepted packet count", v8z_window_accepted, 32'd64);
+    tb_check32("V8Z response packet count", v8z_window_responses, 32'd64);
+    tb_check32("V8Z enqueue packet count", v8z_window_enqueues, 32'd64);
+    tb_check32("V8Z independent sink packet count",
+               v8z_window_dequeues, 32'd64);
+    tb_check32("V8Z sequential successor count",
+               v8z_window_sequences, 32'd64);
+    tb_check32("V8Z measured stall count", v8z_window_stalls, 32'd0);
+    tb_check32("V8Z redirect or stop count", v8z_redirect_cycles, 32'd0);
+    if ((v8z_window_accepted == 64) &&
+        (v8z_window_responses == 64) &&
+        (v8z_window_enqueues == 64) &&
+        (v8z_window_dequeues == 64) &&
+        (v8z_window_sequences == 64) &&
+        (v8z_window_stalls == 0) && (v8z_redirect_cycles == 0) &&
+        (tb_errors == 0)) begin
+      $display("[V8Z-FRONTEND-II1-INTEGRATION] preheated_cycles=64 packets_observed=64 accepted=64 responses=64 enqueues=64 produced=64 max_ii=1 sequential=64 redirects=0 stalls=0 PASS");
+    end
+
+    // The FIFO reservation invariant prevents a legal outstanding response
+    // from colliding with a full FIFO.  Pause run_i instead: this closes the
+    // real FlowControl response-ready path while preserving the outstanding
+    // owner and payload, then reopens the same path without a flush/drop.
+    run = 1'b0;
+    #1;
+    tb_check1("V8Z finite run pause reaches a held response",
+              fetch_rsp_valid && !fetch_rsp_ready, 1'b1);
+    held_owner_pc = fetch_req_owner_pc;
+    held_inst0 = fetch_rsp_inst0;
+    held_inst1 = fetch_rsp_inst1;
+    held_request_count = v8z_request_count;
+    held_response_count = v8z_response_count;
+    held_enqueue_count = v8z_enqueue_count;
+    repeat (4) begin
+      tb_check1("V8Z held response stays valid", fetch_rsp_valid, 1'b1);
+      tb_check1("V8Z held response remains backpressured",
+                fetch_rsp_ready, 1'b0);
+      tb_check1("V8Z held response owner is stable",
+                fetch_req_owner_pc == held_owner_pc, 1'b1);
+      tb_check1("V8Z held response lane0 is stable",
+                fetch_rsp_inst0 == held_inst0, 1'b1);
+      tb_check1("V8Z held response lane1 is stable",
+                fetch_rsp_inst1 == held_inst1, 1'b1);
+      v8z_sample_frontend_cycle(1'b0, 1'b0, 1'b0);
+      tb_check32("V8Z backpressure accepts no replacement request",
+                 v8z_request_count, held_request_count);
+      tb_check32("V8Z backpressure consumes no held response",
+                 v8z_response_count, held_response_count);
+      tb_check32("V8Z backpressure performs no duplicate enqueue",
+                 v8z_enqueue_count, held_enqueue_count);
+      `TB_TICK(clk);
+      #1;
+    end
+
+    run = 1'b1;
+    #1;
+    tb_check1("V8Z held response resumes with an exact successor",
+              fetch_rsp_valid && fetch_rsp_ready &&
+              dut.u_frontend.fetch_rsp_enqueue_w &&
+              fetch_req_valid && fetch_req_ready, 1'b1);
+    v8z_sample_frontend_cycle(1'b1, 1'b0, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    for (beat = 0; beat < 16; beat = beat + 1) begin
+      v8z_sample_frontend_cycle(1'b1, 1'b1, 1'b0);
+      `TB_TICK(clk);
+      #1;
+    end
+    if (tb_errors == 0)
+      $display("[V8Z-FRONTEND-II1-BACKPRESSURE] source=run_gate held_cycles=4 resume_turnovers=16 payload_stable=1 owner_stable=1 duplicate_enqueue=0 PASS");
+
+    // Epilogue: close external successor admission but keep the current
+    // response consumable.  Drain that tail, FIFO and backend, then require
+    // exact request/response/enqueue/dequeue conservation and no ghost owner.
+    fetch_req_admit = 1'b0;
+    #1;
+    tb_check1("V8Z epilogue has one tail response", fetch_rsp_valid, 1'b1);
+    tb_check1("V8Z epilogue consumes the tail response",
+              fetch_rsp_ready, 1'b1);
+    tb_check1("V8Z epilogue blocks successor request fire",
+              fetch_req_valid && fetch_req_ready, 1'b0);
+    v8z_sample_frontend_cycle(1'b0, 1'b1, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    for (wait_cycle = 0;
+         (wait_cycle < 160) &&
+         (dut.u_frontend.outstanding_valid_q || fetch_rsp_valid ||
+          (dut.u_frontend.fifo_count_q != 0) || (rob_count != 0) ||
+          (issue_count != 0));
+         wait_cycle = wait_cycle + 1) begin
+      v8z_sample_frontend_cycle(1'b0, 1'b0, 1'b0);
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check32("V8Z final request-response conservation",
+               v8z_response_count, v8z_request_count);
+    tb_check32("V8Z final response-enqueue conservation",
+               v8z_enqueue_count, v8z_response_count);
+    tb_check32("V8Z final enqueue-dequeue conservation",
+               v8z_dequeue_count, v8z_enqueue_count);
+    tb_check1("V8Z final outstanding owner is empty",
+              dut.u_frontend.outstanding_valid_q, 1'b0);
+    tb_check1("V8Z final response channel is empty",
+              fetch_rsp_valid, 1'b0);
+    tb_check32("V8Z final frontend FIFO is empty",
+               dut.u_frontend.fifo_count_q, 32'd0);
+    tb_check32("V8Z final ROB is empty", {27'b0, rob_count}, 32'd0);
+    tb_check32("V8Z final issue queue is empty",
+               {28'b0, issue_count}, 32'd0);
+    tb_check32("V8Z final physical register free count",
+               {25'b0, free_count}, 32'd32);
+    if ((v8z_request_count == v8z_response_count) &&
+        (v8z_response_count == v8z_enqueue_count) &&
+        (v8z_enqueue_count == v8z_dequeue_count) &&
+        !dut.u_frontend.outstanding_valid_q && !fetch_rsp_valid &&
+        (dut.u_frontend.fifo_count_q == 0) && (rob_count == 0) &&
+        (issue_count == 0) && (free_count == 32) &&
+        (tb_errors == 0)) begin
+      $display("[V8Z-FRONTEND-II1-DRAIN] requests=%0d responses=%0d enqueues=%0d dequeues=%0d outstanding=0 fifo=0 rob=0 issue=0 ghosts=0 PASS",
+               v8z_request_count, v8z_response_count,
+               v8z_enqueue_count, v8z_dequeue_count);
+    end
+    tb_finish("tb_ooo_core_top_glue_v8z_frontend_ii1");
+  end
+`elsif V9A_WIDTH_CONTINUITY_FOCUSED
+  localparam integer V9A_WARMUP_CYCLES = 24;
+  localparam integer V9A_TRACE_CYCLES = 64;
+  localparam integer V9A_BOUNDARY_N = 7;
+  localparam integer V9A_PID_N = (1 << `OOO_PRODUCER_ID_W);
+  localparam integer V9A_FETCH = 0;
+  localparam integer V9A_DECODE = 1;
+  localparam integer V9A_RENAME = 2;
+  localparam integer V9A_DISPATCH = 3;
+  localparam integer V9A_ISSUE = 4;
+  localparam integer V9A_EXECUTE = 5;
+  localparam integer V9A_RETIRE = 6;
+  localparam [1:0] V9A_PID_ALLOCATED = 2'd1;
+  localparam [1:0] V9A_PID_ISSUED = 2'd2;
+  localparam [1:0] V9A_PID_EXECUTED = 2'd3;
+
+  integer v9a_total [0:V9A_BOUNDARY_N-1];
+  integer v9a_peak [0:V9A_BOUNDARY_N-1];
+  integer v9a_dual_cycles [0:V9A_BOUNDARY_N-1];
+  integer v9a_seen [0:V9A_BOUNDARY_N-1];
+  integer v9a_request_count;
+  integer v9a_response_count;
+  integer v9a_enqueue_count;
+  integer v9a_active_count;
+  integer v9a_ledger_errors;
+  integer v9a_cycle;
+  integer v9a_init_i;
+
+  reg v9a_pid_active [0:V9A_PID_N-1];
+  reg [1:0] v9a_pid_state [0:V9A_PID_N-1];
+  reg [`XLEN-1:0] v9a_pid_pc [0:V9A_PID_N-1];
+  reg [`INST_W-1:0] v9a_pid_inst [0:V9A_PID_N-1];
+  reg [`XLEN-1:0] v9a_pid_expected_data [0:V9A_PID_N-1];
+  reg [`REG_ADDR_W-1:0] v9a_pid_rd [0:V9A_PID_N-1];
+
+  reg v9a_rename_pending0_valid;
+  reg [`REG_ADDR_W-1:0] v9a_rename_pending0_rd;
+  reg [`OOO_PHY_REG_ADDR_W-1:0] v9a_rename_pending0_pdest;
+  reg v9a_rename_pending1_valid;
+  reg [`REG_ADDR_W-1:0] v9a_rename_pending1_rd;
+  reg [`OOO_PHY_REG_ADDR_W-1:0] v9a_rename_pending1_pdest;
+
+  reg v9a_ex_pending0_valid;
+  reg [`OOO_PRODUCER_ID_W-1:0] v9a_ex_pending0_pid;
+  reg [`OOO_PHY_REG_ADDR_W-1:0] v9a_ex_pending0_pdest;
+  reg [`XLEN-1:0] v9a_ex_pending0_result;
+  reg v9a_ex_pending0_exception;
+  reg [`TRAP_CAUSE_W-1:0] v9a_ex_pending0_cause;
+  reg [`XLEN-1:0] v9a_ex_pending0_tval;
+  reg v9a_ex_pending0_fwd;
+  reg v9a_ex_pending1_valid;
+  reg [`OOO_PRODUCER_ID_W-1:0] v9a_ex_pending1_pid;
+  reg [`OOO_PHY_REG_ADDR_W-1:0] v9a_ex_pending1_pdest;
+  reg [`XLEN-1:0] v9a_ex_pending1_result;
+  reg v9a_ex_pending1_exception;
+  reg [`TRAP_CAUSE_W-1:0] v9a_ex_pending1_cause;
+  reg [`XLEN-1:0] v9a_ex_pending1_tval;
+  reg v9a_ex_pending1_fwd;
+
+  function [`XLEN-1:0] v9a_expected_data_for_pc;
+    input [`XLEN-1:0] pc_i;
+    reg [`XLEN-1:0] seq_value;
+    reg [11:0] imm;
+    begin
+      seq_value = (pc_i - `RESET_PC) >> 2;
+      imm = seq_value[11:0] + 12'd1;
+      v9a_expected_data_for_pc = {{(`XLEN-12){imm[11]}}, imm};
+    end
+  endfunction
+
+  task automatic v9a_check_fail;
+    input [8*96-1:0] message_i;
+    begin
+      tb_errors = tb_errors + 1;
+      $display("[V9A-WIDTH][FAIL] %0s", message_i);
+    end
+  endtask
+
+  task automatic v9a_ledger_fail;
+    input [8*96-1:0] message_i;
+    begin
+      tb_errors = tb_errors + 1;
+      v9a_ledger_errors = v9a_ledger_errors + 1;
+      $display("[V9A-IDENTITY][FAIL] %0s", message_i);
+    end
+  endtask
+
+  task automatic v9a_check_stream_event;
+    input integer boundary_i;
+    input [`XLEN-1:0] pc_i;
+    input [`INST_W-1:0] inst_i;
+    reg [`XLEN-1:0] expected_pc;
+    reg [`INST_W-1:0] expected_inst;
+    begin
+      expected_pc = `RESET_PC + (v9a_seen[boundary_i] * 4);
+      expected_inst = program_word(expected_pc);
+      if (pc_i !== expected_pc) begin
+        v9a_ledger_fail("boundary PC sequence mismatch");
+        $display("[V9A-IDENTITY-DETAIL] boundary=%0d seen=%0d pc=%h expected=%h",
+                 boundary_i, v9a_seen[boundary_i], pc_i, expected_pc);
+      end
+      if (inst_i !== expected_inst) begin
+        v9a_ledger_fail("boundary instruction payload mismatch");
+        $display("[V9A-IDENTITY-DETAIL] boundary=%0d pc=%h inst=%h expected=%h",
+                 boundary_i, pc_i, inst_i, expected_inst);
+      end
+      if ((inst_i[6:0] !== `OPCODE_OP_IMM) ||
+          (inst_i[19:15] !== 5'd0) || (inst_i[11:7] == 5'd0)) begin
+        v9a_ledger_fail("stream is not independent nonzero-rd ADDI");
+      end
+      v9a_seen[boundary_i] = v9a_seen[boundary_i] + 1;
+    end
+  endtask
+
+  task automatic v9a_allocate_pid;
+    input [`OOO_PRODUCER_ID_W-1:0] pid_i;
+    input [`XLEN-1:0] pc_i;
+    input [`INST_W-1:0] inst_i;
+    integer pid_index;
+    begin
+      pid_index = pid_i;
+      if ((^pid_i) === 1'bx) begin
+        v9a_ledger_fail("dispatch full ProducerId contains X");
+      end else if (v9a_pid_active[pid_index]) begin
+        v9a_ledger_fail("dispatch reused an active full ProducerId");
+      end else begin
+        v9a_pid_active[pid_index] = 1'b1;
+        v9a_pid_state[pid_index] = V9A_PID_ALLOCATED;
+        v9a_pid_pc[pid_index] = pc_i;
+        v9a_pid_inst[pid_index] = inst_i;
+        v9a_pid_expected_data[pid_index] = v9a_expected_data_for_pc(pc_i);
+        v9a_pid_rd[pid_index] = inst_i[11:7];
+        v9a_active_count = v9a_active_count + 1;
+      end
+    end
+  endtask
+
+  task automatic v9a_issue_pid;
+    input [`OOO_PRODUCER_ID_W-1:0] pid_i;
+    input [`XLEN-1:0] pc_i;
+    input [`INST_W-1:0] inst_i;
+    integer pid_index;
+    begin
+      pid_index = pid_i;
+      if ((^pid_i) === 1'bx || !v9a_pid_active[pid_index]) begin
+        v9a_ledger_fail("issue has no active dispatch allocation");
+      end else begin
+        if (v9a_pid_state[pid_index] != V9A_PID_ALLOCATED)
+          v9a_ledger_fail("issue lifecycle is not allocated to issued");
+        if ((v9a_pid_pc[pid_index] !== pc_i) ||
+            (v9a_pid_inst[pid_index] !== inst_i))
+          v9a_ledger_fail("issue full ProducerId payload mismatch");
+        v9a_pid_state[pid_index] = V9A_PID_ISSUED;
+      end
+    end
+  endtask
+
+  task automatic v9a_execute_pid;
+    input [`OOO_PRODUCER_ID_W-1:0] pid_i;
+    input [`XLEN-1:0] data_i;
+    integer pid_index;
+    begin
+      pid_index = pid_i;
+      if ((^pid_i) === 1'bx || !v9a_pid_active[pid_index]) begin
+        v9a_ledger_fail("execute WB has no active dispatch allocation");
+      end else begin
+        if (v9a_pid_state[pid_index] != V9A_PID_ISSUED)
+          v9a_ledger_fail("execute lifecycle is not issued to executed");
+        if (data_i !== v9a_pid_expected_data[pid_index]) begin
+          v9a_ledger_fail("execute result does not match PC-derived immediate");
+          $display("[V9A-IDENTITY-DETAIL] pid=%h pc=%h data=%h expected=%h",
+                   pid_i, v9a_pid_pc[pid_index], data_i,
+                   v9a_pid_expected_data[pid_index]);
+        end
+        v9a_pid_state[pid_index] = V9A_PID_EXECUTED;
+        v9a_check_stream_event(V9A_EXECUTE, v9a_pid_pc[pid_index],
+                               v9a_pid_inst[pid_index]);
+      end
+    end
+  endtask
+
+  task automatic v9a_retire_pid;
+    input [`OOO_PRODUCER_ID_W-1:0] pid_i;
+    input [`XLEN-1:0] pc_i;
+    input [`INST_W-1:0] inst_i;
+    input [`REG_ADDR_W-1:0] rd_i;
+    input [`XLEN-1:0] data_i;
+    integer pid_index;
+    begin
+      pid_index = pid_i;
+      if ((^pid_i) === 1'bx || !v9a_pid_active[pid_index]) begin
+        v9a_ledger_fail("retire has no active dispatch allocation");
+      end else begin
+        if (v9a_pid_state[pid_index] != V9A_PID_EXECUTED)
+          v9a_ledger_fail("retire lifecycle is not executed to retired");
+        if ((v9a_pid_pc[pid_index] !== pc_i) ||
+            (v9a_pid_inst[pid_index] !== inst_i) ||
+            (v9a_pid_rd[pid_index] !== rd_i) ||
+            (v9a_pid_expected_data[pid_index] !== data_i))
+          v9a_ledger_fail("retire payload does not match allocation instance");
+        v9a_pid_active[pid_index] = 1'b0;
+        v9a_pid_state[pid_index] = 2'd0;
+        v9a_active_count = v9a_active_count - 1;
+      end
+      v9a_check_stream_event(V9A_RETIRE, pc_i, inst_i);
+    end
+  endtask
+
+  task automatic v9a_check_previous_rename_state;
+    begin
+      if (v9a_rename_pending0_valid &&
+          (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rename_map.map_q[v9a_rename_pending0_rd]
+           !== v9a_rename_pending0_pdest))
+        v9a_ledger_fail("rename lane0 did not update speculative map");
+      if (v9a_rename_pending1_valid &&
+          (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rename_map.map_q[v9a_rename_pending1_rd]
+           !== v9a_rename_pending1_pdest))
+        v9a_ledger_fail("rename lane1 did not update speculative map");
+      v9a_rename_pending0_valid = 1'b0;
+      v9a_rename_pending1_valid = 1'b0;
+    end
+  endtask
+
+  task automatic v9a_check_previous_ex_stage;
+    begin
+      if (v9a_ex_pending0_valid) begin
+        if (!dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                .u_ex0_stage.down_valid_o)
+          v9a_ledger_fail("EX0 capture did not emerge on the next cycle");
+        if ((dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_producer_id_q !== v9a_ex_pending0_pid) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_pdest_q !== v9a_ex_pending0_pdest) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_result_q !== v9a_ex_pending0_result) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_exception_q !== v9a_ex_pending0_exception) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_cause_q !== v9a_ex_pending0_cause) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_tval_q !== v9a_ex_pending0_tval) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex0_registered_fwd_valid_w !== v9a_ex_pending0_fwd))
+          v9a_ledger_fail("EX0 next-cycle full ProducerId or payload mismatch");
+      end else if (dut.u_execute_backend.u_core_slice.u_decode_backend
+                       .u_int_backend.u_ex0_stage.down_valid_o) begin
+        v9a_ledger_fail("EX0 stage emitted without a prior-cycle capture");
+      end
+      if (v9a_ex_pending1_valid) begin
+        if (!dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                .u_ex1_stage.down_valid_o)
+          v9a_ledger_fail("EX1 capture did not emerge on the next cycle");
+        if ((dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_producer_id_q !== v9a_ex_pending1_pid) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_pdest_q !== v9a_ex_pending1_pdest) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_result_q !== v9a_ex_pending1_result) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_exception_q !== v9a_ex_pending1_exception) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_cause_q !== v9a_ex_pending1_cause) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_tval_q !== v9a_ex_pending1_tval) ||
+            (dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                 .ex1_registered_fwd_valid_w !== v9a_ex_pending1_fwd))
+          v9a_ledger_fail("EX1 next-cycle full ProducerId or payload mismatch");
+      end else if (dut.u_execute_backend.u_core_slice.u_decode_backend
+                       .u_int_backend.u_ex1_stage.down_valid_o) begin
+        v9a_ledger_fail("EX1 stage emitted without a prior-cycle capture");
+      end
+      v9a_ex_pending0_valid = 1'b0;
+      v9a_ex_pending1_valid = 1'b0;
+    end
+  endtask
+
+  task automatic v9a_observe_cycle;
+    input count_trace_i;
+    input integer trace_cycle_i;
+    integer width [0:V9A_BOUNDARY_N-1];
+    integer boundary_i;
+    reg fetch_packet_fire;
+    reg decode0_fire;
+    reg decode1_fire;
+    reg decode0_backend_fire;
+    reg decode1_backend_fire;
+    reg rename0_fire;
+    reg rename1_fire;
+    reg dispatch0_parent_fire;
+    reg dispatch1_parent_fire;
+    reg dispatch0_rob_fire;
+    reg dispatch1_rob_fire;
+    reg dispatch0_iq_fire;
+    reg dispatch1_iq_fire;
+    reg dispatch0_fire;
+    reg dispatch1_fire;
+    reg issue0_fire;
+    reg issue1_fire;
+    reg issue0_iq_fire;
+    reg issue1_iq_fire;
+    reg execute0_fire;
+    reg execute1_fire;
+    reg retire0_fire;
+    reg retire1_fire;
+    reg redirect_or_stop;
+    begin
+      v9a_check_previous_rename_state();
+
+      fetch_packet_fire = dut.u_frontend.fetch_rsp_enqueue_w === 1'b1;
+      decode0_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch0_valid_i &&
+          dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch0_ready_o;
+      decode1_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch1_valid_i &&
+          dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch1_ready_o;
+      decode0_backend_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch0_valid_i &&
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch0_ready_o;
+      decode1_backend_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch1_valid_i &&
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch1_ready_o;
+      rename0_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_rename_map.rename0_valid_i;
+      rename1_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_rename_map.rename1_valid_i;
+      dispatch0_parent_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch0_fire_w;
+      dispatch1_parent_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .dispatch1_fire_w;
+      dispatch0_rob_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_rob.dispatch0_fire_w;
+      dispatch1_rob_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_rob.dispatch1_fire_w;
+      dispatch0_iq_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_issue_queue.dispatch0_fire_w;
+      dispatch1_iq_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_issue_queue.dispatch1_fire_w;
+      dispatch0_fire = dispatch0_parent_fire && dispatch0_rob_fire &&
+                       dispatch0_iq_fire;
+      dispatch1_fire = dispatch1_parent_fire && dispatch1_rob_fire &&
+                       dispatch1_iq_fire;
+      issue0_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .issue0_fire_w;
+      issue1_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .issue1_exec_fire_w;
+      issue0_iq_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_issue_queue.issue0_fire_w;
+      issue1_iq_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .u_dispatch_backend.u_issue_queue.issue1_fire_w;
+      execute0_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .execute0_valid_o;
+      execute1_fire =
+          dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+             .execute1_valid_o;
+      retire0_fire = commit0_valid;
+      retire1_fire = commit1_valid;
+
+      // The stage contract is edge-based: compare last cycle's actual input
+      // capture against this cycle's registered full ProducerId and payload.
+      v9a_check_previous_ex_stage();
+
+      if ((dispatch0_parent_fire !== dispatch0_rob_fire) ||
+          (dispatch0_parent_fire !== dispatch0_iq_fire) ||
+          (dispatch1_parent_fire !== dispatch1_rob_fire) ||
+          (dispatch1_parent_fire !== dispatch1_iq_fire))
+        v9a_ledger_fail("parent dispatch fire disagrees with ROB/IQ sink fire");
+      if ((decode0_fire !== decode0_backend_fire) ||
+          (decode1_fire !== decode1_backend_fire))
+        v9a_ledger_fail("decode acceptance disagrees with integer backend input");
+      if ((rename0_fire !== dispatch0_parent_fire) ||
+          (rename1_fire !== dispatch1_parent_fire))
+        v9a_ledger_fail("RenameMap sink fire disagrees with dispatch allocation");
+      if ((issue0_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_ex0_stage.up_valid_i) ||
+          (issue1_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_ex1_stage.up_valid_i))
+        v9a_ledger_fail("ALU issue fire disagrees with EX stage capture");
+      if ((issue0_iq_fire !== issue0_fire) ||
+          (issue1_iq_fire !== issue1_fire))
+        v9a_ledger_fail("IQ issue disagrees with physical ALU terminal acceptance");
+      if ((execute0_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_ex0_stage.down_valid_o) ||
+          (execute1_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_ex1_stage.down_valid_o))
+        v9a_ledger_fail("EX stage release disagrees with authorized WB event");
+      if ((execute0_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rob.wb0_valid_i) ||
+          (execute1_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rob.wb1_valid_i))
+        v9a_ledger_fail("authorized WB event disagrees with ROB completion sink");
+      if ((retire0_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rob.commit0_fire_w) ||
+          (retire1_fire !==
+           dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .u_dispatch_backend.u_rob.commit1_fire_w))
+        v9a_ledger_fail("ROB commit fire disagrees with retirement event");
+
+      if (fetch_req_valid && fetch_req_ready)
+        v9a_request_count = v9a_request_count + 1;
+      if (fetch_rsp_valid && fetch_rsp_ready)
+        v9a_response_count = v9a_response_count + 1;
+      if (fetch_packet_fire)
+        v9a_enqueue_count = v9a_enqueue_count + 1;
+
+      if (fetch_packet_fire) begin
+        v9a_check_stream_event(V9A_FETCH, dut.u_frontend.fetch_dec0_pc_w,
+                               dut.u_frontend.fetch_dec0_inst_w);
+        v9a_check_stream_event(V9A_FETCH, dut.u_frontend.fetch_dec1_pc_w,
+                               dut.u_frontend.fetch_dec1_inst_w);
+      end
+      if (decode0_fire) begin
+        v9a_check_stream_event(
+            V9A_DECODE,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch0_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch0_inst_i);
+      end
+      if (decode1_fire) begin
+        v9a_check_stream_event(
+            V9A_DECODE,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch1_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.dispatch1_inst_i);
+      end
+      if (dut.u_frontend.fifo_pop_w !== (decode0_fire && decode1_fire))
+        v9a_ledger_fail("FIFO pop is not an exact dual decode acceptance");
+
+      if (rename0_fire) begin
+        v9a_check_stream_event(
+            V9A_RENAME,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_inst_i);
+        v9a_rename_pending0_valid = 1'b1;
+        v9a_rename_pending0_rd =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .u_dispatch_backend.u_rename_map.rename0_rd_arch_i;
+        v9a_rename_pending0_pdest =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .u_dispatch_backend.u_rename_map.rename0_new_pdest_i;
+        if (v9a_rename_pending0_pdest == {`OOO_PHY_REG_ADDR_W{1'b0}})
+          v9a_ledger_fail("rename lane0 allocated pdest zero");
+      end
+      if (rename1_fire) begin
+        v9a_check_stream_event(
+            V9A_RENAME,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_inst_i);
+        v9a_rename_pending1_valid = 1'b1;
+        v9a_rename_pending1_rd =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .u_dispatch_backend.u_rename_map.rename1_rd_arch_i;
+        v9a_rename_pending1_pdest =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .u_dispatch_backend.u_rename_map.rename1_new_pdest_i;
+        if (v9a_rename_pending1_pdest == {`OOO_PHY_REG_ADDR_W{1'b0}})
+          v9a_ledger_fail("rename lane1 allocated pdest zero");
+      end
+      if (rename0_fire && rename1_fire &&
+          ((v9a_rename_pending0_rd == v9a_rename_pending1_rd) ||
+           (v9a_rename_pending0_pdest == v9a_rename_pending1_pdest)))
+        v9a_ledger_fail("rename lanes do not have distinct rd and pdest");
+
+      if (dispatch0_fire) begin
+        v9a_check_stream_event(
+            V9A_DISPATCH,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_inst_i);
+        v9a_allocate_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch0_inst_i);
+      end
+      if (dispatch1_fire) begin
+        v9a_check_stream_event(
+            V9A_DISPATCH,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_inst_i);
+        v9a_allocate_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_pc_i,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .dispatch1_inst_i);
+      end
+
+      if (issue0_fire) begin
+        v9a_check_stream_event(
+            V9A_ISSUE,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue0_pc_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue0_inst_w);
+        v9a_issue_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .iq_issue0_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue0_pc_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue0_inst_w);
+      end
+      if (issue1_fire) begin
+        v9a_check_stream_event(
+            V9A_ISSUE,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_pc_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_inst_w);
+        v9a_issue_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_pc_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_inst_w);
+      end
+
+      if (issue0_fire) begin
+        v9a_ex_pending0_valid = 1'b1;
+        v9a_ex_pending0_pid =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_producer_id_w;
+        v9a_ex_pending0_pdest =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue0_pdest_w;
+        v9a_ex_pending0_result =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_result_w;
+        v9a_ex_pending0_exception =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_exception_w;
+        v9a_ex_pending0_cause =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_cause_w;
+        v9a_ex_pending0_tval =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_tval_w;
+        v9a_ex_pending0_fwd =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .early_wakeup0_valid_w &&
+            !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex0_up_from_mem_w;
+      end
+      if (issue1_fire) begin
+        v9a_ex_pending1_valid = 1'b1;
+        v9a_ex_pending1_pid =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_producer_id_w;
+        v9a_ex_pending1_pdest =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .issue1_pdest_w;
+        v9a_ex_pending1_result =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_result_w;
+        v9a_ex_pending1_exception =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_exception_w;
+        v9a_ex_pending1_cause =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_cause_w;
+        v9a_ex_pending1_tval =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_tval_w;
+        v9a_ex_pending1_fwd =
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .early_wakeup1_valid_w &&
+            !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .ex1_up_from_mem_w;
+      end
+
+      if (execute0_fire)
+        v9a_execute_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .wb0_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .wb0_data_w);
+      if (execute1_fire)
+        v9a_execute_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .wb1_producer_id_w,
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .wb1_data_w);
+
+      if (retire0_fire)
+        v9a_retire_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .rob_commit0_producer_id_w,
+            commit0_pc, commit0_inst, commit0_rd_addr, commit0_rd_data);
+      if (retire1_fire)
+        v9a_retire_pid(
+            dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+               .rob_commit1_producer_id_w,
+            commit1_pc, commit1_inst, commit1_rd_addr, commit1_rd_data);
+
+      width[V9A_FETCH] = fetch_packet_fire ? 2 : 0;
+      width[V9A_DECODE] = decode0_fire + decode1_fire;
+      width[V9A_RENAME] = rename0_fire + rename1_fire;
+      width[V9A_DISPATCH] = dispatch0_fire + dispatch1_fire;
+      width[V9A_ISSUE] = issue0_fire + issue1_fire;
+      width[V9A_EXECUTE] = execute0_fire + execute1_fire;
+      width[V9A_RETIRE] = retire0_fire + retire1_fire;
+
+      redirect_or_stop = flush || trap_valid || exit_valid || halted ||
+          dut.u_frontend.redirect_valid_w ||
+          dut.u_frontend.direct_frontend_flush_w ||
+          dut.u_frontend.resolve_redirect_block_w ||
+          dut.u_frontend.direct_redirect_fetch_w ||
+          dut.u_frontend.fetch_request_blocked_by_trap_w ||
+          dut.u_frontend.stop_pending_busy_w ||
+          dut.u_frontend.trap_valid_q || dut.u_frontend.exit_valid_q ||
+          dut.u_frontend.discard_fetch_rsp_q;
+      if (redirect_or_stop)
+        v9a_check_fail("redirect, trap, exit, halt or stop in ALU trajectory");
+      if (mem_req_valid)
+        v9a_check_fail("memory request observed in independent ALU trajectory");
+      if ((retire0_fire && commit0_exception) ||
+          (retire1_fire && commit1_exception))
+        v9a_check_fail("commit exception observed in independent ALU trajectory");
+
+      if (count_trace_i) begin
+        for (boundary_i = 0; boundary_i < V9A_BOUNDARY_N;
+             boundary_i = boundary_i + 1) begin
+          v9a_total[boundary_i] = v9a_total[boundary_i] + width[boundary_i];
+          if (width[boundary_i] > v9a_peak[boundary_i])
+            v9a_peak[boundary_i] = width[boundary_i];
+          if (width[boundary_i] == 2)
+            v9a_dual_cycles[boundary_i] =
+                v9a_dual_cycles[boundary_i] + 1;
+          else begin
+            tb_errors = tb_errors + 1;
+            $display("[V9A-WIDTH][FAIL] cycle=%0d boundary=%0d width=%0d expected=2",
+                     trace_cycle_i, boundary_i, width[boundary_i]);
+          end
+        end
+        $display("[V9A-DI2-TRACE] cycle=%0d fetch=%0d decode=%0d rename=%0d dispatch=%0d issue=%0d execute=%0d retire=%0d fetch_pc0=%h fetch_pc1=%h issue_pc0=%h issue_pc1=%h retire_pc0=%h retire_pc1=%h issue_pid0=%h issue_pid1=%h retire_pid0=%h retire_pid1=%h",
+                 trace_cycle_i, width[V9A_FETCH], width[V9A_DECODE],
+                 width[V9A_RENAME], width[V9A_DISPATCH], width[V9A_ISSUE],
+                 width[V9A_EXECUTE], width[V9A_RETIRE],
+                 dut.u_frontend.fetch_dec0_pc_w,
+                 dut.u_frontend.fetch_dec1_pc_w,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .issue0_pc_w,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .issue1_pc_w,
+                 commit0_pc, commit1_pc,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .iq_issue0_producer_id_w,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .issue1_producer_id_w,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .rob_commit0_producer_id_w,
+                 dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+                    .rob_commit1_producer_id_w);
+      end
+    end
+  endtask
+
+  initial begin : v9a_width_continuity_focused
+    integer wait_cycle;
+    integer beat;
+    integer boundary_i;
+    reg anchor_seen;
+    reg drained;
+
+    tb_errors = 0;
+    v9a_request_count = 0;
+    v9a_response_count = 0;
+    v9a_enqueue_count = 0;
+    v9a_active_count = 0;
+    v9a_ledger_errors = 0;
+    v9a_rename_pending0_valid = 1'b0;
+    v9a_rename_pending1_valid = 1'b0;
+    v9a_ex_pending0_valid = 1'b0;
+    v9a_ex_pending1_valid = 1'b0;
+    for (boundary_i = 0; boundary_i < V9A_BOUNDARY_N;
+         boundary_i = boundary_i + 1) begin
+      v9a_total[boundary_i] = 0;
+      v9a_peak[boundary_i] = 0;
+      v9a_dual_cycles[boundary_i] = 0;
+      v9a_seen[boundary_i] = 0;
+    end
+    for (v9a_init_i = 0; v9a_init_i < V9A_PID_N;
+         v9a_init_i = v9a_init_i + 1) begin
+      v9a_pid_active[v9a_init_i] = 1'b0;
+      v9a_pid_state[v9a_init_i] = 2'd0;
+      v9a_pid_pc[v9a_init_i] = {`XLEN{1'b0}};
+      v9a_pid_inst[v9a_init_i] = {`INST_W{1'b0}};
+      v9a_pid_expected_data[v9a_init_i] = {`XLEN{1'b0}};
+      v9a_pid_rd[v9a_init_i] = {`REG_ADDR_W{1'b0}};
+    end
+
+    reset_dut(MODE_WIDTH_CONTINUITY, 32'h0000_0000);
+
+    // Unique deterministic anchor: the first accepted fetch request edge.
+    anchor_seen = 1'b0;
+    for (wait_cycle = 0; wait_cycle < 32 && !anchor_seen;
+         wait_cycle = wait_cycle + 1) begin
+      if (fetch_req_valid && fetch_req_ready) begin
+        anchor_seen = 1'b1;
+        $display("[V9A-DI2-ANCHOR] first_fetch_request_fire warmup_cycles=%0d",
+                 V9A_WARMUP_CYCLES);
+      end
+      v9a_observe_cycle(1'b0, -1);
+      `TB_TICK(clk);
+      #1;
+    end
+    if (!anchor_seen)
+      v9a_check_fail("first fetch request anchor was not observed");
+
+    // Fixed warmup: no saturation predicate may move the measurement start.
+    repeat (V9A_WARMUP_CYCLES) begin
+      v9a_observe_cycle(1'b0, -1);
+      `TB_TICK(clk);
+      #1;
+    end
+
+    for (beat = 0; beat < V9A_TRACE_CYCLES; beat = beat + 1) begin
+`ifdef V9A_WIDTH_WINDOW_STALL_PROBE
+      if (beat == 16)
+        fetch_req_admit = 1'b0;
+`endif
+      #1;
+      v9a_observe_cycle(1'b1, beat);
+      `TB_TICK(clk);
+      #1;
+`ifdef V9A_WIDTH_WINDOW_STALL_PROBE
+      if (beat == 16)
+        fetch_req_admit = 1'b1;
+`endif
+    end
+
+    for (boundary_i = 0; boundary_i < V9A_BOUNDARY_N;
+         boundary_i = boundary_i + 1) begin
+      if ((v9a_total[boundary_i] != 128) ||
+          (v9a_peak[boundary_i] != 2) ||
+          (v9a_dual_cycles[boundary_i] != 64)) begin
+        tb_errors = tb_errors + 1;
+        $display("[V9A-WIDTH][FAIL] aggregate boundary=%0d total=%0d peak=%0d dual_cycles=%0d",
+                 boundary_i, v9a_total[boundary_i],
+                 v9a_peak[boundary_i], v9a_dual_cycles[boundary_i]);
+      end
+    end
+
+    $display("[V9A-DI2-METRIC] trace_cycles=64 independent_alu_ipc_milli=%0d fetch_total=%0d fetch_peak=%0d fetch_dual_cycles=%0d decode_total=%0d decode_peak=%0d decode_dual_cycles=%0d rename_total=%0d rename_peak=%0d rename_dual_cycles=%0d dispatch_total=%0d dispatch_peak=%0d dispatch_dual_cycles=%0d issue_total=%0d issue_peak=%0d issue_dual_cycles=%0d execute_total=%0d execute_peak=%0d execute_dual_cycles=%0d retire_total=%0d retire_peak=%0d retire_dual_cycles=%0d",
+             (v9a_total[V9A_RETIRE] * 1000) / V9A_TRACE_CYCLES,
+             v9a_total[V9A_FETCH], v9a_peak[V9A_FETCH],
+             v9a_dual_cycles[V9A_FETCH],
+             v9a_total[V9A_DECODE], v9a_peak[V9A_DECODE],
+             v9a_dual_cycles[V9A_DECODE],
+             v9a_total[V9A_RENAME], v9a_peak[V9A_RENAME],
+             v9a_dual_cycles[V9A_RENAME],
+             v9a_total[V9A_DISPATCH], v9a_peak[V9A_DISPATCH],
+             v9a_dual_cycles[V9A_DISPATCH],
+             v9a_total[V9A_ISSUE], v9a_peak[V9A_ISSUE],
+             v9a_dual_cycles[V9A_ISSUE],
+             v9a_total[V9A_EXECUTE], v9a_peak[V9A_EXECUTE],
+             v9a_dual_cycles[V9A_EXECUTE],
+             v9a_total[V9A_RETIRE], v9a_peak[V9A_RETIRE],
+             v9a_dual_cycles[V9A_RETIRE]);
+
+    // Stop only new request admission.  Keep run/response/dispatch/commit open
+    // and require natural holder drain without reset or flush.
+    fetch_req_admit = 1'b0;
+    run = 1'b1;
+    commit_ready = 1'b1;
+    #1;
+    drained = 1'b0;
+    for (wait_cycle = 0; wait_cycle < 256 && !drained;
+         wait_cycle = wait_cycle + 1) begin
+      v9a_observe_cycle(1'b0, -1);
+      `TB_TICK(clk);
+      #1;
+      drained = !fetch_rsp_valid &&
+          !dut.u_frontend.outstanding_valid_q &&
+          (dut.u_frontend.fifo_count_q == 0) &&
+          (rob_count == 0) && (issue_count == 0) &&
+          !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .ex0_valid_q &&
+          !dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+              .ex1_valid_q &&
+          (v9a_active_count == 0);
+    end
+    v9a_check_previous_rename_state();
+
+    if (!drained)
+      v9a_check_fail("natural drain did not empty all holders");
+    if ((v9a_request_count != v9a_response_count) ||
+        (v9a_response_count != v9a_enqueue_count))
+      v9a_ledger_fail("fetch request, response and enqueue conservation failed");
+    for (boundary_i = 1; boundary_i < V9A_BOUNDARY_N;
+         boundary_i = boundary_i + 1) begin
+      if (v9a_seen[boundary_i] != v9a_seen[V9A_FETCH])
+        v9a_ledger_fail("full-run boundary transaction conservation failed");
+    end
+    if (v9a_seen[V9A_FETCH] != (2 * v9a_enqueue_count))
+      v9a_ledger_fail("fetch packet to uop conservation failed");
+    if (v9a_active_count != 0)
+      v9a_ledger_fail("active full ProducerId ledger is not empty");
+    if (free_count != 7'd32)
+      v9a_check_fail("free-list did not return to 32 entries");
+    if (flush || trap_valid || exit_valid || halted || mem_req_valid)
+      v9a_check_fail("forbidden control or memory event at final drain");
+
+    if (v9a_ledger_errors == 0)
+      $display("[V9A-DI2-IDENTITY] fetched=%0d decoded=%0d renamed=%0d dispatched=%0d issued=%0d executed=%0d retired=%0d active_pid=0 payload_mismatch=0 lifecycle_error=0 PASS",
+               v9a_seen[V9A_FETCH], v9a_seen[V9A_DECODE],
+               v9a_seen[V9A_RENAME], v9a_seen[V9A_DISPATCH],
+               v9a_seen[V9A_ISSUE], v9a_seen[V9A_EXECUTE],
+               v9a_seen[V9A_RETIRE]);
+    if (drained && (v9a_request_count == v9a_response_count) &&
+        (v9a_response_count == v9a_enqueue_count) &&
+        (v9a_active_count == 0) && (free_count == 32))
+      $display("[V9A-DI2-DRAIN] requests=%0d responses=%0d enqueues=%0d fifo=0 rob=0 issue=0 ex0=0 ex1=0 free=32 active_pid=0 flush=0 PASS",
+               v9a_request_count, v9a_response_count, v9a_enqueue_count);
+    tb_finish("tb_ooo_core_top_glue_v9a_width_continuity");
+  end
+`else
   initial begin
     tb_errors = 0;
+    // V8V integration cut: model a raw branch checkpoint restore while the
+    // backend withholds accepted apply for an edge-old physical-write owner.
+    // The raw request may enter the backend checkpoint input, but it must not
+    // enter either memory request gate through core_local_flush_w.
+    reset_dut(MODE_DEFAULT_BODY, 32'h0000_0000);
+    force dut.branch_spec_restore_w = 1'b1;
+    force dut.core_checkpoint_restore_apply_w = 1'b0;
+    #1;
+    tb_check1("raw checkpoint restore reaches backend request",
+              dut.core_checkpoint_restore_w, 1'b1);
+    tb_check1("raw checkpoint restore remains apply-blocked",
+              dut.core_checkpoint_restore_apply_w, 1'b0);
+    tb_check1("raw checkpoint restore does not assert core local flush",
+              dut.core_local_flush_w, 1'b0);
+    tb_check1("raw checkpoint restore does not flush memory gate 0",
+              mem_flush, 1'b0);
+    tb_check1("raw checkpoint restore does not flush memory gate 1",
+              dut.mem1_flush_unused_w, 1'b0);
+    if ((dut.core_checkpoint_restore_w === 1'b1) &&
+        (dut.core_checkpoint_restore_apply_w === 1'b0) &&
+        (dut.core_local_flush_w === 1'b0) &&
+        (mem_flush === 1'b0) &&
+        (dut.mem1_flush_unused_w === 1'b0)) begin
+      $display("[V8V-CHECKPOINT-APPLY-GATE] raw_request=1 apply=0 local_flush=0 mem_flush=0,0 PASS");
+    end
+    release dut.core_checkpoint_restore_apply_w;
+    release dut.branch_spec_restore_w;
+    `TB_TICK(clk);
+    #1;
+
     reset_dut(MODE_DEFAULT_BODY, 32'h0000_0000);
     tb_check1("v8a wrapper candidate low after reset",
               head0_retire_candidate_valid, 1'b0);
@@ -1529,4 +2826,5 @@ module tb_ooo_core_top_glue;
 
     tb_finish("tb_ooo_core_top_glue");
   end
+`endif
 endmodule

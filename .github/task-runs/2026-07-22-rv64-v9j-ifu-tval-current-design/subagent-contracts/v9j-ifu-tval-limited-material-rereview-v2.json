@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9j-ifu-tval-limited-material-rereview-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 IFU-TVAL-G1 V1 审查所列四项证据缺口是否已由当前设计指纹下的 OooFrontend projection、dispatch READY acceptance、stop-validity squash 与 24 行联合 manifest 证据闭环消除。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/ifu-tval-current.json",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/mutations/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/subagent-contracts/v9j-ifu-tval-limited-material-rereview-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/contract.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/ifu-tval-current.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "V1 bounded review found evidence gaps only, not a confirmed RTL function error: OooFrontend projection, OooFrontendDispatchGate READY acceptance, OooStopPendingSequencer field responsibility, and the 24-row joint mapping.",
+      "Current design_id remains sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc; production RTL was not modified and all compile-success variants restore identical source hashes.",
+      "Canonical make -C npc/rv64 check-ifu-tval passes eight focused testbenches, module aggregate 109 of 109, twelve fail-closed evidence unit tests, and twelve of twelve compile-success RTL variants are dynamically rejected.",
+      "Evidence schema v2 contains an exact ordered 24-row manifest for PF and AF over C/C C/U U/C U/U legal frontiers; every row records cause, layout, F, L0 or L1 owner, xEPC, tval, capture true, pending true, and drain true.",
+      "The joint manifest contains both PF and AF U/U F6 rows with owner L1, xEPC packet PC plus 4, tval packet PC plus 6; manifest parser rejects owner, cause, frontier, row order, xEPC or tval drift.",
+      "A new lane1 PF READY-stall row holds dispatch0_ready_i low: dispatch1_barrier_fire_o is zero, no capture or stop occurs, and cause PC tval remain zero; after READY rises the accepted tuple is PF, xEPC PC+2, tval PC+4 through pending and CSR drain.",
+      "A compile-success OooFrontend variant changes head_fetch_fault_tval_w from fifo_head_fault_tval_w to fifo_head_pc0_w; production tb_ooo_core_top_glue dynamically rejects it at the precise mtval oracle.",
+      "A compile-success OooFrontendDispatchGate variant removes dispatch0_ready_i from dispatch1_barrier_fire_o; the new stall row dynamically rejects early tuple capture.",
+      "OooFrontendDispatchGate has no cause PC or tval payload port; its IFU-TVAL role is acceptance synchronization for the current FIFO-head tuple, while OooPendingDispatchArbiter carries the actual fields.",
+      "A compile-success OooStopPendingSequencer variant retains stop_pending_o on branch_resolve_untracked_i; compressed c.beqz squash PF dynamically rejects the stale stop bit.",
+      "Fail-closed static audit parses OooStopPendingSequencer port declarations and requires stop_pending_o to be its only output with no cause PC or tval payload port.",
+      "Existing variants still cover decoder frontier removal, FIFO direct-head and ring PC substitution, lane0 and lane1 capture PC substitution, pending capture PC substitution, pending stale tval on squash, CSR pending-PC substitution, and predicted-taken lane visibility removal.",
+      "Canonical raw markers are lifecycle rows 24, manifest rows 24, dispatch stall rows 1, compressed control rows 6, compile-success variants 12, dynamic rejected variants 12, module aggregate 109 of 109, production RTL changed false.",
+      "Every CLOSED ledger artifact now matches its declared SHA after shared evidence replay; arch-stable remains honest GAP with 37 unrelated remaining blockers, PPA UNQUALIFIED and promotion_eligible false."
+    ]
+  },
+  "deliverables": [
+    "给出 PASS GAP 或 INCONCLUSIVE；逐项复核 V1 四个缺口是否被直接 oracle、source variant 或 fail-closed static audit消除，并列出仍可执行的反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有能指出一个仍未被当前 manifest、READY-stall 行、三个新增 source variant或 stop 接口审计约束的具体 PC cause tval 周期反例时才保留 IFU-TVAL-G1 证据 GAP；严格区分该门关闭资格、完整核架构 GAP 与 PPA UNQUALIFIED。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

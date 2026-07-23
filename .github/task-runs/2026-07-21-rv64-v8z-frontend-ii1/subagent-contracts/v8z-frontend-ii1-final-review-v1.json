@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8z-frontend-ii1-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定材料终审本地 RV64 DI-1 frontend initiation interval 证据，优先寻找组合证明、自证循环、同源计数、backpressure、tail owner 与 sibling preservation 反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/subagent-contracts/v8z-frontend-ii1-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "最终 suite_run_id=v8z-di1-20260721T082600Z-1762933，完整 RTL design_id=sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；本轮未修改生产 RTL。",
+      "OooFetchAxiBridge assert/release 两种配置均唯一通过 bare-mode 64-cycle H1 response+successor-request turnover、paged U/ASID0 与 S/ASID1 交替 64 turnover，以及 elastic skid backpressure replacement。",
+      "真实 OooCoreTopGlue/OooFrontend assert/release 两种配置均唯一通过 64-cycle steady window：accepted=64、responses=64、enqueues=64、独立 FIFO dequeue produced=64、PC successor=64、max_ii=1、redirects=0、stalls=0。",
+      "testbench 用两个独立 PC ledger 逐事务核对 accepted request 到 response owner、response owner 到 PacketDecode enqueue、enqueue PC 到 FIFO dequeue；successor request PC 必须等于同拍 response owner PC+8。",
+      "完整 frontend backpressure 使用 run_i=0 保留真实 outstanding response 四拍：valid、owner、两 lane payload 稳定，无 replacement request、response fire 或重复 enqueue；run_i=1 后精确恢复并连续完成 16 turnover。FIFO reserve 不变量保证合法 outstanding 已预留 FIFO slot，因此 commit stall 饱和时会在发出下一 request 前停止，不会形成合法的 full-FIFO held response。",
+      "epilogue 关闭外部 successor admission但保持尾响应可消费；assert/release 均得到 requests=83、responses=83、enqueues=83、dequeues=83，outstanding/FIFO/ROB/IQ/ghost 均为 0，free_count=32。",
+      "9 个 production RTL compile-success mutation 全部 compile_rc=0、sim_rc非零并被对应 oracle 拒绝：Bridge H1 ready、H1 state turnover、semantic lookup、FlowControl outstanding turnover、FlowControl enqueue credit、Sequencer replacement、sink dequeue、successor PC、blocked-response tail ghost。",
+      "mutation aggregate required=9、compile_success=9、dynamic_rejected=9、source_unchanged=true；六个验证维度 accepted、produced、II、PC ledger、backpressure recovery、final conservation 均至少有 mutation owner。",
+      "29 项冻结 proof source 清单 pre/post 文件逐字相同，清单文件 SHA-256 均为 0d4c864fb4edbdfd77154920b54de53fbfba7fd040a0483aaf28c4785783b3f8；56 项 provenance 被 record 精确绑定，frontend gate log SHA-256=b9fa101a79f6a17a1bd8dccf3a0274e61c828de81ed4c4dea7dfef4bde585dd6。",
+      "同一 design_id manifest 保留 pair_matrix、no_static_lane_semantics、dual_memory_issue、true_ooo_long_latency、selective_scheduling、memory_ordering、speculation_recovery 七个 PASS sibling，再原子加入 frontend_ii1；publication 前后逐项比较 sibling record 未变化。",
+      "架构硬门结果：DI-1、DI-3、DI-4、DI-5、OOO-1、OOO-2、OOO-3、OOO-4 GREEN；DI-2 RED；overall RED；PPA UNQUALIFIED；promotion_eligible=false。",
+      "v2 审查提出的 full-frontend backpressure、trailing owner、sink independence、cross-boundary PC identity、sink/PC mutation 与实际 hash-bound evidence 均已转成上述动态 oracle、mutation 或 parser gate。"
+    ]
+  },
+  "deliverables": [
+    "输出 verdict=PASS、GAP 或 INCONCLUSIVE；逐项审查 DI-1 metric、Bridge与Frontend组合边界、backpressure选择、PC/事务守恒、9项变异、同一设计绑定、sibling preservation、claim boundary，并给出 unresolved counterexamples、unknowns、scope_extension_request 与 confidence_and_basis"
+  ],
+  "success_criteria": [
+    "仅当冻结材料能关闭 DI-1 的 cache-hit 64-cycle accept/produce II=1、真实 frontend sink、backpressure恢复、tail守恒、变异检出及同一设计绑定时判 PASS；不得外推 DI-2、overall architecture、PPA或仓库级全量独立审计"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

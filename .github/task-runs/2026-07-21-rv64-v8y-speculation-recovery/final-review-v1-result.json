@@ -1,0 +1,62 @@
+{
+  "verdict": "PASS",
+  "findings": [
+    {
+      "gate": "oldest_mispredict_wins",
+      "status": "PASS",
+      "basis": "linear D0/A1/B2 与 wrap D14/A15/B0 两种 ROB 布局中，A、B 同时驻留且独立就绪，只有最老 A 发射、解析和完成；B 的发射、解析、完成、退休均为零。oldest-control-selection 与 ROB-wrap-tail 两项 compile-success 变异均被定向检出。"
+    },
+    {
+      "gate": "wrong_path_selective_squash",
+      "status": "PASS",
+      "basis": "恢复后严格年轻 B 同时从 ROB、IQ 和全局 holder census 消失，older D 与 boundary A 保持 exact-open；V8D EX-stage 检查 8192 次、failures=0，且 IQ suffix-holder mutation 被检出。"
+    },
+    {
+      "gate": "exactly_once_completion_retirement",
+      "status": "PASS",
+      "basis": "两种布局均得到 D/A completion=1、retire=1，B completion=0、retire=0；completion-replay 与 retire-owner-remap 变异被检出，集成结果 complete_violations=0、retire_violations=0。"
+    },
+    {
+      "gate": "fired_axi_drained",
+      "status": "PASS",
+      "basis": "真实 backend MIQ 与 dual-memory bridge 联合轨迹为 ar=1、drop=2、pop=2、terminal=2、wb/commit/fill=0、quiet=6；active selective recovery 与 killed-station promotion 两项变异均被检出。"
+    },
+    {
+      "gate": "configuration_and_regression",
+      "status": "PASS",
+      "basis": "assert/release 两个配置各自唯一 RESULT PASS，9/9 compile-success RTL verification mutations 被动态拒绝，相邻回归 6/6 PASS；证据均绑定同一 design_id。"
+    }
+  ],
+  "counterexamples": {
+    "unresolved": [],
+    "closed": [
+      "年轻且同时就绪的分支 B 抢先发射或解析",
+      "ROB 15→0 环回时年龄比较反转",
+      "恢复误删 older D 或 boundary A",
+      "严格年轻事务残留于 ROB、IQ、EX 或 holder census",
+      "完成重放、退休 owner 重映射或 ghost side effect",
+      "已握手 AXI 读被撤回，或 killed station 产生第二个 AR"
+    ]
+  },
+  "assumptions": [
+    "随附机器事实、design_id、运行标记和摘要映射准确对应同一份可综合 RTL。",
+    "9 项变异的 metric mapping 与实际定向 oracle 一致。",
+    "本结论仅是 self-contained 冻结材料复核，不等价于重新读取源码和原始日志。"
+  ],
+  "claim_boundary": {
+    "OOO-4": "GREEN",
+    "overall_architecture": "RED（DI-1、DI-2 仍为 RED）",
+    "PPA": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "repository_wide_independent_audit": false
+  },
+  "unknowns": [
+    "本节点未独立重算合同、源清单或证据文件哈希。",
+    "未检查冻结摘要之外的 RTL 路径、原始波形、形式证明或 PPA 数据。"
+  ],
+  "scope_extension_request": null,
+  "confidence_and_basis": {
+    "level": "high-within-frozen-material",
+    "basis": "已知五类 OOO-4 反例分别由双布局动态轨迹、assert/release 双配置、守恒账本、真实 AXI drain 联合轨迹及 9 项 compile-success 变异形成交叉证据；但置信范围不外推到仓库级源码审计、overall architecture 或 PPA。"
+  }
+}

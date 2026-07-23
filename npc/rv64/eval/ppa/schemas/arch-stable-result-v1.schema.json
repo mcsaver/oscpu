@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-arch-stable-result-v1.schema.json",
+  "title": "NPC RV64 ARCH_STABLE audit result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "candidate", "design_id", "scope", "architecture_freeze",
+    "ppa", "promotion_eligible", "checks", "blockers", "observed",
+    "evaluation_sha256", "generated_at_utc"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-arch-stable-result-v1"},
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size_bytes", "status"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "status": {"const": "PRESENT"}
+      }
+    },
+    "design_id": {"type": "string"},
+    "scope": {"type": "object"},
+    "architecture_freeze": {"enum": ["GAP", "ARCH_STABLE"]},
+    "ppa": {"const": "UNQUALIFIED"},
+    "promotion_eligible": {"const": false},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check_id", "status", "detail"],
+        "properties": {
+          "check_id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["PASS", "GAP"]},
+          "detail": {"type": "string"}
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "observed": {"type": "object"},
+    "evaluation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_at_utc": {"type": "string", "minLength": 1}
+  }
+}

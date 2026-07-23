@@ -1,0 +1,10 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/case14
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_ooo_mem_axi_bridge
+
+- total: 1
+- passed: 1
+- failed: 0

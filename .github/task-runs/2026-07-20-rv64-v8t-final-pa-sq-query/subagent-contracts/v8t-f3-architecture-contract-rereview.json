@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-architecture-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据修订后的随附事实复核F3最终物理地址SQ字节查询合同，确认前次placeholder、terminal可见性、data-valid及decision/capture/fire缺口是否关闭并继续寻找反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-architecture-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围仅限本地RV64双发射OoO RTL的memory pipeline、transaction ordering、timing与verification；禁止网络、账号、凭据、外部服务和任何写入。",
+      "每个plain store在dispatch与ROB allocation同拍获得program-ordered SQ placeholder，SQ credit是dispatch admission条件；unissued或operand未ready的older store仍为valid且filled=0，强制query replay；AMO/LR/SC由既有ROB-head singleton全局串行。",
+      "SQ filled在同一时钟沿原子验证PA、typed class、完整byte mask和所有enabled data byte；SQ terminal仅可能是probe fault的no-effect，或physical B和cache/peer maintenance后的global visibility，不是probe success、ROB done、commit或AW/W fire。",
+      "每个bridge的DTLB hit、PTW miss和A/D续访在typed final PA后汇合注册SQ_QUERY；跨4KiB page的multi-byte access在query前本地exception；allow才capture cache lookup或registered NC/IO target，forward原子capture held response，replay保持并逐拍重查。",
+      "backend只在query kind/token/epoch与edge-old tracker表精确一致时把token映射到full ProducerId；失配强制replay；SQ按head到tail逐物理byte选择youngest-older provider，unknown/非法/IO屏障/部分覆盖replay，全覆盖可跨store合成forward，无重叠allow。",
+      "decision严格one-hot且本身不释放owner、不pop MIQ、不产生WB/wakeup/terminal；forward capture后owner/class/data/fault Q在response backpressure下稳定，正式response fire仍受bank-local MIQ、terminal、global WB/FP sink credit；allow-to-NC/IO外部VALID最早下一拍。",
+      "两路query完全独立且可同拍；flush/kill优先；decision不进入request-ready、reservation capture、owner allocation、另一lane payload、SRAM address bits或AXI payload；query只观察edge-old SQ Q。",
+      "canonical ENABLE_DUAL_MEM=1关闭旧issue-stage VA blind/forward gate；legacy default-off兼容可保留。当前只允许final_pa_sq_ordering_checkpoint，F4、DI-5、OOO-3、overall和PPA promotion仍未闭合。"
+    ]
+  },
+  "deliverables": [
+    "给出PASS或GAP、逐项P0/P1反例、前次缺口disposition、必要假设、替代契约、未知项、scope_extension_request及confidence_and_basis；不得冒充完整仓库审查"
+  ],
+  "success_criteria": [
+    "明确判断修订后的六类合同是否足以进入实现；任何GAP给出可执行directed test、assertion或compile-success mutation，不设固定发现上限"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -26,6 +26,7 @@ module tb_ooo_rob;
   wire dispatch1_ready;
   wire [ROB_INDEX_W-1:0] dispatch1_rob_idx;
   wire [PRODUCER_ID_W-1:0] dispatch1_producer_id;
+  wire [PRODUCER_ID_W-1:0] dispatch1_pair_producer_id;
   reg [`XLEN-1:0] dispatch1_pc;
   reg [`INST_W-1:0] dispatch1_inst;
   reg dispatch1_rd_en;
@@ -58,6 +59,24 @@ module tb_ooo_rob;
   reg completion1_query_valid;
   reg [PRODUCER_ID_W-1:0] completion1_query_producer_id;
   wire completion1_query_match;
+  reg completion2_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion2_query_producer_id;
+  wire completion2_query_match;
+  reg completion3_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion3_query_producer_id;
+  wire completion3_query_match;
+  reg completion4_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion4_query_producer_id;
+  wire completion4_query_match;
+  reg completion5_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion5_query_producer_id;
+  wire completion5_query_match;
+  reg completion6_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion6_query_producer_id;
+  wire completion6_query_match;
+  reg resolve_query_valid;
+  reg [PRODUCER_ID_W-1:0] resolve_query_producer_id;
+  wire resolve_query_match;
   reg commit_ready;
   reg mem_quiet;
   reg head0_context_permit;
@@ -66,6 +85,7 @@ module tb_ooo_rob;
   wire head0_identity_valid;
   wire [`OOO_CONTEXT_ID_W-1:0] head0_identity;
   wire [PRODUCER_ID_W-1:0] head0_producer_id;
+  wire head0_launch_open;
   wire commit0_valid;
   wire [PRODUCER_ID_W-1:0] commit0_producer_id;
   wire [`XLEN-1:0] commit0_pc;
@@ -146,6 +166,7 @@ module tb_ooo_rob;
     .dispatch1_ready_o(dispatch1_ready),
     .dispatch1_rob_idx_o(dispatch1_rob_idx),
     .dispatch1_producer_id_o(dispatch1_producer_id),
+    .dispatch1_pair_producer_id_o(dispatch1_pair_producer_id),
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
     .dispatch1_inst_i(dispatch1_inst),
@@ -182,6 +203,24 @@ module tb_ooo_rob;
     .completion1_query_valid_i(completion1_query_valid),
     .completion1_query_producer_id_i(completion1_query_producer_id),
     .completion1_query_match_o(completion1_query_match),
+    .completion2_query_valid_i(completion2_query_valid),
+    .completion2_query_producer_id_i(completion2_query_producer_id),
+    .completion2_query_match_o(completion2_query_match),
+    .completion3_query_valid_i(completion3_query_valid),
+    .completion3_query_producer_id_i(completion3_query_producer_id),
+    .completion3_query_match_o(completion3_query_match),
+    .completion4_query_valid_i(completion4_query_valid),
+    .completion4_query_producer_id_i(completion4_query_producer_id),
+    .completion4_query_match_o(completion4_query_match),
+    .completion5_query_valid_i(completion5_query_valid),
+    .completion5_query_producer_id_i(completion5_query_producer_id),
+    .completion5_query_match_o(completion5_query_match),
+    .completion6_query_valid_i(completion6_query_valid),
+    .completion6_query_producer_id_i(completion6_query_producer_id),
+    .completion6_query_match_o(completion6_query_match),
+    .resolve_query_valid_i(resolve_query_valid),
+    .resolve_query_producer_id_i(resolve_query_producer_id),
+    .resolve_query_match_o(resolve_query_match),
     .commit_ready_i(commit_ready),
     .head0_context_permit_i(head0_context_permit),
     .fencei_retire_permit_i(fencei_retire_permit),
@@ -189,6 +228,7 @@ module tb_ooo_rob;
     .head0_identity_valid_o(head0_identity_valid),
     .head0_identity_o(head0_identity),
     .head0_producer_id_o(head0_producer_id),
+    .head0_launch_open_o(head0_launch_open),
     .commit1_block_i(1'b0),
     .mem_quiet_i(mem_quiet),
     .commit0_valid_o(commit0_valid),
@@ -350,11 +390,147 @@ module tb_ooo_rob;
       completion0_query_producer_id = {PRODUCER_ID_W{1'b0}};
       completion1_query_valid = 1'b0;
       completion1_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion2_query_valid = 1'b0;
+      completion2_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion3_query_valid = 1'b0;
+      completion3_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion4_query_valid = 1'b0;
+      completion4_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion5_query_valid = 1'b0;
+      completion5_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion6_query_valid = 1'b0;
+      completion6_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      resolve_query_valid = 1'b0;
+      resolve_query_producer_id = {PRODUCER_ID_W{1'b0}};
       kill_valid = 1'b0;
       kill_rob_idx = 4'd0;
       head0_context_permit = 1'b1;
       fencei_retire_permit = 1'b1;
       mem_quiet = 1'b1;
+    end
+  endtask
+
+  // v8j branch-resolve authority is intentionally different from a generic
+  // completion query: current self-kill must not reject its own boundary,
+  // while prior recovery, invalid, done and stale generation remain hard
+  // death edges.  This also locks the killed-now helper's full sensitivity:
+  // toggling kill with an unchanged target index must immediately recompute.
+  task automatic exercise_v8j_resolve_query;
+    reg [PRODUCER_ID_W-1:0] id0;
+    reg [PRODUCER_ID_W-1:0] id1;
+    reg [PRODUCER_ID_W-1:0] stale_id0;
+    reg [PRODUCER_ID_W-1:0] vacant_id;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+
+      vacant_id = {dut.slot_generation_q[0], {ROB_INDEX_W{1'b0}}};
+      resolve_query_valid = 1'b1;
+      resolve_query_producer_id = vacant_id;
+      #1;
+      tb_check1("v8j vacant exact encoding resolve closed",
+                resolve_query_match, 1'b0);
+
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1200;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = 32'h8000_1204;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      id0 = dispatch0_producer_id;
+      id1 = dispatch1_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+
+      resolve_query_valid = 1'b1;
+      resolve_query_producer_id = id0;
+      #1;
+      tb_check1("v8j live exact unfinished resolve open",
+                resolve_query_match, 1'b1);
+      tb_check32("v8j resolve raw index projects from full PID",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.resolve_query_idx_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, id0[ROB_INDEX_W-1:0]});
+
+      stale_id0 = id0;
+      stale_id0[ROB_INDEX_W] = ~id0[ROB_INDEX_W];
+      resolve_query_producer_id = stale_id0;
+      #1;
+      tb_check1("v8j same raw index stale generation resolve closed",
+                resolve_query_match, 1'b0);
+
+      resolve_query_producer_id = id0;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id0;
+      kill_valid = 1'b1;
+      kill_rob_idx = id0[ROB_INDEX_W-1:0];
+      #1;
+      tb_check1("v8j current self-kill keeps boundary resolve open",
+                resolve_query_match, 1'b1);
+      tb_check1("v8j generic completion also keeps equal boundary open",
+                completion0_query_match, 1'b1);
+
+      // Use the unchanged id1 query to prove killed-now depends on explicit
+      // kill inputs, not only on target_idx.  First it is younger than id0;
+      // after kill drops it must reopen without changing PID/index.
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = id1;
+      #1;
+      tb_check1("v8j explicit kill masks unchanged younger completion",
+                completion0_query_match, 1'b0);
+      kill_valid = 1'b0;
+      #1;
+      tb_check1("v8j kill drop recomputes unchanged completion query",
+                completion0_query_match, 1'b1);
+
+      // Start recovery from id0 and prove the specialized query closes on
+      // edge-old recover_q, even though id0 itself remains physically live.
+      kill_valid = 1'b1;
+      kill_rob_idx = id0[ROB_INDEX_W-1:0];
+      resolve_query_producer_id = id0;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      resolve_query_valid = 1'b1;
+      resolve_query_producer_id = id0;
+      #1;
+      tb_check1("v8j prior recovery active", recover_active, 1'b1);
+      tb_check1("v8j prior recovery closes resolve query",
+                resolve_query_match, 1'b0);
+
+      reset_dut();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_1210;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      id0 = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      wb0_valid = 1'b1;
+      wb0_rob_idx = id0[ROB_INDEX_W-1:0];
+      wb0_pdest = {PHY_REG_ADDR_W{1'b0}};
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      resolve_query_valid = 1'b1;
+      resolve_query_producer_id = id0;
+      #1;
+      tb_check1("v8j done slot resolve closed", resolve_query_match, 1'b0);
+      flush = 1'b1;
+      #1;
+      tb_check1("v8j flush keeps resolve closed", resolve_query_match, 1'b0);
+      flush = 1'b0;
+      rst = 1'b1;
+      #1;
+      tb_check1("v8j reset masks resolve query", resolve_query_match, 1'b0);
+      rst = 1'b0;
+      reset_dut();
+      $display("[V8J-ROB-RESOLVE-QUERY] exact/stale/done/self-kill/recovery/reset/flush/sensitivity PASS");
     end
   endtask
 
@@ -725,8 +901,43 @@ module tb_ooo_rob;
     reg [PRODUCER_ID_W-1:0] id1;
     reg [PRODUCER_ID_W-1:0] id2;
     reg [PRODUCER_ID_W-1:0] wrong_id;
+    reg [PRODUCER_ID_W-1:0] vacant_id;
     begin
       reset_dut();
+      commit_ready = 1'b0;
+
+      // Match the residual generation bits of an unallocated slot exactly.
+      // Exact encoding alone must never confer authority without valid_q.
+      vacant_id = {dut.slot_generation_q[0], {ROB_INDEX_W{1'b0}}};
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = vacant_id;
+      completion0_query_valid = 1'b1;
+      completion0_query_producer_id = vacant_id;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = vacant_id;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = vacant_id;
+      completion5_query_valid = 1'b1;
+      completion5_query_producer_id = vacant_id;
+      completion6_query_valid = 1'b1;
+      completion6_query_producer_id = vacant_id;
+      #1;
+      tb_check1("v8f vacant slot query matches residual encoding",
+                dut.current0_query_exact_w, 1'b1);
+      tb_check1("v8f vacant slot is not current",
+                current0_query_match, 1'b0);
+      tb_check1("v8f vacant slot completion is closed",
+                completion0_query_match, 1'b0);
+      tb_check1("v8h vacant MulDiv completion is closed",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h vacant CLMUL completion is closed",
+                completion4_query_match, 1'b0);
+      tb_check1("v8i vacant FP result completion is closed",
+                completion5_query_match, 1'b0);
+      tb_check1("v8i vacant FP formal completion is closed",
+                completion6_query_match, 1'b0);
+
+      clear_inputs();
       commit_ready = 1'b0;
       dispatch0_valid = 1'b1;
       dispatch0_pc = 32'h8000_1100;
@@ -737,6 +948,11 @@ module tb_ooo_rob;
       #1;
       id0 = dispatch0_producer_id;
       id1 = dispatch1_producer_id;
+      tb_check1("v8h pair candidate PID is structurally distinct",
+                dispatch0_producer_id != dispatch1_pair_producer_id, 1'b1);
+      tb_check32("v8g mandatory pair candidate equals accepted lane1",
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch1_pair_producer_id},
+                 {{(32-PRODUCER_ID_W){1'b0}}, dispatch1_producer_id});
       `TB_TICK(clk);
       clear_inputs();
       commit_ready = 1'b0;
@@ -749,6 +965,16 @@ module tb_ooo_rob;
       current1_query_producer_id = id1;
       completion1_query_valid = 1'b1;
       completion1_query_producer_id = id1;
+      completion2_query_valid = 1'b1;
+      completion2_query_producer_id = id1;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id0;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id1;
+      completion5_query_valid = 1'b1;
+      completion5_query_producer_id = id0;
+      completion6_query_valid = 1'b1;
+      completion6_query_producer_id = id1;
       #1;
       tb_check1("v8f live id0 is current", current0_query_match, 1'b1);
       tb_check1("v8f live id0 completion is open",
@@ -756,16 +982,43 @@ module tb_ooo_rob;
       tb_check1("v8f live id1 is current", current1_query_match, 1'b1);
       tb_check1("v8f live id1 completion is open",
                 completion1_query_match, 1'b1);
+      tb_check1("v8g memory query live id1 completion is open",
+                completion2_query_match, 1'b1);
+      tb_check1("v8h MulDiv query live id0 completion is open",
+                completion3_query_match, 1'b1);
+      tb_check1("v8h CLMUL query live id1 completion is open",
+                completion4_query_match, 1'b1);
+      tb_check1("v8i FP result query live id0 completion is open",
+                completion5_query_match, 1'b1);
+      tb_check1("v8i FP formal query live id1 completion is open",
+                completion6_query_match, 1'b1);
+      tb_check1("v8g live unfinished head is launch-open",
+                head0_launch_open, 1'b1);
 
       wrong_id = id0;
       wrong_id[ROB_INDEX_W] = ~id0[ROB_INDEX_W];
       current0_query_producer_id = wrong_id;
       completion0_query_producer_id = wrong_id;
+      completion2_query_producer_id = wrong_id;
+      completion3_query_producer_id = wrong_id;
+      completion4_query_producer_id = wrong_id;
+      completion5_query_producer_id = wrong_id;
+      completion6_query_producer_id = wrong_id;
       #1;
       tb_check1("v8f wrong generation is not current",
                 current0_query_match, 1'b0);
       tb_check1("v8f wrong generation completion is closed",
                 completion0_query_match, 1'b0);
+      tb_check1("v8g memory wrong generation completion is closed",
+                completion2_query_match, 1'b0);
+      tb_check1("v8h MulDiv wrong generation completion is closed",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h CLMUL wrong generation completion is closed",
+                completion4_query_match, 1'b0);
+      tb_check1("v8i FP result wrong generation completion is closed",
+                completion5_query_match, 1'b0);
+      tb_check1("v8i FP formal wrong generation completion is closed",
+                completion6_query_match, 1'b0);
 
       current0_query_producer_id = id0;
       completion0_query_producer_id = id0;
@@ -779,6 +1032,16 @@ module tb_ooo_rob;
       current0_query_producer_id = id0;
       completion0_query_valid = 1'b1;
       completion0_query_producer_id = id0;
+      completion2_query_valid = 1'b1;
+      completion2_query_producer_id = id0;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id0;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id0;
+      completion5_query_valid = 1'b1;
+      completion5_query_producer_id = id0;
+      completion6_query_valid = 1'b1;
+      completion6_query_producer_id = id0;
       current1_query_valid = 1'b1;
       current1_query_producer_id = id1;
       completion1_query_valid = 1'b1;
@@ -787,6 +1050,17 @@ module tb_ooo_rob;
       tb_check1("v8f done slot remains current", current0_query_match, 1'b1);
       tb_check1("v8f done slot completion closes",
                 completion0_query_match, 1'b0);
+      tb_check1("v8g memory done slot completion closes",
+                completion2_query_match, 1'b0);
+      tb_check1("v8h MulDiv done slot completion closes",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h CLMUL done slot completion closes",
+                completion4_query_match, 1'b0);
+      tb_check1("v8i FP result done slot completion closes",
+                completion5_query_match, 1'b0);
+      tb_check1("v8i FP formal done slot completion closes",
+                completion6_query_match, 1'b0);
+      tb_check1("v8g done head is not launch-open", head0_launch_open, 1'b0);
       tb_check1("v8f other live slot remains current",
                 current1_query_match, 1'b1);
       tb_check1("v8f other live slot remains completion-open",
@@ -804,6 +1078,10 @@ module tb_ooo_rob;
       current0_query_producer_id = id2;
       completion0_query_valid = 1'b1;
       completion0_query_producer_id = id2;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id2;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id2;
       current1_query_valid = 1'b1;
       current1_query_producer_id = id1;
       completion1_query_valid = 1'b1;
@@ -817,6 +1095,10 @@ module tb_ooo_rob;
                 current0_query_match, 1'b0);
       tb_check1("v8f kill-start masks younger completion query",
                 completion0_query_match, 1'b0);
+      tb_check1("v8h kill-start masks younger MulDiv query",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h kill-start masks younger CLMUL query",
+                completion4_query_match, 1'b0);
       tb_check1("v8f kill boundary remains current",
                 current1_query_match, 1'b1);
       tb_check1("v8f kill boundary remains completion-open",
@@ -829,6 +1111,10 @@ module tb_ooo_rob;
       current0_query_producer_id = id2;
       completion0_query_valid = 1'b1;
       completion0_query_producer_id = id2;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id2;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id2;
       current1_query_valid = 1'b1;
       current1_query_producer_id = id1;
       completion1_query_valid = 1'b1;
@@ -839,6 +1125,10 @@ module tb_ooo_rob;
                 current0_query_match, 1'b0);
       tb_check1("v8f recovery overlay masks younger completion query",
                 completion0_query_match, 1'b0);
+      tb_check1("v8h recovery masks younger MulDiv query",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h recovery masks younger CLMUL query",
+                completion4_query_match, 1'b0);
       tb_check1("v8f recovery preserves boundary current query",
                 current1_query_match, 1'b1);
       tb_check1("v8f recovery preserves boundary completion query",
@@ -858,12 +1148,22 @@ module tb_ooo_rob;
       current0_query_producer_id = id0;
       completion0_query_valid = 1'b1;
       completion0_query_producer_id = id0;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id0;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id0;
       flush = 1'b1;
       #1;
       tb_check1("v8f flush masks current query", current0_query_match, 1'b0);
       tb_check1("v8f flush masks completion query",
                 completion0_query_match, 1'b0);
-      $display("[V8F-ROB-PRODUCER-QUERY] exact/current/open/done/kill/recovery/flush PASS");
+      tb_check1("v8h flush masks MulDiv completion query",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h flush masks CLMUL completion query",
+                completion4_query_match, 1'b0);
+      $display("[V8F-ROB-PRODUCER-QUERY] vacant/exact/current/open/done/kill/recovery/flush PASS");
+      $display("[V8G-ROB-MEMORY-QUERY] query2 generation/done and pair/head Q-only contract PASS");
+      $display("[V8H-ROB-LONGOP-QUERY] query3/4 exact-open and pair PID distinct contract PASS");
       reset_dut();
     end
   endtask
@@ -890,6 +1190,7 @@ module tb_ooo_rob;
     end
 
     exercise_v8f_producer_queries();
+    exercise_v8j_resolve_query();
 
     // Kept behind a plusarg so the normal regression remains positive while
     // the task-run negative runner can prove the dual-WB owner contract fires.

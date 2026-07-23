@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8p-dual-memory-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据修订后的随附事实，复审v8p DI-3双内存terminal-owner合同的原子副作用、ready DAG、双AGU、年龄、SQ双bind、取消collector与claim边界是否已足够进入RTL实现。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/contract.md",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/contract-review-resolution.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/subagent-contracts/v8p-dual-memory-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "仅普通整数LL/LS/SL/SS；AMO/LR/SC/FP memory明确禁止issue1/alloc1/bank1/bind1。DI-5、OOO-3、overall、PPA保持RED。",
+      "current-current pair满足issue_fire0==issue_fire1==capture0==capture1==tracker_alloc_fire0==tracker_alloc_fire1；tracker双valid只有ready0&&ready1时双birth，alloc1不得独生，单credit无任何部分副作用。",
+      "pair-ready允许根闭集仅resident valid/base-ready/plain capability、edge-old双槽empty、recovery、current full PID、tracker dual ready；禁止bridge/translation/cache/request/MIQ/response ready与same-edge consume/free，禁止consume-refill和capture fallthrough。",
+      "两bank各自冻结完整payload/PID/token/kind/epoch/tval/source/store data，各有独立LSU；bank0阻塞且两槽valid时两份不同AGU结果同时存在并稳定，raw输入扰动不影响。",
+      "packed IQ index是compaction后严格总年龄序，无tie/wrap；选择所有eligible中最老两项，bank0为更老；bank1仅edge-old bank0 invalid才consume，同沿bank0 kill/consume不look-through。",
+      "SS通过SQ bind0/bind1按bank/full PID/ROB/token精确onehot且互斥关联；dispatch已为每个accepted plain store exact分配SQ entry，bind miss/multihit/cross/单侧由立即断言fail fast，不把CAM接入pair ready。",
+      "collector是32-token pending bitmap和metadata bank，扩为7路并行ingress、2路dequeue；七个不同exact-live tuple可同拍写独立bit。pending全满意味着全部32 live token已pending，不可能还有合法nonpending reservation，故无需credit。",
+      "非STORE cancel清reservation同沿必须进入collector；STORE只能由SQ authority qualified release。优先级reset/flush/restore>kill>consume>capture>hold，handoff不free，full PID/token映射exact once。",
+      "15个规范pair key逐项枚举；coverage由accepted resident ctrl/full PID、canonical双fire和bank/token身份生成。release/assert各自完整，变异必须compile/elaborate/activate/命中专属断言。",
+      "本任务是普通本地RV64 RTL只读复审；no tools、no shell、no file access、no network、no accounts、no credentials、no external services、no writes。"
+    ]
+  },
+  "deliverables": [
+    "返回单个JSON：verdict为pass或gap；blockers每项含id、counterexample、required_contract_change、required_executable_evidence；claim_boundary。若pass则blockers为空。"
+  ],
+  "success_criteria": [
+    "只报告仍会阻止进入RTL实现的真实合同洞；已由有限token集合、既有精确lease或fail-fast不变量闭合的假设不得重复当作未知。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

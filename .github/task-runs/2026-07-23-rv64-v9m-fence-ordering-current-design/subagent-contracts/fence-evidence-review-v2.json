@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "fence-evidence-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 Verilog/SystemVerilog 普通 FENCE 顺序证据只读复核：沿 mem_idle_o 从 OooIntBackend 完整 memory-owner 条件经 execute、decode、core glue、control plane 到 drain gate 的链路，检查定向程序、可编译负向 RTL 版本、result/raw 绑定和 arch-stable semantic validator 是否排除假绿。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tools/fence_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_fence_ordering_evidence.py",
+      "npc/rv64/eval/ppa/evidence/fence-ordering-current.json",
+      "npc/rv64/eval/ppa/evidence/fence-ordering.log",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/subagent-contracts/fence-evidence-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/completion-definition.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出实现者证据与独立审查结论，逐段核对 mem_idle_o owner/holder census、跨模块无变形传递、普通 FENCE drain 条件、正向顺序、编译成功负向 RTL 版本、result/raw/source hash 和 validator 反例，并报告 unknowns、显式假设、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "明确 PASS、GAP 或 inconclusive；任何 PASS 必须由允许路径内的 mem_idle_o 生成链与证据文件支撑，并说明为何编译失败、非目标检查失败、过期源文件哈希、删减 marker、替换 result/raw 或伪造 aggregate 不能被接受；不得截断仍影响结论的反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

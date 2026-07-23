@@ -44,8 +44,10 @@
 - `DecodeStage` 当前共 4 个实例（frontend 2、backend 2），int PRF 当前为 5R2W；旧
   “8实例/10R2W”是 07-03 以前的拓扑。
 - commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；2026-07-14
-  T4J 已让 CsrFile 的 `minstret` 消费最终两 lane 的 ISA-retirement count，并过滤异常，
-  `INSTRET-G1` 的程序级 exception/control delta 长回归仍按 ROADMAP 留证。
+  T4J 已让 CsrFile 的 `minstret` 消费最终两 lane 的 ISA-retirement count，并过滤异常。
+  2026-07-21 V9C 又以全核 Sv39 程序锁定异常 lane 2/2 零增量、MRET/SRET/SFENCE.VMA
+  1/6/1 次与控制提交 8/8 精确单增量，并用 3/3 current-source 可编译 RTL 验证变体证明
+  最终 mux 和 CsrFile 消费边行为可观察；`INSTRET-G1` 已关闭。
 - `FDG-G1` 的 `arch_trap -> no backend dispatch`、`XRET-G1` current-mode legality 与
   `MEM-ISSUE-G1` 的 lane1 dequeue/request/MIQ owner 同源、IFU A-update write-drain 已于
   2026-07-12 关闭；IFU-FETCH-G2 的 second-page page-fault byte provenance 同日收窄关闭。
@@ -318,6 +320,8 @@ v0.1 记录的"无显式 mispredict、靠隐式比对"已随 F2 落地而解决�
 `OooSyntheticLane1Ret*` 相关模块已物理删除。control pseudo-commit 仍由
 `OooControlCommitSequencer` 经 output mux 合并观察；T4J 后 CsrFile 的 `minstret` 与外部
 观察共同消费该 mux 按最终 `valid && !exception` 产生的唯一两位 retirement count。
+V9C 程序级 gate 又逐拍核对 CsrFile 的前一拍增量，并对实际 MRET/SRET/SFENCE.VMA
+控制伪提交要求 lane0 非异常、lane1 抑制、增量严格为 1；异常 lane 的增量严格为 0。
 
 > 【宪法 C-OBJ-COMMIT】`commit_event` 是架构可见的程序序退休点，字段以本表为准。其它对象不得复制其语义。
 
@@ -470,7 +474,7 @@ branch/jump/mem/fp 四个 pending owner 已物理删除。对仍走域 B 的 CSR
 | --- | --- | --- | --- | --- | --- |
 | `OooPendingBranchSequencer` | branch | 历史单 entry + 全 drain | **✅ DELETED** | 后端 issue 解析 + 显式 mispredict + ROB-walk；fetch redirect PC 已由 arbiter 单源化 | B2 fetch-PC 子目标完成 |
 | `OooPendingJumpSequencer` | jump | 历史单 entry + 全 drain | **✅ DELETED** | JAL 前端直算；JALR 由后端解析，RAS 仅在保守窗口使用；普通 JALR target predictor 当前缺失 | B2 残余性能项 |
-| `OooPendingMemorySequencer` | mem | 历史 lane1 barrier | **✅ DELETED** | SQ(4)+probe/drain+受限 forwarding+MIQ(4) 已落地；LQ/replay/MSHR/多 outstanding 仍未做 | B-LSQ（残件） |
+| `OooPendingMemorySequencer` | mem | 历史 lane1 barrier | **✅ DELETED** | SQ(4)+probe/late-B+physical forwarding、双 bank MIQ transport 与 shared LQ(16) 已落地；memory-dependence prediction、violation replay、MSHR/多 outstanding 仍未做 | B-LSQ（残件） |
 | `OooPendingFpSequencer` + `OooFpPendingExec` | fp | ~~单 entry，mem→long→compute 串行~~ | **✅ ELIMINATED（2026-07-02）** | 已由 `OooFpBackend`（FP rename + FpIQ + 执行簇 + 经 ROB 真 commit）取代；pending-FP 壳四文件删除、E2/E3 消除、fflags/FS-dirty 走 commit（`../specs/history/ooo-fp-cluster-implementation-plan.md` §8/§9，已归档） | 新 B-FP ✅ |
 | `OooPendingSystemSequencer` | system | drain + 执行 | **KEEP** | 改"ROB 队头执行 + 退休刷 younger"标志位（语义不变，去掉全局 `stop_pending` 依赖） | 清理 |
 | `OooPendingTrapExitSequencer` | trap | drain + 执行 | **KEEP / 瘦身** | 精确异常本就由 ROB 队头承接（exception 字段 + commit1 阻塞已在）；瘦掉冗余脚手架 | 清理 |
@@ -551,6 +555,9 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
    `load+store`、`store+load`、`store+store` 必须能形成同拍 pair。只有一个 AGU/翻译
    入口、把第二条 memory 仅移出 IQ
    后排队，或以单 reservation 静态串行全部 memory，均不属于完整双发射。
+   七边界连续双宽的机器入口为 `make -C npc/rv64 check-width-continuity`；其固定窗口、逐级
+   transaction identity、full ProducerId 生命周期、独立 sink 与自然排空语义以
+   `rv64-architecture-ppa-contract.md` DI-2 为准，不能用父级 valid 或一次 peak 代替。
 2. **真 OoO 不是“有 ROB/IQ 的顺序核”**：老 load miss、Mul/Div 或共享资源阻塞时，至少 8 条
    无依赖年轻 ALU 必须能在老指令完成前 select/execute/complete；retire 仍严格按序。memory
    依赖与顺序只能由 LSQ/SQ/LQ、地址/年龄/依赖事实约束，禁止用“存在任意更老 IQ valid”冻结
@@ -636,7 +643,7 @@ R4-S1.0 的规范真源为
 | Commit 是唯一改架构状态点 | **partially**（+3 受规约例外；2026-07-03：仅余 E1） | already-true（GPR/精确异常）| E2/E3 已由 FP 迁移消解 |
 | ControlPlane 是补丁总线、redirect 来源多 | **partially closed**（fetch PC 已单 arbiter；其它副作用分散） | mixed | 高 → B2 后续 |
 | pending 是隐藏串行主干 | **已收缩**（branch/jump/mem/fp owner 已删，仅 system/trap 在用） | system/trap pending 仍活 | B7 专项 |
-| pending_mem 应被 LSQ 替代 | **superseded**（重读证明 pending_mem 从未可达；SQ/前递已落地） | 剩余=LQ/MSHR/多 outstanding 性能残件 | 中 → B-LSQ 残件 |
+| pending_mem 应被 LSQ 替代 | **superseded**（重读证明 pending_mem 从未可达；SQ/physical forwarding/shared retire-resident LQ 已落地） | 剩余=memory-dependence prediction、violation replay、MSHR/多 outstanding 性能残件 | 中 → B-LSQ 残件 |
 
 > **读法**：`already-true` = 宪法已基本满足，维持即可；`aspirational` = 宪法是目标、现状偏离，
 > 重构应朝它走但**不要求一次到位**。本表是后续每轮迭代"选下一刀"的依据。

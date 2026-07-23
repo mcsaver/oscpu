@@ -9,7 +9,10 @@ module OooCoreTopGlue #(
   parameter ROB_COUNT_W = `OOO_ROB_COUNT_W,
   parameter FREE_COUNT_W = `OOO_FREE_COUNT_W,
   parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W,
-  parameter FETCH_PACKET_COUNT_W = `OOO_FETCH_PACKET_COUNT_W
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W,
+  parameter FETCH_PACKET_COUNT_W = `OOO_FETCH_PACKET_COUNT_W,
+  parameter ENABLE_DUAL_MEM = 0
 ) (
   input clk,
   input rst,
@@ -78,6 +81,19 @@ module OooCoreTopGlue #(
   output [1:0] mem_station_expected_owner_kind_o,
   output [4:0] mem_station_expected_owner_token_o,
   output [1:0] mem_station_expected_mmu_epoch_o,
+  input mem_sq_query_valid_i,
+  input [1:0] mem_sq_query_owner_kind_i,
+  input [4:0] mem_sq_query_owner_token_i,
+  input [1:0] mem_sq_query_mmu_epoch_i,
+  input [`XLEN-1:0] mem_sq_query_paddr_i,
+  input mem_sq_query_attr_valid_i,
+  input [1:0] mem_sq_query_class_i,
+  input [`STRB_W-1:0] mem_sq_query_wstrb_i,
+  output mem_sq_query_allow_o,
+  output mem_sq_query_forward_o,
+  output mem_sq_query_replay_o,
+  output mem_sq_query_retry_ready_o,
+  output [`XLEN-1:0] mem_sq_query_forward_data_o,
   input mem_drop0_valid_i,
   input [1:0] mem_drop0_owner_kind_i,
   input [4:0] mem_drop0_owner_token_i,
@@ -90,6 +106,80 @@ module OooCoreTopGlue #(
   input [`XLEN-1:0] mem_drop1_fault_tval_i,
   input [31:0] mem_bridge_owner_residency_mask_i,
   input mem_translate_active_i,
+  output mem1_req_valid_o,
+  input mem1_req_ready_i,
+  output mem1_req_write_o,
+  output mem1_req_probe_o,
+  output mem1_req_pretrans_o,
+  output mem1_req_nokill_o,
+  output mem1_req_attr_valid_o,
+  output [1:0] mem1_req_class_o,
+  output mem1_req_cacheable_o,
+  output [1:0] mem1_req_owner_kind_o,
+  output [4:0] mem1_req_owner_token_o,
+  output [1:0] mem1_req_mmu_epoch_o,
+  output [`XLEN-1:0] mem1_req_fault_tval_o,
+  output mem1_req_device_release_o,
+  output mem1_req_device_cancel_o,
+  output [`XLEN-1:0] mem1_req_addr_o,
+  output [`XLEN-1:0] mem1_req_wdata_o,
+  output [`STRB_W-1:0] mem1_req_wstrb_o,
+  input mem1_rsp_valid_i,
+  output mem1_rsp_ready_o,
+  input [`XLEN-1:0] mem1_rsp_rdata_i,
+  input mem1_rsp_error_i,
+  input mem1_rsp_page_fault_i,
+  input mem1_rsp_attr_valid_i,
+  input [1:0] mem1_rsp_class_i,
+  input mem1_rsp_cacheable_i,
+  input [1:0] mem1_rsp_owner_kind_i,
+  input [4:0] mem1_rsp_owner_token_i,
+  input [1:0] mem1_rsp_mmu_epoch_i,
+  input [`XLEN-1:0] mem1_rsp_fault_tval_i,
+  output mem1_expected_valid_o,
+  output [1:0] mem1_expected_owner_kind_o,
+  output [4:0] mem1_expected_owner_token_o,
+  output [1:0] mem1_expected_mmu_epoch_o,
+  output mem1_expected_tval_valid_o,
+  output [`XLEN-1:0] mem1_expected_fault_tval_o,
+  output mem1_expected_effective_killed_o,
+  input mem1_owner_query_valid_i,
+  input [4:0] mem1_owner_query_token_i,
+  output mem1_tracker_expected_valid_o,
+  output [1:0] mem1_tracker_expected_owner_kind_o,
+  output [4:0] mem1_tracker_expected_owner_token_o,
+  output [1:0] mem1_tracker_expected_mmu_epoch_o,
+  input mem1_station_query_valid_i,
+  input [4:0] mem1_station_query_token_i,
+  output mem1_station_expected_valid_o,
+  output [1:0] mem1_station_expected_owner_kind_o,
+  output [4:0] mem1_station_expected_owner_token_o,
+  output [1:0] mem1_station_expected_mmu_epoch_o,
+  input mem1_sq_query_valid_i,
+  input [1:0] mem1_sq_query_owner_kind_i,
+  input [4:0] mem1_sq_query_owner_token_i,
+  input [1:0] mem1_sq_query_mmu_epoch_i,
+  input [`XLEN-1:0] mem1_sq_query_paddr_i,
+  input mem1_sq_query_attr_valid_i,
+  input [1:0] mem1_sq_query_class_i,
+  input [`STRB_W-1:0] mem1_sq_query_wstrb_i,
+  output mem1_sq_query_allow_o,
+  output mem1_sq_query_forward_o,
+  output mem1_sq_query_replay_o,
+  output mem1_sq_query_retry_ready_o,
+  output [`XLEN-1:0] mem1_sq_query_forward_data_o,
+  input mem1_drop0_valid_i,
+  input [1:0] mem1_drop0_owner_kind_i,
+  input [4:0] mem1_drop0_owner_token_i,
+  input [1:0] mem1_drop0_mmu_epoch_i,
+  input [`XLEN-1:0] mem1_drop0_fault_tval_i,
+  input mem1_drop1_valid_i,
+  input [1:0] mem1_drop1_owner_kind_i,
+  input [4:0] mem1_drop1_owner_token_i,
+  input [1:0] mem1_drop1_mmu_epoch_i,
+  input [`XLEN-1:0] mem1_drop1_fault_tval_i,
+  input [31:0] mem1_bridge_owner_residency_mask_i,
+  input mem1_translate_active_i,
   output mem_flush_o,
   output mmu_flush_o,
 
@@ -252,6 +342,8 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] pending_system_next_pc_q;
   wire [`XLEN-1:0] pending_system_csr_rdata_q;
   wire [`TRAP_CAUSE_W-1:0] pending_system_irq_cause_q;
+  wire pending_system_producer_valid_w;
+  wire [PRODUCER_ID_W-1:0] pending_system_producer_id_w;
   wire ctrl_commit_valid_q;
   wire backend_drained_q;
   wire core_trap_flush_q;
@@ -467,6 +559,11 @@ module OooCoreTopGlue #(
   wire [1:0] core_mem_station_expected_owner_kind_w;
   wire [4:0] core_mem_station_expected_owner_token_w;
   wire [1:0] core_mem_station_expected_mmu_epoch_w;
+  wire core_mem_sq_query_allow_w;
+  wire core_mem_sq_query_forward_w;
+  wire core_mem_sq_query_replay_w;
+  wire core_mem_sq_query_retry_ready_w;
+  wire [`XLEN-1:0] core_mem_sq_query_forward_data_w;
   wire core_mem_req_device_release_w;
   wire core_mem_req_device_cancel_w;
   wire [`XLEN-1:0] core_mem_req_addr_w;
@@ -505,7 +602,86 @@ module OooCoreTopGlue #(
       core_mem_station_expected_owner_token_w;
   assign mem_station_expected_mmu_epoch_o =
       core_mem_station_expected_mmu_epoch_w;
+  assign mem_sq_query_allow_o = core_mem_sq_query_allow_w;
+  assign mem_sq_query_forward_o = core_mem_sq_query_forward_w;
+  assign mem_sq_query_replay_o = core_mem_sq_query_replay_w;
+  assign mem_sq_query_retry_ready_o = core_mem_sq_query_retry_ready_w;
+  assign mem_sq_query_forward_data_o = core_mem_sq_query_forward_data_w;
   wire core_mem_rsp_ready_w;
+  wire core_mem1_req_valid_w;
+  wire core_mem1_req_write_w;
+  wire core_mem1_req_probe_w;
+  wire core_mem1_req_pretrans_w;
+  wire core_mem1_req_nokill_w;
+  wire core_mem1_req_attr_valid_w;
+  wire [1:0] core_mem1_req_class_w;
+  wire core_mem1_req_cacheable_w;
+  wire [1:0] core_mem1_req_owner_kind_w;
+  wire [4:0] core_mem1_req_owner_token_w;
+  wire [1:0] core_mem1_req_mmu_epoch_w;
+  wire [`XLEN-1:0] core_mem1_req_fault_tval_w;
+  wire core_mem1_req_device_release_w;
+  wire core_mem1_req_device_cancel_w;
+  wire [`XLEN-1:0] core_mem1_req_addr_w;
+  wire [`XLEN-1:0] core_mem1_req_wdata_w;
+  wire [`STRB_W-1:0] core_mem1_req_wstrb_w;
+  wire core_mem1_rsp_ready_w;
+  wire core_mem1_expected_valid_w;
+  wire [1:0] core_mem1_expected_owner_kind_w;
+  wire [4:0] core_mem1_expected_owner_token_w;
+  wire [1:0] core_mem1_expected_mmu_epoch_w;
+  wire core_mem1_expected_tval_valid_w;
+  wire [`XLEN-1:0] core_mem1_expected_fault_tval_w;
+  wire core_mem1_expected_effective_killed_w;
+  wire core_mem1_tracker_expected_valid_w;
+  wire [1:0] core_mem1_tracker_expected_owner_kind_w;
+  wire [4:0] core_mem1_tracker_expected_owner_token_w;
+  wire [1:0] core_mem1_tracker_expected_mmu_epoch_w;
+  wire core_mem1_station_expected_valid_w;
+  wire [1:0] core_mem1_station_expected_owner_kind_w;
+  wire [4:0] core_mem1_station_expected_owner_token_w;
+  wire [1:0] core_mem1_station_expected_mmu_epoch_w;
+  wire core_mem1_sq_query_allow_w;
+  wire core_mem1_sq_query_forward_w;
+  wire core_mem1_sq_query_replay_w;
+  wire core_mem1_sq_query_retry_ready_w;
+  wire [`XLEN-1:0] core_mem1_sq_query_forward_data_w;
+  assign mem1_req_device_release_o = core_mem1_req_device_release_w;
+  assign mem1_req_device_cancel_o = core_mem1_req_device_cancel_w;
+  assign mem1_req_attr_valid_o = core_mem1_req_attr_valid_w;
+  assign mem1_req_class_o = core_mem1_req_class_w;
+  assign mem1_req_cacheable_o = core_mem1_req_cacheable_w;
+  assign mem1_req_owner_kind_o = core_mem1_req_owner_kind_w;
+  assign mem1_req_owner_token_o = core_mem1_req_owner_token_w;
+  assign mem1_req_mmu_epoch_o = core_mem1_req_mmu_epoch_w;
+  assign mem1_req_fault_tval_o = core_mem1_req_fault_tval_w;
+  assign mem1_expected_valid_o = core_mem1_expected_valid_w;
+  assign mem1_expected_owner_kind_o = core_mem1_expected_owner_kind_w;
+  assign mem1_expected_owner_token_o = core_mem1_expected_owner_token_w;
+  assign mem1_expected_mmu_epoch_o = core_mem1_expected_mmu_epoch_w;
+  assign mem1_expected_tval_valid_o = core_mem1_expected_tval_valid_w;
+  assign mem1_expected_fault_tval_o = core_mem1_expected_fault_tval_w;
+  assign mem1_expected_effective_killed_o =
+      core_mem1_expected_effective_killed_w;
+  assign mem1_tracker_expected_valid_o = core_mem1_tracker_expected_valid_w;
+  assign mem1_tracker_expected_owner_kind_o =
+      core_mem1_tracker_expected_owner_kind_w;
+  assign mem1_tracker_expected_owner_token_o =
+      core_mem1_tracker_expected_owner_token_w;
+  assign mem1_tracker_expected_mmu_epoch_o =
+      core_mem1_tracker_expected_mmu_epoch_w;
+  assign mem1_station_expected_valid_o = core_mem1_station_expected_valid_w;
+  assign mem1_station_expected_owner_kind_o =
+      core_mem1_station_expected_owner_kind_w;
+  assign mem1_station_expected_owner_token_o =
+      core_mem1_station_expected_owner_token_w;
+  assign mem1_station_expected_mmu_epoch_o =
+      core_mem1_station_expected_mmu_epoch_w;
+  assign mem1_sq_query_allow_o = core_mem1_sq_query_allow_w;
+  assign mem1_sq_query_forward_o = core_mem1_sq_query_forward_w;
+  assign mem1_sq_query_replay_o = core_mem1_sq_query_replay_w;
+  assign mem1_sq_query_retry_ready_o = core_mem1_sq_query_retry_ready_w;
+  assign mem1_sq_query_forward_data_o = core_mem1_sq_query_forward_data_w;
   wire core_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
@@ -678,6 +854,7 @@ module OooCoreTopGlue #(
 
   wire core_checkpoint_capture_w;
   wire core_checkpoint_restore_w;
+  wire core_checkpoint_restore_apply_w;
   wire core_checkpoint_quiesce_w;
   wire core_mem_issue_block_w;
 
@@ -688,6 +865,8 @@ module OooCoreTopGlue #(
   wire core_dispatch0_valid_w;
   wire core_dispatch1_valid_w;
   wire core_dispatch0_fire_w;
+  wire [PRODUCER_ID_W-1:0] core_dispatch0_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] core_commit0_producer_id_w;
   wire jump_dispatch_fire_w;
   wire [`XLEN-1:0] core_dispatch0_pc_w;
   wire [`XLEN-1:0] core_dispatch0_next_pc_w;
@@ -710,7 +889,10 @@ module OooCoreTopGlue #(
     .ROB_INDEX_W(ROB_INDEX_W),
     .ROB_COUNT_W(ROB_COUNT_W),
     .FREE_COUNT_W(FREE_COUNT_W),
-    .ISSUE_COUNT_W(ISSUE_COUNT_W)
+    .ISSUE_COUNT_W(ISSUE_COUNT_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W),
+    .ENABLE_DUAL_MEM(ENABLE_DUAL_MEM)
   ) u_execute_backend (
     .a0_data_w(a0_data_w),
     .clk(clk),
@@ -732,6 +914,7 @@ module OooCoreTopGlue #(
     .core_checkpoint_capture_w(core_checkpoint_capture_w),
     .core_checkpoint_quiesce_w(core_checkpoint_quiesce_w),
     .core_checkpoint_restore_w(core_checkpoint_restore_w),
+    .core_checkpoint_restore_apply_w(core_checkpoint_restore_apply_w),
     .core_commit0_cause_w(core_commit0_cause_w),
     .core_commit0_exception_w(core_commit0_exception_w),
     .core_commit0_inst_w(core_commit0_inst_w),
@@ -743,6 +926,7 @@ module OooCoreTopGlue #(
     .core_commit0_tval_w(core_commit0_tval_w),
     .core_commit0_valid_w(core_commit0_valid_w),
     .core_commit0_write_w(core_commit0_write_w),
+    .core_commit0_producer_id_w(core_commit0_producer_id_w),
     .core_commit1_block_w(core_commit1_block_w),
     .core_commit1_cause_w(core_commit1_cause_w),
     .core_commit1_exception_w(core_commit1_exception_w),
@@ -824,14 +1008,66 @@ module OooCoreTopGlue #(
         core_mem_station_expected_owner_token_w),
     .core_mem_station_expected_mmu_epoch_w(
         core_mem_station_expected_mmu_epoch_w),
+    .core_mem_sq_query_allow_w(core_mem_sq_query_allow_w),
+    .core_mem_sq_query_forward_w(core_mem_sq_query_forward_w),
+    .core_mem_sq_query_replay_w(core_mem_sq_query_replay_w),
+    .core_mem_sq_query_retry_ready_w(core_mem_sq_query_retry_ready_w),
+    .core_mem_sq_query_forward_data_w(core_mem_sq_query_forward_data_w),
     .core_mem_req_device_release_w(core_mem_req_device_release_w),
     .core_mem_req_device_cancel_w(core_mem_req_device_cancel_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
+    .core_mem1_req_addr_w(core_mem1_req_addr_w),
+    .core_mem1_req_valid_w(core_mem1_req_valid_w),
+    .core_mem1_req_wdata_w(core_mem1_req_wdata_w),
+    .core_mem1_req_write_w(core_mem1_req_write_w),
+    .core_mem1_req_probe_w(core_mem1_req_probe_w),
+    .core_mem1_req_pretrans_w(core_mem1_req_pretrans_w),
+    .core_mem1_req_nokill_w(core_mem1_req_nokill_w),
+    .core_mem1_req_attr_valid_w(core_mem1_req_attr_valid_w),
+    .core_mem1_req_class_w(core_mem1_req_class_w),
+    .core_mem1_req_cacheable_w(core_mem1_req_cacheable_w),
+    .core_mem1_req_owner_kind_w(core_mem1_req_owner_kind_w),
+    .core_mem1_req_owner_token_w(core_mem1_req_owner_token_w),
+    .core_mem1_req_mmu_epoch_w(core_mem1_req_mmu_epoch_w),
+    .core_mem1_req_fault_tval_w(core_mem1_req_fault_tval_w),
+    .core_mem1_req_device_release_w(core_mem1_req_device_release_w),
+    .core_mem1_req_device_cancel_w(core_mem1_req_device_cancel_w),
+    .core_mem1_req_wstrb_w(core_mem1_req_wstrb_w),
+    .core_mem1_rsp_ready_w(core_mem1_rsp_ready_w),
+    .core_mem1_expected_valid_w(core_mem1_expected_valid_w),
+    .core_mem1_expected_owner_kind_w(core_mem1_expected_owner_kind_w),
+    .core_mem1_expected_owner_token_w(core_mem1_expected_owner_token_w),
+    .core_mem1_expected_mmu_epoch_w(core_mem1_expected_mmu_epoch_w),
+    .core_mem1_expected_tval_valid_w(core_mem1_expected_tval_valid_w),
+    .core_mem1_expected_fault_tval_w(core_mem1_expected_fault_tval_w),
+    .core_mem1_expected_effective_killed_w(
+        core_mem1_expected_effective_killed_w),
+    .core_mem1_tracker_expected_valid_w(core_mem1_tracker_expected_valid_w),
+    .core_mem1_tracker_expected_owner_kind_w(
+        core_mem1_tracker_expected_owner_kind_w),
+    .core_mem1_tracker_expected_owner_token_w(
+        core_mem1_tracker_expected_owner_token_w),
+    .core_mem1_tracker_expected_mmu_epoch_w(
+        core_mem1_tracker_expected_mmu_epoch_w),
+    .core_mem1_station_expected_valid_w(core_mem1_station_expected_valid_w),
+    .core_mem1_station_expected_owner_kind_w(
+        core_mem1_station_expected_owner_kind_w),
+    .core_mem1_station_expected_owner_token_w(
+        core_mem1_station_expected_owner_token_w),
+    .core_mem1_station_expected_mmu_epoch_w(
+        core_mem1_station_expected_mmu_epoch_w),
+    .core_mem1_sq_query_allow_w(core_mem1_sq_query_allow_w),
+    .core_mem1_sq_query_forward_w(core_mem1_sq_query_forward_w),
+    .core_mem1_sq_query_replay_w(core_mem1_sq_query_replay_w),
+    .core_mem1_sq_query_retry_ready_w(core_mem1_sq_query_retry_ready_w),
+    .core_mem1_sq_query_forward_data_w(core_mem1_sq_query_forward_data_w),
     .mem_translate_active_i(mem_translate_active_i),
+    .mem1_translate_active_i(mem1_translate_active_i),
     .core_retire_count_w(core_retire_count_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
     .dispatch0_ready_w(dispatch0_ready_w),
+    .core_dispatch0_producer_id_w(core_dispatch0_producer_id_w),
     .dispatch0_unsupported_raw_w(dispatch0_unsupported_raw_w),
     .dispatch0_unsupported_w(dispatch0_unsupported_w),
     .dispatch1_optional_w(dispatch1_optional_w),
@@ -863,6 +1099,14 @@ module OooCoreTopGlue #(
     .mem_owner_query_token_i(mem_owner_query_token_i),
     .mem_station_query_valid_i(mem_station_query_valid_i),
     .mem_station_query_token_i(mem_station_query_token_i),
+    .mem_sq_query_valid_i(mem_sq_query_valid_i),
+    .mem_sq_query_owner_kind_i(mem_sq_query_owner_kind_i),
+    .mem_sq_query_owner_token_i(mem_sq_query_owner_token_i),
+    .mem_sq_query_mmu_epoch_i(mem_sq_query_mmu_epoch_i),
+    .mem_sq_query_paddr_i(mem_sq_query_paddr_i),
+    .mem_sq_query_attr_valid_i(mem_sq_query_attr_valid_i),
+    .mem_sq_query_class_i(mem_sq_query_class_i),
+    .mem_sq_query_wstrb_i(mem_sq_query_wstrb_i),
     .mem_drop0_valid_i(mem_drop0_valid_i),
     .mem_drop0_owner_kind_i(mem_drop0_owner_kind_i),
     .mem_drop0_owner_token_i(mem_drop0_owner_token_i),
@@ -874,6 +1118,41 @@ module OooCoreTopGlue #(
     .mem_drop1_mmu_epoch_i(mem_drop1_mmu_epoch_i),
     .mem_drop1_fault_tval_i(mem_drop1_fault_tval_i),
     .mem_bridge_owner_residency_mask_i(mem_bridge_owner_residency_mask_i),
+    .mem1_req_ready_i(mem1_req_ready_i),
+    .mem1_rsp_valid_i(mem1_rsp_valid_i),
+    .mem1_rsp_rdata_i(mem1_rsp_rdata_i),
+    .mem1_rsp_error_i(mem1_rsp_error_i),
+    .mem1_rsp_page_fault_i(mem1_rsp_page_fault_i),
+    .mem1_rsp_attr_valid_i(mem1_rsp_attr_valid_i),
+    .mem1_rsp_class_i(mem1_rsp_class_i),
+    .mem1_rsp_cacheable_i(mem1_rsp_cacheable_i),
+    .mem1_rsp_owner_kind_i(mem1_rsp_owner_kind_i),
+    .mem1_rsp_owner_token_i(mem1_rsp_owner_token_i),
+    .mem1_rsp_mmu_epoch_i(mem1_rsp_mmu_epoch_i),
+    .mem1_rsp_fault_tval_i(mem1_rsp_fault_tval_i),
+    .mem1_owner_query_valid_i(mem1_owner_query_valid_i),
+    .mem1_owner_query_token_i(mem1_owner_query_token_i),
+    .mem1_station_query_valid_i(mem1_station_query_valid_i),
+    .mem1_station_query_token_i(mem1_station_query_token_i),
+    .mem1_sq_query_valid_i(mem1_sq_query_valid_i),
+    .mem1_sq_query_owner_kind_i(mem1_sq_query_owner_kind_i),
+    .mem1_sq_query_owner_token_i(mem1_sq_query_owner_token_i),
+    .mem1_sq_query_mmu_epoch_i(mem1_sq_query_mmu_epoch_i),
+    .mem1_sq_query_paddr_i(mem1_sq_query_paddr_i),
+    .mem1_sq_query_attr_valid_i(mem1_sq_query_attr_valid_i),
+    .mem1_sq_query_class_i(mem1_sq_query_class_i),
+    .mem1_sq_query_wstrb_i(mem1_sq_query_wstrb_i),
+    .mem1_drop0_valid_i(mem1_drop0_valid_i),
+    .mem1_drop0_owner_kind_i(mem1_drop0_owner_kind_i),
+    .mem1_drop0_owner_token_i(mem1_drop0_owner_token_i),
+    .mem1_drop0_mmu_epoch_i(mem1_drop0_mmu_epoch_i),
+    .mem1_drop0_fault_tval_i(mem1_drop0_fault_tval_i),
+    .mem1_drop1_valid_i(mem1_drop1_valid_i),
+    .mem1_drop1_owner_kind_i(mem1_drop1_owner_kind_i),
+    .mem1_drop1_owner_token_i(mem1_drop1_owner_token_i),
+    .mem1_drop1_mmu_epoch_i(mem1_drop1_mmu_epoch_i),
+    .mem1_drop1_fault_tval_i(mem1_drop1_fault_tval_i),
+    .mem1_bridge_owner_residency_mask_i(mem1_bridge_owner_residency_mask_i),
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .mem_rsp_valid_i(mem_rsp_valid_i),
     .pending_branch_cmp_op_q(pending_branch_cmp_op_q),
@@ -882,6 +1161,8 @@ module OooCoreTopGlue #(
     .pending_branch_q(pending_branch_q),
     .pending_branch_rs1_data_w(pending_branch_rs1_data_w),
     .pending_branch_rs2_data_w(pending_branch_rs2_data_w),
+    .pending_system_producer_valid_w(pending_system_producer_valid_w),
+    .pending_system_producer_id_w(pending_system_producer_id_w),
     .pending_branch_taken_w(pending_branch_taken_w),
     .rob_count_o(rob_count_o),
     .rob_head_idx_o(core_rob_head_idx_w),
@@ -932,6 +1213,54 @@ module OooCoreTopGlue #(
     .stop_pending_q(stop_pending_q)
   );
 
+  // The second bank uses the same architectural flush/quiesce plane but an
+  // independent request/response handshake.  Only bank0 exports the duplicate
+  // flush values; equality is structural because both helpers receive the
+  // exact same control facts.
+  wire mem1_flush_unused_w;
+  wire mmu1_flush_unused_w;
+  OooMemoryAccess u_memory_access1 (
+    .clk(clk),
+    .rst(rst),
+    .backend_drained_q(backend_drained_q),
+    .checkpoint_mem_flush_q(checkpoint_mem_flush_q),
+    .core_local_flush_w(core_local_flush_w),
+    .core_mem_req_addr_w(core_mem1_req_addr_w),
+    .core_mem_req_valid_w(core_mem1_req_valid_w),
+    .core_mem_req_wdata_w(core_mem1_req_wdata_w),
+    .core_mem_req_write_w(core_mem1_req_write_w),
+    .core_mem_req_probe_w(core_mem1_req_probe_w),
+    .core_mem_req_pretrans_w(core_mem1_req_pretrans_w),
+    .core_mem_req_nokill_w(core_mem1_req_nokill_w),
+    .core_mem_req_wstrb_w(core_mem1_req_wstrb_w),
+    .core_mem_rsp_ready_w(core_mem1_rsp_ready_w),
+    .mem_flush_o(mem1_flush_unused_w),
+    .mem_req_addr_o(mem1_req_addr_o),
+    .mem_req_ready_i(mem1_req_ready_i),
+    .mem_req_valid_o(mem1_req_valid_o),
+    .mem_req_wdata_o(mem1_req_wdata_o),
+    .mem_req_write_o(mem1_req_write_o),
+    .mem_req_probe_o(mem1_req_probe_o),
+    .mem_req_pretrans_o(mem1_req_pretrans_o),
+    .mem_req_nokill_o(mem1_req_nokill_o),
+    .mem_req_wstrb_o(mem1_req_wstrb_o),
+    .mem_rsp_ready_o(mem1_rsp_ready_o),
+    .mem_rsp_valid_i(mem1_rsp_valid_i),
+    .mmu_flush_o(mmu1_flush_unused_w),
+    .pending_system_satp_write_commit_w(pending_system_satp_write_commit_w),
+    .pending_system_sfence_commit_w(pending_system_sfence_commit_w),
+    .pending_system_fencei_commit_w(pending_system_fencei_commit_w),
+    .stop_pending_q(stop_pending_q)
+  );
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst && ((mem1_flush_unused_w !== mem_flush_o) ||
+                 (mmu1_flush_unused_w !== mmu_flush_o)))
+      $error("[V8S-DUAL-MEM-FLUSH-PLANE] bank request gates observed different flush facts @%0t",
+             $time);
+  end
+`endif
+
   // SYSTEM/CSR/IRQ pending owner 移入 control helper，父模块只生成事件和消费状态。
 
   // 控制类伪提交由 writeback 侧 sequencer 统一打拍，父模块只保留 pending/trap owner。
@@ -981,14 +1310,18 @@ module OooCoreTopGlue #(
 
 
   OooControlPlane #(
+    .ROB_INDEX_W(ROB_INDEX_W),
     .ROB_COUNT_W(ROB_COUNT_W),
-    .ISSUE_COUNT_W(ISSUE_COUNT_W)
+    .ISSUE_COUNT_W(ISSUE_COUNT_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) u_control_plane (
     .a0_data_w(a0_data_w),
     .backend_drained_q(backend_drained_q),
     .backend_drained_w(backend_drained_w),
     .mem_retire_quiet_i(core_mem_retire_quiet_w),
     .mem_idle_i(core_mem_idle_w),
+    .core_checkpoint_restore_apply_i(core_checkpoint_restore_apply_w),
     .branch_resolve_pending_match_w(branch_resolve_pending_match_w),
     .branch_resolve_untracked_w(branch_resolve_untracked_w),
     .branch_spec_active_q(branch_spec_active_q),
@@ -1012,6 +1345,7 @@ module OooCoreTopGlue #(
     .core_commit0_pc_w(core_commit0_pc_w),
     .core_commit0_tval_w(core_commit0_tval_w),
     .core_commit0_valid_w(core_commit0_valid_w),
+    .core_commit0_producer_id_w(core_commit0_producer_id_w),
     .core_commit1_block_w(core_commit1_block_w),
     .core_commit1_cause_w(core_commit1_cause_w),
     .core_commit1_exception_w(core_commit1_exception_w),
@@ -1076,6 +1410,8 @@ module OooCoreTopGlue #(
     .dispatch0_jal_w(dispatch0_jal_w),
     .dispatch0_jump_w(dispatch0_jump_w),
     .dispatch0_ready_w(dispatch0_ready_w),
+    .core_dispatch0_fire_w(core_dispatch0_fire_w),
+    .core_dispatch0_producer_id_w(core_dispatch0_producer_id_w),
     .dispatch0_return_w(dispatch0_return_w),
     .dispatch0_system_w(dispatch0_system_w),
     .dispatch0_unsupported_w(dispatch0_unsupported_w),
@@ -1155,6 +1491,8 @@ module OooCoreTopGlue #(
     .pending_system_capture_lane1_w(pending_system_capture_lane1_w),
     .pending_system_clear_w(pending_system_clear_w),
     .pending_system_csr_commit_w(pending_system_csr_commit_w),
+    .pending_system_producer_valid_w(pending_system_producer_valid_w),
+    .pending_system_producer_id_w(pending_system_producer_id_w),
     .head0_csr_commit_w(head0_csr_commit_w),
     .pending_system_csr_q(pending_system_csr_q),
     .pending_system_csr_rdata_q(pending_system_csr_rdata_q),

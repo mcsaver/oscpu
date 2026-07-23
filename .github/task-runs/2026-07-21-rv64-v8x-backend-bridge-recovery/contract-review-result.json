@@ -1,0 +1,66 @@
+{
+  "verdict": "gap",
+  "blockers": [
+    {
+      "rtl_or_event": "OooIntBackend MIQ、OooDualMemBridgeWrapper、OooMemAxiBridge 的 drop/MIQ-pop/collector-terminal 联合轨迹",
+      "issue": "冻结材料描述了期望行为，但没有给出基线仿真的逐周期观测结果；无法证明 drop(A)、pop(A)、terminal(A)、drop(B)、pop(B)、terminal(B) 已按身份和顺序发生。",
+      "minimal_revision": "提供按不可变事务身份标记的逐周期断言结果，证明每类 terminal 对 A、B 各恰好一次且严格保持 A 后 B。"
+    },
+    {
+      "rtl_or_event": "backend request/expected、tracker-expected、station-expected、owner-residency、drop owner 与 MIQ head",
+      "issue": "材料未渲染真实层次信号名及身份字段。仅凭计数和最终归零，无法排除 stale expected、A/B 身份互换或同一 owner 被重复计数的假绿。",
+      "minimal_revision": "把实际端口名和身份元组加入观测表，并在每次 drop fire、MIQ pop fire、collector terminal fire 上同时比较该元组。"
+    },
+    {
+      "rtl_or_event": "共享 AXI AR valid&&ready、A 的 R valid&&ready、B 的 pre-AXI drop",
+      "issue": "没有基线证据证明唯一一次 AR fire 属于 A，或证明 B 在任何 AR fire 之前已被 drop；最终 AR 计数为 1 本身不能排除端口漏计、错误 bridge 发起或同周期 drop/AR 竞态。",
+      "minimal_revision": "在 wrapper 共享 AXI 出口统计真实 handshake，并断言唯一 AR owner=A、B 的 AR fire 永不发生、B drop 先于其任何 translate/AR 发起事件。"
+    },
+    {
+      "rtl_or_event": "WB、ROB commit、cache fill 及 collector 输出",
+      "issue": "A/B 无 WB 或 commit 目前只是要求，没有覆盖整个恢复与排空窗口的负向观测；短暂 WB、被隐藏的 cache fill 或测试结束后的迟到 terminal 仍可能假绿。",
+      "minimal_revision": "从 branch mispredict 前开始监控至最终 idle 后若干保护周期，逐身份断言 A/B 的 WB、commit、cache-fill 均为零且无新增 terminal。"
+    },
+    {
+      "rtl_or_event": "承重跨模块边的 compile-success mutation",
+      "issue": "没有具体变异点、编译成功记录和 focused test 的语义失败记录，因而尚未证明测试对 backend persistent-killed authority 到 bridge drop/MIQ pop 的连接敏感。",
+      "minimal_revision": "执行至少一个只破坏该跨模块边且仍可编译的变异，并证明 focused test 因身份、顺序或守恒断言失败，而非编译错误、环境错误或无诊断超时。"
+    }
+  ],
+  "false_green_risks": [
+    "按信号高电平周期计数而不是按 fire/单拍 terminal 语义计数。",
+    "MIQ head 更新后才采样 A drop，导致 A 被误标为 B。",
+    "wrapper global flush 短暂拉高，使 B 由全局清空而非 persistent killed bit 终止。",
+    "B 在 killed authority 生效前产生 translate、SQ query 或未握手 AR。",
+    "只监控单个 bridge 而漏掉 wrapper 共享 AXI 出口或另一 bridge。",
+    "A 的迟到 R 同时产生 drop 与 WB/cache fill。",
+    "在非阻塞赋值或 collector 输出尚未稳定时过早结束。",
+    "RTL 变异因无关超时或初始化差异失败而被误记为 oracle-sensitive。"
+  ],
+  "required_observations": [
+    "A 的共享 AXI AR valid&&ready 恰好一次；握手时 active=A、station=B、MIQ head=A。",
+    "branch mispredict 恰好单拍，wrapper global flush 全程为 0，A/B killed 状态持续到各自 exact pop。",
+    "A 的迟到 R 只产生 drop(A)、collector terminal(A)、MIQ pop(A)，禁止 WB、commit、cache fill 和第二个 AR。",
+    "A pop 后 active/tracker-expected/station-expected/owner-residency/MIQ head 在采样边界一致指向 B。",
+    "B 的 persistent killed authority 产生 pre-AXI drop/pop/terminal，禁止 B 的 AR、WB、commit 或 cache fill。",
+    "按冻结 A/B 身份记录的 terminal ledger 严格为 A 组后 B 组，重复、缺失或身份互换均失败。",
+    "双 bridge、tracker、collector、MIQ、ROB 排空，shared AR fire 仍为 1。",
+    "最终 idle 后连续若干周期无新增 AR、drop、pop、terminal、WB、commit 或 cache fill。"
+  ],
+  "required_mutations": [
+    "编译成功地抑制或错误保持 B 的 drop 身份，focused test 必须由 per-owner exactly-once、顺序或最终守恒拒绝。",
+    "编译成功地让晋升 B 使用 stale A truth 或屏蔽 B killed authority，focused test 必须检测 B 未 drop 或错误 target request。"
+  ],
+  "recommended_refinements": [
+    "用 dispatch/MIQ 建立时捕获的不可变 owner tuple 标记 A/B，不以移动的 expected 信号单独充当身份。",
+    "定义同周期 R、drop、pop、collector ingress 和次拍 station promotion 的允许偏序。",
+    "列出真实层次端口名，证明 testbench 未旁路生成 bridge ready/response/drop/SQ allow。",
+    "分别保存 baseline、mutation 和相邻回归的命令、退出码与首个语义 witness。",
+    "即使全部满足，也只关闭联合动态覆盖洞；OOO-4/DI-5/OOO-3/overall 继续 RED，PPA 继续 UNQUALIFIED。"
+  ],
+  "contract_path": ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/subagent-contracts/v8x-backend-bridge-recovery-contract-review.json",
+  "contract_sha256": "badace8d8da51a1433a461c33b9fc294700a2e226d6abe3c2b00907c8e19efdc",
+  "execution_mode": "self-contained-no-tools",
+  "shell_used": false,
+  "files_written_by_reviewer": false
+}

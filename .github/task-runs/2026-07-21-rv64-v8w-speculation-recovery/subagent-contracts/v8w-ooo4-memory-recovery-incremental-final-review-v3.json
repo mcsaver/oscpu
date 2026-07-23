@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8w-ooo4-memory-recovery-incremental-final-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立增量复核本地 RV64 双发射乱序核 OOO-4 访存选择性恢复子切片：确认旧 owner A 经 global flush 从同 bank MIQ 压缩移除后，迟到 drop(A) 不误弹新 owner B；确认 bank0/bank1 drop pop 的完整 tuple、effective-killed 与 tracker exact 三重门；确认纯 branch-selective recovery 且 flush_i=0 时 A/D PTE AW/W/B 写回义务、maintenance-only side effect 与 exact terminal；复核 18/18 compile-success mutation 和回归证据，并把尚未完成的真实跨模块 active/station 双 owner 动态轨迹保留为验证覆盖边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/review-v2.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/dispatch-log.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/backend-drop-v5",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/case14",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/full-bridge-v4",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/wrapper-v3",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v4",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/mutations",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/run-v8w-mutations.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/subagent-contracts/v8w-ooo4-memory-recovery-incremental-final-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项给出 late-old-drop/new-head 隔离、双 bank 三重 pop authority、selective-only A/D AW/W/B drain、collector/tracker exactly-once、lane isolation、证据 SHA/mutation/regression 的 PASS/GAP；每个 GAP 给出精确 RTL/TB 行号和最小反例；明确 unknowns、scope_extension_request、confidence_and_basis，并禁止把该子切片外推为 OOO-4 总门禁 GREEN。"
+  ],
+  "success_criteria": [
+    "从授权源码与证据确认 gap1 和 gap3 已被动态反例及 compile-success mutation 闭合，未引入可达 RTL correctness regression；若真实跨模块 active/station 双 owner 联合轨迹仍缺失，则明确登记为 verification gap，不得用单元测试组合或 6/6 摘要代替。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

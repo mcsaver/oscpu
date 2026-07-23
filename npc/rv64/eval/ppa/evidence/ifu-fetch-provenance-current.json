@@ -1,0 +1,1058 @@
+{
+  "artifacts": [
+    {
+      "kind": "ifu_fetch_page_end_focused_log",
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_page_end_fault.log",
+      "sha256": "6c7747b662222fdd7dd3c4fb995d5c4a20e9b9d1de6e044df2b11e88be597c99"
+    },
+    {
+      "kind": "ifu_fetch_packet_decode_focused_log",
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_packet_decode.log",
+      "sha256": "f8d0b0a8bc4d34c305bd5d1f480e9e52f7ac816ae2c04f1ee6fe0116f85af38a"
+    },
+    {
+      "kind": "module_aggregate_summary",
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "018e2ba5a6bcc492464079ffae55334f9cd6f7390ae23292ff3c15a4458dcf75"
+    },
+    {
+      "kind": "rtl_variant_summary",
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/summary.json",
+      "sha256": "f83f75def9fa2c5fb0847dcfa58a52f1f943cd376bfd7ef1cf49a32cbf2e0780"
+    }
+  ],
+  "canonical_command": "make -C npc/rv64 check-ifu-fetch-provenance",
+  "claim": {
+    "architecture_debts": {
+      "IFU-FETCH-G2": "CLOSED_ELIGIBLE"
+    },
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "focused_tests": {
+    "packet_decode": {
+      "log_sha256": "f8d0b0a8bc4d34c305bd5d1f480e9e52f7ac816ae2c04f1ee6fe0116f85af38a",
+      "status": "PASS"
+    },
+    "page_end": {
+      "log_sha256": "6c7747b662222fdd7dd3c4fb995d5c4a20e9b9d1de6e044df2b11e88be597c99",
+      "status": "PASS"
+    }
+  },
+  "invariants": {
+    "decoder_reads_length_only_after_prefix_success": true,
+    "decoder_uses_complete_instruction_byte_range": true,
+    "f0_has_no_successful_instruction_bytes": true,
+    "fault_frontier_blocks_younger_address_offers": true,
+    "fault_suffix_bytes_are_zero": true,
+    "fault_transaction_never_fills_packet_cache": true,
+    "fault_transaction_never_writes_packet_sram": true,
+    "faulted_instruction_is_sanitized_to_nop": true,
+    "frontier_is_first_failing_halfword_offset": true,
+    "frontier_reference_is_computed_from_pc_not_dut_split": true,
+    "positive_control_observes_ar_fill_and_sram_write": true,
+    "post_accept_quiet_window_excludes_late_side_effects": true,
+    "slot1_has_no_independent_owner_after_slot0_fault": true,
+    "stalled_response_blocks_alternate_request_accept": true,
+    "stalled_response_tuple_is_stable": true,
+    "successful_prefix_bytes_are_retained": true
+  },
+  "metrics": {
+    "packet_decode": {
+      "f0_slot0_resp": 2,
+      "f0_slot0_sanitized": 1,
+      "f0_slot1_resp": 2,
+      "f0_slot1_sanitized": 1,
+      "f0_split": 0,
+      "f0_tval_is_pc": 1,
+      "poison_forged": 0,
+      "poison_resp": 2,
+      "poison_sanitized": 1,
+      "poison_split": 4
+    },
+    "page_end": {
+      "fault_cache_fill": 0,
+      "fault_instruction_ar_after_f0": 0,
+      "fault_rows": 9,
+      "fault_sram_write": 0,
+      "fault_younger_ar": 0,
+      "frontier_f0_rows": 1,
+      "frontier_f2_rows": 5,
+      "frontier_f4_rows": 3,
+      "frontier_f6_rows": 1,
+      "matrix_rows": 13,
+      "payload_stability": 1,
+      "positive_cache_fill": 1,
+      "positive_instruction_ar": 4,
+      "positive_sram_write": 1,
+      "post_accept_quiet_cycles": 18,
+      "stale_prefill": 1,
+      "stall_cycles": 18,
+      "stall_rows": 9
+    }
+  },
+  "module_aggregate": {
+    "failed": 0,
+    "passed": 109,
+    "required": 109,
+    "tests": {
+      "tb_alu": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_alu.log",
+        "sha256": "23dbe9bf34241448b06dcc283405506756dbb83a606e52bbfcfb5e4bfeb166de"
+      },
+      "tb_axi_clint": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_clint.log",
+        "sha256": "b9b7b3476ab6d4501385c8e71e616d8021a307810115e41dc34c904b5f6afc4f"
+      },
+      "tb_axi_exec_firewall": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_exec_firewall.log",
+        "sha256": "f1b6ffbb5d5b0ccb843ba5bcb804d841354d8171c5a9d9b4b477f38b6ada7485"
+      },
+      "tb_axi_plic": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_plic.log",
+        "sha256": "6d4d48d3f21ca8a8b3dc4a04162d79d1e3899dca6a8fc3ac14f67e7759b305d3"
+      },
+      "tb_axi_reset_syscon": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_reset_syscon.log",
+        "sha256": "4d08b31b474879ad06bb67f173474602e285d229a6030f9a957e5ecd25a316bd"
+      },
+      "tb_axi_to_uart": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_to_uart.log",
+        "sha256": "979fa8fd9f1897de1606daff339bcd22e352089a22bf48d20f319b231bfed4bd"
+      },
+      "tb_axi_xbar": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_axi_xbar.log",
+        "sha256": "f10c45cb6c13736eb0323b9a6abcba963206ab55fb0cb401d44e687eeda351f0"
+      },
+      "tb_compare": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_compare.log",
+        "sha256": "c3dc1d50520b6f25be0fea0f734ff46a332bc10871d21fbecaa04a1473addf7b"
+      },
+      "tb_csr_file": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_csr_file.log",
+        "sha256": "8d89c512d58e8cac36bf662def4a2e80ec375e46fd0224284a1de23a9de0ba27"
+      },
+      "tb_decode_stage": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_decode_stage.log",
+        "sha256": "6fba2c79f1ca9099cdf0f1ea54d6218843c0f873a06432b052584fe2b0c97c98"
+      },
+      "tb_decode_unit": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_decode_unit.log",
+        "sha256": "325e2e3d6584b819819fa8dfed341d4558a799565ec9a68b3a1bda1ca0a7c828"
+      },
+      "tb_immgen": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_immgen.log",
+        "sha256": "70eb4083cafd84de9301ba4f8e32e5ba475d0456b246483c0a7f390dd1cde368"
+      },
+      "tb_lsu": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_lsu.log",
+        "sha256": "2abb9fce22efe4eaa1fcdf804d12e0fed8f1b1719e531ab2a144f571f9c9f8a1"
+      },
+      "tb_lsu_control": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_lsu_control.log",
+        "sha256": "f095ddf70f3776806f5697ffa0fb7c3398c5632f9c0f72cec77f22611c10aafb"
+      },
+      "tb_lsu_datapath": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_lsu_datapath.log",
+        "sha256": "6dae1ecd7fcfb86df6b233b01e1e4a6d3c0f8347c0d612174ee83e39233c6034"
+      },
+      "tb_ooo_alu_core_slice": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_alu_core_slice.log",
+        "sha256": "c2816c9e6c811ab50c3a98685920c62868d5b6d4c89c9d8f18697f381a8cc4b1"
+      },
+      "tb_ooo_alu_decode_backend": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_alu_decode_backend.log",
+        "sha256": "2b9b3e30b0cc2cc6c6b76d99304d43f9fec0ffc943772973162d5c3d96e752e8"
+      },
+      "tb_ooo_amo_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_amo_gate.log",
+        "sha256": "fa5d3a9f8aceedd78d410fafc84b534cfd44a5248cfb0a50ac929e9d07628824"
+      },
+      "tb_ooo_backend_drain_tracker": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_backend_drain_tracker.log",
+        "sha256": "86d7061ce60e5babe5484500a5608c51b04a72835b5a78b13619191376110bbe"
+      },
+      "tb_ooo_bitmanip_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_bitmanip_gate.log",
+        "sha256": "3bba2228e40ef7c15cdd174901736953219f5594d8d5bf02ffe1f233dcb546a7"
+      },
+      "tb_ooo_branch_append_dispatch_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_branch_append_dispatch_gate.log",
+        "sha256": "bf9abb11ebf9cb27aee2230152a453dd50839433e6d91f70ba4b2b592db50827"
+      },
+      "tb_ooo_branch_bpu_update_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_branch_bpu_update_gate.log",
+        "sha256": "6f37f8a1841bc3320258d9c6ef522c76a07930099f253cd374752631ade4f139"
+      },
+      "tb_ooo_branch_direction_predictor": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_branch_direction_predictor.log",
+        "sha256": "0314648248d5e4f32bee7b28ec78eb3124c1e8d8a4a6933ed19a40ee8e6b5151"
+      },
+      "tb_ooo_branch_resolve_recovery_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_branch_resolve_recovery_gate.log",
+        "sha256": "1c0947226fe5a49790cadf7979e13d069b45cba40c1444b6ea4f81063fd7f25c"
+      },
+      "tb_ooo_branch_spec_tracker": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_branch_spec_tracker.log",
+        "sha256": "b4eecc197cef3a044d9c29bd6f110c03c13f035d1eefc6c31acf544be56c49cb"
+      },
+      "tb_ooo_busy_table": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_busy_table.log",
+        "sha256": "f5095e042fec50c6178cf197f25c72d335568f2c91fa65c81cc9a70d2634e714"
+      },
+      "tb_ooo_clmul_unit": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_clmul_unit.log",
+        "sha256": "fdbd9e85ad14b0d824cf9e896a480b560c5047500287550549d8e058070b59ab"
+      },
+      "tb_ooo_commit_output_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_commit_output_mux.log",
+        "sha256": "d008a7916592109a270fb2bb294500eb0f2d505d2c8f7400f44958e024feb8e9"
+      },
+      "tb_ooo_control_commit_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_control_commit_sequencer.log",
+        "sha256": "018b32803f1db7285a14aeb174982578ee21726f139e7a7281599f1661b52354"
+      },
+      "tb_ooo_control_flush_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_control_flush_sequencer.log",
+        "sha256": "6b93c80053ad98e013e2c6a76a8887054192a5f195a2767b5b49b16e377a6691"
+      },
+      "tb_ooo_core_top_glue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_core_top_glue.log",
+        "sha256": "09441a2bb8a3b6310a0316499fa61305993345dfc2e8f64aba590dbe6b9196cb"
+      },
+      "tb_ooo_csr_access_request_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_csr_access_request_mux.log",
+        "sha256": "e2fa75dadb00f665b599ce6a474ec72223e7718a437ad47a9bd37e9c73734468"
+      },
+      "tb_ooo_csr_trap_request_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_csr_trap_request_mux.log",
+        "sha256": "6901854bdf8ec062ded93ab854bb708ca0d82068230da37db64a382ff4610301"
+      },
+      "tb_ooo_data_word_cache": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_data_word_cache.log",
+        "sha256": "5126d71b3d96202c64a84e07784ba55a7c779b241ce581b8ef27a2e36a637e60"
+      },
+      "tb_ooo_direct_branch_resolve_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_direct_branch_resolve_gate.log",
+        "sha256": "20ecd5249f25e69e04492e99c8cdaa4b69fd301b7db44587d64ffa420da04116"
+      },
+      "tb_ooo_direct_branch_wait_buffer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_direct_branch_wait_buffer.log",
+        "sha256": "e73e903de0cc52830c896ef8a24f69838e1b7cdcc206907ea79d6bf143954526"
+      },
+      "tb_ooo_direct_ras_candidate_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_direct_ras_candidate_gate.log",
+        "sha256": "1f00cd28c726cbef1ce4de49fba771172d0480316afd385857f283f147897806"
+      },
+      "tb_ooo_dispatch_backend": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_dispatch_backend.log",
+        "sha256": "fbe5bec46aa525a58685ca5496692658a9af38afc4eb2db0d1f44be6a3aec9de"
+      },
+      "tb_ooo_dual_memory_sustained_issue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_dual_memory_sustained_issue.log",
+        "sha256": "6cb127d2861188b2e486017e01db49c98b6f4c819ac1c3c8115f4ca13a99c2dd"
+      },
+      "tb_ooo_fetch_access_footprint": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_access_footprint.log",
+        "sha256": "6ad72fe523244eb257b3bb41bd032977edf352b5d504022cee98c2ece7dd5fb1"
+      },
+      "tb_ooo_fetch_axi_access_attrs": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_axi_access_attrs.log",
+        "sha256": "1d768d5bd19d5e2018f833a410fbc646388008fc81e0f827fc4a2e0d027bb246"
+      },
+      "tb_ooo_fetch_axi_bridge": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge.log",
+        "sha256": "2133397e757231beeb11d284f6591cfd9bf2b55f8f930076e9c42ff0a239ac45"
+      },
+      "tb_ooo_fetch_axi_bridge_xbar": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge_xbar.log",
+        "sha256": "d6737fce9ddd5f263611c1f1501b45829ab9e46e47a0de844b60c33ef016ea35"
+      },
+      "tb_ooo_fetch_branch_target": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_branch_target.log",
+        "sha256": "989cf7b3672dcb84d7b2f10eae53b9de5fd84f924733279fdacf767b3aa215df"
+      },
+      "tb_ooo_fetch_flow_control": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_flow_control.log",
+        "sha256": "fb63f8bd6e14ddfe4b7edc2071ac3959e05010a298ed4c7fc3a8d5649d6aba58"
+      },
+      "tb_ooo_fetch_head_classify_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_head_classify_gate.log",
+        "sha256": "7e09e8e13275e3a57592e613bcd3fed8a27667504b51d1015a20b54b62ff520d"
+      },
+      "tb_ooo_fetch_head_pair_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_head_pair_gate.log",
+        "sha256": "29ad75254f6c7063e8f88a9558c61d113ba6002f47e79d00e3f1da013ef7b553"
+      },
+      "tb_ooo_fetch_packet_cache": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_cache.log",
+        "sha256": "adcd6b828fa682934ad38faf543ae6b2cae68daf97dfcfb20b94838024d3f56c"
+      },
+      "tb_ooo_fetch_packet_decode": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_decode.log",
+        "sha256": "7e1b1703a38fc28c6d2eb9740e12924fd557ed05dc66081e5cf99f5022658111"
+      },
+      "tb_ooo_fetch_packet_fifo": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_fifo.log",
+        "sha256": "7bb93e63d20ae63fc727307687286263696834a6786fd82de99b696b8252b3a9"
+      },
+      "tb_ooo_fetch_packet_head_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_head_mux.log",
+        "sha256": "ee21f8343793113ebcb2dec8248e7df8fb666afda14f48f99164a00d9cb9b4bc"
+      },
+      "tb_ooo_fetch_packet_seed_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_seed_mux.log",
+        "sha256": "a8dbf38e6780ed31c2150228bf8a31654d43fa9fd8a7a391dda7074a35f6376b"
+      },
+      "tb_ooo_fetch_page_end_fault": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_page_end_fault.log",
+        "sha256": "16bcef616520dd4c12c32099d4278cee2570fc380cd386b251158045b726e974"
+      },
+      "tb_ooo_fetch_pc_outstanding_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_pc_outstanding_sequencer.log",
+        "sha256": "7c81a563ea60f82da619ebd7caa04f8787de7f61d5ca2ca390ae152fcc856da5"
+      },
+      "tb_ooo_fetch_request_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_request_mux.log",
+        "sha256": "41ae0466ba574c23af10f7a26f7a436ca83766dd7e34a2784041c5203dc81965"
+      },
+      "tb_ooo_fetch_static_classify": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_static_classify.log",
+        "sha256": "81e692b9cc58e359145d13e6f2cba2ab8c082ebe30671bf9e588a3aeee96e3d0"
+      },
+      "tb_ooo_fetch_trap_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_trap_gate.log",
+        "sha256": "03d6f4073c2a250a3b470b4f3847cb5d8e1aeb0cac63a2e37ba38e140356eb61"
+      },
+      "tb_ooo_fp_arith_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_arith_gate.log",
+        "sha256": "4676fb95cc085e9cffddfff8fc00eb2e7ae6fc5505438f92e2dff79dfdaca8ff"
+      },
+      "tb_ooo_fp_classify_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_classify_gate.log",
+        "sha256": "d6dbd93bba397cdc754f046f54527a8e29715786a1e83e932332bb43bb5b3f76"
+      },
+      "tb_ooo_fp_compare_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_compare_gate.log",
+        "sha256": "5bd7e3e106c64137d3521b464b686320c6d5d480b72bf3c7b16a8fce7451f72f"
+      },
+      "tb_ooo_fp_convert_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_convert_gate.log",
+        "sha256": "a44a9e7e9ff26f94af7271834c2f503211cf4cd8cb6f8781681db4105a00e4fa"
+      },
+      "tb_ooo_fp_issue_queue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_issue_queue.log",
+        "sha256": "14b210dc258fd71574c9d212ad087c37576f2d812bf0461d75660e369d14af60"
+      },
+      "tb_ooo_fp_iter": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_iter.log",
+        "sha256": "3ff9e69f1ce22ca073c4ee2fae5e33ae9d3eb7eabe9637e1b149179b6e61bfdc"
+      },
+      "tb_ooo_fp_legality_dispatch_path": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_legality_dispatch_path.log",
+        "sha256": "34d4628bcfcc7155b39d7c2cfda43ce6f3bd3f6a1e3bd161ab72f826e9b92860"
+      },
+      "tb_ooo_fp_long_op_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_long_op_gate.log",
+        "sha256": "be73ae3aae08ccac0140a3eadadeb7b784a0d3d306e32c6d60ea5d20cfbdaeb1"
+      },
+      "tb_ooo_fp_phys_reg_file": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_phys_reg_file.log",
+        "sha256": "e8873135f92b2ee403f8155100c641e568b2b866487a5875587c4bab9e56ad4f"
+      },
+      "tb_ooo_fp_reg_file": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_reg_file.log",
+        "sha256": "f8c6f417c32d145ad1121ec157839b3a0f9efe78bdaa5e71ebbb3f9415437b4b"
+      },
+      "tb_ooo_fp_sgnj_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_fp_sgnj_gate.log",
+        "sha256": "7c00ccf2ab8836c840f9721efed8a1a39880a810b6c01cd7118dfe00698d336e"
+      },
+      "tb_ooo_free_list": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_free_list.log",
+        "sha256": "ee8a720554415563ad8f744d4e7862d722fcc0761118af43c9417044ebad833f"
+      },
+      "tb_ooo_frontend_action_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_frontend_action_gate.log",
+        "sha256": "e8bb64911feb459dadfa03dbdab8457688b17f4774afa2a64bcb331f010ee1b0"
+      },
+      "tb_ooo_frontend_backend_dispatch_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_frontend_backend_dispatch_mux.log",
+        "sha256": "4c7bc4b93cb20135018d5a4057210ed95a95f9b22d61041367ceadc15d9d5ae6"
+      },
+      "tb_ooo_frontend_dispatch_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_frontend_dispatch_gate.log",
+        "sha256": "91157eb062fc5238d5a57fd49a9ad80934bebdb7f5c9f467a16112e5596ed097"
+      },
+      "tb_ooo_frontend_run_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_frontend_run_gate.log",
+        "sha256": "d0f24920225ad4bb5a407656a9f52f99bc775942a12f5a121eeb2d66eb0b60a2"
+      },
+      "tb_ooo_frontend_uop_safety": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_frontend_uop_safety.log",
+        "sha256": "bc66d6ff814f99b8ab1182b7e9f60b19851a5f78acc4ff266e9775e0c2ca0260"
+      },
+      "tb_ooo_ifu_lane1_fault_owner": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_ifu_lane1_fault_owner.log",
+        "sha256": "d00b939a4ec602d7dd804bb1c6db71e1e0ea506e7b51a4454cc6f6cbe3342140"
+      },
+      "tb_ooo_int_backend": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_int_backend.log",
+        "sha256": "56e9c48d27aff12a675f380b8e3d6455056ea8a6de04ae547f102a078d51356e"
+      },
+      "tb_ooo_int_issue_queue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_int_issue_queue.log",
+        "sha256": "b1a09aaeba090476c0cf5816099a23df113c9c6ed69f989f867515c265f85d88"
+      },
+      "tb_ooo_load_queue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_load_queue.log",
+        "sha256": "21600c1f503ddf3de1fca41e720348bbef0bb4dc8e5e4608fed3297fc1a7f42f"
+      },
+      "tb_ooo_lsu_axi_lane_adapter": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_lsu_axi_lane_adapter.log",
+        "sha256": "ed28d22c3ac17f61dbb4faf635e5e69c41a09903c7653d4032ef418a7503d728"
+      },
+      "tb_ooo_mem_axi_bridge": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_mem_axi_bridge.log",
+        "sha256": "468e0e27703398578773a28004d6e1f4c3645f3c0fb65c4634c9d189f9e277d0"
+      },
+      "tb_ooo_mem_inflight_queue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_mem_inflight_queue.log",
+        "sha256": "5f53a968c749d81f257290a79824017d30438e5f9890279795a1d4e479e4603f"
+      },
+      "tb_ooo_mem_owner_terminal_collector": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_terminal_collector.log",
+        "sha256": "e7f9a0fb2dca8a1d14241922fd31d8ded069cc659bb6993c31b5b2408b434b53"
+      },
+      "tb_ooo_mem_owner_tracker": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_tracker.log",
+        "sha256": "142f30fef1131f31dbf9f0f2085d0b5fdcee794080eae0500442b698c766ac21"
+      },
+      "tb_ooo_memory_request_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_memory_request_gate.log",
+        "sha256": "4aa38e495d8f9fd145471ca2ba8d90118b0fde9cd64547b5f40b1ac6bb38e934"
+      },
+      "tb_ooo_mmu_epoch_owner": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_mmu_epoch_owner.log",
+        "sha256": "b5060f9c313d3193447ae813c0dc53502dc60fc42e318bbedbdfe7736b770c05"
+      },
+      "tb_ooo_muldiv_unit": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_muldiv_unit.log",
+        "sha256": "c51ecc4e84def06e5728623f008cf3c191ba5192484e465cfcb3cbeb753c6391"
+      },
+      "tb_ooo_pending_dispatch_arbiter": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_dispatch_arbiter.log",
+        "sha256": "789902e85ad05395de22fdf47742c8eaa01c6e4b0912b93dfc5cdbafdb3d15a7"
+      },
+      "tb_ooo_pending_drain_resolve_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_drain_resolve_gate.log",
+        "sha256": "71560c9c98aa524f2b716d38d4bba04baae0e0e0c14368fdc859310f4f788d8f"
+      },
+      "tb_ooo_pending_lane1_capture_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_lane1_capture_gate.log",
+        "sha256": "92d4eb74af5bb2496b5198e66c97381e60f1ec9d60a246cab7809fc964682929"
+      },
+      "tb_ooo_pending_system_admission_cancel_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_system_admission_cancel_gate.log",
+        "sha256": "f98cf3c275afc8777ca66a1c9061ea91cf1ca9ce63cf74ad7d5d56fffa33fa89"
+      },
+      "tb_ooo_pending_system_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_system_sequencer.log",
+        "sha256": "5a4d45b2a4628ac0078a35c9c742122d120ce964f0f02bc1569fc22a27dfc919"
+      },
+      "tb_ooo_pending_trap_exit_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pending_trap_exit_sequencer.log",
+        "sha256": "b05f0b1e95ad70959cdf8c5f4180e21744237c1e7b67c817df8497e0d4fb8494"
+      },
+      "tb_ooo_phys_reg_file": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_phys_reg_file.log",
+        "sha256": "12e61218cb01280cb1b1e2d6272db59b4504b391b026f0c4549efccf8962aac4"
+      },
+      "tb_ooo_pma_checker": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_pma_checker.log",
+        "sha256": "6ef19bcc597270d50225426740b49451c0a21a30f2f899b372103a55dd5fba59"
+      },
+      "tb_ooo_priv_system": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
+        "sha256": "b90003ac27818cffc34a84d34ddf9ad206892629e90b8f87c63f98e61e8c5dce"
+      },
+      "tb_ooo_ras_update_gate": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_ras_update_gate.log",
+        "sha256": "818c623b3ab731d3a302a57a74008675d2d7719f65defb42f877dbac85684435"
+      },
+      "tb_ooo_redirect_arbiter": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_redirect_arbiter.log",
+        "sha256": "662a7ab1cff5c36debd6cd09fcf96285870c1a41b9bd56e1b5aa51a8bc782508"
+      },
+      "tb_ooo_rename_map": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_rename_map.log",
+        "sha256": "f7df81ac1b1b18729b825a6a4bce88f16828784e228821bff33e921b1f287491"
+      },
+      "tb_ooo_rob": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_rob.log",
+        "sha256": "6da4c878c2ecd4ee1b7e7aa05cfdaefd02bb122ce46f24d0626d55b855e172d6"
+      },
+      "tb_ooo_stop_pending_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_stop_pending_sequencer.log",
+        "sha256": "36104c31246e4fad5fd6b3c656e6749097e7ddf881466773e9d0a01cf53f43a4"
+      },
+      "tb_ooo_store_queue": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_store_queue.log",
+        "sha256": "ae9a8e27d8b93ebcbf6fe4d9b61e9cfd01bd590a4f003ad62046312d2c83e0fa"
+      },
+      "tb_ooo_sv39_boot": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_sv39_boot.log",
+        "sha256": "e15ead161a504c4e1ee826358d43e9d6c8844148157fad740d6e3c1ad265e9c4"
+      },
+      "tb_ooo_trap_exit_event_mux": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_trap_exit_event_mux.log",
+        "sha256": "10c703551ced3060ac1d24c412fd72c14d0757f174716f12d17b0dd537178253"
+      },
+      "tb_ooo_trap_exit_output_sequencer": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_trap_exit_output_sequencer.log",
+        "sha256": "ce2bd6f9a6bf2022128f02d36e290bfbc21699a94b44063fe9359e346991d170"
+      },
+      "tb_ooo_typed_memory_classifier": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_ooo_typed_memory_classifier.log",
+        "sha256": "f89f20aaba0d1c15d7588bef88fff01851c2b60405b8398c0567c318c4a59128"
+      },
+      "tb_pipe_stage_reg": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_pipe_stage_reg.log",
+        "sha256": "12ce2a4899414eacdd0955550758bfdda1fbb7ee998bb7ee3463e2df9aa63338"
+      },
+      "tb_pmp_checker": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_pmp_checker.log",
+        "sha256": "c358d4012f9c8087a2df224505880745d052d6924a75bcdb023f60b73fb7b4d9"
+      },
+      "tb_uart": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_uart.log",
+        "sha256": "63b934513063b05b38ed2957d0e148addbc385717ba983e3cc8e08b63147c9d3"
+      },
+      "tb_wbu": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/logs/tb_wbu.log",
+        "sha256": "861ba9e556d37a1d34de17a74f04c12426f1798ba18eba48061dcbf43311cac8"
+      }
+    }
+  },
+  "provenance": {
+    "files": {
+      "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
+      "npc/rv64/vsrc/bus/AxiDefaultSlave.v": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e",
+      "npc/rv64/vsrc/bus/AxiPlic.v": "3141814d0a81d52556d193ef8c23facb7926a88dbd804cb9f312538b5897fa92",
+      "npc/rv64/vsrc/bus/AxiResetSyscon.v": "0d9a7c52814ab6d848f558d578db416820cb2f92ed5fa18b4f4c92484f939a95",
+      "npc/rv64/vsrc/bus/AxiToUart.v": "f2688a3f5e0d090de679619381ce234f870eba195ec7c718350fe242eaa3bf33",
+      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v": "e131fc07ec3b0a099aa9d8983f72e38e5a92652796e224f82d8245dc6b0f6612",
+      "npc/rv64/vsrc/bus/Uart.v": "51c13d4a53f543b3dd53b075b123d1980b671ff5ddd6a56c5913609ec283d161",
+      "npc/rv64/vsrc/cache/OooDataWordCache.v": "50ee1121c91ec92bcc8c53b1bbb9715ca719c3181b403c1944c3634f7653c57d",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh": "a10b3b63f22385d870db3bb579665b98540e636aa0c907d6373ee7b80a1d7b7b",
+      "npc/rv64/vsrc/common/OooDataWordCacheFacts.vh": "60826e7d9c05109f1750f65ee0286383ba34cc14ebe802bb5b1d7090ac6d6536",
+      "npc/rv64/vsrc/common/OooFetchPacketCacheFacts.vh": "b9c04129d3669f7a5e07ee043ed2690fe64e500c5eaf186ebc2ee42517a9df9c",
+      "npc/rv64/vsrc/common/OooRedirectMuxFacts.vh": "8850e83091f872a7ad42c9e79c90a116051524cc5225d0cd598060facc86fb3a",
+      "npc/rv64/vsrc/common/OooRedirectSeqFacts.vh": "3dc4de370b9af7978da5a0dab35653ba78db6520c2871cfa6c00a240a3e3b873",
+      "npc/rv64/vsrc/common/OooSlotFacts.v": "9e57f514234340a93943bbaea8504b4bb6f9d57d9ef8bc20121fb6575613163a",
+      "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
+      "npc/rv64/vsrc/control/OooControlPlane.v": "27164d406d120a650378819356dae6e12ba294b5b440f0b50cf8999174fa5ad1",
+      "npc/rv64/vsrc/control/OooCoreObservableOutputGate.v": "3c3aeafabfbf8a2bc6821173f0a19826b44645699c7d34c4da4e0ad561428bfb",
+      "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+      "npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v": "5007f5970858cdf3baf0e6f29c44a6c8e7bb4e926a3888c510d1b2f1d389d7af",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "3d1a9e2b712b15c1af7247ba5d4863e23e38e0136af28af837a42acf61a5a6a8",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "6be380f766d03dfffbbe970b696226c14fd6eea4c6d741b491108c760be108b6",
+      "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "dcb9618c7b1b71059c9717efff851419a721fb9326e96ec50bca79cbd6e4b209",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "be0e2810faf76a95d4ab5e9638d1b8b8f4182fdd23a1f0d160411539e5a12a9f",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v": "11a2173e1a3a81dc0f9233abb6ad03fc32e65dd46cb05816af4421ca4f5e043d",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "1f49276a62b3c8c06e1f2e51351dc837300a9822eb1c05d120fb0ae72b4059f9",
+      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "177e232cbf04e47721b34f9ae329b8d6448d2b34169520079d9f12a78c0b8a75",
+      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "af8bf333c2dee7928790b30eae4562e7c57c91cdc10014f9db557e073f411244",
+      "npc/rv64/vsrc/core/CsrFile.v": "58c3976ec3af3f65b6bb6111f35733163d752aec03da8370e799dc594c5bb4ac",
+      "npc/rv64/vsrc/core/NpcCoreTop.v": "61d2698b9b26cdc20c82df122998e85f975ba2a2bc3a94305e378dfe508a3780",
+      "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+      "npc/rv64/vsrc/debug/OooAdUpdateChecker.sv": "3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv": "c8b76d3d8abf32cfef2516a0024e2ba6f3d9306526ab3382e438b021982d09d4",
+      "npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv": "ecbcf80612859aa41a6da8bf50a4cfbc55d2ddf785c21071e014244bfb9e4d38",
+      "npc/rv64/vsrc/debug/OooFetchPacketCacheChecker.sv": "bef729e4c65bd64849ae8b03773b219f6ff7dcf2aeaa05e76cf8450b9392946b",
+      "npc/rv64/vsrc/debug/OooRedirectMuxChecker.sv": "b913c172c6f947b78dada257c514ce0b2cd8199abb1958f39e8b143aafef2a07",
+      "npc/rv64/vsrc/debug/OooRedirectSeqChecker.sv": "556431f1af21ff7666cc1cae7c752e0864b8627da9e48858755d3618184f0fee",
+      "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
+      "npc/rv64/vsrc/decode/DecodeUnit.v": "a457a7b1fe65e528295de35c5107fa26f2bcf501c2a71af064517224c58ab763",
+      "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "d0f5a67a387fea21467ece2ec6e85d9681f630a234768bfbd28983a22d385782",
+      "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
+      "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
+      "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "6fbe537299012c649c354abe5c071996b21549e862ea079a85efe103e2af39d8",
+      "npc/rv64/vsrc/execute/OooAmoGate.v": "6a1f7818864646f390bd3d69b21d8aa97252abfabcb3ec4cdf8f02a60229eebb",
+      "npc/rv64/vsrc/execute/OooBitmanipGate.v": "441a38dc7e70ac2768d613fdb5558be6d946faa3118b6bc601e7a6b2f6c47e19",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "a1a176d4e82f34e76bf660292e678d7893af7d6fdec976e2069aabbdd2c8f1c4",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+      "npc/rv64/vsrc/execute/OooFpBackend.v": "da645814642100ccf2f3eea316ba0054204a21bdc3c8fde1362a055755ae7405",
+      "npc/rv64/vsrc/execute/OooFpClassifyGate.v": "a9c9ae843b0455ac9b9f13effcc3f28aa60277131f58612511caa3728f5ef015",
+      "npc/rv64/vsrc/execute/OooFpCompareGate.v": "fb4fa579a599351254a678bf6ef01dd771687198ac6f16199ab688dc2765a415",
+      "npc/rv64/vsrc/execute/OooFpConvertGate.v": "ae4054063ff55a459025fee6b4f4a126d165b4474d6e9add0b824717ecee1130",
+      "npc/rv64/vsrc/execute/OooFpDivIter.v": "5c587092c26723e9274bcb2bd68ba095df64a08ec012e938e80fea3b1a35f7fd",
+      "npc/rv64/vsrc/execute/OooFpLongOpGate.v": "d6fe771a370eda94530a1a1c80606d6438fa3551d3c04f3db6b0e560d9b6f36e",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v": "a44822188a46413423be239e59da7ea6ab99b2b782ba82c4994911e5d205743b",
+      "npc/rv64/vsrc/execute/OooFpRound.v": "030ced9ded4ea32062dd9b72e178d6bbbb5ef256b3f7c0a3e278995256a27ce2",
+      "npc/rv64/vsrc/execute/OooFpSgnjGate.v": "8557cc364a19060f6cc09d413c24ef71d153b2bb20237b5bc34fb901b822451a",
+      "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+      "npc/rv64/vsrc/filelist.mk": "09ead7701e1ffd3316990563a53e29f5cb2d0c2f2b8db5c385f0f50370bd000e",
+      "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
+      "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v": "d6aa4a2399326d9d33697c047fe98748000ac5a65beac1dc242d714cecfb8e52",
+      "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": "0b5fbda1c3bfa9b359ba741cca1c8f12c21761033d2caec7357fe67578b6d5e6",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v": "698b45f446b734361e8965fbad9e1155035a205e8d3b606ce6b278847cbe8997",
+      "npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v": "bbea9d11a23b7e2e71d9ecd3dbdf0797532e8d67e1f634e0f2cc3766c96fc1ee",
+      "npc/rv64/vsrc/frontend/OooBranchSpecTracker.v": "886a2441bf806be45d66115ee3eac71ec6bf5897258aa3d269711b0eea48ed09",
+      "npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v": "eccc6fc2c0be6fb6185f615496bcddc1137e77f06f7f11549117a4a741f75896",
+      "npc/rv64/vsrc/frontend/OooDirectBranchWaitBuffer.v": "0270fcf008a58365f0f7bd4d3696f1aa6d4b0f3bb01cded71c9fbae0ad7f5f1f",
+      "npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v": "ede708d61c702ad2acfa1c9534566fd04284ce769dd1a5f212cd498320bf8832",
+      "npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v": "d545177373ac236156a809e1c3ad22073f6a303045a992ff66114b21d44276a9",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+      "npc/rv64/vsrc/frontend/OooFetchBranchTarget.v": "2acc4f1bc1419258c93cda3e5e1675469129b8226dc78d01b51e7ae8fa39a5d8",
+      "npc/rv64/vsrc/frontend/OooFetchFlowControl.v": "07effbab2a23d0404a008fc5bb934cdd38937a5e6d7266703479738db80f4fdf",
+      "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v": "f2a031de673ed9ed6b420fc28388d73a8f4c4225eaa9c3534938a3cd361fc441",
+      "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v": "576c6ee990e7699d01be6aab0238b6f98b37db8396b35f569bf7a14371523cf9",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+      "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+      "npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v": "93c84e24585c8a17be66f2ec9fef4ee3005200e3d3300b87c5e93661256ca014",
+      "npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v": "640ab3e7e0c7c985cc118210f875e2d03ae9692e9231ae4ead191befd8f18257",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
+      "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
+      "npc/rv64/vsrc/frontend/OooFetchStaticClassify.v": "1b8a4e3f1a06d69af1d3277f3a009520d94587bb9a4f8bcb06e434bbfbbf316a",
+      "npc/rv64/vsrc/frontend/OooFrontend.v": "b5da5c2e457a87f09658ef4ca0c45900f506ed166517885e6c908efff365d145",
+      "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "370955a89b63b00beaf41fa18f420eba631891fc09745defcb318f43aa5f8ff1",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
+      "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": "89de85b5302b8a54427b754c0398065c2c02d8c5baddbf85942ab68ad8f61da3",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v": "f58b0944cc55f94cb6d1268b20bbf6300e77599372a246d17c0c68bffde7c7b9",
+      "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
+      "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
+      "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
+      "npc/rv64/vsrc/include/define.v": "716a55332c1bfbcaaa0d9998594179eeb504be73af55a07651f16344531cec6a",
+      "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
+      "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
+      "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "bd9fb52cbbd2e241ad533f5dc018345dd2dd6ea8c51ceb470bc7f07b739eb308",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": "6d17aafb3bf780f936522f4fb1a9035019596f4749bfc8f8a364e88972283deb",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "737b977f16787c911d551d87a2b809793ec379efa5e77a01de3ff463ed3b6323",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "be48ff513dcccbd5ea2dd7c15ac83832289753bf706c1efbeda6b4833807556c",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "e3b95e977eb11e183adb7209c09741c3d4ee76cc8e606e1ec210843c13f7276d",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
+      "npc/rv64/vsrc/memory/OooMmuEpochOwner.v": "234b1f9687a62fead9ff7647527ff5344a3b53fee9633d44917162403e501b8a",
+      "npc/rv64/vsrc/memory/OooPmaChecker.v": "e197b137bfe1126f9191eaf3b2cfce779d26bdce0ead4a94d831552fe5732c2b",
+      "npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v": "717edd10049be5a00edb8f100fff59a1577704eb81564619bea4f262837553b9",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+      "npc/rv64/vsrc/memory/OooSv39Tlb.v": "5f94c50b5932aab0318541bbbf8421330e09e622716202cd16ed752c80380c8f",
+      "npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v": "aa573507b2ec3b76053470784a9d303b63eee5c9716807daada3f9a51c742649",
+      "npc/rv64/vsrc/memory/OooTypedPmaChecker.v": "ce644709dd4bfa8d2710fc4e32dea24b660ab24f55d745552ab5aebd09263de0",
+      "npc/rv64/vsrc/memory/PmpChecker.v": "f4600c320b03f0ffd3bcdff9336bcea2a17580fa7b8752da18d7db35956da4c2",
+      "npc/rv64/vsrc/pipeline/PipeStageReg.v": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+      "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v": "7237911b33f9b0992d9fc32529505be27ac246f527f57d3b8d656baaf87275f0",
+      "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v": "9975f068f1d455c61b586966390ec2fa2126cc8127e5a964e8ff9c4041f65cfa",
+      "npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v": "2a4fe71712f06658a84f53b57f1fa7113e373a92d610fb31dcb456b442d3e7fe",
+      "npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v": "0eba2c376365d13b2843092835ad76d0d74695aeb95be4cd4417d678d0a5a082",
+      "npc/rv64/vsrc/rename_allocate/OooBusyTable.v": "44dc6289103ee615b9d3e6f61acbfb9404a0329a649fd9a6f0f89829ace0fc12",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+      "npc/rv64/vsrc/rename_allocate/OooFreeList.v": "4946e8070db1c5243c412610790cbcddbaee08c3402847e509d02fe1237b9c58",
+      "npc/rv64/vsrc/rename_allocate/OooRenameMap.v": "1a2d2abd94ea4dee8fb4d850820e853aa50041408b8c0d847a25eb029b794789",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
+      "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "4755035bd0df31c17ac21f77435f5bc6619ae426971edde50dded355af82b5d1",
+      "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
+      "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
+      "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
+      "npc/rv64/vsrc/writeback/OooCommitOutputMux.v": "4462a7e82191f68cd5bdcfe41ed8cb0b0518ad77c7555c993d1e43043550b530",
+      "npc/rv64/vsrc/writeback/OooControlCommitSequencer.v": "6ccb759e876f148d851c7b0516ee9338435577c33f86edfbf34816897b559fb9",
+      "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90",
+      "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
+      "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
+    },
+    "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+    "source_bindings": {
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/contract.md": "55e831d2baf464793af0f9e5032b229136e5d9af59be806a2967a5b226bc7493",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/review-summary.md": "a3e01c23b8e53c86414dd00559ffa73af2b20576c914192568ecd25bcebf2837",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/rtl-derivation.md": "5c7dc128716c03fe305b3669953a651570e1e5affd28a2633466bdd4c5346718",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/run-focused.sh": "3b68a543da00aeade013b53cc2a636d7df7d79d4c6c41812d094e2aab01346fc",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/run-ifu-fetch-variants.py": "130b50a831b440052908663d582d91e9111ea794fc1efe94a674cf6bf329c75a",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/subagent-contracts/v9h-ifu-fetch-coverage-review-v1.json": "56131842668db89a8dfba444af10e85c234465088bc2ebb86e6b859225ffe3af",
+      "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md": "e7ec053322de2af126c43e8f45c78fca3b126fe121e0ae1a0917ead29ea49a87",
+      "npc/rv64/eval/ppa/tests/test_ifu_fetch_provenance_evidence.py": "631d4dd02850d00ed0f7ba5b618fd8fe2137cc28c7ae038f81cf9aac7b6dd0e3",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "2b91ee789a0bf59762a545be7f9cee3c5bff1608af90f40c5288684d02198231",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+      "npc/rv64/eval/ppa/tools/ifu_fetch_provenance_evidence.py": "ecd7744b6baea0c9f0a16ac0fc060f13767592db8ccd73c9bb50c8ffbdd43e71",
+      "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+      "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+      "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py": "a6a825b36a6913560e3d64f570db8080336d5378aec1bfd8bedb871cf7b96a6f",
+      "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv": "09f6a10c4217875975b901ce9ea3d4d3114f1be82befc614946d370a189e1501",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv": "48a8128a093804836e68a0cf72730295731eb1f71443cbf73b6b723a6ec8e6e5",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94"
+    }
+  },
+  "schema": "npc-rv64-ifu-fetch-provenance-evidence-v1",
+  "scope": "local RV64 fetch bridge to packet decoder first-failing-halfword byte provenance for page faults",
+  "static_audit": {
+    "bridge_cache_fill_requires_complete_non_cross_packet": true,
+    "bridge_halfword_lane_two_is_exact": true,
+    "bridge_new_transaction_clears_packet_scratch": true,
+    "bridge_registered_frontier_output": true,
+    "decode_tb_f0_is_explicit": true,
+    "decode_tb_fault_tail_poison_is_explicit": true,
+    "decoder_slot0_full_range_sanitizes": true,
+    "decoder_slot1_effective_range_sanitizes": true,
+    "decoder_slot1_start_uses_slot0_length": true,
+    "decoder_uses_strict_half_open_end_boundary": true,
+    "page_tb_bridge_f0_is_reachable": true,
+    "page_tb_independent_frontier_reference": true,
+    "page_tb_independent_page_boundary_reference": true,
+    "page_tb_positive_monitor_is_non_vacuous": true,
+    "page_tb_post_accept_quiet_is_explicit": true,
+    "page_tb_stale_prefill_is_no_reset": true
+  },
+  "status": "PASS",
+  "suite_run_id": "2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design",
+  "variant_audit": {
+    "by_source": {
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+        "compile_success": 8,
+        "dynamic_rejected": 8,
+        "required": 8
+      },
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": {
+        "compile_success": 8,
+        "dynamic_rejected": 8,
+        "required": 8
+      }
+    },
+    "compile_success": 16,
+    "dynamic_rejected": 16,
+    "required": 16,
+    "results": [
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "fault frontier immediately blocks younger AR",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_continues_after_invalid_pte_frontier.log",
+          "sha256": "e5603c245157889aba38ddbfe941db2f66a24dfa3696727e726333119dc179fd"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_continues_after_invalid_pte_frontier",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Continue to an instruction address owner after an invalid PTE instead of closing the fetch transaction at its fault frontier.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "fac9f95a4cd44e7046b42f3ee50d42dfe158a19eecb1172264244fe2970e60e5"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "fault transaction emits no cache fill",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_fills_partial_packet_before_fault_closure.log",
+          "sha256": "a5e7ddf78a32aa034a4462b096effdb5a2321a69d659cf7a8ddd9f14757f382e"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_fills_partial_packet_before_fault_closure",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Write the packet cache after any successful instruction halfword instead of only after a complete non-cross-page packet.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "a9ea73ccb2440d5a716820b4cac888fdc4939a244a294a07899e8493046efafe"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "raw resp0_bytes is exact F=2/4/6",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_invalid_pte_records_word_split.log",
+          "sha256": "268e8b2176536e56ac4d669421a7268a2bdd136f5807da0e7d15d2556c522470"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_invalid_pte_records_word_split",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Record a four-byte word boundary instead of the exact accepted halfword frontier when the second-page PTE is invalid.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "89556c0c1f31994055e9433433fa651391d66132ac82dea28727ca8b98ff2d8b"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "successful raw prefix retained",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_misplaces_second_halfword_lane.log",
+          "sha256": "b128e153fa9bb265e1b7af225e899a6522aa564542e07e121e4c30154189d105"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_misplaces_second_halfword_lane",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Insert the packet byte-offset-two halfword into the byte-offset-four lane, breaking independently patterned prefix provenance.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "1b7afc00eb6c6b0edc81fa0e291bb28a89b7a4b9d4259166acf8d51cbb805af7"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "raw resp0_bytes is exact F=2/4/6",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_output_forgets_fault_frontier.log",
+          "sha256": "268e8b2176536e56ac4d669421a7268a2bdd136f5807da0e7d15d2556c522470"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_output_forgets_fault_frontier",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Replace the registered first-failing-halfword frontier with a constant four-byte split at the bridge response interface.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "b959187c446b254fa952180c5d5c81b7992baeb7160228d035036e3e6c49bd13"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 FFA 32+32 response arrives",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_releases_fault_response_without_ready.log",
+          "sha256": "2dd4de6866107a926de5174f7804a02f9410060ca3144e2519a9d8d0b3312856"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_releases_fault_response_without_ready",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Release the registered response owner on valid alone instead of the valid/ready handshake, dropping a backpressured fault tuple.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "20e540c489442412cddca8cdb64d8f9eb10aa3a559fed95e9d4a24d3b6aef347"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "raw instruction tail after F is zero",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_scratch_preserves_unfetched_poison.log",
+          "sha256": "a07491216bec06ba9cb8ec6313954ca4b13b557bfbb3160ff594418146d943da"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_scratch_preserves_unfetched_poison",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Preserve the preceding successful packet instead of clearing a new slow-fetch scratch register, allowing stale transaction bytes to leak into the unfetched fault suffix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "56f8a70b9ef4ed0ae2dc4cb81078496b6d5bbebe0cafdf70860414fa81a06f89"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "raw resp0_bytes is exact F=2/4/6",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/bridge_uses_live_candidate_for_fault_frontier.log",
+          "sha256": "2e42be2b7e6a85f8fd9ca8dc248a71d74e971d0540042b1c502501b1ec4b9959"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
+        "marker_observed": true,
+        "name": "bridge_uses_live_candidate_for_fault_frontier",
+        "original_sha256": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+        "purpose": "Drive the fault frontier from the continuously sampled candidate PC instead of the registered response transaction owner.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "50c7607cbad264aa26ab097dc70a36c12550ea456151cbd72649f1618a067ba3"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "fault semantic packet next uses safe prefixes",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_reads_faulted_slot0_prefix.log",
+          "sha256": "c6d3c5be6b28a5bbb8a4a239e2fa2252cf834c508aa61bdc0de689cfd725076d"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_reads_faulted_slot0_prefix",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Read raw slot0 length bits even when the slot0 prefix response is faulted instead of using the safe compressed prefix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_packet_decode",
+        "variant_sha256": "25cb25af9086e9841f8bc811d6200a313d108795eed22ab4bec619d99710eae5"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 FFE 32+C slot0 response",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_slot0_checks_only_prefix.log",
+          "sha256": "14237ed878484237db0b96ce24704bce51a05e509cec382204438160bfac5411"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_slot0_checks_only_prefix",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Use only the first halfword when assigning slot0 response, allowing a 32-bit instruction tail in the fault suffix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "01ce9cb5303eaa1952e5dd3f6835f61191779cd9c8db839c83d8e36a3c2f0b4a"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "slot0 faulted inst is NOP",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_slot0_sanitizes_only_prefix_fault.log",
+          "sha256": "b42349d309173456c09ba33ab429bb277cedc3fa07e44245cdacb4ba1b1d01b0"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_slot0_sanitizes_only_prefix_fault",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Sanitize slot0 only when its prefix faults, exposing a raw 32-bit instruction whose upper half lies in the fault suffix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "9fe7d80b4062ce9863c076e04a6e23c9bae40874c3fbfef3db0a39bc1ce0c1fb"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 FFC C+32 slot1 response",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_slot1_checks_only_prefix.log",
+          "sha256": "5d9973dc66d99146aa65214d9af2c3e73509ecf10946b1c48388ee7ab1f16da2"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_slot1_checks_only_prefix",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Use only the first halfword when assigning slot1 response, allowing a 32-bit slot1 tail in the fault suffix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "6a683c16fd7a6d850acc03953ea4788192848a684c62a2bfe4f5dcb92e647f61"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "fault-tail poison slot1 sanitized",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_slot1_sanitizes_only_prefix_fault.log",
+          "sha256": "526b348b2369894aa43775d15ab03412c813d7e9e4c3b93a59e6c2f1e8523467"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_slot1_sanitizes_only_prefix_fault",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Sanitize slot1 only when its prefix faults, exposing raw upper halfword data when the full 32-bit range crosses the frontier.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_packet_decode",
+        "variant_sha256": "f359f9e681072bc36b29d9ea1a00ca963ce419bb20ea2f47d07fc7c055964b85"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 FFC 32+C slot1 response",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_slot1_starts_at_fixed_halfword.log",
+          "sha256": "9331b0480b6317ed2b5e1d5d395857dfd5eed1af2f36e9b0a944f30c03274ce1"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_slot1_starts_at_fixed_halfword",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Ignore a 32-bit slot0 length and force slot1 byte-range ownership to start at the first two-byte boundary.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "3f752c9744417512dae0572cd8dff1187fa65ceab229c5fa662d9e5b4173a790"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 FFC 32+C slot0 response",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_treats_equal_boundary_as_fault.log",
+          "sha256": "3ac3cbc1b013783dda2f710b49bd465c8bbf9e1d39685f7532868c547c47ea05"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_treats_equal_boundary_as_fault",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Treat an instruction range ending exactly at the successful frontier as touching the second-page fault suffix.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_page_end_fault",
+        "variant_sha256": "d51b5a2b416e4bc70e2924d7c53ecf173bcada7571f16fac64863dd21b6bab00"
+      },
+      {
+        "compile_success": true,
+        "debt_id": "IFU-FETCH-G2",
+        "dynamic_rejected": true,
+        "expected_marker": "G2 F0 slot0 response",
+        "log": {
+          "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/logs/decoder_treats_zero_frontier_as_success.log",
+          "sha256": "be5d0911cb9e2f6e5079679cf38384b7a698b4c31bb945b33525c347f9970195"
+        },
+        "make_returncode": 2,
+        "make_variable": "RTL_OOO_FETCH_PACKET_DECODE",
+        "marker_observed": true,
+        "name": "decoder_treats_zero_frontier_as_success",
+        "original_sha256": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+        "purpose": "Bypass resp1 when the successful byte frontier is zero, allowing raw bytes with no successful ownership to decode.",
+        "source": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "test_name": "tb_ooo_fetch_packet_decode",
+        "variant_sha256": "1ad25243755686419cce9a92b2cbfacc2e7f221a68d6721c20da34e198f29e05"
+      }
+    ],
+    "schema": "npc-rv64-ifu-fetch-provenance-rtl-variants-v1",
+    "source_unchanged": true
+  }
+}

@@ -1,0 +1,7 @@
+node_id	status	claim
+v8i-inventory	completed	FP six-holder chain and two side-effect points identified from production RTL
+v8i-contract	completed	full PID/Q-only lease/pending owner/launch credit/raw-vs-actual/two-query claim frozen
+v8i-rtl	completed	full PID holders plus result/formal authorization and FIFO push atomic assertion implemented
+v8i-focused	completed	release/assert 5/5 plus 10 compile-success semantic mutations and reviewer counterexamples
+v8i-broad	completed	legacy focus 6/6, module 105/105, static/style/contract PASS, lint unchanged, architecture explicit RED
+v8i-closeout	completed	reviewer result, memory/DB/evidence index, npc-dev, agent-system and strict guard recorded

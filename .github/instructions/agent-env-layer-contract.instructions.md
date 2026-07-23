@@ -27,7 +27,7 @@
 - 真实入口：`.github/agents/*.agent.md`、`ysyx-coordinator` 图任务模型、`agent-system` 架构 agent、`.github/ai-env/contracts/agent-env-policy.json`、`.github/ai-env/contracts/agent-env-review-routing.json`、`.github/ai-env/contracts/agent-env-branch-health.json`、`.github/ai-env/contracts/agent-env-observability.json`、`.github/ai-env/contracts/agent-env-state-traceability.json`、`.github/ai-env/contracts/agent-env-delivery.json`、`scripts/package-ai-dev-env.sh`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`。
 - 保存对象：角色边界、调度图、review routing、branch-health dashboard、observability contract、state traceback contract、delivery contract、e2e profile、自动检查节点、task-run 证据包和商业交付包。
 - 文件语义：Agent 负责把用户目标映射成图节点并收口验证；每个跨层任务至少留下 profile resolve、task report、dispatch log 或等价证据；权限、MCP、retention、CI/nightly 规则由 `.github/ai-env/contracts/agent-env-policy.json` 统一声明。
-- 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小权限边界，并由 `agent-system` 的 `rtl-task-contract` 节点执行正反例门禁；平台 review 只隔离当前节点。
+- 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小权限边界，并由 `agent-system` 的 `rtl-task-contract` 节点验证能力不变的 `rv64-hardware-professional` 语境渲染；该层不使用关键词黑名单，协调状态留在主 agent 记录中，平台 review 只隔离当前节点。
 - 不承担职责：不绕过 Database 写回事实；不把 Skill 内容复制进每个 agent profile；不让单个 profile 承担所有维护逻辑。
 
 ## 维护闭环

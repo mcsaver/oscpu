@@ -1341,11 +1341,42 @@ except (
 PY
 }
 
+e2e_refresh_live_index_for_recall() {
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 1
+  [[ -n ${E2E_EVIDENCE_DIR:-} && -d $E2E_EVIDENCE_DIR && ! -L $E2E_EVIDENCE_DIR ]] || return 1
+
+  local refresh_log temp_log rc
+  refresh_log="$E2E_EVIDENCE_DIR/context-live-index-refresh.log"
+  temp_log="${refresh_log}.tmp"
+  rm -f -- "$temp_log"
+
+  # brief/resolve-profile 的 live-first 指索引中的 live 快照。每轮 dispatch 前
+  # 重建一次索引，防止本轮刚修改的 skill/instruction/profile 仍被旧 chunk 命中。
+  # retained memory/task-run 由 DB-first 接口读取；archive/review 历史也不属于
+  # non-history focus。目录级剪枝只刷新 active rules/profile，避免重复扫描海量历史。
+  if python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
+      --repo-root "$E2E_ROOT_DIR" \
+      --exclude .github/task-runs \
+      --exclude .github/memory \
+      --exclude .github/archive \
+      --exclude .github/shujuku_aireview > "$temp_log" 2>&1; then
+    mv -T -- "$temp_log" "$refresh_log"
+    return $?
+  else
+    rc=$?
+  fi
+
+  mv -T -- "$temp_log" "$refresh_log" || return 1
+  return "$rc"
+}
+
 e2e_context_brief_terms() {
   [[ $# -eq 1 ]] || return 2
   # task slug 是路径/身份字段，不应整串当作一个检索短语，也不应把 profile
   # 名重复塞进 focus query。拆出至多八个非泛化语义词，让独立 focus 仍按
   # AND 语义 fail-closed，同时过滤日期/序号和 run/final 等生命周期噪声。
+  # 版本/迭代身份必须使用受控片段 revtag-v<数字><可选字母> 显式声明；
+  # 未声明的 v8/v2ray/v8a 一律作为领域词保留，禁止靠词形猜测并误删语义。
   python3 - "$1" <<'PY'
 import re
 import sys
@@ -1356,13 +1387,27 @@ stopwords = {
     "task", "test", "tests", "check", "verify", "verification",
     "profile", "fix", "fixed", "update", "updated", "pass", "green",
 }
+raw_terms = re.findall(r"[0-9a-z\u3400-\u9fff]+", slug)
 terms = []
-for term in re.findall(r"[0-9a-z\u3400-\u9fff]+", slug):
+revision_tags = 0
+index = 0
+while index < len(raw_terms):
+    term = raw_terms[index]
+    if term == "revtag":
+        if (
+            revision_tags != 0
+            or index + 1 >= len(raw_terms)
+            or re.fullmatch(r"v[0-9]+[a-z]*", raw_terms[index + 1]) is None
+        ):
+            raise SystemExit(1)
+        revision_tags += 1
+        index += 2
+        continue
+    index += 1
     if term.isdigit() or term in stopwords or term in terms:
         continue
     terms.append(term)
-    if len(terms) == 8:
-        break
+terms = terms[:8]
 if not terms:
     raise SystemExit(1)
 print("\n".join(terms))
@@ -1384,6 +1429,7 @@ e2e_generate_context_brief() {
   fi
   if [[ ${#brief_terms[@]} -gt 0 ]] &&
      [[ ${E2E_GENERATE_CONTEXT_BRIEF:-1} = 1 ]] &&
+     [[ ${E2E_LIVE_INDEX_REFRESH_OK:-1} = 1 ]] &&
      [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] &&
      python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief "${brief_terms[@]}" \
       --repo-root "$E2E_ROOT_DIR" \
@@ -1413,7 +1459,12 @@ e2e_generate_context_brief() {
       printf -- '- `profile`: %s\n' "$E2E_PROFILE"
       printf '\nWARN context brief generation failed; profile dispatch is not green.\n\n'
       printf '## Diagnostic\n\n```text\n'
-      sed -n '1,160p' "$temp_brief"
+      if [[ ${E2E_LIVE_INDEX_REFRESH_OK:-1} != 1 ]] &&
+         [[ -f "$E2E_EVIDENCE_DIR/context-live-index-refresh.log" ]]; then
+        sed -n '1,160p' "$E2E_EVIDENCE_DIR/context-live-index-refresh.log"
+      elif [[ -f $temp_brief ]]; then
+        sed -n '1,160p' "$temp_brief"
+      fi
       printf '```\n'
     } > "$E2E_CONTEXT_BRIEF_FILE"
     rm -f -- "$temp_brief"

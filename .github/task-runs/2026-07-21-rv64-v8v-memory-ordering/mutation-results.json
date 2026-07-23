@@ -1,0 +1,149 @@
+{
+  "schema_version": "rv64-lq-mutation-evidence-v1",
+  "generated_at_utc": "2026-07-23T02:09:33.738038+00:00",
+  "source": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+  "source_sha256": "6d17aafb3bf780f936522f4fb1a9035019596f4749bfc8f8a364e88972283deb",
+  "testbench": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+  "mutation_count": 9,
+  "compile_success_count": 9,
+  "dynamic_rejected_count": 9,
+  "passed_count": 9,
+  "all_passed": true,
+  "results": [
+    {
+      "name": "pid_index_only",
+      "contract": "Every LQ ownership lookup uses the complete ProducerId.",
+      "oracle": "same ROB index with stale generation is issue-closed",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "cc891aea895e97b11c6276234a4b115222541481dd27c60366e94ffc92f4144a",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] same ROB index with stale generation is issue-closed got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "issue_killed_bypass",
+      "contract": "A selectively killed launched load cannot issue again.",
+      "oracle": "launched younger load remains issue-closed tombstone",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "faae0fe0ef020d41b4d39f19cbbbba6ef94c4eb277cd158d4e1e2a943f12cb6c",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] launched younger load remains issue-closed tombstone got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "query_metadata_bypass",
+      "contract": "A repeated physical query preserves PA, class, attribute and mask.",
+      "oracle": "retry with changed final PA fails closed",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "065cd7b526756c60575d9660eae7b1582dad9ea0f51e374b0b6960e99c6206e9",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] retry with changed final PA fails closed got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "response_order_bypass",
+      "contract": "A successful load response requires an allow/forward disposition.",
+      "oracle": "allow opens response while replay stays ordered-closed",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "4e04efb360a352125b30b8d7f24c2ff89abe56f52d965e7511e7c0b350162c3b",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] allow opens response while replay stays ordered-closed got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "terminal_releases_normal",
+      "contract": "A normal transport terminal does not end retire residency.",
+      "oracle": "normal transport terminal retains retire-resident entries",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "3b1f86433cfdb62fc041b4deb210cc96f3e9c2aec9a26f0ce742cfa2379a78c2",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] normal transport terminal retains retire-resident entries got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "flush_drops_launched",
+      "contract": "Recovery retains a launched incomplete load as a killed tombstone.",
+      "oracle": "selective recovery clears unlaunched younger load only",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "6d3646e00503f110301b85d1e7742a02de070c1db04cf97a1a6749d632232321",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] selective recovery clears unlaunched younger load only got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "release_before_completion",
+      "contract": "ROB release requires prior or same-cycle formal completion.",
+      "oracle": "retirement before formal completion is backpressured",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "5c4f353a61c7339295c7cafd9662a527bbd0b93386badf8b96ce1dcbba1bb9ae",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] retirement before formal completion is backpressured got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "dual_alloc_same_slot",
+      "contract": "Dual dispatch allocation selects two distinct edge-old free entries.",
+      "oracle": "dual dispatch must create two LQ residents",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "a757d950eb12af8dd93162a48fb9fd881a28abde9c43a3c1b6fd6d4146d8f437",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] dual dispatch must create two LQ residents got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    },
+    {
+      "name": "dual_query_same_pid_bypass",
+      "contract": "Two final-PA query lanes cannot update one ProducerId in the same cycle.",
+      "oracle": "same-PID dual query fails closed on both ports",
+      "compile_success": true,
+      "oracle_seen": true,
+      "dynamic_rejected": true,
+      "passed": true,
+      "make_returncode": 2,
+      "mutant_sha256": "a0802d7ffe2e0ab8b738b1fd2c15f20b5fc7d6577566daecc5d5928fe303d0e6",
+      "diagnostic_lines": [
+        "[CHECK-FAIL] same-PID dual query fails closed on both ports got=0 expected=1",
+        "[RESULT] FAIL status=1"
+      ]
+    }
+  ]
+}

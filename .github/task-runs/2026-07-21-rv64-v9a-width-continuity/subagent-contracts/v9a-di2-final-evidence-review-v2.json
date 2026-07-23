@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9a-di2-final-evidence-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立审查本地 RV64 双发射 OoO 处理器 DI-2 最终 Verilog/SystemVerilog 与 EDA 证据，核对固定 64 拍七边界双宽、PC/instruction/full ProducerId 生命周期、RenameMap/ROB/IQ/EX/WB 独立 sink、自然排空、compile-success RTL verification mutation、同 design 九项架构门以及 PPA 仍未资格化的声明边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/rtl-derivation.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/holder-census-delta.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/width_continuity_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/width-continuity.log",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/subagent-contracts/v9a-di2-final-evidence-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 boundary/event/identity/window/sink/mutation/provenance/drain/claim 九类给出 PASS、GAP 或 inconclusive，并列出任何假绿路径、反例、证据限制和 scope_extension_request"
+  ],
+  "success_criteria": [
+    "只有在七边界逐拍 exact dual、身份与 sink 独立对账、固定窗口负探针、10 项变异、同 design 九门及 PPA 声明边界均由所列本地证据支持时才裁决 scoped DI-2 GREEN；否则精确指出 blocker"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

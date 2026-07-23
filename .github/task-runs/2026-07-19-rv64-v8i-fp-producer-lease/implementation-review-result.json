@@ -1,0 +1,46 @@
+{
+  "schema": "rtl-implementation-review-result-v1",
+  "contract": "subagent-contracts/v8i-fp-producer-lease-implementation-review.json",
+  "contract_sha256": "5bf0f66ec019aee1fa22e2c7292ff5cf77700ff515c3d52fdbe898181973d84e",
+  "actual_access": {
+    "tools": false,
+    "shell": false,
+    "filesystem": false,
+    "network": false,
+    "writes": false,
+    "input": "frozen self-contained implementation/evidence summary"
+  },
+  "verdict": "pass",
+  "blockers": [],
+  "blind_spot_disposition": [
+    {
+      "issue": "same-slot FIFO pop+push with concurrent kill could leak the old token's tombstone into the new token",
+      "disposition": "closed_by_assert_and_directed_test",
+      "evidence": [
+        "OooFpBackend [V8I-FP-FIFO-PUSH-ATOMIC]",
+        "tb_ooo_int_backend run_v8i_fifo_same_slot_case (old-only/new-only/neither kill cases)"
+      ]
+    },
+    {
+      "issue": "a stale formal token could occupy raw transport while a newer generation sharing the raw ROB index completes",
+      "disposition": "closed_by_directed_test",
+      "evidence": [
+        "tb_ooo_int_backend run_v8i_generation_separated_transport",
+        "EX0 and FP-result actual claims remain live for Q={g+1,i} while P={g,i} formal is stale"
+      ]
+    },
+    {
+      "issue": "fixed arith>exec1>long priority lacks an independent formal finite-progress proof under mixed pressure",
+      "disposition": "residual_risk",
+      "evidence": [
+        "nine-operation real FP credit/backpressure drain PASS",
+        "v8f/v8g/v8h focused regression 6/6 PASS",
+        "module aggregate 105/105 PASS"
+      ]
+    }
+  ],
+  "residual_risks": [
+    "fixed-priority FP completion progress relies on finite ROB occupancy, eventual raw-WB availability, and source hold/retry contracts; no independent formal liveness proof was run",
+    "branch, pending-system/CSR, complete holder census, finite-generation global no-live-reuse, architecture GREEN, and PPA remain RED"
+  ]
+}

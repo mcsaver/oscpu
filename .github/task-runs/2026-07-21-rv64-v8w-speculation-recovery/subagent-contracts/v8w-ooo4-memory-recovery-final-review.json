@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8w-ooo4-memory-recovery-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 访存桥的分支选择性恢复修复：检查完整事务身份授权、active 与 request-station holder 释放、AXI 已呈现事务保持与已握手响应排空、PTW 不续发、双 lane 隔离及 nokill store 写必达；优先寻找仍可导致 owner 无界驻留、错误路径 target side effect、重复或缺失 terminal 的反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red/case9/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red/case10/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/full-bridge-v2/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v2/summary.txt",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v2/logs/tb_ooo_dual_mem_bridge_wrapper.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/mutations/summary.json",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/mutations/summary.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/subagent-contracts/v8w-ooo4-memory-recovery-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "结构化独立审查：实现调用链与逐状态恢复表、P0/P1/P2 反例或 PASS 依据、RED→GREEN 与 6 项 compile-success RTL mutation 的有效性、断言覆盖洞、组合环路与 ready/valid 风险、局部切片结论和 OOO-4 总门禁剩余项"
+  ],
+  "success_criteria": [
+    "明确判定该访存选择性恢复切片是 PASS、GAP 还是 inconclusive；任何 PASS 必须逐项绑定当前源码与可执行证据，验证 exact identity、pre-AXI terminal、AR/R drain、PTW no-continuation、active/station、dual-lane 与 nokill 合同，并禁止外推为完整 OOO-4 或 PPA GREEN"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

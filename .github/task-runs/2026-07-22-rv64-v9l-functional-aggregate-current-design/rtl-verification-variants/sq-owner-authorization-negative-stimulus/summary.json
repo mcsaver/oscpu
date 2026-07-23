@@ -1,0 +1,24 @@
+{
+  "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_store_queue TB_IVFLAGS_tb_ooo_store_queue=-DV9L_SQ_OWNER_OPEN_NEGATIVE BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/result run",
+  "compile_succeeded": true,
+  "compiled_image_sha256": "3fd70363d1e10d37323188847418c6c0f1b5311c810603e44d53e414ee6387a0",
+  "description": "Withdraw exact ROB owner authorization from a live nonterminal issued store; the production assertion must reject the edge.",
+  "name": "sq-owner-authorization-negative-stimulus",
+  "return_code": 2,
+  "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+  "simulation_rejected_variant": true,
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "sha256": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70"
+    }
+  ],
+  "stimulus_reached": true,
+  "target_assertion": "[V9L-SQ-POST-LAUNCH-OWNER]",
+  "target_assertion_count": 1,
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/result/logs/tb_ooo_store_queue.log"
+}

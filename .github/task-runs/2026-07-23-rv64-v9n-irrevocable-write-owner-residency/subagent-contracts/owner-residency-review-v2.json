@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "owner-residency-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OoO STORE 与 AMO 物理写事务在请求发射后到精确终止响应前的次拍 owner 驻留属性，确认 verification wrapper、可编译 RTL 源码变体和 arch-stable 语义校验能检出 owner tuple 过早消失，且不越级形成 PPA 或全核闭合结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/rtl-derivation.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/dispatch-log.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/tb_v9n_sq_owner_residency.sv",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/tb_v9n_amo_owner_residency.sv",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/run-focused.sh",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/run-owner-residency-rtl-variants.py",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/sq_clear_owner_valid_on_request_fire.log",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/amo_clear_kind_on_write_fire.log",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/post-refresh-arch-stable.json",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_irrevocable_owner_residency_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency-current.json",
+      "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency.log",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/subagent-contracts/owner-residency-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/contract.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；逐项核对 STORE/AMO 次拍 owner tuple、精确终止条件、canonical NpcCoreTop flush 绑定、两个源码变体的唯一失败 oracle、证据重构与 ledger/arch-stable 结论边界，并列出反例、未知项、替代解释、范围扩展请求以及置信依据。"
+  ],
+  "success_criteria": [
+    "只有在生产 RTL、verification wrapper、两个可编译 RTL 源码变体、当前 design-id 证据和 arch-stable 独立重构全部相互一致时才可判定该局部属性 PASS；必须明确全核仍为 38 blockers、PPA UNQUALIFIED、promotion=false。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

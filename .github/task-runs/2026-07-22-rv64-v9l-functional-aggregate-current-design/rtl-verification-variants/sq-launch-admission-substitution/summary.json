@@ -1,0 +1,28 @@
+{
+  "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_store_queue RTL_OOO_STORE_QUEUE=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/OooStoreQueue.v BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/result run",
+  "compile_succeeded": true,
+  "compiled_image_sha256": "dfc07462b6606a465f0bfb9826313ff588363ee408b4178e6f62259c34a7a72d",
+  "description": "Replace post-launch ROB owner authorization with the stricter first-launch admission signal; selective recovery must reject it.",
+  "name": "sq-launch-admission-substitution",
+  "return_code": 2,
+  "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+  "simulation_rejected_variant": true,
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+    },
+    {
+      "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/OooStoreQueue.v",
+      "sha256": "aaaf5463cc59244c1263b0c709342306021cfc1c64eeb066cfff710d0ffe48e1"
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "sha256": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70"
+    }
+  ],
+  "stimulus_reached": true,
+  "target_assertion": "[V9L-SQ-POST-LAUNCH-OWNER]",
+  "target_assertion_count": 1,
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/result/logs/tb_ooo_store_queue.log"
+}

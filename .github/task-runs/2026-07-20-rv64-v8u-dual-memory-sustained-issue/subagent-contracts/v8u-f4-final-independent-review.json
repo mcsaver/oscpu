@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8u-f4-final-independent-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "审查 RV64 双发射完整 OoO 内核 DI-5 持续双存储发射闭环，优先寻找吞吐、年龄顺序、精确 ProducerId、READY 稳定性、反馈环和证据边界反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/subagent-contracts/v8u-f4-final-independent-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "实现机制：两个注册 memory reservation、IQ entries 0/1 的 Q-only pair peek、仅在两个 edge-old owner 同拍精确 consume 时原子 pop2/alloc2 turnover、两套 AGU/MIQ/DTLB/SQ query/cache/completion，raw AXI miss fabric 共享。",
+      "反馈环处理：响应 query candidate 只由注册响应状态产生；lookup/promotion/pop 仅由 response fire 驱动；READY 低时 query 可见且 payload 稳定，但不得发起 lookup。基线 Verilator 日志无 UNOPTFLAT。",
+      "动态证据：run_id=v8u-f4-20260720T162308Z-1289228；64 个 steady cycles；memory_issue_ipc=2.000；dual_issue_cycles=64；AGU、translation、physical SQ query、cache admission、completion 两 bank 均为 64,64。",
+      "变异证据：7 个 RTL 变异均编译和 elaboration 成功且由专属动态 oracle 拒绝；其中一个重建 READY/VALID 组合反馈 SCC，基线 SCC=0。F0/F1/F2 在同一 live RTL 上均 PASS。",
+      "架构边界：DI-3、DI-4、DI-5、OOO-1、OOO-2 GREEN；DI-1、DI-2、OOO-3、OOO-4 RED；OVERALL RED；PPA UNQUALIFIED。不得把 DI-5 推断成 memory ordering、speculation recovery、整体架构或 PPA 闭合。"
+    ]
+  },
+  "deliverables": [
+    "返回结构化审查结论：verdict、已审反例、证据覆盖洞、边界措辞、剩余风险；不得修改任何文件"
+  ],
+  "success_criteria": [
+    "至少审查五类反例，并明确区分已被证据拒绝、证据未覆盖和越级结论；只有无未解决 DI-5 阻断项时才能给出 DI-5 局部通过"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

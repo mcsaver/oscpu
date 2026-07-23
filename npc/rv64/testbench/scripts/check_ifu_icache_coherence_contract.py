@@ -86,8 +86,14 @@ def check(texts):
         "ooo_mmu_flush_w",
     )
     need(
-        texts, "core", "u_ooo_mem_bridge", "mmu_flush_i", "ooo_mmu_flush_w"
+        texts,
+        "core",
+        "u_ooo_dual_mem_bridge",
+        "mmu_flush_i",
+        "ooo_mmu_flush_w",
     )
+    need(texts, "dual_bridge", "u_bridge0", "mmu_flush_i", "mmu_flush_i")
+    need(texts, "dual_bridge", "u_bridge1", "mmu_flush_i", "mmu_flush_i")
     need(
         texts,
         "glue",
@@ -156,6 +162,7 @@ def main():
         "gate": "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
         "control": "npc/rv64/vsrc/control/OooControlPlane.v",
         "bridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "dual_bridge": "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
     }
     texts = {
         key: (root / path).read_text(encoding="utf-8")
@@ -188,6 +195,19 @@ def main():
         print("[NEGATIVE] cut FENCE.I/mmu_flush chain rejected")
     else:
         raise ContractError("FENCE.I chain-cut negative mutation was accepted")
+
+    cut_lane = dict(texts)
+    cut_lane["dual_bridge"] = cut_lane["dual_bridge"].replace(
+        ".mmu_flush_i(mmu_flush_i)",
+        ".mmu_flush_i(1'b0)",
+        1,
+    )
+    try:
+        check(cut_lane)
+    except ContractError:
+        print("[NEGATIVE] cut dual-memory lane mmu_flush chain rejected")
+    else:
+        raise ContractError("dual-memory lane chain-cut mutation was accepted")
 
     print("[PASS] IFU ordinary-store/FENCE.I coherence contract")
 

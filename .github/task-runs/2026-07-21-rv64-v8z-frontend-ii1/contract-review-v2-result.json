@@ -1,0 +1,64 @@
+{
+  "verdict": "GAP",
+  "contract_sha256": "0a98207e9827ad6ca5f66777295da067024fe5f70e99e168b6d8d7c0c570b43e",
+  "findings": [
+    {
+      "item": "Bridge H1 leaf turnover",
+      "status": "SUFFICIENT_AS_PLAN",
+      "required_closure": "execute assert/release logs, unique markers, source mutations and hash binding"
+    },
+    {
+      "item": "complete frontend steady-state turnover",
+      "status": "SUFFICIENT_AS_PLAN",
+      "required_closure": "independent request/response/enqueue/dequeue PC ledgers"
+    },
+    {
+      "item": "complete frontend backpressure recovery",
+      "status": "GAP",
+      "required_closure": "finite backend/FIFO backpressure, stable held response, exact resume and post-resume II=1"
+    },
+    {
+      "item": "steady-state epilogue conservation",
+      "status": "GAP",
+      "required_closure": "stop successor admission, drain trailing response/FIFO/backend and prove zero outstanding owners"
+    },
+    {
+      "item": "sink-side produced independence",
+      "status": "GAP",
+      "required_closure": "count FIFO dequeue independently and add a compile-success dequeue mutation"
+    },
+    {
+      "item": "cross-boundary PC identity",
+      "status": "GAP",
+      "required_closure": "request-to-response and enqueue-to-dequeue PC ledgers plus successor-PC mutation"
+    },
+    {
+      "item": "execution evidence and same-design binding",
+      "status": "GAP",
+      "required_closure": "actual assert/release, mutation, regression, pre/post and design_id artifacts"
+    }
+  ],
+  "counterexamples": [
+    "full frontend credit remains blocked after FIFO backpressure although Bridge leaf recovers",
+    "the 64-cycle marker leaves a trailing request owner and a later ghost response",
+    "accepted and produced counters alias one event while FIFO dequeue is absent",
+    "sequential produced PCs hide a request/response owner mismatch",
+    "assert passes while release has a ready/valid bubble"
+  ],
+  "claim_boundary": {
+    "DI-1": "RED / evidence pending",
+    "DI-2": "RED",
+    "overall_architecture": "RED",
+    "PPA": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "scope_extension_request": {
+    "needed": true,
+    "reason": "execute full-frontend backpressure, tail drain, sink/PC mutations and hash-bound evidence under a verification contract"
+  },
+  "confidence_and_basis": {
+    "level": "high",
+    "basis": "leaf and no-stall plans are structurally adequate, while backpressure, conservation, sink independence and executed evidence were not yet supplied"
+  },
+  "shell_used": false
+}

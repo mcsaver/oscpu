@@ -1,0 +1,12 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/focused-smoke
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_ooo_pending_system_sequencer
+- PASS tb_ooo_csr_access_request_mux
+- PASS tb_ooo_pending_drain_resolve_gate
+
+- total: 3
+- passed: 3
+- failed: 0

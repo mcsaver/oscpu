@@ -4,8 +4,11 @@
 // OooControlPlane: OoO core 子系统 wrapper（纯结构聚合，从 OooCoreTopGlue 抽出 13 个实例）。
 // 行为与原扁平实例化等价：仅把跨边界信号导出为端口，内部信号下沉。
 module OooControlPlane #(
+  parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
   parameter ROB_COUNT_W = `OOO_ROB_COUNT_W,
-  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W
+  parameter ISSUE_COUNT_W = `OOO_ISSUE_COUNT_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
 ) (
   input [`XLEN-1:0] a0_data_w,
   input backend_drained_q,
@@ -28,6 +31,7 @@ module OooControlPlane #(
   input [`XLEN-1:0] core_commit0_pc_w,
   input [`XLEN-1:0] core_commit0_tval_w,
   input core_commit0_valid_w,
+  input [PRODUCER_ID_W-1:0] core_commit0_producer_id_w,
   input [`TRAP_CAUSE_W-1:0] core_commit1_cause_w,
   input core_commit1_exception_w,
   input [`XLEN-1:0] core_commit1_pc_w,
@@ -61,6 +65,8 @@ module OooControlPlane #(
   input dispatch0_jal_w,
   input dispatch0_jump_w,
   input dispatch0_ready_w,
+  input core_dispatch0_fire_w,
+  input [PRODUCER_ID_W-1:0] core_dispatch0_producer_id_w,
   input dispatch0_return_w,
   input dispatch0_system_w,
   input dispatch0_unsupported_w,
@@ -131,6 +137,7 @@ module OooControlPlane #(
   // Complete memory-owner quiet (MIQ/bridge/reservation), used only by
   // ordinary FENCE's stronger ordering boundary.
   input mem_idle_i,
+  input core_checkpoint_restore_apply_i,
   output backend_drained_w,
   output checkpoint_mem_flush_q,
   output core_checkpoint_capture_w,
@@ -191,6 +198,8 @@ module OooControlPlane #(
   output pending_system_capture_lane1_w,
   output pending_system_clear_w,
   output pending_system_csr_commit_w,
+  output pending_system_producer_valid_w,
+  output [PRODUCER_ID_W-1:0] pending_system_producer_id_w,
   // 【serialize-at-retire Phase1】head0-CSR 队头退休脉冲(组合, 提交拍). 因 core_commit0_csr_w 依赖
   // core_commit0_valid=commit0_fire(已被 OooRob 的 mem_quiet 门控), 此信号天然只在 mem 静默拍拉高。
   // !pending_system_csr_q 区分: head0 路(CSR 进 ROB, =0) vs lane1-drain 路(=1, 走老机制)。
@@ -243,6 +252,35 @@ module OooControlPlane #(
   wire pending_system_capture_irq_w;
   wire pending_system_sfence_q;
   wire pending_system_fencei_q;
+  // v8k：admission cancel 必须位于 holder/ready 组合边界之外。完整的
+  // pending_system_clear_w 含 direct_frontend_flush_w，而 direct flush 又可读
+  // backend dispatch ready；若把完整 clear 反喂 system CSR valid，会形成
+  // valid -> ready -> direct fire -> clear -> valid 的组合环。
+  //
+  // pending-system owner 令 can_run=0，因此 direct frontend fire 与 system CSR
+  // replay 在架构上互斥（下方 assertion 守护）。其余无反馈 clear witness
+  // 统一在小门中精确限定；level-ready 本身不能获得取消权限，避免活性自锁。
+  wire system_csr_admission_clear_w;
+  wire system_csr_dispatch_cancel_w;
+  OooPendingSystemAdmissionCancelGate
+      u_pending_system_admission_cancel_gate (
+    .rst_i(rst),
+    .core_local_flush_i(core_local_flush_w),
+    .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
+    .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
+    .pending_branch_commit_resolve_i(pending_branch_commit_resolve_w),
+    .pending_branch_match_clear_i(pending_branch_match_clear_w),
+    .branch_resolve_untracked_i(branch_resolve_untracked_w),
+    .pending_jump_resolve_ready_i(pending_jump_resolve_ready_w),
+    .pending_jump_misaligned_i(pending_jump_misaligned_w),
+    .pending_jump_nolink_commit_i(pending_jump_nolink_commit_w),
+    .pending_jump_redirect_after_dispatch_i(
+        pending_jump_redirect_after_dispatch_w),
+    .pending_system_csr_commit_i(pending_system_csr_commit_w),
+    .head0_csr_commit_i(head0_csr_commit_w),
+    .system_csr_admission_clear_o(system_csr_admission_clear_w),
+    .system_csr_dispatch_cancel_o(system_csr_dispatch_cancel_w)
+  );
   // fence.i commit(镜像 sfence_commit，无 CSR 写)：stop+drain 完成且队头为 fencei → 退休拍拉 mmu_flush+redirect
   assign pending_system_fencei_commit_w =
       stop_pending_q && drain_complete_w && pending_system_q && pending_system_fencei_q;
@@ -277,17 +315,24 @@ module OooControlPlane #(
   wire [`XLEN-1:0] trap_tval_q;
 
 
-  OooCsrAccessRequestMux u_csr_access_request_mux (
+  OooCsrAccessRequestMux #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) u_csr_access_request_mux (
     .core_commit0_valid_i(core_commit0_valid_w),
     .core_commit0_exception_i(core_commit0_exception_w),
     .core_commit0_pc_i(core_commit0_pc_w),
     .core_commit0_inst_i(core_commit0_inst_w),
+    .core_commit0_producer_id_i(core_commit0_producer_id_w),
     .pending_system_i(pending_system_q),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
     .pending_system_sfence_i(pending_system_sfence_q),
     .pending_system_pc_i(pending_system_pc_q),
     .pending_system_inst_i(pending_system_inst_q),
+    .pending_system_producer_valid_i(pending_system_producer_valid_w),
+    .pending_system_producer_id_i(pending_system_producer_id_w),
     .dispatch_valid_i(dispatch_valid_w),
     .dispatch0_system_i(dispatch0_system_w),
     .dispatch1_barrier_i(dispatch1_barrier_w),
@@ -300,6 +345,7 @@ module OooControlPlane #(
     .debug_gprs_i(core_debug_gprs_w),
     .core_commit0_csr_o(core_commit0_csr_w),
     .pending_system_csr_commit_o(pending_system_csr_commit_w),
+    .head0_csr_commit_o(head0_csr_commit_w),
     .head1_csr_probe_o(head1_csr_probe_w),
     .csr_access_valid_o(csr_access_valid_w),
     .csr_access_inst_o(csr_access_inst_w),
@@ -317,17 +363,9 @@ module OooControlPlane #(
     .pending_system_sfence_commit_o(pending_system_sfence_commit_w)
   );
 
-  // 【serialize-at-retire Phase1】head0-CSR 队头退休脉冲。core_commit0_csr_w 已被 OooRob 的 mem_quiet
-  // 门控(commit0_fire→commit0_valid→core_commit0_csr), 故此脉冲天然只在 mem 静默的提交拍拉高。
-  // !pending_system_csr_q 排除 lane1-drain 路(那条仍走老的 pending_system_csr_commit)。
-  // 区分 head0 路 vs lane1-drain 路: 用 !pending_system_csr_commit_w(pc 精确匹配那条), 不能用全局
-  // pending_system_csr_q——head0-CSR 与另一条 lane1-drain-CSR 共存时(中间态), 后者的 pend_csr_q=1 会
-  // 误抑制前者的 head0 提交, 使该 head0-CSR 既不走 drain(pc 不匹配)又不走 head0 → CSR 静默不写(mtvec 坑)。
-  // flag OFF 时恒 0: head0_csr_commit 是全部 §9 infra(serial_flush/rd 覆写/redirect/csr 写/stop 清/
-  // pending 清)的触发, gate 在此使 flag OFF = 纯基线(否则 drain CSR 的 pending pc-mismatch 会虚假触发
-  // serial_flush 破坏 fp-difftest-probe 等)。
-  assign head0_csr_commit_w =
-      `OOO_CSR_QUEUE_HEAD && core_commit0_csr_w && !pending_system_csr_commit_w;
+  // v8k：head0 fallback 与 pending exact commit 必须共享同一个 claim seal。
+  // OooCsrAccessRequestMux 用 raw lease || logical claim 封口；任何 PID/PC
+  // mismatch 或 metadata 部分损坏都 fail closed，不能退化为普通队头 CSR。
 
 
   OooCsrTrapRequestMux u_csr_trap_request_mux (
@@ -415,6 +453,7 @@ module OooControlPlane #(
     .pending_system_fence_i(pending_system_fence_w),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
+    .system_csr_dispatch_cancel_i(system_csr_dispatch_cancel_w),
     .mem_retire_quiet_i(mem_retire_quiet_i),
     .mem_idle_i(mem_idle_i),
     .backend_drained_o(backend_drained_w),
@@ -505,7 +544,10 @@ module OooControlPlane #(
     .trap_flush_req_i(csr_trap_mem_valid_w),
     .priv_predictor_boundary_i(priv_predictor_boundary_w),
     .backend_drained_i(backend_drained_w),
-    .checkpoint_restore_i(core_checkpoint_restore_w),
+    // The memory bridge observes the same accepted recovery pulse as the
+    // backend.  A raw branch restore may be held while an irrevocable write
+    // reaches B/formal-WB/ROB-commit/SQ-release.
+    .checkpoint_restore_i(core_checkpoint_restore_apply_i),
     .core_trap_flush_o(core_trap_flush_q),
     .trap_redirect_squash_o(trap_redirect_squash_q),
     .checkpoint_mem_flush_o(checkpoint_mem_flush_q)
@@ -539,14 +581,21 @@ module OooControlPlane #(
       backend_drained_w && stop_pending_q && pending_system_q &&
       pending_system_csr_q && !pending_system_dispatched_q;
 
-  OooPendingSystemSequencer u_pending_system_sequencer (
+  OooPendingSystemSequencer #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) u_pending_system_sequencer (
     .clk(clk),
-    .rst(rst || flush_i),
+    // 与 OooExecuteBackend 收到的 ROB flush 使用同一 core_local_flush_w。
+    .rst(rst || core_local_flush_w),
     .clear_i(pending_system_clear_w),
     .clear_dispatched_i(orphan_stop_pending_w),
     .refresh_rdata_i(pending_system_rdata_refresh_w),
     .refresh_rdata_value_i(csr_rdata_w),
     .dispatch_fire_i(system_csr_dispatch_fire_w),
+    .producer_death_i(pending_system_csr_commit_w),
+    .dispatch_producer_id_i(core_dispatch0_producer_id_w),
     .capture_irq_i(pending_system_capture_irq_w),
     .capture_irq_pc_i(head_pc_w),
     .capture_irq_cause_i(csr_irq_cause_w),
@@ -585,7 +634,9 @@ module OooControlPlane #(
     .inst_o(pending_system_inst_q),
     .next_pc_o(pending_system_next_pc_q),
     .csr_rdata_o(pending_system_csr_rdata_q),
-    .irq_cause_o(pending_system_irq_cause_q)
+    .irq_cause_o(pending_system_irq_cause_q),
+    .producer_valid_o(pending_system_producer_valid_w),
+    .producer_id_o(pending_system_producer_id_w)
   );
 
 
@@ -780,6 +831,112 @@ module OooControlPlane #(
   );
 
 `ifdef OOO_ASSERT
+  wire v8k_pending_logical_claim_w =
+      pending_system_q && pending_system_csr_q &&
+      pending_system_dispatched_q;
+  wire v8k_pending_claim_seal_w =
+      pending_system_producer_valid_w || v8k_pending_logical_claim_w;
+  wire v8k_commit_pid_match_w =
+      core_commit0_producer_id_w == pending_system_producer_id_w;
+  wire v8k_commit_pc_match_w =
+      core_commit0_pc_w == pending_system_pc_q;
+  reg v8k_system_fire_prev_q;
+  reg [PRODUCER_ID_W-1:0] v8k_system_fire_pid_prev_q;
+  reg v8k_lease_prev_q;
+  reg v8k_death_prev_q;
+  reg v8k_core_flush_prev_q;
+
+  // v8k.1 ProducerId ownership proof at the control/backend boundary.  These
+  // checks deliberately use the raw lease, not metadata-gated convenience
+  // state, so partial metadata loss remains fail-closed and mutation-visible.
+  always @(posedge clk) begin
+    if (rst) begin
+      v8k_system_fire_prev_q <= 1'b0;
+      v8k_system_fire_pid_prev_q <= {PRODUCER_ID_W{1'b0}};
+      v8k_lease_prev_q <= 1'b0;
+      v8k_death_prev_q <= 1'b0;
+      v8k_core_flush_prev_q <= 1'b0;
+    end else begin
+      if (v8k_pending_logical_claim_w &&
+          !pending_system_producer_valid_w) begin
+        $error("[V8K-PENDING-CSR-CLAIM-WITHOUT-LEASE] dispatched CSR lost raw ProducerId lease @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_producer_valid_w &&
+          !v8k_pending_logical_claim_w && !core_local_flush_w) begin
+        $error("[V8K-PENDING-CSR-LEASE-WITHOUT-CLAIM] raw ProducerId lease has malformed metadata @%0t", $time);
+        $fatal;
+      end
+      if (v8k_pending_claim_seal_w && head0_csr_commit_w) begin
+        $error("[V8K-PENDING-CSR-HEAD0-FAIL-CLOSED] queue-head fallback bypassed pending claim seal @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_csr_commit_w &&
+          !(v8k_pending_logical_claim_w &&
+            pending_system_producer_valid_w && core_commit0_csr_w &&
+            v8k_commit_pid_match_w && v8k_commit_pc_match_w)) begin
+        $error("[V8K-PENDING-CSR-EXACT-COMMIT] commit lacked exact PID/PC witness @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_csr_commit_w && head0_csr_commit_w) begin
+        $error("[V8K-PENDING-CSR-ONE-WITNESS] pending and head0 commit both authorized @%0t", $time);
+        $fatal;
+      end
+      if (system_csr_dispatch_fire_w &&
+          (!core_dispatch0_fire_w || system_csr_dispatch_cancel_w ||
+           !pending_system_q || !pending_system_csr_q ||
+           pending_system_dispatched_q || pending_system_producer_valid_w)) begin
+        $error("[V8K-PENDING-CSR-ENQUEUE-BIRTH] fire lacked uncancelled pre-ROB CSR witness core_fire=%b cancel=%b @%0t",
+               core_dispatch0_fire_w, system_csr_dispatch_cancel_w, $time);
+        $fatal;
+      end
+      if (system_csr_dispatch_fire_w && pending_system_clear_w) begin
+        $error("[V8K-PENDING-CSR-FIRE-CLEAR-MUTEX] selected system enqueue overlapped a full pending clear @%0t", $time);
+        $fatal;
+      end
+      if (!direct_frontend_flush_w && pending_jump_resolve_ready_w &&
+          (pending_jump_misaligned_w || pending_jump_nolink_commit_w ||
+           pending_jump_redirect_after_dispatch_w) &&
+          !system_csr_admission_clear_w) begin
+        $error("[V8K-PENDING-CSR-JUMP-CLEAR-COVER] reachable jump clear was omitted from admission cancel @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_q && direct_frontend_flush_w) begin
+        $error("[V8K-PENDING-CSR-DIRECT-FLUSH-MUTEX] pending-system owner overlapped a frontend direct fire @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_producer_valid_w && pending_system_clear_w &&
+          !pending_system_csr_commit_w && !core_local_flush_w) begin
+        $error("[V8K-PENDING-CSR-DEATH-ALLOWLIST] ordinary clear attempted to kill live lease @%0t", $time);
+        $fatal;
+      end
+      if (v8k_system_fire_prev_q &&
+          (!pending_system_producer_valid_w ||
+           (pending_system_producer_id_w != v8k_system_fire_pid_prev_q))) begin
+        $error("[V8K-PENDING-CSR-BIRTH-MISSING] ROB enqueue did not produce the exact lease pid=%h held=%h valid=%b @%0t",
+               v8k_system_fire_pid_prev_q, pending_system_producer_id_w,
+               pending_system_producer_valid_w, $time);
+        $fatal;
+      end
+      if (pending_system_producer_valid_w && !v8k_lease_prev_q &&
+          !v8k_system_fire_prev_q) begin
+        $error("[V8K-PENDING-CSR-BIRTH-SPURIOUS] lease rose without prior enqueue @%0t", $time);
+        $fatal;
+      end
+      if (!pending_system_producer_valid_w && v8k_lease_prev_q &&
+          !v8k_death_prev_q && !v8k_core_flush_prev_q) begin
+        $error("[V8K-PENDING-CSR-DEATH-WITNESS] lease fell without exact commit or backend flush @%0t", $time);
+        $fatal;
+      end
+
+      v8k_system_fire_prev_q <= system_csr_dispatch_fire_w;
+      v8k_system_fire_pid_prev_q <= core_dispatch0_producer_id_w;
+      v8k_lease_prev_q <= pending_system_producer_valid_w;
+      v8k_death_prev_q <= pending_system_csr_commit_w;
+      v8k_core_flush_prev_q <= core_local_flush_w;
+    end
+  end
+
   // Mutation-sensitive contract guard: if the T4L memory-idle term is ever
   // removed from the functional drain equation, this fires on the exact
   // pending-FENCE/busy-memory completion edge.

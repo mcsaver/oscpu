@@ -1,0 +1,80 @@
+{
+  "verdict": "PASS",
+  "findings": [
+    {
+      "item": "DI-1 cache-hit initiation interval",
+      "status": "PASS",
+      "basis": "OooFetchAxiBridge 在 assert/release 下均唯一完成 bare 与 paged 两组 64-cycle response+successor-request turnover；真实 OooCoreTopGlue/OooFrontend 同时得到 accepted=responses=enqueues=produced=64、max_ii=1。"
+    },
+    {
+      "item": "Bridge 与完整 Frontend 组合边界",
+      "status": "PASS",
+      "basis": "叶级 H1 证据与穿过 FlowControl、OutstandingSequencer、PacketDecode、FIFO、rename/dispatch/backend 的真实集成轨迹同时存在；semantic-lookup、FlowControl turnover/enqueue-credit 和 sink-dequeue 变异分别切断关键跨模块边，排除了仅凭 Bridge leaf 外推完整 frontend 的假绿。"
+    },
+    {
+      "item": "真实 sink 与同源计数防线",
+      "status": "PASS",
+      "basis": "produced 来自独立 FIFO dequeue，不是 response/enqueue 的计数别名；sink-dequeue compile-success mutation 被动态拒绝，六个验证维度均有独立 mutation owner。"
+    },
+    {
+      "item": "PC 与事务身份守恒",
+      "status": "PASS",
+      "basis": "两个独立 ledger 逐事务核对 request→response owner、response→PacketDecode enqueue、enqueue→FIFO dequeue，并要求同拍 successor PC=响应 owner PC+8；successor-PC 与 Sequencer-replacement 变异均被拒绝。"
+    },
+    {
+      "item": "backpressure 选择与恢复",
+      "status": "PASS",
+      "basis": "run_i=0 对真实 outstanding response 施加四拍合法阻塞，valid、owner 和双 lane payload 保持稳定，且无 replacement request、response fire 或重复 enqueue；恢复后连续完成 16 turnover。FIFO reserve 保证 full-FIFO held response 不是合法可达状态，因此该阻塞点覆盖实际 outstanding 生命周期。"
+    },
+    {
+      "item": "tail owner 与最终守恒",
+      "status": "PASS",
+      "basis": "epilogue 关闭 successor admission但允许尾响应排空，assert/release 均得到 requests=responses=enqueues=dequeues=83，outstanding、FIFO、ROB、IQ、ghost 清零且 free_count=32；blocked-response-tail-ghost mutation 被拒绝。"
+    },
+    {
+      "item": "9 项 compile-success mutation",
+      "status": "PASS",
+      "basis": "9/9 均 compile_rc=0、sim_rc非零、由对应动态 oracle 拒绝，覆盖 H1 ready/state、真实 lookup、outstanding/enqueue credit、replacement、sink、PC 与尾部 ghost；source_unchanged=true。"
+    },
+    {
+      "item": "同一设计与生产 RTL 绑定",
+      "status": "PASS",
+      "basis": "29 项 proof source 清单 pre/post 逐字一致并具有相同清单摘要；56 项 provenance、frontend gate log、suite_run_id 与完整 design_id 形成同源绑定，本轮未修改生产 RTL。"
+    },
+    {
+      "item": "sibling preservation",
+      "status": "PASS",
+      "basis": "同 design_id 的七个既有 PASS sibling 在 frontend_ii1 原子加入前后逐项不变，排除了发布 DI-1 时删除、覆盖或重写其它架构记录的自证循环。"
+    }
+  ],
+  "unresolved_counterexamples": [],
+  "closed_counterexamples": [
+    "Bridge 每拍响应但完整 frontend sink 未实际出包",
+    "accepted 与 produced 计数共用同一 response-fire 源",
+    "同拍 replacement 保留旧 owner 或错误 successor PC",
+    "阻塞期间 response payload漂移、重复 enqueue 或错误 request replacement",
+    "64-cycle 窗口结束后遗留 trailing outstanding owner",
+    "绕过真实 cache lookup 伪造 turnover",
+    "mutation 编译失败而被误记为动态检出",
+    "运行前后 RTL 漂移或混用不同 design_id",
+    "发布 frontend_ii1 时破坏已有 sibling records"
+  ],
+  "claim_boundary": {
+    "DI-1": "GREEN",
+    "DI-2": "RED",
+    "overall_architecture": "RED",
+    "PPA": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "repository_wide_independent_audit": false
+  },
+  "unknowns": [
+    "本 no-tools 节点未重新计算合同、proof source、provenance 或 gate log 的 SHA-256。",
+    "未直接检查原始波形、mutation patch 或 RTL 源码。",
+    "证明限定于预热后 cache-hit、无 redirect、合法 credit 与指定 backpressure 场景；cache miss、redirect 性能及 DI-2 不在本结论内。"
+  ],
+  "scope_extension_request": null,
+  "confidence_and_basis": {
+    "level": "high-within-frozen-material",
+    "basis": "DI-1 的叶级 H1、真实 frontend sink、独立 PC/事务 ledger、合法 backpressure、尾部排空、9/9 动态变异、pre/post 同源绑定和 sibling preservation 已形成相互独立的交叉证据。"
+  }
+}

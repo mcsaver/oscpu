@@ -1,0 +1,6 @@
+node_id	status	claim
+v8h-contract	completed	v8h.1 freezes interface/state/event plus same-edge full-PID claim order
+v8h-rtl	completed	MulDiv/CLMUL full PID holder, query3/4, lease union and actual authorization
+v8h-focused	completed	assert/release 5/5 plus 23/23 compile-success semantic mutations
+v8h-broad	completed	module 105/105, style/contract PASS, lint unchanged, architecture inventory honest RED
+v8h-closeout	completed	implementation reviewer pass with blind spots retained; memory/DB/e2e/strict guard closed

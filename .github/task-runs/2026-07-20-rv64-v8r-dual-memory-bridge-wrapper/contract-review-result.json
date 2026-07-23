@@ -1,0 +1,147 @@
+{
+  "reviewer": "/root/v8r_f1_contract_review_retry",
+  "mode": "self_contained_no_tools",
+  "verdict": "gap",
+  "claim_boundary_ok": true,
+  "blockers": [
+    {
+      "id": "B1",
+      "issue": "DMA invalidate 的生效周期未闭合",
+      "detail": "合同明确要求 peer invalidate 在同拍组合屏蔽 lookup_hit，但对 DMA full invalidate 只规定清 valid 和优先级。若 valid 仅在时钟沿清除，则 DMA 与 exact lookup 同拍时仍可能返回旧 cache hit。",
+      "impact": "在无法证明 DMA 断言周期禁止 admission、lookup_hit 和 cache response 前，不能声明无 stale-hit 窗口。"
+    },
+    {
+      "id": "B2",
+      "issue": "MMU flush 与同拍 DTLB lookup 的排序未定义",
+      "detail": "合同规定 MMU flush 同拍清两个 DTLB，却未说明断言周期的请求属于 flush 前还是 flush 后，也未要求组合屏蔽 DTLB hit 或 PA 发射。",
+      "impact": "旧 VA 到 PA 翻译可能在清表时钟沿之前被消费。"
+    },
+    {
+      "id": "B3",
+      "issue": "valid 优先级缺少逐 line 合并语义",
+      "detail": "rst > DMA > peer > local 的顺序若被实现成全局 if/else，任意 peer invalidate 都可吞掉无关 index 的 local fill/store valid 更新。合同只明确了同地址冲突，没有明确无关 line 的并行更新。",
+      "impact": "允许产生宏已写入但 fill valid 丢失的实现；即使不直接破坏架构正确性，也不满足完整 cache 行为和性能预期。"
+    },
+    {
+      "id": "B4",
+      "issue": "跨 8B line 判定依赖未冻结的 wstrb 编码假设",
+      "detail": "addr 低位加 wstrb 字节数仅在 wstrb 必为从 addr 开始的连续规范化掩码时成立。稀疏掩码、总线 lane 对齐掩码或拆分事务会使 popcount 无法表示最高有效字节地址。",
+      "impact": "可能漏清第二 line。"
+    },
+    {
+      "id": "B5",
+      "issue": "随附内容只有计划证据，没有可执行结果",
+      "detail": "双 hit、hit-under-miss、B/lookup 同拍、DMA、结构 checker 和 mutation 均以计划形式出现，没有 pass/fail、断言覆盖或日志摘要。",
+      "impact": "当前材料只能审查合同边界，不能据此实际宣称 dual_bridge_cache_hit_leaf_verified。"
+    }
+  ],
+  "counterexamples": [
+    {
+      "id": "C1",
+      "status": "open",
+      "scenario": "lane1 已缓存物理 line L，并在 dma_invalidate 断言周期对 L 做 exact lookup；valid 直到时钟沿才清除，lookup_hit 未组合门控。",
+      "required_executable_evidence": "分别对两 lane 预热 L，在 DMA 与 lookup 同拍时断言 lookup_hit/cache response 被禁止，并证明后续访问走 miss。"
+    },
+    {
+      "id": "C2",
+      "status": "open",
+      "scenario": "DTLB 中存在 VA 到 PA_old，MMU flush 与 VA 请求同拍；组合 DTLB hit 仍把 PA_old 送入 D-cache 或 F0。",
+      "required_executable_evidence": "冻结 flush edge-ordering，并测试两 lane 的 MMU flush 与 DTLB-hit 同拍、flush 前已锁 owner、flush 后首请求和重新翻译路径。"
+    },
+    {
+      "id": "C3",
+      "status": "open",
+      "scenario": "lane0 peer invalidate line A，同时 lane1 本地 fill line B，A 与 B 位于不同 index；全局 peer-priority 分支清 A，却跳过 B 的 valid set。",
+      "required_executable_evidence": "覆盖不同 index、同 index 不同 tag、同一 exact line三类并发；要求无关 fill 可见、exact 冲突时 peer clear 获胜，并检查宏写与 valid 更新一致。"
+    },
+    {
+      "id": "C4",
+      "status": "open_conditional",
+      "scenario": "addr[2:0]=6，wstrb 为稀疏或总线 lane 编码且最高有效字节落在下一 8B line；使用 popcount(wstrb) 推导跨度时未检测第二 line。",
+      "required_executable_evidence": "冻结 legal addr/wstrb 关系；枚举全部合法组合，按每个有效字节的实际 PA 计算 line 集合，并证明首、次 line 清除集合完全一致；非规范编码由 assertion 拒绝。"
+    },
+    {
+      "id": "C5",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "lane0 获得 store B terminal 并产生 peer_maintenance_valid，lane1 同拍 lookup 同一 exact line；若 wrapper 注册或延迟 sideband，lane1 会命中旧行。",
+      "required_executable_evidence": "B terminal、producer valid、consumer mask、lookup_hit 和 response 的逐周期波形或 SVA；同时覆盖首 line、跨线次 line和无关 line。"
+    },
+    {
+      "id": "C6",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "AW/W 已 fire 或出现非 owner 的裸 BVALID，但尚无授权 terminal；错误重建 maintenance 会提前或错误失效 peer cache。",
+      "required_executable_evidence": "负向断言证明 AW fire、W fire、BVALID 无 handshake、错误 owner、stale identity 和 arbiter lane bit均不能单独产生 peer_maintenance_valid。"
+    },
+    {
+      "id": "C7",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "pipeline flush kill 掉已逃逸 write，随后其 B terminal 到达；实现若随 response drop 一并丢掉 maintenance，peer 保留旧 line。",
+      "required_executable_evidence": "覆盖 flush 位于 AW/W 后、B 前，证明 B 被精确归属、response drop、peer invalidation 保留且 local RMW 禁止。"
+    },
+    {
+      "id": "C8",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "B error、NC/IO、A-D write 或 killed escaped terminal 复用宽泛 commit 条件，错误触发本地 D-cache RMW。",
+      "required_executable_evidence": "分别注入 B error、NC、IO、A-D、killed escaped terminal，证明 peer/local invalidation 发生而 local RMW owner始终不被授予。"
+    },
+    {
+      "id": "C9",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "lane0 miss 已锁住 F0 owner，wrapper 用 arbiter busy 全局门控 lane1；lane1 的 DTLB 和 D-cache hot request 因而不 READY 或不响应。",
+      "required_executable_evidence": "双向测试长延迟 R/B owner 与 peer hot hit，断言 peer request READY、lookup_hit 和 response latency 不依赖 arbiter idle。"
+    },
+    {
+      "id": "C10",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "两 lane 同拍 cache hit，但 wrapper 将两个 response 压成单 mux，导致一侧丢失或被另一侧 response READY 反压。",
+      "required_executable_evidence": "真实 miss/fill 预热后制造双 exact hit，组合四种 response READY，证明两 valid、payload、station/token 和握手均保持 lane-local。"
+    },
+    {
+      "id": "C11",
+      "status": "closed_by_contract_needs_execution",
+      "scenario": "交叉连接误接为 lane0 producer 到 lane0 peer input，或 addr/wstrb 与 valid 来自不同 lane，导致真正 peer 未失效。",
+      "required_executable_evidence": "结构 checker 加双向独立地址与非对称 wstrb 测试，证明只有相反 lane 的目标 line 被清除。"
+    },
+    {
+      "id": "C12",
+      "status": "needs_temporal_definition",
+      "scenario": "rst 与 maintenance 或 lookup 同拍；若 maintenance 被寄存并在复位释放后重放，或 reset 周期仍输出旧 hit/response，会违反冷启动边界。",
+      "required_executable_evidence": "覆盖 rst 与 peer valid、DMA、lookup、pending response 同拍及连续复位，证明释放后 valid 全空、无延迟 maintenance pulse、无旧 response。"
+    }
+  ],
+  "unknowns": [
+    "DMA、MMU flush、pipeline flush 和同步 rst 相对于同拍 request acceptance、lookup_hit、response valid 的精确定序。",
+    "valid 优先级是逐 cache entry 合并，还是整个 cache 的全局事件优先链。",
+    "wstrb 是相对 addr 的连续规范化字节掩码、AXI 数据 lane 掩码，还是允许稀疏值。",
+    "peer invalidate 的 addr 是原始 byte PA、8B line base，还是已对齐 AXI beat address。",
+    "dcache_store_commit_w 与其 addr/wstrb payload 是否在 terminal 组合周期同时有效，还是任一方经过寄存。",
+    "同 index 不同 tag 的 peer invalidate 是否允许保守清除，以及该行为对并发 fill 的预期。",
+    "pipeline flush 与已形成 cache-hit response 同拍时，response 是允许完成还是必须 drop。",
+    "计划中的 compile、mutation、结构 checker 和场景测试是否已实际运行并通过。",
+    "合同只保证跨 lane hit-under-peer-miss；未声明同一 bridge 在自身 outstanding miss 下继续接收 hot hit。"
+  ],
+  "assumptions": [
+    "u_miss_arbiter 的既有验证保证 owner 从 grant 锁定到对应 R/B terminal，且 response 不会错投 lane。",
+    "每个 bridge 同拍至多产生一个 maintenance event，共享 F0 当前同拍至多产生一个真实 B terminal。",
+    "两个 D-cache 均为物理地址索引和标记，MMU flush 因而无需清物理 D-cache。",
+    "peer event 与 local fill/RMW 可以同拍到达，数据宏操作继续执行，冲突仅通过 valid 可见性解决。",
+    "直接复用意味着 wrapper 不增加寄存、重编码、仲裁或基于 lane/bank 位的重建。",
+    "唯一完成声明只有在计划中的可执行证据全部成功后才可使用。"
+  ],
+  "contract_compliance": {
+    "owner_maintenance_authority": "文本边界充分；缺少实际负向与 killed-escaped 执行证据。",
+    "cross_connection": "文本边界充分；缺少结构证据。",
+    "same_cycle_stale_hit": "peer invalidate 已明确闭合；DMA 与 MMU flush 的同拍可见性仍有缺口。",
+    "valid_priority": "优先顺序明确，但逐 line 合并、同 index 不同 tag 和无关 local update 语义不完整。",
+    "dual_response": "文本明确禁止全局门控和单 mux，允许同拍双响应；缺少执行结果。",
+    "hit_under_miss": "跨 lane hot-hit 保证明确；未越级声称 same-lane hit-under-own-miss。",
+    "flush_mmu_dma_reset": "宏观职责和清除范围正确；同拍 admission、lookup、response 时序及 reset 输出行为不完整。",
+    "future_dual_b": "明确排除未来双 B 扩展，没有越级声称已处理双维护冲突。",
+    "completion_claim": "声明范围严格限制在未接 core 的 F1 leaf，并明确 DI-5、OOO-3、overall RED 与 PPA unqualified；边界合规，但当前材料不足以实际宣称 verified。"
+  },
+  "confidence_and_basis": {
+    "contract_level": "high",
+    "rtl_implementation_level": "low",
+    "basis": "结论仅来自随附冻结事实；未访问 RTL、测试或日志，不能判断实现是否已经额外关闭这些缺口。"
+  }
+}

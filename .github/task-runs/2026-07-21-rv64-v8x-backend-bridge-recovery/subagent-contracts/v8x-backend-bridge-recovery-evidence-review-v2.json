@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8x-backend-bridge-recovery-evidence-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地 RV64 Verilog/SystemVerilog 仿真与验证证据，复核 OooIntBackend 到 OooDualMemBridgeWrapper/OooMemAxiBridge 的同 bank 双 LOAD 分支错误预测恢复联合轨迹是否关闭 V8W 指定验证缺口，并主动寻找身份、时序、守恒或变异敏感性假绿；不得外推为总体架构或 PPA 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/subagent-contracts/v8x-backend-bridge-recovery-evidence-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Focused 正例唯一 marker：A=0 B=1 ar=1 drop=2 pop=2 terminal=2 wb=0 commit=0 fill=0 lane1=0 quiet=6 PASS，随后 test PASS 与 RESULT PASS。",
+      "dispatch 捕获不可变 owner tuple kind/token/epoch/fault_tval；drop、exact MIQ pop、collector lane2 terminal 均逐 owner 比较，不用更新后的 head 单独标识事务。",
+      "真实 backend 与 wrapper 全端口直连，TB 仅建模 wrapper 唯一 AXI slave；A active、B station 建立前 ARREADY 为低，唯一 shared AR fire 同时核对 owner=A、head=A、station=B。",
+      "older branch commit held；branch_resolve_mispredict 为单拍且 wrapper global flush 全程为零；A/B MIQ effective-killed 状态保持到各自 exact pop。",
+      "A 在 bridge READ_DATA 接收迟到 R，同一采样边只允许 drop(A)、exact pop(A)、collector lane2(A)，逐周期禁止 response、WB、commit、cache fill 与第二次 AR。",
+      "下一周期 B 从真实 station 晋升；active、tracker expected、station expected、residency、MIQ head 均核对为 B；persistent-killed authority 触发 pre-AXI drop(B)、pop(B)、collector lane2(B)，并禁止 translate、AR、WB、commit、fill。",
+      "ledger 强制 A terminal 先于 B terminal且各恰一次；两个 bridge、tracker、collector、MIQ、ROB 最终 drain idle，随后 6 周期 quiet guard 无新增事件。",
+      "两项 compile-success RTL 验证变异均 compile_rc=0、sim_rc=1：屏蔽 active recovery 的首个 witness 为 V8X active A exact selective authority；阻断 killed station promotion 的首个 witness 为 V8X station B promotes to active B；生产 RTL SHA 前后一致。",
+      "V8W backend/full bridge/wrapper 与默认 backend/core-top 共 5/5 回归 PASS；check-contract 13 tests、holder census 与 assertion census PASS；aggregate marker 为 baseline=1 mutations=2/2 regressions=5/5 contract=PASS；本轮未修改 production RTL。",
+      "结论边界固定为仅关闭指定 LOAD 联合动态轨迹；OOO-4、DI-5、OOO-3、overall 仍为 RED，PPA=UNQUALIFIED，promotion_eligible=false。"
+    ]
+  },
+  "deliverables": [
+    "输出严格 JSON：verdict(pass/gap/inconclusive)、verified_points、blockers、remaining_risks、unknowns、scope_extension_request、confidence_and_basis、conclusion_boundary；每个 blocker 必须指出随附证据中的具体承重缺口和最小补证。"
+  ],
+  "success_criteria": [
+    "仅当随附证据共同闭合 immutable owner、真实 active/station、单拍选择性恢复、A 迟到 R 无副作用终结、B pre-AXI 精确终结、A 后 B exactly-once ledger、最终守恒、compile-success RTL 变异敏感性和相邻回归时才可 pass；允许 gap 或 inconclusive，且不得提升总体架构/PPA 状态。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-architecture-contract-rereview-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据第三次修订后的随附事实复核F3最终物理地址SQ查询合同，重点验证pre-query conservation与bank-local retry handoff能否消除same-bank replay依赖环，并继续寻找可执行反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-architecture-contract-rereview-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围仅限本地RV64双发射OoO RTL的memory pipeline、transaction ordering、timing与verification；禁止网络、账号、凭据、外部服务、shell、文件访问和任何写入。",
+      "plain store在dispatch取得program-ordered SQ placeholder；filled原子验证PA、typed class、mask和enabled data；terminal仅表示no-effect probe fault或physical B及maintenance后的global visibility。",
+      "每次bank request fire在translation前原子完成owner handoff、selected-bank MIQ push和bridge station capture；从此沿起translation、PTW、A-D、SQ_QUERY、target、S_RESP均满足MIQ/bridge/tracker identity conservation。",
+      "pre-query local fault形成exact exception response；pre-query kill切断新side effect并按现有AR/AW/W hold/drain boundary最终exact drop；late PTW或A-D response只可匹配原bank token epoch，PID在holder清零前不可复用。",
+      "ordinary load在typed final PA查询SQ；allow进入target，forward原子capture held response，replay在retry credit可用前保持query且无cache AXI device response WB或terminal event。",
+      "exact retry fire同沿把完整bank-local MIQ head与tracker full ProducerId捕获进该bank retry slot、exact pop MIQ并释放bridge；它不释放token、不产生ROB terminal、不重新分配owner。",
+      "retry slot保存full PID、ROB、pdest与FP属性、size与unsigned、有效地址、wdata与wstrb、owner kind token epoch和fault tval；后续普通request fire重新push同owner MIQ，形成retry-slot到MIQ与bridge的exact handoff。",
+      "每bank一个retry slot；当retry valid或bridge active或station已有ordinary LOAD时，本bank不再接受第二ordinary LOAD，但plain STORE probe、ROB-head SQ drain和head-only AMO仍可进入，因此不会有第二load等待同一个retry slot。",
+      "retry与同bank store reservation按edge-old full ProducerId仲裁，older store优先，retry更老或没有store candidate时retry可重发；ROB-head drain与AMO优先；禁止raw index、arrival order、固定retry优先或无穷younger-store优先。",
+      "retry slot被global或selective kill时产生lossless tagged exact drop并清slot；不得重发killed owner、静默清slot或提前free token；holder census覆盖MIQ加bridge到retry slot再到MIQ加bridge两个handoff沿。",
+      "forward继续使用原bank MIQ head、held response、global WB与terminal credit并满足response XOR drop；两个bank query retry forward完全独立且cross-bank接线被禁止。",
+      "canonical dual关闭旧issue-stage VA alias决定与all-load blind gate；当前只允许final_pa_sq_ordering_checkpoint，F4、DI-5、OOO-3、overall与PPA promotion仍未闭合。"
+    ]
+  },
+  "deliverables": [
+    "给出PASS或GAP、逐项P0/P1反例、v3缺口disposition、单retry-slot充分性、holder conservation、进展性、必要假设、替代契约、未知项、scope_extension_request及confidence_and_basis；不得冒充完整仓库审查"
+  ],
+  "success_criteria": [
+    "明确判断修订合同是否足以进入实现；任何GAP给出可执行directed test、assertion或compile-success mutation，不设固定发现上限"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-architecture-debt-ledger-v2.schema.json",
+  "title": "NPC RV64 architecture debt ledger v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "revision", "scope", "design_id", "roadmap", "entries"],
+  "properties": {
+    "schema": {"const": "npc-rv64-architecture-debt-ledger-v2"},
+    "revision": {"type": "string", "minLength": 1},
+    "scope": {"type": "string", "minLength": 1},
+    "design_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "roadmap": {"$ref": "#/$defs/hashArtifact"},
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/entry"}
+    }
+  },
+  "$defs": {
+    "hashArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "evidenceArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "priority", "title", "status", "owner_paths",
+        "closure_requirements"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "priority": {"enum": ["P0", "P1"]},
+        "title": {"type": "string", "minLength": 1},
+        "status": {
+          "enum": [
+            "CLOSED", "EXCLUDED_BY_COHORT", "OPEN", "UNKNOWN",
+            "STALE_EVIDENCE", "SCOPE_DECISION_REQUIRED"
+          ]
+        },
+        "owner_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "closure_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "current_design_bound": {"type": "boolean"},
+        "design_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "canonical_command": {"type": "string", "minLength": 1},
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["positive", "counterexample"],
+          "properties": {
+            "positive": {"type": "boolean"},
+            "counterexample": {"type": "boolean"},
+            "compile_success_rtl_mutation": {"type": "boolean"},
+            "compile_success_evidence_mutation": {"type": "boolean"}
+          },
+          "oneOf": [
+            {
+              "required": ["compile_success_rtl_mutation"],
+              "not": {"required": ["compile_success_evidence_mutation"]}
+            },
+            {
+              "required": ["compile_success_evidence_mutation"],
+              "not": {"required": ["compile_success_rtl_mutation"]}
+            }
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidenceArtifact"}
+        },
+        "scope_rationale": {"type": "string", "minLength": 1},
+        "scope_contract": {"$ref": "#/$defs/hashArtifact"}
+      }
+    }
+  }
+}

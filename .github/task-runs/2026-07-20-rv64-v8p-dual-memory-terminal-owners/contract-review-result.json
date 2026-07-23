@@ -1,0 +1,20 @@
+{
+  "verdict": "gap",
+  "contract_sha256": "d0bfcd4de5e93790754f5164a6564c807df64c079311c4119ac3315bff490ab4",
+  "review_mode": "self-contained-no-tools",
+  "blocker_ids": [
+    "G01_ATOMIC_FIRE_SIDE_EFFECT_CLOSURE",
+    "G02_READY_DAG_AND_RAW_FALLTHROUGH",
+    "G03_TWO_BANK_AND_DUAL_AGU_NON_SHELL",
+    "G04_PACKED_AGE_AND_EDGE_OLD_ORDER",
+    "G05_FULL_PID_TOKEN_OWNER_CONSERVATION",
+    "G06_FLUSH_KILL_AND_LOSSLESS_TERMINATION",
+    "G07_SQ_DUAL_BIND_ATOMIC_ASSOCIATION",
+    "G08_PAIR_MATRIX_AND_PLAIN_MEMORY_CLOSURE",
+    "G09_MUTATION_ACTIVATION_AND_DIAGNOSTIC_KILL",
+    "G10_PROVENANCE_AND_FRESH_MODE_EVIDENCE",
+    "G11_DI3_ONLY_PUBLICATION_GUARD"
+  ],
+  "decisive_counterexample": "If alloc0 valid/ready remains independently committing while alloc1 lacks credit, both IQ lanes can stall while token0 is born, creating a partial memory-pair transaction.",
+  "claim_boundary": "No RTL implementation or DI-3 promotion before the contract resolves all listed gaps; DI-5, OOO-3, overall and PPA remain RED."
+}

@@ -284,6 +284,52 @@ for raw_path in sys.argv[1:]:
     compile(path.read_text(encoding="utf-8"), str(path), "exec")
 PY
 
+  echo "[github-index] excluded directory traversal pruning regression"
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$E2E_ROOT_DIR/scripts" python3 - <<'PY' || rc=1
+import tempfile
+from pathlib import Path
+
+from dev_memory import core
+
+with tempfile.TemporaryDirectory() as raw_root:
+    repo = Path(raw_root)
+    github = repo / ".github"
+    (github / "task-runs" / "old" / "evidence").mkdir(parents=True)
+    (github / "db-backup" / "objects").mkdir(parents=True)
+    (github / "instructions").mkdir(parents=True)
+    (github / "task-runs" / "old" / "task-report.md").write_text("old run\n", encoding="utf-8")
+    (github / "task-runs" / "old" / "evidence" / "raw.log").write_text("raw\n", encoding="utf-8")
+    (github / "db-backup" / "objects" / "object.md").write_text("backup\n", encoding="utf-8")
+    (github / "instructions" / "active.md").write_text("# Active\n", encoding="utf-8")
+
+    original = core.index_one_file
+    visited: list[str] = []
+
+    def guarded(repo_root, path, max_bytes, db_rel_path, excludes):
+        rel = path.relative_to(repo_root).as_posix()
+        if rel.startswith(".github/task-runs/") or rel.startswith(".github/db-backup/"):
+            raise AssertionError(f"pruned directory was traversed: {rel}")
+        visited.append(rel)
+        return original(repo_root, path, max_bytes, db_rel_path, excludes)
+
+    core.index_one_file = guarded
+    try:
+        items = core.scan_files(
+            repo,
+            github,
+            github / "cache" / "index.sqlite",
+            1_048_576,
+            [".github/task-runs"],
+            [],
+        )
+    finally:
+        core.index_one_file = original
+
+    assert [item.path for item in items] == [".github/instructions/active.md"], visited
+
+print("PASS github-index prunes excluded/retained directories before visiting their files")
+PY
+
   echo "[github-index] atomic task-run publication regression"
   PYTHONDONTWRITEBYTECODE=1 \
     python3 "$E2E_ROOT_DIR/scripts/e2e/tests/task_run_publication_regression.py" || rc=1
@@ -378,7 +424,7 @@ PY
       --repo-root "$E2E_ROOT_DIR" \
       --db "$tmp_db" \
       --limit 1 \
-      --max-tokens 800
+      --max-tokens 1200
   ) || rc=1
   printf '%s\n' "$shim_load_out"
   if grep -Fq -- 'load=AGENTS.md mode=path' <<< "$shim_load_out" &&
@@ -404,6 +450,24 @@ PY
     --repo-root "$mini_repo" \
     --db "$mini_db" \
     --content $'# Mini github-index note\n\nsoftware-flow github-index maintenance\n' || rc=1
+  local excluded_rebuild_out
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --exclude .github/memory || rc=1
+  excluded_rebuild_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" show .github/memory/github-index-note.md \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --json
+  ) || rc=1
+  if grep -Fq '"exists_flag": 1' <<< "$excluded_rebuild_out" &&
+     grep -Fq '"index_status": "indexed"' <<< "$excluded_rebuild_out"; then
+    printf 'PASS github-index rebuild preserves explicitly excluded live-index rows\n'
+  else
+    printf 'FAIL github-index rebuild marked an explicitly excluded row missing\n'
+    rc=1
+  fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" ls memory \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
@@ -1469,6 +1533,285 @@ EOF
     printf 'FAIL github-index raw evidence asset index did not produce stored evidence-index summary\n'
     rc=1
   fi
+
+  mkdir -p "$mini_repo/.github/task-runs/trace-demo/evidence"
+  cat > "$mini_repo/.github/task-runs/trace-demo/task-report.md" <<'EOF'
+# 任务报告
+
+- `task_id`: trace-demo
+- `task_slug`: trace-demo
+- `profile`: github-index
+- `status`: completed
+EOF
+  printf 'PASS trace demo evidence\n' \
+    > "$mini_repo/.github/task-runs/trace-demo/evidence/trace.log"
+  cat > "$mini_repo/.github/task-runs/trace-demo/run-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "trace_id": "e2e:trace-demo",
+  "run_id": "trace-demo",
+  "task_slug": "trace-demo",
+  "profile": "github-index",
+  "status": "completed",
+  "git": {},
+  "artifacts": {
+    "task_report": ".github/task-runs/trace-demo/task-report.md",
+    "evidence_dir": ".github/task-runs/trace-demo/evidence",
+    "run_manifest": ".github/task-runs/trace-demo/run-manifest.json"
+  },
+  "node_counts": {
+    "total": 1
+  },
+  "evidence": {
+    "asset_count": 1,
+    "total_size_bytes": 25
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  }
+}
+EOF
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  if python3 - "$E2E_ROOT_DIR" "$mini_repo" "$mini_db" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+source_root = Path(sys.argv[1]).resolve()
+repo_root = Path(sys.argv[2]).resolve()
+db_path = Path(sys.argv[3]).resolve()
+sys.path.insert(0, str(source_root))
+
+from scripts.dev_memory.core import open_db
+from scripts.dev_memory.maintenance import (
+    validate_run_manifest_payload,
+    validate_runtime_artifact_run,
+)
+
+run_id = "trace-demo"
+manifest_path = repo_root / ".github/task-runs/trace-demo/run-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+conn = open_db(db_path, readonly=True)
+try:
+    rows = conn.execute(
+        "SELECT path, kind FROM evidence_assets WHERE run_id = ? ORDER BY path",
+        (run_id,),
+    ).fetchall()
+    _result, trace_errors = validate_run_manifest_payload(
+        repo_root,
+        conn,
+        run_id,
+        manifest,
+        manifest_path,
+    )
+    _artifact_result, artifact_errors = validate_runtime_artifact_run(
+        repo_root,
+        conn,
+        run_id,
+        manifest,
+    )
+finally:
+    conn.close()
+
+paths = [(row["path"], row["kind"]) for row in rows]
+expected_manifest = ".github/task-runs/trace-demo/run-manifest.json"
+index_text = (repo_root / ".github/task-runs/trace-demo/evidence-index.md").read_text(
+    encoding="utf-8"
+)
+ok = (
+    not trace_errors
+    and not artifact_errors
+    and len(paths) == 2
+    and (expected_manifest, "json") in paths
+    and "- `asset_count`: 1" in index_text
+    and f"- `total_size_bytes`: {(repo_root / '.github/task-runs/trace-demo/evidence/trace.log').stat().st_size}" in index_text
+    and "- `kind`: json" not in index_text
+    and expected_manifest not in index_text
+)
+raise SystemExit(0 if ok else 1)
+PY
+  then
+    printf 'PASS github-index binds run manifest in DB while ordinary evidence index excludes pointers\n'
+  else
+    printf 'FAIL github-index run-manifest trace binding diverges from ordinary evidence index\n'
+    rc=1
+  fi
+
+  cp "$mini_repo/.github/task-runs/trace-demo/run-manifest.json" \
+    "$tmp_dir/trace-demo-manifest-original.json"
+  python3 - "$mini_repo/.github/task-runs/trace-demo/run-manifest.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+payload["revision_probe"] = 1
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  cp "$mini_repo/.github/task-runs/trace-demo/run-manifest.json" \
+    "$tmp_dir/trace-demo-manifest-updated.json"
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  if python3 - \
+      "$mini_repo" \
+      "$mini_db" \
+      "$tmp_dir/trace-demo-manifest-original.json" \
+      "$tmp_dir/trace-demo-manifest-updated.json" <<'PY'
+import hashlib
+import sqlite3
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1]).resolve()
+db_path = Path(sys.argv[2]).resolve()
+original = Path(sys.argv[3]).read_bytes()
+updated = Path(sys.argv[4]).read_bytes()
+live = (repo_root / ".github/task-runs/trace-demo/run-manifest.json").read_bytes()
+conn = sqlite3.connect(db_path)
+try:
+    row = conn.execute(
+        "SELECT sha256, size_bytes FROM evidence_assets WHERE path = ?",
+        (".github/task-runs/trace-demo/run-manifest.json",),
+    ).fetchone()
+finally:
+    conn.close()
+ok = (
+    row is not None
+    and original != updated == live
+    and row[0] == hashlib.sha256(live).hexdigest()
+    and row[1] == len(live)
+)
+raise SystemExit(0 if ok else 1)
+PY
+  then
+    printf 'PASS github-index refreshes final run-manifest metadata without duplicate rows\n'
+  else
+    printf 'FAIL github-index retained stale or duplicate run-manifest metadata\n'
+    rc=1
+  fi
+
+  python3 - "$mini_repo" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1]).resolve()
+run_id = "trace-peer"
+run_root = repo_root / ".github/task-runs" / run_id
+(run_root / "evidence").mkdir(parents=True)
+(run_root / "task-report.md").write_text(
+    "# 任务报告\n\n"
+    "- `task_id`: trace-peer\n"
+    "- `task_slug`: trace-peer\n"
+    "- `profile`: github-index\n"
+    "- `status`: completed\n",
+    encoding="utf-8",
+)
+(run_root / "evidence/trace.log").write_text("PASS trace peer evidence\n", encoding="utf-8")
+manifest = {
+    "schema_version": 1,
+    "trace_id": "e2e:trace-peer",
+    "run_id": "trace-peer",
+    "task_slug": "trace-peer",
+    "profile": "github-index",
+    "status": "completed",
+    "git": {},
+    "artifacts": {
+        "task_report": ".github/task-runs/trace-peer/task-report.md",
+        "evidence_dir": ".github/task-runs/trace-peer/evidence",
+        "run_manifest": ".github/task-runs/trace-peer/run-manifest.json",
+    },
+    "node_counts": {"total": 1},
+    "evidence": {"asset_count": 1, "total_size_bytes": 25},
+    "db": {"markdown_archive": True, "raw_evidence_index_only": True},
+}
+(run_root / "run-manifest.json").write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-peer \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  rm -f "$mini_repo/.github/task-runs/trace-demo/run-manifest.json"
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  if python3 - "$mini_db" <<'PY'
+import sqlite3
+import sys
+
+conn = sqlite3.connect(sys.argv[1])
+try:
+    demo = conn.execute(
+        "SELECT path FROM evidence_assets WHERE run_id = ? ORDER BY path",
+        ("trace-demo",),
+    ).fetchall()
+    peer = conn.execute(
+        "SELECT path FROM evidence_assets WHERE run_id = ? ORDER BY path",
+        ("trace-peer",),
+    ).fetchall()
+finally:
+    conn.close()
+demo_paths = [row[0] for row in demo]
+peer_paths = [row[0] for row in peer]
+ok = (
+    demo_paths == [".github/task-runs/trace-demo/evidence/trace.log"]
+    and len(peer_paths) == 2
+    and ".github/task-runs/trace-peer/run-manifest.json" in peer_paths
+)
+raise SystemExit(0 if ok else 1)
+PY
+  then
+    printf 'PASS github-index removes stale manifest rows without crossing run boundaries\n'
+  else
+    printf 'FAIL github-index manifest cleanup leaked stale or cross-run rows\n'
+    rc=1
+  fi
+  cp "$tmp_dir/trace-demo-manifest-original.json" \
+    "$mini_repo/.github/task-runs/trace-demo/run-manifest.json"
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --write-index \
+    --yes >/dev/null || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown \
+    .github/task-runs/trace-demo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/test \
+    --yes >/dev/null || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown \
+    .github/task-runs/trace-peer \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/test \
+    --yes >/dev/null || rc=1
+
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1

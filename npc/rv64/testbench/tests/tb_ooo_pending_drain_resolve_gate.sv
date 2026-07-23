@@ -32,6 +32,7 @@ module tb_ooo_pending_drain_resolve_gate;
   reg pending_system_fence;
   reg pending_system_csr;
   reg pending_system_dispatched;
+  reg system_csr_dispatch_cancel;
 
   wire backend_drained;
   wire jump_dispatch_valid;
@@ -77,6 +78,7 @@ module tb_ooo_pending_drain_resolve_gate;
     .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(pending_system_csr),
     .pending_system_dispatched_i(pending_system_dispatched),
+    .system_csr_dispatch_cancel_i(system_csr_dispatch_cancel),
     .backend_drained_o(backend_drained),
     .jump_dispatch_valid_o(jump_dispatch_valid),
     .system_csr_dispatch_valid_o(system_csr_dispatch_valid),
@@ -115,6 +117,7 @@ module tb_ooo_pending_drain_resolve_gate;
       pending_system_fence = 1'b0;
       pending_system_csr = 1'b0;
       pending_system_dispatched = 1'b0;
+      system_csr_dispatch_cancel = 1'b0;
     end
   endtask
 
@@ -164,6 +167,12 @@ module tb_ooo_pending_drain_resolve_gate;
     tb_check1("system CSR dispatch valid", system_csr_dispatch_valid, 1'b1);
     tb_check1("system CSR dispatch fire", system_csr_dispatch_fire, 1'b1);
     tb_check1("system CSR replay waits", pending_replay_wait, 1'b1);
+    system_csr_dispatch_cancel = 1'b1;
+    #1;
+    tb_check1("cancel suppresses system CSR dispatch valid",
+              system_csr_dispatch_valid, 1'b0);
+    tb_check1("cancel suppresses system CSR dispatch fire",
+              system_csr_dispatch_fire, 1'b0);
 
     clear_inputs();
     stop_pending = 1'b1;

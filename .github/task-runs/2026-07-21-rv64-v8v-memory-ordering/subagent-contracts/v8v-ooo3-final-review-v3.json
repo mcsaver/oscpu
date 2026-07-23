@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8v-ooo3-final-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 RV64 双发射 OoO backend 的 OOO-3 候选：重点追踪 checkpoint_restore_i 在 Dispatch/ROB/IQ/rename、PRF、FP、SQ、LQ、MIQ、reservation、retry 与 bridge terminal 间的逐拍 owner 守恒，并复核双 bank load/store ordering、ROB retirement authority、full ProducerId birth fence、same-design evidence 与 PPA 结论边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused",
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/memory-ordering.log",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v2-gap.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/subagent-contracts/v8v-ooo3-final-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v2-gap.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；逐项列出影响裁决的微架构反例、coverage hole 与置信依据。",
+    "每个 GAP 给出精确 file:line、逐拍 owner/state 时序、最小定向 TB 或 compile-success mutation；输入不足时给出 scope_extension_request。",
+    "分别报告 OOO-3、overall architecture 与 PPA 状态；功能 evidence 不外推 frequency、area 或 power。"
+  ],
+  "success_criteria": [
+    "独立追踪未 launch load/store、已 launch load/store、response/terminal 同拍 restore、恢复后 redispatch/retire，以及 ROB lookup/commit/free 耦合。",
+    "核对 11 项 metric basis、9 项 LQ mutation、15 项 F2 parent mutation、28-file source manifest、41-file provenance inventory 与 live hash replay 的 oracle sensitivity。",
+    "不设置固定发现数量上限；所有仍影响 verdict 的反例均进入交付。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

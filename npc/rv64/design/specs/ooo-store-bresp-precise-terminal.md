@@ -67,10 +67,16 @@ SQ grant 必须优先于 younger buffer/issue。失败的 younger issue 不得�
 buffer 为空，可在同拍把 reservation owner 转入 buffer。MIQ 的 DRAIN entry 使用真实 store ROB tag，
 使 B response、WB、SQ terminal 三者身份一致。`request_sent` 阻止任何重复真实写。
 
-SQ precommit eligibility 还必须显式满足 `!flush_i && !checkpoint_restore_i`。两种 flush 都会
-清 MIQ；若 restore 拍允许 SQ fire，SQ 会置 `request_sent` 而同拍 MIQ push 被 flush 臂丢弃，形成
-永久无 response owner。故 restore/flush 拍 `grant_sq=req_valid=req_fire=miq_push=0`，下一拍 owner
-原样恢复请求资格。
+SQ precommit eligibility 还必须显式满足 `!flush_i && !checkpoint_restore_hold_w`。raw checkpoint
+request 立即进入 admission hold，故 `grant_sq=req_valid=req_fire=miq_push=0`，不会产生“SQ 置
+`request_sent`、MIQ push 被恢复丢弃”的半生命周期。
+
+若 request 到达前 physical store 或 AMO write 已完成 bank0 `req_fire`，该完整 `ProducerId` 从 request
+fire 到 lane0 ROB retirement 持有不可撤回 write lease。restore 保持 pending，既有 B response、formal
+WB、精确 lane0 commit 与 SQ release 继续推进；lane1 commit 被阻塞，所有新 dispatch/issue/request
+仍被冻结。只有 lease、SQ `request_sent` 与 DRAIN owner 全部清空，`checkpoint_restore_apply_w` 才产生
+一次 backend-wide 破坏性恢复脉冲。该 apply 同步恢复 Dispatch/ROB/IQ/rename、PRF、FP、execution
+stages、MIQ/retry、SQ/LQ，并经 control flush sequencer 广播到两个 memory request gate。
 
 ## 5. forwarding、branch 与 global flush
 
@@ -80,8 +86,9 @@ SQ precommit eligibility 还必须显式满足 `!flush_i && !checkpoint_restore_
   `T4N-SQ-GLOBAL-NUKE` 是承重断言：若 global flush 与 live `request_sent` owner 重叠，除非同拍
   terminal release，否则立即报错。这个断言不是恢复机制，防御性 survive 逻辑只避免静默破坏。
 - probe fault 未发真实写，仍可被 older branch/global trap 正常 squash。
-- global flush/checkpoint restore 组合拍禁止产生新的 SQ physical request；已在飞 DRAIN response
-  与 global flush 同拍时，MIQ 必须先兑现 response pop，再执行 DRAIN keep-set 压缩。
+- global flush 与 checkpoint request/hold 都禁止新的 SQ physical request；checkpoint request 不提前清除
+  已发射 owner，accepted apply 才进入 backend/memory recovery。已在飞 DRAIN response 与 global flush
+  同拍时，MIQ 仍必须先兑现 response pop，再执行 DRAIN keep-set 压缩。
 
 ## 6. T4M post-translate device 交叠
 
@@ -99,12 +106,16 @@ bridge `S_DEVICE_WAIT`，从而避免单 FSM/MIQ 与 older store 相互等待。
   terminal+release+flush 事件代数。
 - `tb_ooo_int_backend`：probe no-WB、delayed B、WB-credit stall、VA!=PA B error cause7/tval VA、
   SQ priority/no false fire、two-store order、T4M older-store admission、SD/FSD page-end local
-  terminal、older normal + younger store fault exception-lane0-only、checkpoint restore no-fire。
+  terminal、older normal + younger store fault exception-lane0-only、checkpoint restore no-fire；
+  `V8S_DUAL_MEMORY_FOCUSED` 还覆盖 delayed-OKAY B、raw restore/error-B 同拍及 AMO write 的
+  request/hold/apply drain，精确计数 physical request、B/formal-WB、lane0 commit、SQ release 与 apply。
 - `tb_ooo_mem_axi_bridge`：OKAY/SLVERR/DECERR 各自唯一 held response，ready stall 下稳定；既有
   post-translate device cancel/release 与 translated PMEM case 继续通过。
 - `OOO_ASSERT`：request/grant one-hot、request at-most-once、commit-before-terminal、B-credit、
   B→unique-WB、exception-lane0-only、restore/flush SQ grant mask、local store exception terminal、
-  双 terminal 各自唯一 CAM hit/同拍 tag 互斥、branch survival、global nuke 与 T4M admission。
+  双 terminal 各自唯一 CAM hit/同拍 tag 互斥、branch survival、global nuke、T4M admission、
+  checkpoint hold 零新 owner、write lease 精确 ROB head、apply 前零不可撤回 owner及 pending 时 lane1
+  零退休。
 
 本切片提供功能与结构证据；未单独运行综合/STA，不据此宣称 200 MHz 已重新 closure。
 

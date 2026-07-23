@@ -1,0 +1,79 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/evidence",
+    "evidence_index": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract",
+    "run_manifest": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 2,
+    "by_kind": {
+      "log": 1,
+      "md": 1
+    },
+    "total_size_bytes": 9531
+  },
+  "final_result": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "ef967abae",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-20-v8k-native-no-tools-rtl-contract/evidence/recall-discovery.log",
+      "function": "e2e_agent_system_discovery",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "source_profile": "discovery",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "agent-system",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-20-v8k-native-no-tools-rtl-contract",
+  "schema_version": 1,
+  "started_at": "2026-07-20 02:07:32 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "v8k-native-no-tools-rtl-contract",
+  "trace_id": "e2e:2026-07-20-v8k-native-no-tools-rtl-contract",
+  "updated_at": "2026-07-20 02:07:42 +0800"
+}

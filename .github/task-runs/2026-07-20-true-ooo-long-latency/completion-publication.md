@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-true-ooo-long-latency
+- `trace_id`: e2e:2026-07-20-true-ooo-long-latency
+- `task_slug`: true-ooo-long-latency
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 5f51f800186741ec7f45661c9fcef5bb2ff5e9d19e20347f7fa571c70868874d
+- `task_report_md_sha256`: 4fdb4ccc2b5f7a1dd4d309ad9e1d484bb32ef088a6afdc7c41d9f703bbc6533e
+- `run_manifest_json_sha256`: 2fe2c61631ddb0fa9c4f753e3f80f4e6edd57d02917fb258e371856f606178c9
+- `context_brief_md_sha256`: afb1e288bdd2eb0e1b32e63f851ebf9b13bc1c1986b572729eedcb71315a4cd0
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: fb85bfb8de3cebf8e91011779e23b3ce59d3f6870c4e80722e2c9f15f1f4d3d8
+- `dispatch_log_md_sha256`: 9541a382a938efe1a86ab6735627942b150c46ba0a467509f33627a8d1def474
+- `nodes_tsv_sha256`: e62cbfa08ecebd494a505edb24af40d59d0f8f1038295fbcb9954c32fc56ddaf

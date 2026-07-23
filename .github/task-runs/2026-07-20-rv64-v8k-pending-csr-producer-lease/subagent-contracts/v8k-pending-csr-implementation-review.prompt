@@ -1,0 +1,69 @@
+# 本地 RTL 子任务契约 `v8k-pending-csr-implementation-review`
+
+- 工程领域：本地 RV64 Verilog/SystemVerilog 数字电路设计、验证或 PPA
+- 任务类型：`read-only-review`
+- 目标：Adversarially review the implemented local RV64 pending-system CSR full ProducerId lease, exact commit authorization, no-reuse fence, feedback-free admission cancel, and verification evidence without extending the scoped claim
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-pending-csr-implementation-review.json`
+- 合同 JSON SHA-256：`1f6f5ff4f3bcea2742d58ead169ab2c80ca80765b45659132b47f1ecc294a5c7`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+- 本提示是该 JSON 通过校验后的渲染结果。需要复核哈希时只核对上述路径；不得把该哈希与同名设计合同混用。
+
+## 路径与权限
+
+允许读取/处理：
+- npc/rv64/vsrc/control/OooPendingSystemSequencer.v
+- npc/rv64/vsrc/control/OooCsrAccessRequestMux.v
+- npc/rv64/vsrc/control/OooPendingDrainResolveGate.v
+- npc/rv64/vsrc/control/OooControlPlane.v
+- npc/rv64/vsrc/execute/OooIntBackend.v
+- npc/rv64/vsrc/core/OooCoreTopGlue.v
+- npc/rv64/testbench/tb_ooo_pending_system_sequencer.sv
+- npc/rv64/testbench/tb_ooo_csr_access_request_mux.sv
+- npc/rv64/testbench/tb_ooo_int_backend.sv
+- npc/rv64/testbench/tb_ooo_priv_system.sv
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/rtl-derivation.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/holder-census-delta.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-pending-csr-implementation-review.json
+
+允许写入：
+- 无（只读）
+
+允许命令：
+- command=rg; mode=read-only
+
+Canonical 审计用途（固定枚举，不接受任务自定义文本，不授予参数、选项或额外能力）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+
+`read-only` 只授权无落盘副作用的调用；禁止 `sed -i`、重定向和其它写型选项。
+
+外部访问边界：不联网，不访问账号、凭据或外部服务；不处理工作区外路径。
+
+## 最小上下文
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/rtl-derivation.md
+- .github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/holder-census-delta.md
+
+## 交付物
+
+- Return JSON only: verdict pass or gap, blockers, evidence blind spots, residual risks, and overclaims
+
+## 成功条件
+
+- No P0 or P1 lifecycle, identity, exact-commit, holder-census, combinational-feedback, false-green, or evidence-adequacy blocker remains in the v8k scoped implementation
+
+## 协作约束
+
+- 保留真实 RTL 标识符和信号语义；正文使用流水取消、分支恢复、完成资格、生产者归属、事务标签、定向变异和独立反例复核等准确硬件语义。
+- 不得扩大路径、写权限、命令或外部访问范围；需要扩展时先返回主 agent 生成新版契约。
+- Windows/Codex 经 WSL 访问本工作区时，工程 shell 为 single-flight：由主 agent 串行调度；子 agent 不与其它 agent 并发启动 `wsl.exe`。无 shell 授权的复核只使用渲染提示中已有上下文。
+- 平台暂不处理本任务时，仅把当前子任务记为 `review_pending`，保留原始请求与契约证据，父目标保持 `active`；不得通过改变 RTL 语义来重试。

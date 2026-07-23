@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9i-ifu-access-coverage-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附当前设计事实审查本地 RV64 IFU-ACCESS-G1 取指 footprint、execute PMP、AXI RRESP/属性、设备地址重定向、DPI 精确读宽与 lane1 异常所有权，寻找动态矩阵和 compile-success RTL 验证变体的共同盲点。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/review-summary.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/subagent-contracts/v9i-ifu-access-coverage-review-v1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "对象仅为授权本地 RV64 Verilog/SystemVerilog 处理器 RTL、testbench 与 EDA 证据；不使用 shell、文件工具、网络、账号、凭据或外部服务。",
+      "当前 design_id 是 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；生产 RTL 未因本轮诊断修改。",
+      "真实指令 footprint N=L0+L1 属于 4/6/8B，miss 只发 offset<N 的 2B execute read；首个 PMP 或 RRESP 失败 frontier F 属于 0/2/4/6，并立即禁止 younger PMP/AR/fill/write。",
+      "focused 矩阵 marker 为 footprint=4 poison=4 rresp=12 walk=12 pmp=6 PASS，覆盖 C/C、C/U、U/C、U/U，F0/F2/F4/F6，B2/B4/B6 乘 N4/N6/N8、S-mode default-deny 与 fast-reject exact fallback。",
+      "AXI 属性 marker 为 instruction_size=1 instruction_prot=4 ptw_size=3 ptw_prot=0 stall_instruction=2 stall_ptw=2 PASS；owner stall 中改变 live 输入仍保持锁存 payload。",
+      "设备地址 marker 为 stall_cycles=4 ifu_redirect=1 uart_side_effect=0 default_error=2 lsu_data_control=1 PASS；execute read 重定向 default-error，LSU data read 保持设备通路。",
+      "lane1 marker 为 rows=9 terminal=4 squash=2 poison=2 pseudo=1 tval_terminal=4 PASS；terminal 逐级到 drain，pred-NT actual-taken capture 后 squash，pred-taken poison 不形成 owner。",
+      "DPI suite 覆盖 ifetch 4 lanes、data 2 lanes、invalid read、write lanes，以及 PMEM 尾部 2B guard page，三个精确 PASS marker 均存在。",
+      "拟议 compile-success 变体覆盖过取 halfword、忽略 RRESP、错误 PMP size/default policy/fast reject、错误 ARSIZE/ARPROT、绕过 execute-device mask、live payload 污染、lane1 fault capture/squash/poison 和 DPI 固定 8B。",
+      "结论只限 IFU-ACCESS-G1；IFU-TVAL、PTW-PMP、LSU 标准拆分、外部 wrapper、整核冻结与正式 PPA 保持独立。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；列出周期级反例、共同盲点、必需 marker 或变体补强、残余风险、scope extension 与置信度，不设固定发现数量。"
+  ],
+  "success_criteria": [
+    "若发现缺口，必须给出 signal、byte range、cycle/handshake 或 source cut 与动态 oracle；若判 PASS，必须解释矩阵和变体如何区分错误 owner，且不得外推到独立取指、异常或 PPA 合同。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

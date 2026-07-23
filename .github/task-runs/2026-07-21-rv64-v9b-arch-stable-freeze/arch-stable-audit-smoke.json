@@ -1,0 +1,1112 @@
+{
+  "architecture_freeze": "GAP",
+  "blockers": [
+    "debt.A-COHERENCE-G1.resolved: unresolved status=SCOPE_DECISION_REQUIRED",
+    "debt.CONTROL-EVENT-G1.resolved: unresolved status=OPEN",
+    "debt.DEBUG-TRIGGER-G1.resolved: unresolved status=SCOPE_DECISION_REQUIRED",
+    "debt.F0-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.FDG-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.FENCE-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.IFU-ACCESS-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.IFU-AXI-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.IFU-FETCH-G2.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.IFU-TVAL-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.INSTRET-G1.resolved: unresolved status=OPEN",
+    "debt.MEM-ISSUE-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.MIQ-FLUSH-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.PTW-PMP-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "debt.SERIALIZE-G1.resolved: unresolved status=OPEN",
+    "debt.SFENCE-SINVAL-G1.resolved: unresolved status=SCOPE_DECISION_REQUIRED",
+    "debt.VECTORED-TRAP-G1.resolved: unresolved status=SCOPE_DECISION_REQUIRED",
+    "debt.WFI-G1.resolved: unresolved status=SCOPE_DECISION_REQUIRED",
+    "debt.XRET-G1.resolved: unresolved status=STALE_EVIDENCE",
+    "census.full_core_complete: census requires current design_id, field/instance/semantic closure and GREEN no-live-reuse lifecycle",
+    "functional.aggregate: current same-design functional aggregate is missing; derived module inventory=109",
+    "freeze_inputs.config.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.constraints.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.filelists.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.generated_headers.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.images.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.liberty.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.macros.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.specifications.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.test_sources.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.tool_versions.artifacts: count=0 duplicate=False errors=[]",
+    "freeze_inputs.config.exact_membership: missing=['npc/rv64/.config'] missing_count=1 extra=[] extra_count=0",
+    "freeze_inputs.filelists.exact_membership: missing=['npc/rv64/testbench/Makefile', 'npc/rv64/vsrc/filelist.mk'] missing_count=2 extra=[] extra_count=0",
+    "freeze_inputs.generated_headers.exact_membership: missing=['npc/rv64/include/config/auto.conf', 'npc/rv64/include/config/auto.conf.cmd', 'npc/rv64/include/config/cc.h', 'npc/rv64/include/config/cc/gpp.h', 'npc/rv64/include/config/cc/o3.h', 'npc/rv64/include/config/cc/opt.h', 'npc/rv64/include/config/npc/basic/stats.h', 'npc/rv64/include/config/npc/batch/mode.h', 'npc/rv64/include/config/npc/branch/stats.h', 'npc/rv64/include/config/npc/cache/stats.h', 'npc/rv64/include/config/npc/colored/log.h', 'npc/rv64/include/config/npc/debug/ports.h'] missing_count=40 extra=[] extra_count=0",
+    "freeze_inputs.specifications.exact_membership: missing=['npc/rv64/design/arch/ROADMAP.md', 'npc/rv64/design/arch/SPEC-TEMPLATE.md', 'npc/rv64/design/arch/knife-b2-fetch-time-bpu.md', 'npc/rv64/design/arch/knife-d-dcache-hit-fusion.md', 'npc/rv64/design/arch/knife-f-fetch-hit-fusion.md', 'npc/rv64/design/arch/knife-x-mul-latency-recovery.md', 'npc/rv64/design/arch/mem-lsq.md', 'npc/rv64/design/arch/ooo-core-architecture.md', 'npc/rv64/design/arch/p5-repipeline-first-batch.md', 'npc/rv64/design/arch/pipeline-stage-boundary.md', 'npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md', 'npc/rv64/design/arch/rv64-200mhz-completion-design.md'] missing_count=107 extra=[] extra_count=0",
+    "freeze_inputs.test_sources.exact_membership: missing=['npc/rv64/testbench/tests/tb_alu.sv', 'npc/rv64/testbench/tests/tb_axi_clint.sv', 'npc/rv64/testbench/tests/tb_axi_exec_firewall.sv', 'npc/rv64/testbench/tests/tb_axi_plic.sv', 'npc/rv64/testbench/tests/tb_axi_reset_syscon.sv', 'npc/rv64/testbench/tests/tb_axi_to_uart.sv', 'npc/rv64/testbench/tests/tb_axi_xbar.sv', 'npc/rv64/testbench/tests/tb_compare.sv', 'npc/rv64/testbench/tests/tb_csr_file.sv', 'npc/rv64/testbench/tests/tb_decode_stage.sv', 'npc/rv64/testbench/tests/tb_decode_unit.sv', 'npc/rv64/testbench/tests/tb_immgen.sv'] missing_count=109 extra=[] extra_count=0"
+  ],
+  "candidate": {
+    "path": "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+    "sha256": "a349feb6deed12740c771dcbeea7e472373f01ba4087aa23ab4d934e6d4da798",
+    "size_bytes": 1305,
+    "status": "PRESENT"
+  },
+  "checks": [
+    {
+      "check_id": "candidate.schema",
+      "detail": "expected npc-rv64-arch-stable-candidate-v1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "candidate.design_id",
+      "detail": "design_id must be sha256:<64 lowercase hex>",
+      "status": "PASS"
+    },
+    {
+      "check_id": "candidate.scope",
+      "detail": "cohort_id/product/exact excluded_debt_ids are required",
+      "status": "PASS"
+    },
+    {
+      "check_id": "candidate.artifacts.exact",
+      "detail": "missing=[] extra=[]",
+      "status": "PASS"
+    },
+    {
+      "check_id": "artifact.architecture_evidence",
+      "detail": "present, regular and parseable",
+      "status": "PASS"
+    },
+    {
+      "check_id": "artifact.architecture_result",
+      "detail": "present, regular and parseable",
+      "status": "PASS"
+    },
+    {
+      "check_id": "artifact.debt_ledger",
+      "detail": "present, regular and parseable",
+      "status": "PASS"
+    },
+    {
+      "check_id": "artifact.holder_census",
+      "detail": "present, regular and parseable",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.schema",
+      "detail": "expected npc-rv64-architecture-debt-ledger-v1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.design_id",
+      "detail": "ledger and architecture evidence must use the same design_id",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.roadmap.sha256",
+      "detail": "ledger ROADMAP hash must match the current file",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.entries.type",
+      "detail": "ledger entries must be a non-empty array",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.entries.unique",
+      "detail": "all ids unique",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.entries.exact_membership",
+      "detail": "missing=[] extra=[]",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.A-COHERENCE-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.A-COHERENCE-G1.status_known",
+      "detail": "status='SCOPE_DECISION_REQUIRED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.A-COHERENCE-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.A-COHERENCE-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.A-COHERENCE-G1.resolved",
+      "detail": "unresolved status=SCOPE_DECISION_REQUIRED",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.CONTROL-EVENT-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.CONTROL-EVENT-G1.status_known",
+      "detail": "status='OPEN'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.CONTROL-EVENT-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.CONTROL-EVENT-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.CONTROL-EVENT-G1.resolved",
+      "detail": "unresolved status=OPEN",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.DEBUG-TRIGGER-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.DEBUG-TRIGGER-G1.status_known",
+      "detail": "status='SCOPE_DECISION_REQUIRED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.DEBUG-TRIGGER-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.DEBUG-TRIGGER-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.DEBUG-TRIGGER-G1.resolved",
+      "detail": "unresolved status=SCOPE_DECISION_REQUIRED",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.F0-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.F0-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.F0-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.F0-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.F0-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.FDG-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FDG-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FDG-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FDG-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FDG-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.FENCE-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FENCE-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FENCE-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FENCE-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.FENCE-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.IFU-ACCESS-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-ACCESS-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-ACCESS-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-ACCESS-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-ACCESS-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.IFU-AXI-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-AXI-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-AXI-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-AXI-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-AXI-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.IFU-FETCH-G2.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-FETCH-G2.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-FETCH-G2.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-FETCH-G2.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-FETCH-G2.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.IFU-TVAL-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-TVAL-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-TVAL-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-TVAL-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.IFU-TVAL-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.INSTRET-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.INSTRET-G1.status_known",
+      "detail": "status='OPEN'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.INSTRET-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.INSTRET-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.INSTRET-G1.resolved",
+      "detail": "unresolved status=OPEN",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.MEM-ISSUE-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MEM-ISSUE-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MEM-ISSUE-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MEM-ISSUE-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MEM-ISSUE-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.MIQ-FLUSH-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MIQ-FLUSH-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MIQ-FLUSH-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MIQ-FLUSH-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.MIQ-FLUSH-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.PTW-PMP-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.PTW-PMP-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.PTW-PMP-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.PTW-PMP-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.PTW-PMP-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.SERIALIZE-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SERIALIZE-G1.status_known",
+      "detail": "status='OPEN'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SERIALIZE-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SERIALIZE-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SERIALIZE-G1.resolved",
+      "detail": "unresolved status=OPEN",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.SFENCE-SINVAL-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SFENCE-SINVAL-G1.status_known",
+      "detail": "status='SCOPE_DECISION_REQUIRED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SFENCE-SINVAL-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SFENCE-SINVAL-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.SFENCE-SINVAL-G1.resolved",
+      "detail": "unresolved status=SCOPE_DECISION_REQUIRED",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.status_known",
+      "detail": "status='CLOSED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.closed_binding",
+      "detail": "CLOSED requires current design, canonical command, artifact evidence, positive/counterexample/mutation coverage",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.evidence.0",
+      "detail": "evidence hash must match current artifact",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.STORE-BRESP-G1.evidence.1",
+      "detail": "evidence hash must match current artifact",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.VECTORED-TRAP-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.VECTORED-TRAP-G1.status_known",
+      "detail": "status='SCOPE_DECISION_REQUIRED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.VECTORED-TRAP-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.VECTORED-TRAP-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.VECTORED-TRAP-G1.resolved",
+      "detail": "unresolved status=SCOPE_DECISION_REQUIRED",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.WFI-G1.priority",
+      "detail": "ledger priority='P1', ROADMAP priority='P1'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.WFI-G1.status_known",
+      "detail": "status='SCOPE_DECISION_REQUIRED'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.WFI-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.WFI-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.WFI-G1.resolved",
+      "detail": "unresolved status=SCOPE_DECISION_REQUIRED",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.XRET-G1.priority",
+      "detail": "ledger priority='P0', ROADMAP priority='P0'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.XRET-G1.status_known",
+      "detail": "status='STALE_EVIDENCE'",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.XRET-G1.owner",
+      "detail": "owner_paths must identify at least one local RTL/spec owner",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.XRET-G1.requirements",
+      "detail": "closure_requirements must be explicit and non-empty",
+      "status": "PASS"
+    },
+    {
+      "check_id": "debt.XRET-G1.resolved",
+      "detail": "unresolved status=STALE_EVIDENCE",
+      "status": "GAP"
+    },
+    {
+      "check_id": "debt.cohort_exclusions.exact",
+      "detail": "unknown excluded debt ids=[]",
+      "status": "PASS"
+    },
+    {
+      "check_id": "architecture.directed_suite",
+      "detail": "nine exact directed records must be PASS under the candidate design_id",
+      "status": "PASS"
+    },
+    {
+      "check_id": "architecture.hard_gates",
+      "detail": "executable result must be 9/9 GREEN with the same exact RTL source set",
+      "status": "PASS"
+    },
+    {
+      "check_id": "architecture.rtl_source_drift",
+      "detail": "drifted_or_missing=[] total=0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "architecture.provenance_drift",
+      "detail": "drifted_or_missing=[] total=0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "census.full_core_complete",
+      "detail": "census requires current design_id, field/instance/semantic closure and GREEN no-live-reuse lifecycle",
+      "status": "GAP"
+    },
+    {
+      "check_id": "functional.module_inventory_source",
+      "detail": "derived 109 required tests from current TESTS assignment",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.aggregate",
+      "detail": "current same-design functional aggregate is missing; derived module inventory=109",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.groups.exact",
+      "detail": "missing_groups=[] extra_groups=[]",
+      "status": "PASS"
+    },
+    {
+      "check_id": "freeze_inputs.config.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.constraints.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.filelists.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.generated_headers.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.images.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.liberty.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.macros.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.specifications.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.test_sources.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.tool_versions.artifacts",
+      "detail": "count=0 duplicate=False errors=[]",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.config.exact_membership",
+      "detail": "missing=['npc/rv64/.config'] missing_count=1 extra=[] extra_count=0",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.filelists.exact_membership",
+      "detail": "missing=['npc/rv64/testbench/Makefile', 'npc/rv64/vsrc/filelist.mk'] missing_count=2 extra=[] extra_count=0",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.generated_headers.exact_membership",
+      "detail": "missing=['npc/rv64/include/config/auto.conf', 'npc/rv64/include/config/auto.conf.cmd', 'npc/rv64/include/config/cc.h', 'npc/rv64/include/config/cc/gpp.h', 'npc/rv64/include/config/cc/o3.h', 'npc/rv64/include/config/cc/opt.h', 'npc/rv64/include/config/npc/basic/stats.h', 'npc/rv64/include/config/npc/batch/mode.h', 'npc/rv64/include/config/npc/branch/stats.h', 'npc/rv64/include/config/npc/cache/stats.h', 'npc/rv64/include/config/npc/colored/log.h', 'npc/rv64/include/config/npc/debug/ports.h'] missing_count=40 extra=[] extra_count=0",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.specifications.exact_membership",
+      "detail": "missing=['npc/rv64/design/arch/ROADMAP.md', 'npc/rv64/design/arch/SPEC-TEMPLATE.md', 'npc/rv64/design/arch/knife-b2-fetch-time-bpu.md', 'npc/rv64/design/arch/knife-d-dcache-hit-fusion.md', 'npc/rv64/design/arch/knife-f-fetch-hit-fusion.md', 'npc/rv64/design/arch/knife-x-mul-latency-recovery.md', 'npc/rv64/design/arch/mem-lsq.md', 'npc/rv64/design/arch/ooo-core-architecture.md', 'npc/rv64/design/arch/p5-repipeline-first-batch.md', 'npc/rv64/design/arch/pipeline-stage-boundary.md', 'npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md', 'npc/rv64/design/arch/rv64-200mhz-completion-design.md'] missing_count=107 extra=[] extra_count=0",
+      "status": "GAP"
+    },
+    {
+      "check_id": "freeze_inputs.test_sources.exact_membership",
+      "detail": "missing=['npc/rv64/testbench/tests/tb_alu.sv', 'npc/rv64/testbench/tests/tb_axi_clint.sv', 'npc/rv64/testbench/tests/tb_axi_exec_firewall.sv', 'npc/rv64/testbench/tests/tb_axi_plic.sv', 'npc/rv64/testbench/tests/tb_axi_reset_syscon.sv', 'npc/rv64/testbench/tests/tb_axi_to_uart.sv', 'npc/rv64/testbench/tests/tb_axi_xbar.sv', 'npc/rv64/testbench/tests/tb_compare.sv', 'npc/rv64/testbench/tests/tb_csr_file.sv', 'npc/rv64/testbench/tests/tb_decode_stage.sv', 'npc/rv64/testbench/tests/tb_decode_unit.sv', 'npc/rv64/testbench/tests/tb_immgen.sv'] missing_count=109 extra=[] extra_count=0",
+      "status": "GAP"
+    },
+    {
+      "check_id": "run_parameters.complete",
+      "detail": "top/clock/positive period/integer seed/positive threads must be frozen exactly",
+      "status": "PASS"
+    },
+    {
+      "check_id": "claim.architecture_only",
+      "detail": "arch-stable audit must keep PPA UNQUALIFIED, promotion false, canonical/seed null",
+      "status": "PASS"
+    }
+  ],
+  "design_id": "sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc",
+  "evaluation_sha256": "202b79dd24b9dfe5f0f86ea686a15ab979e10d5b1d8965d2ec8f73bb0c0e33c4",
+  "generated_at_utc": "2026-07-21T11:04:37.898151+00:00",
+  "observed": {
+    "architecture": {
+      "design_id": "sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc",
+      "gate_statuses": {
+        "DI-1": "GREEN",
+        "DI-2": "GREEN",
+        "DI-3": "GREEN",
+        "DI-4": "GREEN",
+        "DI-5": "GREEN",
+        "OOO-1": "GREEN",
+        "OOO-2": "GREEN",
+        "OOO-3": "GREEN",
+        "OOO-4": "GREEN"
+      },
+      "rtl_file_count": 145
+    },
+    "architecture_evidence": {
+      "path": "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "sha256": "37564defc140a7899f2a12c77737542d678e83794930ae3c29945554f2f9353a",
+      "size_bytes": 104004,
+      "status": "PRESENT"
+    },
+    "architecture_result": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/architecture-result.json",
+      "sha256": "37659140e9618189f95a950bf6b33e36cd43d98f3f5a67f52323d9adbbe6a4c7",
+      "size_bytes": 61825,
+      "status": "PRESENT"
+    },
+    "candidate": {
+      "path": "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      "sha256": "a349feb6deed12740c771dcbeea7e472373f01ba4087aa23ab4d934e6d4da798",
+      "size_bytes": 1305,
+      "status": "PRESENT"
+    },
+    "census": {
+      "design_id": null,
+      "scope": {
+        "coverage_granularity": "field-plus-packed-stage",
+        "field_level_complete": true,
+        "instance_graph_complete": false,
+        "semantic_complete": false,
+        "source_root": "npc/rv64/vsrc",
+        "topology_root": "NpcTop->NpcCoreTop->OooCoreTopGlue->OooIntBackend"
+      },
+      "status_ledger": {
+        "current_production_holder_census": "STATIC_FIELD_COMPLETE",
+        "global_no_live_reuse": "DYNAMIC_EVIDENCE_REQUIRED",
+        "ppa_promotion": "UNPROMOTED",
+        "whole_architecture": "RED"
+      }
+    },
+    "debt": {
+      "entry_count": 20,
+      "roadmap": {
+        "path": "npc/rv64/design/arch/ROADMAP.md",
+        "sha256": "7fc4fd3f641b3b9cbb9613c19f843eb04ce42db6051bad3e4d684c3c8b360d6e",
+        "size_bytes": 13955,
+        "status": "PRESENT"
+      },
+      "roadmap_inventory": {
+        "A-COHERENCE-G1": "P1",
+        "CONTROL-EVENT-G1": "P1",
+        "DEBUG-TRIGGER-G1": "P1",
+        "F0-G1": "P1",
+        "FDG-G1": "P0",
+        "FENCE-G1": "P1",
+        "IFU-ACCESS-G1": "P0",
+        "IFU-AXI-G1": "P0",
+        "IFU-FETCH-G2": "P0",
+        "IFU-TVAL-G1": "P0",
+        "INSTRET-G1": "P0",
+        "MEM-ISSUE-G1": "P0",
+        "MIQ-FLUSH-G1": "P1",
+        "PTW-PMP-G1": "P0",
+        "SERIALIZE-G1": "P1",
+        "SFENCE-SINVAL-G1": "P1",
+        "STORE-BRESP-G1": "P1",
+        "VECTORED-TRAP-G1": "P1",
+        "WFI-G1": "P1",
+        "XRET-G1": "P0"
+      },
+      "status_counts": {
+        "CLOSED": 1,
+        "OPEN": 3,
+        "SCOPE_DECISION_REQUIRED": 5,
+        "STALE_EVIDENCE": 11
+      }
+    },
+    "debt_ledger": {
+      "path": "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "sha256": "ddc75c0434d07469651afd5a27ce3f9f8acd7f9742e470cc025a1ec11ae17546",
+      "size_bytes": 11018,
+      "status": "PRESENT"
+    },
+    "freeze_inputs": {
+      "config": [],
+      "constraints": [],
+      "derived_required_module_count": 109,
+      "derived_required_module_tests": [
+        "tb_pipe_stage_reg",
+        "tb_alu",
+        "tb_compare",
+        "tb_immgen",
+        "tb_wbu",
+        "tb_lsu_control",
+        "tb_lsu_datapath",
+        "tb_lsu",
+        "tb_pmp_checker",
+        "tb_ooo_pma_checker",
+        "tb_ooo_typed_memory_classifier",
+        "tb_uart",
+        "tb_axi_to_uart",
+        "tb_axi_reset_syscon",
+        "tb_axi_clint",
+        "tb_axi_plic",
+        "tb_axi_xbar",
+        "tb_axi_exec_firewall",
+        "tb_csr_file",
+        "tb_decode_unit",
+        "tb_decode_stage",
+        "tb_ooo_rename_map",
+        "tb_ooo_free_list",
+        "tb_ooo_load_queue",
+        "tb_ooo_store_queue",
+        "tb_ooo_mem_owner_tracker",
+        "tb_ooo_mem_owner_terminal_collector",
+        "tb_ooo_mem_inflight_queue",
+        "tb_ooo_mmu_epoch_owner",
+        "tb_ooo_rob",
+        "tb_ooo_phys_reg_file",
+        "tb_ooo_fp_reg_file",
+        "tb_ooo_fp_phys_reg_file",
+        "tb_ooo_busy_table",
+        "tb_ooo_int_issue_queue",
+        "tb_ooo_fp_issue_queue",
+        "tb_ooo_dispatch_backend",
+        "tb_ooo_muldiv_unit",
+        "tb_ooo_clmul_unit",
+        "tb_ooo_int_backend",
+        "tb_ooo_bitmanip_gate",
+        "tb_ooo_amo_gate",
+        "tb_ooo_alu_decode_backend",
+        "tb_ooo_alu_core_slice",
+        "tb_ooo_core_top_glue",
+        "tb_ooo_fp_iter",
+        "tb_ooo_fp_classify_gate",
+        "tb_ooo_fp_sgnj_gate",
+        "tb_ooo_fp_compare_gate",
+        "tb_ooo_fp_convert_gate",
+        "tb_ooo_fp_arith_gate",
+        "tb_ooo_fp_long_op_gate",
+        "tb_ooo_direct_ras_candidate_gate",
+        "tb_ooo_ras_update_gate",
+        "tb_ooo_branch_spec_tracker",
+        "tb_ooo_fetch_pc_outstanding_sequencer",
+        "tb_ooo_control_commit_sequencer",
+        "tb_ooo_commit_output_mux",
+        "tb_ooo_control_flush_sequencer",
+        "tb_ooo_redirect_arbiter",
+        "tb_ooo_stop_pending_sequencer",
+        "tb_ooo_csr_access_request_mux",
+        "tb_ooo_csr_trap_request_mux",
+        "tb_ooo_pending_lane1_capture_gate",
+        "tb_ooo_pending_dispatch_arbiter",
+        "tb_ooo_pending_drain_resolve_gate",
+        "tb_ooo_pending_system_admission_cancel_gate",
+        "tb_ooo_pending_system_sequencer",
+        "tb_ooo_pending_trap_exit_sequencer",
+        "tb_ooo_trap_exit_event_mux",
+        "tb_ooo_trap_exit_output_sequencer",
+        "tb_ooo_frontend_uop_safety",
+        "tb_ooo_frontend_dispatch_gate",
+        "tb_ooo_fp_legality_dispatch_path",
+        "tb_ooo_frontend_backend_dispatch_mux",
+        "tb_ooo_direct_branch_resolve_gate",
+        "tb_ooo_branch_resolve_recovery_gate",
+        "tb_ooo_branch_append_dispatch_gate",
+        "tb_ooo_branch_bpu_update_gate",
+        "tb_ooo_branch_direction_predictor",
+        "tb_ooo_memory_request_gate",
+        "tb_ooo_frontend_run_gate",
+        "tb_ooo_frontend_action_gate",
+        "tb_ooo_fetch_request_mux",
+        "tb_ooo_direct_branch_wait_buffer",
+        "tb_ooo_backend_drain_tracker",
+        "tb_ooo_fetch_packet_head_mux",
+        "tb_ooo_fetch_packet_seed_mux",
+        "tb_ooo_fetch_branch_target",
+        "tb_ooo_fetch_packet_decode",
+        "tb_ooo_fetch_packet_fifo",
+        "tb_ooo_fetch_flow_control",
+        "tb_ooo_fetch_static_classify",
+        "tb_ooo_fetch_head_pair_gate",
+        "tb_ooo_fetch_head_classify_gate",
+        "tb_ooo_fetch_packet_cache",
+        "tb_ooo_data_word_cache",
+        "tb_ooo_fetch_axi_bridge",
+        "tb_ooo_fetch_axi_access_attrs",
+        "tb_ooo_fetch_page_end_fault",
+        "tb_ooo_fetch_access_footprint",
+        "tb_ooo_ifu_lane1_fault_owner",
+        "tb_ooo_fetch_axi_bridge_xbar",
+        "tb_ooo_fetch_trap_gate",
+        "tb_ooo_priv_system",
+        "tb_ooo_sv39_boot",
+        "tb_ooo_dual_memory_sustained_issue",
+        "tb_ooo_lsu_axi_lane_adapter",
+        "tb_ooo_mem_axi_bridge"
+      ],
+      "filelists": [],
+      "generated_headers": [],
+      "images": [],
+      "liberty": [],
+      "macros": [],
+      "specifications": [],
+      "test_sources": [],
+      "tool_versions": []
+    },
+    "functional": {
+      "required_module_tests": [
+        "tb_pipe_stage_reg",
+        "tb_alu",
+        "tb_compare",
+        "tb_immgen",
+        "tb_wbu",
+        "tb_lsu_control",
+        "tb_lsu_datapath",
+        "tb_lsu",
+        "tb_pmp_checker",
+        "tb_ooo_pma_checker",
+        "tb_ooo_typed_memory_classifier",
+        "tb_uart",
+        "tb_axi_to_uart",
+        "tb_axi_reset_syscon",
+        "tb_axi_clint",
+        "tb_axi_plic",
+        "tb_axi_xbar",
+        "tb_axi_exec_firewall",
+        "tb_csr_file",
+        "tb_decode_unit",
+        "tb_decode_stage",
+        "tb_ooo_rename_map",
+        "tb_ooo_free_list",
+        "tb_ooo_load_queue",
+        "tb_ooo_store_queue",
+        "tb_ooo_mem_owner_tracker",
+        "tb_ooo_mem_owner_terminal_collector",
+        "tb_ooo_mem_inflight_queue",
+        "tb_ooo_mmu_epoch_owner",
+        "tb_ooo_rob",
+        "tb_ooo_phys_reg_file",
+        "tb_ooo_fp_reg_file",
+        "tb_ooo_fp_phys_reg_file",
+        "tb_ooo_busy_table",
+        "tb_ooo_int_issue_queue",
+        "tb_ooo_fp_issue_queue",
+        "tb_ooo_dispatch_backend",
+        "tb_ooo_muldiv_unit",
+        "tb_ooo_clmul_unit",
+        "tb_ooo_int_backend",
+        "tb_ooo_bitmanip_gate",
+        "tb_ooo_amo_gate",
+        "tb_ooo_alu_decode_backend",
+        "tb_ooo_alu_core_slice",
+        "tb_ooo_core_top_glue",
+        "tb_ooo_fp_iter",
+        "tb_ooo_fp_classify_gate",
+        "tb_ooo_fp_sgnj_gate",
+        "tb_ooo_fp_compare_gate",
+        "tb_ooo_fp_convert_gate",
+        "tb_ooo_fp_arith_gate",
+        "tb_ooo_fp_long_op_gate",
+        "tb_ooo_direct_ras_candidate_gate",
+        "tb_ooo_ras_update_gate",
+        "tb_ooo_branch_spec_tracker",
+        "tb_ooo_fetch_pc_outstanding_sequencer",
+        "tb_ooo_control_commit_sequencer",
+        "tb_ooo_commit_output_mux",
+        "tb_ooo_control_flush_sequencer",
+        "tb_ooo_redirect_arbiter",
+        "tb_ooo_stop_pending_sequencer",
+        "tb_ooo_csr_access_request_mux",
+        "tb_ooo_csr_trap_request_mux",
+        "tb_ooo_pending_lane1_capture_gate",
+        "tb_ooo_pending_dispatch_arbiter",
+        "tb_ooo_pending_drain_resolve_gate",
+        "tb_ooo_pending_system_admission_cancel_gate",
+        "tb_ooo_pending_system_sequencer",
+        "tb_ooo_pending_trap_exit_sequencer",
+        "tb_ooo_trap_exit_event_mux",
+        "tb_ooo_trap_exit_output_sequencer",
+        "tb_ooo_frontend_uop_safety",
+        "tb_ooo_frontend_dispatch_gate",
+        "tb_ooo_fp_legality_dispatch_path",
+        "tb_ooo_frontend_backend_dispatch_mux",
+        "tb_ooo_direct_branch_resolve_gate",
+        "tb_ooo_branch_resolve_recovery_gate",
+        "tb_ooo_branch_append_dispatch_gate",
+        "tb_ooo_branch_bpu_update_gate",
+        "tb_ooo_branch_direction_predictor",
+        "tb_ooo_memory_request_gate",
+        "tb_ooo_frontend_run_gate",
+        "tb_ooo_frontend_action_gate",
+        "tb_ooo_fetch_request_mux",
+        "tb_ooo_direct_branch_wait_buffer",
+        "tb_ooo_backend_drain_tracker",
+        "tb_ooo_fetch_packet_head_mux",
+        "tb_ooo_fetch_packet_seed_mux",
+        "tb_ooo_fetch_branch_target",
+        "tb_ooo_fetch_packet_decode",
+        "tb_ooo_fetch_packet_fifo",
+        "tb_ooo_fetch_flow_control",
+        "tb_ooo_fetch_static_classify",
+        "tb_ooo_fetch_head_pair_gate",
+        "tb_ooo_fetch_head_classify_gate",
+        "tb_ooo_fetch_packet_cache",
+        "tb_ooo_data_word_cache",
+        "tb_ooo_fetch_axi_bridge",
+        "tb_ooo_fetch_axi_access_attrs",
+        "tb_ooo_fetch_page_end_fault",
+        "tb_ooo_fetch_access_footprint",
+        "tb_ooo_ifu_lane1_fault_owner",
+        "tb_ooo_fetch_axi_bridge_xbar",
+        "tb_ooo_fetch_trap_gate",
+        "tb_ooo_priv_system",
+        "tb_ooo_sv39_boot",
+        "tb_ooo_dual_memory_sustained_issue",
+        "tb_ooo_lsu_axi_lane_adapter",
+        "tb_ooo_mem_axi_bridge"
+      ]
+    },
+    "functional_aggregate": {
+      "path": null,
+      "status": "MISSING"
+    },
+    "holder_census": {
+      "path": "npc/rv64/design/arch/producer-holder-census.json",
+      "sha256": "9791f61a6d35003a402091f5df35151630220309f88150c34bc88e69e0578bf1",
+      "size_bytes": 23902,
+      "status": "PRESENT"
+    }
+  },
+  "ppa": "UNQUALIFIED",
+  "promotion_eligible": false,
+  "schema": "npc-rv64-arch-stable-result-v1",
+  "scope": {
+    "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+    "excluded_debt_ids": [],
+    "product": "local NpcTop RV64 dual-issue out-of-order processor RTL"
+  }
+}

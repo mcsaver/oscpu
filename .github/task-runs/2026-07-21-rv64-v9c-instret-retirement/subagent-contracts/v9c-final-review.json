@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9c-instret-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently review the frozen local RV64 INSTRET-G1 retirement-count closure for P0/P1 correctness, evidence sensitivity, and claim-boundary defects.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9c-instret-retirement/review-packet.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "Treat hardware flush, exception recovery, commit and RTL source variants only in their local processor verification meanings.",
+      ".github/task-runs/2026-07-21-rv64-v9c-instret-retirement/subagent-contracts/v9c-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "Treat hardware flush, exception recovery, commit and RTL source variants only in their local processor verification meanings."
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Scope: authorized local RV64 Verilog/SystemVerilog processor design, simulation, and generated evidence only; no network, remote host, account, credential, or external service.",
+      "Design identity is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc; production RTL is unchanged.",
+      "Final count is popcount of the two final valid non-exception commit lanes; NpcCoreTop connects that count to CsrFile minstret.",
+      "Program evidence: exception lanes 2/2 zero delta; MRET/SRET/SFENCE.VMA 1/6/1; control events 8/8 exact delta one; CsrFile prior-edge checks 1052.",
+      "Canonical command force-runs the dynamic module inventory: 109/109 PASS; three current-source RTL variants compile successfully and are dynamically rejected; 46/46 evidence and arch-stable unit tests PASS.",
+      "Independent arch-stable semantic validation recomputes design, source, program, all module logs, focused logs, and source-variant hashes.",
+      "Fresh nine-gate architecture result is GREEN on the same design identity; full-core audit remains GAP with 45 blockers, PPA UNQUALIFIED, promotion false.",
+      "Reviewer questions: edge/NBA sampling soundness; exception/control event escape or double count; source-variant sensitivity; stale/fabricated evidence acceptance; overclaim."
+    ]
+  },
+  "deliverables": [
+    "Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL or evidence counterexample, then residual limitations and exact claim boundary."
+  ],
+  "success_criteria": [
+    "No unresolved P0/P1 finding; the verdict explicitly preserves ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is found."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

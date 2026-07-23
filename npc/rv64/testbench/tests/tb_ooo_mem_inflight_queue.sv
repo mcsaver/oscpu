@@ -54,6 +54,15 @@ module tb_ooo_mem_inflight_queue;
   wire [`XLEN-1:0] head_addr;
   wire [`XLEN-1:0] head_wdata;
   wire [`STRB_W-1:0] head_wstrb;
+  wire next_head_valid;
+  wire [1:0] next_head_kind;
+  wire [1:0] next_head_owner_kind;
+  wire [4:0] next_head_owner_token;
+  wire [1:0] next_head_mmu_epoch;
+  wire [`XLEN-1:0] next_head_fault_tval;
+  wire next_head_killed;
+  wire next_head_effective_killed;
+  wire [ROB_INDEX_W-1:0] next_head_rob;
   wire [ENTRY_W:0] count;
   wire empty;
   wire full;
@@ -121,6 +130,15 @@ module tb_ooo_mem_inflight_queue;
     .head_eff_addr_o(head_addr),
     .head_wdata_o(head_wdata),
     .head_wstrb_o(head_wstrb),
+    .next_head_valid_o(next_head_valid),
+    .next_head_kind_o(next_head_kind),
+    .next_head_owner_kind_o(next_head_owner_kind),
+    .next_head_owner_token_o(next_head_owner_token),
+    .next_head_mmu_epoch_o(next_head_mmu_epoch),
+    .next_head_fault_tval_o(next_head_fault_tval),
+    .next_head_killed_o(next_head_killed),
+    .next_head_effective_killed_o(next_head_effective_killed),
+    .next_head_rob_idx_o(next_head_rob),
     .count_o(count),
     .empty_o(empty),
     .full_o(full),
@@ -213,13 +231,17 @@ module tb_ooo_mem_inflight_queue;
     // 给 delayed invariant checker 一个观察沿；旧实现应在这里精确报错。
     `TB_TICK(clk);
 
-    // flush 不带 pop：DRAIN 必须保留，LOAD 被清；kill 不得误杀 retired DRAIN。
+    // flush 不带 pop：transport-irrevocable DRAIN head 必须保留，
+    // LOAD 被清；head valid 不能替代实际 pop fire 作为扣除条件。
     reset_dut();
     push_one(KIND_DRAIN, 4'd1, 64'h8000_1100);
     push_one(KIND_LOAD, 4'd2, 64'h8000_1200);
     flush = 1'b1;
     kill_valid = 1'b1;
     kill_rob = 4'd0;
+    #1;
+    tb_check1("flush stalled DRAIN head is valid without pop",
+              head_valid && !pop_valid, 1'b1);
     `TB_TICK(clk);
     clear_events();
     #1;
@@ -255,6 +277,7 @@ module tb_ooo_mem_inflight_queue;
                head_addr);
       tb_errors = tb_errors + 1;
     end
+    $display("[MIQ-FLUSH-G1-FOCUSED] consumed_drain_removed=1 stalled_head_no_pop_preserved=1 unconsumed_drain_preserved=1 survivor_identity_match=1 wrapped_order=1 PASS");
     `TB_TICK(clk);
 
     // flush+pop+push+kill 全交叠：旧 head pop 生效；flush 拍 push 不接收，kill 无额外效果。
@@ -463,10 +486,78 @@ module tb_ooo_mem_inflight_queue;
     #1;
     tb_check32("legacy exact owner pop", {29'b0, count}, 32'd0);
 
+    // v8u/F4 next-head is a read-only edge-old view.  Current pop consumes A
+    // only; B is visible before the edge and becomes current after it, while C
+    // remains the next entry.  No second pop or synthetic ownership occurs.
+    reset_dut();
+    push_one(KIND_LOAD, 4'd1, 64'h0000_0000_c000_1000);
+    push_one(KIND_LOAD, 4'd2, 64'h0000_0000_c000_2000);
+    push_one(KIND_LOAD, 4'd3, 64'h0000_0000_c000_3000);
+    tb_check1("v8u next valid with three residents", next_head_valid, 1'b1);
+    tb_check32("v8u next kind B", {30'b0, next_head_kind},
+               {30'b0, KIND_LOAD});
+    tb_check32("v8u next owner kind B", {30'b0, next_head_owner_kind}, 32'd0);
+    tb_check32("v8u next token B", {27'b0, next_head_owner_token}, 32'd2);
+    tb_check32("v8u next epoch B", {30'b0, next_head_mmu_epoch}, 32'd2);
+    tb_check32("v8u next ROB B", {27'b0, next_head_rob}, 32'd2);
+    if (next_head_fault_tval !== 64'h0000_0000_c000_2000) begin
+      $display("[CHECK-FAIL] v8u next tval B got=0x%016h",
+               next_head_fault_tval);
+      tb_errors = tb_errors + 1;
+    end
+    pop_valid = 1'b1;
+    #1;
+    tb_check32("v8u pre-edge next remains B", {27'b0, next_head_owner_token},
+               32'd2);
+    `TB_TICK(clk);
+    pop_valid = 1'b0;
+    #1;
+    tb_check32("v8u B becomes current", {27'b0, head_owner_token}, 32'd2);
+    tb_check32("v8u C becomes next", {27'b0, next_head_owner_token}, 32'd3);
+    tb_check32("v8u one pop leaves two", {29'b0, count}, 32'd2);
+
+    // Wrap the next pointer across entry 3 -> entry 0.
+    push_one(KIND_LOAD, 4'd4, 64'h0000_0000_c000_4000);
+    pop_valid = 1'b1;
+    `TB_TICK(clk);
+    pop_valid = 1'b0;
+    #1;
+    tb_check32("v8u current C before wrap", {27'b0, head_owner_token}, 32'd3);
+    tb_check32("v8u next D before wrap", {27'b0, next_head_owner_token}, 32'd4);
+    push_one(KIND_LOAD, 4'd5, 64'h0000_0000_c000_5000);
+    pop_valid = 1'b1;
+    `TB_TICK(clk);
+    pop_valid = 1'b0;
+    #1;
+    tb_check32("v8u wrapped current D index3", {27'b0, head_owner_token},
+               32'd4);
+    tb_check32("v8u wrapped next E index0", {27'b0, next_head_owner_token},
+               32'd5);
+
+    // Same-cycle selective kill must be reflected by the next face even
+    // before killed_q is updated.  It closes fast admission conservatively.
+    reset_dut();
+    push_one(KIND_LOAD, 4'd1, 64'h0000_0000_c100_1000);
+    push_one(KIND_LOAD, 4'd3, 64'h0000_0000_c100_3000);
+    kill_valid = 1'b1;
+    kill_rob = 4'd1;
+    rob_head = 4'd0;
+    #1;
+    tb_check1("v8u next old killed bit clear", next_head_killed, 1'b0);
+    tb_check1("v8u next same-cycle effective kill",
+              next_head_effective_killed, 1'b1);
+    clear_events();
+
+    reset_dut();
+    push_one(KIND_LOAD, 4'd1, 64'h0000_0000_c200_1000);
+    tb_check1("v8u single resident has no next", next_head_valid, 1'b0);
+    $display("[V8U-MIQ-NEXT-HEAD] exact current/next, wrap and effective-kill PASS");
+
     tb_finish("tb_ooo_mem_inflight_queue");
   end
 
   wire unused_observe_w = full | head_pdest_fp | head_unsigned |
       (|head_rob) | (|head_pdest) | (|head_size) | (|head_wdata) |
-      (|head_wstrb) | (|entry_kind) | (|entry_rob) | (|entry_addr);
+      (|head_wstrb) | (|entry_kind) | (|entry_rob) | (|entry_addr) |
+      next_head_killed;
 endmodule

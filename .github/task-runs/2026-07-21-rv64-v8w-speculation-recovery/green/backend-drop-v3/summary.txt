@@ -1,0 +1,10 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/backend-drop-v3
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- FAIL tb_ooo_int_backend
+
+- total: 1
+- passed: 0
+- failed: 1

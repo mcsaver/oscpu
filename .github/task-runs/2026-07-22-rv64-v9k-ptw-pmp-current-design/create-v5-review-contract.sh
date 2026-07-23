@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+tool="$root/.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py"
+out="$root/.github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/subagent-contracts/v9k-ptw-pmp-current-coverage-review-v5.json"
+
+python3 "$tool" create \
+  --task-id v9k-ptw-pmp-current-coverage-review-v5 \
+  --task-kind read-only-review \
+  --goal '仅依据随附的当前设计事实，复核 OooMemAxiBridge 中 PTW PTE 8B WRITE PMP deny 到 fault-response terminal 的 AW/W 静默区间是否已由生产 RTL 完整状态译码对任意 response 反压周期数闭合，并对 PTW-PMP-G1 给出限定 PASS、GAP 或 inconclusive' \
+  --allow-path .github/AGENTS.md \
+  --allow-path .github/instructions/rtl-agent-task-contract.instructions.md \
+  --allow-path .github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/contract.md \
+  --allow-path .github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/subagent-contracts/v9k-ptw-pmp-current-coverage-review-v5.json \
+  --self-contained-no-tools \
+  --required-context .github/AGENTS.md \
+  --required-context .github/instructions/rtl-agent-task-contract.instructions.md \
+  --supplied-material '当前完整 RV64 RTL design_id 为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；V5 只改动 testbench/evidence/freeze 验证材料，生产 Verilog RTL 字节未改变。' \
+  --supplied-material 'V4 复核确认第 3 个 stalled-response 周期 AW/W 脉冲反例已被监视器、READY 延迟 3/5 拍和 AW-only/W-only/AW+W 三个变体排除；V4 唯一剩余问题是有限激励最大 5 拍，因而提出第 6 拍泄漏反例。' \
+  --supplied-material '生产 RTL 中 lsu_axi_awvalid_o 的完整连续赋值恰为：(active_owner_verified_q && state_q==S_WRITE_REQ && !aw_done_q) OR (active_owner_verified_q && state_q==S_AD_UPDATE && !aw_done_q)；没有其它赋值或 S_RESP 项。' \
+  --supplied-material '生产 RTL 中 lsu_axi_wvalid_o 的完整连续赋值恰为：(active_owner_verified_q && state_q==S_WRITE_REQ && !w_done_q) OR (active_owner_verified_q && state_q==S_AD_UPDATE && !w_done_q)；没有其它赋值或 S_RESP 项。' \
+  --supplied-material 'PTW leaf 需要 A/D 更新且 walk_pte_write_pmp_fault_w=1 的 deny 分支精确赋值 rsp_error_q=1、rsp_page_fault_q=0、state_q=S_RESP；同一 if/else 链的 grant 分支才能进入 S_AD_UPDATE。' \
+  --supplied-material 'stage_advance_w 的完整状态项为 state_q==S_IDLE，或 state_q==S_RESP && rsp_ready_w，或 lookup_hit_fusion_w && rsp_ready_w；因此 state_q==S_RESP && rsp_ready_w==0 时不能接受 queued station 并跳入新写事务。' \
+  --supplied-material '正常 FSM 的 S_RESP 分支只在 rsp_ready_w=1 时清除 done bits 并转 S_IDLE；rsp_ready_w=0 时没有 state_q 赋值，寄存状态因而保持 S_RESP。' \
+  --supplied-material 'cpu_kill_w 在 S_RESP 的异常恢复分支通过 active_drop_terminal_r 产生 exact mem0_drop0_valid_o terminal；terminal 之前当拍 state_q 仍为 S_RESP，依照上述完整 AW/W 译码同样为零。' \
+  --supplied-material '由于 response stall 期间 state_q 对任意周期数保持 S_RESP，而 AWVALID/WVALID 的完整译码只接受 S_WRITE_REQ/S_AD_UPDATE，所以第 6 拍或任意更长 stall 拍的 AW/W 脉冲与生产 RTL 赋值无法同时成立；这是状态译码证明，不是从 5 拍样本外推。' \
+  --supplied-material 'validate_lsu_unbounded_deny_quiet_structure 要求 AWVALID 完整赋值、WVALID 完整赋值、deny-to-S_RESP 分支、stage_advance_w 的 S_RESP&&rsp_ready_w 条件、S_RESP stall 分支和 exact drop terminal 各自在生产 RTL 中恰好匹配一次。' \
+  --supplied-material '证据单元测试将 S_RESP 项加入 AWVALID 完整赋值，validate_lsu_unbounded_deny_quiet_structure 必须 fail-closed 拒绝；该静态负例已 PASS。' \
+  --supplied-material '动态补充仍保留三类 deny 场景的 response READY 延迟 0/1/2/3/5 拍、共 15 行和 33 个 stalled-response 周期；全区间 AWREADY=WREADY=1，owner kind/token/MMU epoch/original VA fault_tval 与 access-fault class 保持。' \
+  --supplied-material '当前负向 RTL 变体为 IFU 12 个、LSU 16 个，共 28 个；包含第 3 个 response-stall 周期的 AW-only、W-only 和 AW+W 脉冲。28 个均编译成功并动态拒绝。' \
+  --supplied-material 'IFU/LSU checker-to-AWADDR、AW/W 独立握手、exactly-once、B ordering、LSU owner/fault_tval 保持和 IFU resp0_bytes=F/access-fault 边界在 V3/V4 复核中均已逐项确认；本 V5 只需重新检查无界 response-stall 静默证明及是否出现新的相容反例。' \
+  --supplied-material 'evidence schema v4 声明 28 项不变量；canonical make -C npc/rv64 check-ptw-pmp 已通过 focused 2/2、module aggregate 109/109、compile-success RTL variants 28/28 和 fail-closed 单元测试 13/13，生产 RTL SHA 在 variant 执行前后一致。' \
+  --supplied-material 'PTW-PMP current result SHA-256 为 54d39545dea4a43310501499ad7a1e5d84c1af5e8244c859b0d868fb7774fc49，raw log SHA-256 为 1947a4c5f3ae713f28fcf0b19d29155955ee4f8cab5f086f0538877336611ea9，variant summary SHA-256 为 9a832ad5683de21e83018b48b1aec4a2121f75e9150c88a6e59f098e2b5cfba9。' \
+  --supplied-material 'PTW-PMP-G1 的 IFU 结论只到 bridge resp0_bytes=F 和 instruction access-fault class；lane owner、fault PC 与 tval 由 IFU-ACCESS-G1/IFU-TVAL-G1 管理。本地 PTE WRITE 接口没有 AWPROT port，不虚构该字段。' \
+  --supplied-material '全核 architecture freeze 仍是诚实 GAP，有 36 个与本 gate 无关的 blocker；PPA 为 UNQUALIFIED 且 promotion_eligible=false，不得外推。' \
+  --deliverable '首先判定 V4 的第 6 拍及更长 response-stall AW/W 脉冲反例是否能与完整 AWVALID/WVALID 状态译码、deny-to-S_RESP、S_RESP 自保持和 exact drop terminal 同时成立；再对 PTW-PMP-G1 给出限定 PASS、GAP 或 inconclusive。若仍有 GAP，必须给出与全部随附结构与周期 oracle 相容的 module、signal、state、cycle、transaction-owner 反例；同时列出 unknowns、scope_extension_request 与 confidence_and_basis。' \
+  --success-criterion '结论必须严格限定为 PTW-PMP-G1；PASS 需明确说明为何任意 response 反压时长都无法从 S_RESP 生成 AW/W VALID，GAP 需提供一个不违反完整状态赋值与转移的新反例；不得用未随附内容扩大结论，也不得外推到 full-core ARCH_STABLE 或 PPA。' \
+  --out "$out"

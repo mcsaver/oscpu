@@ -20,12 +20,16 @@ module tb_ooo_int_issue_queue;
   localparam ENTRY_COUNT_W = 4;
   localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
   localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+  localparam PRODUCER_COUNT = (1 << PRODUCER_ID_W);
 
   reg clk;
   reg rst;
   reg flush;
   reg issue_mem_block;
   reg universal_owner_present;
+  reg memory_pair_peek_enable;
+  wire memory_pair_peek_valid;
+  reg memory_pair_peek_ready;
   reg dispatch0_valid;
   wire dispatch0_ready;
   reg [`XLEN-1:0] dispatch0_pc;
@@ -107,11 +111,20 @@ module tb_ooo_int_issue_queue;
   wire [ENTRY_COUNT_W-1:0] count;
   wire empty;
   wire full;
+  wire [PRODUCER_COUNT-1:0] producer_live_mask;
   reg kill_valid;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
   reg [ROB_INDEX_W-1:0] rob_head_idx;
   reg recover_active;
   integer lane1_negative_i;
+  integer v8o_same_cycle_pair_fires;
+  integer v8o_exact_full_pid_matches;
+  integer v8o_static_lane_role_violations;
+  integer v8o_accepted_transactions;
+  integer v8o_fired_transactions;
+  reg [1:0] v8o_slot_coverage [0:5];
+  reg [PRODUCER_COUNT-1:0] v8o_accepted_mask;
+  reg [PRODUCER_COUNT-1:0] v8o_fired_mask;
 
   OooIntIssueQueue #(
     .PRODUCER_ID_W(PRODUCER_ID_W)
@@ -121,6 +134,9 @@ module tb_ooo_int_issue_queue;
     .flush_i(flush),
     .issue_mem_block_i(issue_mem_block),
     .universal_owner_present_i(universal_owner_present),
+    .memory_pair_peek_enable_i(memory_pair_peek_enable),
+    .memory_pair_peek_valid_o(memory_pair_peek_valid),
+    .memory_pair_peek_ready_i(memory_pair_peek_ready),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
@@ -212,6 +228,7 @@ module tb_ooo_int_issue_queue;
     .count_o(count),
     .empty_o(empty),
     .full_o(full),
+    .producer_live_mask_o(producer_live_mask),
     .kill_valid_i(kill_valid),
     .kill_rob_idx_i(kill_rob_idx),
     .rob_head_idx_i(rob_head_idx),
@@ -225,6 +242,8 @@ module tb_ooo_int_issue_queue;
       flush = 1'b0;
       issue_mem_block = 1'b0;
       universal_owner_present = 1'b0;
+      memory_pair_peek_enable = 1'b0;
+      memory_pair_peek_ready = 1'b0;
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
       dispatch0_inst = 32'h0;
@@ -274,6 +293,72 @@ module tb_ooo_int_issue_queue;
       kill_rob_idx = 4'd0;
       rob_head_idx = 4'd0;
       recover_active = 1'b0;
+    end
+  endtask
+
+  // v8u/F4: an occupied Universal terminal may observe the two edge-old IQ
+  // heads through the dedicated pair face.  READY must only control the
+  // atomic pop2; it must not change the Q-only payload or expose a regular
+  // issue transaction.
+  task automatic run_v8u_memory_pair_peek;
+    reg [PRODUCER_ID_W-1:0] pid0;
+    reg [PRODUCER_ID_W-1:0] pid1;
+    begin
+      reset_dut();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      set_dispatch0(32'h8500_0000, 4'd2,
+                    6'd10, 1'b1, 6'd11, 1'b1, 6'd42);
+      set_dispatch1(32'h8500_0004, 4'd3,
+                    6'd12, 1'b1, 6'd13, 1'b1, 6'd43);
+      dispatch0_ctrl = r3_complex_ctrl(3);
+      dispatch1_ctrl = r3_complex_ctrl(3);
+      dispatch0_producer_id[PRODUCER_ID_W-1:ROB_INDEX_W] = 2'd1;
+      dispatch1_producer_id[PRODUCER_ID_W-1:ROB_INDEX_W] = 2'd2;
+      pid0 = dispatch0_producer_id;
+      pid1 = dispatch1_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      universal_owner_present = 1'b1;
+      memory_pair_peek_enable = 1'b1;
+      #1;
+      tb_check32("V8U pair peek starts with two residents",
+                 {28'b0, count}, 32'd2);
+      tb_check1("V8U pair peek valid from Q-only entries",
+                memory_pair_peek_valid, 1'b1);
+      tb_check1("V8U pair peek suppresses regular issue0",
+                issue0_valid, 1'b0);
+      tb_check1("V8U pair peek suppresses regular issue1",
+                issue1_valid, 1'b0);
+      tb_check32("V8U pair peek entry0 PC", issue0_pc, 32'h8500_0000);
+      tb_check32("V8U pair peek entry1 PC", issue1_pc, 32'h8500_0004);
+      tb_check1("V8U pair peek entry0 full ProducerId",
+                issue0_producer_id == pid0, 1'b1);
+      tb_check1("V8U pair peek entry1 full ProducerId",
+                issue1_producer_id == pid1, 1'b1);
+
+      // Hold one full edge with READY low: both entries and payload identities
+      // remain resident even though the owner/enable face is active.
+      `TB_TICK(clk);
+      #1;
+      tb_check32("V8U pair peek READY-low holds count",
+                 {28'b0, count}, 32'd2);
+      tb_check1("V8U pair peek READY-low holds entry0 identity",
+                issue0_producer_id == pid0, 1'b1);
+      tb_check1("V8U pair peek READY-low holds entry1 identity",
+                issue1_producer_id == pid1, 1'b1);
+
+      memory_pair_peek_ready = 1'b1;
+      #1;
+      tb_check1("V8U pair peek fire remains non-regular",
+                !issue0_valid && !issue1_valid, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("V8U pair peek atomically drains both entries", empty, 1'b1);
+      tb_check32("V8U pair peek atomic pop2 count",
+                 {28'b0, count}, 32'd0);
+      $display("[V8U-IQ-PAIR-PEEK] q_only_payload/ready_hold/atomic_pop2/full_pid PASS");
     end
   endtask
 
@@ -384,13 +469,39 @@ module tb_ooo_int_issue_queue;
           ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
           ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
         end
-        default: begin // store
+        4: begin // store
           ctrl[`CTRL_STORE_BIT] = 1'b1;
           ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
           ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
         end
+        default: begin // MulDiv
+          ctrl[`CTRL_MULDIV_BIT] = 1'b1;
+          ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+          ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+          ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_ALU;
+        end
       endcase
       r3_complex_ctrl = ctrl;
+    end
+  endfunction
+
+  function automatic integer v8o_decode_complex_class;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      if (ctrl[`CTRL_BRANCH_BIT])
+        v8o_decode_complex_class = 0;
+      else if (ctrl[`CTRL_JAL_BIT])
+        v8o_decode_complex_class = 1;
+      else if (ctrl[`CTRL_JALR_BIT])
+        v8o_decode_complex_class = 2;
+      else if (ctrl[`CTRL_LOAD_BIT])
+        v8o_decode_complex_class = 3;
+      else if (ctrl[`CTRL_STORE_BIT])
+        v8o_decode_complex_class = 4;
+      else if (ctrl[`CTRL_MULDIV_BIT])
+        v8o_decode_complex_class = 5;
+      else
+        v8o_decode_complex_class = -1;
     end
   endfunction
 
@@ -401,6 +512,25 @@ module tb_ooo_int_issue_queue;
     reg [`XLEN-1:0] younger_pc;
     reg [`XLEN-1:0] expect_universal_pc;
     reg [`XLEN-1:0] expect_alu_pc;
+    reg [PRODUCER_ID_W-1:0] dispatch0_pid_frozen;
+    reg [PRODUCER_ID_W-1:0] dispatch1_pid_frozen;
+    reg [PRODUCER_ID_W-1:0] expect_universal_pid;
+    reg [PRODUCER_ID_W-1:0] expect_alu_pid;
+    reg [`CTRL_BUS_W-1:0] dispatch0_ctrl_frozen;
+    reg [`CTRL_BUS_W-1:0] dispatch1_ctrl_frozen;
+    reg [`CTRL_BUS_W-1:0] expect_complex_ctrl;
+    reg [`CTRL_BUS_W-1:0] expect_simple_ctrl;
+    reg same_edge_accept;
+    reg resident_witness;
+    reg canonical_dual_fire;
+    reg universal_pid_match;
+    reg alu_pid_match;
+    reg role_match;
+    reg drain_match;
+    integer observed_class;
+    integer class_bit_count;
+    integer case_index;
+    time fire_time;
     begin
       reset_dut();
       issue0_ready = 1'b0;
@@ -412,6 +542,9 @@ module tb_ooo_int_issue_queue;
                     6'd2, 1'b1, 6'd40);
       set_dispatch1(younger_pc, 4'd2, 6'd3, 1'b1,
                     6'd4, 1'b1, 6'd41);
+      case_index = class_id * 2 + (complex_older ? 0 : 1);
+      dispatch0_producer_id[PRODUCER_ID_W-1:ROB_INDEX_W] = case_index + 1;
+      dispatch1_producer_id[PRODUCER_ID_W-1:ROB_INDEX_W] = case_index + 1;
       if (complex_older) begin
         dispatch0_ctrl = r3_complex_ctrl(class_id);
         expect_universal_pc = older_pc;
@@ -421,15 +554,85 @@ module tb_ooo_int_issue_queue;
         expect_universal_pc = younger_pc;
         expect_alu_pc = older_pc;
       end
+      dispatch0_pid_frozen = dispatch0_producer_id;
+      dispatch1_pid_frozen = dispatch1_producer_id;
+      dispatch0_ctrl_frozen = dispatch0_ctrl;
+      dispatch1_ctrl_frozen = dispatch1_ctrl;
+      expect_universal_pid = complex_older ?
+          dispatch0_pid_frozen : dispatch1_pid_frozen;
+      expect_alu_pid = complex_older ?
+          dispatch1_pid_frozen : dispatch0_pid_frozen;
+      expect_complex_ctrl = complex_older ?
+          dispatch0_ctrl_frozen : dispatch1_ctrl_frozen;
+      expect_simple_ctrl = complex_older ?
+          dispatch1_ctrl_frozen : dispatch0_ctrl_frozen;
+      same_edge_accept = dispatch0_valid && dispatch0_ready &&
+                         dispatch1_valid && dispatch1_ready;
+      tb_check1("V8O same-edge dispatch package accept",
+                same_edge_accept, 1'b1);
+      tb_check1("V8O dispatch0 generation nonzero",
+                |dispatch0_pid_frozen[PRODUCER_ID_W-1:ROB_INDEX_W], 1'b1);
+      tb_check1("V8O dispatch1 generation nonzero",
+                |dispatch1_pid_frozen[PRODUCER_ID_W-1:ROB_INDEX_W], 1'b1);
+      tb_check1("V8O package identities differ",
+                dispatch0_pid_frozen != dispatch1_pid_frozen, 1'b1);
+`ifdef V8O_NO_STATIC_LANE_SEMANTICS_FOCUSED
+      tb_check1("V8O dispatch0 identity not previously accepted",
+                v8o_accepted_mask[dispatch0_pid_frozen], 1'b0);
+      tb_check1("V8O dispatch1 identity not previously accepted",
+                v8o_accepted_mask[dispatch1_pid_frozen], 1'b0);
+      if (same_edge_accept) begin
+        v8o_accepted_mask[dispatch0_pid_frozen] = 1'b1;
+        v8o_accepted_mask[dispatch1_pid_frozen] = 1'b1;
+        v8o_accepted_transactions = v8o_accepted_transactions + 2;
+      end
+`endif
       `TB_TICK(clk);
       clear_inputs();
+      #1;
+      tb_check32("R3 pair keeps two resident uops", {28'b0, count}, 32'd2);
+      resident_witness = (count == 4'd2) && dut.valid_q[0] && dut.valid_q[1] &&
+          (dut.producer_id_q[0] == dispatch0_pid_frozen) &&
+          (dut.producer_id_q[1] == dispatch1_pid_frozen) &&
+          (dut.ctrl_q[0] == dispatch0_ctrl_frozen) &&
+          (dut.ctrl_q[1] == dispatch1_ctrl_frozen);
+      tb_check1("V8O two exact entries resident", resident_witness, 1'b1);
+      tb_check1("V8O complex resident capability",
+                complex_older ? dut.alu_terminal_capable_q[0] :
+                                dut.alu_terminal_capable_q[1], 1'b0);
+      tb_check1("V8O simple resident capability",
+                complex_older ? dut.alu_terminal_capable_q[1] :
+                                dut.alu_terminal_capable_q[0], 1'b1);
+      tb_check1("V8O slot1 resident capability",
+                dut.alu_terminal_capable_q[1], complex_older ? 1'b1 : 1'b0);
+      tb_check1("V8O per-entry selector projection",
+                dut.select_alu_capable_w[0] ==
+                    dut.alu_terminal_capable_q[0] &&
+                dut.select_alu_capable_w[1] ==
+                    dut.alu_terminal_capable_q[1], 1'b1);
+      class_bit_count = expect_complex_ctrl[`CTRL_BRANCH_BIT] +
+                        expect_complex_ctrl[`CTRL_JAL_BIT] +
+                        expect_complex_ctrl[`CTRL_JALR_BIT] +
+                        expect_complex_ctrl[`CTRL_LOAD_BIT] +
+                        expect_complex_ctrl[`CTRL_STORE_BIT] +
+                        expect_complex_ctrl[`CTRL_MULDIV_BIT];
+      observed_class = v8o_decode_complex_class(expect_complex_ctrl);
+      tb_check32("V8O accepted control has one complex class",
+                 class_bit_count, 32'd1);
+      tb_check32("V8O accepted control class matches stimulus",
+                 observed_class, class_id);
+      // Hold both entries for one complete cycle.  This prevents a
+      // dispatch-to-select bypass or adjacent-cycle serialization from
+      // satisfying the focused witness.
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V8O full-cycle resident witness",
+                resident_witness && count == 4'd2 &&
+                dut.producer_id_q[0] == dispatch0_pid_frozen &&
+                dut.producer_id_q[1] == dispatch1_pid_frozen, 1'b1);
       issue0_ready = 1'b1;
       issue1_ready = 1'b1;
       #1;
-      $display("[R3-CAP-PAIR] class=%0d complex_older=%0b issue={%0b,%0b} universal_pc=%h alu_pc=%h count=%0d",
-               class_id, complex_older, issue0_valid, issue1_valid,
-               issue0_pc, issue1_pc, count);
-      tb_check32("R3 pair keeps two resident uops", {28'b0, count}, 32'd2);
       tb_check1("R3 pair universal terminal valid", issue0_valid, 1'b1);
       tb_check1("R3 pair ALU terminal valid", issue1_valid, 1'b1);
       tb_check32("R3 pair complex routes to universal", issue0_pc,
@@ -439,15 +642,142 @@ module tb_ooo_int_issue_queue;
       tb_check1("R3 pair universal owns complex class",
                 issue0_ctrl[`CTRL_BRANCH_BIT] || issue0_ctrl[`CTRL_JAL_BIT] ||
                 issue0_ctrl[`CTRL_JALR_BIT] || issue0_ctrl[`CTRL_LOAD_BIT] ||
-                issue0_ctrl[`CTRL_STORE_BIT], 1'b1);
+                issue0_ctrl[`CTRL_STORE_BIT] ||
+                issue0_ctrl[`CTRL_MULDIV_BIT], 1'b1);
       tb_check1("R3 pair ALU terminal owns simple class",
                 issue1_ctrl[`CTRL_BRANCH_BIT] || issue1_ctrl[`CTRL_JAL_BIT] ||
                 issue1_ctrl[`CTRL_JALR_BIT] || issue1_ctrl[`CTRL_LOAD_BIT] ||
-                issue1_ctrl[`CTRL_STORE_BIT], 1'b0);
+                issue1_ctrl[`CTRL_STORE_BIT] ||
+                issue1_ctrl[`CTRL_MULDIV_BIT], 1'b0);
+      tb_check1("V8O output complex control exact",
+                issue0_ctrl == expect_complex_ctrl, 1'b1);
+      tb_check1("V8O output simple control exact",
+                issue1_ctrl == expect_simple_ctrl, 1'b1);
+      tb_check1("V8O dynamic swap polarity",
+                issue_pair_swapped, complex_older ? 1'b0 : 1'b1);
+      universal_pid_match = issue0_producer_id == expect_universal_pid;
+      alu_pid_match = issue1_producer_id == expect_alu_pid;
+      tb_check1("V8O Universal exact full ProducerId",
+                universal_pid_match, 1'b1);
+      tb_check1("V8O ALU exact full ProducerId", alu_pid_match, 1'b1);
+      canonical_dual_fire = issue0_valid && issue0_ready &&
+                            issue1_valid && issue1_ready;
+      tb_check1("V8O canonical same-edge dual fire",
+                canonical_dual_fire, 1'b1);
+      role_match = (issue0_pc == expect_universal_pc) &&
+                   (issue1_pc == expect_alu_pc) &&
+                   (issue0_ctrl == expect_complex_ctrl) &&
+                   (issue1_ctrl == expect_simple_ctrl);
+      if (!role_match)
+        v8o_static_lane_role_violations =
+            v8o_static_lane_role_violations + 1;
+      $display("[V8O-ACTIVATION] class=%0d slot=slot%0d accepted_same_edge=%0b resident=%0b qcap=%0b%0b projection=%0b%0b swap=%0b fire=%0b%0b universal_pid=%0d expected_universal_pid=%0d alu_pid=%0d expected_alu_pid=%0d",
+               observed_class, complex_older ? 0 : 1, same_edge_accept,
+               resident_witness, dut.alu_terminal_capable_q[0],
+               dut.alu_terminal_capable_q[1],
+               dut.select_alu_capable_w[0], dut.select_alu_capable_w[1],
+               issue_pair_swapped, issue0_valid && issue0_ready,
+               issue1_valid && issue1_ready, issue0_producer_id,
+               expect_universal_pid, issue1_producer_id, expect_alu_pid);
+      fire_time = $time;
+`ifdef V8O_NO_STATIC_LANE_SEMANTICS_FOCUSED
+      if (canonical_dual_fire && universal_pid_match && alu_pid_match &&
+          role_match && same_edge_accept && resident_witness &&
+          (observed_class >= 0) && (observed_class < 6)) begin
+        v8o_slot_coverage[observed_class][complex_older ? 0 : 1] = 1'b1;
+      end
+      if (canonical_dual_fire)
+        v8o_same_cycle_pair_fires = v8o_same_cycle_pair_fires + 1;
+      if (universal_pid_match)
+        v8o_exact_full_pid_matches = v8o_exact_full_pid_matches + 1;
+      if (alu_pid_match)
+        v8o_exact_full_pid_matches = v8o_exact_full_pid_matches + 1;
+      if (universal_pid_match && canonical_dual_fire) begin
+        tb_check1("V8O Universal identity not previously fired",
+                  v8o_fired_mask[expect_universal_pid], 1'b0);
+        v8o_fired_mask[expect_universal_pid] = 1'b1;
+        v8o_fired_transactions = v8o_fired_transactions + 1;
+      end
+      if (alu_pid_match && canonical_dual_fire) begin
+        tb_check1("V8O ALU identity not previously fired",
+                  v8o_fired_mask[expect_alu_pid], 1'b0);
+        v8o_fired_mask[expect_alu_pid] = 1'b1;
+        v8o_fired_transactions = v8o_fired_transactions + 1;
+      end
+`endif
       `TB_TICK(clk);
       clear_inputs();
       #1;
       tb_check1("R3 pair fires exactly once and drains", empty, 1'b1);
+      drain_match = empty && count == 4'd0;
+      $display("[V8O-SLOT-WITNESS] class=%0d slot=slot%0d accepted_same_edge=%0b resident_full_cycle=%0b pair_fire=%0b universal_pid_match=%0b alu_pid_match=%0b role_match=%0b drain=%0b fire_time=%0t",
+               observed_class, complex_older ? 0 : 1, same_edge_accept,
+               resident_witness, canonical_dual_fire, universal_pid_match,
+               alu_pid_match, role_match, drain_match, fire_time);
+    end
+  endtask
+
+  task automatic run_v8o_split_accept_negative;
+    integer fill_i;
+    integer before_pairs;
+    integer before_pid_matches;
+    reg split_credit;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      // Fill seven of eight entries through ordinary accepted dispatches.
+      for (fill_i = 0; fill_i < 3; fill_i = fill_i + 1) begin
+        set_dispatch0(32'h8400_0000 + fill_i * 8, fill_i * 2,
+                      6'd1, 1'b1, 6'd2, 1'b1, 6'd20 + fill_i * 2);
+        set_dispatch1(32'h8400_0004 + fill_i * 8, fill_i * 2 + 1,
+                      6'd3, 1'b1, 6'd4, 1'b1, 6'd21 + fill_i * 2);
+        #1;
+        tb_check1("V8O split-negative fill slot0 accepts",
+                  dispatch0_valid && dispatch0_ready, 1'b1);
+        tb_check1("V8O split-negative fill slot1 accepts",
+                  dispatch1_valid && dispatch1_ready, 1'b1);
+        `TB_TICK(clk);
+        clear_inputs();
+      end
+      set_dispatch0(32'h8400_0030, 4'd6,
+                    6'd5, 1'b1, 6'd6, 1'b1, 6'd26);
+      #1;
+      tb_check1("V8O split-negative seventh entry accepts",
+                dispatch0_valid && dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("V8O split-negative starts with seven residents",
+                 {28'b0, count}, 32'd7);
+      before_pairs = v8o_same_cycle_pair_fires;
+      before_pid_matches = v8o_exact_full_pid_matches;
+      set_dispatch0(32'h8400_0040, 4'd7,
+                    6'd7, 1'b1, 6'd8, 1'b1, 6'd27);
+      set_dispatch1(32'h8400_0044, 4'd8,
+                    6'd9, 1'b1, 6'd10, 1'b1, 6'd28);
+      dispatch1_ctrl = r3_complex_ctrl(3);
+      #1;
+      split_credit = dispatch0_valid && dispatch0_ready &&
+                     dispatch1_valid && dispatch1_ready;
+      tb_check1("V8O split-negative slot0 accepts",
+                dispatch0_valid && dispatch0_ready, 1'b1);
+      tb_check1("V8O split-negative slot1 is backpressured",
+                dispatch1_valid && dispatch1_ready, 1'b0);
+      tb_check1("V8O split-negative package gets no credit",
+                split_credit, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("V8O split-negative queue reaches eight",
+                 {28'b0, count}, 32'd8);
+      tb_check32("V8O split-negative pair counter unchanged",
+                 v8o_same_cycle_pair_fires, before_pairs);
+      tb_check32("V8O split-negative PID counter unchanged",
+                 v8o_exact_full_pid_matches, before_pid_matches);
+      $display("[V8O-SPLIT-ACCEPT-NEGATIVE] accepted_slot0=1 accepted_slot1=0 coverage_credit=0 count=%0d",
+               count);
+      reset_dut();
     end
   endtask
 
@@ -744,6 +1074,7 @@ module tb_ooo_int_issue_queue;
     reg [PRODUCER_ID_W-1:0] id0;
     reg [PRODUCER_ID_W-1:0] id1;
     reg [PRODUCER_ID_W-1:0] id2;
+    reg [PRODUCER_COUNT-1:0] expected_live_mask;
     begin
       id0 = {PRODUCER_ID_W{1'b0}};
       id0[PRODUCER_ID_W-1:ROB_INDEX_W] = {PRODUCER_GEN_W{1'b1}};
@@ -779,6 +1110,14 @@ module tb_ooo_int_issue_queue;
                  {28'b0, id0[ROB_INDEX_W-1:0]});
       tb_check32("v8f lane1 raw projection", {28'b0, issue1_rob_idx},
                  {28'b0, id1[ROB_INDEX_W-1:0]});
+      expected_live_mask = {PRODUCER_COUNT{1'b0}};
+      expected_live_mask[id0] = 1'b1;
+      expected_live_mask[id1] = 1'b1;
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ dual raw-Q mask actual=%h expected=%h",
+                 producer_live_mask, expected_live_mask);
+        tb_errors = tb_errors + 1;
+      end
 
       `TB_TICK(clk);
       clear_inputs();
@@ -789,6 +1128,10 @@ module tb_ooo_int_issue_queue;
       tb_check32("v8f stalled lane1 id holds",
                  {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
                  {{(32-PRODUCER_ID_W){1'b0}}, id1});
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ hold changed raw-Q mask");
+        tb_errors = tb_errors + 1;
+      end
 
       issue0_ready = 1'b1;
       issue1_ready = 1'b0;
@@ -800,6 +1143,13 @@ module tb_ooo_int_issue_queue;
                  {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
                  {{(32-PRODUCER_ID_W){1'b0}}, id1});
       tb_check32("v8f compaction leaves one entry", {28'b0, count}, 32'd1);
+      expected_live_mask = {PRODUCER_COUNT{1'b0}};
+      expected_live_mask[id1] = 1'b1;
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ death-edge survivor mask actual=%h expected=%h",
+                 producer_live_mask, expected_live_mask);
+        tb_errors = tb_errors + 1;
+      end
 
       issue0_ready = 1'b1;
       set_dispatch0(32'h8000_1208, 4'd5,
@@ -813,6 +1163,13 @@ module tb_ooo_int_issue_queue;
                  {{(32-PRODUCER_ID_W){1'b0}}, issue0_producer_id},
                  {{(32-PRODUCER_ID_W){1'b0}}, id2});
       tb_check32("v8f replacement leaves one entry", {28'b0, count}, 32'd1);
+      expected_live_mask = {PRODUCER_COUNT{1'b0}};
+      expected_live_mask[id2] = 1'b1;
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ replacement mask actual=%h expected=%h",
+                 producer_live_mask, expected_live_mask);
+        tb_errors = tb_errors + 1;
+      end
 
       reset_dut();
       issue0_ready = 1'b0;
@@ -833,6 +1190,15 @@ module tb_ooo_int_issue_queue;
       dispatch0_producer_id = id2;
       `TB_TICK(clk);
       clear_inputs();
+      expected_live_mask = {PRODUCER_COUNT{1'b0}};
+      expected_live_mask[id0] = 1'b1;
+      expected_live_mask[id1] = 1'b1;
+      expected_live_mask[id2] = 1'b1;
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ pre-kill raw-Q mask actual=%h expected=%h",
+                 producer_live_mask, expected_live_mask);
+        tb_errors = tb_errors + 1;
+      end
       kill_valid = 1'b1;
       kill_rob_idx = 4'd15;
       rob_head_idx = 4'd14;
@@ -852,14 +1218,75 @@ module tb_ooo_int_issue_queue;
                  {{(32-PRODUCER_ID_W){1'b0}}, issue1_producer_id},
                  {{(32-PRODUCER_ID_W){1'b0}}, id1});
       tb_check1("v8f kill clears strictly-younger slot", dut.valid_q[2], 1'b0);
+      expected_live_mask = {PRODUCER_COUNT{1'b0}};
+      expected_live_mask[id0] = 1'b1;
+      expected_live_mask[id1] = 1'b1;
+      if (producer_live_mask !== expected_live_mask) begin
+        $display("FAIL v8l IntIQ selective-kill mask actual=%h expected=%h",
+                 producer_live_mask, expected_live_mask);
+        tb_errors = tb_errors + 1;
+      end
       $display("[V8F-INTIQ-PRODUCER-CARRIER] dual/hold/compact/replace/kill PASS");
       reset_dut();
+      if (producer_live_mask !== {PRODUCER_COUNT{1'b0}}) begin
+        $display("FAIL v8l IntIQ reset mask is nonzero");
+        tb_errors = tb_errors + 1;
+      end
     end
   endtask
 
   initial begin
     tb_errors = 0;
     reset_dut();
+
+`ifdef V8O_NO_STATIC_LANE_SEMANTICS_FOCUSED
+    v8o_same_cycle_pair_fires = 0;
+    v8o_exact_full_pid_matches = 0;
+    v8o_static_lane_role_violations = 0;
+    v8o_accepted_transactions = 0;
+    v8o_fired_transactions = 0;
+    v8o_accepted_mask = {PRODUCER_COUNT{1'b0}};
+    v8o_fired_mask = {PRODUCER_COUNT{1'b0}};
+    for (lane1_negative_i = 0; lane1_negative_i < 6;
+         lane1_negative_i = lane1_negative_i + 1)
+      v8o_slot_coverage[lane1_negative_i] = 2'b00;
+
+    run_v8o_split_accept_negative();
+    for (lane1_negative_i = 0; lane1_negative_i < 6;
+         lane1_negative_i = lane1_negative_i + 1) begin
+      run_r3_capability_pair(lane1_negative_i, 1'b1);
+      run_r3_capability_pair(lane1_negative_i, 1'b0);
+    end
+    for (lane1_negative_i = 0; lane1_negative_i < 6;
+         lane1_negative_i = lane1_negative_i + 1)
+      tb_check32("V8O each accepted class covers both program slots",
+                 {30'b0, v8o_slot_coverage[lane1_negative_i]}, 32'd3);
+    tb_check32("V8O twelve same-edge pair fires",
+               v8o_same_cycle_pair_fires, 32'd12);
+    tb_check32("V8O twenty-four exact full PID matches",
+               v8o_exact_full_pid_matches, 32'd24);
+    tb_check32("V8O accepted transaction ledger size",
+               v8o_accepted_transactions, 32'd24);
+    tb_check32("V8O fired transaction ledger size",
+               v8o_fired_transactions, 32'd24);
+    tb_check1("V8O accepted and fired identity masks equal",
+              v8o_accepted_mask == v8o_fired_mask, 1'b1);
+    tb_check32("V8O zero static role violations",
+               v8o_static_lane_role_violations, 32'd0);
+`ifdef V8O_MODE_ASSERT
+    $display("[V8O-NO-STATIC-LANE-METRICS] mode=assert permutations=12 static_lane_role_violations=%0d same_cycle_pair_fires=%0d exact_full_pid_matches=%0d accepted=%0d fired=%0d",
+             v8o_static_lane_role_violations,
+             v8o_same_cycle_pair_fires, v8o_exact_full_pid_matches,
+             v8o_accepted_transactions, v8o_fired_transactions);
+`else
+    $display("[V8O-NO-STATIC-LANE-METRICS] mode=release permutations=12 static_lane_role_violations=%0d same_cycle_pair_fires=%0d exact_full_pid_matches=%0d accepted=%0d fired=%0d",
+             v8o_static_lane_role_violations,
+             v8o_same_cycle_pair_fires, v8o_exact_full_pid_matches,
+             v8o_accepted_transactions, v8o_fired_transactions);
+`endif
+    $display("[V8O-NO-STATIC-LANE-SEMANTICS] accepted-package/resident/capability/full-PID/canonical-fire PASS");
+    tb_finish("tb_ooo_int_issue_queue");
+`endif
 
 `ifdef IQ_FP_WAKE_STICKY_NEGATIVE
     // T3D 非真空负探针：先经合法 dispatch 建立 index0 resident FP-store，
@@ -963,6 +1390,7 @@ module tb_ooo_int_issue_queue;
     $finish_and_return(0);
 `endif
 
+    run_v8u_memory_pair_peek();
     tb_check1("reset empty", empty, 1'b1);
 
     // ===== S2 单发 N+1 契约:dispatch 当拍绝不发射,次拍从寄存项发射 =====
@@ -1651,7 +2079,7 @@ module tb_ooo_int_issue_queue;
     // R3 RED->GREEN pair matrix: branch/JAL/JALR/load/store, both program
     // orders.  A passing result requires two simultaneous terminal fires;
     // serial promotion is not accepted as dual issue.
-    for (lane1_negative_i = 0; lane1_negative_i < 5;
+    for (lane1_negative_i = 0; lane1_negative_i < 6;
          lane1_negative_i = lane1_negative_i + 1) begin
       run_r3_capability_pair(lane1_negative_i, 1'b0);
       run_r3_capability_pair(lane1_negative_i, 1'b1);

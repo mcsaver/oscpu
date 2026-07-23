@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9f-proof-model-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend reservation terminal 到请求握手及 MIQ owner birth、以及 OooMemInflightQueue DRAIN 流水线冲刷压缩的修订证据模型，判断初轮 GAP 是否已在声明边界内闭合",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-proof-model-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前单端口拓扑把普通双 memory uop 原子捕获进 terminal0/terminal1；edge-old terminal0 有效时 terminal1 不得 look-through。定向事务令 terminal0 产生 Sv39 跨页本地 load 地址异常，terminal1 为正常 load。",
+      "正向 oracle 分四段：阶段0要求 pair_capture=2、terminal0 本地终结、terminal1 保持且 request_fire=0/MIQ birth=0；阶段1要求 terminal1 request fire、terminal consume、request mux owner、MIQ birth 同拍各一次；随后一拍要求 terminal 清空、无重复 request/MIQ birth且 MIQ resident=1。",
+      "端到端事务身份 scoreboard 比较 15 个字段：request owner kind/token/epoch/tval，MIQ ROB index/pdest/pdest class/owner kind/token/epoch/tval/size/unsigned，请求地址，以及 tracker ProducerId。",
+      "反压场景令 mem_req_ready=0 连续两拍，要求 request valid 和 terminal payload 保持、request fire=0、terminal consume=0、MIQ birth=0；解除反压后仅一次 fire/consume/birth。",
+      "MEM 六个编译成功 RTL verification variants 分别覆盖：去掉 request-valid 的 edge-old terminal0 排除、去掉 consume 的对应排除、永久关闭正常 terminal1 request-valid、按 valid 而非 fire 消费受压 terminal、按 valid 而非 fire 产生 MIQ owner、成功 launch 后错误保留 terminal 造成重复发射；每个必须被专属逐拍 marker 动态拒绝。",
+      "MIQ 测试先构造环形队列和 LOAD/PROBE/DRAIN 混合集合；流水线冲刷后的精确 survivor multiset 只包含未消费 DRAIN，保持 owner identity 和 FIFO wrapped order；同拍 fired head 必须从 keep-set 扣除。两个编译成功变体分别删除 fired-head 扣除和关闭 DRAIN keep-set，并被动态拒绝。",
+      "SQ DRAIN 只有在 exact ROB-head launch-open 授权后才能成为物理写请求；MIQ DRAIN owner birth 使用 sq_drain_req_fire=grant_sq&&ready，属于 transport-irrevocable/nokill 边界，不宣称该 store 已在架构上退休。",
+      "所有八个变体均要求唯一文本锚定、编译成功、动态拒绝、变体日志绑定当前源码和归一化临时编译根，并证明生产 RTL SHA 前后相同；完整模块回归另要求当前清单 109/109。",
+      "声明边界是两个局部生命周期债务的当前 design-id 闭合；不推导全核 ARCH_STABLE，也不推导 PPA 合格或 promotion eligible。"
+    ]
+  },
+  "deliverables": [
+    "按 P0/P1/P2 给出未解决缺口或明确 PASS；逐项裁定反压 fire gating、exactly-once、15 字段身份、DRAIN fired-head 扣除、未消费 DRAIN 保留及环形混合集合顺序"
+  ],
+  "success_criteria": [
+    "明确判断初轮审查的 P0 缺口是否由修订 oracle/八个变体闭合，并给出任何仍可编译且在当前声明边界内幸存的具体 RTL 反例"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

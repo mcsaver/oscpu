@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-22-agent-system-observability-run-manifest-revtag-v9f
+- `trace_id`: e2e:2026-07-22-agent-system-observability-run-manifest-revtag-v9f
+- `task_slug`: agent-system-observability-run-manifest-revtag-v9f
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: c0433fffc0eff44bbf587e2cb6926723900af14a1d7e74bd55a810a72cc786e6
+- `task_report_md_sha256`: 053a6e74378985ba4c15705f86b6d0a1f250a9b67216d95339a2c73fa3d508e6
+- `run_manifest_json_sha256`: 00f42c77c6629e6fb1089fbb590dedc10f2e1fe8d908f5fba88d6871ee6d571a
+- `context_brief_md_sha256`: bd82eeae8e4a49ce7da2b0f31bd349283f3649804fc93d1b5ee3b4530efcb53c
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 23fda6354ead45e1d778687ba9ec0f82e62692a05288f4add9e186c29ad0a8fd
+- `dispatch_log_md_sha256`: 5b2ca650f7aff480cb53397c5ebd869800aea3a270654457db1e9b8fcf5f6361
+- `nodes_tsv_sha256`: aa34d478e38a49c93ff0da7c39b5abf8e20bc7e4789086b8b2a6e918152b880e

@@ -1,0 +1,14 @@
+{
+  "verdict": "INCONCLUSIVE",
+  "contract_sha256": "785ed9bc9a27deb7ab19f9b360b1ab4653ad03587f1dd680c8fba9ed9d3c48b8",
+  "reason": "workspace-files reviewer did not return a bounded verdict before the review lease was terminated",
+  "technical_pass_claimed": false,
+  "shell_ownership": "revoked_by_parent_after_interrupt",
+  "follow_up": "run a versioned prompt-supplied self-contained review over frozen source facts; close every actionable counterexample with executable RTL verification evidence",
+  "claim_boundary": {
+    "DI-1": "RED",
+    "DI-2": "RED",
+    "overall_architecture": "RED",
+    "PPA": "UNQUALIFIED"
+  }
+}

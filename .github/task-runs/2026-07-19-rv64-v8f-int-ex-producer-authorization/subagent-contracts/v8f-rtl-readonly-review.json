@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8f-rtl-readonly-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 HEAD 中 integer IQ 到 EX0/EX1 的 ProducerId 载体与 exact formal-completion authorization 是否逐条满足 v8f 合同，并最多报告三个 P0/P1 反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/contract.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/rtl-derivation.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/holder-census-delta.md",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+      "npc/rv64/design/specs/ooo-rob.md",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/design/specs/ooo-execute-backend.md",
+      "npc/rv64/design/specs/ooo-writeback.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/contract.md",
+      ".github/task-runs/2026-07-19-rv64-v8f-int-ex-producer-authorization/rtl-derivation.md"
+    ]
+  },
+  "deliverables": [
+    "中文短报告：合同符合性、严重度、精确 file:line、可执行反例或明确 scoped-closed 裁决"
+  ],
+  "success_criteria": [
+    "逐条核对 carrier、query、kill overlay、副作用 fanout、mismatch drain 与剩余 RED 边界",
+    "不修改文件且不扩大到 async memory、FP、branch 或 global lease 的完整性审计"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

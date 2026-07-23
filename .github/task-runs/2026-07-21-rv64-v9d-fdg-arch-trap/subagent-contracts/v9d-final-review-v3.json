@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9d-fdg-final-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently review the local RV64 FDG-G1 byte-stable evidence serialization fix and determine whether exact temporary compile-root normalization preserves diagnostic sensitivity and the existing architecture claim boundary.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/review-packet.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/subagent-contracts/v9d-final-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Scope is authorized local RV64 Verilog/SystemVerilog dual-issue OoO processor verification evidence only; no network, account, credential or external service.",
+      "Production RTL and design identity are unchanged: sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc. The existing FDG claim remains four illegal FP encodings blocked, one legal FADD.S admitted, one precise full-core trap with exact PC/tval and CSR mepc/mtval, zero invalid-FP commits, 6/6 compile-success RTL variants rejected and 1/1 commit-observer sensitivity configuration rejected.",
+      "A final canonical replay exposed evidence-only drift: module and RTL-variant compile logs contained randomly suffixed per-run temporary build roots such as /tmp/rv64-fdg-v9d.XXXXXXXX and /tmp/fdg-variant-XXXXXXXX. These paths changed log SHA and FDG result SHA even when RTL, tests, diagnostics and outcomes were identical, causing the ledger closed binding to fail after a legitimate replay.",
+      "The implementation replaces only the exact pathlib.Path string returned for the current TemporaryDirectory with the literal token <FDG_TRANSIENT_TMP> before log hashing. It does not replace repository paths, source names, compile options, simulator diagnostics, oracle markers, return codes or result text.",
+      "Module-log normalization is fail-closed: log_dir must resolve inside the repository, the transient directory must resolve outside the repository with parent exactly /tmp and basename prefix rv64-fdg-v9d., the log inventory must be nonempty, every exact regular module log must contain the current transient directory at least once, and any mismatch raises an error before evidence construction.",
+      "RTL-variant and commit-observer logs use the same exact-string normalization while their compile-success detection, expected-marker checks, nonzero return-code requirement, [RESULT] FAIL requirement and source-before/source-after equality remain unchanged.",
+      "Three new regression tests cover pure exact replacement while preserving a repository source path, all live mutation/probe logs containing the declared token with no /tmp/fdg- suffix, and all 109 live module logs containing the token with no /tmp/rv64-fdg-v9d. suffix. The combined arch-stable audit and FDG/INSTRET tests pass 58/58.",
+      "Two consecutive canonical commands make -C npc/rv64 check-fdg-arch-trap both passed module aggregate 109/109, variants 6/6, observer 1/1 and source_unchanged=true. Across both runs the exact SHA values were identical: FDG result 6238dbef481273da7d6acc00156a9bf1a23c90ebfb610498053377b66df88fb0; raw log 47eb6b670d2ed21794fc0a2bd549cb8d823328f8e6044a343de8c1212302b765; mutation summary 0f3b95063c45cdec383e1e7f4754708fbe834db392fc4cf74e51988ee5490459; module summary c1512e98d3ba408e6331cba675632ca0f0ae8bcd0a061fe48791ff465cdac8e9; focused log a04421b43eea75f20a85c849786a14077e7b90663de1a94d1437bbae3583a27f; program log 17bab7e728bd4c617ab742160ec4543756765db87edc005663d868c1c9c266f3.",
+      "The architecture debt ledger was rebound to the stable FDG result SHA. The independent arch-stable validator then passed FDG closed binding and semantic evidence; full core remains ARCH_STABLE=GAP with 44 blockers, PPA UNQUALIFIED and promotion_eligible=false. Nine directed architecture gates remain GREEN.",
+      "Prior v2 review passed with no P0/P1 after commit-observer and PC/tval sensitivity hardening. Its retained P2 limits remain: no independent lane0/lane1 commit sensitivity cut, one trap transaction only, and no classifier mutation completeness claim."
+    ]
+  },
+  "deliverables": [
+    "Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL/evidence counterexample; explicitly decide whether exact transient-root normalization hides relevant diagnostics, whether the fail-closed path checks are sufficient for the stated claim, and whether the byte-stable replay evidence supports ledger rebinding; then restate residual limitations and claim boundary."
+  ],
+  "success_criteria": [
+    "No unresolved P0/P1 evidence-integrity defect; preserve full-core ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is identified."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

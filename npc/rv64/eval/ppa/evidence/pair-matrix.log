@@ -1,0 +1,25 @@
+DI-3 dual-memory terminal-owner pair-matrix evidence
+run_id=2026-07-20-rv64-v8p-dual-memory-terminal-owners
+generated_at_utc=2026-07-23T02:08:46.287493+00:00
+design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+rtl_file_count=145
+provenance_sha256=17be9b4c451fe635f2fe0a25f59b7c073e340062744b40c3ea644bbeab759c0a
+profiles=release,assert independently complete
+pair_matrix_keys=15
+same_cycle_memory_pair_fires=4
+distinct_nonzero_generation_memory_pids=8
+special_memory_exclusions=10
+atomic_scarcity_zero_births=1
+collector_ingress_peak=7
+mutation_count=15
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-assert/logs/tb_ooo_int_backend.log 31f51e657cb34d70e9975a43c3bd1690d38f2fd50ae790c617ed3785c49e0a6d
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-assert/logs/tb_ooo_mem_owner_terminal_collector.log 8c6bf9ee2b7f95792179e8f49c06e21f8e27f7cb048559e1d83acf45150d5319
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-assert/logs/tb_ooo_mem_owner_tracker.log 0e93cbbade543cba23ca76289ed4ac3e94e782248664e1c36f16a0214ca3d54f
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-assert/logs/tb_ooo_store_queue.log 3787928e32994200b48d81dc2d38f4698cd04910d3700be97796fb94dbda563c
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-release/logs/tb_ooo_int_backend.log e0d2973028c21d0c1daead649c2a3e5a5b440d8293e022a394be40cc6def033d
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-release/logs/tb_ooo_mem_owner_terminal_collector.log 003cf978ade6f168fd1355eefd8b83d6649b11fe6b7e1fe3ea58634ea80296e0
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-release/logs/tb_ooo_mem_owner_tracker.log 8c96ffc84d6cb935c6937bd4ab0f0586f86a0323848f6c6335e116132490f60c
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/baseline-release/logs/tb_ooo_store_queue.log 082d968b02aaa24baf2e1d501bdf4eab0117370622c1872235095cbec30020e9
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/mutation-summary.log be35b53ff4467a02fc9908d6649a7dd863f2a38a7694bc21925838438b26781a
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/evidence/focused/sources.pre.sha256 94a370e615f46b60173ae02e1d28e1f5e2fdee1168bb679f87ac5d520147bf83
+[ARCH-GATE] pair_matrix PASS run_id=2026-07-20-rv64-v8p-dual-memory-terminal-owners design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2 provenance_sha256=17be9b4c451fe635f2fe0a25f59b7c073e340062744b40c3ea644bbeab759c0a

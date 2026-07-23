@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-dual-memory-fabric-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地RV64 RTL实现与fresh可执行证据，独立寻找F0共享AXI miss fabric中的owner提前释放、AW/W偏斜丢失、响应广播、公平失效、复位残留、非法请求非fail-closed、变异假绿或声明越级；给出pass或gap",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_axi_arbiter.sv",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地RV64 Verilog/SystemVerilog数字电路；合同之外不得读文件、用shell、联网、访问账号凭据、调用外部服务或写盘。",
+      "OooDualMemAxiArbiter是两个单outstanding单beat上游到一个下游的未实例化F0叶模块；五态IDLE、READ_ADDR、READ_RESP、WRITE_DATA、WRITE_RESP，IDLE无READY/VALID fall-through，只在时钟沿捕获owner_q与is_write_q。",
+      "read owner只在R valid且exact owner ready的terminal后释放；write用aw_seen_q和w_seen_q分别记账，AW/W任意先后或同拍，只有两者都seen后进入B phase，B terminal才释放；rr_q只在R/B terminal写为另一lane。",
+      "组合输出在rst为1时全部静默；同步复位沿将state、owner、type、rr、两个seen位清零。任一lane同拍AR与AW或W并存时，IDLE release全局不捕获另一合法lane且状态不变，OOO_ASSERT以ARB-REQ-CLASS-ONEHOT拒绝。",
+      "非owner的AR/AW/W READY与R/B VALID全为0；downstream R/B READY只来自exact owner；AR/AW/W及被反压的R/B payload均有稳定性断言，并有OWNER-HOLD、AW-ONCE、W-ONCE、WRITE/READ-TERMINAL、RSP-ONEHOT、IDLE-QUIET、RESET-QUIET断言。",
+      "fresh run_id=v8q-f0-20260720T030524Z-846580；RTL sha256=f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7；source closure sha256=54018702734699fc4df6aeb14f20c0d6b69b56167f210e8b376c53839e444ce8，运行前后closure与canonical architecture manifest摘要不变。",
+      "release与OOO_ASSERT定向矩阵分别fresh通过：lane0/lane1 read、AR/R stall、round-robin terminal fairness、AW-before-W、W-before-AW、同拍AW/W、B stall、response隔离、IDLE注册选择；额外逐态覆盖READ_ADDR、READ_RESP、AW-only、W-only和WRITE_RESP同步reset并拒绝解除reset后的孤儿R/B；assert-negative真实非零退出并唯一命中ARB-REQ-CLASS-ONEHOT。",
+      "12个独立source mutant均compile_success、elaborated、activated且被唯一TB oracle拒绝：read_release_on_ar、write_release_on_aw、write_release_on_w、aw_seen_tieoff、w_seen_tieoff、broadcast_rvalid、swap_rready、broadcast_bvalid、fixed_lane0_priority、rr_update_on_capture、idle_fallthrough、reset_owner_residue。",
+      "fail-closed checker剥离注释后要求唯一非空module、五态、registered owner/type、AW/W seen聚合、rr只在reset/terminal更新、R/B exact隔离、R/B terminal unlock、reset冷启动和断言marker；10个单测覆盖空文件、comment-only module/marker、缺state、seen tieoff、duplicate module、response broadcast、rr提前更新及canonical实例检测。",
+      "canonical vsrc中不存在该模块实例；architecture checker对新source set给出DI-5=RED、OOO-3=RED、overall=RED，PPA=UNQUALIFIED；唯一允许声明是dual_axi_miss_fabric_leaf_verified，不得提升双memory data path、ordering、overall或PPA。"
+    ]
+  },
+  "deliverables": [
+    "返回单个严格JSON对象：verdict为pass或gap；blockers数组每项给出具体counterexample、现有证据是否覆盖、若未覆盖所需executable evidence；false_green_risks数组；claim_boundary_ok布尔值；contract_compliance对象必须声明tools_used=false、filesystem_reads=false、writes=false、network=false。"
+  ],
+  "success_criteria": [
+    "逐项挑战read和write owner锁持有、AW/W skew、R/B exact demux、terminal fairness、非法dual-type、各在途phase同步reset冷启动与孤儿response拒绝、stall payload稳定、12 mutation的激活与唯一拒绝、source closure freshness及F0不越级；若没有仍可执行的反例则verdict=pass且blockers为空。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-dual-memory-fabric-final-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对照首轮F0-G01至F0-G05，复核最终same-digest run是否逐项闭合，返回pass或gap",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/contract-review-resolution.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-final-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "仅限本地RV64 RTL合同复核；不得使用工具、shell、文件系统、网络、账号、凭据、外部服务或写盘。",
+      "G01：同步reset合同冻结；fresh release/assert逐态覆盖READ_ADDR、READ_RESP、AW-only、W-only、WRITE_RESP，验证组合静默、状态清零及reset后孤儿R/B拒绝。",
+      "G02：公平限定为带progress假设的事务界；terminal后的下一IDLE捕获点选等待lane；公平TB、fixed-priority和rr-on-capture变异闭合。",
+      "G03：read-present=ARVALID，write-present=AWVALID或WVALID；所有非reset状态检查，IDLE任一lane违例全局不捕获/不更新/不fire；assert-negative唯一命中ARB-REQ-CLASS-ONEHOT。",
+      "G04：固定12 mutation；每项compile_success、elaborated、activated、唯一target_rejected，最终fresh 12/12。G05：最终run_id=v8q-f0-20260720T030925Z-849762，RTL sha=f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7，closure sha=d271ddf5fca6c6c8ef552fb1c1111b691e43e77714aeb51f3720dedbe18a5186，pre/post闭包及architecture manifest不变；10 checker负例、唯一总PASS。",
+      "canonical vsrc无F0实例；same design_id sha256:79e445cd976f7a2ace1da6288866b2442846677520052a95eea7c14504ab2cca的fresh manifest/hard checker中DI-3/DI-4/OOO-1/OOO-2 GREEN，DI-5/OOO-3/overall RED，PPA UNQUALIFIED；只授权dual_axi_miss_fabric_leaf_verified。"
+    ]
+  },
+  "deliverables": [
+    "严格JSON：verdict；gap_status逐项F0-G01..G05；remaining_blockers；same_digest_publication_ok；claim_boundary_ok；contract_compliance含tools_used=false、filesystem_reads=false、writes=false、network=false。"
+  ],
+  "success_criteria": [
+    "五个GAP均需最终fresh executable evidence；旧digest、inactive mutation、非唯一失败或越级claim均判gap。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8y-speculation-recovery-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地 RV64 Verilog/SystemVerilog 机器事实，独立复核最终 OOO-4 控制流推测与分支错误预测恢复硬门是否可以限定为 GREEN，并优先寻找反例、证据断裂、运行生命周期歧义或越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/speculation-recovery.log",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/result.json",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/architecture-result.json",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/architecture-gates.log",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.pre.sha256",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.post.sha256",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/subagent-contracts/v8y-speculation-recovery-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程范围仅为授权工作区中的本地 RV64 双发射 OoO Verilog/SystemVerilog 处理器、testbench、EDA 仿真和生成证据；不涉及网络扫描、远程主机、账号、凭据、第三方服务或未授权系统。",
+      "最终完整可综合 RTL 源集含 145 个文件，design_id=sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；最终 V8Y suite_run_id=v8y-ooo4-20260721T072758Z-1732951。",
+      "同一 V8Y focused 二进制在 assert 与 release 两个配置均 PASS；每个配置都唯一出现 linear D0/A1/B2 与 wrap D14/A15/B0 标记，A、B 是同时驻留且独立就绪的两条预测错误分支事务，只有最老 A 发射和解析，B 的发射、解析、完成、退休计数均为零。",
+      "两种 ROB 布局的 full-ProducerId 账本均为 D 完成1退休1、A 完成1退休1、B 完成0退休0；恢复后 B 不在 ROB、IQ 或全局 holder census，D/A 保持精确开放，最终 ROB、IQ、free-list、恢复状态、EX 状态、memory owner 与 terminal collector 全部守恒归零。",
+      "同一 focused 二进制还唯一出现 V8D EX-stage strictly-younger transaction removal 标记 checks=8192 failures=0，以及 V8X 真实 backend MIQ 加双 memory bridge trace 标记 ar=1 drop=2 pop=2 terminal=2 wb=0 commit=0 fill=0 quiet=6 PASS。",
+      "集成标记为 multi_control=1 oldest_branch=1 selective_ex=1 axi_drain=1 complete_violations=0 retire_violations=0 ghosts=0 PASS；assert 与 release 各出现一次且各自只有一个 RESULT PASS，无失败、超时或 fatal 标记。",
+      "9 项 compile-success RTL verification mutation 全部编译成功并由定向 oracle 动态检出：control admission、oldest control selection、recovery-cycle issue close、ROB wrap tail boundary、completion replay、retire owner remap、IQ suffix holder removal、active bridge selective recovery、killed-station promotion；生产 RTL 前后摘要一致。",
+      "9 项 RTL 验证变异的精确 metric mapping 覆盖全部七项 OOO-4 指标：multiple_controls_inflight、oldest_mispredict_wins、wrong_path_selective_squash、fired_axi_drained、exactly_once_complete_violations、exactly_once_retire_violations、ghost_after_recovery。",
+      "同源相邻回归 6/6 PASS：默认 integer backend、core top glue、redirect arbiter、branch BPU update gate、memory AXI bridge、dual-memory bridge wrapper；前序 DI-3/4/5 与 OOO-1/2/3 由 canonical runner 在同一 design_id 下重建。",
+      "最终 V8Y 源清单含 27 个唯一文件，前后清单字节完全一致，源聚合摘要为 fa41ce6b191c065fd49de4491175be752d277d6f2b7a41e3df4ab102cb743a41，pre/post 文件 SHA-256 均为 42d0b58102a5c08de5cc6696c8de7241f7598752d67efddb6cdf838296bf29cc。",
+      "最终架构硬门 provenance 含 52 个唯一文件，聚合摘要为 e25ce5fbf2b056774913174dacf52eb733fe83cee290e2ff57f803e7782b9812；architecture gate 日志 SHA-256 为 979ad5792cbb96ef760c49d250af52a0635d229182e0f5e4b3c1da1f00bcd384。",
+      "运行生命周期修正一：mutable dispatch-log.md 是任务协调审计记录，会在 reviewer 返回后更新，因此从 architecture proof 的 source/provenance 清单移除，但仍保留在 task-run 与数据库审计范围；该修正避免后置记录正常更新使冻结硬门失效。",
+      "运行生命周期修正二：canonical runner 开始时仅移除既有 speculation_recovery 定向记录，再在同一 design_id 下重建 OOO-3 前序记录并重新生成 OOO-4；这是为满足旧 pair-matrix 阶段对阶段外 sibling 的拒绝规则，最终 architecture-current.json 同时包含七项定向记录。",
+      "最终架构硬门结果为 DI-3/DI-4/DI-5/OOO-1/OOO-2/OOO-3/OOO-4 GREEN，DI-1/DI-2 RED，overall RED；OOO-4 七项 metric 全部 GREEN，PPA=UNQUALIFIED，promotion_eligible=false。",
+      "V8Y 未修改可综合生产 RTL；另修正历史 F2 本地 RTL 验证运行器的 testbench include 路径，随后 F2 的 6 个配置和 18 项 compile-success RTL verification mutation 通过，该修正不改变处理器 RTL 语义。"
+    ]
+  },
+  "deliverables": [
+    "输出 verdict=PASS、GAP 或 INCONCLUSIVE；列出 findings、counterexamples、assumptions、claim_boundary、unknowns、scope_extension_request 与 confidence_and_basis，并明确 OOO-4、overall architecture 和 PPA 三种声明等级；单独判断两项运行生命周期修正是否破坏证据闭环。"
+  ],
+  "success_criteria": [
+    "只有在随附事实足以排除最老分支选择、ROB 环回边界、严格年轻流水事务清除、完成退休一次性、已握手 AXI 事务排空以及运行生命周期自污染的已知反例时才给 OOO-4 PASS；任何未闭合证据必须给出可执行的本地 RTL 定向测试或验证变异建议，且不得把 OOO-4 外推为 overall 或 PPA GREEN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "false_green_risks": [],
+  "residual_risks": [
+    "结论依赖源码结构审计与定向仿真，并非对所有队列占用、回压、流水取消和分支恢复交错的形式化穷举证明。",
+    "五个 compile-success 定向变异覆盖了主要跨层断点，但未分别为 arbitrary older-valid 否定条件及每个 valid/ready/fire 子条件提供一一对应的独立变异；现有静态门与正反场景可支撑 scoped GREEN，此项仅保留为后续加固空间。",
+    "full lint 仍为继承的 rc=2、115 warning 签名；它未被误报为 PASS，但其中潜在问题仍需在整体架构晋级前独立清理或归因。",
+    "DI-1..DI-5、OOO-1、OOO-3、OOO-4 仍为 RED，因此当前证据不证明完整架构正确性、性能收益或 PPA 可接受性。"
+  ],
+  "claim_boundary": "仅认可 design_id=sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293 及 manifest schema v2 所绑定 provenance 下的 OOO-2 scoped GREEN：证据支持 reservation 持有期间 older independent ALU 先发、older dependent ALU 与同资源 memory 留驻、younger independent ALU 经 issue1 valid&&ready 独立发射，且流水取消、ROB kill 与分支恢复未混入证明窗口；OVERALL 必须保持 RED，禁止据此进入 architecture/PPA 晋级。"
+}

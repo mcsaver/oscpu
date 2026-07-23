@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-no-tools-rtl-subagent-contract-2
+- `trace_id`: e2e:2026-07-20-no-tools-rtl-subagent-contract-2
+- `task_slug`: no-tools-rtl-subagent-contract
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: e7144655e08f4bcdc272dc5f23e66f4ba0dcead7a362a4ae1123577528cec3ff
+- `task_report_md_sha256`: 14fb769077fda812590498b1da6825f93114e5639be0cae11b11b8fb329a3c1c
+- `run_manifest_json_sha256`: e232890df84786422c70bbb3de26a0f3e9b4f27d2822716c1a04f35136e95708
+- `context_brief_md_sha256`: d60dfaf5ad2f5c384c57df93c11cd0193bfac4264e2ede5110564df8acff20c7
+- `profile_resolve_md_sha256`: 77ad081e4a38ecf46f7e6c62f5380063a97b0daceb83f1a2919832dc25e8dcea
+- `evidence_index_md_sha256`: 4dd9eba5f9ccc620d66a9be0b455a2be52152aa0add6f1d6aa191997784e6cd1
+- `dispatch_log_md_sha256`: aa7eae9a848c72c74d9c57203a30f0ad339841fa9fff9c5c09323118aee210f6
+- `nodes_tsv_sha256`: 534696623f6959d0772177ee6fb1813f744b55839c2c391dfdb44cb591ecde57

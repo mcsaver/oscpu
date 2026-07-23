@@ -570,10 +570,14 @@ module NpcSimTop (
     u_top.ifu_axi_rvalid_w,
     u_top.ifu_axi_arready_w,
     u_top.ifu_axi_arvalid_w,
-    u_top.u_core.u_ooo_mem_bridge.drop_rsp_q,
-    u_top.u_core.u_ooo_mem_bridge.drop_rsp_q,  // 修悬空引用: active_port_q 已删(刀M时代)
-    u_top.u_core.u_ooo_mem_bridge.write_q,
-    u_top.u_core.u_ooo_mem_bridge.state_q,
+    (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.drop_rsp_q |
+     u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.drop_rsp_q),
+    (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.drop_rsp_q |
+     u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.drop_rsp_q),
+    (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.write_q |
+     u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.write_q),
+    (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.state_q |
+     u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q),
     u_top.u_core.u_ooo_fetch_bridge.walk_second_q,
     u_top.u_core.u_ooo_fetch_bridge.walk_level_q,
     u_top.u_core.u_ooo_fetch_bridge.paging_q,
@@ -597,13 +601,16 @@ module NpcSimTop (
     u_top.bus_axi_rvalid_w[AXI_S_RESET_SYSCON],
     u_top.bus_axi_arready_w[AXI_S_RESET_SYSCON],
     u_top.bus_axi_arvalid_w[AXI_S_RESET_SYSCON],
-    u_top.u_core.u_ooo_mem_bridge.flush_i,   // AXI4化S2: abort 边带已删,探针改引等价 flush 源
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.flush_i,
     u_top.u_core.u_ooo_fetch_bridge.mmu_flush_i,
-    u_top.u_core.u_ooo_mem_bridge.flush_i,
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.flush_i,
     u_top.u_core.u_ooo_fetch_bridge.mmu_flush_i
   };
   assign debug_fetch_addr_o = u_top.u_core.u_ooo_fetch_bridge.pc_q;
-  assign debug_mem_addr_o = u_top.u_core.u_ooo_mem_bridge.addr_q;
+  assign debug_mem_addr_o =
+      (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q != 4'd0) ?
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.addr_q :
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.addr_q;
   assign debug_fetch_pte_addr_o = u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_addr_q;
   assign debug_fetch_pte_o = u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_q;
   assign debug_fetch_pte_meta_o = {
@@ -739,28 +746,51 @@ module NpcSimTop (
   // fetch 侧 fire 后必进 S_LOOKUP 判决；mem 侧 fault/translate-miss 的 read 不经判决,
   // cache hit 输出带 pend 门控恒 0 → 记 miss,与旧"fault 亦计 miss"语义一致。
   reg sim_icache_access_q;
-  reg sim_dcache_read_access_q;
+  reg [1:0] sim_dcache_read_access_q;
+  reg sim_dcache0_read_access_q;
+  reg sim_dcache1_read_access_q;
+  wire sim_dcache0_access_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stage_advance_w;
+  wire sim_dcache1_access_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stage_advance_w;
+  wire [1:0] sim_dcache_access_count_w =
+      {1'b0, sim_dcache0_access_w} + {1'b0, sim_dcache1_access_w};
+  wire [1:0] sim_dcache_store_count_w =
+      {1'b0, (sim_dcache0_access_w &&
+              u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.req_write_w)} +
+      {1'b0, (sim_dcache1_access_w &&
+              u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.req_write_w)};
+  wire [1:0] sim_dcache_hit_count_w =
+      {1'b0, (sim_dcache0_read_access_q &&
+              u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.dcache_lookup_hit_final_w)} +
+      {1'b0, (sim_dcache1_read_access_q &&
+              u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.dcache_lookup_hit_final_w)};
+  wire [1:0] sim_dcache_miss_count_w =
+      {1'b0, (sim_dcache0_read_access_q &&
+              !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.dcache_lookup_hit_final_w)} +
+      {1'b0, (sim_dcache1_read_access_q &&
+              !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.dcache_lookup_hit_final_w)};
   always @(posedge clk) begin
     sim_icache_access_q <= u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
+    sim_dcache0_read_access_q <= sim_dcache0_access_w &&
+        !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.req_write_w;
+    sim_dcache1_read_access_q <= sim_dcache1_access_w &&
+        !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.req_write_w;
     sim_dcache_read_access_q <=
-        u_top.u_core.u_ooo_mem_bridge.stage_advance_w &&
-        !u_top.u_core.u_ooo_mem_bridge.req_write_w;
+        {1'b0, (sim_dcache0_access_w &&
+                !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.req_write_w)} +
+        {1'b0, (sim_dcache1_access_w &&
+                !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.req_write_w)};
   end
   assign sim_icache_access_w = sim_icache_access_q;
   assign sim_icache_hit_w = sim_icache_access_q &&
                             u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
   assign sim_icache_miss_w = sim_icache_access_q &&
                              !u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
-  assign sim_dcache_access_w =
-      u_top.u_core.u_ooo_mem_bridge.stage_advance_w;
-  assign sim_dcache_store_access_w =
-      sim_dcache_access_w && u_top.u_core.u_ooo_mem_bridge.req_write_w;
-  assign sim_dcache_hit_w =
-      sim_dcache_read_access_q &&
-      u_top.u_core.u_ooo_mem_bridge.dcache_lookup_hit_final_w;
-  assign sim_dcache_miss_w =
-      sim_dcache_read_access_q &&
-      !u_top.u_core.u_ooo_mem_bridge.dcache_lookup_hit_final_w;
+  assign sim_dcache_access_w = sim_dcache_access_count_w != 2'd0;
+  assign sim_dcache_store_access_w = sim_dcache_store_count_w != 2'd0;
+  assign sim_dcache_hit_w = sim_dcache_hit_count_w != 2'd0;
+  assign sim_dcache_miss_w = sim_dcache_miss_count_w != 2'd0;
   assign sim_dcache_writeback_w = 1'b0;
   assign sim_dcache_write_through_w = 1'b0;
   assign sim_control_event_w = 1'b0;
@@ -815,10 +845,13 @@ module NpcSimTop (
       (u_top.u_core.u_ooo_fetch_bridge.state_q != 4'd0);
   wire sim_ooo_mem_busy_w =
       u_top.u_core.u_ooo_core.pending_mem_q ||
-      (u_top.u_core.u_ooo_mem_bridge.state_q != 4'd0) ||
+      (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.state_q != 4'd0) ||
+      (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q != 4'd0) ||
       // 【刀 M】寄存站占用也算 mem busy(FSM idle+站内保持的拍, 如 RMW hold)
-      u_top.u_core.u_ooo_mem_bridge.stg_valid_q ||
-      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_valid_q ||
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_valid_q ||
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.mem0_req_fire_w ||
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.mem0_req_fire_w;
   wire sim_ooo_axi_wait_w =
       (u_top.ifu_axi_arvalid_w && !u_top.ifu_axi_arready_w) ||
       (u_top.ifu_axi_rready_w && !u_top.ifu_axi_rvalid_w) ||
@@ -966,13 +999,20 @@ module NpcSimTop (
       // difftest: 非 pmem 的 load(MMIO 读, 如 goldfish timer)返回值依赖设备
       // 状态, ref 无法对齐 → 挂起 skip_ref(uart 同款粗粒度; 该 load 的
       // difftest_step 消费并以 dut 状态覆盖 ref)。
-      if (u_top.u_core.u_ooo_mem_bridge.mem0_rsp_valid_o &&
-          u_top.u_core.u_ooo_mem_bridge.mem0_rsp_ready_i &&
-          !u_top.u_core.u_ooo_mem_bridge.write_q &&
-          ((u_top.u_core.u_ooo_mem_bridge.paddr_q & `NPC_AXI_PMEM_MASK)
-             != `NPC_AXI_PMEM_BASE) &&
-          ((u_top.u_core.u_ooo_mem_bridge.paddr_q & 64'hffff_f000)
-             != 64'h1000_0000)) begin
+      if ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.mem0_rsp_valid_o &&
+           u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.mem0_rsp_ready_i &&
+           !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.write_q &&
+           ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.paddr_q &
+             `NPC_AXI_PMEM_MASK) != `NPC_AXI_PMEM_BASE) &&
+           ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.paddr_q &
+             64'hffff_f000) != 64'h1000_0000)) ||
+          (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.mem0_rsp_valid_o &&
+           u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.mem0_rsp_ready_i &&
+           !u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.write_q &&
+           ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.paddr_q &
+             `NPC_AXI_PMEM_MASK) != `NPC_AXI_PMEM_BASE) &&
+           ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.paddr_q &
+             64'hffff_f000) != 64'h1000_0000))) begin
         npc_mmio_load_event();
       end
 
@@ -1075,19 +1115,19 @@ module NpcSimTop (
       // fire 拍计数，hit/miss 改在判决拍单独上报(C 侧为累加语义，两次调用等价)。
       if (sim_dcache_access_w) begin
         npc_dcache_event(
-          32'd1,
+          {30'd0, sim_dcache_access_count_w},
           32'd0,
           32'd0,
           32'd0,
           sim_dcache_write_through_w ? 32'd1 : 32'd0,
-          sim_dcache_store_access_w ? 32'd1 : 32'd0
+          {30'd0, sim_dcache_store_count_w}
         );
       end
       if (sim_dcache_read_access_q) begin
         npc_dcache_event(
           32'd0,
-          sim_dcache_hit_w ? 32'd1 : 32'd0,
-          sim_dcache_miss_w ? 32'd1 : 32'd0,
+          {30'd0, sim_dcache_hit_count_w},
+          {30'd0, sim_dcache_miss_count_w},
           32'd0,
           32'd0,
           32'd0
@@ -1117,10 +1157,10 @@ module NpcSimTop (
 	        u_top.u_core.u_ooo_core.branch_prefetch_req_fire_w ? 32'd1 : 32'd0,
 	        (u_top.u_core.u_ooo_core.branch_prefetch_hit_available_w ||
 	         u_top.u_core.u_ooo_core.jalr_prefetch_hit_available_w) ? 32'd1 : 32'd0,
-        u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w ? 32'd1 : 32'd0,
-        32'd0,  // mem1(双发射 load 第二端口)死硅删除:mem1_req_fire 恒 0
+        u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.mem0_req_fire_w ? 32'd1 : 32'd0,
+        u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.mem0_req_fire_w ? 32'd1 : 32'd0,
         (u_top.u_core.ooo_mem0_rsp_valid_w && u_top.u_core.ooo_mem0_rsp_ready_w) ? 32'd1 : 32'd0,
-        32'd0,  // mem1_rsp_fire 恒 0(死硅删除)
+        (u_top.u_core.ooo_mem1_rsp_valid_w && u_top.u_core.ooo_mem1_rsp_ready_w) ? 32'd1 : 32'd0,
         u_top.u_core.u_ooo_core.core_commit1_block_w ? 32'd1 : 32'd0,
         sim_ooo_fetch_busy_w ? 32'd1 : 32'd0,
         sim_ooo_mem_busy_w ? 32'd1 : 32'd0,
@@ -1302,8 +1342,8 @@ module NpcSimTop (
     .ad_pte_i       (`ADF_XMR.ad_pte_q)
   );
 `undef ADF_XMR
-`define ADM_XMR u_top.u_core.u_ooo_mem_bridge
-  OooAdUpdateChecker #(.ALLOW_D(1'b1)) u_ooo_mem_adupd_checker (
+`define ADM_XMR u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0
+  OooAdUpdateChecker #(.ALLOW_D(1'b1)) u_ooo_mem0_adupd_checker (
     .clk            (clk),
     .rst            (rst),
     .state_i        (`ADM_XMR.state_q),
@@ -1317,6 +1357,21 @@ module NpcSimTop (
     .ad_pte_i       (`ADM_XMR.ad_pte_q)
   );
 `undef ADM_XMR
+`define ADM1_XMR u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1
+  OooAdUpdateChecker #(.ALLOW_D(1'b1)) u_ooo_mem1_adupd_checker (
+    .clk            (clk),
+    .rst            (rst),
+    .state_i        (`ADM1_XMR.state_q),
+    .rvalid_i       (`ADM1_XMR.lsu_axi_rvalid_i),
+    .rdata_i        (`ADM1_XMR.lsu_axi_rdata_i),
+    .awvalid_i      (`ADM1_XMR.lsu_axi_awvalid_o),
+    .awaddr_i       (`ADM1_XMR.lsu_axi_awaddr_o),
+    .wvalid_i       (`ADM1_XMR.lsu_axi_wvalid_o),
+    .wstrb_i        (`ADM1_XMR.lsu_axi_wstrb_o),
+    .walk_pte_addr_i(`ADM1_XMR.walk_pte_addr_w),
+    .ad_pte_i       (`ADM1_XMR.ad_pte_q)
+  );
+`undef ADM1_XMR
 `endif
 
   // ─────────────────────────────────────────────────────────────────────────────────────────
@@ -1333,7 +1388,8 @@ module NpcSimTop (
   //      上下文不敏感, 且 trap 拍(mstatus/priv 更新)其站内存活属既定语义。
   // ─────────────────────────────────────────────────────────────────────────────────────────
 `ifdef OOO_ASSERT
-`define KM_BRG_XMR u_top.u_core.u_ooo_mem_bridge
+`define KM_BRG_XMR u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0
+`define KM_BRG1_XMR u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1
 `define KM_IBE_XMR u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
   reg km_ctx_seen_q;
   reg [`XLEN-1:0] km_ctx_satp_q;
@@ -1384,7 +1440,43 @@ module NpcSimTop (
       end
     end
   end
+  reg km1_ctx_seen_q;
+  reg [`XLEN-1:0] km1_ctx_satp_q;
+  reg [`XLEN-1:0] km1_ctx_mstatus_q;
+  reg [1:0] km1_ctx_priv_q;
+  reg km1_ctx_svpbmt_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      km1_ctx_seen_q <= 1'b0;
+    end else begin
+      if (($time > 64'd200) && (km_arm_q == 2'b11) &&
+          `KM_BRG1_XMR.stg_valid_q && `KM_IBE_XMR.miq1_empty_w) begin
+        $error("[V8S-KM1-STG-MIQ] bank1 bridge station occupied while MIQ1 was empty @%0t",
+               $time);
+        $fatal;
+      end
+      if (($time > 64'd200) && (km_arm_q == 2'b11) &&
+          `KM_BRG1_XMR.stg_valid_q && !`KM_BRG1_XMR.stg_pretrans_q &&
+          km1_ctx_seen_q &&
+          ((`KM_BRG1_XMR.satp_i != km1_ctx_satp_q) ||
+           (`KM_BRG1_XMR.mstatus_i != km1_ctx_mstatus_q) ||
+           (`KM_BRG1_XMR.priv_mode_i != km1_ctx_priv_q) ||
+           (`KM_BRG1_XMR.svpbmt_en_i != km1_ctx_svpbmt_q))) begin
+        $error("[V8S-KM1-STG-CTX] bank1 station translation context changed while occupied @%0t",
+               $time);
+        $fatal;
+      end
+      if (`KM_BRG1_XMR.mem0_req_fire_w) begin
+        km1_ctx_seen_q <= 1'b1;
+        km1_ctx_satp_q <= `KM_BRG1_XMR.satp_i;
+        km1_ctx_mstatus_q <= `KM_BRG1_XMR.mstatus_i;
+        km1_ctx_priv_q <= `KM_BRG1_XMR.priv_mode_i;
+        km1_ctx_svpbmt_q <= `KM_BRG1_XMR.svpbmt_en_i;
+      end
+    end
+  end
 `undef KM_BRG_XMR
+`undef KM_BRG1_XMR
 `undef KM_IBE_XMR
 `endif
 

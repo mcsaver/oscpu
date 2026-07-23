@@ -27,6 +27,8 @@
 `define OOO_DWC_STORE_RMW_ISSUE    8  // 真 store commit 拍(RMW 发射, 占宏口读 st_idx)
 `define OOO_DWC_STORE_RMW_BUSY     9  // RMW 判决拍(占宏口, 桥压 req_ready=store 后 1 bubble)
 `define OOO_DWC_DMA_INVALIDATE_ALL 10 // 同步 DMA batch 完成后的全 valid 清除事件
-`define OOO_DWC_FACTS_W            11
+`define OOO_DWC_PEER_INVALIDATE    11 // 已授权 peer B-terminal valid-only 维护事件
+`define OOO_DWC_PEER_LINE_CROSS    12 // peer 规范化 byte window 跨到相邻 8B line
+`define OOO_DWC_FACTS_W            13
 
 `endif

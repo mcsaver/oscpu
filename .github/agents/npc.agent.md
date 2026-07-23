@@ -20,7 +20,10 @@ NPC 开发默认使用 NPC-only profile：
 `.github/instructions/rtl-agent-task-contract.instructions.md`，并用
 `.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小权限契约。只读复核必须限定路径、
 命令和输出，禁止写文件、联网、账号、凭据和外部服务；实现任务必须显式列出可写文件并继续满足
-RTL 四段式与接口契约硬门。
+RTL 四段式与接口契约硬门。需要发现源码遗漏时默认给出模块级 `workspace-files` 只读范围；no-tools
+只用于限定材料复核，不得把实现、验证或 PPA 执行节点因模板惯性全部降级为只读 reviewer。
+子 agent 渲染提示固定使用 `rv64-hardware-professional`，只包含 RV64 微架构、流水线、事务、时序、
+验证和 PPA 语义；协调状态留在主 agent，且措辞层不得减少工具、上下文、反例或推理出口。
 
 ## RV64 PPA 持续优化
 

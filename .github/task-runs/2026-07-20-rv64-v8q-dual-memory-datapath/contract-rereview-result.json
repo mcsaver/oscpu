@@ -1,0 +1,47 @@
+{
+  "verdict": "pass",
+  "gap_status": {
+    "F0-G01": {
+      "status": "closed",
+      "reason": "同步reset、逐态fresh release/assert、握手静默、状态清零及孤儿R/B拒绝证据完整。"
+    },
+    "F0-G02": {
+      "status": "closed",
+      "reason": "公平性已限定为带progress假设的事务界，并由公平TB及两项定向变异闭合。"
+    },
+    "F0-G03": {
+      "status": "closed",
+      "reason": "请求类别定义、全状态检查、IDLE全局fail-closed及唯一ARB-REQ-CLASS-ONEHOT失败已闭合。"
+    },
+    "F0-G04": {
+      "status": "closed",
+      "reason": "12项fresh mutation均成功编译、elaborate、激活并由唯一目标失败拒绝。"
+    },
+    "F0-G05": {
+      "status": "closed",
+      "reason": "最终run绑定不变的RTL、闭包和architecture manifest，并在10项checker负例及12项mutation后生成唯一总PASS。"
+    }
+  },
+  "remaining_blockers": [],
+  "same_digest_publication_ok": true,
+  "claim_boundary_ok": true,
+  "contract_compliance": {
+    "tools_used": false,
+    "filesystem_reads": false,
+    "writes": false,
+    "network": false,
+    "contract_sha_scope_respected": true,
+    "design_id": "sha256:79e445cd976f7a2ace1da6288866b2442846677520052a95eea7c14504ab2cca",
+    "authorized_claim": "dual_axi_miss_fabric_leaf_verified",
+    "same_digest_status": {
+      "DI-3": "GREEN",
+      "DI-4": "GREEN",
+      "OOO-1": "GREEN",
+      "OOO-2": "GREEN",
+      "DI-5": "RED",
+      "OOO-3": "RED",
+      "overall": "RED",
+      "PPA": "UNQUALIFIED"
+    }
+  }
+}

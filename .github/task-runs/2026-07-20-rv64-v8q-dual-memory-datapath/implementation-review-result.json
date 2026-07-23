@@ -1,0 +1,59 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "false_green_risks": [
+    {
+      "id": "owner_early_release",
+      "counterexample": "read在AR后或write在仅AW/W单侧完成后释放owner。",
+      "existing_evidence": "read锁至exact-owner R terminal，write锁至B terminal；三类早释变异均compile_success、elaborated、activated并被唯一target拒绝。"
+    },
+    {
+      "id": "aw_w_skew_loss",
+      "counterexample": "AW/W任意偏斜导致seen丢失、重复发送或提前进入B phase。",
+      "existing_evidence": "AW-before-W、W-before-AW、同拍AW/W和B stall均在release/assert矩阵通过；两个seen tieoff变异被唯一拒绝。"
+    },
+    {
+      "id": "response_broadcast_or_ready_swap",
+      "counterexample": "R/B广播给非owner，或R READY由错误owner驱动。",
+      "existing_evidence": "response isolation通过，非owner READY/VALID为0；R/B广播及RREADY交换变异均被唯一拒绝，checker也要求exact isolation。"
+    },
+    {
+      "id": "terminal_fairness_failure",
+      "counterexample": "固定lane0优先或在capture时提前更新rr。",
+      "existing_evidence": "terminal fairness通过；固定优先与rr提前更新变异被唯一拒绝，checker限制rr写点为reset或terminal。"
+    },
+    {
+      "id": "illegal_dual_type_acceptance",
+      "counterexample": "同lane AR与AW/W并存时仍捕获该请求或另一lane请求。",
+      "existing_evidence": "IDLE全局fail-closed；assert-negative真实非零退出且唯一命中ARB-REQ-CLASS-ONEHOT。"
+    },
+    {
+      "id": "reset_residue_or_orphan_response",
+      "counterexample": "任一phase reset后残留owner/seen，或解除reset后接收孤儿R/B。",
+      "existing_evidence": "READ_ADDR、READ_RESP、AW-only、W-only及WRITE_RESP逐phase reset均通过，并验证孤儿R/B拒绝；reset-owner-residue变异被唯一拒绝。"
+    },
+    {
+      "id": "fallthrough_or_stall_instability",
+      "counterexample": "IDLE发生组合fallthrough，或反压期间请求/响应payload变化。",
+      "existing_evidence": "IDLE registered capture、AR/R stall与B stall通过；稳定断言有效，IDLE-fallthrough变异被唯一拒绝。"
+    },
+    {
+      "id": "inactive_mutation_or_vacuous_checker",
+      "counterexample": "变异未进入实际镜像，或注释、空壳、重复module伪造结构证据。",
+      "existing_evidence": "12个source mutant均compile_success、elaborated、activated且唯一target_rejected；去注释checker及10个负例覆盖空壳、comment-only、结构缺失、tieoff、广播、rr写点和重复module。"
+    },
+    {
+      "id": "stale_closure_or_publication_overreach",
+      "counterexample": "复用陈旧closure或把未实例化F0叶模块提升为DI-5、OOO-3、overall或PPA结论。",
+      "existing_evidence": "最终fresh run绑定指定RTL与source-closure SHA，pre/post closure及canonical manifest摘要一致；hard checker保持DI-5、OOO-3、overall为RED且PPA UNQUALIFIED。"
+    }
+  ],
+  "same_digest_publication_ok": true,
+  "claim_boundary_ok": true,
+  "contract_compliance": {
+    "tools_used": false,
+    "filesystem_reads": false,
+    "writes": false,
+    "network": false
+  }
+}

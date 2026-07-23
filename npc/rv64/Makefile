@@ -227,10 +227,247 @@ print-synth-rtl:
 check-rtl-style:
 	@RTL_FILES="$$($(MAKE) -s print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
 
+# Finite-generation ProducerId holder census.  The first command proves the
+# checker fails closed under added fields/stages/tokens, cut unions, raw-index
+# lookup, and manifest overclaim; the second binds the current production RTL,
+# manifest, checker and per-source hashes.
+.PHONY: check-producer-holder-census
+check-producer-holder-census:
+	@python3 -m unittest -q eval/ppa/tests/test_producer_holder_census.py
+	@python3 $(abspath eval/ppa/tools/producer_holder_census.py)
+
+# Dynamic companion to the static census: assert/release baselines, real
+# GEN_W=1 wrap/death-edge/backpressure paths, legacy memory cancellation, and
+# compile-success semantic mutations.  It intentionally remains an explicit
+# focused gate rather than making every check-contract invocation rebuild the
+# full simulation matrix.
+.PHONY: check-global-producer-no-live-reuse
+check-global-producer-no-live-reuse: check-producer-holder-census
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh)
+
+# OOO-2 selective scheduling: prove that a registered Universal reservation
+# blocks only that terminal while independent ALU work continues through the
+# physical ALU terminal.  The runner deliberately expects the remaining
+# architecture inventory to stay RED and does not promote PPA.
+.PHONY: check-selective-scheduling
+check-selective-scheduling:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/run-focused.sh)
+
+# OOO-1 true long-latency execution: accepted load miss plus real iterative
+# MUL/DIV each retain one exact full-PID owner while four dual-issue cycles
+# deliver eight younger completions; ROB retirement remains Q-only and ordered.
+# The runner preserves OOO-2 evidence and deliberately leaves overall
+# architecture RED, so this target cannot promote PPA.
+.PHONY: check-true-ooo-long-latency
+check-true-ooo-long-latency:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/run-focused.sh)
+
+# DI-4 no static program-lane semantics: all six asymmetric classes are
+# accepted from both dispatch-package positions, held as resident entries,
+# and consumed through capability-selected physical terminals with exact full
+# ProducerId identity.  This remains an issue-side claim and does not promote
+# dual-memory hardware, memory ordering, recovery or PPA.
+.PHONY: check-no-static-lane-semantics
+check-no-static-lane-semantics:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/run-focused.sh)
+
+# DI-3 pair matrix: two resident ordinary-integer memory entries atomically
+# acquire distinct registered terminal owners and captured-data AGUs.  Shared
+# translation/cache service remains serialized, so DI-5 and OOO-3 stay RED.
+# The focused runner also refreshes OOO-1/OOO-2/DI-4 under the same RTL digest.
+.PHONY: check-pair-matrix
+check-pair-matrix:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/run-focused.sh)
+
+# F0 dual-memory shared AXI miss-fabric leaf: registered selection, transaction
+# owner lock, independent AW/W backpressure, exact response demux, assertions,
+# and compile-success mutations.  It may appear once inside the unintegrated F1
+# wrapper, but any canonical core/top integration remains forbidden here;
+# DI-5/OOO-3/overall stay RED and this target cannot promote PPA.
+.PHONY: check-dual-memory-fabric-foundation
+check-dual-memory-fabric-foundation:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/run-focused.sh)
+
+# F1 dual bridge/cache-hit wrapper: two default-off-capable bridges, exact
+# cross-lane maintenance, independent hot-hit responses and the F0 miss fabric.
+# This leaf gate accepts either the exact historical F1 topology or an explicit
+# F2 promotion handoff, while keeping DI-5/OOO-3/overall RED and PPA unqualified.
+.PHONY: check-dual-memory-bridge-wrapper
+check-dual-memory-bridge-wrapper:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/run-focused.sh)
+
+# F2 canonical integration checkpoint: the production core enables two memory
+# banks end-to-end and proves request/MIQ/response/WB/SQ/flush/singleton
+# behavior with fail-closed source checks and compile-success mutations.  F3
+# final-PA SQ disambiguation and F4 sustained IPC/system evidence are absent,
+# so DI-5/OOO-3/overall remain RED and PPA remains unqualified.
+.PHONY: check-dual-memory-core-integration
+check-dual-memory-core-integration:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh)
+
+# F4 production sustained dual-memory issue: exact pair turnover, registered
+# next-head SQ query, station promotion, 64-cycle dual-bank trajectory and
+# same-design DI-5 publication.  OOO-3/overall remain RED; PPA is unqualified.
+.PHONY: check-dual-memory-sustained-issue
+check-dual-memory-sustained-issue:
+	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/run-focused.sh)
+
+# v8v OOO-3 shared retire-resident LQ plus physical SQ ordering and precise
+# store request/B/retirement evidence.  The runner refreshes all predecessor
+# GREEN records under the exact current RTL digest before publishing OOO-3;
+# V9N first adds independent STORE/AMO next-edge physical-write owner
+# residency checks and compile-success source variants.  DI-1/DI-2/OOO-4/
+# overall remain RED and PPA remains unqualified.
+.PHONY: check-memory-ordering
+check-memory-ordering:
+	@bash $(abspath ../../.github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/run-focused.sh)
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh)
+
+# v8x OOO-4 verification closure: one real backend MIQ + canonical dual-memory
+# wrapper trace proves active A/station B selective branch recovery across the
+# shared AXI R drain, exact dual drop/pop/terminal accounting and final owner
+# conservation.  This closes only the V8W combined-trace coverage gap;
+# OOO-4/DI-5/OOO-3/overall stay RED and PPA remains unqualified.
+.PHONY: check-backend-bridge-recovery
+check-backend-bridge-recovery:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/run-focused.sh)
+
+# v8y OOO-4 local RV64 control-flow closure: two simultaneously resident,
+# independently ready branches prove oldest-first resolution in linear and ROB
+# wrap layouts; strictly-younger pipeline state is removed while older/equal
+# full-ProducerId completion and retirement each occur once.  The same focused
+# binary also proves EX-stage removal and already-fired AXI read drain.  This
+# target closes OOO-4 only; DI-1/DI-2/overall remain RED and PPA is unqualified.
+.PHONY: check-speculation-recovery
+check-speculation-recovery:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-focused.sh)
+
+# v8z DI-1 local RV64 frontend closure: Bridge bare/paged H1 and the complete
+# OooFrontend request/response/outstanding/FIFO/sink loop each sustain one
+# packet per cycle for 64 post-warmup cycles.  PC ledgers, finite response
+# backpressure, tail drain, source mutations and same-design predecessor
+# refresh close DI-1 only; DI-2/overall remain RED and PPA is unqualified.
+.PHONY: check-frontend-ii1
+check-frontend-ii1:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-focused.sh)
+
+# v9a DI-2 local RV64 width closure: a fixed 24-cycle warmup and 64-cycle
+# measurement window proves exact two-uop activity at fetch/decode/rename/
+# dispatch/issue/execute/retire.  Full ProducerId/payload ledgers, independent
+# RenameMap/ROB/IQ/EX/WB sinks, compile-success RTL mutations and natural drain
+# close DI-2.  This qualifies architecture only; formal PPA remains unqualified
+# until the separate architecture-stable freeze and provenance gates complete.
+.PHONY: check-width-continuity
+check-width-continuity:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh)
+
+# V9C INSTRET-G1 local RV64 architectural retirement closure.  The canonical
+# Sv39 program proves exception lanes add zero, MRET/SRET/SFENCE.VMA final
+# control pseudo-commits add one, and CsrFile consumes only the post-mux count.
+# Three current-source variants must compile and be dynamically rejected.
+# This is architecture evidence; PPA remains unqualified and unpromoted.
+.PHONY: check-instret-retirement
+check-instret-retirement:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v9c-instret-retirement/run-focused.sh)
+
+# V9M FENCE-G1 local RV64 ordinary-FENCE ordering closure.  A full-core
+# store -> FENCE -> device-read program proves lane1 capture, complete memory
+# drain and no younger observation before store drain/FENCE retirement.  A
+# compile-success RTL source variant that removes the mem_idle predicate must
+# be rejected by the independent drain-gate testbench.  PPA remains unqualified.
+.PHONY: check-fence-ordering
+check-fence-ordering:
+	@bash $(abspath ../../.github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/run-focused.sh)
+
+# V9D FDG-G1 local RV64 architectural-trap admission closure. Four illegal FP
+# encodings and one legal FADD.S traverse the real classify/admission chain;
+# a full-core program proves exact trap capture, no backend presentation or
+# invalid-instruction commit, and handler return. Three compile-success RTL
+# verification variants must be dynamically rejected. PPA remains unqualified.
+.PHONY: check-fdg-arch-trap
+check-fdg-arch-trap:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/run-focused.sh)
+
+# V9E XRET-G1 local RV64 current-mode and precise-exception closure. The
+# seven-case MRET/SRET matrix and four full-core program markers cover legal
+# return controls, head0/lane1 illegal-instruction ownership, exact mepc/mtval,
+# no illegal CsrFile request or commit, and older-lane retirement. Eight
+# compile-success RTL verification variants and two observer probes must be
+# dynamically rejected. PPA remains unqualified and unpromoted.
+.PHONY: check-xret-current-mode
+check-xret-current-mode:
+	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v9e-xret-current-design/run-focused.sh)
+
+# V9F MEM-ISSUE-G1 / MIQ-FLUSH-G1 local RV64 memory-transaction lifecycle
+# closure. The focused traces prove atomic dual-memory capture, single-port
+# terminal ordering, exact request-fire/consume/MIQ-owner identity under
+# backpressure and competing owners, plus wrapped/no-pop DRAIN flush
+# compaction. Eleven compile-success RTL verification variants must be
+# dynamically rejected. PPA remains unqualified.
+.PHONY: check-memory-issue-lifecycle
+check-memory-issue-lifecycle:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/run-focused.sh)
+
+# V9G IFU-AXI-G1 local RV64 instruction-fetch A-update write lifecycle
+# closure. The bridge matrix covers independent AW/W acceptance, same-cycle
+# flush plus final channel/B completion, repeated flush backpressure, payload
+# stability and semantic quiet; the bridge+xbar trace proves B-owner release
+# and a queued later master transaction. Compile-success RTL verification
+# variants must be dynamically rejected. PPA remains unqualified.
+.PHONY: check-ifu-axi-flush-drain
+check-ifu-axi-flush-drain:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-focused.sh)
+
+# V9H IFU-FETCH-G2 local RV64 page-fault byte-provenance closure. The bridge
+# and packet decoder matrix binds F=0/2/4/6, independent PC-derived frontiers,
+# stale-tail exclusion, response backpressure ownership, post-accept quiet and
+# positive AR/fill/SRAM monitor sensitivity. Compile-success RTL verification
+# variants must be dynamically rejected. PPA remains unqualified.
+.PHONY: check-ifu-fetch-provenance
+check-ifu-fetch-provenance:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/run-focused.sh)
+
+# V9I IFU-ACCESS-G1 local RV64 exact instruction-access closure. The focused
+# matrix binds C/32 footprint, F=0/2/4/6 PMP/RRESP ownership, AR attributes,
+# device execute routing, sized DPI guard-page reads and decoder-to-pending
+# lane ownership. Compile-success RTL verification variants must be rejected;
+# this gate does not qualify physical PPA.
+.PHONY: check-ifu-access
+check-ifu-access:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/run-focused.sh)
+
+# V9J IFU-TVAL-G1 local RV64 instruction-fault payload closure. The focused
+# matrix separates faulting instruction PC from the first failing halfword
+# address across PF/AF, F=0/2/4/6, packet FIFO, pending storage, drained CSR
+# request and compressed-branch terminal/squash/invisible-lane cases.
+# Compile-success RTL verification variants must be rejected; this gate does
+# not qualify physical PPA.
+.PHONY: check-ifu-tval
+check-ifu-tval:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/run-focused.sh)
+
+# V9K PTW-PMP-G1 local RV64 page-table PTE WRITE protection closure.  IFU
+# and LSU walkers bind independent 8B/S-mode/WRITE checks, access-fault
+# response ownership, F=2/4/6 instruction-prefix preservation, deny-cycle
+# AW/W quiet and granted A/D update traffic to current-source RTL variants.
+# This gate does not qualify physical PPA.
+.PHONY: check-ptw-pmp
+check-ptw-pmp:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/run-focused.sh)
+
+# V9L F0-G1 local RV64 same-design functional aggregation.  One fresh
+# DiffTest-enabled simulator is bound to the dynamic module inventory, exact
+# official 177 and AM 59 program-image maps, local reference-model profile,
+# CoreMark/Dhrystone semantic results and evidence-structure counterexamples.
+# This functional gate does not qualify physical PPA.
+.PHONY: check-functional-aggregate
+check-functional-aggregate:
+	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh)
+
 # 契约立即断言 gate（architecture-first 的可执行牙齿）：强制
 # .github/instructions/interface-contract-first.instructions.md 的机器可检子集——
 # 全核 build 含 --assert + OOO_ASSERT、rv64 可综合 .v 的契约立即断言计数不回退。
-check-contract:
+check-contract: check-producer-holder-census
 	@$(abspath eval/check-contract.sh)
 
 # S2-Q2 v8a behavior-neutral shadow foundation: frozen structural checker,
@@ -311,8 +548,11 @@ prof-exec-build: VERILATOR_PROF_EXEC = 1
 prof-exec-build: default
 
 difftest-ref:
-	$(MAKE) -C $(NEMU_HOME) AM_HOME=$(abspath ../../abstract-machine) ARCH=riscv64-npc riscv64-npc_defconfig
-	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv64 SHARE=1 ENGINE=interpreter
+	$(MAKE) -C $(NEMU_HOME) NEMU_HOME=$(NEMU_HOME) \
+		AM_HOME=$(abspath ../../abstract-machine) ARCH=riscv64-npc \
+		riscv64-npc_defconfig
+	$(MAKE) -C $(NEMU_HOME) NEMU_HOME=$(NEMU_HOME) \
+		GUEST_ISA=riscv64 SHARE=1 ENGINE=interpreter
 
 .PHONY: default all lint syn-check-env sta-check-env syn sta sim run core-regress clean gprof-build prof-exec-build difftest-ref \
 	menuconfig savedefconfig defconfig help-config distclean-config

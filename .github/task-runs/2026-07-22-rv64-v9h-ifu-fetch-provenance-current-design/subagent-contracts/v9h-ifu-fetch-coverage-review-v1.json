@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9h-ifu-fetch-coverage-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附当前设计事实审查本地 RV64 IFU-FETCH-G2 second-page page-fault byte provenance 合同，寻找矩阵、marker 与 compile-success RTL 验证变异的共同盲点或周期级反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-fetch-packet-decode.md",
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/subagent-contracts/v9h-ifu-fetch-coverage-review-v1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/rtl-derivation.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "对象是授权本地 RV64 Verilog/SystemVerilog 处理器 RTL、规格、testbench 与 EDA 证据；本节点不使用 shell、文件工具、网络、账号、凭据或第三方服务。",
+      "当前 design_id 为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；V9H focused 诊断尚未修改生产 Verilog。",
+      "当前 response ABI 为 success=(resp0 OK,resp1 OK,split 4)，fault=(resp0 OK,resp1 cause,split F)，F 可为 0、2、4、6；bridge 保存 frontier，packet decoder 是唯一 C 或 32 位长度 owner。",
+      "decoder 先检查 slot prefix range，只有 prefix OK 才读取长度，再检查完整 instruction range；slot0 fault 后 slot1 继承 fault，任一完整 range fault 的指令输出净化为 NOP。",
+      "当前真实 page-end focused 覆盖 PC+FFA 的 F6 四种 C/32 组合、PC+FFC 的 F4 四种组合、PC+FFE 的 F2 四种组合；12 行全部 PASS。",
+      "8 个 page-fault 行精确为 F2 四行、F4 三行、F6 一行；每行检查 successful raw prefix、fault tail 清零、instruction AR 在 F 停止、无年轻 AR、无 cache fill、无 SRAM write，marker 非真空。",
+      "packet decoder focused 另覆盖 split 4 的 compressed break 加 faulted upper half 可形成特殊 raw pattern，但 faulted slot instruction 必须保持 NOP；两个 focused test 均 PASS。",
+      "拟议变异族包括 bridge frontier 保存、decoder range 边界比较、prefix fault 优先级、slot1 owner 继承与 full-range NOP 净化；每个变异必须编译成功并被与其语义直接相关的动态 oracle 拒绝。",
+      "范围只含 second-page page-fault byte provenance；PMP、RRESP、physical footprint、lane1 downstream capture、fault tval lifecycle、PTW write PMP、full-core freeze 与 PPA promotion 均不由本结论关闭。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；列出逐周期反例、共同盲点、必需 marker 或变异补强、残余风险、scope extension 与置信度，不设固定发现数量。"
+  ],
+  "success_criteria": [
+    "若发现缺口，必须给出 signal、byte range、cycle 或 source cut 与对应动态 oracle；若判 PASS，必须解释矩阵和变异为何能区分错误 owner，且不得外推到独立 access、trap 或 PPA 合同。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

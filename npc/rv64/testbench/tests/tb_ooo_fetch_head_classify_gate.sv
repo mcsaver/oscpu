@@ -59,6 +59,12 @@ module tb_ooo_fetch_head_classify_gate;
   wire [`OOO_SLOT_STATIC_FACTS_W-1:0] static_facts;
   wire [`OOO_SLOT_FACTS_W-1:0] legacy_facts;
   integer diff_i;
+  integer xret_case_count;
+  integer xret_legal_count;
+  integer xret_illegal_count;
+  integer xret_raw_preserved_count;
+  integer xret_legal_system_count;
+  integer xret_illegal_arch_trap_count;
 
   localparam [`INST_W-1:0] INST_ADDI = 32'h0000_0093;
   localparam [`INST_W-1:0] INST_FADD_S = 32'h0020_80d3;
@@ -237,8 +243,36 @@ module tb_ooo_fetch_head_classify_gate;
     end
   endtask
 
+  // XRET-G1 current-mode matrix inventory.  This observes the same public
+  // classifier facts consumed by the head-pair and pending-owner path; it
+  // does not duplicate the legality equation in the testbench.
+  task automatic observe_xret_matrix_case;
+    input expected_legal;
+    begin
+      xret_case_count = xret_case_count + 1;
+      if (xret_raw && system_raw)
+        xret_raw_preserved_count = xret_raw_preserved_count + 1;
+      if (expected_legal) begin
+        xret_legal_count = xret_legal_count + 1;
+        if (!priv_system_illegal && !arch_trap_raw && stop_raw)
+          xret_legal_system_count = xret_legal_system_count + 1;
+      end else begin
+        xret_illegal_count = xret_illegal_count + 1;
+        if (priv_system_illegal && arch_trap_raw && stop_raw)
+          xret_illegal_arch_trap_count =
+              xret_illegal_arch_trap_count + 1;
+      end
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
+    xret_case_count = 0;
+    xret_legal_count = 0;
+    xret_illegal_count = 0;
+    xret_raw_preserved_count = 0;
+    xret_legal_system_count = 0;
+    xret_illegal_arch_trap_count = 0;
 
     reset_inputs();
     tb_check1("ordinary alu does not stop", stop_raw, 1'b0);
@@ -336,6 +370,7 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("mret in M-mode system raw", system_raw, 1'b1);
     tb_check1("mret in M-mode legal", priv_system_illegal, 1'b0);
     tb_check1("mret in M-mode no trap", arch_trap_raw, 1'b0);
+    observe_xret_matrix_case(1'b1);
 
     // XRET-G1：MRET 只能从 M-mode 执行；raw fact 仍保留，但必须改走 illegal trap。
     reset_inputs();
@@ -346,6 +381,7 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("mret in S-mode illegal", priv_system_illegal, 1'b1);
     tb_check1("mret in S-mode traps", arch_trap_raw, 1'b1);
     tb_check1("mret in S-mode stops", stop_raw, 1'b1);
+    observe_xret_matrix_case(1'b0);
 
     reset_inputs();
     set_ctrl_bit(`CTRL_MRET_BIT, 1'b1);
@@ -354,6 +390,7 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("mret in U-mode remains classified", mret_raw, 1'b1);
     tb_check1("mret in U-mode illegal", priv_system_illegal, 1'b1);
     tb_check1("mret in U-mode traps", arch_trap_raw, 1'b1);
+    observe_xret_matrix_case(1'b0);
 
     reset_inputs();
     set_ctrl_bit(`CTRL_SRET_BIT, 1'b1);
@@ -361,11 +398,13 @@ module tb_ooo_fetch_head_classify_gate;
     #1;
     tb_check1("sret raw", sret_raw, 1'b1);
     tb_check1("sret no tsr no trap", arch_trap_raw, 1'b0);
+    observe_xret_matrix_case(1'b1);
     mstatus = `MSTATUS_FS_CLEAN | `MSTATUS_TSR;
     #1;
     tb_check1("sret under tsr illegal", priv_system_illegal, 1'b1);
     tb_check1("sret under tsr traps", arch_trap_raw, 1'b1);
     check_fact_aliases("sret tsr");
+    observe_xret_matrix_case(1'b0);
 
     // XRET-G1：SRET 可从 S 或更高特权执行，但 U-mode 必须 illegal。
     reset_inputs();
@@ -376,6 +415,7 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("sret in U-mode illegal", priv_system_illegal, 1'b1);
     tb_check1("sret in U-mode traps", arch_trap_raw, 1'b1);
     tb_check1("sret in U-mode stops", stop_raw, 1'b1);
+    observe_xret_matrix_case(1'b0);
 
     // TSR 只拦截 S-mode；M-mode 执行 SRET 时即使 TSR=1 也合法。
     reset_inputs();
@@ -385,6 +425,7 @@ module tb_ooo_fetch_head_classify_gate;
     #1;
     tb_check1("sret in M-mode ignores tsr", priv_system_illegal, 1'b0);
     tb_check1("sret in M-mode with tsr no trap", arch_trap_raw, 1'b0);
+    observe_xret_matrix_case(1'b1);
 
     reset_inputs();
     set_ctrl_bit(`CTRL_SFENCE_VMA_BIT, 1'b1);
@@ -496,6 +537,29 @@ module tb_ooo_fetch_head_classify_gate;
       mstatus = {$urandom, $urandom};
       frm = $urandom;
       check_legacy_equivalence("random 42-bit legacy differential");
+    end
+
+    tb_check32("XRET-G1 matrix case count", xret_case_count, 32'd7);
+    tb_check32("XRET-G1 legal case count", xret_legal_count, 32'd3);
+    tb_check32("XRET-G1 illegal case count", xret_illegal_count, 32'd4);
+    tb_check32("XRET-G1 raw fact preservation count",
+               xret_raw_preserved_count, 32'd7);
+    tb_check32("XRET-G1 legal system-path count",
+               xret_legal_system_count, 32'd3);
+    tb_check32("XRET-G1 illegal architectural-trap count",
+               xret_illegal_arch_trap_count, 32'd4);
+    if ((xret_case_count == 7) &&
+        (xret_legal_count == 3) &&
+        (xret_illegal_count == 4) &&
+        (xret_raw_preserved_count == 7) &&
+        (xret_legal_system_count == 3) &&
+        (xret_illegal_arch_trap_count == 4)) begin
+      $display("[XRET-G1-FOCUSED] cases=7 legal=3 illegal=4 raw_preserved=7 legal_system=3 illegal_arch_trap=4 PASS");
+    end else begin
+      $display("[XRET-G1-FOCUSED] cases=%0d legal=%0d illegal=%0d raw_preserved=%0d legal_system=%0d illegal_arch_trap=%0d FAIL",
+               xret_case_count, xret_legal_count, xret_illegal_count,
+               xret_raw_preserved_count, xret_legal_system_count,
+               xret_illegal_arch_trap_count);
     end
 
     tb_finish("tb_ooo_fetch_head_classify_gate");

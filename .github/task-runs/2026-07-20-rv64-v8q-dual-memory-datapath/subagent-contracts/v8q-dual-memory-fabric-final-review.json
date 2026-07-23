@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8q-dual-memory-fabric-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据最终同摘要发布后的随附事实，独立复核F0 AXI叶模块实现、证据freshness与架构声明边界；寻找仍可执行反例并返回pass或gap",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_axi_arbiter.sv",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-dual-memory-fabric-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "仅限本地RV64 RTL；不得使用工具、shell、文件系统、网络、账号、凭据、外部服务或写盘。",
+      "F0是未实例化的双上游单outstanding单beat到单下游AXI叶模块；IDLE注册捕获owner/type，read锁至exact-owner R terminal，write以独立aw_seen/w_seen处理任意skew并锁至B terminal；rr仅在terminal更新。",
+      "rst全系统同步且组合静默，沿上清state/owner/type/rr/seen；非法AR与AW/W同现时IDLE全局fail-closed；非owner READY/VALID为0，R/B ready只来自exact owner，stall payload均有稳定断言。",
+      "最终fresh F0 run_id=v8q-f0-20260720T030925Z-849762；RTL sha=f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7；source closure sha=d271ddf5fca6c6c8ef552fb1c1111b691e43e77714aeb51f3720dedbe18a5186；pre/post closure与canonical architecture manifest摘要均相同。",
+      "release/assert矩阵通过单lane read、AR/R stall、双lane terminal fairness、AW-before-W、W-before-AW、同拍AW/W、B stall、response isolation、IDLE registered capture，以及READ_ADDR、READ_RESP、AW-only、W-only、WRITE_RESP逐phase reset与reset后孤儿R/B拒绝；assert-negative唯一命中ARB-REQ-CLASS-ONEHOT。",
+      "12个source mutant均compile_success、elaborated、activated且被唯一oracle拒绝：read/write三类早释、两个seen tieoff、R/B广播、RREADY交换、固定优先、rr提前更新、IDLE fallthrough、reset owner残留。",
+      "fail-closed checker先去注释，要求唯一非空module、五态、registered owner/type、seen聚合、exact isolation、rr写点、terminal unlock、reset与assert marker；10个负向单测覆盖空壳、comment-only module/marker、缺状态、tieoff、duplicate module、广播、rr提前更新和canonical实例检测。",
+      "在canonical vsrc design_id sha256:79e445cd976f7a2ace1da6288866b2442846677520052a95eea7c14504ab2cca上，fresh architecture manifest与hard checker一致：DI-3、DI-4、OOO-1、OOO-2为GREEN；DI-1、DI-2、DI-5、OOO-3、OOO-4、overall为RED；PPA UNQUALIFIED。F0只授权dual_axi_miss_fabric_leaf_verified。"
+    ]
+  },
+  "deliverables": [
+    "返回严格JSON：verdict=pass|gap；blockers；false_green_risks逐项含counterexample与existing_evidence；same_digest_publication_ok；claim_boundary_ok；contract_compliance明确tools_used=false、filesystem_reads=false、writes=false、network=false。"
+  ],
+  "success_criteria": [
+    "挑战owner lock、AW/W skew、exact demux、公平、非法dual-type、逐phase reset/孤儿response、stall稳定、mutation激活唯一拒绝、最终closure与architecture design_id一致性及不越级；无剩余可执行反例才pass。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

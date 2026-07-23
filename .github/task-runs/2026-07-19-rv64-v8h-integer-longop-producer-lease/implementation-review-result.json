@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "evidence_blind_spots": [
+    "仅有摘要，未独立核对 RTL 中 actual-valid 的完整扇出及组合依赖图",
+    "未见真实流水线持续背压、生成号整圈回绕及所有死亡沿并发组合的形式证明"
+  ],
+  "residual_risks": [
+    "stale long-op 按 raw route 排空会占用低优先级传输槽；正确性仍依赖 FP 等被阻塞源可靠保持或重试",
+    "FP full PID、branch/CSR/pending-system、全核 holder census 与 global no-live-reuse 尚未闭合，架构 inventory 仍为 RED"
+  ]
+}

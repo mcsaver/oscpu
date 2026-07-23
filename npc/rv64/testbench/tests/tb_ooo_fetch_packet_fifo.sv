@@ -345,6 +345,28 @@ module tb_ooo_fetch_packet_fifo;
     end
   endtask
 
+  task automatic run_fault_tval_offset_packet;
+    input [1023:0] what;
+    input [`XLEN-1:0] pc;
+    input [2:0] offset;
+    begin
+      drive_enqueue_packet(pc, 32'h0010_0093, 32'h0020_0113);
+      enqueue_fault_tval = pc + {{(`XLEN-3){1'b0}}, offset};
+      tick();
+      clear_controls();
+      check_head_presence({what, " present"}, 3'd1, 1'b1);
+      tb_check64_local({what, " packet pc"}, head_pc0, pc);
+      tb_check64_local({what, " fault-tval"}, head_fault_tval,
+                       pc + {{(`XLEN-3){1'b0}}, offset});
+      $display("[TVAL-G1-FIFO-OFFSET-PASS] %0s F=%0d pc=%h tval=%h",
+               what, offset, pc, head_fault_tval);
+      pop = 1'b1;
+      tick();
+      clear_controls();
+      check_head_presence({what, " drained"}, 3'd0, 1'b0);
+    end
+  endtask
+
   initial begin
     clk = 1'b0;
     rst = 1'b1;
@@ -521,6 +543,13 @@ module tb_ooo_fetch_packet_fifo;
     tick();
     clear_controls();
     check_head_presence("full clear dominates enqueue", 3'd0, 1'b0);
+    run_fault_tval_offset_packet("fault frontier two bytes",
+                                 64'h0000_0000_8000_d000, 3'd2);
+    run_fault_tval_offset_packet("fault frontier four bytes",
+                                 64'h0000_0000_8000_e000, 3'd4);
+    run_fault_tval_offset_packet("fault frontier six bytes",
+                                 64'h0000_0000_8000_f000, 3'd6);
+    $display("[TVAL-G1-FIFO-OFFSETS] F2=1 F4=1 F6=1 atomic=3 PASS");
     $display("[T4B-FIFO-HEAD-PRESENCE-EVENTS] reset/enqueue/hold/pop/swap/clear-collision covered");
     $display("[T4G-FETCH-FAULT-TVAL-FIFO] fault frontier survives direct-head/ring/wrap ownership");
 

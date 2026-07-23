@@ -25,7 +25,9 @@
 | `double_i/sub_op_i/negate_product_i/subtract_addend_i/rm_i` | in | sampled | 精度、操作与舍入模式 |
 | `addsub/mul/fma_{value,fflags}_o` | out | registered | 旧 pending 接口按 op 选择末级结果 |
 | `launch_valid_i` | in | pulse/stream | B-FP 自流水 launch，有效时 meta 进入 stage1 |
-| `launch_rob_idx_i/launch_pdest_i/launch_kind_i` | in | sampled | 自流水 meta；kind: 0=addsub, 1=mul, 2=fma |
+| `launch_producer_id_i/launch_pdest_i/launch_kind_i` | in | sampled | 自流水 meta；ProducerId 为唯一身份，kind: 0=addsub, 1=mul, 2=fma |
+| `out_producer_id_o/out_rob_idx_o` | out | combinational from Q | full PID 与其低位 raw-index 投影 |
+| `owner_valid_o/owner_producer_id_o` | out | Q-only observation | 五级 resident meta lease，供父层解码 live mask |
 | `kill_valid_i/kill_rob_idx_i/rob_head_idx_i` | in | combinational-to-clock | age-squash 清 younger in-flight meta valid |
 | `out_valid_o/out_*` | out | registered meta + mux | stage5 输出，自流水写回入口消费 |
 
@@ -55,13 +57,13 @@ out_valid      0    0    0    0    0    1
 - FADD/FSUB 双精度与单精度流水：当前 RTL 注释以当前实现为准，双/单路径独立，末级寄存 value+fflags。
 - FMUL 双精度与单精度流水：乘积、规格化、subnormal/round 分级打拍。
 - FMA 双精度与单精度流水：5 级路径，包含 product、128-bit 对齐/宽加、LZC/normalize、round/pack。
-- `meta_valid_q[1:5]` / `meta_rob_q` / `meta_pdest_q` / `meta_double_q` / `meta_kind_q`：B-FP 自流水身份链。
+- `meta_valid_q[1:5]` / `meta_producer_id_q` / `meta_pdest_q` / `meta_double_q` / `meta_kind_q`：B-FP 自流水身份链；不得另存平行 raw ROB identity。
 - `addsub_a*_q` / `mul_a*_q`：把较浅的 addsub/mul 结果对齐到统一 stage5。
 
 同拍优先级：
 
 1. `rst || flush_i` 清所有时序状态。
-2. 否则 meta 链恒推进；stage1 接收 `launch_valid_i && !fp_meta_killed(launch_rob_idx_i)`。
+2. 否则 meta 链恒推进；stage1 接收 `launch_valid_i && !fp_meta_killed(launch_producer_id_i[ROB_INDEX_W-1:0])`。
 3. 每级推进时对上一拍 meta 再做 age-squash，`out_valid_o` 对 stage5 meta 组合复核一次 kill。
 
 ## 4. 不变量

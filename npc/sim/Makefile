@@ -92,7 +92,9 @@ switch select:
 default all lint run sim clean gprof-build prof-exec-build difftest-ref \
 syn-check-env sta-check-env syn sta:
 	@# 对外固定使用 npc/sim 接口；后端实现仍在 single/soc 内部独立维护。
-	@$(MAKE) -C $(BACKEND_DIR) $@
+	@# AM 的 NPC_HOME 指向平台根 npc/；递归到具体后端时必须重新绑定为
+	@# 后端目录，否则命令行变量继承会让 rv64/single/soc 错读 npc/scripts。
+	@$(MAKE) -C $(BACKEND_DIR) NPC_HOME=$(BACKEND_DIR) $@
 
 testbench:
 	@$(MAKE) -C $(BACKEND_DIR)/testbench run

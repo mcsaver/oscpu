@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8z-frontend-ii1-contract-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定材料复核本地 RV64 前端 DI-1 证明闭包，寻找 Bridge H1 与完整 Frontend turnover 组合中的假绿、覆盖洞和越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/subagent-contracts/v8z-frontend-ii1-contract-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "规范门槛：cache hit、无 redirect、下游持续 ready；预热后连续 64 周期每周期 accept 一包且 produce 一包，最大 initiation interval 为 1。",
+      "OooFetchAxiBridge 的 fetch_req_ready_o 在 S_CACHE_READ 的 cache_hit_resp_w 且 fetch_rsp_ready_i 时保持 ready；fetch_rsp_valid_o 由 cache_hit_resp_w 给出；状态在 response fire 后按 successor request fire 保持 S_CACHE_READ 或回到 S_IDLE。",
+      "tb_ooo_fetch_axi_bridge 已有 bare-mode 64 个连续 response+request turnover、paging U/ASID0 与 S/ASID1 交替 64 turnover，以及 elastic skid、invalidate 和 mmu_flush 定向场景。",
+      "OooFetchFlowControl 只有在 can_run、无 stop/redirect/discard、FIFO reserve 有效且无 outstanding 或 response fire 时发请求；response ready 只在可 enqueue、可 drop 或 direct flush 时成立。",
+      "OooFetchPcOutstandingSequencer 在 response fire 与 successor request fire 同拍时保持 outstanding_valid，并由 request owner PC 与 packet successor PC 更新请求/响应所有权。",
+      "新增 focused OooCoreTopGlue 轨迹使用连续整数 NOP packet，穿过真实 OooFrontend、FlowControl、OutstandingSequencer、PacketDecode、FIFO、rename/dispatch/backend；要求连续 64 拍 response fire、response enqueue、successor request fire，accepted=64、produced=64、PC 每拍加 8、redirect/stop/stall 均为 0。",
+      "证据仅在 assert 与 release 两种编译配置均通过、Bridge 与 Frontend 唯一 marker 都被解析、生产 RTL 前后摘要一致且同一完整 RTL design_id 下才发布。",
+      "compile-success RTL source mutation 分别切断 Bridge H1 request-ready、Bridge H1 state turnover、semantic cache lookup、FlowControl outstanding turnover、FlowControl response enqueue ready、Sequencer 同拍 replacement；每项必须编译成功且由对应动态 oracle 拒绝。",
+      "记录发布后必须保留同一 design_id 的 DI-3、DI-4、DI-5、OOO-1、OOO-2、OOO-3、OOO-4 sibling 记录；DI-1 可为 GREEN，但 DI-2 与 overall architecture 仍为 RED，PPA 保持 UNQUALIFIED。"
+    ]
+  },
+  "deliverables": [
+    "输出 verdict=PASS、GAP 或 INCONCLUSIVE；逐项给出组合证明充分性、未关闭反例、必须新增的 oracle 或 mutation、claim_boundary、unknowns、scope_extension_request 与 confidence_and_basis"
+  ],
+  "success_criteria": [
+    "只有随附事实能同时关闭叶级 H1、完整 frontend credit/outstanding、连续 PC、backpressure 恢复、变异检出和同一设计绑定时才判 PASS；任何缺口必须形成可执行 GAP，不得外推 DI-2、overall architecture 或 PPA"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

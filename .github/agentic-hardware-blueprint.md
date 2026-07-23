@@ -109,6 +109,27 @@ evidence:
   `goal/allowed_paths/write_paths/allowed_commands/required_context/deliverables/success_criteria`
   绑定到单个 owner。平台 review 只形成该节点的 `review_pending` overlay，不沿图自动传播为父目标关闭。
 
+### RV64 Hardware-Professional Task Wording
+
+- 本规范只约束派发给子 agent 的自然语言，不改变路径、命令、shell、上下文、实现、验证、PPA 或推理能力。
+- 每个渲染提示首屏先正向声明：对象为本地 RV64 Verilog/SystemVerilog 处理器；工程范围只包含合同授权的
+  本地 RTL、spec、testbench、EDA 工具和生成证据；不使用非工作区来源。外部来源的逐项布尔值留在 JSON
+  合同审计，避免把与当前处理器任务无关的场景复制进技术目标。
+- 主 agent 直接用 RV64 CPU 微架构、流水线、事务、时序、缓存一致性、验证和 PPA 术语描述目标、产物与
+  成功条件；`render` 只追加同一硬件语境前缀。协调层状态只进入合同 JSON、dispatch log 与主 agent 记录。
+- 使用“独立反例复核”“定向变异被测试检出”“取消更年轻流水事务”“生产者完成资格”等无损硬件表达。
+- 多义术语首次出现时必须同时给出对象、层级、作用域和工程目的，例如把 fault injection 限定为
+  testbench 对指定 RTL 接口/周期的异常激励，把 replay 限定为 load final-PA 判定后的重试，把 mutation
+  限定为 compile-success RTL source cut 及其 directed oracle；这是一组语义示例，不是词表门禁。
+- PMP、RISC-V 特权级、访问异常、内存保护、权限检查、store/cache probe、ProducerId、ROB、LSQ、SQ、
+  MIQ、flush、redirect、trap，以及反引号包裹的真实 RTL 标识符必须保留。
+- 不建立关键词黑名单，不因单个词组拒绝合法合同，也不自动改写技术字段；准确措辞由任务作者与 reviewer
+  在真实 RTL 语境中判断。
+- `workspace-files`、no-tools、实现、验证和 PPA 的能力分档保持不变；措辞规则不能成为删减上下文、工具、
+  反例、不确定性或范围扩展出口的理由。
+- 不用缩写、代称、拆分描述或模糊动词隐藏真实工程意图；措辞优化只提高领域准确性与审计性，不承担
+  改变任何平台判定的功能。
+
 ## 结构化任务产物
 
 - 任务级产物与长期记忆分离：

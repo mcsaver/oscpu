@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9j-ifu-tval-limited-material-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前设计指纹下 IFU instruction page fault 与 instruction access fault 的 PC cause tval owner 从 packet first failing halfword 经 FIFO lane capture pending drain 到 CSR request 的证据闭环，判断 IFU-TVAL-G1 是否存在可执行覆盖洞或假绿。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/ifu-tval-current.json",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/mutations/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/subagent-contracts/v9j-ifu-tval-limited-material-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/contract.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/ifu-tval-current.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "IFU-TVAL-G1 closure requirement is current-design evidence for first failing halfword offsets F2 F4 F6, compressed-control lifecycle, and compile-success RTL source variants.",
+      "Current design_id is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc; production RTL hashes before and after all nine variants are identical.",
+      "Canonical command make -C npc/rv64 check-ifu-tval passed eight focused testbenches, module aggregate 109 of 109, ten evidence-tool unit tests, and nine of nine compile-success RTL variants were dynamically rejected.",
+      "Packet rule is fault_tval equals packet_pc plus first failing halfword byte offset F; instruction xEPC is selected independently from lane0 or lane1 decoded PC.",
+      "FIFO stores fault_tval atomically with packet metadata and focused rows cover F2 F4 F6; decoder focused rows cover F0 F2 F4 F6.",
+      "Lifecycle matrix has 24 drain rows: PF 12 AF 12, lane0 12 lane1 12, F0 8 F2 8 F4 6 F6 2; each row checks capture pending and drain.",
+      "Compressed c.beqz matrix has six F4 rows: terminal PF and AF produce xEPC PC+2 and tval PC+4; actual-taken branch resolution clears PF and AF pending tuples; predicted-taken lane visibility suppresses PF and AF lane1 owners.",
+      "Page-end integration matrix has nine PF rows with F2 count 5, F4 count 3, and F6 count 1.",
+      "Pending sequencer focused checks cover capture, hold while valid clears, branch-resolution squash clear, and late clear; CSR mux checks pending owner, independent ex_pc and ex_tval, and zero tval for system events.",
+      "Ledger owner paths are OooFetchPacketDecode, OooFetchPacketFifo, OooFrontend, OooFetchHeadPairGate, OooFrontendDispatchGate, OooPendingLane1CaptureGate, OooPendingDispatchArbiter, OooPendingTrapExitSequencer, OooStopPendingSequencer, and OooCsrTrapRequestMux.",
+      "Nine source variants cover decoder offset removal, FIFO direct-head PC substitution, FIFO ring PC substitution, lane0 capture PC substitution, lane1 capture PC substitution, pending capture PC substitution, pending squash stale tval retention, CSR request PC substitution, and predicted-taken lane1 visibility removal.",
+      "No compile-success source variant directly changes OooFrontend projection, OooFrontendDispatchGate transfer, or OooStopPendingSequencer; their behavior is exercised only through focused and aggregate tests plus current source binding.",
+      "Evidence JSON claims IFU-TVAL-G1 CLOSED_ELIGIBLE only, PPA UNQUALIFIED, and promotion_eligible false.",
+      "After directed architecture evidence replay and ledger hash refresh, arch-stable audit is honest GAP with 37 remaining blockers and all closed-evidence hashes match current artifacts."
+    ]
+  },
+  "deliverables": [
+    "给出 PASS GAP 或 INCONCLUSIVE，逐项列出证据支持、可执行反例、覆盖洞、替代假设、范围扩展请求和 confidence_and_basis；任何可操作反例必须指向应新增的定向 testbench、compile-success RTL variant 或 fail-closed 静态审计。"
+  ],
+  "success_criteria": [
+    "结论严格限定于随附材料；区分 IFU-TVAL-G1 架构关闭资格与完整核及 PPA 推广资格；不能用模块 aggregate 代替字段级 oracle；若发现 owner path 未被直接负向变体约束，说明其是否足以阻止关闭以及最小补证。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

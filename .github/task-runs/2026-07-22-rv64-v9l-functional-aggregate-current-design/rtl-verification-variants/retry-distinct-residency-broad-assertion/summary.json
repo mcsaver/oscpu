@@ -1,0 +1,24 @@
+{
+  "command": "make -B -C <REPO>/npc/rv64/testbench TESTS=tb_ooo_int_backend RTL_OOO_INT_BACKEND=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/OooIntBackend.v TB_IVFLAGS_tb_ooo_int_backend=-DV8S_DUAL_MEMORY_FOCUSED BUILD_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/build RESULT_DIR=<REPO>/.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/result run",
+  "compile_succeeded": true,
+  "compiled_image_sha256": "fb4fc371e0b0ef4c5a96304065f8f59773074c846c2ba9f031db1df4ae6d320e",
+  "description": "Restore the obsolete any-load residency exclusion; a distinct station token beside retry0 must reject the over-constrained variant.",
+  "name": "retry-distinct-residency-broad-assertion",
+  "return_code": 2,
+  "scope": "local RV64 Verilog/SystemVerilog assertion verification",
+  "simulation_rejected_variant": true,
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f"
+    },
+    {
+      "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/OooIntBackend.v",
+      "sha256": "a4058169d01696d2190df168eb587c19410321594dad8699d4ab355a6a1eb7a1"
+    }
+  ],
+  "stimulus_reached": true,
+  "target_assertion": "[V9L-RETRY-OWNER-DISJOINT]",
+  "target_assertion_count": 1,
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/retry-distinct-residency-broad-assertion/result/logs/tb_ooo_int_backend.log"
+}

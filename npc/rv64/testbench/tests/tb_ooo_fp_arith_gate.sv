@@ -9,6 +9,10 @@
 module tb_ooo_fp_arith_gate;
   `include "tb_common.svh"
 
+  localparam ROB_INDEX_W = `OOO_ROB_INDEX_W;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+
   reg clk, rst, flush, start;
   reg [`XLEN-1:0] frs1, frs2, frs3;
   reg dbl, sub_op, neg_prod, sub_add;
@@ -17,20 +21,27 @@ module tb_ooo_fp_arith_gate;
   wire [4:0] addsub_f, mul_f, fma_f;
   wire done;
   reg launch_valid;
-  reg [`OOO_ROB_INDEX_W-1:0] launch_rob_idx;
+  reg [PRODUCER_ID_W-1:0] launch_producer_id;
   reg [`OOO_PHY_REG_ADDR_W-1:0] launch_pdest;
   reg [1:0] launch_kind;
   reg kill_valid;
   reg [`OOO_ROB_INDEX_W-1:0] kill_rob_idx;
   reg [`OOO_ROB_INDEX_W-1:0] rob_head_idx;
   wire out_valid;
+  wire [PRODUCER_ID_W-1:0] out_producer_id;
   wire [`OOO_ROB_INDEX_W-1:0] out_rob_idx;
   wire [`OOO_PHY_REG_ADDR_W-1:0] out_pdest;
   wire [`XLEN-1:0] out_value;
   wire [4:0] out_fflags;
+  wire [4:0] owner_valid;
+  wire [5*PRODUCER_ID_W-1:0] owner_producer_id;
   integer kill_guard;
 
-  OooFpArithGate dut (
+  OooFpArithGate #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) dut (
     .clk(clk), .rst(rst), .flush_i(flush), .start_i(start),
     .frs1_value_i(frs1), .frs2_value_i(frs2), .frs3_value_i(frs3),
     .double_i(dbl), .sub_op_i(sub_op),
@@ -40,17 +51,20 @@ module tb_ooo_fp_arith_gate;
     .fma_value_o(fma_v), .fma_fflags_o(fma_f),
     .done_o(done),
     .launch_valid_i(launch_valid),
-    .launch_rob_idx_i(launch_rob_idx),
+    .launch_producer_id_i(launch_producer_id),
     .launch_pdest_i(launch_pdest),
     .launch_kind_i(launch_kind),
     .kill_valid_i(kill_valid),
     .kill_rob_idx_i(kill_rob_idx),
     .rob_head_idx_i(rob_head_idx),
     .out_valid_o(out_valid),
+    .out_producer_id_o(out_producer_id),
     .out_rob_idx_o(out_rob_idx),
     .out_pdest_o(out_pdest),
     .out_value_o(out_value),
-    .out_fflags_o(out_fflags)
+    .out_fflags_o(out_fflags),
+    .owner_valid_o(owner_valid),
+    .owner_producer_id_o(owner_producer_id)
   );
 
   // 10ns 时钟
@@ -101,7 +115,7 @@ module tb_ooo_fp_arith_gate;
     input [`XLEN-1:0] c;
     begin
       launch_kind = kind;
-      launch_rob_idx = rob_idx;
+      launch_producer_id = {4'hb, rob_idx};
       launch_pdest = pdest;
       dbl = is_double;
       sub_op = is_sub;
@@ -132,6 +146,11 @@ module tb_ooo_fp_arith_gate;
           tb_errors = tb_errors + 1;
           $display("[CHECK-FAIL] %0s rob got=0x%0x exp=0x%0x", what, out_rob_idx, exp_rob_idx);
         end
+        if (out_producer_id !== {4'hb, exp_rob_idx}) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s PID got=0x%0x exp=0x%0x",
+                   what, out_producer_id, {4'hb, exp_rob_idx});
+        end
         if (out_pdest !== exp_pdest) begin
           tb_errors = tb_errors + 1;
           $display("[CHECK-FAIL] %0s pdest got=0x%0x exp=0x%0x", what, out_pdest, exp_pdest);
@@ -153,7 +172,7 @@ module tb_ooo_fp_arith_gate;
   initial begin
     tb_errors = 0; rm = 3'b000; neg_prod = 0; sub_add = 0;
     flush = 1'b0; start = 1'b0;
-    launch_valid = 1'b0; launch_rob_idx = {`OOO_ROB_INDEX_W{1'b0}};
+    launch_valid = 1'b0; launch_producer_id = {PRODUCER_ID_W{1'b0}};
     launch_pdest = {`OOO_PHY_REG_ADDR_W{1'b0}}; launch_kind = 2'b00;
     kill_valid = 1'b0; kill_rob_idx = {`OOO_ROB_INDEX_W{1'b0}};
     rob_head_idx = {`OOO_ROB_INDEX_W{1'b0}};
@@ -180,6 +199,9 @@ module tb_ooo_fp_arith_gate;
     // 连续三拍发射 add/mul/fma，检查 stage5 连续吐出 meta + value/fflags。
     kill_valid = 1'b0; rob_head_idx = 0; start = 1'b0; dbl = 1'b1;
     launch_op(2'd0, 4'd1, 6'd33, 1'b1, 1'b0, 1'b0, 1'b0, D1, D1, 64'b0);
+    tb_check1("V8I arith stage1 owns launched PID", owner_valid[0], 1'b1);
+    tb_check32("V8I arith stage1 full PID",
+               {24'b0, owner_producer_id[0 +: PRODUCER_ID_W]}, 32'h0000_00b1);
     launch_op(2'd1, 4'd2, 6'd34, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, 64'b0);
     launch_op(2'd2, 4'd3, 6'd35, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);
     launch_valid = 1'b0;

@@ -1,0 +1,18 @@
+{
+  "verdict": "gap",
+  "blockers": [
+    "reviewer要求澄清IntIQ是否遗漏full-P源依赖；live RTL实际只保存physical-register source tag，已在amendment中明确",
+    "memory tracker间接覆盖与IntIQ到tracker/SQ handoff需要可执行原子性、映射稳定和token no-reuse不变量",
+    "transient/WB/replay/redirect holder发现需fail-closed，不能只检查手写清单",
+    "mask检查P必须与ROB真实allocation写入P逐位同源，且需要独立raw-holder reference monitor",
+    "static census与GREEN证据必须绑定manifest/checker/config/source并保留semantic边界"
+  ],
+  "counterexamples": [
+    "tracker allocation失败但IQ dequeue/downstream capture成功会形成下一拍lease空窗",
+    "未登记WB skid或completion queue接管P后原holder清空会形成lease空窗",
+    "guard比较P与ROB实际出生P在generation更新次序上分叉会漏过held P",
+    "mask读取will_deq/effective kill会在death edge提前释放并可能形成ready反馈"
+  ],
+  "resolution": "contract.md与rtl-derivation.md已补IntIQ真实字段、tracker原子方程、ROB alloc-P同源、独立reference monitor、fail-closed发现与evidence binding；待amended no-tools review复核后方可改RTL",
+  "claim_boundary": "当前仍为方案方向，尚未授予scoped global-no-live-reuse GREEN；architecture其余gate与PPA均未提升"
+}

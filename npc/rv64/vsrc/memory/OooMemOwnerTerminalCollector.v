@@ -345,6 +345,14 @@ module OooMemOwnerTerminalCollector #(
       out1_hold_check_q <= 1'b0;
       out1_hold_tuple_q <= 9'd0;
     end else begin
+      if (out0_valid_q && (^out0_token_q === 1'bx)) begin
+        $display("[V8L-TCOLL-OUT0-TOKEN-KNOWN] valid output0 has unknown token");
+        $fatal;
+      end
+      if (out1_valid_q && (^out1_token_q === 1'bx)) begin
+        $display("[V8L-TCOLL-OUT1-TOKEN-KNOWN] valid output1 has unknown token");
+        $fatal;
+      end
       if (|ingress_reserved_violation_r) begin
         $display("[S2-G1-TCOLL-RESERVED] reserved owner kind ingress");
         $fatal;

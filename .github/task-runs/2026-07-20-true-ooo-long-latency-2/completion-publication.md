@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-true-ooo-long-latency-2
+- `trace_id`: e2e:2026-07-20-true-ooo-long-latency-2
+- `task_slug`: true-ooo-long-latency
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: bf27bc55d945956b97a89ab09c2c2f910cf1a222f6e60e30d900d235a9ddfc34
+- `task_report_md_sha256`: b7014e7201f1c3a59a65c547ab5ac19068d7eb3ff27c4242ea352d27cfdb9556
+- `run_manifest_json_sha256`: 87ad48119f2a86f3e6545fd768d8f44f92837f661d3fce0e52f6c64f39b7bce3
+- `context_brief_md_sha256`: 9fac79902ef92093e7d06de047a8f7f33478c82f1f59b4af33a82bebbea4f610
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 0ea4056e3b55d3a4cb876dec26ee7353d33db5ac137f044bcfb50c46dfcf9e38
+- `dispatch_log_md_sha256`: bb7e1327c257edaddb561f3f6f6455de8bf794cda5592c333684d00600a89b88
+- `nodes_tsv_sha256`: 6ba7ae4f6e9e6d432f415c64f979b1d8d9699e41c0ebf3ed0f7d134850c14cc2

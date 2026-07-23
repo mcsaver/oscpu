@@ -36,6 +36,9 @@ module OooPendingDrainResolveGate #(
   input pending_system_fence_i,
   input pending_system_csr_i,
   input pending_system_dispatched_i,
+  // v8k：任何高优先级 clear/backend flush 同拍先取消 pending CSR
+  // admission，避免 ROB 已 enqueue 而 sequencer 未出生 ProducerId lease。
+  input system_csr_dispatch_cancel_i,
   output backend_drained_o,
   output jump_dispatch_valid_o,
   output system_csr_dispatch_valid_o,
@@ -64,6 +67,7 @@ module OooPendingDrainResolveGate #(
                                  !pending_jump_nolink_i &&
                                  !pending_jump_misaligned_i;
   assign system_csr_dispatch_valid_o =
+      !system_csr_dispatch_cancel_i &&
       stop_pending_i && pending_system_i && pending_system_csr_i &&
       !pending_system_dispatched_i && backend_drained_q_i;
   assign system_csr_dispatch_fire_o =

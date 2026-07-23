@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9k-ptw-pmp-current-coverage-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 design_id 下 IFU 与 LSU walker 的 PTE 8B S-mode WRITE PMP 判定、deny 到 access-fault 响应、deny 周期及响应周期无 AXI AW/W、RW allow 进入 A/D update 的直接 RTL 与 testbench 证据，识别 current-source 绑定所缺的定向反例或编译成功 RTL 变体",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/PmpChecker.v",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      ".github/task-runs/2026-07-14-rv64-t4f-ptw-pmp-write/evidence/run-t4f-mutation-negative.py",
+      ".github/task-runs/2026-07-14-rv64-t4f-ptw-pmp-write/evidence/mutation-negative-run.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/subagent-contracts/v9k-ptw-pmp-current-coverage-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 IFU deny、LSU load-A deny、LSU store-D deny、IFU allow、LSU allow、AW/W 抑制、current-source RTL 变体七类逐项给出覆盖映射、具体 GAP 与可执行反例；附 unknowns、替代假设、scope_extension_request 和 confidence_and_basis"
+  ],
+  "success_criteria": [
+    "结论必须为 PASS、GAP 或 inconclusive；每个 PASS 直接引用 module/signal/task/marker，每个 GAP 给出能落成定向 testbench、fail-closed 静态审计或 compile-success RTL source mutation 的精确方案，不把历史 4/4 变体自动视为当前 design_id 绑定"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -202,6 +202,7 @@ module tb_ooo_fetch_access_footprint;
   integer case_l0_bytes_q;
   integer case_boundary_q;
   integer case_fault_offset_q;
+  reg [1:0] case_fault_rresp_q;
 
   integer fetch_ar_count_q;
   reg [`XLEN-1:0] fetch_ar_addr_q [0:7];
@@ -231,6 +232,49 @@ module tb_ooo_fetch_access_footprint;
   integer walk_fail_q;
   integer pmp_rows_q;
   integer pmp_fail_q;
+  integer alignment_rows_q;
+  integer alignment_fail_q;
+  integer sequence_rows_q;
+  integer sequence_fail_q;
+  integer lifecycle_rows_q;
+  integer lifecycle_fail_q;
+  integer rresp_owner0_rows_q;
+  integer rresp_owner1_rows_q;
+  integer rresp_exokay_rows_q;
+  integer rresp_slverr_rows_q;
+  integer rresp_decerr_rows_q;
+  integer pmp_owner0_rows_q;
+  integer pmp_owner1_rows_q;
+
+  reg success_side_effect_monitor_q;
+  reg fault_side_effect_monitor_q;
+  reg fault_frontier_seen_q;
+  integer success_cache_fill_count_q;
+  integer success_sram_write_count_q;
+  integer fault_cache_fill_count_q;
+  integer fault_sram_write_count_q;
+  integer fault_younger_ar_count_q;
+
+  always @(posedge clk) begin
+    if (!rst && success_side_effect_monitor_q) begin
+      if (u_bridge.fetch_cache_fill_valid_w === 1'b1)
+        success_cache_fill_count_q <= success_cache_fill_count_q + 1;
+      else if (u_bridge.fetch_cache_fill_valid_w !== 1'b0)
+        success_cache_fill_count_q <= success_cache_fill_count_q + 1000;
+      if (u_bridge.u_fetch_packet_cache.sram_we_w === 1'b1)
+        success_sram_write_count_q <= success_sram_write_count_q + 1;
+      else if (u_bridge.u_fetch_packet_cache.sram_we_w !== 1'b0)
+        success_sram_write_count_q <= success_sram_write_count_q + 1000;
+    end
+    if (!rst && fault_side_effect_monitor_q) begin
+      if (u_bridge.fetch_cache_fill_valid_w !== 1'b0)
+        fault_cache_fill_count_q <= fault_cache_fill_count_q + 1;
+      if (u_bridge.u_fetch_packet_cache.sram_we_w !== 1'b0)
+        fault_sram_write_count_q <= fault_sram_write_count_q + 1;
+      if (fault_frontier_seen_q && (ifu_axi_arvalid !== 1'b0))
+        fault_younger_ar_count_q <= fault_younger_ar_count_q + 1;
+    end
+  end
 
   task automatic record_footprint;
     input [1023:0] what;
@@ -251,15 +295,71 @@ module tb_ooo_fetch_access_footprint;
     input [1023:0] what;
     input ok;
     input integer fault_offset;
+    input [1:0] source_rresp;
+    input owner0;
     begin
       rresp_rows_q = rresp_rows_q + 1;
+      if (owner0) rresp_owner0_rows_q = rresp_owner0_rows_q + 1;
+      else rresp_owner1_rows_q = rresp_owner1_rows_q + 1;
+      case (source_rresp)
+        2'b01: rresp_exokay_rows_q = rresp_exokay_rows_q + 1;
+        2'b10: rresp_slverr_rows_q = rresp_slverr_rows_q + 1;
+        2'b11: rresp_decerr_rows_q = rresp_decerr_rows_q + 1;
+        default: begin end
+      endcase
       if (ok) begin
-        $display("[ACCESS-G1-RRESP-PASS] %0s F=%0d", what, fault_offset);
+        $display("[ACCESS-G1-RRESP-PASS] %0s F=%0d source=%0b owner=%0s",
+                 what, fault_offset, source_rresp, owner0 ? "L0" : "L1");
       end else begin
         rresp_fail_q = rresp_fail_q + 1;
         tb_errors = tb_errors + 1;
         $display("[CHECK-FAIL] [ACCESS-G1-RRESP-RED] %0s F=%0d got=%0b/%0b",
                  what, fault_offset, cap_dec0_resp_q, cap_dec1_resp_q);
+      end
+    end
+  endtask
+
+  task automatic record_alignment;
+    input [1023:0] what;
+    input ok;
+    begin
+      alignment_rows_q = alignment_rows_q + 1;
+      if (ok) begin
+        $display("[ACCESS-G1-ALIGNMENT-PASS] %0s", what);
+      end else begin
+        alignment_fail_q = alignment_fail_q + 1;
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] [ACCESS-G1-ALIGNMENT-RED] %0s", what);
+      end
+    end
+  endtask
+
+  task automatic record_sequence;
+    input [1023:0] what;
+    input ok;
+    begin
+      sequence_rows_q = sequence_rows_q + 1;
+      if (ok) begin
+        $display("[ACCESS-G1-SEQUENCE-PASS] %0s", what);
+      end else begin
+        sequence_fail_q = sequence_fail_q + 1;
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] [ACCESS-G1-SEQUENCE-RED] %0s", what);
+      end
+    end
+  endtask
+
+  task automatic record_lifecycle;
+    input [1023:0] what;
+    input ok;
+    begin
+      lifecycle_rows_q = lifecycle_rows_q + 1;
+      if (ok) begin
+        $display("[ACCESS-G1-LIFECYCLE-PASS] %0s", what);
+      end else begin
+        lifecycle_fail_q = lifecycle_fail_q + 1;
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] [ACCESS-G1-LIFECYCLE-RED] %0s", what);
       end
     end
   endtask
@@ -345,6 +445,15 @@ module tb_ooo_fetch_access_footprint;
       fault_offset_seen_q = 1'b0;
       unexpected_ar_q = 1'b0;
       case_timeout_q = 1'b0;
+      case_fault_rresp_q = AXI_SLVERR;
+      success_side_effect_monitor_q = 1'b0;
+      fault_side_effect_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
+      success_cache_fill_count_q = 0;
+      success_sram_write_count_q = 0;
+      fault_cache_fill_count_q = 0;
+      fault_sram_write_count_q = 0;
+      fault_younger_ar_count_q = 0;
       for (i = 0; i < 8; i = i + 1) begin
         fetch_ar_addr_q[i] = {`XLEN{1'b0}};
         fetch_ar_size_q[i] = 3'd0;
@@ -469,7 +578,7 @@ module tb_ooo_fetch_access_footprint;
               rdata_v = case_stream_q >> (logical_offset * 8);
             end
             if (logical_offset == case_fault_offset_q) begin
-              rresp_v = AXI_SLVERR;
+              rresp_v = case_fault_rresp_q;
               fault_offset_seen_q = 1'b1;
             end
           end
@@ -486,6 +595,7 @@ module tb_ooo_fetch_access_footprint;
             ifu_axi_rdata = rdata_v;
             ifu_axi_rresp = rresp_v;
             ifu_axi_rvalid = 1'b1;
+            if (rresp_v != RESP_OK) fault_frontier_seen_q = 1'b1;
             tick();
             ifu_axi_rvalid = 1'b0;
             ifu_axi_rdata = {`XLEN{1'b0}};
@@ -539,11 +649,15 @@ module tb_ooo_fetch_access_footprint;
     reg ok;
     begin
       start_case(1'b0, PC_DIRECT, stream, n_bytes, l0_bytes, 8, -1);
+      success_side_effect_monitor_q = 1'b1;
       service_until_response();
       capture_and_consume_response();
+      success_side_effect_monitor_q = 1'b0;
       exp_count = n_bytes / 2;
       ok = !case_timeout_q && !unexpected_ar_q &&
            (fetch_ar_count_q == exp_count) &&
+           (success_cache_fill_count_q == 1) &&
+           (success_sram_write_count_q == 1) &&
            (cap_raw_resp0_q == RESP_OK) &&
            (cap_raw_resp1_q == RESP_OK) &&
            (cap_raw_split_q == 3'd4) &&
@@ -554,7 +668,41 @@ module tb_ooo_fetch_access_footprint;
         if ((fetch_ar_addr_q[i] !== (PC_DIRECT + (i * 2))) ||
             (fetch_ar_size_q[i] !== 3'd1)) ok = 1'b0;
       end
+      if (ok)
+        $display("[ACCESS-G1-SUCCESS-SIDE-EFFECT] %0s cache_fill=1 sram_write=1 PASS",
+                 what);
       record_footprint(what, ok);
+    end
+  endtask
+
+  task automatic run_alignment_case;
+    input [1023:0] what;
+    input [`XLEN-1:0] pc;
+    input [`XLEN-1:0] stream;
+    input integer n_bytes;
+    input integer l0_bytes;
+    integer i;
+    integer exp_count;
+    reg ok;
+    begin
+      start_case(1'b0, pc, stream, n_bytes, l0_bytes, 8, -1);
+      service_until_response();
+      capture_and_consume_response();
+      exp_count = n_bytes / 2;
+      ok = !case_timeout_q && !unexpected_ar_q &&
+           (fetch_ar_count_q == exp_count) &&
+           (cap_raw_resp0_q == RESP_OK) &&
+           (cap_raw_resp1_q == RESP_OK) &&
+           (cap_raw_split_q == 3'd4) &&
+           (cap_dec0_resp_q == RESP_OK) && (cap_dec1_resp_q == RESP_OK) &&
+           (cap_dec1_pc_q == (pc + l0_bytes)) &&
+           (cap_packet_next_pc_q == (pc + n_bytes));
+      for (i = 0; i < exp_count; i = i + 1) begin
+        if ((fetch_ar_addr_q[i] !== (pc + (i * 2))) ||
+            (fetch_ar_addr_q[i][2:0] !== ((pc + (i * 2)) & 64'h7)) ||
+            (fetch_ar_size_q[i] !== 3'd1)) ok = 1'b0;
+      end
+      record_alignment(what, ok);
     end
   endtask
 
@@ -564,6 +712,7 @@ module tb_ooo_fetch_access_footprint;
     input integer n_bytes;
     input integer l0_bytes;
     input integer fault_offset;
+    input [1:0] source_rresp;
     integer i;
     integer exp_count;
     reg [1:0] exp0;
@@ -572,8 +721,12 @@ module tb_ooo_fetch_access_footprint;
     begin
       start_case(1'b0, PC_DIRECT, stream, n_bytes, l0_bytes, 8,
                  fault_offset);
+      case_fault_rresp_q = source_rresp;
+      fault_side_effect_monitor_q = 1'b1;
       service_until_response();
       capture_and_consume_response();
+      repeat (2) tick();
+      fault_side_effect_monitor_q = 1'b0;
       exp0 = (fault_offset < l0_bytes) ? RESP_ACCESS_FAULT : RESP_OK;
       exp1 = RESP_ACCESS_FAULT;
       exp_count = (fault_offset / 2) + 1;
@@ -582,15 +735,109 @@ module tb_ooo_fetch_access_footprint;
            (cap_raw_resp0_q == RESP_OK) &&
            (cap_raw_resp1_q == RESP_ACCESS_FAULT) &&
            (cap_raw_split_q == fault_offset[2:0]) &&
-           (cap_dec0_resp_q == exp0) && (cap_dec1_resp_q == exp1);
+           (cap_dec0_resp_q == exp0) && (cap_dec1_resp_q == exp1) &&
+           (fault_cache_fill_count_q == 0) &&
+           (fault_sram_write_count_q == 0) &&
+           (fault_younger_ar_count_q == 0) &&
+           (ifu_axi_arvalid === 1'b0);
       for (i = 0; i < exp_count; i = i + 1) begin
         if ((fetch_ar_addr_q[i] !== (PC_DIRECT + (i * 2))) ||
             (fetch_ar_size_q[i] !== 3'd1)) ok = 1'b0;
       end
       if ((cap_dec0_resp_q == exp0) && (cap_dec1_resp_q == exp1))
-        $display("[ACCESS-G1-RRESP-DECODE-CONTROL-PASS] %0s F=%0d",
-                 what, fault_offset);
-      record_rresp(what, ok, fault_offset);
+        $display("[ACCESS-G1-RRESP-OWNER-CONTROL-PASS] %0s F=%0d source=%0b owner=%0s fill=0 write=0 younger_ar=0 quiet=2",
+                 what, fault_offset, source_rresp,
+                 (fault_offset < l0_bytes) ? "L0" : "L1");
+      record_rresp(what, ok, fault_offset, source_rresp,
+                   fault_offset < l0_bytes);
+    end
+  endtask
+
+  task automatic run_rresp_source_matrix;
+    input [1:0] source_rresp;
+    begin
+      run_rresp_case("C/C", STREAM_CC_A, 4, 2, 0, source_rresp);
+      run_rresp_case("C/C", STREAM_CC_A, 4, 2, 2, source_rresp);
+      run_rresp_case("C/U", STREAM_CU_A, 6, 2, 0, source_rresp);
+      run_rresp_case("C/U", STREAM_CU_A, 6, 2, 2, source_rresp);
+      run_rresp_case("C/U", STREAM_CU_A, 6, 2, 4, source_rresp);
+      run_rresp_case("U/C", STREAM_UC_A, 6, 4, 0, source_rresp);
+      run_rresp_case("U/C", STREAM_UC_A, 6, 4, 2, source_rresp);
+      run_rresp_case("U/C", STREAM_UC_A, 6, 4, 4, source_rresp);
+      run_rresp_case("U/U", STREAM_UU, 8, 4, 0, source_rresp);
+      run_rresp_case("U/U", STREAM_UU, 8, 4, 2, source_rresp);
+      run_rresp_case("U/U", STREAM_UU, 8, 4, 4, source_rresp);
+      run_rresp_case("U/U", STREAM_UU, 8, 4, 6, source_rresp);
+    end
+  endtask
+
+  task automatic run_rresp_valid_gate_case;
+    integer waits;
+    reg [`XLEN-1:0] rdata_v;
+    reg ok;
+    begin
+      start_case(1'b0, PC_DIRECT, STREAM_CC_A, 4, 2, 8, -1);
+      ok = 1'b1;
+      waits = 0;
+      while ((ifu_axi_arvalid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      ok = ok && (ifu_axi_arvalid === 1'b1) &&
+           (ifu_axi_araddr === PC_DIRECT) && (ifu_axi_arsize === 3'd1);
+      tick();
+
+      // RRESP 在 RVALID=0 时不属于任何完成事务；同时 bridge 保持单 outstanding，
+      // younger offset2 不能提前形成 AR owner。
+      ifu_axi_rresp = 2'b11;
+      repeat (2) begin
+        tick();
+        ok = ok && (fetch_rsp_valid === 1'b0) &&
+             (ifu_axi_arvalid === 1'b0) &&
+             (u_bridge.fetch_cache_fill_valid_w === 1'b0) &&
+             (u_bridge.u_fetch_packet_cache.sram_we_w === 1'b0);
+      end
+      rdata_v = {{(`XLEN-16){1'b0}}, STREAM_CC_A[15:0]} <<
+                ({61'd0, PC_DIRECT[2:0]} * 8);
+      ifu_axi_rdata = rdata_v;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+
+      waits = 0;
+      while ((ifu_axi_arvalid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      ok = ok && (ifu_axi_arvalid === 1'b1) &&
+           (ifu_axi_araddr === (PC_DIRECT + 64'd2)) &&
+           (ifu_axi_arsize === 3'd1);
+      tick();
+      rdata_v = {{(`XLEN-16){1'b0}}, STREAM_CC_A[31:16]} <<
+                ({61'd0, (PC_DIRECT[2:0] + 3'd2)} * 8);
+      ifu_axi_rdata = rdata_v;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      ifu_axi_rresp = RESP_OK;
+
+      waits = 0;
+      while ((fetch_rsp_valid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      capture_and_consume_response();
+      ok = ok && !case_timeout_q &&
+           (cap_dec0_resp_q == RESP_OK) &&
+           (cap_dec1_resp_q == RESP_OK) &&
+           (cap_packet_next_pc_q == (PC_DIRECT + 64'd4));
+      if (ok)
+        $display("[ACCESS-G1-RRESP-VALID-GATE] invalid_cycles=2 outstanding=1 younger_ar=0 source_ignored=DECERR PASS");
+      record_lifecycle("RRESP is sampled only on RVALID/RREADY and one halfword is outstanding", ok);
     end
   endtask
 
@@ -761,6 +1008,9 @@ module tb_ooo_fetch_access_footprint;
   task automatic run_pmp_frontier_case;
     input [1023:0] what;
     input [`XLEN-1:0] pc;
+    input [`XLEN-1:0] stream;
+    input integer n_bytes;
+    input integer l0_bytes;
     input integer fault_offset;
     integer i;
     integer exp_count;
@@ -769,9 +1019,9 @@ module tb_ooo_fetch_access_footprint;
     begin
       case_paging_q = 1'b0;
       case_pc_q = pc;
-      case_stream_q = STREAM_UU;
-      case_n_bytes_q = 8;
-      case_l0_bytes_q = 4;
+      case_stream_q = stream;
+      case_n_bytes_q = n_bytes;
+      case_l0_bytes_q = l0_bytes;
       case_boundary_q = 8;
       case_fault_offset_q = -1;
       reset_case();
@@ -783,7 +1033,7 @@ module tb_ooo_fetch_access_footprint;
       capture_and_consume_response();
 
       exp_count = fault_offset / 2;
-      exp_dec0 = (fault_offset < 4) ? RESP_ACCESS_FAULT : RESP_OK;
+      exp_dec0 = (fault_offset < l0_bytes) ? RESP_ACCESS_FAULT : RESP_OK;
       ok = !case_timeout_q && !unexpected_ar_q &&
            (fetch_ar_count_q == exp_count) &&
            (cap_raw_resp0_q == RESP_OK) &&
@@ -795,6 +1045,16 @@ module tb_ooo_fetch_access_footprint;
         if ((fetch_ar_addr_q[i] !== (pc + (i * 2))) ||
             (fetch_ar_size_q[i] !== 3'd1)) ok = 1'b0;
       end
+      if ((cap_dec0_resp_q == exp_dec0) &&
+          (cap_dec1_resp_q == RESP_ACCESS_FAULT)) begin
+        $display("[ACCESS-G1-PMP-OWNER-CONTROL-PASS] %0s F=%0d owner=%0s younger_ar=0",
+                 what, fault_offset,
+                 (fault_offset < l0_bytes) ? "L0" : "L1");
+      end
+      if (fault_offset < l0_bytes)
+        pmp_owner0_rows_q = pmp_owner0_rows_q + 1;
+      else
+        pmp_owner1_rows_q = pmp_owner1_rows_q + 1;
       record_pmp(what, ok);
     end
   endtask
@@ -886,6 +1146,125 @@ module tb_ooo_fetch_access_footprint;
     end
   endtask
 
+  task automatic run_dual_source_program_order;
+    reg younger_pmp_control_ok;
+    reg older_rresp_ok;
+    begin
+      case_paging_q = 1'b0;
+      case_pc_q = PC_PMP_HALF;
+      case_stream_q = STREAM_UU;
+      case_n_bytes_q = 8;
+      case_l0_bytes_q = 4;
+      case_boundary_q = 8;
+      case_fault_offset_q = -1;
+      reset_case();
+      priv_mode = `PRIV_S;
+      satp = {`XLEN{1'b0}};
+      configure_tor_exec_until(PC_PMP_HALF + 64'd2);
+      issue_request_without_reset(PC_PMP_HALF);
+      service_until_response();
+      capture_and_consume_response();
+      younger_pmp_control_ok = !case_timeout_q && !unexpected_ar_q &&
+          (fetch_ar_count_q == 1) &&
+          (cap_raw_split_q == 3'd2) &&
+          (cap_dec0_resp_q == RESP_ACCESS_FAULT) &&
+          (cap_dec1_resp_q == RESP_ACCESS_FAULT);
+
+      case_fault_offset_q = 0;
+      reset_case();
+      priv_mode = `PRIV_S;
+      satp = {`XLEN{1'b0}};
+      configure_tor_exec_until(PC_PMP_HALF + 64'd2);
+      case_fault_rresp_q = 2'b11;
+      fault_side_effect_monitor_q = 1'b1;
+      issue_request_without_reset(PC_PMP_HALF);
+      service_until_response();
+      capture_and_consume_response();
+      repeat (2) tick();
+      fault_side_effect_monitor_q = 1'b0;
+      older_rresp_ok = !case_timeout_q && !unexpected_ar_q &&
+          fault_offset_seen_q &&
+          (fetch_ar_count_q == 1) &&
+          (cap_raw_split_q == 3'd0) &&
+          (cap_dec0_resp_q == RESP_ACCESS_FAULT) &&
+          (cap_dec1_resp_q == RESP_ACCESS_FAULT) &&
+          (fault_cache_fill_count_q == 0) &&
+          (fault_sram_write_count_q == 0) &&
+          (fault_younger_ar_count_q == 0);
+      if (younger_pmp_control_ok && older_rresp_ok)
+        $display("[ACCESS-G1-DUAL-SOURCE-ORDER] control=PMP@F2 older=DECERR@F0 result=F0 outstanding=1 younger_ar=0 PASS");
+      record_lifecycle("older RRESP F0 wins before configured younger PMP F2", younger_pmp_control_ok && older_rresp_ok);
+    end
+  endtask
+
+  task automatic run_back_to_back_no_reset;
+    reg ok;
+    begin
+      // A: 带任意未使用 tail 的 C/C success。
+      start_case(1'b0, PC_DIRECT + 64'h100, STREAM_CC_B, 4, 2, 8, -1);
+      service_until_response();
+      capture_and_consume_response();
+      ok = !case_timeout_q && !unexpected_ar_q &&
+           (fetch_ar_count_q == 2) &&
+           (cap_dec0_resp_q == RESP_OK) && (cap_dec1_resp_q == RESP_OK);
+
+      // B: 不复位的 U/U success，形成 poison-success 后继。
+      clear_access_observation();
+      case_pc_q = PC_DIRECT + 64'h120;
+      case_stream_q = STREAM_UU;
+      case_n_bytes_q = 8;
+      case_l0_bytes_q = 4;
+      case_boundary_q = 8;
+      case_fault_offset_q = -1;
+      case_fault_rresp_q = AXI_SLVERR;
+      rsp_pc = case_pc_q;
+      issue_request_without_reset(case_pc_q);
+      service_until_response();
+      capture_and_consume_response();
+      ok = ok && !case_timeout_q && !unexpected_ar_q &&
+           (fetch_ar_count_q == 4) &&
+           (cap_dec0_resp_q == RESP_OK) && (cap_dec1_resp_q == RESP_OK);
+
+      // C: 不复位的 U/U F4 error，形成 success-fault 后继。
+      clear_access_observation();
+      case_pc_q = PC_DIRECT + 64'h140;
+      case_stream_q = STREAM_UU;
+      case_n_bytes_q = 8;
+      case_l0_bytes_q = 4;
+      case_fault_offset_q = 4;
+      case_fault_rresp_q = 2'b11;
+      rsp_pc = case_pc_q;
+      issue_request_without_reset(case_pc_q);
+      service_until_response();
+      capture_and_consume_response();
+      ok = ok && !case_timeout_q && !unexpected_ar_q &&
+           (fetch_ar_count_q == 3) &&
+           (cap_raw_split_q == 3'd4) &&
+           (cap_dec0_resp_q == RESP_OK) &&
+           (cap_dec1_resp_q == RESP_ACCESS_FAULT);
+
+      // D: 不复位的 C/C success，证明 fault owner/frontier 已清理。
+      clear_access_observation();
+      case_pc_q = PC_DIRECT + 64'h160;
+      case_stream_q = STREAM_CC_A;
+      case_n_bytes_q = 4;
+      case_l0_bytes_q = 2;
+      case_fault_offset_q = -1;
+      case_fault_rresp_q = AXI_SLVERR;
+      rsp_pc = case_pc_q;
+      issue_request_without_reset(case_pc_q);
+      service_until_response();
+      capture_and_consume_response();
+      ok = ok && !case_timeout_q && !unexpected_ar_q &&
+           (fetch_ar_count_q == 2) &&
+           (cap_raw_split_q == 3'd4) &&
+           (cap_dec0_resp_q == RESP_OK) && (cap_dec1_resp_q == RESP_OK);
+      if (ok)
+        $display("[ACCESS-G1-BACK-TO-BACK] packets=4 reset_between=0 poison_success=1 success_fault=1 fault_success=1 PASS");
+      record_sequence("four packets preserve and clear access owner state without reset", ok);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -899,6 +1278,22 @@ module tb_ooo_fetch_access_footprint;
     walk_fail_q = 0;
     pmp_rows_q = 0;
     pmp_fail_q = 0;
+    alignment_rows_q = 0;
+    alignment_fail_q = 0;
+    sequence_rows_q = 0;
+    sequence_fail_q = 0;
+    lifecycle_rows_q = 0;
+    lifecycle_fail_q = 0;
+    rresp_owner0_rows_q = 0;
+    rresp_owner1_rows_q = 0;
+    rresp_exokay_rows_q = 0;
+    rresp_slverr_rows_q = 0;
+    rresp_decerr_rows_q = 0;
+    pmp_owner0_rows_q = 0;
+    pmp_owner1_rows_q = 0;
+    success_side_effect_monitor_q = 1'b0;
+    fault_side_effect_monitor_q = 1'b0;
+    fault_frontier_seen_q = 1'b0;
 
     run_footprint_case("C/C offsets={0,2} ARSIZE=2B", STREAM_CC_A, 4, 2);
     run_footprint_case("C/U offsets={0,2,4} ARSIZE=2B", STREAM_CU_A, 6, 2);
@@ -913,19 +1308,29 @@ module tb_ooo_fetch_access_footprint;
                     6, 4);
     run_poison_empty_control();
 
-    // F=0 是控制；F=2/4/6 钉住 32-bit tail 与 slot1 owner。
-    run_rresp_case("C/C", STREAM_CC_A, 4, 2, 0);
-    run_rresp_case("C/C", STREAM_CC_A, 4, 2, 2);
-    run_rresp_case("C/U", STREAM_CU_A, 6, 2, 0);
-    run_rresp_case("C/U", STREAM_CU_A, 6, 2, 2);
-    run_rresp_case("C/U", STREAM_CU_A, 6, 2, 4);
-    run_rresp_case("U/C", STREAM_UC_A, 6, 4, 0);
-    run_rresp_case("U/C", STREAM_UC_A, 6, 4, 2);
-    run_rresp_case("U/C", STREAM_UC_A, 6, 4, 4);
-    run_rresp_case("U/U", STREAM_UU, 8, 4, 0);
-    run_rresp_case("U/U", STREAM_UU, 8, 4, 2);
-    run_rresp_case("U/U", STREAM_UU, 8, 4, 4);
-    run_rresp_case("U/U", STREAM_UU, 8, 4, 6);
+    // PC beat-lane 0/2/4/6 × C/C、C/U、U/C、U/U，覆盖跨 8B lane 回卷。
+    run_alignment_case("A0 C/C", PC_DIRECT + 64'd0, STREAM_CC_A, 4, 2);
+    run_alignment_case("A0 C/U", PC_DIRECT + 64'd0, STREAM_CU_A, 6, 2);
+    run_alignment_case("A0 U/C", PC_DIRECT + 64'd0, STREAM_UC_A, 6, 4);
+    run_alignment_case("A0 U/U", PC_DIRECT + 64'd0, STREAM_UU, 8, 4);
+    run_alignment_case("A2 C/C", PC_DIRECT + 64'd2, STREAM_CC_A, 4, 2);
+    run_alignment_case("A2 C/U", PC_DIRECT + 64'd2, STREAM_CU_A, 6, 2);
+    run_alignment_case("A2 U/C", PC_DIRECT + 64'd2, STREAM_UC_A, 6, 4);
+    run_alignment_case("A2 U/U", PC_DIRECT + 64'd2, STREAM_UU, 8, 4);
+    run_alignment_case("A4 C/C", PC_DIRECT + 64'd4, STREAM_CC_A, 4, 2);
+    run_alignment_case("A4 C/U", PC_DIRECT + 64'd4, STREAM_CU_A, 6, 2);
+    run_alignment_case("A4 U/C", PC_DIRECT + 64'd4, STREAM_UC_A, 6, 4);
+    run_alignment_case("A4 U/U", PC_DIRECT + 64'd4, STREAM_UU, 8, 4);
+    run_alignment_case("A6 C/C", PC_DIRECT + 64'd6, STREAM_CC_A, 4, 2);
+    run_alignment_case("A6 C/U", PC_DIRECT + 64'd6, STREAM_CU_A, 6, 2);
+    run_alignment_case("A6 U/C", PC_DIRECT + 64'd6, STREAM_UC_A, 6, 4);
+    run_alignment_case("A6 U/U", PC_DIRECT + 64'd6, STREAM_UU, 8, 4);
+
+    // F0/F2/F4/F6 与每个真实 instruction halfword，分别激活三种非 OK RRESP。
+    run_rresp_source_matrix(2'b01);
+    run_rresp_source_matrix(2'b10);
+    run_rresp_source_matrix(2'b11);
+    run_rresp_valid_gate_case();
 
     // B=2/4/6 × N=4/6/8：只有 N>B 才允许第二页 L0 walk。
     run_walk_case("B2 C/C", PC_FFE, STREAM_CC_A, 4, 2, 2);
@@ -941,12 +1346,34 @@ module tb_ooo_fetch_access_footprint;
     run_walk_case("B6 U/C", PC_FFA, STREAM_UC_A, 6, 4, 6);
     run_walk_case("B6 U/U", PC_FFA, STREAM_UU, 8, 4, 6);
 
-    run_pmp_frontier_case("PMP F=0 emits no data AR", PC_PMP_ALIGNED, 0);
-    run_pmp_frontier_case("PMP F=2 emits only offset0 AR", PC_PMP_HALF, 2);
-    run_pmp_frontier_case("PMP F=4 emits offsets0/2 only", PC_PMP_ALIGNED, 4);
-    run_pmp_frontier_case("PMP F=6 emits offsets0/2/4 only", PC_PMP_HALF, 6);
+    run_pmp_frontier_case("PMP C/C F=0", PC_PMP_ALIGNED,
+                          STREAM_CC_A, 4, 2, 0);
+    run_pmp_frontier_case("PMP C/C F=2", PC_PMP_HALF,
+                          STREAM_CC_A, 4, 2, 2);
+    run_pmp_frontier_case("PMP C/U F=0", PC_PMP_ALIGNED,
+                          STREAM_CU_A, 6, 2, 0);
+    run_pmp_frontier_case("PMP C/U F=2", PC_PMP_HALF,
+                          STREAM_CU_A, 6, 2, 2);
+    run_pmp_frontier_case("PMP C/U F=4", PC_PMP_ALIGNED,
+                          STREAM_CU_A, 6, 2, 4);
+    run_pmp_frontier_case("PMP U/C F=0", PC_PMP_ALIGNED,
+                          STREAM_UC_A, 6, 4, 0);
+    run_pmp_frontier_case("PMP U/C F=2", PC_PMP_HALF,
+                          STREAM_UC_A, 6, 4, 2);
+    run_pmp_frontier_case("PMP U/C F=4", PC_PMP_ALIGNED,
+                          STREAM_UC_A, 6, 4, 4);
+    run_pmp_frontier_case("PMP U/U F=0", PC_PMP_ALIGNED,
+                          STREAM_UU, 8, 4, 0);
+    run_pmp_frontier_case("PMP U/U F=2", PC_PMP_HALF,
+                          STREAM_UU, 8, 4, 2);
+    run_pmp_frontier_case("PMP U/U F=4", PC_PMP_ALIGNED,
+                          STREAM_UU, 8, 4, 4);
+    run_pmp_frontier_case("PMP U/U F=6", PC_PMP_HALF,
+                          STREAM_UU, 8, 4, 6);
     run_pmp_cached_default_deny();
     run_pmp_fixed_reject_exact_ok();
+    run_dual_source_program_order();
+    run_back_to_back_no_reset();
 
     $display("[ACCESS-G1-SUMMARY] footprint rows=%0d fail=%0d",
              footprint_rows_q, footprint_fail_q);
@@ -958,6 +1385,42 @@ module tb_ooo_fetch_access_footprint;
              walk_rows_q, walk_fail_q);
     $display("[ACCESS-G1-SUMMARY] pmp rows=%0d fail=%0d",
              pmp_rows_q, pmp_fail_q);
+    $display("[ACCESS-G1-SUMMARY] alignment rows=%0d fail=%0d",
+             alignment_rows_q, alignment_fail_q);
+    $display("[ACCESS-G1-SUMMARY] lifecycle rows=%0d fail=%0d",
+             lifecycle_rows_q, lifecycle_fail_q);
+    $display("[ACCESS-G1-SUMMARY] sequence rows=%0d fail=%0d",
+             sequence_rows_q, sequence_fail_q);
+    if ((footprint_rows_q == 4) && (footprint_fail_q == 0) &&
+        (poison_rows_q == 4) && (poison_fail_q == 0) &&
+        (rresp_rows_q == 36) && (rresp_fail_q == 0) &&
+        (rresp_owner0_rows_q == 18) && (rresp_owner1_rows_q == 18) &&
+        (rresp_exokay_rows_q == 12) && (rresp_slverr_rows_q == 12) &&
+        (rresp_decerr_rows_q == 12) &&
+        (walk_rows_q == 12) && (walk_fail_q == 0) &&
+        (pmp_rows_q == 14) && (pmp_fail_q == 0) &&
+        (pmp_owner0_rows_q == 6) && (pmp_owner1_rows_q == 6) &&
+        (alignment_rows_q == 16) && (alignment_fail_q == 0) &&
+        (lifecycle_rows_q == 2) && (lifecycle_fail_q == 0) &&
+        (sequence_rows_q == 1) && (sequence_fail_q == 0) &&
+        (tb_errors == 0)) begin
+      $display("[ACCESS-G1-MATRIX] footprint=4 poison=4 alignment=16 rresp=36 rresp_owner=18/18 rresp_sources=12/12/12 walk=12 pmp=14 pmp_owner=6/6 lifecycle=2 sequence=1 PASS");
+    end else begin
+      tb_errors = tb_errors + 1;
+      $display("[ACCESS-G1-MATRIX-FAIL] footprint=%0d/%0d poison=%0d/%0d alignment=%0d/%0d rresp=%0d/%0d owner=%0d/%0d sources=%0d/%0d/%0d walk=%0d/%0d pmp=%0d/%0d pmp_owner=%0d/%0d lifecycle=%0d/%0d sequence=%0d/%0d",
+               footprint_rows_q, footprint_fail_q,
+               poison_rows_q, poison_fail_q,
+               alignment_rows_q, alignment_fail_q,
+               rresp_rows_q, rresp_fail_q,
+               rresp_owner0_rows_q, rresp_owner1_rows_q,
+               rresp_exokay_rows_q, rresp_slverr_rows_q,
+               rresp_decerr_rows_q,
+               walk_rows_q, walk_fail_q,
+               pmp_rows_q, pmp_fail_q,
+               pmp_owner0_rows_q, pmp_owner1_rows_q,
+               lifecycle_rows_q, lifecycle_fail_q,
+               sequence_rows_q, sequence_fail_q);
+    end
     tb_finish("tb_ooo_fetch_access_footprint");
   end
 

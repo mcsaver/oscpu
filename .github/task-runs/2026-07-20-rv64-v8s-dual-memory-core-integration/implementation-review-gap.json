@@ -1,0 +1,36 @@
+{
+  "schema": "v8s-f2-bounded-review/v1",
+  "task_id": "v8s-f2-implementation-evidence-review",
+  "contract_json": ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-implementation-evidence-review.json",
+  "contract_json_sha256": "b344fa467e294da8699dd3a6668dec36c0d0d2defa0f6db42398a0c571a85e40",
+  "review_mode": "prompt-supplied-self-contained",
+  "verdict": "GAP",
+  "parent_goal_state": "active",
+  "blocking_gap": {
+    "area": "canonical hierarchy evidence supplied to reviewer",
+    "finding": "The bounded material listed top-level lint and F2_PROMOTED metadata but omitted the existing fail-closed hierarchy checker counts and its negative self-tests.",
+    "counterexamples_not_excluded_by_v1_material": [
+      "focused backend passes while canonical ENABLE_DUAL_MEM remains at its default",
+      "canonical top retains both the new dual wrapper and the old single bridge"
+    ],
+    "minimum_evidence_requested": [
+      "same-closure canonical parameter handoff and effective value",
+      "exact dual-wrapper/core-glue/legacy-bridge instance census",
+      "lane-face and mem1 non-tieoff checks",
+      "canonical-disable, duplicate/legacy, cross-wire or equivalent negative self-tests"
+    ]
+  },
+  "nonblocking_coverage_holes": [
+    "real ROB-index wrap-boundary same-bank age",
+    "EX0 and EX1 simultaneously occupy both WB slots while two memory responses hold and recover"
+  ],
+  "disposition": {
+    "status": "superseded_by_versioned_rereview",
+    "implementation_action": "Both directed coverage holes were added and passed in release/assert.",
+    "review_action": "A new canonical contract supplied the same-closure hierarchy checker and mutation-negative evidence without expanding tools or permissions."
+  },
+  "limitations": [
+    "The reviewer did not access raw RTL, logs, checker source or hashes.",
+    "This is a bounded-material review, not a repository audit."
+  ]
+}

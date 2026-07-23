@@ -8,7 +8,12 @@ module OooIntIssueSelect8 (
   input [7:0] base_ready_i,
   input [7:0] memory_i,
   input [7:0] alu_capable_i,
+  input [7:0] plain_memory_capable_i,
   input universal_owner_present_i,
+  // Q-only enable for exposing resident entries 0/1 as the next ordinary
+  // memory pair while the Universal terminal is owned by reservation Q.
+  // This input must not depend on issue READY or downstream transport READY.
+  input memory_pair_peek_enable_i,
 
   output [7:0] eligible_o,
   output issue0_found_o,
@@ -17,20 +22,23 @@ module OooIntIssueSelect8 (
   output issue1_found_o,
   output [2:0] issue1_idx_o,
   output [7:0] issue1_onehot_o,
-  output issue_pair_swapped_o
+  output issue_pair_swapped_o,
+  output memory_pair_peek_valid_o
 );
 
   wire [7:0] eligible_w;
 
   // packed age-order 下，只有队首 memory 可单独占 Universal；索引 1 的 memory
-  // 只允许与唯一 older-ready ALU 原子配对。即使非法 hole 态令 valid[0]=0，也不
+  // 只允许与唯一 older-ready ALU，或与队首普通整数 memory，原子配对。即使非法 hole 态令 valid[0]=0，也不
   // 放宽该门（fail closed，由上层 packed assertion 同时报告）。索引 2..7 必须等待
   // 压缩到前两项。
   assign eligible_w[0] = base_ready_i[0];
   assign eligible_w[1] = base_ready_i[1] &&
       (!memory_i[1] ||
        (!universal_owner_present_i && valid_i[0] && base_ready_i[0] &&
-        alu_capable_i[0]));
+        (alu_capable_i[0] ||
+         (plain_memory_capable_i[0] &&
+          plain_memory_capable_i[1]))));
   assign eligible_w[2] = base_ready_i[2] && !memory_i[2];
   assign eligible_w[3] = base_ready_i[3] && !memory_i[3];
   assign eligible_w[4] = base_ready_i[4] && !memory_i[4];
@@ -159,14 +167,28 @@ module OooIntIssueSelect8 (
   wire partner_valid_w = first_req_is_alu_w ?
       second_req_valid_w : first_alu_valid_w;
   wire partner_is_alu_w = |(partner_onehot_w & alu_capable_i);
+  wire memory_pair_w = !universal_owner_present_i &&
+      eligible_w[0] && eligible_w[1] &&
+      plain_memory_capable_i[0] && plain_memory_capable_i[1];
+  // The refill face reads only edge-old IQ state.  It intentionally bypasses
+  // eligible_w[1], whose normal selector rule blocks memory behind an
+  // occupied Universal terminal.  No issue valid is produced for this face.
+  wire owner_memory_pair_peek_w = universal_owner_present_i &&
+      memory_pair_peek_enable_i && valid_i[0] && valid_i[1] &&
+      base_ready_i[0] && base_ready_i[1] &&
+      plain_memory_capable_i[0] && plain_memory_capable_i[1];
   wire swap_w = !universal_owner_present_i && first_req_valid_w &&
       first_req_is_alu_w && partner_valid_w && !partner_is_alu_w;
 
-  wire [7:0] issue0_onehot_w = universal_owner_present_i ? 8'b0 :
-      (swap_w ? partner_onehot_w : first_req_onehot_w);
-  wire [7:0] issue1_onehot_w = universal_owner_present_i ?
+  wire [7:0] issue0_onehot_w = owner_memory_pair_peek_w ? 8'b0000_0001 :
+      universal_owner_present_i ? 8'b0 :
+      (memory_pair_w ? 8'b0000_0001 :
+       (swap_w ? partner_onehot_w : first_req_onehot_w));
+  wire [7:0] issue1_onehot_w = owner_memory_pair_peek_w ? 8'b0000_0010 :
+      universal_owner_present_i ?
       first_alu_onehot_w :
-      (swap_w ? first_req_onehot_w : partner_onehot_w);
+      (memory_pair_w ? 8'b0000_0010 :
+       (swap_w ? first_req_onehot_w : partner_onehot_w));
 
   // onehot→index 仅是三组平衡 OR；payload array mux 继续复用 IQ 既有实现。
   assign issue0_idx_o[2] = |issue0_onehot_w[7:4];
@@ -178,9 +200,11 @@ module OooIntIssueSelect8 (
 
   assign issue0_found_o = universal_owner_present_i || first_req_valid_w;
   assign issue1_found_o = universal_owner_present_i ?
-      first_alu_valid_w : partner_valid_w;
+      (!owner_memory_pair_peek_w && first_alu_valid_w) :
+      (memory_pair_w || partner_valid_w);
   assign issue0_onehot_o = issue0_onehot_w;
   assign issue1_onehot_o = issue1_onehot_w;
   assign issue_pair_swapped_o = swap_w;
+  assign memory_pair_peek_valid_o = owner_memory_pair_peek_w;
 
 endmodule

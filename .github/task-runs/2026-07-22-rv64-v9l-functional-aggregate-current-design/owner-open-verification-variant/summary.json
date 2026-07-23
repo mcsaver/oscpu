@@ -1,0 +1,11 @@
+{
+  "compile_succeeded": true,
+  "return_code": 2,
+  "schema": "rv64-v9l-owner-open-verification-variant-v1",
+  "scope": "local RV64 SystemVerilog Store Queue post-launch owner assertion",
+  "simulation_rejected_variant": true,
+  "source_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+  "test_log": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/owner-open-verification-variant/result/logs/tb_ooo_store_queue.log",
+  "variant": "replace post-launch owner-open check with first-launch admission check",
+  "variant_sha256": "aaaf5463cc59244c1263b0c709342306021cfc1c64eeb066cfff710d0ffe48e1"
+}

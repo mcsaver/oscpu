@@ -1,0 +1,127 @@
+# Agent Brief
+
+- `ok`: true
+- `recall_status`: complete
+- `source`: live-or-stored
+- `profile`: npc-dev
+- `terms`: peer maintenance
+- `focus_scope`: non-history
+- `token_estimate`: 2113 / 2400
+
+## Profile Suggestions
+- `npc-dev` score=8 matched=requested-profile command=`scripts/agent-e2e.sh --profile npc-dev`
+- `nemu` score=2 matched=maintenance, peer command=`scripts/agent-e2e.sh --profile nemu`
+- `agent-system` score=1 matched=maintenance command=`scripts/agent-e2e.sh --profile agent-system`
+- `github-index` score=1 matched=maintenance command=`scripts/agent-e2e.sh --profile github-index`
+
+## Commands
+- `python3 scripts/github_index_db.py brief <terms> --profile <profile> --focus-scope non-history`
+- `python3 scripts/github_index_db.py load --source auto --path <path>`
+- `python3 scripts/github_index_db.py audit-db-first`
+- `python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence`
+- `scripts/agent-e2e.sh --list-profiles`
+- `scripts/agent-e2e.sh --profile npc-dev`
+
+## Missing Paths
+- `.github/e2e/modules/npc-dev.md`
+- `.github/agents/npc-dev.agent.md`
+- `.github/memory/modules/npc-dev.md`
+
+## Chunks
+
+### .github/AGENTS.md#chunk-0001
+
+- `kind`: agent-rule
+- `lines`: 1-15
+- `tokens`: 328
+- `heading`: AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+- `summary`: > 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent / > （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等） / > 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。 / > / > 与本文件协作的入口文件分两类： / > 根...
+
+# AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+
+> 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent
+> （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等）
+> 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。
+>
+> 与本文件协作的入口文件分两类：
+> 根目录 `AGENTS.md` / 其他兼容入口文件是兼容 shim，保留最小可执行契约并回链本文件；
+> `.github/copilot-instructions.md` 不是薄指针，而是 GitHub Copilot 专属工程级补充规则。
+> 多份文件出现重叠时，以本文件作为跨 agent 通用基线；Copilot 的额外构建、调试与记录细则再叠加读取 `copilot-instructions.md`。
+>
+> 当前阶段的目标是“工程规则自动发现与会话恢复”，不是“插件式 UI 扩展”。因此本仓库优先补齐兼容 shim，不主动引入 `.codex-plugin/` 或 `.agents/plugins/marketplace.json`。
+
+---
+
+### .github/e2e/profiles/npc-dev.tsv#chunk-0001
+
+- `kind`: e2e-profile
+- `lines`: 1-5
+- `tokens`: 148
+- `heading`: npc-dev.tsv
+- `summary`: @include|software-flow|||| / npc-sim-contract|npc|e2e_npc_sim_contract|npc|npc/sim + backend manifests|NPC 开发环境入口只检查 NPC 仿真后端合同 / npc-single-contract|npc|e2e_npc_single_contract|npc|npc/single Makefile/Kconfig/vsrc/csrc|NPC single 后端合约入口存在 / npc-soc-contrac...
+
+@include|software-flow||||
+npc-sim-contract|npc|e2e_npc_sim_contract|npc|npc/sim + backend manifests|NPC 开发环境入口只检查 NPC 仿真后端合同
+npc-single-contract|npc|e2e_npc_single_contract|npc|npc/single Makefile/Kconfig/vsrc/csrc|NPC single 后端合约入口存在
+npc-soc-contract|npc|e2e_npc_soc_contract|npc|npc/soc + ysyxSoC CPU ABI|NPC SoC 后端合约入口存在
+npc-rv64-contract|npc|e2e_npc_rv64_contract|npc|npc/rv64 + Linux README|NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate
+
+### .github/memory/modules/npc.md#chunk-0002
+
+- `kind`: memory-module
+- `lines`: 3-9
+- `tokens`: 1547
+- `heading`: 当前状态
+- `summary`: <!-- 已实现的模块、信号位宽等 --> / - 2026-07-20(RV64-v8r-dual-memory-bridge-wrapper): **未接入 canonical core 的 F1 leaf 在 frozen closure `05743bcd448bae5da16110a5a0a8644e74de87fde8bf6047b324c904eb1cfc18` 上获得 `dual_bridge_cache_hit_leaf_verified`；DI-5/OOO-3/overall/PPA 继续...
+
+## 当前状态
+<!-- 已实现的模块、信号位宽等 -->
+- 2026-07-20(RV64-v8r-dual-memory-bridge-wrapper): **未接入 canonical core 的 F1 leaf 在 frozen closure `05743bcd448bae5da16110a5a0a8644e74de87fde8bf6047b324c904eb1cfc18` 上获得 `dual_bridge_cache_hit_leaf_verified`；DI-5/OOO-3/overall/PPA 继续 RED/unpromoted**。`OooDualMemBridgeWrapper` 例化两份 `OooMemAxiBridge` 与 F0 `OooDualMemAxiArbiter`，保持 lane0/lane1 request ready 和 response 独立，并把每 lane 已授权的 cache-hit store maintenance 交叉送往 peer D-cache；`OooDataWordCache` 对 peer maintenance 做 mask normalize、exact-word same-cycle hit block、逐 entry clear-wins，不让 peer 成为 SRAM port owner，非法 mask 唯一 fatal。MMU flush 仍要求双 bridge idle；wrapper 尚未由 `NpcCoreTop` 实例化。`make -C npc/rv64 check-dual-memory-bridge-wrapper` 固化 6 个 release/assert profile、2 个 assertion-negative、10/10 semantic mutation、F0 checker/target 兼容、style/contract、closure 与 architecture expected-RED，最终 run `v8r-f1-20260720T052716Z-935556`。为关闭真实假绿，producer-holder census 已补第二 memory reservation 的 producer/token（direct=16/token_q=13），`swap_peer_addr` mutation 用互异的 unused self payload 建立非对称反例。下一步 F2 必须在 canonical core 中建立第二 MIQ/final-PA SQ query/completion 与 end-to-end 双 lane 所有权；本条不授权 IPC/PPA 结论。证据 `.github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/`。
+- 2026-07-20(RV64-v8q-dual-memory-axi-fabric): **canonical design id `sha256:79e445cd976f7a2ace1da6288866b2442846677520052a95eea7c14504ab2cca` 下，未实例化的 `OooDualMemAxiArbiter` 获得 scoped `dual_axi_miss_fabric_leaf_verified`；same-digest DI-3/DI-4/OOO-1/OOO-2 fresh GREEN，DI-5/OOO-3/overall/PPA 继续 RED/unpromoted**。五态 registered-owner FSM 将 read 锁至 R terminal、write 以独立 `aw_seen_q/w_seen_q` 锁至 B terminal，non-owner request READY/response VALID 为零，response READY 仅来自 exact owner，`rr_q` 只在 terminal 更新；全系统同步 reset 组合静默并清所有 transport 状态，逐态 reset 后 orphan R/B 不可见，非法 read+write IDLE 全局 fail-closed。`make -C npc/rv64 check-dual-memory-fabric-foundation` 固化 release/assert/assert-negative、AR/R/AW/W/B stall/skew/fairness/reset matrix、12/12 compile-success semantic mutation、10/10 去注释 fail-closed checker、Verilator/style 与完整 closure pre/post；最终 run `v8q-f0-20260720T030925Z-849762`。canonical core 尚无该实例，F1 仍需双 bridge/cache-hit wrapper 与 peer maintenance，后续还需双 MIQ/final-PA SQ query/completion 和 IPC/PPA 证据。证据 `.github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/`。
+- 2026-07-20(RV64-v8q-review-workflow): 首轮 reviewer 的 F0-G01..G05 全部由 spec+TB+mutation+checker executable closure 关闭；final contract re-review 和 implementation review 使用 skill 生成、校验、render 的 `self-contained-no-tools` JSON（最终 SHA 分别 `ddfc6d7898c77b2cc660f60579660ba421064e6d6057e95278db7ab0d39b8487`、`191ff2dc5506253ad0c82a3db8eb8f768e72535f8f0de3a44c0d9baaf382e46d`），无 shell/文件/网络/账号/凭据/外部服务/写入，均 pass/blockers=0。source digest 变化会先让旧 architecture evidence fail closed，再 fresh 重发 sibling gates；审查节点若平台暂不处理仅记 `review_pending`，不阻塞父目标、不改变 RTL 语义重试、不以减少平台检查为目标。
+- 2026-07-20(RV64-v8q-workflow-e2e): 首次裸 `...-v8q` 的 agent-system/github-index 在节点全 PASS 后仍因 startup primary focus 缺失而 blocked，证明节点绿不会覆盖召回失败。末尾词形启发式随后被 G01/G02 反例否决，因为会让短 lifecycle slug 假非空并误删 JavaScript V8/v2ray；canonical runner 改为只删除受控相邻片段 `revtag-v<数字><可选字母>`，裸版本词与内部 `v8a` 保留，畸形/重复 marker 和纯生命周期仍 fail closed，task identity 原样绑定 report/manifest/DB。agent-system 正反回归、10/10 forward run 与 strict guard PASS；最终 reviewer 使用 SHA `46fe3b4d3cd33b088d4f32292b196f598a7d7a8f24bef139d706dbce8d040c82` 的原生 no-tools JSON，G01/G02 closed。该规则只纠正检索身份，不削弱 reviewer、RTL、架构或 PPA 门。
+- 2026-07-20(RV64-v8p-dual-memory-terminal-owners): **当前 design/proof provenance 下 DI-3 pair_matrix scoped GREEN；同 design_id 的 DI-4/OOO-1/OOO-2 fresh sibling 记录保留，architecture/PPA 继续 RED/unpromoted**。`OooIntIssueQueue` 为 resident entry 保存独立 plain-memory-terminal capability并排除 AMO/LR/SC/FP memory，`OooIntIssueSelect8` 按 packed age 把两个合法 entry 送到 terminal0/1；`OooIntBackend` 以原子 pair ready/fire 同沿建立两个 tracker token/full-PID owner、两个完整 reservation Q 和两个 captured-data LSU/AGU，bank1 不得越过 edge-old bank0，shared request 继续串行。SQ 双 bind 按 full PID 精确命中两个 store entry，七入口 collector 在双 dequeue stall 下保存 exact-live tuple 并 exactly-once 排空。永久入口 `make -C npc/rv64 check-pair-matrix` 覆盖 15/15 pair key、LL/LS/SL/SS、8 个互异非零 generation PID、10 个特殊访存排除、单 token 零部分 birth、release/assert 8/8 baseline、15/15 compile-success/elaborated/activated mutation、checker+manifest 28/28 和同摘要原子发布；完整 backend 非 focused release/assert 也通过。独立 no-tools reviewer pass/blocker=0，但只授权 DI-3；DI-1/2/5、OOO-3/4、downstream 双端口、formal exhaustiveness 和 PPA 未证明。证据 `.github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/`。
+
+### .github/copilot-instructions.md#chunk-0001
+
+- `kind`: instruction
+- `lines`: 1-2
+- `tokens`: 11
+- `heading`: YSYX 工作区 — 全局指导规范
+- `summary`: YSYX 工作区 — 全局指导规范
+
+# YSYX 工作区 — 全局指导规范
+
+### .github/memory/project-status.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-3
+- `tokens`: 38
+- `heading`: YSYX 项目状态总览
+- `summary`: > 本文件由 agent 自动维护，记录项目当前进度。每次完成重要任务后更新。
+
+# YSYX 项目状态总览
+
+> 本文件由 agent 自动维护，记录项目当前进度。每次完成重要任务后更新。
+
+### .github/memory/known-issues.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-4
+- `tokens`: 35
+- `heading`: 已知问题与调试历史
+- `summary`: > 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+# 已知问题与调试历史
+
+> 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+### .github/e2e/README.md#chunk-0001
+
+- `kind`: markdown
+- `lines`: 1-2
+- `tokens`: 6
+- `heading`: Agent E2E Profiles
+- `summary`: Agent E2E Profiles
+
+# Agent E2E Profiles

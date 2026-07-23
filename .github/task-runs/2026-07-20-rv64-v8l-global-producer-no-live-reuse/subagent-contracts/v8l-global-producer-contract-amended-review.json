@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8l-global-producer-contract-amended-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核v8l全局ProducerId no-live-reuse修订合同是否已关闭首轮blocker",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "只使用supplied material；不读取路径，不运行命令，不访问shell、文件系统或网络",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/subagent-contracts/v8l-global-producer-contract-amended-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "只使用supplied material；不读取路径，不运行命令，不访问shell、文件系统或网络"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "修订事实：当前IntIQ每entry唯一full-P字段是owner producer_id_q；src1/src2/fp-store source只保存physical-register tag与sticky-ready，wakeup不以ProducerId匹配，未来新增full-P source tag会使static discovered set先RED。当前EX0/EX1 PipeStageReg down_ready恒1且无WB skid；FP done FIFO已在FP aggregate，memory terminal collector只存tracker token，branch唯一跨周期P packet为列出的resolve stage；checker扫描全部可综合full-P声明和PipeStageReg packed anchors，新增skid/replay/completion/redirect Q未登记即失败。ROB不借同拍commit空位，guard、真实写slot generation和下游capture消费同一exported alloc_P={slot_generation_q[index]+1,index}。memory方程为capture=candidate&&tracker_alloc_ready且current memory IQ ready读取同一tracker_alloc_ready；要求assert indirect_live->tracker_live、P/kind/epoch稳定、token no-reuse、alloc失败时IQ不pop且downstream不capture。TB reference monitor直接扫描raw valid/P/token fields，禁止读取production mask。GEN_W=1真实wrap与逐domain raw-holder到mask/reference测试组合，evidence绑定manifest/checker/config/source SHA；其余architecture/PPA不提升。请返回verdict、blockers、required_changes、claim_boundary。"
+    ]
+  },
+  "deliverables": [
+    "结构化修订合同审查：verdict、blockers、required_changes、claim_boundary"
+  ],
+  "success_criteria": [
+    "确认首轮blocker是否已被可执行不变量关闭；若仍有blocker给出最小反例"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

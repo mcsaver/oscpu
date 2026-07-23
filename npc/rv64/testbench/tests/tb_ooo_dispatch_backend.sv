@@ -10,6 +10,8 @@ module tb_ooo_dispatch_backend;
   localparam ISSUE_COUNT_W = 4;
   localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
   localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+  localparam PRODUCER_COUNT = (1 << PRODUCER_ID_W);
+  localparam IQ_ENTRY_COUNT = (1 << (ISSUE_COUNT_W - 1));
 
   reg clk;
   reg rst;
@@ -28,6 +30,7 @@ module tb_ooo_dispatch_backend;
   reg [`XLEN-1:0] dispatch0_imm;
 
   reg dispatch1_valid;
+  reg dispatch1_optional;
   wire dispatch1_ready;
   reg [`XLEN-1:0] dispatch1_pc;
   reg [`INST_W-1:0] dispatch1_inst;
@@ -59,6 +62,34 @@ module tb_ooo_dispatch_backend;
   reg completion1_query_valid;
   reg [PRODUCER_ID_W-1:0] completion1_query_producer_id;
   wire completion1_query_match;
+  reg completion2_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion2_query_producer_id;
+  wire completion2_query_match;
+  reg completion3_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion3_query_producer_id;
+  wire completion3_query_match;
+  reg completion4_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion4_query_producer_id;
+  wire completion4_query_match;
+  reg completion5_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion5_query_producer_id;
+  wire completion5_query_match;
+  reg completion6_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion6_query_producer_id;
+  wire completion6_query_match;
+  reg [PRODUCER_COUNT-1:0] producer_live_mask;
+  wire [PRODUCER_COUNT-1:0] complete_producer_live_mask;
+  reg [PRODUCER_ID_W-1:0] v8l_forced_pid;
+  wire dispatch0_fire;
+  wire [ROB_INDEX_W-1:0] dispatch0_rob_idx;
+  wire [PRODUCER_ID_W-1:0] dispatch0_producer_id;
+  wire dispatch1_fire;
+  wire [ROB_INDEX_W-1:0] dispatch1_rob_idx;
+  wire [PRODUCER_ID_W-1:0] dispatch1_producer_id;
+  wire [ROB_INDEX_W-1:0] rob_head_idx;
+  wire rob_head_valid;
+  wire [PRODUCER_ID_W-1:0] rob_head_producer_id;
+  wire rob_head_launch_open;
 
   wire issue0_valid;
   reg issue0_ready;
@@ -132,8 +163,15 @@ module tb_ooo_dispatch_backend;
     .kill_rob_idx_i(kill_rob_idx),
     .issue_mem_block_i(1'b0),
     .universal_owner_present_i(1'b0),
+    .memory_pair_peek_enable_i(1'b0),
+    .memory_pair_peek_valid_o(),
+    .memory_pair_peek_ready_i(1'b0),
     .sq_alloc0_ready_i(1'b1),
     .sq_alloc1_ready_i(1'b1),
+    .lq_alloc0_ready_i(1'b1),
+    .lq_alloc1_ready_i(1'b1),
+    .producer_live_mask_i(producer_live_mask),
+    .producer_live_mask_o(complete_producer_live_mask),
     .branch_mispredict_valid_i(branch_mispredict_valid),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
@@ -156,7 +194,7 @@ module tb_ooo_dispatch_backend;
     .dispatch0_fp_st_src_ready_i(1'b1),
     .dispatch0_imm_i(dispatch0_imm),
     .dispatch1_valid_i(dispatch1_valid),
-    .dispatch1_optional_i(1'b0),
+    .dispatch1_optional_i(dispatch1_optional),
     .dispatch1_ready_o(dispatch1_ready),
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
@@ -202,6 +240,27 @@ module tb_ooo_dispatch_backend;
     .completion1_query_valid_i(completion1_query_valid),
     .completion1_query_producer_id_i(completion1_query_producer_id),
     .completion1_query_match_o(completion1_query_match),
+    .completion2_query_valid_i(completion2_query_valid),
+    .completion2_query_producer_id_i(completion2_query_producer_id),
+    .completion2_query_match_o(completion2_query_match),
+    .completion3_query_valid_i(completion3_query_valid),
+    .completion3_query_producer_id_i(completion3_query_producer_id),
+    .completion3_query_match_o(completion3_query_match),
+    .completion4_query_valid_i(completion4_query_valid),
+    .completion4_query_producer_id_i(completion4_query_producer_id),
+    .completion4_query_match_o(completion4_query_match),
+    .completion5_query_valid_i(completion5_query_valid),
+    .completion5_query_producer_id_i(completion5_query_producer_id),
+    .completion5_query_match_o(completion5_query_match),
+    .completion6_query_valid_i(completion6_query_valid),
+    .completion6_query_producer_id_i(completion6_query_producer_id),
+    .completion6_query_match_o(completion6_query_match),
+    .completion7_query_valid_i(1'b0),
+    .completion7_query_producer_id_i({PRODUCER_ID_W{1'b0}}),
+    .completion7_query_match_o(),
+    .resolve_query_valid_i(1'b0),
+    .resolve_query_producer_id_i({PRODUCER_ID_W{1'b0}}),
+    .resolve_query_match_o(),
     .early_wakeup0_valid_i(1'b0),
     .early_wakeup0_pdest_i({PHY_REG_ADDR_W{1'b0}}),
     .early_wakeup1_valid_i(1'b0),
@@ -239,6 +298,7 @@ module tb_ooo_dispatch_backend;
     .commit1_block_i(1'b0),
     .mem_quiet_i(1'b1),
     .commit0_valid_o(commit0_valid),
+    .commit0_producer_id_o(),
     .commit0_pc_o(commit0_pc),
     .commit0_next_pc_o(commit0_next_pc),
     .commit0_inst_o(commit0_inst),
@@ -251,6 +311,7 @@ module tb_ooo_dispatch_backend;
     .commit0_cause_o(commit0_cause),
     .commit0_tval_o(commit0_tval),
     .commit1_valid_o(commit1_valid),
+    .commit1_producer_id_o(),
     .commit1_pc_o(commit1_pc),
     .commit1_next_pc_o(commit1_next_pc),
     .commit1_inst_o(commit1_inst),
@@ -262,6 +323,16 @@ module tb_ooo_dispatch_backend;
     .commit1_exception_o(commit1_exception),
     .commit1_cause_o(commit1_cause),
     .commit1_tval_o(commit1_tval),
+    .dispatch0_fire_o(dispatch0_fire),
+    .dispatch0_rob_idx_o(dispatch0_rob_idx),
+    .dispatch0_producer_id_o(dispatch0_producer_id),
+    .dispatch1_fire_o(dispatch1_fire),
+    .dispatch1_rob_idx_o(dispatch1_rob_idx),
+    .dispatch1_producer_id_o(dispatch1_producer_id),
+    .rob_head_idx_o(rob_head_idx),
+    .rob_head_valid_o(rob_head_valid),
+    .rob_head_producer_id_o(rob_head_producer_id),
+    .rob_head_launch_open_o(rob_head_launch_open),
     .free_count_o(free_count),
     .rob_count_o(rob_count),
     .issue_count_o(issue_count),
@@ -271,6 +342,21 @@ module tb_ooo_dispatch_backend;
   wire unused_next_pc_w =
       (|issue0_next_pc) | (|issue1_next_pc) |
       (|commit0_next_pc) | (|commit1_next_pc);
+
+  // Independent v8l reference: scan the raw registered IQ entries instead of
+  // consuming either production mask.  This prevents a shared mask bug from
+  // making both the design check and the test agree on the same wrong answer.
+  function automatic [PRODUCER_COUNT-1:0] v8l_raw_iq_mask;
+    integer scan_i;
+    begin
+      v8l_raw_iq_mask = {PRODUCER_COUNT{1'b0}};
+      for (scan_i = 0; scan_i < IQ_ENTRY_COUNT; scan_i = scan_i + 1) begin
+        if (dut.u_issue_queue.valid_q[scan_i])
+          v8l_raw_iq_mask[
+              dut.u_issue_queue.producer_id_q[scan_i]] = 1'b1;
+      end
+    end
+  endfunction
 
   function [`CTRL_BUS_W-1:0] make_ctrl;
     input rs1_en;
@@ -302,6 +388,7 @@ module tb_ooo_dispatch_backend;
       dispatch0_rd_arch = 5'd0;
       dispatch0_imm = 32'h0;
       dispatch1_valid = 1'b0;
+      dispatch1_optional = 1'b0;
       dispatch1_pc = 32'h0;
       dispatch1_inst = 32'h0;
       dispatch1_ctrl = {`CTRL_BUS_W{1'b0}};
@@ -327,6 +414,17 @@ module tb_ooo_dispatch_backend;
       completion0_query_producer_id = {PRODUCER_ID_W{1'b0}};
       completion1_query_valid = 1'b0;
       completion1_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion2_query_valid = 1'b0;
+      completion2_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion3_query_valid = 1'b0;
+      completion3_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion4_query_valid = 1'b0;
+      completion4_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion5_query_valid = 1'b0;
+      completion5_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion6_query_valid = 1'b0;
+      completion6_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      producer_live_mask = {PRODUCER_COUNT{1'b0}};
     end
   endtask
 
@@ -436,18 +534,53 @@ module tb_ooo_dispatch_backend;
       completion0_query_producer_id = id0;
       completion1_query_valid = 1'b1;
       completion1_query_producer_id = wrong1;
+      completion2_query_valid = 1'b1;
+      completion2_query_producer_id = id1;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id0;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id1;
+      completion5_query_valid = 1'b1;
+      completion5_query_producer_id = id0;
+      completion6_query_valid = 1'b1;
+      completion6_query_producer_id = id1;
       #1;
       tb_check1("v8f bridge query0 exact open",
                 completion0_query_match, 1'b1);
       tb_check1("v8f bridge query1 wrong generation closed",
                 completion1_query_match, 1'b0);
+      tb_check1("v8g bridge memory query exact open",
+                completion2_query_match, 1'b1);
+      tb_check1("v8h bridge MulDiv query exact open",
+                completion3_query_match, 1'b1);
+      tb_check1("v8h bridge CLMUL query exact open",
+                completion4_query_match, 1'b1);
+      tb_check1("v8i bridge FP result query exact open",
+                completion5_query_match, 1'b1);
+      tb_check1("v8i bridge FP formal query exact open",
+                completion6_query_match, 1'b1);
       completion0_query_producer_id = wrong0;
       completion1_query_producer_id = id1;
+      completion2_query_producer_id = wrong1;
+      completion3_query_producer_id = wrong0;
+      completion4_query_producer_id = wrong1;
+      completion5_query_producer_id = wrong0;
+      completion6_query_producer_id = wrong1;
       #1;
       tb_check1("v8f bridge query0 wrong generation closed",
                 completion0_query_match, 1'b0);
       tb_check1("v8f bridge query1 exact open",
                 completion1_query_match, 1'b1);
+      tb_check1("v8g bridge memory query wrong generation closed",
+                completion2_query_match, 1'b0);
+      tb_check1("v8h bridge MulDiv wrong generation closed",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h bridge CLMUL wrong generation closed",
+                completion4_query_match, 1'b0);
+      tb_check1("v8i bridge FP result wrong generation closed",
+                completion5_query_match, 1'b0);
+      tb_check1("v8i bridge FP formal wrong generation closed",
+                completion6_query_match, 1'b0);
 
       wb0_valid = 1'b1;
       wb0_rob_idx = id0[ROB_INDEX_W-1:0];
@@ -460,6 +593,14 @@ module tb_ooo_dispatch_backend;
       completion0_query_producer_id = id0;
       completion1_query_valid = 1'b1;
       completion1_query_producer_id = id1;
+      completion3_query_valid = 1'b1;
+      completion3_query_producer_id = id0;
+      completion4_query_valid = 1'b1;
+      completion4_query_producer_id = id1;
+      completion5_query_valid = 1'b1;
+      completion5_query_producer_id = id0;
+      completion6_query_valid = 1'b1;
+      completion6_query_producer_id = id1;
       #1;
       tb_check1("v8f bridge done issue remains current",
                 issue0_producer_current, 1'b1);
@@ -467,6 +608,14 @@ module tb_ooo_dispatch_backend;
                 completion0_query_match, 1'b0);
       tb_check1("v8f bridge other completion remains open",
                 completion1_query_match, 1'b1);
+      tb_check1("v8h bridge done MulDiv completion closes",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h bridge other CLMUL completion remains open",
+                completion4_query_match, 1'b1);
+      tb_check1("v8i bridge done FP result completion closes",
+                completion5_query_match, 1'b0);
+      tb_check1("v8i bridge other FP formal completion remains open",
+                completion6_query_match, 1'b1);
 
       flush = 1'b1;
       #1;
@@ -478,8 +627,271 @@ module tb_ooo_dispatch_backend;
                 completion0_query_match, 1'b0);
       tb_check1("v8f bridge flush masks completion1",
                 completion1_query_match, 1'b0);
+      tb_check1("v8h bridge flush masks completion3",
+                completion3_query_match, 1'b0);
+      tb_check1("v8h bridge flush masks completion4",
+                completion4_query_match, 1'b0);
       $display("[V8F-DISPATCH-QUERY-BRIDGE] carrier/current/open/wrong-gen/done/flush PASS");
       reset_dut();
+    end
+  endtask
+
+  task automatic run_v8g_memory_lease_dispatch;
+    reg [PRODUCER_ID_W-1:0] pid0;
+    reg [PRODUCER_ID_W-1:0] pair_pid1;
+    begin
+      // Lane0 collision must stop the acceptance owner before any child fire.
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1400, 5'd1, 1'b1, 5'd2, 1'b1,
+                    5'd10, 1'b1);
+      // Make generation nonzero so a raw-index-only lookup is observably
+      // different from the full-PID indexed lease.
+      dut.u_rob.slot_generation_q[0] = {PRODUCER_GEN_W{1'b0}};
+      #1;
+      pid0 = dispatch0_producer_id;
+      tb_check1("v8h lane0 lease probe has nonzero generation",
+                |pid0[PRODUCER_ID_W-1:ROB_INDEX_W], 1'b1);
+      producer_live_mask[pid0] = 1'b1;
+      #1;
+      tb_check1("v8g lane0 live PID stalls dispatch0", dispatch0_ready, 1'b0);
+      tb_check1("v8g lane0 live PID produces no fire", dispatch0_fire, 1'b0);
+
+      // A mandatory lane1 collision atomically stalls lane0 as well.  The
+      // pair candidate is sampled before ready changes and remains Q-only.
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1410, 5'd1, 1'b1, 5'd2, 1'b1,
+                    5'd11, 1'b1);
+      set_dispatch1(32'h8000_1414, 5'd3, 1'b1, 5'd4, 1'b1,
+                    5'd12, 1'b1);
+      #1;
+      pair_pid1 = dut.rob_dispatch1_pair_producer_id_w;
+      tb_check1("v8h mandatory pair candidates are distinct",
+                dut.rob_dispatch0_producer_id_w != pair_pid1, 1'b1);
+      producer_live_mask[pair_pid1] = 1'b1;
+      #1;
+      tb_check1("v8g mandatory lane1 collision stalls lane0",
+                dispatch0_ready, 1'b0);
+      tb_check1("v8g mandatory lane1 collision has no lane1 fire",
+                dispatch1_fire, 1'b0);
+
+      // Optional lane1 may be dropped while lane0 advances.  Once lane0 fire
+      // selects tail+1, actual lane1 PID equals the fixed pair candidate and
+      // its own lease gate remains closed.
+      reset_dut();
+      commit_ready = 1'b0;
+      set_dispatch0(32'h8000_1420, 5'd1, 1'b1, 5'd2, 1'b1,
+                    5'd13, 1'b1);
+      set_dispatch1(32'h8000_1424, 5'd3, 1'b1, 5'd4, 1'b1,
+                    5'd14, 1'b1);
+      dispatch1_optional = 1'b1;
+      #1;
+      pair_pid1 = dut.rob_dispatch1_pair_producer_id_w;
+      tb_check1("v8h optional pair candidates are distinct",
+                dut.rob_dispatch0_producer_id_w != pair_pid1, 1'b1);
+      producer_live_mask[pair_pid1] = 1'b1;
+      #1;
+      tb_check1("v8g optional lane1 collision keeps lane0 ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("v8g optional lane1 collision drops lane1",
+                dispatch1_ready, 1'b0);
+      tb_check1("v8g optional lane0 fires", dispatch0_fire, 1'b1);
+      tb_check1("v8g optional lane1 does not fire", dispatch1_fire, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("v8g optional collision allocates exactly one ROB entry",
+                 {27'b0, rob_count}, 32'd1);
+      $display("[V8H-DISPATCH-PRODUCER-LEASE] lane0/mandatory/optional collision and pair-distinct gates PASS");
+      reset_dut();
+    end
+  endtask
+
+  // A resident IQ owner must block reuse on the exact edge where it issues
+  // and dies.  Only the following cycle may observe the released lease.  The
+  // forced candidate changes only the parent observation wire and is released
+  // before any subsequent allocation edge.
+  task automatic run_v8l_int_iq_lease_death_edge;
+    reg [PRODUCER_ID_W-1:0] held_pid;
+    reg [PRODUCER_COUNT-1:0] raw_mask;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8000_1500, 5'd0, 1'b0, 5'd0, 1'b0,
+                    5'd0, 1'b0);
+      #1;
+      held_pid = dispatch0_producer_id;
+      tb_check1("v8l IQ setup dispatch fires", dispatch0_fire, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      commit_ready = 1'b0;
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      raw_mask = v8l_raw_iq_mask();
+      tb_check1("v8l raw IQ scan sees resident P", raw_mask[held_pid], 1'b1);
+      if (complete_producer_live_mask !== raw_mask) begin
+        $display("FAIL v8l complete mask differs from independent raw IQ scan actual=%h raw=%h",
+                 complete_producer_live_mask, raw_mask);
+        tb_errors = tb_errors + 1;
+      end
+
+      v8l_forced_pid = held_pid;
+      force dut.rob_dispatch0_producer_id_w = v8l_forced_pid;
+      issue0_ready = 1'b1;
+      set_dispatch0(32'h8000_1504, 5'd0, 1'b0, 5'd0, 1'b0,
+                    5'd0, 1'b0);
+      #1;
+      tb_check1("v8l resident IQ P blocks exact candidate", dispatch0_ready,
+                1'b0);
+      tb_check1("v8l death edge has no candidate fire", dispatch0_fire,
+                1'b0);
+      `TB_TICK(clk);
+      #1;
+      raw_mask = v8l_raw_iq_mask();
+      tb_check1("v8l old IQ holder died after edge", raw_mask[held_pid], 1'b0);
+      tb_check1("v8l blocked death edge allocated no ROB entry",
+                rob_count == 5'd1, 1'b1);
+      tb_check1("v8l next cycle releases exact candidate", dispatch0_ready,
+                1'b1);
+      tb_check1("v8l next cycle candidate may fire", dispatch0_fire, 1'b1);
+      release dut.rob_dispatch0_producer_id_w;
+      reset_dut();
+      $display("[V8L-INTIQ-DEATH-EDGE] raw-Q holder blocks edge-old reuse and releases next cycle PASS");
+    end
+  endtask
+
+  // Drive the production allocate -> IQ issue -> WB -> commit path until the
+  // finite ProducerId space wraps.  The first completed P remains leased by
+  // the external reference mask; every intervening P must differ, and the
+  // exact repeat must stall until one full death edge has elapsed.
+  task automatic run_v8l_finite_generation_wrap;
+    integer txn_i;
+    reg [PRODUCER_ID_W-1:0] held_pid;
+    reg [PRODUCER_ID_W-1:0] txn_pid;
+    reg [PRODUCER_COUNT-1:0] raw_mask;
+    begin
+      reset_dut();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      commit_ready = 1'b1;
+
+      set_dispatch0(32'h8000_1600, 5'd0, 1'b0, 5'd0, 1'b0,
+                    5'd0, 1'b0);
+      #1;
+      held_pid = dispatch0_producer_id;
+      tb_check1("v8l wrap seed dispatch fires", dispatch0_fire, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      commit_ready = 1'b1;
+      #1;
+      raw_mask = v8l_raw_iq_mask();
+      tb_check1("v8l wrap seed reaches raw IQ", raw_mask[held_pid], 1'b1);
+      wb0_valid = 1'b1;
+      wb0_rob_idx = held_pid[ROB_INDEX_W-1:0];
+      wb0_pdest = {PHY_REG_ADDR_W{1'b0}};
+      wb0_data = 64'h0000_0000_0000_1600;
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      commit_ready = 1'b1;
+      #1;
+      tb_check1("v8l wrap seed reaches commit", commit0_valid, 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      commit_ready = 1'b1;
+      producer_live_mask[held_pid] = 1'b1;
+      #1;
+      tb_check1("v8l external completed holder remains leased",
+                complete_producer_live_mask[held_pid], 1'b1);
+
+      for (txn_i = 0; txn_i < PRODUCER_COUNT-1; txn_i = txn_i + 1) begin
+        set_dispatch0(32'h8000_1700 + (txn_i << 2),
+                      5'd0, 1'b0, 5'd0, 1'b0, 5'd0, 1'b0);
+        producer_live_mask[held_pid] = 1'b1;
+        #1;
+        txn_pid = dispatch0_producer_id;
+        if (txn_pid === held_pid) begin
+          $display("FAIL v8l finite wrap repeated held P too early txn=%0d pid=%h",
+                   txn_i, txn_pid);
+          tb_errors = tb_errors + 1;
+        end
+        tb_check1("v8l intervening dispatch remains ready", dispatch0_ready,
+                  1'b1);
+        tb_check1("v8l intervening dispatch fires", dispatch0_fire, 1'b1);
+        `TB_TICK(clk);
+        clear_inputs();
+        issue0_ready = 1'b1;
+        issue1_ready = 1'b1;
+        commit_ready = 1'b1;
+        producer_live_mask[held_pid] = 1'b1;
+        wb0_valid = 1'b1;
+        wb0_rob_idx = txn_pid[ROB_INDEX_W-1:0];
+        wb0_pdest = {PHY_REG_ADDR_W{1'b0}};
+        wb0_data = {{(`XLEN-32){1'b0}}, 16'h1700, txn_i[15:0]};
+        `TB_TICK(clk);
+        clear_inputs();
+        issue0_ready = 1'b1;
+        issue1_ready = 1'b1;
+        commit_ready = 1'b1;
+        producer_live_mask[held_pid] = 1'b1;
+        #1;
+        tb_check1("v8l intervening transaction reaches commit",
+                  commit0_valid, 1'b1);
+        `TB_TICK(clk);
+        clear_inputs();
+        issue0_ready = 1'b1;
+        issue1_ready = 1'b1;
+        commit_ready = 1'b1;
+        producer_live_mask[held_pid] = 1'b1;
+        #1;
+        if ((rob_count !== 5'd0) || (issue_count !== 4'd0)) begin
+          $display("FAIL v8l intervening transaction did not drain txn=%0d rob=%0d iq=%0d",
+                   txn_i, rob_count, issue_count);
+          tb_errors = tb_errors + 1;
+        end
+      end
+
+      set_dispatch0(32'h8000_1b00, 5'd0, 1'b0, 5'd0, 1'b0,
+                    5'd0, 1'b0);
+      producer_live_mask[held_pid] = 1'b1;
+      #1;
+      txn_pid = dispatch0_producer_id;
+      if (txn_pid !== held_pid) begin
+        $display("FAIL v8l finite wrap did not return to held P actual=%h held=%h",
+                 txn_pid, held_pid);
+        tb_errors = tb_errors + 1;
+      end
+      tb_check1("v8l wrapped live P stalls dispatch", dispatch0_ready, 1'b0);
+      tb_check1("v8l wrapped live P does not fire", dispatch0_fire, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("v8l wrapped holder blocks its full death edge",
+                rob_count == 5'd0, 1'b1);
+      producer_live_mask[held_pid] = 1'b0;
+      #1;
+      tb_check1("v8l wrapped P opens only after lease clears",
+                dispatch0_ready, 1'b1);
+      tb_check1("v8l wrapped P fires after lease clears", dispatch0_fire,
+                1'b1);
+      `TB_TICK(clk);
+      #1;
+      raw_mask = v8l_raw_iq_mask();
+      tb_check1("v8l wrapped birth becomes resident", raw_mask[held_pid],
+                1'b1);
+      tb_check1("v8l birth edge does not self-block prior fire",
+                complete_producer_live_mask[held_pid], 1'b1);
+      reset_dut();
+      $display("[V8L-FINITE-GENERATION-WRAP] allocate/WB/commit wrap and death-edge lease PASS transactions=%0d",
+               PRODUCER_COUNT);
     end
   endtask
 
@@ -823,6 +1235,11 @@ module tb_ooo_dispatch_backend;
                {28'b0, issue_count}, 32'd0);
 
     run_v8f_query_bridge();
+    run_v8g_memory_lease_dispatch();
+`ifdef V8L_GLOBAL_LEASE_FOCUSED
+    run_v8l_int_iq_lease_death_edge();
+    run_v8l_finite_generation_wrap();
+`endif
 
     tb_finish("tb_ooo_dispatch_backend");
   end

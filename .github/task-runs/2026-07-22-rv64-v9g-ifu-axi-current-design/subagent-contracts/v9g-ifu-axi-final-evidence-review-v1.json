@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9g-ifu-axi-final-evidence-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据冻结事实复核本地 RV64 取指 PTE A 位更新 AXI 写 owner 的 flush-drain 当前设计闭包，寻找足以推翻 IFU-AXI-G1 CLOSED 的周期级反例、证据自洽性缺口或越界声明。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/bus/AxiXbar.v",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
+      "npc/rv64/testbench/tests/tb_axi_xbar.sv",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/summary.json",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/summary.txt",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/architecture-source-provenance-rebind.json",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/architecture-hard-gates.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/subagent-contracts/v9g-ifu-axi-final-evidence-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-fetch-axi-bridge.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工作对象为已授权的本地 RV64 Verilog/SystemVerilog 双发射 OoO 处理器；本节点只复核随附 RTL 信号、事务周期、TB、EDA 与证据事实，不访问网络、远程主机、账号、凭据或第三方服务。",
+      "当前 design_id 为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；V9G 未修改任何生产 .v，变体运行前后 OooFetchAxiBridge.v 与 AxiXbar.v 哈希相同。",
+      "S_AD_UPDATE 中 AWVALID/WVALID 分别保持到自身 fire；aw_accepted_next=aw_done_q||aw_fire，w_accepted_next=w_done_q||w_fire，write_complete 要求两者与 B fire，effective_drop=ad_drop_q||mmu_flush_i。",
+      "write owner 只在寄存后的 state_q==S_AD_UPDATE 建立；旧状态仍为 S_WALK_R 时的 mmu_flush_i 属于 PTW read-owner 取消或排水，外层非写态 flush 分支优先，不能同拍新建 A-update write owner。",
+      "bridge focused 标记精确覆盖 AW-first、W-first、flush+first AW、flush+first W、flush+last AW+B、flush+last W+B、flush+AW+W+B、both-done+flush+B error、两拍 repeated flush、drop BRESP error、non-drop BRESP error、payload stability 与 drop quiet，结果 1/1 PASS。",
+      "bridge+xbar 标记证明 IFU B fire 后 owner 释放及后一 master 地址、数据、B response 进展；通用 AxiXbar 标记证明 BVALID 在 BREADY=0 下保持两拍且不提前释放 owner，并覆盖 AW-first/W-first，三项 focused 合计 3/3 PASS。",
+      "18/18 branch-local compile-success RTL verification variants 均由指定动态 oracle 拒绝：bridge 14/14、xbar 4/4；包含各 accepted-next fire、旧 done-only completion、same-cycle drop、sticky drop、flush 同拍首握手、BRESP 优先级、BVALID 非 B-fire 提前释放及 AW/W 同拍错误依赖。",
+      "当前 testbench Makefile 动态推导 module inventory=109，module aggregate 109/109；证据工具重建精确 marker、模块日志集合、18 个变体源码/哈希/失败标记、生产源码不变与源绑定，8/8 fail-closed 单测通过。",
+      "架构来源重绑只发现 Makefile 与 bridge TB 两个预期字节漂移；旧哈希均由精确逆变换重建，九项 directed record 非 provenance 语义投影不变，重放 DI-1..DI-5 与 OOO-1..OOO-4 为 9/9 GREEN。",
+      "账本中 IFU-AXI-G1 的 closed_binding 与 semantic_evidence 均 PASS，blocker 列表不含 IFU-AXI-G1；full-core architecture_freeze 仍为 GAP、blockers=41、PPA=UNQUALIFIED、promotion_eligible=false。",
+      "合法 slave 合同约束 BVALID 属于当前 write owner，并在 AW/W 均被接受后返回；reset 对 owner 的处理和非该合同的非法 BVALID 激励不属于本轮 IFU-AXI-G1 声明。"
+    ]
+  },
+  "deliverables": [
+    "给出限定材料的 PASS、GAP 或 inconclusive 裁决；列出任何能推翻当前闭包的逐周期反例、证据矛盾、残余风险、unknowns、替代假设、scope_extension_request 与 confidence_and_basis，并单独审查 full-core/PPA 边界是否准确。"
+  ],
+  "success_criteria": [
+    "若判 PASS，必须说明为什么 focused 组合、compile-success 变体、来源重绑和独立冻结验证足以支撑限域 CLOSED；若判 GAP 或 inconclusive，必须给出可执行的 signal/state/fire 反例及缺失 oracle，且不得把未随附事实视为已证明。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

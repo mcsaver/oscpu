@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-db-first-stored-memory-audit-v8q-rerun
+- `trace_id`: e2e:2026-07-20-db-first-stored-memory-audit-v8q-rerun
+- `task_slug`: db-first-stored-memory-audit-v8q-rerun
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 9b61a71311e711b3f2582bfd8bee3f63e28e01d9a6c345ac150d54bd6d087daa
+- `task_report_md_sha256`: 8dfaf21df46987a469b93eaf9e1788719cf58599f625ebc6627bf06a989138a6
+- `run_manifest_json_sha256`: 2372d38b12f26617f2511dc08e03f6dfbb8e90eb656ff11be9552a2fd3fb7cea
+- `context_brief_md_sha256`: 037695dc01a4743d749ebf2bde7c7d3a5fedca93b5d879ba7bf91492a46f74a9
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 79bebdbe9303a4f5d3f4b8f8031dd64ff1e96338187d75fbe42e364851ce4a46
+- `dispatch_log_md_sha256`: f4767c1ff1ff6d7580e98937d6a744f1ab91f86a75f1e8ac9e24b6705ace9e03
+- `nodes_tsv_sha256`: 9dbf61c4b65594ba4ab852bd6aee8f4666749c4a953c7c94d2505214735f0f15

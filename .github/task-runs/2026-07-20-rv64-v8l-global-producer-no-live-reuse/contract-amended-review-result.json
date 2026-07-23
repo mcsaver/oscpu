@@ -1,0 +1,16 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "required_changes": [],
+  "implementation_requirements": [
+    "每个indirect/transient domain必须有非空洞命中并检查raw-valid的P/token无未知值",
+    "slot_generation_q[index]+1保持显式GEN_W宽度模加",
+    "定向反例覆盖tracker backpressure、流水取消/分支恢复、holder死亡沿、真实wrap和逐domain mask删除mutation"
+  ],
+  "claim_boundary": [
+    "pass只确认修订合同自洽，不代表RTL已实现或scoped GREEN",
+    "GREEN仍须绑定manifest/checker/config/source SHA的真实assertion、checker与TB evidence",
+    "若唯一full-P字段、无skid或唯一branch packet等拓扑事实变化则verdict自动失效并先RED",
+    "architecture其余gate与PPA保持未提升"
+  ]
+}

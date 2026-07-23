@@ -1,0 +1,43 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "false_green_risks": [
+    {
+      "risk": "场景证据不是对所有指令组合的形式穷尽证明",
+      "blocking": false,
+      "reason": "当前 OOO-1 是受限验收声明；随附证据已覆盖 load_miss、MUL、DIV 三类目标长延迟生产者，并逐位核对完整 ProducerId、接受事件、授权写回、ROB 峰值及顺序退休。未穷尽的组合不得外推，但不否定该 scoped claim。"
+    },
+    {
+      "risk": "流水取消、分支恢复、异常 load 与 store 顺序未被本轮证明",
+      "blocking": false,
+      "reason": "这些路径明确不属于 OOO-1 边界；普通 cacheable、无 fault、无 store 的 load 仅证明长延迟容忍度，不提升 OOO-3 或完整恢复能力。"
+    },
+    {
+      "risk": "测试与实现可能存在未知共模遗漏",
+      "blocking": false,
+      "reason": "七个具有 activation marker 的源码定向变异分别击穿串行 issue、MIQ/MulDiv 冻结、过早退休及三类 ProducerId 截断，并均产生专属 CHECK-FAIL；结合 exact provenance、完整设计闭包摘要和账本守恒检查，现有材料中没有可导致 scoped OOO-1 假绿的具体反例。"
+    }
+  ],
+  "required_counterexamples": [],
+  "claim_boundary": {
+    "b1_b9_status": "closed",
+    "promote": [
+      "OOO-1"
+    ],
+    "preserve": [
+      "同 design_id、同 schema 的既有 OOO-2 记录"
+    ],
+    "proven": "在真实接受的 load_miss、MUL、DIV 长延迟旧生产者仍持有 exact full ProducerId 且尚未正式写回时，八个不同年轻生产者能够被接受并授权 exactly-once 写回；包含四次双 lane 同周期接受、九项 ROB 峰值集合一致性、资源排空守恒，以及旧生产者完成后九项 PID/PC 的严格顺序 exactly-once 退休。",
+    "not_proven": [
+      "OOO-3",
+      "异常或不可缓存 load",
+      "store、内存顺序及相关恢复",
+      "流水取消与完整分支恢复",
+      "其它 DI/OOO 架构门",
+      "PPA 合格性"
+    ],
+    "checker_binding": "仅认可 make -C npc/rv64 check-true-ooo-long-latency，并要求 exact provenance 与完整 vsrc 闭包 design_id；子任务合同 JSON 的 SHA-256 不得充当设计摘要。",
+    "overall_architecture_status": "RED",
+    "conclusion": "随附事实已经为初轮 B1-B9 提供可执行闭环；剩余风险均位于声明边界之外，或属于无法由有限动态验证彻底消除的一般残余风险，不阻断 scoped OOO-1 GREEN。"
+  }
+}

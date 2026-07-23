@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8r-dual-memory-bridge-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附冻结事实，复核本地 RV64 Verilog F1 双 bridge/cache-hit wrapper 合同对前次 B1-B4 语义缺口的处置是否充分，并确认 B5 被正确保留为 execution-pending 而非提前宣称完成",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/contract-review-result.json",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/contract-review-resolution.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/subagent-contracts/v8r-dual-memory-bridge-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工程仅限本地 RV64 Verilog/SystemVerilog 数字电路合同审查；网络、账号、凭据、外部服务、shell、工具、文件访问和写入全部禁止。复审不得假装已见到 RTL 或测试结果。",
+      "F1 是未接 NpcCoreTop/NpcTop 的叶级 wrapper，固定装配两份独立 OooMemAxiBridge 与已验证 F0 OooDualMemAxiArbiter；无第二 MIQ、bank route、final-PA SQ query、formal WB credit 或 IPC 证据。",
+      "laneN READY/response 只由 bridgeN 驱动；cache hit 位于共享 F0 前，一侧 miss owner 锁到 terminal 不得冻结另一侧 hot hit；两个 response 不合并。",
+      "bridge peer_maintenance valid/address/wstrb 必须逐拍直接等于既有 dcache_store_commit_w 及其本地同一 maintenance payload，禁止从裸 BVALID、AW/W、request、arbiter lane 或地址位重建。",
+      "peer sideband 无 ready、无寄存、valid-only，不占 SRAM owner；wrapper 只做 lane0 producer 到 lane1 consumer、lane1 producer 到 lane0 consumer 的 valid/address/wstrb 原样交叉。",
+      "B1 处置：DMA invalidate 可见拍显式组合屏蔽 OooDataWordCache.lookup_hit_o；采样沿以 reset 之后最高运行期优先级清全 valid，因此同拍 exact lookup 不可返回旧数据。",
+      "B2 处置：mmu_flush_i carrying contract 要求断言前两 bridge 均 idle；合法事件拍 OooSv39Tlb.lookup_context_hit_o 既有 !clear_i 门控旧 hit，同时 bridge request READY 为零；非 idle pulse 由 wrapper OOO_ASSERT assert-negative 拒绝。",
+      "B3 处置：valid 更新按 entry 合并，不是全 cache peer/local if-else。local fill/store 先更新各自 index，peer 随后只清首/次目标 index；不同 index local update 同拍保留，同 index包括不同 tag时 peer clear最终获胜。DMA 才是吞掉整拍 local/peer valid 更新的全局外层优先级。",
+      "B4 处置：maintenance addr 冻结为 producer 锁存的原始 byte PA；wstrb 严格为相对该 PA 从低位开始的连续规范化 01/03/0f/ff，表示 1/2/4/8 byte；zero、稀疏、AXI lane-shifted mask由 producer和consumer OOO_ASSERT拒绝。唯一跨线公式为 addr[2:0]+popcount(wstrb)>8，最多清当前和下一 8B line。",
+      "peer 与 lookup 同拍时，对已锁存 exact tag/index 与首/次 affected line做组合比较并屏蔽 hit；不相关 exact line不组合屏蔽。peer/local fill冲突允许宏写，但上述逐 entry valid规则决定可见性。",
+      "同步高有效 reset 只从首次上升沿采样 rst=1 后进入 cold/quiet；其后 reset 区间不得输出旧 response/maintenance，peer/DMA/lookup/pending-response重合必须验证，解除后不重放维护。F0保留更强组合 reset quiet但不外推到所有子模块。",
+      "计划硬门显式包含：DMA同拍lookup、合法/非法MMU flush、peer与fill三类index冲突、合法mask和offset全枚举、非法mask assert-negative、B与lookup同拍、AW/W/B反压期不过早维护、killed escaped write、B error/NC/IO/A-D不误RMW、双向hit-under-peer-miss、双response四种ready、cross-wire结构、reset重合。",
+      "计划mutation为 disconnect_peer_valid、self_only_peer、swap_peer_addr、request_time_maintenance、b_ok_only_peer、drop_cross_line_peer、remove_same_cycle_hit_block、fill_wins_peer、gate_lane1_ready_on_arbiter_idle、merge_dual_response；每项须compile success、elaborated、activated、唯一target rejected。",
+      "前次 B5 不因文本修订关闭：当前仍无 RTL、TB、checker、mutation、aggregate 或同 digest 结果，禁止实际使用 dual_bridge_cache_hit_leaf_verified；只有全部 fresh hard gate 成功后才允许该唯一叶级 claim。",
+      "即使未来 F1 hard gate全部成功，DI-5、OOO-3、overall仍 RED，PPA unqualified；不声称 same-lane hit-under-own-miss、未来双B同拍冲突或canonical integration。"
+    ]
+  },
+  "deliverables": [
+    "返回严格 JSON，字段包含 verdict(pass/gap/inconclusive)、b1_to_b4_resolution、b5_evidence_gate、remaining_blockers、counterexamples、assumptions、claim_boundary_ok、contract_compliance、confidence_and_basis。只判断合同充分性，不把计划证据写成运行结果。"
+  ],
+  "success_criteria": [
+    "逐项判断 B1-B4 是否由冻结语义唯一闭合，并主动寻找 DMA/MMU/valid merge/wstrb/reset 的剩余合同级反例。",
+    "确认 B5 保持 execution-pending，唯一 leaf claim、DI-5/OOO-3/overall RED、PPA unqualified 和非目标边界准确。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,29 @@
+schema=npc-rv64-memory-issue-lifecycle-evidence-v1
+design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+canonical_command=make -C npc/rv64 check-memory-issue-lifecycle
+mem_pair_capture=2
+mem_terminal0_local=1
+mem_terminal1_hold=1
+mem_request_fire=1
+mem_terminal1_consume=1
+mem_miq_birth=1
+mem_identity_match=1
+mem_identity_fields=15
+mem_backpressure_hold=2
+mem_owner_arbitration=1
+mem_no_repeat=1
+mem_quiet_cycles=3
+miq_consumed_drain_removed=1
+miq_stalled_head_no_pop_preserved=1
+miq_unconsumed_drain_preserved=1
+miq_survivor_identity_match=1
+miq_wrapped_order=1
+compile_success_rtl_variants=11
+dynamic_rejected_rtl_variants=11
+mem_issue_variants=8/8
+miq_flush_variants=3/3
+module_aggregate=109/109
+ppa=UNQUALIFIED
+promotion_eligible=false
+[MEM-ISSUE-G1-GATE] PASS
+[MIQ-FLUSH-G1-GATE] PASS

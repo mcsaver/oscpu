@@ -1,0 +1,69 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "counterexamples": [
+    {
+      "candidate": "串行执行、空 lane1 或仅统计派发数造成假双发射",
+      "result": "rejected",
+      "basis": "三类场景均记录四次 issue0&&issue1 同周期真实接受；old 加八个不同 young 的完整 ProducerId 与实际 ROB valid entry 九项集合逐项相等，且 serial_issue1 定向变异已编译、激活并被专属 CHECK-FAIL 拒绝。"
+    },
+    {
+      "candidate": "MIQ 或 MulDiv 的 lane1 实际被冻结，通用计数器仍误报并行",
+      "result": "rejected",
+      "basis": "miq_issue1_freeze 与 muldiv_issue1_freeze 均为实际源码 compile-success、带 activation marker 的定向变异，并分别被语义检查拒绝。"
+    },
+    {
+      "candidate": "长延迟 old 不是实际活跃事务，young WB 发生在伪造等待窗口",
+      "result": "rejected",
+      "basis": "load 使用真实 cacheable、无 fault、无 store 请求进入 MIQ/tracker 后延迟响应；MUL/DIV 使用真实迭代 owner state。八个 young 的 issue 与 authorized exactly-once WB 期间逐拍检查 old exact owner live。"
+    },
+    {
+      "candidate": "ProducerId 截断、generation 混淆或 stale owner/response 冒充正确生产者",
+      "result": "rejected",
+      "basis": "old 使用非零 generation；接受、owner-live、formal WB 与 commit 均绑定完整 ProducerId。load_owner_pid_truncate、muldiv_owner_pid_truncate、muldiv_resp_pid_truncate 三个激活变异均被专属语义检查拒绝。"
+    },
+    {
+      "candidate": "young 仅被接受但没有真实完成，或同一 WB 被重复记账",
+      "result": "rejected",
+      "basis": "八个不同 young 均完成 issue accept 与 authorized exactly-once WB，且全部发生在 old formal WB 前；完整 PID 集合和九项 ROB 实体集合相等，排除了只依赖事件总数的记账。"
+    },
+    {
+      "candidate": "old 未完成即退休，掩盖有序提交边界错误",
+      "result": "rejected",
+      "basis": "old formal WB 前禁止任何 commit；retire_before_head_done 激活变异被拒绝。随后九项 commit0/commit1 按派发账本中的完整 PID 与 PC 严格有序且 exactly-once 退休。"
+    },
+    {
+      "candidate": "以 stale design、错误命令或非原子清单替换提升 OOO-1",
+      "result": "rejected",
+      "basis": "checker 仅接受固定命令并核对 OOO-1 exact provenance、完整 vsrc closure design_id、定量 marker、源码前后哈希不变及账本守恒；合并器仅保留同 schema、同 design_id 的 sibling 记录，且 replace 前故障注入证明旧清单字节不变并仍可解析。"
+    }
+  ],
+  "evidence_binding_review": {
+    "contract_binding": "契约 SHA-256 f76bf979a12c1e0cb16c32c549b9e20bcfd0e10871c968041d855f37625bd590 仅绑定指定 JSON 契约，不被误用为 RTL、设计 spec 或 contract.md 的哈希。",
+    "design_binding": "生产 RTL 功能未在本轮修改；证据绑定完整 vsrc 闭包 design_id sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293。",
+    "execution_binding": "release 与 OOO_ASSERT 的 load_miss、MUL、DIV 共六个 baseline 全部通过；七个变异均先编译并由 activation marker 证明命中，再由专属 CHECK-FAIL 拒绝。",
+    "ledger_binding": "issue、owner-live、formal WB、commit 均使用完整 ProducerId；收尾要求 ROB、IQ、MIQ、tracker、MulDiv owner 与 free-list 账本排空守恒。",
+    "publication_binding": "证据生成器不得自行提升其它门；同设计合并、stale design 不继承和失败替换原子性均有覆盖。",
+    "review_limit": "本审查按 self-contained-no-tools 契约只核对随附冻结事实之间是否存在可执行反例，未自行读取文件或重算哈希。"
+  },
+  "claim_boundary": {
+    "accepted_claim": "仅接受 scoped OOO-1：在真实 load miss 或迭代 MUL/DIV old owner 持续存活期间，八个不同 young 生产者形成四次双 lane 非空接受，并在 old formal WB 前完成 authorized exactly-once WB；九项真实 ROB 身份随后严格有序且 exactly-once 退休。",
+    "why_not_false_green": "非空双发射、九项实体驻留、完整身份绑定、真实长延迟 owner、完成资格、退休边界及证据发布路径分别由正向定量检查和七个已激活定向变异交叉约束，串行化、伪 lane1、PID 截断、提前退休和 stale 证据均不能满足全部条件。",
+    "excluded_claims": [
+      "OOO-2 仅保留同 design_id 的既有记录，不属于本轮新增证明",
+      "OOO-3",
+      "异常或不可缓存 load",
+      "store 与内存顺序",
+      "流水取消",
+      "完整分支恢复",
+      "其它架构门",
+      "PPA"
+    ],
+    "overall_status": "RED"
+  },
+  "residual_risks": [
+    "当前结论是有限定向场景与七个变异支持的 scoped 结论，不等价于形式化穷举所有状态交错。",
+    "测试台、checker 与证据生成器仍可能存在共同模式缺陷；随附材料未提供独立形式验证结果。",
+    "流水取消、完整分支恢复、异常、不可缓存访问、store/内存顺序及更宽乱序窗口均未覆盖，因此不得从 OOO-1 GREEN 外推到 OOO-3、完整架构正确性或 PPA。"
+  ]
+}

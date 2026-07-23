@@ -50,6 +50,7 @@ module tb_ooo_fetch_axi_bridge;
   wire ifu_axi_awvalid;
   reg ifu_axi_awready;
   wire [`XLEN-1:0] ifu_axi_awaddr;
+  wire [2:0] ifu_axi_awsize;
   wire ifu_axi_wvalid;
   reg ifu_axi_wready;
   wire [`XLEN-1:0] ifu_axi_wdata;
@@ -159,6 +160,7 @@ module tb_ooo_fetch_axi_bridge;
     .ifu_axi_awvalid_o(ifu_axi_awvalid),
     .ifu_axi_awready_i(ifu_axi_awready),
     .ifu_axi_awaddr_o(ifu_axi_awaddr),
+    .ifu_axi_awsize_o(ifu_axi_awsize),
     .ifu_axi_wvalid_o(ifu_axi_wvalid),
     .ifu_axi_wready_i(ifu_axi_wready),
     .ifu_axi_wdata_o(ifu_axi_wdata),
@@ -592,7 +594,13 @@ module tb_ooo_fetch_axi_bridge;
     input [`XLEN-1:0] exp_addr;
     input [`XLEN-1:0] exp_wdata;
     integer waits;
+    integer stall_cycle;
     begin
+      // PTW A-bit write uses two independent AXI write channels.  Hold both
+      // channels for two complete cycles, accept AW first, then accept W, and
+      // present B only after both channel handshakes have completed.
+      ifu_axi_awready = 1'b0;
+      ifu_axi_wready = 1'b0;
       waits = 0;
       while ((ifu_axi_awvalid !== 1'b1) && (waits < 20)) begin
         tick();
@@ -601,11 +609,53 @@ module tb_ooo_fetch_axi_bridge;
       tb_check1(what, ifu_axi_awvalid, 1'b1);
       tb_check1(what, ifu_axi_wvalid, 1'b1);
       if (ifu_axi_awvalid === 1'b1) begin
-        tb_check64_local(what, ifu_axi_awaddr, exp_addr);
+        tb_check64_local("V9K IFU allow AWADDR equals checked PTE address",
+                         ifu_axi_awaddr, exp_addr);
+        tb_check64_local("V9K IFU allow AWADDR equals registered checker address",
+                         ifu_axi_awaddr, dut.walk_pte_addr_q);
+        tb_check1("V9K IFU PTE write uses 8B AWSIZE",
+                  ifu_axi_awsize == 3'd3, 1'b1);
         tb_check64_local(what, ifu_axi_wdata, exp_wdata);
         tb_check1(what, &ifu_axi_wstrb, 1'b1);
       end
-      tick();                     // AW/W 握手(awready/wready=1 → aw_done/w_done)
+
+      for (stall_cycle = 0; stall_cycle < 2;
+           stall_cycle = stall_cycle + 1) begin
+        tb_check1("V9K IFU stalled AW remains valid", ifu_axi_awvalid, 1'b1);
+        tb_check64_local("V9K IFU stalled AWADDR remains checked PTE address",
+                         ifu_axi_awaddr, exp_addr);
+        tb_check1("V9K IFU stalled AW keeps 8B AWSIZE",
+                  ifu_axi_awsize == 3'd3, 1'b1);
+        tb_check1("V9K IFU stalled W remains valid", ifu_axi_wvalid, 1'b1);
+        tb_check64_local("V9K IFU stalled WDATA remains A-updated PTE",
+                         ifu_axi_wdata, exp_wdata);
+        tb_check1("V9K IFU stalled WSTRB remains full", &ifu_axi_wstrb, 1'b1);
+        tick();
+      end
+
+      ifu_axi_awready = 1'b1;
+      tick();                     // AW-first handshake
+      ifu_axi_awready = 1'b0;
+      #1;
+      tb_check1("V9K IFU accepted AW is not reissued", ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU AW-first keeps W pending", ifu_axi_wvalid, 1'b1);
+      tb_check64_local("V9K IFU AW-first keeps WDATA stable",
+                       ifu_axi_wdata, exp_wdata);
+      tb_check1("V9K IFU AW-first keeps WSTRB stable", &ifu_axi_wstrb, 1'b1);
+      tb_check1("V9K IFU AW-first remains in A-update",
+                dut.state_q == S_AD_UPDATE_TB, 1'b1);
+
+      ifu_axi_wready = 1'b1;
+      tick();                     // delayed W handshake
+      ifu_axi_wready = 1'b0;
+      #1;
+      tb_check1("V9K IFU accepted AW remains non-reissued",
+                ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU accepted W is not reissued", ifu_axi_wvalid, 1'b0);
+      tb_check1("V9K IFU both write channels wait for B", ifu_axi_bready, 1'b1);
+      tb_check1("V9K IFU does not complete before B",
+                dut.state_q == S_AD_UPDATE_TB, 1'b1);
+
       ifu_axi_bvalid = 1'b1;
       ifu_axi_bresp = RESP_OK;
       tick();                     // FSM 见 bvalid → 完成 → re-walk 本级
@@ -632,11 +682,157 @@ module tb_ooo_fetch_axi_bridge;
       expect_ar(what, pte_addr(L1_PT, vaddr, 2'd1));
       drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
       expect_ar(what, l0_leaf_addr);
-      drive_r(leaf_pte_a0, RESP_OK);          // A=0 leaf → 触发 A 更新
+      while (ifu_axi_rready !== 1'b1) tick();
+      ifu_axi_rdata = leaf_pte_a0;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      #1;
+      tb_check1("V9K IFU PTE WRITE checker grants RW region",
+                dut.walk_pte_write_pmp_fault_w, 1'b0);
+      tb_check1("V9K IFU allow has no deny event",
+                dut.walk_ad_write_deny_w, 1'b0);
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("V9K IFU allow enters A-update",
+                dut.state_q == S_AD_UPDATE_TB, 1'b1);
+      tb_check1("V9K IFU allow presents AW", ifu_axi_awvalid, 1'b1);
+      tb_check1("V9K IFU allow presents W", ifu_axi_wvalid, 1'b1);
+      tb_check1("V9K IFU allow presents 8B AWSIZE",
+                ifu_axi_awsize == 3'd3, 1'b1);
       drive_ad_write(what, l0_leaf_addr, leaf_pte_a1);
+      $display("[V9K-IFU-PTW-PMP-WRITE-ALLOW] read=allow write=allow checker=grant ad_update=1 awaddr=checked aw=once w=once awsize=3 split=aw-first stall=2 payload=stable b_after_both=1");
       expect_ar(what, l0_leaf_addr);          // re-walk 本级
       drive_r(leaf_pte_a1, RESP_OK);          // 读回 A=1
       drive_fetch_packet(what, paddr, inst_beat);
+    end
+  endtask
+
+  // V9K current-design rebinding: after F=2/4/6 successful instruction
+  // bytes from page 0, page 1 resolves to an A=0 executable leaf whose PTE
+  // lies in an S-mode read-only PMP region.  The PTE write deny must preserve
+  // the exact successful prefix and must not expose any younger AR/AW/W.
+  task automatic ptw_ad_write_pmp_frontier_deny;
+    input [2:0] frontier;
+    reg [`XLEN-1:0] start_vaddr;
+    reg [`XLEN-1:0] first_paddr;
+    reg [`XLEN-1:0] leaf_pte_a0;
+    integer offset;
+    begin
+      reset_protocol_case();
+      start_vaddr = CROSS_NEXT_VA - frontier;
+      first_paddr = CROSS_PA0 + 64'h1000 - frontier;
+      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+      pmpcfg[0 +: 8] = 8'h09;
+      pmpcfg[8 +: 8] = 8'h1f;
+      pmpaddr[0 +: `XLEN] = 64'h0000_0000_8180_0000 >> 2;
+      pmpaddr[`XLEN +: `XLEN] = {`XLEN{1'b1}};
+      leaf_pte_a0 = pte_for_page(CROSS_PA1, PTE_USER_X_NO_ACCESS_FLAGS);
+
+      start_fetch("V9K IFU second-page PTE-write deny request", start_vaddr,
+                  `PRIV_U);
+      expect_ar("V9K IFU first-page root PTE", pte_addr(ROOT_PT, start_vaddr, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU first-page L1 PTE", pte_addr(L1_PT, start_vaddr, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU first-page leaf PTE", pte_addr(L0_PT, start_vaddr, 2'd0));
+      drive_r(pte_for_page(CROSS_PA0, PTE_USER_X_FLAGS), RESP_OK);
+
+      for (offset = 0; offset < frontier; offset = offset + 2) begin
+        expect_ar("V9K IFU successful first-page halfword", first_paddr + offset);
+        drive_fetch_halfword(CROSS_MERGED_BEAT, offset[2:0]);
+      end
+
+      expect_ar("V9K IFU second-page root PTE", pte_addr(ROOT_PT, CROSS_NEXT_VA, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU second-page L1 PTE", pte_addr(L1_PT, CROSS_NEXT_VA, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU second-page leaf PTE", pte_addr(L0_PT, CROSS_NEXT_VA, 2'd0));
+      while (ifu_axi_rready !== 1'b1) tick();
+      ifu_axi_rdata = leaf_pte_a0;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      #1;
+      tb_check1("V9K IFU second-page final EXEC PMP remains allowed",
+                dut.walk_leaf_current_pmp_fault_w, 1'b0);
+      tb_check1("V9K IFU second-page PTE WRITE PMP denies",
+                dut.walk_pte_write_pmp_fault_w, 1'b1);
+      tb_check1("V9K IFU second-page deny event qualified",
+                dut.walk_ad_write_deny_w, 1'b1);
+      tb_check1("V9K IFU second-page deny emits no AW", ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU second-page deny emits no W", ifu_axi_wvalid, 1'b0);
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("V9K IFU second-page deny returns response", fetch_rsp_valid, 1'b1);
+      tb_check2("V9K IFU second-page prefix remains OK", fetch_rsp_resp0, RESP_OK);
+      tb_check2("V9K IFU second-page suffix is access fault",
+                fetch_rsp_resp1, RESP_ACCESS_FAULT);
+      tb_check1("V9K IFU second-page prefix length is exact",
+                fetch_rsp_resp0_bytes == frontier, 1'b1);
+      tb_check1("V9K IFU response emits no younger AR", ifu_axi_arvalid, 1'b0);
+      tb_check1("V9K IFU response still emits no AW", ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU response still emits no W", ifu_axi_wvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("V9K IFU held deny remains AR quiet", ifu_axi_arvalid, 1'b0);
+      tb_check1("V9K IFU held deny remains AW quiet", ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU held deny remains W quiet", ifu_axi_wvalid, 1'b0);
+      $display("[V9K-IFU-PTW-PMP-WRITE-DENY] frontier=%0d read=allow write=deny prefix=%0d access-fault=1 ar=0 aw=0 w=0",
+               frontier, frontier);
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // A full 8B PTE write overlaps but is not fully contained in entry0;
+  // a wrong 4B checker mutation would fit and incorrectly grant the write.
+  task automatic ptw_ad_write_pmp_partial_cover_deny;
+    reg [`XLEN-1:0] leaf_pte_a0;
+    reg [`XLEN-1:0] leaf_addr;
+    begin
+      reset_protocol_case();
+      leaf_addr = pte_addr(L0_PT, USER_VA, 2'd0);
+      start_fetch("V9K IFU partial-cover PTE-write request", USER_VA, `PRIV_U);
+      expect_ar("V9K IFU partial-cover root PTE", pte_addr(ROOT_PT, USER_VA, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU partial-cover L1 PTE", pte_addr(L1_PT, USER_VA, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("V9K IFU partial-cover leaf PTE", leaf_addr);
+      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+      pmpcfg[0 +: 8] = 8'h0b;
+      pmpcfg[8 +: 8] = 8'h1f;
+      pmpaddr[0 +: `XLEN] = (leaf_addr + 64'd4) >> 2;
+      pmpaddr[`XLEN +: `XLEN] = {`XLEN{1'b1}};
+      leaf_pte_a0 = pte_for_page(USER_PA, PTE_USER_X_NO_ACCESS_FLAGS);
+      while (ifu_axi_rready !== 1'b1) tick();
+      ifu_axi_rdata = leaf_pte_a0;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      #1;
+      tb_check1("V9K IFU 8B partial-cover PTE WRITE denies",
+                dut.walk_pte_write_pmp_fault_w, 1'b1);
+      tb_check1("V9K IFU 8B partial-cover deny is qualified",
+                dut.walk_ad_write_deny_w, 1'b1);
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("V9K IFU partial-cover returns access fault",
+                fetch_rsp_valid && (fetch_rsp_resp1 == RESP_ACCESS_FAULT), 1'b1);
+      tb_check1("V9K IFU partial-cover response has no AW", ifu_axi_awvalid, 1'b0);
+      tb_check1("V9K IFU partial-cover response has no W", ifu_axi_wvalid, 1'b0);
+      $display("[V9K-IFU-PTW-PMP-WRITE-WIDTH] bytes=8 partial-cover=deny aw=0 w=0");
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
     end
   endtask
 
@@ -1335,6 +1531,10 @@ module tb_ooo_fetch_axi_bridge;
     tick();
 
     ptw_ad_write_pmp_deny();
+    ptw_ad_write_pmp_frontier_deny(3'd2);
+    ptw_ad_write_pmp_frontier_deny(3'd4);
+    ptw_ad_write_pmp_frontier_deny(3'd6);
+    ptw_ad_write_pmp_partial_cover_deny();
 
     start_fetch("cross-page user fetch request accepted", CROSS_VA, `PRIV_U);
     walk_to_cross_fetch("cross-page packet uses translated next page");
@@ -1826,8 +2026,12 @@ module tb_ooo_fetch_axi_bridge;
     #1;
     tb_check1("flush keeps A-update write owner", dut.state_q == S_AD_UPDATE_TB, 1'b1);
     tb_check1("flush preserves accepted AW", dut.aw_done_q, 1'b1);
+    tb_check1("flush does not reissue accepted AW", ifu_axi_awvalid, 1'b0);
     tb_check1("flush keeps missing W valid", ifu_axi_wvalid, 1'b1);
     tb_check1("flush keeps BREADY", ifu_axi_bready, 1'b1);
+    tb_check1("flush blocks new fetch accept", fetch_req_ready, 1'b0);
+    tb_check1("flush blocks fetch response", fetch_rsp_valid, 1'b0);
+    tb_check1("flush blocks read address channel", ifu_axi_arvalid, 1'b0);
     tb_check64_local("A-update poison reaches candidate only",
                      dut.fetch_ctx_candidate_pc_q, CROSS_VA);
     tb_check64_local("A-update flush retains exec PC",
@@ -1855,6 +2059,48 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_bresp = RESP_OK;
     check_dropped_write_quiet("AW-first flush drains to IDLE");
 
+    // flush 与第一笔 AW fire 同拍：accepted bit 必须记账，W/B 可在后续拍完成。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_2345_004f);
+    mmu_flush = 1'b1;
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b0;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_awready = 1'b0;
+    #1;
+    tb_check1("flush+first AW keeps owner", dut.state_q == S_AD_UPDATE_TB, 1'b1);
+    tb_check1("flush+first AW records fire", dut.aw_done_q, 1'b1);
+    tb_check1("flush+first AW leaves W pending", dut.w_done_q, 1'b0);
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_wready = 1'b0;
+    ifu_axi_bvalid = 1'b1;
+    tick();
+    ifu_axi_bvalid = 1'b0;
+    check_dropped_write_quiet("flush+first-AW delayed completion drains to IDLE");
+
+    // 对称地，flush 与第一笔 W fire 同拍，AW/B 延后。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_3456_004f);
+    mmu_flush = 1'b1;
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_wready = 1'b0;
+    #1;
+    tb_check1("flush+first W keeps owner", dut.state_q == S_AD_UPDATE_TB, 1'b1);
+    tb_check1("flush+first W records fire", dut.w_done_q, 1'b1);
+    tb_check1("flush+first W leaves AW pending", dut.aw_done_q, 1'b0);
+    ifu_axi_awready = 1'b1;
+    tick();
+    ifu_axi_awready = 1'b0;
+    ifu_axi_bvalid = 1'b1;
+    tick();
+    ifu_axi_bvalid = 1'b0;
+    check_dropped_write_quiet("flush+first-W delayed completion drains to IDLE");
+
     // W-first 对称覆盖；flush 与最后缺失 AW 同拍，fire 必须被记账。
     reset_protocol_case();
     seed_ad_update(64'h0000_0000_5678_004f);
@@ -1878,6 +2124,25 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_bvalid = 1'b0;
     check_dropped_write_quiet("W-first flush drains to IDLE");
 
+    // accepted_next 对称边界：W 已完成，flush + 最后 AW fire + B fire 全同拍。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_6789_004f);
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_wready = 1'b0;
+    tb_check1("same-beat symmetric setup W accepted", dut.w_done_q, 1'b1);
+    mmu_flush = 1'b1;
+    ifu_axi_awready = 1'b1;
+    ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_awready = 1'b0;
+    ifu_axi_bvalid = 1'b0;
+    ifu_axi_bresp = RESP_OK;
+    check_dropped_write_quiet("flush+last-AW+B completes to IDLE");
+
     // accepted_next 承重边界：AW 已完成，flush + 最后 W fire + B fire 全同拍。
     // 下游正常 AXI 通常在 W fire 后才给 B；本例是防御性压力测试，确保 completion 公式
     // 不被 flush 分支吞掉，并钉住同拍有效的 accepted_next 语义。
@@ -1899,6 +2164,22 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_bresp = RESP_OK;
     check_dropped_write_quiet("flush+last-W+B completes to IDLE");
 
+    // 两 accepted 位原先都为 0；AW/W/B 与 flush 全同拍仍必须一次完成。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_89ab_004f);
+    mmu_flush = 1'b1;
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b1;
+    ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b0;
+    ifu_axi_bvalid = 1'b0;
+    ifu_axi_bresp = RESP_OK;
+    check_dropped_write_quiet("flush+AW+W+B completes to IDLE");
+
     // 两通道均被反压时 flush 仍不能撤 valid/payload；重复 flush 必须幂等。
     reset_protocol_case();
     seed_ad_update(64'h0000_0000_9abc_004f);
@@ -1909,6 +2190,9 @@ module tb_ooo_fetch_axi_bridge;
       tb_check1("repeated flush keeps AW valid", ifu_axi_awvalid, 1'b1);
       tb_check1("repeated flush keeps W valid", ifu_axi_wvalid, 1'b1);
       tb_check1("repeated flush keeps BREADY", ifu_axi_bready, 1'b1);
+      tb_check1("repeated flush blocks fetch accept", fetch_req_ready, 1'b0);
+      tb_check1("repeated flush blocks fetch response", fetch_rsp_valid, 1'b0);
+      tb_check1("repeated flush blocks read address", ifu_axi_arvalid, 1'b0);
       tb_check64_local("repeated flush keeps AWADDR", ifu_axi_awaddr,
                        pte_addr(L0_PT, USER_VA, 2'd0));
       tb_check64_local("repeated flush keeps WDATA", ifu_axi_wdata,
@@ -1925,10 +2209,12 @@ module tb_ooo_fetch_axi_bridge;
     // flush 与 B 同拍：B 完成有效，但语义 drop 胜出，不能 re-walk。
     mmu_flush = 1'b1;
     ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
     tick();
     mmu_flush = 1'b0;
     ifu_axi_bvalid = 1'b0;
-    check_dropped_write_quiet("flush+B drains to IDLE");
+    ifu_axi_bresp = RESP_OK;
+    check_dropped_write_quiet("both-done flush+B-error drains to IDLE");
 
     // 无 flush 的 B error 仍必须走原 access-fault 路径，证明 drop 没吞正常错误。
     reset_protocol_case();
@@ -1947,6 +2233,7 @@ module tb_ooo_fetch_axi_bridge;
     tb_check1("non-flushed B error enters response", dut.state_q == S_RESP_TB, 1'b1);
     tb_check2("non-flushed B error successful-prefix resp0", fetch_rsp_resp0, RESP_OK);
     tb_check2("non-flushed B error resp1", fetch_rsp_resp1, RESP_ACCESS_FAULT);
+    $display("[IFU-AXI-G1-FOCUSED] aw_first=1 w_first=1 first_aw_with_flush=1 first_w_with_flush=1 last_aw_b_with_flush=1 last_w_b_with_flush=1 all_aw_w_b_with_flush=1 both_done_flush_b_error=1 both_stalled_flush_cycles=2 dropped_bresp_error=1 normal_bresp_error=1 payload_stability=1 drop_quiet=1 PASS");
 
     // T3W registered ITLB/PMP owner boundary: a flush on the physical
     // S_CACHE_READ edge must drop both the lookup and its temporal assertion

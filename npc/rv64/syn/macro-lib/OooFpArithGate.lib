@@ -3,7 +3,7 @@
  * 全端口按寄存器边界宏抽象:input setup 2.782ns/hold 0.100ns 对 clk;
  * output 从 clk 上升沿 0.633ns 固定 delay;pin cap 0.010pf。
  * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。
- * 由 gen_macro_libs.py 生成(2026-07-10),勿手改——改端口表后重跑生成器。
+ * 由 gen_macro_libs.py 生成(2026-07-19),勿手改——改端口表后重跑生成器。
  */
 library (OooFpArithGate) {
   technology (cmos);
@@ -73,6 +73,22 @@ library (OooFpArithGate) {
     data_type : bit;
     bit_width : 6;
     bit_from : 5;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_8) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 8;
+    bit_from : 7;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_40) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 40;
+    bit_from : 39;
     bit_to : 0;
     downto : true;
   }
@@ -384,8 +400,8 @@ library (OooFpArithGate) {
         }
       }
     }
-    bus (launch_rob_idx_i) {
-      bus_type : bus_4;
+    bus (launch_producer_id_i) {
+      bus_type : bus_8;
       direction : input;
       capacitance : 0.010;
       timing () {
@@ -707,6 +723,28 @@ library (OooFpArithGate) {
         }
       }
     }
+    bus (out_producer_id_o) {
+      bus_type : bus_8;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("0.633");
+        }
+        cell_fall (scalar) {
+          values ("0.633");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
     bus (out_rob_idx_o) {
       bus_type : bus_4;
       direction : output;
@@ -775,6 +813,50 @@ library (OooFpArithGate) {
     }
     bus (out_fflags_o) {
       bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("0.633");
+        }
+        cell_fall (scalar) {
+          values ("0.633");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (owner_valid_o) {
+      bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("0.633");
+        }
+        cell_fall (scalar) {
+          values ("0.633");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (owner_producer_id_o) {
+      bus_type : bus_40;
       direction : output;
       max_capacitance : 0.500;
       timing () {

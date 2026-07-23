@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9b-arch-stable-final-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立复核本地 RV64 Verilog/SystemVerilog 完整核 ARCH_STABLE v3 检查器对 v2 发现的零字节功能日志与 canonical path/inode 别名复用反例是否已 fail-closed，并复查架构债务、九项微架构门、producer-holder census、同 cohort 功能原始日志、精确冻结输入和 PPA 声明等级未发生回退。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas",
+      "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/memory-ordering.log",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/README.md",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/scripts",
+      "npc/rv64/testbench/tests",
+      "npc/rv64/vsrc",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/architecture-result.json",
+      ".github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze/evidence/reviewer-v2/review-summary.json",
+      ".github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze/evidence/reviewer-v3",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/skills/prepare-rtl-task-contract/SKILL.md",
+      ".github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze/subagent-contracts/v9b-arch-stable-final-review-v3.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze/evidence/reviewer-v3"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/skills/prepare-rtl-task-contract/SKILL.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/README.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "结构化 v3 终审：合同符合性、实际命令返回码、v2 两个 P0 反例复测，以及 debt/architecture/census/functional/input-integrity/claim/test-adequacy 分类裁决。",
+    "每个仍可执行的假绿或误杀反例注明本地文件与行号、定向数据变化和预期拒绝点；若无可达假绿则明确剩余证明边界。",
+    "报告 unknowns、显式假设、替代假设、scope_extension_request、confidence_and_basis，并明确释放 WSL shell ownership。"
+  ],
+  "success_criteria": [
+    "合同 JSON 路径与 SHA-256 一致且所有读取、命令和写入均在合同内。",
+    "38 项 ARCH_STABLE 单元/定向反例和 current result verify 均实际运行并报告返回码，不运行正式综合、STA 或 PPA。",
+    "零字节 module/DiffTest/benchmark 日志、重复关键 marker、功能日志文件身份复用、非 canonical 路径、父目录 symlink 与跨组 hardlink identity 均被定向检查拒绝。",
+    "给出 WORKFLOW=PASS 或 GAP、当前 full-core architecture_freeze、PPA 声明等级及 promotion_eligible 的独立裁决。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

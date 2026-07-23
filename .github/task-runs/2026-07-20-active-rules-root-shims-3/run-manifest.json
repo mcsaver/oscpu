@@ -1,0 +1,78 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-20-active-rules-root-shims-3/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-20-active-rules-root-shims-3/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-20-active-rules-root-shims-3/evidence",
+    "evidence_index": ".github/task-runs/2026-07-20-active-rules-root-shims-3/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-20-active-rules-root-shims-3/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-20-active-rules-root-shims-3/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-20-active-rules-root-shims-3",
+    "run_manifest": ".github/task-runs/2026-07-20-active-rules-root-shims-3/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-20-active-rules-root-shims-3/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 2,
+    "by_kind": {
+      "log": 2
+    },
+    "total_size_bytes": 79935
+  },
+  "final_result": "profile=github-index 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "ef967abae",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-20-active-rules-root-shims-3/evidence/github-index-contract.log",
+      "function": "e2e_github_index_contract",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": "SQLite index can build, query and doctor .github metadata without owning originals",
+      "owner_agent": "agent-system",
+      "source_profile": "github-index",
+      "status": "PASS"
+    }
+  ],
+  "profile": "github-index",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-20-active-rules-root-shims-3",
+  "schema_version": 1,
+  "started_at": "2026-07-20 03:05:41 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "active-rules-root-shims",
+  "trace_id": "e2e:2026-07-20-active-rules-root-shims-3",
+  "updated_at": "2026-07-20 03:06:15 +0800"
+}

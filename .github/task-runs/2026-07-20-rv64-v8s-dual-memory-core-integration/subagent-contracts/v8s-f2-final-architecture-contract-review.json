@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8s-f2-final-architecture-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定材料最终复核：确认 v8s/F2 实现合同在补齐 singleton launch-edge 原子互斥后是否达到 contract-level PASS；不得外推 actual RTL 或 F2 complete",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-final-architecture-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "领域仅为本地 RV64 Verilog/SystemVerilog OoO 核；无工具、shell、文件读取、网络、账号、凭据、外部服务或写入。",
+      "前一轮已在合同级关闭 bank route、双 MIQ identity、32-token terminal set、全局两槽 WB、双 SQ fill/terminal、flush/kill和canonical hierarchy evidence，仅剩 AMO launch 同拍 ordinary admission竞态。",
+      "最终条款：AMO/LR/SC launch candidate只有在两 MIQ edge-old均空时可选，并对bank0/bank1 ordinary grant具有同拍原子优先级；amo_launch_fire必然推出ordinary_fire_b0=0且ordinary_fire_b1=0。",
+      "LEGACY live期间关闭两 bank ordinary admission；B/final response release拍仍按edge-old LEGACY live阻断ordinary，直到下一拍才可准入，禁止release-edge look-through。",
+      "实现证据必须新增空MIQ下AMO candidate与双bank ordinary valid同拍竞争的directed/assert，并以删除launch-fire admission gate的compile-success mutation使aggregate变RED。",
+      "其余合同保持：captured addr[3] bank identity；不同bank双grant、同bank ROB-age older；owner consume等价local terminal或本bankrequest fire；bank0 singleton物理写、bank1 ordinary only；双MIQ/独立ROB-open；全局WB与SQ terminal分配；kill先切副作用而identity留到exact terminal；canonical逐层ENABLE_DUAL_MEM=1并以full-top/checker/mutation验收。",
+      "声明边界始终为 architecture_checkpoint；实现、directed/assert、mutation、full-top、aggregate和独立implementation review同closure通过前不准F2 complete，DI-5/OOO-3/overall/PPA保持RED/unqualified。"
+    ]
+  },
+  "deliverables": [
+    "输出 verdict=PASS/GAP/INCONCLUSIVE；重点检查singleton launch与release edge是否无歧义，并确认此前各项是否因新条款重新打开；列出remaining blockers、unknowns、counterexamples和claim boundary。"
+  ],
+  "success_criteria": [
+    "PASS只表示合同足以进入实现；若仍GAP必须给具体同拍状态反例；不得声称读取RTL或已有测试结果。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

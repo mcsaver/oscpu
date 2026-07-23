@@ -1,0 +1,1237 @@
+{
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "generated_at_utc": "2026-07-23T02:10:54.593664+00:00",
+  "schema": "npc-rv64-architecture-directed-suite-v2",
+  "tests": {
+    "dual_memory_issue": {
+      "command": "make -C npc/rv64 check-dual-memory-sustained-issue",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/dual-memory-issue.log",
+        "sha256": "f3641fbc9bf71005396dbd05af48e1bc6ec47e4897a33ae6710c572a39f7a27b"
+      },
+      "metrics": {
+        "agu_accepts": [
+          64,
+          64
+        ],
+        "cache_admissions": [
+          64,
+          64
+        ],
+        "completions": [
+          64,
+          64
+        ],
+        "dual_issue_cycles": 64,
+        "memory_issue_ipc": 2.0,
+        "physical_lsq_queries": [
+          64,
+          64
+        ],
+        "steady_cycle_rows": 64,
+        "steady_grant_rows": 64,
+        "steady_pipeline_rows": 64,
+        "trace_cycles": 64,
+        "translation_accepts": [
+          64,
+          64
+        ]
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/contract.md": "a85874e58be325c92867c390c94b7fc91caa6909cf8c5beaa1a20f18e3cf696f",
+          ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/mutate-v8u-f4.py": "e1e0b9d6d6737d4a4af20d66c6dbb4f65ea9d926bfda1303fff9d94332bdc976",
+          ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/rtl-derivation.md": "06452bb512083d548ae7b7880da7d732a3144d2194a08fef5060db94ba6cc850",
+          ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/run-focused.sh": "e4aabba856beb1fe29444b5af7b9be404b026af48aea155571edf245ef2e0810",
+          ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/run-mutations.sh": "f4391e9ca90ace790eceb6a542898fd9e8bad4c40330981a608b50f72cf03f34",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py": "c6408d72fe1c7225270c0f327569cd6576fd4e9c9ba6d6993c1810cdf8af8158",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py": "a6a825b36a6913560e3d64f570db8080336d5378aec1bfd8bedb871cf7b96a6f",
+          "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv": "39a6851e0b374f39196e4329c9d0c08f8e847546ce2989eaf43ffc8e60f4d270",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f",
+          "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv": "26a3ca0cab3dea9550800d542373649df265c2e9cb0601efedf0161c9967e99f",
+          "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "5920e214106bd2b67a33a382ae8a54bc3d696a26b417922a3ce08a455887c594"
+      },
+      "scope": "DI-5 production NpcCoreTop steady dual-bank ordinary cached-load issue through AGU, translation, physical SQ query, cache admission and completion; not OOO-3, overall architecture or PPA promotion",
+      "status": "PASS"
+    },
+    "frontend_ii1": {
+      "artifacts": {
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/bridge/logs/tb_ooo_fetch_axi_bridge.log": "556e6ac6fca5688aa9cb076702eb2839ddf85793aba50adcf13e477ab23b6dcc",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log": "0bff45cc29ceedc3d770afee3c285b8512139ca1b660d6120846e11d711da474",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/bridge/logs/tb_ooo_fetch_axi_bridge.log": "d95379359ce963a1b8bf19e4654f59a7d7bed087cb0d2608154d3c536c4ea377",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log": "60ed15edafb2451dca77bac0274202985875d4e2ab11b45e3398c7abe836799f",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "5018a811009dcec1f3713a1bb93f75a9f5368f4b5d69f5099ec1d679cfc3d6eb",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_flow_control.log": "efe01ff2f3708be513d4493801d6a8e448b68404fc8af9b4ed437a524d9810d7",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log": "e36d940506b9df33bdbf691318ae0d4d308f1dbd190ae3341d11b518bbae9e5a",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_pc_outstanding_sequencer.log": "45e325bb53752ac5760bd42f05ed42a32df7dad5b0076e0ab39b22f2b643944e",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_request_mux.log": "cc133a44f95f98bbab0939dabca7331bc57520eb2231ba67c810feff685004f7",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_frontend_action_gate.log": "3c4c46727642775bc0054d2d817767fc2ba682ce94155517efc478075180df19",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.post.sha256": "696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.pre.sha256": "696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/same-design-predecessors.log": "7ca8f094dbe8ef1bb732cda4469d3214e05cb92deaef79e9766853d5abe6fede",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/suite-run-id.txt": "c4a738ee536b942d612c7e6807682df9929b56251885e72b41945c9147ab9822",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/blocked_response_tail_ghost.log": "15f99f73a104aa413057aa3c0d634cac0d456747c6e9937bbc85038f107607b5",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_ready_cut.log": "23cb32aa56b41054226e15b08fce08cc0b395021adbcb9ca15ebeb410d879371",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_state_turnover_cut.log": "74dc3826c554fe7650c38dc8114aeda878e11d989e6d163e04ad1d52cac78e55",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_semantic_lookup_cut.log": "305c000f8b7ad97dcad956071415667612dde0121ac683af8523dfc6205d69f0",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_enqueue_credit_cut.log": "282773a958d1244c1f381706d1f4ab2b08c1264efaff41ce2856ee7bb4fd7144",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_outstanding_turnover_cut.log": "dcb031593a776f5f7b6c0e9124bb88d103f4ba7b0f96656896d6f8d404ac4aa0",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sequencer_replacement_clear.log": "c05dfe072659ca8622db59d6e8ba310b59b31695bcfb6cecd0487ce1f38c2b8a",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sink_dequeue_cut.log": "20d26b654cc271ae0ecf60b30b3de07009e7a6b59594d0c0d3a0ead3f1bee311",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/successor_pc_old_owner.log": "069717fc1afe232e61221c85d46531086fcc6518f5632c67159c96791d35f0ca",
+        ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/summary.json": "925e3ff67617a6cbbc16510f81333b3cd975a61bd19fb951f2c949d31a236870"
+      },
+      "command": "make -C npc/rv64 check-frontend-ii1",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/frontend-ii1.log",
+        "sha256": "e842ef9ea45cd0c4f313a529d6f7a856c4f16d882f1e42a7b7f30054656b170d"
+      },
+      "metric_basis": {
+        "backpressure_and_drain": [
+          "assert.frontend.backpressure_recovery",
+          "release.frontend.backpressure_recovery",
+          "assert.frontend.final_conservation",
+          "release.frontend.final_conservation",
+          "mutation.backpressure_recovery",
+          "mutation.final_conservation"
+        ],
+        "sink_and_pc": [
+          "assert.frontend.pc_ledger",
+          "release.frontend.pc_ledger",
+          "mutation.pc_ledger",
+          "mutation.produced_packets"
+        ],
+        "steady_window": [
+          "assert.frontend",
+          "release.frontend",
+          "assert.bridge.bare_h1",
+          "release.bridge.bare_h1"
+        ]
+      },
+      "metrics": {
+        "accepted_packets": 64,
+        "backpressure_held_cycles": 4,
+        "backpressure_resume_turnovers": 16,
+        "enqueue_packets": 64,
+        "final_conservation_errors": 0,
+        "max_initiation_interval": 1,
+        "packets_observed": 64,
+        "preheated_cycles": 64,
+        "produced_packets": 64,
+        "redirect_cycles": 0,
+        "response_packets": 64,
+        "sequential_packets": 64,
+        "sink_dequeue_packets": 64,
+        "stall_cycles": 0
+      },
+      "mutation_audit": {
+        "compile_success": 9,
+        "dimension_coverage": {
+          "accepted_packets": [
+            "bridge_h1_ready_cut",
+            "flow_outstanding_turnover_cut",
+            "sequencer_replacement_clear"
+          ],
+          "backpressure_recovery": [
+            "blocked_response_tail_ghost"
+          ],
+          "final_conservation": [
+            "blocked_response_tail_ghost"
+          ],
+          "max_initiation_interval": [
+            "bridge_h1_ready_cut",
+            "bridge_h1_state_turnover_cut",
+            "flow_enqueue_credit_cut",
+            "flow_outstanding_turnover_cut"
+          ],
+          "pc_ledger": [
+            "successor_pc_old_owner"
+          ],
+          "produced_packets": [
+            "bridge_h1_ready_cut",
+            "bridge_h1_state_turnover_cut",
+            "bridge_semantic_lookup_cut",
+            "flow_enqueue_credit_cut",
+            "sequencer_replacement_clear",
+            "sink_dequeue_cut"
+          ]
+        },
+        "dynamic_rejected": 9,
+        "production_sources_unchanged": true
+      },
+      "predecessor_tests": [
+        "dual_memory_issue",
+        "memory_ordering",
+        "no_static_lane_semantics",
+        "pair_matrix",
+        "selective_scheduling",
+        "speculation_recovery",
+        "true_ooo_long_latency"
+      ],
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract-review-v1-result.json": "08741e6d09004000d8f442a49984b209fc77bad003b4342d50b02a5b59659c84",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract-review-v2-result.json": "ce306b7dd1c20ec4a77227f16d6407f91a503b7dce62098d871f0212f13f3b1e",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md": "7879a769791004835c980afb203d087740579496aa29183ba1715183b75e799c",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/bridge/logs/tb_ooo_fetch_axi_bridge.log": "556e6ac6fca5688aa9cb076702eb2839ddf85793aba50adcf13e477ab23b6dcc",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log": "0bff45cc29ceedc3d770afee3c285b8512139ca1b660d6120846e11d711da474",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/bridge/logs/tb_ooo_fetch_axi_bridge.log": "d95379359ce963a1b8bf19e4654f59a7d7bed087cb0d2608154d3c536c4ea377",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log": "60ed15edafb2451dca77bac0274202985875d4e2ab11b45e3398c7abe836799f",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "5018a811009dcec1f3713a1bb93f75a9f5368f4b5d69f5099ec1d679cfc3d6eb",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_flow_control.log": "efe01ff2f3708be513d4493801d6a8e448b68404fc8af9b4ed437a524d9810d7",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log": "e36d940506b9df33bdbf691318ae0d4d308f1dbd190ae3341d11b518bbae9e5a",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_pc_outstanding_sequencer.log": "45e325bb53752ac5760bd42f05ed42a32df7dad5b0076e0ab39b22f2b643944e",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_request_mux.log": "cc133a44f95f98bbab0939dabca7331bc57520eb2231ba67c810feff685004f7",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_frontend_action_gate.log": "3c4c46727642775bc0054d2d817767fc2ba682ce94155517efc478075180df19",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.post.sha256": "696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.pre.sha256": "696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/architecture-unit.log": "7189948a1a6807907be2e53ed23ad997ad910abe41f0304b1f054a5fda38d07a",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/check-contract.log": "f79bed8eed1f3a04eaadb025f95a3e345e36244dd5d449ed92832004848e768f",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/same-design-predecessors.log": "7ca8f094dbe8ef1bb732cda4469d3214e05cb92deaef79e9766853d5abe6fede",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/suite-run-id.txt": "c4a738ee536b942d612c7e6807682df9929b56251885e72b41945c9147ab9822",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/blocked_response_tail_ghost.log": "15f99f73a104aa413057aa3c0d634cac0d456747c6e9937bbc85038f107607b5",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_ready_cut.log": "23cb32aa56b41054226e15b08fce08cc0b395021adbcb9ca15ebeb410d879371",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_state_turnover_cut.log": "74dc3826c554fe7650c38dc8114aeda878e11d989e6d163e04ad1d52cac78e55",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_semantic_lookup_cut.log": "305c000f8b7ad97dcad956071415667612dde0121ac683af8523dfc6205d69f0",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_enqueue_credit_cut.log": "282773a958d1244c1f381706d1f4ab2b08c1264efaff41ce2856ee7bb4fd7144",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_outstanding_turnover_cut.log": "dcb031593a776f5f7b6c0e9124bb88d103f4ba7b0f96656896d6f8d404ac4aa0",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sequencer_replacement_clear.log": "c05dfe072659ca8622db59d6e8ba310b59b31695bcfb6cecd0487ce1f38c2b8a",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sink_dequeue_cut.log": "20d26b654cc271ae0ecf60b30b3de07009e7a6b59594d0c0d3a0ead3f1bee311",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/successor_pc_old_owner.log": "069717fc1afe232e61221c85d46531086fcc6518f5632c67159c96791d35f0ca",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/summary.json": "925e3ff67617a6cbbc16510f81333b3cd975a61bd19fb951f2c949d31a236870",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-focused.sh": "13531104f908ccaf055affc6e215659e541d22713fb46dcea8de47f06e875fba",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-v8z-mutations.py": "52ae09565595e4e831889c081e75d0ec8d3f9345d30e207aa5efa941e0544f35",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/subagent-contracts/v8z-frontend-ii1-contract-review-v2.json": "0a98207e9827ad6ca5f66777295da067024fe5f70e99e168b6d8d7c0c570b43e",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_frontend_ii1_evidence.py": "66bd8c04b0e8da5506802791d87c57b7ebcb891255eeb00e8aeb52ec21128992",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/frontend_ii1_evidence.py": "41a41f5703609084dc26833aae91e7a171a30b56caed0fa85a82126e7710becc",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "cffdd32ef74932a44fbe4f9f63b3996c5ef38fc965e29481fd4390cc179646a3",
+          "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
+          "npc/rv64/vsrc/core/NpcCoreTop.v": "61d2698b9b26cdc20c82df122998e85f975ba2a2bc3a94305e378dfe508a3780",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+          "npc/rv64/vsrc/frontend/OooFetchFlowControl.v": "07effbab2a23d0404a008fc5bb934cdd38937a5e6d7266703479738db80f4fdf",
+          "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+          "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+          "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
+          "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
+          "npc/rv64/vsrc/frontend/OooFrontend.v": "b5da5c2e457a87f09658ef4ca0c45900f506ed166517885e6c908efff365d145",
+          "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "370955a89b63b00beaf41fa18f420eba631891fc09745defcb318f43aa5f8ff1"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "83a2659b9a310327609c1500f597b341c5b23516a6fba472f2883885e43b6f92"
+      },
+      "scope": "DI-1 local RV64 Bridge H1 and complete OooFrontend request, response, outstanding, FIFO-credit and sink turnover; includes PC identity, finite run-gate response backpressure and final owner conservation; not DI-2, overall architecture or PPA",
+      "source_manifest": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract-review-v1-result.json": "08741e6d09004000d8f442a49984b209fc77bad003b4342d50b02a5b59659c84",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract-review-v2-result.json": "ce306b7dd1c20ec4a77227f16d6407f91a503b7dce62098d871f0212f13f3b1e",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md": "7879a769791004835c980afb203d087740579496aa29183ba1715183b75e799c",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-focused.sh": "13531104f908ccaf055affc6e215659e541d22713fb46dcea8de47f06e875fba",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-v8z-mutations.py": "52ae09565595e4e831889c081e75d0ec8d3f9345d30e207aa5efa941e0544f35",
+          ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/subagent-contracts/v8z-frontend-ii1-contract-review-v2.json": "0a98207e9827ad6ca5f66777295da067024fe5f70e99e168b6d8d7c0c570b43e",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_frontend_ii1_evidence.py": "66bd8c04b0e8da5506802791d87c57b7ebcb891255eeb00e8aeb52ec21128992",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/frontend_ii1_evidence.py": "41a41f5703609084dc26833aae91e7a171a30b56caed0fa85a82126e7710becc",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "cffdd32ef74932a44fbe4f9f63b3996c5ef38fc965e29481fd4390cc179646a3",
+          "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
+          "npc/rv64/vsrc/core/NpcCoreTop.v": "61d2698b9b26cdc20c82df122998e85f975ba2a2bc3a94305e378dfe508a3780",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "3ecd7dbaa494ae00f6e145a92594a6209dd04ad3f3d37bcfdacd8630d1246a66",
+          "npc/rv64/vsrc/frontend/OooFetchFlowControl.v": "07effbab2a23d0404a008fc5bb934cdd38937a5e6d7266703479738db80f4fdf",
+          "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+          "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+          "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
+          "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
+          "npc/rv64/vsrc/frontend/OooFrontend.v": "b5da5c2e457a87f09658ef4ca0c45900f506ed166517885e6c908efff365d145",
+          "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "370955a89b63b00beaf41fa18f420eba631891fc09745defcb318f43aa5f8ff1"
+        },
+        "sha256": "ffc313c96ebe82eb71ca13ff51f374ebe2ec67e0ca31da9217e581d73dde064f"
+      },
+      "status": "PASS",
+      "suite_run_id": "v8z-di1-20260723T020653Z-3332484"
+    },
+    "memory_ordering": {
+      "command": "make -C npc/rv64 check-memory-ordering",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/memory-ordering.log",
+        "sha256": "d62db6d85b48e214ef127812ccf68dca922e6182598cd68f0ffb4d3129ae5dcf"
+      },
+      "metric_basis": {
+        "alias_forward_wait_replay": [
+          "sq_final_pa_disposition",
+          "sq_forward_exact_completion",
+          "final_pa_retry_lifecycle"
+        ],
+        "fired_store_drain_exactly_once": [
+          "sq_post_launch_owner",
+          "sq_flush_exact_release",
+          "checkpoint_lq_drain",
+          "checkpoint_irrevocable_write",
+          "lq_retire_authority"
+        ],
+        "ghost_after_flush": [
+          "lq_wrap_recovery",
+          "checkpoint_lq_drain",
+          "checkpoint_owner_recovery",
+          "checkpoint_irrevocable_write",
+          "sq_flush_exact_release",
+          "checkpoint_raw_restore_no_local_flush",
+          "f2_parent_mutations"
+        ],
+        "nonalias_load_bypass": [
+          "lq_dual_lifecycle",
+          "sq_final_pa_disposition",
+          "dual_backend_core"
+        ],
+        "physical_disambiguation": [
+          "sq_final_pa_disposition",
+          "lq_dual_query_conflict",
+          "sustained_dual_memory"
+        ],
+        "precise_b_error_trap": [
+          "precise_late_b",
+          "sq_error_b_owner",
+          "checkpoint_irrevocable_write"
+        ],
+        "stale_read_count": [
+          "lq_dual_lifecycle",
+          "sq_final_pa_disposition",
+          "killed_response_no_side_effect"
+        ],
+        "store_authorization_fire_violations": [
+          "two_store_order",
+          "sq_post_launch_owner"
+        ],
+        "store_b_terminal_violations": [
+          "sq_success_b_owner",
+          "sq_error_b_owner",
+          "checkpoint_irrevocable_write"
+        ],
+        "store_retire_before_b_success": [
+          "sq_success_b_owner",
+          "store_before_device_translate1",
+          "store_before_device_translate0",
+          "checkpoint_irrevocable_write"
+        ],
+        "store_side_effect_before_authorization": [
+          "checkpoint_sq_gate",
+          "two_store_order",
+          "store_before_device_translate1",
+          "store_before_device_translate0"
+        ]
+      },
+      "metrics": {
+        "alias_forward_wait_replay": true,
+        "fired_store_drain_exactly_once": true,
+        "ghost_after_flush": 0,
+        "nonalias_load_bypass": true,
+        "physical_disambiguation": true,
+        "precise_b_error_trap": true,
+        "stale_read_count": 0,
+        "store_authorization_fire_violations": 0,
+        "store_b_terminal_violations": 0,
+        "store_retire_before_b_success": 0,
+        "store_side_effect_before_authorization": 0
+      },
+      "mutation_audit": {
+        "f2_compile_success_dynamic_reject": 18,
+        "f2_non_noop": 18,
+        "f2_reconstructed_sha256": 18,
+        "lq_compile_success_dynamic_reject": 9
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log": "0a2e1c42ba6e1eb256e93e04aee8ed60d56461a80573640ddcac3fa358105550",
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutations/raw_checkpoint_local_flush_bypass.run.log": "b1820908b10dd9ee8e184ac47c84f0567d24eaa816e9b99ba87cd7354b463439",
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json": "e64599f255f61ffffc3c6b6e812bb46da121a7b3c22e63c115cba2fcd7dd13a8",
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py": "fe48a6472443d34876a4b8c8d27577d0db177b7e50c43af7f2ae25b377776d03",
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh": "77fd8c91106252d221a48ad2fe98d36359dcdb7aaf7fc69a3328245be7036be6",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md": "4cbcb9163f9f740435dc61dfca60f78b82b3f00d478233b3f19a179d5ee37353",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/dispatch-log.md": "f0f950ee527e56ba7247408c612667c9bb981b02d97c2e7503d7bf01e2e8add5",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend-dual/logs/tb_ooo_int_backend.log": "99561f3672ccbd6f432f494961fcccba5db455c8074d3b6727ee7bb28c0b6c5f",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend/logs/tb_ooo_int_backend.log": "d2c59f3862786f90ccc8eef87fd1ebdb6f0ede187b7c1cd08339bfa540808546",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/glue/logs/tb_ooo_core_top_glue.log": "625c960c640d2a38b246e8845a8c48f5bcee34d0aee784a73efc328abf091d2e",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/lq/logs/tb_ooo_load_queue.log": "1446f185ed82c42c694e3d26e6be1d2f06534613a09f548e71a00f4d257459cc",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.post.sha256": "3d82a1c32f041bc2184da22f37226c693b8cb12289f43a4c0dccffb98bc29c5d",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.pre.sha256": "3d82a1c32f041bc2184da22f37226c693b8cb12289f43a4c0dccffb98bc29c5d",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sq/logs/tb_ooo_store_queue.log": "4461aabab637251c62570402f6aac780b1e11fb71d8c02979ca8ac8dddfde179",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/architecture-unit.log": "239656f80338490ee53e74e9a74058ab166f32be14ade8d11b3ba5ba80b48637",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/mutations.log": "06335c3e36cc3e19cc79af0096f2b129fe34eca75b8a1e3dd91a1913c6f7b794",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/same-design-predecessors.log": "0d6f5ae0515357a796dcc88e5941a5b78ce051cd1a9e4270e73ef4c150f308a0",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sustained/logs/tb_ooo_dual_memory_sustained_issue.log": "ce577cdb41f0c70734431f6bf6a87f354262ff7aa473f0e82fb0f3d0dcb3b2a4",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/mutation-results.json": "c81b7955cbdc78861105a6fca275cafafdb7785a9f80e07d9a90ef5a876dc437",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/rtl-derivation.md": "84ad1fa9be22a9e11a4ccccca9dba5b1b6b78442c0436d6fd833e4f4cc8d81cc",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh": "3e82684d197abd03f5a0524586e95b3520fb9f197cf4811b1f617ff424a51e12",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-lq-mutations.py": "a9496765bd4ba0beac6a9793000b52bfd1cd83b1c4177cc3ebe18b749004ef3c",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/producer-holder-census.json": "5f7172ebfbf61666ee1e686519761a5c6a678bdb41bf39c5ad57f3b3629733a7",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-load-queue.md": "83595b421bc499938cdb29da2b3c3074416630d7d89f0835bd445f537e9e2c9a",
+          "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md": "97f0cf157f978d07aa3105a8b62f4f94804abffc56b7dc4496a33c64bcfe37cf",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_memory_ordering_evidence.py": "02aca71d248b42dbab4689b260f8f23c41742be11e27f61057870bb735077c50",
+          "npc/rv64/eval/ppa/tests/test_producer_holder_census.py": "55b28f128927ab80357c73235b094d685e1f9ec8cce3c021ed2d1a0967d6ab9d",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py": "c6408d72fe1c7225270c0f327569cd6576fd4e9c9ba6d6993c1810cdf8af8158",
+          "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py": "03d96b74b3f4ea4f49364f6be4a3fc4339b5b8430c8b374aefb8e2c967ae7db1",
+          "npc/rv64/eval/ppa/tools/producer_holder_census.py": "6a8df61612995436c0f31f3fa87da4bfe9c1c8b90b64e242814fbf5717d920f8",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv": "39a6851e0b374f39196e4329c9d0c08f8e847546ce2989eaf43ffc8e60f4d270",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_load_queue.sv": "b337084a9d8af6cc970ffa59a32200bb2063df582f65063a06c514063db8accc",
+          "npc/rv64/testbench/tests/tb_ooo_store_queue.sv": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70",
+          "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
+          "npc/rv64/vsrc/control/OooControlPlane.v": "27164d406d120a650378819356dae6e12ba294b5b440f0b50cf8999174fa5ad1",
+          "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
+          "npc/rv64/vsrc/core/NpcCoreTop.v": "61d2698b9b26cdc20c82df122998e85f975ba2a2bc3a94305e378dfe508a3780",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "d0f5a67a387fea21467ece2ec6e85d9681f630a234768bfbd28983a22d385782",
+          "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "6fbe537299012c649c354abe5c071996b21549e862ea079a85efe103e2af39d8",
+          "npc/rv64/vsrc/execute/OooExecuteBackend.v": "a1a176d4e82f34e76bf660292e678d7893af7d6fdec976e2069aabbdd2c8f1c4",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/include/define.v": "716a55332c1bfbcaaa0d9998594179eeb504be73af55a07651f16344531cec6a",
+          "npc/rv64/vsrc/memory/OooLoadQueue.v": "6d17aafb3bf780f936522f4fb1a9035019596f4749bfc8f8a364e88972283deb",
+          "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
+          "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "e3b95e977eb11e183adb7209c09741c3d4ee76cc8e606e1ec210843c13f7276d",
+          "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
+          "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
+          "npc/rv64/vsrc/memory/OooStoreQueue.v": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "2efd3a0ee30c8a1dcafd3c1912d4260408ce9ec714ec73ab923c656dff0e6536"
+      },
+      "scope": "OOO-3 ordinary integer/FP load ordering and precise store request/B/retirement lifecycle; not DI-1, DI-2, OOO-4, overall architecture or PPA promotion",
+      "source_manifest": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py": "fe48a6472443d34876a4b8c8d27577d0db177b7e50c43af7f2ae25b377776d03",
+          ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh": "77fd8c91106252d221a48ad2fe98d36359dcdb7aaf7fc69a3328245be7036be6",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md": "4cbcb9163f9f740435dc61dfca60f78b82b3f00d478233b3f19a179d5ee37353",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/dispatch-log.md": "f0f950ee527e56ba7247408c612667c9bb981b02d97c2e7503d7bf01e2e8add5",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/rtl-derivation.md": "84ad1fa9be22a9e11a4ccccca9dba5b1b6b78442c0436d6fd833e4f4cc8d81cc",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh": "3e82684d197abd03f5a0524586e95b3520fb9f197cf4811b1f617ff424a51e12",
+          ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-lq-mutations.py": "a9496765bd4ba0beac6a9793000b52bfd1cd83b1c4177cc3ebe18b749004ef3c",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/producer-holder-census.json": "5f7172ebfbf61666ee1e686519761a5c6a678bdb41bf39c5ad57f3b3629733a7",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-load-queue.md": "83595b421bc499938cdb29da2b3c3074416630d7d89f0835bd445f537e9e2c9a",
+          "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md": "97f0cf157f978d07aa3105a8b62f4f94804abffc56b7dc4496a33c64bcfe37cf",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_memory_ordering_evidence.py": "02aca71d248b42dbab4689b260f8f23c41742be11e27f61057870bb735077c50",
+          "npc/rv64/eval/ppa/tests/test_producer_holder_census.py": "55b28f128927ab80357c73235b094d685e1f9ec8cce3c021ed2d1a0967d6ab9d",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py": "c6408d72fe1c7225270c0f327569cd6576fd4e9c9ba6d6993c1810cdf8af8158",
+          "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py": "03d96b74b3f4ea4f49364f6be4a3fc4339b5b8430c8b374aefb8e2c967ae7db1",
+          "npc/rv64/eval/ppa/tools/producer_holder_census.py": "6a8df61612995436c0f31f3fa87da4bfe9c1c8b90b64e242814fbf5717d920f8",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv": "39a6851e0b374f39196e4329c9d0c08f8e847546ce2989eaf43ffc8e60f4d270",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_load_queue.sv": "b337084a9d8af6cc970ffa59a32200bb2063df582f65063a06c514063db8accc",
+          "npc/rv64/testbench/tests/tb_ooo_store_queue.sv": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70",
+          "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
+          "npc/rv64/vsrc/control/OooControlPlane.v": "27164d406d120a650378819356dae6e12ba294b5b440f0b50cf8999174fa5ad1",
+          "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
+          "npc/rv64/vsrc/core/NpcCoreTop.v": "61d2698b9b26cdc20c82df122998e85f975ba2a2bc3a94305e378dfe508a3780",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "d0f5a67a387fea21467ece2ec6e85d9681f630a234768bfbd28983a22d385782",
+          "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "6fbe537299012c649c354abe5c071996b21549e862ea079a85efe103e2af39d8",
+          "npc/rv64/vsrc/execute/OooExecuteBackend.v": "a1a176d4e82f34e76bf660292e678d7893af7d6fdec976e2069aabbdd2c8f1c4",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/include/define.v": "716a55332c1bfbcaaa0d9998594179eeb504be73af55a07651f16344531cec6a",
+          "npc/rv64/vsrc/memory/OooLoadQueue.v": "6d17aafb3bf780f936522f4fb1a9035019596f4749bfc8f8a364e88972283deb",
+          "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
+          "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "e3b95e977eb11e183adb7209c09741c3d4ee76cc8e606e1ec210843c13f7276d",
+          "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
+          "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
+          "npc/rv64/vsrc/memory/OooStoreQueue.v": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "sha256": "08b49f654706eacc7cc69bfa7c715044cd1f0b651592f716e652dd03a9ab1478"
+      },
+      "status": "PASS"
+    },
+    "no_static_lane_semantics": {
+      "command": "make -C npc/rv64 check-no-static-lane-semantics",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/no-static-lane-semantics.log",
+        "sha256": "9a348dd3d55f4fb2eef62ac3b4b94b0176d88eb2405fe5dca794e0212eac38e6"
+      },
+      "metrics": {
+        "exact_full_pid_matches": 24,
+        "program_slot_permutation": {
+          "branch": {
+            "slot0": true,
+            "slot1": true
+          },
+          "jal": {
+            "slot0": true,
+            "slot1": true
+          },
+          "jalr": {
+            "slot0": true,
+            "slot1": true
+          },
+          "load": {
+            "slot0": true,
+            "slot1": true
+          },
+          "muldiv": {
+            "slot0": true,
+            "slot1": true
+          },
+          "store": {
+            "slot0": true,
+            "slot1": true
+          }
+        },
+        "same_cycle_pair_fires": 12,
+        "static_lane_role_violations": 0
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/contract.md": "05bd5184c18c1c47c3c77aa98da56f415f509da867392f004332b86867e97c7d",
+          ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/mutate-v8o-no-static-lane.py": "5301895b9bfb97ef53203cb905adb469ff1351555569f2ebb772637435267dc6",
+          ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/rtl-derivation.md": "1435a9177d652f8d82c05dde07c8deb9f25b95e0f1f278ba413fbe5fddf4ebe2",
+          ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/run-focused.sh": "e1366b5da62ba548203472f6c97d4438dc67b04d65a517437b6d6205e4da47cb",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/no_static_lane_semantics_evidence.py": "a417f8feaf73af3f1e51fee749c444da71bf6c88eac01ba6d902368ca089ab8c",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "0cf47bcdea16e48ca72379ebce17820bdf0425b0767ad3b8bdba329ba87af19f"
+      },
+      "scope": "integer-IQ accepted package positions and same-edge issue fires; not architectural completion, DI-3, DI-5, OOO-3, recovery or PPA",
+      "status": "PASS"
+    },
+    "pair_matrix": {
+      "command": "make -C npc/rv64 check-pair-matrix",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/pair-matrix.log",
+        "sha256": "1a1410867ef2c78c7210a2ad51fd81493b12c6b6969e7742d861a3ae49f8aae6"
+      },
+      "metrics": {
+        "atomic_scarcity_zero_births": 1,
+        "bank1_age_bypass_violations": 0,
+        "captured_agu_matches": 8,
+        "collector_exact_drains": 7,
+        "collector_ingress_peak": 7,
+        "distinct_nonzero_generation_memory_pids": 8,
+        "distinct_owner_token_pairs": 4,
+        "dual_reservation_observations": 4,
+        "owner_ghosts_after_cancel": 0,
+        "pair_matrix": {
+          "alu_alu": true,
+          "alu_branch": true,
+          "alu_jal": true,
+          "alu_jalr": true,
+          "alu_load": true,
+          "alu_store": true,
+          "branch_alu": true,
+          "jal_alu": true,
+          "jalr_alu": true,
+          "load_alu": true,
+          "load_load": true,
+          "load_store": true,
+          "store_alu": true,
+          "store_load": true,
+          "store_store": true
+        },
+        "raw_fallthrough_violations": 0,
+        "same_cycle_memory_pair_fires": 4,
+        "same_cycle_pair_fires": 15,
+        "special_memory_exclusions": 10,
+        "store_store_exact_owner_binds": 2
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/contract.md": "3b7d45c9168e894bdf49f475c91927a8b3f3c6677e47cb0d94907db926030d93",
+          ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/mutate-v8p-pair-matrix.py": "d913e8f83d509ac8b01ed349a77352ae8a33d396d5107feccca479a5c2ca10b8",
+          ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/rtl-derivation.md": "b266f61f4a3b1ae82de01ad74666f5cdbcf3598cbce293b07f8d02497a607515",
+          ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/run-focused.sh": "1b78fedf61c1dd3765bf61c4b5179ead5ae772fda9a1b6f475c51a1117cad4e1",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md": "dbbca6e84c079fabcbb3c1c90f1b26459b5bedca898d1d2bfa2b2d764dace2d8",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/pair_matrix_evidence.py": "4613de2e84e39bcf247d58728d84d944bf9a844dc1f71b1228753d10051c1966",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv": "9ee3f61fc0835f2757e17de5876c2abacdc77547a126ea60cf5cf56c380ffbff",
+          "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv": "70cc31ef8c170f91aae025009f31320873d4afde7e3d35d9310091df1554c9cf"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "17be9b4c451fe635f2fe0a25f59b7c073e340062744b40c3ea644bbeab759c0a"
+      },
+      "scope": "DI-3 pair formation through two registered ordinary-integer memory terminal owners; serialized downstream memory service; not DI-5, OOO-3, overall architecture or PPA",
+      "status": "PASS"
+    },
+    "selective_scheduling": {
+      "command": "make -C npc/rv64 check-selective-scheduling",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/selective-scheduling.log",
+        "sha256": "867bdf5d90e4fb373b56f381d3ecdd5440adea89399b8218582648642c37e22a"
+      },
+      "metrics": {
+        "blocked_dependents_only": true,
+        "different_resource_issued": true,
+        "global_freeze_cycles": 0,
+        "younger_independent_issued": true
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/contract.md": "db9de7723be59fbb0cf74292e4e6583dd32cc35767de34dbe4c4052e2891dc4b",
+          ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/mutate-v8m-selective-scheduling.py": "8091038f57904f09bf46235f575afc105eb616f093fba4e71209933ce1f347fa",
+          ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/run-focused.sh": "a06926ebd6a43b5280bcf64e26ab701715140f5f2eeab8ff4ab7c94b09d8b9b8",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/selective_scheduling_evidence.py": "307d7ee2ad41275bd204c61bfd7b518e1fbbbb6f28a885f665cfc3f150a49a7d",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f"
+        },
+        "sha256": "577c07b1eacb62a3ede27df9254967c0354ff33ecf6fb2be4c70ebd1977cf7a0"
+      },
+      "status": "PASS"
+    },
+    "speculation_recovery": {
+      "artifacts": {
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/assert/logs/tb_ooo_int_backend_v8y_speculation_recovery.log": "0dc0c54f3d47126ccab60f74e4856447ef7b5717c9c338b562318af6e3171b6f",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/release/logs/tb_ooo_int_backend_v8y_speculation_recovery.log": "c3ac8ccfb2403e3cd45c01a32d50da4a61bc54f03e22bfde869024eca73351bf",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_branch_bpu_update_gate.log": "271edfd5bcbd2811182a00706848719dc232dcd06d41084a485dda3ab9efeade",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "de2a51ae4ab259d19a5aa0e4d909f65b1e9af9007386fb272599037f77caeab5",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_dual_mem_bridge_wrapper.log": "0cbb470f7e6d8812ec1f67cbfe6ffdea0d2aeaa5c91ac138cc7bc986e2cb212c",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_int_backend.log": "858d9bbb817430511d2c8fb38a4d387d01a1c41bd1e01f1e1ebedcd3c0593d89",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_mem_axi_bridge.log": "dafab3607b6bd4f7ba32bc6d02dd2af404173da056d1cfbf4e795cd55f3db386",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_redirect_arbiter.log": "c06194543db90c7324a38d4675fdff948ec511fbd50ae3756b65b9ceb05f57ed",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.post.sha256": "542987218a71d2f599af036538a51c1d7dc6cc05822e379fcac897ff134559ec",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.pre.sha256": "542987218a71d2f599af036538a51c1d7dc6cc05822e379fcac897ff134559ec",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/same-design-predecessors.log": "5f9f8a5f2ff605e646a81198deca32fcf7e79de3adcecc3e01e3fb6ac34e1b7f",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/suite-run-id.txt": "7cfcf5a4aa6340bd02bf40437c60b3c3c8459c51f3227f1464ef54b42e19072b",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/block_killed_station_promotion.log": "5c078c897d77cb5b65e23016aca74526e7b4db8dd1b8e9fcdf1a9bcea7d0639d",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/completion_replay_one_cycle.log": "b48a34a5132dc2ac713442422f357509d77882485acce0e5c6c66c4cf8d82fca",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/control_admit_b.log": "2d8663a7a4ced66e0651c094317bddca55505bfed8689d6a2d2cc089f1437825",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/iq_kill_holder_bypass.log": "e888224e2dd4432964d4d84f43570bdc6fd05ef21b7a21e976864c5b91608598",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/mask_active_recovery_while_station_valid.log": "0156ed47bab5e14fa6be765f2f31cb2e330d3a3c1ef7de34008d60d1d3ecf80f",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/resolve_issue_close_bypass.log": "37b34620b2983714f6dc0262a59ec45b6ba408d8c15a7558d0533d29a0babdec",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/retire1_owner_remap.log": "13915ca63937f7158e0f5bce05d2d9b8c8c15c79697b8cfdcfd141bb2e22ece7",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/rob_tail_boundary_off_by_one.log": "8b395eb09c308fdbef6f64cf0bf5ed0a4fba89a86a79dd2ed4583b33928f67b6",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/summary.json": "877efd0995de94ac477d75110e19b673ddc0a0d13a1c077ab7110d3f76137047",
+        ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/youngest_control_select.log": "0f58db34ce9f64bfc8035d6e8e59562cf29b352af59b1d6e644b8ffec3e48940"
+      },
+      "command": "make -C npc/rv64 check-speculation-recovery",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/speculation-recovery.log",
+        "sha256": "98bbdd0fca2735ce6139aded69b333dad74b5b8d127a2e5b2a2e5be1ecd87a14"
+      },
+      "metric_basis": {
+        "exactly_once_complete_violations": [
+          "assert.full_pid_ledger",
+          "release.full_pid_ledger",
+          "mutation.exactly_once_complete_violations",
+          "regression.tb_ooo_int_backend"
+        ],
+        "exactly_once_retire_violations": [
+          "assert.full_pid_ledger",
+          "release.full_pid_ledger",
+          "mutation.exactly_once_retire_violations",
+          "regression.tb_ooo_core_top_glue"
+        ],
+        "fired_axi_drained": [
+          "assert.axi_drain",
+          "release.axi_drain",
+          "mutation.fired_axi_drained",
+          "regression.tb_ooo_mem_axi_bridge",
+          "regression.tb_ooo_dual_mem_bridge_wrapper"
+        ],
+        "ghost_after_recovery": [
+          "assert.integrated",
+          "release.integrated",
+          "mutation.ghost_after_recovery",
+          "regression.tb_ooo_int_backend",
+          "regression.tb_ooo_core_top_glue"
+        ],
+        "multiple_controls_inflight": [
+          "assert.linear_control_order",
+          "assert.wrap_control_order",
+          "release.linear_control_order",
+          "release.wrap_control_order",
+          "mutation.multiple_controls_inflight"
+        ],
+        "oldest_mispredict_wins": [
+          "assert.integrated",
+          "release.integrated",
+          "mutation.oldest_mispredict_wins"
+        ],
+        "wrong_path_selective_squash": [
+          "assert.selective_ex_cut",
+          "assert.selective_ex_matrix",
+          "release.selective_ex_cut",
+          "release.selective_ex_matrix",
+          "mutation.wrong_path_selective_squash",
+          "regression.tb_ooo_redirect_arbiter",
+          "regression.tb_ooo_branch_bpu_update_gate"
+        ]
+      },
+      "metrics": {
+        "exactly_once_complete_violations": 0,
+        "exactly_once_retire_violations": 0,
+        "fired_axi_drained": true,
+        "ghost_after_recovery": 0,
+        "multiple_controls_inflight": true,
+        "oldest_mispredict_wins": true,
+        "wrong_path_selective_squash": true
+      },
+      "mutation_audit": {
+        "compile_success": 9,
+        "dynamic_rejected": 9,
+        "metric_coverage": {
+          "exactly_once_complete_violations": [
+            "completion_replay_one_cycle"
+          ],
+          "exactly_once_retire_violations": [
+            "retire1_owner_remap",
+            "rob_tail_boundary_off_by_one"
+          ],
+          "fired_axi_drained": [
+            "block_killed_station_promotion",
+            "mask_active_recovery_while_station_valid"
+          ],
+          "ghost_after_recovery": [
+            "block_killed_station_promotion",
+            "iq_kill_holder_bypass",
+            "mask_active_recovery_while_station_valid",
+            "resolve_issue_close_bypass",
+            "rob_tail_boundary_off_by_one"
+          ],
+          "multiple_controls_inflight": [
+            "control_admit_b"
+          ],
+          "oldest_mispredict_wins": [
+            "resolve_issue_close_bypass",
+            "youngest_control_select"
+          ],
+          "wrong_path_selective_squash": [
+            "resolve_issue_close_bypass",
+            "rob_tail_boundary_off_by_one",
+            "youngest_control_select"
+          ]
+        },
+        "production_sources_unchanged": true
+      },
+      "predecessor_tests": [
+        "dual_memory_issue",
+        "memory_ordering",
+        "no_static_lane_semantics",
+        "pair_matrix",
+        "selective_scheduling",
+        "true_ooo_long_latency"
+      ],
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract-review-result.json": "157fd4a47ab3d7a5b560ea3046003a8686d5ced816e3c17d3a81ec2158954bf6",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract.md": "6951e18e896c4bb1af3cb68af4a6a95239dc64b8ad95fad23958f1eab503fe42",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/assert/logs/tb_ooo_int_backend_v8y_speculation_recovery.log": "0dc0c54f3d47126ccab60f74e4856447ef7b5717c9c338b562318af6e3171b6f",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/release/logs/tb_ooo_int_backend_v8y_speculation_recovery.log": "c3ac8ccfb2403e3cd45c01a32d50da4a61bc54f03e22bfde869024eca73351bf",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_branch_bpu_update_gate.log": "271edfd5bcbd2811182a00706848719dc232dcd06d41084a485dda3ab9efeade",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "de2a51ae4ab259d19a5aa0e4d909f65b1e9af9007386fb272599037f77caeab5",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_dual_mem_bridge_wrapper.log": "0cbb470f7e6d8812ec1f67cbfe6ffdea0d2aeaa5c91ac138cc7bc986e2cb212c",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_int_backend.log": "858d9bbb817430511d2c8fb38a4d387d01a1c41bd1e01f1e1ebedcd3c0593d89",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_mem_axi_bridge.log": "dafab3607b6bd4f7ba32bc6d02dd2af404173da056d1cfbf4e795cd55f3db386",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_redirect_arbiter.log": "c06194543db90c7324a38d4675fdff948ec511fbd50ae3756b65b9ceb05f57ed",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.post.sha256": "542987218a71d2f599af036538a51c1d7dc6cc05822e379fcac897ff134559ec",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.pre.sha256": "542987218a71d2f599af036538a51c1d7dc6cc05822e379fcac897ff134559ec",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/architecture-unit.log": "9afb67c8972e08e5077917b6abc59c2a9935cb654e980ea68dd0fa3ffcb14fa4",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/check-contract.log": "db6922d44b67620abedd95d17d20b3e33f66c01a44621ad19025419ad2e84753",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/same-design-predecessors.log": "5f9f8a5f2ff605e646a81198deca32fcf7e79de3adcecc3e01e3fb6ac34e1b7f",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/suite-run-id.txt": "7cfcf5a4aa6340bd02bf40437c60b3c3c8459c51f3227f1464ef54b42e19072b",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/block_killed_station_promotion.log": "5c078c897d77cb5b65e23016aca74526e7b4db8dd1b8e9fcdf1a9bcea7d0639d",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/completion_replay_one_cycle.log": "b48a34a5132dc2ac713442422f357509d77882485acce0e5c6c66c4cf8d82fca",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/control_admit_b.log": "2d8663a7a4ced66e0651c094317bddca55505bfed8689d6a2d2cc089f1437825",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/iq_kill_holder_bypass.log": "e888224e2dd4432964d4d84f43570bdc6fd05ef21b7a21e976864c5b91608598",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/mask_active_recovery_while_station_valid.log": "0156ed47bab5e14fa6be765f2f31cb2e330d3a3c1ef7de34008d60d1d3ecf80f",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/resolve_issue_close_bypass.log": "37b34620b2983714f6dc0262a59ec45b6ba408d8c15a7558d0533d29a0babdec",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/retire1_owner_remap.log": "13915ca63937f7158e0f5bce05d2d9b8c8c15c79697b8cfdcfd141bb2e22ece7",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/rob_tail_boundary_off_by_one.log": "8b395eb09c308fdbef6f64cf0bf5ed0a4fba89a86a79dd2ed4583b33928f67b6",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/summary.json": "877efd0995de94ac477d75110e19b673ddc0a0d13a1c077ab7110d3f76137047",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/youngest_control_select.log": "0f58db34ce9f64bfc8035d6e8e59562cf29b352af59b1d6e644b8ffec3e48940",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/rtl-derivation.md": "616a444e9a5375afabba1b8feda7ed368f4624eec82035ebe04272405e83d556",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-focused.sh": "b76cde30dda4680be35db798de8690e871c9cb0a8a618c12a66647cc782bb3ef",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-v8y-mutations.py": "740cffbb9cec3a3ca8a8d1aadc690b331707ea90c822e3b9b337bd42331501f0",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/subagent-contracts/v8y-speculation-recovery-contract-review-v1.json": "0ea2cc8e0297d9e2d5ac0672853fcda0e7a7e5316adeba50ab6407192f8e18a4",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/producer-holder-census.json": "5f7172ebfbf61666ee1e686519761a5c6a678bdb41bf39c5ad57f3b3629733a7",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-branch-resolve-producer-authorization.md": "477e1e47e9856d6c076d6066f3da2bb1a9a630f9e9bba9c6b12805cb5a2dbd61",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_speculation_recovery_evidence.py": "ea6a7dc7d41e8d8431148b8c2b133291bde6aa0987f438acd0ef279f6ce387d6",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/speculation_recovery_evidence.py": "22b52c8210af84e3122d1079fabd924304f062caa8ef4111c01e94ae900059fb",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh": "fb0c164e7373b427cf602bc89cd96858836362ccd8f4e620c983f2ef1711d008",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
+          "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "bd9fb52cbbd2e241ad533f5dc018345dd2dd6ea8c51ceb470bc7f07b739eb308",
+          "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "737b977f16787c911d551d87a2b809793ec379efa5e77a01de3ff463ed3b6323",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+          "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "bd7762f02efb76ee68298a083d0238f5d85689c92b046495d3690607260894b7"
+      },
+      "scope": "OOO-4 local RV64 control-flow in-flight ordering, oldest branch mispredict recovery, strictly-younger pipeline-state removal, full-ProducerId completion/retirement ledgers, and already-fired AXI transaction drain; not DI-1, DI-2, overall architecture or PPA promotion",
+      "source_manifest": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract-review-result.json": "157fd4a47ab3d7a5b560ea3046003a8686d5ced816e3c17d3a81ec2158954bf6",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract.md": "6951e18e896c4bb1af3cb68af4a6a95239dc64b8ad95fad23958f1eab503fe42",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/rtl-derivation.md": "616a444e9a5375afabba1b8feda7ed368f4624eec82035ebe04272405e83d556",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-focused.sh": "b76cde30dda4680be35db798de8690e871c9cb0a8a618c12a66647cc782bb3ef",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-v8y-mutations.py": "740cffbb9cec3a3ca8a8d1aadc690b331707ea90c822e3b9b337bd42331501f0",
+          ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/subagent-contracts/v8y-speculation-recovery-contract-review-v1.json": "0ea2cc8e0297d9e2d5ac0672853fcda0e7a7e5316adeba50ab6407192f8e18a4",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/producer-holder-census.json": "5f7172ebfbf61666ee1e686519761a5c6a678bdb41bf39c5ad57f3b3629733a7",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-branch-resolve-producer-authorization.md": "477e1e47e9856d6c076d6066f3da2bb1a9a630f9e9bba9c6b12805cb5a2dbd61",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_speculation_recovery_evidence.py": "ea6a7dc7d41e8d8431148b8c2b133291bde6aa0987f438acd0ef279f6ce387d6",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/speculation_recovery_evidence.py": "22b52c8210af84e3122d1079fabd924304f062caa8ef4111c01e94ae900059fb",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh": "fb0c164e7373b427cf602bc89cd96858836362ccd8f4e620c983f2ef1711d008",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
+          "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "bd9fb52cbbd2e241ad533f5dc018345dd2dd6ea8c51ceb470bc7f07b739eb308",
+          "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "737b977f16787c911d551d87a2b809793ec379efa5e77a01de3ff463ed3b6323",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+          "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "sha256": "1cc1d75e1fa248c21367459f9d5701035ed5f89ff24a4a1666117411a5103373"
+      },
+      "status": "PASS",
+      "suite_run_id": "v8y-ooo4-20260723T020653Z-3332505"
+    },
+    "true_ooo_long_latency": {
+      "command": "make -C npc/rv64 check-true-ooo-long-latency",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/true-ooo-long-latency.log",
+        "sha256": "0497f2204da44b86c078490ab7f99623afe1ff6d8ff8c002061f7c29e80380a9"
+      },
+      "metrics": {
+        "dual_issue_cycles_under_owner": {
+          "div": 4,
+          "load_miss": 4,
+          "mul": 4
+        },
+        "owner_live_younger_completions": {
+          "div": 8,
+          "load_miss": 8,
+          "mul": 8
+        },
+        "retire_order_violations": 0,
+        "rob_peak": 9,
+        "rob_valid_entries_peak": 9,
+        "younger_completed_before_old": {
+          "div": 8,
+          "load_miss": 8,
+          "mul": 8
+        },
+        "younger_issue_accepted_under_owner": {
+          "div": 8,
+          "load_miss": 8,
+          "mul": 8
+        }
+      },
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/contract.md": "0288e2946f9d95bc24ddd8c1c6510c36bdb925fbb0a587e0fab998c0ceee42c1",
+          ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/mutate-v8n-true-ooo-long-latency.py": "4fcc2f75f1201ea45e9fec1ea2f1f394e0648574fbdee9d0ddb48d25ed6e9d6d",
+          ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/rtl-derivation.md": "496fab7cd3eedc5dc1cf3a3ed999f36ad5121e36c49c7e4a7bd4d2daba92d9f7",
+          ".github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/run-focused.sh": "56c8946914d48789a1d765f42420d24ad3cc0b2c094bfabe041fb76c5c01b664",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/true_ooo_long_latency_evidence.py": "78b452659585c9db05aa8743f6940c0e1678103b94507f6ec276943fd27f6eaf",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "01eecc784fc712dac2372e67f42b74772d17b7936c1ec564442188a8a1be2e72"
+      },
+      "scope": "cacheable-no-fault-no-store latency tolerance; not OOO-3",
+      "status": "PASS"
+    },
+    "width_continuity": {
+      "artifacts": {
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/assert/logs/tb_ooo_core_top_glue_v9a_width_continuity.log": "f4975547db5833d5307e2201fb2a6b585ab91f6dfd3c61cd2caf5c7859220881",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/release/logs/tb_ooo_core_top_glue_v9a_width_continuity.log": "6f97997c7e1e93ec1d8c70507c089e3b8a11d01d8c6efde556b419b4f1b1a279",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_alu_decode_backend.log": "bed13a0f7bfcb21f83af1e85565204d66b95f54c83657829953c427d868cf781",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "c30783136c5cef24ff25e98430dd9ff0f714f4be1de1bd9223caeb0ff7181741",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_dispatch_backend.log": "cfa927e58cfa6081cbb973adbe3891c3f3346dd2f567d50341655697071f7fb9",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log": "d2a5184d17d6469628191ea18e60e729808796c27d03c236928013595941319b",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_backend.log": "c99798c4710ca05ab15dce3ad1f6f178bfb8e9cd7b6921c5eb727c6d2c0afafb",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_issue_queue.log": "d6dafc5afb5040b8a1ace73bd49c9dbfc951c74273dd50d74e7f76c8cb6419e4",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_rob.log": "333f85a16a88f627eeab1152e660da73bb5cc8ace4fe4bb800b38590dbeb97c4",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_pipe_stage_reg.log": "008b8024d745924ecfe8a7f7b659538169f20fe8f988e076a0dbea8e4114aa5b",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.post.sha256": "b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.pre.sha256": "b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/stall-probe/logs/tb_ooo_core_top_glue_v9a_width_stall_probe.log": "db49febde64a6fb854b5701a96e41a0d40801b1259f790583b0767b558f52308",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/same-design-predecessors.log": "a706f08ad2e0dcb563819b4c13eb57e50715ae10a11df4d8beb8fbfecd6882c3",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/suite-run-id.txt": "6b6579c51316d9fc96fceda589b1a8e8b47cef8030e11896426e87a0bada5eb4",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/decode_lane1_backend_cut.log": "0439ce164c470d91f42fe86f1b1096f9b61719f2d637cf18d987b0712920fa67",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_capture_cut.log": "4829cdc39b775879124f45a438659b966c9cca0a65bcbf9da7c9dcb1992ba02c",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_payload_alias.log": "af7be465dfd7d3869851a957ae3fcdea872510dfd46b2481db5c07e9185129de",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/fetch_lane1_payload_alias.log": "b17004c4819024e4439ce84ac4415dd9aee810628ad63138e4c2ebf314b64025",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/iq_lane1_sink_cut.log": "15a9f1c9749c48a5cddbeb1fe62647bb3015d3701f189d031e5eadc0eabf98dc",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/issue_lane1_terminal_cut.log": "320fcb5c088e48c4c15b57483c8975b13ab2a1ba0621dd6bf029be7c1564f8cc",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/lane1_immediate_alias.log": "bc6fdb3c715be7db38cfd4182ed847d9003cf449525b4da4014bce0885d71979",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rename_lane1_sink_cut.log": "ca368cf1a9d78dc03fe836c1e2b3c5e08c9f2bed9a1504dfbd84f47eb734e6ec",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/retire_lane1_event_cut.log": "0bfba592dc1d4493cdfcea11c3598364de8f6574a4389669b9cc9731b65ebae2",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rob_lane1_sink_cut.log": "f8c9257a5c510416c9a4d8efab74d6ce66478fa2409f87c608b87e42059ab7a8",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/summary.json": "de33fe43e45498f6216c6a4a2f0b59cd47dbf7081a3856820442b210dbc4e2b6",
+        ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/wb1_rob_sink_cut.log": "ef0b246cda7f5d628ea6ed75c720245f0d4cdd5de32a6418cdbe5825ad175ef0"
+      },
+      "command": "make -C npc/rv64 check-width-continuity",
+      "log": {
+        "path": "npc/rv64/eval/ppa/evidence/width-continuity.log",
+        "sha256": "57f96826484c9c16d22143754247045370dfdf8d29d6a4f8bab8e021ba06d104"
+      },
+      "metric_basis": {
+        "boundary_identity": [
+          "assert.identity",
+          "release.identity",
+          "mutation.payload_data",
+          "mutation.pid_lifecycle"
+        ],
+        "fixed_window": [
+          "assert.trace",
+          "release.trace",
+          "stall_probe.dynamic_reject"
+        ],
+        "independent_sinks": [
+          "mutation.rename_sink",
+          "mutation.rob_sink",
+          "mutation.iq_sink",
+          "mutation.ex_stage_capture",
+          "mutation.wb_sink"
+        ],
+        "natural_drain": [
+          "assert.drain",
+          "release.drain"
+        ]
+      },
+      "metrics": {
+        "boundary_activity": {
+          "decode": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "dispatch": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "execute": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "fetch": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "issue": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "rename": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          },
+          "retire": {
+            "dual_uop_cycles": 64,
+            "peak_uops_per_cycle": 2,
+            "total_uops": 128
+          }
+        },
+        "independent_alu_ipc": 2.0,
+        "trace_cycles": 64
+      },
+      "mutation_audit": {
+        "compile_success": 11,
+        "dimension_coverage": {
+          "decode_to_backend": [
+            "decode_lane1_backend_cut"
+          ],
+          "dispatch_width": [
+            "iq_lane1_sink_cut",
+            "rob_lane1_sink_cut"
+          ],
+          "ex_stage_capture": [
+            "ex1_stage_capture_cut"
+          ],
+          "ex_stage_payload": [
+            "ex1_stage_payload_alias"
+          ],
+          "execute_width": [
+            "ex1_stage_capture_cut"
+          ],
+          "fetch_identity": [
+            "fetch_lane1_payload_alias"
+          ],
+          "iq_sink": [
+            "iq_lane1_sink_cut"
+          ],
+          "issue_width": [
+            "issue_lane1_terminal_cut"
+          ],
+          "payload_data": [
+            "ex1_stage_payload_alias",
+            "fetch_lane1_payload_alias",
+            "lane1_immediate_alias"
+          ],
+          "pid_lifecycle": [
+            "ex1_stage_payload_alias",
+            "retire_lane1_event_cut",
+            "wb1_rob_sink_cut"
+          ],
+          "rename_sink": [
+            "rename_lane1_sink_cut"
+          ],
+          "retire_width": [
+            "retire_lane1_event_cut"
+          ],
+          "rob_sink": [
+            "rob_lane1_sink_cut"
+          ],
+          "wb_sink": [
+            "wb1_rob_sink_cut"
+          ]
+        },
+        "dynamic_rejected": 11,
+        "production_sources_unchanged": true,
+        "reconstructed_non_noop": 11
+      },
+      "predecessor_tests": [
+        "dual_memory_issue",
+        "frontend_ii1",
+        "memory_ordering",
+        "no_static_lane_semantics",
+        "pair_matrix",
+        "selective_scheduling",
+        "speculation_recovery",
+        "true_ooo_long_latency"
+      ],
+      "provenance": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md": "2d89909500f3c3231e0543a7c3ff2686bd97cb2f0985890a45bea88faa152927",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/dispatch-log.md": "3884c3a193b4b0bd3ed11ef948b89fac3936646a69b74b8d0ec64fee1788793f",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/assert/logs/tb_ooo_core_top_glue_v9a_width_continuity.log": "f4975547db5833d5307e2201fb2a6b585ab91f6dfd3c61cd2caf5c7859220881",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/focused/release/logs/tb_ooo_core_top_glue_v9a_width_continuity.log": "6f97997c7e1e93ec1d8c70507c089e3b8a11d01d8c6efde556b419b4f1b1a279",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_alu_decode_backend.log": "bed13a0f7bfcb21f83af1e85565204d66b95f54c83657829953c427d868cf781",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log": "c30783136c5cef24ff25e98430dd9ff0f714f4be1de1bd9223caeb0ff7181741",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_dispatch_backend.log": "cfa927e58cfa6081cbb973adbe3891c3f3346dd2f567d50341655697071f7fb9",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log": "d2a5184d17d6469628191ea18e60e729808796c27d03c236928013595941319b",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_backend.log": "c99798c4710ca05ab15dce3ad1f6f178bfb8e9cd7b6921c5eb727c6d2c0afafb",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_int_issue_queue.log": "d6dafc5afb5040b8a1ace73bd49c9dbfc951c74273dd50d74e7f76c8cb6419e4",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_ooo_rob.log": "333f85a16a88f627eeab1152e660da73bb5cc8ace4fe4bb800b38590dbeb97c4",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/regressions/logs/tb_pipe_stage_reg.log": "008b8024d745924ecfe8a7f7b659538169f20fe8f988e076a0dbea8e4114aa5b",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.post.sha256": "b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/sources.pre.sha256": "b466e0d837adca141894e2197daec848e1d15192badd53061c9337e3b7af86db",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/stall-probe/logs/tb_ooo_core_top_glue_v9a_width_stall_probe.log": "db49febde64a6fb854b5701a96e41a0d40801b1259f790583b0767b558f52308",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/architecture-unit.log": "dce80023dca4601145f0e88de7b7491f5ee87aa59734fd6d6109a1737c19bfa1",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/check-contract.log": "beda4300b46cd2225b73ad32a0f172c4766f0fa11396cdb56ea526c3bddcf51f",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/same-design-predecessors.log": "a706f08ad2e0dcb563819b4c13eb57e50715ae10a11df4d8beb8fbfecd6882c3",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/suite-run-id.txt": "6b6579c51316d9fc96fceda589b1a8e8b47cef8030e11896426e87a0bada5eb4",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/decode_lane1_backend_cut.log": "0439ce164c470d91f42fe86f1b1096f9b61719f2d637cf18d987b0712920fa67",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_capture_cut.log": "4829cdc39b775879124f45a438659b966c9cca0a65bcbf9da7c9dcb1992ba02c",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/ex1_stage_payload_alias.log": "af7be465dfd7d3869851a957ae3fcdea872510dfd46b2481db5c07e9185129de",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/fetch_lane1_payload_alias.log": "b17004c4819024e4439ce84ac4415dd9aee810628ad63138e4c2ebf314b64025",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/iq_lane1_sink_cut.log": "15a9f1c9749c48a5cddbeb1fe62647bb3015d3701f189d031e5eadc0eabf98dc",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/issue_lane1_terminal_cut.log": "320fcb5c088e48c4c15b57483c8975b13ab2a1ba0621dd6bf029be7c1564f8cc",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/lane1_immediate_alias.log": "bc6fdb3c715be7db38cfd4182ed847d9003cf449525b4da4014bce0885d71979",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rename_lane1_sink_cut.log": "ca368cf1a9d78dc03fe836c1e2b3c5e08c9f2bed9a1504dfbd84f47eb734e6ec",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/retire_lane1_event_cut.log": "0bfba592dc1d4493cdfcea11c3598364de8f6574a4389669b9cc9731b65ebae2",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/rob_lane1_sink_cut.log": "f8c9257a5c510416c9a4d8efab74d6ce66478fa2409f87c608b87e42059ab7a8",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/summary.json": "de33fe43e45498f6216c6a4a2f0b59cd47dbf7081a3856820442b210dbc4e2b6",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/mutations/wb1_rob_sink_cut.log": "ef0b246cda7f5d628ea6ed75c720245f0d4cdd5de32a6418cdbe5825ad175ef0",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/holder-census-delta.md": "ffbfcad3a6be3d45dbb2d88db0c32667e7574d04dffde3d74076ec71fd45ca83",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/rtl-derivation.md": "d93cec38002e6c97d603eb2baf48405e296643bd92a59cbc7fe5236b5c3ca223",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh": "c84441f5e2c2fe72c54e64b7c9b99b71b7c696015271ee5762d265b955a0f57c",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py": "e454f2ba5d34c4046e401b047a30eb3b8266fe73a21ed8c7b388874baf83a1f7",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/subagent-contracts/v9a-di2-contract-review-v1.json": "4ed9723fc261781cb776a40ae63032599af7bab21e2b7e2637de42aa29a79c72",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/ooo-core-architecture.md": "19a2a1892cf2544e87ad44923bf7374d79715b0623a8cd4067fd4846c8a6681b",
+          "npc/rv64/design/arch/pipeline-stage-boundary.md": "fcc280855848047d79fb201dfc2b8efc159a2912280c089c783367e22c54c532",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-int-issue-queue.md": "3ccd035300c69be11194e64bacc19ae7d7f06bd8d1c216e9a762cd911fc243b1",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py": "1bef8cbe593f192ab0065878e8ce253cc5c71175a02872a63cabe5f2ee444d0d",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/width_continuity_evidence.py": "b6c64477cf270d9c5daa02b4c90453e86ed699b2f7d871d8a22e7d67582159f3",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv": "3ffbd8244ffe9492f3aac017fe56844e59548b6e4775af46c19786897ab79825",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv": "91015b74799cf780d51bf3c7ff88fc9ad4b760f89f25b2691444556f6fb3882c",
+          "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv": "cb9ef9aeb64de26bc5b237df4ded11b6c31c948094de9a3d44ab8bca9c94e8b9",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f",
+          "npc/rv64/testbench/tests/tb_ooo_rob.sv": "65ab97d0449f5aa3a57f80c63d30a0fee3a7fdaef6d312d7e99ebe29aa89382d",
+          "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv": "5a1491e7914b50b76fea0d29c0de84d0fe3874b0bc394493d8f9e4e1c1935519",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
+          "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
+          "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "d0f5a67a387fea21467ece2ec6e85d9681f630a234768bfbd28983a22d385782",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+          "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+          "npc/rv64/vsrc/frontend/OooFrontend.v": "b5da5c2e457a87f09658ef4ca0c45900f506ed166517885e6c908efff365d145",
+          "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
+          "npc/rv64/vsrc/pipeline/PipeStageReg.v": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/rename_allocate/OooFreeList.v": "4946e8070db1c5243c412610790cbcddbaee08c3402847e509d02fe1237b9c58",
+          "npc/rv64/vsrc/rename_allocate/OooRenameMap.v": "1a2d2abd94ea4dee8fb4d850820e853aa50041408b8c0d847a25eb029b794789",
+          "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "rtl_file_count": 145,
+        "rtl_sha256": "2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+        "sha256": "000f43f2870548fee60832fb4ce37362f83642900af7a597a1ed97b970edcec7"
+      },
+      "scope": "DI-2 local RV64 independent integer ADDI stream across fetch, decode, rename, dispatch, issue, execute and retire; fixed 24-cycle warmup plus 64-cycle trace, full ProducerId/payload lifecycle, independent ROB/IQ/EX/WB sinks and natural drain; not workload IPC, overall PPA or physical timing closure",
+      "source_manifest": {
+        "files": {
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md": "2d89909500f3c3231e0543a7c3ff2686bd97cb2f0985890a45bea88faa152927",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/dispatch-log.md": "3884c3a193b4b0bd3ed11ef948b89fac3936646a69b74b8d0ec64fee1788793f",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/holder-census-delta.md": "ffbfcad3a6be3d45dbb2d88db0c32667e7574d04dffde3d74076ec71fd45ca83",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/rtl-derivation.md": "d93cec38002e6c97d603eb2baf48405e296643bd92a59cbc7fe5236b5c3ca223",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh": "c84441f5e2c2fe72c54e64b7c9b99b71b7c696015271ee5762d265b955a0f57c",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py": "e454f2ba5d34c4046e401b047a30eb3b8266fe73a21ed8c7b388874baf83a1f7",
+          ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/subagent-contracts/v9a-di2-contract-review-v1.json": "4ed9723fc261781cb776a40ae63032599af7bab21e2b7e2637de42aa29a79c72",
+          "npc/rv64/Makefile": "d65e061f8b491bfb2f434f8230aedc859f829a109792f1a3e30f6fef84b91cd8",
+          "npc/rv64/design/arch/ooo-core-architecture.md": "19a2a1892cf2544e87ad44923bf7374d79715b0623a8cd4067fd4846c8a6681b",
+          "npc/rv64/design/arch/pipeline-stage-boundary.md": "fcc280855848047d79fb201dfc2b8efc159a2912280c089c783367e22c54c532",
+          "npc/rv64/design/arch/rv64-architecture-ppa-contract.md": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+          "npc/rv64/design/specs/ooo-int-issue-queue.md": "3ccd035300c69be11194e64bacc19ae7d7f06bd8d1c216e9a762cd911fc243b1",
+          "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": "1e8dce40e1c8f3f5ff7c74004cd417253f300b4a42c03a87787dadf6a9ffa292",
+          "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py": "c6bd47e6b8eec24dfa1cc68f9ac6392bae74eb8d15b4b79502034f2b40554326",
+          "npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py": "1bef8cbe593f192ab0065878e8ce253cc5c71175a02872a63cabe5f2ee444d0d",
+          "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "df3c7bee3e07a73ff650f1528b35543b1520308303b6e6769fbb352fda176db4",
+          "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py": "b809523cf3782fe552d25c4edff2366cffd36ef29a3a9688421d8e5abe24d7aa",
+          "npc/rv64/eval/ppa/tools/width_continuity_evidence.py": "b6c64477cf270d9c5daa02b4c90453e86ed699b2f7d871d8a22e7d67582159f3",
+          "npc/rv64/testbench/Makefile": "780ca3f831dc992aab24583228a315cbe1e5afa1f2bad86abfbedd914b50104b",
+          "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+          "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv": "3ffbd8244ffe9492f3aac017fe56844e59548b6e4775af46c19786897ab79825",
+          "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "6f97b9749ebfaa13c813edeb590d8bd826885cd31bcb71593fec09131d82b49c",
+          "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv": "91015b74799cf780d51bf3c7ff88fc9ad4b760f89f25b2691444556f6fb3882c",
+          "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv": "cb9ef9aeb64de26bc5b237df4ded11b6c31c948094de9a3d44ab8bca9c94e8b9",
+          "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "2887bab45f895258910ff8d5f04d2e80a4222e3f5253db053d173a37048eb3f9",
+          "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f",
+          "npc/rv64/testbench/tests/tb_ooo_rob.sv": "65ab97d0449f5aa3a57f80c63d30a0fee3a7fdaef6d312d7e99ebe29aa89382d",
+          "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv": "5a1491e7914b50b76fea0d29c0de84d0fe3874b0bc394493d8f9e4e1c1935519",
+          "npc/rv64/vsrc/core/OooCoreTopGlue.v": "b7f1b990634c32ef64a3d92546aec04171563a62b50dd30ad0623bb9cf4d970a",
+          "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
+          "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
+          "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "d0f5a67a387fea21467ece2ec6e85d9681f630a234768bfbd28983a22d385782",
+          "npc/rv64/vsrc/execute/OooIntBackend.v": "5998a1ea8db6759c8209d307c80e7b2e18cf8505518bc1397345a1cf0106394f",
+          "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+          "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+          "npc/rv64/vsrc/frontend/OooFrontend.v": "b5da5c2e457a87f09658ef4ca0c45900f506ed166517885e6c908efff365d145",
+          "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
+          "npc/rv64/vsrc/pipeline/PipeStageReg.v": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+          "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "2ee1b86c2d1fb58483c08d4ade3dc8fac57cba14c50dd5c333c3f44bf69ce93b",
+          "npc/rv64/vsrc/rename_allocate/OooFreeList.v": "4946e8070db1c5243c412610790cbcddbaee08c3402847e509d02fe1237b9c58",
+          "npc/rv64/vsrc/rename_allocate/OooRenameMap.v": "1a2d2abd94ea4dee8fb4d850820e853aa50041408b8c0d847a25eb029b794789",
+          "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+          "npc/rv64/vsrc/writeback/OooRob.v": "6d4f8e06f155add8d2b2843264c81dc4e413a9af57e781a4f886db32b29cbb90"
+        },
+        "sha256": "fe48cf9869463566b3acde8a42e8fdd9cead4501da8c85158cf135fa7e7e300e"
+      },
+      "stall_probe": {
+        "dynamic_rejected": true,
+        "retire_total": 126,
+        "trace_cycles": 64
+      },
+      "status": "PASS",
+      "suite_run_id": "v9a-di2-20260723T020653Z-3332463",
+      "trace_sha256": "1bb38f328b19b3c1f6371b513883975e5cc3756bb49365ffdd1245f2ef966ab1"
+    }
+  }
+}

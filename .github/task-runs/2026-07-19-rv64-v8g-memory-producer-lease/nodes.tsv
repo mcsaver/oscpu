@@ -1,0 +1,7 @@
+node	owner	phase	inputs	outputs	success	failure
+recall-census	root	recall	bounded brief + active specs + RTL	holder/terminal census	all active memory holders classified	return to recall
+freeze-contract	root	spec	SPEC-TEMPLATE §2/§3 + six contracts	active spec + contract + derivation	all affected cells resolved	stop before RTL
+readonly-review	subagent	review	self-contained frozen contract	counterexamples only	no scope breach; concrete verdict	review_pending; parent active
+implement	root	impl	frozen derivation	RTL + assertions	no contract drift	rollback slice only
+focused-verify	root	eval	RTL + directed TB	case logs + mutations	release/assert/mutations green	fix root cause
+review-close	root	review	all evidence	task report + memory/DB/e2e	strict guard and reviewer closure	ship scoped status only

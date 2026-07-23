@@ -1,0 +1,22 @@
+schema=npc-rv64-ifu-tval-evidence-v2
+design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+canonical_command=make -C npc/rv64 check-ifu-tval
+decoder_frontier_rows=4
+page_end_pf_rows=9
+page_end_offsets=5/3/1
+fifo_offset_rows=3
+lifecycle_rows=24
+lifecycle_causes=12/12
+lifecycle_lanes=12/12
+lifecycle_offsets=8/8/6/2
+compressed_control_rows=6
+compressed_control_terminal_squash_poison=2/2/2
+lifecycle_manifest_rows=24
+dispatch_stall_rows=1
+compile_success_rtl_variants=12
+dynamic_rejected_rtl_variants=12
+module_aggregate=109/109
+production_rtl_changed=false
+ppa=UNQUALIFIED
+promotion_eligible=false
+[IFU-TVAL-G1-GATE] PASS

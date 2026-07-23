@@ -1,0 +1,79 @@
+{
+  "status": "candidate-only",
+  "reason": "The no-tools follow-up was dispatched before a new versioned JSON contract was created, validated, rendered, and bound by SHA-256. The result is preserved for audit but is not a final review artifact.",
+  "result": {
+    "verdict": "pass",
+    "verified_points": [
+      {
+        "rtl_or_event": "OooIntBackend MIQ 中同 bank 的 A/B owner",
+        "finding": "dispatch 时捕获不可变 {kind,token,epoch,fault_tval}，drop、exact pop、collector lane2 terminal 均逐 owner 核对，排除了 head 更新导致的身份错标。"
+      },
+      {
+        "rtl_or_event": "共享 AXI AR valid&&ready",
+        "finding": "ARREADY 在 active=A、station=B 建立前保持低；唯一 AR fire 同时证明 owner=A、MIQ head=A、station=B，最终 ar=1，B 无 AR。"
+      },
+      {
+        "rtl_or_event": "branch_resolve_mispredict、wrapper global flush 与 MIQ killed 位",
+        "finding": "mispredict 恰为单拍，global flush 全程为 0，A/B killed 位保持至各自 exact pop，证明恢复来源是 backend selective authority，而非 wrapper 全局清空。"
+      },
+      {
+        "rtl_or_event": "A 在 OooMemAxiBridge READ_DATA 接收迟到 R",
+        "finding": "A 仅产生 drop(A)、exact pop(A)、collector lane2(A)，同时逐周期禁止 response/WB/commit/cache fill/第二次 AR，满足已发请求的无副作用终结。"
+      },
+      {
+        "rtl_or_event": "OooDualMemBridgeWrapper station B 晋升 active",
+        "finding": "A 终结后的下一周期，active、tracker expected、station expected、residency 与 MIQ head 均一致指向 B；persistent-killed authority 随后在 pre-AXI 阶段终结 B。"
+      },
+      {
+        "rtl_or_event": "B 的 pre-AXI drop/pop/collector terminal",
+        "finding": "B 逐 owner 产生一次 drop、一次 exact pop、一次 collector lane2 terminal，且 translate、AR、WB、commit、cache fill 全部被禁止。"
+      },
+      {
+        "rtl_or_event": "联合 terminal ledger",
+        "finding": "ledger 强制 A terminal 先于 B terminal，A/B 各恰一次；focused marker 同时确认 drop=2 pop=2 terminal=2 lane1=0。"
+      },
+      {
+        "rtl_or_event": "两个 bridge、tracker、collector、MIQ 与 ROB",
+        "finding": "轨迹结束后全部 drain/idle，随后 6 周期 quiet guard 无新增事件，排除了迟到 terminal 和暂时归零假绿。"
+      },
+      {
+        "rtl_or_event": "backend 到 wrapper 的生产接口连接",
+        "finding": "backend 与 wrapper 全端口直连；TB 仅建模 wrapper 唯一 AXI slave，没有旁路生成 drop、response 或 SQ allow。"
+      },
+      {
+        "rtl_or_event": "承重跨模块边 mutation sensitivity",
+        "finding": "两项 mutation 均 compile_rc=0、sim_rc=1，并分别由 active A selective authority 和 station B promotion 的首个语义 witness 拒绝；源 RTL SHA 前后一致。"
+      },
+      {
+        "rtl_or_event": "相邻 V8W 与默认配置回归",
+        "finding": "backend、full bridge、wrapper、默认 backend/core-top 共 5/5 PASS；contract、holder census 和 assertion census 同时通过，aggregate marker 为 contract=PASS。"
+      }
+    ],
+    "blockers": [],
+    "remaining_risks": [
+      {
+        "scope": "动态状态空间",
+        "risk": "只覆盖同 bank、A 已发 AR 并等待 R、B 驻留 station 的指定恢复交错；不同 bank、更多 outstanding owner、不同 stall 相位及异常 R 响应仍需其它验证切片覆盖。"
+      },
+      {
+        "scope": "事务类别",
+        "risk": "A/B 均为 ordinary LOAD，本轨迹不外推到 STORE、原子操作、MMIO、权限异常或缓存一致性交互。"
+      },
+      {
+        "scope": "设计质量",
+        "risk": "本轮只强化验证且未修改 production RTL，因此不形成新的功能修复、时序或 PPA 证据。"
+      }
+    ],
+    "conclusion_boundary": {
+      "closed": "仅关闭指定 A/B selective branch-recovery 联合轨迹的 V8W verification gap。",
+      "unchanged": {
+        "OOO-4": "RED",
+        "DI-5": "RED",
+        "OOO-3": "RED",
+        "overall": "RED",
+        "PPA": "UNQUALIFIED",
+        "promotion_eligible": false
+      }
+    }
+  }
+}

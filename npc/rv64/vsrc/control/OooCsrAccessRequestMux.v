@@ -1,10 +1,15 @@
 `include "include/define.v"
 
-module OooCsrAccessRequestMux (
+module OooCsrAccessRequestMux #(
+  parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W
+) (
   input wire core_commit0_valid_i,
   input wire core_commit0_exception_i,
   input wire [`XLEN-1:0] core_commit0_pc_i,
   input wire [`INST_W-1:0] core_commit0_inst_i,
+  input wire [PRODUCER_ID_W-1:0] core_commit0_producer_id_i,
 
   input wire pending_system_i,
   input wire pending_system_csr_i,
@@ -12,6 +17,8 @@ module OooCsrAccessRequestMux (
   input wire pending_system_sfence_i,
   input wire [`XLEN-1:0] pending_system_pc_i,
   input wire [`INST_W-1:0] pending_system_inst_i,
+  input wire pending_system_producer_valid_i,
+  input wire [PRODUCER_ID_W-1:0] pending_system_producer_id_i,
 
   input wire dispatch_valid_i,
   input wire dispatch0_system_i,
@@ -27,6 +34,7 @@ module OooCsrAccessRequestMux (
 
   output wire core_commit0_csr_o,
   output wire pending_system_csr_commit_o,
+  output wire head0_csr_commit_o,
   output wire head1_csr_probe_o,
   output wire csr_access_valid_o,
   output wire [`INST_W-1:0] csr_access_inst_o,
@@ -48,9 +56,23 @@ module OooCsrAccessRequestMux (
       core_commit0_valid_i && !core_commit0_exception_i &&
       (core_commit0_inst_i[6:0] == `OPCODE_SYSTEM) &&
       (core_commit0_inst_i[14:12] != 3'b000);
+  wire pending_system_csr_logical_claim_w =
+      pending_system_i && pending_system_csr_i && pending_system_dispatched_i;
+  // raw lease 与 logical claim 任一存在都封住 queue-head fallback。这样即使
+  // metadata 被部分清除，仍不会把 exact-match failure 重新解释成普通 CSR。
+  wire pending_system_csr_claim_seal_w =
+      pending_system_producer_valid_i || pending_system_csr_logical_claim_w;
+  wire pending_system_csr_pid_match_w =
+      core_commit0_producer_id_i == pending_system_producer_id_i;
+  wire pending_system_csr_pc_match_w =
+      core_commit0_pc_i == pending_system_pc_i;
   assign pending_system_csr_commit_o =
-      pending_system_i && pending_system_csr_i && pending_system_dispatched_i &&
-      core_commit0_csr_o && (core_commit0_pc_i == pending_system_pc_i);
+      pending_system_csr_logical_claim_w &&
+      pending_system_producer_valid_i && core_commit0_csr_o &&
+      pending_system_csr_pid_match_w && pending_system_csr_pc_match_w;
+  assign head0_csr_commit_o =
+      `OOO_CSR_QUEUE_HEAD && core_commit0_csr_o &&
+      !pending_system_csr_claim_seal_w;
   assign head1_csr_probe_o =
       dispatch_valid_i && !dispatch0_system_i && dispatch1_barrier_i &&
       head1_csr_raw_i;

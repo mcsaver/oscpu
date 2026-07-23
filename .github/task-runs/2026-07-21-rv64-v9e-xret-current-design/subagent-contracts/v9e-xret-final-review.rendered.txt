@@ -1,0 +1,82 @@
+# RV64 CPU 微架构 RTL 子任务 `rv64-v9e-xret-final-review`
+
+- 工程领域：本地 RV64 CPU 微架构 Verilog/SystemVerilog 设计、验证或 PPA
+- 本地作用域：输入、工程动作和产物仅覆盖合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据；不使用非工作区来源
+- 措辞剖面：`rv64-hardware-professional`；自然语言按流水线、事务、时序、缓存一致性和验证语义解释，真实 RTL 标识符保持不变
+- 术语限定：多义术语首次出现时同时说明 module/signal/transaction 对象、pipeline/privilege/memory 层级、path/cycle/config 作用域和工程目的
+- 任务类型：`read-only-review`
+- 执行模式：`self-contained-no-tools`（冻结材料 RTL 复核；不执行命令或仓库读取）
+- 目标：Independently review the local RV64 XRET-G1 current-design closure evidence and the fail-closed architecture workflow source-binding correction, while preserving the full-core architecture-stable and PPA claim boundary.
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-21-rv64-v9e-xret-current-design/subagent-contracts/v9e-xret-final-review.json`
+- 合同 JSON SHA-256：`6e8fb3ae753c124ce4b22d81ab4cd3f809e1826c17a4db3ed36f01b834a504be`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+- 本提示是该 JSON 通过校验后的渲染结果。需要复核哈希时只核对上述路径；不得把该哈希与同名设计合同混用。
+
+## 派发资格
+
+- 新任务使用 canonical `create → validate → render` 管线；本渲染只会在 JSON 校验通过后产生，并须原样作为工程范围与上下文边界。
+- 若 JSON 校验失败，或派发提示手工改写了 RTL 输入、工程命令、输出路径或状态边界，则该轮复核输出只能记为 `candidate-only`，不能进入下游硬证据。
+- `scope_extension_request` 只触发新的 versioned contract；新 JSON 必须重新校验、重新渲染并绑定新的 SHA-256，旧合同范围不会被口头追加。
+
+## RTL 输入与工程动作
+
+材料来源路径（仅作 provenance；本节点不读取这些仓库文件）：
+- .github/task-runs/2026-07-21-rv64-v9e-xret-current-design/review-packet.md
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-21-rv64-v9e-xret-current-design/subagent-contracts/v9e-xret-final-review.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- 无（self-contained no-tools）
+
+Canonical 工程命令用途（固定枚举，不接受任务自定义文本，也不增加未列出的参数或命令变体）：
+- 无；子 agent 只消费合同内随附材料
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## 最小上下文
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+
+## 冻结 RTL 材料
+
+- Authorized scope is the local RV64 Verilog/SystemVerilog dual-issue OoO processor, its local testbench, and generated evidence only; no network, remote host, account, credential, or external service is involved.
+- Production RTL is unchanged by V9E. Current complete RTL identity is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc. The claim is only XRET-G1=CLOSED for that identity; full-core ARCH_STABLE remains GAP, PPA UNQUALIFIED, and promotion_eligible=false.
+- OooFetchHeadClassifyGate is the sole current-mode legality source; head0 and lane1 architectural-exception exclusions are owned by OooPendingDispatchArbiter and OooPendingLane1CaptureGate; OooPendingTrapExitSequencer retains precise metadata; OooCsrTrapRequestMux routes the held exception or legal xRET request; CsrFile does not redecode legality.
+- The focused seven-case matrix has three legal and four illegal cases with raw instruction preservation. Four full-core programs prove legal MRET/SRET request-commit-return, illegal MRET/SRET precise exception routing, zero illegal return request and commit, exact PC/tval, and older lane0 retirement for lane1 illegal SRET.
+- Eight compile-success local RTL verification variants cover MRET/SRET legality, false-closed legal MRET, head0/lane1 exception-versus-system routing, precise PC, and precise tval; all 8/8 are dynamically rejected. Two verification-only zero-observer sensitivity configurations compile and are rejected 2/2. The source is unchanged and the module aggregate is 109/109.
+- Two consecutive canonical commands make -C npc/rv64 check-xret-current-mode produced identical result, raw-log, variant-summary, module-summary, focused-log, and program-log SHA-256 values. Dedicated XRET tests pass 10/10 and the combined arch-stable semantic suite passes 68/68.
+- Adding the independent XRET Makefile target changed only the recorded npc/rv64/Makefile hash in the nine-record architecture manifest. The first fail-closed provenance rebind made all nine architecture gates GREEN; the subsequent arch-stable forward test found four optional source_manifest copies, which were then included in the corrected tool and rebound under an unchanged non-source-binding semantic projection. Both audits are retained.
+- Final directed architecture result is 9/9 GREEN. The final arch-stable audit has no architecture provenance or canonical-reevaluation blocker but remains GAP with 44 unrelated blockers, PPA UNQUALIFIED, and promotion disabled.
+
+## 推理自由与不确定性出口
+
+- 可以并应当报告 `unknowns`、显式假设、反例、替代假设、置信度及其证据基础；这些内容不会被视为任务失败。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不得设置固定发现数量上限；按严重度排序可以，但不得截断仍影响结论的 blocker、反例或覆盖洞。
+- 发现输入集合遗漏必要上下游时，返回 `scope_extension_request`，说明所需路径/命令及原因；该请求本身不改变当前节点范围，须由主 agent 生成新版契约。
+- 子 agent 可以提出合同未预设的替代解释或设计方案，只要不执行合同未列出的工程动作、不越级扩大结论。
+
+## 交付物
+
+- Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL or evidence counterexample; adjudicate the seven-case matrix, illegal/legal request and commit paths, eight RTL variants, two observer configurations, and the two-pass provenance correction; then state residual limitations and the exact claim boundary.
+
+## 成功条件
+
+- No unresolved P0/P1 XRET semantic or evidence-integrity defect; keep full-core ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is identified.
+
+## 协作约束
+
+- 保留真实 RTL 标识符和信号语义；遇到歧义时直接补充流水线、事务、时序或验证上下文，不改变技术含义。
+- 若需增加 RTL 文件、证据输出路径或验证命令，先返回主 agent 生成新版契约。
+- Windows/Codex 经 WSL 访问本工作区时，工程 shell 为 single-flight：主 agent 可以把唯一 shell ownership 交给一个契约授权的子 agent；该节点执行期间主 agent 与其它子 agent 不得并发启动工程命令。
+- 本任务为冻结材料 RTL 复核：不执行工程命令，也不读取上方材料之外的模块；结论只覆盖这些材料，不能据此宣称完成仓库级 RTL 全量复核。

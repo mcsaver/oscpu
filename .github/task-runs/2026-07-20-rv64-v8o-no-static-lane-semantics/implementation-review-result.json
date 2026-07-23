@@ -1,0 +1,69 @@
+{
+  "verdict": "pass",
+  "blockers": [],
+  "contract_json_sha256": "3135c49c520c0a2719cbae6c2651b965d2a86a0826a57d22f7074215ad0695a4",
+  "counterexamples": [
+    {
+      "id": "static_dispatch_position_binding",
+      "result": "rejected",
+      "reason": "six complex classes cross both accepted program positions; slot1 complex cases require dynamic swap and all canonical same-edge fires retain terminal roles"
+    },
+    {
+      "id": "dispatch_to_issue_bypass",
+      "result": "rejected",
+      "reason": "issue is held for a full cycle while two distinct resident controls, full identities, capability bits and selector projections are observed"
+    },
+    {
+      "id": "serialized_pair_fire",
+      "result": "rejected",
+      "reason": "both modes independently report twelve canonical same-edge pair fires and the activated serialization mutant is rejected"
+    },
+    {
+      "id": "control_class_alias",
+      "result": "rejected",
+      "reason": "coverage derives from mutually exclusive frozen input controls; the activated MulDiv-as-ALU mutant is rejected"
+    },
+    {
+      "id": "producer_id_substitution",
+      "result": "rejected",
+      "reason": "twenty-four distinct non-zero-generation packed identities are frozen and consumed exactly once at the correct physical terminal"
+    },
+    {
+      "id": "split_cycle_acceptance_credit",
+      "result": "rejected",
+      "reason": "the one-free-entry case observes slot0 accept, slot1 backpressure and zero coverage credit"
+    },
+    {
+      "id": "vacuous_source_checker",
+      "result": "rejected",
+      "reason": "the complete predicate/metadata/compaction/projection/swap chain has exact match counts and independent negative fixtures"
+    },
+    {
+      "id": "inactive_mutations",
+      "result": "rejected",
+      "reason": "every mutant records source and elaborated-image hashes, activation, and its dedicated semantic rejection"
+    },
+    {
+      "id": "stale_or_borrowed_evidence",
+      "result": "rejected",
+      "reason": "release/assert vectors are complete independently and stale provenance replay is rejected"
+    },
+    {
+      "id": "overbroad_release",
+      "result": "rejected",
+      "reason": "only the DI-4 record changes, the GREEN set is exactly DI-4/OOO-1/OOO-2, overall remains RED and no PPA result is emitted"
+    }
+  ],
+  "claim_boundary": {
+    "design_id": "sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293",
+    "accepted": "DI-4 no_static_lane_semantics",
+    "preserved_independent": ["OOO-1", "OOO-2"],
+    "overall": "RED",
+    "excluded": ["DI-1", "DI-2", "DI-3", "DI-5", "OOO-3", "OOO-4", "PPA", "formal exhaustiveness"]
+  },
+  "residual_risks": [
+    "the no-tools review relies on the supplied frozen machine facts",
+    "directed permutations and six mutations are not formal exhaustive proof",
+    "any design or exact provenance change invalidates this review"
+  ]
+}

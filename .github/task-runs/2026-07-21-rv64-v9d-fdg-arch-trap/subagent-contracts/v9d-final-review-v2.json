@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9d-fdg-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently re-review the local RV64 FDG-G1 current-design closure after commit-observer and precise trap-metadata evidence hardening; find any remaining P0/P1 RTL, evidence-sensitivity or claim-boundary defect.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/review-packet.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/subagent-contracts/v9d-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Scope is authorized local RV64 Verilog/SystemVerilog dual-issue OoO processor design and generated verification evidence only; no network, account, credential or external service.",
+      "Current full RTL identity is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc; production RTL is unchanged.",
+      "Classification/admission/final path is OooFetchHeadClassifyGate/OooFetchHeadPairGate to OooFrontendDispatchGate to OooFrontendBackendDispatchMux to OooCoreTopGlue; trap metadata flows through OooPendingDispatchArbiter/OooPendingTrapExitSequencer to OooCsrTrapRequestMux/CsrFile.",
+      "Focused exact counters are illegal_fp_cases=4 illegal_classified=4 arch_trap=4 fp_disabled=4 backend_blocked=4 legal_fp_cases=1 legal_backend_present=1 PASS.",
+      "Full-core exact counters are arch_trap_capture=1 capture_pc_match=1 capture_tval_match=1 ordinary_backend_present=0 core_backend_present=0 commit_oracle_hits=1 illegal_fp_commit=0 handler=1 mret=1 cause=2 csr_mepc_match=1 csr_mtval_match=1 PASS.",
+      "The two-lane commit-valid/PC observer sees one known older ADDI in the production trace; a compile-success verification configuration points the zero oracle at that same transaction, changes the count to one and is dynamically rejected 1/1.",
+      "Six current-source RTL variants compile and are dynamically rejected 6/6: ordinary admission exclusion removed, lane1 exclusion removed, ordinary admission forced closed, final backend trap leak, CSR trap PC offset and CSR trap tval forced zero; production source remains unchanged.",
+      "The PC and tval variants run the full-core program and are rejected by the explicit FDG mepc and mtval value comparisons; the final-sink variant is rejected by the packed backend dispatch invariant before architectural commit.",
+      "An early classifier-binding variant remains excluded because the correct upstream trap owner intercepted it before ordinary dispatch-valid and its selected oracle did not reject it.",
+      "Canonical command passes dynamic module inventory 109/109; FDG semantic tests pass 9/9 including PC/tval, commit-observer, aggregate-cut, live source reconstruction and arch-stable validation cuts.",
+      "FDG result SHA e62e1b2c867ddedb103166222b572f503ff1d5975c320bec1eac54038a76731d; raw log SHA 47eb6b670d2ed21794fc0a2bd549cb8d823328f8e6044a343de8c1212302b765; variant summary SHA c175817adc7c463d8f99e07bc565008548c5a75bd247914ff6f54e45e4f345d7.",
+      "Independent validator recomputes RTL identity, source bindings, exact markers, 109 logs, six source transformations and the commit probe; nine directed architecture gates are GREEN but full-core remains GAP with 44 blockers, PPA UNQUALIFIED and promotion false.",
+      "The first review found two P1 gaps in its frozen packet: commit observer non-vacuity and explicit PC/tval correctness. Re-evaluate whether the new positive hit, oracle probe, exact counters and PC/tval source variants close those gaps without overclaim."
+    ]
+  },
+  "deliverables": [
+    "Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL or evidence counterexample, explicitly adjudicate both prior P1 findings, then state residual limitations and the exact claim boundary."
+  ],
+  "success_criteria": [
+    "No unresolved P0/P1 finding; explicitly preserve full-core ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is identified."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

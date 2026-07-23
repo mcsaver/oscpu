@@ -1,0 +1,538 @@
+NPC RV64 core regression
+  run_dir: /home/lyg/PA/ysyx-workbench/.github/cache/rv64-functional-v9l/official-runs/20260722-211432-2599442
+  riscv_suites: rv64ui rv64um rv64ua rv64uc rv64uf rv64ud rv64uzba rv64uzbb rv64uzbc rv64uzbs rv64mi rv64si
+[2026-07-22 21:14:32] run riscv-clean
+  PASS  riscv-clean
+[2026-07-22 21:14:33] build rv64ui-p-add
+  PASS  build rv64ui-p-add
+  PASS  rv64ui-p-add
+[2026-07-22 21:14:33] build rv64ui-p-addi
+  PASS  build rv64ui-p-addi
+  PASS  rv64ui-p-addi
+[2026-07-22 21:14:33] build rv64ui-p-addiw
+  PASS  build rv64ui-p-addiw
+  PASS  rv64ui-p-addiw
+[2026-07-22 21:14:34] build rv64ui-p-addw
+  PASS  build rv64ui-p-addw
+  PASS  rv64ui-p-addw
+[2026-07-22 21:14:34] build rv64ui-p-and
+  PASS  build rv64ui-p-and
+  PASS  rv64ui-p-and
+[2026-07-22 21:14:35] build rv64ui-p-andi
+  PASS  build rv64ui-p-andi
+  PASS  rv64ui-p-andi
+[2026-07-22 21:14:35] build rv64ui-p-auipc
+  PASS  build rv64ui-p-auipc
+  PASS  rv64ui-p-auipc
+[2026-07-22 21:14:35] build rv64ui-p-beq
+  PASS  build rv64ui-p-beq
+  PASS  rv64ui-p-beq
+[2026-07-22 21:14:36] build rv64ui-p-bge
+  PASS  build rv64ui-p-bge
+  PASS  rv64ui-p-bge
+[2026-07-22 21:14:36] build rv64ui-p-bgeu
+  PASS  build rv64ui-p-bgeu
+  PASS  rv64ui-p-bgeu
+[2026-07-22 21:14:36] build rv64ui-p-blt
+  PASS  build rv64ui-p-blt
+  PASS  rv64ui-p-blt
+[2026-07-22 21:14:37] build rv64ui-p-bltu
+  PASS  build rv64ui-p-bltu
+  PASS  rv64ui-p-bltu
+[2026-07-22 21:14:37] build rv64ui-p-bne
+  PASS  build rv64ui-p-bne
+  PASS  rv64ui-p-bne
+[2026-07-22 21:14:37] build rv64ui-p-fence_i
+  PASS  build rv64ui-p-fence_i
+  PASS  rv64ui-p-fence_i
+[2026-07-22 21:14:38] build rv64ui-p-jal
+  PASS  build rv64ui-p-jal
+  PASS  rv64ui-p-jal
+[2026-07-22 21:14:39] build rv64ui-p-jalr
+  PASS  build rv64ui-p-jalr
+  PASS  rv64ui-p-jalr
+[2026-07-22 21:14:39] build rv64ui-p-lb
+  PASS  build rv64ui-p-lb
+  PASS  rv64ui-p-lb
+[2026-07-22 21:14:39] build rv64ui-p-lbu
+  PASS  build rv64ui-p-lbu
+  PASS  rv64ui-p-lbu
+[2026-07-22 21:14:40] build rv64ui-p-ld
+  PASS  build rv64ui-p-ld
+  PASS  rv64ui-p-ld
+[2026-07-22 21:14:40] build rv64ui-p-ld_st
+  PASS  build rv64ui-p-ld_st
+  PASS  rv64ui-p-ld_st
+[2026-07-22 21:14:41] build rv64ui-p-lh
+  PASS  build rv64ui-p-lh
+  PASS  rv64ui-p-lh
+[2026-07-22 21:14:41] build rv64ui-p-lhu
+  PASS  build rv64ui-p-lhu
+  PASS  rv64ui-p-lhu
+[2026-07-22 21:14:42] build rv64ui-p-lui
+  PASS  build rv64ui-p-lui
+  PASS  rv64ui-p-lui
+[2026-07-22 21:14:42] build rv64ui-p-lw
+  PASS  build rv64ui-p-lw
+  PASS  rv64ui-p-lw
+[2026-07-22 21:14:42] build rv64ui-p-lwu
+  PASS  build rv64ui-p-lwu
+  PASS  rv64ui-p-lwu
+[2026-07-22 21:14:43] build rv64ui-p-ma_data
+  PASS  build rv64ui-p-ma_data
+  FAIL  rv64ui-p-ma_data (exit=134)
+[2026-07-22 21:14:54] build rv64ui-p-or
+  PASS  build rv64ui-p-or
+  PASS  rv64ui-p-or
+[2026-07-22 21:14:54] build rv64ui-p-ori
+  PASS  build rv64ui-p-ori
+  PASS  rv64ui-p-ori
+[2026-07-22 21:14:55] build rv64ui-p-sb
+  PASS  build rv64ui-p-sb
+  PASS  rv64ui-p-sb
+[2026-07-22 21:14:55] build rv64ui-p-sd
+  PASS  build rv64ui-p-sd
+  FAIL  rv64ui-p-sd (exit=134)
+[2026-07-22 21:15:04] build rv64ui-p-sh
+  PASS  build rv64ui-p-sh
+  PASS  rv64ui-p-sh
+[2026-07-22 21:15:04] build rv64ui-p-simple
+  PASS  build rv64ui-p-simple
+  PASS  rv64ui-p-simple
+[2026-07-22 21:15:05] build rv64ui-p-sll
+  PASS  build rv64ui-p-sll
+  PASS  rv64ui-p-sll
+[2026-07-22 21:15:06] build rv64ui-p-slli
+  PASS  build rv64ui-p-slli
+  PASS  rv64ui-p-slli
+[2026-07-22 21:15:06] build rv64ui-p-slliw
+  PASS  build rv64ui-p-slliw
+  PASS  rv64ui-p-slliw
+[2026-07-22 21:15:07] build rv64ui-p-sllw
+  PASS  build rv64ui-p-sllw
+  PASS  rv64ui-p-sllw
+[2026-07-22 21:15:07] build rv64ui-p-slt
+  PASS  build rv64ui-p-slt
+  PASS  rv64ui-p-slt
+[2026-07-22 21:15:08] build rv64ui-p-slti
+  PASS  build rv64ui-p-slti
+  PASS  rv64ui-p-slti
+[2026-07-22 21:15:08] build rv64ui-p-sltiu
+  PASS  build rv64ui-p-sltiu
+  PASS  rv64ui-p-sltiu
+[2026-07-22 21:15:09] build rv64ui-p-sltu
+  PASS  build rv64ui-p-sltu
+  PASS  rv64ui-p-sltu
+[2026-07-22 21:15:10] build rv64ui-p-sra
+  PASS  build rv64ui-p-sra
+  PASS  rv64ui-p-sra
+[2026-07-22 21:15:11] build rv64ui-p-srai
+  PASS  build rv64ui-p-srai
+  PASS  rv64ui-p-srai
+[2026-07-22 21:15:11] build rv64ui-p-sraiw
+  PASS  build rv64ui-p-sraiw
+  PASS  rv64ui-p-sraiw
+[2026-07-22 21:15:11] build rv64ui-p-sraw
+  PASS  build rv64ui-p-sraw
+  PASS  rv64ui-p-sraw
+[2026-07-22 21:15:12] build rv64ui-p-srl
+  PASS  build rv64ui-p-srl
+  PASS  rv64ui-p-srl
+[2026-07-22 21:15:12] build rv64ui-p-srli
+  PASS  build rv64ui-p-srli
+  PASS  rv64ui-p-srli
+[2026-07-22 21:15:13] build rv64ui-p-srliw
+  PASS  build rv64ui-p-srliw
+  PASS  rv64ui-p-srliw
+[2026-07-22 21:15:13] build rv64ui-p-srlw
+  PASS  build rv64ui-p-srlw
+  PASS  rv64ui-p-srlw
+[2026-07-22 21:15:14] build rv64ui-p-st_ld
+  PASS  build rv64ui-p-st_ld
+  PASS  rv64ui-p-st_ld
+[2026-07-22 21:15:14] build rv64ui-p-sub
+  PASS  build rv64ui-p-sub
+  PASS  rv64ui-p-sub
+[2026-07-22 21:15:14] build rv64ui-p-subw
+  PASS  build rv64ui-p-subw
+  PASS  rv64ui-p-subw
+[2026-07-22 21:15:15] build rv64ui-p-sw
+  PASS  build rv64ui-p-sw
+  FAIL  rv64ui-p-sw (exit=134)
+[2026-07-22 21:15:23] build rv64ui-p-xor
+  PASS  build rv64ui-p-xor
+  PASS  rv64ui-p-xor
+[2026-07-22 21:15:25] build rv64ui-p-xori
+  PASS  build rv64ui-p-xori
+  PASS  rv64ui-p-xori
+[2026-07-22 21:15:25] build rv64um-p-div
+  PASS  build rv64um-p-div
+  PASS  rv64um-p-div
+[2026-07-22 21:15:26] build rv64um-p-divu
+  PASS  build rv64um-p-divu
+  PASS  rv64um-p-divu
+[2026-07-22 21:15:27] build rv64um-p-divuw
+  PASS  build rv64um-p-divuw
+  PASS  rv64um-p-divuw
+[2026-07-22 21:15:27] build rv64um-p-divw
+  PASS  build rv64um-p-divw
+  PASS  rv64um-p-divw
+[2026-07-22 21:15:28] build rv64um-p-mul
+  PASS  build rv64um-p-mul
+  PASS  rv64um-p-mul
+[2026-07-22 21:15:28] build rv64um-p-mulh
+  PASS  build rv64um-p-mulh
+  PASS  rv64um-p-mulh
+[2026-07-22 21:15:29] build rv64um-p-mulhsu
+  PASS  build rv64um-p-mulhsu
+  PASS  rv64um-p-mulhsu
+[2026-07-22 21:15:29] build rv64um-p-mulhu
+  PASS  build rv64um-p-mulhu
+  PASS  rv64um-p-mulhu
+[2026-07-22 21:15:30] build rv64um-p-mulw
+  PASS  build rv64um-p-mulw
+  PASS  rv64um-p-mulw
+[2026-07-22 21:15:30] build rv64um-p-rem
+  PASS  build rv64um-p-rem
+  PASS  rv64um-p-rem
+[2026-07-22 21:15:30] build rv64um-p-remu
+  PASS  build rv64um-p-remu
+  PASS  rv64um-p-remu
+[2026-07-22 21:15:31] build rv64um-p-remuw
+  PASS  build rv64um-p-remuw
+  PASS  rv64um-p-remuw
+[2026-07-22 21:15:31] build rv64um-p-remw
+  PASS  build rv64um-p-remw
+  PASS  rv64um-p-remw
+[2026-07-22 21:15:31] build rv64ua-p-amoadd_d
+  PASS  build rv64ua-p-amoadd_d
+  PASS  rv64ua-p-amoadd_d
+[2026-07-22 21:15:32] build rv64ua-p-amoadd_w
+  PASS  build rv64ua-p-amoadd_w
+  PASS  rv64ua-p-amoadd_w
+[2026-07-22 21:15:32] build rv64ua-p-amoand_d
+  PASS  build rv64ua-p-amoand_d
+  PASS  rv64ua-p-amoand_d
+[2026-07-22 21:15:32] build rv64ua-p-amoand_w
+  PASS  build rv64ua-p-amoand_w
+  PASS  rv64ua-p-amoand_w
+[2026-07-22 21:15:33] build rv64ua-p-amomax_d
+  PASS  build rv64ua-p-amomax_d
+  PASS  rv64ua-p-amomax_d
+[2026-07-22 21:15:33] build rv64ua-p-amomax_w
+  PASS  build rv64ua-p-amomax_w
+  PASS  rv64ua-p-amomax_w
+[2026-07-22 21:15:33] build rv64ua-p-amomaxu_d
+  PASS  build rv64ua-p-amomaxu_d
+  PASS  rv64ua-p-amomaxu_d
+[2026-07-22 21:15:34] build rv64ua-p-amomaxu_w
+  PASS  build rv64ua-p-amomaxu_w
+  PASS  rv64ua-p-amomaxu_w
+[2026-07-22 21:15:34] build rv64ua-p-amomin_d
+  PASS  build rv64ua-p-amomin_d
+  PASS  rv64ua-p-amomin_d
+[2026-07-22 21:15:35] build rv64ua-p-amomin_w
+  PASS  build rv64ua-p-amomin_w
+  PASS  rv64ua-p-amomin_w
+[2026-07-22 21:15:35] build rv64ua-p-amominu_d
+  PASS  build rv64ua-p-amominu_d
+  PASS  rv64ua-p-amominu_d
+[2026-07-22 21:15:35] build rv64ua-p-amominu_w
+  PASS  build rv64ua-p-amominu_w
+  PASS  rv64ua-p-amominu_w
+[2026-07-22 21:15:36] build rv64ua-p-amoor_d
+  PASS  build rv64ua-p-amoor_d
+  PASS  rv64ua-p-amoor_d
+[2026-07-22 21:15:36] build rv64ua-p-amoor_w
+  PASS  build rv64ua-p-amoor_w
+  PASS  rv64ua-p-amoor_w
+[2026-07-22 21:15:36] build rv64ua-p-amoswap_d
+  PASS  build rv64ua-p-amoswap_d
+  PASS  rv64ua-p-amoswap_d
+[2026-07-22 21:15:37] build rv64ua-p-amoswap_w
+  PASS  build rv64ua-p-amoswap_w
+  PASS  rv64ua-p-amoswap_w
+[2026-07-22 21:15:37] build rv64ua-p-amoxor_d
+  PASS  build rv64ua-p-amoxor_d
+  PASS  rv64ua-p-amoxor_d
+[2026-07-22 21:15:38] build rv64ua-p-amoxor_w
+  PASS  build rv64ua-p-amoxor_w
+  PASS  rv64ua-p-amoxor_w
+[2026-07-22 21:15:38] build rv64ua-p-lrsc
+  PASS  build rv64ua-p-lrsc
+  PASS  rv64ua-p-lrsc
+[2026-07-22 21:15:39] build rv64uc-p-rvc
+  PASS  build rv64uc-p-rvc
+  PASS  rv64uc-p-rvc
+[2026-07-22 21:15:39] build rv64uf-p-fadd
+  PASS  build rv64uf-p-fadd
+  PASS  rv64uf-p-fadd
+[2026-07-22 21:15:40] build rv64uf-p-fclass
+  PASS  build rv64uf-p-fclass
+  PASS  rv64uf-p-fclass
+[2026-07-22 21:15:40] build rv64uf-p-fcmp
+  PASS  build rv64uf-p-fcmp
+  PASS  rv64uf-p-fcmp
+[2026-07-22 21:15:40] build rv64uf-p-fcvt
+  PASS  build rv64uf-p-fcvt
+  PASS  rv64uf-p-fcvt
+[2026-07-22 21:15:41] build rv64uf-p-fcvt_w
+  PASS  build rv64uf-p-fcvt_w
+  PASS  rv64uf-p-fcvt_w
+[2026-07-22 21:15:41] build rv64uf-p-fdiv
+  PASS  build rv64uf-p-fdiv
+  PASS  rv64uf-p-fdiv
+[2026-07-22 21:15:42] build rv64uf-p-fmadd
+  PASS  build rv64uf-p-fmadd
+  PASS  rv64uf-p-fmadd
+[2026-07-22 21:15:42] build rv64uf-p-fmin
+  PASS  build rv64uf-p-fmin
+  PASS  rv64uf-p-fmin
+[2026-07-22 21:15:44] build rv64uf-p-ldst
+  PASS  build rv64uf-p-ldst
+  PASS  rv64uf-p-ldst
+[2026-07-22 21:15:44] build rv64uf-p-move
+  PASS  build rv64uf-p-move
+  PASS  rv64uf-p-move
+[2026-07-22 21:15:44] build rv64uf-p-recoding
+  PASS  build rv64uf-p-recoding
+  PASS  rv64uf-p-recoding
+[2026-07-22 21:15:45] build rv64ud-p-fadd
+  PASS  build rv64ud-p-fadd
+  PASS  rv64ud-p-fadd
+[2026-07-22 21:15:45] build rv64ud-p-fclass
+  PASS  build rv64ud-p-fclass
+  PASS  rv64ud-p-fclass
+[2026-07-22 21:15:46] build rv64ud-p-fcmp
+  PASS  build rv64ud-p-fcmp
+  PASS  rv64ud-p-fcmp
+[2026-07-22 21:15:46] build rv64ud-p-fcvt
+  PASS  build rv64ud-p-fcvt
+  PASS  rv64ud-p-fcvt
+[2026-07-22 21:15:46] build rv64ud-p-fcvt_w
+  PASS  build rv64ud-p-fcvt_w
+  PASS  rv64ud-p-fcvt_w
+[2026-07-22 21:15:47] build rv64ud-p-fdiv
+  PASS  build rv64ud-p-fdiv
+  PASS  rv64ud-p-fdiv
+[2026-07-22 21:15:47] build rv64ud-p-fmadd
+  PASS  build rv64ud-p-fmadd
+  PASS  rv64ud-p-fmadd
+[2026-07-22 21:15:48] build rv64ud-p-fmin
+  PASS  build rv64ud-p-fmin
+  PASS  rv64ud-p-fmin
+[2026-07-22 21:15:48] build rv64ud-p-ldst
+  PASS  build rv64ud-p-ldst
+  PASS  rv64ud-p-ldst
+[2026-07-22 21:15:48] build rv64ud-p-move
+  PASS  build rv64ud-p-move
+  PASS  rv64ud-p-move
+[2026-07-22 21:15:49] build rv64ud-p-recoding
+  PASS  build rv64ud-p-recoding
+  PASS  rv64ud-p-recoding
+[2026-07-22 21:15:49] build rv64ud-p-structural
+  PASS  build rv64ud-p-structural
+  PASS  rv64ud-p-structural
+[2026-07-22 21:15:50] build rv64uzba-p-add_uw
+  PASS  build rv64uzba-p-add_uw
+  PASS  rv64uzba-p-add_uw
+[2026-07-22 21:15:50] build rv64uzba-p-sh1add
+  PASS  build rv64uzba-p-sh1add
+  PASS  rv64uzba-p-sh1add
+[2026-07-22 21:15:50] build rv64uzba-p-sh1add_uw
+  PASS  build rv64uzba-p-sh1add_uw
+  PASS  rv64uzba-p-sh1add_uw
+[2026-07-22 21:15:51] build rv64uzba-p-sh2add
+  PASS  build rv64uzba-p-sh2add
+  PASS  rv64uzba-p-sh2add
+[2026-07-22 21:15:51] build rv64uzba-p-sh2add_uw
+  PASS  build rv64uzba-p-sh2add_uw
+  PASS  rv64uzba-p-sh2add_uw
+[2026-07-22 21:15:52] build rv64uzba-p-sh3add
+  PASS  build rv64uzba-p-sh3add
+  PASS  rv64uzba-p-sh3add
+[2026-07-22 21:15:52] build rv64uzba-p-sh3add_uw
+  PASS  build rv64uzba-p-sh3add_uw
+  PASS  rv64uzba-p-sh3add_uw
+[2026-07-22 21:15:52] build rv64uzba-p-slli_uw
+  PASS  build rv64uzba-p-slli_uw
+  PASS  rv64uzba-p-slli_uw
+[2026-07-22 21:15:53] build rv64uzbb-p-andn
+  PASS  build rv64uzbb-p-andn
+  PASS  rv64uzbb-p-andn
+[2026-07-22 21:15:53] build rv64uzbb-p-clz
+  PASS  build rv64uzbb-p-clz
+  PASS  rv64uzbb-p-clz
+[2026-07-22 21:15:54] build rv64uzbb-p-clzw
+  PASS  build rv64uzbb-p-clzw
+  PASS  rv64uzbb-p-clzw
+[2026-07-22 21:15:54] build rv64uzbb-p-cpop
+  PASS  build rv64uzbb-p-cpop
+  PASS  rv64uzbb-p-cpop
+[2026-07-22 21:15:55] build rv64uzbb-p-cpopw
+  PASS  build rv64uzbb-p-cpopw
+  PASS  rv64uzbb-p-cpopw
+[2026-07-22 21:15:55] build rv64uzbb-p-ctz
+  PASS  build rv64uzbb-p-ctz
+  PASS  rv64uzbb-p-ctz
+[2026-07-22 21:15:55] build rv64uzbb-p-ctzw
+  PASS  build rv64uzbb-p-ctzw
+  PASS  rv64uzbb-p-ctzw
+[2026-07-22 21:15:56] build rv64uzbb-p-max
+  PASS  build rv64uzbb-p-max
+  PASS  rv64uzbb-p-max
+[2026-07-22 21:15:56] build rv64uzbb-p-maxu
+  PASS  build rv64uzbb-p-maxu
+  PASS  rv64uzbb-p-maxu
+[2026-07-22 21:15:57] build rv64uzbb-p-min
+  PASS  build rv64uzbb-p-min
+  PASS  rv64uzbb-p-min
+[2026-07-22 21:15:57] build rv64uzbb-p-minu
+  PASS  build rv64uzbb-p-minu
+  PASS  rv64uzbb-p-minu
+[2026-07-22 21:15:57] build rv64uzbb-p-orc_b
+  PASS  build rv64uzbb-p-orc_b
+  PASS  rv64uzbb-p-orc_b
+[2026-07-22 21:15:58] build rv64uzbb-p-orn
+  PASS  build rv64uzbb-p-orn
+  PASS  rv64uzbb-p-orn
+[2026-07-22 21:15:58] build rv64uzbb-p-rev8
+  PASS  build rv64uzbb-p-rev8
+  PASS  rv64uzbb-p-rev8
+[2026-07-22 21:15:59] build rv64uzbb-p-rol
+  PASS  build rv64uzbb-p-rol
+  PASS  rv64uzbb-p-rol
+[2026-07-22 21:15:59] build rv64uzbb-p-rolw
+  PASS  build rv64uzbb-p-rolw
+  PASS  rv64uzbb-p-rolw
+[2026-07-22 21:16:00] build rv64uzbb-p-ror
+  PASS  build rv64uzbb-p-ror
+  PASS  rv64uzbb-p-ror
+[2026-07-22 21:16:00] build rv64uzbb-p-rori
+  PASS  build rv64uzbb-p-rori
+  PASS  rv64uzbb-p-rori
+[2026-07-22 21:16:01] build rv64uzbb-p-roriw
+  PASS  build rv64uzbb-p-roriw
+  PASS  rv64uzbb-p-roriw
+[2026-07-22 21:16:01] build rv64uzbb-p-rorw
+  PASS  build rv64uzbb-p-rorw
+  PASS  rv64uzbb-p-rorw
+[2026-07-22 21:16:01] build rv64uzbb-p-sext_b
+  PASS  build rv64uzbb-p-sext_b
+  PASS  rv64uzbb-p-sext_b
+[2026-07-22 21:16:02] build rv64uzbb-p-sext_h
+  PASS  build rv64uzbb-p-sext_h
+  PASS  rv64uzbb-p-sext_h
+[2026-07-22 21:16:02] build rv64uzbb-p-xnor
+  PASS  build rv64uzbb-p-xnor
+  PASS  rv64uzbb-p-xnor
+[2026-07-22 21:16:03] build rv64uzbb-p-zext_h
+  PASS  build rv64uzbb-p-zext_h
+  PASS  rv64uzbb-p-zext_h
+[2026-07-22 21:16:03] build rv64uzbc-p-clmul
+  PASS  build rv64uzbc-p-clmul
+  PASS  rv64uzbc-p-clmul
+[2026-07-22 21:16:03] build rv64uzbc-p-clmulh
+  PASS  build rv64uzbc-p-clmulh
+  PASS  rv64uzbc-p-clmulh
+[2026-07-22 21:16:04] build rv64uzbc-p-clmulr
+  PASS  build rv64uzbc-p-clmulr
+  PASS  rv64uzbc-p-clmulr
+[2026-07-22 21:16:04] build rv64uzbs-p-bclr
+  PASS  build rv64uzbs-p-bclr
+  PASS  rv64uzbs-p-bclr
+[2026-07-22 21:16:05] build rv64uzbs-p-bclri
+  PASS  build rv64uzbs-p-bclri
+  PASS  rv64uzbs-p-bclri
+[2026-07-22 21:16:05] build rv64uzbs-p-bext
+  PASS  build rv64uzbs-p-bext
+  PASS  rv64uzbs-p-bext
+[2026-07-22 21:16:06] build rv64uzbs-p-bexti
+  PASS  build rv64uzbs-p-bexti
+  PASS  rv64uzbs-p-bexti
+[2026-07-22 21:16:06] build rv64uzbs-p-binv
+  PASS  build rv64uzbs-p-binv
+  PASS  rv64uzbs-p-binv
+[2026-07-22 21:16:06] build rv64uzbs-p-binvi
+  PASS  build rv64uzbs-p-binvi
+  PASS  rv64uzbs-p-binvi
+[2026-07-22 21:16:07] build rv64uzbs-p-bset
+  PASS  build rv64uzbs-p-bset
+  PASS  rv64uzbs-p-bset
+[2026-07-22 21:16:07] build rv64uzbs-p-bseti
+  PASS  build rv64uzbs-p-bseti
+  PASS  rv64uzbs-p-bseti
+[2026-07-22 21:16:08] build rv64mi-p-breakpoint
+  PASS  build rv64mi-p-breakpoint
+  PASS  rv64mi-p-breakpoint
+[2026-07-22 21:16:08] build rv64mi-p-csr
+  PASS  build rv64mi-p-csr
+  PASS  rv64mi-p-csr
+[2026-07-22 21:16:08] build rv64mi-p-illegal
+  PASS  build rv64mi-p-illegal
+  PASS  rv64mi-p-illegal
+[2026-07-22 21:16:09] build rv64mi-p-instret_overflow
+  PASS  build rv64mi-p-instret_overflow
+  PASS  rv64mi-p-instret_overflow
+[2026-07-22 21:16:09] build rv64mi-p-ld-misaligned
+  PASS  build rv64mi-p-ld-misaligned
+  PASS  rv64mi-p-ld-misaligned
+[2026-07-22 21:16:10] build rv64mi-p-lh-misaligned
+  PASS  build rv64mi-p-lh-misaligned
+  PASS  rv64mi-p-lh-misaligned
+[2026-07-22 21:16:10] build rv64mi-p-lw-misaligned
+  PASS  build rv64mi-p-lw-misaligned
+  PASS  rv64mi-p-lw-misaligned
+[2026-07-22 21:16:10] build rv64mi-p-ma_addr
+  PASS  build rv64mi-p-ma_addr
+  FAIL  rv64mi-p-ma_addr (exit=134)
+[2026-07-22 21:16:18] build rv64mi-p-ma_fetch
+  PASS  build rv64mi-p-ma_fetch
+  PASS  rv64mi-p-ma_fetch
+[2026-07-22 21:16:19] build rv64mi-p-mcsr
+  PASS  build rv64mi-p-mcsr
+  PASS  rv64mi-p-mcsr
+[2026-07-22 21:16:20] build rv64mi-p-pmpaddr
+  PASS  build rv64mi-p-pmpaddr
+  PASS  rv64mi-p-pmpaddr
+[2026-07-22 21:16:21] build rv64mi-p-sbreak
+  PASS  build rv64mi-p-sbreak
+  PASS  rv64mi-p-sbreak (good trap)
+[2026-07-22 21:16:21] build rv64mi-p-scall
+  PASS  build rv64mi-p-scall
+  PASS  rv64mi-p-scall
+[2026-07-22 21:16:22] build rv64mi-p-sd-misaligned
+  PASS  build rv64mi-p-sd-misaligned
+  PASS  rv64mi-p-sd-misaligned
+[2026-07-22 21:16:22] build rv64mi-p-sh-misaligned
+  PASS  build rv64mi-p-sh-misaligned
+  PASS  rv64mi-p-sh-misaligned
+[2026-07-22 21:16:22] build rv64mi-p-sw-misaligned
+  PASS  build rv64mi-p-sw-misaligned
+  PASS  rv64mi-p-sw-misaligned
+[2026-07-22 21:16:23] build rv64mi-p-zicntr
+  PASS  build rv64mi-p-zicntr
+  PASS  rv64mi-p-zicntr
+[2026-07-22 21:16:23] build rv64si-p-csr
+  PASS  build rv64si-p-csr
+  PASS  rv64si-p-csr
+[2026-07-22 21:16:24] build rv64si-p-dirty
+  PASS  build rv64si-p-dirty
+  PASS  rv64si-p-dirty
+[2026-07-22 21:16:24] build rv64si-p-icache-alias
+  PASS  build rv64si-p-icache-alias
+  PASS  rv64si-p-icache-alias
+[2026-07-22 21:16:24] build rv64si-p-ma_fetch
+  PASS  build rv64si-p-ma_fetch
+  PASS  rv64si-p-ma_fetch
+[2026-07-22 21:16:25] build rv64si-p-sbreak
+  PASS  build rv64si-p-sbreak
+  PASS  rv64si-p-sbreak (good trap)
+[2026-07-22 21:16:25] build rv64si-p-scall
+  PASS  build rv64si-p-scall
+  PASS  rv64si-p-scall
+[2026-07-22 21:16:25] build rv64si-p-wfi
+  PASS  build rv64si-p-wfi
+  PASS  rv64si-p-wfi
+[2026-07-22 21:16:26] done overall_rc=1
+  status: /home/lyg/PA/ysyx-workbench/.github/cache/rv64-functional-v9l/official-runs/20260722-211432-2599442/status.txt

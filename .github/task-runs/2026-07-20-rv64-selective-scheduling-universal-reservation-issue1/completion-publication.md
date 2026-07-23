@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-rv64-selective-scheduling-universal-reservation-issue1
+- `trace_id`: e2e:2026-07-20-rv64-selective-scheduling-universal-reservation-issue1
+- `task_slug`: rv64-selective-scheduling-universal-reservation-issue1
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 4c83561ebbddc54f83962fc15f0c52971292a415b77160bfa41b26d38226b036
+- `task_report_md_sha256`: 9fafd49e91614da1b62c8ddc13dcb0b416e676fbf40f64ff8f0065f887304e58
+- `run_manifest_json_sha256`: 01a5291d57b5445a2a6a1f0affab4282c719892b7b8c44084e7247584f992e1f
+- `context_brief_md_sha256`: 85f76b70b39e4ec005576c3a2ebc64580ce5bf283de19973dbc1d065b03f0216
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 3dc4ef37d3a89f38284c3c577434c323f5856ee9c7956a3ce11e86807e65ac83
+- `dispatch_log_md_sha256`: 539067e8959fdc06308a5eaa2e13a642f19831836e48f74704892ad7863d918b
+- `nodes_tsv_sha256`: c93e8508bfe5aba748705880ccd8619bea26774e2ef4aaa2f5d4d394df944562

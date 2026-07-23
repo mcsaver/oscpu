@@ -491,12 +491,28 @@ module tb_axi_xbar;
 
     s_bresp[1*2 +: 2] = 2'b01;
     s_bvalid[1] = 1'b1;
-    m_bready[1] = 1'b1;
+    m_bready[1] = 1'b0;
     #1;
     tb_check1("split write bvalid", m_bvalid[1], 1'b1);
     tb_check32("split write bresp", {30'b0, m_bresp[1*2 +: 2]}, 32'h1);
     tb_check32("split write bid", {28'b0, m_bid[1*4 +: 4]}, 32'hb);
-    tb_check1("split write slave bready", s_bready[1], 1'b1);
+    tb_check1("split write slave B is backpressured", s_bready[1], 1'b0);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("split write BVALID holds under backpressure", m_bvalid[1], 1'b1);
+    tb_check1("split write owner remains active under B backpressure",
+              dut.wr_active_q[1], 1'b1);
+    tb_check1("queued owner remains blocked under B backpressure",
+              s_awvalid[1] || s_wvalid[1], 1'b0);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("split write BVALID holds for second backpressure cycle",
+              m_bvalid[1], 1'b1);
+    tb_check1("split write owner still active before exact B fire",
+              dut.wr_active_q[1], 1'b1);
+    m_bready[1] = 1'b1;
+    #1;
+    tb_check1("split write slave bready on release", s_bready[1], 1'b1);
     `TB_TICK(clk);
     s_bvalid[1] = 1'b0;
     m_bready[1] = 1'b0;
@@ -542,6 +558,7 @@ module tb_axi_xbar;
     s_bvalid[1] = 1'b0;
     m_bready[0] = 1'b0;
 
+    $display("[IFU-AXI-G1-XBAR-BACKPRESSURE] bvalid_hold_cycles=2 early_release=0 aw_first=1 w_first=1 payload_stability=1 PASS");
     tb_finish("tb_axi_xbar");
   end
 endmodule

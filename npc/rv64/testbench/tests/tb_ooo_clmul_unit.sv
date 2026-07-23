@@ -5,6 +5,8 @@ module tb_ooo_clmul_unit;
 
   localparam PHY_REG_ADDR_W = 6;
   localparam ROB_INDEX_W = 4;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
   localparam [1:0] CLMUL_OP_LOW = 2'd0;
   localparam [1:0] CLMUL_OP_HIGH = 2'd1;
   localparam [1:0] CLMUL_OP_REV = 2'd2;
@@ -19,6 +21,7 @@ module tb_ooo_clmul_unit;
   reg req_valid;
   wire req_ready;
   reg [ROB_INDEX_W-1:0] req_rob_idx;
+  reg [PRODUCER_GEN_W-1:0] req_generation;
   reg [PHY_REG_ADDR_W-1:0] req_pdest;
   reg [1:0] req_op;
   reg [`XLEN-1:0] req_src1;
@@ -27,12 +30,17 @@ module tb_ooo_clmul_unit;
   wire resp_valid;
   reg resp_ready;
   wire [ROB_INDEX_W-1:0] resp_rob_idx;
+  wire [PRODUCER_ID_W-1:0] resp_producer_id;
   wire [PHY_REG_ADDR_W-1:0] resp_pdest;
   wire [`XLEN-1:0] resp_data;
+  wire owner_valid;
+  wire [PRODUCER_ID_W-1:0] owner_producer_id;
 
   OooClmulUnit #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
-    .ROB_INDEX_W(ROB_INDEX_W)
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) dut (
     .clk(clk),
     .rst(rst),
@@ -42,7 +50,7 @@ module tb_ooo_clmul_unit;
     .rob_head_idx_i(rob_head_idx),
     .req_valid_i(req_valid),
     .req_ready_o(req_ready),
-    .req_rob_idx_i(req_rob_idx),
+    .req_producer_id_i({req_generation, req_rob_idx}),
     .req_pdest_i(req_pdest),
     .req_op_i(req_op),
     .req_src1_i(req_src1),
@@ -50,8 +58,11 @@ module tb_ooo_clmul_unit;
     .resp_valid_o(resp_valid),
     .resp_ready_i(resp_ready),
     .resp_rob_idx_o(resp_rob_idx),
+    .resp_producer_id_o(resp_producer_id),
     .resp_pdest_o(resp_pdest),
-    .resp_data_o(resp_data)
+    .resp_data_o(resp_data),
+    .owner_valid_o(owner_valid),
+    .owner_producer_id_o(owner_producer_id)
   );
 
   task automatic tb_check64;
@@ -103,6 +114,7 @@ module tb_ooo_clmul_unit;
       rob_head_idx = {ROB_INDEX_W{1'b0}};
       req_valid = 1'b0;
       req_rob_idx = {ROB_INDEX_W{1'b0}};
+      req_generation = {PRODUCER_GEN_W{1'b1}};
       req_pdest = {PHY_REG_ADDR_W{1'b0}};
       req_op = CLMUL_OP_LOW;
       req_src1 = {`XLEN{1'b0}};
@@ -119,7 +131,6 @@ module tb_ooo_clmul_unit;
     integer head_i;
     integer cut_i;
     integer victim_i;
-    reg expected_kill;
     begin
       // 在 IDLE 且 req payload 保持有效时穷举 16x16x16 环形年龄。除了锁定
       // strict-younger 的 `>` 边界，每次 cut/head 只变化而 req 不变的首项也是
@@ -137,13 +148,10 @@ module tb_ooo_clmul_unit;
           for (victim_i = 0; victim_i < 16; victim_i = victim_i + 1) begin
             req_rob_idx = victim_i[ROB_INDEX_W-1:0];
             #1;
-            expected_kill =
-                ((victim_i - head_i) & 15) > ((cut_i - head_i) & 15);
-            if (dut.kill_new_req_w !== expected_kill) begin
+            if (req_ready !== 1'b0) begin
               tb_errors = tb_errors + 1;
-              $display("[CHECK-FAIL] exhaustive kill predicate head=%0d cut=%0d victim=%0d got=%0b expected=%0b",
-                       head_i, cut_i, victim_i, dut.kill_new_req_w,
-                       expected_kill);
+              $display("[CHECK-FAIL] kill-valid request guard head=%0d cut=%0d victim=%0d ready=%0b",
+                       head_i, cut_i, victim_i, req_ready);
             end
           end
         end
@@ -174,6 +182,12 @@ module tb_ooo_clmul_unit;
       req_rob_idx = rob_idx;
       req_pdest = pdest;
       `TB_TICK(clk)
+      tb_check1({name, " holder live after capture"}, owner_valid, 1'b1);
+      if (owner_producer_id !== {req_generation, rob_idx}) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s owner PID got=%h expected=%h",
+                 name, owner_producer_id, {req_generation, rob_idx});
+      end
       req_valid = 1'b0;
       req_op = CLMUL_OP_LOW;
       req_src1 = {`XLEN{1'b0}};
@@ -204,6 +218,11 @@ module tb_ooo_clmul_unit;
           $display("[CHECK-FAIL] %0s rob got=%0d expected=%0d",
                    name, resp_rob_idx, exp_rob_idx);
         end
+        if (resp_producer_id !== {req_generation, exp_rob_idx}) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s PID got=%h expected=%h",
+                   name, resp_producer_id, {req_generation, exp_rob_idx});
+        end
         if (resp_pdest !== exp_pdest) begin
           tb_errors = tb_errors + 1;
           $display("[CHECK-FAIL] %0s pdest got=%0d expected=%0d",
@@ -211,8 +230,11 @@ module tb_ooo_clmul_unit;
         end
       end
       resp_ready = 1'b1;
+      #1;
+      tb_check1({name, " terminal edge keeps old lease"}, owner_valid, 1'b1);
       `TB_TICK(clk)
       resp_ready = 1'b0;
+      tb_check1({name, " holder released after terminal"}, owner_valid, 1'b0);
     end
   endtask
 
@@ -234,8 +256,7 @@ module tb_ooo_clmul_unit;
 
     check_kill_predicate_exhaustive();
 
-    // 只切换 ambient kill-valid：candidate/state/head/cut 全保持不变，
-    // kill_new_req 必须在同一拍边沿前立即可见。
+    // 只切换 kill-valid：candidate/state/head/cut 全保持，request ready 必须立即冻结。
     req_valid = 1'b1;
     req_rob_idx = 4'd6;
     req_pdest = 6'd12;
@@ -243,18 +264,17 @@ module tb_ooo_clmul_unit;
     kill_rob_idx = 4'd2;
     kill_valid = 1'b0;
     #1;
-    tb_check1("kill-valid low leaves new request live",
-              dut.kill_new_req_w, 1'b0);
+    tb_check1("kill-valid low leaves new request ready", req_ready, 1'b1);
     kill_valid = 1'b1;
     #1;
-    tb_check1("kill-valid only toggle is immediately visible",
-              dut.kill_new_req_w, 1'b1);
-    // matching kill 与 request fire 同拍：不得短暂进入 RUN。
+    tb_check1("kill-valid only toggle freezes request", req_ready, 1'b0);
+    // kill 与 request valid 同拍没有 fire：不得短暂进入 RUN 或建立 lease。
     `TB_TICK(clk)
-    tb_check1("same-cycle killed request stays idle", req_ready, 1'b1);
+    tb_check1("kill-valid request stays idle", owner_valid, 1'b0);
     req_valid = 1'b0;
     kill_valid = 1'b0;
     #1;
+    tb_check1("request ready reopens after kill", req_ready, 1'b1);
 
     // RUN 期间 matching kill 必须立即拉高 kill_inflight，并在该沿清除
     // held producer。随后用相同 ROB index 重发，只允许新结果出现。
@@ -268,8 +288,10 @@ module tb_ooo_clmul_unit;
     #1;
     tb_check1("run kill is immediately visible", dut.kill_inflight_w, 1'b1);
     tb_check1("run kill masks response", resp_valid, 1'b0);
+    tb_check1("run kill death edge keeps old lease", owner_valid, 1'b1);
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     tb_check1("run kill clears held producer", req_ready, 1'b1);
     issue_req("same-index replacement", CLMUL_OP_LOW, 64'h3, 64'h5,
               4'd1, 6'd27);
@@ -297,27 +319,33 @@ module tb_ooo_clmul_unit;
     resp_ready = 1'b0;
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     tb_check1("response kill clears backpressured holder", req_ready, 1'b1);
     tb_check1("response kill has no delayed pulse", resp_valid, 1'b0);
 
-    // strict-younger 边界：equal cut 和环回上的 older survivor 都不得被误杀。
+    // strict-younger 边界：已 capture 的 equal cut 和环回 older survivor 不得被误杀。
     reset_dut();
     rob_head_idx = 4'd14;
     kill_rob_idx = 4'd1;
-    kill_valid = 1'b1;
     issue_req("equal-cut survivor", CLMUL_OP_LOW, 64'h9, 64'h7,
               4'd1, 6'd22);
+    kill_valid = 1'b1;
+    `TB_TICK(clk)
+    kill_valid = 1'b0;
+    #1;
     expect_resp("equal-cut survivor",
                 ref_clmul(CLMUL_OP_LOW, 64'h9, 64'h7),
                 4'd1, 6'd22, 80);
     issue_req("wrap older survivor", CLMUL_OP_REV, 64'h8000_0000_0000_0001,
               64'hf, 4'd15, 6'd23);
+    kill_valid = 1'b1;
+    `TB_TICK(clk)
+    kill_valid = 1'b0;
+    #1;
     expect_resp("wrap older survivor",
                 ref_clmul(CLMUL_OP_REV, 64'h8000_0000_0000_0001,
                           64'hf),
                 4'd15, 6'd23, 80);
-    kill_valid = 1'b0;
-
     run_case("clmul low", CLMUL_OP_LOW,
              64'h1234_5678_9abc_def0, 64'hfedc_ba98_7654_3210);
     run_case("clmulh high", CLMUL_OP_HIGH,
@@ -350,8 +378,12 @@ module tb_ooo_clmul_unit;
     `TB_TICK(clk)
     `TB_TICK(clk)
     flush = 1'b1;
+    #1;
+    tb_check1("flush death edge keeps old lease", owner_valid, 1'b1);
+    tb_check1("flush freezes request ready", req_ready, 1'b0);
     `TB_TICK(clk)
     flush = 1'b0;
+    #1;
     tb_check1("flush clears response", resp_valid, 1'b0);
     tb_check1("flush returns ready", req_ready, 1'b1);
 

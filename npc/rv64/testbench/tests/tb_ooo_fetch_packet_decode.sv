@@ -174,6 +174,7 @@ module tb_ooo_fetch_packet_decode;
     drive(64'h0000_0000_0000_5000, 32'h0003_0003, 2'b11,
           32'h0000_0013, 2'b00);
     tb_check1("word0 fault stops dec0", dec0_control_stop, 1'b1);
+    tb_check32("word0 fault sanitizes dec0", dec0_inst, 32'h0000_0013);
     tb_check32("c+c fault propagates dec1 resp", {30'b0, dec1_resp},
                32'h0000_0003);
     tb_check1("word0 fault stops dec1 when contained", dec1_control_stop, 1'b1);
@@ -200,6 +201,24 @@ module tb_ooo_fetch_packet_decode;
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] fault-tail poison forged semihost exit peer");
     end
+    $display("[G2-DECODE-POISON] split=4 resp=2 sanitized=1 forged=0 PASS");
+
+    // F=0 是 response ABI 的首字节失败边界。没有任何 raw byte 属于成功 segment；
+    // 两个 slot 均必须从 resp1 取得 fault，并在读取长度/分类前净化为 NOP。
+    rsp_pc = 64'h0000_0000_0000_9000;
+    rsp_inst0 = 32'hdeaf_9002;
+    rsp_resp0 = 2'b00;
+    rsp_inst1 = 32'h4070_5013;
+    rsp_resp1 = 2'b10;
+    rsp_resp0_bytes = 3'd0;
+    #1;
+    tb_check32("G2 F0 slot0 response", {30'b0, dec0_resp}, 32'h0000_0002);
+    tb_check32("G2 F0 slot1 response", {30'b0, dec1_resp}, 32'h0000_0002);
+    tb_check32("G2 F0 slot0 sanitized", dec0_inst, 32'h0000_0013);
+    tb_check32("G2 F0 slot1 sanitized", dec1_inst, 32'h0000_0013);
+    check_xlen("G2 F0 fault frontier", fault_tval,
+               64'h0000_0000_0000_9000);
+    $display("[G2-DECODE-F0] split=0 resp=2/2 sanitized=1/1 tval=pc PASS");
 
     // T4G: xEPC 仍是 faulting instruction 的 slot PC；xTVAL 必须是首个失败
     // 2B portion 的 frontier。覆盖跨页常见 F=2/4/6 三种布局。

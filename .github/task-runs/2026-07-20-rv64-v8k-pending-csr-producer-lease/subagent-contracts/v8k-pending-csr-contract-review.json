@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8k-pending-csr-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立反例复核本地 RV64 pending-system CSR 的 full ProducerId 出生、Q-only lease、birth fence、exact commit 与 head0 回退封口合同；识别会造成错误 CSR 副作用、身份脱钩或组合反馈的最小周期反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/holder-census-delta.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-pending-csr-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/holder-census-delta.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md"
+    ]
+  },
+  "deliverables": [
+    "只返回 JSON：verdict(pass|gap)、blockers（每项含 cycle_trace/identity_state/observable_effect/required_test_or_mutation）、residual_risks、overclaims"
+  ],
+  "success_criteria": [
+    "覆盖 pre-ROB/post-dispatch 生命周期、live recapture、dispatch/commit/clear 同拍优先级、full-PID 与 PC 的角色、claim-active head0 fallback、Q-only live mask 反馈以及所有 death edge；无未解释的 P0/P1 反例"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

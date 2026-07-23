@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9k-ptw-pmp-current-coverage-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的当前设计事实，复核 OooFetchAxiBridge 与 OooMemAxiBridge 的 PTW PTE 8B WRITE PMP checker 地址到 AXI PTE 写事务的逐周期绑定、独立 AW/W 握手、LSU deny-pending 到 fault-response terminal 的静默区间和明确的 IFU 下游责任边界，并对 PTW-PMP-G1 给出限定 PASS、GAP 或 inconclusive",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/subagent-contracts/v9k-ptw-pmp-current-coverage-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整 RV64 RTL 设计标识为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；V4 只增强 testbench、evidence parser、freeze validator 与负向 RTL variant，生产 Verilog RTL 字节未改变。",
+      "V3 限定复核只余一个证据洞：LSU PTE WRITE deny 后的两拍 response backpressure 不能排除第 3 个 stalled-response 周期才脉冲 AWVALID 或 WVALID 的延迟泄漏；V3 明确这是 evidence GAP，不是已证实的生产 RTL bug。",
+      "LSU bridge TB 新增 v9k_ptw_pmp_deny_pending_q 周期监视器：在 !cpu_kill_w && walk_ad_write_deny_w 时置位，直到 mem0_rsp_valid&&mem0_rsp_ready 或 exact mem0_drop0_valid terminal 才清除；pending 含 deny 拍时任何 lsu_axi_awvalid 或 lsu_axi_wvalid 都记录 [V9K-LSU-PTW-PMP-DENY-QUIET] CHECK-FAIL。",
+      "三类 LSU deny 场景为 load-A readonly、store-D readonly 与 load-A partial8；每类分别驱动 response READY 延迟 0、1、2、3、5 拍，共 15 行、33 个 stalled-response 周期。每行从 deny 到 response handshake 保持 AWREADY=WREADY=1，逐拍检查 AWVALID=WVALID=0。",
+      "每个 LSU deny 延迟行同时核对 response valid、access-fault 且非 page-fault、原 owner kind、token、MMU epoch 与 original VA fault_tval；测试在 request 接受后改变 live request fields，因此 response owner 不能从 live input 重建。",
+      "新增三个 compile-success LSU RTL variant：各自跟踪 PTW deny pending 与 stalled-response 计数，在第 3 个 stall 周期分别脉冲 AWVALID、WVALID 或 AWVALID+WVALID。三个都编译成功，并由 [V9K-LSU-PTW-PMP-DENY-QUIET] 与 READY-high 定向检查动态拒绝。",
+      "IFU checker tuple 仍为 registered walk_pte_addr_q、8B、PRIV_S、WRITE；AWADDR 组合连接 walk_pte_addr_q，WDATA 连接 registered ad_pte_q，AWVALID 与 WVALID 分别由 S_AD_UPDATE 及 aw_done_q、w_done_q 译码。",
+      "IFU granted 行先将 AWREADY/WREADY 同时拉低两拍并逐拍比较 AWADDR、AWSIZE、WDATA、WSTRB，再按 AW-first 分离接受；IFU-AD-AW-HOLD、IFU-AD-W-HOLD、pending 不撤回、accepted 不重发与 IFU-AD-B-ORDER 排除两写通道时序反例。",
+      "LSU checker tuple 仍为 walk_pte_addr_w、8B、PRIV_S、WRITE；S_AD_UPDATE 时 AWADDR 选择 walk_pte_addr_w、WDATA 选择 registered ad_pte_q。load-A 行覆盖 W-first，store-D 行覆盖 AW-first，并检查 payload 保持、各通道恰好一次接受与 B 位于两通道接受之后。",
+      "IFU deny manifest 覆盖 F=0 与 second-page F=2/4/6；PTE READ 与最终 2B EXEC 允许、8B PTE WRITE 拒绝，保留 exact successful prefix，生成 instruction access fault，且无 younger instruction AR、AW、W。",
+      "当前负向 RTL 变体为 IFU 12 个、LSU 16 个，共 28 个；除 checker tuple、deny/grant polarity、fault class、deny-cycle AW/W、A/D AWADDR、split-handshake pending withdrawal 与 live-token relabel 外，新增上述三个第 3 周期 delayed AW/W 变体。28 个均编译成功并由指定周期 oracle 动态拒绝。",
+      "evidence schema v3 声明 26 项不变量；canonical make -C npc/rv64 check-ptw-pmp 已通过 focused 2/2、module aggregate 109/109、compile-success RTL variants 28/28 与 fail-closed 单元测试 12/12，variant 执行前后生产 RTL SHA 一致。",
+      "PTW-PMP current result SHA-256 为 a28c76c3b37c5c8145dd3a6e935d65bcd61a81910f91954225ac6bddfcd97185，raw log SHA-256 为 b89ef2b5b2de4f56ea981979aa91256dd0e2e169ace7fc06c71af09ca08b9736，focused summary SHA-256 为 fba46661e8d8be55c6b8becdb4cfb6824f4dddc6a2a8d0dad5bde3682e04f12c，module summary SHA-256 为 132e013b693ad64adca4622af67c1429b27e15e140049010983c9b9bcc1a5bc5，variant summary SHA-256 为 9a832ad5683de21e83018b48b1aec4a2121f75e9150c88a6e59f098e2b5cfba9。",
+      "PTW-PMP-G1 的 IFU 声明边界终止于 bridge 输出 resp0_bytes=F 与 instruction access-fault class；F=2/4/6 后的 lane owner、fault PC 与 tval 由同一 design_id 的 IFU-ACCESS-G1 和 IFU-TVAL-G1 独立证据管理。",
+      "本地 IFU 与 LSU PTE WRITE AXI 接口没有 AWPROT port，因此本 gate 不虚构 AWPROT oracle；PTE READ 与 instruction EXEC 是独立访问事务，其下游 lane owner 不归入 PTE WRITE checker 结论。",
+      "共享 architecture freeze 当前仍是诚实 GAP，剩余 36 个与 PTW-PMP-G1 无关的 blocker；PPA 为 UNQUALIFIED 且 promotion_eligible=false，本复核不得外推为完整核心或正式 PPA。"
+    ]
+  },
+  "deliverables": [
+    "逐项复核 V3 的第 3 个 stalled-response 周期 AW/W 泄漏反例是否已被不定长 deny-pending 周期监视器、0/1/2/3/5 READY 延迟 sweep、AWREADY/WREADY 高电平和三个 delayed-leak RTL variant 共同排除；同时复核 checker-to-AWADDR、AW/W exactly-once、B ordering、owner/fault_tval 保持与 IFU 责任边界。给出限定 PASS、GAP 或 inconclusive；若仍有 GAP，必须给出与全部随附 oracle 相容的 module、signal、cycle、transaction-owner 反例，并列出 unknowns、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "结论必须严格限定为 PTW-PMP-G1 的 PASS、GAP 或 inconclusive；PASS 需说明为何 V3 延迟泄漏反例与其它 checker/payload/owner 反例都无法与全部随附周期 oracle 和变体见证同时成立，GAP 需给出新的具体周期反例；不得外推到未随附内容、全核 ARCH_STABLE 或 PPA 资格。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

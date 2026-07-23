@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9i-ifu-access-coverage-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附冻结事实复核本地 RV64 IFU-ACCESS-G1，检查 instruction halfword 访问序列、2B EXEC PMP、RRESP transaction owner、AXI ARSIZE/ARPROT、ARPROT[2] default-slave 选择、PMEM 尾界读取和 lane0/lane1 fault owner 是否存在共同覆盖缺口。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/review-summary.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/mutations/summary.json",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-access.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/subagent-contracts/v9i-ifu-access-coverage-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 production RTL design_id 为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；canonical command 为 make -C npc/rv64 check-ifu-access，结果 PASS，production_rtl_changed=false。",
+      "两条 instruction 的 L0/L1 各为 2B 或 4B，packet footprint N 为 4B、6B 或 8B；bridge 只对 offset 小于 N 的 halfword 形成 2B instruction AR owner，4 个 footprint 行和 4 个无效 tail sentinel 行均通过。",
+      "RRESP 矩阵共 36 行，lane0/lane1 owner 各 18 行，EXOKAY/SLVERR/DECERR 各 12 行；PMP 矩阵 14 行且 lane owner 为 6/6，首个失败 frontier 之后 younger PMP、AR、packet fill 和 SRAM write 均为零。",
+      "RRESP 只在 RVALID 与 RREADY 同属当前 owner 的周期采样；矩阵还区分 older RRESP F0 与 younger PMP F2，并验证四个 packet 无复位序列会清理前一 transaction owner。",
+      "instruction AR 为 ARSIZE=1、ARPROT=4，PTW PTE AR 为 ARSIZE=3、ARPROT=0；在至少两个 ARVALID 且 ARREADY 为零的周期中，ARADDR、ARSIZE、ARPROT 均来自已锁存 read owner。",
+      "当 ARPROT[2]=1 且 SLAVE_EXEC_MASK[decoded]=0 时，AxiXbar 在 device slave 接受 AR 前选择 default-error；四个反压周期、一个 instruction 选择行、两个 default-error 响应和一个 ARPROT[2]=0 LSU data 正控制均通过，UART AR handshake 数为零。",
+      "AxiDpiSlave 将 AXI size 转为 nbytes；instruction 读取覆盖 4 个 byte-lane 放置行，PMEM 尾界地址只读取 2B，相邻 host page 不可读的边界 oracle 通过。",
+      "OooFetchPacketDecode 的 12 行 C/C、C/U、U/C、U/U 与 F0/F2/F4/F6 矩阵产生 lane0 owner 6 行和 lane1 owner 6 行；每行的 PC、cause、tval 经过 capture、pending 与 drain 保持一致。",
+      "19 个编译成功负向 RTL 变体均由定向 testbench 的周期级 marker 检出；分布为 OooFetchAxiBridge 9、AxiXbar 3、OooFetchHeadPairGate 2，其余 PmpChecker、decoder、dispatch、capture、arbiter 各 1，production source SHA 前后相同。",
+      "focused test 为 4/4，动态派生 module aggregate 为 109/109，证据单测为 10/10；结论只覆盖 IFU-ACCESS-G1，不外推到 IFU-TVAL-G1、PTW-PMP-G1、LSU split transaction、full-core architecture freeze 或 PPA。"
+    ]
+  },
+  "deliverables": [
+    "输出 PASS、GAP 或 inconclusive，并给出 signal、byte offset、cycle/handshake、transaction owner 与对应 testbench oracle；列出 unknowns、替代假设、残余风险、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "PASS 必须说明 footprint、RRESP/PMP、AR channel、PMEM bounds 与 lane fault owner 的矩阵及负向 RTL 变体如何共同区分错误 source edge；GAP 必须给出可执行的周期级反例且不扩大结论范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

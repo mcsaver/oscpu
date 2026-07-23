@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "fence-arch-stable-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 Verilog/SystemVerilog 普通 FENCE 架构汇总证据只读复核：核对 arch-stable-current.json 中 FENCE-G1 的 current RTL design-id、result/raw/source hash、测试计数与 architecture-debt-ledger.json 和 fence-ordering-current.json 一致，并确认全核 ARCH_STABLE 与 PPA 状态未越级。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/fence-ordering-current.json",
+      "npc/rv64/eval/ppa/evidence/fence-ordering.log",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/subagent-contracts/fence-arch-stable-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/completion-definition.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "直接报告 arch-stable-current.json 的 FENCE-G1 绑定一致性、全核架构状态、PPA 资格状态、unknowns、显式假设、替代假设、scope_extension_request 与 confidence_and_basis；不得写文件。"
+  ],
+  "success_criteria": [
+    "明确 PASS、GAP 或 inconclusive；PASS 必须逐项给出 current RTL design-id、FENCE result/raw hash、测试计数、ledger 状态及全核 ARCH_STABLE/PPA 状态的直接证据，并确认没有把 FENCE-G1 局部闭环表述成全核或 PPA 闭环。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

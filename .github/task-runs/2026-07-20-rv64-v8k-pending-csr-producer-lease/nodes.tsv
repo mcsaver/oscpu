@@ -1,0 +1,7 @@
+node_id	status	description
+v8k-inventory	completed	pending-system capture/drain/dispatch/ROB commit/CSR side-effect and wrapper call chain inventoried
+v8k-contract-review	completed	initial three lifecycle gaps amended and independent delta review passed with no blockers
+v8k-implementation	completed	full PID carrier Q-only birth fence exact commit head0 fallback seal and feedback-free exact admission cancel
+v8k-focused-verification	completed	sequencer CSR mux admission backend top integration assertions and ten compile-success mutations
+v8k-regression	completed	legacy v8d-v8j 6/6 module aggregate 106/106 static contract and inherited-lint equivalence
+v8k-closeout	completed	independent reviews native no-tools forward test retained memory DB evidence index e2e publications and strict guard

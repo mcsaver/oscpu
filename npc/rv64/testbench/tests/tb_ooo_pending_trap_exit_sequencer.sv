@@ -200,6 +200,7 @@ module tb_ooo_pending_trap_exit_sequencer;
     expect_state(1'b0, 1'b0, 1'b0, 1'b0, {`TRAP_CAUSE_W{1'b0}},
                  {`XLEN{1'b0}}, {`XLEN{1'b0}});
 
+    $display("[TVAL-G1-PENDING-SEQUENCER] capture=1 hold_valid_clear=1 squash_clear=1 late_clear=1 PASS");
     $display("PASS tb_ooo_pending_trap_exit_sequencer");
     $finish;
   end

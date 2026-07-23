@@ -1,9 +1,9 @@
 # RV64 OoO RTL Ground Truth — 2026-07-11
 
-> **类型**：snapshot + current delta（2026-07-12 FDG/XRET/MEM-ISSUE-G1 关闭后校正）。
+> **类型**：snapshot + current delta（2026-07-21 V9D 证据重绑后校正）。
 >
 > **状态**：CURRENT。主体基于代码快照 `cab1814b0622e53e1e62f2b0fc17ed6873c72ba2`；
-> 2026-07-12 已同步 FDG-G1 关闭事实与新鲜回归证据。下一次结构性架构切片必须生成新的
+> 2026-07-21 已同步 FDG-G1/INSTRET-G1 的当前设计证据；V9D 未修改生产 RTL。下一次结构性架构切片必须生成新的
 > dated snapshot 并把本文件整体归档，避免继续累积 delta。
 >
 > **预期归宿**：下一份 ground-truth snapshot 产生时，移入 `history/` 并登记为
@@ -96,13 +96,23 @@ NpcSimTop                         仿真 shell
 
 除明确标为 CLOSED 的条目外，以下内容描述当前仍开放的 RTL 合同：
 
-1. **FDG-G1 — CLOSED 2026-07-12：head0 arch-trap 不得呈现 backend**
+1. **FDG-G1 — CLOSED；V9D 于 2026-07-21 重绑当前设计：head0 arch-trap 不得呈现 backend**
 
-   `OooFrontendDispatchGate` 的唯一 ordinary backend-valid 方程已门控
-   `dispatch0_arch_trap_i`，父级同时以 `FDG-I1` 立即断言守护。旧 RTL 四类非法 FP
-   在 admission 输出精确 RED；修复后 focused 4/4、负探针、module 87/87、
-   Difftest-ON AM 59/59 与 official 177/177 均通过。下游 mux 是直接 OR sink；本刀不改变
-   pending trap、FIFO pop、ROB 或提交 owner。
+   当前 source-to-sink 为 `OooFetchHeadClassifyGate/OooFetchHeadPairGate` →
+   `OooFrontendDispatchGate` → `OooFrontendBackendDispatchMux` → `OooCoreTopGlue` backend；
+   ordinary、lane1 和 unsupported admission 方程均排除 `dispatch0_arch_trap_i`，父级
+   `OooFrontend` 以 `FDG-I1` 立即断言守护。精确 trap owner 独立经
+   `OooPendingDispatchArbiter` → `OooPendingTrapExitSequencer` →
+   `OooCsrTrapRequestMux/CsrFile` 保存 cause/PC/tval。
+
+   V9D focused 证据覆盖 4 类非法 FP 均分类为 `arch_trap`、backend 0 呈现，以及 1 个合法
+   FADD.S 正控制；全核程序精确捕获 1 次非法指令 trap，capture PC/tval 与 CSR
+   `mepc/mtval` 各 1/1，同一 commit observation interface 命中 1 条已知 ADDI、非法 FP 0
+   提交，并完成 handler/MRET。6/6 current-source 可编译 RTL 验证变体及 1/1 commit-observer
+   非空性探针被动态拒绝，current module 109/109；
+   canonical command 为 `make -C npc/rv64 check-fdg-arch-trap`，绑定
+   `design_id=sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc`。
+   V9D 未修改生产 RTL，也未把旧 AM/official 结果扩写成当前同源 aggregate。
 
 2. **XRET-G1 — CLOSED 2026-07-12：current-mode 合法性**
 
@@ -164,10 +174,13 @@ NpcSimTop                         仿真 shell
    静态序列，尚无完整 NpcCoreTop 程序波形。另一个 MIQ full+pop 模块反例在当前
    active+staged bridge 下不可达到 full=4，只是未来扩展前的潜伏接口项。
 
-10. **INSTRET-G1 — CsrFile 计数源不等于唯一 ISA retirement**
+10. **INSTRET-G1 — CLOSED 2026-07-21：唯一 ISA-retirement 计数源**
 
-   `NpcCoreTop` 把 raw ROB commit count 接入 CsrFile；异常 entry 未过滤，control-path
-   pseudo-commit 未合并。当前结论来自整机静态接线，尚无专门 counter 程序波形。
+   `OooCommitOutputMux` 的最终可见 lane 统一过滤异常退休并合并 control-path
+   pseudo-commit，`OooWriteback/NpcCoreTop` 只把该最终计数送入 `CsrFile`。V9C 全核 Sv39
+   程序证明两条异常 lane 均为零增量，MRET/SRET/SFENCE.VMA 分别 1/6/1 次精确单增量，
+   control commit 8/8 且 CsrFile prior-edge 检查 1052 次；3/3 current-source 可编译 RTL
+   验证变体被动态拒绝。canonical command 为 `make -C npc/rv64 check-instret-retirement`。
 
 11. **store/device 平台边界**
 

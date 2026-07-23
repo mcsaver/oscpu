@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9h-ifu-fetch-final-evidence-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附当前设计证据审查本地 RV64 IFU-FETCH-G2 page-fault byte provenance 是否足以在当前 design-id 下从 STALE_EVIDENCE 重绑为 CLOSED，并优先寻找假绿、观测等价变体误计或来源绑定反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
+      "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance.log",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/review-summary.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/subagent-contracts/v9h-ifu-fetch-final-evidence-review-v1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/review-summary.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "对象是授权本地 RV64 Verilog/SystemVerilog 处理器 RTL、testbench、Icarus 仿真与证据；本节点不使用 shell、文件工具、网络、账号、凭据或外部服务。",
+      "当前 design_id 为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；生产 Verilog 未修改。规范入口 make -C npc/rv64 check-ifu-fetch-provenance 一次通过。",
+      "focused 2/2、完整模块 aggregate 109/109、证据工具 fail-closed 单元测试 10/10 全部通过；result SHA256 为 316c990ca24e3f6a097e0d827158a4b70bc35519ee46011e8ff80d73599fb1b0，raw log SHA256 为 d451a36815f23c4ef4f6bb582b7902e31f611613e8f5ed7aadb0c1d900b1cdc4。",
+      "真实 bridge 到 decoder 的 page-end 矩阵为 13 行：F2 五条 fault、F4 三条 fault、F6 一条 fault，并有一条真实第一页 invalid-PTE F0；F0、F2、F4、F6 均由 PC 和 4KiB 页边界独立计算，不读取 DUT split。",
+      "9 条 F2/F4/F6 fault 行各自证明 successful prefix 保留、fault suffix 清零、instruction AR offer 数精确为 F/2、frontier 后无年轻 AR、无 packet-cache fill、无 SRAM write；response 反压两拍期间主动呈现另一对齐请求，ready 保持 0 且 raw/resp/split 稳定；接收后再观察两拍保持静默。",
+      "真实 F0 bridge 行证明 split0、raw 全零、decoder 两槽 page fault 且 NOP、tval 等于请求 PC、instruction-data AR 为0、两拍反压稳定、两拍接收后静默、无年轻 AR/fill/SRAM write；decoder 独立 F0 和 fault-tail poison 均通过。",
+      "先完成 raw=8877665744332213 的四-halfword 成功 packet，再无复位执行 F2 fault；成功控制实际观察 instruction AR=4、cache fill=1、SRAM write=1，随后 fault tail 仍全零，因此监视路径与清零 oracle 非真空。",
+      "最终 current-source RTL 验证变体 16/16 均编译成功并被指定语义 marker 拒绝，bridge 与 decoder 各8个；覆盖 frontier 常量/错误保存、stale scratch、valid 未 ready 提前释放、live candidate 泄漏、halfword lane 错位、invalid PTE 后继续 AR、partial packet fill、range 等号、F0 特判、slot0/slot1 full-range、错误 slot1 start、fault prefix length 读取及两槽 NOP 净化。",
+      "首轮 reviewer 的 GAP 已固化并逐项纠偏；固定4B slot1起点在合法 fault tuple 上观测等价，未计为杀伤，改用错误固定2B起点的可区分反例。首轮10/13、中间13/13与最终16/16均保留为审计轨迹。",
+      "证据结果把 full-core architecture freeze 保持为 GAP，把 PPA 保持为 UNQUALIFIED，并声明 promotion_eligible=false；PMP/RRESP、完整物理 footprint、lane1 capture、fault-tval lifecycle 与 PTW write PMP 不由本切片关闭。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；列出任何可推翻重绑的周期级反例、假绿、等价变体误计、证据绑定缺口、残余风险和置信度。"
+  ],
+  "success_criteria": [
+    "只有在 supplied facts 内部自洽且足以区分 frontier、transaction owner、tail provenance、F0、AR cutoff、fill/write 和 decoder range 错误时才判 PASS；不得把 scoped CLOSED 外推为 full-core freeze、PPA 合格或其它 debt 关闭。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

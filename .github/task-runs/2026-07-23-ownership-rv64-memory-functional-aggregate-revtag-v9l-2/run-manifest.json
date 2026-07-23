@@ -1,0 +1,156 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence",
+    "evidence_index": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2",
+    "run_manifest": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 10,
+    "by_kind": {
+      "log": 9,
+      "md": 1
+    },
+    "total_size_bytes": 17980
+  },
+  "final_result": "profile=difftest 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "ef967abae",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 8
+    },
+    "total": 8
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/recall-discovery.log",
+      "function": "e2e_agent_system_discovery",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/tool-env-check.log",
+      "function": "e2e_toolchain_check",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/npc-sim-status.log",
+      "function": "e2e_hardware_flow_npc_sim_status",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/abstract-machine-contract.log",
+      "function": "e2e_abstract_machine_contract",
+      "inputs": "AM Makefile/scripts/include/memory",
+      "module": "abstract-machine",
+      "node_id": "abstract-machine-contract",
+      "outputs": "AM 平台合约入口存在",
+      "owner_agent": "abstract-machine",
+      "source_profile": "abstract-machine",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/nemu-config-probe.log",
+      "function": "e2e_nemu_config_probe",
+      "inputs": "nemu Kconfig/configs/device filelist",
+      "module": "nemu",
+      "node_id": "nemu-config-probe",
+      "outputs": "NEMU 当前配置和参考入口可见",
+      "owner_agent": "nemu",
+      "source_profile": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/nemu-reference-config-contract.log",
+      "function": "e2e_nemu_reference_config_contract",
+      "inputs": "NEMU build target/ISA + reference smoke profile binding",
+      "module": "nemu",
+      "node_id": "nemu-reference-config-contract",
+      "outputs": "host-native RISC-V 接受且 AM/SHARE/非 RISC-V/缺失配置 fail closed",
+      "owner_agent": "nemu",
+      "source_profile": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/nemu-add-smoke.log",
+      "function": "e2e_nemu_native_add_smoke",
+      "inputs": "当前 NEMU host-native reference 配置 + cpu-tests add",
+      "module": "nemu",
+      "node_id": "nemu-add-smoke",
+      "outputs": "NEMU reference 最小 smoke PASS 或配置边界 SKIP",
+      "owner_agent": "nemu",
+      "source_profile": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2/evidence/difftest-contract.log",
+      "function": "e2e_difftest_contract",
+      "inputs": "NEMU spike-diff + npc/sim difftest-ref",
+      "module": "difftest",
+      "node_id": "difftest-contract",
+      "outputs": "DiffTest 合约入口存在",
+      "owner_agent": "difftest",
+      "source_profile": "difftest",
+      "status": "PASS"
+    }
+  ],
+  "profile": "difftest",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2",
+  "schema_version": 1,
+  "started_at": "2026-07-23 00:12:45 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "ownership-rv64-memory-functional-aggregate-revtag-v9l",
+  "trace_id": "e2e:2026-07-23-ownership-rv64-memory-functional-aggregate-revtag-v9l-2",
+  "updated_at": "2026-07-23 00:13:13 +0800"
+}

@@ -23,10 +23,25 @@ module OooDispatchBackend #(
   // Registered downstream occupancy of the physical Universal terminal.
   // Kept separate from memory dispatch blocking and combinational ready.
   input universal_owner_present_i,
+  // v8u/F4 registered-IQ pair refill face.  Payload is carried on the
+  // existing issue buses while regular issue valids stay low.
+  input memory_pair_peek_enable_i,
+  output memory_pair_peek_valid_o,
+  input memory_pair_peek_ready_i,
   // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
   // 需要 SQ slot, 满则反压。
   input sq_alloc0_ready_i,
   input sq_alloc1_ready_i,
+  // Shared retire-resident LQ edge-old credits.  Ordinary integer/FP loads
+  // allocate in dispatch order; AMO/LR/SC retain their legacy owner path.
+  input lq_alloc0_ready_i,
+  input lq_alloc1_ready_i,
+  // Registered/Q-only ProducerId leases.  Dispatch only performs indexed Q
+  // lookups; holder CAMs must not enter this ready cone.
+  input [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_i,
+  // v8l complete birth-fence view: external Q holders plus the resident
+  // integer IQ.  Exported for integration assertions/reference probes only.
+  output [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_o,
 
   input dispatch0_valid_i,
   output dispatch0_ready_o,
@@ -103,6 +118,29 @@ module OooDispatchBackend #(
   input completion1_query_valid_i,
   input [PRODUCER_ID_W-1:0] completion1_query_producer_id_i,
   output completion1_query_match_o,
+  input completion2_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion2_query_producer_id_i,
+  output completion2_query_match_o,
+  input completion3_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion3_query_producer_id_i,
+  output completion3_query_match_o,
+  input completion4_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion4_query_producer_id_i,
+  output completion4_query_match_o,
+  input completion5_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion5_query_producer_id_i,
+  output completion5_query_match_o,
+  input completion6_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion6_query_producer_id_i,
+  output completion6_query_match_o,
+  input completion7_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion7_query_producer_id_i,
+  output completion7_query_match_o,
+  // v8j branch resolve uses a dedicated cycle-free ROB authority query.
+  // This layer is transport-only: no storage, arbitration or ready coupling.
+  input resolve_query_valid_i,
+  input [PRODUCER_ID_W-1:0] resolve_query_producer_id_i,
+  output resolve_query_match_o,
 
   // R3.2 actual-fire lookahead wake.  These pulses update only IQ sticky
   // readiness; formal WB remains the sole BusyTable/PRF completion source.
@@ -170,6 +208,7 @@ module OooDispatchBackend #(
 
   output dispatch0_fire_o,
   output [ROB_INDEX_W-1:0] dispatch0_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] dispatch0_producer_id_o,
   output [PHY_REG_ADDR_W-1:0] dispatch0_pdest_o,
   output [PHY_REG_ADDR_W-1:0] dispatch1_pdest_o,
   output [PHY_REG_ADDR_W-1:0] dispatch0_src1_preg_o,
@@ -178,6 +217,7 @@ module OooDispatchBackend #(
   output dispatch0_src2_ready_o,
   output dispatch1_fire_o,
   output [ROB_INDEX_W-1:0] dispatch1_rob_idx_o,
+  output [PRODUCER_ID_W-1:0] dispatch1_producer_id_o,
   output [PHY_REG_ADDR_W-1:0] dispatch1_src1_preg_o,
   output dispatch1_src1_ready_o,
   output [PHY_REG_ADDR_W-1:0] dispatch1_src2_preg_o,
@@ -187,6 +227,7 @@ module OooDispatchBackend #(
   input commit1_block_i,
   input mem_quiet_i,   // 【serialize Phase1 §9】mem 静默(=mem_idle&&mem_retire_quiet), 门控 head0-CSR 退休
   output commit0_valid_o,
+  output [PRODUCER_ID_W-1:0] commit0_producer_id_o,
   output [`XLEN-1:0] commit0_pc_o,
   output [`XLEN-1:0] commit0_next_pc_o,
   output [`INST_W-1:0] commit0_inst_o,
@@ -202,6 +243,7 @@ module OooDispatchBackend #(
   output [`XLEN-1:0] commit0_tval_o,
 
   output commit1_valid_o,
+  output [PRODUCER_ID_W-1:0] commit1_producer_id_o,
   output [`XLEN-1:0] commit1_pc_o,
   output [`XLEN-1:0] commit1_next_pc_o,
   output [`INST_W-1:0] commit1_inst_o,
@@ -218,6 +260,9 @@ module OooDispatchBackend #(
 
   output [ROB_INDEX_W-1:0] rob_head_idx_o,
   output rob_head_valid_o,
+  output [PRODUCER_ID_W-1:0] rob_head_producer_id_o,
+  output rob_head_owner_open_o,
+  output rob_head_launch_open_o,
   output rob_recover_active_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
@@ -246,6 +291,10 @@ module OooDispatchBackend #(
   wire dispatch1_uses_rs2_w = dispatch1_ctrl_i[`CTRL_RS2_EN_BIT];
   wire dispatch1_writes_rd_w = dispatch1_ctrl_i[`CTRL_RD_EN_BIT] &&
                                (dispatch1_rd_arch_i != {`REG_ADDR_W{1'b0}});
+  wire dispatch0_is_plain_load_w = dispatch0_ctrl_i[`CTRL_LOAD_BIT] &&
+                                    !dispatch0_ctrl_i[`CTRL_AMO_BIT];
+  wire dispatch1_is_plain_load_w = dispatch1_ctrl_i[`CTRL_LOAD_BIT] &&
+                                    !dispatch1_ctrl_i[`CTRL_AMO_BIT];
 
   wire rob_dispatch0_ready_w;
   wire rob_dispatch1_ready_w;
@@ -253,6 +302,7 @@ module OooDispatchBackend #(
   wire [ROB_INDEX_W-1:0] rob_dispatch1_idx_w;
   wire [PRODUCER_ID_W-1:0] rob_dispatch0_producer_id_w;
   wire [PRODUCER_ID_W-1:0] rob_dispatch1_producer_id_w;
+  wire [PRODUCER_ID_W-1:0] rob_dispatch1_pair_producer_id_w;
   wire [PRODUCER_ID_W-1:0] rob_head0_producer_id_w;
   wire [PRODUCER_ID_W-1:0] rob_commit0_producer_id_w;
   wire [PRODUCER_ID_W-1:0] rob_commit1_producer_id_w;
@@ -260,6 +310,8 @@ module OooDispatchBackend #(
   wire [PRODUCER_ID_W-1:0] rob_walk1_producer_id_w;
   wire [ROB_INDEX_W-1:0] rob_head_idx_w;
   wire rob_head_valid_w;
+  wire rob_head_launch_open_w;
+  wire rob_head_owner_open_w;
   wire [ROB_COUNT_W-1:0] rob_count_w;
   wire rob_empty_w;
   wire rob_full_w;
@@ -269,6 +321,10 @@ module OooDispatchBackend #(
   wire [ISSUE_COUNT_W-1:0] iq_count_w;
   wire iq_empty_w;
   wire iq_full_w;
+  wire [(1 << PRODUCER_ID_W)-1:0] int_iq_producer_live_mask_w;
+  wire [(1 << PRODUCER_ID_W)-1:0] complete_producer_live_mask_w =
+      producer_live_mask_i | int_iq_producer_live_mask_w;
+  assign producer_live_mask_o = complete_producer_live_mask_w;
 
   wire [FREE_COUNT_W-1:0] free_count_w;
   wire free_empty_w;
@@ -313,6 +369,10 @@ module OooDispatchBackend #(
   wire sq_ok1_w = !dispatch1_is_store_w ||
                   (dispatch0_is_store_w ? sq_alloc1_ready_i :
                                           sq_alloc0_ready_i);
+  wire lq_ok0_w = !dispatch0_is_plain_load_w || lq_alloc0_ready_i;
+  wire lq_ok1_w = !dispatch1_is_plain_load_w ||
+                  (dispatch0_is_plain_load_w ? lq_alloc1_ready_i :
+                                               lq_alloc0_ready_i);
 
   wire free_ok1_pair_w =
       !dispatch1_writes_rd_w ||
@@ -323,7 +383,10 @@ module OooDispatchBackend #(
       !dispatch1_valid_i ||
       dispatch1_optional_i ||
       (rob_pair_ready_w && (iq_pair_ready_w || dispatch1_fp_arith_w) &&
-       free_ok1_pair_w && sq_ok1_w);
+       free_ok1_pair_w && sq_ok1_w &&
+       lq_ok1_w &&
+       !complete_producer_live_mask_w[
+           rob_dispatch1_pair_producer_id_w]);
 
   wire free_ok1_w = !dispatch1_writes_rd_w ||
                     (free_count_w >= (dispatch0_alloc_w ?
@@ -361,12 +424,18 @@ module OooDispatchBackend #(
   assign dispatch0_ready_o = rob_slot0_ready_w &&
                              (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
                              free_ok0_w && sq_ok0_w &&
+                             lq_ok0_w &&
                              dispatch1_pair_ready_w &&
+                             !complete_producer_live_mask_w[
+                                 rob_dispatch0_producer_id_w] &&
                              !dispatch_freeze_w;
 
   assign dispatch1_ready_o = dispatch0_fire_w && rob_pair_ready_w &&
                              (iq_pair_ready_w || dispatch1_fp_arith_w) &&
-                             free_ok1_w && sq_ok1_w;
+                             free_ok1_w && sq_ok1_w &&
+                             lq_ok1_w &&
+                             !complete_producer_live_mask_w[
+                                 rob_dispatch1_producer_id_w];
 
   wire dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   wire dispatch1_alloc_w = dispatch1_fire_w && dispatch1_writes_rd_w;
@@ -536,6 +605,8 @@ module OooDispatchBackend #(
     .head0_identity_valid_o(head0_identity_valid_o),
     .head0_identity_o(head0_identity_o),
     .head0_producer_id_o(rob_head0_producer_id_w),
+    .head0_owner_open_o(rob_head_owner_open_w),
+    .head0_launch_open_o(rob_head_launch_open_w),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(rob_dispatch0_ready_w),
     .dispatch0_rob_idx_o(rob_dispatch0_idx_w),
@@ -555,6 +626,8 @@ module OooDispatchBackend #(
     .dispatch1_ready_o(rob_dispatch1_ready_w),
     .dispatch1_rob_idx_o(rob_dispatch1_idx_w),
     .dispatch1_producer_id_o(rob_dispatch1_producer_id_w),
+    .dispatch1_pair_producer_id_o(
+        rob_dispatch1_pair_producer_id_w),
     .dispatch1_pc_i(dispatch1_pc_i),
     .dispatch1_next_pc_i(dispatch1_next_pc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
@@ -582,10 +655,10 @@ module OooDispatchBackend #(
     .wb1_cause_i(wb1_cause_i),
     .wb1_tval_i(wb1_tval_i),
     .wb1_fflags_i(wb1_fflags_i),
-    .current0_query_valid_i(issue0_valid_o),
+    .current0_query_valid_i(issue0_valid_o || memory_pair_peek_valid_o),
     .current0_query_producer_id_i(issue0_producer_id_o),
     .current0_query_match_o(issue0_producer_current_o),
-    .current1_query_valid_i(issue1_valid_o),
+    .current1_query_valid_i(issue1_valid_o || memory_pair_peek_valid_o),
     .current1_query_producer_id_i(issue1_producer_id_o),
     .current1_query_match_o(issue1_producer_current_o),
     .completion0_query_valid_i(completion0_query_valid_i),
@@ -594,6 +667,33 @@ module OooDispatchBackend #(
     .completion1_query_valid_i(completion1_query_valid_i),
     .completion1_query_producer_id_i(completion1_query_producer_id_i),
     .completion1_query_match_o(completion1_query_match_o),
+    .completion2_query_valid_i(completion2_query_valid_i),
+    .completion2_query_producer_id_i(
+        completion2_query_producer_id_i),
+    .completion2_query_match_o(completion2_query_match_o),
+    .completion3_query_valid_i(completion3_query_valid_i),
+    .completion3_query_producer_id_i(
+        completion3_query_producer_id_i),
+    .completion3_query_match_o(completion3_query_match_o),
+    .completion4_query_valid_i(completion4_query_valid_i),
+    .completion4_query_producer_id_i(
+        completion4_query_producer_id_i),
+    .completion4_query_match_o(completion4_query_match_o),
+    .completion5_query_valid_i(completion5_query_valid_i),
+    .completion5_query_producer_id_i(
+        completion5_query_producer_id_i),
+    .completion5_query_match_o(completion5_query_match_o),
+    .completion6_query_valid_i(completion6_query_valid_i),
+    .completion6_query_producer_id_i(
+        completion6_query_producer_id_i),
+    .completion6_query_match_o(completion6_query_match_o),
+    .completion7_query_valid_i(completion7_query_valid_i),
+    .completion7_query_producer_id_i(
+        completion7_query_producer_id_i),
+    .completion7_query_match_o(completion7_query_match_o),
+    .resolve_query_valid_i(resolve_query_valid_i),
+    .resolve_query_producer_id_i(resolve_query_producer_id_i),
+    .resolve_query_match_o(resolve_query_match_o),
     .commit_ready_i(commit_ready_i),
     .commit1_block_i(commit1_block_i),
     .mem_quiet_i(mem_quiet_i),
@@ -668,6 +768,9 @@ module OooDispatchBackend #(
     .flush_i(flush_i),
     .issue_mem_block_i(issue_mem_block_i),
     .universal_owner_present_i(universal_owner_present_i),
+    .memory_pair_peek_enable_i(memory_pair_peek_enable_i),
+    .memory_pair_peek_valid_o(memory_pair_peek_valid_o),
+    .memory_pair_peek_ready_i(memory_pair_peek_ready_i),
     .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
     .dispatch0_ready_o(iq_dispatch0_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
@@ -769,6 +872,7 @@ module OooDispatchBackend #(
     .count_o(iq_count_w),
     .empty_o(iq_empty_w),
     .full_o(iq_full_w),
+    .producer_live_mask_o(int_iq_producer_live_mask_w),
     // B2 ROB-walk：暂行为中性（kill=0、recover=0）；Step B 接 ROB.recover_active + kill 源。
     .kill_valid_i(rob_kill_valid_w),
     .kill_rob_idx_i(rob_kill_idx_w),
@@ -779,8 +883,11 @@ module OooDispatchBackend #(
   assign free_count_o = free_count_w;
   assign rob_count_o = rob_count_w;
   assign issue_count_o = iq_count_w;
+  assign commit0_producer_id_o = rob_commit0_producer_id_w;
+  assign commit1_producer_id_o = rob_commit1_producer_id_w;
   assign dispatch0_fire_o = dispatch0_fire_w;
   assign dispatch0_rob_idx_o = rob_dispatch0_idx_w;
+  assign dispatch0_producer_id_o = rob_dispatch0_producer_id_w;
   assign dispatch0_pdest_o = dispatch0_new_pdest_w;
   assign dispatch1_pdest_o = dispatch1_new_pdest_w;
   assign dispatch0_src1_preg_o = dispatch0_src1_preg_w;
@@ -789,10 +896,14 @@ module OooDispatchBackend #(
   assign dispatch0_src2_ready_o = !dispatch0_uses_rs2_w || dispatch0_src2_ready_w;
   assign dispatch1_fire_o = dispatch1_fire_w;
   assign dispatch1_rob_idx_o = rob_dispatch1_idx_w;
+  assign dispatch1_producer_id_o = rob_dispatch1_producer_id_w;
   assign dispatch1_src1_preg_o = dispatch1_src1_preg_w;
   assign dispatch1_src1_ready_o = !dispatch1_uses_rs1_w || dispatch1_src1_ready_w;
   assign dispatch1_src2_preg_o = dispatch1_src2_preg_w;
   assign dispatch1_src2_ready_o = !dispatch1_uses_rs2_w || dispatch1_src2_ready_w;
+  assign rob_head_producer_id_o = rob_head0_producer_id_w;
+  assign rob_head_owner_open_o = rob_head_owner_open_w;
+  assign rob_head_launch_open_o = rob_head_launch_open_w;
 
   wire unused_status_w = free_empty_w | free_full_w |
                          freelist_alloc0_ready_w | freelist_alloc1_ready_w |
@@ -814,6 +925,60 @@ module OooDispatchBackend #(
         $display("[D0] pc=%h rd=%0d newp=%0d rs1=%0d s1p=%0d s1rdy=%b rs2=%0d s2p=%0d s2rdy=%b rob=%0d", dispatch0_pc_i, dispatch0_rd_arch_i, dispatch0_new_pdest_w, dispatch0_rs1_arch_i, dispatch0_src1_preg_w, (!dispatch0_uses_rs1_w||dispatch0_src1_ready_w), dispatch0_rs2_arch_i, dispatch0_src2_preg_w, (!dispatch0_uses_rs2_w||dispatch0_src2_ready_w), rob_dispatch0_idx_w);
       if (dispatch1_fire_w)
         $display("[D1] pc=%h rd=%0d newp=%0d rs1=%0d s1p=%0d s1rdy=%b rs2=%0d s2p=%0d s2rdy=%b rob=%0d", dispatch1_pc_i, dispatch1_rd_arch_i, dispatch1_new_pdest_w, dispatch1_rs1_arch_i, dispatch1_src1_preg_w, (!dispatch1_uses_rs1_w||dispatch1_src1_ready_w), dispatch1_rs2_arch_i, dispatch1_src2_preg_w, (!dispatch1_uses_rs2_w||dispatch1_src2_ready_w), rob_dispatch1_idx_w);
+    end
+  end
+`endif
+
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst && !flush_i) begin
+      if (dispatch0_fire_w &&
+          complete_producer_live_mask_w[rob_dispatch0_producer_id_w]) begin
+        $error("[V8H-DISPATCH-LANE0-LEASE] lane0 reused live PID=%h @%0t",
+               rob_dispatch0_producer_id_w, $time);
+        $fatal;
+      end
+      if (dispatch1_fire_w &&
+          complete_producer_live_mask_w[rob_dispatch1_producer_id_w]) begin
+        $error("[V8H-DISPATCH-LANE1-LEASE] lane1 reused live PID=%h @%0t",
+               rob_dispatch1_producer_id_w, $time);
+        $fatal;
+      end
+      if (dispatch1_fire_w && !dispatch0_fire_w) begin
+        $error("[V8G-DISPATCH-PREFIX] lane1 fired without lane0 @%0t", $time);
+        $fatal;
+      end
+      if (dispatch0_fire_w && dispatch1_valid_i &&
+          !dispatch1_optional_i && !dispatch1_fire_w) begin
+        $error("[V8G-DISPATCH-MANDATORY-PAIR] lane0 split a mandatory pair @%0t",
+               $time);
+        $fatal;
+      end
+      if (dispatch0_fire_w &&
+          (rob_dispatch1_producer_id_w !==
+           rob_dispatch1_pair_producer_id_w)) begin
+        $error("[V8G-DISPATCH-PAIR-IDENTITY] actual lane1 differs from Q-only pair candidate @%0t",
+               $time);
+        $fatal;
+      end
+      if (dispatch0_fire_w && dispatch1_fire_w &&
+          (rob_dispatch0_producer_id_w ==
+           rob_dispatch1_producer_id_w)) begin
+        $error("[V8G-DISPATCH-DUAL-PID] dual fire reused one PID @%0t", $time);
+        $fatal;
+      end
+      if (rob_dispatch0_producer_id_w ===
+          rob_dispatch1_pair_producer_id_w) begin
+        $error("[V8H-DISPATCH-PAIR-PID-DISTINCT] Q-only pair candidates share one PID @%0t",
+               $time);
+        $fatal;
+      end
+      if (producer_live_mask_o !==
+          (producer_live_mask_i | int_iq_producer_live_mask_w)) begin
+        $error("[V8L-GLOBAL-LEASE-UNION] complete mask diverged from external|IntIQ @%0t",
+               $time);
+        $fatal;
+      end
     end
   end
 `endif

@@ -165,7 +165,9 @@ module/AM 才报告全绿。后续切片把这些 gate 作为回归基线，而�
 7. IFU-TVAL-G1：跨 segment 变长指令 faulting-portion `mtval/stval`；
 8. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
 9. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
-10. INSTRET-G1：唯一 ISA retirement 源；
+10. **INSTRET-G1（CLOSED 2026-07-21）**：最终 commit mux 是唯一 ISA retirement
+    计数源；全核程序证明异常零增量、MRET/SRET/SFENCE.VMA 控制提交各精确计数，
+    并以 3/3 current-source 可编译 RTL 验证变体锁定 CsrFile 消费边；
 11. store/device：late B error、翻译后地址分类、lane/size 与排序合同。
 
 ### F2：声明 ISA/特权范围证明

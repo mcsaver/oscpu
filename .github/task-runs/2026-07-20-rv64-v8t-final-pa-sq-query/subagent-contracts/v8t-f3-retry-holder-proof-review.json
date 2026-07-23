@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-retry-holder-proof-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 RV64 双 bank LSU replay holder 的完整 ProducerId 生命周期、终结事件守恒和同沿竞态，为 F3 设计最小穷举状态空间与可执行断言集合",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-retry-holder-proof-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "每个 bank 最多一个 active bridge transaction、一个 MIQ head 和一个 retry holder；replay 在 query 决策沿把 exact MIQ head 非终结地转移到 retry holder并释放 bridge，之后以同 token、MMU epoch、ROB index、pdest、地址、访问宽度和 fault_tval 经普通 request fire 重发并重新 push MIQ。",
+      "retry holder 有效时只阻止同 bank 新 ordinary load；older plain-store probe、SQ drain 与既有 LEGACY 路径仍可前进；retry 与 same-bank store 按 edge-old 完整 ProducerId/ROB-head distance 仲裁，older store 获胜，两个 bank 独立。",
+      "global/selective transaction cancel 必须使 retry holder进入 12-lane terminal collector 的 lane10 或 lane11并 exact free；retry token 同时计入 holder census 和 no-live-reuse；capture、reissue 和 cancel 的同沿组合必须互斥或按明确优先级保持一个且仅一个 resident/terminal 结果。",
+      "现有证据动态覆盖 bank1 retry pop、token 保持、silent cancel、priority inversion，静态覆盖 load fence 和 holder字段；尚缺 bank0 对称、capture/reissue/cancel 同沿竞态、cross-bank 并发、same-bank older-store 动态仲裁以及 holder conservation 的穷举或形式闭环。"
+    ]
+  },
+  "deliverables": [
+    "输出状态变量、输入事件、可达状态和转移表；列出 safety、nonvacuity 与 bounded-liveness 性质，给出每个性质的最小 directed trace 和可编译语义变异；明确任何优先级歧义、不可达组合、unknowns、替代假设及 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "能区分 bridge、MIQ、retry holder、tracker live bit 与 terminal pending bit 的每沿所有权，并对每个可达竞态给出 exactly-one resident-or-terminal 判据；结论必须为 PASS、GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

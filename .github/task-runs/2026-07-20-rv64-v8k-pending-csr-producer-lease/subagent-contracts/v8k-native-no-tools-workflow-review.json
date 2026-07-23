@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8k-native-no-tools-workflow-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Review whether the local RV64 RTL native self-contained no-tools contract is privilege-exact, backward-compatible, and accurately worded without claiming to bypass platform review",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
+      ".github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/skills/prepare-rtl-task-contract/SKILL.md",
+      "AI_ENVIRONMENT.md",
+      "scripts/e2e/modules/agent_system.sh",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/subagent-contracts/v8k-native-no-tools-workflow-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "变更目的：为本地 RV64 RTL 只读 reviewer 建立机器可校验的最小权限执行模式，不以改变、规避或削弱平台审查为目标。",
+      "canonical context_policy 规定 material_mode 为 workspace-files 或 prompt-supplied-self-contained；no-tools 只允许 task_kind=read-only-review。",
+      "prompt-supplied-self-contained 合同必须精确声明 allowed_commands=[]、write_paths=[]、四项外部访问均为 false、supplied_material 非空且每项单行。",
+      "渲染提示将 allowed_paths 标为仅作 provenance，并明确 no tools、no shell、no filesystem、no network、no accounts、no credentials、no external services。",
+      "workspace-files 仍要求非空 canonical commands；旧版仅含 required_files 的 context 保持 validate/render 兼容。",
+      "本地 audit 已 PASS；self-test 20/20 PASS；CLI self-test 18/18 PASS，覆盖空材料、夹带命令、多行材料、实现任务滥用等 fail-closed 反例。",
+      "请只审查权限声明一致性、向后兼容、提示边界和是否存在误导性安全措辞；不要推断 RTL 功能、PPA 或平台审核结果。"
+    ]
+  },
+  "deliverables": [
+    "Return JSON only with verdict pass or gap, blockers, residual risks, and overclaims"
+  ],
+  "success_criteria": [
+    "PASS only if JSON and rendered execution authority are identical and no wording claims platform-review avoidance"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

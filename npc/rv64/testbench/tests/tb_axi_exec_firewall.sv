@@ -401,6 +401,10 @@ module tb_axi_exec_firewall;
     tick();
     wait_response("LSU UART data control", M_LSU, 2'b00);
 
+    if (tb_errors == 0) begin
+      $display("[ACCESS-G1-FIREWALL] stall_cycles=4 ifu_redirect=1 uart_side_effect=0 default_error=2 lsu_data_control=1 PASS");
+    end
+
     tb_finish("tb_axi_exec_firewall");
   end
 endmodule

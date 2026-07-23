@@ -110,8 +110,8 @@ fallback:
 按依赖拓扑顺序，每次派发一个子任务给对应 agent
 ```
 - 每个 agent 调用时只提供完成节点所需的最小充分上下文：单一目标、必要规则/spec、精确路径、客观成功条件；不把整轮历史或无关日志整体转发
-- 本地 RV64 RTL/验证/PPA 子任务先用 `$prepare-rtl-task-contract`（`.github/skills/prepare-rtl-task-contract/`）生成、校验并渲染契约；契约必须声明允许路径、读写权限、命令、最小上下文、产物、成功条件与禁止外部访问
-- 将契约路径与 SHA-256 写入 `dispatch-log.md`；平台 review 时只把该节点记为 `review_pending`，保留原始请求/契约/平台提示，父目标继续按其余可执行节点推进
+- 本地 RV64 RTL/验证/PPA 子任务先用 `$prepare-rtl-task-contract`（`.github/skills/prepare-rtl-task-contract/`）生成、校验并渲染契约；契约必须声明允许路径、读写权限、命令、最小上下文、产物、成功条件与禁止外部访问。渲染提示固定使用 `rv64-hardware-professional` 微架构措辞且不改变既有工具或推理能力。需要发现源码遗漏时默认使用 `workspace-files`，no-tools 只用于限定材料复核；所有模式都保留未知项、替代假设、反例、置信依据、`scope_extension_request` 与 `inconclusive` 出口
+- 将契约路径与 SHA-256 写入 `dispatch-log.md`；平台 review 时只把该节点记为 `review_pending`，保留原始请求/契约/平台提示，且不把这些协调文字追加到子 agent 提示；父目标继续按其余可执行节点推进
 - 将前一个 agent 的输出作为下一个 agent 的输入（链式传递）
 - 无依赖的只读节点允许并发派发，但实现、验证、记录节点不得绕过依赖顺序
 - 每完成一个关键节点，都要把节点状态、证据、输出摘要追加到 `dispatch-log.md`，并回写 `task-report.md` 的节点概览

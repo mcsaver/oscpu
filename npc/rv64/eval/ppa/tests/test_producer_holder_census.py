@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""Mutation-oriented self-tests for producer_holder_census.py."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+TEST_DIR = Path(__file__).resolve().parent
+RV64_DIR = TEST_DIR.parents[2]
+REPO_ROOT = RV64_DIR.parents[1]
+TOOLS_DIR = RV64_DIR / "eval/ppa/tools"
+MANIFEST = RV64_DIR / "design/arch/producer-holder-census.json"
+sys.path.insert(0, str(TOOLS_DIR))
+
+import producer_holder_census as census  # noqa: E402
+
+
+class ProducerHolderCensusTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="producer-census-")
+        self.repo = Path(self.temp.name) / "repo"
+        self.source = self.repo / "npc/rv64/vsrc"
+        self.manifest = (
+            self.repo / "npc/rv64/design/arch/producer-holder-census.json"
+        )
+        self.source.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(RV64_DIR / "vsrc", self.source)
+        self.manifest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(MANIFEST, self.manifest)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def audit(self) -> dict[str, object]:
+        return census.audit(self.repo, self.manifest, self.source)
+
+    def mutate_before_endmodule(self, relative: str, payload: str) -> None:
+        path = self.source / relative
+        text = path.read_text(encoding="utf-8")
+        marker = text.rfind("endmodule")
+        self.assertGreaterEqual(marker, 0)
+        path.write_text(text[:marker] + payload + text[marker:], encoding="utf-8")
+
+    def mutate_manifest(self, callback) -> None:
+        data = json.loads(self.manifest.read_text(encoding="utf-8"))
+        callback(data)
+        self.manifest.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    def test_baseline_is_field_complete_and_hash_bound(self) -> None:
+        result = self.audit()
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(
+            result["counts"],
+            {
+                "direct_full_p_fields": 20,
+                "combinational_full_p_regs": 1,
+                "generation_authorities": 1,
+                "token_q_fields": 15,
+                "packed_full_p_stages": 5,
+            },
+        )
+        self.assertEqual(len(result["hashes"]["manifest_sha256"]), 64)
+        self.assertEqual(len(result["hashes"]["checker_sha256"]), 64)
+        self.assertEqual(len(result["hashes"]["source_set_sha256"]), 64)
+
+    def test_load_queue_is_a_retire_resident_direct_holder(self) -> None:
+        data = json.loads(self.manifest.read_text(encoding="utf-8"))
+        direct = {row["id"]: row for row in data["direct_full_p_fields"]}
+        load_queue = direct["load-queue-producers"]
+        self.assertEqual(load_queue["classification"], "DIRECT_HOLDER")
+        self.assertEqual(load_queue["module"], "OooLoadQueue")
+        self.assertEqual(load_queue["symbol"], "producer_id_q")
+        self.assertIn("producer_live_mask_o", load_queue["coverage_anchor"])
+
+    def test_retry_holders_are_explicit_tracker_bound_census_rows(self) -> None:
+        data = json.loads(self.manifest.read_text(encoding="utf-8"))
+        direct = {row["id"]: row for row in data["direct_full_p_fields"]}
+        tokens = {row["id"]: row for row in data["token_q_fields"]}
+        for bank in (0, 1):
+            producer = direct[f"memory-retry{bank}-producer-cache"]
+            token = tokens[f"memory-retry{bank}-token"]
+            self.assertEqual(
+                producer["classification"], "REDUNDANT_IDENTITY_CACHE"
+            )
+            self.assertIn(
+                f"mem_retry{bank}_tracker_exact_w",
+                producer["coverage_anchor"],
+            )
+            self.assertEqual(token["classification"], "INDIRECT_HOLDER")
+            self.assertIn(
+                f"mem_retry{bank}_owner_mask_w", token["coverage_anchor"]
+            )
+
+    def test_irrevocable_write_lease_is_a_direct_birth_fence_holder(self) -> None:
+        data = json.loads(self.manifest.read_text(encoding="utf-8"))
+        direct = {row["id"]: row for row in data["direct_full_p_fields"]}
+        lease = direct["checkpoint-irrevocable-write-producer"]
+        self.assertEqual(lease["classification"], "DIRECT_HOLDER")
+        self.assertEqual(
+            lease["symbol"], "checkpoint_irrevocable_write_pid_q"
+        )
+        self.assertIn(
+            "checkpoint_irrevocable_write_live_mask_w",
+            lease["coverage_anchor"],
+        )
+
+    def test_cut_irrevocable_write_birth_fence_union_fails_closed(self) -> None:
+        path = self.source / "execute/OooIntBackend.v"
+        text = path.read_text(encoding="utf-8")
+        old = (
+            "      branch_producer_live_mask_w |\n"
+            "      checkpoint_irrevocable_write_live_mask_w;"
+        )
+        self.assertEqual(text.count(old), 1)
+        path.write_text(
+            text.replace(old, "      branch_producer_live_mask_w;", 1),
+            encoding="utf-8",
+        )
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn(
+            "required anchor missing: intbackend-transient-union",
+            result["errors"],
+        )
+
+    def test_assertion_only_shadows_are_not_production_holders(self) -> None:
+        result = self.audit()
+        discovered = {tuple(row) for row in result["discovered"]["direct_full_p_fields"]}
+        self.assertNotIn(
+            (
+                "npc/rv64/vsrc/execute/OooIntBackend.v",
+                "OooIntBackend",
+                "v8l_mem_capture_producer_q",
+            ),
+            discovered,
+        )
+        self.assertNotIn(
+            (
+                "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+                "OooMulDivUnit",
+                "md_req_producer_id_q",
+            ),
+            discovered,
+        )
+
+    def test_new_full_p_q_field_fails_closed(self) -> None:
+        self.mutate_before_endmodule(
+            "execute/OooClmulUnit.v",
+            "\n  reg [PRODUCER_ID_W-1:0] surprise_producer_q;\n",
+        )
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any("unclassified full-P Q field" in error
+                            for error in result["errors"]))
+
+    def test_new_full_p_non_q_reg_fails_closed(self) -> None:
+        self.mutate_before_endmodule(
+            "execute/OooClmulUnit.v",
+            "\n  reg [PRODUCER_ID_W-1:0] surprise_owner_reg;\n",
+        )
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any(
+            "unclassified combinational full-P register exemption" in error
+            for error in result["errors"]
+        ))
+
+    def test_new_packed_stage_fails_closed(self) -> None:
+        self.mutate_before_endmodule(
+            "execute/OooClmulUnit.v",
+            """
+  localparam V8L_SURPRISE_W = PRODUCER_ID_W + 1;
+  wire v8l_surprise_ready_w;
+  wire v8l_surprise_valid_w;
+  wire [V8L_SURPRISE_W-1:0] v8l_surprise_payload_w;
+  PipeStageReg #(.WIDTH(V8L_SURPRISE_W)) u_v8l_surprise_stage (
+    .clk(clk), .rst(rst), .flush_i(1'b0), .kill_i(1'b0),
+    .up_valid_i(1'b0), .up_ready_o(v8l_surprise_ready_w),
+    .up_payload_i({V8L_SURPRISE_W{1'b0}}),
+    .down_valid_o(v8l_surprise_valid_w), .down_ready_i(1'b1),
+    .down_payload_o(v8l_surprise_payload_w));
+""",
+        )
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any("unclassified ProducerId-bearing PipeStageReg" in error
+                            for error in result["errors"]))
+
+    def test_new_owner_token_q_field_fails_closed(self) -> None:
+        self.mutate_before_endmodule(
+            "memory/OooMemInflightQueue.v",
+            "\n  reg [OWNER_TOKEN_W-1:0] surprise_owner_token_q;\n",
+        )
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any("unclassified owner-token Q field" in error
+                            for error in result["errors"]))
+
+    def test_cut_intiq_union_anchor_fails_closed(self) -> None:
+        path = self.source / "rename_allocate/OooDispatchBackend.v"
+        text = path.read_text(encoding="utf-8")
+        old = "producer_live_mask_i | int_iq_producer_live_mask_w"
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, "producer_live_mask_i", 1),
+                        encoding="utf-8")
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("required anchor missing: dispatch-complete-union",
+                      result["errors"])
+
+    def test_raw_index_guard_is_rejected(self) -> None:
+        path = self.source / "rename_allocate/OooDispatchBackend.v"
+        text = path.read_text(encoding="utf-8")
+        old = "complete_producer_live_mask_w[\n                                 rob_dispatch0_producer_id_w]"
+        new = "complete_producer_live_mask_w[\n                                 rob_dispatch0_producer_id_w[ROB_INDEX_W-1:0]]"
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any("dispatch-lane0-raw-index-guard" in error
+                            for error in result["errors"]))
+
+    def test_manifest_cannot_self_promote_or_weaken_dynamic_contract(self) -> None:
+        def mutate(data: dict[str, object]) -> None:
+            data["status_ledger"]["global_no_live_reuse"] = "GREEN"
+            data["dynamic_evidence_contract"][
+                "compile_success_mutations_required"
+            ] = False
+
+        self.mutate_manifest(mutate)
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any("overclaim/drift" in error for error in result["errors"]))
+        self.assertTrue(any("dynamic_evidence_contract" in error
+                            for error in result["errors"]))
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8s-f2-architecture-contract-rereview",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定材料复核：判断修订后的 v8s/F2 canonical 双内存合同是否已关闭首轮 GAP，是否足以进入实现；不得外推 RTL 已正确或 F2 已完成",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/subagent-contracts/v8s-f2-architecture-contract-rereview.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "领域仅为本地 RV64 Verilog/SystemVerilog OoO 核的流水线、事务、时序和验证合同；无网络、账号、凭据、外部服务或外部写入。",
+      "状态边界冻结为 architecture_checkpoint；在同一 fresh closure 的实现、directed/assert、mutation、full-top、独立复核全部通过前不得宣称 F2 complete，DI-5/OOO-3/overall/PPA 始终 RED/unqualified。",
+      "ENABLE_DUAL_MEM 在可复用 wrapper 默认 0，canonical NpcCoreTop 逐层显式传 1；source checker 必须拒绝漏传、tie-off、cross-wire 或 canonical 未启用。",
+      "bank_sel 只来自每个 reservation Q 捕获的 canonical byte effective address addr[3]；stall 时 bank/payload/tuple 稳定；local exception、failed SC、SQ full-forward 与外部 grant 互斥；cross-page misaligned 在 issue 侧本地 precise trap，不拆 fragment。",
+      "一个全局 request allocator 覆盖 consume mask 00/01/10/11：不同 bank 可双 grant；同 bank 用 edge-old ROB-head distance 只 grant older；owner consume 等价于其 local terminal 或 selected-bank request fire；F2 terminal1 不依赖 terminal0 empty，且不使用 ordinary buffer handoff。",
+      "bank0 保留 SQ physical drain 与 LEGACY AMO/LR/SC，bank1 只收 ordinary LOAD/PROBE；AMO 仅在两 MIQ 均空时 launch，live 时关两 bank ordinary admission；任何 physical write 只能来自 SQ 或既有 authorized LEGACY path。",
+      "两 bank 各有独立 MIQ、expected tuple、bridge response/drop/query/residency和独立 ROB completion-open query；request fire 与本 bank MIQ push cycle-exact；token 不得双 bank resident；per-bank bridge in-order，只能 exact MIQ head pop；每 entry response XOR drop exactly once。",
+      "一个全局两槽 WB allocator 先扣 edge-old EX0/EX1 occupancy，再给 mem0/mem1互异 slot；两个 distinct exact-open response 与两个 credit 同时存在时必须双 complete；同 PID 双 response由 no-live-reuse与cross-bank-residency断言不可达，若出现不得产生第二 WB。",
+      "OooMemOwnerTerminalCollector 是与 tracker token 同构的 32-bit pending set而非 ingress FIFO；F2 扩并行 ingress，同一 edge-old 表逐 lane exact-live校验、batch token pairwise-distinct、OR accepted mask；合法 live nonpending token天然有自己的空 bit，不使用各 source free-count或虚构 terminal backpressure。",
+      "OooStoreQueue 维持两个 terminal CAM port并用一个全局分配器覆盖最多两个 non-backpressurable local store exception与两个 backpressurable response store terminal；local 优先，response ready只在获得剩余互异 SQ terminal port时为真；两个 store probe success用两个现有 fill port。",
+      "flush/kill 优先阻断 WB/SQ fill/cache/wakeup；MIQ/bridge/tracker identity保持到 exact response/drop，full ProducerId no-live-reuse由全 holder census约束；已授权 SQ/LEGACY write继续至B且不可撤销、重复或重发。",
+      "peer maintenance沿用F1 authorized-B无反压sideband，其同拍peer valid clear就是visibility action，不新增ack；不得由request、AW/W fire或raw BVALID重建。",
+      "最低证据已冻结为release/assert asymmetric sentinel、不同bank LL双request/双formal completion、反向映射/同bank年龄/独立反压/terminal1-only/flush race/dual store、full-top lint、fail-closed hierarchy checker、compile-success semantic mutations和同closure aggregate expected-RED。"
+    ]
+  },
+  "deliverables": [
+    "给出 verdict=PASS/GAP/INCONCLUSIVE；逐项复核首轮 bank route、singleton、双 MIQ identity、terminal set、全局 WB、SQ多terminal、flush/kill、hierarchy evidence；列出仍存反例、unknowns和必要的可执行闭合条件。"
+  ],
+  "success_criteria": [
+    "明确修订合同能否进入实现；PASS只表示合同级充分，绝不能声称 actual RTL、测试或F2完成；GAP必须给出未闭合的具体状态/握手反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

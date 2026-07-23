@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-20-v8p-dual-memory-agent-system-e2e
+- `trace_id`: e2e:2026-07-20-v8p-dual-memory-agent-system-e2e
+- `task_slug`: v8p-dual-memory
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: a055a031d6619a2cd5436643bab5e58e8e662d03e57d015e83b0795102c7f0b2
+- `task_report_md_sha256`: a600c6fd05662ba0f6c6a9629b07065a9b0597aeff0cb8a5c5f6fc527a3aeaca
+- `run_manifest_json_sha256`: 18c9ffb618f032a7af1b4c03ed509a034badf7156681686f10003c413474888c
+- `context_brief_md_sha256`: 9a6dfb1f1eaa0be2bb8494b32e5294c5c997ad9ce68bbeece29229b17df23eb5
+- `profile_resolve_md_sha256`: 77ad081e4a38ecf46f7e6c62f5380063a97b0daceb83f1a2919832dc25e8dcea
+- `evidence_index_md_sha256`: 9a7eeb8aeed2f49bf7e1cafbebe5558eef2e9147cf09856b2c69e65e92b9881e
+- `dispatch_log_md_sha256`: 599ed183f84c4d50a0e3c4b2942de382ed3a4d29044600eeed408ff0d4950e38
+- `nodes_tsv_sha256`: facf2c1200bb3bd361c8935dce03be79ea3c984da96c8b2f53a3b53c5dc9ba04

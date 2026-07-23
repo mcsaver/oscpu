@@ -12,6 +12,8 @@
 module OooFpIssueQueue #(
   parameter ENTRY_INDEX_W = 3,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W,
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
 ) (
   input clk,
@@ -25,7 +27,7 @@ module OooFpIssueQueue #(
 
   input dispatch_valid_i,
   output dispatch_ready_o,
-  input [ROB_INDEX_W-1:0] dispatch_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] dispatch_producer_id_i,
   input [`INST_W-1:0] dispatch_inst_i,
   input dispatch_double_i,
   input [PHY_REG_ADDR_W-1:0] dispatch_pdest_i,
@@ -47,7 +49,7 @@ module OooFpIssueQueue #(
   // lane1(双发第二条 FP 算术; 程序序更年轻)
   input dispatch1_valid_i,
   output dispatch1_ready_o,
-  input [ROB_INDEX_W-1:0] dispatch1_rob_idx_i,
+  input [PRODUCER_ID_W-1:0] dispatch1_producer_id_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input dispatch1_double_i,
   input [PHY_REG_ADDR_W-1:0] dispatch1_pdest_i,
@@ -77,6 +79,7 @@ module OooFpIssueQueue #(
 
   output issue_valid_o,
   input issue_ready_i,
+  output [PRODUCER_ID_W-1:0] issue_producer_id_o,
   output [ROB_INDEX_W-1:0] issue_rob_idx_o,
   output [`INST_W-1:0] issue_inst_o,
   output issue_double_o,
@@ -88,13 +91,14 @@ module OooFpIssueQueue #(
   output [PHY_REG_ADDR_W-1:0] issue_fs3_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue_gpr_preg_o,
 
-  output [ENTRY_INDEX_W:0] count_o
+  output [ENTRY_INDEX_W:0] count_o,
+  output [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_o
 );
 
   localparam ENTRY_COUNT = (1 << ENTRY_INDEX_W);
 
   reg valid_q [0:ENTRY_COUNT-1];
-  reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
+  reg [PRODUCER_ID_W-1:0] producer_id_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_q [0:ENTRY_COUNT-1];
   reg double_q [0:ENTRY_COUNT-1];
   reg [PHY_REG_ADDR_W-1:0] pdest_q [0:ENTRY_COUNT-1];
@@ -175,8 +179,9 @@ module OooFpIssueQueue #(
     for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
       if (entry_ready_r[k] &&
           (!issue_found_r ||
-           (rob_age(rob_idx_q[k], rob_head_idx_i) <
-            rob_age(rob_idx_q[issue_idx_r], rob_head_idx_i)))) begin
+           (rob_age(producer_id_q[k][ROB_INDEX_W-1:0], rob_head_idx_i) <
+            rob_age(producer_id_q[issue_idx_r][ROB_INDEX_W-1:0],
+                    rob_head_idx_i)))) begin
         issue_found_r = 1'b1;
         issue_idx_r = k[ENTRY_INDEX_W-1:0];
       end
@@ -185,7 +190,8 @@ module OooFpIssueQueue #(
 
   assign issue_valid_o = issue_found_r && !recover_active_i && !kill_valid_i &&
                          !flush_i;
-  assign issue_rob_idx_o = rob_idx_q[issue_idx_r];
+  assign issue_producer_id_o = producer_id_q[issue_idx_r];
+  assign issue_rob_idx_o = issue_producer_id_o[ROB_INDEX_W-1:0];
   assign issue_inst_o = inst_q[issue_idx_r];
   assign issue_double_o = double_q[issue_idx_r];
   assign issue_pdest_o = pdest_q[issue_idx_r];
@@ -199,6 +205,20 @@ module OooFpIssueQueue #(
   wire issue_fire_w = issue_valid_o && issue_ready_i;
 
   assign count_o = count_q;
+
+  // v8i lease view: only edge-old resident Q entries contribute.  Dispatch
+  // inputs, selected combinational issue facts, READY and next-state are
+  // intentionally absent from this mask.
+  reg [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_r;
+  always @(*) begin : producer_live_mask_blk
+    integer k;
+    producer_live_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
+    for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
+      if (valid_q[k])
+        producer_live_mask_r[producer_id_q[k]] = 1'b1;
+    end
+  end
+  assign producer_live_mask_o = producer_live_mask_r;
 
   assign dispatch_ready_o =
       (count_q != ENTRY_COUNT[ENTRY_INDEX_W:0]) && !recover_active_i &&
@@ -239,7 +259,7 @@ module OooFpIssueQueue #(
     squash_count_r = {(ENTRY_INDEX_W+1){1'b0}};
     for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
       squash_r[k] = valid_q[k] && kill_valid_i &&
-          (rob_age(rob_idx_q[k], rob_head_idx_i) >
+          (rob_age(producer_id_q[k][ROB_INDEX_W-1:0], rob_head_idx_i) >
            rob_age(kill_rob_idx_i, rob_head_idx_i));
       if (squash_r[k])
         squash_count_r = squash_count_r + {{ENTRY_INDEX_W{1'b0}}, 1'b1};
@@ -251,7 +271,7 @@ module OooFpIssueQueue #(
       count_q <= {(ENTRY_INDEX_W+1){1'b0}};
       for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
         valid_q[i] <= 1'b0;
-        rob_idx_q[i] <= {ROB_INDEX_W{1'b0}};
+        producer_id_q[i] <= {PRODUCER_ID_W{1'b0}};
         inst_q[i] <= {`INST_W{1'b0}};
         double_q[i] <= 1'b0;
         pdest_q[i] <= {PHY_REG_ADDR_W{1'b0}};
@@ -299,7 +319,8 @@ module OooFpIssueQueue #(
 
       if (dispatch1_fire_w) begin
         valid_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <= 1'b1;
-        rob_idx_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <= dispatch1_rob_idx_i;
+        producer_id_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <=
+            dispatch1_producer_id_i;
         inst_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <= dispatch1_inst_i;
         double_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <= dispatch1_double_i;
         pdest_q[dispatch_fire_w ? alloc1_idx_r : alloc_idx_r] <= dispatch1_pdest_i;
@@ -320,7 +341,7 @@ module OooFpIssueQueue #(
       end
       if (dispatch_fire_w) begin
         valid_q[alloc_idx_r] <= 1'b1;
-        rob_idx_q[alloc_idx_r] <= dispatch_rob_idx_i;
+        producer_id_q[alloc_idx_r] <= dispatch_producer_id_i;
         inst_q[alloc_idx_r] <= dispatch_inst_i;
         double_q[alloc_idx_r] <= dispatch_double_i;
         pdest_q[alloc_idx_r] <= dispatch_pdest_i;
@@ -382,6 +403,38 @@ module OooFpIssueQueue #(
     if (!rst && (int_wake1_valid_i === 1'b1) &&
         (int_wake1_preg_i == {PHY_REG_ADDR_W{1'b0}})) begin
       $error("[FP-INT-WAKE-WRITE] lane1 formal wake targets p0");
+    end
+    if (!rst && issue_valid_o &&
+        (issue_rob_idx_o !== issue_producer_id_o[ROB_INDEX_W-1:0])) begin
+      $error("[V8I-FP-IQ-PID-PROJECTION] issue raw index diverged from PID");
+      $fatal;
+    end
+    if (!rst && dispatch_fire_w && dispatch1_fire_w &&
+        (dispatch_producer_id_i == dispatch1_producer_id_i)) begin
+      $error("[V8I-FP-IQ-DUAL-PID] dual dispatch accepted one PID twice");
+      $fatal;
+    end
+  end
+
+  always @(posedge clk) begin : fp_iq_pid_unique_assert_blk
+    integer ai;
+    integer aj;
+    if (!rst) begin
+      for (ai = 0; ai < ENTRY_COUNT; ai = ai + 1) begin
+        if (valid_q[ai] &&
+            ((^producer_id_q[ai] === 1'bx) ||
+             !producer_live_mask_o[producer_id_q[ai]])) begin
+          $error("[V8L-FP-IQ-LEASE-KNOWN] resident PID is unknown or missing from live mask");
+          $fatal;
+        end
+        for (aj = ai + 1; aj < ENTRY_COUNT; aj = aj + 1) begin
+          if (valid_q[ai] && valid_q[aj] &&
+              (producer_id_q[ai] == producer_id_q[aj])) begin
+            $error("[V8I-FP-IQ-PID-UNIQUE] duplicate resident PID");
+            $fatal;
+          end
+        end
+      end
     end
   end
 `endif

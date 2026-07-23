@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9f-proof-model-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 memory transaction lifecycle V3 证据模型，重点裁定 V2 提出的 terminal1 owner-qualified request fire 与 DRAIN valid-without-pop 两个 P0 是否在局部声明边界内闭合",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-proof-model-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "V2 审查指出两个 P0：terminal1 可能错误响应另一 producer 的全局 request fire；MIQ flush 可能把 valid DRAIN head 误当作 fired head。V3 必须逐项寻找仍可编译的幸存反例。",
+      "新增 owner-arbitration 时序：两个对齐 load 同时驻留 terminal0/terminal1，bank0 单端口由 terminal0 fire。该拍明确要求全局 request_fire=1、terminal0 grant=1、terminal1 valid 保持、terminal1 consume=0、terminal1 identity birth=0；MIQ 唯一 birth 的 ROB/pdest/token/address/tracker ProducerId 五字段必须等于 terminal0 且 token 与 terminal1 区分。下一拍 terminal1 才以自己的 grant/fire 和 token 发射。",
+      "新增两个 MEM 编译成功 RTL verification variants：其一把 single-port terminal1 consume 改为由任意 mem_req_fire_any 驱动；其二在 push_issue0 时错误选择 terminal1 ROB identity。两者均编译成功并分别被 terminal1 consume=0 与 terminal0 MIQ identity marker 动态拒绝。",
+      "原有 MEM 时序继续覆盖 edge-old terminal0 本地异常不 look-through、terminal1 自身 fire/consume/request mux/MIQ birth 同拍一致、15 字段端到端身份、ready=0 连续两拍保持以及解除反压后一次发射。成功发射后连续三拍 terminal clear、request fire=0、MIQ birth=0且 resident count=1。",
+      "MEM 现有八个编译成功变体完整清单：request-without-consume、consume-without-request、正常 request false-close、按 valid 消费受压 terminal、按 valid 产生 MIQ birth、launch 后保留 terminal、按全局端口 fire 消费 terminal1、terminal0 birth 错选 terminal1 identity；8/8 编译成功且动态拒绝，生产 RTL SHA 前后不变。",
+      "新增 DRAIN no-pop 时序：MIQ head 是 transport-irrevocable/nokill DRAIN，后随普通 LOAD；流水线 flush 拍 head_valid=1 且 pop_valid=0，因此 pop_fire=0。flush 后 count=1、head 仍是该 DRAIN、identity/payload 保持，LOAD 被清除。",
+      "新增 MIQ 编译成功变体把 flush keep-set 的 fired-head 扣除条件从 pop_fire 改为 head_valid，因错误删除 no-pop DRAIN head 而被动态拒绝。原有两个变体分别删除 fired-head 扣除和关闭 DRAIN keep-set；MIQ 3/3 编译成功且动态拒绝。",
+      "MIQ 还覆盖环形 head 非零的 LOAD/PROBE/DRAIN 混合集合：同拍真正 fired 的 DRAIN head 被扣除，普通 entry 被 flush 丢弃，未消费 DRAIN survivor 的 owner identity 与 wrapped FIFO order 保持。",
+      "总变体 11/11；当前模块清单 109/109；结果只支持 MEM-ISSUE-G1 与 MIQ-FLUSH-G1 当前 design-id 局部闭合，不支持全核 ARCH_STABLE、PPA qualified 或 promotion eligible。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP，并按 P0/P1/P2 列出仍可编译的局部反例；逐项裁定 owner-qualified terminal consume、actual-owner MIQ identity、DRAIN pop-fire 必要充分性、三拍 exactly-once 窗口及 11 个变体敏感性"
+  ],
+  "success_criteria": [
+    "若给出 GAP，必须提供在上述新增时序与变体下仍能幸存的具体 RTL 谓词或状态轨迹；若无局部 P0/P1，则明确 PASS 及不可外推边界"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -82,6 +82,20 @@ module OooMemInflightQueue #(
   output [`XLEN-1:0] head_wdata_o,
   output [`STRB_W-1:0] head_wstrb_o,
 
+  // v8u/F4 read-only lookahead view.  It is meaningful only while at least
+  // two entries are resident.  The queue still has one pop port: this face
+  // never advances ownership and is used only to qualify a station load on
+  // the exact edge where the current head response is consumed.
+  output next_head_valid_o,
+  output [1:0] next_head_kind_o,
+  output [1:0] next_head_owner_kind_o,
+  output [OWNER_TOKEN_W-1:0] next_head_owner_token_o,
+  output [MMU_EPOCH_W-1:0] next_head_mmu_epoch_o,
+  output [`XLEN-1:0] next_head_fault_tval_o,
+  output next_head_killed_o,
+  output next_head_effective_killed_o,
+  output [ROB_INDEX_W-1:0] next_head_rob_idx_o,
+
   // 占用视图(发射决策/序判定)
   output [ENTRY_W:0] count_o,
   output empty_o,
@@ -147,6 +161,18 @@ module OooMemInflightQueue #(
   assign head_wdata_o = wdata_q[head_q];
   assign head_wstrb_o = wstrb_q[head_q];
 
+  wire [ENTRY_W-1:0] next_head_idx_w =
+      head_q + {{(ENTRY_W-1){1'b0}}, 1'b1};
+  assign next_head_valid_o =
+      (count_q >= {{(ENTRY_W-1){1'b0}}, 2'b10});
+  assign next_head_kind_o = kind_q[next_head_idx_w];
+  assign next_head_owner_kind_o = owner_kind_q[next_head_idx_w];
+  assign next_head_owner_token_o = owner_token_q[next_head_idx_w];
+  assign next_head_mmu_epoch_o = mmu_epoch_q[next_head_idx_w];
+  assign next_head_fault_tval_o = fault_tval_q[next_head_idx_w];
+  assign next_head_killed_o = killed_q[next_head_idx_w];
+  assign next_head_rob_idx_o = rob_idx_q[next_head_idx_w];
+
   assign count_o = count_q;
   assign empty_o = (count_q == {(ENTRY_W+1){1'b0}});
   assign full_o = (count_q == ENTRY_N[ENTRY_W:0]);
@@ -199,6 +225,14 @@ module OooMemInflightQueue #(
   assign head_effective_killed_o = head_valid_o &&
       (head_killed_o || head_same_cycle_kill_w ||
        (flush_i && (head_kind_o != KIND_DRAIN)));
+  wire next_head_same_cycle_kill_w = next_head_valid_o && kill_valid_i &&
+      ((next_head_kind_o == KIND_LOAD) ||
+       (next_head_kind_o == KIND_PROBE)) &&
+      ((next_head_rob_idx_o - rob_head_idx_i) >
+       (kill_rob_idx_i - rob_head_idx_i));
+  assign next_head_effective_killed_o = next_head_valid_o &&
+      (next_head_killed_o || next_head_same_cycle_kill_w ||
+       (flush_i && (next_head_kind_o != KIND_DRAIN)));
 
   wire push_fire_w = push_valid_i && !full_o && !flush_i;
   // The bridge/AXI beat may already have been accepted by the outer transport,
@@ -363,6 +397,15 @@ module OooMemInflightQueue #(
             $display("[MIQ-OWNER-DUP] one live token names two MIQ entries @%0t", $time);
             $fatal;
           end
+        end
+      end
+      for (owner_assert_i = 0; owner_assert_i < ENTRY_N;
+           owner_assert_i = owner_assert_i + 1) begin
+        if (valid_q[owner_assert_i] &&
+            (^owner_token_q[owner_assert_i] === 1'bx)) begin
+          $display("[V8L-MIQ-TOKEN-KNOWN] valid entry=%0d has unknown owner token @%0t",
+                   owner_assert_i, $time);
+          $fatal;
         end
       end
     end

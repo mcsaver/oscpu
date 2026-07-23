@@ -5,6 +5,8 @@ module tb_ooo_muldiv_unit;
 
   localparam PHY_REG_ADDR_W = 6;
   localparam ROB_INDEX_W = 4;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
 
   reg clk;
   reg rst;
@@ -13,6 +15,7 @@ module tb_ooo_muldiv_unit;
   reg req_valid;
   wire req_ready;
   reg [ROB_INDEX_W-1:0] req_rob_idx;
+  reg [PRODUCER_GEN_W-1:0] req_generation;
   reg [PHY_REG_ADDR_W-1:0] req_pdest;
   reg [`INST_W-1:0] req_inst;
   reg [`XLEN-1:0] req_src1;
@@ -22,8 +25,11 @@ module tb_ooo_muldiv_unit;
   wire resp_valid;
   reg resp_ready;
   wire [ROB_INDEX_W-1:0] resp_rob_idx;
+  wire [PRODUCER_ID_W-1:0] resp_producer_id;
   wire [PHY_REG_ADDR_W-1:0] resp_pdest;
   wire [`XLEN-1:0] resp_data;
+  wire owner_valid;
+  wire [PRODUCER_ID_W-1:0] owner_producer_id;
 
   reg kill_valid;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
@@ -31,7 +37,9 @@ module tb_ooo_muldiv_unit;
 
   OooMulDivUnit #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
-    .ROB_INDEX_W(ROB_INDEX_W)
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
   ) dut (
     .clk(clk),
     .rst(rst),
@@ -41,7 +49,7 @@ module tb_ooo_muldiv_unit;
     .rob_head_idx_i(rob_head_idx),
     .req_valid_i(req_valid),
     .req_ready_o(req_ready),
-    .req_rob_idx_i(req_rob_idx),
+    .req_producer_id_i({req_generation, req_rob_idx}),
     .req_pdest_i(req_pdest),
     .req_inst_i(req_inst),
     .req_src1_i(req_src1),
@@ -50,8 +58,11 @@ module tb_ooo_muldiv_unit;
     .resp_valid_o(resp_valid),
     .resp_ready_i(resp_ready),
     .resp_rob_idx_o(resp_rob_idx),
+    .resp_producer_id_o(resp_producer_id),
     .resp_pdest_o(resp_pdest),
-    .resp_data_o(resp_data)
+    .resp_data_o(resp_data),
+    .owner_valid_o(owner_valid),
+    .owner_producer_id_o(owner_producer_id)
   );
 
   function [`INST_W-1:0] rv64m_inst;
@@ -81,6 +92,7 @@ module tb_ooo_muldiv_unit;
       flush = 1'b0;
       req_valid = 1'b0;
       req_rob_idx = {ROB_INDEX_W{1'b0}};
+      req_generation = {PRODUCER_GEN_W{1'b1}};
       req_pdest = {PHY_REG_ADDR_W{1'b0}};
       req_inst = {`INST_W{1'b0}};
       req_src1 = {`XLEN{1'b0}};
@@ -140,6 +152,12 @@ module tb_ooo_muldiv_unit;
       req_rob_idx = rob_idx;
       req_pdest = pdest;
       `TB_TICK(clk)
+      tb_check1({name, " holder live after capture"}, owner_valid, 1'b1);
+      if (owner_producer_id !== {req_generation, rob_idx}) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s owner PID got=%h expected=%h",
+                 name, owner_producer_id, {req_generation, rob_idx});
+      end
       req_valid = 1'b0;
       req_inst = {`INST_W{1'b0}};
       req_src1 = {`XLEN{1'b0}};
@@ -175,6 +193,11 @@ module tb_ooo_muldiv_unit;
           $display("[CHECK-FAIL] %0s rob got=%0d expected=%0d",
                    name, resp_rob_idx, exp_rob_idx);
         end
+        if (resp_producer_id !== {req_generation, exp_rob_idx}) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s PID got=%h expected=%h",
+                   name, resp_producer_id, {req_generation, exp_rob_idx});
+        end
         if (resp_pdest !== exp_pdest) begin
           tb_errors = tb_errors + 1;
           $display("[CHECK-FAIL] %0s pdest got=%0d expected=%0d",
@@ -182,8 +205,11 @@ module tb_ooo_muldiv_unit;
         end
       end
       resp_ready = 1'b1;
+      #1;
+      tb_check1({name, " terminal edge keeps old lease"}, owner_valid, 1'b1);
       `TB_TICK(clk)
       resp_ready = 1'b0;
+      tb_check1({name, " holder released after terminal"}, owner_valid, 1'b0);
     end
   endtask
 
@@ -222,7 +248,8 @@ module tb_ooo_muldiv_unit;
     end
     tb_check64("request buffer captures src1", dut.req_src1_q, 64'd7);
     tb_check64("request buffer captures src2", dut.req_src2_q, 64'd9);
-    if ((dut.req_rob_idx_q !== 4'h1) || (dut.req_pdest_q !== 6'd5) ||
+    if ((dut.producer_id_q !== {req_generation, 4'h1}) ||
+        (dut.req_pdest_q !== 6'd5) ||
         (dut.req_inst_q !== rv64m_inst(3'b000)) || (dut.req_word_q !== 1'b0)) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] request buffer did not capture complete metadata");
@@ -243,7 +270,7 @@ module tb_ooo_muldiv_unit;
     req_pdest = {PHY_REG_ADDR_W{1'b0}};
     expect_resp("request buffer holds captured payload", 64'd63, 4'h1, 6'd5, 10);
 
-    // kill 与新 request 同拍命中：上游看见 fire，但该请求不得进入 buffer。
+    // 任意 kill-valid 与新 request 同拍：ready 必须冻结，不能宣告后续被丢弃的 capture。
     rob_head_idx = 4'h0;
     kill_valid = 1'b1;
     kill_rob_idx = 4'h4;
@@ -253,19 +280,27 @@ module tb_ooo_muldiv_unit;
     req_src2 = 64'd6;
     req_rob_idx = 4'h8;
     req_pdest = 6'd6;
+    #1;
+    tb_check1("kill-valid freezes new request ready", req_ready, 1'b0);
     `TB_TICK(clk)
     kill_valid = 1'b0;
     req_valid = 1'b0;
+    #1;
     tb_check1("same-cycle killed request not captured", req_ready, 1'b1);
     tb_check1("same-cycle killed request has no response", resp_valid, 1'b0);
+    tb_check1("same-cycle killed request has no lease", owner_valid, 1'b0);
 
     // buffer 驻留拍 kill-hit 必须在预处理前丢弃。
     issue_req("kill buffered request", 3'b000, 1'b0, 64'd11, 64'd13, 4'h8, 6'd7);
     tb_check1("buffered request closes ready before kill", req_ready, 1'b0);
     kill_valid = 1'b1;
     kill_rob_idx = 4'h4;
+    #1;
+    tb_check1("buffer kill death edge keeps old lease", owner_valid, 1'b1);
+    tb_check1("buffer kill freezes request ready", req_ready, 1'b0);
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     tb_check1("buffer kill hit returns idle", req_ready, 1'b1);
     tb_check1("buffer kill hit emits no response", resp_valid, 1'b0);
 
@@ -275,13 +310,18 @@ module tb_ooo_muldiv_unit;
     kill_rob_idx = 4'h6;
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     expect_resp("buffer kill miss survives", 64'd143, 4'h2, 6'd8, 12);
 
     // flush 命中 buffer 必须优先于初始化，并恢复外部 ready。
     issue_req("flush buffered request", 3'b100, 1'b0, 64'd77, 64'd5, 4'h5, 6'd9);
     flush = 1'b1;
+    #1;
+    tb_check1("buffer flush death edge keeps old lease", owner_valid, 1'b1);
+    tb_check1("buffer flush freezes request ready", req_ready, 1'b0);
     `TB_TICK(clk)
     flush = 1'b0;
+    #1;
     tb_check1("buffer flush returns idle", req_ready, 1'b1);
     tb_check1("buffer flush emits no response", resp_valid, 1'b0);
 
@@ -347,6 +387,7 @@ module tb_ooo_muldiv_unit;
     flush = 1'b1;
     `TB_TICK(clk)
     flush = 1'b0;
+    #1;
     tb_check1("flush clears response", resp_valid, 1'b0);
     tb_check1("flush returns ready", req_ready, 1'b1);
 
@@ -423,8 +464,11 @@ module tb_ooo_muldiv_unit;
     `TB_TICK(clk)
     kill_valid = 1'b1;
     kill_rob_idx = 4'h4;
+    #1;
+    tb_check1("run kill death edge keeps old lease", owner_valid, 1'b1);
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     tb_check1("kill mid mul no resp", resp_valid, 1'b0);
     tb_check1("kill mid mul ready", req_ready, 1'b1);
     // RESP 拍 kill: 小操作数 MUL 完成驻留 RESP(不给 ready), kill 当拍组合抹 resp_valid
@@ -443,6 +487,7 @@ module tb_ooo_muldiv_unit;
       tb_check1("kill at resp combinationally masks", resp_valid, 1'b0);
       `TB_TICK(clk)
       kill_valid = 1'b0;
+      #1;
       tb_check1("kill at resp back to ready", req_ready, 1'b1);
     end
     // kill 不命中(req 更老): MUL 正常完成
@@ -452,6 +497,7 @@ module tb_ooo_muldiv_unit;
     kill_rob_idx = 4'h6;  // req rob=2 更老(2-0 <= 6-0), 不该被杀
     `TB_TICK(clk)
     kill_valid = 1'b0;
+    #1;
     expect_resp("kill miss survives", 64'd143, 4'h2, 6'd19, 20);
     // flush MUL 中途(既有用例只测 DIV)
     issue_req("flush mid mul", 3'b000, 1'b0, 64'hffff_ffff_ffff_fff7,
@@ -461,6 +507,7 @@ module tb_ooo_muldiv_unit;
     flush = 1'b1;
     `TB_TICK(clk)
     flush = 1'b0;
+    #1;
     tb_check1("flush mid mul clears response", resp_valid, 1'b0);
     tb_check1("flush mid mul returns ready", req_ready, 1'b1);
 

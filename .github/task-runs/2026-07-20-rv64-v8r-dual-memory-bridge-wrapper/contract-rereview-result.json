@@ -1,0 +1,113 @@
+{
+  "reviewer": "/root/v8r_f1_contract_rereview",
+  "contract_path": ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/subagent-contracts/v8r-dual-memory-bridge-contract-rereview.json",
+  "contract_sha256": "446bb02af4bcd5ebdc5f95e0fe19f676def4691b81eead25eee00c0d7d0cdaad",
+  "verdict": "pass",
+  "b1_to_b4_resolution": {
+    "B1": {
+      "status": "contractually_sufficient",
+      "basis": "DMA 可见拍组合屏蔽 lookup_hit，采样沿以最高运行期优先级清除全部 valid，且 DMA 是吞掉同拍 local/peer valid 更新的全局外层优先级。"
+    },
+    "B2": {
+      "status": "contractually_sufficient",
+      "basis": "合法 mmu_flush 受双 bridge idle 前置条件约束，事件拍同时以 !clear_i 阻断旧 TLB context hit并令 request READY 为零；非 idle pulse被 OOO_ASSERT 定义为非法。"
+    },
+    "B3": {
+      "status": "contractually_sufficient",
+      "basis": "valid 更新逐 entry 合并：local 更新先作用于自身 index，peer 仅清首/次 affected index，同 index时 peer最终获胜，DMA为全局外层优先级。"
+    },
+    "B4": {
+      "status": "contractually_sufficient",
+      "basis": "maintenance 使用 producer 锁存的原始 byte PA，wstrb 仅允许从低位开始的 01/03/0f/ff，并由 addr[2:0]+popcount(wstrb)>8 唯一判定跨越下一 8B line；双端拒绝非法编码。"
+    }
+  },
+  "b5_evidence_gate": {
+    "status": "execution-pending",
+    "current_claim_allowed": false,
+    "forbidden_current_claim": "dual_bridge_cache_hit_leaf_verified",
+    "missing_artifacts": [
+      "RTL",
+      "TB",
+      "checker",
+      "mutation 执行结果",
+      "aggregate 结果",
+      "与合同 digest 对应的 fresh 结果"
+    ],
+    "admission_rule": "只有全部 fresh hard gate 成功，并且每个 mutation 均达到 compile success、elaborated、activated、唯一 target rejected，才允许使用唯一叶级 claim。",
+    "evidence_inflation_check": "pass"
+  },
+  "remaining_blockers": [
+    "B1-B4 目前仅达到合同语义闭合，尚无实现与执行证据证明 RTL 遵守这些规则。",
+    "所有 hard gate，尤其 DMA/lookup、合法与非法 MMU flush、peer/fill三类冲突、mask/offset全枚举、reset重合及双response ready组合，仍待 fresh执行。",
+    "全部十项 mutation 的编译、展开、激活和唯一目标拒绝仍待证明。",
+    "F1 不包含第二 MIQ、bank route、final-PA SQ query、formal WB credit、IPC 或 canonical integration 证据。",
+    "即使未来 F1 hard gate全绿，DI-5、OOO-3 和 overall仍为 RED，PPA仍不具备资格。"
+  ],
+  "counterexamples": [
+    {
+      "probe": "DMA invalidate、exact lookup 与 local fill/peer clear 同拍",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "合法 mmu_flush 拍仍命中旧 TLB context 或接受新 bridge request",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "bridge 非 idle 时 mmu_flush 导致在途事务语义不一致",
+      "result": "outside_legal_domain_and_assert_negative_required"
+    },
+    {
+      "probe": "peer clear 与 local fill/store 位于不同 index，却因全 cache if-else丢失 local更新",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "peer 与 local fill位于同 index但 tag不同，宏写使新行错误可见",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "offset非零的合法规范化 mask跨 8B line时只清第一行",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "zero、稀疏或 lane-shifted wstrb被误解为长度并清错行",
+      "result": "outside_legal_domain_and_assert_negative_required"
+    },
+    {
+      "probe": "peer 与 lookup同拍，目标行仍返回 hit",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "AW/W/B反压期间提前产生 maintenance，或仅在 B OK时产生 maintenance",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "一侧 miss owner锁定共享 F0时冻结另一侧 hot hit，或合并两个 response",
+      "result": "contractually_closed"
+    },
+    {
+      "probe": "同步 reset与 peer/DMA/lookup/pending response重合后泄漏或重放",
+      "result": "contractually_closed_after_first_sampled_reset_edge"
+    }
+  ],
+  "assumptions": [
+    "bridge idle必须是覆盖全部注册状态的权威空闲谓词。",
+    "dcache_store_commit_w及其 address/wstrb属于同一事件拍，wrapper不延迟或重建。",
+    "OOO_ASSERT必须在资格验证配置中实际展开并由负向测试激活。",
+    "受支持 PA域中的当前行与下一行计算不会发生未定义宽度截断；边界由 checker覆盖。",
+    "本结论只评价合同充分性，不推断任何 RTL、测试或日志状态。"
+  ],
+  "claim_boundary_ok": true,
+  "contract_compliance": {
+    "compliant": true,
+    "mode": "self_contained_no_tools",
+    "tools_or_external_access_used": false,
+    "files_or_artifacts_written": false,
+    "rtl_tests_or_logs_claimed_as_seen": false,
+    "sha256_independently_verified": false
+  },
+  "confidence_and_basis": {
+    "contract_text_confidence": "high",
+    "execution_confidence": "not_assessed",
+    "basis": "结论是合同级 pass，不是实现或验证结果 pass。"
+  }
+}

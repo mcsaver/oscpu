@@ -34,7 +34,11 @@ best     = ParetoFront(feasible, maximize performance,
   accept/produce 1 包；latency 任意，initiation interval 必须为 1。
 - **DI-2 width continuity**：fetch/decode/rename/dispatch/issue/execute/retire 各边界都有
   64-cycle 非真空轨迹达到 2 uop/cycle；独立整数 ALU microbenchmark 稳态 IPC≥1.90
-  （CPI≤0.526316）。
+  （CPI≤0.526316）。可执行入口固定为
+  `make -C npc/rv64 check-width-continuity`：以首个 fetch request fire 为唯一锚点，固定预热
+  24 拍后连续采样 64 拍；focused 证据要求七边界各 `total=128/peak=2/dual=64`，并以
+  PC、instruction payload、full ProducerId 生命周期及 RenameMap/ROB/IQ/EX/WB 独立 sink
+  对账拒绝数量别名。该入口只裁决 DI-2；架构稳定冻结完成前不赋予 PPA 资格。
 - **DI-3 complete pair matrix**：`ALU+ALU`、`ALU+branch`、`ALU+JAL/JALR`、
   `ALU+load`、`ALU+store` 均须通过，且两条在程序中的先后位置互换后仍能形成 pair；
   `load+load`、`load+store`、`store+load`、`store+store` 在地址独立、对齐、cacheable、
@@ -96,7 +100,9 @@ best     = ParetoFront(feasible, maximize performance,
 
 同一个 `design_id`、配置、仿真 binary 和 benchmark image 必须绑定以下证据：
 
-- module TB required set 全过且 failure=0（当前 required set 为 102）；
+- module TB required set 必须从当前 `npc/rv64/testbench/Makefile` 的 `TESTS` exact-membership
+  动态推导并全过、failure=0（2026-07-21 清单为 109；任何仍固定历史 102 的 policy/aggregate
+  均不得用于新 arch-stable 或 PPA promotion）；
 - official/privileged riscv-tests 177/177；AM cpu-tests 59/59；适用范围 Difftest mismatch=0；
 - CoreMark 10 iterations、`crcfinal=0xfcaf`、恰好一次 GOOD TRAP；
 - Dhrystone 固定 10000 runs、恰好一次 GOOD TRAP；

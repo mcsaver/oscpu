@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-21-ooo3-memory-ordering-producerid-reconstruction-revtag-v8v
+- `trace_id`: e2e:2026-07-21-ooo3-memory-ordering-producerid-reconstruction-revtag-v8v
+- `task_slug`: ooo3-memory-ordering-producerid-reconstruction-revtag-v8v
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 0229b8fdbf7757f3d9943edfd8d212ff78b65b45c6cb97387dc4f0edafa038b4
+- `task_report_md_sha256`: a1747f4d00dcbcc9a761b2a27085eff8003fed7acf23fbe38b7dd2bda659a8e9
+- `run_manifest_json_sha256`: 407223a67534a22f5d6aa813757406ce0968b978fc45023be1b7eb3ca772c7f9
+- `context_brief_md_sha256`: 4b51205a45d0b96f9ea4105ac34d44a057a1c4f2b318fe27bf01ab0dfe484989
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: ec882da76a50bbf2582e474dfc2135f3047581e77ba65d0cc079628ca33dd4bb
+- `dispatch_log_md_sha256`: a65f6c21317ef4e1162e7709b9cf2e65828bd6da9626f6add231cab1173e9962
+- `nodes_tsv_sha256`: 81e6db66a56032d378f7914c83fe3e658c551f75cd019a5a1e271d979bbb380e

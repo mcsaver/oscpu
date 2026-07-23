@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8u-f4-iq-pair-peek-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 RV64 双发射整数 IQ 寄存态队首双普通内存 peek 与 reservation 同沿 turnover 的握手 DAG、事务归属和 PPA 边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/subagent-contracts/v8u-f4-iq-pair-peek-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/contract.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 reservation Q 是 AGU request payload 的唯一来源；reservation 有效时 regular issue0 关闭，issue1 仅可选择 simple-ALU。",
+      "直接用 bridge request consume 解开通用 IQ selector 会形成 reservation grant、selector 与 IQ ready 的组合反馈锥，Icarus 全核仿真无法在正常时间推进。",
+      "拟议结构在 universal owner 存在且两个 reservation Q 均为 ordinary memory 时，只读 IQ 寄存 entry0/entry1；两项均 ready 且均为 ordinary memory 才置 pair_peek_valid。",
+      "pair peek 复用既有 issue0/issue1 payload 总线和四个 PRF 读口，但保持 regular issue0_valid/issue1_valid 为零；因此该拍不并发发射 simple-ALU。",
+      "pair_peek_enable 仅由两个 reservation Q 的 valid/class 寄存事实产生，不读取 bridge READY、SQ decision、tracker ready 或 IQ ready。",
+      "只有 edge-old 双 reservation exact consume、两个 peek ProducerId 当前有效、ROB-head admission 满足且 tracker 双 token 可分配时，pair_peek_ready 才原子 dequeue 两项并同沿捕获到两份 reservation Q。",
+      "flush、分支恢复、checkpoint restore 和 reservation selective kill 的优先级高于 turnover；new IQ payload 不得组合穿透到当拍 AGU request。",
+      "目标 steady state 是每拍两条 independent cached load；bridge station/active residency 不再近似阻断 admission，只保留 bank-local retry holder fence 和真实 req_ready 容量。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；逐项列出最短逐拍反例、组合环风险、事务身份风险、性能或 PPA 代价与必要断言。"
+  ],
+  "success_criteria": [
+    "确认该结构是否在不增加 PRF 读口和宽 payload 寄存器的前提下消除 selector 反馈并保持双 pair 原子 turnover；所有影响结论的反例、假设、替代结构、范围扩展请求和置信依据均被明确记录。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

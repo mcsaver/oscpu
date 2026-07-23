@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9f-proof-model-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 memory transaction lifecycle V4，使用冻结的单端口 grant/fire 方程与 MIQ exact-owner pop-fire 接口不变量，裁定 V3 条件式 GAP 是否闭合",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-proof-model-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "V9F focused testbench 通过 localparam TB_ENABLE_DUAL_MEM=0 实例化 OooIntBackend；该 focused macro 不进入任何 ENABLE_DUAL_MEM=1 分支。结论只覆盖这一单 memory-port 配置。",
+      "bank0 grant_issue1 是独占优先级链末端：它要求 grant_sq/grant_amo_write/grant_buffer/grant_retry0/grant_issue0 全为0。mem_req_valid 是全部 bank0 grant 的 OR，mem_req_fire_any=mem_req_valid&&mem_req_ready。",
+      "issue1_mem_request_fire=(grant_issue1&&mem_req_ready)||(grant_mem1_issue1&&mem1_req_ready)。在 V9F ENABLE_DUAL_MEM=0 下 grant_mem1_issue1 恒0，因此 grant_issue1&&mem_req_fire_any 与 issue1_mem_request_fire 等价；不存在 terminal1 获 bank0 grant、自己的 accept 为0、同时另一 bank0 producer fire 的周期。bank1 grant/fire 在该配置关闭。",
+      "动态 owner-arbitration 时序仍证明 terminal0 获 bank0 fire 时 terminal1 grant/consume/birth 均为0，MIQ 五字段身份属于 terminal0，下一拍 terminal1 才以自身 grant/fire 发射；对应 global-fire consume 与 wrong-owner ROB 两个编译成功变体被拒绝。",
+      "OooMemInflightQueue 没有 pop_ready 端口。唯一 dequeue 事件为 pop_fire=pop_valid&&head_valid&&pop_owner_match；flush fired-DRAIN 扣除只使用该 pop_fire。pop_valid&&head_valid&&!pop_owner_match 由 OOO_ASSERT 立即 fatal，属于非法接口激励而非正常 backpressure。",
+      "动态 MIQ 时序覆盖：pop_valid=1、head valid、exact owner match 的真实 fired DRAIN 必须扣除；pop_valid=0、head valid 的 no-pop DRAIN 必须保留；wrapped LOAD/PROBE/DRAIN survivor multiset 与 FIFO identity/order 保持。三个编译成功变体覆盖删除扣除、关闭 keep-set、用 head_valid 代替 pop_fire，3/3 动态拒绝。",
+      "MEM 8 个、MIQ 3 个，共 11/11 编译成功且动态拒绝；当前模块 109/109。静态审计还绑定 focused 单端口选择、issue1 自身 grant/ready fire、bank0 全局 fire 无独立 accept、MIQ 无 pop_ready、exact-owner pop-fire 及 owner-mismatch assertion。",
+      "成功 launch 后三拍无重复只声明三拍观测窗口；不外推无限期形式证明。局部闭合不外推全核 ARCH_STABLE、PPA qualified 或 promotion eligible。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP；逐项裁定 terminal1 grant/fire 等价、MIQ pop-valid/pop-fire 等价的合法输入域、owner mismatch 非法接口边界、11 个变体敏感性与三拍 exactly-once 声明边界"
+  ],
+  "success_criteria": [
+    "GAP 必须给出满足上述冻结方程、V9F 单端口参数与合法 MIQ exact-owner 输入合同后仍可达的具体 RTL 状态轨迹；否则明确局部 PASS 及不可外推边界"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

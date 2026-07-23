@@ -13,7 +13,12 @@
 // 后第 LATENCY 拍拉高,父模块据此延后锁存 compute_done。算术逐行不变 → bit-exact 按构造
 // 保持。FP_ARITH_LATENCY=5:FMA(最深)5 级、FMUL 3 级、FADD 2 级真流水(各 op datapath
 // 内部切级,把原单拍 173/91/69 级关键路径压到每级 ≤ ~dispatch;见文件末各流水段)。
-module OooFpArithGate (
+module OooFpArithGate #(
+  parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
+  parameter PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W,
+  parameter PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W,
+  parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
+) (
   input              clk,
   input              rst,
   input              flush_i,
@@ -42,17 +47,23 @@ module OooFpArithGate (
   // kill: 比 kill_rob_idx 年轻的在飞 meta 清 valid(防晚到 wb 写脏已回收 preg)。
   // 旧 start/done 接口保留给 pending 壳, 拆除时一并移除。
   input              launch_valid_i,
-  input  [`OOO_ROB_INDEX_W-1:0] launch_rob_idx_i,
-  input  [`OOO_PHY_REG_ADDR_W-1:0] launch_pdest_i,
+  input  [PRODUCER_ID_W-1:0] launch_producer_id_i,
+  input  [PHY_REG_ADDR_W-1:0] launch_pdest_i,
   input  [1:0]       launch_kind_i,   // 0=addsub, 1=mul, 2=fma
   input              kill_valid_i,
-  input  [`OOO_ROB_INDEX_W-1:0] kill_rob_idx_i,
-  input  [`OOO_ROB_INDEX_W-1:0] rob_head_idx_i,
+  input  [ROB_INDEX_W-1:0] kill_rob_idx_i,
+  input  [ROB_INDEX_W-1:0] rob_head_idx_i,
   output             out_valid_o,
-  output [`OOO_ROB_INDEX_W-1:0] out_rob_idx_o,
-  output [`OOO_PHY_REG_ADDR_W-1:0] out_pdest_o,
+  output [PRODUCER_ID_W-1:0] out_producer_id_o,
+  output [ROB_INDEX_W-1:0] out_rob_idx_o,
+  output [PHY_REG_ADDR_W-1:0] out_pdest_o,
   output [`XLEN-1:0] out_value_o,
-  output [4:0]       out_fflags_o
+  output [4:0]       out_fflags_o,
+
+  // Edge-old observation only.  These ports let the parent decode the five
+  // resident metadata leases without exporting a 2^PID macro bus.
+  output [4:0] owner_valid_o,
+  output [5*PRODUCER_ID_W-1:0] owner_producer_id_o
 );
 
   `include "execute/OooFpPredicates.v"
@@ -1400,8 +1411,8 @@ module OooFpArithGate (
   // kill: age 比 kill_rob_idx 年轻的 meta 清 valid(结果照常流出但 valid=0 不 wb)。
   // ===========================================================================
   reg meta_valid_q [1:5];
-  reg [`OOO_ROB_INDEX_W-1:0] meta_rob_q [1:5];
-  reg [`OOO_PHY_REG_ADDR_W-1:0] meta_pdest_q [1:5];
+  reg [PRODUCER_ID_W-1:0] meta_producer_id_q [1:5];
+  reg [PHY_REG_ADDR_W-1:0] meta_pdest_q [1:5];
   reg meta_double_q [1:5];
   reg [1:0] meta_kind_q [1:5];
 
@@ -1409,9 +1420,9 @@ module OooFpArithGate (
   // Keeping kill/head/cut as ambient function reads makes Icarus retain a stale
   // out_valid value when only one of those inputs changes inside a cycle.
   function fp_meta_younger;
-    input [`OOO_ROB_INDEX_W-1:0] idx;
-    input [`OOO_ROB_INDEX_W-1:0] boundary_idx;
-    input [`OOO_ROB_INDEX_W-1:0] head_idx;
+    input [ROB_INDEX_W-1:0] idx;
+    input [ROB_INDEX_W-1:0] boundary_idx;
+    input [ROB_INDEX_W-1:0] head_idx;
     begin
       fp_meta_younger =
           (idx - head_idx) > (boundary_idx - head_idx);
@@ -1437,8 +1448,8 @@ module OooFpArithGate (
     if (rst || flush_i) begin
       for (mi = 1; mi <= 5; mi = mi + 1) begin
         meta_valid_q[mi] <= 1'b0;
-        meta_rob_q[mi] <= {`OOO_ROB_INDEX_W{1'b0}};
-        meta_pdest_q[mi] <= {`OOO_PHY_REG_ADDR_W{1'b0}};
+        meta_producer_id_q[mi] <= {PRODUCER_ID_W{1'b0}};
+        meta_pdest_q[mi] <= {PHY_REG_ADDR_W{1'b0}};
         meta_double_q[mi] <= 1'b0;
         meta_kind_q[mi] <= 2'b00;
       end
@@ -1449,20 +1460,22 @@ module OooFpArithGate (
     end else begin
       meta_valid_q[1] <= launch_valid_i &&
                          !(kill_valid_i &&
-                           fp_meta_younger(launch_rob_idx_i,
+                           fp_meta_younger(
+                                           launch_producer_id_i[ROB_INDEX_W-1:0],
                                            kill_rob_idx_i,
                                            rob_head_idx_i));
-      meta_rob_q[1] <= launch_rob_idx_i;
+      meta_producer_id_q[1] <= launch_producer_id_i;
       meta_pdest_q[1] <= launch_pdest_i;
       meta_double_q[1] <= double_i;
       meta_kind_q[1] <= launch_kind_i;
       for (mi = 2; mi <= 5; mi = mi + 1) begin
         meta_valid_q[mi] <= meta_valid_q[mi-1] &&
                             !(kill_valid_i &&
-                              fp_meta_younger(meta_rob_q[mi-1],
+                              fp_meta_younger(
+                                              meta_producer_id_q[mi-1][ROB_INDEX_W-1:0],
                                               kill_rob_idx_i,
                                               rob_head_idx_i));
-        meta_rob_q[mi] <= meta_rob_q[mi-1];
+        meta_producer_id_q[mi] <= meta_producer_id_q[mi-1];
         meta_pdest_q[mi] <= meta_pdest_q[mi-1];
         meta_double_q[mi] <= meta_double_q[mi-1];
         meta_kind_q[mi] <= meta_kind_q[mi-1];
@@ -1487,10 +1500,12 @@ module OooFpArithGate (
 
   assign out_valid_o =
       meta_valid_q[5] &&
-      !(kill_valid_i && fp_meta_younger(meta_rob_q[5],
+      !(kill_valid_i && fp_meta_younger(
+                                        meta_producer_id_q[5][ROB_INDEX_W-1:0],
                                         kill_rob_idx_i,
                                         rob_head_idx_i));
-  assign out_rob_idx_o = meta_rob_q[5];
+  assign out_producer_id_o = meta_producer_id_q[5];
+  assign out_rob_idx_o = out_producer_id_o[ROB_INDEX_W-1:0];
   assign out_pdest_o = meta_pdest_q[5];
   assign out_value_o =
       (meta_kind_q[5] == 2'd2) ? (meta_double_q[5] ? fma_d_value_q
@@ -1502,6 +1517,43 @@ module OooFpArithGate (
                                                    : fma_s_fflags_q) :
       (meta_kind_q[5] == 2'd1) ? mul_a2_fflags_q :
                                  addsub_a2_fflags_q;
+
+  genvar owner_stage;
+  generate
+    for (owner_stage = 1; owner_stage <= 5; owner_stage = owner_stage + 1) begin : owner_view_gen
+      assign owner_valid_o[owner_stage-1] = meta_valid_q[owner_stage];
+      assign owner_producer_id_o[(owner_stage-1)*PRODUCER_ID_W +: PRODUCER_ID_W] =
+          meta_producer_id_q[owner_stage];
+    end
+  endgenerate
+
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin : fp_arith_pid_assert_blk
+    integer ai;
+    integer aj;
+    if (!rst) begin
+      if (out_valid_o &&
+          (out_rob_idx_o !== out_producer_id_o[ROB_INDEX_W-1:0])) begin
+        $error("[V8I-FP-ARITH-PID-PROJECTION] output raw index diverged from PID");
+        $fatal;
+      end
+      for (ai = 1; ai <= 5; ai = ai + 1) begin
+        if (meta_valid_q[ai] &&
+            (^meta_producer_id_q[ai] === 1'bx)) begin
+          $error("[V8L-FP-ARITH-LEASE-KNOWN] valid metadata stage has unknown PID");
+          $fatal;
+        end
+        for (aj = ai + 1; aj <= 5; aj = aj + 1) begin
+          if (meta_valid_q[ai] && meta_valid_q[aj] &&
+              (meta_producer_id_q[ai] == meta_producer_id_q[aj])) begin
+            $error("[V8I-FP-ARITH-PID-UNIQUE] duplicate PID in metadata pipeline");
+            $fatal;
+          end
+        end
+      end
+    end
+  end
+`endif
 
 
 endmodule

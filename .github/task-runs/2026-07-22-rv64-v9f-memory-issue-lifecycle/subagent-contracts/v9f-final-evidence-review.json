@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9f-final-evidence-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据随附的本地 RV64 微架构证据，独立复核 MEM-ISSUE-G1 与 MIQ-FLUSH-G1 当前设计闭环的逻辑充分性、证据来源绑定和声明边界；检查是否存在会使 CLOSED 结论失效的反例或证据矛盾。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
+      "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/ROADMAP.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/summary.json",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/architecture-hard-gates.json",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/architecture-source-provenance-rebind.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/subagent-contracts/v9f-final-evidence-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "工作对象仅为授权工作区内的 RV64 Verilog/SystemVerilog 双发射 OoO 处理器、模块测试和本地 EDA/证据产物；本节点不执行命令、不写文件、不访问网络或外部系统。",
+      "当前完整 RTL 设计标识为 sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc；本切片未修改生产 .v 文件，证据工具只增加测试可观测性、静态绑定和 RTL 验证变异。",
+      "当前证据 npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json 的 SHA-256 为 a7d87c174882a1acdf7fefd9df3199cefbf2b758d359418595c11fd6d3d334c8，status=PASS，canonical_command=make -C npc/rv64 check-memory-issue-lifecycle，claim.promotion_eligible=false，claim.ppa=UNQUALIFIED。",
+      "单端口定向场景先原子捕获两个内存 reservation terminal；terminal0 本地跨页异常完成时 terminal1 保持且无请求握手和 MIQ owner birth；下一拍 terminal1 自身请求 fire、terminal consume、request mux owner 和 MIQ birth 同拍一致。",
+      "terminal1 正常发射的 15 个事务身份字段完全匹配；发射后连续 3 拍未观察到重复 request fire 或重复 MIQ birth，且 terminal 已清空、MIQ owner 仍驻留；该证据只声明 t+1 到 t+3 的安静窗口，不外推无限时域。",
+      "竞争 owner 场景中 terminal0 取得 bank0 请求 fire 时 terminal1 保持且 consume=0、terminal1 birth=0，MIQ 的 5 个抽查身份字段属于 terminal0；terminal1 在后续自己的请求 fire 才释放。",
+      "两拍 ready backpressure 场景中 terminal1 valid 保持，blocked 周期 request fire=0、terminal consume=0、MIQ birth=0，ready 恢复后恰有一次 release fire。",
+      "MIQ flush 定向场景证明同拍 exact-owner DRAIN response fire 先从旧队列减去已消费 head，再保留其余 DRAIN；未消费 DRAIN 和 valid 但无 pop fire 的 DRAIN head 均按原身份保留，混合绕回队列的 survivor FIFO 顺序保持。",
+      "静态拓扑绑定证明 issue1_request_fire=issue1 自身 grant 与选中端口 ready；bank0 全局 fire 仅为 valid&&ready；MIQ birth 使用 request fire；MIQ pop_fire 要求 pop_valid、head_valid 和 exact owner match，且 owner mismatch 由 RTL assertion 定义为非法输入而非正常 backpressure。",
+      "compile-success RTL 验证变异共 11 个且全部被指定定向 oracle 检出：MEM-ISSUE-G1 为 8/8，覆盖过早请求、错误 consume、永久关闭、backpressure 错误 consume/birth、发射后保留、使用全局端口 fire、错误 owner 身份；MIQ-FLUSH-G1 为 3/3，覆盖重现已消费 DRAIN、丢失未消费 DRAIN、把 valid head 误当 fire。",
+      "当前模块 aggregate 为 109/109；变异执行前后生产源文件 byte-identical；证据 raw log SHA-256 为 71131cf79e86c99b1d82d982bc08eda5f5ecbe9cb8853a582c69ded9ac218983。",
+      "架构来源重绑定只允许 Makefile、tb_ooo_int_backend.sv、tb_ooo_mem_inflight_queue.sv 三个证据源文件，验证旧字节重构、9 个记录的语义投影不变和当前 module 109/109，结果为 paths=3 records=9 sections=13 pre=RED post=GREEN projection=UNCHANGED PASS。",
+      "重绑定后 directed architecture hard gates 为 9/9 GREEN；architecture-current.json 的当前 SHA-256 为 f5acbfd9aea4c43bd229671268ffada9ec6ee621b5f34b9ae1c99f279319948a。",
+      "架构债务账本 revision=v9f-20260722，将 MEM-ISSUE-G1(P0) 与 MIQ-FLUSH-G1(P1) 标为 CLOSED、current_design_bound=true，并绑定同一 design_id、结果 SHA 与 raw log SHA；ROADMAP SHA-256 为 e0c8738165948161db36d3711bcb2b1dcbdc5123770c83c52798d904760a6543。",
+      "arch-stable 审计共 77 个单元测试通过，但最终状态仍为 GAP、blockers=41、PPA=UNQUALIFIED、promotion_eligible=false；未闭合项包括其它架构债务、full-core census、同设计 functional aggregate、规范 cohort inventory 与冻结输入。",
+      "本切片最大声明边界为当前单内存端口配置的 focused 仿真、11 个 compile-success RTL 验证变异、109 模块 aggregate、当前架构 hard gates 和 arch-stable 诊断审计；不证明双端口所有交错、完整程序级 DiffTest/Linux、无限时域 exactly-once 或正式 PPA。"
+    ]
+  },
+  "deliverables": [
+    "给出结构化独立复核：verdict=PASS/GAP/INCONCLUSIVE；按严重度列出可操作反例或矛盾；明确两项债务能否在上述边界内保持 CLOSED；列出不能外推的范围、unknowns、显式假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "结论必须逐项核对请求 owner、terminal consume、MIQ birth、flush survivor、变异灵敏度、来源重绑定和 arch-stable 声明边界；若没有使当前闭环失效的反例，可给限定 PASS，但不得把 3 拍安静窗口、单端口场景或 109 模块 aggregate 外推为全系统或正式 PPA 结论。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

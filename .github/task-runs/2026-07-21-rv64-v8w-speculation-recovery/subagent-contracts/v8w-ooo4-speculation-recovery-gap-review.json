@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8w-ooo4-speculation-recovery-gap-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立核对本地 RV64 OoO 控制流解析、ROB-walk 状态恢复、各流水 holder 年龄取消以及已发 AXI 事务 drain 的完整调用链，判断 OOO-4 当前是证据缺口还是仍有 P0/P1 协议缺口，并给出最小可执行反例计划",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-branch-resolve-producer-authorization.md",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/subagent-contracts/v8w-ooo4-speculation-recovery-gap-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-branch-resolve-producer-authorization.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "结构化报告：控制流和状态 owner 调用链、OOO-4 每项要求的源码证据或 GAP、最小 directed test 与 compile-success RTL source mutation 计划、未知项和范围扩展请求"
+  ],
+  "success_criteria": [
+    "逐项区分已由当前源码证明、仅被旧测试间接覆盖和缺少可执行证据的性质；发现真实协议反例时给出精确信号时序；不把局部结论外推为完整架构或 PPA"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

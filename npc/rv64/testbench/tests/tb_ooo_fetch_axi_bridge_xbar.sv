@@ -370,6 +370,8 @@ module tb_ooo_fetch_axi_bridge_xbar;
       tb_check1("xbar releases later owner", u_xbar.wr_active_q[0], 1'b0);
     end
 
+    $display("[IFU-AXI-G1-XBAR] ifu_b_owner_release=1 later_master_progress=1 later_master_payload=1 later_master_b=1 PASS");
+
     tb_finish("tb_ooo_fetch_axi_bridge_xbar");
   end
 endmodule

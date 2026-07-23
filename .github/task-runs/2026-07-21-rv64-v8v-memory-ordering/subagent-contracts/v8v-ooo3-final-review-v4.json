@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8v-ooo3-final-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 RV64 双发射 OoO 后端 checkpoint request/hold/apply 协议，判定已发射 store/AMO physical write 的完整 ProducerId lease、B/formal-WB/lane0 retirement/SQ release、lane1 retirement block 与双 memory request gate restore apply 广播是否闭合，并核对 OOO-3 同设计证据链的门级结论边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooControlFlushSequencer.v",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/rtl-derivation.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v3-gap.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/result.json",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/final.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend-dual/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/architecture-unit.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/architecture-gates.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.pre.sha256",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.post.sha256",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/subagent-contracts/v8v-ooo3-final-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v3-gap.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive 的 RV64 RTL 复核结论，并按严重度列出全部影响结论的反例",
+    "逐项核对 raw request、admission hold、physical-write lease、B/formal-WB、lane0/lane1 retirement、SQ release、restore apply 与双 memory gate 广播",
+    "核对 11 项指标、9 项 LQ mutation、17 项 parent mutation、41 项 canonical source 与 54 项 provenance 的同设计绑定及 overall/PPA 边界"
+  ],
+  "success_criteria": [
+    "任何 PASS 必须同时排除 delayed B、raw restore 与 error B 同拍、AMO write、stretched request 和重复 apply 的 owner 丢失或重复退休反例",
+    "确认 physical-write ProducerId lease 的 birth、live-mask residency、matching lane0 death 与 checkpoint apply guard 形成闭环",
+    "确认 pending restore 期间新 dispatch/issue/request 均关闭，既有终态与唯一 lane0 owner 可推进，lane1 retirement 关闭",
+    "确认 accepted restore apply 从 IntBackend 逐层到 ControlFlushSequencer，并到达两个 MemoryRequestGate，raw request 不提前刷新 memory owner",
+    "结论明确区分 OOO-3、overall architecture 与 PPA promotion，不从功能证据外推频率、面积或功耗"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

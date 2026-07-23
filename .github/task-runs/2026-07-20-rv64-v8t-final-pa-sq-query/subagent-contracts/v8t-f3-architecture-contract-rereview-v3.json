@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-architecture-contract-rereview-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据第二次修订后的随附事实复核F3最终物理地址SQ字节查询合同，确认request-fire MIQ enrollment、单active bank topology及captured response exact-drop生命周期已经闭合，并继续寻找可执行反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-architecture-contract-rereview-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "范围仅限本地RV64双发射OoO RTL的memory pipeline、transaction ordering、timing与verification；禁止网络、账号、凭据、外部服务、shell、文件访问和任何写入。",
+      "每个plain store在dispatch与ROB allocation同拍获得program-ordered SQ placeholder；filled原子验证PA、typed class、完整mask和enabled data；terminal仅表示no-effect probe fault或physical B及maintenance后的global visibility。",
+      "canonical bank request fire在translation/query之前原子消费exact reservation owner、push同一expected tuple到所选bank MIQ并由该bank bridge锁存active Q；query和forward不创建或重复push MIQ entry。",
+      "每个bank bridge同时最多一个active transaction且allocator每bank每拍至多接受一个request；query0/query1是bank0/bank1 face，不是可在同bank并发的issue-lane face；同bank contender由F2 edge-old allocator在request fire前选一，loser仍在reservation。",
+      "S_SQ_QUERY到held S_RESP期间，原bank-local MIQ entry和tracker holder持续驻留且必须exact匹配active/response snapshot；仅最终response XOR drop exact pop，反向bank不得匹配或pop。",
+      "captured forward继承F2 S_RESP生命周期：flush/kill立即禁止WB、wakeup和architectural completion，但held snapshot、同bank MIQ和tracker holder保留到携带exact response snapshot的drop0；PID在holder census清零前不得复用。",
+      "allow路径继承F2 target-specific kill规则：同步cache lookup前可drop，registered NC/IO target按既有cancel规则，已发AR的S_READ_ADDR保持或drain后drop；query不新增owner release或PID recycle。",
+      "所有ordinary load的DTLB hit、PTW miss和A/D续访在typed final PA后汇合注册SQ_QUERY；SQ按full ProducerId年龄和final physical byte做youngest-older合成，结果仅allow、forward、replay，且decision本身无terminal或外部side effect。",
+      "两个bank可同拍独立forward并各自等待正式MIQ、WB、FP sink与terminal credit；一个bank replay不得阻塞peer bank；同bank双active或双query在当前拓扑不可达并须由assert/source checker拒绝。",
+      "canonical ENABLE_DUAL_MEM=1关闭旧issue-stage VA blind/forward gate；当前只允许final_pa_sq_ordering_checkpoint，F4、DI-5、OOO-3、overall与PPA promotion仍未闭合。"
+    ]
+  },
+  "deliverables": [
+    "给出PASS或GAP、逐项P0/P1反例、v2缺口disposition、必要假设、替代契约、未知项、scope_extension_request及confidence_and_basis；不得冒充完整仓库审查"
+  ],
+  "success_criteria": [
+    "明确判断六类合同及MIQ enrollment、single-active topology、captured response exact-drop是否足以继续实现；任何GAP给出可执行directed test、assertion或compile-success mutation，不设固定发现上限"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

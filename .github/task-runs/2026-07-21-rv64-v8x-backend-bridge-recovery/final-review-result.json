@@ -1,0 +1,103 @@
+{
+  "contract_path": ".github/task-runs/2026-07-21-rv64-v8x-backend-bridge-recovery/subagent-contracts/v8x-backend-bridge-recovery-evidence-review-v2.json",
+  "contract_sha256": "1b1d568b5ac9e2cec6bb7033ee7233ece6d7a6f2206927effcd39303e130678f",
+  "review_mode": "prompt-supplied-self-contained",
+  "verdict": "pass",
+  "verified_points": [
+    {
+      "rtl_or_event": "OooIntBackend dispatch 与 MIQ owner",
+      "finding": "A/B 使用 dispatch 时冻结的 kind/token/epoch/fault_tval 标识；drop、exact MIQ pop、collector lane2 terminal 均逐 owner 比较，闭合 immutable-owner 要求并排除 head 更新后的身份混淆。"
+    },
+    {
+      "rtl_or_event": "OooDualMemBridgeWrapper active/station 与共享 AXI AR handshake",
+      "finding": "ARREADY 在 active=A、station=B 建立前保持低；唯一 shared AR fire 同时核对 owner=A、head=A、station=B，证明真实 A 已发请求且 B 仅驻留 station。"
+    },
+    {
+      "rtl_or_event": "branch_resolve_mispredict、wrapper global flush 与 MIQ effective-killed",
+      "finding": "branch_resolve_mispredict 仅单拍，wrapper global flush 全程为零，A/B effective-killed 状态分别保持到 exact pop，证明终结来源是 backend 选择性恢复而非全局 flush。"
+    },
+    {
+      "rtl_or_event": "OooMemAxiBridge READ_DATA 中 A 的迟到 R",
+      "finding": "A 在迟到 R 的采样边仅产生 drop(A)、exact pop(A)、collector lane2(A)，并逐周期禁止 response、WB、commit、cache fill 和第二次 AR，闭合已发 LOAD 的无副作用终结。"
+    },
+    {
+      "rtl_or_event": "A 终结后 station B 晋升 active",
+      "finding": "下一周期 active、tracker expected、station expected、residency 与 MIQ head 均核对为 B，证明晋升使用 B 的真实 owner authority，而非 stale A expected。"
+    },
+    {
+      "rtl_or_event": "B 的 pre-AXI selective recovery",
+      "finding": "persistent-killed authority 触发 drop(B)、exact pop(B)、collector lane2(B)，并禁止 translate、AR、WB、commit 和 fill，闭合未发 LOAD 的精确终结。"
+    },
+    {
+      "rtl_or_event": "A/B exactly-once terminal ledger",
+      "finding": "ledger 强制 A terminal 先于 B terminal且各恰一次；focused marker 的 ar=1、drop=2、pop=2、terminal=2、lane1=0 与逐 owner 断言相互约束，计数不能单独掩盖身份互换或重复终结。"
+    },
+    {
+      "rtl_or_event": "两个 bridge、tracker、collector、MIQ 与 ROB 的最终状态",
+      "finding": "所有相关状态最终 drain idle，随后 6 周期 quiet guard 无新增事件；wb=0、commit=0、fill=0，闭合最终守恒与迟到副作用检查。"
+    },
+    {
+      "rtl_or_event": "backend 到 wrapper 的真实接口路径",
+      "finding": "backend 与 wrapper 全端口直连，TB 仅建模 wrapper 唯一 AXI slave且不旁路生成 drop、response 或 SQ allow，未发现 TB 伪造联合轨迹的承重缺口。"
+    },
+    {
+      "rtl_or_event": "compile-success RTL mutation sensitivity",
+      "finding": "屏蔽 active recovery 与阻断 killed station promotion 两项变异均 compile_rc=0、sim_rc=1，首个 witness 分别落在 A selective authority 和 B station promotion；生产 RTL SHA 前后一致，排除了编译失败、无关超时和残留变异假绿。"
+    },
+    {
+      "rtl_or_event": "相邻验证回归与合同检查",
+      "finding": "V8W backend/full bridge/wrapper、默认 backend/core-top 共 5/5 PASS，check-contract 13 tests、holder census、assertion census 和 aggregate marker 全部闭合。"
+    }
+  ],
+  "blockers": [],
+  "remaining_risks": [
+    {
+      "scope": "未覆盖的动态交错",
+      "risk": "本轨迹不覆盖不同 bank、更多 outstanding owner、不同 AXI backpressure 相位、异常 RRESP 或多次连续 mispredict。",
+      "effect": "属于后续覆盖空间，不削弱指定同 bank 双 LOAD 轨迹的 PASS。"
+    },
+    {
+      "scope": "未覆盖的事务类别",
+      "risk": "证据不外推到 STORE、AMO、MMIO、页表遍历、权限异常或缓存一致性交互。",
+      "effect": "不影响本次 ordinary LOAD selective-recovery 缺口关闭。"
+    },
+    {
+      "scope": "穷举性",
+      "risk": "当前证据是 focused simulation、变异和相邻回归闭环，并非对全部状态空间的形式证明。",
+      "effect": "限制结论广度，但成功条件未要求全状态空间证明。"
+    },
+    {
+      "scope": "实现与 PPA",
+      "risk": "本轮没有修改 production RTL，也未产生新的综合、时序、面积或功耗证据。",
+      "effect": "不得据此推导设计修复或 PPA 合格。"
+    }
+  ],
+  "unknowns": [
+    {
+      "item": "冻结材料未附逐周期原始波形、完整日志和断言源码。",
+      "assessment": "依据本合同应审查随附冻结事实，不能把原始日志未展开本身作为 blocker；现有 owner、时序、守恒、mutation witness 与回归摘要之间无逻辑冲突。"
+    },
+    {
+      "item": "quiet guard 的绝对周期上界依据未展开。",
+      "assessment": "由于进入 guard 前两个 bridge、tracker、collector、MIQ、ROB 已全部 drain idle，6 周期用于发现新增事件而非替代 outstanding 清零，因此不构成本轨迹承重缺口。"
+    }
+  ],
+  "scope_extension_request": [],
+  "confidence_and_basis": {
+    "confidence": "high",
+    "basis": "冻结证据逐项闭合 immutable owner、真实 active/station、单拍选择性恢复、A 迟到 R 无副作用终结、B pre-AXI 精确终结、A 后 B exactly-once ledger、最终守恒、两项 compile-success 承重变异敏感性及 5/5 相邻回归；未发现仍需补证的具体承重边。",
+    "qualification": "这是对冻结本地 RTL 验证证据的一致性与反例复核，不是重新执行仿真或仓库级源码审计。"
+  },
+  "conclusion_boundary": {
+    "closed": "仅关闭 OooIntBackend→OooDualMemBridgeWrapper/OooMemAxiBridge 的指定同 bank 双 ordinary LOAD 分支错误预测恢复联合动态轨迹对应的 V8W verification gap。",
+    "unchanged": {
+      "OOO-4": "RED",
+      "DI-5": "RED",
+      "OOO-3": "RED",
+      "overall": "RED",
+      "PPA": "UNQUALIFIED",
+      "promotion_eligible": false
+    },
+    "prohibited_inference": "不得由本次 PASS 外推仓库级 RTL 全量正确、总体架构达标、其它事务类别已覆盖或 PPA 合格。"
+  }
+}

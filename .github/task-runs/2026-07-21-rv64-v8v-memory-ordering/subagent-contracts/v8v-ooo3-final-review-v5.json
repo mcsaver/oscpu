@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8v-ooo3-final-review-v5",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 RV64 双发射 OoO 后端 OOO-3 最终候选：确认 checkpoint raw request/accepted apply 隔离、physical-write ProducerId lease 与 ControlGate/core-glue mutation sensitivity 形成可审计的同设计证据闭环",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooCoreSliceControlGate.v",
+      "npc/rv64/vsrc/control/OooControlFlushSequencer.v",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/final.log",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutations/raw_checkpoint_local_flush_bypass.run.log",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/sources.pre.sha256",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/sources.post.sha256",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/rtl-derivation.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-lq-mutations.py",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v4-gap.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/mutation-results.json",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/result.json",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/final.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend-dual/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/glue/logs/tb_ooo_core_top_glue.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/architecture-unit.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/evidence-builder.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/static/architecture-gates.log",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.pre.sha256",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.post.sha256",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/memory-ordering.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/subagent-contracts/v8v-ooo3-final-review-v5.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/review-v4-gap.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive 的 RV64 RTL/证据复核结论，并按严重度列出所有影响 OOO-3 裁决的反例",
+    "复核 raw request 与 accepted apply 的 ControlGate 隔离、双 memory gate 集成 oracle、18 项 parent mutation 和可重建 mutant SHA",
+    "核对 11 项指标、9 项 LQ mutation、45 项 canonical source、60 项 provenance、pre/post manifest 与 whole-vsrc design_id 的同设计闭包"
+  ],
+  "success_criteria": [
+    "确认 source.checkpoint_raw_restore_fail_closed 对 raw-restore/local-flush 错接 fail-closed，且 compile-success ControlGate mutant 被 core-glue 双 memory-gate 场景动态拒绝",
+    "确认 ControlGate、MIQ、OwnerTracker、core-glue TB/log 与持久化 mutant rejection log 均进入相应 canonical/provenance 清单，且 pre/post 清单相同",
+    "确认 F2 18/18 与 OOO-3 9/9 mutation 身份、摘要、当前 RTL/TB digest 和可重建 ControlGate mutant SHA 相互一致",
+    "确认 request/hold/apply、physical-write full-ProducerId lease、B/formal-WB/lane0 retirement/SQ release、lane1 block 与双 memory gate apply broadcast 未因证据修复回退",
+    "结论明确区分 OOO-3 单门、overall architecture 和 PPA，不从功能证据外推频率、面积或功耗"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

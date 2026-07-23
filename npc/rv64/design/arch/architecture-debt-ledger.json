@@ -1,0 +1,583 @@
+{
+  "schema": "npc-rv64-architecture-debt-ledger-v2",
+  "revision": "v9m-20260723",
+  "scope": "full-core single-hart RV64 dual-issue OoO architecture-stable cohort",
+  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "roadmap": {
+    "path": "npc/rv64/design/arch/ROADMAP.md",
+    "sha256": "565198ccafaa8fbf06ae3c2f15c893fed359a3763235331513511fdfbdb1a1d5"
+  },
+  "entries": [
+    {
+      "id": "FDG-G1",
+      "priority": "P0",
+      "title": "arch_trap head0 must not present a backend operation",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+        "npc/rv64/vsrc/frontend/OooFrontend.v"
+      ],
+      "closure_requirements": [
+        "Bind the legal and illegal FP arch_trap focused matrix, program aggregate and compile-success RTL source mutation to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-fdg-arch-trap",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "fdg_arch_trap_result",
+          "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json",
+          "sha256": "e81f9ba3e7066c728a3bfdb86462fb30a844a53aaaa009d571775494aa609403"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap.log",
+          "sha256": "b60fe2aaf1ed3654c5f43dd55260b19e50873391b09adc7a11b67ffc7dd61024"
+        }
+      ]
+    },
+    {
+      "id": "XRET-G1",
+      "priority": "P0",
+      "title": "MRET/SRET current-mode legality and precise trap",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+        "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+        "npc/rv64/vsrc/core/CsrFile.v",
+        "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
+      ],
+      "closure_requirements": [
+        "Rebind current-mode MRET/SRET legal and illegal program cases plus a compile-success RTL source mutation to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-xret-current-mode",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "xret_current_mode_result",
+          "path": "npc/rv64/eval/ppa/evidence/xret-current-mode-current.json",
+          "sha256": "b3aa00947b50c979ebada24ad85c372ce03c37df54fc36a6aae56eb8be0ac334"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/xret-current-mode.log",
+          "sha256": "2d5b103630415d9d1506f8576f126026d41d7e06d003b5c9275e9dbed96b86fc"
+        }
+      ]
+    },
+    {
+      "id": "MEM-ISSUE-G1",
+      "priority": "P0",
+      "title": "memory terminal consume, request fire and MIQ owner birth share one accepted transaction",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "npc/rv64/vsrc/memory/OooStoreQueue.v"
+      ],
+      "closure_requirements": [
+        "Bind atomic dual-memory capture, edge-old terminal ordering, owner-qualified request-fire/terminal-consume/MIQ-birth agreement, 15-field transaction identity, competing-owner arbitration, backpressure retention and exactly-once launch variants to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-memory-issue-lifecycle",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "memory_issue_lifecycle_result",
+          "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
+          "sha256": "52d4f9a4dcc5986ca39acd2540e21b6300b2d3ccc71912af61621fcbcf8e0a4a"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
+          "sha256": "3f653d834e02768ac7b59d5589f7ad0892fe2784793d4a38ab220f9ea60304c4"
+        }
+      ]
+    },
+    {
+      "id": "IFU-AXI-G1",
+      "priority": "P0",
+      "title": "A-update AW/W/B transport drains across frontend flush",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "npc/rv64/vsrc/bus/AxiXbar.v"
+      ],
+      "closure_requirements": [
+        "Bind the AW/W/B backpressure and flush-drain matrix plus source mutation to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-ifu-axi-flush-drain",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "ifu_axi_flush_drain_result",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+          "sha256": "2df11d1314928e219b808c4166607ef76508e81b2271b66045851d95d601bbf7"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log",
+          "sha256": "14878029967884594a18498688bc625e964570b3d711bd56b5bedff3d6833fd8"
+        }
+      ]
+    },
+    {
+      "id": "IFU-FETCH-G2",
+      "priority": "P0",
+      "title": "second-page fetch fault preserves fault-byte provenance",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v"
+      ],
+      "closure_requirements": [
+        "Bind the page-end 16/32-bit second-page positive, poison and source-mutation cases to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-ifu-fetch-provenance",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "ifu_fetch_provenance_result",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance-current.json",
+          "sha256": "e135d0e972351f1565ceb0f374c7afc84ee32d73eca03e93d051cbac8cf389df"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance.log",
+          "sha256": "43f8e2ef3fa557b956de87e60a05bef836f0711fc0a354221736a3d8c34633e5"
+        }
+      ]
+    },
+    {
+      "id": "IFU-ACCESS-G1",
+      "priority": "P0",
+      "title": "exact halfword execute footprint, PMP/RRESP and lane1 owner",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "npc/rv64/vsrc/memory/PmpChecker.v",
+        "npc/rv64/vsrc/bus/AxiXbar.v",
+        "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
+        "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+        "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+        "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
+      ],
+      "closure_requirements": [
+        "Bind F=0/2/4/6, exact 2B EXEC PMP, RRESP owner, PMEM tail bounds and lane1 owner counterexamples to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-ifu-access",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "ifu_access_result",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+          "sha256": "136c58ffd4eb73d073d2fe431d822054bb2904d51950d28a15c05cd17afb71be"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-access.log",
+          "sha256": "2516914f30af171f3161191fdaf98358fd0a377fa41171b6d17114b38439ea34"
+        }
+      ]
+    },
+    {
+      "id": "IFU-TVAL-G1",
+      "priority": "P0",
+      "title": "instruction fault tval identifies the faulting byte portion",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
+        "npc/rv64/vsrc/frontend/OooFrontend.v",
+        "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
+        "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+        "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+        "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
+      ],
+      "closure_requirements": [
+        "Bind offset 2/4/6, compressed-control, dispatch backpressure and exact joint PC/cause/tval lifecycle evidence plus source variants to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-ifu-tval",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "ifu_tval_result",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-tval-current.json",
+          "sha256": "fb9a5e4f23908df109febf9846aae62569d347e73e6e67d26e3b067cd107eaf4"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/ifu-tval.log",
+          "sha256": "bfdf2a4b0ca029820f661384994b223ccac64b5b892dcd8b98314740b5136aca"
+        }
+      ]
+    },
+    {
+      "id": "PTW-PMP-G1",
+      "priority": "P0",
+      "title": "page-table PTE WRITE receives an independent PMP decision",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/vsrc/memory/PmpChecker.v"
+      ],
+      "closure_requirements": [
+        "Bind PTE WRITE deny/allow and deny-with-no-AW/W counterexamples plus source mutation to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-ptw-pmp",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "ptw_pmp_result",
+          "path": "npc/rv64/eval/ppa/evidence/ptw-pmp-current.json",
+          "sha256": "a68e05b2adf1e2ec69f8d33de54569257ea738cfbf78c5b501a0ed4cdb76bc3c"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/ptw-pmp.log",
+          "sha256": "db97f7b48bf61d803dc533d2b16a9e8871dd63db642fb3c46e28afe9c38e2457"
+        }
+      ]
+    },
+    {
+      "id": "INSTRET-G1",
+      "priority": "P0",
+      "title": "one architecturally retired-instruction count source",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/writeback/OooCommitOutputMux.v",
+        "npc/rv64/vsrc/writeback/OooWriteback.v",
+        "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "npc/rv64/vsrc/core/CsrFile.v"
+      ],
+      "closure_requirements": [
+        "Add a program-level regression proving exception retirement contributes zero and each legal control retirement contributes exactly one, with current-design mutation evidence."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-instret-retirement",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "instret_retirement_result",
+          "path": "npc/rv64/eval/ppa/evidence/instret-retirement-current.json",
+          "sha256": "782a4663c00cbde68800cb6c09cc9479e397d88047e7ee976450b7706c41c094"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/instret-retirement.log",
+          "sha256": "d9146c5e86a51eae425b767c8976561b5808caae271402c97841c1a532d57941"
+        }
+      ]
+    },
+    {
+      "id": "F0-G1",
+      "priority": "P1",
+      "title": "current full functional result aggregation",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh"
+      ],
+      "closure_requirements": [
+        "Produce one same-design aggregate for the dynamically derived 109 module tests, official 177, AM 59 with DiffTest enabled, applicable DiffTest zero failures and benchmark semantic gates."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-functional-aggregate",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_evidence_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "functional_aggregate_result",
+          "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+          "sha256": "3e632a4a8f00ab8d69fc880c8a1e3e8fbf0cbedf240b25a400a8a06f0c25f296"
+        },
+        {
+          "kind": "functional_aggregate",
+          "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+          "sha256": "c09c03742fc26dd99ff638baaf2848496328ee264340f8c9f05f08a5df202793"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/functional-aggregate.log",
+          "sha256": "ce7ac92ebb29dbd984e0ba7ebd73ad8e7fc0a25398e81874177666d2b87c9d94"
+        },
+        {
+          "kind": "mutation_summary",
+          "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/evidence/mutations/summary.json",
+          "sha256": "7320c978e27fe246125ef2e48bcdf247ab4343eb190cbc474b1d53ebe0558445"
+        }
+      ]
+    },
+    {
+      "id": "MIQ-FLUSH-G1",
+      "priority": "P1",
+      "title": "MIQ pipeline flush preserves exactly the unconsumed DRAIN survivor set",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooStoreQueue.v"
+      ],
+      "closure_requirements": [
+        "Bind same-cycle exact-owner fired-head subtraction, valid-without-pop DRAIN head preservation, owner-mismatch assertion, survivor identity and wrapped mixed-entry FIFO order plus compile-success RTL variants to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-memory-issue-lifecycle",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "memory_issue_lifecycle_result",
+          "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
+      "sha256": "52d4f9a4dcc5986ca39acd2540e21b6300b2d3ccc71912af61621fcbcf8e0a4a"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
+          "sha256": "3f653d834e02768ac7b59d5589f7ad0892fe2784793d4a38ab220f9ea60304c4"
+        }
+      ]
+    },
+    {
+      "id": "STORE-BRESP-G1",
+      "priority": "P1",
+      "title": "store request, B response and retirement form one precise lifecycle",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+      ],
+      "closure_requirements": [
+        "Prove no retirement before successful B, one exact B terminal, precise cause/tval on an error B response, and independent next-edge residency of every accepted STORE/AMO physical-write owner until its exact terminal response."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-memory-ordering",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "architecture_directed_suite",
+          "path": "npc/rv64/eval/ppa/evidence/architecture-current.json",
+          "sha256": "d5d03026c788dfe0f09bd422b98217605df1cad941078bb99c56bc86f7f58180"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/memory-ordering.log",
+          "sha256": "d62db6d85b48e214ef127812ccf68dca922e6182598cd68f0ffb4d3129ae5dcf"
+        },
+        {
+          "kind": "irrevocable_owner_residency_result",
+          "path": "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency-current.json",
+          "sha256": "d732d6b748fb9a55192a52ee0e1a381794ffac3ae8bdb3b293bbaa31ae0e0a45"
+        },
+        {
+          "kind": "irrevocable_owner_residency_raw",
+          "path": "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency.log",
+          "sha256": "bde285064601b662d716392637847aec25e26f3f9eaa169b546e9df13941335d"
+        }
+      ]
+    },
+    {
+      "id": "FENCE-G1",
+      "priority": "P1",
+      "title": "ordinary FENCE drains prior memory effects before later observation",
+      "status": "CLOSED",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/vsrc/execute/OooIntBackend.v"
+      ],
+      "closure_requirements": [
+        "Bind the store-to-FENCE-to-device-read program, runtime CoreGlue-to-ControlPlane mem_idle connection, exact full-drain checks and compile-success RTL variants to the current design_id."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "canonical_command": "make -C npc/rv64 check-fence-ordering",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "fence_ordering_result",
+          "path": "npc/rv64/eval/ppa/evidence/fence-ordering-current.json",
+          "sha256": "69c8aaa9ccb6f84c284dd3b59eb04a3d2c2ef6c5d6cac0caac347e4ba8d94cd7"
+        },
+        {
+          "kind": "raw_log",
+          "path": "npc/rv64/eval/ppa/evidence/fence-ordering.log",
+          "sha256": "3481db6a72c52a786139231107d5ef6e8ba93f19a1018bbe33061ffb875e83c1"
+        }
+      ]
+    },
+    {
+      "id": "A-COHERENCE-G1",
+      "priority": "P1",
+      "title": "A-extension reservation invalidation scope",
+      "status": "SCOPE_DECISION_REQUIRED",
+      "owner_paths": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/design/arch/ooo-core-architecture.md"
+      ],
+      "closure_requirements": [
+        "Freeze a normative single-hart local-reservation cohort exclusion or implement and verify multi-master invalidation with coherent/exclusive transport."
+      ]
+    },
+    {
+      "id": "CONTROL-EVENT-G1",
+      "priority": "P1",
+      "title": "one control-event owner for pipeline cancellation and backend flush",
+      "status": "OPEN",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooControlPlane.v",
+        "npc/rv64/vsrc/control/OooControlFlushSequencer.v",
+        "npc/rv64/vsrc/core/NpcCoreTop.v"
+      ],
+      "closure_requirements": [
+        "Define one event identity, reason and consumer set for redirect, trap, pending work and backend flush, then prove exact fanout and recovery."
+      ]
+    },
+    {
+      "id": "SERIALIZE-G1",
+      "priority": "P1",
+      "title": "serialize-at-retire system and trap path",
+      "status": "OPEN",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/vsrc/writeback/OooRob.v",
+        "npc/rv64/vsrc/core/NpcCoreTop.v"
+      ],
+      "closure_requirements": [
+        "Either close and enable the queue-head serialize contract or normatively freeze the pending full-drain mechanism as the product architecture with complete recovery evidence."
+      ]
+    },
+    {
+      "id": "WFI-G1",
+      "priority": "P1",
+      "title": "true WFI capability decision",
+      "status": "SCOPE_DECISION_REQUIRED",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/design/arch/ooo-core-architecture.md"
+      ],
+      "closure_requirements": [
+        "Declare WFI required and close wakeup semantics, or explicitly exclude it from the frozen cohort with a normative product contract."
+      ]
+    },
+    {
+      "id": "SFENCE-SINVAL-G1",
+      "priority": "P1",
+      "title": "selective SFENCE and SINVAL capability decision",
+      "status": "SCOPE_DECISION_REQUIRED",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/design/arch/ooo-core-architecture.md"
+      ],
+      "closure_requirements": [
+        "Declare selective invalidation required and verify operand-scoped effects, or explicitly exclude it from the frozen cohort."
+      ]
+    },
+    {
+      "id": "VECTORED-TRAP-G1",
+      "priority": "P1",
+      "title": "vectored trap capability decision",
+      "status": "SCOPE_DECISION_REQUIRED",
+      "owner_paths": [
+        "npc/rv64/vsrc/core/CsrFile.v",
+        "npc/rv64/design/arch/ooo-core-architecture.md"
+      ],
+      "closure_requirements": [
+        "Declare vectored trap required and verify target formation, or explicitly exclude it from the frozen cohort."
+      ]
+    },
+    {
+      "id": "DEBUG-TRIGGER-G1",
+      "priority": "P1",
+      "title": "architectural debug and trigger capability decision",
+      "status": "SCOPE_DECISION_REQUIRED",
+      "owner_paths": [
+        "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "npc/rv64/design/arch/ooo-core-architecture.md"
+      ],
+      "closure_requirements": [
+        "Declare debug/trigger required and verify precise entry, or explicitly exclude it from the frozen cohort."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-functional-aggregate-v2.schema.json",
+  "title": "NPC RV64 same-cohort functional aggregate v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "design_id", "cohort_id", "program_image_canonicalization",
+    "simulator", "configuration", "build", "module", "official", "am",
+    "difftest", "benchmarks"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-functional-aggregate-v2"},
+    "design_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "cohort_id": {"type": "string", "minLength": 1},
+    "program_image_canonicalization": {
+      "const": "npc-rv64-program-image-map-v1"
+    },
+    "simulator": {"$ref": "#/$defs/artifact"},
+    "configuration": {"$ref": "#/$defs/artifact"},
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "return_code", "log"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "return_code": {"const": 0},
+        "log": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "required", "passed", "failed", "tests"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "required": {"type": "integer", "minimum": 1},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "test_id", "compile_rc", "simulation_rc", "pass_markers",
+              "fail_markers", "log"
+            ],
+            "properties": {
+              "test_id": {"type": "string", "pattern": "^tb_[A-Za-z0-9_]+$"},
+              "compile_rc": {"type": "integer"},
+              "simulation_rc": {"type": "integer"},
+              "pass_markers": {"type": "integer", "minimum": 0},
+              "fail_markers": {"type": "integer", "minimum": 0},
+              "log": {"$ref": "#/$defs/artifact"}
+            }
+          }
+        }
+      }
+    },
+    "official": {
+      "allOf": [
+        {"$ref": "#/$defs/suite"},
+        {
+          "properties": {
+            "required": {"const": 177},
+            "passed": {"const": 177},
+            "failed": {"const": 0},
+            "inventory": {"minItems": 177, "maxItems": 177},
+            "images": {"minItems": 177, "maxItems": 177}
+          }
+        }
+      ]
+    },
+    "am": {
+      "allOf": [
+        {"$ref": "#/$defs/suite"},
+        {
+          "required": ["difftest_enabled"],
+          "properties": {
+            "required": {"const": 59},
+            "passed": {"const": 59},
+            "failed": {"const": 0},
+            "inventory": {"minItems": 59, "maxItems": 59},
+            "images": {"minItems": 59, "maxItems": 59},
+            "difftest_enabled": {"const": true}
+          }
+        }
+      ]
+    },
+    "difftest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command", "applicable", "mismatches", "suite", "image_set_sha256",
+        "reference", "reference_profile", "log"
+      ],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "applicable": {"const": true},
+        "mismatches": {"const": 0},
+        "suite": {"const": "am"},
+        "image_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "reference": {"$ref": "#/$defs/artifact"},
+        "reference_profile": {"$ref": "#/$defs/artifact"},
+        "log": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coremark", "dhrystone"],
+      "properties": {
+        "coremark": {
+          "allOf": [
+            {"$ref": "#/$defs/benchmark"},
+            {
+              "required": ["iterations", "crc", "good_traps"],
+              "properties": {
+                "iterations": {"const": 10},
+                "crc": {"const": "0xfcaf"},
+                "good_traps": {"const": 1}
+              }
+            }
+          ]
+        },
+        "dhrystone": {
+          "allOf": [
+            {"$ref": "#/$defs/benchmark"},
+            {
+              "required": ["runs", "good_traps"],
+              "properties": {
+                "runs": {"const": 10000},
+                "good_traps": {"const": 1}
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "namedImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_id", "load_address", "entry_pc", "image", "log"],
+      "properties": {
+        "test_id": {"type": "string", "minLength": 1},
+        "load_address": {"const": "0x0000000080000000"},
+        "entry_pc": {"const": "0x0000000080000000"},
+        "image": {"$ref": "#/$defs/artifact"},
+        "log": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command", "required", "passed", "failed", "inventory",
+        "inventory_sha256", "image_set_sha256", "images", "log"
+      ],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "required": {"type": "integer", "minimum": 1},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "inventory": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "inventory_sha256": {
+          "type": "string", "pattern": "^[0-9a-f]{64}$"
+        },
+        "image_set_sha256": {
+          "type": "string", "pattern": "^[0-9a-f]{64}$"
+        },
+        "images": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/namedImage"}
+        },
+        "log": {"$ref": "#/$defs/artifact"},
+        "difftest_enabled": {"type": "boolean"}
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "return_code", "image", "log"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "return_code": {"const": 0},
+        "image": {"$ref": "#/$defs/artifact"},
+        "log": {"$ref": "#/$defs/artifact"},
+        "iterations": {"type": "integer"},
+        "crc": {"type": "string"},
+        "runs": {"type": "integer"},
+        "good_traps": {"type": "integer"}
+      }
+    }
+  }
+}

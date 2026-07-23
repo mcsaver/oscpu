@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "owner-residency-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Review local RV64 Verilog/SystemVerilog STORE and AMO physical-write transaction owner residency across the next clock edge; enumerate all RTL clear paths and determine whether current assertions and simulation evidence independently detect premature holder disappearance before the exact terminal response.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/rtl-derivation.md",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/subagent-contracts/owner-residency-review-v1.json",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-v9l-rtl-verification-variants.py",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/task-report.md",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/design/architecture-debt-ledger.json",
+      "Work object: authorized local RV64 OoO RTL and simulation evidence only. Focus on STORE queue request_sent ownership and AMO singleton mem_amo_write_sent residency until exact transaction terminal response. No repository writes."
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "Work object: authorized local RV64 OoO RTL and simulation evidence only. Focus on STORE queue request_sent ownership and AMO singleton mem_amo_write_sent residency until exact transaction terminal response. No repository writes."
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "A review report with explicit PASS, GAP, or inconclusive status; all STORE and AMO state-clear paths; exact cycle-by-cycle invariants; assessment of an external wrapper checker using read-only hierarchy references; minimal compile-success RTL variants that current same-edge assertions miss; unknowns, counterexamples, alternatives, requested scope extensions, and confidence."
+  ],
+  "success_criteria": [
+    "Every conclusion cites allowed local RTL/spec/TB paths and distinguishes production logic correctness from evidence independence; any PASS requires a concrete current test path and a source variant that would fail only when next-edge residency is violated."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

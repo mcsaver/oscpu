@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-22-ownership-rv64-memory-functional-aggregate-revtag-v9l-6
+- `trace_id`: e2e:2026-07-22-ownership-rv64-memory-functional-aggregate-revtag-v9l-6
+- `task_slug`: ownership-rv64-memory-functional-aggregate-revtag-v9l
+- `profile`: difftest
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 517f73f540610af2e8136134975d1175a74980380ba2a9343ab883f04cc50e76
+- `task_report_md_sha256`: 9eda51732e3fa3f9c91cc476b12dd6076d0158bd9d506374b429d2c7a4ceaeee
+- `run_manifest_json_sha256`: a290ab53f31dad8251e71500f11d0e5e7db6b9a9b3533e39cb1794d04eaa29a3
+- `context_brief_md_sha256`: 3433d930d14bdd1f7793b59224a4dbe0d5748951e0af0ae710af5a0619c43909
+- `profile_resolve_md_sha256`: b57347c1eb886ae92c2e091627f2967947d6a19a5164f9a076373034ca8a3160
+- `evidence_index_md_sha256`: 0709d3bcba742c2a3c80775e98454aaad20fe19a7dd93dcc0545464754dc88d7
+- `dispatch_log_md_sha256`: f77985a5001c1120673ed802dfa20791bba1c60571d21bdbd3624420b76d9e4d
+- `nodes_tsv_sha256`: 48b047cec4cac49bb7a0160730704d875bf82b851a646ae9426a20388b6b520e

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8w-ooo4-memory-recovery-cross-layer-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射乱序核选择性恢复的 memory transaction 闭环：bridge 对 exact effective-killed active owner 的取消或 AXI drain、bank-local MIQ 精确出队、tagged terminal collector 与 owner tracker lease 终结、双 lane 隔离；寻找可导致 owner 滞留、错误 MIQ 前移、错误 WB/SQ 副作用或错误后续 AXI 请求的反例，并严格限定结论为 OOO-4 访存子切片。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red/case9/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red/case10/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/red/backend-drop/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/backend-drop/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/case13/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/full-bridge-v3/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/wrapper-v3/logs/tb_ooo_dual_mem_bridge_wrapper.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v3/summary.txt",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v3/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v3/logs/tb_ooo_core_top_glue.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/green/integration-v3/logs/tb_ooo_dual_memory_sustained_issue.log",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/mutations/summary.json",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/mutations/summary.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/run-v8w-mutations.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/subagent-contracts/v8w-ooo4-memory-recovery-cross-layer-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/SPEC.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 bridge state/AXI drain、bank0/bank1 MIQ pop、collector/tracker lifetime、global flush compaction、active+station 顺序、lane0 drain 与 lane1 peer progress 的逐项 PASS/GAP；每个 GAP 提供精确 RTL/TB 行号、可达拍序和最小定向验证建议；另列 unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "确认 exact drop0 只弹出仍驻留且 effectively-killed 的同 bank MIQ head，延迟 global-flush drop 不误弹其他 owner，collector 与 tracker 恰好终结一次，迟到 R/B 不产生 continuation 或架构副作用，双 lane 隔离证据成立；若任一条件无法从授权材料闭合，则明确返回 GAP 或 inconclusive，不得把访存子切片表述为 OOO-4 总门禁 GREEN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

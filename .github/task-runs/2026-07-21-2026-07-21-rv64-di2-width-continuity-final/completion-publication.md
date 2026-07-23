@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-21-2026-07-21-rv64-di2-width-continuity-final
+- `trace_id`: e2e:2026-07-21-2026-07-21-rv64-di2-width-continuity-final
+- `task_slug`: 2026-07-21-rv64-di2-width-continuity-final
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 25c198d3870d00fa8a0144242099a276205bb0b134075c5b6c03b260d93c6a8d
+- `task_report_md_sha256`: b3a37f97a6359732849920c069b57f163cbe979831b0ff76c12c9a20f46a3097
+- `run_manifest_json_sha256`: e098f39d66137ec45c5a2ac6605e5fc49bf8ef39a51413bbec488869f4482ebf
+- `context_brief_md_sha256`: e1f2b1578cb0d409e558aa75f7a2d21730190cde469c503a893fab52f69b35d5
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 0ca812496dd76463d3b85922c2a43e61c6aceaba1fe82c8356bb5be20a74f860
+- `dispatch_log_md_sha256`: e1299983b8bb5afdf752f71f3841f7434ddf3a6a1d8322b1ae68ab2f4acce32a
+- `nodes_tsv_sha256`: 0977d60d9ec91437fdf01f050fbfda4e7483bbfdee4c4885bcc71813109777b7

@@ -8,6 +8,8 @@ module tb_ooo_fp_issue_queue;
 
   localparam ENTRY_INDEX_W = 3;
   localparam ROB_INDEX_W = 4;
+  localparam PRODUCER_GEN_W = 4;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
   localparam PHY_REG_ADDR_W = 6;
 
   reg clk;
@@ -20,6 +22,7 @@ module tb_ooo_fp_issue_queue;
 
   reg dispatch_valid;
   wire dispatch_ready;
+  reg [PRODUCER_GEN_W-1:0] dispatch_generation;
   reg [ROB_INDEX_W-1:0] dispatch_rob_idx;
   reg [`INST_W-1:0] dispatch_inst;
   reg dispatch_double;
@@ -41,6 +44,7 @@ module tb_ooo_fp_issue_queue;
 
   reg dispatch1_valid;
   wire dispatch1_ready;
+  reg [PRODUCER_GEN_W-1:0] dispatch1_generation;
   reg [ROB_INDEX_W-1:0] dispatch1_rob_idx;
   reg [`INST_W-1:0] dispatch1_inst;
   reg dispatch1_double;
@@ -71,6 +75,7 @@ module tb_ooo_fp_issue_queue;
 
   wire issue_valid;
   reg issue_ready;
+  wire [PRODUCER_ID_W-1:0] issue_producer_id;
   wire [ROB_INDEX_W-1:0] issue_rob_idx;
   wire [`INST_W-1:0] issue_inst;
   wire issue_double;
@@ -82,10 +87,13 @@ module tb_ooo_fp_issue_queue;
   wire [PHY_REG_ADDR_W-1:0] issue_fs3_preg;
   wire [PHY_REG_ADDR_W-1:0] issue_gpr_preg;
   wire [ENTRY_INDEX_W:0] count;
+  wire [(1 << PRODUCER_ID_W)-1:0] producer_live_mask;
 
   OooFpIssueQueue #(
     .ENTRY_INDEX_W(ENTRY_INDEX_W),
     .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W),
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
   ) dut (
     .clk(clk),
@@ -97,7 +105,7 @@ module tb_ooo_fp_issue_queue;
     .recover_active_i(recover_active),
     .dispatch_valid_i(dispatch_valid),
     .dispatch_ready_o(dispatch_ready),
-    .dispatch_rob_idx_i(dispatch_rob_idx),
+    .dispatch_producer_id_i({dispatch_generation, dispatch_rob_idx}),
     .dispatch_inst_i(dispatch_inst),
     .dispatch_double_i(dispatch_double),
     .dispatch_pdest_i(dispatch_pdest),
@@ -117,7 +125,7 @@ module tb_ooo_fp_issue_queue;
     .dispatch_gpr_ready_i(dispatch_gpr_ready),
     .dispatch1_valid_i(dispatch1_valid),
     .dispatch1_ready_o(dispatch1_ready),
-    .dispatch1_rob_idx_i(dispatch1_rob_idx),
+    .dispatch1_producer_id_i({dispatch1_generation, dispatch1_rob_idx}),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_double_i(dispatch1_double),
     .dispatch1_pdest_i(dispatch1_pdest),
@@ -145,6 +153,7 @@ module tb_ooo_fp_issue_queue;
     .int_wake1_preg_i(int_wake1_preg),
     .issue_valid_o(issue_valid),
     .issue_ready_i(issue_ready),
+    .issue_producer_id_o(issue_producer_id),
     .issue_rob_idx_o(issue_rob_idx),
     .issue_inst_o(issue_inst),
     .issue_double_o(issue_double),
@@ -155,7 +164,8 @@ module tb_ooo_fp_issue_queue;
     .issue_fs2_preg_o(issue_fs2_preg),
     .issue_fs3_preg_o(issue_fs3_preg),
     .issue_gpr_preg_o(issue_gpr_preg),
-    .count_o(count)
+    .count_o(count),
+    .producer_live_mask_o(producer_live_mask)
   );
 
   task automatic clear_inputs;
@@ -166,6 +176,7 @@ module tb_ooo_fp_issue_queue;
       rob_head_idx = {ROB_INDEX_W{1'b0}};
       recover_active = 1'b0;
       dispatch_valid = 1'b0;
+      dispatch_generation = 4'ha;
       dispatch_rob_idx = {ROB_INDEX_W{1'b0}};
       dispatch_inst = {`INST_W{1'b0}};
       dispatch_double = 1'b0;
@@ -185,6 +196,7 @@ module tb_ooo_fp_issue_queue;
       dispatch_gpr_preg = {PHY_REG_ADDR_W{1'b0}};
       dispatch_gpr_ready = 1'b0;
       dispatch1_valid = 1'b0;
+      dispatch1_generation = 4'ha;
       dispatch1_rob_idx = {ROB_INDEX_W{1'b0}};
       dispatch1_inst = {`INST_W{1'b0}};
       dispatch1_double = 1'b0;
@@ -809,6 +821,33 @@ module tb_ooo_fp_issue_queue;
     end
   endtask
 
+  task automatic run_v8i_pid_lease;
+    reg [PRODUCER_ID_W-1:0] expected_pid;
+    begin
+      reset_dut();
+      expected_pid = {4'ha, 4'd9};
+      dispatch_waiting_gpr_entry(4'd9, 6'd12);
+      dispatch_gpr_ready = 1'b1;
+      #1;
+      tb_check1("V8I dispatch input is not a Q lease",
+                producer_live_mask[expected_pid], 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("V8I resident PID is present in Q lease",
+                producer_live_mask[expected_pid], 1'b1);
+      tb_check32("V8I nonzero-generation issue identity",
+                 {24'b0, issue_producer_id}, {24'b0, expected_pid});
+      tb_check32("V8I raw issue projection",
+                 {28'b0, issue_rob_idx}, 32'd9);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V8I terminal edge releases lease next cycle",
+                producer_live_mask[expected_pid], 1'b0);
+      tb_check32("V8I PID lease test drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -902,6 +941,7 @@ module tb_ooo_fp_issue_queue;
     run_flush_discards_dispatch_wake();
     run_lane1_dispatch_wake1_collision();
     run_preg0_ready_without_wake();
+    run_v8i_pid_lease();
     tb_finish("tb_ooo_fp_issue_queue");
   end
 

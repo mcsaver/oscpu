@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8u_f4_contract_review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 RV64 双 bank load 热命中连续发射契约，重点检查 MIQ current-pop 与 next-head 查询、station-to-active 提升、同步 D-cache lookup 和 F3 final-PA SQ ordering 的逐拍自洽性",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "以逐拍寄存器所有权、ready/valid、flush/kill优先级、同步 SRAM返回归属和 memory-ordering反例为审查轴；不要把缺少尚未实现的仿真证据当作契约逻辑错误。",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/subagent-contracts/v8u_f4_contract_review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "以逐拍寄存器所有权、ready/valid、flush/kill优先级、同步 SRAM返回归属和 memory-ordering反例为审查轴；不要把缺少尚未实现的仿真证据当作契约逻辑错误。"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前每 bank 有一个 active transaction 和一个 station；普通 load 先锁存 final PA 与 typed class，再经 S_SQ_QUERY 发同步 D-cache lookup，下一拍 S_LOOKUP 得到 hit。",
+      "候选 fast path：cycle N active A 在 S_LOOKUP hit 且 response_fire，station B 已有 final PA；B 必须精确匹配 MIQ next head，并由 tracker 还原 full ProducerId；B SQ decision 为 allow 时同拍启动 B lookup，edge N 只 pop A、B station 提升 active 且 state 直接保持 S_LOOKUP；cycle N+1 cache result 属于 B。",
+      "lookahead query 的 retry_ready 固定为零；forward、replay、fault、NC、IO、backpressure、flush、effective kill 或 tuple mismatch 均关闭 fast lookup并回到 F3路径；D-cache lookup必须蕴含 exact final-PA SQ allow。",
+      "MIQ每拍最多一次 pop且只属于 A current response；B entry和tracker token保持 resident/live。bank0/bank1完全独立，不允许交叉 identity 或组合 stall。",
+      "F4门槛是单次 production integration 64-cycle steady trace，memory_issue_ipc 至少 1.90、dual_issue_cycles 至少 58，两 bank各自 AGU、translation、physical LSQ query、cache admission、completion均至少58，并有 release assertion 与 compile-success mutation。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS 或 FAIL；列出任何 P0/P1 时序反例、必须新增的精确条件，以及不影响正确性的 P2优化建议。"
+  ],
+  "success_criteria": [
+    "没有 current/next owner混淆、双 pop、lookup未授权、flush/kill侧效应、同步 cache响应错配或跨 bank耦合；若存在反例，给出最短周期轨迹。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

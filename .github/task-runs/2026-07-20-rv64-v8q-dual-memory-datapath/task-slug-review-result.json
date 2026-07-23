@@ -1,0 +1,32 @@
+{
+  "verdict": "pass",
+  "contract_path": ".github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/subagent-contracts/v8q-task-slug-revision-review.json",
+  "contract_sha256": "46fe3b4d3cd33b088d4f32292b196f598a7d7a8f24bef139d706dbce8d040c82",
+  "gap_status": {
+    "SLUG-G01": {
+      "status": "closed",
+      "reason": "Explicit revtag revision is removed before filtering and truncation, so lifecycle-only input becomes empty and exits nonzero."
+    },
+    "SLUG-G02": {
+      "status": "closed",
+      "reason": "Undeclared v8, v2ray, and internal v8a are preserved, including the eight-business-term boundary."
+    }
+  },
+  "blockers": [],
+  "counterexamples": [],
+  "unknowns": [
+    "The conclusion consumes frozen supplied material and forward-evidence summaries; it is not an independent repository or log read."
+  ],
+  "assumptions": [
+    "revtag is a reserved controlled slug fragment and is not used as an ordinary business term."
+  ],
+  "claim_boundary_ok": true,
+  "scope_extension_request": null,
+  "contract_compliance": {
+    "tools_used": false,
+    "filesystem_reads": false,
+    "writes": false,
+    "network": false,
+    "contract_sha_scope_respected": true
+  }
+}

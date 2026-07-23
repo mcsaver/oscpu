@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8m-selective-scheduling-implementation-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只依据冻结实现与证据摘要，独立审查 v8m OOO-2 scoped GREEN 是否存在假绿、覆盖洞或越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/selective_scheduling_evidence.py",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/evidence/selective-scheduling.log",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/subagent-contracts/v8m-selective-scheduling-implementation-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "实现没有修改功能 RTL；改动集中在 architecture_hard_gates.py、其单元测试、backend 定向 TB、证据构建器、任务 runner、Makefile 永久入口和证据清单。",
+      "source OOO-2 门保留 arbitrary older-valid 否定检查，并要求 backend mem_issue_res_valid_q 绑定、dispatch/IQ 透传、selector owner-to-first-ALU、IQ issue1 valid 独立、backend issue1 ready/fire 独立六段同时成立；局部 issue0 stop 只有完整链路时合法。",
+      "backend release/assert 场景均从真实 dispatched load 在 mem_req_ready=0 下建立并保持 reservation；用 PC 与 full ProducerId 证明 older independent ALU 先发，并证明 older dependent ALU 与同资源 memory 留驻时 younger independent ALU 从 issue1 valid&&ready fire；窗口 flush、ROB kill、ROB recovery 均为零。",
+      "leaf IQ release/assert 均保留 registered-owner sole-ALU case；聚焦基线 4/4 PASS。",
+      "五个实际源码变异分别切断 backend binding、dispatch forwarding、selector steering、IQ issue1 owner independence、backend issue1 ready independence；每个先成功 elaboration，再由 v8m 定向 CHECK-FAIL 拒绝，5/5。",
+      "architecture checker 单元测试 18/18；provenance 测试证明 proof inventory 当前哈希变化会使 evidence RED。",
+      "evidence manifest schema v2，design_id=sha256:9735bdc1f101501d0100a335b4d7ac602fa6b002d77cedbcb4245b833c2bb293；命令精确为 make -C npc/rv64 check-selective-scheduling；gate log 恰有一个 selective_scheduling PASS marker，并绑定 11 个 proof/harness 文件及各自 SHA。",
+      "fresh 模块回归 106/106；RTL style、ProducerId census、check-contract PASS，断言 400>=89；full lint 是继承的 rc=2/115 warning 签名，未表述为 PASS。",
+      "最终 architecture inventory 只有 OOO-2 GREEN，DI-1..DI-5、OOO-1、OOO-3、OOO-4 继续 RED，OVERALL RED，不进入 PPA。"
+    ]
+  },
+  "deliverables": [
+    "严格输出一个 JSON 对象，字段为 verdict(pass|gap)、blockers(数组)、false_green_risks(数组)、residual_risks(数组)、claim_boundary(字符串)；不得输出 JSON 之外文本"
+  ],
+  "success_criteria": [
+    "pass 仅允许当前 design/provenance 绑定下的 OOO-2 scoped GREEN；gap 必须给出能落成静态审计、定向 TB 或 compile-success mutation 的具体阻断项；明确禁止 architecture/PPA 晋级"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

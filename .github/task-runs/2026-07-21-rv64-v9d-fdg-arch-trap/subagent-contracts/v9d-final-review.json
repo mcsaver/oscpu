@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9d-fdg-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently review the local RV64 FDG-G1 current-design closure for P0/P1 RTL correctness, evidence sensitivity, and claim-boundary defects.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/review-packet.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/subagent-contracts/v9d-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Scope is authorized local RV64 Verilog/SystemVerilog dual-issue OoO processor design and generated verification evidence only; no network, account, credential or external service.",
+      "Current full RTL identity is sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc; production RTL is unchanged.",
+      "Classification/admission path is OooFetchHeadClassifyGate/OooFetchHeadPairGate to OooFrontendDispatchGate to OooFrontendBackendDispatchMux to OooCoreTopGlue backend; precise trap owner is OooPendingDispatchArbiter to OooPendingTrapExitSequencer to OooCsrTrapRequestMux/CsrFile.",
+      "Invariant: valid head0 architectural trap presents neither ordinary admission nor either final backend lane and never commits; trap owner captures cause, PC and tval once and returns by MRET; legal FADD.S remains a positive control.",
+      "Focused exact counters are illegal_fp_cases=4, illegal_classified=4, arch_trap=4, fp_disabled=4, backend_blocked=4, legal_fp_cases=1, legal_backend_present=1, PASS.",
+      "Full-core exact counters are arch_trap_capture=1, ordinary_backend_present=0, core_backend_present=0, illegal_fp_commit=0, handler=1, mret=1, cause=2, PASS.",
+      "Canonical command dynamically passes the current 109/109 module inventory.",
+      "Three current-source RTL verification variants compile and are dynamically rejected: ordinary_arch_trap_exclusion_removed, lane1_arch_trap_exclusion_removed and ordinary_admission_forced_closed; production source remains unchanged.",
+      "An early classifier-binding variant is excluded from the claim because the full-core trap owner intercepted it before ordinary dispatch-valid and its selected oracle did not reject it.",
+      "FDG result SHA is 93874aa6155a8fa9ad02b6d1285226337cb86f4d9a190c83cf2ff3a05900d27b; raw log SHA is 2bca0b733265b9f1fbc831affa62d916447086a0ae688f06851ef5c891901dcb; variant summary SHA is f28e54c434fc467e5af76e07474a83facad5eedf41ffe38a1616779c93ef2023.",
+      "Builder and independent arch-stable validator recompute full RTL identity, exact source bindings, focused/program markers, all 109 module logs and all three source-cut transformations and rejection markers; FDG tests pass 7/7.",
+      "Nine directed architecture gates are GREEN on the same RTL identity, but full-core audit remains GAP with 44 blockers, ppa=UNQUALIFIED and promotion_eligible=false.",
+      "Review false-open and false-closed admission, trap/handler/commit non-vacuity, stale or cross-design evidence acceptance, source-cut sensitivity and any promotion overclaim."
+    ]
+  },
+  "deliverables": [
+    "Return VERDICT=PASS or VERDICT=FAIL; list P0/P1/P2 findings with a concrete local RTL or evidence counterexample, then residual limitations and the exact claim boundary."
+  ],
+  "success_criteria": [
+    "No unresolved P0/P1 finding; explicitly preserve full-core ARCH_STABLE=GAP and PPA=UNQUALIFIED unless a concrete contradiction is identified."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

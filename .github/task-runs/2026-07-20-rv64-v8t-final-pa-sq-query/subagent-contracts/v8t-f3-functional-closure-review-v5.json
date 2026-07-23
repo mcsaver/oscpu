@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "v8t-f3-functional-closure-review-v5",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 RV64 双发射 OoO 核 F3 candidate run v8t-f3-20260720T133351Z-1183319 的 two-phase checkpoint finalizer、functional source closure 与 fresh RTL 验证证据，确认 stale/wrong-run overlay 已 fail-closed 并判断能否授权 final_pa_sq_ordering_checkpoint",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/check-v8s-dual-memory-core.py",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/test_check_v8s_dual_memory_core.py",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      ".github/task-runs/2026-07-20-rv64-v8t-final-pa-sq-query/subagent-contracts/v8t-f3-functional-closure-review-v5.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP；核对 closure 0be0d3ee3424ee816fe11d0176f2fc5e71849e24bedb764025f4e2dcc8212063、candidate result SHA 030047748ddb9b75bb18e8be2cc164bbc576752d038682c8109c342ee40b8a0a、mutation summary SHA 71c3b1812387bf8f8be68a572b9cb491177c00d66105d5ca02a8175466399af6、38/37 mutation、11 profiles、holder proof、F0/F1/F2 和 finalizer 7 项单测；列出 unresolved P0/P1"
+  ],
+  "success_criteria": [
+    "只有 reviewer overlay 必须精确匹配 candidate run-id/closure/result SHA/mutation SHA/合同 SHA、checkpoint 输出不覆盖 candidate、当前证据无 P0/P1 且 RED/UNQUALIFIED/promotion=false 时授权 final_pa_sq_ordering_checkpoint"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "platform_check_bypass_is_not_an_objective": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

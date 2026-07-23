@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-21-rv64-di1-frontend-ii1-pc-ledger
+- `trace_id`: e2e:2026-07-21-rv64-di1-frontend-ii1-pc-ledger
+- `task_slug`: rv64-di1-frontend-ii1-pc-ledger
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 1f51a53c1cda73dca96609386a1567ff7b62b7b912b2b07d7a73619a184cea82
+- `task_report_md_sha256`: 2e9871349f77918be1650801d84a2de80a74669dad3b37bb744dab2d60b094e1
+- `run_manifest_json_sha256`: fe3f0975b0c8a7f736645433f0fd777f7e8518677caf2ce7b413edd7da4f83ed
+- `context_brief_md_sha256`: 9d7b5915760c254156b9ac46b9d476de76488222a43aee323e91ea24c7d06c1d
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 8de934f19f841a772297a5c5624667e7c6e0eea28f7b483e91233d9430172adf
+- `dispatch_log_md_sha256`: 88ab7eda442368b76ef3e24279460a40a130bcb76de23b986ac67db4a7554a03
+- `nodes_tsv_sha256`: 9df97025981027421ea520979b3c46e97df99e0a0e5215fad6be095d917ff98b
