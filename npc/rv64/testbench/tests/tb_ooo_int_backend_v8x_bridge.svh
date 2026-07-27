@@ -119,6 +119,7 @@
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
+    .control_full_flush_barrier_i(1'b0),
     .mmu_flush_i(1'b0),
     .dcache_dma_invalidate_all_i(1'b0),
     .priv_mode_i(`PRIV_M),

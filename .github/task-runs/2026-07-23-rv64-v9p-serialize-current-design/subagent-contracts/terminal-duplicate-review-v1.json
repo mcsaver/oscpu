@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "terminal-duplicate-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 Verilog/SystemVerilog OoO 核在 340,000,000 次提交后命中的 memory-owner terminal ingress 同-token 双源断言；基于冻结的 12-lane 方程和 holder 转移合同，给出最可能的 lane pair、可达周期轨迹、缺失断言与 focused testbench 方案。不得把未知 lane pair 当成已证实根因，也不得建议关闭或放宽 collector 断言。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full.classification.json",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/subagent-contracts/terminal-duplicate-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "严格 rootfs 配置为 OOO_CSR_QUEUE_HEAD=1、OOO_ASSERT=1、双 memory bank。设计 ID sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a。systemd 已启动 YSYX NPC automated root console shell，提交继续到 340,000,000，随后 OooMemOwnerTerminalCollector.v:367 报 [S2-G1-TCOLL-INGRESS-DUP]，仿真器 rc=134。没有 commit-gap expiry，自检完成与自然下电尚未发生。",
+      "collector 对每个 valid ingress 检查 edge-old live {kind,token,epoch}。若任意两个 valid lane 的 token 相同，则两 lane 的 ingress_duplicate_violation 都为1、两 lane 都不 accept，并在 OOO_ASSERT 下 fatal。因此不能把该现象视为无害重复。",
+      "lane0=bank0 MIQ response terminal；lane1=bank1 MIQ response terminal；lane2/3=bank0 bridge active/station drop；lane4/5=bank1 bridge active/station drop；lane6/7=issue reservation0/1 非-STORE local-complete、selective recovery 或 global recovery terminal；lane8=legacy buffer 非-STORE recovery terminal；lane9=AMO interphase recovery terminal；lane10/11=bank0/1 load retry-holder recovery terminal。",
+      "response lane0/1 只有在 terminal credit 为1时 fire；credit 用全部 raw nonresponse masks 和另一 response raw mask排除同-token，因此正常组合逻辑应在 collector 前抑制 response-vs-other 同-token双源。优先审查 lanes2..11 间的 holder/source-of-truth 重叠，同时保留 response-credit实现错误作为较低概率候选。",
+      "OooMemAxiBridge 在 flush/recovery 时可同时输出 active drop0 与 station drop1，并有断言：若两者 token 相同则 [S2-G1-BRG-DROP-DUP] fatal。该 bridge 断言可能与 collector 断言同周期，但 collector 的 Verilator求值顺序可先终止。当前日志只显示 collector marker，不能据此排除 lanes2/3 或 lanes4/5。",
+      "backend 已有断言：retry0/1 valid 时，其 token 不得同时出现在同-bank bridge active/station residency 或 MIQ occupancy；retry recovery terminal还检查不得与任一其它 ingress mask重叠。collector 可能先 fatal，所以日志未出现 retry marker不能排除 retry pair。",
+      "backend 仅对两个 MIQ occupancy mask做跨-bank token disjoint；对两个 bridge residency mask、reservation0/1、buffer、AMO pending与 bridge之间缺少完整 pairwise holder uniqueness断言。SQ owner与运输 holder共享 token是合法的，不能对所有 holder盲目要求全局唯一。",
+      "bank0/bank1 request grant各自 onehot；issue0或issue1按地址 bit3只选择一个物理 bank。已有断言只检查同时 fire 的两个请求不能指向同一 bank，未直接检查同时 fire 的两个请求 token不同，也未检查已驻留的两个 bridge token集合互斥。",
+      "issue reservation在 global recovery边产生 lane6/7并清 valid；retry holder产生 lane10/11；legacy buffer产生lane8；AMO write-phase pending产生lane9。正常 source-of-truth 转移应在 request fire、MIQ pop-to-retry、station-to-active以及 response/drop终止处保持单一可终止运输 owner。",
+      "现有 focused tests覆盖：单个 retry holder在 flush时只产生 lane10或11；两个独立 bridge drop可同周期进入lane2与lane4；双MIQ token disjoint；7个不同token同时进入collector。尚未有自然周期测试覆盖同-token跨bridge驻留、active+station同-token后flush、reservation-to-bridge边界与full-flush同拍、或所有12 lane pairwise source矩阵。",
+      "本节点不得执行工具或读取额外文件。请按已证实、RTL推导、待动态观测三栏输出；如果无法唯一确定 lane pair，必须给出排序及每一项可用一个或两个自然周期验证的观测条件。"
+    ]
+  },
+  "deliverables": [
+    "按概率与结构可达性排序候选 lane pair；每项给出 edge-old holders、同拍事件、为何现有断言可能未先报告，以及最小自然周期 testbench 轨迹。",
+    "提出只增加可观测性而不改变功能的精确诊断字段，以及能在当前 RTL 上 RED、修复后 GREEN 的 immediate assertion 与 compile-success RTL mutation。",
+    "给出 source-of-truth 修复原则；明确哪些候选可在 producer 侧消除重复，哪些绝不能在 collector 侧静默去重。"
+  ],
+  "success_criteria": [
+    "所有结论必须使用明确 lane、module、signal、cycle 与 owner token语义；未知项标记 GAP。",
+    "不得宣称 rootfs、architecture freeze 或 PPA 已通过；本节点只形成 P0 根因调查建议。",
+    "不得建议关闭 OOO_ASSERT、删除 testbench、在 collector 里任意择一接受同-token入口，或改变任务范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

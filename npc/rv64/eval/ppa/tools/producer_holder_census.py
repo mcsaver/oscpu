@@ -63,6 +63,11 @@ REQUIRED_ANCHOR_IDS = {
     "v8l-mem-handoff-assert",
     "v8l-indirect-tracker-assert",
     "v8l-sq-global-assert",
+    "v9r-backend-retry0-c0-gate",
+    "v9r-backend-retry1-c0-gate",
+    "v9r-backend-retry-c0-assert",
+    "v9r-bridge-retry-fire-c0-gate",
+    "v9r-bridge-retry-fire-c0-assert",
 }
 FORBIDDEN_ANCHOR_IDS = {
     "intiq-next-state-mask",

@@ -71,7 +71,8 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - `.github/memory/` 只沉淀稳定结论、长期经验和设计决策；单次图执行的节点明细、阶段状态、证据链和派发历史优先写入 `.github/task-runs/`，不要把长日志整段塞进记忆文件；长日志只做路径/hash/marker/摘要登记。
 - 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包，再用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，软件流程入口用 `--profile software-flow`，`.github` 检索索引入口用 `--profile github-index`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
 - 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
-- 大任务允许并发调用多个无 shell 只读子 agent 做 RECALL、资料审计和日志整理；需要 shell 的只读探索由主 agent 按 single-flight 把当前唯一 ownership 交给一个契约节点，涉及实现、验证、记录的节点仍按依赖顺序串行推进。派发本地 RV64 RTL 子任务前必须读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，用 `.github/skills/prepare-rtl-task-contract/` 生成并校验 RTL/spec/TB/evidence 输入、输出路径、结构化 `command/mode/purpose`、最小上下文、产物和成功条件；`render` 提示固定使用 `rv64-hardware-professional` 硬件措辞，协调状态不进入子 agent 提示，且该措辞层不得改变既有工具或推理能力。主 agent 的用户可见进度与终审摘要同样先落到本地 RV64 module/signal/transaction、仿真/综合/STA 动作和证据产物，协调状态单独留在 task-run，不反复混入 RTL 技术正文。需要发现源码遗漏时默认使用限定路径的 `workspace-files`，no-tools 仅用于冻结材料复核。只读任务只消费合同内本地材料并使用不落盘命令，同时必须允许未知项、替代假设、反例、置信依据和范围扩展请求。
+- 大任务允许并发调用多个无 shell 只读子 agent 做 RECALL、资料复核和日志整理；需要 shell 的只读探索由主 agent 按 single-flight 把当前唯一 ownership 交给一个契约节点，涉及实现、验证、记录的节点仍按依赖顺序串行推进。派发本地 RV64 RTL 子任务前必须读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，用 `.github/skills/prepare-rtl-task-contract/` 生成并校验 RTL/spec/TB/evidence 输入、输出路径、结构化 `command/mode/purpose`、最小上下文、产物和成功条件；`render` 提示固定使用 `rv64-hardware-professional` 硬件措辞，协调状态不进入子 agent 提示，且该措辞层不得改变既有工具或推理能力。主 agent 的用户可见进度与终审摘要同样先落到本地 RV64 module/signal/transaction、仿真/综合/STA 动作和证据产物，协调状态单独留在 task-run，不反复混入 RTL 技术正文。需要发现源码遗漏时默认使用限定路径的 `workspace-files`，no-tools 仅用于冻结材料复核。只读任务只消费合同内本地材料并使用不落盘命令，同时必须允许未知项、替代假设、反例、置信依据和范围扩展请求。
+- 子 agent 的 `render` 文本保持精简：只放具体 RV64 module/signal/本地证据路径、周期/配置、TB/EDA 观测、合同绑定和工程动作；派发管线、父任务历史、协调状态与措辞策略留在 JSON/dispatch log。Python/JSON 证据工具复核也以对应 CPU 债务项、RTL 证据路径、字段、定向单测和返回码为主语，不用通用流程描述替代硬件事实。
 - `AI_ENVIRONMENT.md` 是 AI 开发环境的一页导航，工作区级图任务蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时依次读取两者。
 
 ## Agent 本地学习资料约束
@@ -160,7 +161,7 @@ RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VE
 
 ## Agent 完成判定钩子
 - 在声明“完成”、关闭 goal 或写入“已完成”记录前，必须回看用户原始请求和已读文档的完整 checklist/路线图，逐项核对实际证据。
-- 收尾时必须显式执行“实现者人格 / 审查者人格”内部对抗：实现者说明交付证据和边界，审查者优先攻击反例、覆盖洞、假绿、未跑 profile、未读上下文和越级结论；最终答复必须写清冲突后结论，冲突未解决时只能交付子任务状态和剩余风险。
+- 收尾时必须显式执行“实现者 / 审查者”双角色复核：实现者说明交付证据和边界，审查者优先寻找反例、覆盖洞、假绿、未跑 profile、未读上下文和越级结论；最终答复必须写清复核结论，分歧未解决时只能交付子任务状态和剩余风险。
 - 在收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 会按本轮工作树触碰路径推导推荐 profile，并检查 `.github/task-runs/` evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若缺证据或 DB 召回产物，先补跑建议 profile，或在回复和 memory/task-run 中写明豁免理由与风险。
 - 若只完成路线图中的一个子项，只能表述为“本子项/本切片完成”，并列出未完成项；不得把长期目标、多阶段任务或完整 Ubuntu/完整 VM 路线越级标为整体完成。
 - 对 RV64 Linux/Ubuntu、图任务、长链调试和 agent 工作流任务，最终答复必须同时写清已闭合 gate、未闭合 gate 和下一步候选。

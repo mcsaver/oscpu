@@ -26,7 +26,13 @@ initramfs 和 rootfs 是两个不同 gate。`root=/dev/vda` 或 DTB 中出现 vi
 - 不把 Ubuntu Base rootfs 目录或 ext4 镜像存在当作 rootfs 启动成功。
 - 不把 initramfs `/bin/sh` 当作 rootfs `/dev/vda` 启动。
 - 不用 host 直接读写 rootfs 文件替代 guest block IO 协议。
-- 不用单源 PLIC 临时特判绕过 virtio 中断设计。
+- 单源 PLIC 临时特判不能替代完整 virtio 中断设计。
+- 可写 ext4 模板不能跨系统回放直接复用：证据 run 应先内容寻址模板，再用
+  `Linux/scripts/prepare-npc-rootfs-run-image.sh` 创建独立 block-image 工作副本。NPC 只挂载副本，
+  模板前后 SHA-256 必须相同；副本的 pre-run SHA 必须等于模板，post-run 允许反映 guest 合法写入。
+- `mkfs.ext4 -d` 的 UUID/时间元数据以及 rootfs 文件时间会使新构建镜像的二进制 SHA 随轮次变化；
+  未显式启用可复现镜像构建时，不得把历史镜像 SHA 当作本轮期望常量。应在静态内容检查通过后记录
+  本轮 template/CPIO SHA 及构建输入 SHA，再用该 template SHA 约束工作副本并核验模板前后不变。
 
 ## 验证建议
 

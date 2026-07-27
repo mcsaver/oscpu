@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "memory-stall-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 Verilog/SystemVerilog OoO 核的 dual-memory load replay 进展合同。以 Linux 最后提交 #42095411 后 512 周期的 `debug_mem_diag_o` 为动态证据，逐项核对 `OooIntBackend` 的 bank-local MIQ、单 retry holder、older StoreQueue owner、request arbitration，以及 `OooMemAxiBridge` 的 active/station/S_SQ_QUERY 状态，判断是否存在可达的同 bank 有限容量循环等待，并审查候选 load admission 修复是否既保证进展又保留无 older-SQ-owner 时的 F4 current/next handoff。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-memory-access.md",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/linux-debug-ports/npc.log",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/linux-memory-commitwatch/npc.log",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/linux-memory-stall-window/npc.log",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/linux-memory-stall-window/binding.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/subagent-contracts/memory-stall-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出逐周期 source/signal/owner 表：最后提交、bridge0/1 state、station valid、SQ query valid/allow/forward/replay/retry-ready、MIQ/LQ exact、retry holder、store candidate、grant 与 SQ occupancy；把动态事实、RTL 推导和仍未观测的信息分栏。",
+    "审查三类候选：恢复 F3 全量 active/station load fence、仅在候选 load 存在 older SQ owner 时增加 same-bank replay-capacity fence、增加第二 retry holder；逐一列出正确性、吞吐、状态位与时序锥代价，并给出首选与反例。",
+    "提出能在当前 RTL 上先 RED、修复后 GREEN 的最小定向 testbench 轨迹、立即断言和 compile-success RTL mutation；同时列出 module aggregate、fullstate 与严格 Linux rootfs 晋级门。"
+  ],
+  "success_criteria": [
+    "结论必须绑定具体 module/signal、bank、owner 相对年龄和周期；不得仅依据 bridge state 的旧 bitwise-OR 视图，也不得把 token 不重复等同于 bounded progress。",
+    "若认为存在循环等待，必须说明每个 holder 为什么不能释放以及哪个 admission 边最早可安全阻断；若证据不足，明确标记 inconclusive 并指出还缺哪个本地 RTL 观测位。",
+    "候选修复不得削弱 owner identity、flush/recovery、formal completion 或 StoreQueue 顺序合同；PPA 结论只允许标为 architecture change / diagnostic，不能宣称正式优化。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

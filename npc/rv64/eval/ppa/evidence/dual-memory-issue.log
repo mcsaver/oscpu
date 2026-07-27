@@ -1,9 +1,9 @@
 DI-5 sustained dual-memory issue evidence
 run_id=2026-07-20-rv64-v8u-dual-memory-sustained-issue
-generated_at_utc=2026-07-23T02:09:14.493095+00:00
-design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
-rtl_file_count=145
-provenance_sha256=5920e214106bd2b67a33a382ae8a54bc3d696a26b417922a3ce08a455887c594
+generated_at_utc=2026-07-27T00:59:28.460198+00:00
+design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951
+rtl_file_count=146
+provenance_sha256=09401493f8b2b5a1180063446512dc88bd4d223b4df710997f36dd8cc2d1d7c9
 steady_trace_cycles=64
 memory_issue_ipc_milli=2000
 dual_issue_cycles=64
@@ -13,20 +13,20 @@ held_response_query_visible_lookup_blocked=1
 baseline_unoptflat=0
 compile_success_mutations=7
 predecessors=F0_PASS,F1_PASS,F2_PASS
-predecessor_run_id F0 v8q-f0-20260723T020807Z-3338356
-predecessor_run_id F1 v8r-f1-20260723T020758Z-3337139
-predecessor_run_id F2 v8s-f2-20260723T020711Z-3335724
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json c498778eda19517417d7a857233300c2e02ee0ffe10b372c5bcd95e3388f8157
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/evidence/focused/result.json ed9d8f776a762f9871bcacc19ca81b348d56c07de5994fcfc9e75e10c0a545dd
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json e64599f255f61ffffc3c6b6e812bb46da121a7b3c22e63c115cba2fcd7dd13a8
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/backend-partial/logs/tb_ooo_int_backend.log cad9b3d3d7f0278e4176fe80e1051c2e8c47ffa7fd2560708f42763425c6454e
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-backend/logs/tb_ooo_int_backend.log 1774a07595d5600b393d4972310f967c31b8d0bd5e7afcea094e3df0af061cba
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-bridge/logs/tb_ooo_mem_axi_bridge.log 63dafb92005df7592bb52fb999b26d265a1206f95d6e2fd38338ebb8ea8f39f1
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-iq/logs/tb_ooo_int_issue_queue.log dde8ca4c439f060a3be4fbdf0ebd5d1f5c5de8fa2cbcce68cc6438dd8af37866
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-miq/logs/tb_ooo_mem_inflight_queue.log 892a93b7c26b5a36aee46bb92456573ed59c073d5c7b76cd7ec5f55ab9a272e2
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/sources.pre.sha256 82fbf666752bc5322e781c64f68df550a5f2b800462c446adca8981c32cce3cf
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/system/logs/tb_ooo_dual_memory_sustained_issue.log 5e27a2664292eb80f6afd2d9da1c4f7d8f57fd45c2251d21051ce2381d64425e
+predecessor_run_id F0 v8q-f0-20260727T005814Z-183865
+predecessor_run_id F1 v8r-f1-20260727T005805Z-182653
+predecessor_run_id F2 v8s-f2-20260727T005703Z-181290
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8q-dual-memory-datapath/evidence/focused/result.json 2e732b0b56d596428d855df0f068b022b1fcbed9ed645342452555b5a9dbcaa5
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/evidence/focused/result.json 5d643bbeb239179d205e0e14751fbe55d3a2b6fe849fa528daea23a78e744ffb
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json 335d8bb5d77e44beea735b9df9971aaff6d1cd1a8682f5a909dfd70d37dda568
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/backend-partial/logs/tb_ooo_int_backend.log 7d9c9aef3a9162051d2cc60887108451f3822c3c09487a9a2574c88198edb0f6
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-backend/logs/tb_ooo_int_backend.log d6f825ccd550ed3ff2940263751ed1de7a2f122debca36584b3ec8a47e539435
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-bridge/logs/tb_ooo_mem_axi_bridge.log 6392057386efb6ca9294ad741402e0086e63c6eee55b5bbaf34858a6829caaa2
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-iq/logs/tb_ooo_int_issue_queue.log b6586974c7b9978e64457b9f1ac367c12a168e4c2440556104d61b3311c7d709
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/leaf-miq/logs/tb_ooo_mem_inflight_queue.log ce833ce43d37fde6274b7c2f72c04885110743b4b1a6aa209224959b03792183
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/sources.pre.sha256 4001274390af20175d48d4ffc6a9de1b936d4a8718dedda4da9c9c9995932062
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/final-run/system/logs/tb_ooo_dual_memory_sustained_issue.log fde4fc344144db85080dec5837dc815521ad0354db5397e7165ca0c674e0775e
 artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/mutations-final/baseline/result.log 2bc6e597607e127c832741e4f1d3ab3a9640835e075a08cda9be64d8874eee16
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/mutations-final/mutation-summary.tsv a1f4a06dab80aafd862f862ace486205de3f295c98f012fc24ce6a1aa9314576
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/mutations-final/mutation-summary.tsv a973998c3f302f94f3c7dc72c54138896f71f11a62f906cc9d5807cd77469e06
 artifact_sha256 .github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/mutations-final/result.log 43922b1c37826612dd3368b952dc1f581a2ff37f9f6768ba163fb3a2fe6c42f9
-[ARCH-GATE] dual_memory_issue PASS run_id=2026-07-20-rv64-v8u-dual-memory-sustained-issue design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2 provenance_sha256=5920e214106bd2b67a33a382ae8a54bc3d696a26b417922a3ce08a455887c594
+[ARCH-GATE] dual_memory_issue PASS run_id=2026-07-20-rv64-v8u-dual-memory-sustained-issue design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951 provenance_sha256=09401493f8b2b5a1180063446512dc88bd4d223b4df710997f36dd8cc2d1d7c9

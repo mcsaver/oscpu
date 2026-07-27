@@ -1,0 +1,10 @@
+rtl_design_id=sha256:90e1520def0bf5549246d1605f46fe89c091866363fd975412c977da41ee4edb
+simulator_sha256=db81224741af95b318b9b5779a35d7736cf12e2f1e231ef2e9bbca0f15be38d9
+OOO_CSR_QUEUE_HEAD=1
+CONFIG_NPC_DEBUG_PORTS=y
+CONFIG_NPC_SIM_STATS=n
+commitwatch_pc=0xffffffff802b5204
+commitwatch_commit_window=42095300..42095500
+commitwatch_stop_after=2
+commitwatch_post_cycles=128
+sim_rc=0

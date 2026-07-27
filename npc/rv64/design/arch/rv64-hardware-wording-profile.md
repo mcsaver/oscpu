@@ -6,19 +6,22 @@
 ## 专业术语剖面
 
 - 每份任务正文开头先给出正向本地边界：工作对象是本地 RV64 Verilog/SystemVerilog 处理器；输入、
-  工程动作和产物只落在合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据范围内；不引入
-  非工作区来源。机器合同继续用独立布尔字段审计外部来源边界，技术提示不重复无关的跨领域场景。
+  工程动作和产物落在合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据范围内。
 - 使用 RV64、RTL、双发射、OoO、流水级、reservation、ProducerId、ROB、IQ、MIQ、LSQ/SQ、
   DTLB、cache、AXI、READY/VALID、synthesis、STA、Power 和 PPA 等与实际设计一致的术语。
 - 模块名、信号名、路径、命令和反引号内容保持原样；存在跨领域歧义时补充“CPU 微架构、事务、
   时序或验证”上下文，并在首次出现时给出对象、层级、作用域和工程目的。
-- 协调状态、平台提示和父任务管理信息留在主 agent 的 dispatch log，不进入 RTL reviewer 的技术目标。
-- 结构化机器合同已经承载本地/外部来源布尔边界；`goal`、`deliverables`、`success_criteria` 与
-  `supplied_material` 只写处理器 module/signal/transaction、流水层级、周期条件和验证目的，禁止再次
-  抄写协调层或平台层说明。这样做是信息分层，不删减命令、源码、反例或推理能力。
-- 不建立关键词黑名单，不做词法拒绝，也不通过同义词替换隐藏技术含义。`kill_valid_i`、PMP、
+- 协调状态、派发管线、措辞策略和父任务管理信息留在 JSON/dispatch log，不进入 RTL reviewer 的
+  渲染文本；渲染文本只保留具体硬件事实、合同绑定与工程动作。
+- 本地 RTL 子 agent 的初始上下文只使用经校验的合同渲染结果；设计事实由合同路径与随附材料提供，
+  不继承父任务完整对话历史。该分层不改变模型、RTL 读取、实现、验证、EDA 或 PPA 能力。
+- 结构化机器合同承载来源、路径、命令和协调字段；`goal`、`deliverables`、`success_criteria` 与
+  `supplied_material` 只写处理器 module/signal/transaction、流水层级、周期条件和验证目的。
+- 合同验证器检查结构和证据绑定，不按单个自然语言词组裁剪合法任务。`kill_valid_i`、PMP、
   privilege、access fault、memory protection、permission check 和 store probe 等真实架构术语照原义保留。
 - 专业措辞不能扩大或收窄子任务合同中的源码集合、输出文件、工程命令或推理范围。
+- Python/JSON 证据工具复核仍以具体 CPU 债务项、module/signal 或本地 RTL 证据路径作主语；随后写
+  schema 字段、定向单测和返回码。不得让泛化的软件校验活动取代处理器工程对象。
 
 以下是语义限定示例，不是关键词黑名单：
 
@@ -47,23 +50,41 @@
 邻近正文补充上表中的字段级含义，不重命名证据。该写法不减少源码集合、工程命令、实现能力、负向
 RTL 变体、断言或覆盖矩阵。
 
-不存在真实硬件语义的跨领域表述不进入 RTL 技术目标；也不得用缩写、代称、拆分描述或模糊动词隐藏
-实际工程意图。措辞规范只提高领域准确性和可审计性，不改变任务意图、技术门槛或平台判定。
+RTL 技术目标完整写明实际工程意图、对象、层级、周期条件和证据边界。措辞规范只提高领域准确性和
+可审计性，不改变任务意图或技术门槛。
+
+## 长期 goal 引用
+
+长期 goal 只需引用一次本剖面：
+
+> 主 agent、子 agent 与技术记录统一采用 `rv64-hardware-professional`：以本地 RV64
+> module/signal/transaction 为主语，写明流水级、周期或配置、RTL/spec/TB/EDA 动作、证据路径与
+> PASS/GAP 边界；协调元数据留在 task-run JSON。真实 RTL 标识符原样保留；源码探索、工程命令、
+> 负向 RTL 变体、断言、覆盖、独立复核与 PPA 分析能力保持完整。
+
+长期 goal 不再展开词语或场景清单；具体硬件术语在对应 module、signal、transaction 的技术正文中自然出现。
+
+## 最终回复证据顺序
+
+- 第一行使用
+  `RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<结果>｜范围=<PASS/GAP/inconclusive>`。
+- 本地 JSON 证据校验出现意外接受或拒绝时，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、
+  定向单测和返回码，不只给脱离处理器工程对象的泛化标签。
+- 该顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名、失败返回值或
+  `scope_extension_request`，也不改变源码、命令、EDA 或推理能力。
 
 ## 子任务正文结构
 
-渲染后的首屏只需要以下硬件事实：
+渲染文本只需要以下硬件事实：
 
 1. 工程域：本地 RV64 CPU Verilog/SystemVerilog 微架构、验证或 PPA；
-2. 本地边界：仅处理合同授权的 RTL、spec、testbench、EDA 工具与生成证据，不使用非工作区来源；
-3. 目标：要冻结或验证的协议、状态机、数据通路、时序路径或 PPA 假设；
-4. RTL 输入集合：允许读取的 module/spec/TB/evidence；
-5. 工程动作：允许执行的 compile、simulation、lint、synthesis、STA 或只读源码检索；
-6. 交付：反例、波形/日志观测、RTL diff、mutation 结果、指标和证据边界；
-7. 结论出口：`PASS`、`GAP`、`inconclusive`、替代假设及 `scope_extension_request`。
+2. 目标：要冻结或验证的协议、状态机、数据通路、时序路径或 PPA 假设；
+3. 合同路径/SHA 与 RTL 输入集合；
+4. 工程动作：允许执行的 compile、simulation、lint、synthesis、STA 或只读源码检索；
+5. 交付：反例、波形/日志观测、RTL diff、mutation 结果、指标和证据边界；
+6. 结论出口：`PASS`、`GAP`、`inconclusive`、替代假设及 `scope_extension_request`。
 
-不要把“改变平台处理结果”写成 RTL 目标；也不要为了得到更短的提示而删除调用链、必要命令、未知项、
-替代假设或反例复核能力。
+技术提示保持紧凑，同时完整保留调用链、必要命令、未知项、替代假设和反例复核能力。
 
 ## 架构门表达模板
 
@@ -80,6 +101,7 @@ synthesis、STA 与 Power 证据可比时，才能讨论正式 PPA promotion。
 ## 子 agent 派发
 
 本地 RTL 子 agent 使用 `.github/skills/prepare-rtl-task-contract/` 的 create→validate→render 管线。
+创建子 agent 时使用 `fork_turns="none"`，渲染结果即完整初始提示；必要设计上下文必须由合同列明。
 需要追踪调用链时使用限定路径的 `workspace-files`；冻结材料的第二遍逻辑复核才使用 no-tools 模式。
 审查者可以报告任意数量的反例、覆盖洞、`inconclusive` 或 `scope_extension_request`；实现、验证和 PPA
 任务按节点需要保留对应工程能力，不因措辞模板统一降级为只读复核。

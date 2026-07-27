@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "contract_name": "local-rtl-task-contract",
   "engineering_domain": "local-rv64-rtl",
   "instruction": ".github/instructions/rtl-agent-task-contract.instructions.md",
@@ -22,6 +22,15 @@
     "keyword_blacklist_forbidden": true,
     "does_not_change_capabilities": true,
     "positive_local_scope_preamble_required": true,
+    "rendered_prompt_style": "compact-rv64-hardware-evidence",
+    "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
+    "coordination_metadata_in_rendered_prompt": false,
+    "final_response_evidence_order": [
+      "rtl-object-or-local-artifact",
+      "cycle-or-configuration",
+      "testbench-or-eda-observation",
+      "pass-gap-boundary"
+    ],
     "ambiguity_context_dimensions": [
       "object",
       "level",
@@ -88,6 +97,8 @@
       "render"
     ],
     "rendered_prompt_boundary": "verbatim",
+    "subagent_context_mode": "rendered-contract-only",
+    "full_history_inheritance": false,
     "validation_failure_result_status": "candidate-only",
     "scope_extension_action": "new-versioned-contract",
     "platform_interruption_effect": "current-review-node-only"
@@ -211,12 +222,8 @@
       }
     }
   },
-  "access_defaults": {
-    "workspace_root": ".",
-    "network": false,
-    "accounts": false,
-    "credentials": false,
-    "external_services": false
+  "scope_defaults": {
+    "workspace_root": "."
   },
   "status_policy": {
     "review_state": "review_pending",

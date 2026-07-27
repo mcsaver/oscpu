@@ -1,0 +1,7 @@
+positive=PASS
+bridge_positive=PASS
+negative=REJECTED
+request_alias=REJECTED
+station_retain=REJECTED
+expected_pair=2,4
+oracle=[S2-G1-TCOLL-INGRESS-DUP]

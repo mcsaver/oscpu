@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full",
+  "classified_at": "2026-07-24T11:20:00+08:00",
+  "scope": "local RV64 Verilog/SystemVerilog OoO core rootfs simulation",
+  "configuration": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "OOO_ASSERT": 1,
+    "NPC_FAST_SIM": 1,
+    "host_timeout_seconds": 21600,
+    "commit_gap_limit_cycles": 1000000,
+    "progress_interval": 5000000
+  },
+  "binding": {
+    "rtl_design_id": "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
+    "simulator_sha256": "683d5f6cf892ab3db4900a65663f361a188361bc40369561ae8096f1e1b839fe",
+    "failure_binding_path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/failure-binding.txt"
+  },
+  "terminal_state": {
+    "runner_status": "FAIL rc=2",
+    "simulator_exit_code": 134,
+    "last_progress_commit": 340000000,
+    "last_progress_pc": "0xffffffff80426c9c",
+    "guest_systemd_console_shell_started": true,
+    "strict_guest_done_marker": false,
+    "natural_poweroff_marker": false,
+    "commit_gap_expired": false
+  },
+  "failure": {
+    "class": "rtl_architecture_assertion",
+    "severity": "P0",
+    "marker": "[S2-G1-TCOLL-INGRESS-DUP]",
+    "module": "OooMemOwnerTerminalCollector",
+    "source": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v:367",
+    "instance": "TOP.NpcSimTop.u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem_owner_terminal_collector",
+    "contract": "one live memory-owner token has exactly one terminal source in a cycle",
+    "hardware_effect_without_assertions": "all same-token duplicate ingress lanes are rejected, so the live owner can remain allocated without a terminal event",
+    "root_cause_status": "OPEN",
+    "duplicate_ingress_lanes": "UNKNOWN"
+  },
+  "gates": {
+    "rootfs_gate_status": "FAIL",
+    "architecture_gate_status": "OPEN",
+    "architecture_freeze": "GAP",
+    "ppa_status": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "default_configuration_promotion_eligible": false
+  },
+  "next_required_evidence": [
+    "identify the exact duplicate ingress lane pair and token tuple",
+    "construct a focused natural-cycle reproduction in the integer-backend or bridge testbench",
+    "repair the owner/source-of-truth transition rather than suppressing the collector assertion",
+    "run focused release/assert and compile-success RTL mutation",
+    "rerun module aggregate, DiffTest, and the strict rootfs gate"
+  ]
+}

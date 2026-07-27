@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "serialize-current-design-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OoO 核 `OooFrontend`→`OooRob`→`OooControlEventApplySequencer` 的 head0 非 FP CSR 串行提交路径：从合法 CSR 单发 dispatch、`head0_csr_inflight_q`、`mem_idle_i` 队头许可、C0 full barrier、C1 `CSR_COMMIT` apply 到 `CsrFile` 写入和年轻指令重取，判断 `OOO_CSR_QUEUE_HEAD` 设为默认 1 前是否仍有未覆盖的流水线事务序列。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/serialize-at-retire.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/specs/ooo-rob.md",
+      "npc/rv64/design/specs/ooo-core-top-glue.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/Makefile",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "Linux/Makefile",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/run-v9o-config-variants.sh",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/subagent-contracts/serialize-current-design-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 `OooFrontend` CSR dispatch、`OooRob` 队头许可、C0/C1 typed event、`CsrFile` architectural write、年轻指令取消/重取和 pending FP/system owner 六段给出 source/signal/cycle 表，并列出每个 GAP 的最短 RV64 指令序列。",
+    "列出把 `OOO_CSR_QUEUE_HEAD` 改为默认 1 前必须运行的 module、official、AM/DiffTest、benchmark 与 Linux gate；区分当前已有证据、必须 fresh 重放和不属于 Phase1 的 system-uop 范围。",
+    "给出最小 RTL/spec/config 改动建议、仍需增加的立即断言或 testbench 轨迹，以及 full-core ARCH_STABLE/PPA 边界。"
+  ],
+  "success_criteria": [
+    "逐一核对合法 head0 非 FP CSR、非法 CSR、FP CSR、ECALL/xRET、FENCE/FENCE.I/SFENCE.VMA/SINVAL 与 trap 的 owner/type/clear/recovery 关系，不把一种 system 事务的证据外推给另一种。",
+    "任何反例都给出具体 module/signal、相对周期、RV64 指令顺序和对应 testbench 观测；没有反例时也列出未执行的系统 gate与结论置信依据。",
+    "最终结论明确回答默认值是否可改、若不可改还缺哪个本地 RV64 gate，并保持 full-core GAP 与 PPA UNQUALIFIED 边界。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

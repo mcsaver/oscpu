@@ -1,0 +1,45 @@
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_PASS__:systemd-binary
+__NPC_CHECK_PASS__:systemd-autocheck-script
+__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd
+__NPC_CHECK_PASS__:systemd-wrapper-preflight
+__NPC_SYSTEMD_CHECK_DONE__ rc=0
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_CHECK_UNAME__:riscv64
+__NPC_CHECK_PASS__:uname-riscv64
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_CHECK_PASS__:root-context
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_SYSTEMD_STATE__:pid1-systemd
+__NPC_CHECK_PASS__:systemd-state
+__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=0
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_CHECK_UNAME__:riscv64
+__NPC_CHECK_PASS__:uname-riscv64
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_CHECK_PASS__:root-shell
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_SYSTEMD_STATE__:pid1-systemd
+__NPC_CHECK_PASS__:systemd-state
+__NPC_CHECK_PASS__:block-vda
+__NPC_CHECK_VDA_DRIVER__:virtio_blk
+__NPC_CHECK_PASS__:virtio-blk-driver
+__NPC_CHECK_ROOT_SOURCE__:/dev/root:254:0:254:0
+__NPC_CHECK_ROOT_MOUNT__:ext4:rw,relatime
+__NPC_CHECK_PASS__:root-on-vda
+__NPC_CHECK_PASS__:root-ext4
+__NPC_CHECK_PASS__:root-rw
+__NPC_CHECK_VIRTIO_IRQ_OWNER__:virtio0
+__NPC_CHECK_PASS__:virtio-device-name
+__NPC_CHECK_PASS__:rootfs-write-sync-readback
+__NPC_CHECK_PASS__:virtio-irq-before-parse
+__NPC_CHECK_PASS__:virtio-blk-direct-read
+__NPC_CHECK_VIRTIO_IRQ__:535->670
+__NPC_CHECK_PASS__:virtio-irq-growth
+[progress] 710000000 insts, pc=0x0000003f9a60d50e, 19418 inst/s
+npc: ABORT at pc = 0xffffffff8040dfd4

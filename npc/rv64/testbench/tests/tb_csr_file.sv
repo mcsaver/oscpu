@@ -516,6 +516,41 @@ module tb_csr_file;
     tb_check64("FP write sets mstatus.FS=Dirty", csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_DIRTY);
     tb_check64("mstatus.SD derives from FS=Dirty", csr_rdata & `MSTATUS_SD, `MSTATUS_SD);
 
+    // VS 可在 misa.V=0 时作为状态字段存在。虚拟内存架构测试环境保存/恢复
+    // 该字段；CsrFile 必须经 mstatus/sstatus 精确保留，但仍不声明 V ISA。
+    drive_csr(`CSR_MSTATUS, 3'b011, 5'd1,
+              `MSTATUS_FS_MASK | `MSTATUS_VS_MASK, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, 5'd1, `MSTATUS_VS_CLEAN, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mstatus retains VS=Clean",
+               csr_rdata & `MSTATUS_VS_MASK, `MSTATUS_VS_CLEAN);
+    tb_check64("SD clear when FS and VS are not Dirty",
+               csr_rdata & `MSTATUS_SD, {`XLEN{1'b0}});
+
+    drive_csr(`CSR_SSTATUS, 3'b010, 5'd1, `MSTATUS_VS_DIRTY, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("sstatus retains VS=Dirty",
+               csr_rdata & `MSTATUS_VS_MASK, `MSTATUS_VS_DIRTY);
+    tb_check64("sstatus.SD derives from VS=Dirty",
+               csr_rdata & `MSTATUS_SD, `MSTATUS_SD);
+
+    drive_csr(`CSR_SSTATUS, 3'b011, 5'd1, `MSTATUS_VS_MASK, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("sstatus write clears mstatus.VS",
+               csr_rdata & `MSTATUS_VS_MASK, {`XLEN{1'b0}});
+    tb_check64("SD clears after FS and VS clear",
+               csr_rdata & `MSTATUS_SD, {`XLEN{1'b0}});
+
     // ===== F6：mip 的 MTIP/MSIP/MEIP 只读，M 态写应被忽略（irq 线为低）=====
     drive_csr(`CSR_MIP, 3'b010, 5'd1, `MIP_MTIP | `MIP_MSIP | `MIP_MEIP, 1'b1);
     `TB_TICK(clk);

@@ -54,12 +54,19 @@ module OooCsrTrapRequestMux (
   output wire priv_predictor_boundary_o
 );
 
-  wire drained_pending_system_w =
-      stop_pending_i && drain_complete_i && pending_system_i;
-
   assign core_commit_exception_trap_o =
       (core_commit0_valid_i && core_commit0_exception_i) ||
       (core_commit1_valid_i && core_commit1_exception_i);
+  // V10A: these are accepted requests into CsrFile, not unqualified pending
+  // levels.  A same-edge ROB-head exception owns CsrFile's mem>ex>irq
+  // priority and clears the younger pending owner through the control plane;
+  // suppress the lower-priority raw requests so request counts and downstream
+  // boundary pulses describe the single selected architectural transaction.
+  wire drained_pending_control_w =
+      !core_commit_exception_trap_o &&
+      stop_pending_i && drain_complete_i;
+  wire drained_pending_system_w =
+      drained_pending_control_w && pending_system_i;
   assign trap_mem_valid_o = core_commit_exception_trap_o;
   assign trap_mem_pc_o =
       (core_commit0_valid_i && core_commit0_exception_i) ?
@@ -74,7 +81,7 @@ module OooCsrTrapRequestMux (
   assign pending_system_ecall_trap_o =
       drained_pending_system_w && pending_system_ecall_i;
   assign pending_arch_trap_fire_o =
-      stop_pending_i && drain_complete_i && pending_arch_trap_i;
+      drained_pending_control_w && pending_arch_trap_i;
   assign trap_ex_valid_o =
       pending_system_ecall_trap_o || pending_arch_trap_fire_o;
   assign trap_ex_pc_o =

@@ -9,19 +9,27 @@ description: 为本地 RV64 Verilog/SystemVerilog 设计、探索式只读复核
 `.github/instructions/rtl-agent-task-contract.instructions.md` 为准。
 
 主 agent 对 `goal/deliverables/success_criteria/supplied_material` 直接使用
-`rv64-hardware-professional` 术语；`render` 的首屏固定为 RV64 CPU 微架构、流水线、事务、时序、
-缓存一致性、验证和 PPA 语境，并正向声明只处理合同授权的本地 RTL、spec、testbench、EDA 工具与生成
-证据。可能跨领域解释的术语必须附带对象、层级、作用域和工程目的。协调状态保留在 JSON 与主 agent
-记录中，不进入子 agent 渲染提示。
+`rv64-hardware-professional` 术语；`render` 生成精简的硬件事实提示，首行直接给出本地 RV64
+module/signal/证据文件、周期或编译配置、testbench/EDA 观测和 PASS/GAP 边界。协调状态、派发管线、
+父任务历史和措辞策略只保留在 JSON、dispatch log 与主 agent 记录中，不进入子 agent 渲染提示。
 该措辞剖面不建立关键词黑名单、不拒绝单个词组，也不改变任何工具、shell、路径或推理能力。规范与保留词见
 [`.github/agentic-hardware-blueprint.md`](../../agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording)。
 RV64 领域示例与术语限定见
 [`npc/rv64/design/arch/rv64-hardware-wording-profile.md`](../../../npc/rv64/design/arch/rv64-hardware-wording-profile.md)。
 
-技术叙述与机器边界必须分层：JSON 的 access/status/language 字段保留完整审计事实；
+技术叙述与机器边界必须分层：JSON 的 scope/status/language 字段保留完整工程边界；
 `goal`、`deliverables`、`success_criteria`、`supplied_material` 只承载本地 RV64 RTL 工程事实，
 不得重复协调层或平台层说明。使用一次正向本地作用域开场即可；这不删减任何真实硬件术语、
 命令、上下文、反例或范围扩展出口。
+
+新建合同使用 schema v2；`scope` 精确包含
+`workspace_root/allowed_paths/write_paths/allowed_commands`。schema v1 仅用于历史 JSON 的
+validate/render 兼容，不作为新派发模板。
+
+自然语言字段以具体处理器对象作主语。若任务检查 Python/JSON 证据工具，也要写成“`OooRob`
+`CONTROL-EVENT-G1` 本地证据文件中的 `architecture_hard_gates.result.path` 字段，经
+`CurrentWorkspaceTests.test_...` 运行后应返回非零/GAP”，而不是把泛化的校验器、引用拓扑或输入空间
+探索写成任务主体。真实脚本名、schema 字段、返回码与负向 fixture 仍原样保留在合同和结果中。
 
 ## 工作流
 
@@ -45,6 +53,9 @@ python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cr
 
 3. 校验并渲染；新派发必须走 canonical `create → validate → render`，把渲染结果原样放进子 agent
 提示，不要另写一份可能漂移的边界说明。历史 JSON 只保留 validate/render 兼容，不作为新模板。
+创建本地 RV64 RTL 子 agent 时使用 `fork_turns="none"`，使通过校验的渲染结果成为完整初始提示；
+全部必要设计事实放入 `allowed_paths`、`required_context` 或 `supplied_material`，不要继承父任务完整
+对话历史。该上下文隔离不改变模型、推理、源码探索、shell、实现、验证或 PPA 能力。
 `create` 会把输出 JSON 自身的仓库相对路径加入 `allowed_paths`；`render` 会从实际文件自动写出
 该 JSON 的路径与 SHA-256，并明确该哈希只绑定 JSON，不绑定设计 spec、`contract.md`、RTL 或测试。
 不要手工补一条无文件名的 SHA，也不要让子 agent 猜测它绑定哪个合同。
@@ -56,6 +67,12 @@ JSON 未通过 validate、或派发文本手工改写了渲染后的工程范围
 和“生产者完成资格”，不把协调层状态或改变平台处理结果写成 RTL 子任务目标。反引号包裹的真实 RTL
 标识符不参与措辞替换，`kill_valid_i`、PMP、RISC-V 特权级、访问异常、内存保护、权限检查和
 store probe 等合法架构术语必须保留。
+
+子 agent 最终回复第一行使用
+`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<结果>｜范围=<PASS/GAP/inconclusive>`。
+若本地 JSON 证据校验出现意外接受或拒绝，直接写明 CPU 证据对象、具体 schema 字段、工作区相对路径、
+定向单测和返回码。该顺序不得删除反例、未知项、替代假设、原始日志 marker、真实文件名或
+`scope_extension_request`。
 
 用户可见进度、子 agent 的 `goal/deliverables/success_criteria/supplied_material` 与终审摘要应优先写成
 可直接对应 RTL 的字段级事实：
@@ -71,7 +88,7 @@ store probe 等合法架构术语必须保留。
 或任何成功条件。
 
 首次出现多义术语时，明确 module/signal/transaction、pipeline/privilege/memory level、path/cycle/config
-范围和工程目的。例如写“testbench 在 `OooLoadQueue` response 接口第 N 拍施加异常激励”，或
+范围，并补齐对象、层级、作用域和工程目的。例如写“testbench 在 `OooLoadQueue` response 接口第 N 拍施加异常激励”，或
 “编译成功的负向 RTL 变体删除 final-PA query 的 exact-ProducerId 条件，并由指定 directed oracle
 检出”。不要用缩写、代称、拆分描述或模糊动词隐藏真实工程动作；这条规则不扫描或拒绝单个词。
 

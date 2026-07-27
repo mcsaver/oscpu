@@ -1,0 +1,3 @@
+state=PASS
+stage=architecture-current
+detail=design_id=sha256:3c933ec82fd17c6038335f9208b496cacfb755dfd10b9e419c73f276b5e2a428;root-replay=PASS;final-aggregate=GREEN

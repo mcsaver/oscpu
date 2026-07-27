@@ -1,0 +1,12 @@
+schema=npc-rv64-vectored-trap-evidence-v1
+design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
+canonical_command=make -C npc/rv64 check-vectored-trap
+focused_cases=13/13
+full_core_paths=3/3
+raw_duplicate_terminal_events=0
+compile_success_rtl_mutations=7
+dynamic_rejected_rtl_mutations=7
+csr_regression=1/1
+ppa=UNQUALIFIED
+promotion_eligible=false
+[VECTORED-TRAP-GATE] PASS

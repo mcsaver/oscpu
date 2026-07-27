@@ -66,7 +66,11 @@ module OooPendingTrapExitSequencer (
         end
       end
 
-      if (capture_exit_i) begin
+      // The same recovery provenance used to protect arch-trap payload also
+      // applies to a younger exit.  Non-squash clear+capture remains a legal
+      // replacement, while clear_exit+squash must not revive wrong-path exit.
+      if (capture_exit_i &&
+          !(clear_exit_i && clear_arch_squash_i)) begin
         pending_exit_o <= capture_exit_valid_i;
         pending_exit_is_ecall_o <= capture_exit_is_ecall_i;
         pending_exit_is_ebreak_o <= capture_exit_is_ebreak_i;
@@ -102,6 +106,7 @@ module OooPendingTrapExitSequencer (
   // fetch-fault(page/access/breakpoint) residual 会残留 → 此断言 fire; 删 gate 后恒静默。
   reg gap6_squash_noload_q;
   reg gap6_squash_collision_q;
+  reg v9x_exit_squash_collision_q;
   always @(posedge clk)
     gap6_squash_noload_q <= !rst && clear_arch_i && clear_arch_squash_i &&
                             !capture_arch_i && !late_clear_i;
@@ -109,6 +114,10 @@ module OooPendingTrapExitSequencer (
     gap6_squash_collision_q <=
         !rst && clear_arch_i && clear_arch_squash_i &&
         capture_arch_i && !late_clear_i;
+  always @(posedge clk)
+    v9x_exit_squash_collision_q <=
+        !rst && clear_exit_i && clear_arch_squash_i &&
+        capture_exit_i && !late_clear_i;
   always @(posedge clk) if (!rst && gap6_squash_noload_q)
     if ((pending_trap_cause_o !== {`TRAP_CAUSE_W{1'b0}}) ||
         (pending_trap_pc_o   !== {`XLEN{1'b0}}) ||
@@ -123,6 +132,15 @@ module OooPendingTrapExitSequencer (
       $error("[FLUSH-CONTRACT GAP-6-COLLISION] squash/capture 同拍后 wrong-path trap 复活: valid=%b cause=%h pc=%h tval=%h @%0t",
              pending_arch_trap_o, pending_trap_cause_o,
              pending_trap_pc_o, pending_trap_tval_o, $time);
+  always @(posedge clk) if (!rst && v9x_exit_squash_collision_q)
+    if (pending_exit_o ||
+        pending_exit_is_ecall_o ||
+        pending_exit_is_ebreak_o) begin
+      $error("[V9X-EXIT-SQUASH-COLLISION] squash/capture 同拍后 wrong-path exit 复活: valid=%b ecall=%b ebreak=%b @%0t",
+             pending_exit_o, pending_exit_is_ecall_o,
+             pending_exit_is_ebreak_o, $time);
+      $fatal;
+    end
 `endif
 
 endmodule

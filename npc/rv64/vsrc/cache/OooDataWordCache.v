@@ -129,15 +129,15 @@ module OooDataWordCache #(
     end
   endfunction
 
-  function normalized_wstrb_legal;
+  function cache_normalized_wstrb_legal;
     input [`STRB_W-1:0] wstrb;
     begin
       case (wstrb)
         8'h01,
         8'h03,
         8'h0f,
-        8'hff: normalized_wstrb_legal = 1'b1;
-        default: normalized_wstrb_legal = 1'b0;
+        8'hff: cache_normalized_wstrb_legal = 1'b1;
+        default: cache_normalized_wstrb_legal = 1'b0;
       endcase
     end
   endfunction
@@ -349,13 +349,14 @@ module OooDataWordCache #(
   // low-contiguous masks relative to the original byte PA.  Sparse, zero, or
   // AXI-lane-shifted masks would make the line-span calculation ambiguous.
   always @(posedge clk) begin
-    if (!rst && store_commit_i && !normalized_wstrb_legal(store_wstrb_i)) begin
+    if (!rst && store_commit_i &&
+        !cache_normalized_wstrb_legal(store_wstrb_i)) begin
       $error("[DWC-STORE-WSTRB] store maintenance mask is not normalized: addr=%h wstrb=%h @%0t",
              store_addr_i, store_wstrb_i, $time);
       $fatal;
     end
     if (!rst && peer_invalidate_event_w &&
-        !normalized_wstrb_legal(peer_invalidate_wstrb_i)) begin
+        !cache_normalized_wstrb_legal(peer_invalidate_wstrb_i)) begin
       $error("[DWC-PEER-WSTRB] peer maintenance mask is not normalized: addr=%h wstrb=%h @%0t",
              peer_invalidate_addr_i, peer_invalidate_wstrb_i, $time);
       $fatal;

@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-26-default-chunk-max-tokens
+- `trace_id`: e2e:2026-07-26-default-chunk-max-tokens
+- `task_slug`: default-chunk-max-tokens
+- `profile`: github-index
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 2f99d35e8582dfe35e3212ce00d1ae8634a4ca431dfeff310bcf1350c5080ec4
+- `task_report_md_sha256`: f922d800f0d5896a78fc883b8f0857fca8358ef622695a14f63adee60f8cff28
+- `run_manifest_json_sha256`: 03633fdbab93d2780951a74d5bbb711087f1a64425642b65ed6d2bc4c832cb99
+- `context_brief_md_sha256`: ce173f1f64e026e24094dc6c4d2ff4d19d108109ac52a2afd7e111e115421b40
+- `profile_resolve_md_sha256`: ac7982e4ec791d30290930e91cb105b6f8b4bdbe96d98066fcb9c2e82ea1e4b5
+- `evidence_index_md_sha256`: 6ec4cced5edc73af024be225c57746e512fcdccf110f826198e553d760b19a07
+- `dispatch_log_md_sha256`: 81b5c9a444dde17ef351ac0e01c9ccb22c2f7f7c9a1452de7507b5afd6c044ee
+- `nodes_tsv_sha256`: ddeffb6f7011aab7237cf89f3ca65b1c3840005bbf7b3d8891e77094a3d6a702

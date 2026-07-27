@@ -474,11 +474,25 @@ SRAM read owner。对 `station_sq_lookahead_query` 的三类结果冻结如下�
   `allow -> dcache_lookup_en` 的过约束形式。
 
 每个 memory bank 的 retry holder 是一份 exact owner 状态。holder 有效时必须阻止新的同 bank
-load admission，但 F4 可能已经在 bridge station/active 中保留另一条更年轻事务；只要二者
-owner token 不同，这种双驻留合法且必须继续保持。禁止的是 retry token 在同 bank
-active/station 中出现第二份副本。专项正向测试必须证明“不同 token 可并存且新 admission 仍关闭”；
-compile-success RTL 断言验证变体必须把断言恢复成“任意 load residency 都非法”，并由该正向轨迹
-精确拒绝，从而证明现行 exact-token 判据不是无效断言。
+load admission。F4 仍允许没有 older nonterminal SQ owner 的 clean load 在 active/station
+之间做 current/next handoff；但候选 load 一旦命中 `issue*_sq_block_r`，其 final-PA query
+就可能 replay，此时若同 bank 已有 active/station load，必须在 candidate admission 边阻断。
+否则 active、station 与单 retry holder 会构成有限容量循环等待。
+
+V9R 补充 C0 控制事件边界：`control_full_flush_barrier` 为 1 时，bank0/bank1 retry READY 与
+capture 均为 0，bridge 的 SQ-query retry fire 也为 0。当前 `S_SQ_QUERY` owner 保持原登记
+位置，C1 再由既有 full-flush 路径处理；barrier 解除而 query 仍有效时，正常 exact-token
+handoff 恢复。该规则不新增 holder，也不把 barrier 扩展到 registered AXI VALID 路径。
+
+不同 token 的 retry 与 active/station 并存只说明 owner identity 不重复；这种 edge-old 状态可能
+已经形成，不能据此外推 bounded progress。禁止项同时包括：
+
+1. retry token 在同 bank active/station 中出现第二份副本；
+2. 有 older nonterminal SQ owner 的新 load 跨过同 bank active/station replay-capacity fence。
+
+专项正向测试必须同时证明 clean-load F4 handoff 保留、两侧 bank 的 older-SQ
+active/station admission 被阻断。compile-success RTL 验证变体必须分别拒绝过宽的“任意 load
+residency 都非法”和过松的“移除 older-SQ replay-capacity fence”。
 
 以上修订只澄清 F4 流控与 owner 身份，不改变 cache 容量、宏实现或 PPA 声明等级。架构证据必须
 在每次 production RTL 变化后按当前 design-id 重放；未完成 arch-stable freeze 前，综合、STA、

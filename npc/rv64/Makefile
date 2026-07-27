@@ -24,6 +24,7 @@ SIM_TOP ?= NpcSimTop
 TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
 OOO_CSR_QUEUE_HEAD ?= 0
+OOO_TERMINAL_HOLDER_ASSERT ?= 0
 BUILD_DIR ?= ./build$(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),-csrqh,)
 OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
@@ -89,6 +90,7 @@ RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_OOO_STATS)),+define+CONFIG
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_DEBUG_PORTS)),+define+CONFIG_NPC_DEBUG_PORTS)
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(F2_PROBE)),+define+F2_PROBE +define+DBRA_PROBE)
 RTL_VERILATOR_DEFINES += $(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),+define+OOO_CSR_QUEUE_HEAD=1)
+RTL_VERILATOR_DEFINES += $(if $(filter 1 y,$(OOO_TERMINAL_HOLDER_ASSERT)),+define+OOO_TERMINAL_HOLDER_ASSERT)
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
 # 优化要点：
@@ -98,6 +100,7 @@ RTL_VERILATOR_DEFINES += $(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),+define+OOO_CS
 VERILATOR_FLAGS += -MMD --cc --exe \
 			   -O3 \
 			   --x-assign fast --x-initial fast --assert \
+			   --timescale 1ns/1ps \
 			   -Wall -Wno-DECLFILENAME -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL \
 			   -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR)
 
@@ -215,7 +218,7 @@ $(BIN): $(CAPSTONE_LIB)
 endif
 
 lint:
-	$(VERILATOR) --lint-only -Wall -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
+	$(VERILATOR) --lint-only --timescale 1ns/1ps -Wall -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
 
 # 打印可综合核心 RTL 文件清单(供 RTL 风格检查器使用)
 print-synth-rtl:
@@ -397,6 +400,14 @@ check-fdg-arch-trap:
 .PHONY: check-xret-current-mode
 check-xret-current-mode:
 	@bash $(abspath ../../.github/task-runs/2026-07-21-rv64-v9e-xret-current-design/run-focused.sh)
+
+# V9U VECTORED-TRAP-G1 local RV64 trap-target closure.  CsrFile WARL,
+# M/S interrupt vectors, synchronous BASE targeting, mem>ex>irq record
+# selection, full-core xRET return and six compile-success RTL variants are
+# checked against the live RTL source set.  PPA remains unqualified.
+.PHONY: check-vectored-trap
+check-vectored-trap:
+	@bash $(abspath ../../.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/run-focused.sh)
 
 # V9F MEM-ISSUE-G1 / MIQ-FLUSH-G1 local RV64 memory-transaction lifecycle
 # closure. The focused traces prove atomic dual-memory capture, single-port

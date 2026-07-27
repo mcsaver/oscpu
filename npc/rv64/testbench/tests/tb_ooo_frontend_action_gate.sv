@@ -30,6 +30,7 @@ module tb_ooo_frontend_action_gate;
   reg csr_trap_irq_valid;
   reg core_trap_flush;
   reg core_serial_flush;
+  reg control_full_flush_barrier;
 
   wire direct_frontend_flush;
   wire stop_head;
@@ -71,6 +72,7 @@ module tb_ooo_frontend_action_gate;
     .csr_trap_irq_valid_i(csr_trap_irq_valid),
     .core_trap_flush_i(core_trap_flush),
     .core_serial_flush_i(core_serial_flush),
+    .control_full_flush_barrier_i(control_full_flush_barrier),
     .direct_frontend_flush_o(direct_frontend_flush),
     .stop_head_o(stop_head),
     .fifo_pop_o(fifo_pop),
@@ -109,6 +111,7 @@ module tb_ooo_frontend_action_gate;
       csr_trap_irq_valid = 1'b0;
       core_trap_flush = 1'b0;
       core_serial_flush = 1'b0;
+      control_full_flush_barrier = 1'b0;
       #1;
     end
   endtask
@@ -226,6 +229,17 @@ module tb_ooo_frontend_action_gate;
     #1;
     tb_check1("serial flush blocks request", fetch_request_blocked_by_trap,
               1'b1);
+
+    reset_inputs();
+    control_full_flush_barrier = 1'b1;
+    direct_jal_fire = 1'b1;
+    dispatch_fire = 1'b1;
+    #1;
+    tb_check1("C0 full flush barrier blocks direct frontend action",
+              direct_frontend_flush, 1'b0);
+    tb_check1("C0 full flush barrier blocks fifo pop", fifo_pop, 1'b0);
+    tb_check1("C0 full flush barrier blocks new fetch request",
+              fetch_request_blocked_by_trap, 1'b1);
 
     tb_finish("tb_ooo_frontend_action_gate");
   end

@@ -38,11 +38,34 @@ LINUX_IMAGE_FILE=${LINUX_IMAGE:-}
 RUN_FW_FILE=${RUN_FW:-}
 RUN_DTB_FILE=${RUN_DTB:-}
 RUN_ROOTFS_FILE=${RUN_ROOTFS:-}
+ROOTFS_WORK_IMAGE=${NPC_SYSTEMD_ROOTFS_WORK_IMAGE:-}
+ROOTFS_EXPECTED_TEMPLATE_SHA256=${NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256:-}
+ROOTFS_BINDING_LOG=${NPC_SYSTEMD_ROOTFS_BINDING_LOG:-"$LOG_DIR/rootfs-binding.txt"}
+TRANSACTION_PARSER=${NPC_SYSTEMD_TRANSACTION_PARSER:-"$SCRIPT_DIR/npc_systemd_transaction_evidence.py"}
+TRANSACTION_EVIDENCE=${NPC_SYSTEMD_TRANSACTION_EVIDENCE:-"$LOG_DIR/systemd-transaction-evidence.json"}
 NEXT_ADDR_VALUE=${NEXT_ADDR:-}
 DTB_ADDR_VALUE=${DTB_ADDR:-}
+case "$GUEST_COMMAND_MODE" in
+  uart|autocheck|systemd-strict) ;;
+  *)
+    echo "[npc-systemd-check] unsupported guest command mode: $GUEST_COMMAND_MODE" >&2
+    exit 2
+    ;;
+esac
 if [ "$POWEROFF_ENABLE" = "1" ] &&
-   { [ "$GUEST_COMMAND_MODE" != "uart" ] || [ "$STRICT_CHECK" != "1" ]; }; then
-  echo "[npc-systemd-check] natural poweroff requires uart mode + strict checks" >&2
+   { { [ "$GUEST_COMMAND_MODE" != "uart" ] && [ "$GUEST_COMMAND_MODE" != "systemd-strict" ]; } ||
+     [ "$STRICT_CHECK" != "1" ]; }; then
+  echo "[npc-systemd-check] natural poweroff requires uart or systemd-strict mode + strict checks" >&2
+  exit 2
+fi
+if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ] &&
+   { [ "$POWEROFF_ENABLE" != "1" ] || [ "$STRICT_CHECK" != "1" ]; }; then
+  echo "[npc-systemd-check] systemd-strict mode requires strict checks + natural poweroff" >&2
+  exit 2
+fi
+if [ -n "$ROOTFS_WORK_IMAGE" ] &&
+   { [ "$POWEROFF_ENABLE" != "1" ] || [ -z "$RUN_ROOTFS_FILE" ]; }; then
+  echo "[npc-systemd-check] isolated rootfs work image requires direct natural-poweroff run + RUN_ROOTFS" >&2
   exit 2
 fi
 if [ -z "$UART_RELEASE_DELAY" ]; then
@@ -56,6 +79,8 @@ fi
 if [ -z "$DONE_MARKER" ]; then
   if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
     DONE_MARKER="__NPC_SYSTEMD_UART_CHECK_DONE__ rc=0"
+  elif [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
+    DONE_MARKER="__NPC_SYSTEMD_STRICT_DONE__ rc=0"
   else
     DONE_MARKER="__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=0"
   fi
@@ -66,6 +91,15 @@ LOG_DIR=$(abspath_from_cwd "$LOG_DIR")
 CONSOLE_LOG=$(abspath_from_cwd "$CONSOLE_LOG")
 NPC_LOG=$(abspath_from_cwd "$NPC_LOG")
 GUEST_CMDS=$(abspath_from_cwd "$GUEST_CMDS")
+TRANSACTION_PARSER=$(abspath_from_cwd "$TRANSACTION_PARSER")
+TRANSACTION_EVIDENCE=$(abspath_from_cwd "$TRANSACTION_EVIDENCE")
+if [ -n "$RUN_ROOTFS_FILE" ]; then
+  RUN_ROOTFS_FILE=$(abspath_from_cwd "$RUN_ROOTFS_FILE")
+fi
+if [ -n "$ROOTFS_WORK_IMAGE" ]; then
+  ROOTFS_WORK_IMAGE=$(abspath_from_cwd "$ROOTFS_WORK_IMAGE")
+  ROOTFS_BINDING_LOG=$(abspath_from_cwd "$ROOTFS_BINDING_LOG")
+fi
 
 fail() {
   echo "[npc-systemd-check] FAIL: $*" >&2
@@ -80,6 +114,19 @@ fail() {
 write_guest_commands() {
   mkdir -p "$LOG_DIR"
   if [ "$GUEST_CMDS_PRESERVE" = "1" ] && [ -s "$GUEST_CMDS" ]; then
+    return
+  fi
+  if [ "$STRICT_CHECK" = "1" ]; then
+    cat >"$GUEST_CMDS" <<'GUEST_CMDS_STRICT_LAUNCH_EOF'
+set +e
+set +u
+stty -echo 2>/dev/null || true
+GUEST_CMDS_STRICT_LAUNCH_EOF
+    if [ "$POWEROFF_ENABLE" = "1" ]; then
+      echo 'exec /usr/local/sbin/ysyx-npc-systemd-strict-check --poweroff' >>"$GUEST_CMDS"
+    else
+      echo 'exec /usr/local/sbin/ysyx-npc-systemd-strict-check' >>"$GUEST_CMDS"
+    fi
     return
   fi
   cat >"$GUEST_CMDS" <<'GUEST_CMDS_EOF'
@@ -132,124 +179,9 @@ esac
 
 GUEST_CMDS_EOF
 
-  if [ "$STRICT_CHECK" = "1" ]; then
-    cat >>"$GUEST_CMDS" <<'GUEST_CMDS_STRICT_EOF'
-
-[ -b /dev/vda ] && pass block-vda || fail block-vda
-vda_driver="$(basename "$(readlink -f /sys/class/block/vda/device/driver 2>/dev/null || true)")"
-echo "__NPC_CHECK_VDA_DRIVER__:$vda_driver"
-[ "$vda_driver" = "virtio_blk" ] && pass virtio-blk-driver || fail virtio-blk-driver
-
-root_fstype="$(awk '$2 == "/" { print $3; exit }' /proc/mounts 2>/dev/null)"
-root_opts="$(awk '$2 == "/" { print $4; exit }' /proc/mounts 2>/dev/null)"
-root_source="$(awk '$2 == "/" { print $1; exit }' /proc/mounts 2>/dev/null)"
-root_majmin="$(awk '$5 == "/" { print $3; exit }' /proc/self/mountinfo 2>/dev/null)"
-vda_majmin="$(cat /sys/class/block/vda/dev 2>/dev/null || true)"
-echo "__NPC_CHECK_ROOT_SOURCE__:${root_source}:${root_majmin}:${vda_majmin}"
-echo "__NPC_CHECK_ROOT_MOUNT__:${root_fstype}:${root_opts}"
-[ -n "$root_majmin" ] && [ "$root_majmin" = "$vda_majmin" ] &&
-  pass root-on-vda || fail root-on-vda
-[ "$root_fstype" = "ext4" ] && pass root-ext4 || fail root-ext4
-case ",$root_opts," in
-  *,rw,*) pass root-rw ;;
-  *) fail root-rw ;;
-esac
-
-vda_virtio_device="$(readlink -f /sys/class/block/vda/device 2>/dev/null || true)"
-vda_virtio_name="${vda_virtio_device##*/}"
-echo "__NPC_CHECK_VIRTIO_IRQ_OWNER__:${vda_virtio_name}"
-case "$vda_virtio_name" in
-  virtio[0-9]*) pass virtio-device-name ;;
-  *) fail virtio-device-name ;;
-esac
-virtio_irq_sum() {
-  awk -v dev="$vda_virtio_name" '
-    NR == 1 {
-      for (i = 1; i <= NF; i++) if ($i ~ /^CPU[0-9]+$/) cpu_cols++;
-      next;
-    }
-    {
-      owner = 0;
-      for (i = 2 + cpu_cols; i <= NF; i++) {
-        if ($i == dev) owner = 1;
-      }
-      if (owner) {
-        owners++;
-        for (i = 2; i < 2 + cpu_cols; i++) {
-          if ($i !~ /^[0-9]+$/) bad = 1;
-          else sum += $i;
-        }
-      }
-    }
-    END {
-      if (cpu_cols < 1 || dev == "" || owners != 1 || bad)
-        exit 1;
-      printf "%.0f\n", sum;
-    }
-  ' /proc/interrupts 2>/dev/null
-}
-check_file=/root/.npc-systemd-rw-check
-check_payload="npc-systemd-rw-$PPID-$$"
-if printf '%s\n' "$check_payload" >"$check_file" 2>/dev/null &&
-   sync &&
-   [ "$(cat "$check_file" 2>/dev/null || true)" = "$check_payload" ]; then
-  pass rootfs-write-sync-readback
-else
-  fail rootfs-write-sync-readback
-fi
-rm -f "$check_file"
-
-irq_before=
-if irq_before="$(virtio_irq_sum)" &&
-   case "$irq_before" in ''|*[!0-9]*) false ;; *) true ;; esac; then
-  pass virtio-irq-before-parse
-else
-  fail virtio-irq-before-parse
-fi
-
-if dd if=/dev/vda of=/dev/null bs=4096 count=128 skip=4096 iflag=direct,fullblock status=none 2>/dev/null; then
-  pass virtio-blk-direct-read
-else
-  fail virtio-blk-direct-read
-fi
-sleep 1
-irq_after=
-if ! irq_after="$(virtio_irq_sum)"; then
-  fail virtio-irq-owner-stable
-fi
-echo "__NPC_CHECK_VIRTIO_IRQ__:${irq_before}->${irq_after}"
-case "$irq_before:$irq_after" in
-  *[!0-9:]*|:*) fail virtio-irq-numeric ;;
-  *)
-    if [ "$irq_after" -gt "$irq_before" ] 2>/dev/null; then
-      pass virtio-irq-growth
-    else
-      fail virtio-irq-growth
-    fi
-    ;;
-esac
-
-bad_dmesg="$(dmesg 2>/dev/null | grep -i -E 'kernel panic|oops|BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error' | tail -20 || true)"
-if [ -z "$bad_dmesg" ]; then
-  pass dmesg-no-critical
-else
-  printf '%s\n' "$bad_dmesg"
-  fail dmesg-no-critical
-fi
-GUEST_CMDS_STRICT_EOF
-  fi
-
   cat >>"$GUEST_CMDS" <<'GUEST_CMDS_DONE_EOF'
 echo "__NPC_SYSTEMD_UART_CHECK_DONE__ rc=$check_fail"
 GUEST_CMDS_DONE_EOF
-
-  if [ "$POWEROFF_ENABLE" = "1" ]; then
-    cat >>"$GUEST_CMDS" <<'GUEST_CMDS_POWEROFF_EOF'
-echo "__NPC_SYSTEMD_POWEROFF_BEGIN__"
-sync
-systemctl --no-wall poweroff || echo "__NPC_SYSTEMD_POWEROFF_CMD_FAIL__"
-GUEST_CMDS_POWEROFF_EOF
-  fi
 }
 
 check_console_clean() {
@@ -289,10 +221,27 @@ if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
 else
   mkdir -p "$LOG_DIR"
   cat >"$GUEST_CMDS" <<'GUEST_CMDS_EOF'
-# NPC_SYSTEMD_GUEST_COMMAND_MODE=autocheck:
-# guest checks are emitted by the rootfs wrapper and the run is stopped only
-# after systemd/Ubuntu boot evidence appears, so no UART payload is injected.
+# NPC_SYSTEMD_GUEST_COMMAND_MODE=autocheck or systemd-strict:
+# guest checks are emitted by rootfs systemd units; no UART payload is used.
 GUEST_CMDS_EOF
+fi
+
+if [ -n "$ROOTFS_WORK_IMAGE" ]; then
+  rootfs_prepare_args=(
+    --template "$RUN_ROOTFS_FILE"
+    --run-image "$ROOTFS_WORK_IMAGE"
+    --binding-out "$ROOTFS_BINDING_LOG"
+  )
+  if [ -n "$ROOTFS_EXPECTED_TEMPLATE_SHA256" ]; then
+    rootfs_prepare_args+=(
+      --expected-template-sha256 "$ROOTFS_EXPECTED_TEMPLATE_SHA256"
+    )
+  fi
+  "$SCRIPT_DIR/prepare-npc-rootfs-run-image.sh" "${rootfs_prepare_args[@]}"
+  echo "[npc-systemd-check] rootfs template: $RUN_ROOTFS_FILE"
+  echo "[npc-systemd-check] rootfs work image: $ROOTFS_WORK_IMAGE"
+  echo "[npc-systemd-check] rootfs binding: $ROOTFS_BINDING_LOG"
+  RUN_ROOTFS_FILE=$ROOTFS_WORK_IMAGE
 fi
 
 echo "[npc-systemd-check] log dir: $LOG_DIR"
@@ -304,15 +253,21 @@ echo "[npc-systemd-check] done marker: $DONE_MARKER"
 echo "[npc-systemd-check] require prompt: $REQUIRE_PROMPT"
 echo "[npc-systemd-check] strict guest checks: $STRICT_CHECK"
 echo "[npc-systemd-check] natural poweroff: $POWEROFF_ENABLE"
-if [ "$GUEST_COMMAND_MODE" != "uart" ]; then
+if [ "$GUEST_COMMAND_MODE" = "autocheck" ]; then
   echo "[npc-systemd-check] autocheck stop expect: $AUTOCHECK_EXPECT"
-else
+elif [ "$GUEST_COMMAND_MODE" = "uart" ]; then
   echo "[npc-systemd-check] UART wait: $UART_WAIT"
+else
+  echo "[npc-systemd-check] strict unit: ysyx-npc-systemd-strict.service"
 fi
 echo "[npc-systemd-check] UART RX cycle gap: $UART_CYCLE_GAP"
 echo "[npc-systemd-check] UART RX release delay cycles: $UART_RELEASE_DELAY"
 echo "[npc-systemd-check] progress interval: $PROGRESS_INTERVAL"
 echo "[npc-systemd-check] guest commands: $GUEST_CMDS"
+if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
+  echo "[npc-systemd-check] transaction parser: $TRANSACTION_PARSER"
+  echo "[npc-systemd-check] transaction evidence: $TRANSACTION_EVIDENCE"
+fi
 
 rootfs_args=()
 if [ -n "$RUN_ROOTFS_FILE" ]; then
@@ -325,7 +280,7 @@ fi
 
 set +e
 tee_rc=0
-if [ "$GUEST_COMMAND_MODE" = "uart" ] && [ "$POWEROFF_ENABLE" = "1" ]; then
+if [ "$POWEROFF_ENABLE" = "1" ]; then
   [ -x "$NPC_SIM_BIN" ] || fail "NPC_SIM is not executable: ${NPC_SIM_BIN:-unset}"
   [ -s "$LINUX_IMAGE_FILE" ] || fail "LINUX_IMAGE is missing: ${LINUX_IMAGE_FILE:-unset}"
   [ -s "$RUN_FW_FILE" ] || fail "RUN_FW is missing: ${RUN_FW_FILE:-unset}"
@@ -333,14 +288,30 @@ if [ "$GUEST_COMMAND_MODE" = "uart" ] && [ "$POWEROFF_ENABLE" = "1" ]; then
   [ -s "$RUN_ROOTFS_FILE" ] || fail "RUN_ROOTFS is missing: ${RUN_ROOTFS_FILE:-unset}"
   [ -n "$NEXT_ADDR_VALUE" ] || fail "NEXT_ADDR is unset"
   [ -n "$DTB_ADDR_VALUE" ] || fail "DTB_ADDR is unset"
-  env -u NPC_GUEST_EXPECT \
-    NPC_OOO_WINDOW=0 \
-    NPC_UART_RX_FILE="$GUEST_CMDS" \
-    NPC_UART_RX_WAIT="$UART_WAIT" \
-    NPC_UART_RX_TRACE="$UART_TRACE" \
-    NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT" \
-    NPC_UART_RX_CYCLE_GAP="$UART_CYCLE_GAP" \
-    NPC_UART_RX_RELEASE_DELAY_CYCLES="$UART_RELEASE_DELAY" \
+  sim_env=(env -u NPC_GUEST_EXPECT)
+  if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
+    sim_env+=(
+      NPC_OOO_WINDOW=0
+      NPC_UART_RX_FILE="$GUEST_CMDS"
+      NPC_UART_RX_WAIT="$UART_WAIT"
+      NPC_UART_RX_TRACE="$UART_TRACE"
+      NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT"
+      NPC_UART_RX_CYCLE_GAP="$UART_CYCLE_GAP"
+      NPC_UART_RX_RELEASE_DELAY_CYCLES="$UART_RELEASE_DELAY"
+    )
+  else
+    sim_env+=(
+      -u NPC_UART_RX_FILE
+      -u NPC_UART_RX_TEXT
+      -u NPC_UART_RX_WAIT
+      -u NPC_UART_RX_CYCLE_GAP
+      -u NPC_UART_RX_RELEASE_DELAY_CYCLES
+      NPC_OOO_WINDOW=0
+      NPC_UART_RX_TRACE=1
+      NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT"
+    )
+  fi
+  "${sim_env[@]}" \
     timeout "${HOST_TIMEOUT}s" \
       "$NPC_SIM_BIN" -b "${progress_args[@]}" --no-diff --max="$MAX_CYCLES" \
         --log="$NPC_LOG" \
@@ -378,23 +349,48 @@ set -e
 
 [ "$tee_rc" -eq 0 ] || fail "console tee failed (rc=$tee_rc)"
 
+transaction_rc=77
+if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
+  [ -x "$TRANSACTION_PARSER" ] ||
+    fail "systemd transaction parser is not executable: $TRANSACTION_PARSER"
+  set +e
+  python3 "$TRANSACTION_PARSER" \
+    --console "$CONSOLE_LOG" \
+    --protocol auto \
+    --json-out "$TRANSACTION_EVIDENCE"
+  transaction_rc=$?
+  set -e
+fi
+
 check_console_clean || fail "console contains critical kernel/NPC failure"
 
 if [ "$REQUIRE_PROMPT" = "1" ] && ! grep -qaF "$PROMPT" "$CONSOLE_LOG"; then
   fail "guest root prompt was not observed (rc=$run_rc)"
 fi
 
-if [ "$GUEST_COMMAND_MODE" = "uart" ] && [ "$POWEROFF_ENABLE" = "1" ]; then
+if [ "$POWEROFF_ENABLE" = "1" ]; then
   [ "$run_rc" -eq 0 ] || fail "NPC did not exit cleanly through reset-syscon (rc=$run_rc)"
-  grep -qaF "wait pattern matched; releasing input" "$CONSOLE_LOG" "$NPC_LOG" ||
-    fail "guest command release marker was not observed"
-  grep -qaF "$DONE_MARKER" "$CONSOLE_LOG" ||
-    fail "strict guest done marker was not reached"
-  ! grep -qaF '__NPC_CHECK_FAIL__:' "$CONSOLE_LOG" ||
-    fail "strict guest checks reported failure"
+  if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
+    grep -qaF "wait pattern matched; releasing input" "$CONSOLE_LOG" "$NPC_LOG" ||
+      fail "guest command release marker was not observed"
+  else
+    grep -qaF "loaded bytes=0 file_bytes=0 text_bytes=0" "$CONSOLE_LOG" "$NPC_LOG" ||
+      fail "zero-byte UART source evidence was not observed"
+    ! grep -qaE 'uart-rx\][[:space:]]+pop=' "$CONSOLE_LOG" "$NPC_LOG" ||
+      fail "UART RX activity was observed in systemd-strict mode"
+  fi
+  if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
+    [ "$transaction_rc" -eq 0 ] ||
+      fail "bounded systemd transaction evidence is RED: $TRANSACTION_EVIDENCE"
+  else
+    grep -qaF "$DONE_MARKER" "$CONSOLE_LOG" ||
+      fail "strict guest done marker was not reached"
+    ! grep -qaF '__NPC_CHECK_FAIL__:' "$CONSOLE_LOG" ||
+      fail "strict guest checks reported failure"
+    require_strict_passes
+  fi
   ! grep -qaF '__NPC_SYSTEMD_POWEROFF_CMD_FAIL__' "$CONSOLE_LOG" ||
     fail "systemctl poweroff command failed"
-  require_strict_passes
   require_poweroff_evidence "OpenSBI boot" 'OpenSBI v[0-9]'
   require_poweroff_evidence "OpenSBI reboot device" 'Platform Reboot Device[[:space:]]*: syscon-reboot'
   require_poweroff_evidence "OpenSBI shutdown device" 'Platform Shutdown Device[[:space:]]*: syscon-poweroff'
@@ -405,7 +401,7 @@ if [ "$GUEST_COMMAND_MODE" = "uart" ] && [ "$POWEROFF_ENABLE" = "1" ]; then
   require_poweroff_evidence "RTL syscon terminal" 'syscon-reset: poweroff requested value=0x00005555'
   require_poweroff_evidence "host system-reset exit" 'exit via system-reset, code=0'
   require_poweroff_evidence "zero exit status" 'HIT GOOD TRAP'
-  echo "[npc-systemd-check] PASS strict guest + natural poweroff"
+  echo "[npc-systemd-check] PASS strict guest + natural poweroff (mode=$GUEST_COMMAND_MODE)"
   exit 0
 fi
 

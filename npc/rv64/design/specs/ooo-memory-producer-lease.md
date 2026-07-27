@@ -239,8 +239,17 @@ collector credit 拼成一个完整组合锥；仅在布尔语义上“同 token
    `rsp_ready` 同拍为 1 时允许 `dcache_lookup_en`。若当前 response 占满唯一返回信用，station
    可以保持 `allow`，但 lookup 必须为 0，并在沿后走已寄存的 response/active 状态。
 7. per-bank retry holder 会关闭该 bank 的**新增 load admission**，但不会抹除 bridge 中已经驻留
-   的另一条事务。retry 与 active/station 可以同时有效，只要 full owner token 不同；同一 token
-   同时出现在 retry 与 active/station 才是重复 owner，必须由立即断言拒绝。
+   的另一条事务。retry 与 active/station 的 full owner token 不同只证明身份不重复，不证明
+   bounded progress；同一 token 同时出现仍必须由立即断言拒绝。
+8. 若候选 load 有 older nonterminal SQ owner，且目标 bank 已驻留 active/station load，则必须
+   在 request/MIQ admission 前阻断。没有 older SQ owner 的 clean-load F4 current/next handoff
+   保持开放。该规则防止 active、station 与单 retry holder 形成 replay-capacity 循环，不新增
+   architectural owner state。
+9. V9R C0 full-flush barrier 期间，两 bank 的 SQ-query retry READY 与 capture 必须为 0，
+   bridge retry fire 也必须为 0。edge-old query owner 留在 bridge/MIQ 的原登记位置，不能在
+   C0 同沿先转入 retry holder、再在 C1 被另一条 flush/drop 路径处理；barrier 解除后才恢复
+   原有 exact-owner retry handoff。该约束只关闭 C0 交接，不改变正常 replay、forward、AXI
+   owner drain 或 clean-load F4 admission。
 
 上述规则由 full lint 与 compile-success structural mutations 双重承重。结构变异允许功能仿真
 继续 PASS，但静态审计必须精确 RED；这类证据不能被普通动态回归替代。
@@ -348,3 +357,7 @@ normalized signature 与 v8d byte-equal，新增 response-ready SCC 为零。架
   owner 资格拆成 `rob_head_launch_open` / `rob_head_owner_open`；补齐 station lookup 对
   registered response credit 的约束，以及 retry holder 与不同 token bridge residency 的合法并存。
   正向专项与四项 compile-success RTL 断言验证变体均绑定当前 design-id；PPA 仍未资格化。
+- 2026-07-23（V9P replay-capacity correction）：严格 Linux rootfs 在最后提交后观测到
+  bank0 `S_SQ_QUERY + station + retry` 固定容量环及 bank1 三周期 replay 循环。修复把
+  `issue*_sq_block_r` 与同 bank active/station LOAD residency 接入候选 load admission；
+  clean-load F4 handoff 保留。不同 token residency 结论降级为 identity-only，不再外推进展。

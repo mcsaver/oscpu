@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v10b-serialized-system-post-fire-pre-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "预审本地 RV64 OooPendingSystemSequencer 八类 canonical kind 的 post-fire transaction：从 accepted owner、C0 fire 到 C1/C2 owner/stop、CsrFile、typed redirect、MMU action 与 no-repeat；CSR 另覆盖 ROB enqueue 到 exact ProducerId/PC commit lease。优先寻找重复 side effect、遗漏 action、错误 priority、WFI/SFENCE/FENCEI/FENCE 边界和验证假绿。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v",
+      "npc/rv64/vsrc/core/CsrFile.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/testbench/tests/tb_csr_file.sv",
+      "npc/rv64/testbench/tests/tb_ooo_control_event_apply_sequencer.sv",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/design/specs/ooo-csrfile.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/completion-definition.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/dispatch-log.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/subagent-contracts/pre-reviewer-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与真实 signal→C0/C1/C2 或 CSR lease 周期→现有 TB/断言观测→PASS/GAP 范围输出八类矩阵；给出至少一个最强 reachable counterexample 或说明为什么构造性不可达，并提出最小 production-module clocked TB 与 compile-success mutation 集。"
+  ],
+  "success_criteria": [
+    "不修改文件、不运行仿真/综合；核对真实模块/信号/priority，区分 simulation exit 与 architectural ECALL，明确无需生产修复还是需要哪条最小修复；不得用去重或断言降级；最终显式归还 Windows→WSL 唯一工程命令 lane。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

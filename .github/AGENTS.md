@@ -41,7 +41,7 @@
    - 若涉及 `npc/rv64` 完整双发射/OoO/CPI/PPA/综合/STA/功耗优化，**必读** `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`，中间切片只作 development checkpoint，完整同源 design-id 通过 hard gates 后才能进入 Pareto/promotion
 6. `.github/instructions/<相关主题>.instructions.md`
    - 若涉及 `npc/rv64` 可综合 RTL 且触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复，**必读** `.github/instructions/interface-contract-first.instructions.md`，先冻结六类跨模块契约再写逻辑（决策见 `.github/memory/decisions.md` [38]）
-   - 若向子 agent/并行 reviewer 派发 `npc/rv64` RTL、验证或 PPA 子任务，**必读** `.github/instructions/rtl-agent-task-contract.instructions.md`，并在派发前用 `.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小权限任务契约
+   - 若向子 agent/并行 reviewer 派发 `npc/rv64` RTL、验证或 PPA 子任务，**必读** `.github/instructions/rtl-agent-task-contract.instructions.md`，并在派发前用 `.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小充分工程任务契约
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
 9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`software-flow`、`github-index`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
@@ -107,14 +107,14 @@
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
 - 任何实际代码修改后，都要提供至少一条验证证据；如果无法验证，必须明确说明缺口。
 - NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行全量优先、三类代表样本分析和一个 module 一个源文件约束；`npc/rv64` 还须按 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 执行完整设计点、同源证据、hard-gate-first、全局 Pareto 与 Power/宏面积资格化。
-- RV64 Linux/Ubuntu 性能仿真不得为了跑快绕过 guest 可见设备/中断/总线协议；Verilator 平台可用 DPI/host C++，但 core/长期 RTL 必须保持可综合边界并按 `.github/instructions/verilator-tapeout-realism.instructions.md` 记录真实度假设。
+- RV64 Linux/Ubuntu 性能仿真不得为了跑快省略或短接 guest 可见设备、中断与总线事务路径；Verilator 平台可用 DPI/host C++，但 core/长期 RTL 必须保持可综合边界并按 `.github/instructions/verilator-tapeout-realism.instructions.md` 记录真实度假设。
 
 ---
 
 ## 7. 记录与交付
 
 - **完成判定钩子**：在声明“完成”、关闭目标、更新 goal 状态、或把任务写入“已完成”前，必须重新展开用户原始请求和已读文档中的 checklist/路线图，逐项核对：
-  - 必须显式完成“实现者人格 / 审查者人格”内部对抗：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。最终回复和 task-run/memory 应写清冲突结论：哪些质疑已由证据关闭，哪些只能作为剩余风险或下一步，冲突未解决时不得声明整体完成。
+  - 必须显式完成“实现者 / 审查者”双角色复核：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。最终回复和 task-run/memory 应写清复核结论：哪些质疑已由证据关闭，哪些只能作为剩余风险或下一步，分歧未解决时不得声明整体完成。
   - 若用户请求是路线图、长期目标或包含多阶段建议，只能把已验证的最小闭环称为“子任务/本切片完成”，不得把整个目标标为完成。
   - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
   - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
@@ -122,6 +122,10 @@
   - （rv64 核 RTL）若本次改动触碰握手/stall/flush/序/恢复或跨模块边界，声明“完成”前必须核对：六类契约已冻结、受影响模块 SPEC-TEMPLATE §2/§3 已填满、能编码的契约已转成非真空立即断言且 `make -C npc/rv64 check-contract` 通过；任一缺失只能称“子任务完成”，并在回复中显式列出未冻结的契约格子作为未闭合项。
 - 稳定结论、长期经验和设计决策写入 `.github/memory/`。
 - 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
+- 长时间 RV64 仿真、综合、STA 或系统回放 runner 必须用显式 evidence-complete 位授权最终 `PASS`；不得在
+  `EXIT` trap 中仅按 `$?=0` 推断完成。`HUP/INT/TERM`、证据检查未到末端或配置恢复失败都必须写
+  `FAIL`，并保留 stage/signal/cleanup 返回码。默认复用 `scripts/task-run-status.sh`，用
+  `scripts/tests/test-task-run-status.sh` 覆盖正常完成与中断反例。
 - 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`，让工具按本轮工作树触碰路径推导推荐 profile，并检查 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若 guard 报缺少证据或 DB 召回产物，必须先补跑建议 profile，或在最终回复和 memory/task-run 中明确豁免理由与风险，不能用 difftest/TB PASS 替代 workflow 证据契约。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。
 - **文档生命周期义务**：文档不是只增不减的沉积层。声明任务"完成"前，按
@@ -150,23 +154,35 @@
   RTL 任务统一表述为“本地 Verilog/SystemVerilog 数字电路设计、验证或 PPA”；只读审查只消费
   合同列出的本地工程材料且不产生文件写入。遇到可能跨领域歧义的术语时补充流水线、事务、时序或验证语义，可采用
   “独立反例复核、变异用例被定向测试检出、流水取消、完成资格、生产者归属、事务标签”等领域准确
-  措辞；真实 RTL 标识符（如 `kill_valid_i`）保留代码格式。不要建立关键词黑名单，禁止为了减少歧义
-  改写信号语义，也不要把改变平台分类结果写成工程目标。
+  措辞；真实 RTL 标识符（如 `kill_valid_i`）保留代码格式。措辞剖面只补充硬件语义，不改写信号语义，
+  也不减少工程能力。
 - 本地 RV64 RTL 子任务还必须遵循 `.github/instructions/rtl-agent-task-contract.instructions.md`：
   派发前生成机器可校验契约，记录契约路径/SHA-256；当前子任务若未产出技术结论，则记为
   `review_pending` 并保留原始请求和证据，不自动关闭长期父目标。需要发现源码遗漏时默认使用限定路径
   的 `workspace-files`；`self-contained-no-tools` 只用于限定材料复核。所有分档都允许报告未知项、
   替代假设、反例、置信依据和范围扩展请求，信息不足时允许 `inconclusive`，不得强制 PASS。
 - 子 agent 的 `render` 提示固定使用 `rv64-hardware-professional`：只写 RV64 CPU 微架构、流水线、事务、
-  时序、缓存一致性、验证和 PPA 语义；`review_pending` 等协调状态仅留在 JSON/dispatch log/主 agent，
-  不进入子 agent 提示。该措辞层不得改变 `workspace-files`、shell、命令、路径、上下文或推理能力；
-  首屏正向声明只处理合同授权的本地 RTL/spec/testbench/EDA/证据且不使用非工作区来源；多义术语首次
+  时序、缓存一致性、验证和 PPA 语义；协调状态仅留在 JSON/dispatch log/主 agent，不进入子 agent
+  提示。该措辞层不得改变 `workspace-files`、shell、命令、路径、上下文或推理能力；首屏正向声明
+  合同授权的本地 RTL/spec/testbench/EDA/证据；多义术语首次
   出现时补齐对象、层级、作用域和工程目的。真实 RTL 标识符及 PMP、特权级、访问异常、内存保护、
   权限检查、store probe 等架构术语保持原样。
+- 派发本地 RV64 RTL 子 agent 时，使用 `fork_turns="none"`，并把通过校验的 `render` 输出作为完整初始
+  提示；不得继承父任务的完整对话历史。设计所需事实必须进入合同的 `allowed_paths`、
+  `required_context` 或 `supplied_material`。这只隔离无关协调上下文，不改变子 agent 的模型、推理、
+  `workspace-files`、shell、实现、验证或 PPA 能力。
 - 主 agent 的用户可见进度、终审摘要和后续派发也使用同一措辞剖面：首句落到本地 RV64 module/signal/
-  transaction、仿真/综合/STA 动作与证据产物；与硬件技术结论无关的平台状态单独记入 task-run 元数据，
-  不反复复制到 RTL 技术正文。该分层只提高领域准确性，不减少源码探索、命令、负向 RTL 版本、断言、
+  transaction、仿真/综合/STA 动作与证据产物；协调状态单独记入 task-run 元数据，不反复复制到 RTL
+  技术正文。长期 goal 只引用措辞剖面，不复制非硬件场景清单。该分层只提高领域准确性，不减少源码探索、命令、负向 RTL 版本、断言、
   覆盖矩阵、独立复核或 PPA 分析能力。
+- 子 agent 最终回复首段固定按“RV64 RTL 对象或本地证据文件 → 周期或编译配置 → testbench/EDA 观测
+  → PASS/GAP 范围”组织；本地 JSON 证据校验出现意外接受或拒绝时，必须给出具体 schema 字段、
+  工作区相对路径、定向单测和返回结果。不得因此删除反例、未知项、原始日志 marker、真实文件名或
+  范围扩展出口。
+- 子 agent 的渲染文本保持精简：只承载具体 RV64 module/signal/本地证据路径、周期/配置、TB/EDA
+  观测、合同绑定和结论边界；派发管线、父任务历史、协调状态与措辞策略留在 JSON/dispatch log。
+  检查 Python/JSON 证据工具时，也以对应 CPU 债务项和 RTL 证据文件作主语，再写具体字段、测试名与
+  返回码；不把通用流程描述写成硬件子任务主体。
 
 ---
 

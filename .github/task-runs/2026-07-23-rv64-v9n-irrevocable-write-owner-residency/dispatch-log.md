@@ -30,4 +30,17 @@
   `NpcCoreTop.flush_i=1'b0`、两个 verification wrapper、两个 compile-success RTL
   源码变体、当前 design-id evidence 与 38-blocker arch-stable 结果。
 - WSL shell ownership：派发期间交给 reviewer；主 agent 与其它 agent 不并发运行工程命令。
-- status：`REVIEW_DISPATCH_READY`。
+- reviewer：`/root/v9n_owner_residency_review`。
+- reviewer 技术结论：两个 next-edge wrapper、两个可编译且可从 live source 重构的
+  RTL 源码变体、`NpcCoreTop.u_ooo_core.flush_i=1'b0`、fail-closed evidence builder
+  与 STORE-BRESP-G1 arch-stable 语义检查均成立；未发现 STORE/AMO 局部 RTL 属性反例。
+- reviewer freshness 结论：`GAP`。V2 dispatch 段在 02:19 的 owner evidence 与
+  post-refresh arch-stable 之后追加，而 `dispatch-log.md` 属于 owner evidence 的
+  `SOURCE_PATHS`，因此旧 result/raw 的 live provenance 已漂移。
+- corrective action：本记录冻结后必须运行 canonical V9N focused runner，重建 owner
+  result/raw，更新 STORE-BRESP-G1 四项 evidence SHA，再重跑 arch-stable；不得手工
+  宣称旧 evidence 仍为 current。
+- WSL shell ownership：reviewer 已明确归还，且声明不再运行工程命令。
+- full-core boundary：38 blockers、`architecture_freeze=GAP`、PPA `UNQUALIFIED`、
+  `promotion=false`。
+- status：`REVIEW_COMPLETE_FRESHNESS_GAP_REQUIRES_CANONICAL_REPLAY`。

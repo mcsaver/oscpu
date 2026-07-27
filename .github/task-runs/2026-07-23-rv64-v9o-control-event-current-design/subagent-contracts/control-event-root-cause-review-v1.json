@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-root-cause-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooRedirectArbiter 获胜事件到前端取指重定向、分支更年轻流水事务选择性恢复、精确陷阱与队头 CSR 提交后下一拍全后端清空的完整调用链；给出不改变退休时序且不形成组合反馈的最小生产 RTL 切点，并分析 commit 与 younger branch 同拍以及环形 ROB 年龄边界反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/design/specs/ooo-control-flush-sequencer.md",
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/control",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooControlCommitSequencer.v",
+      "npc/rv64/testbench/tests/tb_ooo_redirect_arbiter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_control_flush_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-root-cause-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出 E1/E2/E3 request 与 apply 周期表、每个生产 consumer 的精确信号路径、行为保持的接口与寄存阶段方案、组合反馈检查、可构造反例、验证矩阵、unknowns、替代假设和必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "结论必须逐项说明 branch 选择性恢复与 trap/CSR 全后端清空为何不能共用无类型布尔量，指出 arbiter reason/kill_idx/backend action 的唯一消费边界，并对同拍 commit+branch、direct+branch、ROB wrap、提交后下一拍 nuke 和不可撤回事务 drain 给出 PASS、GAP 或 inconclusive 及源码依据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -143,7 +143,7 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 ## 约束
 
-- 当前主后端以 `npc/sim` 统一入口为准；外部流程不要绕过它直接假设 `npc/single` 是唯一后端
+- 当前主后端以 `npc/sim` 统一入口为准；外部流程也从该入口解析，不能直接假设 `npc/single` 是唯一后端
 - `npc/single` 是普通 NPC 自仿真后端，`npc/soc` 是 ysyxSoC 接入后端；SoC difftest 需要 NEMU `CONFIG_SOC_SIM` reference 与 `npc/soc` difftest 配置同时匹配
 - 参考模型优先使用 NEMU 的可脚本化路径，避免把 monitor 或 SDL 交互默认转交给用户
 - RV64 Linux/Ubuntu 近期主线使用 Verilator；除非用户显式切换阶段，不把 Vivado/FPGA 当作当前功能 bring-up 前置

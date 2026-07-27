@@ -6,8 +6,10 @@ module tb_ooo_dual_mem_bridge_wrapper;
   reg clk;
   reg rst;
   reg flush_i;
+  reg control_full_flush_barrier_i;
   reg mmu_flush_i;
   reg dcache_dma_invalidate_all_i;
+  reg ifu_ad_update_invalidate_all_i;
   reg [1:0] priv_mode_i;
   reg [`XLEN-1:0] mstatus_i;
   reg [`XLEN-1:0] satp_i;
@@ -338,8 +340,10 @@ module tb_ooo_dual_mem_bridge_wrapper;
   task automatic clear_inputs;
     begin
       flush_i = 1'b0;
+      control_full_flush_barrier_i = 1'b0;
       mmu_flush_i = 1'b0;
       dcache_dma_invalidate_all_i = 1'b0;
+      ifu_ad_update_invalidate_all_i = 1'b0;
       priv_mode_i = `PRIV_M;
       mstatus_i = {`XLEN{1'b0}};
       satp_i = {`XLEN{1'b0}};
@@ -584,6 +588,145 @@ module tb_ooo_dual_mem_bridge_wrapper;
     begin
       accept_read_address(expected_addr);
       send_read_data(data, 2'b00);
+    end
+  endtask
+
+  task automatic v9o_dual_registered_ar_barrier;
+    reg [4:0] token0;
+    reg [4:0] token1;
+    reg selected_owner;
+    reg [`XLEN-1:0] lane0_addr_hold;
+    reg [`XLEN-1:0] lane1_addr_hold;
+    reg [19:0] lane0_ctrl_hold;
+    reg [19:0] lane1_ctrl_hold;
+    reg [`XLEN-1:0] selected_addr;
+    reg [`XLEN-1:0] pending_addr;
+    reg [`XLEN-1:0] lane0_data;
+    reg [`XLEN-1:0] lane1_data;
+    integer ar_before;
+    integer hold_cycle;
+    integer timeout;
+    begin
+      // Establish two independent registered bridge owners before presenting
+      // the C0 control-event barrier.  The barrier may block new pre-owner
+      // launches, but it must not withdraw either already-presented AXI VALID.
+      pulse_dma_invalidate();
+      ar_before = downstream_ar_fire_count;
+      lane0_data = 64'h0a0b_0c0d_0e0f_1011;
+      lane1_data = 64'h1a1b_1c1d_1e1f_2021;
+      issue_dual_load(A2, A3, token0, token1);
+
+      timeout = 0;
+      while (!(dut.u_bridge0.state_q == 4'd3 &&
+               dut.u_bridge1.state_q == 4'd3 &&
+               dut.lane0_axi_arvalid_w &&
+               dut.lane1_axi_arvalid_w &&
+               d_axi_arvalid_o) &&
+             timeout < 120) begin
+        tick();
+        timeout = timeout + 1;
+      end
+      tb_check1("V9O lane0 reached registered AR owner",
+                dut.u_bridge0.state_q == 4'd3, 1'b1);
+      tb_check1("V9O lane1 reached registered AR owner",
+                dut.u_bridge1.state_q == 4'd3, 1'b1);
+      tb_check1("V9O lane0 registered AR valid",
+                dut.lane0_axi_arvalid_w, 1'b1);
+      tb_check1("V9O lane1 registered AR valid",
+                dut.lane1_axi_arvalid_w, 1'b1);
+      tb_check1("V9O selected downstream AR valid", d_axi_arvalid_o, 1'b1);
+
+      selected_owner = dut.u_miss_arbiter.owner_q;
+      lane0_addr_hold = dut.lane0_axi_araddr_w;
+      lane1_addr_hold = dut.lane1_axi_araddr_w;
+      lane0_ctrl_hold = {dut.lane0_axi_arid_w,
+                         dut.lane0_axi_arlen_w,
+                         dut.lane0_axi_arsize_w,
+                         dut.lane0_axi_arburst_w,
+                         dut.lane0_axi_arprot_w};
+      lane1_ctrl_hold = {dut.lane1_axi_arid_w,
+                         dut.lane1_axi_arlen_w,
+                         dut.lane1_axi_arsize_w,
+                         dut.lane1_axi_arburst_w,
+                         dut.lane1_axi_arprot_w};
+      selected_addr = selected_owner ? lane1_addr_hold : lane0_addr_hold;
+      pending_addr = selected_owner ? lane0_addr_hold : lane1_addr_hold;
+      tb_check64("V9O lane0 registered AR address", lane0_addr_hold, A2);
+      tb_check64("V9O lane1 registered AR address", lane1_addr_hold, A3);
+      tb_check64("V9O selected downstream AR address",
+                 d_axi_araddr_o, selected_addr);
+
+      control_full_flush_barrier_i = 1'b1;
+      for (hold_cycle = 0; hold_cycle < 4;
+           hold_cycle = hold_cycle + 1) begin
+        #1;
+        tb_check1("V9O lane0 AR VALID held across C0 barrier",
+                  dut.lane0_axi_arvalid_w, 1'b1);
+        tb_check1("V9O lane1 AR VALID held across C0 barrier",
+                  dut.lane1_axi_arvalid_w, 1'b1);
+        tb_check64("V9O lane0 AR address held across C0 barrier",
+                   dut.lane0_axi_araddr_w, lane0_addr_hold);
+        tb_check64("V9O lane1 AR address held across C0 barrier",
+                   dut.lane1_axi_araddr_w, lane1_addr_hold);
+        tb_check1("V9O lane0 AR controls held across C0 barrier",
+                  {dut.lane0_axi_arid_w,
+                   dut.lane0_axi_arlen_w,
+                   dut.lane0_axi_arsize_w,
+                   dut.lane0_axi_arburst_w,
+                   dut.lane0_axi_arprot_w} === lane0_ctrl_hold, 1'b1);
+        tb_check1("V9O lane1 AR controls held across C0 barrier",
+                  {dut.lane1_axi_arid_w,
+                   dut.lane1_axi_arlen_w,
+                   dut.lane1_axi_arsize_w,
+                   dut.lane1_axi_arburst_w,
+                   dut.lane1_axi_arprot_w} === lane1_ctrl_hold, 1'b1);
+        tb_check1("V9O AXI arbiter owner held across C0 barrier",
+                  dut.u_miss_arbiter.owner_q, selected_owner);
+        tb_check1("V9O selected downstream AR VALID held",
+                  d_axi_arvalid_o, 1'b1);
+        tb_check64("V9O selected downstream AR payload held",
+                   d_axi_araddr_o, selected_addr);
+        tick();
+      end
+
+      // Drain both exact registered owners while the barrier remains asserted.
+      // The shared arbiter may move to the second owner only after the first
+      // R terminal; the pending lane's own VALID/payload must survive intact.
+      accept_read_address(selected_addr);
+      if (!selected_owner) begin
+        tb_check1("V9O pending lane1 AR survives first address terminal",
+                  dut.lane1_axi_arvalid_w, 1'b1);
+        tb_check64("V9O pending lane1 AR address survives first terminal",
+                   dut.lane1_axi_araddr_w, pending_addr);
+        send_read_data(lane0_data, 2'b00);
+      end else begin
+        tb_check1("V9O pending lane0 AR survives first address terminal",
+                  dut.lane0_axi_arvalid_w, 1'b1);
+        tb_check64("V9O pending lane0 AR address survives first terminal",
+                   dut.lane0_axi_araddr_w, pending_addr);
+        send_read_data(lane1_data, 2'b00);
+      end
+
+      accept_read_address(pending_addr);
+      if (!selected_owner)
+        send_read_data(lane1_data, 2'b00);
+      else
+        send_read_data(lane0_data, 2'b00);
+
+      if (downstream_ar_fire_count != ar_before + 2) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V9O dual registered AR terminal count got=%0d expected=%0d",
+                 downstream_ar_fire_count - ar_before, 2);
+      end
+      wait_lane_response(0, token0, lane0_data, 1'b0);
+      wait_lane_response(1, token1, lane1_data, 1'b0);
+      tb_check1("V9O lane0 exact response consumed once",
+                lane0_rsp_valid_o, 1'b0);
+      tb_check1("V9O lane1 exact response consumed once",
+                lane1_rsp_valid_o, 1'b0);
+      control_full_flush_barrier_i = 1'b0;
+      wait_both_idle();
+      $display("[V9O-DUAL-REGISTERED-AR-BARRIER] lanes=2 hold_cycles=4 terminals=2 PASS");
     end
   endtask
 
@@ -1114,6 +1257,39 @@ module tb_ooo_dual_mem_bridge_wrapper;
     end
   endtask
 
+  task automatic ifu_ad_update_same_cycle_dual_lookup;
+    reg [4:0] token0;
+    reg [4:0] token1;
+    begin
+      pulse_dma_invalidate();
+      warm_lane(0, A3, 64'h2468_ace0_1357_9bdf);
+      warm_lane(1, A3, 64'h2468_ace0_1357_9bdf);
+      issue_dual_load(A3, A3, token0, token1);
+      // Model the B-terminal pulse from OooFetchAxiBridge after it writes a
+      // leaf PTE A bit.  Both D-cache replicas must reject their stale line.
+      tick();
+      ifu_ad_update_invalidate_all_i = 1'b1;
+      #1;
+      tb_check1("IFU A-update masks lane0 lookup response immediately",
+                lane0_rsp_valid_o, 1'b0);
+      tb_check1("IFU A-update masks lane1 lookup response immediately",
+                lane1_rsp_valid_o, 1'b0);
+      tb_check1("IFU A-update masks lane0 raw D-cache hit",
+                dut.u_bridge0.dcache_lookup_hit_w, 1'b0);
+      tb_check1("IFU A-update masks lane1 raw D-cache hit",
+                dut.u_bridge1.dcache_lookup_hit_w, 1'b0);
+      tick();
+      ifu_ad_update_invalidate_all_i = 1'b0;
+      #1;
+
+      service_read(A3, 64'h2468_ace0_1357_9bdf);
+      service_read(A3, 64'h2468_ace0_1357_9bdf);
+      wait_lane_response(0, token0, 64'h2468_ace0_1357_9bdf, 1'b0);
+      wait_lane_response(1, token1, 64'h2468_ace0_1357_9bdf, 1'b0);
+      $display("[V9P-IFU-AD-DCACHE-COHERENCE] ifu_pte_write_terminal=1 lane0_miss=1 lane1_miss=1");
+    end
+  endtask
+
   task automatic warm_paged_lane;
     input integer lane;
     reg [4:0] token;
@@ -1405,6 +1581,7 @@ module tb_ooo_dual_mem_bridge_wrapper;
       $display("[V8R-MUT-NOT-REJECTED] case=%0d", mutation_case);
       $fatal;
     end else begin
+      v9o_dual_registered_ar_barrier();
       selective_recovery_is_lane_local();
       selective_recovery_drain_allows_peer_hit();
       dual_hot_ready_matrix();
@@ -1413,6 +1590,7 @@ module tb_ooo_dual_mem_bridge_wrapper;
       peer_store_error_invalidate();
       peer_cross_line_invalidate();
       dma_same_cycle_dual_lookup();
+      ifu_ad_update_same_cycle_dual_lookup();
       mmu_flush_dual_dtlb_rewalk();
       sampled_reset_overlap();
 

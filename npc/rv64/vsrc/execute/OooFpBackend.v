@@ -24,6 +24,7 @@ module OooFpBackend #(
   input clk,
   input rst,
   input flush_i,
+  input control_full_flush_barrier_i,
   input [2:0] frm_i,
 
   input kill_valid_i,
@@ -226,7 +227,8 @@ module OooFpBackend #(
   wire fp_packet_credit_w =
       (fp_free_count_ext_w >= fp_free_need_pair_ext_w) &&
       ((fp_iq_count_ext_w + fp_iq_need_pair_ext_w) <= FP_IQ_CAPACITY_EXT);
-  wire fp_admission_open_w = !recover_active_i && !kill_valid_i;
+  wire fp_admission_open_w = !recover_active_i && !kill_valid_i &&
+                             !control_full_flush_barrier_i;
 
   // lane0 是 local credit；lane1 恒随 packet accept，故使用两 lane need 精确和。
   // 四个 legacy ready 名保留以缩小接口改面，但不再读取子模块 ready/fire。
@@ -236,9 +238,11 @@ module OooFpBackend #(
   assign fp_alloc1_ready_o = fp_packet_credit_w && fp_admission_open_w;
 
   wire dispatch0_accept_w = dispatch0_accept_i && !flush_i &&
-                            !recover_active_i && !kill_valid_i;
+                            !recover_active_i && !kill_valid_i &&
+                            !control_full_flush_barrier_i;
   wire dispatch1_accept_w = dispatch1_accept_i && !flush_i &&
-                            !recover_active_i && !kill_valid_i;
+                            !recover_active_i && !kill_valid_i &&
+                            !control_full_flush_barrier_i;
   wire disp_fire_w;
   wire disp1_fire_w;
   assign disp_fire_w = disp_valid_i && dispatch0_accept_w;
@@ -414,9 +418,11 @@ module OooFpBackend #(
   assign fpst1_query_ready_o = !fpst1_hit0_w && fp_src_ready(fpst1_query_preg_o,
       fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
 
-  assign fp_wake0_valid_o = fp_fpr_complete_w;
+  assign fp_wake0_valid_o =
+      fp_fpr_complete_w && !control_full_flush_barrier_i;
   assign fp_wake0_preg_o = fp_result_wb_preg_w;
-  assign fp_wake1_valid_o = fpld_wb_valid_i;
+  assign fp_wake1_valid_o =
+      fpld_wb_valid_i && !control_full_flush_barrier_i;
   assign fp_wake1_preg_o = fpld_wb_pdest_i;
 
   // ===========================================================================
@@ -588,11 +594,13 @@ module OooFpBackend #(
        (kill_rob_idx_i - rob_head_idx_i));
 
   assign iq_issue_ready_w = fp_issue_stage_up_ready_w &&
-                            !flush_i && !kill_valid_i;
+                            !flush_i && !kill_valid_i &&
+                            !control_full_flush_barrier_i;
   // kill/flush 拍 raw stage valid 仍会保持到时钟沿；对执行面必须组合屏蔽，
   // 同时禁止 down_fire，才能让 older survivor 留在 stage、younger 只被 kill 清除。
   assign issue_valid_w = fp_issue_stage_valid_w &&
-                         !flush_i && !kill_valid_i;
+                         !flush_i && !kill_valid_i &&
+                         !control_full_flush_barrier_i;
   assign {issue_producer_id_w, issue_inst_w, issue_double_w,
           issue_pdest_w, issue_dst_gpr_w, issue_dst_en_w,
           issue_fs1_preg_w, issue_fs2_preg_w, issue_fs3_preg_w,
@@ -610,7 +618,8 @@ module OooFpBackend #(
     .up_ready_o(fp_issue_stage_up_ready_w),
     .up_payload_i(fp_issue_stage_up_payload_w),
     .down_valid_o(fp_issue_stage_valid_w),
-    .down_ready_i(issue_ready_w && !flush_i && !kill_valid_i),
+    .down_ready_i(issue_ready_w && !flush_i && !kill_valid_i &&
+                  !control_full_flush_barrier_i),
     .down_payload_o(fp_issue_stage_down_payload_w)
   );
 
@@ -977,15 +986,17 @@ module OooFpBackend #(
   // strictly-younger candidate；被剔除的 exec1 不得阻挡存活 long 递补。
   // ===========================================================================
   wire exec1_take_candidate_w = exec1_valid_q && !arith_out_valid_w;
-  wire exec1_take_w = exec1_take_candidate_w && !exec1_kill_w;
+  wire exec1_take_w = exec1_take_candidate_w && !exec1_kill_w &&
+                      !control_full_flush_barrier_i;
   wire long_take_candidate_w =
       long_done_hold_q && long_meta_valid_q &&
       !arith_out_valid_w && !exec1_take_w;
-  wire long_take_w = long_take_candidate_w && !long_kill_w;
+  wire long_take_w = long_take_candidate_w && !long_kill_w &&
+                     !control_full_flush_barrier_i;
   assign long_take_pre_w = long_take_w;
 
   wire fp_result_raw_valid_w =
-      !rst && !flush_i &&
+      !rst && !flush_i && !control_full_flush_barrier_i &&
       (arith_out_valid_w || exec1_take_w || long_take_w);
   assign result_query_valid_o = fp_result_raw_valid_w;
   assign result_query_producer_id_o =
@@ -1035,10 +1046,12 @@ module OooFpBackend #(
   wire df_head_killed_w = df_killed_q[df_head_q];
   // killed 项自弹(不需要下游 ready); 活项按下游 ready 弹
   wire df_pop_w = !df_empty_w && df_valid_q[df_head_q] &&
+                  !control_full_flush_barrier_i &&
                   (df_head_killed_w || fpwb_ready_i);
 
   assign fpwb_valid_o = !df_empty_w && df_valid_q[df_head_q] &&
-                        !df_head_killed_w;
+                        !df_head_killed_w &&
+                        !control_full_flush_barrier_i;
   assign fpwb_producer_id_o = df_producer_id_q[df_head_q];
   assign fpwb_rob_idx_o = fpwb_producer_id_o[ROB_INDEX_W-1:0];
   assign fpwb_pdest_o = df_pdest_q[df_head_q];
@@ -1186,6 +1199,12 @@ module OooFpBackend #(
              $time);
     if (!rst && kill_valid_i && iq_issue_ready_w)
       $error("[FP-ISSUE-STAGE-NO-KILL-REFILL] kill 拍 IQ ready 未压低 @%0t",
+             $time);
+    if (!rst && control_full_flush_barrier_i &&
+        (disp_fire_w || disp1_fire_w || fpld0_fire_w || fpld1_fire_w ||
+         iq_issue_ready_w || issue_fire_w || df_push_w || df_pop_w ||
+         fpwb_valid_o || fp_wake0_valid_o || fp_wake1_valid_o))
+      $error("[V9O-FP-C0] FP admission/issue/completion escaped barrier @%0t",
              $time);
   end
 

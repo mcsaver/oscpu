@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-ledger-validator-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立重放当前 RV64 CONTROL-EVENT-G1 证据验证器，确认 mutation summary 的 exact schema 与递归 downstream artifact 禁入已关闭 v2 反例，并确认 Makefile 动态 110-module full-core GAP 测试、精确 provenance、11 项 RTL 变异映射和 live candidate 绑定保持一致。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v2/review.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v2/replay-probes.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-ledger-validator-review-v3.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v2/review.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v2/replay-probes.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 v2 反例复测、四项工作区单测和 canonical verify 的逐项 PASS/GAP，列出仍可构造的证据拓扑假绿、合同符合性、未知项、范围扩展请求和置信度；只在指定 v3 reviewer 输出目录落盘。"
+  ],
+  "success_criteria": [
+    "v2 的 mutation-summary downstream schema extension 与嵌套 downstream reference 均由完整 validator 拒绝；canonical evidence-index verify 和四项 CurrentWorkspaceTests 独立通过；CONTROL-EVENT-G1 仅在当前 RTL 设计局部闭合，旧 full-core candidate 仍为 59 blockers、PPA UNQUALIFIED、promotion false。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

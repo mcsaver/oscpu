@@ -59,3 +59,24 @@ sequencer、pending/commit/trap 和所有时序状态所有权。
 - 不写 FIFO，不处理 seed/clear。
 - 不解释 opcode、CSR cause、branch target 或 RAS。
 - 不持有任何状态。
+
+## V9O C0 队头全清空屏障
+
+新增 `control_full_flush_barrier_i`。它是 ROB 稳定队头在 C0 的全清空预授权，不是
+`flush_i`：
+
+- 屏障为 1 时，`direct_frontend_flush_o=0`、`fifo_pop_o=0`，并使
+  `fetch_request_blocked_by_trap_o=1`；
+- `stop_head_o` 可保持原有观测语义，但不得由此消费 packet；
+- response control-stop 解码仍可观测已返回 packet，不能产生 enqueue/pop/PC 侧效应；
+- C1 才由类型化 apply 触发现有 frontend clear。
+
+新增不变量：
+
+- **FE-ACT-I6 C0 no new action**：屏障拍不得产生 direct frontend flush、FIFO pop
+  或新 fetch request；
+- **FE-ACT-I7 no state ownership**：屏障只组合门控准入，不在 helper 内锁存。
+
+变更记录补充：
+
+- 2026-07-23（V9O）：加入 C0 队头全清空屏障，暂停新的前端动作而不清状态。

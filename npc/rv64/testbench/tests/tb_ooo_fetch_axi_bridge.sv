@@ -58,6 +58,7 @@ module tb_ooo_fetch_axi_bridge;
   reg ifu_axi_bvalid;
   wire ifu_axi_bready;
   reg [1:0] ifu_axi_bresp;
+  wire dcache_ad_update_invalidate_all;
 
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
@@ -167,7 +168,8 @@ module tb_ooo_fetch_axi_bridge;
     .ifu_axi_wstrb_o(ifu_axi_wstrb),
     .ifu_axi_bvalid_i(ifu_axi_bvalid),
     .ifu_axi_bready_o(ifu_axi_bready),
-    .ifu_axi_bresp_i(ifu_axi_bresp)
+    .ifu_axi_bresp_i(ifu_axi_bresp),
+    .dcache_ad_update_invalidate_all_o(dcache_ad_update_invalidate_all)
   );
 
   // Test-only production decoder recurrence.  When enabled, a valid bridge
@@ -658,6 +660,9 @@ module tb_ooo_fetch_axi_bridge;
 
       ifu_axi_bvalid = 1'b1;
       ifu_axi_bresp = RESP_OK;
+      #1;
+      tb_check1("IFU A-update completion invalidates stale D-cache PTE lines",
+                dcache_ad_update_invalidate_all, 1'b1);
       tick();                     // FSM 见 bvalid → 完成 → re-walk 本级
       ifu_axi_bvalid = 1'b0;
     end
@@ -1492,6 +1497,57 @@ module tb_ooo_fetch_axi_bridge;
     end
   endtask
 
+  // V10B FENCE.I consumer proof.  The first packet models the instruction
+  // bytes cached before a D-side code update; after the serialized MMU/FENCE.I
+  // pulse, the same PC must miss and consume the replacement AXI bytes.
+  task automatic check_fencei_stale_instruction_refetch;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_protocol_case();
+
+      start_fetch_ctx("V10B FENCE.I old packet request accepted",
+                      FUSION_PC1, `PRIV_M, {`XLEN{1'b0}});
+      drive_fetch_packet("V10B FENCE.I old packet fill",
+                         FUSION_PC1, FUSION_BEAT1);
+      expect_rsp("V10B FENCE.I old packet response",
+                 RESP_OK, RESP_OK, FUSION_BEAT1);
+
+      start_fetch_ctx("V10B FENCE.I warm-hit request accepted",
+                      FUSION_PC1, `PRIV_M, {`XLEN{1'b0}});
+      #1;
+      tb_check1("V10B FENCE.I warm hit emits no AXI AR",
+                ifu_axi_arvalid, 1'b0);
+      expect_rsp("V10B FENCE.I warm hit returns old packet",
+                 RESP_OK, RESP_OK, FUSION_BEAT1);
+
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      #1;
+      tb_check1("V10B FENCE.I pulse returns bridge idle",
+                dut.state_q == S_IDLE_TB, 1'b1);
+
+      start_fetch_ctx("V10B FENCE.I post-update request accepted",
+                      FUSION_PC1, `PRIV_M, {`XLEN{1'b0}});
+      #1;
+      tb_check1("V10B FENCE.I rejects stale cache hit",
+                dut.cache_hit_w, 1'b0);
+      tb_check1("V10B FENCE.I exposes no stale response",
+                fetch_rsp_valid, 1'b0);
+      drive_fetch_packet("V10B FENCE.I replacement packet refetch",
+                         FUSION_PC1, FUSION_BEAT3);
+      expect_rsp("V10B FENCE.I replacement packet response",
+                 RESP_OK, RESP_OK, FUSION_BEAT3);
+
+      if (tb_errors == errors_before) begin
+        $display("[V10B-FENCEI-STALE-INSTRUCTION] warm-hit=old flush=1 stale-response=0 axi-refetch=1 new-payload=1 PASS");
+      end else begin
+        $display("[V10B-FENCEI-STALE-INSTRUCTION] FAIL");
+      end
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -2260,6 +2316,8 @@ module tb_ooo_fetch_axi_bridge;
     tick();
     tb_check1("cache-read one-shot flush leaves checker idle",
               dut.state_q == S_IDLE_TB, 1'b1);
+
+    check_fencei_stale_instruction_refetch();
 
     tb_finish("tb_ooo_fetch_axi_bridge");
   end

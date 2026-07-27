@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OoO RTL 的 CONTROL-EVENT-G1 实现与仿真证据：检查 queue-head trap/CSR C0 预授权、branch SELECTIVE_NOW、C1 typed full-flush apply、strict-younger completion cut、pending-system CSR owner 分类和 AXI registered owner 保持是否同源且无组合反馈。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendActionGate.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_control_event_apply_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_redirect_arbiter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 source-of-truth、C0/C1 周期、strict-younger 边界、pending-owner 分类、registered AXI owner、focused/flag-on evidence freshness 六项给出 PASS/GAP，并列出可构造反例、假绿风险、剩余 unknowns 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只在授权本地 RTL、SystemVerilog TB 和 task-run 证据内复核；确认真实 queue-head CSR 与 pending-system CSR 不混淆，branch losing request 无生产副作用，C1 apply 不抑制 C0 架构提交，且任何局部 PASS 都不外推为 full-core architecture freeze 或 PPA promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

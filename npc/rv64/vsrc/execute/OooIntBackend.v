@@ -280,6 +280,10 @@ module OooIntBackend #(
   output [ROB_COUNT_W-1:0] rob_count_o,
   output [ISSUE_COUNT_W-1:0] issue_count_o,
   output mem_idle_o,
+  // V9Y: all live memory tokens have left active holders, or are making an
+  // exact same-edge transfer into the terminal collector / STORE release.
+  // Collector-pending tokens may remain live until the exact tracker free.
+  output mem_owner_terminalized_o,
   // 退休侧访存静默(SQ 排空且无 drain 在飞): AND 进 backend_drained, 保证 system/trap/FP
   // 等串行点看到的"后端排空"包含已退休未落存的 store(SQ 化后 ROB 空不再隐含内存静默)。
   output mem_retire_quiet_o,
@@ -309,6 +313,10 @@ module OooIntBackend #(
   // 供 OooCoreTopGlue 的 shadow RedirectArbiter 年龄律（age = rob_idx - head）；也是
   // flush 单点化真 arbiter 收敛所需的 plumbing（pipeline-stage-boundary.md §5），非一次性。
   output [ROB_INDEX_W-1:0] rob_head_idx_o,
+  // V9O：ROB 稳定队头产生的 C0 全清空预授权。该信号只暂停新工作与
+  // strictly-younger completion；C1 清状态由上层类型化 sequencer 产生。
+  output control_full_flush_barrier_o,
+  output [`REDIR_REASON_W-1:0] control_full_flush_reason_o,
 
   // S2-Q2 v8a：无状态、同名 shadow transport。
   input head0_context_permit_i,
@@ -486,8 +494,25 @@ module OooIntBackend #(
   wire [PHY_REG_ADDR_W-1:0] issue1_pdest_w;
   wire issue1_fixed_gpr_producer_w;
   wire [`XLEN-1:0] issue1_imm_w;
+  reg checkpoint_restore_pending_q;
+  reg checkpoint_restore_seen_q;
+  reg checkpoint_irrevocable_write_q;
+  reg [PRODUCER_ID_W-1:0] checkpoint_irrevocable_write_pid_q;
+  wire control_event_pregrant_w;
+  wire control_full_flush_barrier_w;
+  wire [`REDIR_REASON_W-1:0] control_full_flush_reason_w;
+  // Full-top Icarus elaboration requires these cross-section nets to be
+  // declared before the first combinational use.  Their drivers remain with
+  // the owning checkpoint/issue/response sections below.
+  wire checkpoint_restore_hold_w =
+      checkpoint_restore_i || checkpoint_restore_pending_q;
+  wire issue_block_w =
+      checkpoint_capture_i || checkpoint_quiesce_i ||
+      control_full_flush_barrier_w;
+  wire mem_rsp_waiting_for_wb_w;
   wire mem_issue_block_w = mem_issue_block_i || checkpoint_quiesce_i ||
-                           checkpoint_restore_hold_w;
+                           checkpoint_restore_hold_w ||
+                           control_full_flush_barrier_w;
   wire early_wakeup0_raw_valid_w =
       issue0_fire_w && iq_issue0_fixed_gpr_producer_w;
   wire early_wakeup1_raw_valid_w =
@@ -580,14 +605,8 @@ module OooIntBackend #(
   wire rob_recover_active_w;
   wire dispatch0_dbe_ready_w;
   wire dispatch1_dbe_ready_w;
-  reg checkpoint_restore_pending_q;
-  reg checkpoint_restore_seen_q;
-  reg checkpoint_irrevocable_write_q;
-  reg [PRODUCER_ID_W-1:0] checkpoint_irrevocable_write_pid_q;
   wire checkpoint_restore_new_req_w =
       checkpoint_restore_i && !checkpoint_restore_seen_q;
-  wire checkpoint_restore_hold_w =
-      checkpoint_restore_i || checkpoint_restore_pending_q;
   wire checkpoint_restore_apply_w;
   // lane1 GPR 目的 FP 的整数 pdest(经 DispatchBackend 新输出)
   wire [PHY_REG_ADDR_W-1:0] dispatch1_new_pdest_probe_w;
@@ -602,9 +621,11 @@ module OooIntBackend #(
   wire [4:0] wb0_fflags_w;
   wire [4:0] wb1_fflags_w;
   assign dispatch0_ready_o = dispatch0_dbe_ready_w && d0_fp_ok_w &&
-                             !checkpoint_restore_hold_w;
+                             !checkpoint_restore_hold_w &&
+                             !control_full_flush_barrier_w;
   assign dispatch1_ready_o = dispatch1_dbe_ready_w && d1_fp_ok_w &&
-                             !checkpoint_restore_hold_w;
+                             !checkpoint_restore_hold_w &&
+                             !control_full_flush_barrier_w;
   wire dispatch0_fire_w;
   wire [ROB_INDEX_W-1:0] dispatch0_rob_idx_w;
   wire [PRODUCER_ID_W-1:0] dispatch0_producer_id_w;
@@ -657,12 +678,15 @@ module OooIntBackend #(
   wire lq_release1_valid_w;
   wire lq_release0_commit_w;
   wire lq_release1_commit_w;
+  wire lq_release0_q_ready_w;
+  wire lq_release1_q_ready_w;
   wire lq_release0_ready_w;
   wire lq_release1_ready_w;
   wire lq_release0_fire_w;
   wire lq_release1_fire_w;
   wire lq_retire0_permit_w;
   wire lq_retire1_permit_w;
+  wire lq_retire0_pregrant_permit_w;
   wire [(1 << PRODUCER_ID_W)-1:0] mem_owner_producer_live_mask_w;
   wire [(1 << PRODUCER_ID_W)-1:0] muldiv_owner_producer_live_mask_w =
       muldiv_owner_valid_w ?
@@ -734,10 +758,13 @@ module OooIntBackend #(
   wire mem1_completion_rob_open_w;
   // 【P4 shadow】队头指针透出（驱动源=下方 u_rob.rob_head_idx_o，纯观测，不改任何现有行为）
   assign rob_head_idx_o = rob_head_idx_w;
+  assign control_full_flush_barrier_o = control_full_flush_barrier_w;
+  assign control_full_flush_reason_o = control_full_flush_reason_w;
   assign dispatch0_producer_id_o = dispatch0_producer_id_w;
   assign commit0_producer_id_o = rob_head_producer_id_w;
   // 声明前置：iverilog 14 拒绝前向引用（驱动仍在原处）
   wire branch_resolve_mispredict_w;
+  wire branch_resolve_mispredict_request_w;
   wire branch_resolve_query_valid_w;
   wire [PRODUCER_ID_W-1:0] branch_resolve_query_producer_id_w;
   wire branch_resolve_rob_open_w;
@@ -770,6 +797,8 @@ module OooIntBackend #(
   assign lq_release1_commit_w = commit1_valid_o && rob_head1_plain_load_w;
   assign lq_retire0_permit_w = !lq_release0_valid_w || lq_release0_ready_w;
   assign lq_retire1_permit_w = !lq_release1_valid_w || lq_release1_ready_w;
+  assign lq_retire0_pregrant_permit_w =
+      !lq_release0_valid_w || lq_release0_q_ready_w;
 
   // checkpoint_restore_i is a request, not an unconditional destructive edge.
   // If a physical write has already fired, the request remains pending while
@@ -788,6 +817,10 @@ module OooIntBackend #(
     .clk(clk),
     .head0_context_permit_i(head0_context_permit_i),
     .fencei_retire_permit_i(fencei_retire_permit_i),
+    // pending-system lease is a typed CSR ProducerId born in ControlPlane.
+    // The ROB classifies only an exact head0 identity match as that owner.
+    .pending_csr_owner_valid_i(pending_system_producer_valid_i),
+    .pending_csr_owner_producer_id_i(pending_system_producer_id_i),
     .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
     .head0_identity_valid_o(head0_identity_valid_o),
     .head0_identity_o(head0_identity_o),
@@ -965,6 +998,10 @@ module OooIntBackend #(
     .commit_ready_i(commit_ready_i && !checkpoint_capture_i &&
                     !checkpoint_restore_apply_w && !checkpoint_quiesce_i &&
                     lq_retire0_permit_w),
+    .commit_pregrant_ready_i(
+        commit_ready_i && !checkpoint_capture_i &&
+        !checkpoint_restore_apply_w && !checkpoint_quiesce_i &&
+        lq_retire0_pregrant_permit_w),
     .commit1_block_i(commit1_block_i || !lq_retire1_permit_w ||
                      checkpoint_restore_hold_w),
     // 【serialize Phase1 §9/§10.4】mem 门控用 mem_idle 单独，不含 sq_empty。head0 CSR
@@ -1007,6 +1044,9 @@ module OooIntBackend #(
     .rob_head_owner_open_o(rob_head_owner_open_w),
     .rob_head_launch_open_o(rob_head_launch_open_w),
     .rob_recover_active_o(rob_recover_active_w),
+    .head0_control_event_pregrant_o(control_event_pregrant_w),
+    .head0_full_flush_pregrant_o(control_full_flush_barrier_w),
+    .head0_full_flush_reason_o(control_full_flush_reason_w),
     .walk0_fp_valid_o(walk0_fp_valid_w),
     .walk0_fp_arch_o(walk0_fp_arch_w),
     .walk0_fp_old_pdest_o(walk0_fp_old_w),
@@ -1176,17 +1216,19 @@ module OooIntBackend #(
       !branch_resolve_mispredict_w;
   // AMO/LR/SC 本就要求独占并在 ROB head 执行；禁止它们提前占住单槽，既
   // 缩短驻留时间，也从准入侧消除 younger LR 等 head 的年龄倒置反例。
-  // queue-head CSR 模式下进一步把所有 memory admission 收紧到 ROB head：
-  // 较老 CSR 会等 mem_idle，而 reservation 也计入 mem_idle；若 younger load
-  // 能先驻留，两者会互等。默认模式常量折叠后仍仅 AMO 受 head gate，不添路径。
+  // queue-head CSR 不得把普通 memory 也收紧到唯一 ROB head：dual-memory
+  // pair 的两个 ProducerId 不可能同时等于 head，这会永久关闭 pair capture。
+  // CSR 由 frontend 单发进入 ROB，并由 head0_csr_inflight owner 在同一接受边
+  // 起阻止任何 younger dispatch；所以 CSR 存在时，后端已登记/待发 memory
+  // 结构上只能更老，必须继续 issue/drain，才能让 CSR 最终满足 mem_quiet。
   wire mem_issue_res_requires_head_w =
-      iq_issue0_ctrl_w[`CTRL_AMO_BIT] || `OOO_CSR_QUEUE_HEAD;
+      iq_issue0_ctrl_w[`CTRL_AMO_BIT];
   wire mem_issue_res_admit_w =
       !mem_issue_res_requires_head_w ||
       (rob_head_valid_w && (iq_issue0_rob_idx_w == rob_head_idx_w));
-  wire mem_issue1_res_admit_w =
-      !`OOO_CSR_QUEUE_HEAD ||
-      (rob_head_valid_w && (issue1_rob_idx_w == rob_head_idx_w));
+  // Lane1 reservation is only the plain-memory partner of an already
+  // classified pair; special/AMO memory is excluded before this point.
+  wire mem_issue1_res_admit_w = 1'b1;
   // In a capability-swapped pair, issue0 is a younger complex uop while
   // issue1 is its older independent ALU partner.  A younger memory may enter
   // the registered reservation only when that older ALU actually fires.
@@ -1223,6 +1265,7 @@ module OooIntBackend #(
   wire [1:0] mem_terminal_deq1_epoch_w;
   wire mem_terminal_deq1_ready_w;
   wire [11:0] mem_terminal_ingress_valid_w;
+  wire [11:0] mem_terminal_ingress_accept_w;
   wire [23:0] mem_terminal_ingress_kind_w;
   wire [59:0] mem_terminal_ingress_token_w;
   wire [23:0] mem_terminal_ingress_epoch_w;
@@ -1248,7 +1291,6 @@ module OooIntBackend #(
   wire sq_local_store_exception1_w;
   wire mem_issue_res_dual_local_consume_w;
   wire mem_issue1_res_dual_local_consume_w;
-  wire mem_rsp_waiting_for_wb_w;
   wire mem_sq_response_candidate_w;
   wire mem1_sq_response_candidate_w;
   wire mem_sq_response_grant_w;
@@ -2588,8 +2630,6 @@ module OooIntBackend #(
   // (声明前置到 can_fire 之前——B2 S2 修 can_fire↔req-mux slot 分派不同源潜伏 bug)
   wire issue0_mem_needs_excl_w = issue0_is_amo_w;
   wire issue1_mem_needs_excl_w = issue1_is_amo_w;
-  wire issue_block_w =
-      checkpoint_capture_i || checkpoint_quiesce_i;
   // rsp 归属 = MIQ 队头。LEGACY 头沿旧 mem_pending_q 语义; plain 头按 kind 分派。
   wire miq_head_load_w = miq_head_valid_w && (miq_head_kind_w == MIQ_KIND_LOAD);
   wire miq_head_probe_w = miq_head_valid_w && (miq_head_kind_w == MIQ_KIND_PROBE);
@@ -2782,7 +2822,8 @@ module OooIntBackend #(
   assign mem_sq_query_retry_ready_o = ENABLE_DUAL_MEM &&
       mem_sq_query_exact_w && !mem_retry0_valid_q &&
       !mem_sq_query_station_source_w &&
-      !flush_i && !checkpoint_restore_hold_w;
+      !flush_i && !checkpoint_restore_hold_w &&
+      !control_full_flush_barrier_w;
 
   assign mem1_sq_query_allow_o = ENABLE_DUAL_MEM &&
       mem1_sq_query_exact_w && sq_query1_allow_w;
@@ -2795,7 +2836,8 @@ module OooIntBackend #(
   assign mem1_sq_query_retry_ready_o = ENABLE_DUAL_MEM &&
       mem1_sq_query_exact_w && !mem_retry1_valid_q &&
       !mem1_sq_query_station_source_w &&
-      !flush_i && !checkpoint_restore_hold_w;
+      !flush_i && !checkpoint_restore_hold_w &&
+      !control_full_flush_barrier_w;
 
   assign mem_sq_retry0_capture_w = mem_sq_query_valid_i &&
       mem_sq_query_replay_o && mem_sq_query_retry_ready_o;
@@ -3320,6 +3362,7 @@ module OooIntBackend #(
   // closed physical STORE, and post-write AMO responses drain the bus into a
   // fatal poison state without normal WB/collector/death.
   assign mem_rsp_ready_o =
+      control_full_flush_barrier_w ? 1'b0 :
       !miq_head_valid_w ? 1'b1 :
       !mem_rsp_valid_i ? 1'b1 :
       !miq_pop_owner_match_w ? 1'b1 :
@@ -3328,6 +3371,7 @@ module OooIntBackend #(
       mem_legal_closed_response_w ? mem_response_terminal_credit_w :
       1'b0;
   assign mem1_rsp_ready_o =
+      control_full_flush_barrier_w ? 1'b0 :
       !ENABLE_DUAL_MEM ? 1'b1 :
       !miq1_head_valid_w ? 1'b1 :
       !mem1_rsp_valid_i ? 1'b1 :
@@ -3534,6 +3578,8 @@ module OooIntBackend #(
     older_r = 1'b0;
     overlap_r = 1'b0;
     contain_r = 1'b0;
+    entry_attr_admitted_r = 1'b0;
+    entry_io_r = 1'b0;
     delta_r = 3'd0;
     idx_r = {SQ_ENTRY_W{1'b0}};
     issue0_sq_fwd_hit_r = 1'b0;
@@ -3602,6 +3648,8 @@ module OooIntBackend #(
     older_r = 1'b0;
     overlap_r = 1'b0;
     contain_r = 1'b0;
+    entry_attr_admitted_r = 1'b0;
+    entry_io_r = 1'b0;
     delta_r = 3'd0;
     idx_r = {SQ_ENTRY_W{1'b0}};
     issue1_sq_fwd_hit_r = 1'b0;
@@ -3798,11 +3846,13 @@ module OooIntBackend #(
       !branch_resolve_mispredict_w && !issue_block_w;
 
   // F3 used active/station LOAD residency as an admission fence because only
-  // one retry holder existed.  F4 gives an exact current/next-head handoff:
-  // active and station capacity are therefore governed by their real request
-  // READY, while a resident retry owner remains the bank-local conservative
-  // fence.  If a queued next owner also replays, its current query simply
-  // waits until the retry holder drains; no second retry owner is created.
+  // one retry holder existed.  F4 preserves an exact current/next-head
+  // handoff for a clean load with no older SQ owner.  A load that does have an
+  // older nonterminal SQ owner is different: its final-PA query may replay.
+  // Do not admit that second replay-capable load while the selected bank
+  // already holds an active/station load, otherwise active + station + the
+  // single retry holder can form a finite-capacity wait cycle.  Retry
+  // residency remains an unconditional bank-local fence.
   wire mem_bridge_active_load_w = mem_owner_query_valid_i &&
       mem_owner_live_mask_w[mem_owner_query_token_i] &&
       (mem_owner_kind_table_w[mem_owner_query_token_i*2 +: 2] ==
@@ -3821,6 +3871,10 @@ module OooIntBackend #(
       mem_owner_live_mask_w[mem1_station_query_token_i] &&
       (mem_owner_kind_table_w[mem1_station_query_token_i*2 +: 2] ==
        MEM_OWNER_LOAD);
+  wire mem_bank0_load_replay_residency_w =
+      mem_bridge_active_load_w || mem_bridge_station_load_w;
+  wire mem_bank1_load_replay_residency_w =
+      mem1_bridge_active_load_w || mem1_bridge_station_load_w;
   wire mem_bank0_load_admission_block_w = mem_retry0_valid_q;
   wire mem_bank1_load_admission_block_w = mem_retry1_valid_q;
   wire issue1_dual_transport_candidate_w = ENABLE_DUAL_MEM &&
@@ -3843,12 +3897,18 @@ module OooIntBackend #(
   wire issue1_dual_bank1_w = issue1_mem_addr_w[3];
   wire issue0_dual_load_admission_block_w =
       issue0_is_load_w && !issue0_is_amo_w &&
-      (issue0_dual_bank1_w ? mem_bank1_load_admission_block_w :
-                            mem_bank0_load_admission_block_w);
+      (issue0_dual_bank1_w ?
+       (mem_bank1_load_admission_block_w ||
+        (issue0_sq_block_r && mem_bank1_load_replay_residency_w)) :
+       (mem_bank0_load_admission_block_w ||
+        (issue0_sq_block_r && mem_bank0_load_replay_residency_w)));
   wire issue1_dual_load_admission_block_w =
       issue1_is_load_w && !issue1_is_amo_w &&
-      (issue1_dual_bank1_w ? mem_bank1_load_admission_block_w :
-                            mem_bank0_load_admission_block_w);
+      (issue1_dual_bank1_w ?
+       (mem_bank1_load_admission_block_w ||
+        (issue1_sq_block_r && mem_bank1_load_replay_residency_w)) :
+       (mem_bank0_load_admission_block_w ||
+        (issue1_sq_block_r && mem_bank0_load_replay_residency_w)));
   // VALID must be backed by an actual bank-local MIQ slot.  In particular,
   // the LEGACY AMO singleton closes both slots; presenting an ordinary VALID
   // while can_fire is false would let the external bridge consume a request
@@ -5790,26 +5850,36 @@ module OooIntBackend #(
   wire branch_resolve_authorized_w =
       branch_resolve_candidate_valid_w && branch_resolve_rob_open_w &&
       branch_resolve_raw_ex0_coherent_w;
-  assign branch_resolve_valid_o = branch_resolve_authorized_w;
-  assign branch_resolve_pc_o = branch_resolve_authorized_w ?
+  // A C0 head0 control-event pregrant is older than every still-executing
+  // resolve packet.  It covers queue-head TRAP/CSR full flush and the exact
+  // pending-system CSR commit.  Preserve the raw request for assertions, but
+  // expose only the production apply after this edge-old age decision.  The
+  // pregrant does not read these outputs, so this remains cycle-free.
+  wire branch_resolve_production_w =
+      branch_resolve_authorized_w && !control_event_pregrant_w;
+  assign branch_resolve_valid_o = branch_resolve_production_w;
+  assign branch_resolve_pc_o = branch_resolve_production_w ?
                                branch_resolve_payload_pc_w : {`XLEN{1'b0}};
-  assign branch_resolve_next_pc_o = branch_resolve_authorized_w ?
+  assign branch_resolve_next_pc_o = branch_resolve_production_w ?
                                     branch_resolve_payload_next_pc_w :
                                     {`XLEN{1'b0}};
-  assign branch_resolve_misaligned_o = branch_resolve_authorized_w &&
+  assign branch_resolve_misaligned_o = branch_resolve_production_w &&
                                        branch_resolve_payload_misaligned_w;
-  assign branch_resolve_rob_idx_o = branch_resolve_authorized_w ?
+  assign branch_resolve_rob_idx_o = branch_resolve_production_w ?
                                     branch_resolve_payload_rob_idx_w :
                                     {ROB_INDEX_W{1'b0}};
-  assign branch_resolve_mispredict_w = branch_resolve_authorized_w &&
-                                       branch_resolve_payload_mispredict_w;
-  assign branch_resolve_is_branch_o = branch_resolve_authorized_w &&
+  assign branch_resolve_mispredict_request_w =
+      branch_resolve_authorized_w && branch_resolve_payload_mispredict_w;
+  assign branch_resolve_mispredict_w =
+      branch_resolve_mispredict_request_w &&
+      !control_event_pregrant_w;
+  assign branch_resolve_is_branch_o = branch_resolve_production_w &&
                                       branch_resolve_payload_is_branch_w;
-  assign branch_resolve_taken_o = branch_resolve_authorized_w &&
+  assign branch_resolve_taken_o = branch_resolve_production_w &&
                                   branch_resolve_payload_taken_w;
-  assign branch_resolve_pred_taken_o = branch_resolve_authorized_w &&
+  assign branch_resolve_pred_taken_o = branch_resolve_production_w &&
                                        branch_resolve_payload_pred_taken_w;
-  assign branch_resolve_bht_idx_o = branch_resolve_authorized_w ?
+  assign branch_resolve_bht_idx_o = branch_resolve_production_w ?
                                     branch_resolve_payload_bht_idx_w :
                                     {`BPU_BHT_INDEX_W{1'b0}};
 `ifdef OOO_ASSERT
@@ -5841,12 +5911,20 @@ module OooIntBackend #(
       $error("[V8J-BRANCH-STALE-SILENT] unauthorized candidate exposed semantics @%0t",
              $time);
     end
-    if (branch_resolve_authorized_w &&
+    if (branch_resolve_production_w &&
         (branch_resolve_rob_idx_o !=
          branch_resolve_payload_producer_id_w[ROB_INDEX_W-1:0])) begin
       $error("[V8J-BRANCH-PID-PROJECTION] raw boundary is not P.index @%0t",
              $time);
     end
+    if (control_event_pregrant_w &&
+        (branch_resolve_valid_o || branch_resolve_mispredict_w ||
+         branch_resolve_is_branch_o || branch_resolve_taken_o ||
+         branch_resolve_pred_taken_o || (|branch_resolve_pc_o) ||
+         (|branch_resolve_next_pc_o) || (|branch_resolve_rob_idx_o) ||
+         (|branch_resolve_bht_idx_o)))
+      $error("[V9O-BRANCH-C0] younger resolve escaped head0 control-event pregrant @%0t",
+             $time);
     if (!rst && branch_resolve_stage_valid_w &&
         (flush_i || checkpoint_restore_hold_w) &&
         (branch_resolve_valid_o || (|branch_resolve_pc_o) ||
@@ -5926,6 +6004,7 @@ module OooIntBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i || checkpoint_restore_apply_w),
+    .control_full_flush_barrier_i(control_full_flush_barrier_w),
     .frm_i(frm_i),
     .kill_valid_i(branch_resolve_mispredict_w),
     .kill_rob_idx_i(branch_resolve_rob_idx_o),
@@ -6596,6 +6675,31 @@ module OooIntBackend #(
       mem_terminal_ingress6_mask_w | mem_terminal_ingress7_mask_w |
       mem_terminal_ingress8_mask_w | mem_terminal_ingress9_mask_w |
       mem_terminal_ingress10_mask_w | mem_terminal_ingress11_mask_w;
+  wire [31:0] mem_terminal_accept_mask_w =
+      ({32{mem_terminal_ingress_accept_w[0]}} &
+       mem_terminal_ingress0_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[1]}} &
+       mem_terminal_ingress1_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[2]}} &
+       mem_terminal_ingress2_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[3]}} &
+       mem_terminal_ingress3_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[4]}} &
+       mem_terminal_ingress4_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[5]}} &
+       mem_terminal_ingress5_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[6]}} &
+       mem_terminal_ingress6_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[7]}} &
+       mem_terminal_ingress7_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[8]}} &
+       mem_terminal_ingress8_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[9]}} &
+       mem_terminal_ingress9_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[10]}} &
+       mem_terminal_ingress10_mask_w) |
+      ({32{mem_terminal_ingress_accept_w[11]}} &
+       mem_terminal_ingress11_mask_w);
 
   wire [31:0] mem_issue_res_owner_mask_w = mem_issue_res_valid_q ?
       (32'b1 << mem_issue_res_owner_token_q) : 32'b0;
@@ -6675,6 +6779,7 @@ module OooIntBackend #(
     .live_mask_i(mem_owner_live_mask_w),
     .live_kind_table_i(mem_owner_kind_table_w),
     .live_epoch_table_i(mem_owner_epoch_table_w),
+    .ingress_accept_o(mem_terminal_ingress_accept_w),
     .deq0_valid_o(mem_terminal_deq0_valid_w),
     .deq0_kind_o(mem_terminal_deq0_kind_w),
     .deq0_token_o(mem_terminal_deq0_token_w),
@@ -6813,11 +6918,13 @@ module OooIntBackend #(
     .release0_valid_i(lq_release0_valid_w),
     .release0_producer_id_i(rob_commit0_producer_id_w),
     .release0_commit_i(lq_release0_commit_w),
+    .release0_q_ready_o(lq_release0_q_ready_w),
     .release0_ready_o(lq_release0_ready_w),
     .release0_fire_o(lq_release0_fire_w),
     .release1_valid_i(lq_release1_valid_w),
     .release1_producer_id_i(rob_commit1_producer_id_w),
     .release1_commit_i(lq_release1_commit_w),
+    .release1_q_ready_o(lq_release1_q_ready_w),
     .release1_ready_o(lq_release1_ready_w),
     .release1_fire_o(lq_release1_fire_w),
     .producer_live_mask_o(lq_producer_live_mask_w),
@@ -6983,23 +7090,11 @@ module OooIntBackend #(
     end
   end
 
-`ifdef OOO_ASSERT
-  wire [2:0] mem_req_grant_count_w =
-      {2'b00, grant_sq_w} + {2'b00, grant_amo_write_w} +
-      {2'b00, grant_buffer_w} + {2'b00, grant_retry0_w} +
-      {2'b00, grant_issue0_w} +
-      {2'b00, grant_issue1_w};
-  wire [1:0] mem1_req_grant_count_w =
-      {1'b0, grant_retry1_w} + {1'b0, grant_mem1_issue0_w} +
-      {1'b0, grant_mem1_issue1_w};
-  // v8l independent holder reference.  This assertion-only view scans raw Q
-  // valids/tokens and deliberately does not reuse the production
-  // producer_live_mask_w construction.  It therefore catches an omitted
-  // direct holder as well as a token-indirect holder detached from the memory
-  // tracker.
+  // This holder census and the reduced terminalized-owner predicate are
+  // production control logic.  They intentionally remain present when
+  // OOO_ASSERT is disabled for release simulation or synthesis.
   reg [31:0] v8l_sq_owner_token_mask_r;
   integer v8l_sq_mask_i;
-  integer v8l_assert_i;
   always @(*) begin
     v8l_sq_owner_token_mask_r = 32'b0;
     for (v8l_sq_mask_i = 0; v8l_sq_mask_i < SQ_ENTRY_N;
@@ -7021,6 +7116,126 @@ module OooIntBackend #(
       (32'b1 << mem_retry1_owner_token_q) : 32'b0;
   wire [31:0] v8l_mem_pending_token_mask_w = mem_pending_q ?
       (32'b1 << mem_owner_token_q) : 32'b0;
+  wire [31:0] v9y_mem_birth_token_mask_w =
+      (mem_issue_res_capture_w ?
+       (32'b1 << mem_owner_alloc0_token_w) : 32'b0) |
+      (mem_issue1_res_capture_w ?
+       (32'b1 << mem_owner_alloc1_token_w) : 32'b0);
+  // Active authority is kept local to the LSU.  The control plane receives
+  // only the reduced scalar below, avoiding a 32-bit token bus in the global
+  // drain cone.
+  wire [31:0] v9y_active_holder_mask_w =
+      miq_occupancy_token_mask_w | miq1_occupancy_token_mask_w |
+      mem_bridge_owner_residency_mask_i |
+      mem1_bridge_owner_residency_mask_i |
+      v8l_mem_res_token_mask_w | v8l_mem1_res_token_mask_w |
+      v8l_mem_buffer_token_mask_w |
+      v8l_mem_retry0_token_mask_w | v8l_mem_retry1_token_mask_w |
+      v8l_mem_pending_token_mask_w |
+      v8l_sq_owner_token_mask_r |
+      mem_req_fire_owner_mask_w | mem1_req_fire_owner_mask_w |
+      v9y_mem_birth_token_mask_w;
+  // Only collector-accepted ingress proves a same-edge handoff.  Raw ingress
+  // with a mismatched tuple, duplicate token, pending collision, or same-edge
+  // dequeue/re-enqueue remains an active unterminated holder.
+  wire [31:0] v9y_terminal_transfer_mask_w =
+      mem_terminal_accept_mask_w | sq_owner_release_effective_mask_w;
+  wire [31:0] v9y_unterminalized_holder_mask_w =
+      v9y_active_holder_mask_w & ~v9y_terminal_transfer_mask_w;
+  wire [31:0] v9y_terminal_without_holder_mask_w =
+      v9y_terminal_transfer_mask_w & ~v9y_active_holder_mask_w;
+  wire [31:0] v9y_unaccounted_live_mask_w =
+      mem_owner_live_mask_w &
+      ~(v9y_active_holder_mask_w |
+        mem_terminal_pending_mask_w |
+        v9y_terminal_transfer_mask_w);
+  wire [31:0] v9y_pending_without_live_mask_w =
+      mem_terminal_pending_mask_w & ~mem_owner_live_mask_w;
+  assign mem_owner_terminalized_o =
+      (v9y_unterminalized_holder_mask_w == 32'b0) &&
+      (v9y_terminal_without_holder_mask_w == 32'b0) &&
+      (v9y_unaccounted_live_mask_w == 32'b0) &&
+      (v9y_pending_without_live_mask_w == 32'b0);
+
+`ifdef OOO_ASSERT
+  wire [2:0] mem_req_grant_count_w =
+      {2'b00, grant_sq_w} + {2'b00, grant_amo_write_w} +
+      {2'b00, grant_buffer_w} + {2'b00, grant_retry0_w} +
+      {2'b00, grant_issue0_w} +
+      {2'b00, grant_issue1_w};
+  wire [1:0] mem1_req_grant_count_w =
+      {1'b0, grant_retry1_w} + {1'b0, grant_mem1_issue0_w} +
+      {1'b0, grant_mem1_issue1_w};
+  // v8l independent holder reference.  This assertion-only view scans raw Q
+  // valids/tokens and deliberately does not reuse the production
+  // producer_live_mask_w construction.  It therefore catches an omitted
+  // direct holder as well as a token-indirect holder detached from the memory
+  // tracker.
+`ifdef OOO_TERMINAL_HOLDER_ASSERT
+  wire [31:0] v9q_bridge0_active_token_mask_w =
+      mem_owner_query_valid_i ?
+      (32'b1 << mem_owner_query_token_i) : 32'b0;
+  wire [31:0] v9q_bridge0_station_token_mask_w =
+      mem_station_query_valid_i ?
+      (32'b1 << mem_station_query_token_i) : 32'b0;
+  wire [31:0] v9q_bridge1_active_token_mask_w =
+      mem1_owner_query_valid_i ?
+      (32'b1 << mem1_owner_query_token_i) : 32'b0;
+  wire [31:0] v9q_bridge1_station_token_mask_w =
+      mem1_station_query_valid_i ?
+      (32'b1 << mem1_station_query_token_i) : 32'b0;
+  wire [31:0] v9q_bridge0_token_mask_w =
+      v9q_bridge0_active_token_mask_w |
+      v9q_bridge0_station_token_mask_w;
+  wire [31:0] v9q_bridge1_token_mask_w =
+      v9q_bridge1_active_token_mask_w |
+      v9q_bridge1_station_token_mask_w;
+  wire [31:0] v9q_bridge_pair_overlap_mask_w =
+      (v9q_bridge0_active_token_mask_w &
+       v9q_bridge0_station_token_mask_w) |
+      (v9q_bridge1_active_token_mask_w &
+       v9q_bridge1_station_token_mask_w) |
+      (v9q_bridge0_token_mask_w & v9q_bridge1_token_mask_w);
+  wire [31:0] v9q_transient_holder_duplicate_mask_w =
+      (mem_issue_res_owner_mask_w &
+       (mem_issue1_res_owner_mask_w | mem_buffer_owner_mask_w |
+        mem_retry0_owner_mask_w | mem_retry1_owner_mask_w)) |
+      (mem_issue1_res_owner_mask_w &
+       (mem_buffer_owner_mask_w | mem_retry0_owner_mask_w |
+        mem_retry1_owner_mask_w)) |
+      (mem_buffer_owner_mask_w &
+       (mem_retry0_owner_mask_w | mem_retry1_owner_mask_w)) |
+      (mem_retry0_owner_mask_w & mem_retry1_owner_mask_w);
+  wire [31:0] v9q_transient_bridge_overlap_mask_w =
+      (mem_issue_res_owner_mask_w | mem_issue1_res_owner_mask_w |
+       mem_buffer_owner_mask_w | mem_retry0_owner_mask_w |
+       mem_retry1_owner_mask_w) &
+      (v9q_bridge0_token_mask_w | v9q_bridge1_token_mask_w);
+`endif
+  integer v8l_assert_i;
+  reg [31:0] v9y_terminal_transfer_shadow_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      v9y_terminal_transfer_shadow_q <= 32'b0;
+    end else begin
+      // A token transferred last edge cannot remain in any active holder.
+      // Tracker live and collector pending are intentionally allowed.
+      if ((v9y_terminal_transfer_shadow_q &
+           v9y_active_holder_mask_w) != 32'b0) begin
+        $display("[V9Y-HOLDER-TERMINAL-NEXT] transfer_q=%h active=%h @%0t",
+                 v9y_terminal_transfer_shadow_q,
+                 v9y_active_holder_mask_w, $time);
+        $fatal;
+      end
+      if (v9y_pending_without_live_mask_w != 32'b0) begin
+        $display("[V9Y-PENDING-LIVE-BIND] pending=%h live=%h missing=%h @%0t",
+                 mem_terminal_pending_mask_w, mem_owner_live_mask_w,
+                 v9y_pending_without_live_mask_w, $time);
+        $fatal;
+      end
+      v9y_terminal_transfer_shadow_q <= v9y_terminal_transfer_mask_w;
+    end
+  end
   wire [31:0] v8l_indirect_resident_mask_w =
       miq_occupancy_token_mask_w | miq1_occupancy_token_mask_w |
       mem_bridge_owner_residency_mask_i |
@@ -7153,6 +7368,41 @@ module OooIntBackend #(
                  v8l_indirect_resident_mask_w, mem_owner_live_mask_w, $time);
         $fatal;
       end
+`ifdef OOO_TERMINAL_HOLDER_ASSERT
+      if (v9q_bridge_pair_overlap_mask_w != 32'b0) begin
+        $display("[V9Q-BRIDGE-HOLDER-DISJOINT] overlap=%h b0_active=%b/%0d b0_station=%b/%0d b1_active=%b/%0d b1_station=%b/%0d @%0t",
+                 v9q_bridge_pair_overlap_mask_w,
+                 mem_owner_query_valid_i, mem_owner_query_token_i,
+                 mem_station_query_valid_i, mem_station_query_token_i,
+                 mem1_owner_query_valid_i, mem1_owner_query_token_i,
+                 mem1_station_query_valid_i, mem1_station_query_token_i,
+                 $time);
+        $fatal;
+      end
+      if (v9q_transient_holder_duplicate_mask_w != 32'b0) begin
+        $display("[V9Q-TRANSIENT-HOLDER-DISJOINT] overlap=%h res0=%b/%0d res1=%b/%0d buffer=%b/%0d retry0=%b/%0d retry1=%b/%0d @%0t",
+                 v9q_transient_holder_duplicate_mask_w,
+                 mem_issue_res_valid_q, mem_issue_res_owner_token_q,
+                 mem_issue1_res_valid_q, mem_issue1_res_owner_token_q,
+                 mem_buffer_valid_q, mem_buffer_owner_token_q,
+                 mem_retry0_valid_q, mem_retry0_owner_token_q,
+                 mem_retry1_valid_q, mem_retry1_owner_token_q,
+                 $time);
+        $fatal;
+      end
+      if (v9q_transient_bridge_overlap_mask_w != 32'b0) begin
+        $display("[V9Q-TRANSIENT-BRIDGE-DISJOINT] overlap=%h res0=%b/%0d res1=%b/%0d buffer=%b/%0d retry0=%b/%0d retry1=%b/%0d bridge0=%h bridge1=%h @%0t",
+                 v9q_transient_bridge_overlap_mask_w,
+                 mem_issue_res_valid_q, mem_issue_res_owner_token_q,
+                 mem_issue1_res_valid_q, mem_issue1_res_owner_token_q,
+                 mem_buffer_valid_q, mem_buffer_owner_token_q,
+                 mem_retry0_valid_q, mem_retry0_owner_token_q,
+                 mem_retry1_valid_q, mem_retry1_owner_token_q,
+                 v9q_bridge0_token_mask_w, v9q_bridge1_token_mask_w,
+                 $time);
+        $fatal;
+      end
+`endif
       if ((mem_owner_producer_live_mask_w & ~producer_live_mask_w) !=
           {(1 << PRODUCER_ID_W){1'b0}}) begin
         $display("[V8L-MEM-LEASE-UNION] tracker ProducerId missing from complete mask @%0t",
@@ -7474,11 +7724,11 @@ module OooIntBackend #(
                  $time);
         $fatal;
       end
-      // F4 may already have a distinct younger load resident in the same
-      // bridge when the active owner transfers into the retry holder.  That
-      // resident owner may wait or complete normally; the admission fence
-      // below still blocks any additional load.  What remains illegal is a
-      // duplicate copy of the exact retry token in active/station residency.
+      // A distinct younger load may already be resident when an edge-old
+      // active owner transfers into retry.  Identity disjointness remains
+      // required, but does not by itself prove progress.  The candidate-side
+      // replay-capacity fence below prevents creation of this state when the
+      // younger load is known to have an older nonterminal SQ owner.
       if ((mem_retry0_valid_q &&
            ((mem_bridge_active_load_w &&
              (mem_owner_query_token_i == mem_retry0_owner_token_q)) ||
@@ -7493,9 +7743,32 @@ module OooIntBackend #(
                  $time);
         $fatal;
       end
+      if (ENABLE_DUAL_MEM &&
+          ((issue0_dual_ordinary_admitted_w && issue0_is_load_w &&
+            issue0_sq_block_r &&
+            (issue0_dual_bank1_w ? mem_bank1_load_replay_residency_w :
+                                   mem_bank0_load_replay_residency_w)) ||
+           (issue1_dual_ordinary_admitted_w && issue1_is_load_w &&
+            issue1_sq_block_r &&
+            (issue1_dual_bank1_w ? mem_bank1_load_replay_residency_w :
+                                   mem_bank0_load_replay_residency_w)))) begin
+        $display("[V9P-REPLAY-CAPACITY-ADMISSION] load with older SQ owner crossed same-bank active/station fence @%0t",
+                 $time);
+        $fatal;
+      end
+      if (control_full_flush_barrier_w &&
+          (mem_sq_query_retry_ready_o ||
+           mem1_sq_query_retry_ready_o ||
+           mem_sq_retry0_capture_w ||
+           mem_sq_retry1_capture_w)) begin
+        $display("[V9R-SQ-RETRY-C0-HANDOFF] retry holder transfer exposed during full-flush barrier @%0t",
+                 $time);
+        $fatal;
+      end
       if (mem_sq_query_exact_w && !mem_sq_query_station_source_w &&
           !mem_retry0_valid_q &&
           !flush_i && !checkpoint_restore_apply_w &&
+          !control_full_flush_barrier_w &&
           !mem_sq_query_retry_ready_o) begin
         $display("[V8T-RETRY0-CREDIT-PROGRESS] empty exact retry slot withheld credit @%0t",
                  $time);
@@ -7504,6 +7777,7 @@ module OooIntBackend #(
       if (mem1_sq_query_exact_w && !mem1_sq_query_station_source_w &&
           !mem_retry1_valid_q &&
           !flush_i && !checkpoint_restore_apply_w &&
+          !control_full_flush_barrier_w &&
           !mem1_sq_query_retry_ready_o) begin
         $display("[V8T-RETRY1-CREDIT-PROGRESS] empty exact retry slot withheld credit @%0t",
                  $time);
@@ -7551,6 +7825,15 @@ module OooIntBackend #(
           (mem_req_addr_o[3] == mem1_req_addr_o[3]))
         $error("[V8S-SAME-BANK-DUAL-FIRE] two requests fired into one captured bank @%0t",
                $time);
+`ifdef OOO_TERMINAL_HOLDER_ASSERT
+      if (mem_req_fire_any_w && mem1_req_fire_any_w &&
+          (mem_req_owner_token_o == mem1_req_owner_token_o)) begin
+        $display("[V9Q-DUAL-REQ-TOKEN-DISJOINT] bank0_token=%0d bank1_token=%0d bank0_kind=%b bank1_kind=%b @%0t",
+                 mem_req_owner_token_o, mem1_req_owner_token_o,
+                 mem_req_owner_kind_o, mem1_req_owner_kind_o, $time);
+        $fatal;
+      end
+`endif
       if (sq_drain_req_fire_w &&
           (mem_buffer_req_fire_w || mem_retry0_req_fire_w ||
            mem_retry1_req_fire_w || issue0_mem_request_fire_w ||

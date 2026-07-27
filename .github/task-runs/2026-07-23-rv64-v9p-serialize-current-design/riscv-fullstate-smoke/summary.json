@@ -1,0 +1,70 @@
+{
+  "attempted": 4,
+  "binding_stable": true,
+  "configuration": "OOO_CSR_QUEUE_HEAD=1",
+  "failed": 0,
+  "passed": 4,
+  "records": [
+    {
+      "difftest_mismatch": false,
+      "elf_sha256": "e2c548994227c5ea32619b4ff2b651b7d0fabd5f23d16d437642fdf36a1ecbc3",
+      "image_sha256": "9c7d6cc124913e65ffd3ccdedfbb9edd53f982c4256857fdf8b8f0164ecbd9c9",
+      "log": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/riscv-fullstate-smoke/logs/rv64mi-p-csr.log",
+      "passed": true,
+      "return_code": 0,
+      "target": "rv64mi-p-csr",
+      "terminal_pass": true,
+      "tohost": "0x0000000080001000",
+      "variant": "p"
+    },
+    {
+      "difftest_mismatch": false,
+      "elf_sha256": "7ab25f7dda2ec5cdbf6638352c3b3c25a566b8ef4e7919a51abf733eecd6f851",
+      "image_sha256": "ce0050d6d84975c8f3ec8cc9a366582c8ae52567359e03cfb8785ba640b94b3b",
+      "log": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/riscv-fullstate-smoke/logs/rv64si-p-csr.log",
+      "passed": true,
+      "return_code": 0,
+      "target": "rv64si-p-csr",
+      "terminal_pass": true,
+      "tohost": "0x0000000080001000",
+      "variant": "p"
+    },
+    {
+      "difftest_mismatch": false,
+      "elf_sha256": "9d4534c7b9cdcddd0e3dd3febdaafcdf238d751fe07eb9de40a9e130e56b8a30",
+      "image_sha256": "b8710e1f13eb1c636813f822217fe45ebea656ff2c363badce348a34db8762c9",
+      "log": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/riscv-fullstate-smoke/logs/rv64si-p-dirty.log",
+      "passed": true,
+      "return_code": 0,
+      "target": "rv64si-p-dirty",
+      "terminal_pass": true,
+      "tohost": "0x0000000080001000",
+      "variant": "p"
+    },
+    {
+      "difftest_mismatch": false,
+      "elf_sha256": "a920effe6c909ed0b44202630b271289402a1da39911282ba745fbb1a77f30d1",
+      "image_sha256": "4fc5e0db61d800de704ebd073f13a09ddd14f60096bf5cb64097eff1c7c9ac52",
+      "log": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/riscv-fullstate-smoke/logs/rv64ui-v-fence_i.log",
+      "passed": true,
+      "return_code": 0,
+      "target": "rv64ui-v-fence_i",
+      "terminal_pass": true,
+      "tohost": "0x0000000080001000",
+      "variant": "v"
+    }
+  ],
+  "reference": "nemu/build/riscv64-nemu-interpreter-so",
+  "reference_sha256": "ad891c0e8a878381d84f8620c207f55fbd98f3fc5b15508f394be5b3244f7f94",
+  "required": 4,
+  "result": "PASS",
+  "rtl_design_id": "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
+  "schema": "ysyx.rv64.serialize-fullstate.v1",
+  "scope": "smoke",
+  "simulator": "npc/rv64/build-csrqh/NpcSimTop",
+  "simulator_sha256": "779ef4c769efe2c34453a93d4a1430fc98a5f1c8cd0057a1e4fcc837e7f1bcce",
+  "variants": {
+    "p": 3,
+    "v": 1
+  }
+}

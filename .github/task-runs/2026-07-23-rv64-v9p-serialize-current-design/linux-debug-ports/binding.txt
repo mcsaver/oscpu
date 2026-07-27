@@ -1,0 +1,7 @@
+rtl_design_id=sha256:bd8addf1208eefd0dce13662fbc3eb30c7e98e628f6ce1cde80039f2c600d608
+simulator_sha256=8c3d7796eeba5fb4641f31cec284107fec721ca10a3fa7e4cdc9e5c6b2d94c67
+OOO_CSR_QUEUE_HEAD=1
+CONFIG_NPC_DEBUG_PORTS=y
+CONFIG_NPC_SIM_STATS=n
+max_cycles=300000000
+sim_rc=1

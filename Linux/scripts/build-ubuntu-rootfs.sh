@@ -31,6 +31,7 @@ ROOTFS_SERIAL_MASK_TTYS=${UBUNTU_ROOTFS_SERIAL_MASK_TTYS:-hvc0}
 ROOTFS_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_NPC_CONSOLE_SHELL:-0}
 ROOTFS_NPC_TTY_READER=${UBUNTU_ROOTFS_NPC_TTY_READER:-0}
 ROOTFS_NPC_TTY_READER_MODE=${UBUNTU_ROOTFS_NPC_TTY_READER_MODE:-line}
+ROOTFS_NPC_STRICT_AUTORUN=${UBUNTU_ROOTFS_NPC_STRICT_AUTORUN:-0}
 ROOTFS_NPC_LOGIN_MARKER=${UBUNTU_ROOTFS_NPC_LOGIN_MARKER:-0}
 ROOTFS_NPC_LOGIN_TRACE=${UBUNTU_ROOTFS_NPC_LOGIN_TRACE:-0}
 ROOTFS_NPC_GENERATOR_TRACE=${UBUNTU_ROOTFS_NPC_GENERATOR_TRACE:-0}
@@ -51,6 +52,7 @@ ROOTFS_PROBE_BIN=${UBUNTU_ROOTFS_PROBE_BIN:-"$WORK/ysyx-rootfs-probe"}
 ROOTFS_PROBE_ENABLE=${UBUNTU_ROOTFS_PROBE:-0}
 ROOTFS_NPC_TTY_PROBE_SRC=${UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC:-"$LINUX_HOME/tools/ysyx-npc-tty-probe.c"}
 ROOTFS_NPC_TTY_PROBE_BIN=${UBUNTU_ROOTFS_NPC_TTY_PROBE_BIN:-"$WORK/ysyx-npc-tty-probe"}
+ROOTFS_NPC_STRICT_CHECK_SRC=${UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC:-"$SCRIPT_DIR/npc-systemd-strict-check.sh"}
 ROOTFS_NPC_GENERATOR_SKIP_SRC=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC:-"$LINUX_HOME/tools/ysyx-npc-generator-skip.c"}
 ROOTFS_NPC_GENERATOR_SKIP_BIN=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_BIN:-"$WORK/ysyx-npc-generator-skip"}
 LOCAL_LINUX_PREFIX="$ENV_ROOT/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-"
@@ -705,18 +707,25 @@ exec /bin/bash --noprofile --norc -i
 EOF
   chmod 0755 "$dir/usr/local/sbin/ysyx-npc-console-shell"
 
+  if [ ! -f "$ROOTFS_NPC_STRICT_CHECK_SRC" ]; then
+    echo "[ubuntu-rootfs] missing NPC strict guest check: $ROOTFS_NPC_STRICT_CHECK_SRC" >&2
+    exit 1
+  fi
+  cp "$ROOTFS_NPC_STRICT_CHECK_SRC" "$dir/usr/local/sbin/ysyx-npc-systemd-strict-check"
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-systemd-strict-check"
+
   cat > "$dir/usr/local/sbin/ysyx-npc-systemd-autocheck" <<'EOF'
 #!/bin/sh
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
-echo __NPC_SYSTEMD_CHECK_BEGIN__
+echo __NPC_SYSTEMD_AUTOCHECK_BEGIN__
 check_fail=0
-pass() { echo "__NPC_CHECK_PASS__:$1"; }
-fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+pass() { echo "__NPC_AUTOCHECK_PASS__:$1"; }
+fail() { echo "__NPC_AUTOCHECK_FAIL__:$1"; check_fail=1; }
 
 uname_arch="$(uname -m 2>/dev/null || true)"
-echo "__NPC_CHECK_UNAME__:$uname_arch"
+echo "__NPC_AUTOCHECK_UNAME__:$uname_arch"
 [ "$uname_arch" = "riscv64" ] && pass uname-riscv64 || fail uname-riscv64
 
 os_name=0
@@ -747,7 +756,7 @@ if [ "$pid1_comm" = "systemd" ] && [ -d /run/systemd/system ]; then
 else
   systemd_state="pid1-${pid1_comm:-unknown}"
 fi
-echo "__NPC_CHECK_SYSTEMD_STATE__:$systemd_state"
+echo "__NPC_AUTOCHECK_SYSTEMD_STATE__:$systemd_state"
 case "$systemd_state" in
   pid1-systemd|running|degraded|starting|initializing) pass systemd-state ;;
   *) fail systemd-state ;;
@@ -916,10 +925,10 @@ for candidate in /lib/systemd/systemd /usr/lib/systemd/systemd /sbin/init /usr/s
   fi
 done
 
-echo __NPC_SYSTEMD_CHECK_BEGIN__
+echo __NPC_SYSTEMD_PREFLIGHT_BEGIN__
 check_fail=0
-pass() { echo "__NPC_CHECK_PASS__:$1"; }
-fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+pass() { echo "__NPC_PREFLIGHT_PASS__:$1"; }
+fail() { echo "__NPC_PREFLIGHT_FAIL__:$1"; check_fail=1; }
 
 os_name=0
 os_version=0
@@ -936,9 +945,9 @@ fi
 [ -x /bin/bash ] && pass bin-bash || fail bin-bash
 [ -n "$systemd_bin" ] && pass systemd-binary || fail systemd-binary
 [ -x /usr/local/sbin/ysyx-npc-systemd-autocheck ] && pass systemd-autocheck-script || fail systemd-autocheck-script
-echo "__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd"
+echo "__NPC_PREFLIGHT_SYSTEMD_STATE__:wrapper-pre-systemd"
 pass systemd-wrapper-preflight
-echo "__NPC_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+echo "__NPC_SYSTEMD_PREFLIGHT_DONE__ rc=$check_fail"
 
 if [ -n "$systemd_bin" ]; then
   echo "[ysyx-npc-systemd-wrapper] console prompt marker"
@@ -976,6 +985,35 @@ TimeoutStartSec=0
 WantedBy=sysinit.target
 EOF
   ln -sfn ../ysyx-npc-systemd-autocheck.service "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-autocheck.service"
+
+  cat > "$dir/etc/systemd/system/ysyx-npc-systemd-strict.service" <<'EOF'
+[Unit]
+Description=YSYX NPC strict rootfs validation and natural poweroff
+DefaultDependencies=no
+After=ysyx-npc-systemd-autocheck.service
+Before=sysinit.target
+ConditionPathExists=/usr/local/sbin/ysyx-npc-systemd-strict-check
+
+[Service]
+Type=oneshot
+StandardInput=null
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-systemd-strict-check --stage strict --poweroff
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  if [ "$ROOTFS_NPC_STRICT_AUTORUN" = "1" ]; then
+    ln -sfn ../ysyx-npc-systemd-strict.service "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service"
+  else
+    rm -f "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service"
+  fi
 
   cat > "$dir/etc/systemd/system/ysyx-npc-tty-reader.service" <<'EOF'
 [Unit]
@@ -1116,7 +1154,7 @@ build_with_sudo_debootstrap() {
   "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_login_marker); ROOTFS_NEMU_LOGIN_MARKER='$ROOTFS_NEMU_LOGIN_MARKER' install_nemu_login_marker '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_boot_profile); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' install_npc_login_boot_profile '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_systemd_masks); install_nemu_systemd_masks '$ROOTFS'"
-  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_console_shell); ROOTFS_NPC_CONSOLE_SHELL='$ROOTFS_NPC_CONSOLE_SHELL' ROOTFS_NPC_TTY_READER='$ROOTFS_NPC_TTY_READER' ROOTFS_NPC_TTY_READER_MODE='$ROOTFS_NPC_TTY_READER_MODE' ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS' install_npc_console_shell '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_console_shell); ROOTFS_NPC_CONSOLE_SHELL='$ROOTFS_NPC_CONSOLE_SHELL' ROOTFS_NPC_TTY_READER='$ROOTFS_NPC_TTY_READER' ROOTFS_NPC_TTY_READER_MODE='$ROOTFS_NPC_TTY_READER_MODE' ROOTFS_NPC_STRICT_AUTORUN='$ROOTFS_NPC_STRICT_AUTORUN' ROOTFS_NPC_STRICT_CHECK_SRC='$ROOTFS_NPC_STRICT_CHECK_SRC' ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS' install_npc_console_shell '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_full_runtime_defaults); install_full_runtime_defaults '$ROOTFS' '$ROOTFS_FLAVOR'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_generator_trace); ROOTFS_NPC_GENERATOR_TRACE='$ROOTFS_NPC_GENERATOR_TRACE' ROOTFS_NPC_GENERATOR_SKIP='$ROOTFS_NPC_GENERATOR_SKIP' ROOTFS_NPC_GENERATOR_SKIP_MODE='$ROOTFS_NPC_GENERATOR_SKIP_MODE' ROOTFS_NPC_GENERATOR_REAL_MODE='$ROOTFS_NPC_GENERATOR_REAL_MODE' ROOTFS_NPC_GENERATOR_SKIP_BIN='$ROOTFS_NPC_GENERATOR_SKIP_BIN' install_npc_generator_trace '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c '
@@ -1597,18 +1635,25 @@ echo __NPC_CONSOLE_SHELL_READY__
 exec /bin/bash --noprofile --norc -i
 EOF
   chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-console-shell"
+  if [ ! -f "$ROOTFS_NPC_STRICT_CHECK_SRC" ]; then
+    echo "[ubuntu-rootfs] missing NPC strict guest check: $ROOTFS_NPC_STRICT_CHECK_SRC" >&2
+    exit 1
+  fi
+  cp "$ROOTFS_NPC_STRICT_CHECK_SRC" "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-strict-check"
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-strict-check"
+
   cat > "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-autocheck" <<'EOF'
 #!/bin/sh
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
-echo __NPC_SYSTEMD_CHECK_BEGIN__
+echo __NPC_SYSTEMD_AUTOCHECK_BEGIN__
 check_fail=0
-pass() { echo "__NPC_CHECK_PASS__:$1"; }
-fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+pass() { echo "__NPC_AUTOCHECK_PASS__:$1"; }
+fail() { echo "__NPC_AUTOCHECK_FAIL__:$1"; check_fail=1; }
 
 uname_arch="$(uname -m 2>/dev/null || true)"
-echo "__NPC_CHECK_UNAME__:$uname_arch"
+echo "__NPC_AUTOCHECK_UNAME__:$uname_arch"
 [ "$uname_arch" = "riscv64" ] && pass uname-riscv64 || fail uname-riscv64
 
 os_name=0
@@ -1639,7 +1684,7 @@ if [ "$pid1_comm" = "systemd" ] && [ -d /run/systemd/system ]; then
 else
   systemd_state="pid1-${pid1_comm:-unknown}"
 fi
-echo "__NPC_CHECK_SYSTEMD_STATE__:$systemd_state"
+echo "__NPC_AUTOCHECK_SYSTEMD_STATE__:$systemd_state"
 case "$systemd_state" in
   pid1-systemd|running|degraded|starting|initializing) pass systemd-state ;;
   *) fail systemd-state ;;
@@ -1806,10 +1851,10 @@ for candidate in /lib/systemd/systemd /usr/lib/systemd/systemd /sbin/init /usr/s
   fi
 done
 
-echo __NPC_SYSTEMD_CHECK_BEGIN__
+echo __NPC_SYSTEMD_PREFLIGHT_BEGIN__
 check_fail=0
-pass() { echo "__NPC_CHECK_PASS__:$1"; }
-fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+pass() { echo "__NPC_PREFLIGHT_PASS__:$1"; }
+fail() { echo "__NPC_PREFLIGHT_FAIL__:$1"; check_fail=1; }
 
 os_name=0
 os_version=0
@@ -1826,9 +1871,9 @@ fi
 [ -x /bin/bash ] && pass bin-bash || fail bin-bash
 [ -n "$systemd_bin" ] && pass systemd-binary || fail systemd-binary
 [ -x /usr/local/sbin/ysyx-npc-systemd-autocheck ] && pass systemd-autocheck-script || fail systemd-autocheck-script
-echo "__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd"
+echo "__NPC_PREFLIGHT_SYSTEMD_STATE__:wrapper-pre-systemd"
 pass systemd-wrapper-preflight
-echo "__NPC_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+echo "__NPC_SYSTEMD_PREFLIGHT_DONE__ rc=$check_fail"
 
 if [ -n "$systemd_bin" ]; then
   echo "[ysyx-npc-systemd-wrapper] console prompt marker"
@@ -1865,6 +1910,34 @@ TimeoutStartSec=0
 WantedBy=sysinit.target
 EOF
   ln -sfn ../ysyx-npc-systemd-autocheck.service "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-autocheck.service"
+  cat > "$ROOTFS/etc/systemd/system/ysyx-npc-systemd-strict.service" <<'EOF'
+[Unit]
+Description=YSYX NPC strict rootfs validation and natural poweroff
+DefaultDependencies=no
+After=ysyx-npc-systemd-autocheck.service
+Before=sysinit.target
+ConditionPathExists=/usr/local/sbin/ysyx-npc-systemd-strict-check
+
+[Service]
+Type=oneshot
+StandardInput=null
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-systemd-strict-check --stage strict --poweroff
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  if [ "$ROOTFS_NPC_STRICT_AUTORUN" = "1" ]; then
+    ln -sfn ../ysyx-npc-systemd-strict.service "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service"
+  else
+    rm -f "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service"
+  fi
   cat > "$ROOTFS/etc/systemd/system/ysyx-npc-tty-reader.service" <<'EOF'
 [Unit]
 Description=YSYX NPC ttyS0 input reader diagnostic
@@ -2083,7 +2156,9 @@ FAKEROOT
     ROOTFS_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
     ROOTFS_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
     ROOTFS_NPC_TTY_READER_MODE="$ROOTFS_NPC_TTY_READER_MODE" \
+    ROOTFS_NPC_STRICT_AUTORUN="$ROOTFS_NPC_STRICT_AUTORUN" \
     ROOTFS_NPC_TTY_PROBE_BIN="$ROOTFS_NPC_TTY_PROBE_BIN" \
+    ROOTFS_NPC_STRICT_CHECK_SRC="$ROOTFS_NPC_STRICT_CHECK_SRC" \
     ROOTFS_NPC_LOGIN_MARKER="$ROOTFS_NPC_LOGIN_MARKER" \
     ROOTFS_NPC_LOGIN_TRACE="$ROOTFS_NPC_LOGIN_TRACE" \
     ROOTFS_NPC_GENERATOR_TRACE="$ROOTFS_NPC_GENERATOR_TRACE" \
@@ -2127,6 +2202,7 @@ if [ "$ROOTFS_REQUIRE_SYSTEMD" = "1" ] && [ -f "$SCRIPT_DIR/check-ubuntu-rootfs.
   UBUNTU_ROOTFS_IMAGE="$IMAGE" UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
     UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
     UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN="$ROOTFS_NPC_STRICT_AUTORUN" \
     UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER="$ROOTFS_NPC_LOGIN_MARKER" \
     UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_TRACE="$ROOTFS_NPC_LOGIN_TRACE" \
     UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE="$ROOTFS_NPC_GENERATOR_TRACE" \

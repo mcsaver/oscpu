@@ -176,8 +176,10 @@ class FdgArchTrapEvidenceTests(unittest.TestCase):
 
     def test_live_module_aggregate_is_exact(self) -> None:
         aggregate = evidence.parse_module_aggregate(REPO, MODULE_SUMMARY)
-        self.assertEqual(aggregate["required"], 109)
-        self.assertEqual(aggregate["passed"], 109)
+        required = len(evidence.required_module_tests(
+            REPO / "npc/rv64/testbench/Makefile"))
+        self.assertEqual(aggregate["required"], required)
+        self.assertEqual(aggregate["passed"], required)
         self.assertEqual(aggregate["failed"], 0)
 
     def test_variant_aggregate_cut_is_rejected(self) -> None:

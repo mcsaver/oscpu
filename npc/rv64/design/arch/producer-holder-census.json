@@ -285,7 +285,7 @@
       "symbol": "mem_retry0_owner_token_q",
       "classification": "INDIRECT_HOLDER",
       "coverage_anchor": "mem_retry0_owner_mask_w\\s*=\\s*mem_retry0_valid_q",
-      "notes": "Bank0 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal."
+      "notes": "Bank0 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal; a C0 full-flush barrier keeps READY/capture low so ownership cannot enter this holder on the barrier edge."
     },
     {
       "id": "memory-retry1-token",
@@ -294,7 +294,7 @@
       "symbol": "mem_retry1_owner_token_q",
       "classification": "INDIRECT_HOLDER",
       "coverage_anchor": "mem_retry1_owner_mask_w\\s*=\\s*mem_retry1_valid_q",
-      "notes": "Bank1 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal."
+      "notes": "Bank1 retry handoff holds the exact tracker token outside MIQ until re-push or tagged kill terminal; a C0 full-flush barrier keeps READY/capture low so ownership cannot enter this holder on the barrier edge."
     },
     {
       "id": "memory-pending-token",
@@ -321,7 +321,7 @@
       "symbol": "active_owner_token_q",
       "classification": "INDIRECT_HOLDER",
       "coverage_anchor": "owner_residency_mask_r\\[active_owner_token_q\\]",
-      "notes": "Active bridge transaction is exported in the residency mask."
+      "notes": "Active bridge transaction is exported in the residency mask; when state is S_SQ_QUERY, a C0 barrier holds this owner and forbids retry fire."
     },
     {
       "id": "bridge-response-token",
@@ -512,6 +512,41 @@
       "module": "OooIntBackend",
       "view": "all",
       "pattern": "sq_snoop_valid_w\\[v8l_assert_i\\].*!producer_live_mask_w\\[sq_snoop_producer_id_w"
+    },
+    {
+      "id": "v9r-backend-retry0-c0-gate",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "mem_sq_query_retry_ready_o\\s*=\\s*[^;]*!control_full_flush_barrier_w"
+    },
+    {
+      "id": "v9r-backend-retry1-c0-gate",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "mem1_sq_query_retry_ready_o\\s*=\\s*[^;]*!control_full_flush_barrier_w"
+    },
+    {
+      "id": "v9r-backend-retry-c0-assert",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "view": "all",
+      "pattern": "control_full_flush_barrier_w\\s*&&\\s*\\(mem_sq_query_retry_ready_o\\s*\\|\\|"
+    },
+    {
+      "id": "v9r-bridge-retry-fire-c0-gate",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "view": "all",
+      "pattern": "sq_query_retry_fire_w\\s*=\\s*[^;]*!control_full_flush_barrier_i"
+    },
+    {
+      "id": "v9r-bridge-retry-fire-c0-assert",
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "module": "OooMemAxiBridge",
+      "view": "all",
+      "pattern": "control_full_flush_barrier_i\\s*&&\\s*sq_query_retry_fire_w"
     }
   ],
   "forbidden_anchors": [
@@ -552,18 +587,18 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {
       "kind": "holder_lifecycle_log",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
-      "sha256": "82143f9e166465572fc58cdf42c3d07b4a3e9d1d3a78224edb2b9748c6b43a97"
+      "sha256": "85d04d110d641f52641fd04f4ef73644721f5980b2c0597794a7c491f6dd9929"
     },
     "mutation_summary": {
       "kind": "mutation_summary",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
-      "sha256": "494048b7248b2b1d3c76c3c034c91003fb102b1677ab4e0b0919cb8bc773b707"
+      "sha256": "f651dea9b8c756a24b24e278661262dea04d38088a3cc21fd6be4e718df37ddf"
     }
   }
 }

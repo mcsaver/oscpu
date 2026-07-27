@@ -23,8 +23,10 @@ module OooControlPlane #(
   input clk,
   input commit_ready_i,
   input core_branch_resolve_misaligned_w,
+  input core_branch_resolve_mispredict_w,
   input [`XLEN-1:0] core_branch_resolve_next_pc_w,
   input [`XLEN-1:0] core_branch_resolve_pc_w,
+  input core_branch_resolve_valid_w,
   input [`TRAP_CAUSE_W-1:0] core_commit0_cause_w,
   input core_commit0_exception_w,
   input [`INST_W-1:0] core_commit0_inst_w,
@@ -38,6 +40,7 @@ module OooControlPlane #(
   input [`XLEN-1:0] core_commit1_tval_w,
   input core_commit1_valid_w,
   input [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w,
+  input core_trap_flush_apply_i,
   input core_serial_flush_q,
   input [`TRAP_CAUSE_W-1:0] csr_ecall_cause_w,
   input csr_illegal_w,
@@ -77,6 +80,7 @@ module OooControlPlane #(
   input fetch_req_valid_o,
   input fifo_has_packet_w,
   input flush_i,
+  input head0_csr_dispatch_fire_w,
   input head0_csr_inflight_w,   // 【serialize Phase1 §10.4】head0-CSR 在飞 → stop 保持
   input head0_csr_raw_w,
   input head0_ecall_raw_w,
@@ -137,6 +141,9 @@ module OooControlPlane #(
   // Complete memory-owner quiet (MIQ/bridge/reservation), used only by
   // ordinary FENCE's stronger ordering boundary.
   input mem_idle_i,
+  // V9Y exact phase boundary: active holders are empty or make a verified
+  // same-edge transfer; collector-pending tokens need not be tracker-freed.
+  input mem_owner_terminalized_i,
   input core_checkpoint_restore_apply_i,
   output backend_drained_w,
   output checkpoint_mem_flush_q,
@@ -252,6 +259,7 @@ module OooControlPlane #(
   wire pending_system_capture_irq_w;
   wire pending_system_sfence_q;
   wire pending_system_fencei_q;
+  wire pending_system_fence_q;
   // v8k：admission cancel 必须位于 holder/ready 组合边界之外。完整的
   // pending_system_clear_w 含 direct_frontend_flush_w，而 direct flush 又可读
   // backend dispatch ready；若把完整 clear 反喂 system CSR valid，会形成
@@ -285,10 +293,6 @@ module OooControlPlane #(
   assign pending_system_fencei_commit_w =
       stop_pending_q && drain_complete_w && pending_system_q && pending_system_fencei_q;
   wire pending_system_wfi_q;
-  wire pending_system_fence_w =
-      pending_system_q &&
-      (pending_system_inst_q[6:0] == `OPCODE_MISC_MEM) &&
-      (pending_system_inst_q[14:12] == `FUNCT3_FENCE);
   wire pending_trap_exit_capture_arch_valid_w;
   wire pending_trap_exit_capture_arch_w;
   wire [`TRAP_CAUSE_W-1:0] pending_trap_exit_capture_cause_w;
@@ -450,12 +454,13 @@ module OooControlPlane #(
     .pending_jump_nolink_i(pending_jump_nolink_w),
     .pending_jump_misaligned_i(pending_jump_misaligned_w),
     .pending_system_i(pending_system_q),
-    .pending_system_fence_i(pending_system_fence_w),
+    .pending_system_fence_i(pending_system_fence_q),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
     .system_csr_dispatch_cancel_i(system_csr_dispatch_cancel_w),
     .mem_retire_quiet_i(mem_retire_quiet_i),
     .mem_idle_i(mem_idle_i),
+    .mem_owner_terminalized_i(mem_owner_terminalized_i),
     .backend_drained_o(backend_drained_w),
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
     .system_csr_dispatch_valid_o(system_csr_dispatch_valid_w),
@@ -556,7 +561,7 @@ module OooControlPlane #(
 
   OooCoreSliceControlGate u_core_slice_control_gate (
     .flush_i(flush_i),
-    .core_trap_flush_i(core_trap_flush_q),
+    .core_trap_flush_i(core_trap_flush_apply_i),
     .core_serial_flush_i(core_serial_flush_q),
     .commit_ready_i(commit_ready_i),
     .branch_spec_checkpoint_capture_i(branch_spec_checkpoint_capture_w),
@@ -629,6 +634,7 @@ module OooControlPlane #(
     .wfi_o(pending_system_wfi_q),
     .sfence_o(pending_system_sfence_q),
     .fencei_o(pending_system_fencei_q),
+    .fence_o(pending_system_fence_q),
     .irq_o(pending_system_irq_q),
     .pc_o(pending_system_pc_q),
     .inst_o(pending_system_inst_q),
@@ -642,7 +648,7 @@ module OooControlPlane #(
 
   OooPendingTrapExitSequencer u_pending_trap_exit_sequencer (
     .clk(clk),
-    .rst(rst || flush_i),
+    .rst(rst || flush_i || core_local_flush_w),
     .late_clear_i(csr_trap_mem_valid_w),
     .clear_exit_i(pending_trap_exit_clear_exit_w),
     .clear_arch_i(pending_trap_exit_clear_arch_w),
@@ -782,6 +788,54 @@ module OooControlPlane #(
     .debug_gprs_o(debug_gprs_o)
   );
 
+  // V9X accepted owner-birth facts.  These expressions model the state that
+  // each holder will expose after this edge; stop_pending no longer repeats
+  // raw lane/type classification.
+  wire v9x_pending_system_owner_birth_w =
+      !pending_system_q &&
+      !pending_system_producer_valid_w &&
+      !pending_system_clear_w &&
+      (pending_system_capture_irq_w ||
+       pending_system_capture_head0_w ||
+       pending_system_capture_lane1_w);
+  wire v9x_pending_trap_exit_owner_birth_w =
+      !csr_trap_mem_valid_w &&
+      !direct_frontend_flush_w &&
+      ((pending_trap_exit_capture_exit_w &&
+        pending_trap_exit_capture_exit_valid_w &&
+        !(pending_trap_exit_clear_exit_w &&
+          pending_trap_exit_clear_arch_squash_w)) ||
+       (pending_trap_exit_capture_arch_w &&
+        pending_trap_exit_capture_arch_valid_w &&
+        !(pending_trap_exit_clear_arch_w &&
+          pending_trap_exit_clear_arch_squash_w)));
+  wire v9x_pending_owner_birth_w =
+      v9x_pending_system_owner_birth_w ||
+      v9x_pending_trap_exit_owner_birth_w;
+  wire v9x_pending_owner_live_w =
+      pending_system_q ||
+      pending_exit_q ||
+      pending_arch_trap_q ||
+      pending_branch_q ||
+      pending_jump_q ||
+      pending_mem_q ||
+      synth_lane1_ret_pending_q ||
+      synth_lane1_branch_drop_pending_q ||
+      branch_spec_checkpoint_pending_q ||
+      branch_spec_active_q;
+
+  // Queue-head CSR has no pending-system holder.  Consume the exact accepted
+  // fire exported by OooFrontend instead of reconstructing it from the merged
+  // backend lane0 fire and a potentially unrelated FIFO-head classification.
+  wire v9x_head0_csr_owner_kill_w =
+      core_branch_resolve_valid_w &&
+      (core_branch_resolve_mispredict_w ||
+       core_branch_resolve_misaligned_w);
+  wire v9x_head0_csr_owner_birth_w =
+      head0_csr_dispatch_fire_w &&
+      !v9x_head0_csr_owner_kill_w &&
+      !core_local_flush_w &&
+      !head0_csr_commit_w;
 
   OooStopPendingSequencer u_stop_pending_sequencer (
     .clk(clk),
@@ -808,24 +862,13 @@ module OooControlPlane #(
     .pending_system_csr_commit_i(pending_system_csr_commit_w),
     .head0_csr_commit_i(head0_csr_commit_w),
     .head0_csr_inflight_i(head0_csr_inflight_w),
+    .head0_csr_owner_birth_i(v9x_head0_csr_owner_birth_w),
+    .head0_csr_owner_kill_i(v9x_head0_csr_owner_kill_w),
+    .pending_owner_birth_i(v9x_pending_owner_birth_w),
+    .pending_owner_live_i(v9x_pending_owner_live_w),
+    .pending_system_producer_valid_i(pending_system_producer_valid_w),
+    .core_local_flush_i(core_local_flush_w),
     .drain_complete_i(drain_complete_w),
-    .can_run_i(can_run_w),
-    .fifo_has_packet_i(fifo_has_packet_w),
-    .csr_irq_pending_i(csr_irq_pending_w),
-    .head_fetch_fault0_i(head_fetch_fault0_w),
-    .dispatch0_arch_trap_i(dispatch0_arch_trap_w),
-    .dispatch0_exit_i(dispatch0_exit_w),
-    .dispatch0_fp_i(dispatch0_fp_w),
-    .dispatch0_system_i(dispatch0_system_w),
-    .head0_csr_illegal_i(head0_csr_illegal_w),
-    .dispatch0_branch_i(dispatch0_branch_w),
-    .direct_branch0_dispatch_valid_i(direct_branch0_dispatch_valid_w),
-    .dispatch0_jal_i(dispatch0_jal_w),
-    .direct_jal0_dispatch_valid_i(direct_jal0_dispatch_valid_w),
-    .dispatch0_jump_i(dispatch0_jump_w),
-    .dispatch0_return_i(dispatch0_return_w),
-    .dispatch1_barrier_fire_i(dispatch1_barrier_fire_w),
-    .dispatch_unsupported_i(dispatch_unsupported_w),
     .rob_walk_mode_i(rob_walk_mode_w),
     .stop_pending_o(stop_pending_q)
   );
@@ -937,12 +980,63 @@ module OooControlPlane #(
     end
   end
 
+  // V10A SERIALIZE-G1: the registered architectural-trap and system holders
+  // share one stop lease and therefore must be exact-one across birth, drain
+  // and clear.  The request mux now emits only the request selected below a
+  // higher-priority ROB-head exception; direct redirects remain
+  // constructively disjoint through can_run/stop_pending_busy.
+  reg v10a_arch_fire_prev_q;
+  always @(posedge clk) begin
+    if (rst || flush_i || core_local_flush_w) begin
+      v10a_arch_fire_prev_q <= 1'b0;
+    end else begin
+      if (pending_arch_trap_q && pending_system_q) begin
+        $error("[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap @%0t",
+               $time);
+        $fatal;
+      end
+      if ((pending_arch_trap_q || pending_system_q) &&
+          !stop_pending_q) begin
+        $error("[V10A-SERIAL-OWNER-STOP] live serialized holder lost stop lease arch=%b system=%b @%0t",
+               pending_arch_trap_q, pending_system_q, $time);
+        $fatal;
+      end
+      if (pending_arch_trap_fire_w && csr_trap_mem_valid_w) begin
+        $error("[V10A-ARCH-REQUEST-PRIORITY] pending arch request overlapped selected ROB-head trap @%0t",
+               $time);
+        $fatal;
+      end
+      if (pending_arch_trap_fire_w && direct_frontend_flush_w) begin
+        $error("[V10A-ARCH-DIRECT-DISJOINT] pending arch request overlapped direct redirect @%0t",
+               $time);
+        $fatal;
+      end
+      if (pending_arch_trap_fire_w &&
+          (pending_system_ecall_trap_w ||
+           csr_trap_irq_valid_w ||
+           csr_mret_valid_w)) begin
+        $error("[V10A-ARCH-SYSTEM-SIDE-EFFECT-ONEHOT] arch request overlapped ECALL/IRQ/xRET request @%0t",
+               $time);
+        $fatal;
+      end
+      if (v10a_arch_fire_prev_q &&
+          (pending_arch_trap_q || stop_pending_q ||
+           pending_arch_trap_fire_w)) begin
+        $error("[V10A-ARCH-C1-CLEAR] accepted arch request did not clear owner/stop or repeated: arch=%b stop=%b fire=%b @%0t",
+               pending_arch_trap_q, stop_pending_q,
+               pending_arch_trap_fire_w, $time);
+        $fatal;
+      end
+      v10a_arch_fire_prev_q <= pending_arch_trap_fire_w;
+    end
+  end
+
   // Mutation-sensitive contract guard: if the T4L memory-idle term is ever
   // removed from the functional drain equation, this fires on the exact
   // pending-FENCE/busy-memory completion edge.
   always @(posedge clk) begin
     if (!rst && !flush_i && drain_complete_w &&
-        pending_system_fence_w && !mem_idle_i) begin
+        pending_system_fence_q && !mem_idle_i) begin
       $error("[FENCE-DRAIN-MEM-IDLE] ordinary FENCE completed with MIQ/bridge/reservation busy");
     end
   end
@@ -1017,6 +1111,7 @@ module OooControlPlane #(
              pending_trap_exit_capture_arch_w);
     end
   end
+
 `endif
 
 `ifdef OOO_ASSERT

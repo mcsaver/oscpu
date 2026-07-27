@@ -1,0 +1,1436 @@
+{
+  "contract": {
+    "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+    "sha256": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73"
+  },
+  "evidence_errors": [],
+  "evidence_manifest": "/home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/evidence/architecture-current.json",
+  "exit_code": 0,
+  "gates": {
+    "DI-1": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative DI-1 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.command",
+          "detail": "command is exactly make -C npc/rv64 check-frontend-ii1",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.provenance_inventory",
+          "detail": "the exact frontend_ii1 proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.frontend_ii1.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.frontend.packets",
+          "detail": "at least 64 packets are observed",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.frontend.window",
+          "detail": "the post-warmup measurement window is at least 64 cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.frontend.accept_every_cycle",
+          "detail": "one packet is accepted on every post-warmup cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.frontend.produce_every_cycle",
+          "detail": "one packet is produced on every post-warmup cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.frontend.ii1",
+          "detail": "maximum initiation interval is at most one cycle",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "frontend_ii1",
+      "status": "GREEN"
+    },
+    "DI-2": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative DI-2 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.command",
+          "detail": "command is exactly make -C npc/rv64 check-width-continuity",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.provenance_inventory",
+          "detail": "the exact width_continuity proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.width_continuity.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.trace",
+          "detail": "at least 64 non-vacuum trace cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.independent_alu_ipc",
+          "detail": "independent integer ALU IPC is at least 1.90",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.fetch.peak",
+          "detail": "fetch demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.fetch.total",
+          "detail": "fetch sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.decode.peak",
+          "detail": "decode demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.decode.total",
+          "detail": "decode sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.rename.peak",
+          "detail": "rename demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.rename.total",
+          "detail": "rename sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.dispatch.peak",
+          "detail": "dispatch demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.dispatch.total",
+          "detail": "dispatch sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.issue.peak",
+          "detail": "issue demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.issue.total",
+          "detail": "issue sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.execute.peak",
+          "detail": "execute demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.execute.total",
+          "detail": "execute sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.retire.peak",
+          "detail": "retire demonstrates a two-uop cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.width.retire.total",
+          "detail": "retire sustains 1.90..2.00 uop/cycle over the trace",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "width_continuity",
+      "status": "GREEN"
+    },
+    "DI-3": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative DI-3 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.pairing_not_static_lane",
+          "detail": "pair formation is not limited by lane role",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.plain_memory_capability_resident",
+          "detail": "plain integer memory capability is resident and excludes AMO/FP",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.memory_pair_selector_atomic",
+          "detail": "packed entries 0/1 select two physical terminals as one pair",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_registered_memory_reservations",
+          "detail": "both memory terminals own non-fallthrough reservation state",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.atomic_dual_owner_birth",
+          "detail": "pair capture and tracker token births are atomic",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_captured_data_agus",
+          "detail": "two named AGUs consume only their captured reservation payloads",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.memory_bank_age_serialized",
+          "detail": "a younger terminal cannot pass the older terminal on either bank",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.dual_store_exact_owner_bind",
+          "detail": "store-store capture has a distinct exact owner-bind1 path",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.twelve_ingress_terminal_collector",
+          "detail": "all twelve ordered terminal sources feed token-indexed collector storage",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.full_pid_dual_owner",
+          "detail": "bank1 and tracker retain the complete ProducerId",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.memory_pairs_two_terminals",
+          "detail": "LL/LS/SL/SS have two atomic registered terminal owners",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.command",
+          "detail": "command is exactly make -C npc/rv64 check-pair-matrix",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.provenance_inventory",
+          "detail": "the exact pair_matrix proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.pair_matrix.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_alu",
+          "detail": "alu_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_branch",
+          "detail": "alu_branch pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.branch_alu",
+          "detail": "branch_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_jal",
+          "detail": "alu_jal pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.jal_alu",
+          "detail": "jal_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_jalr",
+          "detail": "alu_jalr pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.jalr_alu",
+          "detail": "jalr_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_load",
+          "detail": "alu_load pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.load_alu",
+          "detail": "load_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.alu_store",
+          "detail": "alu_store pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.store_alu",
+          "detail": "store_alu pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.load_load",
+          "detail": "load_load pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.load_store",
+          "detail": "load_store pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.store_load",
+          "detail": "store_load pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.store_store",
+          "detail": "store_store pairs in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.exact_key_set",
+          "detail": "pair matrix has exactly the fifteen normative keys",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.same_cycle_pair_fires",
+          "detail": "all fifteen pair classes have one canonical dual fire",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.same_cycle_memory_pair_fires",
+          "detail": "LL/LS/SL/SS each have one canonical dual fire",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.distinct_nonzero_generation_memory_pids",
+          "detail": "four memory pairs retain eight distinct nonzero-generation PIDs",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.dual_reservation_observations",
+          "detail": "both registered reservation owners appear for every memory pair",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.distinct_owner_token_pairs",
+          "detail": "every memory pair receives two different tracker tokens",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.captured_agu_matches",
+          "detail": "both captured-data AGUs match for all four memory pairs",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.store_store_exact_owner_binds",
+          "detail": "store-store binds both exact SQ owners",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.special_memory_exclusions",
+          "detail": "AMO/LR/SC/FP load/store are excluded in both orders",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.atomic_scarcity_zero_births",
+          "detail": "one-token pressure causes zero partial owner births",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.collector_ingress_peak",
+          "detail": "twelve exact terminal ingresses coexist under dequeue stall",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.collector_exact_drains",
+          "detail": "all twelve terminal tuples drain exactly once",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.raw_fallthrough_violations",
+          "detail": "captured AGU outputs ignore live raw source changes",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.bank1_age_bypass_violations",
+          "detail": "bank1 never passes edge-old bank0",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.pair.owner_ghosts_after_cancel",
+          "detail": "pair cancellation leaves no tracker or collector ghost",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "pair_matrix",
+      "status": "GREEN"
+    },
+    "DI-4": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative DI-4 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.capability_predicate_has_entry_metadata",
+          "detail": "a simple/ALU capability restriction is tracked per entry; matches=compaction_copy=1,dispatch_capture=2,metadata_decl=1,predicate_def=1,predicate_ref=5,selector_input=1,selector_projection=1,swap_def=1,swap_iq_binding=1,swap_issue0=1,swap_issue1=1,swap_output=1",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.capability_predicate_has_dynamic_steering",
+          "detail": "a restricted asymmetric terminal has explicit swap or promotion; matches=compaction_copy=1,dispatch_capture=2,metadata_decl=1,predicate_def=1,predicate_ref=5,selector_input=1,selector_projection=1,swap_def=1,swap_iq_binding=1,swap_issue0=1,swap_issue1=1,swap_output=1",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.command",
+          "detail": "command is exactly make -C npc/rv64 check-no-static-lane-semantics",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.provenance_inventory",
+          "detail": "the exact no_static_lane_semantics proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.no_static_lane_semantics.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.branch.slot0",
+          "detail": "branch from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.branch.slot1",
+          "detail": "branch from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.jal.slot0",
+          "detail": "jal from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.jal.slot1",
+          "detail": "jal from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.jalr.slot0",
+          "detail": "jalr from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.jalr.slot1",
+          "detail": "jalr from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.load.slot0",
+          "detail": "load from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.load.slot1",
+          "detail": "load from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.store.slot0",
+          "detail": "store from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.store.slot1",
+          "detail": "store from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.muldiv.slot0",
+          "detail": "muldiv from slot0 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.muldiv.slot1",
+          "detail": "muldiv from slot1 reaches a capable terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.static_violations",
+          "detail": "no static lane-role violation",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.same_cycle_pair_fires",
+          "detail": "all twelve permutations fire both terminals on one edge",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.perm.exact_full_pid_matches",
+          "detail": "all twenty-four accepted uops retain exact full identity",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "no_static_lane_semantics",
+      "status": "GREEN"
+    },
+    "DI-5": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative DI-5 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_live_memory_issue_terminals",
+          "detail": "both issue terminals carry nonconstant memory requests",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_agu",
+          "detail": "two distinct issue AGUs exist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_translation_admissions",
+          "detail": "mem0/mem1 translation valid-ready faces exist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_physical_lsq_queries",
+          "detail": "both terminals query physical LSQ/SQ addresses",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_cache_admissions",
+          "detail": "two cache admissions or two named banks exist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_completions",
+          "detail": "mem0/mem1 response valid-ready faces exist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.two_memory_credits",
+          "detail": "two memory issue credits or queue pushes exist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.command",
+          "detail": "command is exactly make -C npc/rv64 check-dual-memory-sustained-issue",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.provenance_inventory",
+          "detail": "the exact dual_memory_issue proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.dual_memory_issue.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.trace",
+          "detail": "at least 64 steady cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.ipc",
+          "detail": "memory IPC >= 1.90",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.cycles",
+          "detail": "at least 58 dual-memory cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.agu_accepts",
+          "detail": "two active agu_accepts faces",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.translation_accepts",
+          "detail": "two active translation_accepts faces",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.physical_lsq_queries",
+          "detail": "two active physical_lsq_queries faces",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.cache_admissions",
+          "detail": "two active cache_admissions faces",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.dual.completions",
+          "detail": "two active completions faces",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "dual_memory_issue",
+      "status": "GREEN"
+    },
+    "OOO-1": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative OOO-1 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.command",
+          "detail": "command is exactly make -C npc/rv64 check-true-ooo-long-latency",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.provenance_inventory",
+          "detail": "the exact true_ooo_long_latency proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.true_ooo_long_latency.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.load_miss",
+          "detail": "old load_miss bypassed by >=8 younger uops",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.mul",
+          "detail": "old mul bypassed by >=8 younger uops",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.div",
+          "detail": "old div bypassed by >=8 younger uops",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.issue.load_miss",
+          "detail": "old load_miss overlaps eight accepted younger issues",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.issue.mul",
+          "detail": "old mul overlaps eight accepted younger issues",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.issue.div",
+          "detail": "old div overlaps eight accepted younger issues",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.dual.load_miss",
+          "detail": "old load_miss overlaps four dual-issue cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.dual.mul",
+          "detail": "old mul overlaps four dual-issue cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.dual.div",
+          "detail": "old div overlaps four dual-issue cycles",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.owner_live.load_miss",
+          "detail": "all younger completions retain the exact old load_miss owner",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.owner_live.mul",
+          "detail": "all younger completions retain the exact old mul owner",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.owner_live.div",
+          "detail": "all younger completions retain the exact old div owner",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.rob",
+          "detail": "ROB peak >=9 (one old plus eight younger)",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.rob_valid",
+          "detail": "at least nine distinct full-PID ROB entries coexist",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.long.retire",
+          "detail": "in-order retire",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "true_ooo_long_latency",
+      "status": "GREEN"
+    },
+    "OOO-2": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative OOO-2 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.no_arbitrary_older_valid_block",
+          "detail": "memory scheduling ignores unrelated older-valid uops",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.reservation_owner_backend_binding",
+          "detail": "registered memory reservation drives the Universal owner fact",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.reservation_owner_forwarding",
+          "detail": "the Universal owner fact reaches the resident IQ selector",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.reservation_owner_alu_steering",
+          "detail": "an owner-resident selector routes the oldest ready ALU to issue1",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.reservation_owner_issue1_valid_independent",
+          "detail": "the owner masks issue0, not the independent issue1 valid",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.reservation_owner_issue1_ready_independent",
+          "detail": "issue1 fire readiness has no reservation dependency",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.no_single_reservation_global_freeze",
+          "detail": "a Universal-local reservation stop is legal only with a complete independent ALU issue path",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.command",
+          "detail": "command is exactly make -C npc/rv64 check-selective-scheduling",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.provenance_inventory",
+          "detail": "the exact selective_scheduling proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.selective_scheduling.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.selective.dependent",
+          "detail": "only dependent/same-resource work waits",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.selective.younger",
+          "detail": "younger independent work issues",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.selective.resource",
+          "detail": "different resource keeps issuing",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.selective.freeze",
+          "detail": "no arbitrary global freeze",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "selective_scheduling",
+      "status": "GREEN"
+    },
+    "OOO-3": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative OOO-3 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.load_queue_at_least_four",
+          "detail": "a >=4-entry shared LQ is instantiated at canonical backend",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_dispatch_allocation_credits",
+          "detail": "both dispatch lanes allocate exact full-PID LQ entries and consume real LQ credits",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_issue_launch_authority",
+          "detail": "both memory terminals require LQ issue ownership and record the exact request-fire launch",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_dual_final_pa_disposition",
+          "detail": "both final-PA SQ queries pass through the LQ and record one allow/forward/replay disposition",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_response_completion_terminal",
+          "detail": "both response/WB/terminal paths retain exact LQ ownership",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_checkpoint_recovery",
+          "detail": "flush, accepted checkpoint recovery and branch recovery preserve launched loads as drainable tombstones",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.checkpoint_restore_hold_admission",
+          "detail": "a raw or pending checkpoint request blocks dispatch, issue, reservation capture and request transport",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.checkpoint_irrevocable_write_drain",
+          "detail": "a physical store/AMO request carries one exact ProducerId lease through B, ROB lane0 retirement and restore apply",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.checkpoint_owner_recovery_domain",
+          "detail": "the accepted restore pulse recovers ROB/IQ/rename/PRF/FP, execution holders, MIQs, retries, SQ and LQ as one domain",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.checkpoint_restore_apply_broadcast",
+          "detail": "the accepted backend restore pulse reaches both memory request gates through the core control flush sequencer",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.checkpoint_raw_restore_fail_closed",
+          "detail": "a raw branch checkpoint restore remains separate from the global/trap/serial local-flush plane",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_retire_authority",
+          "detail": "Q-only retire lookup actively gates ROB commit and only the commit edge frees the entry",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_full_pid_live_mask",
+          "detail": "complete ProducerId residency participates in global identity reuse exclusion",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.lq_dual_query_same_pid_fail_closed",
+          "detail": "two final-PA lanes cannot update one ProducerId in one cycle",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "source.sq_physical_disambiguation",
+          "detail": "SQ exposes physical-address ordering queries",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.command",
+          "detail": "command is exactly make -C npc/rv64 check-memory-ordering",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.provenance_inventory",
+          "detail": "the exact memory_ordering proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.memory_ordering.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.nonalias",
+          "detail": "non-alias younger load bypasses older store",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.alias",
+          "detail": "alias forwards, waits, or replays",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.physical",
+          "detail": "physical byte disambiguation",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.stale",
+          "detail": "zero stale reads",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.ghost",
+          "detail": "zero post-flush ghosts",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_pre_auth",
+          "detail": "zero store side effects before ROB-head authorization",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_exactly_once_fire",
+          "detail": "every authorized store fires exactly once",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_b_terminal",
+          "detail": "every fired store has exactly one aggregated B terminal",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_retire_after_b",
+          "detail": "no successful store retires before B success",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_precise_b_error",
+          "detail": "SLVERR/DECERR produces a precise store-PC trap",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.order.store_drain_exactly_once",
+          "detail": "flush drains each already-fired store exactly once",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "memory_ordering",
+      "status": "GREEN"
+    },
+    "OOO-4": {
+      "checks": [
+        {
+          "check_id": "contract.clause",
+          "detail": "normative OOO-4 clause exists",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.schema",
+          "detail": "schema is npc-rv64-architecture-directed-suite-v2",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.design_binding",
+          "detail": "design_id binds the complete RTL source set",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.status",
+          "detail": "status is exactly PASS",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.command",
+          "detail": "command is exactly make -C npc/rv64 check-speculation-recovery",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.log",
+          "detail": "log hash matches and has exactly one PASS marker",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.provenance_inventory",
+          "detail": "the exact speculation_recovery proof inventory is bound",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.provenance_files",
+          "detail": "required harness/proof inventory and hashes match",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.provenance_digest",
+          "detail": "the provenance aggregate digest matches its file map",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "evidence.speculation_recovery.metrics",
+          "detail": "metrics is an object",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.multiple_controls",
+          "detail": "multiple control-flow operations are simultaneously in flight",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.oldest_mispredict",
+          "detail": "the oldest mispredict determines recovery",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.selective_squash",
+          "detail": "only wrong-path uops and requests are squashed",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.axi_drain",
+          "detail": "already-fired AXI transactions are drained",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.exactly_once_complete",
+          "detail": "zero exactly-once completion violations",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.exactly_once_retire",
+          "detail": "zero exactly-once retirement violations",
+          "status": "GREEN"
+        },
+        {
+          "check_id": "metric.recovery.ghost",
+          "detail": "zero ghosts after recovery",
+          "status": "GREEN"
+        }
+      ],
+      "evidence_test": "speculation_recovery",
+      "status": "GREEN"
+    }
+  },
+  "generated_at_utc": "2026-07-26T22:06:53.540861+00:00",
+  "overall_status": "GREEN",
+  "rtl_source_set": {
+    "design_id": "sha256:3c933ec82fd17c6038335f9208b496cacfb755dfd10b9e419c73f276b5e2a428",
+    "file_count": 146,
+    "files": {
+      "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
+      "npc/rv64/vsrc/bus/AxiDefaultSlave.v": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e",
+      "npc/rv64/vsrc/bus/AxiPlic.v": "3141814d0a81d52556d193ef8c23facb7926a88dbd804cb9f312538b5897fa92",
+      "npc/rv64/vsrc/bus/AxiResetSyscon.v": "0d9a7c52814ab6d848f558d578db416820cb2f92ed5fa18b4f4c92484f939a95",
+      "npc/rv64/vsrc/bus/AxiToUart.v": "f2688a3f5e0d090de679619381ce234f870eba195ec7c718350fe242eaa3bf33",
+      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v": "e131fc07ec3b0a099aa9d8983f72e38e5a92652796e224f82d8245dc6b0f6612",
+      "npc/rv64/vsrc/bus/Uart.v": "51c13d4a53f543b3dd53b075b123d1980b671ff5ddd6a56c5913609ec283d161",
+      "npc/rv64/vsrc/cache/OooDataWordCache.v": "7f3f0cddae8c44442c9357caa7da8212570c20f909aedc59af02f8b4bb05f898",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh": "a10b3b63f22385d870db3bb579665b98540e636aa0c907d6373ee7b80a1d7b7b",
+      "npc/rv64/vsrc/common/OooDataWordCacheFacts.vh": "60826e7d9c05109f1750f65ee0286383ba34cc14ebe802bb5b1d7090ac6d6536",
+      "npc/rv64/vsrc/common/OooFetchPacketCacheFacts.vh": "b9c04129d3669f7a5e07ee043ed2690fe64e500c5eaf186ebc2ee42517a9df9c",
+      "npc/rv64/vsrc/common/OooRedirectMuxFacts.vh": "8850e83091f872a7ad42c9e79c90a116051524cc5225d0cd598060facc86fb3a",
+      "npc/rv64/vsrc/common/OooRedirectSeqFacts.vh": "3dc4de370b9af7978da5a0dab35653ba78db6520c2871cfa6c00a240a3e3b873",
+      "npc/rv64/vsrc/common/OooSlotFacts.v": "9e57f514234340a93943bbaea8504b4bb6f9d57d9ef8bc20121fb6575613163a",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v": "ba3124ea66ed569445df24912a5a51906e86a7301a16fd6662514d4051f61d0c",
+      "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
+      "npc/rv64/vsrc/control/OooControlPlane.v": "79d33ea5977bd1a433e74518317494f1777dc1d87566220c960f33a6d2c94452",
+      "npc/rv64/vsrc/control/OooCoreObservableOutputGate.v": "3c3aeafabfbf8a2bc6821173f0a19826b44645699c7d34c4da4e0ad561428bfb",
+      "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+      "npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v": "5007f5970858cdf3baf0e6f29c44a6c8e7bb4e926a3888c510d1b2f1d389d7af",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "3d1a9e2b712b15c1af7247ba5d4863e23e38e0136af28af837a42acf61a5a6a8",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "36e55fea1ac5e407344ee6fcf36d80fdfc68263e37738e24a7b3ec2b91eb7514",
+      "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "759eabf4952f062d9c9143ad35c19daecbf340c8dc86e601229d19b23f5de304",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v": "6ac39c942a1cf0a8a9e782f546e2508bd94a33804e6f78cdcf4684c1557bf3c1",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
+      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "177e232cbf04e47721b34f9ae329b8d6448d2b34169520079d9f12a78c0b8a75",
+      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "af8bf333c2dee7928790b30eae4562e7c57c91cdc10014f9db557e073f411244",
+      "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+      "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
+      "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
+      "npc/rv64/vsrc/debug/OooAdUpdateChecker.sv": "3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv": "c8b76d3d8abf32cfef2516a0024e2ba6f3d9306526ab3382e438b021982d09d4",
+      "npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv": "ecbcf80612859aa41a6da8bf50a4cfbc55d2ddf785c21071e014244bfb9e4d38",
+      "npc/rv64/vsrc/debug/OooFetchPacketCacheChecker.sv": "bef729e4c65bd64849ae8b03773b219f6ff7dcf2aeaa05e76cf8450b9392946b",
+      "npc/rv64/vsrc/debug/OooRedirectMuxChecker.sv": "b913c172c6f947b78dada257c514ce0b2cd8199abb1958f39e8b143aafef2a07",
+      "npc/rv64/vsrc/debug/OooRedirectSeqChecker.sv": "556431f1af21ff7666cc1cae7c752e0864b8627da9e48858755d3618184f0fee",
+      "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
+      "npc/rv64/vsrc/decode/DecodeUnit.v": "a457a7b1fe65e528295de35c5107fa26f2bcf501c2a71af064517224c58ab763",
+      "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
+      "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
+      "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
+      "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
+      "npc/rv64/vsrc/execute/OooAmoGate.v": "6a1f7818864646f390bd3d69b21d8aa97252abfabcb3ec4cdf8f02a60229eebb",
+      "npc/rv64/vsrc/execute/OooBitmanipGate.v": "441a38dc7e70ac2768d613fdb5558be6d946faa3118b6bc601e7a6b2f6c47e19",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+      "npc/rv64/vsrc/execute/OooFpBackend.v": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+      "npc/rv64/vsrc/execute/OooFpClassifyGate.v": "a9c9ae843b0455ac9b9f13effcc3f28aa60277131f58612511caa3728f5ef015",
+      "npc/rv64/vsrc/execute/OooFpCompareGate.v": "fb4fa579a599351254a678bf6ef01dd771687198ac6f16199ab688dc2765a415",
+      "npc/rv64/vsrc/execute/OooFpConvertGate.v": "ae4054063ff55a459025fee6b4f4a126d165b4474d6e9add0b824717ecee1130",
+      "npc/rv64/vsrc/execute/OooFpDivIter.v": "5c587092c26723e9274bcb2bd68ba095df64a08ec012e938e80fea3b1a35f7fd",
+      "npc/rv64/vsrc/execute/OooFpLongOpGate.v": "d6fe771a370eda94530a1a1c80606d6438fa3551d3c04f3db6b0e560d9b6f36e",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v": "a44822188a46413423be239e59da7ea6ab99b2b782ba82c4994911e5d205743b",
+      "npc/rv64/vsrc/execute/OooFpRound.v": "030ced9ded4ea32062dd9b72e178d6bbbb5ef256b3f7c0a3e278995256a27ce2",
+      "npc/rv64/vsrc/execute/OooFpSgnjGate.v": "8557cc364a19060f6cc09d413c24ef71d153b2bb20237b5bc34fb901b822451a",
+      "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+      "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
+      "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
+      "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v": "d6aa4a2399326d9d33697c047fe98748000ac5a65beac1dc242d714cecfb8e52",
+      "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": "0b5fbda1c3bfa9b359ba741cca1c8f12c21761033d2caec7357fe67578b6d5e6",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v": "698b45f446b734361e8965fbad9e1155035a205e8d3b606ce6b278847cbe8997",
+      "npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v": "bbea9d11a23b7e2e71d9ecd3dbdf0797532e8d67e1f634e0f2cc3766c96fc1ee",
+      "npc/rv64/vsrc/frontend/OooBranchSpecTracker.v": "886a2441bf806be45d66115ee3eac71ec6bf5897258aa3d269711b0eea48ed09",
+      "npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v": "eccc6fc2c0be6fb6185f615496bcddc1137e77f06f7f11549117a4a741f75896",
+      "npc/rv64/vsrc/frontend/OooDirectBranchWaitBuffer.v": "0270fcf008a58365f0f7bd4d3696f1aa6d4b0f3bb01cded71c9fbae0ad7f5f1f",
+      "npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v": "ede708d61c702ad2acfa1c9534566fd04284ce769dd1a5f212cd498320bf8832",
+      "npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v": "d545177373ac236156a809e1c3ad22073f6a303045a992ff66114b21d44276a9",
+      "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "90cb706b64ff549378e4ff693c00e19eb5860c663e2cb9e359a78636d05fb8cd",
+      "npc/rv64/vsrc/frontend/OooFetchBranchTarget.v": "2acc4f1bc1419258c93cda3e5e1675469129b8226dc78d01b51e7ae8fa39a5d8",
+      "npc/rv64/vsrc/frontend/OooFetchFlowControl.v": "07effbab2a23d0404a008fc5bb934cdd38937a5e6d7266703479738db80f4fdf",
+      "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v": "f2a031de673ed9ed6b420fc28388d73a8f4c4225eaa9c3534938a3cd361fc441",
+      "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v": "576c6ee990e7699d01be6aab0238b6f98b37db8396b35f569bf7a14371523cf9",
+      "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": "7421b55f4d85e2bdbb7bb914c627f2d79d4205f0d15d23d7fbddd44727937b94",
+      "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": "1a45fcae49373f84c79a472854330f31ec9ed0d1445ce961412afd4625ac85ab",
+      "npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v": "93c84e24585c8a17be66f2ec9fef4ee3005200e3d3300b87c5e93661256ca014",
+      "npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v": "640ab3e7e0c7c985cc118210f875e2d03ae9692e9231ae4ead191befd8f18257",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
+      "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
+      "npc/rv64/vsrc/frontend/OooFetchStaticClassify.v": "1b8a4e3f1a06d69af1d3277f3a009520d94587bb9a4f8bcb06e434bbfbbf316a",
+      "npc/rv64/vsrc/frontend/OooFrontend.v": "cf146eb2d8a1a007bb876420c1243ad3500b0a7e4b20aa51769521ac7cbcd1d9",
+      "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "ab30a7d0d944c7f1e41d7cd0c48b82a1569afbf7ebd35e9f05fd91749aa2176d",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
+      "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": "89de85b5302b8a54427b754c0398065c2c02d8c5baddbf85942ab68ad8f61da3",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v": "f58b0944cc55f94cb6d1268b20bbf6300e77599372a246d17c0c68bffde7c7b9",
+      "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
+      "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
+      "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
+      "npc/rv64/vsrc/include/define.v": "9773faaa76f10a450945b30bfc6ac9aec5c796a3baab89ba90998e09b136d781",
+      "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
+      "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
+      "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "a421641abcfbd45a10f28fc0e44c7f2d1b28a1936c5500f0f046e7456590f5c9",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
+      "npc/rv64/vsrc/memory/OooMmuEpochOwner.v": "234b1f9687a62fead9ff7647527ff5344a3b53fee9633d44917162403e501b8a",
+      "npc/rv64/vsrc/memory/OooPmaChecker.v": "e197b137bfe1126f9191eaf3b2cfce779d26bdce0ead4a94d831552fe5732c2b",
+      "npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v": "717edd10049be5a00edb8f100fff59a1577704eb81564619bea4f262837553b9",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+      "npc/rv64/vsrc/memory/OooSv39Tlb.v": "6e1b4e2b0a817db3c4d42da20b429b93a7803dc92e72b6e08efeda6ee8b3b850",
+      "npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v": "aa573507b2ec3b76053470784a9d303b63eee5c9716807daada3f9a51c742649",
+      "npc/rv64/vsrc/memory/OooTypedPmaChecker.v": "ce644709dd4bfa8d2710fc4e32dea24b660ab24f55d745552ab5aebd09263de0",
+      "npc/rv64/vsrc/memory/PmpChecker.v": "f4600c320b03f0ffd3bcdff9336bcea2a17580fa7b8752da18d7db35956da4c2",
+      "npc/rv64/vsrc/pipeline/PipeStageReg.v": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+      "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v": "7237911b33f9b0992d9fc32529505be27ac246f527f57d3b8d656baaf87275f0",
+      "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v": "9975f068f1d455c61b586966390ec2fa2126cc8127e5a964e8ff9c4041f65cfa",
+      "npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v": "2a4fe71712f06658a84f53b57f1fa7113e373a92d610fb31dcb456b442d3e7fe",
+      "npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v": "0eba2c376365d13b2843092835ad76d0d74695aeb95be4cd4417d678d0a5a082",
+      "npc/rv64/vsrc/rename_allocate/OooBusyTable.v": "44dc6289103ee615b9d3e6f61acbfb9404a0329a649fd9a6f0f89829ace0fc12",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+      "npc/rv64/vsrc/rename_allocate/OooFreeList.v": "4946e8070db1c5243c412610790cbcddbaee08c3402847e509d02fe1237b9c58",
+      "npc/rv64/vsrc/rename_allocate/OooRenameMap.v": "1a2d2abd94ea4dee8fb4d850820e853aa50041408b8c0d847a25eb029b794789",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
+      "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "e897b4257d96e538e7846dadaea6f6b99702c3212cdf45ce45d5e1c9b3d35334",
+      "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
+      "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
+      "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
+      "npc/rv64/vsrc/writeback/OooCommitOutputMux.v": "4462a7e82191f68cd5bdcfe41ed8cb0b0518ad77c7555c993d1e43043550b530",
+      "npc/rv64/vsrc/writeback/OooControlCommitSequencer.v": "6ccb759e876f148d851c7b0516ee9338435577c33f86edfbf34816897b559fb9",
+      "npc/rv64/vsrc/writeback/OooRob.v": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561",
+      "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
+      "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
+    },
+    "sha256": "3c933ec82fd17c6038335f9208b496cacfb755dfd10b9e419c73f276b5e2a428"
+  },
+  "schema": "npc-rv64-architecture-hard-gates-result-v2"
+}

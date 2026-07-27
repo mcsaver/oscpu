@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "terminal-holder-matrix-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 OooIntBackend 与双 OooMemAxiBridge 的 memory-owner holder 唯一性矩阵；为 terminal ingress 根因形成拍选择安全的 assertion-only 观测点和自然周期 testbench 轨迹。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/subagent-contracts/terminal-holder-matrix-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "terminal lane0/1 是 bank0/1 response，lane2/3 是 bank0 active/station drop，lane4/5 是 bank1 active/station drop，lane6/7 是 reservation0/1 terminal，lane8 是 legacy buffer terminal，lane9 是 AMO interphase terminal，lane10/11 是 retry0/1 terminal。",
+      "每个 bridge 的 active 与 station query 提供独立 valid/token；request fire 后 reservation、buffer 或 retry 在同一时钟边清 valid，bridge station 在该边置 valid。",
+      "同一 MIQ 与其 bridge active 共享一个运输 token 是合法的；STORE 的 SQ owner 与运输 holder 共享 token 是合法的；AMO pending 在 write request 发出后与 bridge/MIQ 共享 token 是合法的。",
+      "跨 bank bridge token、同 bank active/station token、reservation0/1 token，以及 reservation/buffer/retry 与 bridge token 的等值关系需要按自然周期转移合同分类。",
+      "严格 rootfs 在 340000000 次提交后由 12-lane collector 检出同周期同-token 双 terminal；旧日志没有 lane pair，新 collector 已能逐 lane 打印 valid/kind/token/epoch。"
+    ]
+  },
+  "deliverables": [
+    "给出 holder-pair 矩阵：恒非法、带条件合法、合法；每项写明 edge-old 状态和同拍转移。",
+    "提出最小 assertion-only 观测集合、marker 字段和对应正向/编译成功负向 RTL 轨迹。"
+  ],
+  "success_criteria": [
+    "不把未知 lane pair 推断成已证实根因；每条断言说明如何避开 MIQ/bridge、SQ/transport 与 AMO write-phase 的合法共享。",
+    "结论精确到 module、signal、cycle 与 token，并保留 GAP 和替代解释。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

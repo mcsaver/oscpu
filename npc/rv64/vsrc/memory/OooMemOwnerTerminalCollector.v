@@ -21,6 +21,12 @@ module OooMemOwnerTerminalCollector #(
   input [63:0] live_kind_table_i,
   input [63:0] live_epoch_table_i,
 
+  // Combinational acceptance after exact live/tuple/duplicate/pending and
+  // same-edge dequeue checks.  A caller may use this only as proof that the
+  // corresponding holder has handed ownership to this collector on the
+  // current edge; raw ingress_valid_i is not transfer authority.
+  output [INGRESS_N-1:0] ingress_accept_o,
+
   output deq0_valid_o,
   output [1:0] deq0_kind_o,
   output [4:0] deq0_token_o,
@@ -310,6 +316,7 @@ module OooMemOwnerTerminalCollector #(
     end
   end
 
+  assign ingress_accept_o = ingress_accept_r;
   assign deq0_valid_o = out0_valid_q;
   assign deq0_kind_o = out0_kind_q;
   assign deq0_token_o = out0_token_q;
@@ -335,6 +342,7 @@ module OooMemOwnerTerminalCollector #(
   reg [8:0] out0_hold_tuple_q;
   reg out1_hold_check_q;
   reg [8:0] out1_hold_tuple_q;
+  integer ingress_assert_i;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -363,7 +371,26 @@ module OooMemOwnerTerminalCollector #(
         $display("[S2-G1-TCOLL-TUPLE-MISMATCH] ingress kind/epoch mismatched tracker truth");
         $fatal;
       end else if (|ingress_duplicate_violation_r) begin
-        $display("[S2-G1-TCOLL-INGRESS-DUP] same token arrived on multiple ingress lanes");
+        $display("[S2-G1-TCOLL-INGRESS-DUP] same token arrived on multiple ingress lanes valid=%b duplicate=%b pending=%h live=%h",
+                 ingress_valid_i, ingress_duplicate_violation_r,
+                 pending_q, live_mask_i);
+        for (ingress_assert_i = 0; ingress_assert_i < INGRESS_N;
+             ingress_assert_i = ingress_assert_i + 1) begin
+          if (ingress_valid_i[ingress_assert_i]) begin
+            $display("[S2-G1-TCOLL-INGRESS] lane=%0d kind=%b token=%0d epoch=%b duplicate=%b pending=%b live=%b",
+                     ingress_assert_i,
+                     ingress_kind_at(ingress_kind_i, ingress_assert_i),
+                     ingress_token_at(ingress_token_i, ingress_assert_i),
+                     ingress_epoch_at(ingress_epoch_i, ingress_assert_i),
+                     ingress_duplicate_violation_r[ingress_assert_i],
+                     pending_q[
+                         ingress_token_at(ingress_token_i,
+                                          ingress_assert_i)],
+                     live_mask_i[
+                         ingress_token_at(ingress_token_i,
+                                          ingress_assert_i)]);
+          end
+        end
         $fatal;
       end else if (|ingress_same_edge_violation_r) begin
         $display("[S2-G1-TCOLL-SAME-EDGE-REENQUEUE] dequeue token was re-enqueued on one edge");

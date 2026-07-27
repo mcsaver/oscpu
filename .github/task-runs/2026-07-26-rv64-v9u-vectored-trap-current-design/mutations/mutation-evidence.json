@@ -1,0 +1,219 @@
+{
+  "contract": {
+    "compile_configuration": "iverilog -g2012 -Wall -DOOO_ASSERT",
+    "cycle_observation": "raw trap request, selected target, WARL readback, exact PASS/FAIL",
+    "rtl_object": "npc/rv64/vsrc/core/CsrFile.v",
+    "testbench": "npc/rv64/testbench/tests/tb_csr_file_vectored_trap.sv"
+  },
+  "generated_at_utc": "2026-07-26T09:25:42.795755+00:00",
+  "mutations": [
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "2b7802c2528f2441fd420e1308d88ac692f412c601875b18979765cebf43f2a7",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/direct_only_target/rtl/CsrFile.v",
+      "mutant_sha256": "cb16fa9776379773e4656734e7c50f2f51bca66acf9838694458037819ea655a",
+      "mutation_id": "direct_only_target",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A2-TARGET]": 2
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "强制所有陷阱跳转到 tvec BASE，移除中断向量偏移"
+    },
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "56ef00a70f65f39c5f3f2fe72a3e6b580dea2b94d8927a4932a09fec8703a284",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_sync_exception/rtl/CsrFile.v",
+      "mutant_sha256": "55535ecfdc5e2b309ee4024a202da416c5a08e5db14bb850f64bb9d263969394",
+      "mutation_id": "vector_sync_exception",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A2-TARGET]": 3
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "在 MODE=1 时错误地给同步异常也施加 4×cause 偏移"
+    },
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "2d193a2a1c9aa3edefec5a954b5332373b7d1893c06d906e370083620f681567",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/force_machine_tvec/rtl/CsrFile.v",
+      "mutant_sha256": "c57c9a982d6d0ffa64c0487b0f6821ee2d0a237de9b7071bf0ed330742c8b742",
+      "mutation_id": "force_machine_tvec",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A2-TARGET]": 3
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "忽略选中陷阱的委托级别并强制使用 mtvec"
+    },
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "29eb3ea6993b015211ec930c55bc126be0f14a04eb80f2eef342cec1d5931f60",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/reserved_mode_passthrough/rtl/CsrFile.v",
+      "mutant_sha256": "fdbc39eb6dd1fc309eb0d22d88ffecc4d1aebcd25d2c4a780c5590fa58f762a3",
+      "mutation_id": "reserved_mode_passthrough",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A3-MTVEC-MODE]": 2,
+        "[VECTORED-TRAP-A4-STVEC-MODE]": 2
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "保留 mtvec/stvec 的保留 MODE=2/3，而不执行 WARL 钳位"
+    },
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "e7f00db97c0c10832be4fc6cdfa1478168318c915241bb509f4f9d40c4349116",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/exception_over_memory_priority/rtl/CsrFile.v",
+      "mutant_sha256": "323808a9d427fd703a5012e65eb32ffcfc04fd95f56199a520ddcd329655f024",
+      "mutation_id": "exception_over_memory_priority",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A1-SELECTED-RECORD]": 1
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "把同时到达的 trap 源优先级从 mem>ex>irq 改为 ex>mem>irq"
+    },
+    {
+      "compile_artifact": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/build/tb_csr_file_vectored_trap.vvp",
+      "compile_artifact_sha256": "ce2f557f911daa45899de0529c8c3e29adf16a37b8bef5a3e371f66305900e2f",
+      "compile_succeeded": true,
+      "driver_rc": 2,
+      "exact_test_pass_count": 0,
+      "execution": {
+        "command": [
+          "make",
+          "-B",
+          "BUILD_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/build",
+          "RESULT_DIR=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/run",
+          "RTL_CSR_FILE=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/rtl/CsrFile.v",
+          "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/run/logs/tb_csr_file_vectored_trap.log"
+        ],
+        "cwd": "npc/rv64/testbench",
+        "mode": "local-rv64-iverilog-negative",
+        "purpose": "编译并运行 CsrFile 向量陷阱负向 RTL 版本"
+      },
+      "functional_fail_marker_count": 0,
+      "log_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/run/logs/tb_csr_file_vectored_trap.log",
+      "mutant_path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/mutations/vector_offset_plus_four/rtl/CsrFile.v",
+      "mutant_sha256": "1265f9f4102792864de91e875b43ad209a877938690ab6c9131518cd5a229cc2",
+      "mutation_id": "vector_offset_plus_four",
+      "rejected": false,
+      "required_assertion_counts": {
+        "[VECTORED-TRAP-A2-TARGET]": 2
+      },
+      "result_fail_count": 1,
+      "result_pass_count": 0,
+      "rtl_effect": "把中断向量偏移从 4×cause 改为 4×cause+4"
+    }
+  ],
+  "schema_version": 1,
+  "source_sha256_after": "3c08f6c2360b04b6fc0153feb42ef6f9e1fca1e158c6ffd892fe18921551d987",
+  "source_sha256_before": "3c08f6c2360b04b6fc0153feb42ef6f9e1fca1e158c6ffd892fe18921551d987",
+  "source_unchanged": true,
+  "summary": {
+    "all_rejected": false,
+    "compile_succeeded": 6,
+    "rejected": 0,
+    "total": 6
+  },
+  "tools": {
+    "iverilog": "Icarus Verilog version 12.0 (stable) ()",
+    "make": "GNU Make 4.3",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]"
+  }
+}

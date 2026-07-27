@@ -1,0 +1,10 @@
+rootfs_flavor=systemd-minimal
+reused_existing_strict_rootfs=1
+UBUNTU_ROOTFS_NPC_CONSOLE_SHELL=1
+UBUNTU_ROOTFS_NPC_STRICT_AUTORUN=1
+d4cda519bef51088b320c3a50486f24c678313eadce0b3905a9c439d91d71b06  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-strict.ext4
+ec6a1baad2c65abd22a67a9bc73c3064d2e06761278901e7ea723665e459be79  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-strict-rootfs.cpio
+4fe0dedf1c7f9ff06656a991ed4d7c5abda8aa4766218fb5c57727e57b511e16  /home/lyg/PA/ysyx-workbench/Linux/scripts/npc-systemd-strict-check.sh
+6ffe755deb5eef1a2e6678a09c1cb45ddd07f126749927eb502578454c41594e  /home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh
+4066184ed06c224f08d594d14a7af7107d3cc05b59d365dd6f360beea7399bc8  /home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh
+067aa10a31d61b32fe63704ca2dc5507d71d771ed5b1e97586fd93c81428701a  /home/lyg/PA/ysyx-workbench/Linux/scripts/check-npc-systemd-guest.sh

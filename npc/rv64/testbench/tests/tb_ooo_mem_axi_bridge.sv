@@ -8,6 +8,7 @@ module tb_ooo_mem_axi_bridge #(
   reg clk;
   reg rst;
   reg flush;
+  reg control_full_flush_barrier;
   reg mmu_flush;
   reg dcache_dma_invalidate_all;
 
@@ -180,6 +181,7 @@ module tb_ooo_mem_axi_bridge #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
+    .control_full_flush_barrier_i(control_full_flush_barrier),
     .mmu_flush_i(mmu_flush),
     .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all),
     .peer_invalidate_valid_i(1'b0),
@@ -362,6 +364,7 @@ module tb_ooo_mem_axi_bridge #(
   task automatic clear_inputs;
     begin
       flush = 1'b0;
+      control_full_flush_barrier = 1'b0;
       mmu_flush = 1'b0;
       dcache_dma_invalidate_all = 1'b0;
       priv_mode = `PRIV_M;
@@ -1056,6 +1059,166 @@ module tb_ooo_mem_axi_bridge #(
       satp = {`XLEN{1'b0}};
       mem0_req_addr = {`XLEN{1'b0}};
       $display("[T4E-MEM-AR-HOLD] data+walk valid/payload held; repeated-flush+ready drained");
+    end
+  endtask
+
+  // V9O C0 full-flush barrier has a narrower role than flush_i:
+  // it holds station/pre-owner launch, while an already registered AXI owner
+  // keeps VALID/payload stable and may drain its terminal response.
+  task automatic v9o_full_flush_barrier_contract;
+    reg [`XLEN-1:0] held_araddr;
+    reg [`XLEN-1:0] held_awaddr;
+    reg [`XLEN-1:0] held_wdata;
+    reg [`STRB_W-1:0] held_wstrb;
+    begin
+      // Pre-owner S_LOOKUP miss: barrier removes the combinational launch and
+      // holds the lookup state until the C0 window ends.
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_a000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("V9O C0 idle request initially ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      tick();
+      #1;
+      tb_check1("V9O C0 lookup miss presents pre-owner AR", lsu_axi_arvalid,
+                1'b1);
+      held_araddr = lsu_axi_araddr;
+      control_full_flush_barrier = 1'b1;
+      #1;
+      tb_check1("V9O C0 barrier blocks request ready", mem0_req_ready, 1'b0);
+      tb_check1("V9O C0 barrier blocks pre-owner AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("V9O C0 lookup remains held", lsu_axi_arvalid, 1'b0);
+      control_full_flush_barrier = 1'b0;
+      #1;
+      tb_check1("V9O C0 release restores lookup AR", lsu_axi_arvalid, 1'b1);
+      tb_check64("V9O C0 release preserves lookup address", lsu_axi_araddr,
+                 held_araddr);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0102_0304_0506_0708;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("V9O C0 released request returns response", mem0_rsp_valid,
+                1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // Registered S_READ_ADDR owner: C0 barrier must never be placed on the
+      // AXI VALID path.  It can handshake and capture R while CPU response
+      // credit is held low.
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_a080;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b0;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      tick();
+      #1;
+      tb_check1("V9O C0 registered-owner setup AR", lsu_axi_arvalid, 1'b1);
+      held_araddr = lsu_axi_araddr;
+      tick();
+      control_full_flush_barrier = 1'b1;
+      #1;
+      tb_check1("V9O C0 keeps registered ARVALID", lsu_axi_arvalid, 1'b1);
+      tb_check64("V9O C0 keeps registered ARADDR", lsu_axi_araddr,
+                 held_araddr);
+      tick();
+      #1;
+      tb_check1("V9O C0 repeated beat keeps ARVALID", lsu_axi_arvalid, 1'b1);
+      tb_check64("V9O C0 repeated beat keeps ARADDR", lsu_axi_araddr,
+                 held_araddr);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1112_1314_1516_1718;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("V9O C0 owner terminal is captured", mem0_rsp_valid, 1'b1);
+      control_full_flush_barrier = 1'b0;
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("V9O C0 registered owner drains to idle", mem0_req_ready,
+                1'b1);
+
+      // Registered AW/W owner follows the same rule, including split-channel
+      // backpressure.  Barrier may not alter either VALID or payload.
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_a100;
+      mem0_req_wdata = 64'h2122_2324_2526_2728;
+      mem0_req_wstrb = 8'h0f;
+      #1;
+      tb_check1("V9O C0 write request initially ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      tick();
+      #1;
+      tb_check1("V9O C0 registered AW presented", lsu_axi_awvalid, 1'b1);
+      tb_check1("V9O C0 registered W presented", lsu_axi_wvalid, 1'b1);
+      held_awaddr = lsu_axi_awaddr;
+      held_wdata = lsu_axi_wdata;
+      held_wstrb = lsu_axi_wstrb;
+      control_full_flush_barrier = 1'b1;
+      #1;
+      tb_check1("V9O C0 keeps registered AWVALID", lsu_axi_awvalid, 1'b1);
+      tb_check1("V9O C0 keeps registered WVALID", lsu_axi_wvalid, 1'b1);
+      tb_check64("V9O C0 keeps registered AWADDR", lsu_axi_awaddr,
+                 held_awaddr);
+      tb_check64("V9O C0 keeps registered WDATA", lsu_axi_wdata,
+                 held_wdata);
+      if (lsu_axi_wstrb !== held_wstrb) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V9O C0 changed registered WSTRB");
+      end
+      tick();
+      #1;
+      tb_check1("V9O C0 repeated beat keeps AWVALID", lsu_axi_awvalid, 1'b1);
+      tb_check1("V9O C0 repeated beat keeps WVALID", lsu_axi_wvalid, 1'b1);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("V9O C0 registered write waits B", lsu_axi_bready, 1'b1);
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("V9O C0 write terminal is captured", mem0_rsp_valid, 1'b1);
+      tb_check1("V9O C0 live write has no drop terminal", mem0_drop0_valid,
+                1'b0);
+      control_full_flush_barrier = 1'b0;
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("V9O C0 registered write drains to idle", mem0_req_ready,
+                1'b1);
+      $display("[V9O-MEM-C0-BARRIER] pre-owner held; registered AR/AW/W owners preserved PASS");
     end
   endtask
 
@@ -2929,7 +3092,32 @@ module tb_ooo_mem_axi_bridge #(
         tick();
         #1;
       end
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+      control_full_flush_barrier = 1'b1;
       mem0_sq_query_retry_ready = 1'b1;
+      #1;
+      tb_check1("V9R bridge C0 keeps replay query valid",
+                mem0_sq_query_valid, 1'b1);
+      tb_check32("V9R bridge C0 keeps exact replay token",
+                 {27'b0, mem0_sq_query_owner_token},
+                 {27'b0, replay_token});
+      tb_check1("V9R bridge C0 forbids retry fire",
+                dut.sq_query_retry_fire_w, 1'b0);
+      tb_check1("V9R bridge C0 keeps owner non-idle",
+                mem0_idle, 1'b0);
+      tick();
+      #1;
+      tb_check1("V9R bridge repeated C0 keeps replay query valid",
+                mem0_sq_query_valid, 1'b1);
+      tb_check32("V9R bridge repeated C0 keeps exact replay token",
+                 {27'b0, mem0_sq_query_owner_token},
+                 {27'b0, replay_token});
+      tb_check1("V9R bridge repeated C0 forbids retry fire",
+                dut.sq_query_retry_fire_w, 1'b0);
+      control_full_flush_barrier = 1'b0;
+`else
+      mem0_sq_query_retry_ready = 1'b1;
+`endif
       #1;
       tb_check1("F3 replay credit fires exact handoff",
                 dut.sq_query_retry_fire_w, 1'b1);
@@ -3001,6 +3189,9 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("F3 forwarded flush releases bridge", mem0_idle, 1'b1);
       tb_check1("F3 forwarded flush has no ghost response/drop",
                 mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+      $display("[V9R-MEM-SQ-RETRY-C0-HANDOFF-PASS] state=S_SQ_QUERY held=1 release=1 PASS");
+`endif
       $display("[V8T-F3-BRIDGE-QUERY] replay hold/handoff + forward hold/drop PASS");
     end
   endtask
@@ -4751,6 +4942,20 @@ module tb_ooo_mem_axi_bridge #(
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active | mem0_rsp_cacheable;
 
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    clear_inputs();
+    tick();
+    tick();
+    rst = 1'b0;
+    #1;
+    final_pa_sq_query_decisions();
+    tb_finish("tb_ooo_mem_axi_bridge_v9r_sq_retry_c0");
+  end
+`else
 `ifndef S2_G1_BRIDGE_FOCUSED
   initial begin
     tb_errors = 0;
@@ -4767,6 +4972,7 @@ module tb_ooo_mem_axi_bridge #(
     held_response_flush_drop();
     inflight_read_flush_abort();
     stalled_ar_survives_flush();
+    v9o_full_flush_barrier_contract();
     read_arsize_tracks_load_mask();
     cached_window_shift_and_cross_block();
     dcache_hit_fusion_cases();
@@ -4857,6 +5063,7 @@ module tb_ooo_mem_axi_bridge #(
     endcase
     tb_finish("tb_ooo_mem_axi_bridge");
   end
+`endif
 `endif
 
 endmodule

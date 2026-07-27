@@ -32,6 +32,11 @@ module OooPendingDrainResolveGate #(
   // graph (MIQ, bridge transaction/buffer and memory issue reservation).
   // Other system controls retain their established drain/priority contract.
   input mem_idle_i,
+  // V9Y/V9Z: unlike full mem_idle, this admits collector-pending-only tokens
+  // but rejects every still-active memory holder without an exact terminal
+  // edge.  Both pending system controls and pending architectural traps use
+  // this boundary before their serialized control transaction can complete.
+  input mem_owner_terminalized_i,
   input pending_system_i,
   input pending_system_fence_i,
   input pending_system_csr_i,
@@ -69,7 +74,8 @@ module OooPendingDrainResolveGate #(
   assign system_csr_dispatch_valid_o =
       !system_csr_dispatch_cancel_i &&
       stop_pending_i && pending_system_i && pending_system_csr_i &&
-      !pending_system_dispatched_i && backend_drained_q_i;
+      !pending_system_dispatched_i && backend_drained_q_i &&
+      mem_owner_terminalized_i;
   assign system_csr_dispatch_fire_o =
       system_csr_dispatch_valid_o && dispatch0_ready_i;
 
@@ -91,8 +97,12 @@ module OooPendingDrainResolveGate #(
       (pending_system_i && pending_system_csr_i);
   wire pending_fence_mem_quiet_w =
       !pending_system_fence_i || mem_idle_i;
+  wire pending_serialized_mem_terminal_w =
+      !(pending_system_i || pending_arch_trap_i) ||
+      mem_owner_terminalized_i;
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&
-      !pending_replay_wait_o && pending_fence_mem_quiet_w;
+      !pending_replay_wait_o && pending_serialized_mem_terminal_w &&
+      pending_fence_mem_quiet_w;
 
 endmodule

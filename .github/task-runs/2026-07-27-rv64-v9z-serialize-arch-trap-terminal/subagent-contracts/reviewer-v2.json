@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v9z-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooPendingDrainResolveGate 到 OooCsrTrapRequestMux 的 pending architectural trap memory-owner terminal 最小 RTL 修改、周期边界、回归证据与同设计身份；寻找提前 fire、过度等待、FENCE 回退、重复 side effect、证据漂移和未声明范围。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooTrapExitEventMux.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "V9Z production design_id=sha256:bbb9c95199ada2e0e8160c235705a270f924240b28fde6e611bd9342398084c9；active holder 必须阻止 arch trap，exact accepted transfer 与 collector-pending-only 必须允许；ordinary FENCE 继续要求 mem_idle。",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/subagent-contracts/reviewer-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "V9Z production design_id=sha256:bbb9c95199ada2e0e8160c235705a270f924240b28fde6e611bd9342398084c9；active holder 必须阻止 arch trap，exact accepted transfer 与 collector-pending-only 必须允许；ordinary FENCE 继续要求 mem_idle。"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件 → 组合拍/编译配置 → testbench/EDA 观测 → PASS/GAP 范围组织的独立中文复核，列出反例、未知项、真实 marker、文件名、SHA 绑定及 scope extension request。"
+  ],
+  "success_criteria": [
+    "确认或否决 shared serialized terminal 布尔式恰好覆盖 pending_system 与 pending_arch_trap，且不变成全局 owner gate。",
+    "核对 pre-fix RED、assertion on/off focused GREEN、4/4 compile-success mutation、112/112 module、functional PASS、9/9 architecture GREEN 是否绑定同一当前 RTL。",
+    "核对未削弱 FENCE mem_idle、collector fail-loud 或 terminal-event exactly-once 断言，且未加入去重状态。",
+    "检查 post-fire clear 与 arch trap 对 ECALL/IRQ/xRET/CSR/FENCE overlap，不能证明时必须保留明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

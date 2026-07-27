@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9y-memory-owner-terminal-provenance-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "核验本地 RV64 V9Y 终审唯一剩余证据 blocker：刷新后的 acceptance-mutations summary 必须绑定当前 OooIntBackend、OooMemOwnerTerminalCollector 与 tb_ooo_int_backend 精确 SHA，三项 OOO_ASSERT=0 负向 RTL 版本必须 compile-success 并分别由 raw-ingress transfer、raw-valid acceptance、assertion-only predicate 的定向 oracle 拒绝；同时确认功能聚合与架构硬门仍绑定设计 sha256:3c933ec82fd17c6038335f9208b496cacfb755dfd10b9e419c73f276b5e2a428。只读，不重开已在 v3 复核通过的 RTL 代数。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-report-v3.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/architecture/final-architecture-hard-gates.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations/summary.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-contract-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-report-v3.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations/summary.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/architecture/final-architecture-hard-gates.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "报告 summary 中的 production RTL SHA、testbench_sha256 与实时文件 SHA 是否逐项相同；列出三项 mutation 的 compile_success/make_rc/expected marker/rejected；核对 functional/architecture design_id；若全部一致，在明确继承 v3 的 RTL PASS 边界下判定 V9Y 子范围 PASS，否则给出唯一精确 GAP。"
+  ],
+  "success_criteria": [
+    "只有当前 TB 和两个 production RTL 哈希与刷新 summary 完全一致、3/3 acceptance mutations 在 OOO_ASSERT=0 下由各自唯一 oracle 拒绝、functional 与 architecture 同为 sha256:3c933ec82fd17c6038335f9208b496cacfb755dfd10b9e419c73f276b5e2a428 时才允许关闭 V9Y 子范围；不得扩大到 pending-arch-trap、七类 exactly-once、SERIALIZE-G1、architecture-stable、Linux flag-on 或 PPA；最终明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

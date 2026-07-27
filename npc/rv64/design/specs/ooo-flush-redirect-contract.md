@@ -1,6 +1,7 @@
-# rv64 OoO 核 flush / redirect 契约（现状冻结 v2）
+# RV64 OoO 核类型化控制事件 / flush / redirect 契约
 
-> **类型**：跨模块架构级 **接口契约（contract spec）** —— 非重写方案。本文件只**描述现状 + 指出缺口 + 冻结不变量**，不落地任何 RTL 改动。
+> **类型**：跨模块架构级 **接口契约（contract spec）**。历史底稿描述旧拓扑；
+> §2.1 的 V9O CURRENT overlay 描述当前生产 RTL 与冻结不变量。
 >
 > **依据**：
 > - 编排层 `decisions [38]`：将 ①flush 契约冻结 ②C-OBJ-REDIR 重写评估 ③对抗审查 三份逆向结果**融为一份可落盘、可进 check-contract 的契约**。
@@ -43,7 +44,7 @@
 
 **活跃度标注**：**[活]** = 默认构建下会触发；**[休]** = 默认 flag 下恒 0（仅 flag ON 活）；**[死]** = 端口接常量 / 结构性从不触发；**[半死]** = 非 flag 门控但默认模式下运行时几乎不命中（对照 `rtl-ground-truth-2026-07-11.md`）。
 
-> ⚠️ **幸存者偏差告警（对抗审查挑战#3，系统性）**：默认 `OOO_CSR_QUEUE_HEAD=0` 下 **E2 serial_flush / E5-head0 支 / GAP-8 head0_csr_inflight / GAP-5「serial 恒在 SQ 空拍」整条 serialize 机理全部休眠 [休]**。本契约引用的头号绿证据（riscv 355/0 + AM 57/58 + CoreMark 0xfcaf + sv39 boot + linux-mini）**全部跑在 flag=0**。因此**凡触及 serialize 的"成立"，其证据强度 = "flag=0 下不触发"，而非"flag=1 绿回归背书"**（memory「翻 1 待完整 Linux boot」尚未完成）。§3/§4 凡属此类，一律带此 caveat，不得读作 settled。
+> ⚠️ **幸存者偏差告警（对抗审查挑战#3，系统性）**：默认 `OOO_CSR_QUEUE_HEAD=0` 下 **E2 serial_flush / E5-head0 支 / GAP-8 head0_csr_inflight / GAP-5「serial 恒在 SQ 空拍」整条 serialize 机理全部休眠 [休]**。本契约引用的宽回归证据（riscv、AM、CoreMark、sv39 boot、linux-mini）仍全部跑在 flag=0。V9X 已补一项 `OOO_CSR_QUEUE_HEAD=1` 的 focused `OooCoreTopGlue` 证据，只覆盖 queue-head owner real-fire、older branch/JALR recovery 与 C1 holder reset，并由两项可编译变异反例守住；它**不等价于完整 Linux flag-on，也不关闭 memory-owner terminal 或七类 serialized transaction exactly-once**。因此 §3/§4 的宽系统结论仍须保留此 caveat，不得把 focused PASS 外推为 serialize 全面 settled。
 
 三铁律（契约根律，SPEC-TEMPLATE §2 强制）：
 - **铁律①** committed store 不得被任何 flush 清除（提交拍已离 ROB 进 SQ）。
@@ -59,6 +60,42 @@
 ## 2. 接口契约
 
 ### 2.1 flush / redirect 源总表（CURRENT overlay + 历史冻结底稿）
+
+#### V9O CURRENT：类型化控制事件与 C0/C1 边界（2026-07-23）
+
+V9O 把本地 RV64 OoO 核的控制事件统一为
+`{valid, pc, kill_idx, reason[3:0], flush_fetch, backend_action[1:0]}`。reason 至少覆盖
+`TRAP/CSR_COMMIT/BRANCH_MISS/JALR_MISS/DIRECT`；backend action 为
+`NONE/SELECTIVE_NOW/FULL_NEXT`。
+
+全清空事件采用两拍合同：
+
+1. C0：ROB 仅由稳定 Q、commit 许可和 exact pending CSR ProducerId 产生
+   `head0_control_event_pregrant`。任一 control pregrant 停止新 dispatch 并压住同拍更年轻
+   branch；只有 full 子集停止 issue/fetch/memory station、截断 strictly-younger
+   completion 并请求 C1。队头 commit 仍可见，已有 AXI owner 继续 hold/drain。
+2. C1：独立 control sequencer 输出一次类型化 `FULL_NEXT` apply，现有后端/前端
+   clear 只由该事件的 reason 投影驱动。
+
+队头 CSR 分类：
+
+- 没有 exact pending owner 的 queue-head CSR：
+  `CSR_COMMIT/FULL_NEXT`；
+- `{slot_generation, rob_idx}` 精确匹配 pending-system CSR owner：
+  `CSR_COMMIT/NONE`，不产生 full barrier、completion cut 或 C1 apply；
+- mismatched/stale ProducerId 不得获得 action-NONE。
+
+同拍全序：
+
+`reset > external flush > C1 typed full apply > C0 head pregrant >
+C0 branch selective apply > direct redirect > normal action`
+
+其中任一 C0 head control pregrant 与 branch request 同拍时，pregrant 胜出；branch raw
+只保留 shadow 观测。最终 frontend arbiter winner 是规范参考视图和前端真源，但 branch
+production apply 不直接读取该 winner，避免经过 dispatch-ready/direct-fire 形成组合闭环；
+`OooCoreTopGlue` 的双向立即断言证明 cycle-free backend 投影与最终
+`SELECTIVE_NOW/FULL_NEXT` 赢家一致。memory bridge full 屏障只限制尚未取得事务所有权的
+准入，不得门控已注册或 stalled 的 AXI VALID。
 
 #### 2.1.1 2026-07-11 CURRENT overlay
 
@@ -418,7 +455,7 @@ redirect_request {
 | **GAP-4** | 后端 flush 扁平 OR、双 squash 机制（E1/E2 nuke vs E3 walk）无统一仲裁器 | `SliceControlGate:39-40` | reason+kill_younger_than 统一 |
 | **GAP-5** | 「清/保持」靠不变量而非机制（含子系统4 陈述错，已纠）：serial/trap **确进 SQ flush_all**，committed 靠 `survive`；head0-CSR serial 退休靠 `mem_idle` 避免 abort 在飞事务，younger 未 committed store 允许在 flush_all 下被丢弃 | §3 铁律① | ✅ INV-4 已断言显式化（2026-07-07） |
 | **GAP-6** | ~~wrong-path trap payload/valid 复活~~ **✅已修(2026-07-05, 2026-07-15 collision extension)**：squash 无条件清 payload，并在 `clear_arch && clear_arch_squash && capture_arch` 同拍时令 squash 胜出；否则 NBA 中后写 capture 会把 wrong-path illegal valid/payload 重新置活。R3.2 `rv64si-p-icache-alias` 首错实证 collision PC=`0x8000031c`/inst=`0xc0001073`，残留 trap 随后抢占合法 M-mode `SFENCE.VMA`。payload-lifetime 与 collision 断言共同守住 | E12 | ✅已修+双断言守住 |
-| **GAP-7** | stop_pending 优先级 = 单 always 块语句顺序（隐式，`OooStopPendingSequencer.v:64-159`）；SET 谓词在 sequencer 与 `OooPendingDispatchArbiter` 两处人工镜像，无单一真源易漂移 | 汇合点6 | 待收口 |
+| **GAP-7** | ~~`stop_pending` 由 raw 分类与隐式 NBA 顺序出生，holder/stop 双真源易漂移~~ **✅ V9X owner-birth 子范围根治（2026-07-26）**：`OooStopPendingSequencer` 只消费 holder 接受后的 pending birth/live、exact CSR lease、Frontend 导出的 canonical queue-head real-fire birth/live/kill 与 C1 reset；一个显式 next-state priority chain 同时处理 birth/hold/death。`OooPendingTrapExitSequencer` 的 C1 reset 同源接入。focused flag-on TB 直接观测 “merged fire=1、real fire=0、birth=0” 与 C1 holder reset，两项 compile-success mutation 分别删除 C1 reset、恢复 merged-fire 重构，均被定向 oracle 拒绝；四条 stop assertion 与 exit-squash assertion 保留且负向命中。**V9Y 增量**：七类 pending-system 的 Cresolve 已同时消费 LSU 本地归约的 `mem_owner_terminalized`；活动 holder 阻塞，same-edge terminal 与 collector-pending-only 放行，ordinary FENCE 仍要求全 `mem_idle`。该增量不外推到 pending arch-trap 或七类 exactly-once。 | 汇合点6；`ooo-serialize-owner-birth.md`；`ooo-serialize-memory-owner-terminal.md` | ✅ owner-birth + pending-system memory-terminal 子范围关闭 |
 | **GAP-8** | pending_system 单寄存器无队列：head0-CSR 在飞与 younger drain-CSR 共存会覆写→死锁，靠 `head0_csr_inflight` hold(`:157`) 防（**flag ON 时脆弱不变量**） | E5/E12 | 仅 flag=1 应力；serialize §10.4 修复史 |
 | **GAP-9** | pending 清扁平 OR + fetch-only 无条件清：`pending_system_clear`(`:190-195`) 扁平 OR 无内部优先级；`direct_frontend_flush` **无条件**清 pending_system/pending_arch_trap，依赖"pending 只承载投机项"不变量、无显式强制 | E12 | 待显式化 |
 
@@ -450,7 +487,7 @@ redirect_request {
   1. **锚点迁信号名**：全文 `:NNN` 行号只作追溯，权威锚点是**模块名 + 信号名 + grep 模式**（可被 check-rtl-style/check-contract 机检）。RTL 插一行行号即漂，散文契约不得充当真源。
   2. **四条承重不变量编码进 `.v`**：INV-1（`OooFetchPcOutstandingSequencer`）、INV-2（同拍 onehot）、INV-3（`OooControlPlane`）、INV-4（`OooRob` + `OooStoreQueue`）；当前 baseline **20**，ratchet 物理阻止静默删。
   3. **散文契约降级为导航索引**：真源活在"RTL 一旦背离即 fail build"的 ratcheted 断言里，本 .md 指向那些断言，**不**充当真源。这与 doc-lifecycle 协议、interface-contract-first gate 完全同构。
-- **动作项（当前状态）**：Step 0 承重断言已分批落地并 ratchet 到 baseline=20；本文仍保留 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 作为后续 redirect/serialize 收敛 backlog。下一步不再是“补 INV-4”或“补 glue TB CsrFile stub”（后者已于 2026-07-07 接入 head0 commit 并验证），而是按 `serialize-at-retire-phase1.md §10.6` 补 flag ON 前置：完整 Linux boot 与 `-v-`/full-state difftest。
+- **动作项（当前状态）**：Step 0 承重断言已分批落地；V9X 已关闭 recovery/owner-birth，V9Y 已关闭七类 pending-system 的 memory-owner terminal 门控子范围。本文仍保留 GAP-3/GAP-4/GAP-8/GAP-9；`SERIALIZE-G1` 的下一条主线是七类 transaction 的 exactly-once side-effect/retirement 与 pending arch-trap 的 memory-terminal 扩展。完整 Linux flag-on 与 `-v-`/full-state difftest 仍是系统级前置，不得由 focused TB 替代。
 
 ---
 
@@ -495,3 +532,8 @@ redirect_request {
 - 2026-07-12：关闭 IFU-AXI-G1；E11/铁律②/UC-E 改为 sticky-drop write drain 当前事实，
   并校正 D-side 已使用本地 `drop_rsp_q`、不再依赖已删除的 xbar abort/drop。全局铁律②
   仍因 UC-D 保守保持部分满足。
+- 2026-07-26 V9X：关闭 GAP-7 的 recovery/owner-birth 子范围。pending holder 接受事件、
+  exact lease、canonical queue-head real-fire/inflight/kill 与 C1 reset 成为
+  `stop_pending` 的 phase-aware 单一事实源；focused flag-on、五项 assertion-negative、
+  两项 compile-success mutation、111/111 模块回归与 9/9 architecture hard gates 绑定
+  到最终设计身份。`SERIALIZE-G1`、完整 Linux flag-on 与 PPA qualification 继续保持 OPEN。

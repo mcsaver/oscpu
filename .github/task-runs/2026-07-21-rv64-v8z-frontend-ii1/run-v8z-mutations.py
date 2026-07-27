@@ -143,8 +143,12 @@ MUTATIONS = (
         "V8Z_FRONTEND_II1_FOCUSED",
         (Edit(
             ACTION,
-            "  assign fifo_pop_o =\n      dispatch_fire_i ||",
-            "  assign fifo_pop_o =\n      1'b0 ||",
+            "  assign fifo_pop_o =\n"
+            "      !control_full_flush_barrier_i &&\n"
+            "      (dispatch_fire_i ||",
+            "  assign fifo_pop_o =\n"
+            "      !control_full_flush_barrier_i &&\n"
+            "      (1'b0 ||",
         ),),
         ("V8Z FIFO sink consumes one packet",),
         ("produced_packets",),

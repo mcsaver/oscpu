@@ -530,6 +530,10 @@
 `define MSTATUS_SPIE       64'h0000_0000_0000_0020
 `define MSTATUS_MPIE       64'h0000_0000_0000_0080
 `define MSTATUS_SPP        64'h0000_0000_0000_0100
+`define MSTATUS_VS_MASK    64'h0000_0000_0000_0600
+`define MSTATUS_VS_INITIAL 64'h0000_0000_0000_0200
+`define MSTATUS_VS_CLEAN   64'h0000_0000_0000_0400
+`define MSTATUS_VS_DIRTY   64'h0000_0000_0000_0600
 `define MSTATUS_FS_MASK    64'h0000_0000_0000_6000
 `define MSTATUS_FS_INITIAL 64'h0000_0000_0000_2000
 `define MSTATUS_FS_CLEAN   64'h0000_0000_0000_4000
@@ -547,7 +551,7 @@
 `define MSTATUS_SD         64'h8000_0000_0000_0000
 `define MENVCFG_PBMTE      64'h4000_0000_0000_0000
 `define SSTATUS_MASK       (`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | \
-                            `MSTATUS_FS_MASK | \
+                            `MSTATUS_VS_MASK | `MSTATUS_FS_MASK | \
                             `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL | \
                             `MSTATUS_SD)
 `define SV39_PTE_N         64'h8000_0000_0000_0000
@@ -660,15 +664,24 @@
 // shadow 等价断言阶段仅在 OooCoreTopGlue 的 `ifdef OOO_ASSERT 段作并行影子仲裁（不驱动
 // 功能逻辑，零综合影响）；全绿后才切消费点。曾于 2026-07-03 因零实例化删档（C7），
 // 现按 design/arch/pipeline-stage-boundary.md §5（flush 单点化 assert-then-converge）回填。
-`define REDIR_REASON_W           3
-`define REDIR_REASON_NONE        3'd0
-`define REDIR_REASON_BRANCH_MISS 3'd1   // 条件分支误预测（后端解析）
-`define REDIR_REASON_JALR_MISS   3'd2   // JALR 目标误预测（后端 AGU 解析）
-`define REDIR_REASON_TRAP        3'd3   // commit 阶段精确异常/中断
-`define REDIR_REASON_XRET        3'd4   // mret/sret 返回
-`define REDIR_REASON_SFENCE      3'd5   // sfence.vma 后重取指
-`define REDIR_REASON_FENCEI      3'd6   // fence.i 后重取指
-`define REDIR_REASON_DIRECT      3'd7   // dispatch 期直算的 direct 控制流（JAL/已知目标）
+`define REDIR_REASON_W            4
+`define REDIR_REASON_NONE         4'd0
+`define REDIR_REASON_BRANCH_MISS  4'd1   // 条件分支误预测（后端解析）
+`define REDIR_REASON_JALR_MISS    4'd2   // JALR 目标误预测（后端 AGU 解析）
+`define REDIR_REASON_TRAP         4'd3   // commit 阶段精确异常/中断
+`define REDIR_REASON_XRET         4'd4   // mret/sret 返回
+`define REDIR_REASON_SFENCE       4'd5   // sfence.vma 后重取指
+`define REDIR_REASON_FENCEI       4'd6   // fence.i 后重取指
+`define REDIR_REASON_DIRECT       4'd7   // dispatch 期直算的 direct 控制流（JAL/已知目标）
+`define REDIR_REASON_CSR_COMMIT   4'd8   // queue-head CSR 精确提交
+`define REDIR_REASON_SERIAL       4'd9   // 其它 drain 后串行化事件
+
+// 类型化控制事件的后端动作。NONE 仅影响前端；SELECTIVE_NOW 在当前拍按 ROB boundary
+// 恢复；FULL_NEXT 在 ROB 队头提交拍预授权，并由独立 sequencer 于下一拍执行整清。
+`define OOO_BACKEND_ACTION_W             2
+`define OOO_BACKEND_ACTION_NONE          2'd0
+`define OOO_BACKEND_ACTION_SELECTIVE_NOW 2'd1
+`define OOO_BACKEND_ACTION_FULL_NEXT     2'd2
 
 // B2 总开关：1=启用「分支投机 + ROB-walk 误预测恢复」（取代 weak checkpoint 恢复）；0=原 pending+drain。
 // 单分支深度（复用前端单 spec tracker 的 mispredict + branch_resolve_rob_idx），多分支待 pred-next-pc threading。

@@ -1,0 +1,16 @@
+rtl_design_id=sha256:c358ce6d3ef0fe1cb4cd8337bd4dd4f35c44d713b54d047c2ea9a51d38c07e8d
+simulator_sha256=2c441152833c6eaaaa75bc0d389641c0585f83510146e8174ef1e2a478418a55
+OOO_CSR_QUEUE_HEAD=1
+OOO_TERMINAL_HOLDER_ASSERT=1
+NPC_SYSTEMD_GUEST_COMMAND_MODE=systemd-strict
+uart_rx_bytes=0
+host_timeout_seconds=50400
+NPC_COMMIT_GAP_LIMIT_CYCLES=1000000
+progress_interval=5000000
+rootfs_template=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-strict.ext4
+rootfs_run_image=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-systemd-strict/rootfs-csr-qh-on-current-systemd-strict-rerun4-14h/rootfs.ext4
+rootfs_template_sha256_pre=8f7558cf2ab28bd32515cfc04909fe2cdb8f49da93ece6ee884fe4eb9b326a80
+rootfs_cpio_sha256=4ec9b958300b46459a93033f6b5b4f61d61934bb0016194d9a9d16d5a522879a
+c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
+2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a  /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb

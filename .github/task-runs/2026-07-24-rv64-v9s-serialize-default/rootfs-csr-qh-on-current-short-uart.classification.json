@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "scope": "local RV64 NpcSimTop Ubuntu rootfs strict run with queue-head serialization enabled",
+  "rtl_design_id": "sha256:c358ce6d3ef0fe1cb4cd8337bd4dd4f35c44d713b54d047c2ea9a51d38c07e8d",
+  "simulator_sha256": "b4656f2d155c66b7150965a6f90b7bb8c6be038c201b19e2abca8f2278075a69",
+  "rootfs_sha256": "e70f50b2d1e6175afccd0b8cbb325d57e2341e6f717496f1a75d95a11b14cddc",
+  "configuration": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "OOO_TERMINAL_HOLDER_ASSERT": 1,
+    "host_timeout_seconds": 36000,
+    "uart_rx_bytes": 107,
+    "uart_rx_cycle_gap": 10000,
+    "uart_rx_release_delay_cycles": 20000000
+  },
+  "terminal_status": "controlled_stop_after_commit_progress_without_new_user_mode_sample",
+  "runner_status": "FAIL rc=2",
+  "classification": "uart_plic_completion_nonprogress",
+  "observed": {
+    "systemd_pid1": true,
+    "ubuntu_2204": true,
+    "virtio_block_vda": true,
+    "root_ext4_rw": true,
+    "console_ready_commit": 370934050,
+    "last_uart_byte_commit": 374691165,
+    "last_user_mode_sample_commit": 373612286,
+    "final_retired_instructions": 415000001,
+    "late_pc_region": [
+      "_save_context",
+      "riscv_intc_irq_eoi",
+      "plic_handle_irq",
+      "irqentry_enter",
+      "irqentry_exit"
+    ],
+    "rtl_assertion_failure": false
+  },
+  "reason": "All 107 UART RX bytes were accepted and retirement advanced by more than 40M instructions afterward, while late samples remained in the UART/PLIC interrupt path and no new user-mode sample appeared. The result does not identify a queue-head serialization failure.",
+  "rootfs_gate_status": "UNRESOLVED",
+  "promotion_eligible": false,
+  "next_run": {
+    "mode": "systemd-strict",
+    "uart_rx_bytes": 0,
+    "rootfs": "ubuntu-22.04-riscv64-strict.ext4",
+    "same_rtl_configuration": true
+  }
+}

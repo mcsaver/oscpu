@@ -49,6 +49,7 @@ module tb_ooo_pending_system_sequencer;
   wire wfi;
   wire sfence;
   wire fencei;
+  wire fence;
   wire irq;
   wire [`XLEN-1:0] pc;
   wire [`INST_W-1:0] inst;
@@ -59,6 +60,8 @@ module tb_ooo_pending_system_sequencer;
   wire [PRODUCER_ID_W-1:0] producer_id;
 
   integer errors;
+  integer lane_idx;
+  integer kind_idx;
 
   OooPendingSystemSequencer #(
     .ROB_INDEX_W(ROB_INDEX_W),
@@ -107,6 +110,7 @@ module tb_ooo_pending_system_sequencer;
     .wfi_o(wfi),
     .sfence_o(sfence),
     .fencei_o(fencei),
+    .fence_o(fence),
     .irq_o(irq),
     .pc_o(pc),
     .inst_o(inst),
@@ -224,13 +228,115 @@ module tb_ooo_pending_system_sequencer;
       tb_check1({name, " wfi"}, wfi, 1'b0);
       tb_check1({name, " sfence"}, sfence, 1'b0);
       tb_check1({name, " fencei"}, fencei, 1'b0);
+      tb_check1({name, " fence"}, fence, 1'b0);
       tb_check1({name, " irq"}, irq, 1'b0);
       tb_check1({name, " producer valid"}, producer_valid, 1'b0);
     end
   endtask
 
+  localparam [3:0] TEST_KIND_CSR = 4'd1;
+  localparam [3:0] TEST_KIND_ECALL = 4'd2;
+  localparam [3:0] TEST_KIND_XRET = 4'd3;
+  localparam [3:0] TEST_KIND_WFI = 4'd4;
+  localparam [3:0] TEST_KIND_SFENCE = 4'd5;
+  localparam [3:0] TEST_KIND_FENCEI = 4'd6;
+  localparam [3:0] TEST_KIND_FENCE = 4'd7;
+  integer kind_matrix_cases;
+
+  task automatic capture_kind_case;
+    input integer lane;
+    input [3:0] kind;
+    reg [`INST_W-1:0] selected_inst;
+    begin
+      clear_inputs();
+      case (kind)
+        TEST_KIND_CSR: begin
+          selected_inst = 32'h3050_9073;
+          if (lane == 0)
+            capture_head0_csr = 1'b1;
+          else
+            capture_lane1_csr = 1'b1;
+        end
+        TEST_KIND_ECALL: begin
+          selected_inst = 32'h0000_0073;
+          if (lane == 0)
+            capture_head0_ecall = 1'b1;
+          else
+            capture_lane1_ecall = 1'b1;
+        end
+        TEST_KIND_XRET: begin
+          selected_inst = 32'h3020_0073;
+          if (lane == 0)
+            capture_head0_mret = 1'b1;
+          else
+            capture_lane1_mret = 1'b1;
+        end
+        TEST_KIND_WFI: begin
+          selected_inst = 32'h1050_0073;
+          if (lane == 0)
+            capture_head0_wfi = 1'b1;
+          else
+            capture_lane1_wfi = 1'b1;
+        end
+        TEST_KIND_SFENCE: begin
+          selected_inst = 32'h1200_0073;
+          if (lane == 0)
+            capture_head0_sfence = 1'b1;
+          else
+            capture_lane1_sfence = 1'b1;
+        end
+        TEST_KIND_FENCEI: begin
+          selected_inst = 32'h0000_100f;
+          if (lane == 0)
+            capture_head0_fencei = 1'b1;
+          else
+            capture_lane1_fencei = 1'b1;
+        end
+        default: begin
+          selected_inst = 32'h0ff0_000f;
+        end
+      endcase
+      if (lane == 0) begin
+        capture_head0 = 1'b1;
+        capture_head0_inst = selected_inst;
+      end else begin
+        capture_lane1 = 1'b1;
+        capture_lane1_inst = selected_inst;
+      end
+      tick();
+      tb_check1("matrix valid", valid, 1'b1);
+      tb_check1("matrix csr", csr, kind == TEST_KIND_CSR);
+      tb_check1("matrix ecall", ecall, kind == TEST_KIND_ECALL);
+      tb_check1("matrix xret", mret, kind == TEST_KIND_XRET);
+      tb_check1("matrix wfi", wfi, kind == TEST_KIND_WFI);
+      tb_check1("matrix sfence", sfence, kind == TEST_KIND_SFENCE);
+      tb_check1("matrix fencei", fencei, kind == TEST_KIND_FENCEI);
+      tb_check1("matrix fence", fence, kind == TEST_KIND_FENCE);
+      tb_check1("matrix irq clear", irq, 1'b0);
+      tb_check1("matrix pre-ROB lease clear", producer_valid, 1'b0);
+
+      clear_inputs();
+      tick();
+      tb_check1("matrix hold valid", valid, 1'b1);
+      tb_check_inst("matrix hold instruction", inst, selected_inst);
+      tb_check1("matrix hold csr", csr, kind == TEST_KIND_CSR);
+      tb_check1("matrix hold ecall", ecall, kind == TEST_KIND_ECALL);
+      tb_check1("matrix hold xret", mret, kind == TEST_KIND_XRET);
+      tb_check1("matrix hold wfi", wfi, kind == TEST_KIND_WFI);
+      tb_check1("matrix hold sfence", sfence, kind == TEST_KIND_SFENCE);
+      tb_check1("matrix hold fencei", fencei, kind == TEST_KIND_FENCEI);
+      tb_check1("matrix hold fence", fence, kind == TEST_KIND_FENCE);
+
+      clear = 1'b1;
+      tick();
+      expect_idle("matrix clear");
+      kind_matrix_cases = kind_matrix_cases + 1;
+    end
+  endtask
+
   initial begin
     errors = 0;
+    kind_matrix_cases = 0;
     clear_inputs();
     rst = 1'b1;
     repeat (2) tick();
@@ -349,6 +455,18 @@ module tb_ooo_pending_system_sequencer;
     tick();
     expect_idle("ordinary clear remains pre-ROB only");
 
+    // Every non-IRQ kind must classify identically from lane0 and lane1,
+    // remain stable while held, and clear without manufacturing a ProducerId.
+    for (lane_idx = 0; lane_idx < 2; lane_idx = lane_idx + 1) begin
+      for (kind_idx = TEST_KIND_CSR;
+           kind_idx <= TEST_KIND_FENCE;
+           kind_idx = kind_idx + 1) begin
+        capture_kind_case(lane_idx, kind_idx);
+      end
+    end
+    tb_check64("canonical kind matrix case count",
+               kind_matrix_cases, 64'd14);
+
     // Empty capture priority is preserved without permitting recapture of a
     // non-empty owner.
     clear_inputs();
@@ -366,6 +484,7 @@ module tb_ooo_pending_system_sequencer;
     expect_idle("priority capture ordinary clear");
 
     if (errors == 0) begin
+      $display("[V9W-SERIAL-KIND-MATRIX] kinds=8 lane-cases=14 onehot=1 hold=1 clear=1 lease-scope=csr-only PASS");
       $display("PASS tb_ooo_pending_system_sequencer");
       $finish;
     end

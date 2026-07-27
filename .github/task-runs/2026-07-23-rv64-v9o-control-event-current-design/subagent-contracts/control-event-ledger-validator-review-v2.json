@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-ledger-validator-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立重放当前 RV64 CONTROL-EVENT-G1 证据验证器，确认精确 provenance 集合、下游产物禁入、11 项 RTL 变异映射、Makefile 模块清单和 live full-core candidate 绑定均为 fail-closed，并保持当前设计局部闭合与旧 full-core 候选 GAP 的层级边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-ledger-validator-review-v2.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v2"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出逐项 PASS/GAP 表、实际执行的本地 Python 验证结果、可构造假绿反例、合同符合性、未知项、范围扩展请求和置信度；只在指定 reviewer 输出目录内落盘。"
+  ],
+  "success_criteria": [
+    "canonical evidence-index verify 与两项 CONTROL-EVENT-G1 定向单测均被独立重放；五个 v1 缺口逐项以源码和当前产物交叉核对；结论不把 9/9 directed architecture gates 推导为 full-core freeze 或 PPA qualification。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

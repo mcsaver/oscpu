@@ -1,0 +1,44 @@
+{
+  "current": {
+    "boundary_candidate_match": true,
+    "candidate_design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+    "candidate_differs_from_local_design": true,
+    "candidate_schema": "npc-rv64-arch-stable-candidate-v1",
+    "control_event_closed_binding": "GAP",
+    "control_event_semantic_evidence": "PASS",
+    "design_id": "sha256:08d3d8648251f8fd430d0a9bcac289335f5dfb99a0a235531766e3c7f8048c6a",
+    "evaluated_architecture_freeze": "GAP",
+    "evaluated_ppa": "UNQUALIFIED",
+    "evaluated_promotion_eligible": false,
+    "forbidden_indexed_artifacts": [],
+    "indexed_artifact_count": 164,
+    "make_inventory_count": 110,
+    "make_inventory_errors": [],
+    "make_inventory_exact": true,
+    "mutation_mapping_exact": true,
+    "provenance_exact": true,
+    "rtl_file_count": 146,
+    "rtl_recomputed": "sha256:08d3d8648251f8fd430d0a9bcac289335f5dfb99a0a235531766e3c7f8048c6a",
+    "verification_file_count": 133,
+    "verification_recomputed": "sha256:300da14d23d25c35168fa62277be014c255ab5198ef5d786ffe28348b700c3c1"
+  },
+  "negative_probes": {
+    "index_embeds_downstream_artifact": {
+      "accepted": false,
+      "errors": [
+        "CONTROL-EVENT-G1 self-referential artifact is forbidden: .github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/gates/arch-stable-audit.json"
+      ]
+    },
+    "mutation_source_remap": {
+      "accepted": false,
+      "errors": [
+        "CONTROL-EVENT-G1 compile-success RTL mutation semantics drifted"
+      ]
+    },
+    "mutation_summary_embeds_downstream_artifact": {
+      "accepted": true,
+      "errors": []
+    }
+  },
+  "schema": "npc-rv64-control-event-validator-review-v2-probes-v1"
+}

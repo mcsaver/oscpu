@@ -56,3 +56,42 @@ flush_backend}`——只"选择并透传胜者字段", 不发明 flush 策略。
 - 不裁决 AXI 事务层(铁律② nokill 旁路)、不并入 E11 mmu_flush(正交)与 E10
   trap_redirect_squash(掩码, 年龄律最终可吸收但非本阶段)。
 - 不产生 flush 策略——flush_fetch/flush_backend 由源口提供、透传。
+
+## V9O 类型化控制事件 overlay
+
+V9O 把仲裁字段从两个松散 Boolean 收敛为：
+
+```
+{valid, pc, rob_idx, reason[3:0], flush_fetch, backend_action[1:0]}
+backend_action = NONE | SELECTIVE_NOW | FULL_NEXT
+```
+
+`control_event_valid_o` 表示本拍存在年龄律赢家；`redirect_valid_o` 仅表示赢家同时要求
+`flush_fetch`，二者不得再互相代替。`redirect_flush_backend_o` 只作为兼容观察量，
+严格由 `backend_action != NONE` 派生。该仲裁输出是 canonical frontend/reference
+consumer；production backend 不直接反馈读取它，而使用 ROB edge-old cycle-free 投影，
+并在 `OooCoreTopGlue` 以双向断言证明 action/payload 一致，避免 ready/direct-fire
+组合反馈。
+
+源口合同：
+
+- commit 家族：E1=`TRAP/FULL_NEXT`，queue-head E5=`CSR_COMMIT/FULL_NEXT`；
+  exact pending-system CSR owner 提交及 drained pending E5/E6 提供
+  `CSR_COMMIT|SERIAL/NONE` 前端事件，不请求 C1 full apply。
+- branch/JALR：后端已通过 C0 队头预授权裁决的 resolve apply，
+  `BRANCH_MISS|JALR_MISS/SELECTIVE_NOW`。misaligned resolve 仍是类型化
+  selective backend event，但 `flush_fetch=0`，由精确 trap 路径接管 fetch PC。
+- direct：`DIRECT/*/NONE`；只控制前端，不直接清后端。
+
+新增不变量：
+
+- **REDIR-I5 event/redirect 分离**：
+  `redirect_valid_o == control_event_valid_o && redirect_flush_fetch_o`。
+- **REDIR-I6 action 透传**：赢家 reason/action/kill_idx 必须来自同一输入记录，
+  禁止由胜者类别在仲裁器内重新推断。
+- **REDIR-I7 合法 action**：所有 valid 源 action 只能取上述三值。
+
+变更记录补充：
+
+- 2026-07-23（V9O）：reason 扩为 4 bit，新增 `CSR_COMMIT`；后端动作改为三值枚举，
+  控制事件存在性与 fetch redirect 分离。

@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v10a-clocked-owner-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "终审本地 RV64 pending architectural-trap clocked exactly-once 切片：核对 commit-trap request priority、same-edge birth onehot、live-owner 对 ECALL/IRQ/xRET/CSR/FENCE 的构造性互斥、C0/C1/C2 owner/stop/CsrFile 行为，以及 RED/GREEN、6 个 compile-success variants、113 module、functional 与 architecture design-id 证据；优先寻找假绿、覆盖洞与越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/core/CsrFile.v",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/dispatch-log.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/reviewer-report-v2.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/pre-fix/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/focused/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/focused-noassert/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/mutations/summary.json",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/module-current/summary.txt",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/architecture/final-architecture-hard-gates.json",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/architecture-current.status",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/subagent-contracts/final-reviewer-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象/本地证据→周期/配置→TB/EDA 观测→PASS/GAP 范围给出终审；逐项裁决 request priority、C0/C1/C2、五类 overlap、assert-on/off、负向版本与 design-id；列出任何 blocker、反例、未知项或 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "核对真实路径、marker、返回状态与 SHA；明确 V10A 子切片能否关闭以及更宽 SERIALIZE-G1/Linux/architecture-stable/PPA 仍属何种范围；不修改文件、不运行仿真/综合，最终显式归还 Windows→WSL 唯一工程命令 lane。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

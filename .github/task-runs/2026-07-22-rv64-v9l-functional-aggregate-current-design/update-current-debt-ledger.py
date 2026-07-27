@@ -112,7 +112,6 @@ def main() -> int:
         ],
     })
 
-    ledger["revision"] = "v9l-20260722"
     ledger["design_id"] = design_id
     roadmap = ledger.get("roadmap")
     if not isinstance(roadmap, dict) or not isinstance(roadmap.get("path"), str):
@@ -133,7 +132,10 @@ def main() -> int:
                 raise RuntimeError(f"{entry.get('id')}: malformed evidence artifact")
             path = ROOT / item["path"]
             item["sha256"] = sha256(path)
-            if item["kind"] not in {"raw_log"}:
+            if item["kind"] not in {
+                "raw_log",
+                "irrevocable_owner_residency_raw",
+            }:
                 require_current_json(path, design_id)
 
     LEDGER.write_text(

@@ -172,6 +172,7 @@ module OooExecuteBackend #(
   output [`XLEN-1:0] core_dispatch_branch_resolve_pc_w,
   output core_dispatch_branch_resolve_valid_w,
   output core_mem_idle_w,
+  output core_mem_owner_terminalized_w,
   output core_mem_retire_quiet_w,
   output [4:0] core_commit0_fflags_w,
   output core_commit0_is_fp_rd_w,
@@ -269,6 +270,8 @@ module OooExecuteBackend #(
   output [ROB_COUNT_W-1:0] rob_count_o,
   // 【P4 shadow】ROB 队头指针透传（AluCoreSlice→本层→OooCoreTopGlue，纯观测端口）
   output [ROB_INDEX_W-1:0] rob_head_idx_o,
+  output control_full_flush_barrier_o,
+  output [`REDIR_REASON_W-1:0] control_full_flush_reason_o,
 
   // S2-Q2 v8a：无状态、同名 shadow transport。
   input head0_context_permit_i,
@@ -529,6 +532,7 @@ module OooExecuteBackend #(
     .rob_count_o(rob_count_o),
 	    .issue_count_o(issue_count_o),
 	    .mem_idle_o(core_mem_idle_w),
+	    .mem_owner_terminalized_o(core_mem_owner_terminalized_w),
 	    .execute0_valid_o(execute0_valid_unused_w),
 	    .execute1_valid_o(execute1_valid_unused_w),
 	    .branch_resolve_valid_o(core_branch_resolve_valid_w),
@@ -546,6 +550,8 @@ module OooExecuteBackend #(
 	    .dispatch_branch_resolve_next_pc_o(core_dispatch_branch_resolve_next_pc_w),
 	    .dispatch_branch_resolve_misaligned_o(core_dispatch_branch_resolve_misaligned_w),
 	    .rob_head_idx_o(rob_head_idx_o),
+	    .control_full_flush_barrier_o(control_full_flush_barrier_o),
+	    .control_full_flush_reason_o(control_full_flush_reason_o),
 	    .retire_count_o(core_retire_count_w),
     .a0_data_o(a0_data_w),
     .debug_gprs_o(core_debug_gprs_w)

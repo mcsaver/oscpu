@@ -108,6 +108,8 @@ module tb_ooo_core_top_glue;
   wire [4:0] rob_count;
   wire [3:0] issue_count;
   wire mem_flush;
+  wire control_full_flush_barrier;
+  wire [`REDIR_REASON_W-1:0] control_full_flush_reason;
 
   integer commit_total;
   integer request_total;
@@ -135,6 +137,27 @@ module tb_ooo_core_top_glue;
   reg saw_fp_gpr_completion;
   reg saw_fp_gpr_completion_wake;
   reg saw_head0_csr_stop_owner;
+  reg saw_control_full_flush_barrier;
+  reg saw_csr_full_flush_barrier;
+  reg saw_trap_full_flush_barrier;
+  reg saw_typed_csr_apply;
+  reg saw_typed_trap_apply;
+  reg saw_pending_csr_commit;
+  reg saw_pending_csr_exact_owner;
+  reg saw_pending_csr_control_pregrant;
+  reg saw_pending_csr_frontend_none;
+  reg saw_pending_csr_without_full_flush;
+  reg saw_pending_csr_without_next_apply;
+  reg pending_csr_commit_prev;
+  reg saw_csr_after_older_store;
+  reg csr_apply_seen;
+  reg saw_csr_branch_recovery_dispatch;
+  reg saw_csr_branch_recovery_selective;
+  reg saw_csr_branch_recovery_clear;
+  reg saw_csr_branch_recovery_commit;
+  reg csr_branch_recovery_selective_prev;
+  reg control_full_flush_barrier_prev;
+  reg [`REDIR_REASON_W-1:0] control_full_flush_reason_prev;
   reg saw_v8a_candidate;
   reg saw_v8a_identity;
   reg saw_fetch_fault_packet_enqueue;
@@ -169,6 +192,11 @@ module tb_ooo_core_top_glue;
   localparam [4:0] MODE_FETCH_ACCESS_FAULT = 5'd19;
   localparam [4:0] MODE_FRONTEND_II1 = 5'd20;
   localparam [4:0] MODE_WIDTH_CONTINUITY = 5'd21;
+  localparam [4:0] MODE_PENDING_FP_CSR = 5'd22;
+  localparam [4:0] MODE_CSR_MEMORY_ORDER = 5'd23;
+  localparam [4:0] MODE_CSR_BRANCH_RECOVERY = 5'd24;
+  localparam [4:0] MODE_CSR_JALR_RECOVERY = 5'd25;
+  localparam [4:0] MODE_CSR_JALR_CALLBACK_CHAIN = 5'd26;
   // Deliberately use a raw instruction whose 18-bit T3W static pack is
   // non-zero.  PacketDecode must replace it with a NOP on the fault path,
   // and the FIFO must store the sanitized NOP's all-zero static pack.
@@ -325,6 +353,8 @@ module tb_ooo_core_top_glue;
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
+    .control_full_flush_barrier_o(control_full_flush_barrier),
+    .control_full_flush_reason_o(control_full_flush_reason),
     .csr_frm_w(3'b000),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
@@ -686,6 +716,27 @@ module tb_ooo_core_top_glue;
               default:       program_word = inst_ebreak();
             endcase
           end
+          MODE_CSR_JALR_CALLBACK_CHAIN: begin
+            case (addr)
+              // Linux serial8250_do_set_termios-shaped control sequence:
+              // a serialized CSR access followed by two adjacent indirect
+              // callbacks/returns and a post-callback conditional branch.
+              32'h8000_0000: program_word = inst_csrrs(5'd0, `CSR_MSTATUS,
+                                                       5'd0);
+              32'h8000_0004: program_word = inst_auipc(5'd5, 20'h00000);
+              32'h8000_0008: program_word = inst_addi(5'd5, 5'd5, 12'h02c);
+              32'h8000_000c: program_word = inst_jalr(5'd1, 5'd5, 12'd0);
+              32'h8000_0010: program_word = inst_addi(5'd6, 5'd0, 12'd1);
+              32'h8000_0014: program_word = inst_jalr(5'd1, 5'd5, 12'd0);
+              32'h8000_0018: program_word = inst_beq(13'd8, 5'd0, 5'd0);
+              32'h8000_001c: program_word = inst_addi(5'd7, 5'd0, 12'd99);
+              32'h8000_0020: program_word = inst_addi(5'd8, 5'd0, 12'd8);
+              32'h8000_0024: program_word = inst_ebreak();
+              32'h8000_0030: program_word = inst_addi(5'd9, 5'd9, 12'd1);
+              32'h8000_0034: program_word = inst_jalr(5'd0, 5'd1, 12'd0);
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           MODE_MEM_LW_SW: begin
             case (addr)
               32'h8000_0000: program_word = inst_auipc(5'd2, 20'h00000);
@@ -797,6 +848,73 @@ module tb_ooo_core_top_glue;
               default:       program_word = inst_beq_self();
             endcase
           end
+          MODE_PENDING_FP_CSR: begin
+            case (addr)
+              // First enable FS through the real queue-head CSR path, then
+              // issue an FP CSR that is deliberately owned by the legacy
+              // pending-system drain sequencer.
+              32'h8000_0000: program_word = inst_lui(5'd11, 20'h00006);
+              32'h8000_0004: program_word = inst_csrrs(5'd0, `CSR_MSTATUS,
+                                                       5'd11);
+              32'h8000_0008: program_word = inst_csrrw(5'd12, `CSR_FFLAGS,
+                                                       5'd0);
+              32'h8000_000c: program_word = inst_addi(5'd5, 5'd0, 12'd7);
+              32'h8000_0010: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
+          MODE_CSR_MEMORY_ORDER: begin
+            case (addr)
+              // The store is older than the queue-head CSR and must drain.
+              // The load shares the CSR packet's lane1 and must be squashed,
+              // then refetched only after the CSR C1 apply.
+              32'h8000_0000: program_word = inst_auipc(5'd2, 20'h00000);
+              32'h8000_0004: program_word = inst_addi(5'd1, 5'd0, 12'd11);
+              32'h8000_0008: program_word = inst_addi(5'd2, 5'd2, 12'h040);
+              32'h8000_000c: program_word = inst_sw(5'd1, 5'd2, 12'd0);
+              32'h8000_0010: program_word = inst_csrrw(5'd0, `CSR_MSCRATCH,
+                                                       5'd0);
+              32'h8000_0014: program_word = inst_lw(5'd4, 5'd2, 12'd0);
+              32'h8000_0018: program_word = inst_addi(5'd5, 5'd4, 12'd1);
+              32'h8000_001c: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
+          MODE_CSR_BRANCH_RECOVERY: begin
+            case (addr)
+              // The load keeps the older branch unresolved while the
+              // fall-through CSR reaches the queue-head dispatch path.
+              // A cold BHT predicts the BEQ not-taken; the zero load makes
+              // the branch resolve taken and selectively kills the CSR.
+              32'h8000_0000: program_word = inst_auipc(5'd2, 20'h00000);
+              32'h8000_0004: program_word = inst_addi(5'd3, 5'd0, 12'h055);
+              32'h8000_0008: program_word = inst_lw(5'd1, 5'd2, 12'h040);
+              32'h8000_000c: program_word = inst_beq(13'd12, 5'd1, 5'd0);
+              32'h8000_0010: program_word = inst_csrrw(5'd0, `CSR_MSCRATCH,
+                                                       5'd3);
+              32'h8000_0014: program_word = inst_addi(5'd4, 5'd0, 12'd99);
+              32'h8000_0018: program_word = inst_addi(5'd5, 5'd0, 12'd7);
+              32'h8000_001c: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
+          MODE_CSR_JALR_RECOVERY: begin
+            case (addr)
+              // The memory model supplies the positive offset 0x18.  Adding
+              // it to the AUIPC base avoids RV64 LW sign-extension ambiguity
+              // while keeping the older JALR dependent on the load response.
+              32'h8000_0000: program_word = inst_auipc(5'd2, 20'h00000);
+              32'h8000_0004: program_word = inst_lw(5'd1, 5'd2, 12'h040);
+              32'h8000_0008: program_word = inst_add(5'd1, 5'd1, 5'd2);
+              32'h8000_000c: program_word = inst_jalr(5'd0, 5'd1, 12'd0);
+              32'h8000_0010: program_word = inst_csrrw(5'd0, `CSR_MSCRATCH,
+                                                       5'd2);
+              32'h8000_0014: program_word = inst_addi(5'd4, 5'd0, 12'd99);
+              32'h8000_0018: program_word = inst_addi(5'd5, 5'd0, 12'd8);
+              32'h8000_001c: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           MODE_FETCH_ACCESS_FAULT: begin
             case (addr)
               // Install a real handler before injecting the fault.  CSR
@@ -899,6 +1017,22 @@ module tb_ooo_core_top_glue;
       saw_fp_gpr_completion = 1'b0;
       saw_fp_gpr_completion_wake = 1'b0;
       saw_head0_csr_stop_owner = 1'b0;
+      saw_control_full_flush_barrier = 1'b0;
+      saw_csr_full_flush_barrier = 1'b0;
+      saw_trap_full_flush_barrier = 1'b0;
+      saw_typed_csr_apply = 1'b0;
+      saw_typed_trap_apply = 1'b0;
+      saw_pending_csr_commit = 1'b0;
+      saw_pending_csr_exact_owner = 1'b0;
+      saw_pending_csr_control_pregrant = 1'b0;
+      saw_pending_csr_frontend_none = 1'b0;
+      saw_pending_csr_without_full_flush = 1'b0;
+      saw_pending_csr_without_next_apply = 1'b0;
+      pending_csr_commit_prev = 1'b0;
+      saw_csr_after_older_store = 1'b0;
+      csr_apply_seen = 1'b0;
+      control_full_flush_barrier_prev = 1'b0;
+      control_full_flush_reason_prev = `REDIR_REASON_NONE;
       saw_v8a_candidate = 1'b0;
       saw_v8a_identity = 1'b0;
       saw_fetch_fault_packet_enqueue = 1'b0;
@@ -1039,6 +1173,27 @@ module tb_ooo_core_top_glue;
       saw_fp_gpr_completion <= 1'b0;
       saw_fp_gpr_completion_wake <= 1'b0;
       saw_head0_csr_stop_owner <= 1'b0;
+      saw_control_full_flush_barrier <= 1'b0;
+      saw_csr_full_flush_barrier <= 1'b0;
+      saw_trap_full_flush_barrier <= 1'b0;
+      saw_typed_csr_apply <= 1'b0;
+      saw_typed_trap_apply <= 1'b0;
+      saw_pending_csr_commit <= 1'b0;
+      saw_pending_csr_exact_owner <= 1'b0;
+      saw_pending_csr_control_pregrant <= 1'b0;
+      saw_pending_csr_frontend_none <= 1'b0;
+      saw_pending_csr_without_full_flush <= 1'b0;
+      saw_pending_csr_without_next_apply <= 1'b0;
+      pending_csr_commit_prev <= 1'b0;
+      saw_csr_after_older_store <= 1'b0;
+      csr_apply_seen <= 1'b0;
+      saw_csr_branch_recovery_dispatch <= 1'b0;
+      saw_csr_branch_recovery_selective <= 1'b0;
+      saw_csr_branch_recovery_clear <= 1'b0;
+      saw_csr_branch_recovery_commit <= 1'b0;
+      csr_branch_recovery_selective_prev <= 1'b0;
+      control_full_flush_barrier_prev <= 1'b0;
+      control_full_flush_reason_prev <= `REDIR_REASON_NONE;
       saw_v8a_candidate <= 1'b0;
       saw_v8a_identity <= 1'b0;
       saw_fetch_fault_packet_enqueue <= 1'b0;
@@ -1047,6 +1202,103 @@ module tb_ooo_core_top_glue;
       saw_fetch_fault_static_zero_enqueue <= 1'b0;
       saw_fetch_fault_static_zero_fifo <= 1'b0;
     end else begin
+      if (control_full_flush_barrier_prev && !flush) begin
+        if (!dut.control_event_apply_valid_w ||
+            (dut.control_event_apply_reason_w !=
+             control_full_flush_reason_prev)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V9O C0/C1 typed apply mismatch prev_reason=%0d apply_valid=%0b apply_reason=%0d",
+                   control_full_flush_reason_prev,
+                   dut.control_event_apply_valid_w,
+                   dut.control_event_apply_reason_w);
+        end
+      end
+      control_full_flush_barrier_prev <= control_full_flush_barrier;
+      control_full_flush_reason_prev <= control_full_flush_reason;
+      if (control_full_flush_barrier) begin
+        saw_control_full_flush_barrier <= 1'b1;
+        if (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT)
+          saw_csr_full_flush_barrier <= 1'b1;
+        if (control_full_flush_reason == `REDIR_REASON_TRAP)
+          saw_trap_full_flush_barrier <= 1'b1;
+      end
+      if (dut.control_event_apply_valid_w &&
+          (dut.control_event_apply_reason_w == `REDIR_REASON_CSR_COMMIT))
+        saw_typed_csr_apply <= 1'b1;
+      if ((program_mode == MODE_CSR_MEMORY_ORDER) &&
+          dut.control_event_apply_valid_w &&
+          (dut.control_event_apply_reason_w == `REDIR_REASON_CSR_COMMIT))
+        csr_apply_seen <= 1'b1;
+      if ((program_mode == MODE_CSR_MEMORY_ORDER) &&
+          control_full_flush_barrier &&
+          (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT) &&
+          (data_mem_word == 32'd11))
+        saw_csr_after_older_store <= 1'b1;
+      if ((program_mode == MODE_CSR_MEMORY_ORDER) &&
+          !csr_apply_seen &&
+          ((commit0_valid && (commit0_pc == 32'h8000_0014)) ||
+           (commit1_valid && (commit1_pc == 32'h8000_0014)))) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V9O younger load retired before queue-head CSR C1 apply");
+      end
+      if ((program_mode == MODE_CSR_BRANCH_RECOVERY) ||
+          (program_mode == MODE_CSR_JALR_RECOVERY)) begin
+        if (dut.u_frontend.head0_csr_dispatch_fire_w)
+          saw_csr_branch_recovery_dispatch <= 1'b1;
+        if (dut.frontend_control_event_valid_w &&
+            (dut.frontend_control_event_backend_action_w ==
+             `OOO_BACKEND_ACTION_SELECTIVE_NOW) &&
+            dut.head0_csr_inflight_w) begin
+          saw_csr_branch_recovery_selective <= 1'b1;
+          csr_branch_recovery_selective_prev <= 1'b1;
+        end else begin
+          csr_branch_recovery_selective_prev <= 1'b0;
+        end
+        if (csr_branch_recovery_selective_prev) begin
+          if (dut.head0_csr_inflight_w) begin
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] V9P wrong-path CSR inflight survived selective recovery");
+          end else begin
+            saw_csr_branch_recovery_clear <= 1'b1;
+          end
+        end
+        if (tb_head0_csr_commit_w)
+          saw_csr_branch_recovery_commit <= 1'b1;
+      end else begin
+        csr_branch_recovery_selective_prev <= 1'b0;
+      end
+      if (dut.control_event_apply_valid_w &&
+          (dut.control_event_apply_reason_w == `REDIR_REASON_TRAP))
+        saw_typed_trap_apply <= 1'b1;
+      if (pending_csr_commit_prev) begin
+        if (dut.control_event_apply_valid_w) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V9O pending CSR action NONE produced a C1 backend apply");
+        end else begin
+          saw_pending_csr_without_next_apply <= 1'b1;
+        end
+      end
+      pending_csr_commit_prev <= dut.pending_system_csr_commit_w;
+      if (dut.pending_system_csr_commit_w) begin
+        saw_pending_csr_commit <= 1'b1;
+        if (dut.pending_system_csr_q &&
+            dut.pending_system_producer_valid_w &&
+            (dut.core_commit0_producer_id_w ==
+             dut.pending_system_producer_id_w))
+          saw_pending_csr_exact_owner <= 1'b1;
+        if (dut.u_execute_backend.u_core_slice.u_decode_backend
+                .u_int_backend.control_event_pregrant_w)
+          saw_pending_csr_control_pregrant <= 1'b1;
+        if (dut.frontend_control_event_valid_w &&
+            (dut.frontend_control_event_reason_w ==
+             `REDIR_REASON_CSR_COMMIT) &&
+            (dut.frontend_control_event_backend_action_w ==
+             `OOO_BACKEND_ACTION_NONE))
+          saw_pending_csr_frontend_none <= 1'b1;
+        if (!control_full_flush_barrier &&
+            (control_full_flush_reason == `REDIR_REASON_NONE))
+          saw_pending_csr_without_full_flush <= 1'b1;
+      end
       commit_total <= commit_total + commit0_valid + commit1_valid;
       if (head0_retire_candidate_valid)
         saw_v8a_candidate <= 1'b1;
@@ -2384,6 +2636,211 @@ module tb_ooo_core_top_glue;
     tb_finish("tb_ooo_core_top_glue_v9a_width_continuity");
   end
 `else
+`ifdef V9O_CSR_QH_FOCUSED
+  // Macro-on integration is intentionally bounded to the real queue-head CSR,
+  // precise-trap, and exact pending-system FP-CSR owner paths.  The legacy
+  // all-program aggregate has independent memory-mode expectations and is
+  // reported separately rather than being used as a focused control-event
+  // oracle.
+  initial begin : v9o_csr_qh_focused
+    tb_errors = 0;
+
+    // V9X: the C1 backend-local reset must clear the same pre-ROB exit holder
+    // whose accepted birth armed stop_pending.  Drive the holder boundary
+    // directly here; the following cycle observes the production
+    // core_local_flush_w wiring into OooPendingTrapExitSequencer.rst.
+    reset_dut(MODE_DEFAULT_BODY, 32'h0000_0000);
+
+    // A pending-system injection can raise the merged backend lane0 fire
+    // while no queue-head CSR was accepted by the frontend.  Even if the
+    // current FIFO head decodes as CSR, only the exported real fire may birth
+    // the queue-head stop owner.
+    force dut.core_dispatch0_fire_w = 1'b1;
+    force dut.head0_facts_w[`OOO_SLOT_FACT_CSR] = 1'b1;
+    force dut.dispatch0_facts_w[`OOO_SLOT_FACT_CSR] = 1'b1;
+    force dut.head_inst0_w = 32'h3400_1073;
+    force dut.head0_csr_illegal_w = 1'b0;
+    force dut.head0_csr_dispatch_fire_w = 1'b0;
+    #1;
+    tb_check1("V9X merged fire cannot alias queue-head owner birth",
+              dut.u_control_plane.v9x_head0_csr_owner_birth_w, 1'b0);
+    release dut.core_dispatch0_fire_w;
+    release dut.head0_facts_w[`OOO_SLOT_FACT_CSR];
+    release dut.dispatch0_facts_w[`OOO_SLOT_FACT_CSR];
+    release dut.head_inst0_w;
+    release dut.head0_csr_illegal_w;
+    release dut.head0_csr_dispatch_fire_w;
+    $display("[V9X-QCSR-REAL-FIRE-SOURCE][PASS] merged=1 real=0 birth=0");
+
+    force dut.u_control_plane.pending_trap_exit_capture_exit_w = 1'b1;
+    force dut.u_control_plane.pending_trap_exit_capture_exit_valid_w = 1'b1;
+    force dut.u_control_plane.pending_trap_exit_capture_exit_ecall_w = 1'b0;
+    force dut.u_control_plane.pending_trap_exit_capture_exit_ebreak_w = 1'b1;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("V9X pre-ROB exit holder captures", dut.pending_exit_q, 1'b1);
+    release dut.u_control_plane.pending_trap_exit_capture_exit_w;
+    release dut.u_control_plane.pending_trap_exit_capture_exit_valid_w;
+    release dut.u_control_plane.pending_trap_exit_capture_exit_ecall_w;
+    release dut.u_control_plane.pending_trap_exit_capture_exit_ebreak_w;
+
+    // Isolate the C1 reset edge from ordinary holder clear sources so the
+    // oracle fails if the sequencer reset wiring is removed.
+    force dut.u_control_plane.pending_trap_exit_clear_exit_w = 1'b0;
+    force dut.csr_trap_mem_valid_w = 1'b0;
+    force dut.core_local_flush_w = 1'b1;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("V9X C1 clears pre-ROB exit holder", dut.pending_exit_q, 1'b0);
+    tb_check1("V9X C1 clears matching stop owner", dut.stop_pending_q, 1'b0);
+    release dut.core_local_flush_w;
+    release dut.csr_trap_mem_valid_w;
+    release dut.u_control_plane.pending_trap_exit_clear_exit_w;
+    $display("[V9X-TRAP-EXIT-C1-RESET][PASS] holder=0 stop=0");
+
+    reset_dut(MODE_ECALL, 32'h0000_0000);
+    repeat (120) begin
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check1("V9O macro-on ecall handler reaches ebreak", exit_valid, 1'b1);
+    tb_check1("V9O macro-on CSR inflight owns stop",
+              saw_head0_csr_stop_owner, 1'b1);
+    tb_check1("V9O macro-on real queue-head CSR emits C0 barrier",
+              saw_csr_full_flush_barrier, 1'b1);
+    tb_check1("V9O macro-on real queue-head CSR emits C1 typed apply",
+              saw_typed_csr_apply, 1'b1);
+    tb_check32("V9O macro-on mtvec handler executes", gpr(5'd6), 32'd6);
+    tb_check32("V9O macro-on ROB drained", {27'b0, rob_count}, 32'd0);
+    tb_check32("V9O macro-on issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9O-CSR-QH-CORE-INTEGRATION] real queue-head CSR C0/C1 PASS");
+
+    reset_dut(MODE_PENDING_FP_CSR, 32'h0000_0000);
+    repeat (180) begin
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check1("V9O pending FP CSR program reaches ebreak", exit_valid, 1'b1);
+    tb_check1("V9O pending FP CSR commits through drain owner",
+              saw_pending_csr_commit, 1'b1);
+    tb_check1("V9O pending FP CSR commit has exact type/PID witness",
+              saw_pending_csr_exact_owner, 1'b1);
+    tb_check1("V9O exact pending owner raises head0 control pregrant",
+              saw_pending_csr_control_pregrant, 1'b1);
+    tb_check1("V9O pending FP CSR wins frontend with action NONE",
+              saw_pending_csr_frontend_none, 1'b1);
+    tb_check1("V9O pending FP CSR does not request full flush",
+              saw_pending_csr_without_full_flush, 1'b1);
+    tb_check1("V9O pending FP CSR produces no next-cycle backend apply",
+              saw_pending_csr_without_next_apply, 1'b1);
+    tb_check32("V9O pending FP CSR younger integer executes", gpr(5'd5), 32'd7);
+    tb_check32("V9O pending FP CSR ROB drained", {27'b0, rob_count}, 32'd0);
+    tb_check32("V9O pending FP CSR issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9O-PENDING-CSR-OWNER-INTEGRATION] exact type/PID action-NONE path PASS");
+
+    reset_dut(MODE_CSR_MEMORY_ORDER, 32'h0000_0000);
+    repeat (200) begin
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check1("V9O CSR/memory order program reaches ebreak",
+              exit_valid, 1'b1);
+    tb_check1("V9O older store drains before queue-head CSR C0",
+              saw_csr_after_older_store, 1'b1);
+    tb_check1("V9O CSR/memory order emits typed C1 apply",
+              csr_apply_seen, 1'b1);
+    tb_check32("V9O older store reaches memory", data_mem_word, 32'd11);
+    tb_check32("V9O younger load refetches after CSR", gpr(5'd4), 32'd11);
+    tb_check32("V9O younger load consumer executes", gpr(5'd5), 32'd12);
+    tb_check32("V9O CSR/memory order ROB drained",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("V9O CSR/memory order issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9O-CSR-MEMORY-ORDER-INTEGRATION] older drain/younger refetch PASS");
+
+    reset_dut(MODE_CSR_BRANCH_RECOVERY, 32'h0000_0000);
+    repeat (220) begin
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check1("V9P wrong-path queue-head CSR dispatches before branch resolve",
+              saw_csr_branch_recovery_dispatch, 1'b1);
+    tb_check1("V9P older branch selects recovery while CSR is inflight",
+              saw_csr_branch_recovery_selective, 1'b1);
+    tb_check1("V9P selective recovery clears CSR inflight next cycle",
+              saw_csr_branch_recovery_clear, 1'b1);
+    tb_check1("V9P wrong-path CSR never commits",
+              saw_csr_branch_recovery_commit, 1'b0);
+    tb_check1("V9P recovered target reaches ebreak", exit_valid, 1'b1);
+    tb_check32("V9P wrong-path CSR leaves mscratch unchanged low",
+               u_csr_file.csr_mscratch_q[31:0], 32'd0);
+    tb_check32("V9P wrong-path CSR leaves mscratch unchanged high",
+               u_csr_file.csr_mscratch_q[63:32], 32'd0);
+    tb_check32("V9P wrong-path fall-through instruction is squashed",
+               gpr(5'd4), 32'd0);
+    tb_check32("V9P recovered target retires", gpr(5'd5), 32'd7);
+    tb_check32("V9P branch recovery ROB drained",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("V9P branch recovery issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9P-CSR-BRANCH-RECOVERY] wrong-path CSR death/refetch PASS");
+
+    reset_dut(MODE_CSR_JALR_RECOVERY, 32'h0000_0000);
+    data_mem_word = 64'h0000_0000_0000_0018;
+    repeat (220) begin
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check1("V9P wrong-path CSR dispatches before JALR resolve",
+              saw_csr_branch_recovery_dispatch, 1'b1);
+    tb_check1("V9P older JALR selects recovery while CSR is inflight",
+              saw_csr_branch_recovery_selective, 1'b1);
+    tb_check1("V9P JALR recovery clears CSR inflight next cycle",
+              saw_csr_branch_recovery_clear, 1'b1);
+    tb_check1("V9P JALR wrong-path CSR never commits",
+              saw_csr_branch_recovery_commit, 1'b0);
+    tb_check1("V9P JALR target reaches ebreak", exit_valid, 1'b1);
+    tb_check32("V9P JALR wrong-path CSR leaves mscratch unchanged low",
+               u_csr_file.csr_mscratch_q[31:0], 32'd0);
+    tb_check32("V9P JALR wrong-path CSR leaves mscratch unchanged high",
+               u_csr_file.csr_mscratch_q[63:32], 32'd0);
+    tb_check32("V9P JALR fall-through instruction is squashed",
+               gpr(5'd4), 32'd0);
+    tb_check32("V9P JALR target retires", gpr(5'd5), 32'd8);
+    tb_check32("V9P JALR recovery ROB drained",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("V9P JALR recovery issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9P-CSR-JALR-RECOVERY] wrong-path CSR death/refetch PASS");
+
+    reset_dut(MODE_CSR_JALR_CALLBACK_CHAIN, 32'h0000_0000);
+    repeat (320) begin
+      `TB_TICK(clk);
+      #1;
+    end
+    tb_check1("V9P CSR/JALR callback chain reaches ebreak",
+              exit_valid, 1'b1);
+    tb_check32("V9P CSR/JALR callback chain executes both callbacks",
+               gpr(5'd9), 32'd2);
+    tb_check32("V9P CSR/JALR callback chain keeps post-call body",
+               gpr(5'd6), 32'd1);
+    tb_check32("V9P CSR/JALR callback chain squashes taken fall-through",
+               gpr(5'd7), 32'd0);
+    tb_check32("V9P CSR/JALR callback chain retires branch target",
+               gpr(5'd8), 32'd8);
+    tb_check1("V9P CSR/JALR callback chain releases stop_pending",
+              dut.stop_pending_q, 1'b0);
+    tb_check32("V9P CSR/JALR callback chain ROB drained",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("V9P CSR/JALR callback chain issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    $display("[V9P-CSR-JALR-CALLBACK-CHAIN] CSR/call/return/branch PASS");
+    tb_finish("tb_ooo_core_top_glue_v9o_csr_qh");
+  end
+`else
   initial begin
     tb_errors = 0;
     // V8V integration cut: model a raw branch checkpoint restore while the
@@ -2824,7 +3281,45 @@ module tb_ooo_core_top_glue;
     tb_check32("fetch fault issue queue drains before handler ebreak",
                {28'b0, issue_count}, 32'd0);
 
+    // V9O focused source-to-apply integration.  Force the already-verified
+    // queue-head C0 source and matching legacy trap request for one edge, then
+    // observe the production typed C1 apply and full local flush projection.
+    reset_dut(MODE_EBREAK, 32'h0000_0000);
+    force dut.control_full_flush_barrier_w = 1'b1;
+    force dut.control_full_flush_reason_w = `REDIR_REASON_TRAP;
+    force dut.csr_trap_mem_valid_w = 1'b1;
+    #1;
+    tb_check1("V9O focused C0 barrier visible",
+              control_full_flush_barrier, 1'b1);
+    tb_check32("V9O focused C0 reason is TRAP",
+               {{(32-`REDIR_REASON_W){1'b0}}, control_full_flush_reason},
+               {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+    `TB_TICK(clk);
+    release dut.control_full_flush_barrier_w;
+    release dut.control_full_flush_reason_w;
+    release dut.csr_trap_mem_valid_w;
+    #1;
+    tb_check1("V9O focused C1 typed apply valid",
+              dut.control_event_apply_valid_w, 1'b1);
+    tb_check32("V9O focused C1 typed apply reason",
+               {{(32-`REDIR_REASON_W){1'b0}},
+                dut.control_event_apply_reason_w},
+               {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+    tb_check1("V9O focused C1 trap view valid", dut.core_trap_flush_q, 1'b1);
+    tb_check1("V9O focused C1 local full flush valid",
+              dut.core_local_flush_w, 1'b1);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("V9O focused typed apply is one cycle",
+              dut.control_event_apply_valid_w, 1'b0);
+    tb_check1("V9O focused C0 observation was non-vacuous",
+              saw_control_full_flush_barrier, 1'b1);
+    tb_check1("V9O focused C1 observation was non-vacuous",
+              saw_typed_trap_apply, 1'b1);
+    $display("[V9O-CONTROL-EVENT-C0-C1] source-to-typed-apply timing PASS");
+
     tb_finish("tb_ooo_core_top_glue");
   end
+`endif
 `endif
 endmodule

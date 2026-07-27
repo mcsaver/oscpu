@@ -28,6 +28,7 @@ module tb_ooo_pending_drain_resolve_gate;
   reg pending_jump_misaligned;
   reg mem_retire_quiet;
   reg mem_idle;
+  reg mem_owner_terminalized;
   reg pending_system;
   reg pending_system_fence;
   reg pending_system_csr;
@@ -74,6 +75,7 @@ module tb_ooo_pending_drain_resolve_gate;
     .pending_jump_misaligned_i(pending_jump_misaligned),
     .mem_retire_quiet_i(mem_retire_quiet),
     .mem_idle_i(mem_idle),
+    .mem_owner_terminalized_i(mem_owner_terminalized),
     .pending_system_i(pending_system),
     .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(pending_system_csr),
@@ -113,6 +115,7 @@ module tb_ooo_pending_drain_resolve_gate;
       pending_jump_misaligned = 1'b0;
       mem_retire_quiet = 1'b1;
       mem_idle = 1'b1;
+      mem_owner_terminalized = 1'b1;
       pending_system = 1'b0;
       pending_system_fence = 1'b0;
       pending_system_csr = 1'b0;
@@ -221,17 +224,56 @@ module tb_ooo_pending_drain_resolve_gate;
     tb_check1("fence completes after full memory idle",
               drain_complete, 1'b1);
 
-    // Preserve existing system behavior: the stronger mem_idle term is
-    // scoped to ordinary FENCE only; WFI/SFENCE/FENCE.I/ECALL priority and
-    // drain contracts do not gain an accidental extra dependency.
+    // V9Y: non-FENCE controls wait only for active holders to reach an exact
+    // terminal edge.  They do not wait for a collector-pending token's later
+    // tracker-free edge.
     clear_inputs();
     stop_pending = 1'b1;
     pending_control_ready = 1'b1;
     pending_system = 1'b1;
     mem_idle = 1'b0;
+    mem_owner_terminalized = 1'b0;
     #1;
-    tb_check1("non-fence system keeps established drain contract",
+    tb_check1("non-fence system blocks active memory holder",
+              drain_complete, 1'b0);
+    mem_owner_terminalized = 1'b1;
+    #1;
+    tb_check1("non-fence system admits terminal-pending-only owner",
               drain_complete, 1'b1);
+
+    // V9Z: a pending architectural trap shares the exact terminal boundary
+    // with serialized system controls.  It must not use full mem_idle and
+    // must not bypass an active older memory holder.
+    clear_inputs();
+    stop_pending = 1'b1;
+    pending_control_ready = 1'b1;
+    pending_arch_trap = 1'b1;
+    mem_idle = 1'b0;
+    mem_owner_terminalized = 1'b0;
+    #1;
+    tb_check1("pending arch trap blocks active memory holder",
+              drain_complete, 1'b0);
+    mem_owner_terminalized = 1'b1;
+    #1;
+    tb_check1("pending arch trap admits exact terminal or pending-only owner",
+              drain_complete, 1'b1);
+    $display("[V9Z-DRAIN-GATE] pending_arch_trap exact memory terminal PASS");
+
+    clear_inputs();
+    stop_pending = 1'b1;
+    pending_system = 1'b1;
+    pending_system_csr = 1'b1;
+    backend_drained_q = 1'b1;
+    dispatch0_ready = 1'b1;
+    mem_idle = 1'b0;
+    mem_owner_terminalized = 1'b0;
+    #1;
+    tb_check1("CSR dispatch blocks active memory holder",
+              system_csr_dispatch_valid, 1'b0);
+    mem_owner_terminalized = 1'b1;
+    #1;
+    tb_check1("CSR dispatch admits terminal-pending-only owner",
+              system_csr_dispatch_valid, 1'b1);
 
     tb_finish("tb_ooo_pending_drain_resolve_gate");
   end

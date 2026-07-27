@@ -106,6 +106,9 @@ module OooRob #(
   output resolve_query_match_o,
 
   input commit_ready_i,
+  // V9O edge-old terminal permit.  Unlike commit_ready_i this input must not
+  // include current completion/WB bypasses, because it feeds C0 pregrant.
+  input commit_pregrant_ready_i,
   input commit1_block_i,
   // 【serialize-at-retire Phase1 §9 修向①】mem 静默门控: head0-CSR 退休拍会触发 serial_flush,
   // 若此时 LSU/MIQ 有在飞 AXI(store probe/drain), serial_flush→mem_flush→lsu_axi_abort 会中止它
@@ -118,12 +121,20 @@ module OooRob #(
   // tie-high，因此只预埋接口，不改变退休行为。
   input head0_context_permit_i,
   input fencei_retire_permit_i,
+  // V9O：pending-system CSR lease 已由 ControlPlane 的 CSR 类型与 ProducerId
+  // 出生合同限定。ROB 只接受该 edge-old typed owner identity，并与当前 head0
+  // ProducerId 精确比较；不能用“存在任意 pending owner”替代队首所有权判定。
+  input pending_csr_owner_valid_i,
+  input [PRODUCER_ID_W-1:0] pending_csr_owner_producer_id_i,
   output head0_retire_candidate_valid_o,
   output head0_identity_valid_o,
   output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o,
   output [PRODUCER_ID_W-1:0] head0_producer_id_o,
   output head0_owner_open_o,
   output head0_launch_open_o,
+  output head0_control_event_pregrant_o,
+  output head0_full_flush_pregrant_o,
+  output [`REDIR_REASON_W-1:0] head0_full_flush_reason_o,
   output commit0_valid_o,
   output [PRODUCER_ID_W-1:0] commit0_producer_id_o,
   output [`XLEN-1:0] commit0_pc_o,
@@ -300,6 +311,56 @@ module OooRob #(
   assign walk1_rd_en_o      = rd_en_q[wptr_m1_w];
   assign walk1_is_fp_o      = is_fp_rd_q[wptr_m1_w];
 
+  // V9O C0 control-event pregrant classification.  This edge-old decision
+  // reads only stable ROB state, commit permits, and the exact pending CSR
+  // ProducerId; in particular it deliberately ignores the current branch
+  // kill input so it cannot close a resolve/ready feedback path.  The full
+  // subset requests the typed C1 clear, while an exact pending CSR commit is
+  // action-NONE and only closes same-cycle dispatch/younger branch work.
+  wire head0_is_csr_w = valid_q[head_q] && head_done_w && !head_exception_w &&
+      (inst_q[head_q][6:0] == `OPCODE_SYSTEM) &&
+      (inst_q[head_q][14:12] != 3'b000);
+  wire head0_csr_mem_hold_w;
+  generate
+    if (`OOO_CSR_QUEUE_HEAD) begin : gen_csr_queue_head_hold
+      assign head0_csr_mem_hold_w = head0_is_csr_w && !mem_quiet_i;
+    end else begin : gen_no_csr_queue_head_hold
+      assign head0_csr_mem_hold_w = 1'b0;
+    end
+  endgenerate
+  wire head0_commit_pregrant_w =
+      !rst && !flush_i && !recover_q && commit_pregrant_ready_i &&
+      (count_q != {ROB_COUNT_W{1'b0}}) &&
+      valid_q[head_q] && head_done_w && !head0_csr_mem_hold_w &&
+      head0_context_permit_i && fencei_retire_permit_i;
+  wire head0_pending_csr_owner_match_w =
+      pending_csr_owner_valid_i && head0_is_csr_w &&
+      ({slot_generation_q[head_q], head_q} ==
+       pending_csr_owner_producer_id_i);
+  wire head0_queue_csr_w =
+      head0_is_csr_w && !head0_pending_csr_owner_match_w;
+  wire head0_full_flush_pregrant_w =
+      head0_commit_pregrant_w &&
+      (head_exception_w ||
+       (`OOO_CSR_QUEUE_HEAD && head0_queue_csr_w));
+  wire head0_pending_csr_commit_pregrant_w =
+      head0_commit_pregrant_w && head0_pending_csr_owner_match_w;
+  // Cycle-free winner projection: both queue-head full-flush requests and the
+  // exact pending-system CSR commit are older than any executing branch.
+  wire head0_control_event_pregrant_w =
+      head0_full_flush_pregrant_w ||
+      head0_pending_csr_commit_pregrant_w;
+  assign head0_control_event_pregrant_o = head0_control_event_pregrant_w;
+  assign head0_full_flush_pregrant_o = head0_full_flush_pregrant_w;
+  assign head0_full_flush_reason_o =
+      head_exception_w ? `REDIR_REASON_TRAP :
+      ((`OOO_CSR_QUEUE_HEAD && head0_queue_csr_w) ?
+       `REDIR_REASON_CSR_COMMIT : `REDIR_REASON_NONE);
+  wire completion_cut_valid_w =
+      kill_valid_i || head0_full_flush_pregrant_w;
+  wire [ROB_INDEX_W-1:0] completion_cut_idx_w =
+      head0_full_flush_pregrant_w ? head_q : kill_rob_idx_i;
+
   // v8f current/open target authority.  During a selective recovery, valid_q
   // is cleared over several walk cycles; nevertheless every strictly-younger
   // target loses side-effect authority on the first kill edge.  Older/equal
@@ -409,7 +470,8 @@ module OooRob #(
       completion0_query_exact_w;
   wire completion0_query_killed_w =
       producer_target_killed_now(completion0_query_idx_w, head_q,
-                                 kill_valid_i, kill_rob_idx_i,
+                                 completion_cut_valid_w,
+                                 completion_cut_idx_w,
                                  recover_q, kill_idx_q);
   assign completion0_query_match_o =
       completion0_query_live_w && !completion0_query_killed_w;
@@ -417,43 +479,50 @@ module OooRob #(
       valid_q[completion1_query_idx_w] && !done_q[completion1_query_idx_w] &&
       completion1_query_exact_w &&
       !producer_target_killed_now(completion1_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion2_query_match_o = completion2_query_valid_i && !rst && !flush_i &&
       valid_q[completion2_query_idx_w] && !done_q[completion2_query_idx_w] &&
       completion2_query_exact_w &&
       !producer_target_killed_now(completion2_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion3_query_match_o = completion3_query_valid_i && !rst && !flush_i &&
       valid_q[completion3_query_idx_w] && !done_q[completion3_query_idx_w] &&
       completion3_query_exact_w &&
       !producer_target_killed_now(completion3_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion4_query_match_o = completion4_query_valid_i && !rst && !flush_i &&
       valid_q[completion4_query_idx_w] && !done_q[completion4_query_idx_w] &&
       completion4_query_exact_w &&
       !producer_target_killed_now(completion4_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion5_query_match_o = completion5_query_valid_i && !rst && !flush_i &&
       valid_q[completion5_query_idx_w] && !done_q[completion5_query_idx_w] &&
       completion5_query_exact_w &&
       !producer_target_killed_now(completion5_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion6_query_match_o = completion6_query_valid_i && !rst && !flush_i &&
       valid_q[completion6_query_idx_w] && !done_q[completion6_query_idx_w] &&
       completion6_query_exact_w &&
       !producer_target_killed_now(completion6_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   assign completion7_query_match_o = completion7_query_valid_i && !rst && !flush_i &&
       valid_q[completion7_query_idx_w] && !done_q[completion7_query_idx_w] &&
       completion7_query_exact_w &&
       !producer_target_killed_now(completion7_query_idx_w, head_q,
-                                  kill_valid_i, kill_rob_idx_i,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
                                   recover_q, kill_idx_q);
   // V8J cycle-free resolve query: do not replace !recover_q with recovering_w
   // and do not call producer_target_killed_now() here.  Either change reads
@@ -462,11 +531,15 @@ module OooRob #(
       !recover_q && valid_q[resolve_query_idx_w] &&
       !done_q[resolve_query_idx_w] && resolve_query_exact_w;
 
-  // S2-Q2 v8a shadow：candidate 不读 commit-ready/permit；identity-valid 只回答
-  // 当前 head slot 是否仍 live。8-bit identity 目前只是 ROB index 零扩展，不能
-  // 被解释为带 generation/reuse 安全的 active owner。
+  // S2-Q2 v8a / V9O edge-old candidate: this observation intentionally reads
+  // recover_q rather than recovering_w.  LQ retire permission feeds
+  // commit_ready and the C0 pregrant; reading current kill_valid_i here would
+  // close pregrant -> branch-apply -> candidate -> commit-ready -> pregrant.
+  // Actual commit remains blocked by recovering_w below, so a current branch
+  // event can perform a read-only LQ release query but cannot free the entry.
+  // identity-valid only answers whether the current head slot remains live.
   assign head0_retire_candidate_valid_o =
-      !recovering_w && (count_q != {ROB_COUNT_W{1'b0}}) &&
+      !recover_q && (count_q != {ROB_COUNT_W{1'b0}}) &&
       valid_q[head_q] && head_done_w;
   assign head0_identity_valid_o =
       (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q];
@@ -483,21 +556,8 @@ module OooRob #(
       (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] &&
       !done_q[head_q];
 
-  // 【serialize-at-retire Phase1】识别队头是否为(合法)CSR uop——用于 §9 mem-quiet 门控与禁 CSR 双提交。
-  // 只看 inst/done/exception(不依赖 commit_ready), 避免与 core_commit0_csr 成组合环。head0-CSR 队头化后
-  // 走正常 ROB, 队头 inst 为 SYSTEM 且 funct3!=0 即 CSR; 带异常者(非法 CSR)不在此(走 domain-A trap)。
-  wire head0_is_csr_w = valid_q[head_q] && head_done_w && !head_exception_w &&
-      (inst_q[head_q][6:0] == `OPCODE_SYSTEM) && (inst_q[head_q][14:12] != 3'b000);
-  // head0-CSR 未达 mem_quiet 时冻结其退休(mem 排空后再 commit+serial_flush, 见 §9 修向①)。
-  // flag OFF 时不冻结(基线: CSR 走 drain, 退休不触发 serial_flush, 无需 mem 门控)。
-  wire head0_csr_mem_hold_w;
-  generate
-    if (`OOO_CSR_QUEUE_HEAD) begin : gen_csr_queue_head_hold
-      assign head0_csr_mem_hold_w = head0_is_csr_w && !mem_quiet_i;
-    end else begin : gen_no_csr_queue_head_hold
-      assign head0_csr_mem_hold_w = 1'b0;
-    end
-  endgenerate
+  // 【serialize-at-retire Phase1】head0/head1 CSR 识别；head0 的定义与
+  // mem-quiet hold 已在 V9O pregrant 区域集中，保证提交与屏障共用同一真源。
   // head1 是否为 CSR: CSR 必须单发经 commit0 退休(否则经 commit1 会漏掉 head0_csr_commit → serial_flush/
   // csr状态写/rd覆写全不触发, 如 mtvec 静默不写)。故 head1=CSR 时禁 commit1, 逼 CSR 等到自己成 head0。
   wire head1_is_csr_w = valid_q[head1_w] && head1_done_w && !head1_exception_w &&
@@ -545,9 +605,11 @@ module OooRob #(
   // reset/flush 分支会优先吞掉本拍状态更新，因此 ready 必须同步 fail-closed；
   // 禁止 valid&&ready 宣告 accepted、而 entry/generation 实际未写入。
   assign dispatch0_ready_o = !rst && !flush_i && !recovering_w &&
+                             !head0_control_event_pregrant_w &&
                              (free_slots_w != {ROB_COUNT_W{1'b0}});
   assign dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
   assign dispatch1_ready_o = !rst && !flush_i && !recovering_w &&
+                             !head0_control_event_pregrant_w &&
                              (free_slots_w > {{(ROB_COUNT_W-1){1'b0}}, dispatch0_fire_w});
   assign dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   assign dispatch_count_w = {1'b0, dispatch0_fire_w} + {1'b0, dispatch1_fire_w};
@@ -804,12 +866,12 @@ module OooRob #(
       if (commit0_fire_w && !done_q[head_q])
         $error("[T3W-ROB-Q-RETIRE] commit0 bypassed registered done state @%0t",
                $time);
-      // 独立后果而非方程重述：任何 candidate 都必须仍对应 live、done、
-      // 非 recovery 的队头。focused negative 会在非真空 candidate 上强制破坏
-      // identity-valid，证明本断言会真实触发。
+      // 独立后果而非方程重述：任何 edge-old candidate 都必须仍对应
+      // live/done 且不处于 registered recovery。current kill 仍由实际 commit
+      // 的 recovering_w 门阻断；candidate 不读取它以保持 C0 pregrant 无环。
       if ((head0_retire_candidate_valid_o === 1'b1) &&
           ((head0_identity_valid_o !== 1'b1) ||
-           (head_done_w !== 1'b1) || (recovering_w !== 1'b0))) begin
+           (head_done_w !== 1'b1) || (recover_q !== 1'b0))) begin
         $error("[S2-Q2-V8A-CANDIDATE-LIVE] retire candidate lost live/done/recovery provenance @%0t",
                $time);
         $fatal;
@@ -884,7 +946,8 @@ module OooRob #(
            done_q[completion2_query_idx_w] ||
            !completion2_query_exact_w ||
            producer_target_killed_now(completion2_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8G-ROB-MEM-COMPLETION-QUERY] query2 escaped exact-open gate @%0t",
                $time);
@@ -894,7 +957,8 @@ module OooRob #(
            done_q[completion3_query_idx_w] ||
            !completion3_query_exact_w ||
            producer_target_killed_now(completion3_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8H-ROB-MULDIV-COMPLETION-QUERY] query3 escaped exact-open gate @%0t",
                $time);
@@ -904,7 +968,8 @@ module OooRob #(
            done_q[completion4_query_idx_w] ||
            !completion4_query_exact_w ||
            producer_target_killed_now(completion4_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8H-ROB-CLMUL-COMPLETION-QUERY] query4 escaped exact-open gate @%0t",
                $time);
@@ -914,7 +979,8 @@ module OooRob #(
            done_q[completion5_query_idx_w] ||
            !completion5_query_exact_w ||
            producer_target_killed_now(completion5_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8I-ROB-FP-RESULT-QUERY] query5 escaped exact-open gate @%0t",
                $time);
@@ -924,7 +990,8 @@ module OooRob #(
            done_q[completion6_query_idx_w] ||
            !completion6_query_exact_w ||
            producer_target_killed_now(completion6_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8I-ROB-FP-FORMAL-QUERY] query6 escaped exact-open gate @%0t",
                $time);
@@ -934,7 +1001,8 @@ module OooRob #(
            done_q[completion7_query_idx_w] ||
            !completion7_query_exact_w ||
            producer_target_killed_now(completion7_query_idx_w, head_q,
-                                      kill_valid_i, kill_rob_idx_i,
+                                      completion_cut_valid_w,
+                                      completion_cut_idx_w,
                                       recover_q, kill_idx_q)))
         $error("[V8S-ROB-MEM1-COMPLETION-QUERY] query7 escaped exact-open gate @%0t",
                $time);
@@ -956,6 +1024,28 @@ module OooRob #(
            (head0_producer_id_o[PRODUCER_ID_W-1:ROB_INDEX_W] !==
             slot_generation_q[head_q])))
         $error("[V8E-PRODUCER-ID-HEAD] live head identity/source mismatch @%0t",
+               $time);
+      if (head0_full_flush_pregrant_w &&
+          (!head0_commit_pregrant_w ||
+           ((head0_full_flush_reason_o != `REDIR_REASON_TRAP) &&
+            (head0_full_flush_reason_o != `REDIR_REASON_CSR_COMMIT)))) begin
+        $error("[V9O-ROB-PREGRANT] invalid full-flush pregrant provenance @%0t",
+               $time);
+        $fatal;
+      end
+      if (head0_pending_csr_commit_pregrant_w &&
+          (!head0_commit_pregrant_w || !pending_csr_owner_valid_i ||
+           !head0_is_csr_w ||
+           ({slot_generation_q[head_q], head_q} !=
+            pending_csr_owner_producer_id_i) ||
+           (head0_full_flush_reason_o != `REDIR_REASON_NONE))) begin
+        $error("[V9O-ROB-PENDING-CSR-PREGRANT] invalid exact-owner provenance @%0t",
+               $time);
+        $fatal;
+      end
+      if (head0_control_event_pregrant_w &&
+          (dispatch0_ready_o || dispatch1_ready_o))
+        $error("[V9O-ROB-CONTROL-PREGRANT] dispatch remained open in C0 @%0t",
                $time);
       // INV-4-serial: head0 CSR 退休会在下一拍触发 serial_flush; 退休拍必须已经无在飞内存事务。
       // 当前 mem_quiet_i 接 mem_idle(不含 SQ empty), 这是 §10.4 为避免 younger-store 死锁后的真实契约。

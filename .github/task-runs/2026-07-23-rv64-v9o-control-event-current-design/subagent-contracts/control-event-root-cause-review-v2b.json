@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-root-cause-review-v2b",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "在扩展的本地 RV64 OoO 生产 RTL 范围内闭合 control-event request/apply 证明：确认不读取 frontend direct-ready 锥的 typed backend grant 如何驱动 branch 当拍选择性恢复、trap/CSR 提交后下一拍 full nuke，并逐项检查 ROB、rename、IQ、执行 completion、MIQ/LQ/SQ、FP、多周期单元与 AXI owner 在 C0 到 C1 的状态边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/design/specs/ooo-control-flush-sequencer.md",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/control",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute",
+      "npc/rv64/vsrc/rename_allocate",
+      "npc/rv64/vsrc/scheduling",
+      "npc/rv64/vsrc/memory",
+      "npc/rv64/vsrc/writeback",
+      "npc/rv64/testbench/tests",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-root-cause-review-v2b.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出完整 request/apply 周期表、typed backend grant 的无组合反馈切点、所有 E3 当前 consumer 分类、FULL_NUKE_NEXT 的 C0/C1 barrier 或结构性不可达证明、lane1 退休与 AXI VALID/owner 边界、最小 RTL/TB 改动清单、compile-success source variant 建议、unknowns、替代假设和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "必须对 winner-only 与 primary-plus-dominated-cleanup 两种结构分别给出 PASS、GAP 或 inconclusive；任何推荐方案都要保持 branch 本拍 completion/request cut、trap/CSR 架构提交可见性、ROB 环形 strict-younger 边界和不可撤回事务 drain，并说明哪些 raw signal 可仅保留为 shadow assertion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

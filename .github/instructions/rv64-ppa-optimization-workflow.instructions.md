@@ -137,7 +137,7 @@ Pareto 关系，不先压成一个分数。
   front_accepted=false、canonical=false、ppa_champion=false。
 - architecture_feasible_seed 只允许按 normative contract 从架构不可行测量锚发生一次；第二次
   seed 必须拒绝。seed 未补齐 qualified Power 和 total area 时，后续只能做 engineering comparison，
-  不能换一个 seed 绕过。
+  必须保持同一 seed；更换 seed 的结果不能用于关闭该 gate。
 - baseline replacement 与 archive membership 是不同裁决。非支配 trade-off 可以留档；自动替换
   accepted baseline 必须通过 normative dominance、per-axis floor、global front 和 promotion checker。
 

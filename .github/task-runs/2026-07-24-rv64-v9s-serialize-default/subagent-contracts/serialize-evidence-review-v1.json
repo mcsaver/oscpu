@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "serialize-evidence-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 RV64 OoO 核 head0 非 FP CSR queue-head 路径的默认配置晋级条件，区分已闭合模块合同与仍缺的系统级证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/subagent-contracts/serialize-evidence-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 RTL design-id 为 sha256:c358ce6d3ef0fe1cb4cd8337bd4dd4f35c44d713b54d047c2ea9a51d38c07e8d。",
+      "OOO_CSR_QUEUE_HEAD=1 已通过 focused config 3/3、完整 module inventory 110/110、full-state riscv-tests 330/330。",
+      "head0 非 FP CSR 经过 dispatch、ROB head、mem_idle 门控、typed C0/C1、CsrFile 写入、年轻流水事务取消与 next-PC 重取；FP CSR 和其它 SYSTEM 类型继续使用独立 pending owner。",
+      "更老 branch 或 JALR selective recovery 杀死年轻 CSR 时会清 head0_csr_inflight_q；对应 branch/JALR 定向序列 RED→GREEN。",
+      "旧 design sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a 的 flag-on rootfs 已进入 systemd console shell，但因 OooMemOwnerTerminalCollector 重复终态断言失败；该 owner 缺口随后修复并由 V9Q/V9R 定向断言与模块回归覆盖。",
+      "当前 c358 design 的 default-off rootfs 1200 秒已进入 Linux 6.6 内核初始化，未到 VFS/rootfs/systemd，也未观测到 RTL 断言失败；该运行不能替代 flag-on strict guest + natural poweroff。",
+      "SERIALIZE-G1 完成定义要求 RTL、npc/rv64 Makefile 与 Linux Makefile 默认值一致为 queue-head，并具有 current-design focused、module、compile-success mutation、full-state DiffTest 与适用 Linux 证据。",
+      "完整 system-uop 队头化不属于本切片，现有 ECALL/xRET/FENCE/SFENCE/WFI/IRQ pending 路径不能由 CSR Phase1 证据外推。"
+    ]
+  },
+  "deliverables": [
+    "给出 PASS/GAP/inconclusive、逐项证据充分性、最小剩余 gate、可能反例与声明边界。"
+  ],
+  "success_criteria": [
+    "结论必须明确当前是否可翻默认，不能把旧 design 或 default-off Linux 运行当作 current-design flag-on 证据，并保留未知项与替代假设。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

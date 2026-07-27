@@ -25,6 +25,7 @@ include $(PLATFORM_MK)
 
 NPC_RV64 := $(REPO_ROOT)/npc/rv64
 NPC_OOO_CSR_QUEUE_HEAD ?= 0
+NPC_OOO_TERMINAL_HOLDER_ASSERT ?= 0
 NPC_SIM_BUILD_DIR := $(NPC_RV64)/build$(if $(filter 1 y,$(NPC_OOO_CSR_QUEUE_HEAD)),-csrqh,)
 NPC_SIM ?= $(NPC_SIM_BUILD_DIR)/NpcSimTop
 NPC_FAST_SIM ?= 1
@@ -51,6 +52,7 @@ NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_FAST)),VERILATOR_OPT_FAST='$(NPC
 NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_GLOBAL)),VERILATOR_OPT_GLOBAL='$(NPC_SIM_OPT_GLOBAL)',)
 endif
 NPC_SIM_MAKE_ARGS += OOO_CSR_QUEUE_HEAD='$(NPC_OOO_CSR_QUEUE_HEAD)'
+NPC_SIM_MAKE_ARGS += OOO_TERMINAL_HOLDER_ASSERT='$(NPC_OOO_TERMINAL_HOLDER_ASSERT)'
 NEMU_HOME := $(REPO_ROOT)/nemu
 NEMU_SIM ?= $(NEMU_HOME)/build/riscv64-nemu-interpreter
 NEMU_DEFCONFIG ?= riscv64-linux_defconfig
@@ -198,11 +200,16 @@ NPC_SYSTEMD_PROGRESS ?= 0
 NPC_SYSTEMD_REQUIRE_PROMPT ?= 1
 NPC_SYSTEMD_STRICT_CHECK ?= 0
 NPC_SYSTEMD_GUEST_POWEROFF ?= 0
+NPC_SYSTEMD_ROOTFS_WORK_IMAGE ?=
+NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256 ?=
+NPC_SYSTEMD_TRANSACTION_EVIDENCE ?= $(NPC_SYSTEMD_CHECK_LOG_DIR)/systemd-transaction-evidence.json
 UBUNTU_ROOTFS_NPC_CONSOLE_SHELL ?= $(if $(filter npc,$(LINUX_PLATFORM)),1,0)
 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL ?= $(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)
 UBUNTU_ROOTFS_NPC_TTY_READER ?= 0
 UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER ?= $(UBUNTU_ROOTFS_NPC_TTY_READER)
 UBUNTU_ROOTFS_NPC_TTY_READER_MODE ?= line
+UBUNTU_ROOTFS_NPC_STRICT_AUTORUN ?= 0
+UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN ?= $(UBUNTU_ROOTFS_NPC_STRICT_AUTORUN)
 UBUNTU_ROOTFS_NPC_LOGIN_MARKER ?= 0
 UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER ?= $(UBUNTU_ROOTFS_NPC_LOGIN_MARKER)
 UBUNTU_ROOTFS_NPC_GENERATOR_TRACE ?= 0
@@ -257,12 +264,15 @@ UBUNTU_PROBE_INITRD ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-probe.cpio
 UBUNTU_SHELL_INITRD ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64.cpio
 UBUNTU_ROOTFS_FLAVOR ?= systemd-minimal
 UBUNTU_ROOTFS_SYSTEMD_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64.ext4
+UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict.ext4
 UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive.ext4
 UBUNTU_ROOTFS_FULL_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full.ext4
 UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-rootfs.cpio
+UBUNTU_ROOTFS_SYSTEMD_STRICT_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict-rootfs.cpio
 UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive-rootfs.cpio
 UBUNTU_ROOTFS_FULL_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full-rootfs.cpio
 UBUNTU_ROOTFS_SYSTEMD_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs
+UBUNTU_ROOTFS_SYSTEMD_STRICT_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-strict
 UBUNTU_ROOTFS_INTERACTIVE_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-interactive
 UBUNTU_ROOTFS_FULL_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-full
 UBUNTU_ROOTFS_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_IMAGE)
@@ -390,9 +400,11 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
         ubuntu-rootfs-flavors-check \
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
+        check-ubuntu-rootfs-systemd-strict ubuntu-rootfs-systemd-strict-image \
         ubuntu-rootfs-systemd-overlay ubuntu-rootfs-interactive-image ubuntu-rootfs-full-image \
         check-ubuntu-rootfs-interactive check-ubuntu-rootfs-full \
-	        check-npc-systemd-guest check-npc-systemd-guest-full __check-npc-systemd-guest \
+	        check-npc-systemd-guest check-npc-systemd-guest-full \
+	        check-npc-systemd-guest-systemd-strict __check-npc-systemd-guest \
         check-nemu-systemd-guest check-nemu-systemd-guest-long \
         check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full \
         check-nemu-systemd-guest-full-soak \
@@ -450,6 +462,8 @@ help:
 	@printf '%s\n' '      先要求 TAP preflight ready，再用 full rootfs 跑 TAP 后端 guest gate。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image'
 	@printf '%s\n' '      无 sudo 时用 apt/dpkg-deb overlay 把 systemd/udev/dbus 候选用户态放进 rootfs。'
+	@printf '%s\n' '  make ARCH=riscv64-npc ubuntu-rootfs-systemd-strict-image'
+	@printf '%s\n' '      构建独立严格验证 rootfs，由 sysinit.target 执行检查并经 syscon 自然关机。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-flavors-check'
 	@printf '%s\n' '      不重建镜像，检查 systemd-minimal/interactive/full flavor manifest 内部一致性。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-interactive-image'
@@ -461,7 +475,9 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full'
 	@printf '%s\n' '      用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs。'
 	@printf '%s\n' '  make check-npc-systemd-guest'
-	@printf '%s\n' '      启动 NPC Ubuntu rootfs，等待 root 串口提示符后通过 NPC_UART_RX_FILE 注入最小 guest 检查脚本。'
+	@printf '%s\n' '      启动 NPC Ubuntu rootfs，等待 root 串口提示符后由 UART RX 文件源逐字节发送最小 guest 检查脚本。'
+	@printf '%s\n' '  make check-npc-systemd-guest-systemd-strict'
+	@printf '%s\n' '      使用严格 rootfs，由 systemd one-shot 完成检查和 syscon 关机；UART RX 字节数保持为 0。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak'
 	@printf '%s\n' '      full flavor 独立 ext4 的重型稳定性 gate，复用 300s soak/32MiB fs stress 等 soak 参数，并保留 full 用户态 runtime hard gate。'
 	@printf '%s\n' '  make check-nemu-systemd-guest'
@@ -729,6 +745,8 @@ ubuntu-rootfs-systemd-image ubuntu-rootfs-systemd-overlay:
 	UBUNTU_ROOTFS_NPC_TTY_READER='$(UBUNTU_ROOTFS_NPC_TTY_READER)' \
 	UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' \
 	UBUNTU_ROOTFS_NPC_TTY_READER_MODE='$(UBUNTU_ROOTFS_NPC_TTY_READER_MODE)' \
+	UBUNTU_ROOTFS_NPC_STRICT_AUTORUN='$(UBUNTU_ROOTFS_NPC_STRICT_AUTORUN)' \
+	UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN='$(UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN)' \
 	UBUNTU_ROOTFS_NPC_LOGIN_MARKER='$(UBUNTU_ROOTFS_NPC_LOGIN_MARKER)' \
 	UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER='$(UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER)' \
 	UBUNTU_ROOTFS_NPC_GENERATOR_TRACE='$(UBUNTU_ROOTFS_NPC_GENERATOR_TRACE)' \
@@ -746,6 +764,15 @@ ubuntu-rootfs-systemd-image ubuntu-rootfs-systemd-overlay:
 	UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$(UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS)' \
 	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
 	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
+ubuntu-rootfs-systemd-strict-image:
+	+$(MAKE) ubuntu-rootfs-systemd-image \
+	  UBUNTU_ROOTFS_SYSTEMD_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE)' \
+	  UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_CPIO_IMAGE)' \
+	  UBUNTU_ROOTFS_SYSTEMD_DIR='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_DIR)' \
+	  UBUNTU_ROOTFS_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_NPC_STRICT_AUTORUN=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN=1
 ubuntu-rootfs-interactive-image:
 	UBUNTU_ROOTFS_FLAVOR=interactive \
 	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' \
@@ -819,6 +846,25 @@ check-ubuntu-rootfs-systemd:
 	fi
 check-ubuntu-rootfs-systemd-minimal: check-ubuntu-rootfs-systemd
 
+check-ubuntu-rootfs-systemd-strict:
+	@if ! UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE)' \
+	  UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN=1 \
+	  UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS=disabled \
+	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	    bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'; then \
+	  printf '%s\n' '[Linux] strict rootfs check failed; rebuilding strict image'; \
+	  "$${MAKE:-make}" ubuntu-rootfs-systemd-strict-image; \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE)' \
+	  UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN=1 \
+	  UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS=disabled \
+	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	    bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'; \
+	fi
+
 check-ubuntu-rootfs-interactive:
 	@if ! UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER='$(UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER)' UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE='$(UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE)' UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP='$(UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP)' UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE='$(UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE)' UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE='$(UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE)' UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER='$(UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER)' UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE='$(UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE)' UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS='$(UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS)' UBUNTU_ROOTFS_FLAVOR=interactive \
 	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'; then \
@@ -883,6 +929,22 @@ check-npc-systemd-guest-full:
 	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs \
 	  NPC_SYSTEMD_GUEST_COMMAND_MODE=uart \
 	  NPC_SYSTEMD_UART_WAIT=__NPC_CONSOLE_SHELL_READY__ \
+	  NPC_SYSTEMD_REQUIRE_PROMPT=0 \
+	  NPC_SYSTEMD_STRICT_CHECK=1 \
+	  NPC_SYSTEMD_GUEST_POWEROFF=1 \
+	  __check-npc-systemd-guest
+
+check-npc-systemd-guest-systemd-strict:
+	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs \
+	  UBUNTU_ROOTFS_SYSTEMD_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE)' \
+	  UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_CPIO_IMAGE)' \
+	  UBUNTU_ROOTFS_SYSTEMD_DIR='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_DIR)' \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE)' \
+	  UBUNTU_ROOTFS_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL=1 \
+	  UBUNTU_ROOTFS_NPC_STRICT_AUTORUN=1 \
+	  UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN=1 \
+	  NPC_SYSTEMD_GUEST_COMMAND_MODE=systemd-strict \
 	  NPC_SYSTEMD_REQUIRE_PROMPT=0 \
 	  NPC_SYSTEMD_STRICT_CHECK=1 \
 	  NPC_SYSTEMD_GUEST_POWEROFF=1 \
@@ -1028,6 +1090,9 @@ __check-npc-systemd-guest: $(RUN_DEPS)
 	NPC_SYSTEMD_REQUIRE_PROMPT='$(NPC_SYSTEMD_REQUIRE_PROMPT)' \
 	NPC_SYSTEMD_STRICT_CHECK='$(NPC_SYSTEMD_STRICT_CHECK)' \
 	NPC_SYSTEMD_GUEST_POWEROFF='$(NPC_SYSTEMD_GUEST_POWEROFF)' \
+	NPC_SYSTEMD_ROOTFS_WORK_IMAGE='$(NPC_SYSTEMD_ROOTFS_WORK_IMAGE)' \
+	NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256='$(NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256)' \
+	NPC_SYSTEMD_TRANSACTION_EVIDENCE='$(NPC_SYSTEMD_TRANSACTION_EVIDENCE)' \
 	NPC_SIM='$(NPC_SIM)' \
 	LINUX_IMAGE='$(LINUX_IMAGE)' \
 	RUN_FW='$(RUN_FW)' \

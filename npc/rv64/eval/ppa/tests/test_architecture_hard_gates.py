@@ -81,8 +81,8 @@ def pair_metrics() -> dict[str, object]:
         "store_store_exact_owner_binds": 2,
         "special_memory_exclusions": 10,
         "atomic_scarcity_zero_births": 1,
-        "collector_ingress_peak": 7,
-        "collector_exact_drains": 7,
+        "collector_ingress_peak": 12,
+        "collector_exact_drains": 12,
         "raw_fallthrough_violations": 0,
         "bank1_age_bypass_violations": 0,
         "owner_ghosts_after_cancel": 0,
@@ -301,7 +301,15 @@ class NegativeTests(unittest.TestCase):
                 "execute/OooIntBackend.v",
                 ".INGRESS_N(12)",
                 ".INGRESS_N(6)",
-                "source.seven_ingress_terminal_collector",
+                "source.twelve_ingress_terminal_collector",
+            ),
+            "collector_lane_order_cut": (
+                "execute/OooIntBackend.v",
+                "      mem_retry1_tagged_terminal_w,\n"
+                "      mem_retry0_tagged_terminal_w,",
+                "      mem_retry0_tagged_terminal_w,\n"
+                "      mem_retry1_tagged_terminal_w,",
+                "source.twelve_ingress_terminal_collector",
             ),
             "full_pid_cut": (
                 "execute/OooIntBackend.v",
@@ -484,10 +492,12 @@ class NegativeTests(unittest.TestCase):
                 "execute/OooIntBackend.v",
                 "assign dispatch0_ready_o = dispatch0_dbe_ready_w && "
                 "d0_fp_ok_w &&\n"
-                "                             !checkpoint_restore_hold_w;",
+                "                             !checkpoint_restore_hold_w &&\n"
+                "                             !control_full_flush_barrier_w;",
                 "assign dispatch0_ready_o = dispatch0_dbe_ready_w && "
                 "d0_fp_ok_w &&\n"
-                "                             !checkpoint_restore_apply_w;",
+                "                             !checkpoint_restore_apply_w &&\n"
+                "                             !control_full_flush_barrier_w;",
                 "source.checkpoint_restore_hold_admission",
             ),
             "checkpoint_irrevocable_guard": (

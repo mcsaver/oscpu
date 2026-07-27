@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9x-serialize-recovery-owner-birth-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OoO serialized-system dispatch 在 lane0/lane1、rob_walk_mode 0/1、empty/pre-ROB/CSR-lease/queue-head-CSR phase 与同周期 older branch/JALR/trap/core-local recovery 组合下，pending-system holder capture 和 stop owner-birth 的周期优先级；冻结真值表并判定最小单一事实源修正。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_dispatch_arbiter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_frontend_run_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      ".github/task-runs/2026-07-26-rv64-v9w-serialize-full-drain",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      ".github/task-runs/2026-07-26-rv64-v9w-serialize-full-drain/task-report.md",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/reviewer-contract-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_dispatch_arbiter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv",
+      ".github/task-runs/2026-07-26-rv64-v9w-serialize-full-drain/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 exact signal/cycle 顺序给出 recovery × lane × holder-phase 真值表和反例；列出所有 holder capture 与 stop owner-birth 不一致点；提出最小 RTL/spec/TB 修正；明确 queue-head CSR、未知项与扩展范围。"
+  ],
+  "success_criteria": [
+    "逐项覆盖 lane0/lane1、mode0/mode1、empty/pre-ROB/exact CSR lease/queue-head CSR；区分 clear-wins 与 lease-death；最终首行严格使用 RV64 RTL 结论格式并给出 PASS/GAP 范围；全程只读且不修改工作区。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

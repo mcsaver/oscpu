@@ -7,6 +7,7 @@ ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
 REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
 REQUIRE_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL:-0}
 REQUIRE_NPC_TTY_READER=${UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER:-0}
+REQUIRE_NPC_STRICT_AUTORUN=${UBUNTU_ROOTFS_REQUIRE_NPC_STRICT_AUTORUN:-0}
 REQUIRE_NPC_LOGIN_MARKER=${UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER:-0}
 REQUIRE_NPC_LOGIN_TRACE=${UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_TRACE:-0}
 REQUIRE_NPC_GENERATOR_TRACE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE:-0}
@@ -528,10 +529,36 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       systemd_missing=1
     fi
 
+    if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-wrapper '^echo __NPC_SYSTEMD_PREFLIGHT_BEGIN__$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-wrapper '^pass\(\) \{ echo "__NPC_PREFLIGHT_PASS__:\$1"; \}$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-wrapper '^echo "__NPC_SYSTEMD_PREFLIGHT_DONE__ rc=\$check_fail"$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC bounded systemd preflight markers"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC bounded systemd preflight markers"
+      systemd_missing=1
+    fi
+
     if rootfs_has /usr/local/sbin/ysyx-npc-systemd-autocheck; then
       echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck"
     else
       echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/local/sbin/ysyx-npc-systemd-strict-check; then
+      echo "[ubuntu-rootfs-check] OK      NPC strict guest check: /usr/local/sbin/ysyx-npc-systemd-strict-check"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC strict guest check"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^    done_marker=__NPC_SYSTEMD_STRICT_DONE__$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^echo "\$done_marker rc=\$check_fail"$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check 'pass virtio-blk-direct-read' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^  systemctl --no-wall poweroff '; then
+      echo "[ubuntu-rootfs-check] OK      NPC strict guest markers and virtio-blk check"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC strict guest markers or virtio-blk check"
       systemd_missing=1
     fi
 
@@ -554,10 +581,12 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       fi
     fi
 
-    if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-autocheck '^echo "__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=\$check_fail"$'; then
-      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker"
+    if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-autocheck '^echo __NPC_SYSTEMD_AUTOCHECK_BEGIN__$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-autocheck '^pass\(\) \{ echo "__NPC_AUTOCHECK_PASS__:\$1"; \}$' &&
+       rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-autocheck '^echo "__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=\$check_fail"$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC bounded systemd autocheck markers"
     else
-      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck done marker"
+      echo "[ubuntu-rootfs-check] MISSING NPC bounded systemd autocheck markers"
       systemd_missing=1
     fi
 
@@ -566,6 +595,39 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     else
       echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck unit"
       systemd_missing=1
+    fi
+
+    if rootfs_has /etc/systemd/system/ysyx-npc-systemd-strict.service; then
+      echo "[ubuntu-rootfs-check] OK      NPC strict rootfs unit: /etc/systemd/system/ysyx-npc-systemd-strict.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC strict rootfs unit"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^After=ysyx-npc-systemd-autocheck\.service$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^Before=sysinit\.target$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^StandardInput=null$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^StandardOutput=tty$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^TTYPath=/dev/ttyS0$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-strict.service '^ExecStart=/usr/local/sbin/ysyx-npc-systemd-strict-check --stage strict --poweroff$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC strict rootfs unit ordering and ttyS0 output"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC strict rootfs unit ordering or command"
+      systemd_missing=1
+    fi
+
+    if [ "$REQUIRE_NPC_STRICT_AUTORUN" = "1" ]; then
+      if rootfs_symlink_points_to /etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service ../ysyx-npc-systemd-strict.service; then
+        echo "[ubuntu-rootfs-check] OK      NPC strict rootfs unit enabled for sysinit.target"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC strict rootfs sysinit.target enablement"
+        systemd_missing=1
+      fi
+    elif rootfs_has /etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-strict.service; then
+      echo "[ubuntu-rootfs-check] MISMATCH NPC strict rootfs unit enabled in non-autorun image"
+      systemd_missing=1
+    else
+      echo "[ubuntu-rootfs-check] OK      NPC strict rootfs unit disabled in non-autorun image"
     fi
 
     npc_tty_reader_unit_present=0

@@ -1,0 +1,2 @@
+63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce  /home/lyg/PA/ysyx-workbench/npc/rv64/.config
+779ef4c769efe2c34453a93d4a1430fc98a5f1c8cd0057a1e4fcc837e7f1bcce  /home/lyg/PA/ysyx-workbench/npc/rv64/build-csrqh/NpcSimTop

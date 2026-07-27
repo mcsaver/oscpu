@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9x-serialize-recovery-owner-birth-final-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核最终本地 RV64 双发射 OoO RTL 中 OooStopPendingSequencer 的 accepted owner birth/live/lease 单一事实源、OooFrontend 到 OooControlPlane 的 canonical head0_csr_dispatch_fire_w 接线、OooPendingTrapExitSequencer 的 C1 reset，以及这些周期边界与 focused flag-on、compile-success RTL mutation、111/111 functional 与 9/9 architecture 证据的设计身份绑定；判定 V9X owner-birth 子范围是否可独立 PASS，并保留 SERIALIZE-G1 memory-owner terminal、七类 exactly-once、完整 Linux flag-on 与 PPA 的 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer_assert_negative.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_trap_exit_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/task-report.md",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/evidence/post-v3/owner-mutations/summary.json",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/architecture/final-architecture-hard-gates.json",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/reviewer-contract-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/task-report.md",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/evidence/post-v3/owner-mutations/summary.json",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/architecture/final-architecture-hard-gates.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 edge-old 到 edge-new 的 pending capture/ordinary recovery、exact CSR lease/death、queue-head real-fire/merged-fire/older recovery、trap-exit C1 四组真值链；逐项核对最终 RTL 单一事实源、focused marker、两项 mutation rejection、production source hash、最终 design id 与分层回归；报告任何确定反例、unknowns、替代假设或 scope_extension_request，不修改任何文件。"
+  ],
+  "success_criteria": [
+    "首行严格使用 RV64 RTL 结论格式；只有在 RTL、TB oracle、mutation 与最终证据身份一致且无未处置 owner-birth 反例时才把 V9X 子范围判 PASS；必须把 memory-owner terminal、七类 serialized transaction exactly-once、完整 Linux flag-on、arch-stable 与 PPA 明确留在 GAP，并明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

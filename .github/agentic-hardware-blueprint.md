@@ -107,28 +107,35 @@ evidence:
 - 图中出现未来节点时，要明确它是“预留接入点”还是“当前硬依赖”，不能混写
 - 本地 RV64 RTL 节点若委派给子 agent，进入节点前必须存在已校验的 task contract；契约把
   `goal/allowed_paths/write_paths/allowed_commands/required_context/deliverables/success_criteria`
-  绑定到单个 owner。平台 review 只形成该节点的 `review_pending` overlay，不沿图自动传播为父目标关闭。
+  绑定到单个 owner。节点状态只作用于该节点，不沿图自动传播为父目标关闭。
 
 ### RV64 Hardware-Professional Task Wording
 
 - 本规范只约束派发给子 agent 的自然语言，不改变路径、命令、shell、上下文、实现、验证、PPA 或推理能力。
-- 每个渲染提示首屏先正向声明：对象为本地 RV64 Verilog/SystemVerilog 处理器；工程范围只包含合同授权的
-  本地 RTL、spec、testbench、EDA 工具和生成证据；不使用非工作区来源。外部来源的逐项布尔值留在 JSON
-  合同审计，避免把与当前处理器任务无关的场景复制进技术目标。
+- 创建本地 RV64 RTL 子 agent 时使用 `fork_turns="none"`，并以校验通过的合同渲染结果作为完整初始
+  提示；必要设计事实通过合同路径或随附材料提供。该上下文隔离不改变模型或任何合同内工程能力。
+- 每个渲染提示直接从本地 RV64 module/signal/证据文件、周期或配置、TB/EDA 观测和 PASS/GAP 边界
+  开始；schema v2 用 `allowed_paths/write_paths/allowed_commands` 表达工程边界，派发管线、父任务历史与
+  协调元数据只留在 JSON/dispatch log。
 - 主 agent 直接用 RV64 CPU 微架构、流水线、事务、时序、缓存一致性、验证和 PPA 术语描述目标、产物与
-  成功条件；`render` 只追加同一硬件语境前缀。协调层状态只进入合同 JSON、dispatch log 与主 agent 记录。
+  成功条件；`render` 只编排同一硬件事实、合同绑定、输入/输出和工程动作，不复制措辞策略说明。
+- 检查 Python/JSON 证据工具时，仍以对应 CPU 债务项和本地 RTL 证据文件为主语，再写精确 schema
+  字段、定向单测和返回码；不得让泛化的软件保证活动取代处理器工程对象。
 - 使用“独立反例复核”“定向变异被测试检出”“取消更年轻流水事务”“生产者完成资格”等无损硬件表达。
 - 多义术语首次出现时必须同时给出对象、层级、作用域和工程目的，例如把 fault injection 限定为
   testbench 对指定 RTL 接口/周期的异常激励，把 replay 限定为 load final-PA 判定后的重试，把 mutation
   限定为 compile-success RTL source cut 及其 directed oracle；这是一组语义示例，不是词表门禁。
 - PMP、RISC-V 特权级、访问异常、内存保护、权限检查、store/cache probe、ProducerId、ROB、LSQ、SQ、
   MIQ、flush、redirect、trap，以及反引号包裹的真实 RTL 标识符必须保留。
-- 不建立关键词黑名单，不因单个词组拒绝合法合同，也不自动改写技术字段；准确措辞由任务作者与 reviewer
-  在真实 RTL 语境中判断。
+- 准确措辞由任务作者与 reviewer 在真实 RTL 语境中判断；合同验证器检查结构和证据绑定，不按单个
+  自然语言词组裁剪合法硬件任务。
 - `workspace-files`、no-tools、实现、验证和 PPA 的能力分档保持不变；措辞规则不能成为删减上下文、工具、
   反例、不确定性或范围扩展出口的理由。
-- 不用缩写、代称、拆分描述或模糊动词隐藏真实工程意图；措辞优化只提高领域准确性与审计性，不承担
-  改变任何平台判定的功能。
+- 子 agent 最终回复第一行使用
+  `RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<结果>｜范围=<PASS/GAP/inconclusive>`；
+  本地 JSON 证据校验的意外接受或拒绝必须对应 CPU 证据对象、具体 schema 字段、工作区相对路径、
+  定向单测和返回码。该顺序不删除反例、原始日志 marker、真实文件名或未知项。
+- 技术描述保留真实工程意图、对象、周期条件和证据边界；长期 goal 只引用本节，不复制协调场景清单。
 
 ## 结构化任务产物
 

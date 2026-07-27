@@ -1,11 +1,11 @@
 DI-1 local RV64 frontend initiation-interval evidence
 task_run_id=2026-07-21-rv64-v8z-frontend-ii1
-suite_run_id=v8z-di1-20260723T020653Z-3332484
-generated_at_utc=2026-07-23T02:10:29.425475+00:00
-design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
-rtl_file_count=145
-provenance_sha256=83a2659b9a310327609c1500f597b341c5b23516a6fba472f2883885e43b6f92
-source_manifest_sha256=ffc313c96ebe82eb71ca13ff51f374ebe2ec67e0ca31da9217e581d73dde064f
+suite_run_id=v8z-di1-20260727T005640Z-178088
+generated_at_utc=2026-07-27T01:01:10.099768+00:00
+design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951
+rtl_file_count=146
+provenance_sha256=57779539dee2f462ea7d12a7c4d91b8bd06687c55ac53d3c9f135dcd7cf49891
+source_manifest_sha256=78e1bed757fdbff37cba3625f94dde3c34fd7c929e8f46081fdfb23595660387
 focused_profiles=assert,release
 compile_success_rtl_source_mutations=9
 adjacent_regressions=6
@@ -29,28 +29,28 @@ dimension final_conservation blocked_response_tail_ghost
 dimension max_initiation_interval bridge_h1_ready_cut,bridge_h1_state_turnover_cut,flow_enqueue_credit_cut,flow_outstanding_turnover_cut
 dimension pc_ledger successor_pc_old_owner
 dimension produced_packets bridge_h1_ready_cut,bridge_h1_state_turnover_cut,bridge_semantic_lookup_cut,flow_enqueue_credit_cut,sequencer_replacement_clear,sink_dequeue_cut
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/bridge/logs/tb_ooo_fetch_axi_bridge.log 556e6ac6fca5688aa9cb076702eb2839ddf85793aba50adcf13e477ab23b6dcc
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log 0bff45cc29ceedc3d770afee3c285b8512139ca1b660d6120846e11d711da474
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/bridge/logs/tb_ooo_fetch_axi_bridge.log d95379359ce963a1b8bf19e4654f59a7d7bed087cb0d2608154d3c536c4ea377
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log 60ed15edafb2451dca77bac0274202985875d4e2ab11b45e3398c7abe836799f
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log 5018a811009dcec1f3713a1bb93f75a9f5368f4b5d69f5099ec1d679cfc3d6eb
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_flow_control.log efe01ff2f3708be513d4493801d6a8e448b68404fc8af9b4ed437a524d9810d7
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log e36d940506b9df33bdbf691318ae0d4d308f1dbd190ae3341d11b518bbae9e5a
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_pc_outstanding_sequencer.log 45e325bb53752ac5760bd42f05ed42a32df7dad5b0076e0ab39b22f2b643944e
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_request_mux.log cc133a44f95f98bbab0939dabca7331bc57520eb2231ba67c810feff685004f7
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_frontend_action_gate.log 3c4c46727642775bc0054d2d817767fc2ba682ce94155517efc478075180df19
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.post.sha256 696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.pre.sha256 696bf1f9e4e19a147419c50227033819afdac938dacd2a11a0b03bdddad5b8f8
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/same-design-predecessors.log 7ca8f094dbe8ef1bb732cda4469d3214e05cb92deaef79e9766853d5abe6fede
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/suite-run-id.txt c4a738ee536b942d612c7e6807682df9929b56251885e72b41945c9147ab9822
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/blocked_response_tail_ghost.log 15f99f73a104aa413057aa3c0d634cac0d456747c6e9937bbc85038f107607b5
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/bridge/logs/tb_ooo_fetch_axi_bridge.log 48fe93f0ba64d7943edf9374da71eb6cbc7f21559a04f5a27208f38b6be5d963
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/assert/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log dd850b96915d16e265b1ad114c1fba306dacc5564775b76177d87dc6b084b22a
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/bridge/logs/tb_ooo_fetch_axi_bridge.log d08983ec86ec0ff159203a7dc583c09ffea12b38b95459eb2711d308d0bd7b46
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/focused/release/frontend/logs/tb_ooo_core_top_glue_v8z_frontend_ii1.log b8141bdc4f375430752e60247d27846a20198b60d41624f681bceedba72bde65
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log 4f876e8d430019e4b7a82d51d673364ca4c02b3950b7c4ce2b81386d0540a7a5
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_flow_control.log 7a1fa684c1c6c8a032956ac55bd775375ec15aa0aae30032eb1a00c4b2a2e79e
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_packet_fifo.log b6ba1b42b11155783669303ba032495cf1aba011f5c74bab76d5afd9e629d41c
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_pc_outstanding_sequencer.log daecc7ece8f37d6263633a3d33e50365b55192dcd9b9d4d51c7f4611437b4f37
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_fetch_request_mux.log 8844e51621e17baa9d13f599fd2acabf91bdd94389e296cb58f2243f926cfd8c
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/regressions/logs/tb_ooo_frontend_action_gate.log 4a7a3e0c6c80ad1264608981d437ca5af705068cf97de4cef17869be95dce95d
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.post.sha256 8ab8210db85a544c152665e97ae47fa3fa260eb49dfc7ce8e3d4f879f7f70442
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/sources.pre.sha256 8ab8210db85a544c152665e97ae47fa3fa260eb49dfc7ce8e3d4f879f7f70442
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/static/same-design-predecessors.log 6683e729b16feb0815ee9488006e8558f8ad32c0be6d7dd629898a68186488a6
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/final-run/suite-run-id.txt cf96a08dec7f4c2c281848bf2065b836f57c71b9349151cc6bc15e67453918c5
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/blocked_response_tail_ghost.log f44a2f7cbc4042704da7cbd34b3dde6cda3ab66abe8133d09328ddb77d2b4b8c
 artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_ready_cut.log 23cb32aa56b41054226e15b08fce08cc0b395021adbcb9ca15ebeb410d879371
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_state_turnover_cut.log 74dc3826c554fe7650c38dc8114aeda878e11d989e6d163e04ad1d52cac78e55
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_semantic_lookup_cut.log 305c000f8b7ad97dcad956071415667612dde0121ac683af8523dfc6205d69f0
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_enqueue_credit_cut.log 282773a958d1244c1f381706d1f4ab2b08c1264efaff41ce2856ee7bb4fd7144
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_outstanding_turnover_cut.log dcb031593a776f5f7b6c0e9124bb88d103f4ba7b0f96656896d6f8d404ac4aa0
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sequencer_replacement_clear.log c05dfe072659ca8622db59d6e8ba310b59b31695bcfb6cecd0487ce1f38c2b8a
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sink_dequeue_cut.log 20d26b654cc271ae0ecf60b30b3de07009e7a6b59594d0c0d3a0ead3f1bee311
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/successor_pc_old_owner.log 069717fc1afe232e61221c85d46531086fcc6518f5632c67159c96791d35f0ca
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/summary.json 925e3ff67617a6cbbc16510f81333b3cd975a61bd19fb951f2c949d31a236870
-[ARCH-GATE] frontend_ii1 PASS suite_run_id=v8z-di1-20260723T020653Z-3332484 design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2 mutations=9
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_h1_state_turnover_cut.log 774d97655be036f9e8bd8a7b8cb2cf48c8c12c8b2997345a7dcfa243facbbdd7
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/bridge_semantic_lookup_cut.log 26bad88a6080639d9553ea6df83ca6d3c2583426d09474258279dcafbe602dbe
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_enqueue_credit_cut.log f1ac866509180b9afdecb5f2237ec3b1c8b34de6947940e4f789cb6095955466
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/flow_outstanding_turnover_cut.log 48725a851e5758eefa244884bbb382607d5edefd1267327738ff33a7efe3009c
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sequencer_replacement_clear.log cc5107e928269ed51a07128316ce3aa12355609b54c450654997950a9cd114eb
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/sink_dequeue_cut.log cf5bb6f574bc09b2bbf63003348428966410373aadb6b31b6c5dbfad3b0002be
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/successor_pc_old_owner.log 8afb52c4032990666c2d70901a797908e63f276160442c1bf261a7d3093a80b7
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/evidence/mutations/summary.json 25819618a083333e1f3399bb13e9afd6e99bc719785e58779e054155b0427515
+[ARCH-GATE] frontend_ii1 PASS suite_run_id=v8z-di1-20260727T005640Z-178088 design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951 mutations=9

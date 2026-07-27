@@ -1,0 +1,14 @@
+debugfs 1.47.0 (5-Feb-2023)
+Inode: 563   Type: symlink    Mode:  0777   Flags: 0x0
+Generation: 0    Version: 0x00000000:00000000
+User:     0   Group:     0   Project:     0   Size: 34
+File ACL: 0
+Links: 1   Blockcount: 0
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x6a6446ed:00000000 -- Sat Jul 25 13:17:33 2026
+ atime: 0x6a6446ed:00000000 -- Sat Jul 25 13:17:33 2026
+ mtime: 0x6a6446ed:00000000 -- Sat Jul 25 13:17:33 2026
+crtime: 0x6a6446ed:00000000 -- Sat Jul 25 13:17:33 2026
+Size of extra inode fields: 32
+Inode checksum: 0x3952ac14
+Fast link dest: "../ysyx-npc-systemd-strict.service"

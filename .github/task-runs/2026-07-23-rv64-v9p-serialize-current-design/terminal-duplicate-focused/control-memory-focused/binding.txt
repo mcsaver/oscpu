@@ -1,0 +1,5 @@
+rtl_design_id=sha256:4655eabea13d2ecce9ac94784bbcb0a8bd2151b65bcd7325f950c6abb9b91380
+simulator_sha256=c5c4882e4f062d63838926477641ef7b63f6439c62983a340c73046f8cd9d423
+OOO_CSR_QUEUE_HEAD=1
+OOO_TERMINAL_HOLDER_ASSERT=1
+tests=branch-resolve-loop fence-i linux-mini-boot load-store mem-test ooo-mem-order plic-sirq sbi-ipi-reset-hsm sbi-timer sv39-ad-bits sv39-ras-relocate uart-plic-sirq unalign

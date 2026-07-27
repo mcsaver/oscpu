@@ -1,0 +1,9 @@
+rootfs_rebuild_mode=fresh-current-inputs
+rootfs_binary_hash_policy=per-run-attestation
+rootfs_template_sha256=452e27bae10b1b21cbf71b1e260b000125156545e411de2d06e21183b732b4b0
+rootfs_cpio_sha256=e085f3bd69237da865d5c4c7d18d7da5c1cb5d228ecb385d8e62ddd43cee7450
+41dd7e69ef7dcd7ab0c9a8fa342114029b50a49c210c803ea140b8511f3c40af  /home/lyg/PA/ysyx-workbench/Linux/Makefile
+6ffe755deb5eef1a2e6678a09c1cb45ddd07f126749927eb502578454c41594e  /home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh
+05e8f15612f08ed70d6f3d9bd27c6619f37784fce9abb9cc6ab00fc5601dd7c5  /home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-systemd-overlay.sh
+4066184ed06c224f08d594d14a7af7107d3cc05b59d365dd6f360beea7399bc8  /home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh
+4fe0dedf1c7f9ff06656a991ed4d7c5abda8aa4766218fb5c57727e57b511e16  /home/lyg/PA/ysyx-workbench/Linux/scripts/npc-systemd-strict-check.sh

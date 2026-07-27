@@ -723,9 +723,20 @@ class GreenFixture:
                 artifact(self.root, self.module_spec, "module_spec"),
             ],
             "test_sources": [
-                artifact(self.root, self.test_source, "module_test_source"),
-                artifact(self.root, self.test_common, "test_common"),
-                artifact(self.root, self.test_runner, "test_runner"),
+                artifact(
+                    self.root,
+                    self.root / relative,
+                    (
+                        "module_test_source"
+                        if relative.startswith("npc/rv64/testbench/tests/")
+                        else "test_common"
+                        if relative.startswith("npc/rv64/testbench/common/")
+                        else "test_runner"
+                    ),
+                )
+                for relative in sorted(
+                    freeze.expected_input_sets(
+                        self.root, ["tb_a"])["test_sources"])
             ],
             "tool_versions": [
                 artifact(self.root, self.tool_manifest, "tool_version_manifest")
@@ -1489,6 +1500,248 @@ class EndToEndFixtureTests(unittest.TestCase):
 
 
 class CurrentWorkspaceTests(unittest.TestCase):
+    @staticmethod
+    def control_event_payloads() -> tuple[dict, dict]:
+        root = freeze.find_repo_root(TOOL)
+        return (
+            freeze.load_json(root / freeze.CONTROL_EVENT_INDEX_PATH),
+            freeze.load_json(root / freeze.CONTROL_EVENT_MUTATION_PATH),
+        )
+
+    @staticmethod
+    def v9r_sq_retry_payload() -> dict:
+        root = freeze.find_repo_root(TOOL)
+        return freeze.load_json(root / freeze.V9R_SQ_RETRY_SUMMARY_PATH)
+
+    def test_control_event_debt_evidence_is_current(self) -> None:
+        root = freeze.find_repo_root(TOOL)
+        index, _ = self.control_event_payloads()
+        entry = {
+            "canonical_command": freeze.CONTROL_EVENT_COMMAND,
+            "design_id": index["design_id"],
+            "evidence": [
+                artifact(
+                    root,
+                    root / freeze.CONTROL_EVENT_INDEX_PATH,
+                    "control_event_evidence_index",
+                ),
+                artifact(
+                    root,
+                    root / freeze.CONTROL_EVENT_MUTATION_PATH,
+                    "control_event_rtl_mutations",
+                ),
+                artifact(
+                    root,
+                    root / freeze.V9R_SQ_RETRY_SUMMARY_PATH,
+                    "v9r_sq_retry_c0_evidence",
+                ),
+            ],
+        }
+        self.assertEqual(
+            freeze.validate_control_event_debt(
+                root, entry, "sha256:" + "0" * 64),
+            [],
+        )
+
+    def test_control_event_payload_rejects_false_green_shapes(self) -> None:
+        index, mutations = self.control_event_payloads()
+        cases: list[tuple[str, dict, dict]] = []
+
+        inclusive_boundary = json.loads(json.dumps(mutations))
+        inclusive_boundary["results"] = [
+            item for item in inclusive_boundary["results"]
+            if item["name"] != "strict_younger_changed_to_greater_equal"
+        ]
+        cases.append(("missing strict-younger variant", index, inclusive_boundary))
+
+        missing_matrix = json.loads(json.dumps(index))
+        missing_matrix["static_contract"][
+            "completion_matrix_has_eight_classes"
+        ] = False
+        cases.append(("missing 8-class matrix", missing_matrix, mutations))
+
+        promoted_gap = json.loads(json.dumps(index))
+        promoted_gap["full_core_boundary"]["ppa"] = "QUALIFIED"
+        promoted_gap["full_core_boundary"]["promotion_eligible"] = True
+        cases.append(("PPA promotion from local closure", promoted_gap, mutations))
+
+        stale_boundary = json.loads(json.dumps(index))
+        stale_boundary["full_core_boundary"]["candidate_design_id"] = (
+            "sha256:" + "e" * 64
+        )
+        stale_boundary["full_core_boundary"]["current_design_match"] = False
+        cases.append((
+            "stale full-core candidate identity",
+            stale_boundary,
+            mutations,
+        ))
+
+        relocated_architecture_result = json.loads(json.dumps(index))
+        relocated_architecture_result["architecture_hard_gates"]["result"][
+            "path"
+        ] = (
+            ".github/task-runs/"
+            "2026-07-23-rv64-v9o-control-event-current-design/"
+            "validator-review-v3/fixtures/transitive-architecture-artifact/"
+            "architecture-result-with-ledger-reference.json"
+        )
+        cases.append((
+            "relocated architecture gate result",
+            relocated_architecture_result,
+            mutations,
+        ))
+
+        wrong_source = json.loads(json.dumps(index))
+        wrong_source["design_id"] = "sha256:" + "f" * 64
+        cases.append(("wrong design identity", wrong_source, mutations))
+
+        self_reference = json.loads(json.dumps(index))
+        self_reference["provenance"][
+            ".github/task-runs/"
+            "2026-07-23-rv64-v9o-control-event-current-design/"
+            "gates/arch-stable-audit.json"
+        ] = {
+            "path": (
+                ".github/task-runs/"
+                "2026-07-23-rv64-v9o-control-event-current-design/"
+                "gates/arch-stable-audit.json"
+            ),
+            "sha256": "0" * 64,
+            "size_bytes": 1,
+        }
+        cases.append(("self-referential provenance", self_reference, mutations))
+
+        mutation_schema_extension = json.loads(json.dumps(mutations))
+        mutation_schema_extension["downstream_artifact"] = {
+            "path": (
+                ".github/task-runs/"
+                "2026-07-23-rv64-v9o-control-event-current-design/"
+                "gates/arch-stable-audit.json"
+            ),
+            "sha256": "0" * 64,
+            "size_bytes": 1,
+        }
+        cases.append((
+            "mutation-summary downstream schema extension",
+            index,
+            mutation_schema_extension,
+        ))
+
+        nested_mutation_reference = json.loads(json.dumps(mutations))
+        nested_mutation_reference["results"][0]["purpose"] = {
+            "path": (
+                ".github/task-runs/"
+                "2026-07-23-rv64-v9o-control-event-current-design/"
+                "gates/arch-stable-audit.json"
+            ),
+            "sha256": "0" * 64,
+            "size_bytes": 1,
+        }
+        cases.append((
+            "mutation-summary nested downstream reference",
+            index,
+            nested_mutation_reference,
+        ))
+
+        log_reuse = json.loads(json.dumps(index))
+        log_reuse["focused"]["logs"]["tb_ooo_rob"] = json.loads(json.dumps(
+            log_reuse["focused"]["logs"]["tb_ooo_core_top_glue"]
+        ))
+        cases.append(("focused log reuse", log_reuse, mutations))
+
+        remapped_mutation = json.loads(json.dumps(mutations))
+        remapped_mutation["results"][0]["source"] = (
+            "npc/rv64/vsrc/core/OooCoreTopGlue.v"
+        )
+        cases.append(("mutation source remap", index, remapped_mutation))
+
+        for label, candidate_index, candidate_mutations in cases:
+            with self.subTest(label=label):
+                errors = freeze.validate_control_event_payload(
+                    freeze.find_repo_root(TOOL),
+                    candidate_index,
+                    candidate_mutations,
+                    index["design_id"],
+                )
+                self.assertTrue(errors, label)
+
+    def test_v9r_sq_retry_payload_rejects_false_green_shapes(self) -> None:
+        root = freeze.find_repo_root(TOOL)
+        payload = self.v9r_sq_retry_payload()
+        cases: list[tuple[str, dict]] = []
+
+        missing_natural_trap = json.loads(json.dumps(payload))
+        missing_natural_trap["positive"]["natural_trap_head_cases"] = 0
+        cases.append(("missing natural trap-head case", missing_natural_trap))
+
+        passing_variant = json.loads(json.dumps(payload))
+        passing_variant["compile_success_rtl_variants"][0][
+            "result"
+        ] = "PASS"
+        cases.append(("variant marked PASS", passing_variant))
+
+        remapped_variant = json.loads(json.dumps(payload))
+        remapped_variant["compile_success_rtl_variants"][0][
+            "production_source"
+        ] = "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+        cases.append(("variant source remapped", remapped_variant))
+
+        promoted = json.loads(json.dumps(payload))
+        promoted["promotion_eligible"] = True
+        promoted["ppa_status"] = "qualified"
+        cases.append(("V9R local evidence promoted", promoted))
+
+        for label, candidate in cases:
+            with self.subTest(label=label):
+                errors = freeze.validate_v9r_sq_retry_c0_payload(
+                    root,
+                    candidate,
+                    payload["design_id"],
+                )
+                self.assertTrue(errors, label)
+
+    def test_v9r_sq_retry_payload_is_current(self) -> None:
+        root = freeze.find_repo_root(TOOL)
+        payload = self.v9r_sq_retry_payload()
+        self.assertEqual(
+            freeze.validate_v9r_sq_retry_c0_payload(
+                root,
+                payload,
+                payload["design_id"],
+            ),
+            [],
+        )
+
+    def test_control_event_architecture_json_rejects_boundary_reference(
+        self,
+    ) -> None:
+        root = freeze.find_repo_root(TOOL)
+        index, _ = self.control_event_payloads()
+        architecture_result = freeze.load_json(
+            root / freeze.CONTROL_EVENT_ARCHITECTURE_RESULT_PATH)
+        architecture_manifest = freeze.load_json(
+            root / freeze.CONTROL_EVENT_ARCHITECTURE_MANIFEST_PATH)
+        embedded_reference = json.loads(json.dumps(architecture_result))
+        embedded_reference["boundary_artifact"] = {
+            "path": "npc/rv64/design/arch/architecture-debt-ledger.json",
+            "sha256": "0" * 64,
+            "size_bytes": 1,
+        }
+        errors = freeze.validate_control_event_architecture_payload(
+            embedded_reference,
+            architecture_manifest,
+            index["rtl_source_set"],
+            index["design_id"],
+        )
+        self.assertTrue(any(
+            "architecture result field set drifted" in error
+            for error in errors
+        ))
+        self.assertTrue(any(
+            "boundary-generated artifact" in error
+            for error in errors
+        ))
+
     def test_current_candidate_is_honest_gap_with_dynamic_inventory(self) -> None:
         root = freeze.find_repo_root(TOOL)
         candidate = root / "npc/rv64/eval/ppa/arch-stable/full-core-current.json"
@@ -1500,33 +1753,22 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(result["architecture_freeze"], "GAP")
         self.assertEqual(result["ppa"], "UNQUALIFIED")
         self.assertFalse(result["promotion_eligible"])
+        expected_inventory, inventory_errors = freeze.parse_required_tests(
+            (root / "npc/rv64/testbench/Makefile").read_text(
+                encoding="utf-8"))
+        self.assertEqual(inventory_errors, [])
         self.assertEqual(
-            len(result["observed"]["functional"]["required_module_tests"]),
-            109,
+            result["observed"]["functional"]["required_module_tests"],
+            expected_inventory,
         )
         checks = {item["check_id"]: item for item in result["checks"]}
-        self.assertEqual(
-            checks["debt.FDG-G1.closed_binding"]["status"], "PASS")
-        self.assertEqual(
-            checks["debt.FDG-G1.semantic_evidence"]["status"], "PASS")
-        self.assertFalse(any(
-            "debt.FDG-G1" in blocker for blocker in result["blockers"]
-        ))
-        self.assertEqual(
-            checks["debt.XRET-G1.closed_binding"]["status"], "PASS")
-        self.assertEqual(
-            checks["debt.XRET-G1.semantic_evidence"]["status"], "PASS")
-        self.assertFalse(any(
-            "debt.XRET-G1" in blocker for blocker in result["blockers"]
-        ))
-        self.assertEqual(
-            checks["debt.INSTRET-G1.closed_binding"]["status"], "PASS")
-        self.assertEqual(
-            checks["debt.INSTRET-G1.semantic_evidence"]["status"], "PASS")
-        self.assertFalse(any(
-            "debt.INSTRET-G1" in blocker for blocker in result["blockers"]
-        ))
-        for debt_id in ("MEM-ISSUE-G1", "MIQ-FLUSH-G1", "IFU-AXI-G1"):
+        current_semantic_debts = (
+            "FDG-G1", "XRET-G1", "INSTRET-G1", "MEM-ISSUE-G1",
+            "MIQ-FLUSH-G1", "IFU-AXI-G1", "IFU-FETCH-G2",
+            "IFU-ACCESS-G1", "IFU-TVAL-G1", "PTW-PMP-G1",
+            "STORE-BRESP-G1", "FENCE-G1", "F0-G1",
+        )
+        for debt_id in current_semantic_debts:
             self.assertEqual(
                 checks[f"debt.{debt_id}.closed_binding"]["status"], "PASS")
             self.assertEqual(
@@ -1538,11 +1780,36 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 for blocker in result["blockers"]
             ))
         self.assertEqual(
-            checks["debt.F0-G1.closed_binding"]["status"], "PASS")
+            checks["debt.CONTROL-EVENT-G1.semantic_evidence"]["status"],
+            "PASS",
+        )
         self.assertEqual(
-            checks["debt.F0-G1.semantic_evidence"]["status"], "PASS")
+            checks["debt.CONTROL-EVENT-G1.closed_binding"]["status"], "PASS",
+        )
         self.assertFalse(any(
-            "debt.F0-G1" in blocker for blocker in result["blockers"]
+            "debt.CONTROL-EVENT-G1.closed_binding" in blocker
+            for blocker in result["blockers"]
+        ))
+        cohort_exclusions = (
+            "A-COHERENCE-G1",
+            "DEBUG-TRIGGER-G1",
+            "SFENCE-SINVAL-G1",
+            "WFI-G1",
+        )
+        for debt_id in cohort_exclusions:
+            self.assertEqual(
+                checks[f"debt.{debt_id}.cohort_exclusion"]["status"], "PASS")
+            self.assertFalse(any(
+                f"debt.{debt_id}.cohort_exclusion" in blocker
+                for blocker in result["blockers"]
+            ))
+        self.assertEqual(
+            checks["debt.cohort_exclusions.exact"]["status"], "PASS")
+        self.assertEqual(
+            checks["debt.SERIALIZE-G1.resolved"]["status"], "GAP")
+        self.assertTrue(any(
+            "debt.SERIALIZE-G1.resolved" in blocker
+            for blocker in result["blockers"]
         ))
         self.assertEqual(checks["functional.json_schema"]["status"], "PASS")
         self.assertEqual(
@@ -1551,7 +1818,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
             "census.full_core_complete" in blocker for blocker in result["blockers"]
         ))
         self.assertFalse(any(
-            "functional.aggregate" in blocker for blocker in result["blockers"]
+            "functional.schema_design_cohort" in blocker
+            for blocker in result["blockers"]
         ))
         self.assertTrue(any(
             "freeze_inputs.cohort_inventory" in blocker

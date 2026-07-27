@@ -11,7 +11,6 @@ BUILDER="$NPC_HOME/eval/ppa/tools/pair_matrix_evidence.py"
 ARCH_TOOL="$NPC_HOME/eval/ppa/tools/architecture_hard_gates.py"
 ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
 ARCH_LOG="$NPC_HOME/eval/ppa/evidence/pair-matrix.log"
-DI5_PARENT_REFRESH_MODE=${DI5_PARENT_REFRESH_MODE:-0}
 BACKEND="$NPC_HOME/vsrc/execute/OooIntBackend.v"
 SELECTOR="$NPC_HOME/vsrc/scheduling/OooIntIssueSelect8.v"
 QUEUE="$NPC_HOME/vsrc/scheduling/OooIntIssueQueue.v"
@@ -151,14 +150,14 @@ for profile in release assert; do
   [[ "$(grep -c '^\[V8P-SPECIAL-MEMORY-EXCLUSION\].* PASS$' "$backend_log")" -eq 10 ]] ||
     fail "$profile did not emit ten special-memory exclusions"
   require_marker '[V8P-TRACKER-ATOMIC-SCARCITY] split ready causes zero owner births PASS' "$tracker_log"
-  require_marker '[V8P-TCOLL-7INGRESS-CAPTURE] pending=7' "$collector_log"
-  require_marker '[V8P-TCOLL-7INGRESS-DRAIN] seen=7' "$collector_log"
+  require_marker '[V8P-TCOLL-12INGRESS-CAPTURE] pending=12' "$collector_log"
+  require_marker '[V8P-TCOLL-12INGRESS-DRAIN] seen=12' "$collector_log"
   require_marker '[V8P-SQ-DUAL-BIND] two exact STORE owners bound on one edge PASS' "$sq_log"
   require_clean_pass "$backend_log"
   require_clean_pass "$tracker_log"
   require_clean_pass "$collector_log"
   require_clean_pass "$sq_log"
-  printf '[V8P-BASELINE][PASS] profile=%s pair_keys=15 memory_pairs=4 special_exclusions=10 tracker_atomic=1 collector_peak=7 sq_binds=2\n' \
+  printf '[V8P-BASELINE][PASS] profile=%s pair_keys=15 memory_pairs=4 special_exclusions=10 tracker_atomic=1 collector_peak=12 sq_binds=2\n' \
     "$profile" >> "$EVIDENCE_DIR/baseline-summary.log"
 done
 
@@ -312,15 +311,13 @@ python3 "$BUILDER" \
   --manifest "$ARCH_MANIFEST" \
   > "$EVIDENCE_DIR/evidence-builder.log" 2>&1
 
-python3 - "$EVIDENCE_DIR/static/manifest-before-pair.json" "$ARCH_MANIFEST" \
-  "$DI5_PARENT_REFRESH_MODE" <<'PY'
+python3 - "$EVIDENCE_DIR/static/manifest-before-pair.json" "$ARCH_MANIFEST" <<'PY'
 import json
 import pathlib
 import sys
 
 before = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 after = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
-parent_mode = sys.argv[3] == "1"
 if before.get("design_id") != after.get("design_id"):
     raise SystemExit("pair publication changed the refreshed design binding")
 before_tests = before.get("tests", {})
@@ -329,10 +326,7 @@ expected_siblings = {
     "true_ooo_long_latency", "selective_scheduling",
     "no_static_lane_semantics",
 }
-allowed_before = expected_siblings | {"pair_matrix"}
-if parent_mode:
-    allowed_before.add("dual_memory_issue")
-if not expected_siblings.issubset(before_tests) or not set(before_tests).issubset(allowed_before):
+if not expected_siblings.issubset(before_tests):
     raise SystemExit(f"sibling refresh inventory mismatch: {sorted(before_tests)}")
 expected_after = set(before_tests) | expected_siblings | {"pair_matrix"}
 if set(after_tests) != expected_after:
@@ -359,22 +353,20 @@ require_marker 'OOO-2: GREEN (0 red checks)' "$EVIDENCE_DIR/static/architecture-
 require_marker 'OOO-3: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
 require_marker 'OVERALL: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
 
-python3 - "$EVIDENCE_DIR/static/architecture-result.json" \
-  "$DI5_PARENT_REFRESH_MODE" <<'PY'
+python3 - "$EVIDENCE_DIR/static/architecture-result.json" <<'PY'
 import json
 import pathlib
 import sys
 
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
-parent_mode = sys.argv[2] == "1"
 green = {gate for gate, value in result["gates"].items()
          if value["status"] == "GREEN"}
-expected = {"DI-3", "DI-4", "OOO-1", "OOO-2"}
-allowed = {frozenset(expected)}
-if parent_mode:
-    allowed.add(frozenset(expected | {"DI-5"}))
-if frozenset(green) not in allowed:
-    raise SystemExit(f"unexpected GREEN set: {sorted(green)}")
+required_green = {"DI-3", "DI-4", "OOO-1", "OOO-2"}
+missing_green = required_green - green
+if missing_green:
+    raise SystemExit(f"required gates are not GREEN: {sorted(missing_green)}")
+if result["gates"]["OOO-3"]["status"] != "RED":
+    raise SystemExit("OOO-3 unexpectedly became GREEN")
 if result["overall_status"] != "RED":
     raise SystemExit("architecture inventory is not RED")
 PY

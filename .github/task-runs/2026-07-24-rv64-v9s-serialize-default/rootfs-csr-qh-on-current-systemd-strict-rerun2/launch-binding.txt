@@ -1,0 +1,5 @@
+run_label=rootfs-csr-qh-on-current-systemd-strict-rerun2
+runner=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-24-rv64-v9s-serialize-default/run-v9s-rootfs-csr-qh-systemd-strict.sh
+lock_path=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-24-rv64-v9s-serialize-default/rv64-engineering-single-flight.lock
+session_mode=setsid-no-tty
+stdin=/dev/null

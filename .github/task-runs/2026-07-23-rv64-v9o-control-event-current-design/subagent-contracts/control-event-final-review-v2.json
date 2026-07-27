@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 CONTROL-EVENT-G1 当前实现：确认统一 control-event 字段与生产消费投影、C0 预授予和 C1 类型化应用、严格年轻完成切断、精确 pending-system CSR 类型和 ProducerId 归属、Load Queue edge-old retirement permit、以及已登记 AXI AR/AW/W 事务保持是否在当前 RTL 中闭合且无组合 SCC。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-core-top-glue.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/design/specs/ooo-redirect-arbiter.md",
+      "npc/rv64/design/specs/ooo-rob.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendActionGate.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_control_event_apply_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_redirect_arbiter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_frontend_action_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按统一真源与无环投影、C0/C1 时序、严格年轻边界、精确 pending CSR 类型和完整 ProducerId、Load Queue edge-old permit、AXI registered owner、定向/宏配置/变异/110 模块/9 架构门证据新鲜度分别给出 PASS、GAP 或 inconclusive；列出所有仍影响裁决的可构造微架构反例、假绿风险、unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只依据合同授权的本地 RTL、SystemVerilog testbench、规格和生成证据独立追踪生产调用链；任何 PASS 必须能对应当前设计标识 sha256:d2ae42f648cd1cf2ca26a9bb650bee9d9f21b7089e9e1974af454822b478c10e，并区分 CONTROL-EVENT-G1 局部闭合、九项架构门 GREEN、ARCH_STABLE GAP、PPA UNQUALIFIED 与 promotion_eligible=false。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

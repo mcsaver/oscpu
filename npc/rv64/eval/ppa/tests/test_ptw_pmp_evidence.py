@@ -128,6 +128,7 @@ class PtwPmpEvidenceTests(unittest.TestCase):
         certificate = evidence.validate_lsu_unbounded_deny_quiet_structure(text)
         self.assertEqual(certificate["cycle_bound"], "unbounded_by_state_decode")
         self.assertFalse(certificate["response_state_in_awvalid_decode"])
+        self.assertTrue(certificate["c0_barrier_holds_queued_advance"])
         mutant = text.replace(
             evidence.LSU_AW_VALID_ASSIGN,
             evidence.LSU_AW_VALID_ASSIGN[:-1]

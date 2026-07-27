@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9w-serialize-full-drain-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 OOO_CSR_QUEUE_HEAD=0 配置下 OooPendingSystemSequencer、OooStopPendingSequencer、OooPendingDrainResolveGate、OooRob 与 NpcCoreTop 的 serialized system/trap 事务，逐类追踪 capture、ProducerId/类型 owner、backend/memory drain、commit、redirect、clear 及 branch/trap recovery 周期，并判断该 pending full-drain 设计是否具备关闭 SERIALIZE-G1 所需的完整 current-design 合同与可执行反例证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control",
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/writeback",
+      "npc/rv64/vsrc/core",
+      "npc/rv64/vsrc/memory",
+      "npc/rv64/vsrc/decode",
+      "npc/rv64/testbench",
+      "npc/rv64/design/specs",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/completion-definition.md",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/task-report.md",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/completion-definition.md",
+      ".github/task-runs/2026-07-26-rv64-v9v-full-core-cohort-scope/task-report.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-control-commit-sequencer.md",
+      "npc/rv64/design/specs/ooo-fence-drain-ordering.md",
+      ".github/task-runs/2026-07-26-rv64-v9w-serialize-full-drain/subagent-contracts/v9w-serialize-full-drain-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-control-commit-sequencer.md",
+      "npc/rv64/design/specs/ooo-fence-drain-ordering.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 serialized 类型矩阵；每类列出本地 RTL owner/source-of-truth、capture/hold/drain/commit/redirect/clear 周期、现有 testbench/断言/compile-success RTL 变体证据、未覆盖反例与建议的最小可执行验证切片。",
+    "明确区分 pending full-drain 合同可闭合、queue-head CSR 仅为可选后续候选、以及仍需 Linux/system 终态才能证明的范围；保留 unknowns、替代假设与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "对当前 cohort 中每种 required serialized system/trap 路径给出代码级调用链和 PASS/GAP 判定，不能用 CSR focused 或空 assertion marker 外推其它类型。",
+    "指出任何会造成 wrong-path capture、owner/type 漂移、提前 clear、未 drain memory side effect、错误 redirect 或 younger commit 的可操作反例，并映射到具体 TB 或 compile-success RTL 变体。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

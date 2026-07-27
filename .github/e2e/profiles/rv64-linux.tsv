@@ -4,5 +4,5 @@ npc-rv64-sv39-sret-u-mode|npc|e2e_npc_rv64_sv39_sret_u_mode|npc|npc/rv64 Sv39 + 
 npc-rv64-linux-focused-smokes|npc|e2e_npc_rv64_linux_focused_smokes|npc|Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC|NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
 npc-rv64-uart-rx-smoke|npc|e2e_npc_rv64_uart_rx_smoke|npc|NPC 16550 UART RX register + gated DPI injection smoke|NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
 npc-rv64-linux-rootfs-mount-smoke|npc|e2e_npc_rv64_linux_rootfs_mount_smoke|npc|Ubuntu rootfs mount + systemd banner smoke on NPC|NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
-npc-rv64-systemd-guest-check-contract|npc|e2e_npc_rv64_systemd_guest_check_contract|npc|NPC systemd guest prompt/script gate contract|NPC RV64 具备等待 root 串口 prompt 后用 NPC_UART_RX_FILE 注入 guest-side 检查脚本并等待 NPC_GUEST_EXPECT marker 的 gate 入口
+npc-rv64-systemd-guest-check-contract|npc|e2e_npc_rv64_systemd_guest_check_contract|npc|Linux systemd guest checker + isolated writable rootfs work image|NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
 rv64-linux-contract|rv64-linux|e2e_rv64_linux_contract|rv64-linux|Linux Makefile/env/platform/instructions|RV64 Linux/Ubuntu 合约入口存在

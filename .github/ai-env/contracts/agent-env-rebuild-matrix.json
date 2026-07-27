@@ -95,11 +95,11 @@
     },
     {
       "id": "R5",
-      "title": "工具权限与 MCP 最小权限边界",
+      "title": "工具范围与 MCP 最小充分工程边界",
       "priority": "high",
       "layer": "agent",
       "status": "implemented",
-      "report_basis": "工具权限与 MCP 边界未见显式最小化。",
+      "report_basis": "工具范围与 MCP 工程边界未见显式收敛。",
       "evidence": [
         {"type": "path", "value": ".github/ai-env/contracts/agent-env-policy.json"},
         {"type": "path", "value": "scripts/dev_memory/maintenance.py"}
@@ -155,7 +155,7 @@
       "python3 scripts/github_index_db.py evidence --run-id 2026-06-13-agent-env-state-reviewer-inspector --kind json",
       "scripts/agent-e2e.sh --profile agent-system --task-slug agent-env-state-reviewer-inspector"
     ],
-    "next_action": "后续可接入远端 PR reviewer assignment；当前已完成本地 state_traceback、Reviewer/Inspector、RTL 子任务最小权限契约和 mutation-negative 自动维护门。"
+    "next_action": "后续可接入远端 PR reviewer assignment；当前已完成本地 state_traceback、Reviewer/Inspector、RTL 子任务最小充分工程契约和 mutation-negative 自动维护门。"
   },
     {
       "id": "R8",

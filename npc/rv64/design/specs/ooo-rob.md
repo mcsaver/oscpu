@@ -110,3 +110,89 @@ v8e 新增的 per-slot generation 名义状态为 16x4=64 bit，另有候选加�
 - 2026-07-19（v8e P1）：加入 4+4 bit ProducerId allocation shadow、per-slot generation 以及
   dispatch/head/commit/walk 载体；普通 flush 保留、accepted allocation 才推进。有限位宽回绕、
   global no-live-reuse、全 holder 传播与 exact writeback authorization 明确保留 RED。
+
+## 8. V9O 队头控制事件预授权
+
+V9O 在 ROB 增加只读稳定状态产生的
+`head0_control_event_pregrant_o/head0_full_flush_pregrant_o/
+head0_full_flush_reason_o`。这些接口不是提交脉冲，也不改变提交 payload；它们表示当前
+稳定队头在本拍满足 commit0 全部末端许可，并对同拍更年轻控制事件给出无组合环优先级：
+
+```
+head0_commit_pregrant =
+  !rst && !flush_i && !recover_q && commit_pregrant_ready_i &&
+  head_valid && head_done && !head0_csr_mem_hold &&
+  head0_context_permit_i && fencei_retire_permit_i
+
+exact_pending_csr_owner =
+  pending_csr_owner_valid &&
+  head0_is_csr &&
+  ({slot_generation[head], head} == pending_csr_owner_producer_id)
+
+head0_full_flush_pregrant =
+  head0_commit_pregrant &&
+  (head_exception ||
+   (`OOO_CSR_QUEUE_HEAD && head0_is_csr && !exact_pending_csr_owner))
+
+head0_pending_csr_commit_pregrant =
+  head0_commit_pregrant && exact_pending_csr_owner
+
+head0_control_event_pregrant =
+  head0_full_flush_pregrant || head0_pending_csr_commit_pregrant
+```
+
+- exception 对应 `TRAP/FULL_NEXT`；没有 pending owner 的 CSR queue-head commit 对应
+  `CSR_COMMIT/FULL_NEXT`；exact pending-system CSR owner 对应 `CSR_COMMIT/NONE`。
+- 预授权只读 ROB Q、稳定 permit 与
+  `commit_pregrant_ready_i`；不得读取本拍
+  `kill_valid_i`、执行结果 valid 或前端仲裁结果，避免形成
+  `resolve -> dispatch-ready -> resolve` 组合闭环。
+- `commit_pregrant_ready_i` 与实际 `commit_ready_i` 分离。前者的 LQ 许可只接受
+  `completed_q`，后者仍可保留 leaf-level current completion-to-release bypass；因此
+  completion cut 不能经 WB/LQ ready 返回 pregrant。
+- 提交许可使用的 `head0_retire_candidate_valid_o` 同样只读 `recover_q`，不能读取
+  `recovering_w = recover_q || kill_valid_i`。LQ release query 可在 current branch 拍
+  保持为只读查询，真正 commit/release fire 仍由 `commit0_valid` 的 `recovering_w`
+  门关闭；该拆分切断
+  `pregrant -> branch apply -> candidate -> LQ permit -> commit-ready -> pregrant`。
+- 两种 control-event pregrant 都停止新 dispatch 并压住同拍更年轻 branch。只有
+  `head0_full_flush_pregrant` 建立 C0 full barrier、停止新 issue/request，并把 completion
+  authorization 的 kill boundary 设为当前 `head_q`。因此只有满足
+  `(producer-head) <= (boundary-head)` 的 boundary/older completion 可以继续；
+  严格更年轻 completion 不得进入 public WB/PRF/Busy/IQ 侧效应。
+- C0 不启动 ROB walk，也不阻止队头自身 commit；真正全清空由下一拍 C1 的类型化
+  apply 事件完成。
+- exact pending CSR action-NONE 不建立 completion cut，也不请求 C1；其 dispatch 已经经过
+  stop/drain 路径，精确 owner 匹配只负责关闭提交拍的新 dispatch 和更年轻 branch。
+- 若本拍同时存在更年轻 branch resolve request，任何队头 control-event pregrant 都胜出；
+  branch request 可保留为 shadow 观测，但不得成为 production kill/redirect。
+
+新增不变量：
+
+- **ROB-I11 pregrant Q-only**：`head0_control_event_pregrant_o` 不依赖
+  `kill_valid_i`、WB 输入或 dispatch ready；预授权必然蕴含 live/done head 与全部
+  commit0 许可。
+- **ROB-I12 C0 strict-younger cut**：C0 中 boundary/older completion query 可保持，
+  strictly-younger completion query 必须关闭；resolve-current query 不因 C0 改写，
+  branch apply 由上级全序裁决。
+- **ROB-I13 exact pending provenance**：pending CSR 只有在 type 与完整 ProducerId 都精确
+  匹配 live head 时才可走 action-NONE；stale generation、错误 ROB index 或非 CSR head
+  都必须保留 queue-head full 路径。
+- **ROB-I14 control-event dispatch closure**：任一
+  `head0_control_event_pregrant_o` 成立时，两条 dispatch ready 均为 0。
+- **ROB-I15 edge-old retire permit**：`head0_retire_candidate_valid_o` 不读取本拍
+  `kill_valid_i`；current branch event 下实际 commit 必须仍为 0。
+- **ROB-I16 registered-completion pregrant**：C0 pregrant 只读取 LQ
+  `release0_q_ready_o`，不能读取含 current formal WB hit 的 `release0_ready_o`。
+- **ROB-I17 full-C0 complete query set**：当前 8 类 completion query
+  （EX0、EX1、MEM0、MulDiv、CLMul、FP result、FP formal、MEM1）全部读取相同的
+  `completion_cut_valid/boundary`。环绕布局 `head=15/younger=0` 下，真实 exception
+  pregrant 必须让 8 类严格年轻 query 同拍全部关闭；pregrant 前同一组 query 必须全部为真，
+  防止静态接线或空激励假绿。
+
+变更记录补充：
+
+- 2026-07-23（V9O）：冻结队头 trap/CSR commit 的 Q-only 控制事件预授权、exact pending
+  CSR ProducerId 分类及 C0 strict-younger completion 边界；C1 状态所有权归独立
+  control sequencer。补齐 completion7 TB 接线，并加入真实 full-C0 × 8 completion class
+  的 `head=15/younger=0` 环绕动态矩阵。

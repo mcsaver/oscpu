@@ -35,7 +35,7 @@ singleton/StoreQueue 生命周期。
 | `response[01]` | MIQ response → LQ | 组合授权 | successful response 仅在 `ordered=1` 时开放；fault 可绕过 ordered，但不能绕过 live full-PID ownership |
 | `completion[01]` | formal WB → LQ | edge event | 任意 WB port 的完整 `ProducerId` CAM 命中后置 `completed`；非 load WB 自然 miss |
 | `terminal[01]` | memory-owner terminal → LQ | edge event | 只释放 killed launched tombstone；normal load terminal 不结束 retire residency |
-| `release[01]` | ROB retirement ↔ LQ | Q lookup + commit/fire | `release_valid` 只查询队头 load 的完成资格并向 ROB 返回 `ready`；只有真实 `commit` 与 `ready` 同拍才 `fire/free`；双 retirement 必须是不同 `ProducerId` |
+| `release[01]` | ROB retirement ↔ LQ | Q lookup + commit/fire | `release_valid` 查询队头 load 的完成资格；`release_ready` 保留 leaf-level current formal-WB bypass，`release_q_ready` 只接受 registered `completed_q` 并专供 C0 pregrant；只有真实 `commit` 与 `ready` 同拍才 `fire/free`；双 retirement 必须是不同 `ProducerId` |
 | `producer_live_mask` | LQ → global birth fence | Q-state observation | 所有 live entry 的完整 `ProducerId` 位图，阻止有限 generation 在旧 load 生命周期结束前复用 |
 | `flush_*` | recovery → LQ | edge event | global flush、accepted checkpoint restore apply 或 wrap-safe selective suffix recovery；处理规则见 §3.2 |
 
@@ -71,7 +71,8 @@ ROB commit                                                  fire/free
 
 `response` 不是 `completion`。response 只有在 formal WB arbiter 真正授予 credit 后，才经 generic
 WB port 把 LQ entry 标记 completed。ROB 的 Q-only lookup 先读取 LQ `ready` 并形成 active commit
-permit；entry 只在真实 commit edge 上释放，同拍 completion 可进入 lookup-ready bypass。
+permit；entry 只在真实 commit edge 上释放，同拍 completion 可进入普通
+`release_ready` bypass，但不得进入 `release_q_ready` 或 ROB C0 pregrant。
 
 ## 3. 状态与时序模型
 
@@ -142,6 +143,9 @@ allocation 只选择 edge-old free slot，因此第 4 项不会覆盖 1–3 项�
 6. **formal completion 承重**：normal memory terminal 不释放 entry；ROB retirement 不能早于 formal WB。
 7. **lossless recovery**：launched incomplete load 的 recovery 不得立即清 entry；killed entry issue/query/response 全闭合，只有 exact terminal 可释放。
 8. **双端口无别名**：双 final-PA query 若携带同一 PID，两个端口均 fail closed；双 release 同拍不得使用同一 PID；双 dispatch 分配必须使用不同 edge-old free slot。
+9. **C0 pregrant 无环**：`release_q_ready` 只由 entry 的 registered `completed_q`
+   产生，不读取当拍 completion/WB；普通 `release_ready` 的兼容 bypass 不得连接到
+   `commit_pregrant_ready_i`。
 9. **birth fence 完整**：每个 live entry 的完整 PID 位必须出现在 `producer_live_mask_o`，count 与 valid popcount 相等。
 10. **集成边界闭合**：dispatch fire、reservation consume、MIQ LOAD launch 与 ROB load retirement 分别接受 LQ credit/open/live/complete 资格；retire lookup 对 ROB commit 形成 production 反压，模块内断言和 parent 断言相互独立。
 
@@ -163,7 +167,8 @@ allocation 只选择 edge-old free slot，因此第 4 项不会覆盖 1–3 项�
 ### 6.1 focused dynamic
 
 - `tb_ooo_load_queue`：双 alloc、完整 PID generation mismatch、allow/replay/fault、PA 稳定、normal
-  terminal 驻留、completion-to-release、容量、wrap recovery、killed tombstone drain。
+  terminal 驻留、completion-to-release、registered-completion-only pregrant view、容量、
+  wrap recovery、killed tombstone drain。
 - `tb_ooo_store_queue`：physical byte query 的 allow/forward/merge/youngest/partial/poison/terminal/dual，
   store request/B/retirement 三事件与 flush exactly-once。
 - `tb_ooo_int_backend`：真实 parent wiring、SQ forward/local WB、late-B precise trap、store ordering、

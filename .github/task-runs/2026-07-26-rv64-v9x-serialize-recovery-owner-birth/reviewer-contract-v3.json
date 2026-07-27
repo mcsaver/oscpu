@@ -1,0 +1,108 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9x-serialize-recovery-owner-birth-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "复核并验证本地 RV64 双发射 OoO 核的三个剩余 owner-transition 边界：OooPendingDrainResolveGate 上 CSR dispatch-fire 与 drain-complete 的同周期关系，OooFrontendBackendDispatchMux 的 merged lane0 fire 与 OooFrontend queue-head CSR accepted fire 的等价性，以及 C0/C1 apply 对 OooPendingTrapExitSequencer holder 的清除可达性；随后用 OOO_CSR_QUEUE_HEAD=1 的现有 CoreTopGlue testbench 观测 queue-head CSR birth、older branch/JALR recovery 与 C1 terminal 周期。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooCoreSliceControlGate.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_frontend_backend_dispatch_mux.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/reviewer-report-v2.md",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/reviewer-contract-v3.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/evidence/v3-flag-on"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "make",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+      "npc/rv64/vsrc/control/OooCoreSliceControlGate.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-07-26-rv64-v9x-serialize-recovery-owner-birth/reviewer-report-v2.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出三条 edge-old→edge-new 真值链及源码条件，明确每条是确定反例、静态不可达、已有合同保证或仍需 RTL/TB 修正；使用 make 仅在声明的 v3-flag-on BUILD_DIR/RESULT_DIR 中运行 tb_ooo_core_top_glue_v9o_csr_qh，保存完整日志并报告 V9O/V9P marker、返回码和设计身份；不修改 RTL/spec/TB。"
+  ],
+  "success_criteria": [
+    "首行严格使用 RV64 RTL 结论格式；flag-on 目标必须真实编译运行且日志落在 v3-flag-on 写路径；CSR lease birth、queue-head real fire、trap/exit C1 三项分别给出可复核的 signal/cycle 结论与反例或证明；区分该扩展切片与 memory-owner terminal、七类 serialized transaction exactly-once、arch-stable 和 PPA 范围，并明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

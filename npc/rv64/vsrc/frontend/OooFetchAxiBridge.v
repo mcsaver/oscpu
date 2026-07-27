@@ -57,7 +57,11 @@ module OooFetchAxiBridge (
   output ifu_axi_wlast_o,
   input ifu_axi_bvalid_i,
   output ifu_axi_bready_o,
-  input [1:0] ifu_axi_bresp_i
+  input [1:0] ifu_axi_bresp_i,
+
+  // Completed IFU PTE A-bit writes must invalidate any stale copy of that
+  // page-table line held in the data caches.
+  output dcache_ad_update_invalidate_all_o
 );
 
   // 单 beat AXI4 元数据。read SIZE/PROT 由当前 owner 决定：PTE walk 是
@@ -683,6 +687,7 @@ module OooFetchAxiBridge (
   wire ifu_ad_b_fire_w = ifu_axi_bvalid_i && ifu_axi_bready_o;
   wire ifu_ad_write_complete_w = ifu_ad_aw_accepted_next_w &&
                                  ifu_ad_w_accepted_next_w && ifu_ad_b_fire_w;
+  assign dcache_ad_update_invalidate_all_o = ifu_ad_write_complete_w;
 
   // Fixed-role context pipeline is deliberately outside the main FSM/flush
   // priority tree. Candidate and live ITLB result shadows sample every cycle;

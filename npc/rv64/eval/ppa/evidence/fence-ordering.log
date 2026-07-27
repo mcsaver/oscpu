@@ -1,6 +1,6 @@
 schema=npc-rv64-fence-ordering-evidence-v2
-design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
-runtime_log_design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
+runtime_log_design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
 canonical_command=make -C npc/rv64 check-fence-ordering
 program_exit=1
 lane1_fence_capture=1
@@ -16,7 +16,7 @@ early_device_before_fence=0
 compile_success_rtl_variants=2
 dynamic_rejected_rtl_variants=2
 focused_tests=2/2
-module_aggregate=109/109
+module_aggregate=111/111
 ppa=UNQUALIFIED
 promotion_eligible=false
 [FENCE-G1-GATE] PASS

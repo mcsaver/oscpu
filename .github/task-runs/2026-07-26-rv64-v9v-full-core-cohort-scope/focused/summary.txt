@@ -1,0 +1,17 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-26-rv64-v9v-full-core-cohort-scope/focused
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_decode_unit
+- PASS tb_csr_file
+- PASS tb_ooo_fetch_head_classify_gate
+- PASS tb_ooo_priv_system
+- PASS tb_ooo_int_backend
+- PASS tb_ooo_mem_owner_terminal_collector
+- PASS tb_ooo_int_backend_v9r_sq_retry_c0
+- PASS tb_ooo_mem_axi_bridge_v9r_sq_retry_c0
+
+- total: 8
+- passed: 8
+- failed: 0

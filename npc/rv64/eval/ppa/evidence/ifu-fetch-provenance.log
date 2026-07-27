@@ -1,5 +1,5 @@
 schema=npc-rv64-ifu-fetch-provenance-evidence-v1
-design_id=sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2
+design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
 canonical_command=make -C npc/rv64 check-ifu-fetch-provenance
 matrix_rows=13
 fault_rows=9
@@ -21,7 +21,7 @@ compile_success_rtl_variants=16
 dynamic_rejected_rtl_variants=16
 bridge_rtl_variants=8/8
 decoder_rtl_variants=8/8
-module_aggregate=109/109
+module_aggregate=111/111
 production_rtl_changed=false
 ppa=UNQUALIFIED
 promotion_eligible=false

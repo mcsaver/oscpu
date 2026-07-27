@@ -1,0 +1,7 @@
+{
+  "schema": "npc-rv64-architecture-debt-exclusion-v1",
+  "debt_id": "WFI-G1",
+  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+  "rationale": "The cohort implements legal WFI as a serialized immediate-resume hint with TW legality enforcement and makes no promise of a clock or power sleep state, interrupt-only wakeup, or wakeup latency."
+}

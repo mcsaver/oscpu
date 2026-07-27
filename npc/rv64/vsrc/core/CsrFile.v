@@ -64,12 +64,13 @@ module CsrFile (
 
   localparam [`XLEN-1:0] MSTATUS_WRITABLE_MASK =
       `MSTATUS_SIE | `MSTATUS_MIE | `MSTATUS_SPIE | `MSTATUS_MPIE |
-      `MSTATUS_SPP | `MSTATUS_FS_MASK | `MSTATUS_MPP_MASK | `MSTATUS_MPRV |
+      `MSTATUS_SPP | `MSTATUS_VS_MASK | `MSTATUS_FS_MASK |
+      `MSTATUS_MPP_MASK | `MSTATUS_MPRV |
       `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_TVM | `MSTATUS_TW |
       `MSTATUS_TSR;
   localparam [`XLEN-1:0] SSTATUS_WRITABLE_MASK =
-      `MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_FS_MASK |
-      `MSTATUS_SUM | `MSTATUS_MXR;
+      `MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_VS_MASK |
+      `MSTATUS_FS_MASK | `MSTATUS_SUM | `MSTATUS_MXR;
   localparam [`XLEN-1:0] SUPERVISOR_INT_MASK =
       `MIE_SSIE | `MIE_STIE | `MIE_SEIE;
   localparam [`XLEN-1:0] MACHINE_INT_MASK =
@@ -483,6 +484,19 @@ module CsrFile (
     end
   endfunction
 
+  // mtvec/stvec MODE implements Direct(0) and Vectored(1).  Reserved MODE
+  // encodings are WARL-clamped to Direct without changing BASE.
+  function [`XLEN-1:0] tvec_warl_value;
+    input [`XLEN-1:0] value;
+    begin
+      case (value[1:0])
+        2'b00,
+        2'b01: tvec_warl_value = value;
+        default: tvec_warl_value = {value[`XLEN-1:2], 2'b00};
+      endcase
+    end
+  endfunction
+
   reg [1:0] priv_mode_q;
   reg [`XLEN-1:0] csr_mstatus_q;
   reg [`XLEN-1:0] csr_medeleg_q;
@@ -545,21 +559,39 @@ module CsrFile (
       ((irq_timer_i    && csr_mideleg_q[`IRQ_CAUSE_STI]) ? `MIP_STIP : {`XLEN{1'b0}}) |
       ((irq_external_i && csr_mideleg_q[`IRQ_CAUSE_SEI]) ? `MIP_SEIP : {`XLEN{1'b0}});
   wire [`XLEN-1:0] csr_mip_visible_w = csr_mip_q | csr_mip_hw_m_w | csr_mip_hw_s_w;
-  wire csr_sd_w = ((csr_mstatus_q & `MSTATUS_FS_MASK) == `MSTATUS_FS_DIRTY);
-  // SD 是 FS/VS/XS 的只读 summary；当前核未实现 VS/XS，所以只由 FS Dirty 派生。
+  wire [`XLEN-1:0] delegated_s_irq_mask_w =
+      (csr_mideleg_q[`IRQ_CAUSE_SSI] ? `MIP_SSIP : {`XLEN{1'b0}}) |
+      (csr_mideleg_q[`IRQ_CAUSE_STI] ? `MIP_STIP : {`XLEN{1'b0}}) |
+      (csr_mideleg_q[`IRQ_CAUSE_SEI] ? `MIP_SEIP : {`XLEN{1'b0}});
+  wire [`XLEN-1:0] delegated_machine_route_mask_w =
+      (csr_mideleg_q[`IRQ_CAUSE_SSI] ? `MIP_MSIP : {`XLEN{1'b0}}) |
+      (csr_mideleg_q[`IRQ_CAUSE_STI] ? `MIP_MTIP : {`XLEN{1'b0}}) |
+      (csr_mideleg_q[`IRQ_CAUSE_SEI] ? `MIP_MEIP : {`XLEN{1'b0}});
+  wire csr_sd_w =
+      ((csr_mstatus_q & `MSTATUS_FS_MASK) == `MSTATUS_FS_DIRTY) ||
+      ((csr_mstatus_q & `MSTATUS_VS_MASK) == `MSTATUS_VS_DIRTY);
+  // VS 状态字段按特权规范允许在 misa.V=0 时存在，供虚拟内存架构测试环境保存
+  // 上下文状态；本核仍不接受任何 V 指令。SD 汇总已实现的 FS/VS 状态字段。
   wire [`XLEN-1:0] csr_mstatus_visible_w =
       (csr_mstatus_q | `MSTATUS_SXL_UXL) |
       (csr_sd_w ? `MSTATUS_SD : {`XLEN{1'b0}});
   wire [`XLEN-1:0] csr_sstatus_visible_w =
       csr_mstatus_visible_w & `SSTATUS_MASK;
-  wire [`XLEN-1:0] m_irq_enabled_pending_w =
+  // A supervisor interrupt bit that is not delegated still traps to M with
+  // its original architectural cause number.  The external CLINT/PLIC inputs
+  // additionally expose M-level aliases; below M-mode those aliases are
+  // suppressed only when the corresponding S-level route is delegated.
+  wire [`XLEN-1:0] routed_machine_irq_enabled_pending_w =
       csr_mip_visible_w & csr_mie_q & MACHINE_INT_MASK &
       ~({`XLEN{(priv_mode_q != `PRIV_M)}} &
-        ((csr_mideleg_q[`IRQ_CAUSE_SSI] ? `MIP_MSIP : {`XLEN{1'b0}}) |
-         (csr_mideleg_q[`IRQ_CAUSE_STI] ? `MIP_MTIP : {`XLEN{1'b0}}) |
-         (csr_mideleg_q[`IRQ_CAUSE_SEI] ? `MIP_MEIP : {`XLEN{1'b0}})));
-  wire [`XLEN-1:0] s_irq_enabled_pending_w =
+        delegated_machine_route_mask_w);
+  wire [`XLEN-1:0] supervisor_irq_enabled_pending_w =
       csr_mip_visible_w & csr_mie_q & SUPERVISOR_INT_MASK;
+  wire [`XLEN-1:0] m_irq_enabled_pending_w =
+      routed_machine_irq_enabled_pending_w |
+      (supervisor_irq_enabled_pending_w & ~delegated_s_irq_mask_w);
+  wire [`XLEN-1:0] s_irq_enabled_pending_w =
+      supervisor_irq_enabled_pending_w & delegated_s_irq_mask_w;
   wire m_irq_global_enable_w =
       (priv_mode_q != `PRIV_M) ||
       ((csr_mstatus_q & `MSTATUS_MIE) != {`XLEN{1'b0}});
@@ -579,7 +611,10 @@ module CsrFile (
   wire [`TRAP_CAUSE_W-1:0] m_irq_cause_w =
       ((m_irq_enabled_pending_w & `MIP_MEIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_MEI :
       ((m_irq_enabled_pending_w & `MIP_MSIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_MSI :
-                                                                 `IRQ_CAUSE_MTI;
+      ((m_irq_enabled_pending_w & `MIP_MTIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_MTI :
+      ((m_irq_enabled_pending_w & `MIP_SEIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_SEI :
+      ((m_irq_enabled_pending_w & `MIP_SSIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_SSI :
+                                                                 `IRQ_CAUSE_STI;
 
   wire [`XLEN-1:0] csr_new_value_w =
       ((csr_funct3_i == 3'b001) || (csr_funct3_i == 3'b101)) ? csr_src_w :
@@ -597,10 +632,43 @@ module CsrFile (
   wire trap_ex_to_s_w = trap_ex_valid_i && (priv_mode_q != `PRIV_M) &&
                         csr_medeleg_q[trap_ex_cause_i];
   wire trap_irq_to_s_w = trap_irq_valid_i && (priv_mode_q != `PRIV_M) &&
-                         ((trap_irq_cause_i == `IRQ_CAUSE_SSI) ||
-                          (trap_irq_cause_i == `IRQ_CAUSE_STI) ||
-                          (trap_irq_cause_i == `IRQ_CAUSE_SEI));
-  wire trap_to_s_w = trap_mem_to_s_w | trap_ex_to_s_w | trap_irq_to_s_w;
+                          csr_mideleg_q[trap_irq_cause_i];
+  // One selected trap record is the single source for delegation, xEPC/xCAUSE/
+  // xTVAL state writes, and redirect target.  This preserves mem > ex > irq
+  // priority even when the losing request would delegate to a different mode.
+  wire trap_selected_mem_w = trap_mem_valid_i;
+  wire trap_selected_ex_w = !trap_mem_valid_i && trap_ex_valid_i;
+  wire trap_selected_irq_w =
+      !trap_mem_valid_i && !trap_ex_valid_i && trap_irq_valid_i;
+  wire trap_selected_valid_w =
+      trap_selected_mem_w | trap_selected_ex_w | trap_selected_irq_w;
+  wire trap_selected_is_irq_w = trap_selected_irq_w;
+  wire [`XLEN-1:0] trap_selected_pc_w =
+      trap_selected_mem_w ? trap_mem_pc_i :
+      trap_selected_ex_w  ? trap_ex_pc_i :
+                            trap_irq_pc_i;
+  wire [`TRAP_CAUSE_W-1:0] trap_selected_cause_w =
+      trap_selected_mem_w ? trap_mem_cause_i :
+      trap_selected_ex_w  ? trap_ex_cause_i :
+                            trap_irq_cause_i;
+  wire [`XLEN-1:0] trap_selected_tval_w =
+      trap_selected_mem_w ? trap_mem_tval_i :
+      trap_selected_ex_w  ? trap_ex_tval_i :
+                            {`XLEN{1'b0}};
+  wire trap_selected_to_s_w =
+      trap_selected_mem_w ? trap_mem_to_s_w :
+      trap_selected_ex_w  ? trap_ex_to_s_w :
+      trap_selected_irq_w ? trap_irq_to_s_w :
+                            1'b0;
+  wire [`XLEN-1:0] trap_selected_tvec_w =
+      trap_selected_to_s_w ? csr_stvec_q : csr_mtvec_q;
+  wire [`XLEN-1:0] trap_selected_tvec_base_w =
+      {trap_selected_tvec_w[`XLEN-1:2], 2'b00};
+  wire [`XLEN-1:0] trap_selected_vector_offset_w =
+      {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_selected_cause_w} << 2;
+  wire trap_selected_vectored_w =
+      trap_selected_valid_w && trap_selected_is_irq_w &&
+      (trap_selected_tvec_w[1:0] == 2'b01);
 
   assign csr_rdata_o =
       (csr_addr_i == `CSR_MVENDORID) ? 64'h0000_0000_7973_7978 :
@@ -649,8 +717,10 @@ module CsrFile (
   // Public legality answers the current-head probe. Architectural CSR writes
   // remain guarded by the independent main-access legality above.
   assign csr_illegal_o = csr_probe_illegal_w;
-  assign trap_target_o = trap_to_s_w ? {csr_stvec_q[`XLEN-1:2], 2'b00} :
-                                      {csr_mtvec_q[`XLEN-1:2], 2'b00};
+  assign trap_target_o =
+      trap_selected_tvec_base_w +
+      (trap_selected_vectored_w ? trap_selected_vector_offset_w :
+                                  {`XLEN{1'b0}});
   assign mepc_o = csr_mepc_q;
   assign ret_target_o = sret_valid_i ? csr_sepc_q : csr_mepc_q;
   assign priv_mode_o = priv_mode_q;
@@ -666,15 +736,166 @@ module CsrFile (
   assign irq_cause_o = m_irq_pending_w ? m_irq_cause_w : s_irq_cause_w;
 
 `ifdef OOO_ASSERT
+  wire trap_assert_ref_valid_w =
+      trap_mem_valid_i | trap_ex_valid_i | trap_irq_valid_i;
+  wire trap_assert_ref_is_irq_w =
+      !trap_mem_valid_i && !trap_ex_valid_i && trap_irq_valid_i;
+  wire [`XLEN-1:0] trap_assert_ref_pc_w =
+      trap_mem_valid_i ? trap_mem_pc_i :
+      trap_ex_valid_i  ? trap_ex_pc_i :
+                         trap_irq_pc_i;
+  wire [`TRAP_CAUSE_W-1:0] trap_assert_ref_cause_w =
+      trap_mem_valid_i ? trap_mem_cause_i :
+      trap_ex_valid_i  ? trap_ex_cause_i :
+                         trap_irq_cause_i;
+  wire [`XLEN-1:0] trap_assert_ref_tval_w =
+      trap_mem_valid_i ? trap_mem_tval_i :
+      trap_ex_valid_i  ? trap_ex_tval_i :
+                         {`XLEN{1'b0}};
+  wire trap_assert_ref_to_s_w =
+      trap_mem_valid_i ? trap_mem_to_s_w :
+      trap_ex_valid_i  ? trap_ex_to_s_w :
+      trap_irq_valid_i ? trap_irq_to_s_w :
+                         1'b0;
+  wire [`XLEN-1:0] trap_assert_ref_tvec_w =
+      trap_assert_ref_to_s_w ? csr_stvec_q : csr_mtvec_q;
+  wire [`XLEN-1:0] trap_assert_ref_base_w =
+      {trap_assert_ref_tvec_w[`XLEN-1:2], 2'b00};
+  wire [`XLEN-1:0] trap_assert_ref_offset_w =
+      {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_assert_ref_cause_w} << 2;
+  wire [`XLEN-1:0] trap_assert_ref_target_w =
+      trap_assert_ref_base_w +
+      ((trap_assert_ref_is_irq_w &&
+        (trap_assert_ref_tvec_w[1:0] == 2'b01)) ?
+       trap_assert_ref_offset_w : {`XLEN{1'b0}});
+  wire irq_assert_mei_to_m_w =
+      m_irq_global_enable_w &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_MEIP) != {`XLEN{1'b0}}) &&
+      ((priv_mode_q == `PRIV_M) || !csr_mideleg_q[`IRQ_CAUSE_SEI]);
+  wire irq_assert_msi_to_m_w =
+      m_irq_global_enable_w &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_MSIP) != {`XLEN{1'b0}}) &&
+      ((priv_mode_q == `PRIV_M) || !csr_mideleg_q[`IRQ_CAUSE_SSI]);
+  wire irq_assert_mti_to_m_w =
+      m_irq_global_enable_w &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_MTIP) != {`XLEN{1'b0}}) &&
+      ((priv_mode_q == `PRIV_M) || !csr_mideleg_q[`IRQ_CAUSE_STI]);
+  wire irq_assert_sei_to_m_w =
+      m_irq_global_enable_w && !csr_mideleg_q[`IRQ_CAUSE_SEI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_SEIP) != {`XLEN{1'b0}});
+  wire irq_assert_ssi_to_m_w =
+      m_irq_global_enable_w && !csr_mideleg_q[`IRQ_CAUSE_SSI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_SSIP) != {`XLEN{1'b0}});
+  wire irq_assert_sti_to_m_w =
+      m_irq_global_enable_w && !csr_mideleg_q[`IRQ_CAUSE_STI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_STIP) != {`XLEN{1'b0}});
+  wire irq_assert_sei_to_s_w =
+      s_irq_global_enable_w && csr_mideleg_q[`IRQ_CAUSE_SEI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_SEIP) != {`XLEN{1'b0}});
+  wire irq_assert_ssi_to_s_w =
+      s_irq_global_enable_w && csr_mideleg_q[`IRQ_CAUSE_SSI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_SSIP) != {`XLEN{1'b0}});
+  wire irq_assert_sti_to_s_w =
+      s_irq_global_enable_w && csr_mideleg_q[`IRQ_CAUSE_STI] &&
+      ((csr_mip_visible_w & csr_mie_q & `MIP_STIP) != {`XLEN{1'b0}});
+  wire irq_assert_ref_pending_w =
+      irq_assert_mei_to_m_w | irq_assert_msi_to_m_w |
+      irq_assert_mti_to_m_w | irq_assert_sei_to_m_w |
+      irq_assert_ssi_to_m_w | irq_assert_sti_to_m_w |
+      irq_assert_sei_to_s_w | irq_assert_ssi_to_s_w |
+      irq_assert_sti_to_s_w;
+  wire [`TRAP_CAUSE_W-1:0] irq_assert_ref_cause_w =
+      irq_assert_mei_to_m_w ? `IRQ_CAUSE_MEI :
+      irq_assert_msi_to_m_w ? `IRQ_CAUSE_MSI :
+      irq_assert_mti_to_m_w ? `IRQ_CAUSE_MTI :
+      irq_assert_sei_to_m_w ? `IRQ_CAUSE_SEI :
+      irq_assert_ssi_to_m_w ? `IRQ_CAUSE_SSI :
+      irq_assert_sti_to_m_w ? `IRQ_CAUSE_STI :
+      irq_assert_sei_to_s_w ? `IRQ_CAUSE_SEI :
+      irq_assert_ssi_to_s_w ? `IRQ_CAUSE_SSI :
+                              `IRQ_CAUSE_STI;
+  reg mtvec_warl_check_valid_q;
+  reg stvec_warl_check_valid_q;
+  reg [`XLEN-1:0] mtvec_warl_expected_q;
+  reg [`XLEN-1:0] stvec_warl_expected_q;
+
   // The two ports may carry different requests, but identical payload/state
   // must never diverge. This guards the single-predicate source contract.
   always @(posedge clk) begin
-    if (!rst && csr_valid_i && csr_probe_valid_i &&
-        (csr_addr_i == csr_probe_addr_i) &&
-        (csr_funct3_i == csr_probe_funct3_i) &&
-        (csr_rs1_idx_i == csr_probe_rs1_idx_i) &&
-        (csr_access_illegal_w !== csr_probe_illegal_w)) begin
-      $error("[CSR-LEGAL-VIEW-EQUIV] main/probe legality diverged");
+    if (rst) begin
+      mtvec_warl_check_valid_q <= 1'b0;
+      stvec_warl_check_valid_q <= 1'b0;
+      mtvec_warl_expected_q <= {`XLEN{1'b0}};
+      stvec_warl_expected_q <= {`XLEN{1'b0}};
+    end else begin
+      if (csr_valid_i && csr_probe_valid_i &&
+          (csr_addr_i == csr_probe_addr_i) &&
+          (csr_funct3_i == csr_probe_funct3_i) &&
+          (csr_rs1_idx_i == csr_probe_rs1_idx_i) &&
+          (csr_access_illegal_w !== csr_probe_illegal_w)) begin
+        $error("[CSR-LEGAL-VIEW-EQUIV] main/probe legality diverged");
+      end
+      if (trap_assert_ref_valid_w &&
+          ((trap_selected_valid_w !== trap_assert_ref_valid_w) ||
+           (trap_selected_is_irq_w !== trap_assert_ref_is_irq_w) ||
+           (trap_selected_pc_w !== trap_assert_ref_pc_w) ||
+           (trap_selected_cause_w !== trap_assert_ref_cause_w) ||
+           (trap_selected_tval_w !== trap_assert_ref_tval_w) ||
+           (trap_selected_to_s_w !== trap_assert_ref_to_s_w))) begin
+        $error("[VECTORED-TRAP-A1-SELECTED-RECORD] selected trap record diverged");
+      end
+      if (trap_assert_ref_valid_w &&
+          (trap_target_o !== trap_assert_ref_target_w)) begin
+        $error("[VECTORED-TRAP-A2-TARGET] trap target diverged");
+      end
+      if ((irq_pending_o !== irq_assert_ref_pending_w) ||
+          (irq_assert_ref_pending_w &&
+           (irq_cause_o !== irq_assert_ref_cause_w))) begin
+        $error("[VECTORED-TRAP-A5-IRQ-ROUTING] interrupt pending/cause routing diverged");
+      end
+      if (mtvec_warl_check_valid_q &&
+          (csr_mtvec_q !== mtvec_warl_expected_q)) begin
+        $error("[VECTORED-TRAP-A3-MTVEC-MODE] mtvec WARL result diverged");
+      end
+      if (stvec_warl_check_valid_q &&
+          (csr_stvec_q !== stvec_warl_expected_q)) begin
+        $error("[VECTORED-TRAP-A4-STVEC-MODE] stvec WARL result diverged");
+      end
+      if ((csr_mtvec_q[1:0] == 2'b10) ||
+          (csr_mtvec_q[1:0] == 2'b11)) begin
+        $error("[VECTORED-TRAP-A3-MTVEC-MODE] reserved mtvec MODE stored");
+      end
+      if ((csr_stvec_q[1:0] == 2'b10) ||
+          (csr_stvec_q[1:0] == 2'b11)) begin
+        $error("[VECTORED-TRAP-A4-STVEC-MODE] reserved stvec MODE stored");
+      end
+
+      mtvec_warl_check_valid_q <=
+          !trap_selected_valid_w && csr_commit_i && csr_valid_i &&
+          !csr_access_illegal_w && csr_need_write_w &&
+          (csr_addr_i == `CSR_MTVEC);
+      stvec_warl_check_valid_q <=
+          !trap_selected_valid_w && csr_commit_i && csr_valid_i &&
+          !csr_access_illegal_w && csr_need_write_w &&
+          (csr_addr_i == `CSR_STVEC);
+      if (!trap_selected_valid_w && csr_commit_i && csr_valid_i &&
+          !csr_access_illegal_w && csr_need_write_w &&
+          (csr_addr_i == `CSR_MTVEC)) begin
+        mtvec_warl_expected_q <=
+            ((csr_new_value_w[1:0] == 2'b00) ||
+             (csr_new_value_w[1:0] == 2'b01)) ?
+            csr_new_value_w :
+            {csr_new_value_w[`XLEN-1:2], 2'b00};
+      end
+      if (!trap_selected_valid_w && csr_commit_i && csr_valid_i &&
+          !csr_access_illegal_w && csr_need_write_w &&
+          (csr_addr_i == `CSR_STVEC)) begin
+        stvec_warl_expected_q <=
+            ((csr_new_value_w[1:0] == 2'b00) ||
+             (csr_new_value_w[1:0] == 2'b01)) ?
+            csr_new_value_w :
+            {csr_new_value_w[`XLEN-1:2], 2'b00};
+      end
     end
   end
 `endif
@@ -726,47 +947,23 @@ module CsrFile (
                         (csr_minstret_q + {62'd0, instret_inc_i}) :
                         csr_minstret_q;
 
-      if (trap_mem_valid_i) begin
-        if (trap_mem_to_s_w) begin
-          csr_sepc_q <= epc_warl_value(trap_mem_pc_i);
-          csr_scause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_mem_cause_i};
-          csr_stval_q <= trap_mem_tval_i;
+      if (trap_selected_valid_w) begin
+        if (trap_selected_to_s_w) begin
+          csr_sepc_q <= epc_warl_value(trap_selected_pc_w);
+          csr_scause_q <=
+              (trap_selected_is_irq_w ? `MCAUSE_INTERRUPT :
+                                        {`XLEN{1'b0}}) |
+              {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_selected_cause_w};
+          csr_stval_q <= trap_selected_tval_w;
           csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
           priv_mode_q <= `PRIV_S;
         end else begin
-          csr_mepc_q <= epc_warl_value(trap_mem_pc_i);
-          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_mem_cause_i};
-          csr_mtval_q <= trap_mem_tval_i;
-          csr_mstatus_q <= trap_to_m_mstatus(csr_mstatus_q, priv_mode_q);
-          priv_mode_q <= `PRIV_M;
-        end
-      end else if (trap_ex_valid_i) begin
-        if (trap_ex_to_s_w) begin
-          csr_sepc_q <= epc_warl_value(trap_ex_pc_i);
-          csr_scause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_ex_cause_i};
-          csr_stval_q <= trap_ex_tval_i;
-          csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
-          priv_mode_q <= `PRIV_S;
-        end else begin
-          csr_mepc_q <= epc_warl_value(trap_ex_pc_i);
-          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_ex_cause_i};
-          csr_mtval_q <= trap_ex_tval_i;
-          csr_mstatus_q <= trap_to_m_mstatus(csr_mstatus_q, priv_mode_q);
-          priv_mode_q <= `PRIV_M;
-        end
-      end else if (trap_irq_valid_i) begin
-        if (trap_irq_to_s_w) begin
-          csr_sepc_q <= epc_warl_value(trap_irq_pc_i);
-          csr_scause_q <= `MCAUSE_INTERRUPT |
-                          {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_irq_cause_i};
-          csr_stval_q <= {`XLEN{1'b0}};
-          csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
-          priv_mode_q <= `PRIV_S;
-        end else begin
-          csr_mepc_q <= epc_warl_value(trap_irq_pc_i);
-          csr_mcause_q <= `MCAUSE_INTERRUPT |
-                          {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_irq_cause_i};
-          csr_mtval_q <= {`XLEN{1'b0}};
+          csr_mepc_q <= epc_warl_value(trap_selected_pc_w);
+          csr_mcause_q <=
+              (trap_selected_is_irq_w ? `MCAUSE_INTERRUPT :
+                                        {`XLEN{1'b0}}) |
+              {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_selected_cause_w};
+          csr_mtval_q <= trap_selected_tval_w;
           csr_mstatus_q <= trap_to_m_mstatus(csr_mstatus_q, priv_mode_q);
           priv_mode_q <= `PRIV_M;
         end
@@ -801,7 +998,7 @@ module CsrFile (
             `CSR_SIE:      csr_mie_q <=
                 (csr_mie_q & ~SUPERVISOR_INT_MASK) |
                 (csr_new_value_w & SUPERVISOR_INT_MASK);
-            `CSR_STVEC:    csr_stvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
+            `CSR_STVEC:    csr_stvec_q <= tvec_warl_value(csr_new_value_w);
             `CSR_SSCRATCH: csr_sscratch_q <= csr_new_value_w;
             `CSR_SEPC:     csr_sepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_SCAUSE:   csr_scause_q <= csr_new_value_w;
@@ -820,7 +1017,7 @@ module CsrFile (
             `CSR_MIDELEG:  csr_mideleg_q <= csr_new_value_w;
             `CSR_MIE:      csr_mie_q <= csr_new_value_w &
                 (MACHINE_INT_MASK | SUPERVISOR_INT_MASK);
-            `CSR_MTVEC:    csr_mtvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
+            `CSR_MTVEC:    csr_mtvec_q <= tvec_warl_value(csr_new_value_w);
             `CSR_MCOUNTEREN: csr_mcounteren_q <= csr_new_value_w & `COUNTEREN_MASK;
             `CSR_MCOUNTINHIBIT: csr_mcountinhibit_q <=
                 csr_new_value_w & (`MCOUNTINHIBIT_CY | `MCOUNTINHIBIT_IR);

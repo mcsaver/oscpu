@@ -26,6 +26,12 @@ module tb_ooo_stop_pending_sequencer;
   reg pending_system_csr_commit;
   reg head0_csr_commit;
   reg head0_csr_inflight;
+  reg head0_csr_owner_birth;
+  reg head0_csr_owner_kill;
+  reg pending_owner_birth;
+  reg pending_owner_live;
+  reg pending_system_producer_valid;
+  reg core_local_flush;
   reg drain_complete;
   reg can_run;
   reg fifo_has_packet;
@@ -44,6 +50,7 @@ module tb_ooo_stop_pending_sequencer;
   reg dispatch0_return;
   reg dispatch1_barrier_fire;
   reg dispatch_unsupported;
+  reg rob_walk_mode;
 
   wire stop_pending;
 
@@ -74,25 +81,14 @@ module tb_ooo_stop_pending_sequencer;
     .pending_system_csr_commit_i(pending_system_csr_commit),
     .head0_csr_commit_i(head0_csr_commit),
     .head0_csr_inflight_i(head0_csr_inflight),
+    .head0_csr_owner_birth_i(head0_csr_owner_birth),
+    .head0_csr_owner_kill_i(head0_csr_owner_kill),
+    .pending_owner_birth_i(pending_owner_birth),
+    .pending_owner_live_i(pending_owner_live),
+    .pending_system_producer_valid_i(pending_system_producer_valid),
+    .core_local_flush_i(core_local_flush),
     .drain_complete_i(drain_complete),
-    .can_run_i(can_run),
-    .fifo_has_packet_i(fifo_has_packet),
-    .csr_irq_pending_i(csr_irq_pending),
-    .head_fetch_fault0_i(head_fetch_fault0),
-    .dispatch0_arch_trap_i(dispatch0_arch_trap),
-    .dispatch0_exit_i(dispatch0_exit),
-    .dispatch0_fp_i(dispatch0_fp),
-    .dispatch0_system_i(dispatch0_system),
-    .head0_csr_illegal_i(head0_csr_illegal),
-    .dispatch0_branch_i(dispatch0_branch),
-    .direct_branch0_dispatch_valid_i(direct_branch0_dispatch_valid),
-    .dispatch0_jal_i(dispatch0_jal),
-    .direct_jal0_dispatch_valid_i(direct_jal0_dispatch_valid),
-    .dispatch0_jump_i(dispatch0_jump),
-    .dispatch0_return_i(dispatch0_return),
-    .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
-    .dispatch_unsupported_i(dispatch_unsupported),
-    .rob_walk_mode_i(1'b0),
+    .rob_walk_mode_i(rob_walk_mode),
     .stop_pending_o(stop_pending)
   );
 
@@ -135,6 +131,12 @@ module tb_ooo_stop_pending_sequencer;
       pending_system_csr_commit = 1'b0;
       head0_csr_commit = 1'b0;
       head0_csr_inflight = 1'b0;
+      head0_csr_owner_birth = 1'b0;
+      head0_csr_owner_kill = 1'b0;
+      pending_owner_birth = 1'b0;
+      pending_owner_live = 1'b0;
+      pending_system_producer_valid = 1'b0;
+      core_local_flush = 1'b0;
       drain_complete = 1'b0;
       can_run = 1'b0;
       fifo_has_packet = 1'b0;
@@ -153,6 +155,7 @@ module tb_ooo_stop_pending_sequencer;
       dispatch0_return = 1'b0;
       dispatch1_barrier_fire = 1'b0;
       dispatch_unsupported = 1'b0;
+      rob_walk_mode = 1'b0;
     end
   endtask
 
@@ -174,11 +177,9 @@ module tb_ooo_stop_pending_sequencer;
   task automatic set_from_irq;
     begin
       clear_inputs();
-      can_run = 1'b1;
-      fifo_has_packet = 1'b1;
-      csr_irq_pending = 1'b1;
+      pending_owner_birth = 1'b1;
       tick();
-      expect_stop("irq sets stop", 1'b1);
+      expect_stop("accepted pending owner birth sets stop", 1'b1);
     end
   endtask
 
@@ -249,6 +250,10 @@ module tb_ooo_stop_pending_sequencer;
     expect_stop("csr commit clears", 1'b0);
 
     clear_inputs();
+    head0_csr_owner_birth = 1'b1;
+    tick();
+    expect_stop("head0 csr accepted birth sets", 1'b1);
+    clear_inputs();
     head0_csr_inflight = 1'b1;
     tick();
     expect_stop("head0 csr inflight holds", 1'b1);
@@ -258,6 +263,48 @@ module tb_ooo_stop_pending_sequencer;
     tick();
     expect_stop("head0 csr commit excludes inflight hold", 1'b0);
 
+    clear_inputs();
+    dispatch0_system = 1'b1;
+    tick();
+    expect_stop("queue-head csr visible without dispatch fire does not set",
+                1'b0);
+
+    clear_inputs();
+    dispatch0_system = 1'b1;
+    head0_csr_owner_kill = 1'b1;
+    tick();
+    expect_stop("queue-head csr killed birth does not set", 1'b0);
+
+    clear_inputs();
+    head0_csr_owner_birth = 1'b1;
+    tick();
+    expect_stop("queue-head csr rebirth sets", 1'b1);
+    clear_inputs();
+    head0_csr_inflight = 1'b1;
+    tick();
+    expect_stop("queue-head csr rebirth inflight holds", 1'b1);
+    clear_inputs();
+    head0_csr_inflight = 1'b1;
+    core_local_flush = 1'b1;
+    tick();
+    expect_stop("queue-head csr C1 flush clears edge-old inflight", 1'b0);
+
+    clear_inputs();
+    pending_owner_birth = 1'b1;
+    tick();
+    expect_stop("pending csr pre-ROB birth sets", 1'b1);
+    clear_inputs();
+    pending_system_producer_valid = 1'b1;
+    branch_resolve_untracked = 1'b1;
+    tick();
+    expect_stop("exact pending csr lease rejects ordinary recovery clear",
+                1'b1);
+    clear_inputs();
+    pending_system_producer_valid = 1'b1;
+    pending_system_csr_commit = 1'b1;
+    tick();
+    expect_stop("exact pending csr death clears stop", 1'b0);
+
     set_from_irq();
     clear_inputs();
     drain_complete = 1'b1;
@@ -265,11 +312,9 @@ module tb_ooo_stop_pending_sequencer;
     expect_stop("drain clears", 1'b0);
 
     clear_inputs();
-    can_run = 1'b1;
-    fifo_has_packet = 1'b1;
-    head_fetch_fault0 = 1'b1;
+    pending_owner_birth = 1'b1;
     tick();
-    expect_stop("fetch fault sets", 1'b1);
+    expect_stop("accepted trap owner birth sets", 1'b1);
 
     clear_inputs();
     pending_branch_commit_resolve = 1'b1;
@@ -282,7 +327,7 @@ module tb_ooo_stop_pending_sequencer;
     dispatch0_branch = 1'b1;
     direct_branch0_dispatch_valid = 1'b0;
     tick();
-    expect_stop("branch fallback sets", 1'b1);
+    expect_stop("dead branch raw classification cannot set stop", 1'b0);
 
     clear_inputs();
     pending_branch_match_clear = 1'b1;
@@ -295,19 +340,48 @@ module tb_ooo_stop_pending_sequencer;
     dispatch0_jump = 1'b1;
     dispatch0_return = 1'b0;
     tick();
-    expect_stop("jump non-return sets", 1'b1);
+    expect_stop("dead jump raw classification cannot set stop", 1'b0);
 
     clear_inputs();
     branch_resolve_untracked = 1'b1;
     tick();
     expect_stop("untracked branch clears", 1'b0);
 
+    // V9X RED: an older recovery and a younger serialized-system candidate
+    // may be visible on the same edge.  The pending holder is clear-wins, so
+    // stop must not be born from the rejected raw lane classification.
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch0_system = 1'b1;
+    branch_spec_resolve_valid = 1'b1;
+    rob_walk_mode = 1'b0;
+    tick();
+    expect_stop("V9X lane0 checkpoint recovery rejects raw system stop birth",
+                1'b0);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch1_barrier_fire = 1'b1;
+    branch_spec_resolve_valid = 1'b1;
+    rob_walk_mode = 1'b0;
+    tick();
+    expect_stop("V9X lane1 checkpoint recovery rejects raw barrier stop birth",
+                1'b0);
+    $display("[V9X-STOP-OWNER-BIRTH][PASS] lane0/lane1 recovery collision checked");
+
     clear_inputs();
     can_run = 1'b1;
     fifo_has_packet = 1'b1;
     dispatch1_barrier_fire = 1'b1;
     tick();
-    expect_stop("lane1 barrier sets", 1'b1);
+    expect_stop("raw lane1 barrier without accepted owner cannot set", 1'b0);
+
+    clear_inputs();
+    pending_owner_birth = 1'b1;
+    tick();
+    expect_stop("accepted lane1 owner birth sets", 1'b1);
 
     clear_inputs();
     system_csr_dispatch_fire = 1'b1;

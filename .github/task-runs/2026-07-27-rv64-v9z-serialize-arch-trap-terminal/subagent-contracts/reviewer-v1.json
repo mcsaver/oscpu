@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9z-pending-arch-trap-terminal-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 双发射 OoO RTL 中 pending_arch_trap_q 经 OooPendingDrainResolveGate.drain_complete_o 到 OooCsrTrapRequestMux.pending_arch_trap_fire_o 的组合周期合同，判断活动 memory owner、同拍 exact terminal transfer、collector-pending-only、pending-system 重叠与 ordinary FENCE 优先级是否存在提前 CSR trap entry、重复 side effect 或错误等待，并给出可转成定向 testbench 与 compile-success RTL 变体的反例，不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/specs/ooo-pending-trap-exit-sequencer.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/design/specs/ooo-drain-retire-redundancy.md",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/contract.md",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/subagent-contracts/reviewer-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/contract.md",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 pending_arch_trap 从 holder-active 到 exact terminal transfer、collector pending 和 tracker free 的逐周期真值表，列出 shared drain gate 的所有受影响 consumer、重叠优先级反例、最小 RTL 边界、定向 TB/mutation 建议、unknowns 与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "首行使用 RV64 RTL 结论格式；只有 pending_arch_trap 在所有活动 memory holder 死亡或同拍交出 exact terminal 后才允许 fire，且不误改 pending-system、CSR、ordinary FENCE 或 collector fail-loud 合同时才判本复核范围 PASS；不得关闭七类 exactly-once、SERIALIZE-G1、architecture-stable、Linux 或 PPA，并明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

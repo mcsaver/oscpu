@@ -55,6 +55,7 @@ module OooPendingSystemSequencer #(
   output wfi_o,
   output sfence_o,
   output fencei_o,
+  output fence_o,
   output irq_o,
   output [`XLEN-1:0] pc_o,
   output [`INST_W-1:0] inst_o,
@@ -67,13 +68,17 @@ module OooPendingSystemSequencer #(
 
   reg valid_q;
   reg dispatched_q;
-  reg csr_q;
-  reg ecall_q;
-  reg mret_q;
-  reg wfi_q;
-  reg sfence_q;
-  reg fencei_q;
-  reg irq_q;
+  localparam SERIAL_KIND_W = 4;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_NONE    = 4'd0;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_CSR     = 4'd1;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_ECALL   = 4'd2;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_XRET    = 4'd3;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_WFI     = 4'd4;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_SFENCE  = 4'd5;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_FENCEI  = 4'd6;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_FENCE   = 4'd7;
+  localparam [SERIAL_KIND_W-1:0] SERIAL_KIND_IRQ     = 4'd8;
+  reg [SERIAL_KIND_W-1:0] kind_q;
   reg [`XLEN-1:0] pc_q;
   reg [`INST_W-1:0] inst_q;
   reg [`XLEN-1:0] next_pc_q;
@@ -82,23 +87,80 @@ module OooPendingSystemSequencer #(
   reg producer_valid_q;
   reg [PRODUCER_ID_W-1:0] producer_id_q;
 
+  function [SERIAL_KIND_W-1:0] classify_system_kind;
+    input csr_i;
+    input ecall_i;
+    input xret_i;
+    input wfi_i;
+    input sfence_i;
+    input fencei_i;
+    input [`INST_W-1:0] inst_i;
+    begin
+      if (csr_i)
+        classify_system_kind = SERIAL_KIND_CSR;
+      else if (ecall_i)
+        classify_system_kind = SERIAL_KIND_ECALL;
+      else if (xret_i)
+        classify_system_kind = SERIAL_KIND_XRET;
+      else if (wfi_i)
+        classify_system_kind = SERIAL_KIND_WFI;
+      else if (sfence_i)
+        classify_system_kind = SERIAL_KIND_SFENCE;
+      else if (fencei_i)
+        classify_system_kind = SERIAL_KIND_FENCEI;
+      else if ((inst_i[6:0] == `OPCODE_MISC_MEM) &&
+               (inst_i[14:12] == `FUNCT3_FENCE))
+        classify_system_kind = SERIAL_KIND_FENCE;
+      else
+        classify_system_kind = SERIAL_KIND_NONE;
+    end
+  endfunction
+
+  wire head0_plain_fence_w =
+      (capture_head0_inst_i[6:0] == `OPCODE_MISC_MEM) &&
+      (capture_head0_inst_i[14:12] == `FUNCT3_FENCE);
+  wire lane1_plain_fence_w =
+      (capture_lane1_inst_i[6:0] == `OPCODE_MISC_MEM) &&
+      (capture_lane1_inst_i[14:12] == `FUNCT3_FENCE);
+  wire [SERIAL_KIND_W-1:0] head0_capture_kind_w =
+      classify_system_kind(
+          capture_head0_csr_i, capture_head0_ecall_i,
+          capture_head0_mret_i, capture_head0_wfi_i,
+          capture_head0_sfence_i, capture_head0_fencei_i,
+          capture_head0_inst_i);
+  wire [SERIAL_KIND_W-1:0] lane1_capture_kind_w =
+      classify_system_kind(
+          capture_lane1_csr_i, capture_lane1_ecall_i,
+          capture_lane1_mret_i, capture_lane1_wfi_i,
+          capture_lane1_sfence_i, capture_lane1_fencei_i,
+          capture_lane1_inst_i);
+  wire [3:0] head0_kind_count_w =
+      {3'b000, capture_head0_csr_i} +
+      {3'b000, capture_head0_ecall_i} +
+      {3'b000, capture_head0_mret_i} +
+      {3'b000, capture_head0_wfi_i} +
+      {3'b000, capture_head0_sfence_i} +
+      {3'b000, capture_head0_fencei_i} +
+      {3'b000, head0_plain_fence_w};
+  wire [3:0] lane1_kind_count_w =
+      {3'b000, capture_lane1_csr_i} +
+      {3'b000, capture_lane1_ecall_i} +
+      {3'b000, capture_lane1_mret_i} +
+      {3'b000, capture_lane1_wfi_i} +
+      {3'b000, capture_lane1_sfence_i} +
+      {3'b000, capture_lane1_fencei_i} +
+      {3'b000, lane1_plain_fence_w};
   wire capture_any_w = capture_irq_i || capture_head0_i || capture_lane1_i;
   wire empty_w = !valid_q && !producer_valid_q;
   wire dispatch_birth_w =
-      dispatch_fire_i && valid_q && csr_q && !dispatched_q &&
+      dispatch_fire_i && valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
       !producer_valid_q && !clear_i;
 
   always @(posedge clk) begin
     if (rst) begin
       valid_q <= 1'b0;
       dispatched_q <= 1'b0;
-      csr_q <= 1'b0;
-      ecall_q <= 1'b0;
-      mret_q <= 1'b0;
-      wfi_q <= 1'b0;
-      sfence_q <= 1'b0;
-      fencei_q <= 1'b0;
-      irq_q <= 1'b0;
+      kind_q <= SERIAL_KIND_NONE;
       pc_q <= {`XLEN{1'b0}};
       inst_q <= {`INST_W{1'b0}};
       next_pc_q <= {`XLEN{1'b0}};
@@ -114,37 +176,19 @@ module OooPendingSystemSequencer #(
       if (producer_death_i) begin
         valid_q <= 1'b0;
         dispatched_q <= 1'b0;
-        csr_q <= 1'b0;
-        ecall_q <= 1'b0;
-        mret_q <= 1'b0;
-        wfi_q <= 1'b0;
-        sfence_q <= 1'b0;
-        fencei_q <= 1'b0;
-        irq_q <= 1'b0;
+        kind_q <= SERIAL_KIND_NONE;
         producer_valid_q <= 1'b0;
         producer_id_q <= {PRODUCER_ID_W{1'b0}};
       end
     end else if (clear_i) begin
       valid_q <= 1'b0;
       dispatched_q <= 1'b0;
-      csr_q <= 1'b0;
-      ecall_q <= 1'b0;
-      mret_q <= 1'b0;
-      wfi_q <= 1'b0;
-      sfence_q <= 1'b0;
-      fencei_q <= 1'b0;
-      irq_q <= 1'b0;
+      kind_q <= SERIAL_KIND_NONE;
       producer_id_q <= {PRODUCER_ID_W{1'b0}};
     end else if (empty_w && capture_irq_i) begin
       valid_q <= 1'b1;
       dispatched_q <= 1'b0;
-      csr_q <= 1'b0;
-      ecall_q <= 1'b0;
-      mret_q <= 1'b0;
-      wfi_q <= 1'b0;
-      sfence_q <= 1'b0;
-      fencei_q <= 1'b0;
-      irq_q <= 1'b1;
+      kind_q <= SERIAL_KIND_IRQ;
       pc_q <= capture_irq_pc_i;
       inst_q <= {`INST_W{1'b0}};
       next_pc_q <= capture_irq_pc_i;
@@ -154,13 +198,7 @@ module OooPendingSystemSequencer #(
     end else if (empty_w && capture_head0_i) begin
       valid_q <= 1'b1;
       dispatched_q <= 1'b0;
-      csr_q <= capture_head0_csr_i;
-      ecall_q <= capture_head0_ecall_i;
-      mret_q <= capture_head0_mret_i;
-      wfi_q <= capture_head0_wfi_i;
-      sfence_q <= capture_head0_sfence_i;
-      fencei_q <= capture_head0_fencei_i;
-      irq_q <= 1'b0;
+      kind_q <= head0_capture_kind_w;
       pc_q <= capture_head0_pc_i;
       inst_q <= capture_head0_inst_i;
       next_pc_q <= capture_head0_next_pc_i;
@@ -170,13 +208,7 @@ module OooPendingSystemSequencer #(
     end else if (empty_w && capture_lane1_i) begin
       valid_q <= 1'b1;
       dispatched_q <= 1'b0;
-      csr_q <= capture_lane1_csr_i;
-      ecall_q <= capture_lane1_ecall_i;
-      mret_q <= capture_lane1_mret_i;
-      wfi_q <= capture_lane1_wfi_i;
-      sfence_q <= capture_lane1_sfence_i;
-      fencei_q <= capture_lane1_fencei_i;
-      irq_q <= 1'b0;
+      kind_q <= lane1_capture_kind_w;
       pc_q <= capture_lane1_pc_i;
       inst_q <= capture_lane1_inst_i;
       next_pc_q <= capture_lane1_next_pc_i;
@@ -189,20 +221,22 @@ module OooPendingSystemSequencer #(
       producer_id_q <= dispatch_producer_id_i;
     end else if (clear_dispatched_i) begin
       dispatched_q <= 1'b0;
-    end else if (refresh_rdata_i && valid_q && csr_q && !dispatched_q) begin
+    end else if (refresh_rdata_i && valid_q &&
+                 (kind_q == SERIAL_KIND_CSR) && !dispatched_q) begin
       csr_rdata_q <= refresh_rdata_value_i;
     end
   end
 
   assign valid_o = valid_q;
   assign dispatched_o = dispatched_q;
-  assign csr_o = csr_q;
-  assign ecall_o = ecall_q;
-  assign mret_o = mret_q;
-  assign wfi_o = wfi_q;
-  assign sfence_o = sfence_q;
-  assign fencei_o = fencei_q;
-  assign irq_o = irq_q;
+  assign csr_o = kind_q == SERIAL_KIND_CSR;
+  assign ecall_o = kind_q == SERIAL_KIND_ECALL;
+  assign mret_o = kind_q == SERIAL_KIND_XRET;
+  assign wfi_o = kind_q == SERIAL_KIND_WFI;
+  assign sfence_o = kind_q == SERIAL_KIND_SFENCE;
+  assign fencei_o = kind_q == SERIAL_KIND_FENCEI;
+  assign fence_o = kind_q == SERIAL_KIND_FENCE;
+  assign irq_o = kind_q == SERIAL_KIND_IRQ;
   assign pc_o = pc_q;
   assign inst_o = inst_q;
   assign next_pc_o = next_pc_q;
@@ -217,19 +251,45 @@ module OooPendingSystemSequencer #(
   reg producer_valid_prev_q;
   reg [PRODUCER_ID_W-1:0] producer_id_prev_q;
   reg producer_death_prev_q;
+  wire [3:0] held_kind_count_w =
+      {3'b000, csr_o} + {3'b000, ecall_o} +
+      {3'b000, mret_o} + {3'b000, wfi_o} +
+      {3'b000, sfence_o} + {3'b000, fencei_o} +
+      {3'b000, fence_o} + {3'b000, irq_o};
   always @(posedge clk) begin
     if (rst) begin
       producer_valid_prev_q <= 1'b0;
       producer_id_prev_q <= {PRODUCER_ID_W{1'b0}};
       producer_death_prev_q <= 1'b0;
     end else begin
-      if (producer_valid_q && !(valid_q && csr_q && dispatched_q)) begin
+      if (valid_q != (kind_q != SERIAL_KIND_NONE)) begin
+        $error("[V9W-SERIAL-KIND-VALID] valid/kind mismatch valid=%b kind=%0d @%0t",
+               valid_q, kind_q, $time);
+        $fatal;
+      end
+      if (valid_q && (held_kind_count_w != 4'd1)) begin
+        $error("[V9W-SERIAL-KIND-ONEHOT] pending kind is not exact-one kind=%0d count=%0d @%0t",
+               kind_q, held_kind_count_w, $time);
+        $fatal;
+      end
+      if (capture_head0_i && (head0_kind_count_w != 4'd1)) begin
+        $error("[V9W-SERIAL-CAPTURE-HEAD0-TYPE] head0 capture type count=%0d inst=%h @%0t",
+               head0_kind_count_w, capture_head0_inst_i, $time);
+        $fatal;
+      end
+      if (capture_lane1_i && (lane1_kind_count_w != 4'd1)) begin
+        $error("[V9W-SERIAL-CAPTURE-LANE1-TYPE] lane1 capture type count=%0d inst=%h @%0t",
+               lane1_kind_count_w, capture_lane1_inst_i, $time);
+        $fatal;
+      end
+      if (producer_valid_q &&
+          !(valid_q && (kind_q == SERIAL_KIND_CSR) && dispatched_q)) begin
         $error("[V8K-PENDING-CSR-LEASE-SHAPE] raw lease lost pending CSR metadata @%0t", $time);
         $fatal;
       end
       if (dispatch_fire_i && !dispatch_birth_w) begin
         $error("[V8K-PENDING-CSR-DISPATCH-BIRTH] fire without pre-ROB CSR owner valid=%b csr=%b dispatched=%b lease=%b @%0t",
-               valid_q, csr_q, dispatched_q, producer_valid_q, $time);
+               valid_q, csr_o, dispatched_q, producer_valid_q, $time);
         $fatal;
       end
       if (producer_valid_q &&

@@ -11,7 +11,8 @@
 > 目录与 owner。但这些 owner 之间的关系主要是**历史演化**出来的，而不是先有一张架构图、再让代码服从它。
 > 本文件就是那张图。下一步重构应**反过来用本文件约束实现**。
 >
-> **版本**：v0.5（2026-07-16，冻结 R4-S1.0 typed memory ABI；v0.4 为
+> **版本**：v0.6（2026-07-26，冻结 full-core single-hart capability cohort；
+> v0.5 于 2026-07-16 冻结 R4-S1.0 typed memory ABI；v0.4 为
 > 2026-07-15 不可用 PPA 交换的双发射/真 OoO 能力底线，v0.3 为 2026-07-11 current
 > topology 同步版，v0.2 为 2026-07-03
 > 重读版，v0.1 为 2026-06-29 草案）。当前 `as-is` 快照见
@@ -53,6 +54,25 @@
   2026-07-12 关闭；IFU-FETCH-G2 的 second-page page-fault byte provenance 同日收窄关闭。
   当前优先继续关闭精确 IFU physical access/lane1 trap、faulting-portion tval、PTE-write PMP、
   MIQ ghost 与唯一 retirement source 等合同，再扩窗口或 memory MLP。
+
+### 0.2 full-core single-hart capability cohort v1
+
+`full-core-single-hart-rv64-dual-issue-ooo-v1` 的能力边界以
+[`full-core-cohort-scope-v1.md`](full-core-cohort-scope-v1.md) 为规范真源：
+
+- A 扩展 reservation 只承诺单 hart、本地 store/AMO/SC invalidation；没有 autonomous
+  coherent/exclusive peer，若以后接入该类 master 必须重开 `A-COHERENCE-G1`。
+- WFI 是经过 pending-system drain 的合法 immediate-resume hint；TW 非法路径保留，但不承诺
+  clock/power sleep state、interrupt-only wakeup 或 wake latency。
+- `SFENCE.VMA` 与 Svinval-family accepted encoding 统一执行保守 global translation/fetch
+  invalidation；不承诺 rs1/rs2 address/ASID selective invalidation。
+- simulation debug/checker 与 semihost EBREAK 不是 RISC-V architectural debug。该 cohort
+  不广告 Debug Module、debug mode、halt/resume transport 或 executable trigger action。
+
+上述四项通过 design/cohort-bound 的 `EXCLUDED_BY_COHORT` 合同解析的是未实现的可选
+能力，不会删除现有 WFI/SFENCE/Svinval 指令路径、降低 legality 检查或削弱 testbench。
+`SERIALIZE-G1` 不在排除集内，仍须以 queue-head 默认启用或完整 pending full-drain
+恢复证据独立闭合。
 
 ---
 
@@ -376,7 +396,7 @@ kill/reason/flush_backend 输出当前未被整个控制面统一消费，因此
 | 架构 PC / 取指 PC | `OooFetchPcOutstandingSequencer` | 顺序推进 + `OooRedirectArbiter` winner | fetch/redirect |
 | ~~投机恢复检查点（map/free/busy/IQ/ROB 五套影子）~~ | 各自模块 checkpoint_*_q | **死硅**：`cp_*` 在 mode=1 下恒 gate 0，已被 ROB-walk 取代（待 B4 删除） | — |
 | Store Queue（4 项） | `OooStoreQueue`（在 OooIntBackend 内） | 发射拍 probe 回填 PA+data / commit 置 committed / 队头 drain 落存 | issue + commit + drain |
-| CSR（mstatus/mtvec/mepc/mcause/medeleg/mie/mip/…） | `CsrFile` | CSR 写指令（commit）/ trap 自动更新 | **commit** + trap |
+| CSR（mstatus/mtvec/mepc/mcause/medeleg/mie/mip/…） | `CsrFile` | CSR 写指令（commit）/ trap 自动更新；mtvec/stvec MODE=00/01，保留 MODE 钳位 Direct；trap 以 mem>ex>irq 单记录形成状态与 redirect | **commit** + trap |
 | satp（虚存模式） | `CsrFile` | CSR 写（受 mstatus.TVM 约束；WARL 仅 Bare/Sv39） | commit |
 | PMP（pmpcfg×2 / pmpaddr×16） | `CsrFile` | CSR 写（WARL + lock） | commit |
 | fflags / frm（FCSR） | `CsrFile` | fflags 随 ROB 进 commit 拍 OR 累积（`OooFpCommitGate` 已删）；CSR 写 | **commit**（E3 已消除） |

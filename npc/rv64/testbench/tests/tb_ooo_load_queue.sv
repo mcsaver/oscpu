@@ -81,8 +81,10 @@ module tb_ooo_load_queue;
   wire response0_open;
   wire response1_open;
   wire release0_ready;
+  wire release0_q_ready;
   wire release0_fire;
   wire release1_ready;
+  wire release1_q_ready;
   wire release1_fire;
   wire [(1 << PRODUCER_ID_W)-1:0] producer_live_mask;
   wire [COUNT_W-1:0] count;
@@ -166,11 +168,13 @@ module tb_ooo_load_queue;
     .release0_valid_i(release0_valid),
     .release0_producer_id_i(release0_pid),
     .release0_commit_i(release0_commit),
+    .release0_q_ready_o(release0_q_ready),
     .release0_ready_o(release0_ready),
     .release0_fire_o(release0_fire),
     .release1_valid_i(release1_valid),
     .release1_producer_id_i(release1_pid),
     .release1_commit_i(release1_commit),
+    .release1_q_ready_o(release1_q_ready),
     .release1_ready_o(release1_ready),
     .release1_fire_o(release1_fire),
     .producer_live_mask_o(producer_live_mask),
@@ -392,6 +396,8 @@ module tb_ooo_load_queue;
     #1;
     tb_check1("dual completion-to-retire bypass releases both exact PIDs",
               release0_ready && release1_ready, 1'b1);
+    tb_check1("V9O pregrant view excludes current completion bypass",
+              !release0_q_ready && !release1_q_ready, 1'b1);
     tb_check1("dual release fire is lossless",
               release0_fire && release1_fire, 1'b1);
     `TB_TICK(clk);

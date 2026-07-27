@@ -1,0 +1,174 @@
+{
+  "console": {
+    "line_count": 794,
+    "path": ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/rootfs-csr-qh-on-current-systemd-strict-rerun4-14h/guest/console.log",
+    "sha256": "c0eca8e2fe579dc586c872225a66fb29189cbabe091cc02e1954788ae2570d14",
+    "size_bytes": 102029
+  },
+  "errors": [
+    "strict: done marker observed 0 times; expected exactly 1",
+    "strict: missing PASS label dmesg-no-critical"
+  ],
+  "protocol": "legacy-v1",
+  "requested_protocol": "auto",
+  "schema": "npc-rv64-systemd-transaction-evidence/v1",
+  "stage_order": [
+    "preflight",
+    "autocheck",
+    "strict"
+  ],
+  "stages": [
+    {
+      "ancillary_markers": [
+        {
+          "line": 267,
+          "text": "__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd"
+        }
+      ],
+      "begin_line": 261,
+      "done_line": 269,
+      "done_rc": 0,
+      "errors": [],
+      "expected_pass_labels": [
+        "os-release-ubuntu-2204",
+        "bin-sh",
+        "bin-bash",
+        "systemd-binary",
+        "systemd-autocheck-script",
+        "systemd-wrapper-preflight"
+      ],
+      "fail_markers": [],
+      "name": "preflight",
+      "observed_pass_counts": {
+        "bin-bash": 1,
+        "bin-sh": 1,
+        "os-release-ubuntu-2204": 1,
+        "systemd-autocheck-script": 1,
+        "systemd-binary": 1,
+        "systemd-wrapper-preflight": 1
+      },
+      "pass_observation_count": 6,
+      "status": "PASS",
+      "window_line_count": 7
+    },
+    {
+      "ancillary_markers": [
+        {
+          "line": 466,
+          "text": "__NPC_CHECK_UNAME__:riscv64"
+        },
+        {
+          "line": 488,
+          "text": "__NPC_CHECK_SYSTEMD_STATE__:pid1-systemd"
+        }
+      ],
+      "begin_line": 458,
+      "done_line": 490,
+      "done_rc": 0,
+      "errors": [],
+      "expected_pass_labels": [
+        "uname-riscv64",
+        "os-release-ubuntu-2204",
+        "root-context",
+        "bin-sh",
+        "bin-bash",
+        "systemd-state"
+      ],
+      "fail_markers": [],
+      "name": "autocheck",
+      "observed_pass_counts": {
+        "bin-bash": 1,
+        "bin-sh": 1,
+        "os-release-ubuntu-2204": 1,
+        "root-context": 1,
+        "systemd-state": 1,
+        "uname-riscv64": 1
+      },
+      "pass_observation_count": 6,
+      "status": "PASS",
+      "window_line_count": 31
+    },
+    {
+      "ancillary_markers": [
+        {
+          "line": 538,
+          "text": "__NPC_CHECK_UNAME__:riscv64"
+        },
+        {
+          "line": 556,
+          "text": "__NPC_CHECK_SYSTEMD_STATE__:pid1-systemd"
+        },
+        {
+          "line": 573,
+          "text": "__NPC_CHECK_VDA_DRIVER__:virtio_blk"
+        },
+        {
+          "line": 604,
+          "text": "__NPC_CHECK_ROOT_SOURCE__:/dev/root:254:0:254:0"
+        },
+        {
+          "line": 606,
+          "text": "__NPC_CHECK_ROOT_MOUNT__:ext4:rw,relatime"
+        },
+        {
+          "line": 614,
+          "text": "__NPC_CHECK_VIRTIO_IRQ_OWNER__:virtio0"
+        },
+        {
+          "line": 668,
+          "text": "__NPC_CHECK_VIRTIO_IRQ__:535->670"
+        }
+      ],
+      "begin_line": 531,
+      "done_line": null,
+      "done_rc": null,
+      "errors": [
+        "done marker observed 0 times; expected exactly 1",
+        "missing PASS label dmesg-no-critical"
+      ],
+      "expected_pass_labels": [
+        "uname-riscv64",
+        "os-release-ubuntu-2204",
+        "root-shell",
+        "bin-sh",
+        "bin-bash",
+        "systemd-state",
+        "block-vda",
+        "virtio-blk-driver",
+        "root-on-vda",
+        "root-ext4",
+        "root-rw",
+        "rootfs-write-sync-readback",
+        "virtio-device-name",
+        "virtio-irq-before-parse",
+        "virtio-blk-direct-read",
+        "virtio-irq-growth",
+        "dmesg-no-critical"
+      ],
+      "fail_markers": [],
+      "name": "strict",
+      "observed_pass_counts": {
+        "bin-bash": 1,
+        "bin-sh": 1,
+        "block-vda": 1,
+        "os-release-ubuntu-2204": 1,
+        "root-ext4": 1,
+        "root-on-vda": 1,
+        "root-rw": 1,
+        "root-shell": 1,
+        "rootfs-write-sync-readback": 1,
+        "systemd-state": 1,
+        "uname-riscv64": 1,
+        "virtio-blk-direct-read": 1,
+        "virtio-blk-driver": 1,
+        "virtio-device-name": 1,
+        "virtio-irq-before-parse": 1,
+        "virtio-irq-growth": 1
+      },
+      "pass_observation_count": 16,
+      "status": "FAIL",
+      "window_line_count": 263
+    }
+  ],
+  "status": "FAIL"
+}

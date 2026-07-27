@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "scope": "local_rv64_rootfs_commit_continuity_diagnostic",
+  "diagnostic_status": "PASS",
+  "diagnostic_outcome": "no_commit_gap_within_host_budget",
+  "rootfs_gate_status": "UNRESOLVED",
+  "rootfs_promotion_eligible": false,
+  "sim_rc": 124,
+  "sim_rc_source": "inferred_from_exact_7200s_gnu_timeout_boundary_pre_persist_fix",
+  "harness_status": "FAIL rc=1 (pre-classifier runner expected only sim_rc=3)",
+  "rtl_design_id": "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
+  "simulator_sha256": "3fc03a73ab5b8e4481ab521055c8cab4d4720d805d000dc062bbcd3fceb3c727",
+  "host_timeout_seconds": 7200,
+  "commit_gap_limit_cycles": 1000000,
+  "markers": {
+    "observer_enabled": true,
+    "observer_expired": false,
+    "wrapper_preflight_pass": true,
+    "systemd_exec": true,
+    "ubuntu_banner": true,
+    "hostname_set": true,
+    "shell_ready": false,
+    "natural_poweroff": false
+  },
+  "last_progress": {
+    "commits": 145000001,
+    "pc": "0x0000003fbdba3426",
+    "inst_per_second": 27098
+  },
+  "last_user_progress": {
+    "sample": 18,
+    "commits": 146027279,
+    "pc": "0x0000003fbdba25c2"
+  },
+  "terminal_observation": {
+    "cycles": 560316484,
+    "pc": "0x0000003fbdba3808",
+    "reason": "host_budget_interrupt"
+  },
+  "evidence": {
+    "npc_log": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-commit-gap-diagnostic/npc.log"
+  },
+  "errors": []
+}

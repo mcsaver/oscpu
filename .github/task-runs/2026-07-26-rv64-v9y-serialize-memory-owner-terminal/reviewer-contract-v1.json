@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9y-serialize-memory-owner-terminal-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 双发射 OoO RTL 的 12 路 OooMemOwnerTerminalCollector 入口、reservation/MIQ/bridge/buffer/retry/SQ holder 死亡边、collector pending 与 tracker free 周期，并判定七类非 FENCE serialized transaction 的 drain_complete 是否会在仍有未终端化活动 memory owner 时出现；区分 same-edge terminal transfer、collector-pending-only 与 full mem_idle，给出最小 RTL 边界建议，不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-26-rv64-v9w-serialize-full-drain/task-report.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/contract.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-contract-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/contract.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 12 路 lane-to-holder-death 表、edge-old 到 edge-new 的 active holder/terminal ingress/collector pending/tracker live/free 真值表，以及七类非 FENCE drain_complete 的可达反例或不可达证明；若需修复，比较 full mem_idle 与 exact terminalized-owner predicate 的正确性和时序代价，保留所有重复 terminal fail-loud 断言并报告 unknowns/scope_extension_request。"
+  ],
+  "success_criteria": [
+    "首行使用 RV64 RTL 结论格式；只有所有活动 holder 均在 non-FENCE resolve 前死亡或同拍交出精确 terminal 时才判本子范围 PASS；不得把 collector pending 误判成活动事务，不得把历史旧设计证据外推到当前 RTL，不得关闭 SERIALIZE-G1、architecture-stable 或 PPA，并明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

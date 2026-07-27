@@ -1,0 +1,12 @@
+rtl_design_id=sha256:4655eabea13d2ecce9ac94784bbcb0a8bd2151b65bcd7325f950c6abb9b91380
+simulator_sha256=669c983b22ce52beb433e50870e8950c522f8fd2a1072798fb86489bc2af6c87
+OOO_CSR_QUEUE_HEAD=1
+OOO_TERMINAL_HOLDER_ASSERT=1
+host_timeout_seconds=21600
+NPC_COMMIT_GAP_LIMIT_CYCLES=1000000
+progress_interval=5000000
+guest_driver_rc=2
+c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
+2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a  /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb
+4fe2464bd1b94af95833e437f74ee259991195485d4e7833fc5d9fe13dc65055  /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4

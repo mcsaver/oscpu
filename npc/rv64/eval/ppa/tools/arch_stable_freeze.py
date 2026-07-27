@@ -86,6 +86,7 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py",
     "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
     "npc/rv64/eval/ppa/tools/ifu_fetch_provenance_evidence.py",
+    "npc/rv64/eval/ppa/tools/vectored_trap_evidence.py",
     "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
     ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh",
     ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
@@ -98,6 +99,8 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tests/test_irrevocable_owner_residency_evidence.py",
     "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
     "npc/rv64/eval/ppa/tests/test_ifu_fetch_provenance_evidence.py",
+    "npc/rv64/eval/ppa/tests/test_vectored_trap_evidence.py",
+    ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/run-focused.sh",
     *tuple(SCHEMA_PATHS.values()),
 )
 GROUP_KINDS = {
@@ -124,6 +127,375 @@ TOOL_VERSION_ARGS = {
     "verilator": ("--version",),
     "yosys": ("-V",),
     "sta": ("-version",),
+}
+
+CONTROL_EVENT_RUN_ID = "2026-07-23-rv64-v9o-control-event-current-design"
+CONTROL_EVENT_COMMAND = (
+    "python3 .github/task-runs/"
+    f"{CONTROL_EVENT_RUN_ID}/build-evidence-index.py --verify"
+)
+CONTROL_EVENT_INDEX_PATH = (
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/evidence-index.json"
+)
+CONTROL_EVENT_MUTATION_PATH = (
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/mutations/summary.json"
+)
+CONTROL_EVENT_SOURCE_HELPER = (
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/evidence_source_set.py"
+)
+CONTROL_EVENT_INDEX_SCHEMA = "npc-rv64-control-event-evidence-index-v1"
+CONTROL_EVENT_MUTATION_SCHEMA = "npc-rv64-control-event-rtl-mutations-v3"
+CONTROL_EVENT_PROVENANCE_PATHS = {
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/build-evidence-index.py",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/evidence_source_set.py",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/run-focused.sh",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/run-v9o-config-variants.sh",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/"
+    "run-control-event-rtl-mutations.py",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/run-module-aggregate.sh",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/"
+    "refresh-architecture-evidence.sh",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/run-arch-stable-boundary.sh",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/contract.md",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/completion-definition.md",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/rtl-derivation.md",
+    "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+    "npc/rv64/design/specs/ooo-core-top-glue.md",
+    "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+    "npc/rv64/design/specs/ooo-frontend-action-gate.md",
+    "npc/rv64/design/specs/ooo-load-queue.md",
+    "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+    "npc/rv64/design/specs/ooo-redirect-arbiter.md",
+    "npc/rv64/design/specs/ooo-rob.md",
+    "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/schemas/architecture-debt-ledger-v2.schema.json",
+}
+CONTROL_EVENT_FORBIDDEN_ARTIFACT_PATHS = {
+    CONTROL_EVENT_INDEX_PATH,
+    "npc/rv64/design/arch/architecture-debt-ledger.json",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/gates/"
+    "arch-stable-audit.json",
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/gates/"
+    "arch-stable-boundary.log",
+}
+CONTROL_EVENT_ARCHITECTURE_RESULT_PATH = (
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/gates/"
+    "final-architecture-hard-gates.json"
+)
+CONTROL_EVENT_ARCHITECTURE_MANIFEST_PATH = (
+    "npc/rv64/eval/ppa/evidence/architecture-current.json"
+)
+CONTROL_EVENT_ARCHITECTURE_REFRESH_LOG_PATH = (
+    f".github/task-runs/{CONTROL_EVENT_RUN_ID}/gates/"
+    "architecture-evidence-refresh.log"
+)
+V9R_SQ_RETRY_RUN_ID = "2026-07-24-rv64-v9r-sq-retry-c0-handoff"
+V9R_SQ_RETRY_SUMMARY_PATH = (
+    f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/evidence/summary.json"
+)
+V9R_SQ_RETRY_SCHEMA = "npc-rv64-v9r-sq-retry-c0-evidence-v2"
+V9R_SQ_RETRY_SOURCE_PATHS = {
+    f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/run-v9r-evidence.sh",
+    f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
+    "mutate-v9r-sq-retry-c0.py",
+    f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
+    "close-control-event-current-design.py",
+    f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/contract.md",
+    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+    "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+    "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+    "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+    "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+    "npc/rv64/design/arch/producer-holder-census.json",
+    "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+    "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+}
+V9R_SQ_RETRY_BASELINE_MARKERS = {
+    "tb_ooo_int_backend_v9r_sq_retry_c0": (
+        "[V9R-SQ-RETRY-C0-HANDOFF-PASS] "
+        "banks=2 forced=2 natural_trap=1 PASS",
+        "[V9R-SQ-RETRY-NATURAL-TRAP] rob_head=1 bank1=1 PASS",
+    ),
+    "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0": (
+        "[V9R-MEM-SQ-RETRY-C0-HANDOFF-PASS] "
+        "state=S_SQ_QUERY held=1 release=1 PASS",
+    ),
+}
+V9R_SQ_RETRY_VARIANTS = {
+    "backend-bank0-ready-open": {
+        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
+        "mutated_rtl": "OooIntBackend.v",
+        "assertion_marker": (
+            "[V9R-SQ-RETRY-C0-HANDOFF] retry holder transfer exposed "
+            "during full-flush barrier"
+        ),
+    },
+    "backend-bank1-ready-open": {
+        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
+        "mutated_rtl": "OooIntBackend.v",
+        "assertion_marker": (
+            "[V9R-SQ-RETRY-C0-HANDOFF] retry holder transfer exposed "
+            "during full-flush barrier"
+        ),
+    },
+    "bridge-retry-fire-open": {
+        "production_source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "test_name": "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0",
+        "mutated_rtl": "OooMemAxiBridge.v",
+        "assertion_marker": (
+            "[V9R-MEM-SQ-RETRY-C0-HANDOFF] bridge released SQ-query "
+            "owner during full-flush barrier"
+        ),
+    },
+}
+CONTROL_EVENT_FOCUSED_TESTS = {
+    "tb_ooo_control_event_apply_sequencer",
+    "tb_ooo_redirect_arbiter",
+    "tb_ooo_frontend_action_gate",
+    "tb_ooo_load_queue",
+    "tb_ooo_rob",
+    "tb_ooo_dispatch_backend",
+    "tb_ooo_int_backend",
+    "tb_ooo_mem_axi_bridge",
+    "tb_ooo_dual_mem_bridge_wrapper",
+    "tb_ooo_core_top_glue",
+}
+CONTROL_EVENT_CONFIG_TESTS = {
+    "tb_ooo_rob",
+    "tb_ooo_core_top_glue_v9o_csr_qh",
+    "tb_ooo_core_top_glue",
+}
+CONTROL_EVENT_MUTATIONS = {
+    "strict_younger_changed_to_greater_equal",
+    "c0_request_does_not_reach_c1",
+    "typed_reason_is_not_latched",
+    "c0_request_is_reconstructed_from_trap_pulse",
+    "pending_csr_owner_ignores_producer_id",
+    "head0_pregrant_does_not_mask_branch_event",
+    "head0_pregrant_does_not_mask_branch_recovery",
+    "queue_head_mode_requires_both_memory_pair_ids_at_head",
+    "registered_read_address_valid_is_barrier_gated",
+    "registered_write_valids_are_barrier_gated",
+    "pregrant_reads_current_completion_ready",
+}
+CONTROL_EVENT_MUTATION_CONTRACTS = {
+    "strict_younger_changed_to_greater_equal": {
+        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "test_name": "tb_ooo_rob",
+        "make_variable": "RTL_OOO_ROB",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "v8f kill boundary remains completion-open",
+            "v8f recovery preserves boundary completion query",
+            "v8j generic completion also keeps equal boundary open",
+        ),
+    },
+    "c0_request_does_not_reach_c1": {
+        "source": "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+        "test_name": "tb_ooo_control_event_apply_sequencer",
+        "make_variable": "RTL_OOO_CONTROL_EVENT_APPLY_SEQUENCER",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": ("trap apply C1 valid got=0 exp=1",),
+    },
+    "typed_reason_is_not_latched": {
+        "source": "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+        "test_name": "tb_ooo_control_event_apply_sequencer",
+        "make_variable": "RTL_OOO_CONTROL_EVENT_APPLY_SEQUENCER",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": ("trap apply C1 reason got=0 exp=3",),
+    },
+    "c0_request_is_reconstructed_from_trap_pulse": {
+        "source": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "test_name": "tb_ooo_core_top_glue_v9o_csr_qh",
+        "make_variable": "RTL_OOO_CORE_TOP_GLUE",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "V9O macro-on real queue-head CSR emits C1 typed apply",
+        ),
+    },
+    "pending_csr_owner_ignores_producer_id": {
+        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "test_name": "tb_ooo_rob",
+        "make_variable": "RTL_OOO_ROB",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "V9O mismatched pending owner keeps queue-head full pregrant",
+        ),
+    },
+    "head0_pregrant_does_not_mask_branch_event": {
+        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "test_name": "tb_ooo_int_backend",
+        "make_variable": "RTL_OOO_INT_BACKEND",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "V9O C0 suppresses younger branch event",
+            "V9O pending CSR pregrant suppresses younger branch event",
+        ),
+    },
+    "head0_pregrant_does_not_mask_branch_recovery": {
+        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "test_name": "tb_ooo_int_backend",
+        "make_variable": "RTL_OOO_INT_BACKEND",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "V9O C0 suppresses younger branch recovery",
+            "V9O pending CSR pregrant suppresses younger branch recovery",
+        ),
+    },
+    "queue_head_mode_requires_both_memory_pair_ids_at_head": {
+        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "test_name": "tb_ooo_core_top_glue",
+        "make_variable": "RTL_OOO_INT_BACKEND",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": (
+            "[CHECK-FAIL] memory program reaches ebreak got=0 expected=1",
+        ),
+    },
+    "registered_read_address_valid_is_barrier_gated": {
+        "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "test_name": "tb_ooo_mem_axi_bridge",
+        "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": ("V9O C0 keeps registered ARVALID",),
+    },
+    "registered_write_valids_are_barrier_gated": {
+        "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "test_name": "tb_ooo_mem_axi_bridge",
+        "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
+        "rejection_mode": "dynamic",
+        "make_returncode": 2,
+        "lint_returncode": None,
+        "expected_markers": ("V9O C0 keeps registered AWVALID",),
+    },
+    "pregrant_reads_current_completion_ready": {
+        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "test_name": "tb_ooo_rob",
+        "make_variable": "RTL_OOO_ROB",
+        "rejection_mode": "lint-unoptflat",
+        "make_returncode": 0,
+        "lint_returncode": 0,
+        "expected_markers": (
+            "%Warning-UNOPTFLAT: <LOCAL-TEMP>/OooRob.v:361:26:",
+        ),
+    },
+}
+CONTROL_EVENT_MUTATION_TOP_LEVEL_KEYS = {
+    "schema", "suite_run_id", "required", "compile_success",
+    "dynamic_rejected", "lint_rejected", "rejected",
+    "baseline_unoptflat", "baseline_lint", "design_id", "rtl_source_set",
+    "full_rtl_source_unchanged", "verification_source_set",
+    "verification_source_unchanged", "source_unchanged",
+    "source_sha256_before", "source_sha256_after", "results",
+}
+CONTROL_EVENT_MUTATION_RESULT_KEYS = {
+    "compile_success", "dynamic_rejected", "expected_markers",
+    "extra_ivflags", "lint_rejected", "lint_returncode", "log",
+    "make_returncode", "make_variable", "mutation_sha256", "name",
+    "observed_markers", "oracle_family", "original_sha256", "purpose",
+    "rejected", "rejection_mode", "source", "test_name",
+}
+CONTROL_EVENT_CSR_QUEUE_HEAD_MUTATIONS = {
+    "pending_csr_owner_ignores_producer_id",
+    "queue_head_mode_requires_both_memory_pair_ids_at_head",
+}
+CONTROL_EVENT_STATIC_CONTRACT = {
+    "single_c0_request_valid_source": True,
+    "single_c0_request_reason_source": True,
+    "trap_pregrant_bidirectional_assertion": True,
+    "csr_pregrant_bidirectional_assertion": True,
+    "completion_matrix_has_eight_classes": True,
+    "dual_registered_ar_barrier_oracle": True,
+}
+CONTROL_EVENT_CRITICAL_LOG_MARKERS = {
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+        "tb_ooo_rob.log"
+    ): (
+        "[V9O-FULL-C0-COMPLETION-MATRIX] "
+        "classes=8 wrap_head=15 wrap_younger=0 PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+        "tb_ooo_int_backend.log"
+    ): (
+        "[V9O-BACKEND-C0-BARRIER] "
+        "younger branch/dispatch/memory actions held PASS",
+        "[V9O-PENDING-CSR-BRANCH-PRIORITY] "
+        "older action-NONE commit suppresses younger branch PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+        "tb_ooo_mem_axi_bridge.log"
+    ): (
+        "[V9O-MEM-C0-BARRIER] "
+        "pre-owner held; registered AR/AW/W owners preserved PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+        "tb_ooo_dual_mem_bridge_wrapper.log"
+    ): (
+        "[V9O-DUAL-REGISTERED-AR-BARRIER] "
+        "lanes=2 hold_cycles=4 terminals=2 PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+        "tb_ooo_core_top_glue.log"
+    ): (
+        "[V9O-CONTROL-EVENT-C0-C1] "
+        "source-to-typed-apply timing PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/config-variants/logs/"
+        "tb_ooo_rob.log"
+    ): (
+        "[V9O-FULL-C0-COMPLETION-MATRIX] "
+        "classes=8 wrap_head=15 wrap_younger=0 PASS",
+        "[V9O-CSR-OWNER-CLASS-PASS] "
+        "exact pending CSR ProducerId classified without full flush",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/config-variants/logs/"
+        "tb_ooo_core_top_glue_v9o_csr_qh.log"
+    ): (
+        "[V9O-CSR-QH-CORE-INTEGRATION] "
+        "real queue-head CSR C0/C1 PASS",
+        "[V9O-PENDING-CSR-OWNER-INTEGRATION] "
+        "exact type/PID action-NONE path PASS",
+        "[V9O-CSR-MEMORY-ORDER-INTEGRATION] "
+        "older drain/younger refetch PASS",
+    ),
+    (
+        f".github/task-runs/{CONTROL_EVENT_RUN_ID}/config-variants/logs/"
+        "tb_ooo_core_top_glue.log"
+    ): (
+        "[V9O-CONTROL-EVENT-C0-C1] "
+        "source-to-typed-apply timing PASS",
+    ),
 }
 
 
@@ -1966,7 +2338,7 @@ def validate_instret_debt(
     module_records = (
         module_aggregate.get("tests") if isinstance(module_aggregate, dict) else None)
     module_ok = module_ok and (
-        len(required_tests) == 109
+        bool(required_tests)
         and module_aggregate.get("required") == len(required_tests)
         and module_aggregate.get("passed") == len(required_tests)
         and module_aggregate.get("failed") == 0
@@ -2108,7 +2480,7 @@ def validate_instret_debt(
         "compile_success_rtl_mutations=3",
         "dynamic_rejected_rtl_mutations=3",
         "focused_tests=3/3",
-        "module_aggregate=109/109",
+        f"module_aggregate={len(required_tests)}/{len(required_tests)}",
         "ppa=UNQUALIFIED",
         "promotion_eligible=false",
         "[INSTRET-G1-GATE] PASS",
@@ -2421,7 +2793,7 @@ def validate_fence_debt(
     module_records = (
         module_aggregate.get("tests") if isinstance(module_aggregate, dict) else None)
     module_ok = module_ok and (
-        len(required_tests) == 109
+        bool(required_tests)
         and module_aggregate.get("required") == len(required_tests)
         and module_aggregate.get("passed") == len(required_tests)
         and module_aggregate.get("failed") == 0
@@ -2601,7 +2973,8 @@ def validate_fence_debt(
         f"compile_success_rtl_variants={len(FENCE_VARIANT_SPECS)}",
         f"dynamic_rejected_rtl_variants={len(FENCE_VARIANT_SPECS)}",
         "focused_tests=2/2",
-        "module_aggregate=109/109", "ppa=UNQUALIFIED",
+        f"module_aggregate={len(required_tests)}/{len(required_tests)}",
+        "ppa=UNQUALIFIED",
         "promotion_eligible=false", "[FENCE-G1-GATE] PASS",
     )
     missing = [
@@ -4969,6 +5342,1430 @@ def validate_f0_debt(
     return errors
 
 
+def control_event_forbidden_references(value: Any) -> set[str]:
+    """Return boundary-generated artifact paths referenced by a JSON value."""
+
+    references: set[str] = set()
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in CONTROL_EVENT_FORBIDDEN_ARTIFACT_PATHS:
+                references.add(key)
+            if key == "path" and child in CONTROL_EVENT_FORBIDDEN_ARTIFACT_PATHS:
+                references.add(child)
+            references.update(control_event_forbidden_references(child))
+    elif isinstance(value, list):
+        for child in value:
+            references.update(control_event_forbidden_references(child))
+    return references
+
+
+def validate_control_event_architecture_payload(
+    architecture_result: dict[str, Any],
+    architecture_manifest: dict[str, Any],
+    expected_rtl: dict[str, Any],
+    bound_design_id: str,
+) -> list[str]:
+    """Validate the canonical 9-gate JSON pair consumed by CONTROL-EVENT-G1."""
+
+    debt_id = "CONTROL-EVENT-G1"
+    errors: list[str] = []
+    result_keys = {
+        "schema", "generated_at_utc", "overall_status", "exit_code",
+        "contract", "rtl_source_set", "evidence_manifest",
+        "evidence_errors", "gates",
+    }
+    manifest_keys = {"schema", "generated_at_utc", "design_id", "tests"}
+    if set(architecture_result) != result_keys:
+        errors.append(f"{debt_id} architecture result field set drifted")
+    if set(architecture_manifest) != manifest_keys:
+        errors.append(f"{debt_id} architecture manifest field set drifted")
+
+    references = (
+        control_event_forbidden_references(architecture_result)
+        | control_event_forbidden_references(architecture_manifest)
+    )
+    for relative in sorted(references):
+        errors.append(
+            f"{debt_id} architecture evidence references a "
+            f"boundary-generated artifact: {relative}")
+
+    gate_ids = {
+        "DI-1", "DI-2", "DI-3", "DI-4", "DI-5",
+        "OOO-1", "OOO-2", "OOO-3", "OOO-4",
+    }
+    gates = architecture_result.get("gates")
+    if not (
+        architecture_result.get("schema")
+            == "npc-rv64-architecture-hard-gates-result-v2"
+        and architecture_result.get("overall_status") == "GREEN"
+        and architecture_result.get("exit_code") == 0
+        and architecture_result.get("rtl_source_set") == expected_rtl
+        and architecture_result.get("evidence_errors") == []
+        and isinstance(gates, dict)
+        and set(gates) == gate_ids
+        and all(
+            isinstance(gate, dict) and gate.get("status") == "GREEN"
+            for gate in gates.values()
+        )
+    ):
+        errors.append(f"{debt_id} directed architecture result drifted")
+    if not (
+        architecture_manifest.get("schema")
+            == "npc-rv64-architecture-directed-suite-v2"
+        and architecture_manifest.get("design_id") == bound_design_id
+        and isinstance(architecture_manifest.get("tests"), dict)
+        and len(architecture_manifest["tests"]) == 9
+    ):
+        errors.append(f"{debt_id} architecture manifest drifted")
+    return errors
+
+
+def validate_control_event_payload(
+    root: pathlib.Path,
+    index: dict[str, Any],
+    mutations: dict[str, Any],
+    bound_design_id: str,
+) -> list[str]:
+    """Validate the frozen CONTROL-EVENT-G1 counts and semantic boundaries."""
+
+    debt_id = "CONTROL-EVENT-G1"
+    errors: list[str] = []
+    expected_index_keys = {
+        "schema", "run_id", "generated_at_utc", "status", "claim_scope",
+        "design_id", "rtl_source_set", "verification_source_set",
+        "static_contract", "focused", "config_variants", "rtl_mutations",
+        "module_aggregate", "architecture_hard_gates", "contract_gate",
+        "full_core_boundary", "provenance", "provenance_sha256",
+    }
+    if set(index) != expected_index_keys:
+        errors.append(f"{debt_id} evidence-index field set drifted")
+    if set(mutations) != CONTROL_EVENT_MUTATION_TOP_LEVEL_KEYS:
+        errors.append(f"{debt_id} mutation-summary field set drifted")
+
+    forbidden_references = (
+        control_event_forbidden_references(index)
+        | control_event_forbidden_references(mutations)
+    )
+    for relative in sorted(forbidden_references):
+        errors.append(
+            f"{debt_id} self-referential artifact is forbidden: {relative}")
+
+    if not (
+        index.get("schema") == CONTROL_EVENT_INDEX_SCHEMA
+        and index.get("run_id") == CONTROL_EVENT_RUN_ID
+        and index.get("status") == "PASS"
+        and index.get("claim_scope")
+            == "CONTROL-EVENT-G1 current-design review candidate"
+        and index.get("design_id") == bound_design_id
+    ):
+        errors.append(f"{debt_id} evidence-index identity/status drifted")
+
+    provenance = index.get("provenance")
+    if not (
+        isinstance(provenance, dict)
+        and set(provenance) == CONTROL_EVENT_PROVENANCE_PATHS
+        and all(
+            isinstance(record, dict)
+            and set(record) == {"path", "sha256", "size_bytes"}
+            and record.get("path") == relative
+            for relative, record in provenance.items()
+        )
+    ):
+        errors.append(f"{debt_id} exact provenance inventory drifted")
+
+    rtl_source_set = index.get("rtl_source_set")
+    rtl_files = (
+        rtl_source_set.get("files")
+        if isinstance(rtl_source_set, dict) else None
+    )
+    if not (
+        isinstance(rtl_source_set, dict)
+        and set(rtl_source_set)
+            == {"design_id", "file_count", "files", "sha256"}
+        and rtl_source_set.get("design_id") == bound_design_id
+        and rtl_source_set.get("sha256")
+            == bound_design_id.removeprefix("sha256:")
+        and isinstance(rtl_files, dict)
+        and rtl_source_set.get("file_count") == len(rtl_files)
+        and all(
+            isinstance(path, str)
+            and isinstance(digest, str)
+            and SHA256_RE.fullmatch(digest)
+            for path, digest in rtl_files.items()
+        )
+    ):
+        errors.append(f"{debt_id} exact RTL source set drifted")
+
+    verification_source_set = index.get("verification_source_set")
+    verification_files = (
+        verification_source_set.get("files")
+        if isinstance(verification_source_set, dict) else None
+    )
+    verification_sha = (
+        verification_source_set.get("sha256")
+        if isinstance(verification_source_set, dict) else None
+    )
+    if not (
+        isinstance(verification_source_set, dict)
+        and set(verification_source_set)
+            == {"file_count", "files", "sha256"}
+        and isinstance(verification_files, dict)
+        and verification_source_set.get("file_count") == len(verification_files)
+        and isinstance(verification_sha, str)
+        and SHA256_RE.fullmatch(verification_sha)
+        and all(
+            isinstance(path, str)
+            and isinstance(digest, str)
+            and SHA256_RE.fullmatch(digest)
+            for path, digest in verification_files.items()
+        )
+    ):
+        errors.append(f"{debt_id} exact verification source set drifted")
+
+    if index.get("static_contract") != CONTROL_EVENT_STATIC_CONTRACT:
+        errors.append(f"{debt_id} static source contract is incomplete")
+
+    focused = index.get("focused")
+    focused_logs = focused.get("logs") if isinstance(focused, dict) else None
+    if not (
+        isinstance(focused, dict)
+        and set(focused) == {"required", "passed", "logs"}
+        and focused.get("required") == 10
+        and focused.get("passed") == 10
+        and isinstance(focused_logs, dict)
+        and set(focused_logs) == CONTROL_EVENT_FOCUSED_TESTS
+        and all(
+            isinstance(record, dict)
+            and set(record) == {"path", "sha256", "size_bytes"}
+            and record.get("path") == (
+                f".github/task-runs/{CONTROL_EVENT_RUN_ID}/focused/logs/"
+                f"{test_name}.log"
+            )
+            for test_name, record in focused_logs.items()
+        )
+        and len({
+            record["path"] for record in focused_logs.values()
+        }) == len(focused_logs)
+    ):
+        errors.append(f"{debt_id} focused 10/10 inventory drifted")
+
+    config = index.get("config_variants")
+    config_logs = config.get("logs") if isinstance(config, dict) else None
+    if not (
+        isinstance(config, dict)
+        and set(config)
+            == {"configuration", "required", "passed", "logs"}
+        and config.get("configuration") == "OOO_CSR_QUEUE_HEAD=1"
+        and config.get("required") == 3
+        and config.get("passed") == 3
+        and isinstance(config_logs, dict)
+        and set(config_logs) == CONTROL_EVENT_CONFIG_TESTS
+        and all(
+            isinstance(record, dict)
+            and set(record) == {"path", "sha256", "size_bytes"}
+            and record.get("path") == (
+                f".github/task-runs/{CONTROL_EVENT_RUN_ID}/"
+                f"config-variants/logs/{test_name}.log"
+            )
+            for test_name, record in config_logs.items()
+        )
+        and len({
+            record["path"] for record in config_logs.values()
+        }) == len(config_logs)
+    ):
+        errors.append(f"{debt_id} CSR queue-head 3/3 inventory drifted")
+
+    module = index.get("module_aggregate")
+    module_inventory = (
+        module.get("inventory") if isinstance(module, dict) else None
+    )
+    module_logs = module.get("logs") if isinstance(module, dict) else None
+    try:
+        makefile_path, makefile_error = safe_regular_file(
+            root, "npc/rv64/testbench/Makefile")
+        if makefile_error or makefile_path is None:
+            raise ValueError(makefile_error or "module Makefile is missing")
+        required_tests, inventory_errors = parse_required_tests(
+            makefile_path.read_text(encoding="utf-8"))
+        if inventory_errors:
+            raise ValueError("; ".join(inventory_errors))
+    except (OSError, ValueError) as exc:
+        required_tests = []
+        errors.append(
+            f"{debt_id} cannot derive current module inventory: {exc}")
+    if not (
+        isinstance(module, dict)
+        and bool(required_tests)
+        and module.get("required") == len(required_tests)
+        and module.get("passed") == len(required_tests)
+        and module.get("failed") == 0
+        and isinstance(module_inventory, list)
+        and len(module_inventory) == len(required_tests)
+        and len(set(module_inventory)) == len(required_tests)
+        and set(module_inventory) == set(required_tests)
+        and isinstance(module_logs, dict)
+        and set(module_logs) == set(module_inventory)
+        and all(
+            isinstance(record, dict)
+            and set(record) == {"path", "sha256", "size_bytes"}
+            and record.get("path") == (
+                f".github/task-runs/{CONTROL_EVENT_RUN_ID}/"
+                f"module-aggregate-current/logs/{test_name}.log"
+            )
+            for test_name, record in module_logs.items()
+        )
+        and len({
+            record["path"] for record in module_logs.values()
+        }) == len(module_logs)
+        and {
+            "tb_ooo_control_event_apply_sequencer",
+            "tb_ooo_rob",
+            "tb_ooo_mem_axi_bridge",
+        } <= set(module_inventory)
+    ):
+        errors.append(f"{debt_id} exact current module aggregate drifted")
+
+    mutation_index = index.get("rtl_mutations")
+    mutation_logs = (
+        mutation_index.get("logs")
+        if isinstance(mutation_index, dict) else None
+    )
+    mutation_summary = (
+        mutation_index.get("summary")
+        if isinstance(mutation_index, dict) else None
+    )
+    if not (
+        isinstance(mutation_index, dict)
+        and mutation_index.get("required") == 11
+        and mutation_index.get("compile_success") == 11
+        and mutation_index.get("rejected") == 11
+        and mutation_index.get("dynamic_rejected") == 10
+        and mutation_index.get("lint_rejected") == 1
+        and isinstance(mutation_logs, dict)
+        and set(mutation_logs) == CONTROL_EVENT_MUTATIONS
+        and all(
+            isinstance(record, dict)
+            and set(record) == {"path", "sha256", "size_bytes"}
+            and record.get("path") == (
+                f".github/task-runs/{CONTROL_EVENT_RUN_ID}/mutations/logs/"
+                f"{name}.log"
+            )
+            for name, record in mutation_logs.items()
+        )
+        and len({
+            record["path"] for record in mutation_logs.values()
+        }) == len(mutation_logs)
+        and isinstance(mutation_summary, dict)
+        and mutation_summary.get("path") == CONTROL_EVENT_MUTATION_PATH
+    ):
+        errors.append(f"{debt_id} mutation index 11/11 drifted")
+
+    architecture = index.get("architecture_hard_gates")
+    architecture_result_record = (
+        architecture.get("result") if isinstance(architecture, dict) else None
+    )
+    architecture_manifest_record = (
+        architecture.get("manifest") if isinstance(architecture, dict) else None
+    )
+    architecture_refresh_record = (
+        architecture.get("refresh_log")
+        if isinstance(architecture, dict) else None
+    )
+    if not (
+        isinstance(architecture, dict)
+        and set(architecture) == {
+            "required", "green", "negative_unit_tests",
+            "result", "manifest", "refresh_log",
+        }
+        and architecture.get("required") == 9
+        and architecture.get("green") == 9
+        and architecture.get("negative_unit_tests") == 30
+        and isinstance(architecture_result_record, dict)
+        and set(architecture_result_record) == {"path", "sha256", "size_bytes"}
+        and architecture_result_record.get("path")
+            == CONTROL_EVENT_ARCHITECTURE_RESULT_PATH
+        and isinstance(architecture_manifest_record, dict)
+        and set(architecture_manifest_record)
+            == {"path", "sha256", "size_bytes"}
+        and architecture_manifest_record.get("path")
+            == CONTROL_EVENT_ARCHITECTURE_MANIFEST_PATH
+        and isinstance(architecture_refresh_record, dict)
+        and set(architecture_refresh_record)
+            == {"path", "sha256", "size_bytes"}
+        and architecture_refresh_record.get("path")
+            == CONTROL_EVENT_ARCHITECTURE_REFRESH_LOG_PATH
+    ):
+        errors.append(f"{debt_id} directed architecture 9/9 binding drifted")
+
+    if index.get("contract_gate") != {
+        "holder_census": "PASS",
+        "immediate_assertions": 471,
+        "unit_tests": 13,
+    }:
+        errors.append(f"{debt_id} RTL contract gate counts drifted")
+
+    boundary = index.get("full_core_boundary")
+    if not (
+        isinstance(boundary, dict)
+        and set(boundary) == {
+            "architecture_freeze", "blockers", "ppa",
+            "promotion_eligible", "candidate_design_id",
+            "current_design_match",
+        }
+        and boundary.get("architecture_freeze") == "GAP"
+        and isinstance(boundary.get("blockers"), int)
+        and boundary.get("blockers", 0) > 0
+        and boundary.get("ppa") == "UNQUALIFIED"
+        and boundary.get("promotion_eligible") is False
+        and boundary.get("current_design_match") is True
+        and boundary.get("candidate_design_id") == bound_design_id
+    ):
+        errors.append(f"{debt_id} full-core GAP/PPA boundary drifted")
+
+    results = mutations.get("results")
+    result_names = {
+        item.get("name")
+        for item in results
+        if isinstance(item, dict) and isinstance(item.get("name"), str)
+    } if isinstance(results, list) else set()
+    dynamic_count = sum(
+        1 for item in results
+        if isinstance(item, dict)
+        and item.get("dynamic_rejected") is True
+    ) if isinstance(results, list) else 0
+    lint_count = sum(
+        1 for item in results
+        if isinstance(item, dict)
+        and item.get("lint_rejected") is True
+    ) if isinstance(results, list) else 0
+    mutation_contracts_ok = (
+        isinstance(results, list)
+        and all(
+            isinstance(item, dict)
+            and set(item) == CONTROL_EVENT_MUTATION_RESULT_KEYS
+            and isinstance(item.get("name"), str)
+            and item["name"] in CONTROL_EVENT_MUTATION_CONTRACTS
+            and item.get("source")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]]["source"]
+            and item.get("test_name")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]]["test_name"]
+            and item.get("make_variable")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]][
+                    "make_variable"
+                ]
+            and item.get("rejection_mode")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]][
+                    "rejection_mode"
+                ]
+            and item.get("make_returncode")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]][
+                    "make_returncode"
+                ]
+            and item.get("lint_returncode")
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]][
+                    "lint_returncode"
+                ]
+            and tuple(item.get("expected_markers", ()))
+                == CONTROL_EVENT_MUTATION_CONTRACTS[item["name"]][
+                    "expected_markers"
+                ]
+            and item.get("observed_markers") == {
+                marker: True
+                for marker in CONTROL_EVENT_MUTATION_CONTRACTS[
+                    item["name"]
+                ]["expected_markers"]
+            }
+            and isinstance(item.get("log"), dict)
+            and set(item["log"]) == {"path", "sha256"}
+            and item["log"].get("path") == (
+                f".github/task-runs/{CONTROL_EVENT_RUN_ID}/mutations/logs/"
+                f"{item['name']}.log"
+            )
+            and isinstance(item.get("purpose"), str)
+            and bool(item["purpose"].strip())
+            and isinstance(item.get("oracle_family"), str)
+            and bool(item["oracle_family"].strip())
+            and item.get("extra_ivflags") == (
+                ["-DOOO_CSR_QUEUE_HEAD=1"]
+                if item["name"] in CONTROL_EVENT_CSR_QUEUE_HEAD_MUTATIONS
+                else []
+            )
+            and isinstance(item.get("original_sha256"), str)
+            and SHA256_RE.fullmatch(item["original_sha256"])
+            and isinstance(rtl_files, dict)
+            and item["original_sha256"] == rtl_files.get(item["source"])
+            and isinstance(item.get("mutation_sha256"), str)
+            and SHA256_RE.fullmatch(item["mutation_sha256"])
+            and item["mutation_sha256"] != item["original_sha256"]
+            for item in results
+        )
+    )
+    mutation_sources = {
+        contract["source"]
+        for contract in CONTROL_EVENT_MUTATION_CONTRACTS.values()
+    }
+    source_sha256_before = mutations.get("source_sha256_before")
+    source_sha256_after = mutations.get("source_sha256_after")
+    mutation_source_maps_ok = (
+        isinstance(source_sha256_before, dict)
+        and isinstance(source_sha256_after, dict)
+        and set(source_sha256_before) == mutation_sources
+        and source_sha256_after == source_sha256_before
+        and isinstance(rtl_files, dict)
+        and all(
+            source_sha256_before.get(relative) == rtl_files.get(relative)
+            for relative in mutation_sources
+        )
+    )
+    mutation_baseline = mutations.get("baseline_lint")
+    index_baseline = (
+        mutation_index.get("baseline_lint")
+        if isinstance(mutation_index, dict) else None
+    )
+    mutation_baseline_ok = (
+        isinstance(mutation_baseline, dict)
+        and set(mutation_baseline) == {"path", "returncode", "sha256"}
+        and mutation_baseline.get("path") == (
+            f".github/task-runs/{CONTROL_EVENT_RUN_ID}/"
+            "mutations/baseline-verilator.log"
+        )
+        and mutation_baseline.get("returncode") == 0
+        and isinstance(mutation_baseline.get("sha256"), str)
+        and SHA256_RE.fullmatch(mutation_baseline["sha256"])
+        and isinstance(index_baseline, dict)
+        and mutation_baseline.get("path") == index_baseline.get("path")
+        and mutation_baseline.get("sha256") == index_baseline.get("sha256")
+    )
+    results_ok = (
+        isinstance(results, list)
+        and len(results) == 11
+        and result_names == CONTROL_EVENT_MUTATIONS
+        and dynamic_count == 10
+        and lint_count == 1
+        and mutation_contracts_ok
+        and all(
+            isinstance(item, dict)
+            and item.get("compile_success") is True
+            and item.get("rejected") is True
+            and (
+                (
+                    item.get("rejection_mode") == "dynamic"
+                    and item.get("dynamic_rejected") is True
+                    and item.get("lint_rejected") is False
+                )
+                or (
+                    item.get("rejection_mode") == "lint-unoptflat"
+                    and item.get("dynamic_rejected") is False
+                    and item.get("lint_rejected") is True
+                )
+            )
+            for item in results
+        )
+    )
+    if not (
+        mutations.get("schema") == CONTROL_EVENT_MUTATION_SCHEMA
+        and mutations.get("suite_run_id") == CONTROL_EVENT_RUN_ID
+        and mutations.get("design_id") == bound_design_id
+        and mutations.get("required") == 11
+        and mutations.get("compile_success") == 11
+        and mutations.get("rejected") == 11
+        and mutations.get("dynamic_rejected") == 10
+        and mutations.get("lint_rejected") == 1
+        and mutations.get("baseline_unoptflat") is False
+        and mutations.get("source_unchanged") is True
+        and mutations.get("full_rtl_source_unchanged") is True
+        and mutations.get("verification_source_unchanged") is True
+        and mutation_source_maps_ok
+        and mutation_baseline_ok
+        and mutations.get("rtl_source_set") == rtl_source_set
+        and mutations.get("verification_source_set")
+            == verification_source_set
+        and results_ok
+    ):
+        errors.append(
+            f"{debt_id} compile-success RTL mutation semantics drifted")
+    return errors
+
+
+def validate_v9r_sq_retry_c0_payload(
+    root: pathlib.Path,
+    payload: dict[str, Any],
+    bound_design_id: str,
+) -> list[str]:
+    """Validate the V9R C0 SQ-query retry owner-transfer evidence."""
+
+    debt_id = "CONTROL-EVENT-G1"
+    errors: list[str] = []
+    expected_keys = {
+        "schema", "result", "design_id", "full_rtl_source_unchanged",
+        "rtl_design_id_before", "rtl_design_id_after", "source_binding",
+        "positive", "baseline", "compile_success_rtl_variants",
+        "promotion_eligible", "ppa_status",
+    }
+    if set(payload) != expected_keys:
+        errors.append(f"{debt_id} V9R summary field set drifted")
+
+    if not (
+        payload.get("schema") == V9R_SQ_RETRY_SCHEMA
+        and payload.get("result") == "PASS"
+        and payload.get("design_id") == bound_design_id
+        and payload.get("full_rtl_source_unchanged") is True
+        and payload.get("rtl_design_id_before") == bound_design_id
+        and payload.get("rtl_design_id_after") == bound_design_id
+        and payload.get("promotion_eligible") is False
+        and payload.get("ppa_status") == "diagnostic_unqualified"
+    ):
+        errors.append(f"{debt_id} V9R identity/status boundary drifted")
+
+    artifact_paths: set[str] = set()
+
+    def check_artifact(
+        record: Any,
+        expected_path: str,
+        label: str,
+    ) -> pathlib.Path | None:
+        if not isinstance(record, dict) or set(record) != {
+            "path", "sha256", "size_bytes",
+        }:
+            errors.append(f"{debt_id} V9R malformed artifact: {label}")
+            return None
+        if record.get("path") != expected_path:
+            errors.append(f"{debt_id} V9R artifact path drifted: {label}")
+            return None
+        path, error = safe_regular_file(root, record.get("path"))
+        if (
+            error
+            or path is None
+            or record.get("sha256") != sha256_file(path)
+            or record.get("size_bytes") != path.stat().st_size
+        ):
+            errors.append(
+                error or f"{debt_id} V9R artifact hash drifted: {label}")
+            return None
+        if expected_path in artifact_paths:
+            errors.append(
+                f"{debt_id} V9R artifact path reused: {expected_path}")
+        artifact_paths.add(expected_path)
+        return path
+
+    source_binding = payload.get("source_binding")
+    source_files = (
+        source_binding.get("files")
+        if isinstance(source_binding, dict) else None
+    )
+    source_records_ok = (
+        isinstance(source_binding, dict)
+        and set(source_binding) == {"sha256", "file_count", "files"}
+        and source_binding.get("file_count")
+            == len(V9R_SQ_RETRY_SOURCE_PATHS)
+        and isinstance(source_files, dict)
+        and set(source_files) == V9R_SQ_RETRY_SOURCE_PATHS
+    )
+    if not source_records_ok:
+        errors.append(f"{debt_id} V9R exact source binding drifted")
+    elif isinstance(source_files, dict):
+        for relative in sorted(V9R_SQ_RETRY_SOURCE_PATHS):
+            check_artifact(
+                source_files.get(relative),
+                relative,
+                f"source:{relative}",
+            )
+        if source_binding.get("sha256") != canonical_sha256(source_files):
+            errors.append(f"{debt_id} V9R source binding hash drifted")
+
+    if payload.get("positive") != {
+        "backend_banks": 2,
+        "forced_barrier_cases": 2,
+        "natural_trap_head_cases": 1,
+        "bridge_query_hold_cases": 1,
+        "barrier_release_cases": 1,
+    }:
+        errors.append(f"{debt_id} V9R positive coverage drifted")
+
+    baseline = payload.get("baseline")
+    baseline_tests = (
+        baseline.get("tests") if isinstance(baseline, dict) else None
+    )
+    if not (
+        isinstance(baseline, dict)
+        and set(baseline) == {"required", "passed", "tests", "status"}
+        and baseline.get("required") == 2
+        and baseline.get("passed") == 2
+        and isinstance(baseline_tests, dict)
+        and set(baseline_tests) == set(V9R_SQ_RETRY_BASELINE_MARKERS)
+    ):
+        errors.append(f"{debt_id} V9R baseline inventory drifted")
+    else:
+        prefix = (
+            f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
+            "evidence/baseline"
+        )
+        status_path = check_artifact(
+            baseline.get("status"),
+            f"{prefix}/status",
+            "baseline-status",
+        )
+        if status_path is not None and status_path.read_text(
+            encoding="utf-8"
+        ) != "PASS\n":
+            errors.append(f"{debt_id} V9R baseline status drifted")
+        for test_name, markers in V9R_SQ_RETRY_BASELINE_MARKERS.items():
+            record = baseline_tests.get(test_name)
+            if not isinstance(record, dict) or set(record) != {
+                "compiled_image", "log",
+            }:
+                errors.append(
+                    f"{debt_id} V9R baseline record drifted: {test_name}")
+                continue
+            check_artifact(
+                record.get("compiled_image"),
+                f"{prefix}/build/{test_name}.vvp",
+                f"baseline-image:{test_name}",
+            )
+            log_path = check_artifact(
+                record.get("log"),
+                f"{prefix}/result/logs/{test_name}.log",
+                f"baseline-log:{test_name}",
+            )
+            if log_path is None:
+                continue
+            text = log_path.read_text(encoding="utf-8")
+            required = (
+                "[RESULT] PASS",
+                f"[RTL-DESIGN-ID] {bound_design_id}",
+                *markers,
+            )
+            if (
+                any(text.count(marker) != 1 for marker in required)
+                or any(marker in text for marker in (
+                    "[RESULT] FAIL", "[CHECK-FAIL]", "[TIMEOUT]", "FATAL:",
+                ))
+            ):
+                errors.append(
+                    f"{debt_id} V9R baseline markers drifted: {test_name}")
+
+    variants = payload.get("compile_success_rtl_variants")
+    variant_by_id = {
+        item.get("id"): item
+        for item in variants
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    } if isinstance(variants, list) else {}
+    if not (
+        isinstance(variants, list)
+        and len(variants) == len(V9R_SQ_RETRY_VARIANTS)
+        and len(variant_by_id) == len(variants)
+        and set(variant_by_id) == set(V9R_SQ_RETRY_VARIANTS)
+    ):
+        errors.append(f"{debt_id} V9R variant inventory drifted")
+    else:
+        expected_variant_keys = {
+            "id", "production_source", "test_name", "result",
+            "make_returncode", "assertion_marker", "mutated_rtl",
+            "compiled_image", "log", "status",
+        }
+        for case_id, contract in V9R_SQ_RETRY_VARIANTS.items():
+            item = variant_by_id[case_id]
+            test_name = contract["test_name"]
+            prefix = (
+                f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
+                f"evidence/{case_id}"
+            )
+            if not (
+                set(item) == expected_variant_keys
+                and item.get("production_source")
+                    == contract["production_source"]
+                and item.get("test_name") == test_name
+                and item.get("result") == "REJECTED"
+                and item.get("make_returncode") == 2
+                and item.get("assertion_marker")
+                    == contract["assertion_marker"]
+            ):
+                errors.append(
+                    f"{debt_id} V9R variant contract drifted: {case_id}")
+                continue
+            mutant_path = check_artifact(
+                item.get("mutated_rtl"),
+                f"{prefix}/{contract['mutated_rtl']}",
+                f"variant-rtl:{case_id}",
+            )
+            check_artifact(
+                item.get("compiled_image"),
+                f"{prefix}/build/{test_name}.vvp",
+                f"variant-image:{case_id}",
+            )
+            log_path = check_artifact(
+                item.get("log"),
+                f"{prefix}/result/logs/{test_name}.log",
+                f"variant-log:{case_id}",
+            )
+            status_path = check_artifact(
+                item.get("status"),
+                f"{prefix}/status",
+                f"variant-status:{case_id}",
+            )
+            production_path, production_error = safe_regular_file(
+                root, contract["production_source"])
+            if (
+                mutant_path is None
+                or production_error
+                or production_path is None
+                or sha256_file(mutant_path) == sha256_file(production_path)
+            ):
+                errors.append(
+                    production_error
+                    or f"{debt_id} V9R mutation is not source-changing: "
+                    f"{case_id}"
+                )
+            if status_path is not None and status_path.read_text(
+                encoding="utf-8"
+            ) != "REJECTED_COMPILE_SUCCESS_VARIANT rc=2\n":
+                errors.append(
+                    f"{debt_id} V9R variant status drifted: {case_id}")
+            if log_path is not None:
+                text = log_path.read_text(encoding="utf-8")
+                if (
+                    "[COMPILE]" not in text
+                    or text.count(contract["assertion_marker"]) != 1
+                    or text.count("[RESULT] FAIL") != 1
+                    or "[RESULT] PASS" in text
+                ):
+                    errors.append(
+                        f"{debt_id} V9R rejection markers drifted: "
+                        f"{case_id}"
+                    )
+    return errors
+
+
+def validate_control_event_debt(
+    root: pathlib.Path,
+    entry: dict[str, Any],
+    expected_design_id: str,
+) -> list[str]:
+    """Independently validate the current-design CONTROL-EVENT-G1 evidence."""
+
+    del expected_design_id  # Cohort equality is checked by closed_binding.
+    debt_id = "CONTROL-EVENT-G1"
+    errors: list[str] = []
+    if entry.get("canonical_command") != CONTROL_EVENT_COMMAND:
+        errors.append(f"{debt_id} canonical command drifted")
+
+    evidence = entry.get("evidence")
+    evidence_list = evidence if isinstance(evidence, list) else []
+    by_kind = {
+        item.get("kind"): item
+        for item in evidence_list
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
+    expected_evidence = {
+        "control_event_evidence_index": CONTROL_EVENT_INDEX_PATH,
+        "control_event_rtl_mutations": CONTROL_EVENT_MUTATION_PATH,
+        "v9r_sq_retry_c0_evidence": V9R_SQ_RETRY_SUMMARY_PATH,
+    }
+    if (
+        len(evidence_list) != len(expected_evidence)
+        or set(by_kind) != set(expected_evidence)
+        or any(
+            by_kind[kind].get("path") != path
+            for kind, path in expected_evidence.items()
+        )
+    ):
+        errors.append(
+            f"{debt_id} requires exact V9O index/mutation and V9R artifacts")
+        return errors
+
+    resolved: dict[str, pathlib.Path] = {}
+    for kind, expected_path in expected_evidence.items():
+        item = by_kind[kind]
+        path, error = safe_regular_file(root, item.get("path"))
+        if (
+            error
+            or path is None
+            or set(item) != {"kind", "path", "sha256"}
+            or item.get("path") != expected_path
+            or item.get("sha256") != sha256_file(path)
+        ):
+            errors.append(error or f"{debt_id} {kind} hash/path drifted")
+        elif path is not None:
+            resolved[kind] = path
+    if len(resolved) != len(expected_evidence):
+        return errors
+
+    try:
+        index = load_json(resolved["control_event_evidence_index"])
+        mutations = load_json(resolved["control_event_rtl_mutations"])
+        v9r_sq_retry = load_json(resolved["v9r_sq_retry_c0_evidence"])
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"{debt_id} cannot load evidence JSON: {exc}")
+        return errors
+
+    bound_design_id = entry.get("design_id")
+    if not isinstance(bound_design_id, str) or not DESIGN_ID_RE.fullmatch(
+        bound_design_id
+    ):
+        errors.append(f"{debt_id} ledger design id is invalid")
+        return errors
+    errors.extend(
+        validate_control_event_payload(
+            root, index, mutations, bound_design_id))
+    errors.extend(
+        validate_v9r_sq_retry_c0_payload(
+            root,
+            v9r_sq_retry,
+            bound_design_id,
+        )
+    )
+
+    canonical_payload = dict(index)
+    declared_provenance_sha = canonical_payload.pop(
+        "provenance_sha256", None)
+    if declared_provenance_sha != canonical_sha256(canonical_payload):
+        errors.append(f"{debt_id} evidence-index provenance hash is invalid")
+
+    try:
+        source_helper = load_workspace_module(
+            root, CONTROL_EVENT_SOURCE_HELPER, "control_event_source_set")
+        rtl_sha, rtl_files = source_helper.rtl_binding(root)
+        verification_sha, verification_files = (
+            source_helper.verification_binding(root)
+        )
+    except (OSError, ValueError, AttributeError) as exc:
+        errors.append(f"{debt_id} cannot recompute source sets: {exc}")
+        rtl_sha, rtl_files = "", {}
+        verification_sha, verification_files = "", {}
+    expected_rtl = {
+        "design_id": f"sha256:{rtl_sha}",
+        "file_count": len(rtl_files),
+        "files": rtl_files,
+        "sha256": rtl_sha,
+    }
+    expected_verification = {
+        "file_count": len(verification_files),
+        "files": verification_files,
+        "sha256": verification_sha,
+    }
+    if (
+        index.get("rtl_source_set") != expected_rtl
+        or bound_design_id != f"sha256:{rtl_sha}"
+        or mutations.get("rtl_source_set") != expected_rtl
+    ):
+        errors.append(f"{debt_id} live RTL source binding is stale")
+    if (
+        index.get("verification_source_set") != expected_verification
+        or mutations.get("verification_source_set") != expected_verification
+    ):
+        errors.append(f"{debt_id} live verification source binding is stale")
+
+    live_inventory: list[str] = []
+    inventory_is_valid = False
+    makefile_path, makefile_error = safe_regular_file(
+        root, "npc/rv64/testbench/Makefile")
+    if makefile_error or makefile_path is None:
+        errors.append(
+            makefile_error or f"{debt_id} test inventory Makefile is missing")
+    else:
+        live_inventory, inventory_errors = parse_required_tests(
+            makefile_path.read_text(encoding="utf-8"))
+        inventory_is_valid = not inventory_errors
+        indexed_inventory = index.get(
+            "module_aggregate", {}).get("inventory")
+        if inventory_errors or indexed_inventory != live_inventory:
+            errors.append(
+                f"{debt_id} live module inventory drifted: "
+                + "; ".join(inventory_errors[:2]))
+
+    indexed_artifacts: dict[str, str] = {}
+
+    def validate_indexed_artifacts(value: Any) -> None:
+        if isinstance(value, dict):
+            artifact_keys = {"path", "sha256", "size_bytes"}
+            if artifact_keys <= set(value):
+                relative = value.get("path")
+                if relative in CONTROL_EVENT_FORBIDDEN_ARTIFACT_PATHS:
+                    errors.append(
+                        f"{debt_id} self-referential artifact is forbidden: "
+                        f"{relative}")
+                    return
+                path, error = safe_regular_file(root, relative)
+                if (
+                    set(value) != artifact_keys
+                    or error
+                    or path is None
+                    or value.get("sha256") != sha256_file(path)
+                    or value.get("size_bytes") != path.stat().st_size
+                ):
+                    errors.append(
+                        error or f"{debt_id} indexed artifact drifted: {relative}")
+                elif isinstance(relative, str):
+                    previous = indexed_artifacts.setdefault(
+                        relative, value["sha256"])
+                    if previous != value["sha256"]:
+                        errors.append(
+                            f"{debt_id} conflicting artifact id: {relative}")
+            for child in value.values():
+                validate_indexed_artifacts(child)
+        elif isinstance(value, list):
+            for child in value:
+                validate_indexed_artifacts(child)
+
+    validate_indexed_artifacts(index)
+    expected_artifact_count = (
+        len(CONTROL_EVENT_FOCUSED_TESTS)
+        + len(CONTROL_EVENT_CONFIG_TESTS)
+        + len(CONTROL_EVENT_MUTATIONS)
+        + len(CONTROL_EVENT_PROVENANCE_PATHS)
+        + len(live_inventory)
+        + 7
+    )
+    if (
+        inventory_is_valid
+        and len(indexed_artifacts) != expected_artifact_count
+    ):
+        errors.append(
+            f"{debt_id} exact artifact count drifted: "
+            f"expected={expected_artifact_count} "
+            f"observed={len(indexed_artifacts)}")
+
+    verification_id = (
+        index.get("verification_source_set", {}).get("sha256")
+        if isinstance(index.get("verification_source_set"), dict) else None
+    )
+    log_groups = (
+        index.get("focused", {}).get("logs"),
+        index.get("config_variants", {}).get("logs"),
+        index.get("module_aggregate", {}).get("logs"),
+    )
+    for records in log_groups:
+        if not isinstance(records, dict):
+            continue
+        for test_name, record in records.items():
+            relative = record.get("path") if isinstance(record, dict) else None
+            path, error = safe_regular_file(root, relative)
+            if error or path is None:
+                errors.append(
+                    error or f"{debt_id} missing PASS log for {test_name}")
+                continue
+            text = path.read_text(encoding="utf-8")
+            required_markers = (
+                "[RESULT] PASS",
+                f"[RTL-DESIGN-ID] {bound_design_id}",
+                f"[V9O-VERIFICATION-SOURCE-ID] sha256:{verification_id}",
+            )
+            native_pass_lines = [
+                line
+                for line in text.splitlines()
+                if line in {f"[PASS] {test_name}", f"PASS {test_name}"}
+            ]
+            if (
+                any(text.count(marker) != 1 for marker in required_markers)
+                or len(native_pass_lines) != 1
+                or any(marker in text for marker in (
+                    "[RESULT] FAIL", "[CHECK-FAIL]", "[TIMEOUT]", "FATAL:",
+                ))
+            ):
+                errors.append(
+                    f"{debt_id} PASS/source markers drifted: {relative}")
+
+    for relative, markers in CONTROL_EVENT_CRITICAL_LOG_MARKERS.items():
+        path, error = safe_regular_file(root, relative)
+        if error or path is None:
+            errors.append(error or f"{debt_id} critical log is missing")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if any(text.count(marker) != 1 for marker in markers):
+            errors.append(
+                f"{debt_id} critical RTL marker drifted: {relative}")
+
+    results = mutations.get("results")
+    if isinstance(results, list):
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            log = result.get("log")
+            relative = log.get("path") if isinstance(log, dict) else None
+            path, error = safe_regular_file(root, relative)
+            if (
+                error
+                or path is None
+                or not isinstance(log, dict)
+                or log.get("sha256") != sha256_file(path)
+            ):
+                errors.append(
+                    error or f"{debt_id} mutation log drifted: {relative}")
+                continue
+            text = path.read_text(encoding="utf-8")
+            expected_markers = result.get("expected_markers")
+            if (
+                not isinstance(expected_markers, list)
+                or not expected_markers
+                or any(
+                    not isinstance(marker, str) or text.count(marker) != 1
+                    for marker in expected_markers
+                )
+            ):
+                errors.append(
+                    f"{debt_id} mutation oracle marker drifted: {relative}")
+
+    baseline = index.get("rtl_mutations", {}).get("baseline_lint")
+    baseline_path, baseline_error = safe_regular_file(
+        root, baseline.get("path") if isinstance(baseline, dict) else None)
+    if (
+        baseline_error
+        or baseline_path is None
+        or "%Warning-UNOPTFLAT" in baseline_path.read_text(
+            encoding="utf-8", errors="replace")
+    ):
+        errors.append(
+            baseline_error
+            or f"{debt_id} baseline unexpectedly contains UNOPTFLAT")
+
+    architecture_record = index.get(
+        "architecture_hard_gates", {}).get("result")
+    manifest_record = index.get(
+        "architecture_hard_gates", {}).get("manifest")
+    try:
+        architecture_result = load_json(
+            root / architecture_record["path"])
+        architecture_manifest = load_json(root / manifest_record["path"])
+        candidate = load_json(
+            root / "npc/rv64/eval/ppa/arch-stable/full-core-current.json")
+    except (KeyError, TypeError, OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"{debt_id} cannot load architecture artifacts: {exc}")
+        return errors
+
+    errors.extend(validate_control_event_architecture_payload(
+        architecture_result,
+        architecture_manifest,
+        expected_rtl,
+        bound_design_id,
+    ))
+    boundary = index.get("full_core_boundary")
+    if not (
+        isinstance(boundary, dict)
+        and candidate.get("schema") == CANDIDATE_SCHEMA
+        and boundary.get("candidate_design_id") == candidate.get("design_id")
+    ):
+        errors.append(f"{debt_id} live full-core candidate identity drifted")
+    return errors
+
+
+VECTORED_TRAP_RESULT_SCHEMA = "npc-rv64-vectored-trap-evidence-v1"
+VECTORED_TRAP_COMMAND = "make -C npc/rv64 check-vectored-trap"
+VECTORED_TRAP_FOCUSED_MARKER = (
+    "[VECTORED-TRAP-G1-CSR-FILE] cases=13 warl=3 irq_routing=3 "
+    "m_irq=2 m_sync=1 source_priority=2 s_irq=1 s_sync=1 PASS"
+)
+VECTORED_TRAP_PROGRAM_MARKERS = (
+    "[VECTORED-TRAP-G2-M-IRQ] trap_mem=0 trap_ex=0 trap_irq=1 "
+    "target_match=1 target_mismatch=0 exact_handler_fetch=1 "
+    "wrong_base_fetch=0 xret_request=1 xret_commit=1 return_commit=1 "
+    "cause=7 handler_body=1 backend_drained=1 PASS",
+    "[VECTORED-TRAP-G3-S-IRQ] trap_mem=0 trap_ex=0 trap_irq=1 "
+    "target_match=1 target_mismatch=0 exact_handler_fetch=1 "
+    "wrong_base_fetch=0 xret_request=1 xret_commit=1 return_commit=1 "
+    "cause=9 handler_body=1 backend_drained=1 PASS",
+    "[VECTORED-TRAP-G4-M-SYNC] trap_mem=0 trap_ex=1 trap_irq=0 "
+    "target_match=1 target_mismatch=0 exact_handler_fetch=1 "
+    "wrong_vector_fetch=0 xret_request=1 xret_commit=1 return_commit=1 "
+    "cause=11 handler_body=1 backend_drained=1 PASS",
+)
+
+
+def validate_vectored_trap_debt(
+    root: pathlib.Path,
+    entry: dict[str, Any],
+    expected_design_id: str,
+) -> list[str]:
+    """Independently validate CsrFile vector targeting and full-core return."""
+
+    errors: list[str] = []
+    if entry.get("canonical_command") != VECTORED_TRAP_COMMAND:
+        errors.append("VECTORED-TRAP-G1 canonical command drifted")
+    evidence = entry.get("evidence")
+    evidence_list = evidence if isinstance(evidence, list) else []
+    by_kind = {
+        item.get("kind"): item
+        for item in evidence_list
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
+    if len(evidence_list) != 2 or set(by_kind) != {
+        "vectored_trap_result", "raw_log",
+    }:
+        errors.append(
+            "VECTORED-TRAP-G1 requires exact result/raw-log evidence")
+        return errors
+
+    result_path, result_error = safe_regular_file(
+        root, by_kind["vectored_trap_result"].get("path"))
+    raw_path, raw_error = safe_regular_file(
+        root, by_kind["raw_log"].get("path"))
+    if result_error or result_path is None:
+        errors.append(result_error or "VECTORED-TRAP-G1 result is missing")
+        return errors
+    if raw_error or raw_path is None:
+        errors.append(raw_error or "VECTORED-TRAP-G1 raw log is missing")
+        return errors
+
+    result = load_json(result_path)
+    expected_metrics = {
+        "focused": {
+            "cases": 13,
+            "warl_cases": 3,
+            "irq_routing_cases": 3,
+            "m_irq_cases": 2,
+            "m_sync_cases": 1,
+            "source_priority_cases": 2,
+            "s_irq_cases": 1,
+            "s_sync_cases": 1,
+        },
+        "full_core": {
+            "m_irq_exact": 1,
+            "s_irq_exact": 1,
+            "m_sync_exact": 1,
+            "raw_duplicate_terminal_events": 0,
+            "wrong_target_fetches": 0,
+            "xret_requests": 3,
+            "xret_commits": 3,
+            "return_commits": 3,
+        },
+        "mutations": {
+            "required": 7,
+            "compile_succeeded": 7,
+            "dynamic_rejected": 7,
+        },
+        "csr_regression_passed": 1,
+    }
+    expected_invariants = {
+        "tvec_modes_0_1_preserved": True,
+        "tvec_modes_2_3_clamped_direct": True,
+        "interrupt_target_is_base_plus_four_cause": True,
+        "synchronous_target_is_base": True,
+        "trap_source_priority_mem_ex_irq": True,
+        "state_and_redirect_share_selected_record": True,
+        "nondelegated_supervisor_interrupts_route_to_m": True,
+        "assertions_enabled": True,
+    }
+    if not (
+        result.get("schema") == VECTORED_TRAP_RESULT_SCHEMA
+        and result.get("status") == "PASS"
+        and result.get("design_id") == expected_design_id
+        and result.get("canonical_command") == VECTORED_TRAP_COMMAND
+        and result.get("metrics") == expected_metrics
+        and result.get("invariants") == expected_invariants
+        and result.get("claim") == {
+            "scope": "local RV64 CsrFile and full OoO trap/return control path",
+            "ppa": "UNQUALIFIED",
+            "promotion_eligible": False,
+        }
+    ):
+        errors.append(
+            "VECTORED-TRAP-G1 metrics, invariants or PPA claim drifted")
+
+    try:
+        architecture = load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+            "vectored_trap_architecture_binding",
+        )
+        rtl_sha, rtl_files = architecture.rtl_binding(root)
+    except (OSError, ValueError, AttributeError) as exc:
+        errors.append(
+            f"VECTORED-TRAP-G1 cannot recompute RTL binding: {exc}")
+        rtl_sha, rtl_files = "", {}
+    expected_source_set = {
+        "design_id": expected_design_id,
+        "sha256": expected_design_id.removeprefix("sha256:"),
+        "file_count": len(rtl_files),
+        "files": rtl_files,
+    }
+    if not (
+        rtl_sha == expected_design_id.removeprefix("sha256:")
+        and result.get("rtl_source_set") == expected_source_set
+    ):
+        errors.append("VECTORED-TRAP-G1 live RTL source binding is stale")
+
+    artifacts = result.get("artifacts")
+    artifact_list = artifacts if isinstance(artifacts, list) else []
+    artifacts_by_kind = {
+        item.get("kind"): item
+        for item in artifact_list
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
+    expected_mutation_kinds = {
+        f"mutation_log:{name}" for name in (
+            "direct_only_target",
+            "vector_sync_exception",
+            "force_machine_tvec",
+            "reserved_mode_passthrough",
+            "exception_over_memory_priority",
+            "vector_offset_plus_four",
+            "drop_nondelegated_supervisor_irq",
+        )
+    }
+    expected_artifact_kinds = {
+        "focused_csr_log",
+        "full_core_program_log",
+        "csr_regression_log",
+        "mutation_manifest",
+        *expected_mutation_kinds,
+    }
+    artifact_paths: dict[str, pathlib.Path] = {}
+    artifacts_ok = (
+        len(artifact_list) == len(expected_artifact_kinds)
+        and set(artifacts_by_kind) == expected_artifact_kinds
+    )
+    if artifacts_ok:
+        for kind, item in artifacts_by_kind.items():
+            path, error = safe_regular_file(root, item.get("path"))
+            if error or path is None or item.get("sha256") != sha256_file(path):
+                artifacts_ok = False
+                break
+            artifact_paths[kind] = path
+    if not artifacts_ok:
+        errors.append(
+            "VECTORED-TRAP-G1 artifact inventory or hashes are incomplete")
+        return errors
+
+    design_marker = f"[RTL-DESIGN-ID] {expected_design_id}"
+    positive_logs = (
+        ("focused_csr_log", "tb_csr_file_vectored_trap",
+         (VECTORED_TRAP_FOCUSED_MARKER,)),
+        ("full_core_program_log", "tb_ooo_priv_system",
+         VECTORED_TRAP_PROGRAM_MARKERS),
+        ("csr_regression_log", "tb_csr_file", ()),
+    )
+    for kind, test_name, markers in positive_logs:
+        text = artifact_paths[kind].read_text(encoding="utf-8")
+        if not (
+            text.splitlines().count(f"[PASS] {test_name}") == 1
+            and text.splitlines().count("[RESULT] PASS") == 1
+            and text.splitlines().count(design_marker) == 1
+            and all(text.splitlines().count(marker) == 1 for marker in markers)
+            and "[RESULT] FAIL" not in text
+            and "[CHECK-FAIL]" not in text
+            and "FATAL:" not in text
+            and "ERROR:" not in text
+        ):
+            errors.append(
+                f"VECTORED-TRAP-G1 positive log {test_name} drifted")
+
+    mutation = load_json(artifact_paths["mutation_manifest"])
+    try:
+        mutation_runner = load_workspace_module(
+            root,
+            "npc/rv64/testbench/scripts/run_csr_vectored_trap_mutations.py",
+            "vectored_trap_mutation_contract",
+        )
+        mutation_specs = {
+            spec.mutation_id: spec for spec in mutation_runner.MUTATIONS
+        }
+    except (OSError, ValueError, AttributeError) as exc:
+        errors.append(
+            f"VECTORED-TRAP-G1 cannot load mutation contract: {exc}")
+        mutation_specs = {}
+    rows = mutation.get("mutations")
+    by_id = {
+        row.get("mutation_id"): row
+        for row in rows
+        if isinstance(row, dict) and isinstance(row.get("mutation_id"), str)
+    } if isinstance(rows, list) else {}
+    source_path = root / "npc/rv64/vsrc/core/CsrFile.v"
+    source_text = source_path.read_text(encoding="utf-8")
+    source_sha = sha256_file(source_path)
+    mutation_ok = isinstance(rows, list) and (
+        mutation.get("schema_version") == 1
+        and mutation.get("source_sha256_before") == source_sha
+        and mutation.get("source_sha256_after") == source_sha
+        and mutation.get("source_unchanged") is True
+        and mutation.get("rtl_design_id_before") == expected_design_id
+        and mutation.get("rtl_design_id_after") == expected_design_id
+        and mutation.get("rtl_source_set") == expected_source_set
+        and mutation.get("rtl_source_set_unchanged") is True
+        and mutation.get("summary") == {
+            "all_rejected": True,
+            "compile_succeeded": len(mutation_specs),
+            "rejected": len(mutation_specs),
+            "total": len(mutation_specs),
+        }
+        and len(rows) == len(mutation_specs)
+    )
+    mutation_ok = mutation_ok and set(by_id) == set(mutation_specs)
+    if mutation_ok:
+        for name, spec in mutation_specs.items():
+            row = by_id[name]
+            if source_text.count(spec.old) != 1:
+                mutation_ok = False
+                break
+            mutated = source_text.replace(spec.old, spec.new, 1)
+            mutant_path, mutant_error = safe_regular_file(
+                root, row.get("mutant_path"))
+            vvp_path, vvp_error = safe_regular_file(
+                root, row.get("compile_artifact"))
+            log_path, log_error = safe_regular_file(root, row.get("log_path"))
+            assertions = row.get("required_assertion_counts")
+            if mutant_error or vvp_error or log_error or any(
+                path is None for path in (mutant_path, vvp_path, log_path)
+            ):
+                mutation_ok = False
+                break
+            assert mutant_path is not None
+            assert vvp_path is not None
+            assert log_path is not None
+            log_text = log_path.read_text(encoding="utf-8")
+            if not (
+                row.get("mutant_sha256")
+                    == hashlib.sha256(mutated.encode("utf-8")).hexdigest()
+                    == sha256_file(mutant_path)
+                and row.get("compile_succeeded") is True
+                and row.get("compile_artifact_sha256") == sha256_file(vvp_path)
+                and row.get("driver_rc") != 0
+                and row.get("rejected") is True
+                and row.get("functional_fail_marker_count") == 1
+                and row.get("functional_check_fail_count", 0) > 0
+                and row.get("result_fail_count") == 1
+                and row.get("exact_test_pass_count") == 0
+                and row.get("result_pass_count") == 0
+                and isinstance(assertions, dict)
+                and set(assertions) == set(spec.required_assertions)
+                and all(
+                    isinstance(value, int) and value > 0
+                    for value in assertions.values()
+                )
+                and log_text.splitlines().count("[RESULT] FAIL status=1") == 1
+                and all(marker in log_text for marker in spec.required_assertions)
+                and artifact_paths[f"mutation_log:{name}"] == log_path
+                and "[RESULT] PASS" not in log_text
+            ):
+                mutation_ok = False
+                break
+    if not mutation_ok:
+        errors.append(
+            "VECTORED-TRAP-G1 compile-success RTL variants are incomplete")
+
+    raw_text = raw_path.read_text(encoding="utf-8")
+    raw_markers = (
+        f"schema={VECTORED_TRAP_RESULT_SCHEMA}",
+        f"design_id={expected_design_id}",
+        f"canonical_command={VECTORED_TRAP_COMMAND}",
+        "focused_cases=13/13",
+        "full_core_paths=3/3",
+        "raw_duplicate_terminal_events=0",
+        "compile_success_rtl_mutations=7",
+        "dynamic_rejected_rtl_mutations=7",
+        "csr_regression=1/1",
+        "ppa=UNQUALIFIED",
+        "promotion_eligible=false",
+        "[VECTORED-TRAP-GATE] PASS",
+    )
+    missing = [
+        marker for marker in raw_markers
+        if raw_text.splitlines().count(marker) != 1
+    ]
+    if missing:
+        errors.append(
+            f"VECTORED-TRAP-G1 raw log missing exact markers={missing}")
+    return errors
+
+
 DEBT_SEMANTIC_VALIDATORS = {
     "F0-G1": validate_f0_debt,
     "FDG-G1": validate_fdg_debt,
@@ -4983,6 +6780,8 @@ DEBT_SEMANTIC_VALIDATORS = {
     "IFU-ACCESS-G1": validate_ifu_access_debt,
     "IFU-TVAL-G1": validate_ifu_tval_debt,
     "PTW-PMP-G1": validate_ptw_pmp_debt,
+    "CONTROL-EVENT-G1": validate_control_event_debt,
+    "VECTORED-TRAP-G1": validate_vectored_trap_debt,
 }
 
 

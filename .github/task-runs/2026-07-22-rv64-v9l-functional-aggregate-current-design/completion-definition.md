@@ -51,3 +51,19 @@ The V9L design point is complete only because one current design ID now binds al
 
 This closure does not claim complete producer-holder census, cohort/freeze-input closure, physical
 signoff, power signoff or a qualified PPA comparison. Those remain explicit parent-goal work.
+
+## 2026-07-23 V9P post-closure erratum
+
+V9L remains an immutable historical evidence point for design ID
+`2eff867b...`; it does not close replay progress for later RTL.  A strict Linux
+rootfs run subsequently exposed a reachable same-bank capacity cycle:
+active `S_SQ_QUERY`, station residency, and the single retry holder could all
+be occupied while an older nonterminal SQ owner kept returning replay.
+
+Therefore completion condition 2 above proves only exact-token identity
+disjointness.  “Different retry/station tokens may coexist” must not be read as
+bounded progress.  V9P adds the missing candidate-side rule: a load with an
+older nonterminal SQ owner cannot enter a bank that already has an
+active/station load.  The historical `109/109` count is also bound only to the
+V9L inventory; later live inventories are regenerated rather than inferred
+from this document.

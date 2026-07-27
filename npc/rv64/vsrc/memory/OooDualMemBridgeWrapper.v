@@ -9,8 +9,10 @@ module OooDualMemBridgeWrapper (
   input clk,
   input rst,
   input flush_i,
+  input control_full_flush_barrier_i,
   input mmu_flush_i,
   input dcache_dma_invalidate_all_i,
+  input ifu_ad_update_invalidate_all_i,
 
   input [1:0] priv_mode_i,
   input [`XLEN-1:0] mstatus_i,
@@ -259,6 +261,8 @@ module OooDualMemBridgeWrapper (
   wire lane1_peer_maintenance_valid_w;
   wire [`XLEN-1:0] lane1_peer_maintenance_addr_w;
   wire [`STRB_W-1:0] lane1_peer_maintenance_wstrb_w;
+  wire dcache_invalidate_all_w =
+      dcache_dma_invalidate_all_i || ifu_ad_update_invalidate_all_i;
 
   wire lane0_axi_arvalid_w;
   wire lane0_axi_arready_w;
@@ -322,8 +326,9 @@ module OooDualMemBridgeWrapper (
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
+    .control_full_flush_barrier_i(control_full_flush_barrier_i),
     .mmu_flush_i(mmu_flush_i),
-    .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all_i),
+    .dcache_dma_invalidate_all_i(dcache_invalidate_all_w),
     .peer_invalidate_valid_i(lane1_peer_maintenance_valid_w),
     .peer_invalidate_addr_i(lane1_peer_maintenance_addr_w),
     .peer_invalidate_wstrb_i(lane1_peer_maintenance_wstrb_w),
@@ -557,8 +562,9 @@ module OooDualMemBridgeWrapper (
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
+    .control_full_flush_barrier_i(control_full_flush_barrier_i),
     .mmu_flush_i(mmu_flush_i),
-    .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all_i),
+    .dcache_dma_invalidate_all_i(dcache_invalidate_all_w),
     .peer_invalidate_valid_i(lane0_peer_maintenance_valid_w),
     .peer_invalidate_addr_i(lane0_peer_maintenance_addr_w),
     .peer_invalidate_wstrb_i(lane0_peer_maintenance_wstrb_w),

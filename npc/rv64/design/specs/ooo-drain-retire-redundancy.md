@@ -55,6 +55,8 @@ CSR/异常顺序、SQ/AXI owner，也不新增流水寄存器或 false path。
 | `synth_lane1_ret_pending_i` | in / 1 | 组合读取；源复位为 0 | synthetic lane1 retire owner；当前由 `OooCoreTopGlue` 常量 0 封死已退休路径 |
 | `synth_lane1_branch_drop_pending_i` | in / 1 | 组合读取；源复位为 0 | synthetic lane1 branch-drop owner；当前由 `OooCoreTopGlue` 常量 0 封死已退休路径 |
 | `mem_retire_quiet_i` | in / 1 | 组合读取；由 SQ/drain 状态派生 | `OooIntBackend` 按 `!sq_mode || (sq_empty && !drain_inflight)` 唯一判定已退休 store 是否排空 |
+| `mem_idle_i` | in / 1 | 当拍完整 memory-owner graph 静默 | ordinary FENCE 的独立强屏障；不得替代非 FENCE/architectural-trap 的 exact terminal 标量 |
+| `mem_owner_terminalized_i` | in / 1 | 当拍 exact holder/accepted-transfer/collector-pending 归约 | `OooIntBackend` 唯一产生；活动 holder 且无 accepted terminal transfer 时为 0，collector-pending-only 时为 1 |
 | `direct_frontend_flush_i` | in / 1 | 当拍控制脉冲 | `OooFrontendActionGate` 产生；只在本 gate 中否决 stale pending-branch resolve/clear，不清本 gate 状态 |
 | `stop_pending_i` | in / 1 | 组合读取；源复位为 0 | `OooStopPendingSequencer.stop_pending_o` 持有 stop 生命周期 |
 | `backend_drained_q_i` | in / 1 | 组合读取上一沿结果；tracker 复位/force 后为 1 | `OooBackendDrainTracker.drained_q` 持有经一拍确认的 drained 历史；它不替代本拍 raw predicate |
@@ -63,11 +65,11 @@ CSR/异常顺序、SQ/AXI owner，也不新增流水寄存器或 false path。
 | `branch_resolve_pending_match_i` | in / 1 | 当拍比较结果 | `OooBranchResolveRecoveryGate` 产生当前 resolve 是否命中 pending branch |
 | `branch_spec_active_i` | in / 1 | 组合读取；源复位为 0 | `OooBranchSpecTracker.active_q` 是 speculation active 单一真源 |
 | `branch_spec_checkpoint_pending_i` | in / 1 | 组合读取；源复位为 0 | `OooBranchSpecTracker.checkpoint_pending_q` 是 checkpoint pending 单一真源 |
-| `pending_arch_trap_i` | in / 1 | 组合读取；源复位为 0 | `OooPendingTrapExitSequencer.pending_arch_trap_o` 持有待提交精确异常 |
+| `pending_arch_trap_i` | in / 1 | 组合读取；源复位为 0 | `OooPendingTrapExitSequencer.pending_arch_trap_o` 持有待提交精确异常；V9Z 起与 pending SYSTEM 共同选择 exact memory-terminal gate |
 | `pending_branch_i`, `pending_branch_dispatched_i` | in / 各 1 | 组合读取；源复位为 0 | pending-branch owner 属 frontend pending 域；当前 ROB-walk 模式下相应 sequencer 已删除并 tie 0 |
 | `pending_jump_i`, `pending_jump_dispatched_i` | in / 各 1 | 组合读取；源复位为 0 | pending-jump owner 属 frontend pending 域；当前 ROB-walk 模式下相应状态 tie 0 |
 | `pending_jump_resolve_ready_i`, `pending_jump_nolink_i`, `pending_jump_misaligned_i` | in / 各 1 | 当拍组合事实 | `OooFrontend` jump resolve/target 域产生；当前删除路径均 tie 0 |
-| `pending_system_i`, `pending_system_csr_i`, `pending_system_dispatched_i` | in / 各 1 | 组合读取；源复位为 0 | `OooPendingSystemSequencer` 持有 SYSTEM/CSR valid、类型和 dispatched 生命周期 |
+| `pending_system_i`, `pending_system_fence_i`, `pending_system_csr_i`, `pending_system_dispatched_i` | in / 各 1 | 组合读取；源复位为 0 | `OooPendingSystemSequencer` 持有 SYSTEM/FENCE/CSR 类型、valid 和 dispatched 生命周期 |
 | `backend_drained_o` | out / 1 | 当拍组合，无独立复位值 | gate 拥有 raw drain 判据；`OooBackendDrainTracker`、flush sequencer 和 system refresh 消费 |
 | `jump_dispatch_valid_o` | out / 1 | 当拍组合 valid；不得依赖 backend `dispatch0_ready_i` | gate 拥有 jump dispatch 资格；`OooFrontendBackendDispatchMux` 另算 `valid&&dispatch0_ready` 的 fire，jump payload/持有状态仍由 frontend pending-jump owner 负责 |
 | `system_csr_dispatch_valid_o` | out / 1 | 当拍组合 valid；不得依赖 `dispatch0_ready_i` | gate 拥有 CSR 注入 valid；持久性由 `OooPendingSystemSequencer` 的 pending/dispatched 状态保证 |
@@ -89,6 +91,7 @@ jump_dispatch_valid = jump_resolve_ready && !jump_nolink && !jump_misaligned
 
 system_csr_dispatch_valid = stop_pending && pending_system && pending_system_csr
                           && !pending_system_dispatched && backend_drained_q
+                          && mem_owner_terminalized
 system_csr_dispatch_fire  = system_csr_dispatch_valid && dispatch0_ready
 
 branch_commit_resolve = !direct_frontend_flush && stop_pending && backend_drained
@@ -107,8 +110,12 @@ replay_wait = branch_resolve_wait
            || (pending_jump && !pending_jump_dispatched)
            || (pending_system && pending_system_csr)
 
+serialized_mem_terminal =
+  !(pending_system || pending_arch_trap) || mem_owner_terminalized
+fence_mem_quiet = !pending_system_fence || mem_idle
+
 drain_complete = stop_pending && backend_drained && pending_control_ready
-               && !replay_wait
+               && !replay_wait && serialized_mem_terminal && fence_mem_quiet
 ```
 
 向 backend 注入的 ready-valid 边界有 jump 与 SYSTEM/CSR 两条：两种 valid 都禁止组合依赖
@@ -217,6 +224,9 @@ rst > trap/exit > CSR/xRET > branch mispredict/ROB-walk
 5. 任一 `replay_wait=1` 都压住 `drain_complete`；consumer-ready 只在所有 wait 清零后授权完成。
 6. SYSTEM/CSR 的 ready 只决定 `fire`；即使同拍 fire，pending SYSTEM 状态要到沿后更新，
    本拍 `replay_wait` 仍为 1，故不会同时错误宣告 `drain_complete`。
+7. pending SYSTEM 或 pending architectural trap 存在时，活动 memory holder 必须先发生
+   exact accepted terminal transfer；collector-pending-only 不增加等待。ordinary FENCE
+   仍额外等待完整 `mem_idle`。
 
 ## 4. 不变量（Invariants）
 

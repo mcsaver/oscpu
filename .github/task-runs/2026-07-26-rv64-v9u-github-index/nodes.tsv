@@ -1,0 +1,1 @@
+github-index-contract	agent-system	github-index	FAIL	scripts/github_index_db.py + .github files	exit=1	.github/task-runs/2026-07-26-rv64-v9u-github-index/evidence/github-index-contract.log	github-index	e2e_github_index_contract

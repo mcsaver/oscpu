@@ -143,17 +143,21 @@ def read_tracker(path: pathlib.Path) -> None:
 def read_collector(path: pathlib.Path) -> None:
     text = require_clean_result(path)
     capture = re.findall(
-        r"^\[V8P-TCOLL-7INGRESS-CAPTURE\] pending=7 mask=([0-9a-f]+) PASS$",
+        r"^\[V8P-TCOLL-12INGRESS-CAPTURE\] pending=12 mask=([0-9a-f]+) PASS$",
         text,
         flags=re.MULTILINE,
     )
     drain = re.findall(
-        r"^\[V8P-TCOLL-7INGRESS-DRAIN\] seen=7 mask=([0-9a-f]+) PASS$",
+        r"^\[V8P-TCOLL-12INGRESS-DRAIN\] seen=12 mask=([0-9a-f]+) PASS$",
         text,
         flags=re.MULTILINE,
     )
-    if len(capture) != 1 or drain != capture or int(capture[0], 16).bit_count() != 7:
-        raise ValueError(f"{path}: seven-ingress capture/drain witness mismatch")
+    if (
+        len(capture) != 1
+        or drain != capture
+        or int(capture[0], 16).bit_count() != 12
+    ):
+        raise ValueError(f"{path}: twelve-ingress capture/drain witness mismatch")
 
 
 def read_store_queue(path: pathlib.Path) -> None:
@@ -279,7 +283,7 @@ def main() -> int:
         "distinct_nonzero_generation_memory_pids=8",
         "special_memory_exclusions=10",
         "atomic_scarcity_zero_births=1",
-        "collector_ingress_peak=7",
+        "collector_ingress_peak=12",
         f"mutation_count={len(rows)}",
     ]
     gate_lines.extend(
@@ -297,8 +301,8 @@ def main() -> int:
         "pair_matrix": {name: True for name in arch.PAIR_MATRIX},
         **metrics_release,
         "atomic_scarcity_zero_births": 1,
-        "collector_ingress_peak": 7,
-        "collector_exact_drains": 7,
+        "collector_ingress_peak": 12,
+        "collector_exact_drains": 12,
     }
     record = {
         "command": arch.PAIR_MATRIX_EVIDENCE_COMMAND,

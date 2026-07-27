@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_type": "local-rtl-task",
+  "task_id": "control-event-stage-proof-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对冻结的 RV64 OoO 控制事件周期事实做第二遍逻辑复核，判断 branch 当拍选择性恢复与 trap/CSR 提交后下一拍全后端清空能否共享一个带动作类型的事件身份，并给出 simultaneous commit+younger-branch 的必要安全条件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/contract.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/rtl-derivation.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-stage-proof-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [],
+    "network": false,
+    "accounts": false,
+    "credentials": false,
+    "external_services": false
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "OooRedirectArbiter 是纯组合三路年龄律 selector，输出 valid、pc、kill_idx、reason、flush_fetch、flush_backend；当前只有 valid/pc 被前端消费。",
+      "E3 branch mispredict 的原始脉冲在 OooIntBackend 当拍扇出到 ROB walk、rename、IQ、整数与 FP completion、MIQ/SQ 和多周期单元，边界为 branch resolve ROB index。",
+      "E1 trap request 由 OooControlFlushSequencer 寄存为下一拍 core_trap_flush_q；E2 head0 CSR commit 由 OooControlCommitSequencer 寄存为下一拍 core_serial_flush_q。",
+      "core_trap_flush_q 与 core_serial_flush_q 经 OooCoreSliceControlGate 扁平 OR 成 core_local_flush_w，并在下一拍全清后端；该时序允许提交拍的队头退休或 CSR 架构写先发生。",
+      "direct dispatch 控制流的 arbiter 输入 flush_fetch=1、flush_backend=0；branch 输入两者均为 1；commit 家族当前共用 trap 端口且 reason 固定为 TRAP。",
+      "同拍 commit 家族与 younger branch 时，年龄律选择 ROB head 的 commit 事件；现有生产后端仍独立消费 raw branch mispredict，因此当前会先做 branch selective recovery，再在需要时下一拍 nuke。",
+      "已接受的 STORE/AMO/AXI 物理事务由独立 owner 与 terminal 合同 drain，控制流事件不能撤回已接受的不可撤回事务。",
+      "当前目标要求 backend action 显式区分 NONE、当拍 SELECTIVE_RECOVER 与下一拍 FULL_NUKE，不允许用无类型布尔量混合阶段语义。"
+    ]
+  },
+  "deliverables": [
+    "给出逐拍状态表、最小事件字段、同拍 commit+branch 的反例或证明义务、保持提交可见性的 apply 规则、不可撤回事务边界、unknowns、替代假设和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "必须明确判断仅把 arbiter branch winner 接到后端是否行为安全；若不足，指出需要的即时副作用抑制、不变量或双阶段事件结构，并对 full nuke 的一拍寄存时序给出 PASS、GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -14,7 +14,7 @@
 ## 执行卫生
 
 本地 RV64 RTL 子 agent 的派发先读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，
-用 `.github/skills/prepare-rtl-task-contract/` 生成、校验并渲染 task contract；命令权限使用结构化
+用 `.github/skills/prepare-rtl-task-contract/` 生成、校验并渲染 task contract；命令范围使用结构化
 `command/mode/purpose`，且 profile 必须运行真实 CLI `create/validate/render` 正负向自测。只读子任务必须明确
 不改文件、不联网、不访问账号、凭据或外部服务；平台 review 只记录当前节点为 `review_pending`，
 不得自动关闭长期父目标。需要发现源码遗漏时默认使用 `workspace-files`，no-tools 仅用于限定材料复核；
@@ -22,7 +22,7 @@
 主 agent 使用 `rv64-hardware-professional` 术语描述任务，`render` 向子 agent 追加 RV64 微架构/RTL/
 验证/PPA 语境，`review_pending` 等协调状态留在主 agent；该措辞层不使用关键词黑名单，也不得改变工具、
 shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` 节点负责该接线、硬件语境正例与
-合同权限 mutation 反例。
+合同范围 mutation 反例。
 新派发的渲染提示必须原样使用；validate 失败或手工改写边界后的 reviewer 结果只能是
 `candidate-only`。范围扩展必须创建 versioned JSON、重跑 validate/render 并绑定新 SHA，不能沿用旧合同。
 
@@ -31,6 +31,7 @@ shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` �
 - e2e runner 把 `task_slug` 作为审计身份并从中提取 focus：按字母/数字/CJK 边界拆出最多 8 个去重语义词，过滤日期、序号及 `agent/e2e/run/rerun/final/test/fix` 等生命周期噪声。版本/迭代身份只能用受控相邻片段 `revtag-v<数字><可选字母>` 显式声明，runner 只删除这一对；未声明的裸 `v8`、`v2ray`、内部 `v8a` 等必须作为真实领域词保留，畸形或重复 `revtag` 必须 fail closed。profile 只通过 `--profile` 绑定，不得重复成为 AND focus term。默认 slug `agent-e2e-<profile>` 会退化为 profile 的非泛化语义词（例如 `agent-e2e-npc-dev` → `npc dev`），只作为 profile smoke 兼容入口，不等同于任务特异 focus；真实任务应显式给出可辨识 slug。若过滤后为空则 recall fail closed。runner 固定使用 `--focus-scope non-history`，所以旧 task-run/report/evidence 即使含同 slug 也不能充当独立 primary focus；历史回查仍走默认 `brief` 或更明确的 `runs`/`evidence`。
 - 收尾阶段的 task-specific e2e slug 必须使用已经存在于当前 non-history source/rule 或 DB-owned stored memory 的领域词。若本轮稳定结论本身就是独立 focus，先用 `update-stored` 发布 project/module memory，再运行同词 slug；不得用旧 task-run 自证，也不得放宽 recall gate。`no independent primary focus match` 的 blocked run 只作为顺序反例和诊断证据，不能计入完成证据。
 - 工程命令通过 WSL single-flight 执行，避免并发启动多个 `wsl.exe`。日常 NEMU/NPC 并行开发保持 runtime isolation 默认 `warn`；遇到 `Wsl/Service/E_UNEXPECTED` 或 NEMU profile 被 NPC 残留任务拖慢，先做 WSL 健康检查和 active scenario runtime isolation 判定；若看到超过 86400s 的历史对侧 task-run client，应清理该历史 client 后再补跑当前 NEMU/NPC gate，严谨复现实验再切到 `strict`。
+- 前台调用器 timeout 不等于 WSL 内仿真/构建进程退出。重跑前先用 Windows PowerShell 只读核对对应 PID、子进程和 canonical evidence；live child 存在时继续占用唯一工程命令 lane。只完成中间 phase、但缺少 final result/publication 的流程保持 `GAP`。预计超过前台等待窗口的 canonical flow 应以一个隐藏的 `Start-Process wsl.exe` 启动，保存 PID 与 stdout/stderr 路径并仅由 PowerShell 轮询；确认退出后再核对 return code、design-id 和终态证据，随后才允许下一条 WSL 工程命令。
 - 真实构建/e2e 优先使用 `scripts/agent-run.sh`，让非交互环境加载 `scripts/agent-env.sh`。
 - 外层工具控制符会污染命令字符串。多模式搜索优先使用 `rg -e foo -e bar`，不要依赖带 `|` 的单个正则穿过外层 shell。
 - PowerShell 包裹 `wsl.exe -- bash -lc '...'` 时，不要在一次性命令中裸用 Bash `$var`；`$run`、`$p`、`$args` 等会被 PowerShell 先展开。优先写字面路径，或把复杂逻辑放进仓库脚本后调用。

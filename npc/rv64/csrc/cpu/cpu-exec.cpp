@@ -88,6 +88,7 @@ struct DebugCycleEvent {
   uint64_t bus2;
   uint64_t fetch_addr;
   uint64_t mem_addr;
+  uint64_t mem_diag;
   uint64_t fetch_pte_addr;
   uint64_t fetch_pte;
   uint64_t fetch_pte_meta;
@@ -944,6 +945,7 @@ static void remember_debug_cycle(void) {
   event.bus2 = (uint64_t)g_top->debug_bus2_flags_o;
   event.fetch_addr = (uint64_t)g_top->debug_fetch_addr_o;
   event.mem_addr = (uint64_t)g_top->debug_mem_addr_o;
+  event.mem_diag = (uint64_t)g_top->debug_mem_diag_o;
   event.fetch_pte_addr = (uint64_t)g_top->debug_fetch_pte_addr_o;
   event.fetch_pte = (uint64_t)g_top->debug_fetch_pte_o;
   event.fetch_pte_meta = (uint64_t)g_top->debug_fetch_pte_meta_o;
@@ -1934,17 +1936,28 @@ static void report_recent_debug_cycles(void) {
     if (!event.valid) continue;
     uint64_t flags = event.flags;
     uint64_t bus = event.bus;
+    uint64_t mem_diag = event.mem_diag;
     LogBothTag("cpu_exec",
                "  cyc=%llu commits=%llu pc=0x%016" NPC_PRIxWORD
-               " state=%u stop=%llu arch=%llu sys=%llu trap_ex=%llu cause=%llu "
+               " state=%u stop=%llu csr_head=%llu spec=%llu/%llu synth=%llu/%llu "
+               "arch=%llu sys=%llu trap_ex=%llu cause=%llu "
                "fifo=%llu fetch_state=%llu frsp=%llu/%llu out=%llu ifu_ar=%llu/%llu "
                "ifu_r=%llu/%llu active=0x%04llx ar_sent=0x%04llx fetch_addr=0x%016llx "
-               "mem_addr=0x%016llx pte_addr=0x%016llx pte=0x%016llx pte_meta=0x%llx",
+               "mem_addr=0x%016llx mdiag=0x%016llx br=%llu/%llu "
+               "q0=%llu:%llu%llu%llu:%llu q1=%llu:%llu%llu%llu:%llu "
+               "exact=%llu/%llu lq=%llu/%llu retry=%llu/%llu sel=%llu/%llu "
+               "store=%llu/%llu older=%llu/%llu grant=%llu%llu/%llu%llu sq=%llu/%llu "
+               "pte_addr=0x%016llx pte=0x%016llx pte_meta=0x%llx",
                (unsigned long long)event.cycle,
                (unsigned long long)event.commits,
                event.pc,
                event.state,
                (unsigned long long)((flags >> 0) & 1u),
+               (unsigned long long)((flags >> 45) & 1u),
+               (unsigned long long)((flags >> 44) & 1u),
+               (unsigned long long)((flags >> 43) & 1u),
+               (unsigned long long)((flags >> 42) & 1u),
+               (unsigned long long)((flags >> 41) & 1u),
                (unsigned long long)((flags >> 7) & 1u),
                (unsigned long long)((flags >> 8) & 1u),
                (unsigned long long)((flags >> 36) & 1u),
@@ -1962,6 +1975,37 @@ static void report_recent_debug_cycles(void) {
                (unsigned long long)((event.bus2 >> 12) & 0xffffu),
                (unsigned long long)event.fetch_addr,
                (unsigned long long)event.mem_addr,
+               (unsigned long long)mem_diag,
+               (unsigned long long)((mem_diag >> 0) & 0xfu),
+               (unsigned long long)((mem_diag >> 4) & 0xfu),
+               (unsigned long long)((mem_diag >> 10) & 1u),
+               (unsigned long long)((mem_diag >> 11) & 1u),
+               (unsigned long long)((mem_diag >> 12) & 1u),
+               (unsigned long long)((mem_diag >> 13) & 1u),
+               (unsigned long long)((mem_diag >> 14) & 1u),
+               (unsigned long long)((mem_diag >> 15) & 1u),
+               (unsigned long long)((mem_diag >> 16) & 1u),
+               (unsigned long long)((mem_diag >> 17) & 1u),
+               (unsigned long long)((mem_diag >> 18) & 1u),
+               (unsigned long long)((mem_diag >> 19) & 1u),
+               (unsigned long long)((mem_diag >> 20) & 1u),
+               (unsigned long long)((mem_diag >> 21) & 1u),
+               (unsigned long long)((mem_diag >> 32) & 1u),
+               (unsigned long long)((mem_diag >> 33) & 1u),
+               (unsigned long long)((mem_diag >> 34) & 1u),
+               (unsigned long long)((mem_diag >> 35) & 1u),
+               (unsigned long long)((mem_diag >> 36) & 1u),
+               (unsigned long long)((mem_diag >> 37) & 1u),
+               (unsigned long long)((mem_diag >> 38) & 1u),
+               (unsigned long long)((mem_diag >> 39) & 1u),
+               (unsigned long long)((mem_diag >> 40) & 1u),
+               (unsigned long long)((mem_diag >> 41) & 1u),
+               (unsigned long long)((mem_diag >> 44) & 1u),
+               (unsigned long long)((mem_diag >> 45) & 1u),
+               (unsigned long long)((mem_diag >> 46) & 1u),
+               (unsigned long long)((mem_diag >> 47) & 1u),
+               (unsigned long long)((mem_diag >> 48) & 1u),
+               (unsigned long long)((mem_diag >> 49) & 1u),
                (unsigned long long)event.fetch_pte_addr,
                (unsigned long long)event.fetch_pte,
                (unsigned long long)event.fetch_pte_meta);
@@ -1974,11 +2018,13 @@ static void report_ooo_debug_flags(void) {
   uint64_t bus2 = g_top ? (uint64_t)g_top->debug_bus2_flags_o : 0;
   uint64_t fetch_addr = g_top ? (uint64_t)g_top->debug_fetch_addr_o : 0;
   uint64_t mem_addr = g_top ? (uint64_t)g_top->debug_mem_addr_o : 0;
+  uint64_t mem_diag = g_top ? (uint64_t)g_top->debug_mem_diag_o : 0;
   uint64_t fetch_pte_addr = g_top ? (uint64_t)g_top->debug_fetch_pte_addr_o : 0;
   uint64_t fetch_pte = g_top ? (uint64_t)g_top->debug_fetch_pte_o : 0;
   uint64_t fetch_pte_meta = g_top ? (uint64_t)g_top->debug_fetch_pte_meta_o : 0;
   LogBothTag("cpu_exec",
-             "ooo flags=0x%06llx stop=%llu owner=%llu orphan=%llu exit=%llu branch=%llu "
+             "ooo flags=0x%016llx stop=%llu owner=%llu orphan=%llu "
+             "csr_head=%llu spec=%llu/%llu synth=%llu/%llu exit=%llu branch=%llu "
              "jump=%llu mem=%llu arch_trap=%llu system=%llu irq=%llu csr=%llu "
              "csr_dispatched=%llu irq_pending=%llu drained_q=%llu drained=%llu "
              "dispatch_ready=%llu csr_dispatch_valid=%llu csr_dispatch_fire=%llu "
@@ -1990,6 +2036,11 @@ static void report_ooo_debug_flags(void) {
              (unsigned long long)((flags >> 0) & 1u),
              (unsigned long long)((flags >> 1) & 1u),
              (unsigned long long)((flags >> 2) & 1u),
+             (unsigned long long)((flags >> 45) & 1u),
+             (unsigned long long)((flags >> 44) & 1u),
+             (unsigned long long)((flags >> 43) & 1u),
+             (unsigned long long)((flags >> 42) & 1u),
+             (unsigned long long)((flags >> 41) & 1u),
              (unsigned long long)((flags >> 3) & 1u),
              (unsigned long long)((flags >> 4) & 1u),
              (unsigned long long)((flags >> 5) & 1u),
@@ -2081,6 +2132,75 @@ static void report_ooo_debug_flags(void) {
              (unsigned long long)((bus2 >> 12) & 0xffffu),
              (unsigned long long)((bus2 >> 28) & 0xffffu),
              fetch_addr, mem_addr, fetch_pte_addr, fetch_pte, fetch_pte_meta);
+  LogBothTag("cpu_exec",
+             "memdiag=0x%016llx bridge=%llu/%llu stg=%llu/%llu "
+             "q0=%llu:%llu%llu%llu:%llu q1=%llu:%llu%llu%llu:%llu "
+             "exact=%llu/%llu head=%llu/%llu station=%llu/%llu selected=%llu/%llu "
+             "tracker=%llu/%llu pre_lq=%llu/%llu lq_open=%llu/%llu "
+             "retry=%llu/%llu retry_sel=%llu/%llu store=%llu/%llu older=%llu/%llu "
+             "grant_retry=%llu/%llu grant_issue=%llu%llu/%llu%llu "
+             "sq=%llu/%llu res=%llu/%llu plain_store=%llu/%llu "
+             "miq_head_load=%llu/%llu miq_nonempty=%llu/%llu lq_full=%llu "
+             "sq_nonempty=%llu same_pid=%llu barrier=%llu active_exact=%llu/%llu",
+             (unsigned long long)mem_diag,
+             (unsigned long long)((mem_diag >> 0) & 0xfu),
+             (unsigned long long)((mem_diag >> 4) & 0xfu),
+             (unsigned long long)((mem_diag >> 8) & 1u),
+             (unsigned long long)((mem_diag >> 9) & 1u),
+             (unsigned long long)((mem_diag >> 10) & 1u),
+             (unsigned long long)((mem_diag >> 11) & 1u),
+             (unsigned long long)((mem_diag >> 12) & 1u),
+             (unsigned long long)((mem_diag >> 13) & 1u),
+             (unsigned long long)((mem_diag >> 14) & 1u),
+             (unsigned long long)((mem_diag >> 15) & 1u),
+             (unsigned long long)((mem_diag >> 16) & 1u),
+             (unsigned long long)((mem_diag >> 17) & 1u),
+             (unsigned long long)((mem_diag >> 18) & 1u),
+             (unsigned long long)((mem_diag >> 19) & 1u),
+             (unsigned long long)((mem_diag >> 20) & 1u),
+             (unsigned long long)((mem_diag >> 21) & 1u),
+             (unsigned long long)((mem_diag >> 22) & 1u),
+             (unsigned long long)((mem_diag >> 23) & 1u),
+             (unsigned long long)((mem_diag >> 24) & 1u),
+             (unsigned long long)((mem_diag >> 25) & 1u),
+             (unsigned long long)((mem_diag >> 26) & 1u),
+             (unsigned long long)((mem_diag >> 27) & 1u),
+             (unsigned long long)((mem_diag >> 28) & 1u),
+             (unsigned long long)((mem_diag >> 29) & 1u),
+             (unsigned long long)((mem_diag >> 30) & 1u),
+             (unsigned long long)((mem_diag >> 31) & 1u),
+             (unsigned long long)((mem_diag >> 32) & 1u),
+             (unsigned long long)((mem_diag >> 33) & 1u),
+             (unsigned long long)((mem_diag >> 34) & 1u),
+             (unsigned long long)((mem_diag >> 35) & 1u),
+             (unsigned long long)((mem_diag >> 36) & 1u),
+             (unsigned long long)((mem_diag >> 37) & 1u),
+             (unsigned long long)((mem_diag >> 38) & 1u),
+             (unsigned long long)((mem_diag >> 39) & 1u),
+             (unsigned long long)((mem_diag >> 40) & 1u),
+             (unsigned long long)((mem_diag >> 41) & 1u),
+             (unsigned long long)((mem_diag >> 42) & 1u),
+             (unsigned long long)((mem_diag >> 43) & 1u),
+             (unsigned long long)((mem_diag >> 44) & 1u),
+             (unsigned long long)((mem_diag >> 45) & 1u),
+             (unsigned long long)((mem_diag >> 46) & 1u),
+             (unsigned long long)((mem_diag >> 47) & 1u),
+             (unsigned long long)((mem_diag >> 48) & 1u),
+             (unsigned long long)((mem_diag >> 49) & 1u),
+             (unsigned long long)((mem_diag >> 50) & 1u),
+             (unsigned long long)((mem_diag >> 51) & 1u),
+             (unsigned long long)((mem_diag >> 52) & 1u),
+             (unsigned long long)((mem_diag >> 53) & 1u),
+             (unsigned long long)((mem_diag >> 54) & 1u),
+             (unsigned long long)((mem_diag >> 55) & 1u),
+             (unsigned long long)((mem_diag >> 56) & 1u),
+             (unsigned long long)((mem_diag >> 57) & 1u),
+             (unsigned long long)((mem_diag >> 58) & 1u),
+             (unsigned long long)((mem_diag >> 59) & 1u),
+             (unsigned long long)((mem_diag >> 60) & 1u),
+             (unsigned long long)((mem_diag >> 61) & 1u),
+             (unsigned long long)((mem_diag >> 62) & 1u),
+             (unsigned long long)((mem_diag >> 63) & 1u));
 }
 
 static void report_run_result(void) {
@@ -2127,6 +2247,11 @@ static void report_run_result(void) {
                 exit_via, (uint64_t)st->halt_ret,
                 (unsigned long long)npc_stats()->cycles,
                 (unsigned long long)npc_stats()->commits);
+      }
+      if (commit_watch_exit) {
+        report_ooo_debug_flags();
+        report_recent_debug_cycles();
+        report_recent_commits();
       }
       report_statistics();
       return;
@@ -2315,6 +2440,17 @@ int npc_cpu_exec(uint64_t max_instructions) {
   uint64_t timer_start_us = npc_get_time_us();
   uint64_t executed = 0;
   ProgressReporter progress = make_progress_reporter(max_instructions);
+  const uint64_t commit_gap_limit_cycles =
+      env_u64_or("NPC_COMMIT_GAP_LIMIT_CYCLES", 0);
+  uint64_t commit_gap_last_cycle = npc_stats()->cycles;
+  uint64_t commit_gap_last_count = npc_stats()->commits;
+  if (commit_gap_limit_cycles > 0) {
+    LogBothTag("commit-gap",
+               "enabled limit_cycles=%llu start_cycle=%llu start_commits=%llu",
+               (unsigned long long)commit_gap_limit_cycles,
+               (unsigned long long)commit_gap_last_cycle,
+               (unsigned long long)commit_gap_last_count);
+  }
   npc_reset_guest_expect();
   reset_user_trace_counters();
   g_commit_watch_matched = false;
@@ -2384,6 +2520,29 @@ int npc_cpu_exec(uint64_t max_instructions) {
     if (g_trap_event.valid) {
       report_trap();
       return finish_exec(timer_start_us, 1, true);
+    }
+
+    if (g_commit_event_count > 0) {
+      commit_gap_last_cycle = npc_stats()->cycles;
+      commit_gap_last_count = npc_stats()->commits;
+    } else if (commit_gap_limit_cycles > 0 &&
+               commit_gap_last_count > 0 &&
+               npc_stats()->cycles - commit_gap_last_cycle >=
+                   commit_gap_limit_cycles) {
+      st->state = NPC_ABORT;
+      st->halt_pc = g_top->debug_pc_o;
+      LogBothTag("commit-gap",
+                 "expired gap_cycles=%llu limit_cycles=%llu "
+                 "last_commit_cycle=%llu last_commit_count=%llu "
+                 "current_cycle=%llu current_pc=0x%016" NPC_PRIxWORD,
+                 (unsigned long long)(npc_stats()->cycles -
+                                      commit_gap_last_cycle),
+                 (unsigned long long)commit_gap_limit_cycles,
+                 (unsigned long long)commit_gap_last_cycle,
+                 (unsigned long long)commit_gap_last_count,
+                 (unsigned long long)npc_stats()->cycles,
+                 (npc_word_t)g_top->debug_pc_o);
+      return finish_exec(timer_start_us, 3, true);
     }
 
     if (g_commit_event_count > 0) {

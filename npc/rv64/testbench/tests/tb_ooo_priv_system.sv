@@ -94,6 +94,7 @@ module tb_ooo_priv_system;
   wire [4:0] rob_count;
   wire [3:0] issue_count;
   wire mem_flush;
+  wire mmu_flush;
 
   localparam [3:0] MODE_ECALL_MRET = 4'd0;
   localparam [3:0] MODE_IRQ_WFI = 4'd1;
@@ -104,10 +105,25 @@ module tb_ooo_priv_system;
   localparam [3:0] MODE_SRET_U_ILLEGAL = 4'd6;
   localparam [3:0] MODE_FENCE_ORDERING = 4'd7;
   localparam [3:0] MODE_FDG_ARCH_TRAP = 4'd8;
+  localparam [3:0] MODE_M_VEC_IRQ = 4'd9;
+  localparam [3:0] MODE_S_VEC_IRQ = 4'd10;
+  localparam [3:0] MODE_M_VEC_SYNC = 4'd11;
+  localparam [3:0] V10B_KIND_NONE = 4'd0;
+  localparam [3:0] V10B_KIND_CSR = 4'd1;
+  localparam [3:0] V10B_KIND_ECALL = 4'd2;
+  localparam [3:0] V10B_KIND_XRET = 4'd3;
+  localparam [3:0] V10B_KIND_WFI = 4'd4;
+  localparam [3:0] V10B_KIND_SFENCE = 4'd5;
+  localparam [3:0] V10B_KIND_FENCEI = 4'd6;
+  localparam [3:0] V10B_KIND_FENCE = 4'd7;
+  localparam [3:0] V10B_KIND_IRQ = 4'd8;
   localparam [`XLEN-1:0] BASE_PC = 64'h0000_0000_8000_0000;
   localparam [`XLEN-1:0] HANDLER_PC = 64'h0000_0000_8000_0080;
   localparam [`XLEN-1:0] S_ENTRY_PC = 64'h0000_0000_8000_0040;
   localparam [`XLEN-1:0] S_HANDLER_PC = 64'h0000_0000_8000_0100;
+  localparam [`XLEN-1:0] M_TIMER_VECTOR_PC = HANDLER_PC + 64'h1c;
+  localparam [`XLEN-1:0] S_EXTERNAL_VECTOR_PC = S_HANDLER_PC + 64'h24;
+  localparam [`XLEN-1:0] M_ECALL_WRONG_VECTOR_PC = HANDLER_PC + 64'h2c;
   localparam [`INST_W-1:0] FDG_ILLEGAL_FP_INST =
       {7'b0111111, 5'd3, 5'd2, 3'b000, 5'd1, `OPCODE_OP_FP};
 
@@ -119,6 +135,10 @@ module tb_ooo_priv_system;
   reg saw_lane1_csr_commit;
   reg saw_mret_commit;
   reg saw_sfence_commit;
+  reg saw_sinval_commit;
+  reg saw_sinval_typed_redirect;
+  reg saw_fencei_commit;
+  reg saw_fencei_typed_redirect;
   reg saw_wfi_commit;
   reg saw_irq_handler_fetch;
   reg saw_smode_handler_fetch;
@@ -163,6 +183,40 @@ module tb_ooo_priv_system;
   reg [31:0] xret_illegal_csr_request_count;
   reg [31:0] xret_commit_oracle_hit_count;
   reg [31:0] xret_illegal_commit_count;
+  reg [31:0] vec_trap_mem_count;
+  reg [31:0] vec_trap_ex_count;
+  reg [31:0] vec_trap_irq_count;
+  reg [31:0] vec_target_match_count;
+  reg [31:0] vec_target_mismatch_count;
+  reg [31:0] vec_exact_handler_fetch_count;
+  reg [31:0] vec_wrong_base_fetch_count;
+  reg [31:0] vec_xret_request_count;
+  reg [31:0] vec_xret_commit_count;
+  reg [31:0] vec_return_commit_count;
+  reg [31:0] v10b_terminal_count [0:8];
+  reg [31:0] v10b_redirect_match_count [0:8];
+  reg [31:0] v10b_raw_request_match_count [0:8];
+  reg [31:0] v10b_c1_clear_count [0:8];
+  reg [31:0] v10b_c2_quiet_count [0:8];
+  reg [31:0] v10b_ctrl_commit_count [0:8];
+  reg [31:0] v10b_violation_count;
+  reg [31:0] v10b_mmu_satp_source_count;
+  reg [31:0] v10b_mmu_sfence_source_count;
+  reg [31:0] v10b_mmu_fencei_source_count;
+  reg [31:0] v10b_mmu_flush_count;
+  reg [31:0] v10b_mmu_timing_mismatch_count;
+  reg [3:0] v10b_sfence_terminal_mask;
+  reg [3:0] v10b_sfence_commit_mask;
+  reg v10b_mmu_expected_q;
+  reg v10b_c1_check_pending_q;
+  reg [3:0] v10b_c1_kind_q;
+  reg [`XLEN-1:0] v10b_c1_pc_q;
+  reg [`INST_W-1:0] v10b_c1_inst_q;
+  reg v10b_c2_check_pending_q;
+  reg [3:0] v10b_c2_kind_q;
+  reg [`XLEN-1:0] v10b_c2_pc_q;
+  reg [`INST_W-1:0] v10b_c2_inst_q;
+  integer v10b_monitor_index;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
   wire tb_csr_irq_software_w = irq_software;
@@ -321,7 +375,7 @@ module tb_ooo_priv_system;
     .mem1_translate_active_i(1'b0),
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
-    .mmu_flush_o(),
+    .mmu_flush_o(mmu_flush),
     .csr_frm_w(3'b000),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
@@ -509,6 +563,39 @@ module tb_ooo_priv_system;
     end
   endfunction
 
+  function [`INST_W-1:0] inst_sinval_vma;
+    input [4:0] rs1;
+    input [4:0] rs2;
+    begin
+      inst_sinval_vma = {`SYSTEM_FUNCT7_SINVAL_VMA, rs2, rs1,
+                         `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_sfence_w_inval;
+    begin
+      inst_sfence_w_inval = {
+          `SYSTEM_FUNCT7_SFENCE_INVAL,
+          `SYSTEM_RS2_SFENCE_W_INVAL,
+          5'd0, `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_sfence_inval_ir;
+    begin
+      inst_sfence_inval_ir = {
+          `SYSTEM_FUNCT7_SFENCE_INVAL,
+          `SYSTEM_RS2_SFENCE_INVAL_IR,
+          5'd0, `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_fencei;
+    begin
+      inst_fencei = 32'h0000_100f;
+    end
+  endfunction
+
   function [`INST_W-1:0] program_word;
     input [`XLEN-1:0] addr;
     begin
@@ -526,8 +613,12 @@ module tb_ooo_priv_system;
             BASE_PC + 64'h1c: program_word = inst_ecall();
             BASE_PC + 64'h20: program_word = inst_addi(5'd7, 5'd0, 12'h007);
             BASE_PC + 64'h24: program_word = inst_sfence_vma(5'd0, 5'd0);
-            BASE_PC + 64'h28: program_word = inst_wfi();
-            BASE_PC + 64'h2c: program_word = inst_ebreak();
+            BASE_PC + 64'h28: program_word = inst_sinval_vma(5'd0, 5'd0);
+            BASE_PC + 64'h2c: program_word = inst_sfence_w_inval();
+            BASE_PC + 64'h30: program_word = inst_sfence_inval_ir();
+            BASE_PC + 64'h34: program_word = inst_fencei();
+            BASE_PC + 64'h38: program_word = inst_wfi();
+            BASE_PC + 64'h3c: program_word = inst_ebreak();
             HANDLER_PC + 64'h00: program_word = inst_csrrs(5'd8, `CSR_MCAUSE, 5'd0);
             HANDLER_PC + 64'h04: program_word = inst_csrrs(5'd9, `CSR_MEPC, 5'd0);
             HANDLER_PC + 64'h08: program_word = inst_addi(5'd9, 5'd9, 12'h004);
@@ -732,13 +823,244 @@ module tb_ooo_priv_system;
             default: begin end
           endcase
         end
+        MODE_M_VEC_IRQ: begin
+          case (addr)
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h081);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_MTVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_addi(5'd2, 5'd0, 12'h080);
+            BASE_PC + 64'h10: program_word = inst_csrrw(5'd0, `CSR_MIE, 5'd2);
+            BASE_PC + 64'h14: program_word = inst_addi(5'd3, 5'd0, 12'h008);
+            BASE_PC + 64'h18: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd3);
+            BASE_PC + 64'h1c: program_word = inst_wfi();
+            BASE_PC + 64'h20: program_word = inst_addi(5'd13, 5'd0, 12'h031);
+            BASE_PC + 64'h24: program_word = inst_ebreak();
+            M_TIMER_VECTOR_PC + 64'h00:
+                program_word = inst_csrrs(5'd14, `CSR_MCAUSE, 5'd0);
+            M_TIMER_VECTOR_PC + 64'h04:
+                program_word = inst_addi(5'd15, 5'd0, 12'h061);
+            M_TIMER_VECTOR_PC + 64'h08: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
+        MODE_S_VEC_IRQ: begin
+          case (addr)
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h101);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_STVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_addi(5'd2, 5'd0, 12'h200);
+            BASE_PC + 64'h10: program_word = inst_addi(5'd0, 5'd0, 12'h000);
+            BASE_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MIDELEG, 5'd2);
+            BASE_PC + 64'h18: program_word = inst_auipc(5'd3, 20'h00000);
+            BASE_PC + 64'h1c: program_word = inst_addi(5'd3, 5'd3, 12'h028);
+            BASE_PC + 64'h20: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd3);
+            BASE_PC + 64'h24: program_word = inst_lui(5'd4, 20'h00001);
+            BASE_PC + 64'h28: program_word = inst_addi(5'd4, 5'd4, 12'h800);
+            BASE_PC + 64'h2c: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd4);
+            BASE_PC + 64'h30: program_word = inst_mret();
+            S_ENTRY_PC + 64'h00: program_word = inst_addi(5'd5, 5'd0, 12'h200);
+            S_ENTRY_PC + 64'h04: program_word = inst_csrrw(5'd0, `CSR_SIE, 5'd5);
+            S_ENTRY_PC + 64'h08: program_word = inst_addi(5'd6, 5'd0, 12'h002);
+            S_ENTRY_PC + 64'h0c: program_word = inst_csrrw(5'd0, `CSR_SSTATUS, 5'd6);
+            S_ENTRY_PC + 64'h10: program_word = inst_wfi();
+            S_ENTRY_PC + 64'h14: program_word = inst_addi(5'd7, 5'd0, 12'h032);
+            S_ENTRY_PC + 64'h18: program_word = inst_ebreak();
+            S_EXTERNAL_VECTOR_PC + 64'h00:
+                program_word = inst_csrrs(5'd8, `CSR_SCAUSE, 5'd0);
+            S_EXTERNAL_VECTOR_PC + 64'h04:
+                program_word = inst_csrrs(5'd9, `CSR_SEPC, 5'd0);
+            S_EXTERNAL_VECTOR_PC + 64'h08:
+                program_word = inst_csrrs(5'd10, `CSR_SSTATUS, 5'd0);
+            S_EXTERNAL_VECTOR_PC + 64'h0c:
+                program_word = inst_addi(5'd11, 5'd0, 12'h063);
+            S_EXTERNAL_VECTOR_PC + 64'h10: program_word = inst_sret();
+            default: begin end
+          endcase
+        end
+        MODE_M_VEC_SYNC: begin
+          case (addr)
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h081);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_MTVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_ecall();
+            BASE_PC + 64'h10: program_word = inst_addi(5'd7, 5'd0, 12'h033);
+            BASE_PC + 64'h14: program_word = inst_ebreak();
+            HANDLER_PC + 64'h00:
+                program_word = inst_csrrs(5'd8, `CSR_MCAUSE, 5'd0);
+            HANDLER_PC + 64'h04:
+                program_word = inst_csrrs(5'd9, `CSR_MEPC, 5'd0);
+            HANDLER_PC + 64'h08:
+                program_word = inst_addi(5'd9, 5'd9, 12'h004);
+            HANDLER_PC + 64'h0c:
+                program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd9);
+            HANDLER_PC + 64'h10:
+                program_word = inst_addi(5'd11, 5'd0, 12'h062);
+            HANDLER_PC + 64'h14: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
         default: begin end
       endcase
     end
   endfunction
 
+  function [`REDIR_REASON_W-1:0] v10b_reason_for_kind;
+    input [3:0] kind;
+    begin
+      case (kind)
+        V10B_KIND_CSR:
+          v10b_reason_for_kind = `REDIR_REASON_CSR_COMMIT;
+        V10B_KIND_ECALL, V10B_KIND_IRQ:
+          v10b_reason_for_kind = `REDIR_REASON_TRAP;
+        V10B_KIND_XRET:
+          v10b_reason_for_kind = `REDIR_REASON_XRET;
+        V10B_KIND_SFENCE:
+          v10b_reason_for_kind = `REDIR_REASON_SFENCE;
+        V10B_KIND_FENCEI:
+          v10b_reason_for_kind = `REDIR_REASON_FENCEI;
+        default:
+          v10b_reason_for_kind = `REDIR_REASON_SERIAL;
+      endcase
+    end
+  endfunction
+
+  function [3:0] v10b_kind_from_ctrl_inst;
+    input [`INST_W-1:0] inst;
+    begin
+      if ((inst == inst_mret()) || (inst == inst_sret()))
+        v10b_kind_from_ctrl_inst = V10B_KIND_XRET;
+      else if (inst == inst_wfi())
+        v10b_kind_from_ctrl_inst = V10B_KIND_WFI;
+      else if ((inst == inst_sfence_vma(5'd0, 5'd0)) ||
+               (inst == inst_sinval_vma(5'd0, 5'd0)) ||
+               (inst == inst_sfence_w_inval()) ||
+               (inst == inst_sfence_inval_ir()))
+        v10b_kind_from_ctrl_inst = V10B_KIND_SFENCE;
+      else if (inst == inst_fencei())
+        v10b_kind_from_ctrl_inst = V10B_KIND_FENCEI;
+      else if (inst == inst_fence())
+        v10b_kind_from_ctrl_inst = V10B_KIND_FENCE;
+      else
+        v10b_kind_from_ctrl_inst = V10B_KIND_NONE;
+    end
+  endfunction
+
+  function [3:0] v10b_sfence_encoding_bit;
+    input [`INST_W-1:0] inst;
+    begin
+      if (inst == inst_sfence_vma(5'd0, 5'd0))
+        v10b_sfence_encoding_bit = 4'b0001;
+      else if (inst == inst_sinval_vma(5'd0, 5'd0))
+        v10b_sfence_encoding_bit = 4'b0010;
+      else if (inst == inst_sfence_w_inval())
+        v10b_sfence_encoding_bit = 4'b0100;
+      else if (inst == inst_sfence_inval_ir())
+        v10b_sfence_encoding_bit = 4'b1000;
+      else
+        v10b_sfence_encoding_bit = 4'b0000;
+    end
+  endfunction
+
+  wire [3:0] v10b_pending_kind_w =
+      dut.pending_system_csr_q ? V10B_KIND_CSR :
+      dut.pending_system_ecall_q ? V10B_KIND_ECALL :
+      dut.pending_system_mret_q ? V10B_KIND_XRET :
+      dut.u_control_plane.pending_system_wfi_q ? V10B_KIND_WFI :
+      dut.u_control_plane.pending_system_sfence_q ? V10B_KIND_SFENCE :
+      dut.u_control_plane.pending_system_fencei_q ? V10B_KIND_FENCEI :
+      dut.u_control_plane.pending_system_fence_q ? V10B_KIND_FENCE :
+      dut.pending_system_irq_q ? V10B_KIND_IRQ :
+      V10B_KIND_NONE;
+  wire [3:0] v10b_pending_kind_count_w =
+      {3'b000, dut.pending_system_csr_q} +
+      {3'b000, dut.pending_system_ecall_q} +
+      {3'b000, dut.pending_system_mret_q} +
+      {3'b000, dut.u_control_plane.pending_system_wfi_q} +
+      {3'b000, dut.u_control_plane.pending_system_sfence_q} +
+      {3'b000, dut.u_control_plane.pending_system_fencei_q} +
+      {3'b000, dut.u_control_plane.pending_system_fence_q} +
+      {3'b000, dut.pending_system_irq_q};
+  wire v10b_terminal_fire_w =
+      dut.pending_system_csr_commit_w ||
+      (dut.u_frontend.commit_e6_valid_w &&
+       dut.u_frontend.commit_e6_sel_system_w);
+  wire [3:0] v10b_terminal_kind_w =
+      dut.pending_system_csr_commit_w ?
+          V10B_KIND_CSR : v10b_pending_kind_w;
+  wire [`XLEN-1:0] v10b_expected_redirect_pc_w =
+      ((v10b_terminal_kind_w == V10B_KIND_ECALL) ||
+       (v10b_terminal_kind_w == V10B_KIND_IRQ)) ?
+          tb_csr_trap_target_w :
+      (v10b_terminal_kind_w == V10B_KIND_XRET) ?
+          tb_csr_ret_target_w :
+          dut.pending_system_next_pc_q;
+  wire v10b_redirect_match_w =
+      dut.frontend_control_event_valid_w &&
+      (dut.frontend_control_event_reason_w ==
+       v10b_reason_for_kind(v10b_terminal_kind_w)) &&
+      (dut.frontend_control_event_pc_w ==
+       v10b_expected_redirect_pc_w) &&
+      dut.frontend_control_event_flush_fetch_w &&
+      (dut.frontend_control_event_backend_action_w ==
+       `OOO_BACKEND_ACTION_NONE);
+  wire [3:0] v10b_csr_request_count_w =
+      {3'b000, tb_csr_access_valid_w} +
+      {3'b000, tb_csr_trap_mem_valid_w} +
+      {3'b000, tb_csr_trap_ex_valid_w} +
+      {3'b000, tb_csr_trap_irq_valid_w} +
+      {3'b000, tb_csr_real_mret_valid_w} +
+      {3'b000, tb_csr_sret_valid_w};
+  wire v10b_raw_request_match_w =
+      ((v10b_terminal_kind_w == V10B_KIND_CSR) &&
+       tb_csr_access_valid_w &&
+       (v10b_csr_request_count_w == 4'd1)) ||
+      ((v10b_terminal_kind_w == V10B_KIND_ECALL) &&
+       tb_csr_trap_ex_valid_w &&
+       (tb_csr_trap_ex_pc_w == dut.pending_system_pc_q) &&
+       (tb_csr_trap_ex_cause_w == tb_csr_ecall_cause_w) &&
+       (v10b_csr_request_count_w == 4'd1)) ||
+      ((v10b_terminal_kind_w == V10B_KIND_XRET) &&
+       (tb_csr_real_mret_valid_w || tb_csr_sret_valid_w) &&
+       (v10b_csr_request_count_w == 4'd1)) ||
+      ((v10b_terminal_kind_w == V10B_KIND_IRQ) &&
+       tb_csr_trap_irq_valid_w &&
+       (tb_csr_trap_irq_pc_w == dut.pending_system_pc_q) &&
+       (tb_csr_trap_irq_cause_w ==
+        dut.pending_system_irq_cause_q) &&
+       (v10b_csr_request_count_w == 4'd1)) ||
+      (((v10b_terminal_kind_w == V10B_KIND_WFI) ||
+        (v10b_terminal_kind_w == V10B_KIND_SFENCE) ||
+        (v10b_terminal_kind_w == V10B_KIND_FENCEI) ||
+        (v10b_terminal_kind_w == V10B_KIND_FENCE)) &&
+       (v10b_csr_request_count_w == 4'd0));
+  wire v10b_mmu_source_w =
+      dut.pending_system_satp_write_commit_w ||
+      dut.pending_system_sfence_commit_w ||
+      dut.pending_system_fencei_commit_w;
+  wire [2:0] v10b_mmu_source_count_w =
+      {2'b00, dut.pending_system_satp_write_commit_w} +
+      {2'b00, dut.pending_system_sfence_commit_w} +
+      {2'b00, dut.pending_system_fencei_commit_w};
+  wire v10b_pending_csr_write_intent_w =
+      (dut.pending_system_inst_q[14:12] == 3'b001) ||
+      (dut.pending_system_inst_q[14:12] == 3'b101) ||
+      (((dut.pending_system_inst_q[14:12] == 3'b010) ||
+         (dut.pending_system_inst_q[14:12] == 3'b011) ||
+         (dut.pending_system_inst_q[14:12] == 3'b110) ||
+         (dut.pending_system_inst_q[14:12] == 3'b111)) &&
+       (dut.pending_system_inst_q[19:15] != 5'd0));
+  wire v10b_expected_mmu_source_w =
+      (v10b_terminal_kind_w == V10B_KIND_SFENCE) ||
+      (v10b_terminal_kind_w == V10B_KIND_FENCEI) ||
+      ((v10b_terminal_kind_w == V10B_KIND_CSR) &&
+       (dut.pending_system_inst_q[31:20] == `CSR_SATP) &&
+       v10b_pending_csr_write_intent_w);
+  wire [3:0] v10b_ctrl_commit_kind_w =
+      v10b_kind_from_ctrl_inst(dut.u_writeback.ctrl_commit_inst_q);
+
   task automatic reset_dut;
     input [3:0] mode_i;
+    integer v10b_reset_index;
     begin
       clk = 1'b0;
       rst = 1'b1;
@@ -773,6 +1095,10 @@ module tb_ooo_priv_system;
       saw_lane1_csr_commit = 1'b0;
       saw_mret_commit = 1'b0;
       saw_sfence_commit = 1'b0;
+      saw_sinval_commit = 1'b0;
+      saw_sinval_typed_redirect = 1'b0;
+      saw_fencei_commit = 1'b0;
+      saw_fencei_typed_redirect = 1'b0;
       saw_wfi_commit = 1'b0;
       saw_irq_handler_fetch = 1'b0;
       saw_smode_handler_fetch = 1'b0;
@@ -817,6 +1143,43 @@ module tb_ooo_priv_system;
       xret_illegal_csr_request_count = 32'd0;
       xret_commit_oracle_hit_count = 32'd0;
       xret_illegal_commit_count = 32'd0;
+      vec_trap_mem_count = 32'd0;
+      vec_trap_ex_count = 32'd0;
+      vec_trap_irq_count = 32'd0;
+      vec_target_match_count = 32'd0;
+      vec_target_mismatch_count = 32'd0;
+      vec_exact_handler_fetch_count = 32'd0;
+      vec_wrong_base_fetch_count = 32'd0;
+      vec_xret_request_count = 32'd0;
+      vec_xret_commit_count = 32'd0;
+      vec_return_commit_count = 32'd0;
+      for (v10b_reset_index = 0;
+           v10b_reset_index <= 8;
+           v10b_reset_index = v10b_reset_index + 1) begin
+        v10b_terminal_count[v10b_reset_index] = 32'd0;
+        v10b_redirect_match_count[v10b_reset_index] = 32'd0;
+        v10b_raw_request_match_count[v10b_reset_index] = 32'd0;
+        v10b_c1_clear_count[v10b_reset_index] = 32'd0;
+        v10b_c2_quiet_count[v10b_reset_index] = 32'd0;
+        v10b_ctrl_commit_count[v10b_reset_index] = 32'd0;
+      end
+      v10b_violation_count = 32'd0;
+      v10b_mmu_satp_source_count = 32'd0;
+      v10b_mmu_sfence_source_count = 32'd0;
+      v10b_mmu_fencei_source_count = 32'd0;
+      v10b_mmu_flush_count = 32'd0;
+      v10b_mmu_timing_mismatch_count = 32'd0;
+      v10b_sfence_terminal_mask = 4'b0000;
+      v10b_sfence_commit_mask = 4'b0000;
+      v10b_mmu_expected_q = 1'b0;
+      v10b_c1_check_pending_q = 1'b0;
+      v10b_c1_kind_q = V10B_KIND_NONE;
+      v10b_c1_pc_q = {`XLEN{1'b0}};
+      v10b_c1_inst_q = {`INST_W{1'b0}};
+      v10b_c2_check_pending_q = 1'b0;
+      v10b_c2_kind_q = V10B_KIND_NONE;
+      v10b_c2_pc_q = {`XLEN{1'b0}};
+      v10b_c2_inst_q = {`INST_W{1'b0}};
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -834,6 +1197,102 @@ module tb_ooo_priv_system;
         tb_errors = tb_errors + 1;
         $display("[CHECK-FAIL] timeout waiting for completion mode=%0d",
                  program_mode);
+      end
+    end
+  endtask
+
+  task automatic check_v10b_scoreboard;
+    input [3:0] mode_i;
+    integer kind;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      for (kind = V10B_KIND_CSR; kind <= V10B_KIND_IRQ;
+           kind = kind + 1) begin
+        if ((v10b_terminal_count[kind] !==
+             v10b_redirect_match_count[kind]) ||
+            (v10b_terminal_count[kind] !==
+             v10b_raw_request_match_count[kind]) ||
+            (v10b_terminal_count[kind] !==
+             v10b_c1_clear_count[kind]) ||
+            (v10b_terminal_count[kind] !==
+             v10b_c2_quiet_count[kind])) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10B mode=%0d kind=%0d terminal=%0d redirect=%0d raw=%0d C1=%0d C2=%0d",
+                   mode_i, kind, v10b_terminal_count[kind],
+                   v10b_redirect_match_count[kind],
+                   v10b_raw_request_match_count[kind],
+                   v10b_c1_clear_count[kind],
+                   v10b_c2_quiet_count[kind]);
+        end
+      end
+
+      if ((v10b_ctrl_commit_count[V10B_KIND_CSR] != 32'd0) ||
+          (v10b_ctrl_commit_count[V10B_KIND_ECALL] != 32'd0) ||
+          (v10b_ctrl_commit_count[V10B_KIND_IRQ] != 32'd0) ||
+          (v10b_ctrl_commit_count[V10B_KIND_XRET] !=
+           v10b_terminal_count[V10B_KIND_XRET]) ||
+          (v10b_ctrl_commit_count[V10B_KIND_WFI] !=
+           v10b_terminal_count[V10B_KIND_WFI]) ||
+          (v10b_ctrl_commit_count[V10B_KIND_SFENCE] !=
+           v10b_terminal_count[V10B_KIND_SFENCE]) ||
+          (v10b_ctrl_commit_count[V10B_KIND_FENCEI] !=
+           v10b_terminal_count[V10B_KIND_FENCEI]) ||
+          (v10b_ctrl_commit_count[V10B_KIND_FENCE] !=
+           v10b_terminal_count[V10B_KIND_FENCE])) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V10B mode=%0d ctrl-commit CSR=%0d ECALL=%0d XRET=%0d/%0d WFI=%0d/%0d SFENCE=%0d/%0d FENCEI=%0d/%0d FENCE=%0d/%0d IRQ=%0d",
+                 mode_i,
+                 v10b_ctrl_commit_count[V10B_KIND_CSR],
+                 v10b_ctrl_commit_count[V10B_KIND_ECALL],
+                 v10b_ctrl_commit_count[V10B_KIND_XRET],
+                 v10b_terminal_count[V10B_KIND_XRET],
+                 v10b_ctrl_commit_count[V10B_KIND_WFI],
+                 v10b_terminal_count[V10B_KIND_WFI],
+                 v10b_ctrl_commit_count[V10B_KIND_SFENCE],
+                 v10b_terminal_count[V10B_KIND_SFENCE],
+                 v10b_ctrl_commit_count[V10B_KIND_FENCEI],
+                 v10b_terminal_count[V10B_KIND_FENCEI],
+                 v10b_ctrl_commit_count[V10B_KIND_FENCE],
+                 v10b_terminal_count[V10B_KIND_FENCE],
+                 v10b_ctrl_commit_count[V10B_KIND_IRQ]);
+      end
+
+      if ((v10b_violation_count != 32'd0) ||
+          (v10b_mmu_timing_mismatch_count != 32'd0) ||
+          v10b_c1_check_pending_q || v10b_c2_check_pending_q ||
+          v10b_mmu_expected_q || mmu_flush ||
+          (v10b_mmu_flush_count !=
+           (v10b_mmu_satp_source_count +
+            v10b_mmu_sfence_source_count +
+            v10b_mmu_fencei_source_count))) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V10B mode=%0d violations=%0d mmu_mismatch=%0d C1_pending=%0d C2_pending=%0d mmu_expected=%0d mmu_flush=%0d mmu_sources=%0d/%0d/%0d mmu_out=%0d",
+                 mode_i, v10b_violation_count,
+                 v10b_mmu_timing_mismatch_count,
+                 v10b_c1_check_pending_q, v10b_c2_check_pending_q,
+                 v10b_mmu_expected_q, mmu_flush,
+                 v10b_mmu_satp_source_count,
+                 v10b_mmu_sfence_source_count,
+                 v10b_mmu_fencei_source_count,
+                 v10b_mmu_flush_count);
+      end
+
+      if (tb_errors == errors_before) begin
+        $display("[V10B-SYSTEM-POST-FIRE] mode=%0d terminal={csr:%0d,ecall:%0d,xret:%0d,wfi:%0d,sfence:%0d,fencei:%0d,fence:%0d,irq:%0d} C1=matched C2=no-repeat ctrl=matched mmu={satp:%0d,sfence:%0d,fencei:%0d,out:%0d} PASS",
+                 mode_i,
+                 v10b_terminal_count[V10B_KIND_CSR],
+                 v10b_terminal_count[V10B_KIND_ECALL],
+                 v10b_terminal_count[V10B_KIND_XRET],
+                 v10b_terminal_count[V10B_KIND_WFI],
+                 v10b_terminal_count[V10B_KIND_SFENCE],
+                 v10b_terminal_count[V10B_KIND_FENCEI],
+                 v10b_terminal_count[V10B_KIND_FENCE],
+                 v10b_terminal_count[V10B_KIND_IRQ],
+                 v10b_mmu_satp_source_count,
+                 v10b_mmu_sfence_source_count,
+                 v10b_mmu_fencei_source_count,
+                 v10b_mmu_flush_count);
       end
     end
   endtask
@@ -864,11 +1323,22 @@ module tb_ooo_priv_system;
             irq_timer <= 1'b0;
           end
         end
+        if ((program_mode == MODE_M_VEC_IRQ) &&
+            (fetch_req_pc == M_TIMER_VECTOR_PC)) begin
+          saw_handler_fetch <= 1'b1;
+          saw_irq_handler_fetch <= 1'b1;
+          irq_timer <= 1'b0;
+        end
         if (fetch_req_pc == S_HANDLER_PC) begin
           saw_smode_handler_fetch <= 1'b1;
           if (program_mode == MODE_S_EXT_IRQ) begin
             irq_external <= 1'b0;
           end
+        end
+        if ((program_mode == MODE_S_VEC_IRQ) &&
+            (fetch_req_pc == S_EXTERNAL_VECTOR_PC)) begin
+          saw_smode_handler_fetch <= 1'b1;
+          irq_external <= 1'b0;
         end
       end
     end
@@ -953,6 +1423,8 @@ module tb_ooo_priv_system;
           saw_illegal_xret_commit <= 1'b1;
         end
         if (inst == inst_sfence_vma(5'd0, 5'd0)) saw_sfence_commit <= 1'b1;
+        if (inst == inst_sinval_vma(5'd0, 5'd0)) saw_sinval_commit <= 1'b1;
+        if (inst == inst_fencei()) saw_fencei_commit <= 1'b1;
         if (inst == inst_wfi()) saw_wfi_commit <= 1'b1;
       end
     end
@@ -995,10 +1467,125 @@ module tb_ooo_priv_system;
       xret_illegal_csr_request_count <= 32'd0;
       xret_commit_oracle_hit_count <= 32'd0;
       xret_illegal_commit_count <= 32'd0;
+      vec_trap_mem_count <= 32'd0;
+      vec_trap_ex_count <= 32'd0;
+      vec_trap_irq_count <= 32'd0;
+      vec_target_match_count <= 32'd0;
+      vec_target_mismatch_count <= 32'd0;
+      vec_exact_handler_fetch_count <= 32'd0;
+      vec_wrong_base_fetch_count <= 32'd0;
+      vec_xret_request_count <= 32'd0;
+      vec_xret_commit_count <= 32'd0;
+      vec_return_commit_count <= 32'd0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       observe_commit(commit0_valid, commit0_pc, commit0_inst);
       observe_commit(commit1_valid, commit1_pc, commit1_inst);
+
+      // VECTORED-TRAP-G2/G3/G4 intentionally count every raw CsrFile request
+      // pulse and every fetch/commit handshake.  No deduplication is permitted:
+      // a repeated terminal transaction must make the exact-one checks fail.
+      if ((program_mode == MODE_M_VEC_IRQ) ||
+          (program_mode == MODE_S_VEC_IRQ) ||
+          (program_mode == MODE_M_VEC_SYNC)) begin
+        if (tb_csr_trap_mem_valid_w)
+          vec_trap_mem_count <= vec_trap_mem_count + 32'd1;
+        if (tb_csr_trap_ex_valid_w)
+          vec_trap_ex_count <= vec_trap_ex_count + 32'd1;
+        if (tb_csr_trap_irq_valid_w)
+          vec_trap_irq_count <= vec_trap_irq_count + 32'd1;
+
+        if (tb_csr_trap_mem_valid_w ||
+            tb_csr_trap_ex_valid_w ||
+            tb_csr_trap_irq_valid_w) begin
+          if (((program_mode == MODE_M_VEC_IRQ) &&
+               (tb_csr_trap_target_w == M_TIMER_VECTOR_PC)) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (tb_csr_trap_target_w == S_EXTERNAL_VECTOR_PC)) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (tb_csr_trap_target_w == HANDLER_PC))) begin
+            vec_target_match_count <= vec_target_match_count + 32'd1;
+          end else begin
+            vec_target_mismatch_count <= vec_target_mismatch_count + 32'd1;
+          end
+        end
+
+        if (fetch_req_valid && fetch_req_ready) begin
+          if (((program_mode == MODE_M_VEC_IRQ) &&
+               (fetch_req_pc == M_TIMER_VECTOR_PC)) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (fetch_req_pc == S_EXTERNAL_VECTOR_PC)) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (fetch_req_pc == HANDLER_PC))) begin
+            vec_exact_handler_fetch_count <=
+                vec_exact_handler_fetch_count + 32'd1;
+          end
+          if (((program_mode == MODE_M_VEC_IRQ) &&
+               (fetch_req_pc == HANDLER_PC)) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (fetch_req_pc == S_HANDLER_PC)) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (fetch_req_pc == M_ECALL_WRONG_VECTOR_PC))) begin
+            vec_wrong_base_fetch_count <= vec_wrong_base_fetch_count + 32'd1;
+          end
+        end
+
+        if (((program_mode == MODE_M_VEC_IRQ) &&
+             tb_csr_real_mret_valid_w &&
+             (dut.pending_system_pc_q == (M_TIMER_VECTOR_PC + 64'h08))) ||
+            ((program_mode == MODE_S_VEC_IRQ) &&
+             tb_csr_sret_valid_w &&
+             (dut.pending_system_pc_q == (S_EXTERNAL_VECTOR_PC + 64'h10))) ||
+            ((program_mode == MODE_M_VEC_SYNC) &&
+             tb_csr_real_mret_valid_w &&
+             (dut.pending_system_pc_q == (HANDLER_PC + 64'h14)))) begin
+          vec_xret_request_count <= vec_xret_request_count + 32'd1;
+        end
+
+        vec_xret_commit_count <= vec_xret_commit_count +
+            (commit0_valid &&
+             (((program_mode == MODE_M_VEC_IRQ) &&
+               (commit0_pc == (M_TIMER_VECTOR_PC + 64'h08)) &&
+               (commit0_inst == inst_mret())) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (commit0_pc == (S_EXTERNAL_VECTOR_PC + 64'h10)) &&
+               (commit0_inst == inst_sret())) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (commit0_pc == (HANDLER_PC + 64'h14)) &&
+               (commit0_inst == inst_mret())))) +
+            (commit1_valid &&
+             (((program_mode == MODE_M_VEC_IRQ) &&
+               (commit1_pc == (M_TIMER_VECTOR_PC + 64'h08)) &&
+               (commit1_inst == inst_mret())) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (commit1_pc == (S_EXTERNAL_VECTOR_PC + 64'h10)) &&
+               (commit1_inst == inst_sret())) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (commit1_pc == (HANDLER_PC + 64'h14)) &&
+               (commit1_inst == inst_mret()))));
+
+        vec_return_commit_count <= vec_return_commit_count +
+            (commit0_valid &&
+             (((program_mode == MODE_M_VEC_IRQ) &&
+               (commit0_pc == (BASE_PC + 64'h20)) &&
+               (commit0_inst == inst_addi(5'd13, 5'd0, 12'h031))) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (commit0_pc == (S_ENTRY_PC + 64'h14)) &&
+               (commit0_inst == inst_addi(5'd7, 5'd0, 12'h032))) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (commit0_pc == (BASE_PC + 64'h10)) &&
+               (commit0_inst == inst_addi(5'd7, 5'd0, 12'h033))))) +
+            (commit1_valid &&
+             (((program_mode == MODE_M_VEC_IRQ) &&
+               (commit1_pc == (BASE_PC + 64'h20)) &&
+               (commit1_inst == inst_addi(5'd13, 5'd0, 12'h031))) ||
+              ((program_mode == MODE_S_VEC_IRQ) &&
+               (commit1_pc == (S_ENTRY_PC + 64'h14)) &&
+               (commit1_inst == inst_addi(5'd7, 5'd0, 12'h032))) ||
+              ((program_mode == MODE_M_VEC_SYNC) &&
+               (commit1_pc == (BASE_PC + 64'h10)) &&
+               (commit1_inst == inst_addi(5'd7, 5'd0, 12'h033)))));
+      end
 
       // XRET-G1 legal controls use the same CsrFile request and architectural
       // commit interfaces as the illegal-return zero-side-effect oracles.
@@ -1311,7 +1898,19 @@ module tb_ooo_priv_system;
                      tb_csr_illegal_w);
           end
           t3k_lane1_match_count <= t3k_lane1_match_count + 32'd1;
-        end
+          end
+      end
+      if ((program_mode == MODE_ECALL_MRET) &&
+          dut.u_frontend.commit_e6_system_sfence_w &&
+          (dut.pending_system_inst_q == inst_sinval_vma(5'd0, 5'd0)) &&
+          (dut.u_frontend.commit_trap_reason_w == `REDIR_REASON_SFENCE)) begin
+        saw_sinval_typed_redirect <= 1'b1;
+      end
+      if ((program_mode == MODE_ECALL_MRET) &&
+          dut.u_frontend.commit_e6_system_fencei_w &&
+          (dut.pending_system_inst_q == inst_fencei()) &&
+          (dut.u_frontend.commit_trap_reason_w == `REDIR_REASON_FENCEI)) begin
+        saw_fencei_typed_redirect <= 1'b1;
       end
       if ((program_mode == MODE_MRET_S_ILLEGAL) &&
           tb_csr_real_mret_valid_w &&
@@ -1321,6 +1920,179 @@ module tb_ooo_priv_system;
       if ((program_mode == MODE_SRET_U_ILLEGAL) &&
           tb_csr_sret_valid_w) begin
         saw_illegal_xret_csr_request <= 1'b1;
+      end
+    end
+  end
+
+  // V10B production-glue scoreboard.  Every raw terminal request is counted
+  // directly; no event is deduplicated.  The C1/C2 checks therefore expose a
+  // repeated fire instead of hiding it behind a seen-bit.
+  always @(posedge clk) begin
+    if (rst) begin
+      for (v10b_monitor_index = 0;
+           v10b_monitor_index <= 8;
+           v10b_monitor_index = v10b_monitor_index + 1) begin
+        v10b_terminal_count[v10b_monitor_index] <= 32'd0;
+        v10b_redirect_match_count[v10b_monitor_index] <= 32'd0;
+        v10b_raw_request_match_count[v10b_monitor_index] <= 32'd0;
+        v10b_c1_clear_count[v10b_monitor_index] <= 32'd0;
+        v10b_c2_quiet_count[v10b_monitor_index] <= 32'd0;
+        v10b_ctrl_commit_count[v10b_monitor_index] <= 32'd0;
+      end
+      v10b_violation_count <= 32'd0;
+      v10b_mmu_satp_source_count <= 32'd0;
+      v10b_mmu_sfence_source_count <= 32'd0;
+      v10b_mmu_fencei_source_count <= 32'd0;
+      v10b_mmu_flush_count <= 32'd0;
+      v10b_mmu_timing_mismatch_count <= 32'd0;
+      v10b_sfence_terminal_mask <= 4'b0000;
+      v10b_sfence_commit_mask <= 4'b0000;
+      v10b_mmu_expected_q <= 1'b0;
+      v10b_c1_check_pending_q <= 1'b0;
+      v10b_c1_kind_q <= V10B_KIND_NONE;
+      v10b_c1_pc_q <= {`XLEN{1'b0}};
+      v10b_c1_inst_q <= {`INST_W{1'b0}};
+      v10b_c2_check_pending_q <= 1'b0;
+      v10b_c2_kind_q <= V10B_KIND_NONE;
+      v10b_c2_pc_q <= {`XLEN{1'b0}};
+      v10b_c2_inst_q <= {`INST_W{1'b0}};
+    end else begin
+      if (mmu_flush !== v10b_mmu_expected_q) begin
+        v10b_mmu_timing_mismatch_count <=
+            v10b_mmu_timing_mismatch_count + 32'd1;
+        v10b_violation_count <= v10b_violation_count + 32'd1;
+        $display("[CHECK-FAIL] V10B MMU registered action got=%b expected_prior_source=%b @%0t",
+                 mmu_flush, v10b_mmu_expected_q, $time);
+      end
+      v10b_mmu_expected_q <= v10b_mmu_source_w;
+      if (mmu_flush)
+        v10b_mmu_flush_count <= v10b_mmu_flush_count + 32'd1;
+      if (dut.pending_system_satp_write_commit_w)
+        v10b_mmu_satp_source_count <=
+            v10b_mmu_satp_source_count + 32'd1;
+      if (dut.pending_system_sfence_commit_w)
+        v10b_mmu_sfence_source_count <=
+            v10b_mmu_sfence_source_count + 32'd1;
+      if (dut.pending_system_fencei_commit_w)
+        v10b_mmu_fencei_source_count <=
+            v10b_mmu_fencei_source_count + 32'd1;
+
+      if (dut.ctrl_commit_valid_q &&
+          (v10b_ctrl_commit_kind_w != V10B_KIND_NONE)) begin
+        v10b_ctrl_commit_count[v10b_ctrl_commit_kind_w] <=
+            v10b_ctrl_commit_count[v10b_ctrl_commit_kind_w] + 32'd1;
+        if (v10b_ctrl_commit_kind_w == V10B_KIND_SFENCE)
+          v10b_sfence_commit_mask <= v10b_sfence_commit_mask |
+              v10b_sfence_encoding_bit(
+                  dut.u_writeback.ctrl_commit_inst_q);
+      end
+
+      if (v10b_c2_check_pending_q) begin
+        if (v10b_terminal_fire_w &&
+            (v10b_terminal_kind_w == v10b_c2_kind_q) &&
+            (dut.pending_system_pc_q == v10b_c2_pc_q) &&
+            (dut.pending_system_inst_q == v10b_c2_inst_q)) begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B C2 repeated terminal kind=%0d pc=%h inst=%h @%0t",
+                   v10b_c2_kind_q, v10b_c2_pc_q,
+                   v10b_c2_inst_q, $time);
+        end else begin
+          v10b_c2_quiet_count[v10b_c2_kind_q] <=
+              v10b_c2_quiet_count[v10b_c2_kind_q] + 32'd1;
+        end
+        v10b_c2_check_pending_q <= 1'b0;
+      end
+
+      if (v10b_c1_check_pending_q) begin
+        if (dut.pending_system_q || dut.stop_pending_q) begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B C1 owner/stop not clear kind=%0d pc=%h inst=%h owner=%b stop=%b @%0t",
+                   v10b_c1_kind_q, v10b_c1_pc_q,
+                   v10b_c1_inst_q, dut.pending_system_q,
+                   dut.stop_pending_q, $time);
+        end else begin
+          v10b_c1_clear_count[v10b_c1_kind_q] <=
+              v10b_c1_clear_count[v10b_c1_kind_q] + 32'd1;
+        end
+        v10b_c1_check_pending_q <= 1'b0;
+        v10b_c2_check_pending_q <= 1'b1;
+        v10b_c2_kind_q <= v10b_c1_kind_q;
+        v10b_c2_pc_q <= v10b_c1_pc_q;
+        v10b_c2_inst_q <= v10b_c1_inst_q;
+      end
+
+      if (v10b_terminal_fire_w) begin
+        v10b_terminal_count[v10b_terminal_kind_w] <=
+            v10b_terminal_count[v10b_terminal_kind_w] + 32'd1;
+        if (!dut.pending_system_q || !dut.stop_pending_q ||
+            (v10b_pending_kind_count_w != 4'd1) ||
+            (v10b_terminal_kind_w == V10B_KIND_NONE) ||
+            v10b_c1_check_pending_q || v10b_c2_check_pending_q) begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B C0 owner/kind overlap kind=%0d count=%0d owner=%b stop=%b C1=%b C2=%b @%0t",
+                   v10b_terminal_kind_w, v10b_pending_kind_count_w,
+                   dut.pending_system_q, dut.stop_pending_q,
+                   v10b_c1_check_pending_q,
+                   v10b_c2_check_pending_q, $time);
+        end
+
+        if (v10b_redirect_match_w) begin
+          v10b_redirect_match_count[v10b_terminal_kind_w] <=
+              v10b_redirect_match_count[v10b_terminal_kind_w] + 32'd1;
+        end else begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B typed redirect kind=%0d valid=%b reason=%0d expected_reason=%0d pc=%h expected_pc=%h flush=%b action=%0d @%0t",
+                   v10b_terminal_kind_w,
+                   dut.frontend_control_event_valid_w,
+                   dut.frontend_control_event_reason_w,
+                   v10b_reason_for_kind(v10b_terminal_kind_w),
+                   dut.frontend_control_event_pc_w,
+                   v10b_expected_redirect_pc_w,
+                   dut.frontend_control_event_flush_fetch_w,
+                   dut.frontend_control_event_backend_action_w,
+                   $time);
+        end
+
+        if (v10b_raw_request_match_w) begin
+          v10b_raw_request_match_count[v10b_terminal_kind_w] <=
+              v10b_raw_request_match_count[v10b_terminal_kind_w] + 32'd1;
+        end else begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B selected CsrFile request kind=%0d count=%0d access=%b mem=%b ex=%b irq=%b mret=%b sret=%b @%0t",
+                   v10b_terminal_kind_w, v10b_csr_request_count_w,
+                   tb_csr_access_valid_w, tb_csr_trap_mem_valid_w,
+                   tb_csr_trap_ex_valid_w, tb_csr_trap_irq_valid_w,
+                   tb_csr_real_mret_valid_w, tb_csr_sret_valid_w,
+                   $time);
+        end
+
+        if ((v10b_expected_mmu_source_w &&
+             ((v10b_mmu_source_count_w != 3'd1) ||
+              ((v10b_terminal_kind_w == V10B_KIND_SFENCE) &&
+               !dut.pending_system_sfence_commit_w) ||
+              ((v10b_terminal_kind_w == V10B_KIND_FENCEI) &&
+               !dut.pending_system_fencei_commit_w) ||
+              ((v10b_terminal_kind_w == V10B_KIND_CSR) &&
+               !dut.pending_system_satp_write_commit_w))) ||
+            (!v10b_expected_mmu_source_w &&
+             (v10b_mmu_source_count_w != 3'd0))) begin
+          v10b_violation_count <= v10b_violation_count + 32'd1;
+          $display("[CHECK-FAIL] V10B MMU source kind=%0d expected=%b satp=%b sfence=%b fencei=%b @%0t",
+                   v10b_terminal_kind_w,
+                   v10b_expected_mmu_source_w,
+                   dut.pending_system_satp_write_commit_w,
+                   dut.pending_system_sfence_commit_w,
+                   dut.pending_system_fencei_commit_w, $time);
+        end
+
+        if (v10b_terminal_kind_w == V10B_KIND_SFENCE)
+          v10b_sfence_terminal_mask <= v10b_sfence_terminal_mask |
+              v10b_sfence_encoding_bit(dut.pending_system_inst_q);
+
+        v10b_c1_check_pending_q <= 1'b1;
+        v10b_c1_kind_q <= v10b_terminal_kind_w;
+        v10b_c1_pc_q <= dut.pending_system_pc_q;
+        v10b_c1_inst_q <= dut.pending_system_inst_q;
       end
     end
   end
@@ -1348,7 +2120,23 @@ module tb_ooo_priv_system;
     tb_check32("V8K pending CSR exact lease death count", v8k_death_count, 32'd1);
     tb_check1("mret synthetic commit observed", saw_mret_commit, 1'b1);
     tb_check1("sfence synthetic commit observed", saw_sfence_commit, 1'b1);
+    tb_check1("sinval synthetic commit observed", saw_sinval_commit, 1'b1);
+    tb_check1("sinval uses SFENCE typed redirect",
+              saw_sinval_typed_redirect, 1'b1);
+    tb_check1("fence.i synthetic commit observed", saw_fencei_commit, 1'b1);
+    tb_check1("fence.i uses FENCEI typed redirect",
+              saw_fencei_typed_redirect, 1'b1);
     tb_check1("wfi synthetic commit observed", saw_wfi_commit, 1'b1);
+    if (saw_sfence_commit && saw_sinval_commit &&
+        saw_sinval_typed_redirect && saw_fencei_commit &&
+        saw_fencei_typed_redirect && saw_wfi_commit) begin
+      $display("[V9W-SERIAL-TYPED-REDIRECT] sfence=1 sinval=1 sinval_reason=SFENCE fencei=1 fencei_reason=FENCEI wfi=1 PASS");
+    end else begin
+      $display("[V9W-SERIAL-TYPED-REDIRECT] sfence=%0d sinval=%0d sinval_reason=%0d fencei=%0d fencei_reason=%0d wfi=%0d FAIL",
+               saw_sfence_commit, saw_sinval_commit,
+               saw_sinval_typed_redirect, saw_fencei_commit,
+               saw_fencei_typed_redirect, saw_wfi_commit);
+    end
     tb_check64("mtvec old value returned", gpr(5'd5), 64'h0);
     tb_check64("mtvec readback after lane1 csrrw", gpr(5'd6), HANDLER_PC);
     tb_check64("ecall mcause", gpr(5'd8), {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_MMODE});
@@ -1369,6 +2157,47 @@ module tb_ooo_priv_system;
       $display("[XRET-G1-PROGRAM-LEGAL-MRET] csr_request=%0d commit=%0d return=%0d backend_drained=%0d FAIL",
                xret_legal_csr_request_count, xret_legal_commit_count,
                (gpr(5'd7) == 64'h7), (rob_count == 5'd0));
+    end
+    check_v10b_scoreboard(MODE_ECALL_MRET);
+    tb_check1("V10B CSR terminal path exercised",
+              v10b_terminal_count[V10B_KIND_CSR] != 32'd0, 1'b1);
+    tb_check32("V10B ECALL terminal count",
+               v10b_terminal_count[V10B_KIND_ECALL], 32'd1);
+    tb_check32("V10B xRET terminal count",
+               v10b_terminal_count[V10B_KIND_XRET], 32'd1);
+    tb_check32("V10B WFI terminal count",
+               v10b_terminal_count[V10B_KIND_WFI], 32'd1);
+    tb_check32("V10B SFENCE-family terminal count",
+               v10b_terminal_count[V10B_KIND_SFENCE], 32'd4);
+    tb_check32("V10B FENCE.I terminal count",
+               v10b_terminal_count[V10B_KIND_FENCEI], 32'd1);
+    tb_check32("V10B no ordinary FENCE in mixed-system program",
+               v10b_terminal_count[V10B_KIND_FENCE], 32'd0);
+    tb_check32("V10B no IRQ in mixed-system program",
+               v10b_terminal_count[V10B_KIND_IRQ], 32'd0);
+    tb_check32("V10B four SFENCE-family C0 encodings",
+               {28'b0, v10b_sfence_terminal_mask}, 32'h0000_000f);
+    tb_check32("V10B four SFENCE-family C1 commits",
+               {28'b0, v10b_sfence_commit_mask}, 32'h0000_000f);
+    tb_check32("V10B mixed-system SATP MMU sources",
+               v10b_mmu_satp_source_count, 32'd0);
+    tb_check32("V10B mixed-system SFENCE MMU sources",
+               v10b_mmu_sfence_source_count, 32'd4);
+    tb_check32("V10B mixed-system FENCE.I MMU sources",
+               v10b_mmu_fencei_source_count, 32'd1);
+    tb_check32("V10B mixed-system registered MMU actions",
+               v10b_mmu_flush_count, 32'd5);
+    if ((v10b_terminal_count[V10B_KIND_ECALL] == 32'd1) &&
+        (v10b_terminal_count[V10B_KIND_XRET] == 32'd1) &&
+        (v10b_terminal_count[V10B_KIND_WFI] == 32'd1) &&
+        (v10b_terminal_count[V10B_KIND_SFENCE] == 32'd4) &&
+        (v10b_terminal_count[V10B_KIND_FENCEI] == 32'd1) &&
+        (v10b_sfence_terminal_mask == 4'b1111) &&
+        (v10b_sfence_commit_mask == 4'b1111) &&
+        (v10b_mmu_sfence_source_count == 32'd4) &&
+        (v10b_mmu_fencei_source_count == 32'd1) &&
+        (v10b_mmu_flush_count == 32'd5)) begin
+      $display("[V10B-SYSTEM-MIXED] csr=exercised ecall=1 xret=1 wfi=1 sfence-family=4 fencei=1 typed=exact raw-csr-selected=exact C1=clear C2=no-repeat mmu=5 PASS");
     end
 
     reset_dut(MODE_IRQ_WFI);
@@ -1413,6 +2242,21 @@ module tb_ooo_priv_system;
                xret_legal_csr_request_count, xret_legal_commit_count,
                (gpr(5'd7) == 64'h77), (rob_count == 5'd0));
     end
+    check_v10b_scoreboard(MODE_SMODE_BOOT);
+    tb_check32("V10B SATP write MMU source count",
+               v10b_mmu_satp_source_count, 32'd1);
+    tb_check32("V10B S-mode SFENCE MMU source count",
+               v10b_mmu_sfence_source_count, 32'd1);
+    tb_check32("V10B S-mode FENCE.I MMU source count",
+               v10b_mmu_fencei_source_count, 32'd0);
+    tb_check32("V10B SATP plus SFENCE registered MMU action count",
+               v10b_mmu_flush_count, 32'd2);
+    if ((v10b_mmu_satp_source_count == 32'd1) &&
+        (v10b_mmu_sfence_source_count == 32'd1) &&
+        (v10b_mmu_fencei_source_count == 32'd0) &&
+        (v10b_mmu_flush_count == 32'd2)) begin
+      $display("[V10B-SATP-MMU] exact-csr-commit=1 sfence=1 registered-mmu-actions=2 C1=clear C2=no-repeat PASS");
+    end
 
     reset_dut(MODE_SBI_ECALL);
     run_until_exit(1000);
@@ -1454,6 +2298,202 @@ module tb_ooo_priv_system;
     tb_check64("s external irq handler body executed", gpr(5'd11), 64'h72);
     tb_check64("s external irq returned to s body", gpr(5'd7), 64'h71);
     tb_check32("s external irq backend drained after ebreak", {27'b0, rob_count}, 32'd0);
+
+    reset_dut(MODE_M_VEC_IRQ);
+    irq_timer = 1'b1;
+    run_until_exit(1000);
+    tb_check1("m vectored timer irq reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("m vectored timer irq exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("m vectored timer irq has no terminal trap", trap_valid, 1'b0);
+    tb_check32("m vectored timer irq raw mem request count",
+               vec_trap_mem_count, 32'd0);
+    tb_check32("m vectored timer irq raw ex request count",
+               vec_trap_ex_count, 32'd0);
+    tb_check32("m vectored timer irq raw irq request count",
+               vec_trap_irq_count, 32'd1);
+    tb_check32("m vectored timer irq target match count",
+               vec_target_match_count, 32'd1);
+    tb_check32("m vectored timer irq target mismatch count",
+               vec_target_mismatch_count, 32'd0);
+    tb_check32("m vectored timer irq exact handler fetch count",
+               vec_exact_handler_fetch_count, 32'd1);
+    tb_check32("m vectored timer irq wrong base fetch count",
+               vec_wrong_base_fetch_count, 32'd0);
+    tb_check32("m vectored timer irq mret request count",
+               vec_xret_request_count, 32'd1);
+    tb_check32("m vectored timer irq mret commit count",
+               vec_xret_commit_count, 32'd1);
+    tb_check32("m vectored timer irq return commit count",
+               vec_return_commit_count, 32'd1);
+    tb_check64("m vectored timer irq mcause", gpr(5'd14),
+               `MCAUSE_INTERRUPT | 64'd7);
+    tb_check64("m vectored timer irq handler body", gpr(5'd15), 64'h61);
+    tb_check64("m vectored timer irq return body", gpr(5'd13), 64'h31);
+    tb_check32("m vectored timer irq backend drained",
+               {27'b0, rob_count}, 32'd0);
+    if (exit_valid && exit_is_ebreak && !trap_valid &&
+        (vec_trap_mem_count == 32'd0) &&
+        (vec_trap_ex_count == 32'd0) &&
+        (vec_trap_irq_count == 32'd1) &&
+        (vec_target_match_count == 32'd1) &&
+        (vec_target_mismatch_count == 32'd0) &&
+        (vec_exact_handler_fetch_count == 32'd1) &&
+        (vec_wrong_base_fetch_count == 32'd0) &&
+        (vec_xret_request_count == 32'd1) &&
+        (vec_xret_commit_count == 32'd1) &&
+        (vec_return_commit_count == 32'd1) &&
+        (gpr(5'd14) == (`MCAUSE_INTERRUPT | 64'd7)) &&
+        (gpr(5'd15) == 64'h61) && (gpr(5'd13) == 64'h31) &&
+        (rob_count == 5'd0)) begin
+      $display("[VECTORED-TRAP-G2-M-IRQ] trap_mem=0 trap_ex=0 trap_irq=1 target_match=1 target_mismatch=0 exact_handler_fetch=1 wrong_base_fetch=0 xret_request=1 xret_commit=1 return_commit=1 cause=7 handler_body=1 backend_drained=1 PASS");
+    end else begin
+      $display("[VECTORED-TRAP-G2-M-IRQ] trap_mem=%0d trap_ex=%0d trap_irq=%0d target_match=%0d target_mismatch=%0d exact_handler_fetch=%0d wrong_base_fetch=%0d xret_request=%0d xret_commit=%0d return_commit=%0d cause_match=%0d handler_body=%0d backend_drained=%0d FAIL",
+               vec_trap_mem_count, vec_trap_ex_count, vec_trap_irq_count,
+               vec_target_match_count, vec_target_mismatch_count,
+               vec_exact_handler_fetch_count, vec_wrong_base_fetch_count,
+               vec_xret_request_count, vec_xret_commit_count,
+               vec_return_commit_count,
+               (gpr(5'd14) == (`MCAUSE_INTERRUPT | 64'd7)),
+               (gpr(5'd15) == 64'h61), (rob_count == 5'd0));
+    end
+    check_v10b_scoreboard(MODE_M_VEC_IRQ);
+    tb_check32("V10B IRQ terminal count",
+               v10b_terminal_count[V10B_KIND_IRQ], 32'd1);
+    if ((v10b_terminal_count[V10B_KIND_IRQ] == 32'd1) &&
+        (v10b_raw_request_match_count[V10B_KIND_IRQ] == 32'd1) &&
+        (v10b_redirect_match_count[V10B_KIND_IRQ] == 32'd1) &&
+        (v10b_c1_clear_count[V10B_KIND_IRQ] == 32'd1) &&
+        (v10b_c2_quiet_count[V10B_KIND_IRQ] == 32'd1)) begin
+      $display("[V10B-IRQ-POST-FIRE] raw-irq=1 typed-trap=1 C1-owner-stop-clear=1 C2-repeat=0 PASS");
+    end
+
+    reset_dut(MODE_S_VEC_IRQ);
+    irq_external = 1'b1;
+    run_until_exit(1200);
+    tb_check1("s vectored external irq reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("s vectored external irq exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("s vectored external irq has no terminal trap", trap_valid, 1'b0);
+    tb_check32("s vectored external irq raw mem request count",
+               vec_trap_mem_count, 32'd0);
+    tb_check32("s vectored external irq raw ex request count",
+               vec_trap_ex_count, 32'd0);
+    tb_check32("s vectored external irq raw irq request count",
+               vec_trap_irq_count, 32'd1);
+    tb_check32("s vectored external irq target match count",
+               vec_target_match_count, 32'd1);
+    tb_check32("s vectored external irq target mismatch count",
+               vec_target_mismatch_count, 32'd0);
+    tb_check32("s vectored external irq exact handler fetch count",
+               vec_exact_handler_fetch_count, 32'd1);
+    tb_check32("s vectored external irq wrong base fetch count",
+               vec_wrong_base_fetch_count, 32'd0);
+    tb_check32("s vectored external irq sret request count",
+               vec_xret_request_count, 32'd1);
+    tb_check32("s vectored external irq sret commit count",
+               vec_xret_commit_count, 32'd1);
+    tb_check32("s vectored external irq return commit count",
+               vec_return_commit_count, 32'd1);
+    tb_check64("s vectored external irq scause", gpr(5'd8),
+               `MCAUSE_INTERRUPT |
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `IRQ_CAUSE_SEI});
+    tb_check64("s vectored external irq sepc", gpr(5'd9),
+               S_ENTRY_PC + 64'h10);
+    tb_check64("s vectored external irq recorded spp=s",
+               gpr(5'd10) & `MSTATUS_SPP, `MSTATUS_SPP);
+    tb_check64("s vectored external irq handler body", gpr(5'd11), 64'h63);
+    tb_check64("s vectored external irq return body", gpr(5'd7), 64'h32);
+    tb_check32("s vectored external irq backend drained",
+               {27'b0, rob_count}, 32'd0);
+    if (exit_valid && exit_is_ebreak && !trap_valid &&
+        (vec_trap_mem_count == 32'd0) &&
+        (vec_trap_ex_count == 32'd0) &&
+        (vec_trap_irq_count == 32'd1) &&
+        (vec_target_match_count == 32'd1) &&
+        (vec_target_mismatch_count == 32'd0) &&
+        (vec_exact_handler_fetch_count == 32'd1) &&
+        (vec_wrong_base_fetch_count == 32'd0) &&
+        (vec_xret_request_count == 32'd1) &&
+        (vec_xret_commit_count == 32'd1) &&
+        (vec_return_commit_count == 32'd1) &&
+        (gpr(5'd8) ==
+         (`MCAUSE_INTERRUPT |
+          {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `IRQ_CAUSE_SEI})) &&
+        (gpr(5'd11) == 64'h63) && (gpr(5'd7) == 64'h32) &&
+        (rob_count == 5'd0)) begin
+      $display("[VECTORED-TRAP-G3-S-IRQ] trap_mem=0 trap_ex=0 trap_irq=1 target_match=1 target_mismatch=0 exact_handler_fetch=1 wrong_base_fetch=0 xret_request=1 xret_commit=1 return_commit=1 cause=9 handler_body=1 backend_drained=1 PASS");
+    end else begin
+      $display("[VECTORED-TRAP-G3-S-IRQ] trap_mem=%0d trap_ex=%0d trap_irq=%0d target_match=%0d target_mismatch=%0d exact_handler_fetch=%0d wrong_base_fetch=%0d xret_request=%0d xret_commit=%0d return_commit=%0d cause_match=%0d handler_body=%0d backend_drained=%0d FAIL",
+               vec_trap_mem_count, vec_trap_ex_count, vec_trap_irq_count,
+               vec_target_match_count, vec_target_mismatch_count,
+               vec_exact_handler_fetch_count, vec_wrong_base_fetch_count,
+               vec_xret_request_count, vec_xret_commit_count,
+               vec_return_commit_count,
+               (gpr(5'd8) ==
+                (`MCAUSE_INTERRUPT |
+                 {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `IRQ_CAUSE_SEI})),
+               (gpr(5'd11) == 64'h63), (rob_count == 5'd0));
+    end
+
+    reset_dut(MODE_M_VEC_SYNC);
+    run_until_exit(1000);
+    tb_check1("m vectored-mode ecall reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("m vectored-mode ecall exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("m vectored-mode ecall has no terminal trap", trap_valid, 1'b0);
+    tb_check32("m vectored-mode ecall raw mem request count",
+               vec_trap_mem_count, 32'd0);
+    tb_check32("m vectored-mode ecall raw ex request count",
+               vec_trap_ex_count, 32'd1);
+    tb_check32("m vectored-mode ecall raw irq request count",
+               vec_trap_irq_count, 32'd0);
+    tb_check32("m vectored-mode ecall base target match count",
+               vec_target_match_count, 32'd1);
+    tb_check32("m vectored-mode ecall target mismatch count",
+               vec_target_mismatch_count, 32'd0);
+    tb_check32("m vectored-mode ecall exact base fetch count",
+               vec_exact_handler_fetch_count, 32'd1);
+    tb_check32("m vectored-mode ecall wrong vector fetch count",
+               vec_wrong_base_fetch_count, 32'd0);
+    tb_check32("m vectored-mode ecall mret request count",
+               vec_xret_request_count, 32'd1);
+    tb_check32("m vectored-mode ecall mret commit count",
+               vec_xret_commit_count, 32'd1);
+    tb_check32("m vectored-mode ecall return commit count",
+               vec_return_commit_count, 32'd1);
+    tb_check64("m vectored-mode ecall mcause", gpr(5'd8),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_MMODE});
+    tb_check64("m vectored-mode ecall mepc plus four", gpr(5'd9),
+               BASE_PC + 64'h10);
+    tb_check64("m vectored-mode ecall handler body", gpr(5'd11), 64'h62);
+    tb_check64("m vectored-mode ecall return body", gpr(5'd7), 64'h33);
+    tb_check32("m vectored-mode ecall backend drained",
+               {27'b0, rob_count}, 32'd0);
+    if (exit_valid && exit_is_ebreak && !trap_valid &&
+        (vec_trap_mem_count == 32'd0) &&
+        (vec_trap_ex_count == 32'd1) &&
+        (vec_trap_irq_count == 32'd0) &&
+        (vec_target_match_count == 32'd1) &&
+        (vec_target_mismatch_count == 32'd0) &&
+        (vec_exact_handler_fetch_count == 32'd1) &&
+        (vec_wrong_base_fetch_count == 32'd0) &&
+        (vec_xret_request_count == 32'd1) &&
+        (vec_xret_commit_count == 32'd1) &&
+        (vec_return_commit_count == 32'd1) &&
+        (gpr(5'd8) ==
+         {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_MMODE}) &&
+        (gpr(5'd11) == 64'h62) && (gpr(5'd7) == 64'h33) &&
+        (rob_count == 5'd0)) begin
+      $display("[VECTORED-TRAP-G4-M-SYNC] trap_mem=0 trap_ex=1 trap_irq=0 target_match=1 target_mismatch=0 exact_handler_fetch=1 wrong_vector_fetch=0 xret_request=1 xret_commit=1 return_commit=1 cause=11 handler_body=1 backend_drained=1 PASS");
+    end else begin
+      $display("[VECTORED-TRAP-G4-M-SYNC] trap_mem=%0d trap_ex=%0d trap_irq=%0d target_match=%0d target_mismatch=%0d exact_handler_fetch=%0d wrong_vector_fetch=%0d xret_request=%0d xret_commit=%0d return_commit=%0d cause_match=%0d handler_body=%0d backend_drained=%0d FAIL",
+               vec_trap_mem_count, vec_trap_ex_count, vec_trap_irq_count,
+               vec_target_match_count, vec_target_mismatch_count,
+               vec_exact_handler_fetch_count, vec_wrong_base_fetch_count,
+               vec_xret_request_count, vec_xret_commit_count,
+               vec_return_commit_count,
+               (gpr(5'd8) ==
+                {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_MMODE}),
+               (gpr(5'd11) == 64'h62), (rob_count == 5'd0));
+    end
 
     reset_dut(MODE_MRET_S_ILLEGAL);
     run_until_exit(1000);
@@ -1625,6 +2665,20 @@ module tb_ooo_priv_system;
                (gpr(5'd4) == 64'h0000_0000_1234_5678),
                (rob_count == 5'd0));
     end
+    check_v10b_scoreboard(MODE_FENCE_ORDERING);
+    tb_check32("V10B ordinary FENCE terminal count",
+               v10b_terminal_count[V10B_KIND_FENCE], 32'd1);
+    tb_check32("V10B ordinary FENCE MMU action count",
+               v10b_mmu_flush_count, 32'd0);
+    if ((v10b_terminal_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_raw_request_match_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_redirect_match_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_ctrl_commit_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_c1_clear_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_c2_quiet_count[V10B_KIND_FENCE] == 32'd1) &&
+        (v10b_mmu_flush_count == 32'd0)) begin
+      $display("[V10B-FENCE-POST-FIRE] full-mem-idle=1 typed-serial=1 ctrl-commit=1 mmu=0 C1-owner-stop-clear=1 C2-repeat=0 PASS");
+    end
 
     reset_dut(MODE_FDG_ARCH_TRAP);
     run_until_exit(1000);
@@ -1683,7 +2737,7 @@ module tb_ooo_priv_system;
       commit0_exception | commit0_write | (|commit0_next_pc) |
       commit1_rd_en | (|commit1_rd_addr) | (|commit1_rd_data) |
       commit1_exception | commit1_write | (|commit1_next_pc) |
-      halted | (|debug_pc) | (|debug_state) | (|retire_count) |
+      mmu_flush | halted | (|debug_pc) | (|debug_state) | (|retire_count) |
       (|free_count) | (|issue_count) | (|trap_cause) |
       (|trap_pc) | (|trap_tval) | (|exit_code);
 

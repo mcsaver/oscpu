@@ -3670,8 +3670,11 @@ def audit_policy_paths(repo_root: Path, policy: dict[str, object]) -> list[str]:
                     errors.append(f"task_delegation {field} missing: {path}")
             if str(task_delegation.get("profile_node", "")) != "rtl-task-contract":
                 errors.append("task_delegation.profile_node must be rtl-task-contract")
-            if not bool(task_delegation.get("local_rtl_external_access_forbidden", False)):
-                errors.append("task_delegation.local_rtl_external_access_forbidden must be true")
+            if task_delegation.get("local_rtl_material_source") != "declared-workspace-paths":
+                errors.append(
+                    "task_delegation.local_rtl_material_source "
+                    "must be declared-workspace-paths"
+                )
             if not bool(task_delegation.get("contract_before_dispatch_required", False)):
                 errors.append("task_delegation.contract_before_dispatch_required must be true")
     elif task_delegation:

@@ -197,51 +197,61 @@ make -C "$TB_HOME" \
   arch-gates > "$EVIDENCE_DIR/static/architecture-gates.log" 2>&1
 arch_rc=$?
 set -e
-[[ "$arch_rc" -ne 0 ]] || fail "architecture inventory unexpectedly became overall GREEN"
 require_marker 'OOO-1: GREEN (0 red checks)' \
   "$EVIDENCE_DIR/static/architecture-gates.log"
-require_marker 'OVERALL: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
 
 if [[ "$ARCH_REFRESH_MODE" == 1 ]]; then
-python3 - "$EVIDENCE_DIR/static/architecture-result.json" <<'PY'
+overall_status=$(python3 - "$EVIDENCE_DIR/static/architecture-result.json" \
+  "$arch_rc" <<'PY'
 import json
 import pathlib
 import sys
 
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+observed_rc = int(sys.argv[2])
 if result["gates"]["OOO-1"]["status"] != "GREEN":
     raise SystemExit("refresh did not establish OOO-1")
-if result["overall_status"] != "RED":
-    raise SystemExit("architecture inventory is not RED")
+if result["overall_status"] not in {"RED", "GREEN"}:
+    raise SystemExit("architecture inventory has an invalid aggregate status")
+expected_rc = 0 if result["overall_status"] == "GREEN" else 1
+make_rc_ok = observed_rc == 0 if expected_rc == 0 else observed_rc != 0
+if result["exit_code"] != expected_rc or not make_rc_ok:
+    raise SystemExit("architecture aggregate exit code/status mismatch")
+print(result["overall_status"])
 PY
-printf '[V8N-RUNNER][PASS] refresh=1 baselines=6/6 mutations=%d/%d OOO-1=GREEN overall=RED\n' \
-  "${#mutation_rows[@]}" "${#mutation_rows[@]}" |
+)
+printf '[V8N-RUNNER][PASS] refresh=1 baselines=6/6 mutations=%d/%d OOO-1=GREEN overall=%s\n' \
+  "${#mutation_rows[@]}" "${#mutation_rows[@]}" "$overall_status" |
   tee "$EVIDENCE_DIR/runner-summary.log"
 else
 require_marker 'OOO-2: GREEN (0 red checks)' \
   "$EVIDENCE_DIR/static/architecture-gates.log"
 require_marker 'DI-4: GREEN (0 red checks)' \
   "$EVIDENCE_DIR/static/architecture-gates.log"
-python3 - "$EVIDENCE_DIR/static/architecture-result.json" <<'PY'
+overall_status=$(python3 - "$EVIDENCE_DIR/static/architecture-result.json" \
+  "$arch_rc" <<'PY'
 import json
 import pathlib
 import sys
 
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+observed_rc = int(sys.argv[2])
 for gate in ("OOO-1", "OOO-2"):
     if result["gates"][gate]["status"] != "GREEN":
         raise SystemExit(f"{gate} is not GREEN")
 if result["gates"]["DI-4"]["status"] != "GREEN":
     raise SystemExit("independently proven DI-4 is not GREEN")
-if result["overall_status"] != "RED":
-    raise SystemExit("architecture inventory is not RED")
-if any(result["gates"][gate]["status"] != "RED"
-       for gate in result["gates"]
-       if gate not in {"DI-4", "OOO-1", "OOO-2"}):
-    raise SystemExit("an unproven architecture gate was promoted")
+if result["overall_status"] not in {"RED", "GREEN"}:
+    raise SystemExit("architecture inventory has an invalid aggregate status")
+expected_rc = 0 if result["overall_status"] == "GREEN" else 1
+make_rc_ok = observed_rc == 0 if expected_rc == 0 else observed_rc != 0
+if result["exit_code"] != expected_rc or not make_rc_ok:
+    raise SystemExit("architecture aggregate exit code/status mismatch")
+print(result["overall_status"])
 PY
+)
 
-printf '[V8N-RUNNER][PASS] baselines=6/6 mutations=%d/%d DI-4=GREEN OOO-1=GREEN OOO-2=GREEN overall=RED\n' \
-  "${#mutation_rows[@]}" "${#mutation_rows[@]}" |
+printf '[V8N-RUNNER][PASS] baselines=6/6 mutations=%d/%d DI-4=GREEN OOO-1=GREEN OOO-2=GREEN overall=%s\n' \
+  "${#mutation_rows[@]}" "${#mutation_rows[@]}" "$overall_status" |
   tee "$EVIDENCE_DIR/runner-summary.log"
 fi

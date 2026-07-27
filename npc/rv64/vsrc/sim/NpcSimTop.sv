@@ -172,6 +172,7 @@ module NpcSimTop (
   output logic [63:0] debug_bus2_flags_o,
   output logic [63:0] debug_fetch_addr_o,
   output logic [63:0] debug_mem_addr_o,
+  output logic [63:0] debug_mem_diag_o,
   output logic [63:0] debug_fetch_pte_addr_o,
   output logic [63:0] debug_fetch_pte_o,
   output logic [63:0] debug_fetch_pte_meta_o,
@@ -515,7 +516,12 @@ module NpcSimTop (
 `ifdef CONFIG_NPC_DEBUG_PORTS
   assign debug_ooo_satp_o = u_top.u_core.u_ooo_core.csr_satp_w;
   assign debug_ooo_flags_o = {
-    23'd0,
+    18'd0,
+    u_top.u_core.u_ooo_core.head0_csr_inflight_w,
+    u_top.u_core.u_ooo_core.branch_spec_active_q,
+    u_top.u_core.u_ooo_core.branch_spec_checkpoint_pending_q,
+    u_top.u_core.u_ooo_core.synth_lane1_ret_pending_q,
+    u_top.u_core.u_ooo_core.synth_lane1_branch_drop_pending_q,
     u_top.u_core.u_ooo_core.direct_frontend_flush_w,
     u_top.u_core.u_ooo_core.pending_replay_wait_w,
     u_top.u_core.u_ooo_core.drain_complete_w,
@@ -548,7 +554,7 @@ module NpcSimTop (
     u_top.u_core.u_ooo_core.pending_branch_q,
     u_top.u_core.u_ooo_core.pending_exit_q,
     u_top.u_core.u_ooo_core.orphan_stop_pending_w,
-    u_top.u_core.u_ooo_core.stop_pending_owner_w,
+    u_top.u_core.u_ooo_core.u_frontend.u_frontend_run_gate.stop_pending_owner_w,
     u_top.u_core.u_ooo_core.stop_pending_q
   };
   assign debug_bus_flags_o = {
@@ -611,6 +617,111 @@ module NpcSimTop (
       (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q != 4'd0) ?
       u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.addr_q :
       u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.addr_q;
+  // Local RV64 memory-ordering diagnostic bundle.  This is an NpcSimTop-only
+  // observation port: no bit feeds an RTL ready/valid, owner, or retire path.
+  // Keep the two bridge states separate; debug_bus_flags_o retains its legacy
+  // bitwise-OR view for compatibility.
+  assign debug_mem_diag_o = {
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.active_expected_identity_match_w, // 63
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.active_expected_identity_match_w, // 62
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.control_full_flush_barrier_i,      // 61
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.u_load_queue.query_pair_same_pid_w,         // 60
+    (|u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.sq_count_w),                                // 59
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.lq_count_w[4],                              // 58
+    (|u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.miq1_count_w),                              // 57
+    (|u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.miq_count_w),                               // 56
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.miq1_head_load_w,                           // 55
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.miq_head_load_w,                            // 54
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.issue1_is_plain_store_w,                    // 53
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.issue0_is_plain_store_w,                    // 52
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_issue1_res_valid_q,                     // 51
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_issue_res_valid_q,                      // 50
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_sq_w,                                 // 49
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.sq_drain_valid_w,                           // 48
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_mem1_issue1_w,                        // 47
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_mem1_issue0_w,                        // 46
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_issue1_w,                             // 45
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_issue0_w,                             // 44
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_retry1_w,                             // 43
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.grant_retry0_w,                             // 42
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_bank1_store_older_than_retry_w,         // 41
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_bank0_store_older_than_retry_w,         // 40
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_bank1_store_candidate_w,                // 39
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_bank0_store_candidate_w,                // 38
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_retry1_selected_w,                      // 37
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_retry0_selected_w,                      // 36
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_retry1_valid_q,                         // 35
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_retry0_valid_q,                         // 34
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.lq_query1_open_w,                           // 33
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.lq_query0_open_w,                           // 32
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_pre_lq_exact_w,               // 31
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_pre_lq_exact_w,                // 30
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_tracker_exact_w,              // 29
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_tracker_exact_w,               // 28
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_selected_miq_exact_w,         // 27
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_selected_miq_exact_w,          // 26
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_station_source_w,             // 25
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_station_source_w,              // 24
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_head_miq_exact_w,             // 23
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_head_miq_exact_w,              // 22
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem1_sq_query_exact_w,                      // 21
+    u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+        .u_decode_backend.u_int_backend.mem_sq_query_exact_w,                       // 20
+    u_top.u_core.ooo_mem1_sq_query_retry_ready_w,                                   // 19
+    u_top.u_core.ooo_mem1_sq_query_replay_w,                                        // 18
+    u_top.u_core.ooo_mem1_sq_query_forward_w,                                       // 17
+    u_top.u_core.ooo_mem1_sq_query_allow_w,                                         // 16
+    u_top.u_core.ooo_mem1_sq_query_valid_w,                                         // 15
+    u_top.u_core.ooo_mem0_sq_query_retry_ready_w,                                   // 14
+    u_top.u_core.ooo_mem0_sq_query_replay_w,                                        // 13
+    u_top.u_core.ooo_mem0_sq_query_forward_w,                                       // 12
+    u_top.u_core.ooo_mem0_sq_query_allow_w,                                         // 11
+    u_top.u_core.ooo_mem0_sq_query_valid_w,                                         // 10
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_valid_q,                       // 9
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_valid_q,                       // 8
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q,                           // 7:4
+    u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.state_q                            // 3:0
+  };
   assign debug_fetch_pte_addr_o = u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_addr_q;
   assign debug_fetch_pte_o = u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_q;
   assign debug_fetch_pte_meta_o = {
@@ -625,6 +736,7 @@ module NpcSimTop (
   assign debug_bus2_flags_o = 64'd0;
   assign debug_fetch_addr_o = 64'd0;
   assign debug_mem_addr_o = 64'd0;
+  assign debug_mem_diag_o = 64'd0;
   assign debug_fetch_pte_addr_o = 64'd0;
   assign debug_fetch_pte_o = 64'd0;
   assign debug_fetch_pte_meta_o = 64'd0;
@@ -1398,13 +1510,14 @@ module NpcSimTop (
   reg km_ctx_svpbmt_q;
   // 武装计数：复位释放后延迟 3 拍才启用断言——x-assign 随机初始化下复位拉起前的
   // 起始拍会以随机 stg_valid/miq 态误触发($fatal 挂仿真;rv64uf-p-fadd 大节点回归
-  // 首次暴露,module TB 不含 NpcSimTop 未覆盖)。km_arm_q 必须**声明初始化**:
+  // 首次暴露,module TB 不含 NpcSimTop 未覆盖)。km_arm_q 必须在 time 0 显式初始化:
   // 本工程 --x-initial fast 会给未显式初始化的 reg 填非零快速值(计数器可能
-  // 直接=3 当拍武装),显式初始化不受其影响。(本文件 sim-only,声明初始化+过程赋值
-  // 的潜在 process/init 混用告警由当前工具链在声明初始化语义下处理——观测
-  // 计数器必须有确定初值,这正是意图。不要使用版本相关的 lint message pragma，
-  // 否则旧版 Verilator 会把未知 message code 当作编译错误。)
-  reg [1:0] km_arm_q = 2'b00;
+  // 直接=3 当拍武装),显式 initial 不受其影响。本文件 sim-only；用独立
+  // initial 避免 declaration initializer 与时序过程混用，同时保留确定初值。
+  reg [1:0] km_arm_q;
+  initial begin
+    km_arm_q = 2'b00;
+  end
   always @(posedge clk) begin
     if (rst) begin
       km_ctx_seen_q <= 1'b0;

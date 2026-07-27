@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9y-serialize-memory-owner-terminal-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "终审本地 RV64 双发射 OoO V9Y 修订：确认 OooMemOwnerTerminalCollector.ingress_accept_o 是 live/kind/epoch/duplicate/pending/same-edge-reenqueue 校验后的唯一 collector transfer authority；确认 OooIntBackend production holder census 与 mem_owner_terminalized_o 在 OOO_ASSERT 开关两种配置均有驱动，raw ingress 不能授权非 FENCE；核对 SD/FSD exact SQ release、scalar 全层传播、CSR/non-CSR/FENCE 消费点，以及修复后 focused、release、6/6 mutation、111/111、功能聚合和 9/9 架构证据均绑定当前设计身份。只读，不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-report-v2.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations/summary.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/architecture/final-architecture-hard-gates.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-contract-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/reviewer-report-v2.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations/summary.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/architecture/final-architecture-hard-gates.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象/证据文件→edge-old/current-edge/edge-new 与 OOO_ASSERT 配置→TB/EDA marker→PASS/GAP 范围组织；逐项复核 v2 的 macro-off 无驱动和 raw-ingress 授权反例是否消失，验证 accepted mask 不制造组合授权漏洞，核对六项负向 RTL 版本、SD/FSD STORE release、当前设计 ID 和所有剩余 unknowns，并明确是否允许独立关闭 V9Y 子范围。"
+  ],
+  "success_criteria": [
+    "只有 production predicate 在 OOO_ASSERT=0/1 均有同一驱动、collector acceptance 与其内部校验完全等价、active malformed/duplicate raw ingress 保持 terminalized=0、exact accepted transfer/pending-only/full-idle 和 SQ release 正确、CSR/non-CSR/FENCE 合同不变、6/6 mutation 被唯一拒绝且功能/架构证据同设计时才判 V9Y 子范围 PASS；不得关闭 pending-arch-trap、七类 serialized exactly-once、SERIALIZE-G1、architecture-stable 或 PPA；最终明确归还 WSL 工程命令执行权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -145,6 +145,8 @@ module tb_ooo_int_backend;
   wire [FREE_COUNT_W-1:0] free_count;
   wire [ROB_COUNT_W-1:0] rob_count;
   wire [ISSUE_COUNT_W-1:0] issue_count;
+  wire control_full_flush_barrier;
+  wire [`REDIR_REASON_W-1:0] control_full_flush_reason;
   wire execute0_valid;
   wire execute1_valid;
   wire branch_resolve_valid;
@@ -335,7 +337,9 @@ module tb_ooo_int_backend;
   wire unused_mem_ready = mem_rsp_ready;
   wire unused_mem1_ready = mem1_rsp_ready;
 
-`ifdef V8S_DUAL_MEMORY_FOCUSED
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V8S_DUAL_MEMORY_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
 `elsif V8W_MEMORY_RECOVERY_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
@@ -597,6 +601,8 @@ module tb_ooo_int_backend;
     .commit1_tval_o(commit1_tval),
     .free_count_o(free_count),
     .rob_count_o(rob_count),
+    .control_full_flush_barrier_o(control_full_flush_barrier),
+    .control_full_flush_reason_o(control_full_flush_reason),
 	    .issue_count_o(issue_count),
 	    .execute0_valid_o(execute0_valid),
 	    .execute1_valid_o(execute1_valid),
@@ -3202,6 +3208,11 @@ module tb_ooo_int_backend;
                     5'd0, 5'd0, 5'd2, 64'd1);
       tick_dispatch_to_commit("V9F memory hold base setup",
                               64'h8000_0ffd, 64'd1);
+      // Keep this case scoped to request-ready residency.  The lane0 local
+      // exception becomes the ROB head before lane1 credit is released; if
+      // commit remains enabled, the independent V9O C0 trap barrier correctly
+      // suppresses the younger request and masks the backpressure property.
+      commit_ready = 1'b0;
       mem_translate_active = 1'b1;
       mem_req_ready = 1'b0;
       set_dispatch0(32'h8000_5100,
@@ -4072,6 +4083,10 @@ module tb_ooo_int_backend;
                 commit0_valid && commit0_exception, 1'b1);
       tb_check1({label, " SQ release is terminal-ready"},
                 dut.sq_release_ready_w, 1'b1);
+      tb_check1({label, " V9Y exact SQ release mask is nonzero"},
+                |dut.sq_owner_release_effective_mask_w, 1'b1);
+      tb_check1({label, " V9Y exact SQ release terminalizes final holder"},
+                dut.mem_owner_terminalized_o, 1'b1);
       tb_check32({label, " commit cause"},
                  {{(32-`TRAP_CAUSE_W){1'b0}}, commit0_cause},
                  {{(32-`TRAP_CAUSE_W){1'b0}}, `EXC_STORE_ADDR_MISALIGN});
@@ -4083,6 +4098,8 @@ module tb_ooo_int_backend;
       tb_check1({label, " never requested memory"}, mem_req_valid, 1'b0);
       $display("[T4N-PAGE-END-STORE-TERMINAL] kind=%s va=0x%016h",
                fp_store_case ? "FSD" : "SD", store_va);
+      $display("[V9Y-SQ-EXACT-RELEASE] kind=%s mask_nonzero=1 terminalized=1 PASS",
+               fp_store_case ? "FSD" : "SD");
       reset_dut();
     end
   endtask
@@ -7384,6 +7401,8 @@ module tb_ooo_int_backend;
       #1;
       tb_check32("V8W bank0 LOAD MIQ resident",
                  {28'b0, dut.miq_count_w}, 32'd1);
+      tb_check1("V9Y bank0 active holder is not terminalized",
+                dut.mem_owner_terminalized_o, 1'b0);
       owner_kind = dut.miq_head_owner_kind_w;
       owner_token = dut.miq_head_owner_token_w;
       owner_epoch = dut.miq_head_mmu_epoch_w;
@@ -7414,6 +7433,32 @@ module tb_ooo_int_backend;
                 dut.miq_drop0_pop_w, 1'b0);
       tb_mem_drop0_valid = 1'b0;
       tb_mem_drop0_owner_token = owner_token;
+      tb_mem_drop0_mmu_epoch = owner_epoch ^ 2'b01;
+      tb_mem_drop0_valid = 1'b1;
+      #1;
+      tb_check1("V9Y wrong-epoch raw ingress is not accepted",
+                dut.mem_terminal_ingress_accept_w[2], 1'b0);
+      tb_check1("V9Y wrong-epoch holder remains unterminated",
+                dut.mem_owner_terminalized_o, 1'b0);
+      tb_mem_drop0_valid = 1'b0;
+      tb_mem_drop0_mmu_epoch = owner_epoch;
+      tb_mem1_drop0_valid = 1'b1;
+      tb_mem1_drop0_owner_kind = owner_kind;
+      tb_mem1_drop0_owner_token = owner_token;
+      tb_mem1_drop0_mmu_epoch = owner_epoch;
+      tb_mem1_drop0_fault_tval = owner_tval;
+      tb_mem_drop0_valid = 1'b1;
+      #1;
+      tb_check1("V9Y duplicate lane2 ingress is not accepted",
+                dut.mem_terminal_ingress_accept_w[2], 1'b0);
+      tb_check1("V9Y duplicate lane4 ingress is not accepted",
+                dut.mem_terminal_ingress_accept_w[4], 1'b0);
+      tb_check1("V9Y duplicate raw ingress leaves holder unterminated",
+                dut.mem_owner_terminalized_o, 1'b0);
+      tb_mem_drop0_valid = 1'b0;
+      tb_mem1_drop0_valid = 1'b0;
+      #1;
+      $display("[V9Y-ACCEPTED-TRANSFER-NEGATIVE] tuple=0 duplicate=0 terminalized=0 PASS");
       force dut.miq_head_tracker_exact_w = 1'b0;
       tb_mem_drop0_valid = 1'b1;
       #1;
@@ -7434,6 +7479,8 @@ module tb_ooo_int_backend;
                 dut.miq_pop_owner_match_w, 1'b1);
       tb_check1("V8W bank0 exact drop enters collector once",
                 dut.mem_terminal_ingress_valid_w[2], 1'b1);
+      tb_check1("V9Y bank0 exact drop is same-edge terminalized",
+                dut.mem_owner_terminalized_o, 1'b1);
       tb_check1("V8W bank0 exact drop has no memory WB",
                 dut.mem_wb_fire_w, 1'b0);
       `TB_TICK(clk);
@@ -7444,6 +7491,10 @@ module tb_ooo_int_backend;
       #1;
       tb_check32("V8W bank0 exact drop drains MIQ",
                  {28'b0, dut.miq_count_w}, 32'd0);
+      tb_check1("V9Y bank0 collector-pending owner is terminalized",
+                dut.mem_owner_terminalized_o, 1'b1);
+      tb_check1("V9Y bank0 collector-pending is not full idle",
+                dut.mem_idle_o, 1'b0);
       wait_cycles = 0;
       while (((dut.mem_owner_live_count_w != 0) ||
               (dut.mem_terminal_pending_count_w != 0) ||
@@ -7458,6 +7509,8 @@ module tb_ooo_int_backend;
                  {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
       tb_check1("V8W bank0 exact drop reaches memory idle",
                 dut.mem_idle_o, 1'b1);
+      tb_check1("V9Y bank0 full idle remains terminalized",
+                dut.mem_owner_terminalized_o, 1'b1);
 
       seed_s2_g1_selective_kill_boundary(64'h8000_6ee0,
                                          boundary_rob);
@@ -7477,6 +7530,8 @@ module tb_ooo_int_backend;
       #1;
       tb_check32("V8W bank1 LOAD MIQ resident",
                  {28'b0, dut.miq1_count_w}, 32'd1);
+      tb_check1("V9Y bank1 active holder is not terminalized",
+                dut.mem_owner_terminalized_o, 1'b0);
       owner_kind = dut.miq1_head_owner_kind_w;
       owner_token = dut.miq1_head_owner_token_w;
       owner_epoch = dut.miq1_head_mmu_epoch_w;
@@ -7523,6 +7578,8 @@ module tb_ooo_int_backend;
                 dut.miq1_pop_owner_match_w, 1'b1);
       tb_check1("V8W bank1 exact drop enters collector once",
                 dut.mem_terminal_ingress_valid_w[4], 1'b1);
+      tb_check1("V9Y bank1 exact drop is same-edge terminalized",
+                dut.mem_owner_terminalized_o, 1'b1);
       tb_check1("V8W bank1 exact drop has no memory WB",
                 dut.mem1_wb_fire_w, 1'b0);
       `TB_TICK(clk);
@@ -7547,7 +7604,10 @@ module tb_ooo_int_backend;
                  {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
       tb_check1("V8W bank1 exact drop reaches memory idle",
                 dut.mem_idle_o, 1'b1);
+      tb_check1("V9Y bank1 full idle remains terminalized",
+                dut.mem_owner_terminalized_o, 1'b1);
       $display("[V8W-MIQ-DROP-RECOVERY] bank0+bank1 exact drop/pop/terminal/idle PASS");
+      $display("[V9Y-MEM-TERMINAL-PHASE] active=0 transfer=1 pending-only=1 full-idle=1 lane2=1 lane4=1 PASS");
       reset_dut();
     end
   endtask
@@ -12634,6 +12694,29 @@ module tb_ooo_int_backend;
       mem1_sq_query_attr_valid = 1'b1;
       mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
       mem1_sq_query_wstrb = 8'hff;
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+      force dut.control_full_flush_barrier_w = 1'b1;
+      #1;
+      tb_check1("V9R bank1 C0 keeps exact SQ query",
+                dut.mem1_sq_query_exact_w, 1'b1);
+      tb_check1("V9R bank1 C0 keeps replay decision",
+                mem1_sq_query_replay, 1'b1);
+      tb_check1("V9R bank1 C0 withholds retry credit",
+                mem1_sq_query_retry_ready, 1'b0);
+      tb_check1("V9R bank1 C0 forbids retry capture",
+                dut.mem_sq_retry1_capture_w, 1'b0);
+      tb_check32("V9R bank1 C0 keeps MIQ owner resident",
+                 dut.miq1_count_w, 32'd1);
+      tb_check1("V9R bank1 C0 keeps retry holder empty",
+                dut.mem_retry1_valid_q, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("V9R bank1 repeated C0 keeps MIQ owner resident",
+                 dut.miq1_count_w, 32'd1);
+      tb_check1("V9R bank1 repeated C0 keeps retry holder empty",
+                dut.mem_retry1_valid_q, 1'b0);
+      release dut.control_full_flush_barrier_w;
+`endif
       #1;
       tb_check1("V8T retry query exact", dut.mem1_sq_query_exact_w, 1'b1);
       tb_check1("V8T retry query replays", mem1_sq_query_replay, 1'b1);
@@ -12728,6 +12811,29 @@ module tb_ooo_int_backend;
       mem_sq_query_attr_valid = 1'b1;
       mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
       mem_sq_query_wstrb = 8'hff;
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+      force dut.control_full_flush_barrier_w = 1'b1;
+      #1;
+      tb_check1("V9R bank0 C0 keeps exact SQ query",
+                dut.mem_sq_query_exact_w, 1'b1);
+      tb_check1("V9R bank0 C0 keeps replay decision",
+                mem_sq_query_replay, 1'b1);
+      tb_check1("V9R bank0 C0 withholds retry credit",
+                mem_sq_query_retry_ready, 1'b0);
+      tb_check1("V9R bank0 C0 forbids retry capture",
+                dut.mem_sq_retry0_capture_w, 1'b0);
+      tb_check32("V9R bank0 C0 keeps MIQ owner resident",
+                 dut.miq_count_w, 32'd1);
+      tb_check1("V9R bank0 C0 keeps retry holder empty",
+                dut.mem_retry0_valid_q, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("V9R bank0 repeated C0 keeps MIQ owner resident",
+                 dut.miq_count_w, 32'd1);
+      tb_check1("V9R bank0 repeated C0 keeps retry holder empty",
+                dut.mem_retry0_valid_q, 1'b0);
+      release dut.control_full_flush_barrier_w;
+`endif
       #1;
       tb_check1("V8T retry0 query exact", dut.mem_sq_query_exact_w, 1'b1);
       tb_check1("V8T retry0 query replays", mem_sq_query_replay, 1'b1);
@@ -12757,6 +12863,317 @@ module tb_ooo_int_backend;
                  32'd0);
       tb_check1("V8T retry0 capture keeps owner live",
                 dut.mem_owner_live_mask_w[load_token], 1'b1);
+    end
+  endtask
+
+  // V9R natural C0 proof.  A translated page-end load completes as the real
+  // exception ROB head while commit is held.  Younger store/load owners then
+  // establish an exact bank1 replay query.  Releasing commit readiness must
+  // expose the ROB-derived TRAP barrier in the same combinational cycle and
+  // keep the query owner in MIQ instead of transferring it to retry1.
+  task automatic run_v9r_natural_trap_retry_barrier;
+    reg [4:0] load_token;
+    reg [1:0] load_epoch;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_translate_active = 1'b1;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(64'h0000_0000_8000_c740,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd26, 64'h0000_0000_4000_1ffc);
+      #1;
+      tb_check1("V9R natural trap head dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("V9R natural trap head reaches memory reservation",
+                dut.mem_issue_res_capture_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9R natural trap head is local exception",
+                dut.issue0_mem_exception_w, 1'b1);
+      tb_check1("V9R natural trap head selects local EX0",
+                dut.ex0_up_from_mem_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9R natural trap head reaches formal WB",
+                dut.ex0_wb_valid_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9R natural trap waits while commit held",
+                commit0_valid, 1'b0);
+      tb_check1("V9R natural trap has no premature C0 barrier",
+                control_full_flush_barrier, 1'b0);
+
+      set_dispatch0(64'h0000_0000_8000_c744,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_0a00);
+      set_dispatch1(64'h0000_0000_8000_c748,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd27, 64'h0000_0000_0000_0a08);
+      #1;
+      tb_check1("V9R natural younger store dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("V9R natural younger load dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9R natural younger bank0 store probe",
+                mem_req_valid && mem_req_write && mem_req_probe, 1'b1);
+      tb_check1("V9R natural younger bank1 load request",
+                mem1_req_valid && !mem1_req_write && !mem1_req_probe, 1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check32("V9R natural bank1 load resident in MIQ",
+                 dut.miq1_count_w, 32'd1);
+      tb_check32("V9R natural older store resident in SQ",
+                 dut.sq_count_w, 32'd1);
+      load_token = mem1_expected_owner_token;
+      load_epoch = mem1_expected_mmu_epoch;
+
+      mem1_sq_query_valid = 1'b1;
+      mem1_sq_query_owner_kind = mem1_expected_owner_kind;
+      mem1_sq_query_owner_token = load_token;
+      mem1_sq_query_mmu_epoch = load_epoch;
+      mem1_sq_query_paddr = 64'h0000_0000_a000_0a08;
+      mem1_sq_query_attr_valid = 1'b1;
+      mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem1_sq_query_wstrb = 8'hff;
+      #1;
+      tb_check1("V9R natural replay query exact before commit release",
+                dut.mem1_sq_query_exact_w, 1'b1);
+      tb_check1("V9R natural replay decision before commit release",
+                mem1_sq_query_replay, 1'b1);
+      tb_check1("V9R natural retry credit open before C0",
+                mem1_sq_query_retry_ready, 1'b1);
+
+      commit_ready = 1'b1;
+      #1;
+      tb_check1("V9R natural ROB head raises C0 barrier",
+                control_full_flush_barrier, 1'b1);
+      tb_check32("V9R natural C0 reason is TRAP",
+                 {{(32-`REDIR_REASON_W){1'b0}},
+                  control_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+      tb_check1("V9R natural trap commit packet is visible",
+                commit0_valid && commit0_exception, 1'b1);
+      tb_check1("V9R natural C0 withholds retry credit",
+                mem1_sq_query_retry_ready, 1'b0);
+      tb_check1("V9R natural C0 forbids retry capture",
+                dut.mem_sq_retry1_capture_w, 1'b0);
+      tb_check32("V9R natural C0 keeps MIQ owner resident",
+                 dut.miq1_count_w, 32'd1);
+      tb_check1("V9R natural C0 keeps retry holder empty",
+                dut.mem_retry1_valid_q, 1'b0);
+      `TB_TICK(clk);
+      mem1_sq_query_valid = 1'b0;
+      mem1_sq_query_attr_valid = 1'b0;
+      mem1_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem1_sq_query_wstrb = {`STRB_W{1'b0}};
+      commit_ready = 1'b0;
+      #1;
+      tb_check1("V9R natural C0 edge leaves retry holder empty",
+                dut.mem_retry1_valid_q, 1'b0);
+      tb_check32("V9R natural C0 edge preserves younger MIQ owner",
+                 dut.miq1_count_w, 32'd1);
+      reset_dut();
+      $display("[V9R-SQ-RETRY-NATURAL-TRAP] rob_head=1 bank1=1 PASS");
+    end
+  endtask
+
+  task automatic run_v9r_sq_retry_c0_handoff;
+    reg [PRODUCER_ID_W-1:0] load_pid;
+    reg [4:0] load_token;
+    reg [1:0] load_epoch;
+    reg [`XLEN-1:0] load_tval;
+    begin
+      seed_v8t_retry0_from_unfilled_older_store(
+          load_pid, load_token, load_epoch, load_tval);
+      seed_v8t_retry1_from_unfilled_older_store(
+          1'b0, load_pid, load_token, load_epoch, load_tval);
+      run_v9r_natural_trap_retry_barrier();
+      $display("[V9R-SQ-RETRY-C0-HANDOFF-PASS] banks=2 forced=2 natural_trap=1 PASS");
+    end
+  endtask
+
+  // V9P replay-capacity admission proof.  In each bank mirror an older store
+  // owns a real, nonterminal SQ entry while load A already occupies the same
+  // bank's bridge query residency.  A younger same-bank load B must remain in
+  // its issue reservation until either the older SQ relation or A's
+  // active/station residency disappears.  This is intentionally narrower
+  // than the old F3 fence: SQ-empty current/next load handoff remains legal.
+  task automatic run_v9p_replay_capacity_admission;
+    reg [4:0] active_token;
+    begin
+      // Bank0: older bank1 store, active bank0 load A, then bank0 load B.
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8000_c720,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_0d08);
+      set_dispatch1(64'h0000_0000_8000_c724,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd22, 64'h0000_0000_0000_0d00);
+      #1;
+      tb_check1("V9P bank0 seed store dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("V9P bank0 seed load A dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank0 seed presents bank1 store probe",
+                mem1_req_valid && mem1_req_write && mem1_req_probe, 1'b1);
+      tb_check1("V9P bank0 seed presents bank0 load A",
+                mem_req_valid && !mem_req_write && !mem_req_probe, 1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      #1;
+      tb_check1("V9P bank0 load A request fires",
+                dut.mem_req_fire_any_w, 1'b1);
+      tb_check1("V9P bank0 older store probe fires",
+                dut.mem1_req_fire_any_w, 1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check32("V9P bank0 load A owns MIQ", dut.miq_count_w, 32'd1);
+      tb_check32("V9P bank0 older store owns SQ", dut.sq_count_w, 32'd1);
+      active_token = dut.miq_head_owner_token_w;
+
+      mem_owner_query_valid = 1'b1;
+      mem_owner_query_token = active_token;
+      set_dispatch0(64'h0000_0000_8000_c728,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd23, 64'h0000_0000_0000_0d10);
+      #1;
+      tb_check1("V9P bank0 load B dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank0 load B reaches ordinary candidate",
+                dut.issue0_dual_ordinary_candidate_w, 1'b1);
+      tb_check1("V9P bank0 load B sees older nonterminal SQ owner",
+                dut.issue0_sq_block_r, 1'b1);
+      tb_check1("V9P bank0 active query identifies load A",
+                dut.mem_bridge_active_load_w, 1'b1);
+      tb_check1("V9P bank0 retry holder remains empty",
+                dut.mem_retry0_valid_q, 1'b0);
+      tb_check1("V9P bank0 active residency blocks load B admission",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+      // Hold the exact relation over a clock edge so the RTL assertion is
+      // non-vacuous for the compile-success fence-open mutation.
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank0 blocked load B remains a candidate",
+                dut.issue0_dual_ordinary_candidate_w, 1'b1);
+      tb_check1("V9P bank0 active fence holds across one cycle",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+
+      mem_owner_query_valid = 1'b0;
+      mem_station_query_valid = 1'b1;
+      mem_station_query_token = active_token;
+      #1;
+      tb_check1("V9P bank0 station query identifies load A",
+                dut.mem_bridge_station_load_w, 1'b1);
+      tb_check1("V9P bank0 station residency blocks load B admission",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+      mem_station_query_valid = 1'b0;
+
+      // Bank1 mirror: older bank0 store, active bank1 load A, then load B.
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8000_c730,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_0e00);
+      set_dispatch1(64'h0000_0000_8000_c734,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd24, 64'h0000_0000_0000_0e08);
+      #1;
+      tb_check1("V9P bank1 seed store dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("V9P bank1 seed load A dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank1 seed presents bank0 store probe",
+                mem_req_valid && mem_req_write && mem_req_probe, 1'b1);
+      tb_check1("V9P bank1 seed presents bank1 load A",
+                mem1_req_valid && !mem1_req_write && !mem1_req_probe, 1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      #1;
+      tb_check1("V9P bank1 older store probe fires",
+                dut.mem_req_fire_any_w, 1'b1);
+      tb_check1("V9P bank1 load A request fires",
+                dut.mem1_req_fire_any_w, 1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check32("V9P bank1 load A owns MIQ", dut.miq1_count_w, 32'd1);
+      tb_check32("V9P bank1 older store owns SQ", dut.sq_count_w, 32'd1);
+      active_token = dut.miq1_head_owner_token_w;
+
+      mem1_owner_query_valid = 1'b1;
+      mem1_owner_query_token = active_token;
+      set_dispatch0(64'h0000_0000_8000_c738,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd25, 64'h0000_0000_0000_0e18);
+      #1;
+      tb_check1("V9P bank1 load B dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank1 load B reaches ordinary candidate",
+                dut.issue0_dual_ordinary_candidate_w, 1'b1);
+      tb_check1("V9P bank1 load B sees older nonterminal SQ owner",
+                dut.issue0_sq_block_r, 1'b1);
+      tb_check1("V9P bank1 active query identifies load A",
+                dut.mem1_bridge_active_load_w, 1'b1);
+      tb_check1("V9P bank1 retry holder remains empty",
+                dut.mem_retry1_valid_q, 1'b0);
+      tb_check1("V9P bank1 active residency blocks load B admission",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V9P bank1 blocked load B remains a candidate",
+                dut.issue0_dual_ordinary_candidate_w, 1'b1);
+      tb_check1("V9P bank1 active fence holds across one cycle",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+
+      mem1_owner_query_valid = 1'b0;
+      mem1_station_query_valid = 1'b1;
+      mem1_station_query_token = active_token;
+      #1;
+      tb_check1("V9P bank1 station query identifies load A",
+                dut.mem1_bridge_station_load_w, 1'b1);
+      tb_check1("V9P bank1 station residency blocks load B admission",
+                dut.issue0_dual_ordinary_admitted_w, 1'b0);
+      mem1_station_query_valid = 1'b0;
+      reset_dut();
+      $display("[V9P-REPLAY-CAPACITY-ADMISSION] banks=2 active=2 station=2 older_sq=4 PASS");
     end
   endtask
 
@@ -12952,10 +13369,10 @@ module tb_ooo_int_backend;
       // reissue/MIQ push, and cancellation-dominant ready race.
       seed_v8t_retry0_from_unfilled_older_store(
           load_pid, load_token, load_epoch, load_tval);
-      // F4 can leave a distinct younger load in the bridge station when the
-      // older active load transfers into retry0.  This is legal residency,
-      // not a duplicate owner: retry0 still fences any new bank0 load and the
-      // exact retry token must remain absent from the bridge residency mask.
+      // An edge-old F4 state can already contain a distinct younger load when
+      // the active owner transfers into retry0.  This check proves only
+      // identity disjointness.  V9P separately prevents a new replay-capable
+      // load with an older SQ owner from creating this capacity state.
       mem_station_query_valid = 1'b1;
       mem_station_query_token = load_token ^ 5'b10000;
       force dut.mem_bridge_station_load_w = 1'b1;
@@ -13195,9 +13612,9 @@ module tb_ooo_int_backend;
       tb_check32("V8T retry re-push persists without response",
                  dut.miq1_count_w, 32'd1);
 
-      // F4 replaces active/station residency approximations with the bridge's
-      // real request capacity.  With retry released and req slot open, each
-      // residency observation must leave ordinary-load admission enabled.
+      // F4 keeps active/station handoff open when the candidate has no older
+      // SQ owner.  Force that candidate-side age fact explicitly here; V9P's
+      // natural SQ-resident trajectory covers the blocked counterpart.
       mem1_owner_query_valid = 1'b1;
       mem1_owner_query_token = load_token;
       force dut.issue0_dual_ordinary_candidate_w = 1'b1;
@@ -13205,10 +13622,11 @@ module tb_ooo_int_backend;
       force dut.issue0_is_amo_w = 1'b0;
       force dut.issue0_dual_bank1_w = 1'b1;
       force dut.issue0_dual_bank_slot_open_w = 1'b1;
+      force dut.issue0_sq_block_r = 1'b0;
       #1;
       tb_check1("V8T bridge-active source identifies live load",
                 dut.mem1_bridge_active_load_w, 1'b1);
-      tb_check1("V8U bridge-active residency keeps real-capacity admission",
+      tb_check1("V8U no-older-SQ active residency keeps F4 admission",
                 dut.issue0_dual_ordinary_admitted_w, 1'b1);
       mem1_owner_query_valid = 1'b0;
       release dut.issue0_dual_ordinary_candidate_w;
@@ -13216,6 +13634,7 @@ module tb_ooo_int_backend;
       release dut.issue0_is_amo_w;
       release dut.issue0_dual_bank1_w;
       release dut.issue0_dual_bank_slot_open_w;
+      release dut.issue0_sq_block_r;
 
       mem1_station_query_valid = 1'b1;
       mem1_station_query_token = load_token;
@@ -13224,10 +13643,11 @@ module tb_ooo_int_backend;
       force dut.issue0_is_amo_w = 1'b0;
       force dut.issue0_dual_bank1_w = 1'b1;
       force dut.issue0_dual_bank_slot_open_w = 1'b1;
+      force dut.issue0_sq_block_r = 1'b0;
       #1;
       tb_check1("V8T bridge-station source identifies live load",
                 dut.mem1_bridge_station_load_w, 1'b1);
-      tb_check1("V8U bridge-station residency keeps real-capacity admission",
+      tb_check1("V8U no-older-SQ station residency keeps F4 admission",
                 dut.issue0_dual_ordinary_admitted_w, 1'b1);
       mem1_station_query_valid = 1'b0;
       release dut.issue0_dual_ordinary_candidate_w;
@@ -13235,6 +13655,7 @@ module tb_ooo_int_backend;
       release dut.issue0_is_amo_w;
       release dut.issue0_dual_bank1_w;
       release dut.issue0_dual_bank_slot_open_w;
+      release dut.issue0_sq_block_r;
 
       // A second exact capture cancelled by global flush must emit exactly
       // the retry-holder terminal, never a request fire or architectural WB.
@@ -13731,6 +14152,7 @@ module tb_ooo_int_backend;
       run_v8v_lq_retire_authority();
       run_v8u_partial_consume_no_turnover();
       run_v8u_current_pop_next_head_query();
+      run_v9p_replay_capacity_admission();
       run_v8t_final_pa_retry_lifecycle();
       $display("[V8S-DUAL-MEMORY-CORE] diff_bank_dual_req=1 reverse_mapping=1 consume_masks=4 same_bank_age=1 rob_wrap_age=1 dual_rsp=1 one_credit_backpressure=1 dual_ex_full_hold=1 dual_store_fill=1 dual_store_fault=1 singleton_priority=1 release_lookthrough=0 selective_kill=1 flush_exact_drop=1 checkpoint_store_drain=1 checkpoint_lq_drain=1 checkpoint_owner_recovery=1 lq_retire_authority=1 full_pid=1 PASS");
     end
@@ -13740,7 +14162,9 @@ module tb_ooo_int_backend;
     tb_errors = 0;
     reset_dut();
 
-`ifdef V8S_DUAL_MEMORY_FOCUSED
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+    run_v9r_sq_retry_c0_handoff();
+`elsif V8S_DUAL_MEMORY_FOCUSED
     run_v8s_dual_memory_core_integration();
 `elsif V8W_MEMORY_RECOVERY_FOCUSED
     run_v8w_miq_drop_recovery_contract();
@@ -15036,7 +15460,104 @@ module tb_ooo_int_backend;
     // “跳过复杂项选择年轻 simple、复杂项随后晋升 lane0”，下方所有真实访存
     // 场景继续从 lane0 request/MIQ owner 路径验证完整功能。
 
-`ifdef V8Y_SPECULATION_RECOVERY_FOCUSED
+    // V9O C0 combinational projection: emulate an edge-old queue-head
+    // pregrant and a simultaneously available younger branch-resolve packet.
+    // The pregrant must dominate every production consumer without requiring
+    // a clock edge or starting ROB walk.
+    reset_dut();
+    force dut.control_event_pregrant_w = 1'b1;
+    force dut.control_full_flush_barrier_w = 1'b1;
+    force dut.control_full_flush_reason_w = `REDIR_REASON_TRAP;
+    force dut.branch_resolve_authorized_w = 1'b1;
+    force dut.branch_resolve_payload_pc_w = 64'h0000_0000_8000_b000;
+    force dut.branch_resolve_payload_next_pc_w = 64'h0000_0000_8000_c000;
+    force dut.branch_resolve_payload_misaligned_w = 1'b0;
+    force dut.branch_resolve_payload_rob_idx_w = 4'd7;
+    force dut.branch_resolve_payload_mispredict_w = 1'b1;
+    force dut.branch_resolve_payload_is_branch_w = 1'b1;
+    force dut.branch_resolve_payload_taken_w = 1'b1;
+    force dut.branch_resolve_payload_pred_taken_w = 1'b0;
+    force dut.branch_resolve_payload_bht_idx_w =
+        {`BPU_BHT_INDEX_W{1'b1}};
+    #1;
+    tb_check1("V9O C0 exposes queue-head barrier",
+              control_full_flush_barrier, 1'b1);
+    tb_check32("V9O C0 exposes typed TRAP reason",
+               {{(32-`REDIR_REASON_W){1'b0}}, control_full_flush_reason},
+               {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+    tb_check1("V9O C0 suppresses younger branch event",
+              branch_resolve_valid, 1'b0);
+    tb_check1("V9O C0 suppresses younger branch recovery",
+              branch_resolve_mispredict, 1'b0);
+    tb_check1("V9O C0 does not start ROB walk",
+              dut.u_dispatch_backend.rob_kill_valid_w, 1'b0);
+    tb_check1("V9O C0 closes dispatch lane0", dispatch0_ready, 1'b0);
+    tb_check1("V9O C0 closes dispatch lane1", dispatch1_ready, 1'b0);
+    tb_check1("V9O C0 emits no memory lane0 request", mem_req_valid, 1'b0);
+    tb_check1("V9O C0 emits no memory lane1 request", mem1_req_valid, 1'b0);
+    tb_check1("V9O C0 withholds memory lane0 response credit",
+              mem_rsp_ready, 1'b0);
+    tb_check1("V9O C0 withholds memory lane1 response credit",
+              mem1_rsp_ready, 1'b0);
+    release dut.control_event_pregrant_w;
+    release dut.control_full_flush_barrier_w;
+    release dut.control_full_flush_reason_w;
+    release dut.branch_resolve_authorized_w;
+    release dut.branch_resolve_payload_pc_w;
+    release dut.branch_resolve_payload_next_pc_w;
+    release dut.branch_resolve_payload_misaligned_w;
+    release dut.branch_resolve_payload_rob_idx_w;
+    release dut.branch_resolve_payload_mispredict_w;
+    release dut.branch_resolve_payload_is_branch_w;
+    release dut.branch_resolve_payload_taken_w;
+    release dut.branch_resolve_payload_pred_taken_w;
+    release dut.branch_resolve_payload_bht_idx_w;
+    $display("[V9O-BACKEND-C0-BARRIER] younger branch/dispatch/memory actions held PASS");
+
+    // Distinct pending-system CSR commit case: it is an older control event
+    // with backend action NONE, so it must suppress the younger branch
+    // production packet without asserting the full-flush barrier.
+    reset_dut();
+    force dut.control_event_pregrant_w = 1'b1;
+    force dut.control_full_flush_barrier_w = 1'b0;
+    force dut.branch_resolve_authorized_w = 1'b1;
+    force dut.branch_resolve_payload_pc_w = 64'h0000_0000_8000_d000;
+    force dut.branch_resolve_payload_next_pc_w =
+        64'h0000_0000_8000_e000;
+    force dut.branch_resolve_payload_misaligned_w = 1'b0;
+    force dut.branch_resolve_payload_rob_idx_w = 4'd9;
+    force dut.branch_resolve_payload_mispredict_w = 1'b1;
+    force dut.branch_resolve_payload_is_branch_w = 1'b1;
+    force dut.branch_resolve_payload_taken_w = 1'b1;
+    force dut.branch_resolve_payload_pred_taken_w = 1'b0;
+    force dut.branch_resolve_payload_bht_idx_w =
+        {`BPU_BHT_INDEX_W{1'b1}};
+    #1;
+    tb_check1("V9O pending CSR pregrant is not a full-flush barrier",
+              control_full_flush_barrier, 1'b0);
+    tb_check1("V9O pending CSR pregrant suppresses younger branch event",
+              branch_resolve_valid, 1'b0);
+    tb_check1("V9O pending CSR pregrant suppresses younger branch recovery",
+              branch_resolve_mispredict, 1'b0);
+    tb_check1("V9O pending CSR pregrant does not start ROB walk",
+              dut.u_dispatch_backend.rob_kill_valid_w, 1'b0);
+    release dut.control_event_pregrant_w;
+    release dut.control_full_flush_barrier_w;
+    release dut.branch_resolve_authorized_w;
+    release dut.branch_resolve_payload_pc_w;
+    release dut.branch_resolve_payload_next_pc_w;
+    release dut.branch_resolve_payload_misaligned_w;
+    release dut.branch_resolve_payload_rob_idx_w;
+    release dut.branch_resolve_payload_mispredict_w;
+    release dut.branch_resolve_payload_is_branch_w;
+    release dut.branch_resolve_payload_taken_w;
+    release dut.branch_resolve_payload_pred_taken_w;
+    release dut.branch_resolve_payload_bht_idx_w;
+    $display("[V9O-PENDING-CSR-BRANCH-PRIORITY] older action-NONE commit suppresses younger branch PASS");
+
+`ifdef V9R_SQ_RETRY_C0_FOCUSED
+        tb_finish("tb_ooo_int_backend_v9r_sq_retry_c0");
+`elsif V8Y_SPECULATION_RECOVERY_FOCUSED
         tb_finish("tb_ooo_int_backend_v8y_speculation_recovery");
 `elsif V8X_BACKEND_BRIDGE_RECOVERY_FOCUSED
         tb_finish("tb_ooo_int_backend_v8x_backend_bridge_recovery");

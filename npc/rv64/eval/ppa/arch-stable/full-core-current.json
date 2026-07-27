@@ -1,10 +1,15 @@
 {
   "schema": "npc-rv64-arch-stable-candidate-v1",
-  "design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
   "scope": {
     "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
     "product": "local NpcTop RV64 dual-issue out-of-order processor RTL",
-    "excluded_debt_ids": []
+    "excluded_debt_ids": [
+      "A-COHERENCE-G1",
+      "DEBUG-TRIGGER-G1",
+      "SFENCE-SINVAL-G1",
+      "WFI-G1"
+    ]
   },
   "artifacts": {
     "debt_ledger": "npc/rv64/design/arch/architecture-debt-ledger.json",

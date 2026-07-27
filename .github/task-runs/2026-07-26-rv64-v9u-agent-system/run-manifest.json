@@ -1,0 +1,113 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence",
+    "evidence_index": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-26-rv64-v9u-agent-system",
+    "run_manifest": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 6,
+    "by_kind": {
+      "log": 5,
+      "md": 1
+    },
+    "total_size_bytes": 20188
+  },
+  "final_result": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "c29532ead",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1,
+      "PASS": 3
+    },
+    "total": 4
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence/recall-discovery.log",
+      "function": "e2e_agent_system_discovery",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence/tool-env-check.log",
+      "function": "e2e_toolchain_check",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence/npc-sim-status.log",
+      "function": "e2e_hardware_flow_npc_sim_status",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "source_profile": "discovery",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-26-rv64-v9u-agent-system/evidence/three-layer-contract.log",
+      "function": "e2e_agent_system_three_layer_contract",
+      "inputs": "AI_ENVIRONMENT.md;.github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh",
+      "module": "agent-system",
+      "node_id": "three-layer-contract",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "source_profile": "agent-system",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "agent-system",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-26-rv64-v9u-agent-system",
+  "schema_version": 1,
+  "started_at": "2026-07-26 20:19:55 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "rv64-v9u-agent-system",
+  "trace_id": "e2e:2026-07-26-rv64-v9u-agent-system",
+  "updated_at": "2026-07-26 20:20:21 +0800"
+}

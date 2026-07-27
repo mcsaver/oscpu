@@ -277,6 +277,8 @@ module NpcCoreTop (
 
   wire ooo_mem_flush_w;
   wire ooo_mmu_flush_w;
+  wire ooo_control_full_flush_barrier_w;
+  wire [`REDIR_REASON_W-1:0] ooo_control_full_flush_reason_w;
   wire [1:0] ooo_priv_mode_w;
   wire [`XLEN-1:0] ooo_mstatus_w;
   wire [`XLEN-1:0] ooo_satp_w;
@@ -305,7 +307,8 @@ module NpcCoreTop (
   wire [`OOO_CONTEXT_ID_W-1:0] ooo_head0_identity_w;
   wire _unused_v8a_shadow_w = ooo_head0_retire_candidate_valid_w |
                                ooo_head0_identity_valid_w |
-                               (|ooo_head0_identity_w);
+                               (|ooo_head0_identity_w) |
+                               (|ooo_control_full_flush_reason_w);
   assign head0_context_shadow_permit_w = 1'b1;
   assign fencei_shadow_permit_w = 1'b1;
   wire ooo_csr_access_valid_w;
@@ -365,6 +368,7 @@ module NpcCoreTop (
   wire lsu_raw_bvalid_w;
   wire lsu_raw_bready_w;
   wire [1:0] lsu_raw_bresp_w;
+  wire ifu_ad_update_invalidate_all_w;
 
   OooFetchAxiBridge u_ooo_fetch_bridge (
     .clk(clk),
@@ -419,15 +423,18 @@ module NpcCoreTop (
     .ifu_axi_wlast_o(ifu_axi_wlast_o),
     .ifu_axi_bvalid_i(ifu_axi_bvalid_i),
     .ifu_axi_bready_o(ifu_axi_bready_o),
-    .ifu_axi_bresp_i(ifu_axi_bresp_i)
+    .ifu_axi_bresp_i(ifu_axi_bresp_i),
+    .dcache_ad_update_invalidate_all_o(ifu_ad_update_invalidate_all_w)
   );
 
   OooDualMemBridgeWrapper u_ooo_dual_mem_bridge (
     .clk(clk),
     .rst(rst),
     .flush_i(ooo_mem_flush_w),
+    .control_full_flush_barrier_i(ooo_control_full_flush_barrier_w),
     .mmu_flush_i(ooo_mmu_flush_w),
     .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all_i),
+    .ifu_ad_update_invalidate_all_i(ifu_ad_update_invalidate_all_w),
     .priv_mode_i(ooo_priv_mode_w),
     .mstatus_i(ooo_mstatus_w),
     .satp_i(ooo_satp_w),
@@ -880,6 +887,8 @@ module NpcCoreTop (
     .mem1_translate_active_i(ooo_mem1_translate_active_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
+    .control_full_flush_barrier_o(ooo_control_full_flush_barrier_w),
+    .control_full_flush_reason_o(ooo_control_full_flush_reason_w),
     .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),
     .core_retire_count_w(ooo_core_retire_count_w),
     .pending_system_csr_commit_w(ooo_pending_system_csr_commit_w),

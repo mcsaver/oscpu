@@ -1,0 +1,93 @@
+{
+  "configuration": {
+    "OOO_ASSERT": true,
+    "iverilog": "/usr/bin/iverilog",
+    "systemverilog": "2012",
+    "vvp": "/usr/bin/vvp"
+  },
+  "mutations": [
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A commit trap masks pending arch request",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "e4cf7c4aa8d47e3e7a67f245bca3777898d958af0979aaff63dc4cf0a8f69004",
+      "name": "drop-commit-trap-request-mask",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A head0 system birth suppressed",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "083bac3bb47ee1d6139914298d6e19d47ac8d9b66a46599a7fa24401a369f0c0",
+      "name": "drop-head0-arch-system-exclusion",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v"
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A lane1 system birth suppressed",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "595d9e49ebfd9b8019345f3c943369a37af24fbfb8c388233a614ee4a87fa221",
+      "name": "drop-lane1-arch-system-exclusion",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v"
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A IRQ suppresses arch birth",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "bd5bb4360c222dea9cc8b27bc6380cb767bc92be087e5fe43fc190ec6575737d",
+      "name": "drop-irq-over-arch-birth-priority",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v"
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A C1 clears arch owner",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "6f0692ead1cf8861d480729251f839c0c258294420a1e42e807c9af5bb588290",
+      "name": "drop-drain-to-arch-owner-clear",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v"
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10A C1 clears stop",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "ac260f4988f79ffe38b216a59d084f1c239d7f27dfba2ecd0ad938b02912f3aa",
+      "name": "drop-drain-to-stop-clear",
+      "rejected": true,
+      "simulation_rc": 1,
+      "target": "npc/rv64/vsrc/control/OooStopPendingSequencer.v"
+    }
+  ],
+  "passed": true,
+  "production_rtl_sha256": {
+    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
+    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
+    "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "6318e792ebd9bf5fdd27fbe5f8f2bedded83c705d32926ee7e48c6a16d98269f",
+    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
+    "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "759eabf4952f062d9c9143ad35c19daecbf340c8dc86e601229d19b23f5de304",
+    "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
+    "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+    "npc/rv64/vsrc/frontend/OooFrontendRunGate.v": "f58b0944cc55f94cb6d1268b20bbf6300e77599372a246d17c0c68bffde7c7b9"
+  },
+  "rejected_count": 6,
+  "schema": "rv64-v10a-clocked-owner-mutation-summary-v1",
+  "testbench": "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+  "testbench_sha256": "0a69a4aa2b27d8bf449df5e891eaac8778830664a5bacd9c7a1b0f2ed14feedc",
+  "total_count": 6
+}

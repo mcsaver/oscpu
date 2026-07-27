@@ -68,14 +68,24 @@ run_tb() {
 # aggregate.  This keeps the canonical command composable without accepting an
 # unknown test id or overwriting a freshly rebuilt record.
 PRESERVED_TESTS="$EVIDENCE_DIR/static/preserved-current-design-tests.json"
-python3 - "$ARCH_MANIFEST" "$PRESERVED_TESTS" <<'PY'
+python3 - "$ARCH_MANIFEST" "$PRESERVED_TESTS" "$REPO_ROOT" <<'PY'
 import json
 import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
 preserved_path = pathlib.Path(sys.argv[2])
-preserved = {"design_id": None, "tests": {}}
+repo_root = pathlib.Path(sys.argv[3])
+sys.path.insert(0, str(repo_root / "npc/rv64/eval/ppa/tools"))
+import architecture_hard_gates as arch
+
+source_sha, _ = arch.rtl_binding(repo_root)
+current_design_id = f"sha256:{source_sha}"
+preserved = {
+    "design_id": current_design_id,
+    "tests": {},
+    "discarded_stale_tests": [],
+}
 if path.is_file():
     payload = json.loads(path.read_text(encoding="utf-8"))
     tests = payload.get("tests", {})
@@ -93,10 +103,13 @@ if path.is_file():
         raise SystemExit(
             f"memory-ordering composition found unknown tests: {sorted(unknown)}"
         )
-    preserved = {
-        "design_id": payload.get("design_id"),
-        "tests": {name: tests[name] for name in sorted(set(tests) & independent)},
+    independent_tests = {
+        name: tests[name] for name in sorted(set(tests) & independent)
     }
+    if payload.get("design_id") == current_design_id:
+        preserved["tests"] = independent_tests
+    else:
+        preserved["discarded_stale_tests"] = sorted(independent_tests)
     payload["tests"] = {}
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",

@@ -888,11 +888,20 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
     ingress_width_n = int(ingress_width.group(1)) + 1 if ingress_width else 0
     ingress_parameter_n = int(
         ingress_parameter.group(1)) if ingress_parameter else 0
-    seven_ingress = all((
-        ingress_width_n >= 7,
+    twelve_ingress = all((
+        ingress_width_n == 12,
         ingress_parameter_n == ingress_width_n,
         match(backend, r"assign\s+mem_terminal_ingress_valid_w\s*=\s*"
-              r"\{.*?mem_issue1_res_tagged_terminal_w.*?\}\s*;"),
+              r"\{\s*mem_retry1_tagged_terminal_w\s*,\s*"
+              r"mem_retry0_tagged_terminal_w\s*,\s*"
+              r"mem_amo_interphase_cancel_w\s*,\s*"
+              r"mem_buffer_tagged_terminal_w\s*,\s*"
+              r"mem_issue1_res_tagged_terminal_w\s*,\s*"
+              r"mem_issue_res_tagged_terminal_w\s*,\s*"
+              r"mem1_drop1_valid_i\s*,\s*mem1_drop0_valid_i\s*,\s*"
+              r"mem_drop1_valid_i\s*,\s*mem_drop0_valid_i\s*,\s*"
+              r"mem1_terminal_rsp_valid_w\s*,\s*"
+              r"mem_terminal_rsp_valid_w\s*\}\s*;"),
         "module OooMemOwnerTerminalCollector" in collector,
         match(collector, r"PARAM_SHAPE_VALID\s*=\s*\(INGRESS_N\s*>=\s*6\)"),
     ))
@@ -920,8 +929,8 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
          "a younger terminal cannot pass the older terminal on either bank"),
         ("source.dual_store_exact_owner_bind", dual_sq_bind,
          "store-store capture has a distinct exact owner-bind1 path"),
-        ("source.seven_ingress_terminal_collector", seven_ingress,
-         "at least seven terminal sources feed token-indexed collector storage"),
+        ("source.twelve_ingress_terminal_collector", twelve_ingress,
+         "all twelve ordered terminal sources feed token-indexed collector storage"),
         ("source.full_pid_dual_owner", full_pid,
          "bank1 and tracker retain the complete ProducerId"),
     )
@@ -1360,10 +1369,10 @@ def ooo3_checks(src: dict[str, str]) -> list[Check]:
         match(backend, r"wire\s+checkpoint_restore_hold_w\s*=\s*"
               r"checkpoint_restore_i\s*\|\|\s*"
               r"checkpoint_restore_pending_q\s*;"),
-        match(backend, r"assign\s+dispatch0_ready_o\s*=((?:(?!;).)*)"
-              r"!checkpoint_restore_hold_w\s*;"),
-        match(backend, r"assign\s+dispatch1_ready_o\s*=((?:(?!;).)*)"
-              r"!checkpoint_restore_hold_w\s*;"),
+        match(backend, r"assign\s+dispatch0_ready_o\s*="
+              r"(?:(?!;).)*!checkpoint_restore_hold_w(?:(?!;).)*;"),
+        match(backend, r"assign\s+dispatch1_ready_o\s*="
+              r"(?:(?!;).)*!checkpoint_restore_hold_w(?:(?!;).)*;"),
         match(dispatch_body, r"\.dispatch0_valid_i\s*\(\s*"
               r"dispatch0_valid_i\s*&&\s*d0_fp_ok_w\s*&&\s*"
               r"!checkpoint_restore_hold_w\s*\)"),
@@ -1932,10 +1941,10 @@ def metric_checks(test_id: str, m: dict[str, Any]) -> list[Check]:
              "AMO/LR/SC/FP load/store are excluded in both orders"),
             ("atomic_scarcity_zero_births", 1,
              "one-token pressure causes zero partial owner births"),
-            ("collector_ingress_peak", 7,
-             "seven exact terminal ingresses coexist under dequeue stall"),
-            ("collector_exact_drains", 7,
-             "all seven terminal tuples drain exactly once"),
+            ("collector_ingress_peak", 12,
+             "twelve exact terminal ingresses coexist under dequeue stall"),
+            ("collector_exact_drains", 12,
+             "all twelve terminal tuples drain exactly once"),
             ("raw_fallthrough_violations", 0,
              "captured AGU outputs ignore live raw source changes"),
             ("bank1_age_bypass_violations", 0,

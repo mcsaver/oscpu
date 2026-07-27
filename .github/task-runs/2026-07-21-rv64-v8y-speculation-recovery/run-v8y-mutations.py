@@ -186,12 +186,14 @@ MUTATIONS = (
             "                         ((state_q == S_IDLE) ||\n"
             "                          ((state_q == S_RESP) && rsp_ready_w) ||\n"
             "                          (lookup_hit_fusion_w && rsp_ready_w)) &&\n"
-            "                         (!cpu_kill_w || stg_nokill_q);",
+            "                         (!cpu_kill_w || stg_nokill_q) &&\n"
+            "                         !control_full_flush_barrier_i;",
             "  wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w &&\n"
             "                         ((state_q == S_IDLE) ||\n"
             "                          ((state_q == S_RESP) && rsp_ready_w) ||\n"
             "                          (lookup_hit_fusion_w && rsp_ready_w)) &&\n"
             "                         (!cpu_kill_w || stg_nokill_q) &&\n"
+            "                         !control_full_flush_barrier_i &&\n"
             "                         !mem0_expected_effective_killed_i;",
         ),),
         ("V8X station B promotes to active B",

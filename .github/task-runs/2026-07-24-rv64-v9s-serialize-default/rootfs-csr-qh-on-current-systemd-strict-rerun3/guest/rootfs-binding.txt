@@ -1,0 +1,6 @@
+rootfs_template=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-strict.ext4
+rootfs_run_image=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-systemd-strict/rootfs-csr-qh-on-current-systemd-strict-rerun3/rootfs.ext4
+rootfs_template_sha256_pre=452e27bae10b1b21cbf71b1e260b000125156545e411de2d06e21183b732b4b0
+rootfs_run_image_sha256_pre=452e27bae10b1b21cbf71b1e260b000125156545e411de2d06e21183b732b4b0
+rootfs_logical_bytes=2147483648
+copy_mode=reflink-auto+sparse

@@ -242,13 +242,19 @@ e2e_npc_rv64_linux_rootfs_mount_smoke() {
 
 e2e_npc_rv64_systemd_guest_check_contract() {
   echo "[npc-rv64] contract: NPC systemd guest prompt/script gate"
-  local result_dir dry_log
+  local result_dir dry_log rootfs_tmp rootfs_template rootfs_run
+  local rootfs_binding rootfs_sha bad_rootfs_run bad_rootfs_rc
   result_dir="$E2E_EVIDENCE_DIR/npc-rv64-systemd-guest-check-contract"
   dry_log="$result_dir/make-dry-run.log"
   mkdir -p "$result_dir"
 
   e2e_print_required_files \
     Linux/scripts/check-npc-systemd-guest.sh \
+    Linux/scripts/npc-systemd-strict-check.sh \
+    Linux/scripts/npc_systemd_transaction_evidence.py \
+    Linux/scripts/tests/test_npc_systemd_transaction_evidence.py \
+    Linux/scripts/tests/fixtures/v9s-rerun4-incomplete.console \
+    Linux/scripts/prepare-npc-rootfs-run-image.sh \
     Linux/Makefile \
     npc/rv64/vsrc/bus/AxiClint.v \
     npc/rv64/vsrc/core/NpcTop.v \
@@ -257,6 +263,9 @@ e2e_npc_rv64_systemd_guest_check_contract() {
     npc/rv64/csrc/monitor/log.c
 
   bash -n "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  bash -n "$E2E_ROOT_DIR/Linux/scripts/npc-systemd-strict-check.sh"
+  bash -n "$E2E_ROOT_DIR/Linux/scripts/prepare-npc-rootfs-run-image.sh"
+  python3 "$E2E_ROOT_DIR/Linux/scripts/tests/test_npc_systemd_transaction_evidence.py"
   grep -nE 'check-npc-systemd-guest|NPC_SYSTEMD_|check-npc-systemd-guest\.sh' \
     "$E2E_ROOT_DIR/Linux/Makefile" | tee "$dry_log"
 
@@ -269,6 +278,9 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   grep -q 'NPC_UART_RX_WAIT' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'NPC_GUEST_EXPECT' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'NPC_SYSTEMD_CHECK_LOG_DIR' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'NPC_SYSTEMD_ROOTFS_WORK_IMAGE' "$E2E_ROOT_DIR/Linux/Makefile"
+  grep -q 'NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256' "$E2E_ROOT_DIR/Linux/Makefile"
+  grep -q 'prepare-npc-rootfs-run-image.sh' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'PROGRESS="$PROGRESS_INTERVAL"' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'abspath_from_cwd' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'LOG_DIR=$(abspath_from_cwd "$LOG_DIR")' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
@@ -286,8 +298,43 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   grep -q 'trap_hit=' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'LogBothTag("user_ecall"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'LogBothTag("user_progress"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q '__NPC_SYSTEMD_CHECK_DONE__ rc=0' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'npc_systemd_transaction_evidence.py' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'systemd-transaction-evidence.json' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q '__NPC_SYSTEMD_STRICT_DONE__' "$E2E_ROOT_DIR/Linux/scripts/npc-systemd-strict-check.sh"
   grep -q 'root@ysyx-ubuntu2204:~#' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+
+  rootfs_tmp=$(mktemp -d)
+  rootfs_template="$rootfs_tmp/template.ext4"
+  rootfs_run="$rootfs_tmp/run.ext4"
+  rootfs_binding="$rootfs_tmp/binding.txt"
+  bad_rootfs_run="$rootfs_tmp/bad-run.ext4"
+  printf '%s\n' "rv64-rootfs-template-fixture" >"$rootfs_template"
+  rootfs_sha=$(sha256sum "$rootfs_template" | awk '{print $1}')
+  "$E2E_ROOT_DIR/Linux/scripts/prepare-npc-rootfs-run-image.sh" \
+    --template "$rootfs_template" \
+    --run-image "$rootfs_run" \
+    --binding-out "$rootfs_binding" \
+    --expected-template-sha256 "$rootfs_sha"
+  cmp -s "$rootfs_template" "$rootfs_run"
+  grep -q "rootfs_template_sha256_pre=$rootfs_sha" "$rootfs_binding"
+  grep -q "rootfs_run_image_sha256_pre=$rootfs_sha" "$rootfs_binding"
+
+  set +e
+  "$E2E_ROOT_DIR/Linux/scripts/prepare-npc-rootfs-run-image.sh" \
+    --template "$rootfs_template" \
+    --run-image "$bad_rootfs_run" \
+    --binding-out "$rootfs_tmp/bad-binding.txt" \
+    --expected-template-sha256 \
+      0000000000000000000000000000000000000000000000000000000000000000 \
+    >"$rootfs_tmp/bad.log" 2>&1
+  bad_rootfs_rc=$?
+  set -e
+  if [[ "$bad_rootfs_rc" -eq 0 ]]; then
+    printf '%s\n' "[npc-rv64] rootfs helper accepted a mismatched template SHA" >&2
+    rm -rf -- "$rootfs_tmp"
+    return 1
+  fi
+  rm -rf -- "$rootfs_tmp"
 }
 
 e2e_npc_add_smoke() {

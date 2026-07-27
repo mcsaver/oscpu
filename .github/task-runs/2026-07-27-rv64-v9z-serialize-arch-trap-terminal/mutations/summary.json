@@ -1,0 +1,58 @@
+{
+  "configuration": {
+    "OOO_ASSERT": true,
+    "iverilog": "/usr/bin/iverilog",
+    "systemverilog": "2012",
+    "vvp": "/usr/bin/vvp"
+  },
+  "mutations": [
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V9Z active memory holder blocks drain",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "020812dab8a7a67e08e330fe29f1f4ce655bca141eb4b056f0fbbd8370b8727f",
+      "name": "drop-arch-trap-terminal-term",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V9Z exact terminal admits drain",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "961f28470516ecba8871517bd6b04a1a0ebd73def3d0d4d6951e193987565be7",
+      "name": "use-full-mem-idle-for-serialized-controls",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V9Z unrelated drained control ignores memory holder",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "ef6febb0430695c5b777b41a8178ceb32251c1e2f143de273d9edc8be79b0904",
+      "name": "unconditional-memory-owner-gate",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V9Z overlapping FENCE still waits full memory idle",
+      "marker_observed": true,
+      "mutated_rtl_sha256": "48153be3632f9771a33d12398bb021f0142c6258462299904eca8fd811936d16",
+      "name": "drop-ordinary-fence-full-idle-term",
+      "rejected": true,
+      "simulation_rc": 1
+    }
+  ],
+  "passed": true,
+  "production_gate": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+  "production_gate_sha256": "6318e792ebd9bf5fdd27fbe5f8f2bedded83c705d32926ee7e48c6a16d98269f",
+  "rejected_count": 4,
+  "schema": "rv64-v9z-gate-mutation-summary-v1",
+  "testbench_sha256": "7d8f60b80c07e2321fcd0c048f5301a4b1815c08e09806d37256791c10b6f7ef",
+  "total_count": 4,
+  "trap_mux_sha256": "3d1a9e2b712b15c1af7247ba5d4863e23e38e0136af28af837a42acf61a5a6a8"
+}

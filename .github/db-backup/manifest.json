@@ -1,10 +1,10 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-22T18:00:45+00:00",
+  "updated_at": "2026-07-27T01:40:42+00:00",
   "schema_version": "4",
   "backup_format": "dev-memory-cas-v2",
   "backup_layout": "content-addressed-v1",
-  "manifest_generation": 1784743247878569217,
+  "manifest_generation": 1785116443398609999,
   "authoritative_kinds": {
     "dispatch-log": 1784501188645331947,
     "memory": 1784501188645331947,
@@ -27,7 +27,10 @@
     ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1": 1784623370995208370,
     ".github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze": 1784637631679535828,
     ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle": 1784659737528907639,
-    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design": 1784743247878569217
+    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design": 1784743247878569217,
+    ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design": 1785072102961087119,
+    ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear": 1785116443398609999,
+    ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal": 1785109497047307854
   },
   "entries": [
     {
@@ -1185,14 +1188,14 @@
     {
       "path": ".github/memory/modules/agent-system.md",
       "kind": "memory-module",
-      "size_bytes": 151144,
-      "sha256": "670df35f7483f4325cd9ed7c64ecf127ce1622b0f327491f4bc9133bc877b765",
+      "size_bytes": 21009,
+      "sha256": "2b23c02e8fce6e305933b381e39a9e51a173b214359844d092353d447d4f4d5a",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/67/670df35f7483f4325cd9ed7c64ecf127ce1622b0f327491f4bc9133bc877b765",
+      "backup_object": "objects/sha256/2b/2b23c02e8fce6e305933b381e39a9e51a173b214359844d092353d447d4f4d5a",
       "mode": 420,
-      "archived_at": "2026-07-19T22:46:25+00:00",
-      "generation": 1784501188645331947
+      "archived_at": "2026-07-24T13:58:22+00:00",
+      "generation": 1784901505127532584
     },
     {
       "path": ".github/memory/modules/am-kernels.md",
@@ -1245,14 +1248,14 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 660571,
-      "sha256": "2627d767b1682ac582bc833652e02594eb70e76008d6bb0e8c8533d2e930bc12",
+      "size_bytes": 14276,
+      "sha256": "f0016c2f58122d8c6613e3c37f3a4e61c2aa9106004036687440171decd7dbc9",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/26/2627d767b1682ac582bc833652e02594eb70e76008d6bb0e8c8533d2e930bc12",
+      "backup_object": "objects/sha256/f0/f0016c2f58122d8c6613e3c37f3a4e61c2aa9106004036687440171decd7dbc9",
       "mode": 420,
-      "archived_at": "2026-07-19T22:46:25+00:00",
-      "generation": 1784501188645331947
+      "archived_at": "2026-07-24T13:58:22+00:00",
+      "generation": 1784901505127532584
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1293,14 +1296,14 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 702871,
-      "sha256": "09fdf0319672e534739d1c4b050b98dabbf2c8ca2ffd692bb067911ed8bd3358",
+      "size_bytes": 19692,
+      "sha256": "cade19135ce1183df56e8d5304fb112e058d6addb3e9a223ef21237ba12b2131",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/09/09fdf0319672e534739d1c4b050b98dabbf2c8ca2ffd692bb067911ed8bd3358",
+      "backup_object": "objects/sha256/ca/cade19135ce1183df56e8d5304fb112e058d6addb3e9a223ef21237ba12b2131",
       "mode": 420,
-      "archived_at": "2026-07-19T22:46:25+00:00",
-      "generation": 1784501188645331947
+      "archived_at": "2026-07-24T13:58:22+00:00",
+      "generation": 1784901505127532584
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -77681,6 +77684,222 @@
       "mode": 420,
       "archived_at": "2026-07-22T18:00:45+00:00",
       "generation": 1784743247878569217
+    },
+    {
+      "path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/completion-definition.md",
+      "kind": "task-run",
+      "size_bytes": 1347,
+      "sha256": "97cccbf6d9ba11281c93fb56da3622641e39f46a9d8fbd52a4ce31c85c43dba4",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/97/97cccbf6d9ba11281c93fb56da3622641e39f46a9d8fbd52a4ce31c85c43dba4",
+      "mode": 420,
+      "archived_at": "2026-07-26T13:21:40+00:00",
+      "generation": 1785072102961087119
+    },
+    {
+      "path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 1101,
+      "sha256": "bba6163f86fd697684faa1cfc9d5206e4518037816cbf20cd4ae37192287bfd0",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/bb/bba6163f86fd697684faa1cfc9d5206e4518037816cbf20cd4ae37192287bfd0",
+      "mode": 420,
+      "archived_at": "2026-07-26T13:21:40+00:00",
+      "generation": 1785072102961087119
+    },
+    {
+      "path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5449,
+      "sha256": "96b0d36df57e386bf9ff0b08a925c421444e673f6fd51e21f3d4b8d3244965b1",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/96/96b0d36df57e386bf9ff0b08a925c421444e673f6fd51e21f3d4b8d3244965b1",
+      "mode": 420,
+      "archived_at": "2026-07-26T13:21:40+00:00",
+      "generation": 1785072102961087119
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/completion-definition.md",
+      "kind": "task-run",
+      "size_bytes": 2075,
+      "sha256": "a59f164f2ea426dc4098040f323dbd9e306db4d87e8d6dee39d7326e02b40ffa",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/a5/a59f164f2ea426dc4098040f323dbd9e306db4d87e8d6dee39d7326e02b40ffa",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4441,
+      "sha256": "98a6d1fecabd5fc082d36d38057796186809228d25d1addfb722256b6261978c",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/98/98a6d1fecabd5fc082d36d38057796186809228d25d1addfb722256b6261978c",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 853,
+      "sha256": "15dbc3cea8fc9bababa027ec0671837b71ace7ee630a23710369abb6f1cc57d9",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/15/15dbc3cea8fc9bababa027ec0671837b71ace7ee630a23710369abb6f1cc57d9",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/final-reviewer-report-v1.md",
+      "kind": "task-run",
+      "size_bytes": 3627,
+      "sha256": "eb1c5b8a90b62c026111e421104f0980e33b35595fea2a97f6ec3025a5521efc",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/eb/eb1c5b8a90b62c026111e421104f0980e33b35595fea2a97f6ec3025a5521efc",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/reviewer-report-v2.md",
+      "kind": "task-run",
+      "size_bytes": 2861,
+      "sha256": "995b02cd5133d9820869d44d2aec596c8555251bc489816d10c2cc5cf65b6458",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/99/995b02cd5133d9820869d44d2aec596c8555251bc489816d10c2cc5cf65b6458",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 10148,
+      "sha256": "20cbf3e3442a7eb457f73b2d5324e56398b155d09ad1db87960a68bbd57df4d8",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/20/20cbf3e3442a7eb457f73b2d5324e56398b155d09ad1db87960a68bbd57df4d8",
+      "mode": 420,
+      "archived_at": "2026-07-27T01:40:42+00:00",
+      "generation": 1785116443398609999
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/completion-definition.md",
+      "kind": "task-run",
+      "size_bytes": 806,
+      "sha256": "843ce32213e8a0a5af1f49847a48429ef73737a66d3cc79bcc44fb43800d828a",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/84/843ce32213e8a0a5af1f49847a48429ef73737a66d3cc79bcc44fb43800d828a",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/contract.md",
+      "kind": "task-run",
+      "size_bytes": 3279,
+      "sha256": "00950b9dd72ab8aad5ac85c25a13e8b05441e6f0a2c045e28e15d00ed524e8ed",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/00/00950b9dd72ab8aad5ac85c25a13e8b05441e6f0a2c045e28e15d00ed524e8ed",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 2946,
+      "sha256": "c29e6f0ca1adf8d3dfbcd744511263882bde27761e917092468cf73e56543f4b",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/c2/c29e6f0ca1adf8d3dfbcd744511263882bde27761e917092468cf73e56543f4b",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 849,
+      "sha256": "4429b5fef3afeba102fd3ec580ca103cd929137b3a335ec6e9d49e7d043ba7b3",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/44/4429b5fef3afeba102fd3ec580ca103cd929137b3a335ec6e9d49e7d043ba7b3",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/pre-fix-red-result.md",
+      "kind": "task-run",
+      "size_bytes": 863,
+      "sha256": "1ce475dd2d71da4f7d614a5fa9804b58e36c420f842692edbcfdec13e2115ab8",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/1c/1ce475dd2d71da4f7d614a5fa9804b58e36c420f842692edbcfdec13e2115ab8",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/reviewer-report-v1.md",
+      "kind": "task-run",
+      "size_bytes": 3297,
+      "sha256": "33caf06d96bd6112e38b861ce15a6e89593287c06bf04b468c7a695a5835f4d1",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/33/33caf06d96bd6112e38b861ce15a6e89593287c06bf04b468c7a695a5835f4d1",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/reviewer-report-v2.md",
+      "kind": "task-run",
+      "size_bytes": 3961,
+      "sha256": "302eae5013f5f9ce0e752cff61d1cb9e99354de2f3d85d65d8483c5d717e2807",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/30/302eae5013f5f9ce0e752cff61d1cb9e99354de2f3d85d65d8483c5d717e2807",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/strict-guard-status.md",
+      "kind": "task-run",
+      "size_bytes": 1805,
+      "sha256": "58591ea90bb72f3be156233c5a0a8cc735490847efa6fdf7f08b6f1c04ca80c8",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/58/58591ea90bb72f3be156233c5a0a8cc735490847efa6fdf7f08b6f1c04ca80c8",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
+    },
+    {
+      "path": ".github/task-runs/2026-07-27-rv64-v9z-serialize-arch-trap-terminal/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 9199,
+      "sha256": "0c37d2a0b209f0d78391efe4eca081e7551b4e50feead513da1f600f7f82d200",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/0c/0c37d2a0b209f0d78391efe4eca081e7551b4e50feead513da1f600f7f82d200",
+      "mode": 420,
+      "archived_at": "2026-07-26T23:44:56+00:00",
+      "generation": 1785109497047307854
     },
     {
       "path": ".github/task-runs/README.md",

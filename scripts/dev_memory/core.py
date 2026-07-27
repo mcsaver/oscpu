@@ -29,6 +29,7 @@ DEFAULT_DB = ".github/cache/github-index.sqlite"
 DEFAULT_DB_BACKUP_ROOT = ".github/db-backup"
 DEFAULT_MAX_BYTES = 2 * 1024 * 1024
 DEFAULT_CHUNK_MAX_CHARS = 3500
+DEFAULT_CHUNK_MAX_TOKENS = 1000
 DEFAULT_EXTRA_SOURCES = (
     "AGENTS.md",
     "CLAUDE.md",
@@ -624,6 +625,7 @@ def split_section_lines(
     start_line: int,
     lines: list[str],
     max_chars: int,
+    max_tokens: int = DEFAULT_CHUNK_MAX_TOKENS,
 ) -> list[tuple[str, int, int, str]]:
     chunks: list[tuple[str, int, int, str]] = []
     current: list[str] = []
@@ -632,8 +634,12 @@ def split_section_lines(
     for offset, line in enumerate(lines):
         line_no = start_line + offset
         line_chars = len(line) + 1
-        should_flush = current and current_chars + line_chars > max_chars
-        if should_flush and (not line.strip() or current_chars >= max_chars):
+        candidate_text = "\n".join((*current, line))
+        exceeds_token_budget = current and estimate_tokens(candidate_text) > max_tokens
+        exceeds_char_budget = current and current_chars + line_chars > max_chars
+        if exceeds_token_budget or (
+            exceeds_char_budget and (not line.strip() or current_chars >= max_chars)
+        ):
             text = "\n".join(current).strip()
             if text:
                 chunks.append((heading, current_start, line_no - 1, text))

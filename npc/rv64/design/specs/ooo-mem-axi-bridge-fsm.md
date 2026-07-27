@@ -45,8 +45,10 @@ DMA 边界只覆盖当前仿真 `AxiVirtioBlk`：queue-notify 的 DPI task 同�
 ```
 stage_advance_w  = stg_valid_q && !dcache_rmw_busy_w &&
                    (S_IDLE || (S_RESP && rsp_ready_w)) &&
-                   (!cpu_kill_w || stg_nokill_q)
-mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
+                   (!cpu_kill_w || stg_nokill_q) &&
+                   !control_full_flush_barrier_i
+mem0_req_ready_o = !flush_i && !control_full_flush_barrier_i &&
+                   (!stg_valid_q || stage_advance_w)
 ```
 - `!flush_i` 必须保留在 ready（关键决策，非可选）：MIQ 的 flush 分支是 else-if，flush 拍
   push 被忽略——flush 拍若允许 fire 即"桥内有事务、MIQ 无记账"（rsp 无主/序配对破坏）。
@@ -59,6 +61,17 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
 - flush 拍：非 nokill 站内项当拍清除（未发射即止损，全程不发 lookup/AR/rsp，比旧"进 FSM
   再 drain"更早）；nokill（SQ drain 落存）项存活，且可在 flush 拍照常 advance 进 FSM
   （写必达，BRG-STG-NOKILL 断言）。
+- V9O C0 `control_full_flush_barrier_i` 只暂停新 station fire、station advance，以及
+  尚未取得 AXI owner 的 `S_LOOKUP` miss / `S_DEVICE_WAIT` release AR。已经在
+  `S_WALK_AR/S_READ_ADDR/S_WRITE_REQ/S_WRITE_RESP` 持有或呈现的 AR/AW/W/B/R owner
+  继续按原 hold/drain 合同完成，VALID 不得被屏障组合门控。
+- V9R 将已登记的 `S_SQ_QUERY` owner 纳入同一 hold 语义：C0 期间 query valid、完整
+  owner tuple 与 FSM 状态保持，`sq_query_retry_fire=0`，不得把 owner 交给 backend retry
+  holder；barrier 解除后，若 replay 决策与 retry credit 仍有效，才允许完成正常非终结交接。
+- 双 lane wrapper 的动态合同要求两个 child bridge 可同时驻留 registered
+  `S_READ_ADDR`。多拍 C0 barrier 期间，两份 lane-local AR VALID/address/control payload
+  与共享 arbiter 当前 owner 均保持；第一个 R terminal 后才可选择另一个已登记 owner，
+  两个精确 owner token 最终各产生一次响应。
 
 ## 3. 正常转移（`else` 分支，flush_i=0 且 drop_rsp_q=0；req=寄存站项 advance）
 ```
@@ -228,6 +241,13 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
   恰好合并一次。`access_cacheable_q` 在进入数据事务状态前锁存并保持到 response；
   `mem0_rsp_cacheable_o` 与 SQ/drain sideband 只能转发该锁存值。PBMT=11 或 PMA deny 产生
   fault 且不得保留 admission class；PBMT NC/IO 即使 PA 落在 PMEM 也不得 lookup/fill/RMW。
+- **MEM-I12 V9O C0 no-new-owner**：`control_full_flush_barrier_i` 时 request ready、
+  station advance、`S_LOOKUP` pre-owner miss AR 与 `S_DEVICE_WAIT` release AR 均为 0；
+  `S_SQ_QUERY -> retry holder` fire 同样为 0；registered `S_WALK_AR/S_READ_ADDR` AR
+  以及既有 AW/W owner 不受门控。
+- **MEM-I13 C0 hold-not-clear**：屏障本身不得改变 FSM、station valid、drop/nokill
+  或响应 payload；若 FSM 为 `S_SQ_QUERY`，其 active owner 也必须保持。C1 `flush_i`
+  才按 §4 的 clear/drain 规则处理。
   target bridge、SQ 或 D-cache 禁止再次按 PA 猜测/覆盖该属性。
 - **MEM-I12 B terminal cache 维护真值（R4-S0）**：`data_store_b_terminal` 与
   `data_store_b_ok` 必须分开。只有 `B=OKAY && access_cacheable_q` 的普通 store 能置
@@ -257,6 +277,9 @@ upstream AW/W fire 只是 capture，split write 可能尚有多个下游 beat。
 `design/arch/history/mem-store-decouple.md`，不得当作当前行为依据。
 
 ## 7. 变更记录
+- 2026-07-23（V9O）：增加双 lane registered-AR owner × persistent C0 barrier 定向矩阵；
+  两 lane 同时进入 `S_READ_ADDR` 后保持 4 拍 barrier，并在 barrier 持续期间完成两个
+  address/R terminal，验证 payload/arbiter owner 保持及两个 token 各完成一次。
 - 2026-07-16（R4-S1.0 docs-only）：冻结 typed ABI、owner identity、epoch、PMA/PBMT 矩阵及
   S1 single-owner/S2 RED 边界；本模块实现状态保持 R4-S0 Boolean 单 owner，不声明 RTL 完成。
 - 2026-07-15（R4-S0 post-translation memory semantics）：新增统一分类器，Bare/DTLB-hit/

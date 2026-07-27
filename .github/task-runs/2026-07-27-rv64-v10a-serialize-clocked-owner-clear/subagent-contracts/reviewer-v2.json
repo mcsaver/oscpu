@@ -1,0 +1,58 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v10a-clocked-owner-clear-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地 RV64 production equation，复核 pending architectural-trap C0 fire→C1 owner/stop clear、C2 no-repeat，以及 architectural trap 与 ECALL/IRQ/xRET/CSR/FENCE 的 overlap 可达性；指出必须由动态 TB 杀死的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/subagent-contracts/reviewer-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "OooPendingDrainResolveGate: drain_complete=stop_pending&&backend_drained&&pending_control_ready&&!replay_wait&&(!(pending_system||pending_arch_trap)||mem_owner_terminalized)&&(!pending_system_fence||mem_idle).",
+      "OooPendingDispatchArbiter: drain_clear=!csr_trap_mem_valid&&!direct_frontend_flush&&stop_pending&&drain_complete；该项同时进入 pending_system_clear、pending_trap_exit_clear_arch 与 pending_trap_exit_clear_exit。",
+      "OooPendingTrapExitSequencer: clear_arch 先把 pending_arch_trap 置0；仅非 squash clear+capture 允许后续 capture 覆写；late_clear 最后清全部；drain owner live 时 production can_run=0，因此 drain edge 没有新 capture。",
+      "OooPendingSystemSequencer: 对非 CSR holder，clear_i 优先于 empty capture；CSR producer lease 只由 exact producer_death 清；kind_q 对 CSR/ECALL/XRET/WFI/SFENCE/FENCEI/FENCE/IRQ exact-one。",
+      "OooStopPendingSequencer: core_local_flush、exact CSR death、accepted owner birth、ordinary clear 与 drain clear由单一 priority chain更新；非 CSR drain 条件在 owner仍live的C0把stop_pending置0。",
+      "OooFrontendRunGate: stop_pending_owner含pending_arch_trap与pending_system；stop_pending_busy=stop_pending&&!orphan；can_run要求!stop_pending_busy。",
+      "Birth arbitration: IRQ capture要求csr_irq_pending；head0 system capture要求!irq&&!fetch_fault&&!arch_trap&&!exit；lane1 barrier base要求!irq&&!head0-fault&&!head0-arch&&!head0-exit&&!head0-system，lane1 system capture另要求!lane1-arch。",
+      "OooCsrTrapRequestMux: arch fire=stop&&drain&&pending_arch；system ECALL/IRQ/xRET均要求stop&&drain&&pending_system；CsrFile对trap请求选择mem>ex>irq，只有无selected trap时才执行mret/sret或CSR写。",
+      "OooFrontend E6 redirect: same drain edge按pending_arch_trap优先于pending_system选择PC/reason；若两个registered owner重叠，losing system可被共同clear而无对应side effect，因此重叠必须构造性不可达而不能只依赖mux优先级。",
+      "现有V9Z TB只做组合gate-to-mux；现有IFU lane1 owner TB已实例化arbiter/trap sequencer/stop/mux但在drain观察后未跨posedge检查clear/no-repeat，且未接CsrFile。"
+    ]
+  },
+  "deliverables": [
+    "给出C0/C1/C2状态表、五类overlap判定、最强可编译反例建议、需要的正向TB观测与任何未知项；限定材料不足处写GAP或scope_extension_request。"
+  ],
+  "success_criteria": [
+    "明确区分结构上已证明的合同和仍需动态杀死的反例；不得把限定材料复核称为完整仓库审查；最终回复明确不使用shell且不修改文件。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

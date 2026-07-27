@@ -1,0 +1,124 @@
+{
+  "canonical_verify": {
+    "pass": true,
+    "returncode": 0,
+    "stderr": [],
+    "stdout": [
+      "[V9O-EVIDENCE-INDEX-VERIFY] design_id=sha256:08d3d8648251f8fd430d0a9bcac289335f5dfb99a0a235531766e3c7f8048c6a verification_id=sha256:300da14d23d25c35168fa62277be014c255ab5198ef5d786ffe28348b700c3c1 artifacts=164 status=PASS"
+    ]
+  },
+  "contract": {
+    "expected_sha256": "d6dc3fc808fa859b97a6bc415ba3ac0fb0f98b40d92867479cf31f9616da368c",
+    "match": true,
+    "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/subagent-contracts/control-event-ledger-validator-review-v3.json",
+    "sha256": "d6dc3fc808fa859b97a6bc415ba3ac0fb0f98b40d92867479cf31f9616da368c"
+  },
+  "current": {
+    "boundary_candidate_design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+    "candidate_binding_exact": true,
+    "candidate_design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+    "candidate_differs_from_local_design": true,
+    "candidate_schema": "npc-rv64-arch-stable-candidate-v1",
+    "control_event_closed_binding": "GAP",
+    "control_event_semantic_evidence": "PASS",
+    "design_id": "sha256:08d3d8648251f8fd430d0a9bcac289335f5dfb99a0a235531766e3c7f8048c6a",
+    "evaluated_architecture_freeze": "GAP",
+    "evaluated_blocker_count": 59,
+    "evaluated_ppa": "UNQUALIFIED",
+    "evaluated_promotion_eligible": false,
+    "full_validator_errors": [],
+    "index_full_core_boundary": {
+      "architecture_freeze": "GAP",
+      "blockers": 59,
+      "candidate_design_id": "sha256:2eff867b20012e0c004fb03431a2f0604f22c471d0b115fd2e02eb5a51b2c8b2",
+      "current_design_match": false,
+      "ppa": "UNQUALIFIED",
+      "promotion_eligible": false
+    },
+    "indexed_artifact_count_expected": 164,
+    "make_inventory_count": 110,
+    "make_inventory_errors": [],
+    "make_inventory_matches_index": true,
+    "mutation_compile_success": 11,
+    "mutation_names_exact": true,
+    "mutation_rejected": 11,
+    "mutation_required": 11,
+    "provenance_count": 23,
+    "provenance_exact": true,
+    "rtl_file_count": 146,
+    "rtl_recomputed_design_id": "sha256:08d3d8648251f8fd430d0a9bcac289335f5dfb99a0a235531766e3c7f8048c6a",
+    "semantic_validator_pass": true,
+    "verification_file_count": 133,
+    "verification_recomputed_id": "sha256:300da14d23d25c35168fa62277be014c255ab5198ef5d786ffe28348b700c3c1"
+  },
+  "current_workspace_tests": {
+    "count": 4,
+    "pass": true,
+    "returncode": 0,
+    "selected": [
+      "CurrentWorkspaceTests.test_control_event_debt_evidence_is_current",
+      "CurrentWorkspaceTests.test_control_event_payload_rejects_false_green_shapes",
+      "CurrentWorkspaceTests.test_current_candidate_is_honest_gap_with_dynamic_inventory",
+      "CurrentWorkspaceTests.test_cli_require_stable_returns_two_for_current_gap"
+    ],
+    "stderr": [
+      "test_control_event_debt_evidence_is_current (__main__.CurrentWorkspaceTests.test_control_event_debt_evidence_is_current) ... ok",
+      "test_control_event_payload_rejects_false_green_shapes (__main__.CurrentWorkspaceTests.test_control_event_payload_rejects_false_green_shapes) ... ok",
+      "test_current_candidate_is_honest_gap_with_dynamic_inventory (__main__.CurrentWorkspaceTests.test_current_candidate_is_honest_gap_with_dynamic_inventory) ... ok",
+      "test_cli_require_stable_returns_two_for_current_gap (__main__.CurrentWorkspaceTests.test_cli_require_stable_returns_two_for_current_gap) ... ok",
+      "",
+      "----------------------------------------------------------------------",
+      "Ran 4 tests in 2.598s",
+      "",
+      "OK"
+    ],
+    "stdout": []
+  },
+  "negative_probes": {
+    "transitive_architecture_artifact_embeds_ledger": {
+      "accepted": true,
+      "errors": [],
+      "fixture_index": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/transitive-architecture-artifact/evidence-index.json",
+      "fixture_mutation_summary": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/transitive-architecture-artifact/mutations-summary.json"
+    },
+    "v2_mutation_summary_downstream_schema_extension": {
+      "accepted": false,
+      "errors": [
+        "CONTROL-EVENT-G1 mutation-summary field set drifted",
+        "CONTROL-EVENT-G1 self-referential artifact is forbidden: .github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/gates/arch-stable-audit.json"
+      ],
+      "fixture_index": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/v2-top-level-schema-extension/evidence-index.json",
+      "fixture_mutation_summary": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/v2-top-level-schema-extension/mutations-summary.json"
+    },
+    "v2_mutation_summary_nested_downstream_reference": {
+      "accepted": false,
+      "errors": [
+        "CONTROL-EVENT-G1 self-referential artifact is forbidden: .github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/gates/arch-stable-audit.json",
+        "CONTROL-EVENT-G1 compile-success RTL mutation semantics drifted"
+      ],
+      "fixture_index": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/v2-nested-downstream-reference/evidence-index.json",
+      "fixture_mutation_summary": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/validator-review-v3/fixtures/v2-nested-downstream-reference/mutations-summary.json"
+    }
+  },
+  "schema": "npc-rv64-control-event-validator-review-v3-probes-v1",
+  "scope_extension_request": {
+    "commands": [
+      "python3",
+      "sha256sum",
+      "git diff"
+    ],
+    "needed": true,
+    "paths": [
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json"
+    ],
+    "reason": "\u82e5\u8981\u5173\u95ed\u4e00\u5c42\u95f4\u63a5 artifact \u5185\u5bb9\u672a\u9012\u5f52\u5ba1\u8ba1\u7684\u5047\u7eff\uff0c\u9700\u8981\u65b0\u7248 implementation contract\u3002"
+  },
+  "unknowns": [
+    "\u672c\u8282\u70b9\u91cd\u653e\u65e2\u6709 110-module\u300111-mutation \u4e0e 9-gate \u8bc1\u636e\uff0c\u672a\u91cd\u65b0\u8fd0\u884c\u8fd9\u4e9b\u751f\u6210\u578b\u4eff\u771f\u4efb\u52a1\u3002",
+    "\u672a\u6267\u884c\u5168\u7a7a\u95f4 property-based JSON \u62d3\u6251 fuzz\uff1b\u5269\u4f59\u53cd\u4f8b\u6765\u81ea\u5b9a\u5411\u4e00\u5c42\u95f4\u63a5\u5f15\u7528\u63a2\u9488\u3002"
+  ]
+}

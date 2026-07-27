@@ -10,12 +10,19 @@
 4. 按目标选择 domain profile；AI 环境改动用 `agent-system`，RV64 PPA 同时考虑 `npc`、
    `verilator-tapeout`、`yosys-sta`，不能用环境 profile 代替业务 gate。
 5. 派发本地 RV64 RTL 子 agent 时，用 `.github/skills/prepare-rtl-task-contract/` 的 canonical
-   `create → validate → render` 生成并原样派发最小权限契约；validate 失败或手改边界的结果只记
+    `create → validate → render` 生成并原样派发最小充分工程契约；validate 失败或手改边界的结果只记
    `candidate-only`，范围扩展另建 versioned JSON。主 agent 使用 `rv64-hardware-professional` 术语描述任务，
    `render` 追加 RV64 微架构/RTL/验证/PPA 语境、正向本地作用域声明和多义术语的对象/层级/作用域/
-   工程目的限定，且不改变既有工具或推理能力；平台 review 只隔离当前子任务并留在主 agent 记录中，
-   不自动关闭长期父目标。用户可见进度与终审摘要也先写具体 module/signal/transaction、EDA 动作和证据，
+   工程目的限定，且不改变既有工具或推理能力；节点状态留在主 agent 的结构化记录中。用户可见进度与终审摘要也先写具体 module/signal/transaction、EDA 动作和证据，
    协调状态单独落 task-run，不反复复制到 RTL 技术正文；该分层不得削减负向 RTL 版本、断言或覆盖能力。
+   创建该子 agent 时使用 `fork_turns="none"`，只把已校验的渲染结果作为初始提示；所需设计事实由
+   `allowed_paths`、`required_context` 或 `supplied_material` 提供，不继承父任务完整对话历史。
+   子 agent 最终回复首段按“RV64 RTL 对象或本地证据文件 → 周期或编译配置 → testbench/EDA 观测 →
+   PASS/GAP 范围”组织；本地 JSON 证据校验出现意外接受或拒绝时，写明具体 schema 字段、工作区相对
+   路径、定向单测和返回结果，并保留反例、未知项、原始日志 marker 和真实文件名。
+   `render` 只保留上述硬件事实、合同绑定、输入/输出和工程命令；派发管线、父任务历史、协调状态与
+   措辞策略不进入子 agent 技术提示。证据工具复核也必须以具体 CPU 债务项、RTL 证据文件、字段、
+   测试名和返回码组织。长期 goal 只引用该措辞剖面，不重复展开协调场景。
 6. 实施、验证、记录后运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。
 
 `brief` 只有在 Markdown/JSON 明确给出 `recall_status=complete` 时才算召回成功；显式 profile、
@@ -93,7 +100,7 @@ AI 环境不是一次性整理项目，而是业务开发中的反馈控制面�
 
 ```text
 发现摩擦 / 假绿 / 入口冲突
- -> classify（导航、规则、机器合同、执行器、证据或长期事实）
+ -> 归类（导航、规则、机器合同、执行器、证据或长期事实）
  -> 在唯一真源修复
  -> 用反例、mutation 或失败样本证明门禁能抓到问题
  -> 跑 domain profile，并补跑 agent-system / strict guard
@@ -127,9 +134,15 @@ python3 scripts/github_index_db.py delivery-audit
 
 ## 新增规则
 
+- 新增长时间仿真/综合/系统回放 runner：复用 `scripts/task-run-status.sh`，只有本轮 marker、内容哈希和
+  cleanup 全部通过后调用 evidence-complete；`EXIT`、clean early-exit 或 `HUP/INT/TERM` 本身不能
+  产生 `PASS`。运行 `scripts/tests/test-task-run-status.sh`，并由 `agent-system` profile 的
+  `task-run-status-fail-closed` 节点检查 helper、反例和 runner 接线。
 - 新增 skill：创建 `.github/skills/<name>/SKILL.md`，再运行 `python3 scripts/github_index_db.py skill-audit`。
 - 本地 RTL 子任务派发：先运行 `rtl_task_contract.py create/validate/render`；`create` 自动声明输出
-  JSON 自路径，`render` 自动绑定该 JSON 的路径与 SHA-256（不绑定设计 `contract.md`）。把这两项
+  JSON 自路径，并生成只含 `workspace_root/allowed_paths/write_paths/allowed_commands` 的 schema v2
+  `scope`；schema v1 只保留历史 validate/render 兼容。`render` 自动绑定该 JSON 的路径与 SHA-256
+  （不绑定设计 `contract.md`）。把这两项
   逐字写入当前 task-run 的 dispatch log。Windows/Codex→WSL 工程命令按 single-flight 调度，当前唯一
   shell ownership 可以交给一个契约授权节点。需要发现遗漏或核对源码时默认使用 `workspace-files`；
   只有限定材料复核才使用 `--self-contained-no-tools` 和 `--supplied-material`，使 JSON 原生声明

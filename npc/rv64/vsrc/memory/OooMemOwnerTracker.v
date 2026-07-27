@@ -297,8 +297,32 @@ module OooMemOwnerTracker #(
   integer assert_token_i;
   integer assert_token_j;
   integer assert_pid_i;
-  integer assert_pid_matches_r;
-  integer assert_producer_popcount_r;
+
+  function integer assert_count_live_producers;
+    input unused;
+    integer producer_i;
+    begin
+      assert_count_live_producers = 0;
+      for (producer_i = 0; producer_i < PRODUCER_COUNT;
+           producer_i = producer_i + 1)
+        if (producer_live_q[producer_i])
+          assert_count_live_producers = assert_count_live_producers + 1;
+    end
+  endfunction
+
+  function integer assert_count_tokens_for_producer;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    integer token_i;
+    begin
+      assert_count_tokens_for_producer = 0;
+      for (token_i = 0; token_i < TOKEN_COUNT; token_i = token_i + 1)
+        if (live_q[token_i] &&
+            (producer_id_q[token_i] == producer_id))
+          assert_count_tokens_for_producer =
+              assert_count_tokens_for_producer + 1;
+    end
+  endfunction
+
   wire [COUNT_W-1:0] death_count_w = popcount_live(death_mask_r);
   always @(posedge clk) begin
     if (rst) begin
@@ -400,36 +424,30 @@ module OooMemOwnerTracker #(
         $fatal;
       end
 
-      assert_producer_popcount_r = 0;
       for (assert_pid_i = 0; assert_pid_i < PRODUCER_COUNT;
            assert_pid_i = assert_pid_i + 1) begin
-        if (producer_live_q[assert_pid_i])
-          assert_producer_popcount_r = assert_producer_popcount_r + 1;
-        assert_pid_matches_r = 0;
-        for (assert_token_i = 0; assert_token_i < TOKEN_COUNT;
-             assert_token_i = assert_token_i + 1) begin
-          if (live_q[assert_token_i] &&
-              (producer_id_q[assert_token_i] ==
-               assert_pid_i[PRODUCER_ID_W-1:0]))
-            assert_pid_matches_r = assert_pid_matches_r + 1;
-        end
-        if (assert_pid_matches_r > 1) begin
+        if (assert_count_tokens_for_producer(
+                assert_pid_i[PRODUCER_ID_W-1:0]) > 1) begin
           $display("[V8G-MEM-OWNER-PID-ONEHOT] pid=%h matches=%0d",
                    assert_pid_i[PRODUCER_ID_W-1:0],
-                   assert_pid_matches_r);
+                   assert_count_tokens_for_producer(
+                       assert_pid_i[PRODUCER_ID_W-1:0]));
           $fatal;
         end
         if (producer_live_q[assert_pid_i] !==
-            (assert_pid_matches_r == 1)) begin
+            (assert_count_tokens_for_producer(
+                 assert_pid_i[PRODUCER_ID_W-1:0]) == 1)) begin
           $display("[V8G-MEM-OWNER-PID-EXISTS] pid=%h live=%b matches=%0d",
                    assert_pid_i[PRODUCER_ID_W-1:0],
-                   producer_live_q[assert_pid_i], assert_pid_matches_r);
+                   producer_live_q[assert_pid_i],
+                   assert_count_tokens_for_producer(
+                       assert_pid_i[PRODUCER_ID_W-1:0]));
           $fatal;
         end
       end
-      if (assert_producer_popcount_r != live_count_o) begin
+      if (assert_count_live_producers(1'b0) != live_count_o) begin
         $display("[V8G-MEM-OWNER-PID-COUNT] pid_count=%0d token_count=%0d",
-                 assert_producer_popcount_r, live_count_o);
+                 assert_count_live_producers(1'b0), live_count_o);
         $fatal;
       end
 

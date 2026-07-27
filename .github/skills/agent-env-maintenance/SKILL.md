@@ -22,7 +22,7 @@ description: 维护 YSYX AI 开发环境三层架构时使用：数据库长期�
 7. 修改 FSM、回退、Reviewer/Inspector、状态回溯或 profile 审稿节点时同步 `.github/ai-env/contracts/agent-env-state-traceability.json`，并确认 `python3 scripts/github_index_db.py state-audit` 通过；生成新 task-run 后用 `state-audit --run-id <run_id>` 验证 `state_traceback`。
 8. 修改 runtime artifact/source 边界、大体积日志、波形、镜像或 raw evidence retention 时同步 `.github/ai-env/contracts/agent-env-runtime-artifacts.json`，并确认 `python3 scripts/github_index_db.py artifact-audit` 通过；生成新 task-run 后用 `artifact-audit --run-id <run_id>` 验证 raw evidence 只进入 `evidence_assets` 索引。
 9. 修改商业交付面、旧产物归档、包内容或包内敏感路径规则时同步 `.github/ai-env/contracts/agent-env-delivery.json`，运行 `scripts/package-ai-dev-env.sh`，并确认 `python3 scripts/github_index_db.py delivery-audit` 通过。
-10. 修改 agent 权限、retention、CI/nightly、FSM、交付或证据策略时同步 `.github/ai-env/contracts/agent-env-policy.json`，并确认 `python3 scripts/github_index_db.py policy-audit` 通过。
+10. 修改 agent 工具范围、retention、CI/nightly、FSM、交付或证据策略时同步 `.github/ai-env/contracts/agent-env-policy.json`，并确认 `python3 scripts/github_index_db.py policy-audit` 通过。
 11. 修改 review 路由、分支健康或 dashboard 口径时同步 `.github/ai-env/contracts/agent-env-review-routing.json` 与 `.github/ai-env/contracts/agent-env-branch-health.json`，并确认 `python3 scripts/github_index_db.py branch-health-audit` 通过。
 12. 修改本地 RTL 子 agent 派发边界时同步 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、`.github/instructions/rtl-agent-task-contract.instructions.md`、`.github/skills/prepare-rtl-task-contract/` 与 `rtl-task-contract` profile 节点，并运行脚本 `audit/self-test/cli-self-test`。
 13. 维护完成后运行 `scripts/agent-maintain.sh --mode check`。若触及 e2e/profile/脚本，再运行相关 `scripts/agent-e2e.sh --profile <profile>`。

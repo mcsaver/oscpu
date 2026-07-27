@@ -100,6 +100,71 @@ class ProducerHolderCensusTests(unittest.TestCase):
                 f"mem_retry{bank}_owner_mask_w", token["coverage_anchor"]
             )
 
+    def test_v9r_retry_c0_handoff_anchors_fail_closed(self) -> None:
+        cases = (
+            (
+                "execute/OooIntBackend.v",
+                "      !flush_i && !checkpoint_restore_hold_w &&\n"
+                "      !control_full_flush_barrier_w;",
+                "      !flush_i && !checkpoint_restore_hold_w;",
+                "v9r-backend-retry0-c0-gate",
+            ),
+            (
+                "execute/OooIntBackend.v",
+                "      !flush_i && !checkpoint_restore_hold_w &&\n"
+                "      !control_full_flush_barrier_w;",
+                "      !flush_i && !checkpoint_restore_hold_w;",
+                "v9r-backend-retry1-c0-gate",
+            ),
+            (
+                "execute/OooIntBackend.v",
+                "      if (control_full_flush_barrier_w &&\n"
+                "          (mem_sq_query_retry_ready_o ||",
+                "      if (1'b0 &&\n"
+                "          (mem_sq_query_retry_ready_o ||",
+                "v9r-backend-retry-c0-assert",
+            ),
+            (
+                "memory/OooMemAxiBridge.v",
+                "      mem0_sq_query_retry_ready_i && "
+                "!control_full_flush_barrier_i;",
+                "      mem0_sq_query_retry_ready_i;",
+                "v9r-bridge-retry-fire-c0-gate",
+            ),
+            (
+                "memory/OooMemAxiBridge.v",
+                "      if (control_full_flush_barrier_i && "
+                "sq_query_retry_fire_w) begin",
+                "      if (1'b0 && sq_query_retry_fire_w) begin",
+                "v9r-bridge-retry-fire-c0-assert",
+            ),
+        )
+        occurrence = {
+            "v9r-backend-retry0-c0-gate": 0,
+            "v9r-backend-retry1-c0-gate": 1,
+        }
+        for relative, old, new, anchor_id in cases:
+            with self.subTest(anchor=anchor_id):
+                path = self.source / relative
+                original = path.read_text(encoding="utf-8")
+                if anchor_id in occurrence:
+                    parts = original.split(old)
+                    self.assertEqual(len(parts), 3)
+                    index = occurrence[anchor_id]
+                    mutated = old.join(parts[: index + 1]) + new + old.join(
+                        parts[index + 1 :]
+                    )
+                else:
+                    self.assertEqual(original.count(old), 1)
+                    mutated = original.replace(old, new, 1)
+                path.write_text(mutated, encoding="utf-8")
+                result = self.audit()
+                self.assertIn(
+                    f"required anchor missing: {anchor_id}",
+                    result["errors"],
+                )
+                path.write_text(original, encoding="utf-8")
+
     def test_irrevocable_write_lease_is_a_direct_birth_fence_holder(self) -> None:
         data = json.loads(self.manifest.read_text(encoding="utf-8"))
         direct = {row["id"]: row for row in data["direct_full_p_fields"]}

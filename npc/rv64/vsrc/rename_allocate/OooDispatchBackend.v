@@ -224,6 +224,7 @@ module OooDispatchBackend #(
   output dispatch1_src2_ready_o,
 
   input commit_ready_i,
+  input commit_pregrant_ready_i,
   input commit1_block_i,
   input mem_quiet_i,   // 【serialize Phase1 §9】mem 静默(=mem_idle&&mem_retire_quiet), 门控 head0-CSR 退休
   output commit0_valid_o,
@@ -264,6 +265,9 @@ module OooDispatchBackend #(
   output rob_head_owner_open_o,
   output rob_head_launch_open_o,
   output rob_recover_active_o,
+  output head0_control_event_pregrant_o,
+  output head0_full_flush_pregrant_o,
+  output [`REDIR_REASON_W-1:0] head0_full_flush_reason_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
   output [ISSUE_COUNT_W-1:0] issue_count_o,
@@ -271,6 +275,8 @@ module OooDispatchBackend #(
   // S2-Q2 v8a：末级 wrapper 只把 permit/facts 映射到 canonical ROB。
   input head0_context_permit_i,
   input fencei_retire_permit_i,
+  input pending_csr_owner_valid_i,
+  input [PRODUCER_ID_W-1:0] pending_csr_owner_producer_id_i,
   output head0_retire_candidate_valid_o,
   output head0_identity_valid_o,
   output [`OOO_CONTEXT_ID_W-1:0] head0_identity_o
@@ -312,6 +318,9 @@ module OooDispatchBackend #(
   wire rob_head_valid_w;
   wire rob_head_launch_open_w;
   wire rob_head_owner_open_w;
+  wire rob_head0_control_event_pregrant_w;
+  wire rob_head0_full_flush_pregrant_w;
+  wire [`REDIR_REASON_W-1:0] rob_head0_full_flush_reason_w;
   wire [ROB_COUNT_W-1:0] rob_count_w;
   wire rob_empty_w;
   wire rob_full_w;
@@ -420,7 +429,8 @@ module OooDispatchBackend #(
   // reset/flush 与 child state-update priority 同域：parent ready 也必须拉低，
   // 否则上游会观察到一次并未被 ROB/IQ/rename 接受的伪 fire。
   wire dispatch_freeze_w = rst || flush_i ||
-                           rob_recover_active_w || rob_kill_valid_w;
+                           rob_recover_active_w || rob_kill_valid_w ||
+                           rob_head0_control_event_pregrant_w;
   assign dispatch0_ready_o = rob_slot0_ready_w &&
                              (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
                              free_ok0_w && sq_ok0_w &&
@@ -601,12 +611,17 @@ module OooDispatchBackend #(
     .flush_i(flush_i),
     .head0_context_permit_i(head0_context_permit_i),
     .fencei_retire_permit_i(fencei_retire_permit_i),
+    .pending_csr_owner_valid_i(pending_csr_owner_valid_i),
+    .pending_csr_owner_producer_id_i(pending_csr_owner_producer_id_i),
     .head0_retire_candidate_valid_o(head0_retire_candidate_valid_o),
     .head0_identity_valid_o(head0_identity_valid_o),
     .head0_identity_o(head0_identity_o),
     .head0_producer_id_o(rob_head0_producer_id_w),
     .head0_owner_open_o(rob_head_owner_open_w),
     .head0_launch_open_o(rob_head_launch_open_w),
+    .head0_control_event_pregrant_o(rob_head0_control_event_pregrant_w),
+    .head0_full_flush_pregrant_o(rob_head0_full_flush_pregrant_w),
+    .head0_full_flush_reason_o(rob_head0_full_flush_reason_w),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(rob_dispatch0_ready_w),
     .dispatch0_rob_idx_o(rob_dispatch0_idx_w),
@@ -695,6 +710,7 @@ module OooDispatchBackend #(
     .resolve_query_producer_id_i(resolve_query_producer_id_i),
     .resolve_query_match_o(resolve_query_match_o),
     .commit_ready_i(commit_ready_i),
+    .commit_pregrant_ready_i(commit_pregrant_ready_i),
     .commit1_block_i(commit1_block_i),
     .mem_quiet_i(mem_quiet_i),
     .commit0_valid_o(commit0_valid_o),
@@ -754,6 +770,10 @@ module OooDispatchBackend #(
   assign rob_head_idx_o = rob_head_idx_w;
   assign rob_head_valid_o = rob_head_valid_w;
   assign rob_recover_active_o = rob_recover_active_w;
+  assign head0_control_event_pregrant_o =
+      rob_head0_control_event_pregrant_w;
+  assign head0_full_flush_pregrant_o = rob_head0_full_flush_pregrant_w;
+  assign head0_full_flush_reason_o = rob_head0_full_flush_reason_w;
 
   OooIntIssueQueue #(
     .ENTRY_COUNT(ISSUE_ENTRY_COUNT),

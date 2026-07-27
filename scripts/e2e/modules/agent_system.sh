@@ -58,6 +58,8 @@ e2e_agent_system_discovery() {
     scripts/agent-run.sh \
     scripts/agent-maintain.sh \
     scripts/agent-e2e.sh \
+    scripts/task-run-status.sh \
+    scripts/tests/test-task-run-status.sh \
     scripts/e2e/lib/common.sh \
     scripts/e2e/lib/report.sh || rc=1
 
@@ -2822,6 +2824,23 @@ PY
   return "$rc"
 }
 
+e2e_agent_system_dual_role_docs_valid() {
+  local agents_doc=${1:-.github/AGENTS.md}
+  local copilot_doc=${2:-.github/copilot-instructions.md}
+  local agent_system_doc=${3:-.github/agents/agent-system.agent.md}
+  local state_machine_doc=${4:-.github/instructions/agent-env-state-machine.instructions.md}
+
+  e2e_file_contains "$agents_doc" '实现者' &&
+    e2e_file_contains "$agents_doc" '审查者' &&
+    e2e_file_contains "$agents_doc" '双角色复核' &&
+    e2e_file_contains "$copilot_doc" '实现者' &&
+    e2e_file_contains "$copilot_doc" '审查者' &&
+    e2e_file_contains "$copilot_doc" '双角色复核' &&
+    e2e_file_contains "$agent_system_doc" '实现者人格' &&
+    e2e_file_contains "$agent_system_doc" '审查者人格' &&
+    e2e_file_contains "$state_machine_doc" '实现者/审查者双角色复核'
+}
+
 e2e_agent_system_reviewer_inspector_gate() {
   echo "[agent-system] reviewer/inspector execution gate"
   local rc=0
@@ -2869,13 +2888,14 @@ e2e_agent_system_reviewer_inspector_gate() {
     rc=1
   fi
 
-  if e2e_file_contains ".github/AGENTS.md" '实现者人格 / 审查者人格' &&
-     e2e_file_contains ".github/copilot-instructions.md" '实现者人格 / 审查者人格' &&
-     e2e_file_contains ".github/agents/agent-system.agent.md" '实现者人格' &&
-     e2e_file_contains ".github/instructions/agent-env-state-machine.instructions.md" '实现者/审查者对抗'; then
-    printf 'PASS adversarial implementer/reviewer delivery rule is documented\n'
+  # Check the delivery contract by semantic anchors instead of one exact
+  # punctuation/persona spelling.  The rule remains strict about both roles and
+  # the dual-role review, while allowing the canonical docs to use
+  # “实现者 / 审查者” or “实现者人格 / 审查者人格”.
+  if e2e_agent_system_dual_role_docs_valid; then
+    printf 'PASS implementer/reviewer dual-role delivery rule is documented\n'
   else
-    printf 'FAIL adversarial implementer/reviewer delivery rule missing from docs\n'
+    printf 'FAIL implementer/reviewer dual-role delivery rule missing from docs\n'
     rc=1
   fi
 
@@ -2915,6 +2935,7 @@ e2e_agent_system_rtl_task_contract() {
   fi
 
   if e2e_file_contains "$instruction_doc" 'engineering_domain' &&
+     e2e_file_contains "$instruction_doc" 'canonical v2 `scope`' &&
      e2e_file_contains "$instruction_doc" 'allowed_paths' &&
      e2e_file_contains "$instruction_doc" 'write_paths' &&
      e2e_file_contains "$instruction_doc" 'allowed_commands' &&
@@ -2945,6 +2966,8 @@ e2e_agent_system_rtl_task_contract() {
      e2e_file_contains "$instruction_doc" '对象、层级、作用域和工程目的' &&
      e2e_file_contains "$instruction_doc" '不附加平台处理' &&
      e2e_file_contains "$instruction_doc" '关键词拒绝' &&
+     e2e_file_contains "$instruction_doc" '精简技术提示' &&
+     e2e_file_contains "$instruction_doc" 'CPU 债务项、schema 字段、定向单测和' &&
      e2e_file_contains "$instruction_doc" '不改变工具、shell、路径、上下文或推理能力'; then
     printf 'PASS RTL task instruction binds scope, outputs, evidence and review containment\n'
   else
@@ -2953,6 +2976,7 @@ e2e_agent_system_rtl_task_contract() {
   fi
 
   if e2e_file_contains "$skill_doc" 'name: prepare-rtl-task-contract' &&
+     e2e_file_contains "$skill_doc" '新建合同使用 schema v2' &&
      e2e_file_contains "$skill_doc" 'rtl_task_contract.py create' &&
      e2e_file_contains "$skill_doc" 'rtl_task_contract.py validate' &&
      e2e_file_contains "$skill_doc" 'rtl_task_contract.py render' &&
@@ -2974,6 +2998,8 @@ e2e_agent_system_rtl_task_contract() {
      e2e_file_contains "$skill_doc" '.github/agentic-hardware-blueprint.md' &&
      e2e_file_contains "$skill_doc" '不进入子 agent 渲染提示' &&
      e2e_file_contains "$skill_doc" '不建立关键词黑名单' &&
+     e2e_file_contains "$skill_doc" '精简的硬件事实提示' &&
+     e2e_file_contains "$skill_doc" '泛化的校验器、引用拓扑或输入空间' &&
      e2e_file_contains "$skill_doc" '不改变任何工具、shell、路径或推理能力' &&
      e2e_file_contains "$contract_doc" '"default_mode": "workspace-files"' &&
      e2e_file_contains "$contract_doc" '"no_tools_mode": "prompt-supplied-self-contained"' &&
@@ -2982,15 +3008,25 @@ e2e_agent_system_rtl_task_contract() {
      e2e_file_contains "$contract_doc" '"fixed_finding_cap_forbidden": true' &&
      e2e_file_contains "$contract_doc" '"no_tools_task_kinds"' &&
      e2e_file_contains "$contract_doc" '"wording_profile"' &&
+     e2e_file_contains "$contract_doc" '"schema_version": 2' &&
+     e2e_file_contains "$contract_doc" '"scope_defaults"' &&
      e2e_file_contains "$contract_doc" '"profile": "rv64-hardware-professional"' &&
      e2e_file_contains "$contract_doc" '"reference": ".github/agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording"' &&
      e2e_file_contains "$contract_doc" '"domain_reference": "npc/rv64/design/arch/rv64-hardware-wording-profile.md"' &&
      e2e_file_contains "$contract_doc" '"keyword_blacklist_forbidden": true' &&
      e2e_file_contains "$contract_doc" '"does_not_change_capabilities": true' &&
      e2e_file_contains "$contract_doc" '"positive_local_scope_preamble_required": true' &&
+     e2e_file_contains "$contract_doc" '"rendered_prompt_style": "compact-rv64-hardware-evidence"' &&
+     e2e_file_contains "$contract_doc" '"technical_narrative_subject": "local-rv64-rtl-object-or-evidence"' &&
+     e2e_file_contains "$contract_doc" '"coordination_metadata_in_rendered_prompt": false' &&
+     e2e_file_contains "$contract_doc" '"final_response_evidence_order"' &&
+     e2e_file_contains "$contract_doc" '"testbench-or-eda-observation"' &&
      e2e_file_contains "$contract_doc" '"engineering-purpose"' &&
      e2e_file_contains "$contract_tool" 'fixed finding count caps are forbidden' &&
-     e2e_file_contains "$contract_tool" '措辞剖面：`rv64-hardware-professional`' &&
+     e2e_file_contains "$contract_tool" 'CANONICAL_SCOPE_FIELDS' &&
+     e2e_file_contains "$contract_tool" 'RV64 RTL 结论｜对象=<module/signal/本地证据路径>' &&
+     e2e_file_contains "$contract_tool" '## 最终技术回复' &&
+     e2e_file_contains "$contract_tool" 'CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码' &&
      e2e_file_contains "$contract_tool" 'rendered hardware prompt leaked coordinator-only wording' &&
      e2e_file_contains "$skill_meta" 'Use $prepare-rtl-task-contract'; then
     printf 'PASS RTL task skill is discoverable and exposes create/validate/render\n'
@@ -3001,11 +3037,15 @@ e2e_agent_system_rtl_task_contract() {
 
   if e2e_file_contains "$policy_doc" '"task_delegation"' &&
      e2e_file_contains "$policy_doc" '"contract_before_dispatch_required": true' &&
-     e2e_file_contains "$policy_doc" '"local_rtl_external_access_forbidden": true' &&
+     e2e_file_contains "$policy_doc" '"local_rtl_material_source": "declared-workspace-paths"' &&
      e2e_file_contains "$policy_doc" '"hardware_wording_profile_required": true' &&
      e2e_file_contains "$policy_doc" '"positive_local_scope_preamble_required": true' &&
      e2e_file_contains "$policy_doc" '"ambiguous_terms_require_hardware_context": true' &&
+     e2e_file_contains "$policy_doc" '"final_response_hardware_evidence_first_required": true' &&
      e2e_file_contains "$policy_doc" '"rendered_prompt_platform_meta_forbidden": true' &&
+     e2e_file_contains "$policy_doc" '"rendered_prompt_coordination_meta_forbidden": true' &&
+     e2e_file_contains "$policy_doc" '"rendered_prompt_style": "compact-rv64-hardware-evidence"' &&
+     e2e_file_contains "$policy_doc" '"technical_narrative_subject": "local-rv64-rtl-object-or-evidence"' &&
      e2e_file_contains "$policy_doc" '"wording_profile_changes_capabilities": false' &&
      e2e_file_contains "$policy_doc" '"wording_keyword_blacklist_forbidden": true' &&
      e2e_file_contains "$coordinator_doc" '$prepare-rtl-task-contract' &&
@@ -3122,6 +3162,55 @@ e2e_agent_system_commercial_delivery_readiness() {
 
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" delivery-audit || rc=1
   rm -f "$sensitive_log"
+  return "$rc"
+}
+
+e2e_agent_system_task_run_status_fail_closed() {
+  echo "[agent-system] RV64 long-run status fail-closed"
+  local rc=0
+  local status_helper="scripts/task-run-status.sh"
+  local status_test="scripts/tests/test-task-run-status.sh"
+  local maintain_sh="scripts/agent-maintain.sh"
+  local strict_runner=".github/task-runs/2026-07-24-rv64-v9s-serialize-default/run-v9s-rootfs-csr-qh-systemd-strict.sh"
+  local full_runner=".github/task-runs/2026-07-24-rv64-v9s-serialize-default/run-v9s-rootfs-csr-qh-on-current.sh"
+
+  e2e_print_required_files \
+    "$status_helper" \
+    "$status_test" \
+    "$maintain_sh" \
+    "$strict_runner" \
+    "$full_runner" || rc=1
+
+  if grep -Fq 'TASK_RUN_STATUS_EVIDENCE_COMPLETE=0' "$E2E_ROOT_DIR/$status_helper" &&
+     grep -Fq 'task_run_status_mark_evidence_complete' "$E2E_ROOT_DIR/$status_helper" &&
+     grep -Fq 'task_run_status_install_signal_traps' "$E2E_ROOT_DIR/$status_helper" &&
+     grep -Fq 'cleanup_rc=' "$E2E_ROOT_DIR/$status_helper"; then
+    printf 'PASS task-run status helper binds completion, signal, stage, and cleanup state\n'
+  else
+    printf 'FAIL task-run status helper misses completion, signal, stage, or cleanup state\n'
+    rc=1
+  fi
+
+  if grep -Fq 'task-run status fail-closed self-test' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'scripts/tests/test-task-run-status.sh' "$E2E_ROOT_DIR/$maintain_sh"; then
+    printf 'PASS agent-maintain check executes task-run status fail-closed self-test\n'
+  else
+    printf 'FAIL agent-maintain check misses task-run status fail-closed self-test\n'
+    rc=1
+  fi
+
+  for runner in "$strict_runner" "$full_runner"; do
+    if grep -Fq 'source "${status_helper}"' "$E2E_ROOT_DIR/$runner" &&
+       grep -Fq 'task_run_status_mark_evidence_complete' "$E2E_ROOT_DIR/$runner" &&
+       ! grep -Eq 'if .*rc.*-eq 0.*PASS' "$E2E_ROOT_DIR/$runner"; then
+      printf 'PASS RV64 runner uses explicit completion latch: %s\n' "$runner"
+    else
+      printf 'FAIL RV64 runner does not use fail-closed completion latch: %s\n' "$runner"
+      rc=1
+    fi
+  done
+
+  "$E2E_ROOT_DIR/$status_test" || rc=1
   return "$rc"
 }
 

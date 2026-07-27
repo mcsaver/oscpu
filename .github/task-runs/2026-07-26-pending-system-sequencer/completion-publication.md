@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-26-pending-system-sequencer
+- `trace_id`: e2e:2026-07-26-pending-system-sequencer
+- `task_slug`: pending-system-sequencer
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: d394678aa94ae192599cec03ec90a559d7048bcf605d9c9a07b6ce5e6ba2704a
+- `task_report_md_sha256`: 2beb9020e635a9dbb316e5a5a6abc12d7630226127a953c2a060c1ec355bfaca
+- `run_manifest_json_sha256`: 4d764d43309f406564d62d01f7291466987d2a6e2ace9daa60d3c62c1d18fc41
+- `context_brief_md_sha256`: 63e3418cf7d16947fedddcce1205749ad2f77a506945d4fa620628f882de13bd
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: 3b40377c843f893a7b35bffb3c3fb7c09c994f98df865c693b5c88f669604e93
+- `dispatch_log_md_sha256`: 11f423268aaf4816f82f4e02ad59a08fc458891634dcd1958e7801e425ea5e95
+- `nodes_tsv_sha256`: 06dad5cb13d922d0e4ed3496aa1a26d47ad4e4648f1adf07789deb6922dcf49e

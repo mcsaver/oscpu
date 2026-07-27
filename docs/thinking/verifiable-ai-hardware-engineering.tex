@@ -1,5 +1,5 @@
 % !TEX program = xelatex
-% 个人工程思考：仅借用研究生论文常见的版心、字号与行距，不设置封面或学位论文前置页。
+% 研究型工程文章；证据审计截止 2026-07-24。
 \documentclass[UTF8,a4paper,zihao=-4,oneside]{ctexart}
 
 \usepackage[
@@ -10,16 +10,21 @@
   headheight=14pt,
   footskip=12mm
 ]{geometry}
-\usepackage{amsmath}
+\usepackage{amsmath,amssymb}
 \usepackage{booktabs,tabularx,array,longtable}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
 \usepackage{xurl}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
 \usepackage[hidelinks]{hyperref}
 
-% 使用本机常见学位文档字体；粗体中文映射到黑体，避免伪粗体与字形替代。
+% 排版借用研究生论文常见的宋体、黑体、Times New Roman、A4 版心和三线表。
+% 内容是一篇研究型工程反思，不设置封面、声明、学位信息和空白页。
 \setCJKmainfont[BoldFont=SimHei]{SimSun}
 \setCJKsansfont[BoldFont=SimHei]{SimHei}
 \setmainfont{Times New Roman}
@@ -32,6 +37,7 @@
 \widowpenalty=10000
 \clubpenalty=10000
 \displaywidowpenalty=10000
+\setcounter{secnumdepth}{3}
 
 \ctexset{
   section={
@@ -49,6 +55,12 @@
     format=\zihao{-4}\heiti,
     beforeskip=1.2ex,
     afterskip=0.5ex
+  },
+  paragraph={
+    format=\zihao{-4}\heiti,
+    beforeskip=1.0ex,
+    afterskip=0.4ex,
+    runin=false
   }
 }
 
@@ -65,398 +77,1435 @@
 
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcommand{\taskpath}[1]{\path{#1}}
-\newenvironment{recordnote}{%
+\newcommand{\statusword}[1]{\texttt{#1}}
+\newcommand{\claimstatus}[1]{\texttt{#1}}
+\graphicspath{{assets/}}
+
+\renewcommand{\lstlistingname}{代码}
+\lstdefinestyle{thesiscode}{
+  basicstyle=\ttfamily\zihao{-5},
+  numbers=left,
+  numberstyle=\ttfamily\zihao{6},
+  numbersep=8pt,
+  xleftmargin=2.4em,
+  framexleftmargin=2.0em,
+  frame=single,
+  framesep=4pt,
+  framerule=0.4pt,
+  rulecolor=\color{black},
+  columns=fullflexible,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=t,
+  aboveskip=.7em,
+  belowskip=.7em
+}
+\lstset{style=thesiscode}
+
+\newenvironment{evidencebox}{%
   \par\smallskip
-  \begingroup\footnotesize
+  \begingroup\small
   \noindent\rule{\linewidth}{0.4pt}\par\smallskip
-  \noindent\textbf{记录锚点：}\ignorespaces
+  \noindent\textbf{证据与边界：}\ignorespaces
 }{%
   \par\smallskip\noindent\rule{\linewidth}{0.4pt}
   \endgroup\par\medskip
 }
-\newenvironment{stageinsight}{%
-  \begin{quote}\small\noindent\textbf{阶段判断：}\ignorespaces
+
+\newenvironment{researchclaim}{%
+  \begin{quote}\small\noindent\textbf{研究判断：}\ignorespaces
 }{%
   \end{quote}
+}
+
+\hypersetup{
+  pdftitle={从提示约束到可执行约束：仓库级 RTL Agent 的证据闭环与声明—证据失配治理},
+  pdfsubject={基于 ysyx-workbench 四月至七月工程记录的探索性研究},
+  pdfkeywords={RTL Agent, 可执行约束, design-id, mutation, fail-closed, RV64}
 }
 
 \begin{document}
 
 \thispagestyle{plain}
-\noindent\textbf{记录范围：}2026 年 4 月至 7 月 22 日。本文以我在 \taskpath{AI.docx} 中留下的初稿为思想母本，以工作区源码、\taskpath{.github/task-runs/} 和工程记忆校准事实。它不是学位论文，也不试图把个人经历包装成正式研究成果；这里只借用硕士研究生文档常见的版心、字号、行距和标题层级，记录我在几个月密集协作之后，对 AI、硬件工程和人机分工形成的一些判断。
+\begin{center}
+  {\zihao{2}\heiti 从提示约束到可执行约束\par}
+  \vspace{0.35em}
+  {\zihao{3}\heiti 仓库级 RTL Agent 的证据闭环与声明—证据失配治理\par}
+  \vspace{0.8em}
+  {\zihao{-4}基于 2026 年 4—7 月工程记录的探索性研究\par}
+\end{center}
 
-如果只看工程结果，这四个月似乎可以被压缩成一份很长的清单：4 月从 RV32I、NPC 和 NEMU 起步，5 月进入流水线、Cache、分支预测、ysyxSoC、OoO、RV64 和 OpenSBI，6 月把 Ubuntu/NEMU 系统路径与 AI 工程环境同时推深，7 月又把综合、STA、PPA、任务合同和负向 RTL 变体接进来。上一版文章也正是这样写的。它没有说错，却漏掉了我真正想表达的内容：\textbf{AI 在每个阶段介入工程的深度并不相同，而这种变化也不能只用“模型升级了”来解释。}
+\vspace{0.8em}
+\noindent\textbf{摘\quad 要：}
+在寄存器传输级（Register Transfer Level，RTL）工程中，人工智能 Agent
+可以生成能够编译的代码，也可以调用仿真、综合和静态时序分析（Static Timing
+Analysis，STA）工具。然而，“命令返回
+0”“局部测试通过”或“报告中出现 PASS”都可能强于真实证据：测试可能没有覆盖目标故障，
+日志可能属于旧设计，局部优化可能破坏系统回归，代理时序也可能被误写成物理签核。
+本文把这种\textbf{结论强于证据允许范围}的状态称为“声明—证据失配”；为对应工程记录中的
+原用语，下文亦简称“假完成”。它判断的是主张与证据的关系，不涉及实现者的主观动机。
 
-我第一次高强度使用 GPT-4 写 RTL 时，正好需要完成一个带 FIFO 的 UART。简单分频器尚能生成，一旦进入收发状态、FIFO 边界和握手关系，代码就会反复出现明显错误。那时我把它叫作“大号百度”，并不是因为它毫无知识，而是因为它的知识很难连续进入一个真实工程：它看不到完整状态，不能执行可靠反馈，也无法知道自己是否已经跨过了交付线。后来，模型从即时回答发展到推理、工具调用和 agent 工作方式，局部编码能力确实发生了明显跃迁；但真正改变我工程体验的，还有另一条常被忽略的路线——我也在持续改造模型所处的环境。
+本文以 \taskpath{ysyx-workbench} 中 2026 年 4—7 月的 task-run、原始日志、结构化结果和
+回滚记录为材料，研究自然语言约束如何迁移为可执行工程约束。所分析的机制包括：
+有界上下文召回、任务合同、设计身份（design-id）绑定、分层验证、负向 RTL 变体、
+证据新鲜度、失败关闭发布和回滚。四个月记录显示，这些机制曾实际暴露 lint-only 的
+功能空白、定向测试后的组合环、分支推测与 JALR pending 的死锁、跨设计证据错配以及
+mutation oracle 的假绿风险；多个候选因此被拒绝或回退。七月的部分切片已能把
+focused test、模块回归、负向变体、原始日志哈希和 full-core GAP 同时保存在一条证据链中。
 
-我没有训练模型，也没有改变它的参数。我改变的是它进入项目时能够看到什么、可以执行什么、怎样接收反馈、何时必须停止，以及它说“完成”时需要交出什么证据。用一个并不追求量化精确的表达式概括，就是
+这些结果支持一个有限结论：在本文所列案例中，把 Prompt 中的要求编译成机器可检查的
+对象、配置、命令、反例和发布条件，为 Agent 主张的归属、检验、拒绝和限定提供了机制。
+本文并未证明
+反馈闭环在总体上必然优于单次 Prompt，因为模型、代码、任务和工具在纵向记录中同时变化。
+为此，文末提出 B0—B3 受控实验和组件消融方案，把因果问题留给同模型、同快照、同预算的
+后续研究。
 
-\begin{equation}
-  \begin{aligned}
-    \text{AI 的有效工程能力}
-    = f(&\text{基础模型},\text{上下文供给},\text{动作边界},\\
-        &\text{反馈周期},\text{证据纪律},\text{人的判断}) .
-  \end{aligned}
-\end{equation}
+\vspace{0.4em}
+\noindent\textbf{关键词：}RTL Agent；可执行约束；证据闭环；design-id；mutation；
+失败关闭；RV64
 
-模型决定能力上限，环境决定其中多少能够兑现为可靠交付。这个判断也修正了我初稿里一句过于绝对的话——“AI 的上限完全取决于使用者的上限”。更准确地说，使用者的技术理解决定了问题能否被正确提出，工程环境决定了这种理解能否被外化并反复执行。懂行的人不仅更容易写出好提示词，更重要的是能定义接口、失败条件、测量口径和不能越过的结论边界；当这些内容被固化到工作区以后，它们就不再只属于某一次对话，而会成为下一次模型调用可以继承的外置工程认知。
+\section{引言：从“能生成”到“能被工程接受”}
 
-我在初稿里用了“树”的比喻：AI 很擅长沿着现有结构快速生长，如果树干一开始就是歪的，它也可能以更高速度把整棵树长歪。现在我更愿意把工作区理解为一条跑道。模型像不断升级的发动机，而源码结构、任务入口、回归、task-run、证据和审查机制共同构成跑道、仪表与空管。发动机升级当然重要，但没有这些设施，速度只会让错误走得更远；有了这些设施，即使模型没有换代，它在工程中的有效能力也会发生变化。
+四月时，我主要把 AI 当作代码生成器。它可以一次铺开若干 RTL 模块，Verilator
+也能完成 lint；但如果没有 testbench、镜像加载、对拍和退出状态，所谓“完成”只能说明
+语法进入了下一阶段。五月以后，AI 开始跨越 Cache、乱序后端和 SoC 修改多个文件，
+候选生成速度上升，错误半径也随之扩大。六月和七月，真正改变交付质量的工作不再只是
+换模型或写更多 Prompt，而是持续改造工程环境：让 Agent 知道应读取哪些事实、如何运行
+真实工具、结果属于哪份设计、什么反例必须出现，以及证据不足时为什么不能宣布完成。
+
+这段经历使我逐渐形成一个判断：
+
+\begin{researchclaim}
+模型能力影响候选生成的范围；工程环境则为这些候选能否被验证、拒绝和安全采用提供条件。
+工程师为 Agent 构造的可观察性、身份、反馈和发布制度，本身就是智能工程系统的一部分。
+\end{researchclaim}
+
+这个判断不能靠“后来的任务更复杂、Token 更多、PASS 数更多”来证明。表
+\ref{tab:intro-conflicts}列出三个真实冲突：每个冲突都说明，工程结论必须比工具输出多一层
+语义约束。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{工具结果与工程结论之间的典型断层}
+  \label{tab:intro-conflicts}
+  \begin{tabularx}{\linewidth}{@{}L{0.22\linewidth}YY@{}}
+    \toprule
+    表面结果 & 真实记录 & 能够成立的结论 \\
+    \midrule
+    9 个 RTL 文件且 lint 通过 &
+    四月 RV32I 尚无 testbench、镜像加载和 NEMU 对拍 &
+    语法和部分结构进入可仿真前状态，功能仍未知 \\
+    focused test 通过 &
+    五月 branch+ret 候选随后出现 \texttt{UNOPTFLAT}；六月分支推测破坏系统回归 &
+    定向测试只证明局部场景，不能替代结构与聚合门禁 \\
+    5 ns 下最差裕量为正 &
+    仍有 303 个输入、1873 个输出缺少 delay，1875 个 endpoint 未约束 &
+    只是在给定代理约束下通过内部路径筛选，不是物理签核 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+本文将“声明—证据失配”（简称“假完成”）定义为：
+\textbf{Agent 或流程给出的完成声明，强于该设计身份、配置、
+验证层级和反例能力实际支持的范围。}它不要求代码一定错误；只要证据不足以支持声明，
+就已经构成交付风险。
+
+本文的三项主要贡献如下。
+
+\begin{enumerate}
+  \item 提出\textbf{可执行约束迁移}框架：把“基于当前设计”“验证通过”“性能更优”
+  和“任务完成”等自然语言要求，拆成设计对象、配置、命令、返回码、负向证据、
+  发布条件和主张边界。
+  \item 把 bounded recall、task contract、design-id、mutation、分层回归、freshness、
+  失败关闭和 rollback 组织成仓库级证据闭环，并用真实 RV64 案例说明其数据流。
+  \item 建立主张—证据映射和只读复核入口，区分
+  \claimstatus{SUPPORTED}、\claimstatus{PARTIALLY\_SUPPORTED}、
+  \claimstatus{OBSERVATIONAL\_ONLY}、\claimstatus{CONTRADICTED} 与
+  \claimstatus{MISSING}，避免以 PASS 数替代论证。
+\end{enumerate}
+
+本文不作三项强主张：不证明 Loop 必然优于 Prompt；不把 task-run 或 Token 数解释为
+生产率；不把 Yosys 通用结构和代理 STA 写成目标工艺的物理 PPA 结论。
+
+\section{研究问题与概念边界}
+
+\subsection{研究问题}
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{研究问题及当前可回答范围}
+  \label{tab:rqs}
+  \begin{tabularx}{\linewidth}{@{}C{0.08\linewidth}Y L{0.24\linewidth}@{}}
+    \toprule
+    编号 & 问题 & 当前证据属性 \\
+    \midrule
+    RQ1 &
+    自然语言约束能够在多大程度上迁移为可执行工程约束？ &
+    工具行为与案例可观察；总体因果效应缺失 \\
+    RQ2 &
+    design-id、哈希、freshness 和原子发布能够关闭哪些证据错配路径？ &
+    已有身份错配和重放案例；系统化故障注入不足 \\
+    RQ3 &
+    mutation-qualified verification 能在多大程度上证明验证环境具有故障辨识能力？ &
+    对指定非等价 fault set 成立，不外推全部故障 \\
+    RQ4 &
+    反馈、分层门禁和回滚如何影响 RTL 搜索中候选的接受与拒绝？ &
+    多个真实回滚事件；相对单 Prompt 的平均收益未知 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{术语解释}
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{本文使用的核心术语（1）}
+  \label{tab:terms}
+  \begin{tabularx}{\linewidth}{@{}L{0.20\linewidth}L{0.32\linewidth}Y@{}}
+  \toprule
+  术语 & 通俗含义 & 在本文中的严格作用 \\
+  \midrule
+  Prompt 约束 &
+  用自然语言告诉模型“应该做什么” &
+  便于表达意图，但不自动提供对象身份、执行命令、失败条件和证据边界 \\
+  可执行约束 &
+  能由脚本、测试或验证器判定的条件 &
+  例如指定 design-id、命令返回码、测试分子/分母、唯一失败 marker 和晋级
+  （promotion，即允许候选进入下一交付状态）门 \\
+  task-run &
+  一次工作流活动留下的目录 &
+  保存上下文、调度、日志、报告和证据；目录数不是独立实验数 \\
+  bounded recall &
+  有大小和范围上限的上下文召回 &
+  在 canonical 规则、profile 和独立任务焦点之间分配上下文，缺焦点时失败关闭 \\
+  task contract &
+  任务开始前冻结的输入、输出、动作和成功条件 &
+  防止执行过程中悄悄改变验收标准 \\
+  design-id &
+  当前 RTL 文件集合内容的数字身份 &
+  证明“证据属于哪份设计”，不证明该设计正确 \\
+  \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{本文使用的核心术语（2）}
+  \label{tab:terms-cont}
+  \begin{tabularx}{\linewidth}{@{}L{0.20\linewidth}L{0.32\linewidth}Y@{}}
+  \toprule
+  术语 & 通俗含义 & 在本文中的严格作用 \\
+  \midrule
+  oracle &
+  判断结果正确或错误的观测规则 &
+  testbench、断言、差分模型和日志解析器都可能是 oracle，也可能有盲点 \\
+  mutation &
+  有意构造一份包含指定错误的可编译 RTL 变体 &
+  用于检验 oracle 能否拒绝已知错误，不等价于穷尽全部故障 \\
+  freshness &
+  证据是否晚于并绑定当前语义输入 &
+  不能用 \texttt{touch} 把旧内容伪装成新证据 \\
+  fail-closed &
+  身份、证据或配置有疑问时拒绝完成 &
+  局部 PASS 不足时保留 \texttt{GAP} 或 \texttt{UNQUALIFIED} \\
+  rollback &
+  候选违反门禁后恢复到已知设计身份 &
+  回退后仍需重跑规定的验证，不能只说“代码已经改回去” \\
+  PPA proxy &
+  在简化库和约束下测量性能、功耗或面积的代理 &
+  用于相对筛选；没有寄生参数交换格式（SPEF）、时钟树综合（CTS）、工艺波动分析
+  （OCV）和完整 I/O 约束时，不是物理签核（signoff） \\
+  \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{失败模式}
+
+本文把仓库中出现的风险归纳为八类，见表\ref{tab:failure-classes}。分类的目的不是制造
+一个漂亮框架，而是让每一种“完成”都有相应的反例入口。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{假完成的八类路径}
+  \label{tab:failure-classes}
+  \begin{tabularx}{\linewidth}{@{}C{0.07\linewidth}L{0.31\linewidth}YY@{}}
+    \toprule
+    类别 & 失败路径 & 仓库反例 & 对应约束 \\
+    \midrule
+    A & 语法通过冒充功能正确 & 四月 RV32I 只有 lint & 动态 TB、镜像与对拍 \\
+    B & 局部通过冒充系统通过 & focused PASS 后组合环或聚合失败 & 分层回归 \\
+    C & 代理指标冒充签核 & generic cells、理想时钟 STA & PPA 资格边界 \\
+    D & 不可比指标拼成趋势 & 不同 workload 的 CPI & matched configuration \\
+    E & 过期或跨设计证据 & live design 与 candidate 不同 & design-id/source-id \\
+    F & 不完整材料被发布 & marker、publication、DB 不一致 & 原子发布与 strict guard \\
+    G & 弱 oracle 造成假绿 & 同值连接、旧值 force/release & 非对称刺激与变体身份 \\
+    H & 搜索失败未回滚 & 双 memory 退化、分支推测活锁 & rollback 与重验证 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{仓库级 RTL Agent 的系统设计}
+
+\subsection{总体闭环}
+
+图\ref{fig:system-loop}给出当前系统的主数据流。这里最重要的不是方框数量，而是每个箭头
+都传递明确对象：需求进入上下文与任务合同；候选进入真实工具；工具输出进入证据层；
+证据层决定接受、拒绝或回滚；只有已验证事实才进入下一轮有界召回。
 
 \begin{figure}[htbp]
   \centering
+  \resizebox{0.98\linewidth}{!}{%
   \begin{tikzpicture}[
-    stage/.style={draw=black,rounded corners=1.5pt,align=left,
-      text width=0.82\linewidth,inner xsep=7pt,inner ysep=5pt,font=\small},
-    flow/.style={-{Latex[length=2.2mm]},thick}
+    box/.style={draw=black,rounded corners=1pt,align=center,
+      text width=25mm,minimum height=11mm,inner sep=4pt,font=\small},
+    wide/.style={box,text width=32mm},
+    flow/.style={-{Latex[length=2.1mm]},thick},
+    back/.style={-{Latex[length=2.1mm]},thick,dashed}
   ]
-    \node[stage] (apr) {\textbf{4 月：让工程可见}\quad
-      AI 介入局部实现与调试；环境提供 trace、确定退出和最小 task-run；我仍直接定义行为、搬运上下文并解释结果。};
-    \node[stage,below=4mm of apr] (may) {\textbf{5 月：让工程可比较}\quad
-      AI 进入多模块修改和设计候选搜索；环境提供模块回归、性能基线与跨后端闭环；我转向选择目标函数、接口与淘汰条件。};
-    \node[stage,below=4mm of may] (jun) {\textbf{6 月：让工程可继承}\quad
-      AI 承担跨模块长链任务；环境增加 DB-first 召回、profile、e2e、manifest、evidence 与 Reviewer/Inspector；我开始设计 AI 的认知和行动环境。};
-    \node[stage,below=4mm of jun] (jul) {\textbf{7 月：让工程可反驳}\quad
-      AI 参与 current-design 绑定、综合/STA、任务合同和负向 RTL 变体；环境能够输出 GAP 与 UNQUALIFIED；我把重心上移到证明义务和声明边界。};
-    \draw[flow] (apr) -- (may);
-    \draw[flow] (may) -- (jun);
-    \draw[flow] (jun) -- (jul);
-  \end{tikzpicture}
-  \caption{AI 介入深度与工程环境的共同演化。该图是依据 task-run 作出的阶段性解释，不代表严格工时比例。}
+    \node[box] (goal) {用户目标\\与风险边界};
+    \node[wide,right=6mm of goal] (recall) {bounded recall\\canonical / profile\\ / focus};
+    \node[box,right=6mm of recall] (contract) {task contract\\对象/动作/成功条件};
+    \node[box,right=6mm of contract] (agent) {Agent\\生成候选};
+    \node[wide,below=9mm of agent] (layer) {分层验证\\focused→module\\→system→PPA};
+    \node[wide,left=6mm of layer] (negative) {mutation / 反例\\oracle 辨识能力};
+    \node[wide,left=6mm of negative] (identity) {design-id / hashes\\freshness /\\configuration};
+    \node[wide,left=6mm of identity] (publish) {fail-closed publication\\接受 / GAP / rollback};
+    \draw[flow] (goal) -- (recall);
+    \draw[flow] (recall) -- (contract);
+    \draw[flow] (contract) -- (agent);
+    \draw[flow] (agent) -- (layer);
+    \draw[flow] (layer) -- (negative);
+    \draw[flow] (negative) -- (identity);
+    \draw[flow] (identity) -- (publish);
+    \draw[back] (publish.north) to[out=135,in=225] (recall.south);
+    \draw[back] (publish.south) to[out=-25,in=-155] (agent.south);
+  \end{tikzpicture}}
+  \caption{从自然语言需求到可消费证据的闭环}
+  \label{fig:system-loop}
 \end{figure}
 
-task-run 数量也能说明这种变化，但不能被误读为产量：4 月 8 个，5 月 137 个，6 月 1246 个，7 月截至 22 日 549 个。6 月的数字远大于 4 月，不只是因为任务更多，也因为一次判断被拆成了更多可观测节点、复跑、负例和失败现场。记录密度的上升，本身就是 AI 介入方式变化的一部分：早期一次对话留下一个结果，后期一次结论需要留下召回、执行、验证、审查与发布的完整路径。
-
-还有一个事实必须贯穿全文。早期 task-run 主要保存“由 GitHub Copilot 还是 Codex 执行”，后期保存的是 Codex、agent-system、npc、rv64-linux、Reviewer、Inspector 等角色，并没有稳定记录底层模型快照。\taskpath{AI.docx} 中提到的 Claude Opus 4.6、DeepSeek v4 preview 和 GPT-5.5，是我的同期使用记忆，不是受控模型评测。当前可以确认的是 Codex 与 GPT-5 系列环境，精确子版本仍缺少本地可审计元数据。本文会保留这些个人体验，但不会把它们伪装成 task-run 已经证明的模型结论。
-
-\section{2026 年 4 月：工程先学会回答，AI 才真正看见}
-
-\subsection{AI 参与量并不低，但它仍主要生活在我递给它的局部世界里}
-
-4 月 13 日，第一项大的工作是在 \taskpath{npc/single/vsrc} 中建立 RV32I 非流水线核心。当时目录里几乎只有 define 和寄存器堆占位骨架，任务却要求把译码、立即数、ALU、比较、LSU、WBU 和顶层多周期状态机组织成一套可综合、可 lint 的结构。task-run 显示，这不是简单的单文件补全：主 agent 先读 study 与 memory，子 agent 盘点目录、提出“单在途多周期 + 统一控制包 + WBU 提交点”的架构建议，随后一次落下 9 个 RTL 文件并通过 Verilator lint。
-
-从“写了多少代码”看，AI 的介入已经很深；从“能够独立闭合什么问题”看，它的行动半径仍然很浅。lint 通过只能证明语法和部分静态结构成立，当时没有 testbench、镜像加载器和 NEMU 对拍，普通异常仍停在 halt-only。真正决定边界的人仍然是我：为什么把 WBU 作为提交点，IFU/LSU 应保留怎样的请求响应接口，\texttt{ecall/ebreak} 在当前 EEI 中意味着什么，哪些缺失不能被“近似商业级”的描述掩盖。这说明 AI 可以高吞吐地实现一个已被良好定义的切片，却不能替代对“什么才算完成”的定义。
-
-同一天，项目又把 \taskpath{NpcSimTop.sv}、DPI 和 C++ 平台接到核心外面。最初只是让 AM 二进制进入 pmem、打印并退出，随后又按 NEMU 思路把单文件 harness 拆成 \texttt{monitor -> cpu-exec -> paddr -> device/map}。最终 \texttt{hello-riscv32-npc.bin} 打印 \texttt{Hello, AbstractMachine!} 并以 code=0 退出，键盘输入也穿过 host、NPC KBD MMIO 和 AM \taskpath{input.c}，在 am-tests 中观测到 \texttt{A DOWN/UP}。
-
-这次经历使我第一次清楚地看到：AI 能否交付，并不只取决于它是否“懂 RISC-V”。当镜像格式、地址空间、退出协议、设备 ABI、Makefile 入口和观测信号没有接起来时，它得到的只是一些互相分离的文件；当这些东西被组织成闭环以后，模型才拥有真正可以试错的工程世界。所谓理解，并不是它能解释每个名词，而是它的修改能进入一个会返回真实后果的系统。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-04-13-rv32i-nonpipe-core/task-report.md}；
-\taskpath{.github/task-runs/2026-04-13-npc-dpic-bringup/task-report.md}。
-\end{recordnote}
-
-\subsection{trace、batch 和 Kconfig 实际上是在给 AI 建立感知系统}
-
-4 月 14 日的工作把 itrace、mtrace 和 dtrace 从编译期开关与零散打印点改成运行时可控的 trace。mtrace 还专门排除了 ifetch，只保留数据 load/store；monitor 可以查询和切换 trace，batch 模式可以在无人交互时稳定重放。4 月 22 日，NEMU 的 \texttt{-b/--batch} 又进入 Kconfig，形成默认值、命令行覆盖和持续配置三条路径。4 月 23 日，SYSTEM 核心补齐到 Zicsr、ECALL 与 MRET，AM CTE 的 yield 能连续输出 \texttt{y}，同时报告明确保留“外部中断投递仍为空桩”的边界。
-
-这些功能表面上服务于人类调试，实际上也在为 AI 建立感知系统。早期我需要用自然语言告诉模型“程序好像在这里停了”；有了 trace、退出码、批处理和可重复的 CSR/trap 场景以后，工程能够自己回答“哪一条指令、哪个地址、哪类访问、什么结果”。这比写出一个更长的提示词更重要，因为提示词只能转述我的判断，观测系统则让模型接触事实。
-
-初稿里有一个关于 Kconfig 的抱怨：AI 会使用我告诉它的宏，却不一定主动把这些宏纳入配置管理；有时它会忘记一个开关存在，然后重新读代码或靠试错找回来。后来我意识到，这并不是 AI 独有的缺陷。人也会依赖记忆，也会忘记配置。区别在于，工程师可以把容易遗忘的内容变成入口、依赖和 gate。与其反复提醒模型“记得先看配置”，不如把配置召回变成任务执行前必经的步骤。
-
-4 月 21 日补齐根 \taskpath{AGENTS.md}、\taskpath{CLAUDE.md}、\taskpath{GEMINI.md}、Cursor 和 Windsurf 等 shim，也是这一认识的早期形态。当时它还只是兼容入口，未做真实外部消费端 smoke，但方向已经很清楚：项目知识不应被锁在某一个产品的提示词里，而应成为模型无关、随仓库移动的工程契约。以后更换模型时，改变的是执行引擎，不应重新发明一次项目世界。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-04-14-npc-trace-experience/task-report.md}；
-\taskpath{.github/task-runs/2026-04-21-agent-compat-shim/task-report.md}；
-\taskpath{.github/task-runs/2026-04-22-nemu-batch-mode/task-report.md}；
-\taskpath{.github/task-runs/2026-04-23-nemu-system-core/task-report.md}。
-\end{recordnote}
-
-\subsection{当时的模型与当时的我}
-
-4 月上半月的 task-run 执行端主要写作 GitHub Copilot，4 月下旬开始转为 Codex；底层模型版本未被稳定保存。与现在相比，最明显的差异并不是我能证明某个 benchmark 分数提高了多少，而是当时的 AI 主要面对文件和临时上下文，现在的 AI 进入项目时会先面对入口、记忆、任务状态与证据边界。
-
-四月的我仍然把自己放在直接实现和逐项调试的位置：我提出局部问题，模型给出候选，我解释日志并决定下一步。AI 的编码量可以很大，但它尚未真正接管一个长链闭环。这个区别很重要：\textbf{介入量不是介入深度。}生成很多文件，不代表它拥有目标、状态和完成资格；能够在真实反馈中持续工作，才意味着它开始成为工程的一部分。
-
-\begin{stageinsight}
-我最早以为使用 AI 的关键是把问题问清楚。4 月让我意识到，仅有清楚的语言还不够，工程本身也必须能清楚地回答问题。trace、批处理、确定退出和跨模型入口，构成了 AI 进入真实工程的第一层基础设施。
-\end{stageinsight}
-
-\section{2026 年 5 月：反馈闭环缩短以后，AI 开始参与设计空间搜索}
-
-\subsection{模型代际差异是真实的，但版本号不是唯一解释}
-
-我的初稿记录了一次非常直接的对比体验：DeepSeek v4 preview 发布后，我用 API 尝试实现流水线，花了约 70 元和一个下午，仍没有得到正确工程；随后换到我当时记作 GPT-5.5 的模型，大约半小时结束了同类任务。同期我也使用 Claude Opus 4.6，第一次明显感到模型能够跨越多个文件、Makefile 和调试步骤持续工作，而不只是补全一个函数。
-
-这段体验对我影响很大，它让我开始付费使用当时的 SOTA 模型，也让我承认模型之间的能力差距足以改变某类 RTL 任务是否可做。不过，它仍然只是个人现场，不是固定仓库、固定提示词、固定测试集和固定推理配置下的受控比较。把它写进文章，是为了保留我当时的真实判断；给它加上边界，是因为几个月后的我已经知道，模型名称如果不和运行环境、上下文与验收方法绑定，就不能承担严格结论。
-
-五月真正发生的变化，是模型能力提升与工程反馈成熟同时出现。AI 不再只回答“这一行为什么错”，而开始提出、实现并淘汰微架构候选。这使它第一次接近设计空间搜索者，而不仅是代码抄写者。
-
-\subsection{Cache、BPU 与 OoO：AI 的价值从第一次生成转向低成本试验}
-
-5 月 20 日，ICache/DCache 被改造成 SRAM-like wrapper，DCache 使用 write-back/write-allocate，miss、dirty victim 和 uncached access 进入分离的 AXI 路径，\texttt{fence.i} 要求先写回再失效。记录留下 cache test 21/21、流水线 test、Verilator build 以及 AM \texttt{load-store}/\texttt{fence-i} 回归；同一份记录也明确说明，当时仍是单 beat、32-bit、无 ID、无 burst、无多 outstanding 的简化 AXI 子集，并且没有综合/STA。
-
-这组“通过项 + 不能推出的结论”对 AI 非常重要。没有后半句，模型很容易把接口名称当作能力证明；有了后半句，下一次任务会从真实缺口继续，而不是从一段漂亮描述继续。工作区结构越清楚，AI 越容易沿着正确树干生长。
-
-5 月 21 日的 BPU local-history 任务把这种搜索变成了数字。branch miss 从 3\,429\,214 降到约 2\,457\,500；随后把方向表初值调成弱跳转后为 2\,458\,726，CPI 维持 1.285，说明追加方案基本中性略负。5 月 29 日的 OoO 检查点记录了 \texttt{add} 的 541 cycles、839 commits、CPI=0.645；另一个修复候选退化到 CPI=0.665，最终被撤回。长期的 CPI=0.5 并没有在当月完成。
-
-这些数字不只是成绩。它们说明 AI 可以显著降低“提出一个假设—落成 RTL—运行回归—比较结果”的成本。过去由于时间太贵，我可能不会尝试某些方向；现在模型可以快速制造候选，工程可以快速淘汰候选。AI 的价值因而不只在于让第一次实现更快，而在于扩大可被实际探索的设计空间。
-
-但设计空间变大并不等于判断可以外包。什么指标值得优化，CPI 是否来自同一 workload，局部 miss 改善是否破坏时序，简化 AXI 的成功能否外推到 SoC，仍然需要我给出目标函数与停止条件。AI 更擅长产生答案，也更容易产生一个结构漂亮、局部变好、整体却不值得保留的答案。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-05-20-npc-cache-sram-axi/task-report.md}；
-\taskpath{.github/task-runs/2026-05-21-npc-bpu-local-history/task-report.md}；
-\taskpath{.github/task-runs/2026-05-28-ooo-superscalar-bootstrap/task-report.md}；
-\taskpath{.github/task-runs/2026-05-29-ooo-cpi-645-iq-fix/task-report.md}。
-\end{recordnote}
-
-\subsection{从 ysyxSoC 到 OpenSBI：AI 开始跨越模块边界，但结论必须分层}
-
-五月下旬，AI 参与的对象很快从单个 core 扩展到 ysyxSoC、RV64、Sv39、OpenSBI 与 Linux 前置链路。ysyxSoC 接入先证明 CPU 顶层、构建和最小复位 smoke 成立，不能因此声称完整 SoC 软件栈通过；B2 cache closure 又暴露出 MROM/uncached RVC 半字偏移和 DCache dirty refill 的真实差异。RV64 后端打通后基础 CPU-test 38/38，通过的是当前后端合同，不是完整 RV64 difftest。
-
-随后项目补入 S-mode CSR、delegation、SRET、A 扩展、Sv39、SBI、PLIC、UART 和多镜像加载。真实 OpenSBI v1.8 最终能够输出 banner，mini S-mode payload 打印 \texttt{S} 并 GOOD TRAP；真实 Debian kernel 则推进到 early MMU relocation/RAS 问题。月末仍不能写“Linux 已启动”，只能写已经越过哪些固件与早期内核 gate，console、rootfs、virtio、多源 PLIC 和后续内核路径仍然开放。
-
-AI 在这一阶段已经能够阅读长调用链、穿透多层 Makefile、理解 AM、NEMU 与 NPC 之间的构建关系，并持续处理来自不同模块的失败。初稿里我曾据此写下“模型几乎百分之百理解项目”。现在我会把这句话改得更准确：\textbf{在工作区给出的资料、源码与反馈边界内，模型能够建立足够完成当前任务的局部工程模型。}它的表现可以非常像理解整个项目，但只要输入范围、配置或验证入口发生变化，这种理解仍可能失效。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-05-23-npc-ysyx-soc-integration/task-report.md}；
-\taskpath{.github/task-runs/2026-05-29-npc-rv64-backend/task-report.md}；
-\taskpath{.github/task-runs/2026-05-30-rv64-linux-prereq/task-report.md}；
-\taskpath{.github/task-runs/2026-05-30-rv64-opensbi-mini-boot/task-report.md}；
-\taskpath{.github/task-runs/2026-05-31-rv64-real-linux-mimpid-ras/task-report.md}。
-\end{recordnote}
-
-\subsection{我开始有意识地建设一套能放大模型能力的环境}
-
-五月不只是业务项目扩张，工作区也开始被主动改造成 AI 可长期工作的环境。5 月 20 日建立了 21 个模块级 testbench 入口并形成 21/21 可复跑结果；5 月 23 日的 agent-config-refresh 重新阅读近期工程变化，让 agent 配置理解 \taskpath{npc/sim}、single/soc 后端、NEMU SoC reference、ysyxSoC 和 difftest 闭环；5 月 28 日又把规则资产、工具链、smoke matrix、失败分诊和记录协议整理成可迁移 runbook。5 月 31 日，RV64 Linux、设备、显示、RV64GC 用户态和 Verilator 真实性边界被固化成专用 agent、instruction 与静态图。
-
-这些设施对模型的影响不是装饰性的。没有模块回归，生成代码只能算建议；没有 agent 配置刷新，模型会用旧地址图和旧入口理解新工程；没有分层的 Ubuntu gate，QEMU 的成功会被误写成 NPC 的成功；没有任务图，一个跨模块目标会在对话中逐渐漂移。所谓“我帮助 AI 变强”，并不是我改变了它的智力，而是我减少了它从一般能力到真实交付之间的损耗。
-
-这也解释了为什么同一类模型在结构清晰的 \taskpath{ysyx-workbench} 中，表现会比从空目录起步稳定得多。AI 很擅长沿树生长，却不总会主动选择一棵好树。工程师的价值之一，就是提前决定树干、分枝和修剪规则，让局部高速度不会换来全局失控。
-
-五月以后，我亲自逐行编码的比例开始下降，但我的责任并没有下降。我从“告诉 AI 这一行怎样写”，逐渐转向“决定什么值得写、怎样证明、什么结果必须撤回”。这比简单的提示词技巧更接近工程能力：懂行的人往往不是因为能让模型输出更多，而是因为能用更少的试错、更短的反馈和更严格的拒绝条件得到可信结果。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-05-20-npc-single-module-testbench/task-report.md}；
-\taskpath{.github/task-runs/2026-05-23-agent-config-refresh/task-report.md}；
-\taskpath{.github/task-runs/2026-05-28-ai-env-replication-deck/task-report.md}；
-\taskpath{.github/task-runs/2026-05-31-rv64-ubuntu-agent-env/task-report.md}。
-\end{recordnote}
-
-\begin{stageinsight}
-五月让我看到，AI 介入程度的提高，首先不是“把更多代码交给它”，而是工程开始提供足够短、足够真实的反馈周期。模型能够制造更多候选，我则必须更清楚地定义目标函数、架构边界与淘汰条件。
-\end{stageinsight}
-
-\section{2026 年 6 月：我开始把“让 AI 工作”本身当作工程问题}
-
-\subsection{系统复杂度上升以后，靠一次对话维持上下文已经不可行}
-
-六月的业务主线进入了系统软件长链。RV64 一侧继续推进浮点、MMU、UART/PLIC、virtio 与 Ubuntu gate；NEMU 一侧则逐步覆盖 systemd、virtio-blk/net/rng、UART getty、GDB/QMP、SSH、apt/dpkg、网络、用户管理和服务行为。这里最重要的不是把每个名词都列成“已完成”，而是同一个目标被拆成参考平台、目标平台、镜像、guest marker、服务状态和不能外推的边界。
-
-例如 6 月 1 日的 Ubuntu shell gate 已经能证明 QEMU 中的 Ubuntu Base \taskpath{/bin/sh -c} 可执行，也能生成 NPC 所需的 OpenSBI/DTB/initramfs 产物，但它拒绝把 QEMU full shell PASS 或 NPC syscall-only probe PASS 写成“NPC 官方 Ubuntu shell 已完成”。这一句拒绝，体现了 AI 在长链工程中的真正困难：它不仅要知道如何继续做，还要知道来自不同平台、不同镜像和不同层级的证据不能互相替代。
-
-当一次任务需要穿过几十个目录、数小时运行和多种配置时，人已经无法靠复制粘贴把完整项目状态不断搬进对话。更大的上下文窗口也不是充分答案。上下文太少会遗漏关键边界，太多又会把旧日志、历史方案和当前规则混在一起。于是我开始把“AI 如何恢复正确上下文”本身视为一个必须设计和验证的工程问题。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-06-01-rv64-ubuntu-shell-gate/report.md}；
-\taskpath{.github/task-runs/2026-06-06-nemu-ubuntu-production-e2e/task-report.md}；
-\taskpath{.github/task-runs/2026-06-22-2026-06-22-nemu-full-openssh-file-transfer-full-gate/task-report.md}。
-\end{recordnote}
-
-\subsection{DB-first、e2e 与 Reviewer/Inspector：工作区开始承担认知职责}
-
-6 月 6 日，modular e2e bootstrap 把 agent 系统从“纯语言提示”推进为由 profile 驱动的可执行流水线。recall-discovery、tool-env-check、npc-sim-status 和 profile-index 不再只是文档里的建议，而是能够留下 PASS/FAIL 证据的节点。6 月 11 日，\taskpath{scripts/github_index_db.py} 开始把大量 Markdown、memory 和 task-run 做成可查询、可压缩、可按需加载的 SQLite 记忆系统；它保留原始文件的事实所有权，只负责索引与有界召回。6 月 13 日，状态序列被写成 \texttt{recall\_context -> classify\_layer -> plan\_graph -> implement -> verify -> inspect -> persist}，Reviewer 与 Inspector 也成为 profile 中实际执行的门。
-
-这些组件分别解决不同问题：
+一次执行同时包含三条流：
 
 \begin{itemize}
-  \item DB-first 与 bounded brief 解决“每次都从头读工程”和“历史噪声污染当前判断”；
-  \item profile 解决“同一句 run 到底应该进入 NEMU、NPC、Linux 还是 PPA 路径”；
-  \item task-run、manifest 和 evidence index 解决“模型说自己做过”与“工程能否复核它做过”之间的差异；
-  \item Reviewer/Inspector 解决实现者自证，把寻找反例和覆盖洞变成单独责任；
-  \item state traceback 与 rollback target 解决长任务失败后从哪里恢复，而不是重新发起一次相同对话。
+  \item \textbf{控制流}决定下一步执行什么、失败后是否停止；
+  \item \textbf{工程数据流}承载源码、配置、仿真输入和 EDA 输出；
+  \item \textbf{证据流}把原始日志、身份、哈希、状态和结论边界连接起来。
 \end{itemize}
 
-后来工作区把这些能力归纳为 Database、Skill、Agent 三层：Database 保存长期事实与证据索引，Skill 保存短小可复用规则，Agent 负责把用户目标映射成图节点并执行维护流程。这个分层对我最大的启发是，AI 也应像其他工程资源一样拥有接口与责任。模型不是悬浮在项目上方的“智能”，而是一种需要输入格式、动作权限、状态机、故障隔离和验收协议的执行资源。
+仿真返回 0 只属于工程数据流。只有结果被绑定到当前设计、负向验证具有辨识力、
+上层门禁没有失败，证据流才允许它成为交付结论。
 
-因此，这一阶段的工作已经不只是 prompt engineering。提示词只是输入的一小部分；我真正设计的是模型的\textbf{观察空间、动作空间、反馈通道和停止条件}。同一个模型进入不同的工程环境，会表现出完全不同的有效能力。环境越清楚，它越能持续推进；环境越模糊，它越容易把语言上的连贯误当成工程上的完成。
+\subsection{有界上下文与任务合同}
 
-6 月出现 1246 个 task-run，也应从这个角度理解。它不是“AI 完成了 1246 项工程”，而是工作流开始以更细粒度记录候选、复跑、负例、失败和不同 gate。工程的认知分辨率提高了，所以看起来反而产生了更多 RED、BLOCKED 和 SKIP。缺口变多并不一定代表项目退步，有时只是以前隐藏在一句“差不多完成”中的不确定性终于被枚举出来。
+对一个大型仓库，Agent 不是“读得越多越好”。无界历史会把过期结论、旧路径和相互冲突的
+设计状态带入上下文。当前环境把上下文分成 canonical 规则、任务 profile 和独立
+non-history focus。若焦点不能由独立材料支持，召回失败，而不是用同一 task-run 自证。
 
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-06-06-modular-e2e-agent-system-bootstrap/task-report.md}；
-\taskpath{.github/task-runs/2026-06-11-github-index-agent-shim-db/task-report.md}；
-\taskpath{.github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/task-report.md}。
-\end{recordnote}
+任务合同进一步冻结：
 
-\subsection{成熟环境的价值不是让 AI 不犯错，而是让错误更快暴露并可安全撤回}
+\[
+\text{Contract} =
+\{\text{objects},\text{inputs},\text{actions},\text{outputs},
+\text{success},\text{forbidden extrapolation}\}.
+\]
 
-六月同时积累了大量性能优化负结论。decode cache、wide ifetch、RVC fast path、PMP cache、TB 大小和 host fast path 等候选在固定口径下被反复 profile，有些被保留，有些以 \texttt{negative}、\texttt{revert} 或失败复跑结束。如果只看最终源码，这些探索几乎像没有发生；task-run 却保存了为什么没有采用它们，避免模型在若干轮以后重新提出同一个坏主意。
+这使“完成 FENCE”不再是一个抽象目标，而会被拆成具体 RTL module/signal/transaction、
+规定的 testbench、负向变体、原始日志和 full-core 边界。合同本身仍可能写错，因此它是
+可审查输入，不是正确性的来源。
 
-6 月下旬的 RV64 OoO 实验更能说明这一点。core control-flow decomposition 先把 direct control-flow、predictor update、CSR illegal probe 和 synthetic lane1 retire 等职责从 core glue 下沉到相应模块。随后“微架构宪法”对前端、执行域、恢复路径和架构缺口进行系统审计，并真正点火一个高风险方案：复活休眠的分支投机。结果不是成功，而是 riscv-tests 255/16、AM 25/32，多项存储、长操作和分支程序失败或活锁；撤回以后恢复到 riscv-tests 271/0、模块 113/113 与 lint/style 全绿。
+\subsection{profile 如何变成可执行节点}
 
-这次失败对我的意义远大于一次普通回归。它证明强模型带来的不只是更快成功，也包括更快把一个错误架构方向推得很远。如果环境只奖励“做了很多”，AI 的高吞吐会放大风险；如果环境保存基线、固定输入、比较结果、回退点和残留检查，高吞吐才会转化为安全探索。成熟的 AI 工程环境不承诺零错误，它承诺错误被发现的距离更短、影响范围可见、正式源码可以恢复，而且失败本身会成为下一次召回的知识。
+profile 文件虽然使用 \texttt{.tsv} 后缀，实际按竖线分为六列：
 
-这也改变了我对“效率”的理解。让 AI 更准确通常意味着更多运行、更长日志和更多 token，表面上似乎降低速度。但如果这些成本减少了错误方向进入主线、避免下一次重复探索，并使另一个 agent 可以继承现场，它们就不是浪费，而是把一次性聪明转化为组织能力的成本。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-06-27-npc-rv64-ooo-core-controlflow-decompose/task-report.md}；
-\taskpath{.github/task-runs/2026-06-29-rv64-ooo-core-architecture-constitution/report.md}；
-\taskpath{.github/task-runs/2026-06-30-rv64-ooo-b2-rob-walk-mode1-bringup/report.md}。
-\end{recordnote}
-
-\subsection{当时的模型：从一个助手变成一组有责任边界的角色}
-
-六月的 task-run 很少再只写“Codex 修改了某个文件”，而是出现 rv64-linux、nemu、software-flow、hardware-flow、agent-system、Reviewer 和 Inspector。底层模型版本仍没有可靠记录，但协作形态已经改变：需求解释、实现、系统 gate、审查和证据持久化不再由同一身份无差别地完成。
-
-这些角色并不会神奇地让一个模型拥有多个大脑。它们的作用是把冲突责任显式化：实现者倾向于完成，Reviewer 必须寻找反例；模块 agent 关注局部合同，coordinator 必须防止局部 PASS 关闭长期目标；系统 gate 关注 guest 可见行为，PPA gate 关注同源设计和资格。角色分离是一种制度化的不信任，它没有削弱 AI，反而使我敢于把更长的任务交给它。
-
-六月以后，我在工程中的位置也开始变化。我不再主要负责把每一行实现告诉模型，而是决定什么应该进入长期记忆，什么只能留在一次 task-run，哪些 profile 可以支撑什么结论，哪些失败必须阻止发布。我开始从 AI 的使用者变成 AI 工程能力的环境设计者。
-
-\begin{stageinsight}
-到六月，我已经不只是在借助 AI 开发处理器，也在开发一种适合 AI 参与处理器工程的工作方式。模型可以更换，但入口、状态、反馈和证据不应随一次会话消失；下一次 AI 应继承工程事实，而不是重新猜测工程。
-\end{stageinsight}
-
-\section{2026 年 7 月：AI 介入最深以后，我把重点转向约束它的结论}
-
-\subsection{综合结果落在 /tmp：AI 的工具世界与人的交付世界并不相同}
-
-初稿记录了一个令人哭笑不得的小插曲。我把 Yosys 综合接进工作区，问 AI 结果在哪里，它回答“在 \taskpath{/tmp}”。从它的视角看，只要路径在权限范围内、命令能够读取，\taskpath{/tmp} 和工程产物目录似乎没有本质区别；从人的工程视角看，前者是随时可能消失的运行现场，后者才是具有命名、版本、来源和生命周期的交付物。
-
-这个细节揭示了 AI 与人之间一种比“聪明不聪明”更深的差异：人会用经验自动赋予目录、配置和日志不同意义，模型则倾向于把当前可访问的对象视为同等可用。它也不会天然知道某个宏应该进入 Kconfig、某份网表需要绑定源文件哈希、某次成功日志必须进入 evidence index。只有当这些意义被写成路径约束、产物合同和发布 gate 时，AI 才能稳定遵守。
-
-所以，工具调用并不自动等于 agent 工程。会运行 Yosys 只说明模型能执行命令；能把输入 RTL、配置、网表、约束、报告、设计 ID 和结论资格组织成同一证据包，才说明工具真正进入了工程流程。
-
-\subsection{Yosys、STA 与 PPA：环境成熟的标志，是能够拒绝漂亮数字}
-
-7 月初，Yosys/NPC profile 的首次运行就留下 blocked 记录，因为 \path{npc-rv64-contract} 没有通过。7 月 11 日的 200 MHz program 明确写着 \texttt{goal\_complete=false}：pre-layout 5 ns 只是一层代理 gate，功能完整与物理目标必须在同源设计上共同闭合。7 月 15 日，一些 exact-5ns proxy 点得到 $+0.179479554$ ns 或 $+0.131591633$ ns 的正 slack，另一个候选为 $+0.059167784$ ns；后者虽然非负，却未达到额外 $+0.10$ ns 的 promotion reserve，而且九项架构门仍为 RED，功耗也未资格化。
-
-如果目标只是写一份好看的总结，最容易使用的句子是“已经达到 200 MHz”。但真正的工程结论只能是：部分前布局代理点在给定约束下非负，完整架构、total area、power、物理实现和 signoff 尚未闭合，PPA 仍为 UNQUALIFIED。频率不是一个工具输出，而是一组绑定关系；RTL、配置、网表、库、corner、例外、功能回归和报告解析只要不属于同一个设计快照，\texttt{MET} 就可能只是无资格的漂亮词。
-
-我开始学会抵抗漂亮数字带来的完成感。环境如果只收集 PASS，会诱导 AI 和人一起越级；环境如果能在局部变好时仍保留 RED、GAP 和 UNQUALIFIED，才真正具有工程判断力。它的价值不是替我宣布成功，而是阻止我和模型过早成功。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-07-07-yosys-rv64-synth-probe-npc-dev/task-report.md}；
-\taskpath{.github/task-runs/2026-07-11-rv64-200mhz-program/task-report.md}；
-\taskpath{.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/task-report.md}。
-\end{recordnote}
-
-\subsection{谁来验证 AI 写的 testbench：19 个错误版本把问题反了过来}
-
-初稿中最想保留的例子，是 7 月 22 日的 IFU-ACCESS-G1。此时任务已经不再笼统地说“检查 IFU”，而是沿 \taskpath{OooFetchAxiBridge.v}、\taskpath{PmpChecker.v}、\taskpath{AxiXbar.v}、\taskpath{OooFetchPacketDecode.v} 和 \taskpath{OooFetchHeadPairGate.v} 追踪真实取指 transaction：16 位指令只需要自己的 2 字节，32 位指令必须拥有连续两个半字；只有 \texttt{RVALID \&\& RREADY} 才能消费响应；取指使用自然 2B beat，PTW PTE 使用对齐 8B 访问；lane1 起点由 lane0 实际长度决定；不可见 lane1 不能产生架构异常，可见 lane1 的真实 fault 又不能被 lane0 普通分支遮蔽。
-
-把这些要求写成正向 testbench 仍然不够。AI 很快提出了另一个问题：如果 testbench 根本没有激活目标条件，断言前件从未成立，scoreboard 检查了错误信号，或者 runner 在仿真失败后仍误报 PASS，那么“正确 RTL 通过”什么也证明不了。验证 AI 生成的设计，不能只依靠 AI 生成的一组会变绿的测试。
-
-于是任务构造了 19 个能够编译的临时错误 RTL 版本。每个变体都绑定名称、目的、目标文件、原始片段、替换片段、对应 testbench 和预期失败标记；runner 在临时目录中重建变体，通过 Makefile 覆盖变量使用临时 RTL，确认变体能够编译、仿真必须失败、日志必须出现指定硬件错误标记，同时记录正式/变体/日志哈希，并核对正式源码运行前后不变。
-
-这些变体覆盖的不是语法错误，而是看起来相当合理的真实故障类：读取超过指令 footprint、忽略 AXI RRESP、未完成握手便消费响应、PMP 尺寸或权限错误、packet 未完整便发布、IFU/PTW ARSIZE 或路由属性错误、backpressure 期间 payload 不稳定、owner 过早释放、lane1 fault ownership/visibility/barrier 错误，以及把 lane1 起点错误固定为常数。最终三个关键结果同时成立：\texttt{compile\_success=19}、\texttt{dynamic\_rejected=19}、\texttt{source\_unchanged=true}。
-
-这里验证的表面对象是 IFU-ACCESS-G1，深层对象其实是验证系统本身。正向测试回答“当前 RTL 在这些输入下是否符合预期”，负向变体回答“如果 RTL 出现这个具体错误，当前证据是否真的有辨识力”。我判断环境是否成熟，也不再只看它能帮助 AI 报告多少 PASS，而看它能否让语法正确、结构合理、甚至很像正确实现的错误版本稳定失败。
-
-但 19/19 不是另一种包装过的“百分之百正确”。它只能证明现有 checker 对这 19 类故障具有辨识力，不能证明 IFU 没有未知错误，也不能替代 IFU-TVAL、PTW-PMP、完整取指子系统、full-core、Linux 或 PPA。正因为系统能够清楚说出这一点，19/19 才有价值。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/task-report.md}；
-\taskpath{.github/task-runs/2026-07-22-rv64-ifu-access-current-v9i-3/task-report.md}。
-\end{recordnote}
-
-\subsection{architecture freeze=GAP：环境越成熟，项目有时反而显得更不完整}
-
-7 月 21 日的 full-core arch-stable freeze 很能说明这一点。canonical runner 的工作流测试、current audit 和 current verify 都通过，九项定向架构门在同一设计上为 GREEN；full-core 汇总却仍然是 113 PASS / 46 GAP，\texttt{architecture\_freeze=GAP}，\texttt{ppa=UNQUALIFIED}。检查器通过了自己的合同，但没有替 46 个未闭合条件签字。
-
-早期我可能会觉得这样的报告“不够好看”。现在我认为，能够把缺口明确枚举出来，恰恰说明认知精度提高了。环境成熟以后，项目不会自动变得更完整，却会更难用自然语言掩盖不完整。局部 leaf GREEN、定向 aggregate GREEN、full-core freeze 与 PPA qualification 被分成不同证据层，任何一层都不能借下一层的名字扩大自己。
-
-\begin{recordnote}
-\taskpath{.github/task-runs/2026-07-21-rv64-v9b-arch-stable-freeze/task-report.md}。
-\end{recordnote}
-
-\subsection{我一度觉得自己只是操作员，后来发现人的位置其实上移了}
-
-在初稿写到 19 个负向变体时，我有一种非常强烈的感受：“不是我在教 AI 改 RTL，是它在教我怎样验证 RTL。”我甚至把自己比作工业流水线上的监工，担心手工工程师会像传统手工业一样被高吞吐系统淘汰。这种感受并非完全虚假。在边界明确、反馈快速、可自动回归的局部任务中，AI 的搜索速度、实现吞吐、日志阅读和并行比较能力已经超过我的直接编码带宽。
-
-但“我只是操作员”又抹掉了最关键的工作。IFU-ACCESS-G1 之所以能形成 19 个有意义的反例，不只是因为模型会写 Python 和 testbench，而是因为工程先明确了 footprint、PMP、AXI handshake、owner 与 fault visibility 的语义；PPA 之所以没有被正 slack 诱导越级，是因为 promotion reserve、架构门和 power qualification 被写成独立条件；architecture freeze 之所以能保持 GAP，是因为有人决定“工作流通过”不能偷换“架构已经冻结”。
-
-我的角色没有消失，而是从逐行实现上移到问题定义、架构责任、环境设计、反例选择、证据等级和声明资格。实现劳动有所下移，工程责任没有下移。真正成熟的自主性也不是取消约束，而是在清晰、可检验的约束中扩大 AI 的行动半径。
-
-\noindent\begin{minipage}{\linewidth}
 \begin{center}
-  \small
-  \refstepcounter{table}
-  \textbf{表 \thetable\quad 四个月的模型记录、AI 介入深度与人的工作重心}\par\medskip
-  \begin{tabularx}{\linewidth}{@{}C{11mm}p{30mm}YY@{}}
-    \toprule
-    时间 & 可确认的模型/执行端 & AI 在工程中的介入形态 & 我的工作重心 \\
-    \midrule
-    4 月 & GitHub Copilot 后转 Codex；底层版本未记录 & 多文件实现与局部调试，依赖我搬运上下文和解释结果 & 直接架构、实现、观测点与验收判断 \\
-    5 月 & Codex；个人记忆另有 Opus 4.6、DeepSeek v4 preview、GPT-5.5 & 跨模块修改、候选比较、性能搜索和 Linux 前置长链 & 目标函数、接口边界、回归口径与候选淘汰 \\
-    6 月 & Codex 与多个角色；底层版本未记录 & 有界召回、图任务、profile 执行、证据生成和分角色审查 & 上下文、状态机、证据结构和失败恢复环境 \\
-    7 月 & Codex、Reviewer/Inspector、受合同约束的 RTL 子 agent；底层版本未记录 & current-design、综合/STA、负向变体与资格检查 & 证明义务、反例设计、架构责任和结论边界 \\
-    \bottomrule
-  \end{tabularx}
+\texttt{node | module | function | owner | inputs | outputs}
 \end{center}
-\end{minipage}
 
-与当前 Codex/GPT-5 系列环境相比，四个月前后的差异不能压缩成一个模型名。模型能力确实在进步，但现在的 AI 一进入工程就有规则发现、bounded brief、design ID、task contract、真实命令、negative profile、evidence index 和 fail-closed 发布；即使换成更强模型，只要绕开这些边界，工程能力仍可能倒退到四月。反过来，即使模型版本不变，环境升级也能让它承担更长、更深、更可复核的任务。
+代码\ref{code:profile-loader}来自 \taskpath{scripts/agent-e2e.sh}。它说明
+\texttt{@include} 不是一个执行节点，而是递归展开另一个 profile。
 
-\begin{stageinsight}
-如果说四月是在让 AI 看见工程，五月是在让 AI 参与工程，六月是在让 AI 能够持续工作，那么七月是在迫使 AI 的每一个结论接受反证。AI 介入最深的阶段，并不是我最少思考的阶段，而是我把思考上移到证明、责任和边界的阶段。
-\end{stageinsight}
+\begin{lstlisting}[language=bash,firstnumber=180,
+  caption={profile 递归展开的实际加载逻辑},
+  label={code:profile-loader}]
+while IFS= read -r line || [[ -n $line ]]; do
+  [[ -z $line ]] && continue
+  [[ $line = \#* ]] && continue
+  IFS='|' read -r node module function owner inputs outputs <<< "$line"
+  if [[ $node = "@include" ]]; then
+    load_profile "$module"
+    continue
+  fi
+  PROFILE_NODE_IDS+=("$node")
+  PROFILE_MODULES+=("$module")
+  PROFILE_FUNCTIONS+=("$function")
+  PROFILE_OWNERS+=("$owner")
+  PROFILE_INPUTS+=("$inputs")
+  PROFILE_OUTPUTS+=("$outputs")
+  PROFILE_SOURCES+=("$profile")
+done <<< "$profile_content"
+\end{lstlisting}
 
-\section{从这四个月出发，我对 AI 形成的几项判断}
+逐行看，这段代码完成五件事：跳过空行和注释；按六列拆分；递归展开 include；保存每个
+节点的函数与责任；记录节点来自哪个 profile。于是，一个表面只有八行的
+\taskpath{agent-system.tsv}，因为包含 discovery，最终形成十节点 closure。后续 report、
+manifest、dispatch、\taskpath{nodes.tsv} 和 evidence index 都必须与这个 closure 同序。
+这不是为了让配置更复杂，而是防止“文档写了一个流程，实际执行了另一个流程”。
 
-\subsection{工程环境不是模型之外的附属物，而是模型有效能力的一部分}
+\subsection{设计身份：证明证据属于谁}
 
-今天谈论 AI 能力时，人们很容易把一切压缩成模型排行榜：参数、上下文长度、benchmark、推理时间和价格。这些指标当然重要，但它们只描述基础模型能够做什么，不直接等于模型在一个长期工程中可以可靠交付什么。真实工程还需要知道当前分支、配置、依赖、接口、历史失败、验证入口、产物位置、成功条件和结论范围。
+design-id 是 canonical RTL 文件集合的 SHA-256。代码\ref{code:design-id}来自
+\taskpath{npc/rv64/eval/ppa/tools/fence_ordering_evidence.py}。它先计算 RTL 绑定，
+再用同一身份解析程序日志、focused 日志和模块聚合。
 
-工作区中的 trace、Makefile、Kconfig、study、AGENTS、memory、task-run、profile、contract、evidence 和 mutation，并不是模型之外的一堆辅助文件。它们共同构成了模型的外置感知、长期记忆、动作规范和反馈系统。对人而言，这些是工程管理；对 AI 而言，它们直接决定可用智力能够抵达哪里。
+\begin{lstlisting}[language=Python,firstnumber=343,
+  caption={FENCE 证据构建器中的 design-id 绑定},
+  label={code:design-id}]
+rtl_sha, rtl_files = arch.rtl_binding(root)
+design_id = f"sha256:{rtl_sha}"
+metrics = parse_program_log(program_log, design_id)
+focused_logs = {
+    "program": program_log,
+    "drain_gate": drain_gate_log,
+}
+focused = parse_focused_logs(focused_logs, design_id)
+module_aggregate = parse_module_aggregate(
+    root, module_summary, design_id)
+variants = validate_variants(root, variant_summary)
+\end{lstlisting}
 
-因此，我真正构建的并不只是“会写 RTL 的 AI”，也不只是一些自动化脚本。我在把工程本身改造成一种适合 AI 工作的介质：源码可以被有界召回，任务可以被合同化，动作可以进入真实仿真与 EDA，结论可以被反例攻击，失败可以被下一轮继承。模型是可替换的，但这种介质一旦形成，就会持续放大后续模型的能力。
+如果当前工作树从 \texttt{2eff...} 变为 \texttt{08d3...}，旧测试即使内容看起来仍然
+“全绿”，也不能自动成为新设计的证据。design-id 解决的是归属问题，不是正确性问题：
+同一身份下仍可能有未覆盖 bug；但没有身份时，连“测试的是哪份设计”都无法回答。
 
-\subsection{模型越强，越需要一个能拒绝它的环境}
+\subsection{mutation-qualified verification}
 
-弱模型的错误通常暴露得早：代码无法编译、接口明显不对、任务很快停下。强模型更危险也更有价值，因为它能把一个错误假设推进得更完整，生成结构合理的 RTL、像样的 testbench、连贯的报告，甚至一串局部 PASS。能力提升以后，错误不一定减少，它也可能变得更像成功。
+正向测试回答“当前设计是否通过这些输入”，负向变体回答“验证环境能否拒绝一个已知错误”。
+代码\ref{code:mutation}展示 FENCE runner 的三个最低条件：替换锚点必须唯一；旧值和新值
+不能相同；原版与变体的 SHA 不得相等。
 
-这就是为什么 Reviewer/Inspector、current-design binding、负向 RTL 变体和 qualification boundary 不是对 AI 的不信任附属品，而是强模型时代的必要基础设施。正向回归证明当前实现没有立即失败，负向变体证明验证门对某类错误有辨识力，full-core/PPA 边界又限制局部证据能够支撑的声明。三者缺一，AI 的高吞吐都可能只是在更快地制造信心。
+\begin{lstlisting}[language=Python,firstnumber=93,
+  caption={负向 RTL 变体的非空性检查},
+  label={code:mutation}]
+text = source.read_text(encoding="utf-8")
+if text.count(spec.old) != 1 or spec.old == spec.new:
+    raise ValueError(f"{spec.name}: live RTL anchor is not unique")
+variant_text = text.replace(spec.old, spec.new, 1)
 
-我也因此不再追求让每个任务都以 PASS 收尾。一个诚实的 GAP 能保存尚未满足的证明义务，一个 UNQUALIFIED 能阻止漂亮数字脱离语境，一个安全回滚能把错误搜索转化为下一次可用的边界。能说“不知道”“不能外推”和“当前不能发布”，是工程智能的一部分，而不是能力不足的表现。
+original_sha = sha256_bytes(text.encode("utf-8"))
+variant_sha = sha256_bytes(variant_text.encode("utf-8"))
+if original_sha == variant_sha:
+    raise ValueError(
+        f"{spec.name}: reconstructed RTL variant is a no-op")
+\end{lstlisting}
 
-\subsection{开源、训练数据与价值分配仍然是我无法忽略的问题}
+这仍不够。一个变体可能实际改变了字节，却没有在当前刺激下被触发；也可能发生错误，
+但传播不到观测点。仓库记录已经出现过两类典型假绿：连接 mutation 的两端在该轨迹中数值
+相同；\texttt{force/release} 使用旧值，使检查没有制造真实不对称。因而本文只把同时满足
+“源码改变、错误触发、错误传播、目标 oracle 拒绝、正确设计通过”的变体计入有效分母。
 
-初稿里还有一段较尖锐的担忧：模型之所以能快速理解 AM、NEMU、Makefile 和大量开源项目，与公开代码和文档形成的训练、检索与示例生态密切相关；开源社区长期无偿提供高质量知识，而模型服务的收益和成本如何分配，仍然缺少令人满意的答案。
+\subsection{分层验证与安全搜索}
 
-我无法从本地工程证明某家模型训练过哪些具体仓库，也不应把“模型表现熟悉”直接等同于“它一定训练过这份代码”。但作为开发者，我确实感受到一种结构性张力：社区越开放，模型在这些领域越容易形成能力；能力商业化以后，原始贡献者却未必得到对等回报。未来可持续的 AI 工程生态，除了讨论模型是否更强，也必须讨论数据许可、贡献归因、可退出机制和收益分享。否则，开源只被理解成低成本训练燃料，最终会损害模型最依赖的知识土壤。
+当前搜索按风险逐层扩大：
 
-这也是我强调工程记录和来源边界的另一个原因。可追溯不仅服务于调试，也让知识从哪里来、由谁建立、在哪些条件下有效，不至于完全消失在一次生成结果里。
+\[
+\begin{aligned}
+\text{focused}
+&\rightarrow \text{module aggregate}
+\rightarrow \text{official/AM/DiffTest}\\
+&\rightarrow \text{benchmark}
+\rightarrow \text{synthesis/STA proxy}.
+\end{aligned}
+\]
 
-\subsection{不必等待定义模糊的 AGI，领域工业化已经提前发生}
+低层测试提供快速反馈，高层测试控制局部优化的外溢风险。它们不是谁替代谁：focused
+能够精确定位条件，系统回归能够发现跨模块耦合；PPA 只能在功能与架构门通过后比较。
 
-我仍然保留初稿中较大胆的一部分判断：与其等待一个定义不断后退的 AGI，不如观察 AI 已经在哪些确定流程中形成工业化能力。在接口明确、反馈自动、结果可判定的代码、数学和部分硬件任务里，AI 的搜索与执行吞吐已经高到足以改变人的工作方式。就像没有人再和计算机比较心算速度，未来工程师也未必继续用“谁亲手写了更多行 RTL”衡量能力。
+候选的状态转换可写为：
 
-但我不再把这种变化简单写成“AI 已经全面超过人类”。更准确的说法是：在一些受约束、可验证的局部任务中，AI 已经超过单个人的直接执行带宽；在目标选择、价值判断、系统责任、证据资格和开放世界后果上，人仍然是责任主体。未来的人机分工不是人退出、AI 接管，而是越来越多实现与搜索下移给机器，人把工作上移到问题、架构、环境和判断。
+\[
+S_{i+1}=
+\begin{cases}
+\operatorname{accept}(C_i), & \text{所有必需门通过};\\
+\operatorname{refine}(C_i,E_i), & \text{失败可定位且仍值得修复};\\
+\operatorname{rollback}(B), & \text{候选违反硬门或方向被证伪}.
+\end{cases}
+\]
 
-这种上移不会天然发生。没有工程环境，所谓“人负责高层、AI 负责执行”只是一句口号，因为高层意图无法稳定传到执行端，执行结果也无法可靠返回。任务合同、证据层级和失败回溯，正是在把这句口号变成可以运行的组织结构。
+这里 \(C_i\) 是候选，\(E_i\) 是本轮真实反馈，\(B\) 是已知基线。五月双 memory 候选、
+branch+ret 组合环和六月分支推测活锁都进入了第三个分支。
 
-\subsection{专用 XPU 的价值，可能首先体现在长链工程工作负载}
+\subsection{失败关闭与原子发布}
 
-模型能力继续增长以后，瓶颈未必只在智力。真实 agent 工作负载要反复召回长上下文、浏览大仓库、生成多个候选、并行编译、运行仿真、构造变异、分析波形与日志，并把证据重新组织成可审查状态。等待模型“吐出”只是成本的一部分，更大的成本会落在长上下文、工具交互和验证吞吐上。
+publication 不是把“PASS”写进 Markdown。当前实现要求七个关键产物的哈希进入
+\texttt{complete.marker}：\texttt{task-report.md}、\texttt{run-manifest.json}、
+\texttt{context-brief.md}、\texttt{profile-resolve.md}、\texttt{evidence-index.md}、
+\texttt{dispatch-log.md} 和 \texttt{nodes.tsv}；随后再检查 report、manifest、
+publication 和数据库暂存集合。
+代码\ref{code:publication}摘自
+\taskpath{scripts/dev_memory/maintenance.py}。
 
-TPU、NPU、LPU 等不同路线在我看来都可能只是某种更综合 XPU 的中间形态。若未来能针对固定模型或 agent 工作负载采用专用 ASIC，在推理、检索、编译调度和验证编排之间做更紧密的协同，AI 的速度和价格会更接近真实工程的需求。对硬件工程师而言，这不仅是“用 AI 设计芯片”，也可能是“为 AI 的工程劳动设计芯片”。我现在建设的 task graph、evidence pipeline 和可分解工作负载，某种程度上也在提前描述这种计算基础设施需要加速什么。
+\begin{lstlisting}[language=Python,firstnumber=1868,
+  caption={发布事务中的二次读取与原子提交},
+  label={code:publication}]
+conn.execute("BEGIN IMMEDIATE")
+for name, raw in snapshot.items():
+    if read_ordinary(name) != raw:
+        raise ValueError(
+            f"artifact changed during publication: {name}")
 
-\section{我接下来真正想继续建设的东西}
+if stored != staged_markdown:
+    raise ValueError(
+        "staged DB Markdown set or content changed before publication")
 
-回看四个月，我最值得保留的成果不是某个模型一次写对了多少 RTL，而是一套尚不完备、但已经能承接更强模型的工程方法。接下来我希望继续推进四件事。
+upsert_stored_document(conn, item, has_fts5, now)
+upsert_file(conn, item, has_fts5, now)
+
+for name, raw in snapshot.items():
+    if read_ordinary(name) != raw:
+        raise ValueError(
+            f"artifact changed during publication commit: {name}")
+conn.commit()
+\end{lstlisting}
+
+\texttt{BEGIN IMMEDIATE} 取得写事务；事务前后两次读取防止发布过程中产物被替换；DB 暂存集
+必须与现场 Markdown 精确一致；任何异常触发 rollback。即便如此，本文仍不把“原子发布”
+写成已覆盖所有崩溃与并发故障，因为当前纵向证据缺少完整故障注入矩阵。它已经是一项明确的
+风险控制机制，其总体故障覆盖仍是 RQ2 的开放问题。
+
+\section{研究方法与证据体系}
+
+\subsection{数据来源和分析单位}
+
+本文优先使用原始工具日志，其次是绑定身份的结构化结果，再次是 task-report 和 DB 摘要。
+同一事实在报告和原始日志中冲突时，以原始日志和可重算身份为准。
+
+只读脚本 \taskpath{docs/research-paper/scripts/paper_evidence_extract.py} 对四个月顶层目录
+进行了盘点，见表\ref{tab:run-counts}。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{task-run 顶层目录盘点（审计日：2026-07-24）}
+  \label{tab:run-counts}
+  \begin{tabular}{@{}lrrrrrrr@{}}
+    \toprule
+    月份 & 事件目录 & task-report & manifest & evidence index & marker & publication \\
+    \midrule
+    4 月 & 8 & 8 & 0 & 0 & 0 & 0 \\
+    5 月 & 137 & 132 & 0 & 0 & 0 & 0 \\
+    6 月 & 1246 & 1149 & 556 & 667 & 0 & 0 \\
+    7 月 & 586 & 557 & 421 & 514 & 195 & 190 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+这里的“事件目录”不是独立任务、成功任务或实验样本。六月的 1246 说明记录和工作流节点
+迅速增多，不能写成“完成了 1246 项工程任务”。本文的分析单位是\textbf{有明确目标、候选、
+门禁和结果边界的 task episode}，一个 episode 可以包含多个目录。
+
+\subsection{主张—证据映射}
+
+每条主张都记录：研究轴、状态、日期、run-id、source path、raw evidence path、
+design-id、配置、命令、退出码、指标、负向证据、回滚、结论边界和复现方式。完整表位于：
+
+\begin{center}
+\taskpath{docs/research-paper/claim-evidence-map.tsv}
+\end{center}
+
+当前 21 条主张中，11 条为 \claimstatus{SUPPORTED}，3 条为
+\claimstatus{PARTIALLY\_SUPPORTED}，1 条为
+\claimstatus{OBSERVATIONAL\_ONLY}，5 条为
+\claimstatus{CONTRADICTED}，1 条为 \claimstatus{MISSING}。这些数量只是审计分类，
+不是系统成绩。
+
+\subsection{因果边界}
+
+四月至七月并不是一个受控实验。至少有五个混杂变量同时变化：
 
 \begin{enumerate}
-  \item \textbf{把模型身份变成可审计输入。}在 run manifest 中稳定记录供应商、产品入口、基础模型快照、reasoning 配置、工具版本和提示词修订号，使“当时是什么模型”不再依赖个人回忆。
-  \item \textbf{把 task-run 从数量堆积整理成实验图。}明确父目标、候选、复跑、否决、回滚和最终发布的关系，让上千条记录成为可查询的因果结构，而不是数字很大的时间线。
-  \item \textbf{继续分离证据层。}leaf、aggregate、full-core、Linux 和 PPA 各自有不可越级的门；同源设计、负向变体、完整功能、综合/STA 与 power qualification 必须在发布时共同绑定。
-  \item \textbf{让环境本身接受持续反证。}不仅对 RTL 做 mutation，也对 runner、validator、任务合同、召回和报告生成制造受控错误，证明它们会 fail closed，而不是只验证一条理想路径。
+  \item 模型与执行端变化；
+  \item 代码规模和成熟度变化；
+  \item 任务从局部 RTL 发展到跨模块、Linux 与 PPA；
+  \item 工具、测试和日志能力变化；
+  \item 我本人对架构、验证和 Agent 编排的理解变化。
 \end{enumerate}
 
-我不认为这些工作能保证 AI 不犯错，也不认为它们已经证明“AI 可以独立完成商业处理器”。完整 Linux、full-core architecture freeze、物理 200 MHz 和合格 PPA 仍有明确缺口。它们真正证明的是另一件事：当模型能力快速变化时，工程师不必被动等待下一个版本，也不必只在提示词上反复试错；我们可以主动建设一套让能力可进入、可扩展、可否定、可继承的环境。
+因此，本文能说“该门禁在这次事件中拒绝了这个候选”，不能说“相同任务下，闭环平均使
+正确率提高了多少”。后者需要固定其余变量，只改变工作流条件。
 
-回看最初那个 UART，我关心的是模型能否给出一段正确代码；到五月，我关心它能否沿多模块反馈持续搜索；到六月，我关心下一次 AI 是否能够恢复当前工程状态；到七月，我最关心的已经是，当 AI 宣布完成时，工作区是否有能力判断这句话究竟有多重。
+\section{纵向案例：约束是如何长出来的}
 
-因此，这几个月真正发生的，并不是我逐渐把工程交给了 AI，而是我逐渐学会了怎样设计一个人与 AI 都必须尊重证据的工程系统。AI 承担了越来越多的实现、搜索、执行和初步复核，我则把更多精力放到目标、架构、环境、反例和结论资格上。对我而言，这不是退出工程，而是进入工程更上游的位置。
+\subsection{4 月：从代码生成到最小可观察闭环}
 
-模型还会继续更新。真正能够沉淀下来的，不是某一次漂亮回答，而是工程对上下文、边界、失败和证据的组织方式。我所做的事情，本质上是在模型能力尚未完全稳定时，先把能够承接这种能力的跑道建起来。下一代模型到来时，它面对的不应再是一堆需要重新猜测的源码，而是一套可以进入、理解、行动、被反驳并留下事实的工程世界。
+4 月 13 日的 RV32I 非流水线核心一次生成了 9 个 RTL 文件，目标包括译码、立即数、
+ALU、比较、LSU、WBU 和顶层多周期状态机。Verilator lint 通过，但报告同时明确：
+尚无 testbench、镜像加载器和 NEMU 对拍，普通异常仍是 halt-only。这条记录的价值不在
+“AI 写了九个文件”，而在它留下了一个清楚的能力边界：代码生成速度已经高于验证能力。
 
-\vspace{1.5em}
-\noindent\rule{\linewidth}{0.4pt}
+随后 NPC 的 DPI/C++、AM image、pmem 和退出协议被接通，
+\taskpath{hello-riscv32-npc.bin} 可以输出并以 code 0 退出；itrace、mtrace 和 dtrace
+分别记录指令、内存和设备活动，batch mode 使相同输入能够无人值守重放。
 
-\noindent\footnotesize 本文中的工程数字与状态按对应 task-run 的局部口径复述；模型名称中无法由 task-run 稳定确认的部分，均作为同期个人记忆处理。本文不替代源码审查、完整回归、Linux/full-core 验收、形式验证或物理实现签核。
+\begin{evidencebox}
+\taskpath{2026-04-13-rv32i-nonpipe-core} 支持“9 个 RTL 文件和 lint 通过”，也明确记录
+“无 testbench、镜像和对拍”。\taskpath{2026-04-13-npc-dpic-bringup} 支持 hello 与
+退出码。它们共同证明最小反馈链形成，不证明处理器已经完整正确。
+\end{evidencebox}
+
+这一阶段 AI 对工程的介入仍然较浅：我决定接口、测试和结果含义，AI 主要展开实现。
+但环境开始改变角色分工——模型不再只能听我转述错误，而能看到真实程序如何执行和退出。
+
+\subsection{5 月：候选生成变快，拒绝机制开始重要}
+
+5 月的工作进入 Cache、SoC 和乱序后端。乱序执行要求指令在操作数就绪时选择执行，
+同时由 ROB（Reorder Buffer，重排序缓冲区）保持按程序顺序退休；IQ（Issue Queue，
+发射队列）保存等待执行的微操作。
+
+5 月 29 日的记录定位了一个具体错误：ready 的新指令可以走 dispatch-bypass 直接发射，
+旧 compact 逻辑却把这次发射误当作 IQ slot0 发射，删除了仍在等待操作数的 entry。
+修复后，AM \texttt{add} 在该配置中得到 541 cycles / 839 commits / CPI 0.645。
+
+更重要的是，同一 task episode 记录了两个被拒候选：
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{5 月候选的接受与拒绝}
+  \label{tab:may-candidates}
+  \begin{tabularx}{\linewidth}{@{}L{0.24\linewidth}Y L{0.21\linewidth}@{}}
+    \toprule
+    候选 & 观测 & 决策 \\
+    \midrule
+    IQ compact 修复 &
+    定向回归通过，AM \texttt{add} 为 CPI 0.645 &
+    保留 \\
+    双 memory issue/buffer 放宽 &
+    IQ 修复后可 GOOD TRAP，但 CPI 从 0.645 退化到 0.665 &
+    回退到单 memory 策略 \\
+    lane0 branch + lane1 ret &
+    focused test 通过，完整 build 出现 \texttt{UNOPTFLAT} 组合环 &
+    回退 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+这说明 Agent 已经能够产生多个架构候选，但真正构成工程能力的是环境能否对候选说“不”。
+CPI 只在同一程序、编译选项和测量边界内可比；5 月其他记录中的 CoreMark phase metric
+不能与 0.645 直接拼成趋势线。
+
+\subsection{6 月：跨模块任务暴露了局部正确性的极限}
+
+六月开始形成 profile、manifest、bounded recall 和实现者/审查者分离。AI 可以在更长的
+任务链中阅读多个模块，但也更容易把一个局部组件的通过误写成系统方案成立。
+
+分支推测案例最能说明这个问题。把休眠 checkpoint 路径从
+\texttt{1'b0} 打开后，lint 和 module 113/113 通过；系统回归却变为 riscv-tests
+255/16、AM 25/32。回退后恢复 271/0 和 113/113。随后 ROB-walk 恢复 FSM、rename restore
+和 IQ squash 分别通过隔离测试，整合打开后仍得到 riscv-tests 251/20、AM 14/43。
+
+trace 最终把问题定位到协议耦合，而非 ROB-walk 本身：branch speculation active 时
+commit 被冻结，JALR 仍进入 pending 并等待后端 drain；drain 需要 ROB 排空，ROB 又需要
+commit，形成闭环等待。局部恢复组件正确，并不能修复前端推测与 jump pending 的整体协议。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={分支推测 task-run 中的关键验证结果}]
+spec-on checkpoint: riscv-tests 255/16, AM 25/32
+rollback mode=0:    riscv-tests 271/0,  module 113/113
+ROB-walk spec-on:   riscv-tests 251/20, AM 14/43
+root cause: branch-spec active <-> pending JALR drain deadlock
+\end{lstlisting}
+
+\begin{evidencebox}
+数据来自 \taskpath{.github/task-runs/2026-06-29-rv64-ooo-core-architecture-constitution/report.md}。
+它支持“聚合门禁发现并回退了该候选”，不支持“ROB-walk 无效”或“所有分支推测方案都会失败”。
+\end{evidencebox}
+
+\subsubsection{Ubuntu 里程碑：同一个词必须有不同证据等级}
+
+NEMU 与 NPC 的 Ubuntu 日志也是一次结论边界训练。NEMU 的原始 console 记录了：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={NEMU 挂载 Ubuntu rootfs 并进入 shell 的日志摘录}]
+virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
+VFS: Mounted root (ext4 filesystem) on device 254:0.
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+[ysyx-rootfs-sh] /bin/sh -c marker
+[ysyx-rootfs] /bin/sh -c exit=0
+[ysyx-rootfs] launching /bin/sh
+/bin/sh: 0: can't access tty; job control turned off
+\end{lstlisting}
+
+NPC 的对应 console 则到达：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={NPC rootfs mount 与 systemd/banner 里程碑日志摘录}]
+virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
+VFS: Mounted root (ext4 filesystem) on device 254:0.
+systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode
+systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+\end{lstlisting}
+
+NEMU 可以写“进入 \texttt{/bin/sh}”；NPC 只能写“rootfs mount + systemd/banner smoke”。
+NPC 报告明确没有真实 root prompt，也没有
+\texttt{\_\_NPC\_SYSTEMD\_CHECK\_DONE\_\_ rc=0}。里程碑并没有因此失去价值；恰恰是
+保留 GAP，使后来者知道下一步还差什么。
+
+\subsection{7 月：让证据本身也接受验证}
+
+\subsubsection{Yosys：结构成功不等于 PPA 成功}
+
+7 月 15 日的一次轻量 Yosys 日志给出：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={R3P4 light-Yosys 结构统计摘录}]
+18115 wires
+296118 wire bits
+14645 cells
+  507  $dff
+ 6768  $mux
+ 1568  $pmux
+Warnings: 76 unique messages, 124 total
+End of script. ... time: 24.82s
+\end{lstlisting}
+
+这些数字证明指定输入成功进入通用结构展开，也帮助识别 mux 和状态规模；它们不带目标工艺
+面积单位，也没有证明 STA、布局布线或功耗。因此，“Yosys 仿真”在严谨表述中应改为
+“Yosys 综合/结构审计”，generic cell 不能被直接写成物理面积。
+
+\subsubsection{从正向 PASS 到故障辨识}
+
+取指单元（Instruction Fetch Unit，IFU）的 V9I 切片在 design-id \texttt{6236...} 下得到
+focused 4/4、module 109/109，并让 19 个
+compile-success 负向 RTL 变体被动态拒绝。FENCE V9M 在 \texttt{2eff...} 下得到
+focused 2/2、module 109/109、变体 2/2、validator 12/12。STORE/AMO V9N 又增加跨
+非阻塞赋值（Non-Blocking Assignment，NBA）结算边沿的事务所有权驻留检查器，
+两份源码变体均被拒绝。这里 STORE 是存储指令，AMO 是原子内存操作
+（Atomic Memory Operation）。
+
+这些数字的价值不在“PASS 更多”，而在验证环境必须表现出区分能力。例如，FENCE 的两个
+负向变体分别破坏 drain gate 中的 memory-idle 条件，以及
+CoreGlue 到 ControlPlane 的 \texttt{mem\_idle} 连接。只有目标 testbench 唯一报错、
+正向设计通过、production source 前后 SHA 不变，才能把这次 mutation 计为有效。
+
+\subsubsection{单模块三快照演化：从“后端排空”到 FENCE 专用内存静默}
+
+为了避免只列举“做过什么”，本文选择
+\taskpath{npc/rv64/vsrc/control/OooPendingDrainResolveGate.v} 作为纵向剖面。
+该模块把 ROB、发射队列、待处理控制事件和内存静默条件归约为
+\texttt{drain\_complete\_o}。这里的 drain 不是清空或复位，而是停止接纳会破坏顺序的新工作，
+同时允许已经发出的不可撤回事务走到终结响应。表\ref{tab:drain-evolution}中的三个快照均由
+不可变 Git 提交和文件 SHA-256 标识；短哈希只用于排版，完整值保存在
+\taskpath{docs/research-paper/module-evolution-evidence.md}。
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \caption{\texttt{OooPendingDrainResolveGate} 的三快照源码与证据边界}
+  \label{tab:drain-evolution}
+  \begin{tabularx}{\linewidth}{@{}C{0.10\linewidth}L{0.19\linewidth}YL{0.29\linewidth}@{}}
+    \toprule
+    快照 & 源码身份 & 可观察的合同差异 & 当时能够支持的证据 \\
+    \midrule
+    A：6 月 28 日 &
+    commit \texttt{0bb371593}；文件 \texttt{e0ac...8c7} &
+    ROB、IQ、退休计数与 synthetic pending 共同定义后端排空；尚无显式存储侧静默输入 &
+    同一文件字节延续到战役终点；战役级 module 112/112、official 271/0、
+    AM 56/56，但没有为该谓词保存专门负向 oracle \\
+    B：7 月 13 日 &
+    commit \texttt{8532bad07}；文件 \texttt{574f...28f} &
+    快照中已有退休/SQ 静默输入；T3I 专门删除可由 ROB 空推出的冗余退休计数条件 &
+    2176 个有限二值合法域用例、两种定理变异、19/19 runner、
+    module 96/96、official 177/177；5 ns WNS 仍为 $-9.38$ ns，PPA 为 UNQUALIFIED \\
+    C：7 月 23 日 &
+    commit \texttt{c29532ead}；文件 \texttt{6be3...8b6}；design-id \texttt{2eff...c8b2} &
+    ordinary FENCE 额外等待完整 memory owner graph；其他 system 事件维持既有合同 &
+    focused 2/2、module 109/109、可编译负向 RTL 2/2、validator 12/12；
+    full-core 仍为 GAP，PPA 仍为 UNQUALIFIED \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{快照 A：排空谓词以执行后端为中心。}
+
+2026 年 6 月 28 日的版本把“后端已排空”定义为 ROB 与发射队列为空、当拍无退休，
+且两个 synthetic lane1 尾部事件均不存在；控制面再把它与 pending control ready 和
+replay wait 合取：
+
+\begin{lstlisting}[language=Verilog,firstnumber=63,
+  caption={快照 A：基本后端排空谓词（commit \texttt{0bb371593}）},
+  label={code:drain-stage1}]
+assign backend_drained_o = (rob_count_i == {ROB_COUNT_W{1'b0}}) &&
+                           (issue_count_i == {ISSUE_COUNT_W{1'b0}}) &&
+                           (core_retire_count_i == 2'b00) &&
+                           !synth_lane1_ret_pending_i &&
+                           !synth_lane1_branch_drop_pending_i;
+
+assign drain_complete_o =
+    stop_pending_i && backend_drained_o && pending_control_ready_i &&
+    !pending_replay_wait_o;
+\end{lstlisting}
+
+这一文件版本在 6 月 28 日优化战役的起点和终点具有相同 SHA-256。战役报告保存了模块
+112/112、官方测试 271/0、AM 56/56 等整体验证，说明包含该模块版本的系统曾通过这些门。
+但是，这些门同时覆盖大量其他改动，且没有构造“删除某个 drain 条件后必须失败”的
+谓词级反例。因此，快照 A 是\textbf{带系统回归的源码观察}，不是该合取式每一项必要性的
+独立证明，更不能把战役的 CPI 变化归因于这几行代码。
+
+\paragraph{快照 B：把“ROB 空”与“内存副作用结束”分开。}
+
+从快照 A 到 B 的文件差异中，\texttt{mem\_retire\_quiet\_i} 已经出现；源码注释把它
+关联到 Load/Store Queue（LSQ）与 Store Queue（SQ）演进，因为退休只表示指令已经按序提交，
+不再保证较老 store 已经离开 SQ。本文不把这一期间的全部接口变化归因于 T3I。T3I 的直接
+基线是 \texttt{0b0d716...}，其特定动作是删除
+\texttt{core\_retire\_count\_i}：合法 ROB 状态中
+\texttt{rob\_count=0} 已经蕴含当拍退休计数为零。
+
+\begin{lstlisting}[language=Verilog,firstnumber=48,
+  caption={快照 B：退休侧存储静默与冗余条件消除（commit \texttt{8532bad07}）},
+  label={code:drain-stage2}]
+// commit0_fire -> count_q != 0
+// commit1_fire -> commit0_fire
+// therefore rob_count == 0 -> retire_count == 0
+assign backend_drained_o = (rob_count_i == {ROB_COUNT_W{1'b0}}) &&
+                           (issue_count_i == {ISSUE_COUNT_W{1'b0}}) &&
+                           !synth_lane1_ret_pending_i &&
+                           !synth_lane1_branch_drop_pending_i &&
+                           mem_retire_quiet_i;
+\end{lstlisting}
+
+这里的“蕴含”有明确范围：定理检查脚本从真实 RTL 抽取唯一连续赋值，并在规定的
+16-entry ROB 二值合法输入域内完成 2176 个有限枚举用例；它不是完整形式化模型检查，
+也没有覆盖时序历史与未知态语义。脚本还分别注入
+“删除 count guard”和“在守卫后追加 \texttt{|| 1'b1}”两种变异，两者均返回失败。
+负向 assertion 又暴露过一次 runner 假绿：Icarus 执行 \texttt{\$error} 后仍打印 PASS，
+旧检查器只看返回码与 PASS marker；修正后，19/19 runner 测试、96/96 模块测试和
+177/177 official+privileged 测试通过。T3I 报告还记录同一代理约束下的 WNS 从
+$-10.10$ ns 变化到 $-9.38$ ns；这个时序快照变化不能单独归因于某一谓词删除，且目标
+周期仍是 5 ns。因此，数值没有达标，PPA 资格仍为 \statusword{UNQUALIFIED}，不能写成
+“达到 200 MHz”。
+
+\paragraph{快照 C：ordinary FENCE 消费完整 owner graph。}
+
+\texttt{mem\_retire\_quiet\_i}只覆盖退休/SQ 一侧，不足以表示 MIQ、bridge buffer、retry、
+reservation、仍在途 owner 与 terminal response 已全部结束。7 月 23 日的快照呈现了
+ordinary FENCE 专用的 \texttt{mem\_idle\_i} 条件，且没有新增 pending-system 状态机。
+V9M 记录明确说明该生产逻辑在任务开始时已经存在；该任务主要刷新并增强 current-design
+验证证据，而不是重新实现这条逻辑：
+
+\begin{lstlisting}[language=Verilog,firstnumber=92,
+  caption={快照 C：FENCE 对完整内存 owner graph 的专用等待（commit \texttt{c29532ead}）},
+  label={code:drain-stage3}]
+wire pending_fence_mem_quiet_w =
+    !pending_system_fence_i || mem_idle_i;
+
+assign drain_complete_o =
+    stop_pending_i && backend_drained_o && pending_control_ready_i &&
+    !pending_replay_wait_o && pending_fence_mem_quiet_w;
+\end{lstlisting}
+
+V9M 没有把“正向测试通过”直接当作充分证据。两份负向 RTL 都先成功编译，再分别删除
+FENCE 的 \texttt{mem\_idle} 条件、常量化 CoreGlue 到 ControlPlane 的连接；目标
+testbench 必须以唯一的 \texttt{[CHECK-FAIL]} 标记拒绝它们。证据摘要如下：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={快照 C 的负向辨识与发布边界}]
+design_id=sha256:2eff867b...c8b2
+focused=2/2  module=109/109  validator=12/12
+compile_success_variants=2  dynamic_rejected=2
+mutant=fence_full_memory_idle_removed  make_rc=2
+marker=[CHECK-FAIL] fence waits for MIQ bridge reservation idle
+source_unchanged=true
+full_core=GAP  blockers=38
+ppa=UNQUALIFIED  promotion=false
+\end{lstlisting}
+
+其中 \texttt{make\_rc=2} 不是编译失败：变体已经编译，非零返回值来自 testbench 按预期
+发现错误。production source 的前后 SHA 相同，说明负向版本通过构建变量注入，没有污染
+工作树。快照 C 的完整 design-id 属于当时已验证的 canonical RTL 集合；当前工作树中的
+该单个 Verilog 文件仍与 \texttt{c29532ead} 字节一致，但这不自动把整套 V9M 结论迁移到
+其他已变化文件。
+
+\begin{evidencebox}
+三快照材料直接支持“同一模块的可执行合同确实发生了上述源码演化”，也支持 T3I 与 V9M
+对各自指定错误集合具有辨识力。由于三个快照之间还包含 LSQ/SQ、pending 事件和其他模块的
+并行演进，它们不是同一起点的受控消融，不能单独识别每次改动对性能或全核正确性的因果贡献。
+更重要的变化并非代码从五项合取变成六项合取，而是环境逐步具备了定义条件、构造反例、
+绑定源码身份并拒绝越级结论的能力。
+\end{evidencebox}
+
+\subsubsection{事务 owner 数据流：为什么局部合同必须跨模块解释}
+
+普通内存顺序屏障指令 FENCE 需要等待更老内存副作用结束，才能允许更年轻设备读对外可见。
+实现中首先区分
+“能否发起新事务”和“已经发出的事务仍归谁所有”。代码\ref{code:owner-open}来自当前
+\taskpath{OooRob.v}。
+
+\begin{lstlisting}[language=Verilog,firstnumber=552,
+  caption={新发射许可与未完成事务所有权分离},
+  label={code:owner-open}]
+assign head0_owner_open_o = !rst &&
+    (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] &&
+    !done_q[head_q];
+assign head0_launch_open_o = !rst && !flush_i && !recovering_w &&
+    (count_q != {ROB_COUNT_W{1'b0}}) && valid_q[head_q] &&
+    !done_q[head_q];
+\end{lstlisting}
+
+recovery 可以禁止新的物理写发射，却不能抹去已经呈现到高级可扩展接口
+（Advanced eXtensible Interface，AXI）总线的事务 owner。后端的
+\texttt{mem\_idle\_o} 又把内存发射队列（Memory Issue Queue，MIQ）、retry、
+reservation、仍在途的事务 owner（live owner）和待返回的事务终结响应
+（terminal pending）共同归约：
+
+\begin{lstlisting}[language=Verilog,firstnumber=3064,
+  xleftmargin=3.1em,framexleftmargin=2.7em,
+  caption={完整内存静默条件},
+  label={code:mem-idle}]
+assign mem_idle_o =
+    miq_empty_w && (!ENABLE_DUAL_MEM || miq1_empty_w) &&
+    !mem_pending_q && !mem_buffer_valid_q &&
+    !mem_retry0_valid_q && !mem_retry1_valid_q &&
+    !mem_issue_res_valid_q && !mem_issue1_res_valid_q &&
+    (mem_owner_live_count_w == 6'd0) &&
+    (mem_terminal_pending_count_w == 6'd0);
+\end{lstlisting}
+
+这个布尔量不是凭名称跨层“自动生效”，而是沿模块端口逐级传递。其静态连接链为：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={\texttt{mem\_idle} 从执行后端到 drain gate 的连接链}]
+OooIntBackend.mem_idle_o
+ -> OooAluDecodeBackend.mem_idle_o
+ -> OooAluCoreSlice.mem_idle_o
+ -> OooExecuteBackend.core_mem_idle_w
+ -> OooCoreTopGlue.core_mem_idle_w
+ -> OooControlPlane.mem_idle_i
+ -> OooPendingDrainResolveGate.mem_idle_i
+\end{lstlisting}
+
+连接链说明“谁生产、谁传递、谁消费”，负向连接变体则验证 testbench 能否观察到某一段被
+常量化。二者结合后，才能把快照 C 的局部合取式解释为全核中的真实控制数据流。
+
+对新人而言，完整事务可以这样理解：STORE 先获得 ROB 与存储队列
+（Store Queue，SQ）的 token，退休授权后才发出 AXI 写地址/写数据（AW/W）通道请求；
+一旦写请求对外呈现，即使年轻指令被恢复，owner 仍要保留到 AXI 写响应（B）通道返回；
+后继 FENCE 必须等待 MIQ、retry、reservation、live owner 和 terminal 全部静默，之后
+更年轻的设备读才能对外可见。V9M 和 V9N 证明的是这组\textbf{定向合同}对指定故障集有
+辨识力，不是所有状态空间的形式证明。
+
+\subsubsection{design-id 阻止把旧成功贴到新工作树}
+
+V9L 的功能聚合绑定 \texttt{2eff...}，包括 module 109/109、official 177/177、
+AM 59/59、DiffTest mismatch 0、CoreMark10 CRC \texttt{0xfcaf}、Dhrystone10000 和
+mutation 11/11。V9O 时 live RTL 已变成 \texttt{08d3...}，verification source 是
+\texttt{300d...}，旧 complete candidate 仍是 \texttt{2eff...}。
+
+V9O 的局部 control-event 证据达到 focused 10/10、queue-head config 3/3、
+module 110/110、compile-success RTL variants 11/11 和 architecture gates 9/9，
+但 full-core audit 仍报告：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={V9O 的全核结论边界}]
+architecture_freeze=GAP
+blockers=59
+ppa=UNQUALIFIED
+promotion_eligible=false
+candidate_same_as_current_design=false
+\end{lstlisting}
+
+这正是失败关闭的意义：局部技术结论可以成立，旧 candidate 的全局结论却不能跨身份迁移。
+
+\subsubsection{5 ns proxy：正裕量也可以是“不合格”}
+
+T4I 的 exact-5ns OpenSTA proxy 在其内部受约束路径上得到 top40 40/40 MET，
+actual worst slack 为 \texttt{+0.017907454 ns}。但同一证据还包含：
+
+\begin{itemize}
+  \item 303 个输入端口缺少 \texttt{set\_input\_delay}；
+  \item 1873 个输出端口缺少 \texttt{set\_output\_delay}；
+  \item 1875 个 endpoint 未约束；
+  \item ideal clock，无 SPEF、CTS、OCV 和 clock uncertainty；
+  \item 四类 macro 使用非签核 placeholder Liberty。
+\end{itemize}
+
+17.907 ps 只占 5 ns 的约 0.36\%。因此本文保留“gate-level proxy 通过”的历史事实，
+同时把 PPA 状态写成 \statusword{UNQUALIFIED}。工程水平不仅体现在能够得到一个正数，
+也体现在知道这个正数不能说明什么。
+
+\section{跨案例观察与研究问题回答}
+
+\subsection{RQ1：从 Prompt 到可执行约束}
+
+四个月中，“当前设计”逐步落到 design-id，“验证通过”落到明确命令、层级和分子/分母，
+“性能提升”落到 matched workload，“完成”落到 marker、publication、DB 和 GAP 边界。
+这说明多类自然语言要求\textbf{可以}迁移为可执行条件。
+
+但高层设计意图仍需要工程师定义。例如，为什么 branch 和 jump 必须共同投机、什么风险值得
+大刀尝试、PPA hard gate 如何排序，都不能由哈希自动给出。RQ1 当前为
+\claimstatus{PARTIALLY\_SUPPORTED}：迁移机制存在并运行过，独立质量收益尚无对照。
+
+\subsection{RQ2：身份与发布关闭了哪些错配}
+
+V9N 的 reviewer 记录发生字节变化后，旧 owner evidence 被判 freshness GAP，并完整重放
+上层依赖；V9O 又显式区分 live design 与旧 candidate。这证明当前机制至少能暴露部分
+stale 和 cross-design 风险。
+
+尚缺的证据包括：发布中崩溃、两个 writer 并发、result/manifest 半更新、错误配置与路径漂移
+的系统化注入。因此 RQ2 也是 \claimstatus{PARTIALLY\_SUPPORTED}，不能写成“彻底消除”。
+
+\subsection{RQ3：mutation 能证明什么}
+
+IFU 19/19、FENCE 2/2、STORE/AMO 2/2 和 V9L 11/11 表明，当前 oracle 对这些指定错误
+具有故障辨识能力。它们支持限定性的 \claimstatus{SUPPORTED}。
+
+mutation 不能证明 RTL 正确，也不能证明 oracle 完备。未改变源码、等价变体、不可触发变体和
+不可观察变体必须从有效分母中剔除。mutation 的价值是对测试提出反问：“如果实现以这种具体
+方式出错，你真的能看见吗？”
+
+\subsection{RQ4：反馈与回滚如何改变搜索}
+
+双 memory CPI 退化、branch+ret 组合环、checkpoint 分支推测和 ROB-walk 整合失败都实际
+触发了拒绝或回滚。记录支持“这些坏候选没有留在接受状态”。
+
+但没有 B0 单 Prompt、B1 基本 loop 和 B2/B3 同条件对照，所以相对收益只能标为
+\claimstatus{OBSERVATIONAL\_ONLY}。当前最可信的结论不是“Loop 已经被证明更好”，而是
+“仓库已经建立了一套能对部分候选说不的搜索制度”。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{研究问题的当前回答}
+  \label{tab:rq-answers}
+  \begin{tabularx}{\linewidth}{@{}C{0.08\linewidth}Y L{0.27\linewidth}@{}}
+    \toprule
+    RQ & 当前结论 & 状态 \\
+    \midrule
+    RQ1 & 多类 Prompt 已迁移为对象、命令、身份、反例和发布门，但总体质量收益未隔离 &
+    \claimstatus{PARTIALLY\_SUPPORTED} \\
+    RQ2 & 已观察到身份错配和 freshness 变化阻止旧结论消费；故障注入矩阵不足 &
+    \claimstatus{PARTIALLY\_SUPPORTED} \\
+    RQ3 & 指定的非等价变体被动态拒绝，证明 oracle 对该 fault set 有辨识力 &
+    \claimstatus{SUPPORTED}（限故障集） \\
+    RQ4 & 多个失败候选触发回滚；相对单 Prompt 的平均收益未知 &
+    \claimstatus{OBSERVATIONAL\_ONLY} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{与工业 EDA 和可信工程的对应}
+
+本文没有把工作区包装成工业认证或流片 signoff 流程，但其方法与成熟工程存在明确对应：
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{仓库机制与成熟工程方法的对应}
+  \label{tab:industry-map}
+  \begin{tabularx}{\linewidth}{@{}L{0.25\linewidth}L{0.29\linewidth}Y@{}}
+    \toprule
+    工作区机制 & 工程对应 & 共同目的 \\
+    \midrule
+    design-id / source-id & 配置管理、可复现构建 & 确认结果属于哪份输入 \\
+    claim-evidence map & 需求追踪矩阵、assurance case & 让每项主张有证据和边界 \\
+    mutation & test adequacy / fault injection & 检验 oracle 是否能拒绝指定错误 \\
+    分层验证 & RTL、系统、综合、STA、物理签核分层 & 防止低层 PASS 越级 \\
+    fail-closed publication & CI required checks、制品签名 & 不完整状态不可消费为完成 \\
+    rollback & 受控变更、候选淘汰 & 坏候选不污染基线 \\
+    reviewer/inspector & 独立验证与审查 & 主动寻找反例和越界结论 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+真正具有前瞻性的部分，不是把更多代码交给模型，而是把工程知识从人的隐性经验迁移为
+Agent 可执行、工具可验证、后来者可复查的制度。它使工程师的工作重心发生变化：
+
+\begin{itemize}
+  \item 代码展开可以更多委托；
+  \item 候选搜索可以部分自动化；
+  \item 证据采集可以制度化；
+  \item 设计意图、风险容忍度和最终主张仍由工程师负责。
+\end{itemize}
+
+这并不是“AI 取代工程师”，而是工程师开始设计 AI 参与工程的条件。一个成熟的 Agent
+系统，不只会找到答案，也要知道什么时候没有资格给出答案。
+
+\section{有效性威胁}
+
+\subsection{自建术语的操作性定义}
+
+本文使用了若干在工作区中逐步构造的概念。为了避免“用自建术语证明自建系统有效”的
+循环论证，表\ref{tab:operational-definitions}不从名称或意图解释它们，而是给出可被工具
+观察的判定条件。所谓\textbf{操作性定义}，是把抽象概念落到可重复观察的变量、命令或状态；
+它不声称该概念只有这一种理论解释。
+
+\begingroup
+\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{@{}L{0.16\linewidth}L{0.45\linewidth}L{0.29\linewidth}@{}}
+  \caption{工作区自建术语的操作性定义与非蕴含范围}
+  \label{tab:operational-definitions}\\
+  \toprule
+  术语 & 本文采用的可观察判据 & 该状态不能自动推出什么 \\
+  \midrule
+  \endfirsthead
+  \multicolumn{3}{l}{\footnotesize 表\ref{tab:operational-definitions}（续）}\\
+  \toprule
+  术语 & 本文采用的可观察判据 & 该状态不能自动推出什么 \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+
+  声明—证据失配（简称“假完成”） &
+  Agent 已声明“完成”或使用等价强结论，但强制证据集合仍缺项、身份错配，或现有 oracle
+  的适用范围小于该结论。它描述“主张范围大于证据边界”这一可审计关系，不判断行为动机。 &
+  不等于实现者主观欺骗；也不表示 RTL 必然错误，只表示当前完成声明不成立。 \\
+
+  current design / design-id &
+  在指定 canonical 文件清单与规范化规则下，对文件内容计算 SHA-256；审计对象必须与结果中
+  记录的 design-id 完全一致。 &
+  “日期最新”“Git 分支名相同”或单个文件未变化，都不能代替整组源码身份；身份一致也不证明正确。 \\
+
+  证据闭环 &
+  一项主张能够沿“对象与配置—命令—返回码—原始观测—oracle—结果身份—发布状态—结论边界”
+  回查，且每个必需环节都有真实文件或结构化字段承载。 &
+  不等于数学完备性、形式化证明或所有错误均已覆盖；它只表示现有结论可追溯且缺口可见。 \\
+
+  drain &
+  控制面停止接纳会越过串行点的新工作，同时让已经发出、不能撤回的事务继续到 terminal
+  response；当规定的队列、pending 状态和 owner 均静默时，\texttt{drain\_complete} 才成立。 &
+  不等于 reset、flush 或把在途事务直接丢弃；“ROB 空”也不必然等于“外部副作用结束”。 \\
+
+  memory owner graph &
+  工作区对“仍可能保留或产生某次内存副作用的状态集合”的简称。owner 是对尚未完成事务负有
+  推进、重试或终结责任的硬件状态实体；当前实现至少枚举 MIQ、bridge/pending buffer、retry、
+  issue reservation、live owner 与 terminal pending 计数。“静默”只表示这些 owner 没有在途
+  责任，不表示电路在物理意义上没有信号翻转。 &
+  它不是通用 RISC-V 术语，也不是一张独立存储的数据结构；具体成员必须由当前 RTL 合取式给出。 \\
+
+  mutation-qualified &
+  负向变体先成功编译，base/mutant 身份不同，目标语义确实被改变，刺激能够触发错误，
+  且独立 oracle 以预期的唯一失败标记拒绝它；只有满足这些条件的变体才进入分母。 &
+  指定 fault set 全部被拒绝，不等于 oracle 完备，更不等于 production RTL 已被证明正确。 \\
+
+  \statusword{CLOSED} &
+  某个具名架构债务在精确 design-id、配置、fault set 和必需门禁下达到预先声明的关闭条件。 &
+  不外推为整个模块、全核、全部 ISA 状态或 PPA 已完成。 \\
+
+  \statusword{GAP} &
+  至少一项强制证据缺失、过期、身份不一致或尚未达到门限，系统拒绝把局部结果提升为目标结论。 &
+  不等价于数值失败或 RTL 已知错误；它首先表示“当前不能下结论”。 \\
+
+  \statusword{UNQUALIFIED} &
+  已存在测量值，但测量前提不足以承担目标等级的解释。例如 STA 有 slack，却缺少完整 I/O
+  约束、真实宏、寄生、CTS 或 OCV。 &
+  不等同于 \statusword{FAIL}，也不能被改写为“已通过”；应先补足资格条件，再比较门限。 \\
+
+  promotion &
+  候选只有在所有 hard gate、身份校验和发布条件满足后，才允许进入下一交付状态。 &
+  focused PASS、模块全绿或某个代理指标改善，都不单独构成 promotion。 \\
+\end{longtable}
+\endgroup
+
+这些定义有两个作用。第一，它们把“环境更好”“证据更强”等模糊评价改写为可检查事件；
+第二，它们保留三值甚至多值状态，避免把“不足以判断”错误压缩成“通过/失败”二选一。
+后文出现 \statusword{CLOSED}、\statusword{GAP} 与 \statusword{UNQUALIFIED} 时，均按表
+\ref{tab:operational-definitions}解释，而不是按日常语言自由延伸。
+
+\subsection{内部有效性：时间与机制同时变化}
+
+模型、代码、任务、工具和作者经验在四个月中同时变化。后期记录更完整，可能来自模型能力、
+工程成熟度、任务选择和证据工具的共同作用，不能归因于某一单独机制。部分早期任务没有统一
+保存精确模型快照、推理参数和随机种子；本文将这些字段保留为未知，不根据记忆补写版本。
+
+因此，本文的证据结构适合回答“某个门禁是否在某次 task episode 中实际拒绝了某个候选”，
+不适合直接回答“如果其他条件不变，该门禁使正确率平均提高多少”。后一个问题需要同模型、
+同源码、同任务、同预算的配对或随机对照。
+
+\subsection{构念有效性：可计数对象不等于工程质量}
+
+PASS 数、Token 数、task-run 目录数、代码行数和生成文件数都容易计数，却都不是质量或
+生产率的直接测量。Token 图只证明调用规模与持续性；workflow-event directory 只证明记录
+密度；mutation score 只描述指定变体的检出比例。本文用这些量标识活动、覆盖和成本边界，
+不把它们当作“高水平”“更聪明”或“更正确”的替代指标。
+
+同理，代码\ref{code:drain-stage1}至代码\ref{code:drain-stage3}中的合取项变多，并不天然
+表示设计更优。只有新增条件对应明确协议义务、正向实现仍通过、删除条件的负向版本被拒绝，
+且没有越过 full-core/PPA 边界时，才能说该合同在指定范围内得到加强。
+
+\subsection{纵向快照可比性：代码演化不等于因果效应}
+
+三个 \texttt{OooPendingDrainResolveGate} 快照能够证明文件字节、端口和布尔谓词按时间发生
+了变化；T3I 与 V9M 的定向材料还能证明各自 oracle 对指定变异有辨识力。但
+\texttt{0bb371593}、\texttt{8532bad07} 与 \texttt{c29532ead} 之间还发生了 LSQ/SQ、
+pending-memory、CSR cancellation 及其他模块的并行修改。它们没有共享同一个起始快照，
+也没有只开关单一机制的对照组。
+
+因此，三快照比较是\textbf{纵向机制追踪}，不是差分实验。它支持“合同如何被逐步显式化”，
+不支持“快照 C 中的条件单独造成某个 CPI、WNS 或正确率变化”。若要识别因果效应，至少需要在同一
+base design 上构造保持其余源码不变的 paired variant，并以完全相同的 workload、工具、
+约束和预算重复测量。
+
+\subsection{选择偏差与报告偏差}
+
+案例围绕研究问题选择，不能代表仓库中所有任务。保存了负向日志、回滚和边界说明的 task-run
+更容易被检索和写入文章，可能高估失败关闭的可观察性；没有形成报告的短任务和静默失败则可能
+被低估。本文不据案例数量估计总体失败率，也不把典型案例频率解释为故障分布。
+
+\subsection{证据完整性与来源有效性}
+
+早期 task-run 主要保存报告，没有七月同等粒度的 design-id、manifest、命令返回码和原始
+哈希。历史字段缺失保持为缺失，不能事后生成一份看似完整的过去。报告中的汇总数若无法落到
+原始日志，只能承担较低等级的过程性描述。
+
+文件存在同样不等于证据属于当前设计。结果至少要同时核对 source/config identity、生成命令、
+时间或语义 freshness、原始观测哈希和发布状态。当前 publication 机制已在若干案例中暴露
+stale/cross-design 风险，但尚未系统注入并发 writer、崩溃中断、半写文件和路径漂移，因而
+不能声称消除了所有证据串用。
+
+\subsection{mutation 的故障集合与 oracle 边界}
+
+fault set 由设计者选择，可能遗漏真实缺陷。等价变体、同值连接、未真正改变源码的替换，
+以及不能从触发点传播到观测点的错误，都会污染 mutation score。本文只把“成功编译、身份改变、
+语义非等价、被正确定向刺激、由唯一 oracle 拒绝”的变体计入分母。
+
+即便分母内的变体全部被拒绝，结论也只能是“测试对这组故障具有辨识力”。V9M 的 2/2 不能外推
+到所有 FENCE 次序错误；2176 个二值合法域枚举也不能改写成全状态空间形式证明。更强结论需要
+独立 fault model、覆盖矩阵以及形式化或更大规模随机验证。
+
+\subsection{PPA 的测量资格与外推边界}
+
+代理综合与 STA 缺少完整 I/O 约束、真实宏、寄生参数、时钟树综合（Clock Tree Synthesis，
+CTS）和片上变化（On-Chip Variation，OCV）。因此，即使内部受约束路径出现正 slack，状态仍是
+\statusword{UNQUALIFIED}；反之，T3I 的 $-9.38$ ns 只说明该代理配置未达到 5 ns，也不能直接
+预测布局布线后的绝对频率。
+
+不同阶段的面积、CPI 和 slack 只有在 design-id、workload、工具版本、工艺库、约束、时钟定义
+和测量区间一致时才能比较。本文保留 episode 内的 matched comparison，不把 0.645、0.938、
+1.2647 或其他不同口径数字拼成一条“持续变快”的趋势线。
+
+\subsection{外部有效性}
+
+材料来自单一 RISC-V 工作区、一套个人构建的 Agent 环境和有限的 NPC/NEMU/EDA 工具链。
+这里观察到的机制可能迁移到其他 HDL 或软件—硬件协同项目，但其效果会受仓库规模、测试质量、
+接口稳定性、团队组织与商业工具约束影响。本文的直接结论限定在所列设计身份、命令、故障集合
+和 task episode；普遍性需要跨仓库、跨模型和跨团队重复研究。
+
+\section{后续受控实验}
+
+\subsection{B0—B3}
+
+要检验“闭环是否优于单次 Prompt”，必须固定模型、源码、任务、工具、预算和隐藏评价器，
+只改变约束机制。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{后续受控实验的四个条件}
+  \label{tab:controlled-baselines}
+  \begin{tabularx}{\linewidth}{@{}C{0.08\linewidth}L{0.25\linewidth}YY@{}}
+    \toprule
+    条件 & 能力 & 反馈与证据 & 完成规则 \\
+    \midrule
+    B0 & 单次 Prompt、一次候选 & 无执行反馈、无结构化身份 & 隐藏评价器事后判定 \\
+    B1 & 基本反馈循环 & 可运行公开编译与测试 & Agent 自行声明完成 \\
+    B2 & B1 + bounded recall + task contract & 命令、返回码、配置、原始日志 & 合同门通过才可声明 \\
+    B3 & B2 + design-id + mutation + freshness + rollback & 分层验证和原子发布 & 任一必需项缺失即 GAP \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+B0 与 B3 的差异只能说明整个工作流包。design-id、mutation、fail-close 和 bounded recall
+的独立贡献，需要分别移除组件的随机化消融。
+
+\subsection{最小实验与指标}
+
+最小可行实验使用八类风险各一个任务、四个条件、每个条件五次，共 160 次运行；确认实验
+使用每类两个任务、每个 task-condition 八次，共 512 次核心运行。
+
+主要指标包括：
+
+\[
+FCR=\frac{\#(\text{声明完成且隐藏门失败})}
+          {\#(\text{声明完成})},
+\]
+
+\[
+UPR=\frac{\#(\text{已发布且隐藏门失败})}
+          {\#(\text{已发布})},
+\qquad
+MS=\frac{\#(\text{被杀死的非等价 mutant})}
+          {\#(\text{独立确认的非等价 mutant})}.
+\]
+
+同时记录验证成功率、回归逃逸率、证据身份逃逸率、正确候选误拒率、rollback 恢复率、
+达到有效交付所需时间、Token 和工具调用。质量与成本分开报告。
+
+\subsection{成功条件}
+
+只有当 B2 相对 B1 的假完成率绝对风险差为负、95\% 置信区间不跨零，验证成功率不低于
+预注册非劣界，并且合同或 bounded recall 消融使效果减弱时，才能在该任务集范围内写
+“可执行约束降低了假完成风险”。
+
+RQ2 的最低门槛是：全部合法正向控制被接受，预注册的 stale、cross-design、
+cross-configuration 和 incomplete evidence 全部被拒绝；发布中断不能暴露部分新版本。
+任何一个注入逃逸，都必须保留为失败，不能用总体百分比掩盖。
+
+完整方案见 \taskpath{docs/research-paper/experiment-plan.md}。
+
+\section{结论}
+
+四个月的记录不能证明“模型越来越强，所以工程自然越来越好”，也不能证明“Loop 已经在
+因果上优于 Prompt”。它们支持的是一个更有限、但更坚实的结论：
+
+\begin{researchclaim}
+在本文所列案例中，可执行约束为 RTL Agent 输出的归属、检验、拒绝和边界限定提供了机制；
+多个真实候选在现有门禁下没有越过不应越过的完成边界。
+\end{researchclaim}
+
+四月的核心问题是生成之后没有足够反馈；五月的关键变化是候选开始被比较和回退；六月的
+跨模块失败说明局部组件正确不等于协议正确；七月进一步把 design-id、mutation、freshness、
+full-core GAP 和 PPA UNQUALIFIED 放进同一证据链。AI 对工程的介入越来越深，原因既包括
+模型能力，也包括我持续为它构造了更好的上下文、工具、反馈和交付环境；二者的效应在现有
+纵向材料中无法分离。
+
+我真正想保留的不是“AI 替我写了多少代码”，而是另一种工程能力：把不确定性变成可以被
+运行、被反驳、被回滚、被后来者重新检查的证据。面向未来，Agent 的生成能力仍会继续提高；
+更稀缺的能力将是设计一套制度，让更强的 Agent 也不能轻易把局部成功说成整体完成。
+
+研究台账与复现材料位于 \taskpath{docs/research-paper/}；公开仓库地址为
+\href{https://github.com/mcsaver/oscpu}{https://github.com/mcsaver/oscpu}。
+
+\appendix
+
+\section{工作流配置的逐行解释}
+
+\taskpath{.github/e2e/profiles/agent-system.tsv} 有八个物理配置项。第一行 include
+discovery；discovery 展开三个节点，因此 closure 共十个节点。
+
+\begingroup\footnotesize
+\begin{longtable}{@{}C{0.07\linewidth}L{0.28\linewidth}L{0.28\linewidth}L{0.28\linewidth}@{}}
+  \caption{agent-system profile 的物理行与实际责任}\label{tab:profile-lines}\\
+  \toprule
+  行 & 配置项 & 作用 & 主要证据 \\
+  \midrule
+  \endfirsthead
+  \toprule
+  行 & 配置项 & 作用 & 主要证据 \\
+  \midrule
+  \endhead
+  1 & \path{@include|discovery} &
+  递归展开 recall-discovery、tool-env-check、npc-sim-status &
+  三个 canonical node log \\
+  2 & \path{three-layer-contract} &
+  检查规则、执行和证据三层是否闭环 &
+  \path{three-layer-contract.log} \\
+  3 & \path{runtime-artifact-boundary} &
+  区分运行态临时材料与持久工程产物 &
+  \path{runtime-artifact-boundary.log} \\
+  4 & \path{state-machine-traceback} &
+  检查状态是否能回溯到输入和证据 &
+  \path{state-machine-traceback.log} \\
+  5 & \path{reviewer-inspector-gate} &
+  分离实现者、审查者和 inspector 责任 &
+  \path{reviewer-inspector-gate.log} \\
+  6 & \path{rtl-task-contract} &
+  检查 RTL 对象、命令、证据和成功条件 &
+  \path{rtl-task-contract.log} \\
+  7 & \path{commercial-delivery-readiness} &
+  检查对外交付所需的边界和产物 &
+  \path{commercial-delivery-readiness.log} \\
+  8 & \path{profile-index} &
+  确认 profile 已注册且入口可发现 &
+  \path{profile-index.log} \\
+  \bottomrule
+\end{longtable}
+\endgroup
+
+展开后的执行顺序是：
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={agent-system 的十节点 closure}]
+recall-discovery
+-> tool-env-check
+-> npc-sim-status
+-> three-layer-contract
+-> runtime-artifact-boundary
+-> state-machine-traceback
+-> reviewer-inspector-gate
+-> rtl-task-contract
+-> commercial-delivery-readiness
+-> profile-index
+\end{lstlisting}
+
+节点 PASS 不等于 task-run 完成；task-run 完成也不等于工程目标充分证明。前者还需要
+marker/publication/DB 一致性，后者还要检查 profile 是否覆盖真实技术目标。
+
+\section{月份、模型记录与角色变化}
+
+这一附录回答“当时是什么模型”时采用三层口径：产品或执行端、精确模型快照、Agent
+工作方式必须分开。报告中出现 GitHub Copilot、Codex 或 Agent，只能证明当时使用了相应
+执行表面或交互方式；若没有同时保存精确模型标识、配置和任务输入，就不能据产品名称反推
+底层模型版本。后来的产品命名也不能回填早期历史。
+
+表\ref{tab:model-month}中的“AI 主要角色”按 task episode 中可观察的动作编码：局部生成、
+跨文件候选、工具反馈循环、跨模块审计或证据治理。“我的主要角色”则按可回查的工程决策编码：
+接口定义、基线冻结、候选拒绝、回滚、fault set 与 hard gate。两列描述职责重心的迁移，
+不构成工时、生产率或贡献比例的量化测量。
+
+因此，表中“精确模型快照未保存”不是为了回避比较，而是在维持变量的可复核性。只有模型身份
+与代码快照、上下文、命令、预算和结果共同进入 manifest，未来才可能把“模型变化”和
+“环境变化”作为两个独立因素分析。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{四个月中模型记录与工程角色的变化}
+  \label{tab:model-month}
+  \begin{tabularx}{\linewidth}{@{}C{0.10\linewidth}L{0.22\linewidth}YY@{}}
+    \toprule
+    月份 & 同期可核验执行端 & AI 主要角色 & 我的主要角色 \\
+    \midrule
+    4 月 &
+    task-report 多记录 GitHub Copilot；更早 UART 个人记录称 GPT-4，但未进入统一 manifest &
+    局部生成、解释报错、铺开 RTL &
+    定接口、搬运上下文、手动验证 \\
+    5 月 &
+    精确商业模型快照未稳定保存，不据记忆补写 &
+    跨文件候选、Cache/OoO 修改、定向调试 &
+    固定基线、比较候选、决定回退 \\
+    6 月 &
+    进入 Codex/agent 式环境；逐 run 精确模型仍不完整 &
+    跨模块审计、任务图、Linux bring-up、长链调试 &
+    建 profile、bounded recall、审查与证据结构 \\
+    7 月 &
+    记录表明进入 Codex/Agent 式环境；精确模型快照未统一保存 &
+    设计身份绑定、mutation、证据重建、分层验证 &
+    定义 fault set、hard gate、主张边界和 promotion 规则 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+表中的缺失不是疏漏，而是一项方法结论：若模型身份没有同代码、配置、命令和结果一起保存，
+它就不能被当作可复核的历史变量。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\linewidth]{token-activity.png}
+  \caption{同期账户 Token 活动截图。累计 160.5 亿、峰值 14.6 亿、最长任务 24 小时 11 分、
+  当前与最长连续天数均为 17 天。该图只说明使用规模和连续性，不证明工程质量、个人贡献、
+  生产率或本文任何因果结论。}
+  \label{fig:token-activity}
+\end{figure}
 
 \end{document}

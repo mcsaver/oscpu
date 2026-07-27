@@ -408,24 +408,17 @@ module tb_ooo_ifu_lane1_fault_owner;
     .pending_system_csr_commit_i(1'b0),
     .head0_csr_commit_i(1'b0),
     .head0_csr_inflight_i(1'b0),
+    .head0_csr_owner_birth_i(1'b0),
+    .head0_csr_owner_kill_i(1'b0),
+    .pending_owner_birth_i(
+        (pending_trap_capture_exit && pending_trap_capture_exit_valid &&
+         !(pending_trap_clear_exit && pending_trap_clear_arch_squash)) ||
+        (pending_trap_capture_arch && pending_trap_capture_arch_valid &&
+         !(pending_trap_clear_arch && pending_trap_clear_arch_squash))),
+    .pending_owner_live_i(pending_exit || pending_arch_trap),
+    .pending_system_producer_valid_i(1'b0),
+    .core_local_flush_i(1'b0),
     .drain_complete_i(drain_complete),
-    .can_run_i(1'b1),
-    .fifo_has_packet_i(fifo_has_packet),
-    .csr_irq_pending_i(1'b0),
-    .head_fetch_fault0_i(head_fetch_fault0),
-    .dispatch0_arch_trap_i(dispatch0_arch_trap),
-    .dispatch0_exit_i(dispatch0_exit),
-    .dispatch0_fp_i(dispatch0_fp),
-    .dispatch0_system_i(dispatch0_system),
-    .head0_csr_illegal_i(1'b0),
-    .dispatch0_branch_i(dispatch0_branch),
-    .direct_branch0_dispatch_valid_i(direct_branch0_dispatch_valid),
-    .dispatch0_jal_i(dispatch0_jal),
-    .direct_jal0_dispatch_valid_i(1'b0),
-    .dispatch0_jump_i(dispatch0_jump),
-    .dispatch0_return_i(1'b0),
-    .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
-    .dispatch_unsupported_i(dispatch_unsupported),
     .rob_walk_mode_i(1'b1),
     .stop_pending_o(stop_pending)
   );

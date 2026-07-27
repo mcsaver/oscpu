@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-21。
+> **最近更新**：2026-07-27。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
 > `../../eval/ppa/evidence/architecture-current.json`、
@@ -40,7 +40,7 @@
 | gate | 2026-07-14 可采信结果 | 当前边界 |
 | --- | --- | --- |
 | official riscv-tests | 177/177 逐项 PASS | current-config sweep 非 Difftest；F0 另有 Difftest-ON AM gate |
-| module testbench | 历史 100/100 真 PASS；当前 required inventory=109 | V9G 已在当前 design_id 下由 `testbench/Makefile` 的 `TESTS` 动态推导并取得 109/109；该 module-only aggregate 不替代仍缺失的同 cohort official/AM/DiffTest aggregate |
+| module testbench | 历史 100/100 真 PASS；当前 required inventory=112 | V9Z 已在当前 design_id 下由 `testbench/Makefile` 的 `TESTS` 动态推导并取得 112/112；该 module-only aggregate 不替代同源 official/AM/DiffTest aggregate |
 | AM cpu-tests | 59/59 真 PASS | `fp-difftest-probe` 明确 Difftest ON |
 | benchmark/DPI | CoreMark、Dhrystone-10000、sized DPI PASS | Dhrystone 默认500000在20min timeout，未宣称长跑 PASS |
 | lint/build | Verilator build + lint 零告警 | 不替代功能和合同 gate |
@@ -48,19 +48,25 @@
 F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍不得只凭外层摘要扩写为
 功能、Linux 或物理签核完成。
 
-### 1.3 2026-07-22 full-core freeze 资格
+### 1.3 2026-07-27 full-core freeze 资格
 
 - DI-1..DI-5、OOO-1..OOO-4 已在同一
-  `design_id=sha256:6236b176da0c10bccac9c2feb405a0d65ba586d826616f0beaeee0cbbfe2f3dc`
+  `design_id=sha256:bbb9c95199ada2e0e8160c235705a270f924240b28fde6e611bd9342398084c9`
   下 9/9 GREEN；这是必要条件，不替代全核债务、holder census 或功能 aggregate。
-- 当前 full-core `ARCH_STABLE=GAP`：`INSTRET-G1` 已由 V9C 当前设计程序级证据关闭，
-  `FDG-G1` 已由 V9D focused、全核程序、6/6 可编译 RTL 验证变体和 1/1 commit-observer
-  非空性探针重新绑定当前设计；`XRET-G1` 已由 V9E 七点 current-mode 矩阵、四条全核程序
-  语义标记、8/8 可编译 RTL 验证变体和 2/2 CSR-request/commit observer 探针重新绑定当前设计，
-  `MEM-ISSUE-G1`/`MIQ-FLUSH-G1` 已由 V9F 重新绑定，`IFU-AXI-G1` 已由 V9G 的 3/3
-  定向矩阵、109/109 module aggregate 和 18/18 current-source 可编译 RTL 验证变体重新绑定；
-  `CONTROL-EVENT-G1`、`SERIALIZE-G1` 仍开放；其余历史 P0 证据尚未全部重新绑定当前设计；census 的实例图和语义闭包
-  仍为 RED；当前 109 项模块与 official/AM/DiffTest 尚无同源 aggregate。
+- 当前 full-core `ARCH_STABLE=GAP`：15 个 CLOSED 债务均已绑定当前设计；
+  `CONTROL-EVENT-G1` 由 V9O 10/10 focused、3/3 queue-head 配置、11/11 负向 RTL
+  版本与 V9R owner/holder 交接证据闭合，`VECTORED-TRAP-G1` 由 V9U 13 类
+  CsrFile 用例、3 条全核路径与 7/7 负向 RTL 版本闭合。当前同源功能聚合为模块
+  111/111、official 177/177、AM 59/59、DiffTest mismatch 0。full-core capability
+  cohort 已由 `full-core-cohort-scope-v1.md` 冻结：`A-COHERENCE-G1`、
+  `DEBUG-TRIGGER-G1`、`SFENCE-SINVAL-G1`、`WFI-G1` 以当前 design/cohort-bound
+  合同解析为 `EXCLUDED_BY_COHORT`。V9Y 已闭合 pending-system exact
+  memory-owner terminal consumer，V9Z 已闭合 pending architectural-trap 的同一组合
+  consumer 边界；当前同源功能聚合为 module 112/112、official 177/177、AM 59/59、
+  DiffTest mismatch 0。剩余显式 P1 债务只有 `SERIALIZE-G1=OPEN`：clocked
+  fire-to-owner-clear、arch-trap 与 ECALL/IRQ/xRET/CSR/FENCE overlap、七类
+  exactly-once、holder census 实例图/语义闭包与 exact freeze-input cohort inventory
+  仍未完成。
 - `architecture-debt-ledger.json` 是 active P0/P1 裁决的机器真源；
   `eval/ppa/tools/arch_stable_freeze.py` 负责 exact-input audit。资格闭合前只允许诊断性
   synthesis/STA，PPA 保持 `UNQUALIFIED`、`promotion_eligible=false`。
@@ -122,17 +128,35 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   aggregate 为 109/109。该单项现为 `CLOSED`，不外推 full-core ARCH_STABLE 或 PPA。
 - Sv39 device mapping 与标准 lane/size 已由 T4I bridge+xbar+device/DPI 联测关闭；动态设备内部
   B `SLVERR` 的退休后精确 trap 仍需 ROB owner 或无副作用 write-probe，不能由静态 PMA 冒充。
-- `A-COHERENCE-G1`：A 扩展当前仅声明 single-hart local model；若 full-core 产品 cohort 明确
-  排除多主 coherence，可用规范合同解析为 `EXCLUDED_BY_COHORT`，否则保持范围决议未闭合。
+- `A-COHERENCE-G1`：**EXCLUDED_BY_COHORT 2026-07-26**。full-core v1 只包含一个
+  RV64 hart，且无可写 active LR/SC reservation granule 的 autonomous
+  coherent/exclusive peer；本地 store/AMO/SC invalidation 保持现有 RTL 合同。任何新增
+  coherent master、exclusive transport 或 peer invalidation 输入都会改变 cohort 并重开本项。
 
 ### 3.3 control plane
 
-- `CONTROL-EVENT-G1`：在已完成 fetch-PC 单源化基础上，统一流水取消、原因编码与
-  `flush_backend` 的单一 control-event 生产者和消费合同。
+- `CONTROL-EVENT-G1` 已在当前设计关闭：ROB full pregrant 是唯一 C0 请求，
+  `OooControlEventApplySequencer` 是唯一 C0→C1 state owner，V9R 继续约束
+  SQ-query retry holder 在 full-flush barrier 下的交接。
 - `SERIALIZE-G1`：serialize-at-retire 仍是高风险专项；必须在 P0 与验证聚合修复后，再评估
-  `OOO_CSR_QUEUE_HEAD=1` 和 system/trap ROB 公民化。
-- `WFI-G1`、`SFENCE-SINVAL-G1`、`VECTORED-TRAP-G1`、`DEBUG-TRIGGER-G1` 作为独立能力项；
-  full-core cohort 必须逐项明确 required 或由规范合同显式排除，不与当前合同修复混刀。
+  `OOO_CSR_QUEUE_HEAD=1` 和 system/trap ROB 公民化。V9Y 已证明 pending-system
+  drain 消费 exact memory-owner terminal，V9Z 已把同一条件接入 pending
+  architectural-trap 的 gate→mux 组合边界；但 clocked next-edge owner clear、无新
+  capture 时副作用不重复、arch-trap 与 ECALL/IRQ/xRET/CSR/FENCE overlap
+  priority/unreachability 及七类联合 exactly-once 仍为 OPEN。
+- `VECTORED-TRAP-G1` 已声明为 full-core cohort required：mtvec/stvec Direct/Vectored
+  WARL、`BASE+4×cause` 中断入口、同步 BASE 入口、未委派 supervisor interrupt
+  进入 M 以及 `mem > ex > irq` 单记录合同由 V9U 当前设计门覆盖；局部关闭不产生
+  PPA 晋级。
+- `WFI-G1`：**EXCLUDED_BY_COHORT 2026-07-26** 的仅是 true sleep/wakeup
+  capability；现行 WFI 继续经过 pending-system drain、精确退休并 immediate-resume，TW
+  非法路径不变。
+- `SFENCE-SINVAL-G1`：**EXCLUDED_BY_COHORT 2026-07-26** 的仅是 address/ASID
+  selective invalidation；所有 accepted SFENCE.VMA/Svinval-family encoding 继续形成
+  保守 global `mmu_flush`。
+- `DEBUG-TRIGGER-G1`：**EXCLUDED_BY_COHORT 2026-07-26**。simulation
+  observability、`OOO_ASSERT` 与 semihost EBREAK 保留，但 full-core v1 不广告 Debug Module、
+  debug mode、halt/resume transport 或 executable trigger。
 
 ## 4. P2 — 性能与 PPA 演进
 

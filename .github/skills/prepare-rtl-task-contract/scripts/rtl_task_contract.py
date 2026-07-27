@@ -17,6 +17,14 @@ from typing import Any, Iterable
 
 
 SOURCE_CONTRACT = ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+CURRENT_CONTRACT_SCHEMA_VERSION = 2
+LEGACY_CONTRACT_SCHEMA_VERSION = 1
+CANONICAL_SCOPE_FIELDS = {
+    "workspace_root",
+    "allowed_paths",
+    "write_paths",
+    "allowed_commands",
+}
 TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 FIXED_FINDING_CAP_RE = re.compile(
     r"(?:"
@@ -29,24 +37,10 @@ FIXED_FINDING_CAP_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
-COORDINATOR_ONLY_TECHNICAL_MARKERS = (
-    "安全审查",
-    "平台审查",
-    "平台分类",
-    "改变分类结果",
-    "避免触发",
-    "规避审查",
-    "网络扫描",
-    "远程主机",
-    "账号",
-    "凭据",
-    "第三方服务",
-    "外部服务",
-)
 LEGACY_LANGUAGE_POLICY = {
     "preserve_rtl_identifiers": True,
     "domain_accurate_wording": True,
-    "platform_check_bypass_is_not_an_objective": True,
+    "local_rv64_rtl_scope_only": True,
 }
 CANONICAL_PURPOSE_CATALOG: dict[str, dict[str, str]] = {
     "rg": {
@@ -289,8 +283,10 @@ def resolve_inside_repo(repo_root: Path, value: str | Path, label: str) -> Path:
 
 def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> list[str]:
     errors: list[str] = []
-    if config.get("schema_version") != 1:
-        errors.append("config schema_version must be 1")
+    if config.get("schema_version") != CURRENT_CONTRACT_SCHEMA_VERSION:
+        errors.append(
+            f"config schema_version must be {CURRENT_CONTRACT_SCHEMA_VERSION}"
+        )
     if config.get("contract_name") != "local-rtl-task-contract":
         errors.append("config contract_name must be local-rtl-task-contract")
     if config.get("engineering_domain") != "local-rv64-rtl":
@@ -341,6 +337,15 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
         "keyword_blacklist_forbidden": True,
         "does_not_change_capabilities": True,
         "positive_local_scope_preamble_required": True,
+        "rendered_prompt_style": "compact-rv64-hardware-evidence",
+        "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
+        "coordination_metadata_in_rendered_prompt": False,
+        "final_response_evidence_order": [
+            "rtl-object-or-local-artifact",
+            "cycle-or-configuration",
+            "testbench-or-eda-observation",
+            "pass-gap-boundary",
+        ],
         "ambiguity_context_dimensions": [
             "object", "level", "scope", "engineering-purpose"
         ],
@@ -389,6 +394,8 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
     expected_dispatch_policy = {
         "canonical_pipeline": ["create", "validate", "render"],
         "rendered_prompt_boundary": "verbatim",
+        "subagent_context_mode": "rendered-contract-only",
+        "full_history_inheritance": False,
         "validation_failure_result_status": "candidate-only",
         "scope_extension_action": "new-versioned-contract",
         "platform_interruption_effect": "current-review-node-only",
@@ -454,15 +461,12 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
                 ):
                     errors.append(f"config purpose_catalog.{command}.label_zh must be one line")
 
-    defaults = config.get("access_defaults")
+    defaults = config.get("scope_defaults")
     if not isinstance(defaults, dict):
-        errors.append("config access_defaults must be an object")
+        errors.append("config scope_defaults must be an object")
     else:
-        if defaults.get("workspace_root") != ".":
-            errors.append("config access_defaults.workspace_root must be '.'")
-        for key in ("network", "accounts", "credentials", "external_services"):
-            if defaults.get(key) is not False:
-                errors.append(f"config access_defaults.{key} must be false")
+        if defaults != {"workspace_root": "."}:
+            errors.append("config scope_defaults must contain only workspace_root='.'")
 
     status = config.get("status_policy")
     if not isinstance(status, dict):
@@ -500,8 +504,15 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
     if unexpected_fields:
         errors.append(f"unexpected top-level fields: {sorted(unexpected_fields)}")
 
-    if data.get("schema_version") != 1:
-        errors.append("schema_version must be 1")
+    schema_version = data.get("schema_version")
+    if schema_version not in {
+        LEGACY_CONTRACT_SCHEMA_VERSION,
+        CURRENT_CONTRACT_SCHEMA_VERSION,
+    }:
+        errors.append(
+            "schema_version must be "
+            f"{LEGACY_CONTRACT_SCHEMA_VERSION} or {CURRENT_CONTRACT_SCHEMA_VERSION}"
+        )
     if data.get("contract_type") != "local-rtl-task":
         errors.append("contract_type must be local-rtl-task")
     task_id = data.get("task_id")
@@ -536,18 +547,16 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
     if not isinstance(scope, dict):
         errors.append("scope must be an object")
     else:
-        expected_scope_fields = {
-            "workspace_root",
-            "allowed_paths",
-            "write_paths",
-            "allowed_commands",
-            "network",
-            "accounts",
-            "credentials",
-            "external_services",
-        }
-        if set(scope) != expected_scope_fields:
-            errors.append("scope fields must match the canonical scope schema")
+        scope_fields = set(scope)
+        if schema_version == CURRENT_CONTRACT_SCHEMA_VERSION:
+            if scope_fields != CANONICAL_SCOPE_FIELDS:
+                errors.append("scope fields must match the canonical v2 scope schema")
+        elif schema_version == LEGACY_CONTRACT_SCHEMA_VERSION:
+            if not CANONICAL_SCOPE_FIELDS.issubset(scope_fields):
+                errors.append("legacy scope is missing canonical path/command fields")
+            legacy_scope_flags = scope_fields - CANONICAL_SCOPE_FIELDS
+            if any(scope.get(key) is not False for key in legacy_scope_flags):
+                errors.append("legacy scope extension flags must be false")
         allowed_paths = string_list(scope.get("allowed_paths"), "scope.allowed_paths", errors)
         write_paths = string_list(
             scope.get("write_paths"), "scope.write_paths", errors, allow_empty=True
@@ -561,9 +570,6 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
         )
         if scope.get("workspace_root") != ".":
             errors.append("scope.workspace_root must be '.'")
-        for key in ("network", "accounts", "credentials", "external_services"):
-            if scope.get(key) is not False:
-                errors.append(f"scope.{key} must be false")
 
     normalized_allowed: list[str] = []
     for index, raw in enumerate(allowed_paths):
@@ -666,12 +672,6 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
     technical_narrative.extend(deliverables)
     technical_narrative.extend(success_criteria)
     technical_narrative.extend(supplied_material)
-    for marker in COORDINATOR_ONLY_TECHNICAL_MARKERS:
-        if any(marker in item for item in technical_narrative):
-            errors.append(
-                "technical narrative must contain only RV64 RTL engineering facts; "
-                f"move coordinator-only wording to structured policy or dispatch log: {marker}"
-            )
     if canonical_context and config.get("reasoning_policy", {}).get(
         "fixed_finding_cap_forbidden"
     ):
@@ -682,8 +682,21 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
     if data.get("status_policy") != config.get("status_policy"):
         errors.append("status_policy must match the canonical fail-contained review policy")
     language_policy = data.get("language_policy")
-    if (language_policy != config.get("language_policy") and
-            language_policy != LEGACY_LANGUAGE_POLICY):
+    legacy_language_policy_valid = (
+        isinstance(language_policy, dict)
+        and len(language_policy) == 3
+        and language_policy.get("preserve_rtl_identifiers") is True
+        and language_policy.get("domain_accurate_wording") is True
+        and all(value is True for value in language_policy.values())
+    )
+    if schema_version == CURRENT_CONTRACT_SCHEMA_VERSION:
+        language_policy_valid = language_policy == config.get("language_policy")
+    else:
+        language_policy_valid = (
+            language_policy == config.get("language_policy")
+            or legacy_language_policy_valid
+        )
+    if not language_policy_valid:
         errors.append("language_policy must match the canonical wording policy")
     if data.get("source_contract") != SOURCE_CONTRACT:
         errors.append(f"source_contract must be {SOURCE_CONTRACT}")
@@ -704,7 +717,7 @@ def build_contract(
     allowed_paths = unique(
         [*args.allow_path, *required_context, contract_relative_path]
     )
-    defaults = config["access_defaults"]
+    defaults = config["scope_defaults"]
     context_policy = config["context_policy"]
     material_mode = (
         context_policy["no_tools_mode"]
@@ -729,7 +742,7 @@ def build_contract(
         for command in (args.allow_write_command or [])
     )
     return {
-        "schema_version": 1,
+        "schema_version": CURRENT_CONTRACT_SCHEMA_VERSION,
         "contract_type": "local-rtl-task",
         "task_id": args.task_id,
         "engineering_domain": config["engineering_domain"],
@@ -740,10 +753,6 @@ def build_contract(
             "allowed_paths": allowed_paths,
             "write_paths": unique(args.write_path or []),
             "allowed_commands": allowed_commands,
-            "network": defaults["network"],
-            "accounts": defaults["accounts"],
-            "credentials": defaults["credentials"],
-            "external_services": defaults["external_services"],
         },
         "context": {
             "required_files": required_context,
@@ -788,7 +797,12 @@ def bullet_lines(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
-def command_permission_lines(items: list[dict[str, str]]) -> str:
+def labeled_bullet_lines(items: list[str], label: str) -> str:
+    """让自由文本始终以本地 RV64 工程对象为主语，不改写原始技术内容。"""
+    return "\n".join(f"- {label}：{item}" for item in items)
+
+
+def command_scope_lines(items: list[dict[str, str]]) -> str:
     if not items:
         return "- 无（self-contained no-tools）"
     return "\n".join(
@@ -838,36 +852,24 @@ def render_contract(
         if no_tools
         else ""
     )
-    shell_constraint = (
-        "本任务为冻结材料 RTL 复核：不执行工程命令，也不读取上方材料之外的模块；结论只覆盖这些材料，不能据此宣称完成仓库级 RTL 全量复核。"
+    execution_note = (
+        "冻结材料复核不执行工程命令，也不读取上列材料之外的文件；结论只覆盖这些本地 RV64 RTL 材料。"
         if no_tools
-        else "本节点只执行合同中逐项声明的工程命令；仅当主 agent 将当前 WSL shell ownership 交给本节点时执行，否则只完成已有 RTL 上下文的推理。"
+        else "仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。"
     )
-    return f"""# RV64 CPU 微架构 RTL 子任务 `{data['task_id']}`
+    return f"""# 本地 RV64 CPU RTL/验证子任务 `{data['task_id']}`
 
-- 工程领域：本地 RV64 CPU 微架构 Verilog/SystemVerilog 设计、验证或 PPA
-- 本地作用域：输入、工程动作和产物仅覆盖合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据；不使用非工作区来源
-- 措辞剖面：`rv64-hardware-professional`；自然语言按流水线、事务、时序、缓存一致性和验证语义解释，真实 RTL 标识符保持不变
-- 术语限定：多义术语首次出现时同时说明 module/signal/transaction 对象、pipeline/privilege/memory 层级、path/cycle/config 作用域和工程目的
-- 字段级叙述：AXI/PMP/IFU 事实明确到 `ARADDR/ARSIZE/ARPROT`、READY/VALID 周期、2B EXEC 检查、PMEM 读取边界和 lane0/lane1 fault owner；真实文件、模块、信号、测试与日志标识符保持原样
-- 任务类型：`{data['task_kind']}`
-- 执行模式：{execution_mode}
-- 目标：{data['goal']}
+- RV64 RTL/证据对象：{data['goal']}
+- 流水线配置：任务类型 `{data['task_kind']}`；执行模式 {execution_mode}
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
 
 ## 合同证据绑定
 
 - 合同 JSON 路径：`{contract_relative_path}`
 - 合同 JSON SHA-256：`{contract_sha256}`
 - 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
-- 本提示是该 JSON 通过校验后的渲染结果。需要复核哈希时只核对上述路径；不得把该哈希与同名设计合同混用。
 
-## 派发资格
-
-- 新任务使用 canonical `create → validate → render` 管线；本渲染只会在 JSON 校验通过后产生，并须原样作为工程范围与上下文边界。
-- 若 JSON 校验失败，或派发提示手工改写了 RTL 输入、工程命令、输出路径或状态边界，则该轮复核输出只能记为 `candidate-only`，不能进入下游硬证据。
-- `scope_extension_request` 只触发新的 versioned contract；新 JSON 必须重新校验、重新渲染并绑定新的 SHA-256，旧合同范围不会被口头追加。
-
-## RTL 输入与工程动作
+## 本地 RTL 输入、动作与产物
 
 {path_heading}
 {bullet_lines(scope['allowed_paths'])}
@@ -876,41 +878,42 @@ RTL/证据输出路径：
 {bullet_lines(writes)}
 
 工程命令：
-{command_permission_lines(scope['allowed_commands'])}
+{command_scope_lines(scope['allowed_commands'])}
 
-Canonical 工程命令用途（固定枚举，不接受任务自定义文本，也不增加未列出的参数或命令变体）：
+工程命令用途（固定枚举）：
 {command_purpose_lines(scope['allowed_commands'], config)}
 
 `read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
 
 工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
 
-## 最小上下文
+## RV64 RTL 必读材料
 
 {bullet_lines(context['required_files'])}
 
-{supplied_section}## 推理自由与不确定性出口
+{supplied_section}## RV64 微架构复核边界
 
-- 可以并应当报告 `unknowns`、显式假设、反例、替代假设、置信度及其证据基础；这些内容不会被视为任务失败。
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
 - 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
-- 不得设置固定发现数量上限；按严重度排序可以，但不得截断仍影响结论的 blocker、反例或覆盖洞。
-- 发现输入集合遗漏必要上下游时，返回 `scope_extension_request`，说明所需路径/命令及原因；该请求本身不改变当前节点范围，须由主 agent 生成新版契约。
-- 子 agent 可以提出合同未预设的替代解释或设计方案，只要不执行合同未列出的工程动作、不越级扩大结论。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
 
-## 交付物
+## RV64 RTL 交付
 
-{bullet_lines(data['deliverables'])}
+{labeled_bullet_lines(data['deliverables'], "本地 RV64 RTL 交付")}
 
-## 成功条件
+## RV64 RTL 判定条件
 
-{bullet_lines(data['success_criteria'])}
+{labeled_bullet_lines(data['success_criteria'], "本地 RV64 RTL 判定")}
 
-## 协作约束
+## 最终技术回复
 
-- 保留真实 RTL 标识符和信号语义；遇到歧义时直接补充流水线、事务、时序或验证上下文，不改变技术含义。
-- 若需增加 RTL 文件、证据输出路径或验证命令，先返回主 agent 生成新版契约。
-- Windows/Codex 经 WSL 访问本工作区时，工程 shell 为 single-flight：主 agent 可以把唯一 shell ownership 交给一个契约授权的子 agent；该节点执行期间主 agent 与其它子 agent 不得并发启动工程命令。
-- {shell_constraint}
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- {execution_note}
 """
 
 
@@ -950,12 +953,18 @@ def audit_wiring(repo_root: Path, config: dict[str, Any]) -> list[str]:
                 "skill": config.get("skill"),
                 "generator": config.get("generator"),
                 "profile_node": config.get("profile_node"),
-                "local_rtl_external_access_forbidden": True,
+                "local_rtl_material_source": "declared-workspace-paths",
                 "contract_before_dispatch_required": True,
                 "hardware_wording_profile_required": True,
                 "positive_local_scope_preamble_required": True,
                 "ambiguous_terms_require_hardware_context": True,
+                "final_response_hardware_evidence_first_required": True,
                 "rendered_prompt_platform_meta_forbidden": True,
+                "rendered_prompt_coordination_meta_forbidden": True,
+                "rendered_prompt_style": "compact-rv64-hardware-evidence",
+                "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
+                "subagent_context_mode": "rendered-contract-only",
+                "full_history_inheritance_forbidden": True,
                 "wording_profile_changes_capabilities": False,
                 "wording_keyword_blacklist_forbidden": True,
             }
@@ -966,7 +975,7 @@ def audit_wiring(repo_root: Path, config: dict[str, Any]) -> list[str]:
 
 def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     base = {
-        "schema_version": 1,
+        "schema_version": CURRENT_CONTRACT_SCHEMA_VERSION,
         "contract_type": "local-rtl-task",
         "task_id": "self-test-review",
         "engineering_domain": "local-rv64-rtl",
@@ -984,10 +993,6 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
                 {"command": "rg", "mode": "read-only", "purpose": "search-allowed-paths"},
                 {"command": "sed", "mode": "read-only", "purpose": "view-selected-lines"},
             ],
-            "network": False,
-            "accounts": False,
-            "credentials": False,
-            "external_services": False,
         },
         "context": {
             "required_files": list(config["required_context"]),
@@ -1010,38 +1015,48 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
         contract_sha256="0" * 64,
     )
     for marker in (
-        "本地 RV64 CPU 微架构 Verilog/SystemVerilog",
-        "本地作用域：输入、工程动作和产物仅覆盖合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据；不使用非工作区来源",
-        "`rv64-hardware-professional`",
-        "module/signal/transaction 对象、pipeline/privilege/memory 层级、path/cycle/config 作用域和工程目的",
-        "AXI/PMP/IFU 事实明确到 `ARADDR/ARSIZE/ARPROT`、READY/VALID 周期、2B EXEC 检查、PMEM 读取边界和 lane0/lane1 fault owner",
-        "自然语言按流水线、事务、时序、缓存一致性和验证语义解释",
+        "# 本地 RV64 CPU RTL/验证子任务",
+        "RV64 RTL/证据对象：",
+        "流水线配置：任务类型",
+        "RV64 RTL 结论｜对象=<module/signal/本地证据路径>",
+        "## 本地 RTL 输入、动作与产物",
         "工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。",
         "合同 JSON 路径：`.github/task-runs/self-test-review.json`",
         "合同 JSON SHA-256：`" + "0" * 64 + "`",
         "只绑定该 JSON 契约文件",
-        "## 派发资格",
-        "`create → validate → render`",
-        "`candidate-only`",
-        "新的 versioned contract",
         "默认只读探索",
-        "`unknowns`",
+        "## RV64 RTL 必读材料",
+        "## RV64 微架构复核边界",
+        "报告 `unknowns`",
         "允许给出 `inconclusive`",
-        "不得设置固定发现数量上限",
+        "不设置固定发现数量上限",
         "`scope_extension_request`",
-        "唯一 shell ownership",
+        "## RV64 RTL 交付",
+        "本地 RV64 RTL 交付：列出反例、证据位置和剩余风险",
+        "## RV64 RTL 判定条件",
+        "本地 RV64 RTL 判定：每条结论引用目标 RTL 或 spec 的可复核位置",
+        "## 最终技术回复",
+        "CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码",
+        "不删除反例、未知项、替代假设、原始日志 marker、真实文件名",
+        "停止工程进程并归还执行权",
     ):
         if marker not in rendered:
             return 1, [f"FAIL rendered prompt missing marker: {marker}"]
     for forbidden in (
+        "`rv64-hardware-professional`",
+        "## 派发资格",
+        "`create → validate → render`",
+        "`candidate-only`",
+        "fork_turns",
+        "父任务完整对话历史",
         "review_pending",
         "父目标保持 `active`",
-        "平台暂不处理",
-        "避免触发",
-        "安全审查",
-        "账号",
-        "凭据",
-        "不联网",
+        "language_policy",
+        "dispatch_policy",
+        "scope_defaults",
+        "legacy_scope_flag_",
+        "platform_interruption_effect",
+        "subagent_context_mode",
     ):
         if forbidden in rendered:
             return 1, [f"FAIL rendered hardware prompt leaked coordinator-only wording: {forbidden}"]
@@ -1066,23 +1081,20 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     )
     if validate_contract(noc_vocabulary, config):
         return 1, ["FAIL legitimate on-chip-network wording was rejected"]
-    messages.append("PASS legitimate processor NoC wording remains available")
+    messages.append("PASS legitimate processor NoC terminology remains available")
 
-    coordinator_leak = copy.deepcopy(base)
-    coordinator_leak["task_id"] = "self-test-coordinator-wording-leak"
-    coordinator_leak["goal"] = "复核本地 RTL，同时讨论账号或安全审查状态"
-    coordinator_errors = validate_contract(coordinator_leak, config)
-    if not any(
-        "technical narrative must contain only RV64 RTL engineering facts" in error
-        for error in coordinator_errors
-    ):
-        return 1, [
-            "FAIL coordinator-only wording in technical narrative was not rejected"
-        ]
-    messages.append("PASS coordinator-only wording stays outside technical narrative")
+    context_qualified_vocabulary = copy.deepcopy(base)
+    context_qualified_vocabulary["task_id"] = "self-test-context-qualified-vocabulary"
+    context_qualified_vocabulary["goal"] = (
+        "复核本地 RV64 NoC 扫描链、`kill_valid_i` 流水取消和 PMP 权限判定的 RTL 周期合同"
+    )
+    if validate_contract(context_qualified_vocabulary, config):
+        return 1, ["FAIL context-qualified hardware vocabulary was rejected"]
+    messages.append("PASS context-qualified hardware vocabulary is not filtered lexically")
 
     legacy_language = copy.deepcopy(base)
     legacy_language["task_id"] = "self-test-legacy-language-policy"
+    legacy_language["schema_version"] = LEGACY_CONTRACT_SCHEMA_VERSION
     legacy_language["language_policy"] = copy.deepcopy(LEGACY_LANGUAGE_POLICY)
     if validate_contract(legacy_language, config):
         return 1, ["FAIL historical language policy compatibility was rejected"]
@@ -1113,7 +1125,7 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
         "## 冻结 RTL 材料",
         "冻结事实：valid_q",
         "本节点不读取这些仓库文件",
-        "不能据此宣称完成仓库级 RTL 全量复核",
+        "结论只覆盖这些本地 RV64 RTL 材料",
     ):
         if marker not in no_tools_rendered:
             return 1, [f"FAIL no-tools rendered prompt missing marker: {marker}"]
@@ -1171,6 +1183,15 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
 
     legacy_context = copy.deepcopy(base)
     legacy_context["task_id"] = "self-test-legacy-context"
+    legacy_context["schema_version"] = LEGACY_CONTRACT_SCHEMA_VERSION
+    legacy_context["scope"].update(
+        {
+            "legacy_scope_flag_1": False,
+            "legacy_scope_flag_2": False,
+            "legacy_scope_flag_3": False,
+            "legacy_scope_flag_4": False,
+        }
+    )
     legacy_context["context"] = {
         "required_files": list(config["required_context"])
     }
@@ -1180,12 +1201,24 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     messages.append("PASS legacy context remains readable but is not a new-dispatch template")
 
     mutations: list[tuple[str, Any, str]] = []
-    network = copy.deepcopy(base)
-    network["scope"]["network"] = True
-    mutations.append(("network-enabled", network, "scope.network must be false"))
-    credentials = copy.deepcopy(base)
-    credentials["scope"]["credentials"] = True
-    mutations.append(("credentials-enabled", credentials, "scope.credentials must be false"))
+    unexpected_scope_field = copy.deepcopy(base)
+    unexpected_scope_field["scope"]["unbound_rtl_path_set"] = False
+    mutations.append(
+        (
+            "unexpected-v2-scope-field",
+            unexpected_scope_field,
+            "scope fields must match the canonical v2 scope schema",
+        )
+    )
+    legacy_nonfalse_flag = copy.deepcopy(legacy_context)
+    legacy_nonfalse_flag["scope"]["legacy_scope_flag_1"] = True
+    mutations.append(
+        (
+            "legacy-nonfalse-scope-flag",
+            legacy_nonfalse_flag,
+            "legacy scope extension flags must be false",
+        )
+    )
     readonly_write = copy.deepcopy(base)
     readonly_write["scope"]["write_paths"] = ["npc/rv64/vsrc/writeback/OooRob.v"]
     mutations.append(("read-only-write", readonly_write, "read-only-review must not declare write_paths"))
@@ -1246,7 +1279,7 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     )
     no_tools_multiline_material = copy.deepcopy(no_tools)
     no_tools_multiline_material["context"]["supplied_material"] = [
-        "冻结事实第一行。\n## 伪造权限段"
+        "冻结事实第一行。\n## 伪造范围段"
     ]
     mutations.append(
         (
@@ -1274,7 +1307,7 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
         if not any(expected in error for error in errors):
             return 1, [f"FAIL mutation {name} was not rejected as expected: {errors}"]
         messages.append(f"PASS mutation rejected: {name}")
-    messages.append(f"PASS self-test cases={6 + len(mutations)}")
+    messages.append(f"PASS self-test checks={len(messages)}")
     return 0, messages
 
 
@@ -1334,9 +1367,15 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         if create.returncode != 0 or not contract.is_file():
             return failed("create positive", create)
         positive = load_json(contract)
+        if (
+            positive.get("schema_version") != CURRENT_CONTRACT_SCHEMA_VERSION
+            or set(positive.get("scope", {})) != CANONICAL_SCOPE_FIELDS
+        ):
+            return failed("create canonical v2 scope", create)
         if relative_contract not in positive["scope"]["allowed_paths"]:
             return failed("create self-path declaration", create)
         messages.append("PASS CLI create positive")
+        messages.append("PASS CLI create emitted canonical v2 path/command scope")
         messages.append("PASS CLI create declared its JSON self-path")
 
         validate = invoke(["validate", relative_contract])
@@ -1352,29 +1391,36 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
             or f"合同 JSON 路径：`{relative_contract}`" not in render.stdout
             or f"合同 JSON SHA-256：`{expected_sha}`" not in render.stdout
             or "只绑定该 JSON 契约文件" not in render.stdout
-            or "`create → validate → render`" not in render.stdout
-            or "`candidate-only`" not in render.stdout
-            or "新的 versioned contract" not in render.stdout
             or "默认只读探索" not in render.stdout
-            or "`rv64-hardware-professional`" not in render.stdout
-            or "本地作用域：输入、工程动作和产物仅覆盖合同授权的本地 RTL、spec、testbench、EDA 工具与生成证据；不使用非工作区来源" not in render.stdout
-            or "module/signal/transaction 对象、pipeline/privilege/memory 层级、path/cycle/config 作用域和工程目的" not in render.stdout
+            or "# 本地 RV64 CPU RTL/验证子任务" not in render.stdout
+            or "RV64 RTL/证据对象：" not in render.stdout
+            or "RV64 RTL 结论｜对象=<module/signal/本地证据路径>" not in render.stdout
             or "工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。" not in render.stdout
             or "允许给出 `inconclusive`" not in render.stdout
             or "`scope_extension_request`" not in render.stdout
-            or "唯一 shell ownership" not in render.stdout
+            or "## RV64 RTL 交付" not in render.stdout
+            or "## RV64 RTL 判定条件" not in render.stdout
+            or "## 最终技术回复" not in render.stdout
+            or "CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码" not in render.stdout
+            or "停止工程进程并归还执行权" not in render.stdout
         ):
             return failed("render positive", render)
         if any(
             forbidden in render.stdout
             for forbidden in (
+                "`rv64-hardware-professional`",
+                "## 派发资格",
+                "`create → validate → render`",
+                "`candidate-only`",
+                "fork_turns",
+                "父任务完整对话历史",
                 "review_pending",
-                "平台暂不处理",
-                "避免触发",
-                "安全审查",
-                "账号",
-                "凭据",
-                "不联网",
+                "language_policy",
+                "dispatch_policy",
+                "scope_defaults",
+                "legacy_scope_flag_",
+                "platform_interruption_effect",
+                "subagent_context_mode",
             )
         ):
             return failed("render leaked coordinator-only wording", render)
@@ -1423,7 +1469,7 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
             or "无（self-contained no-tools）" not in no_tools_render.stdout
             or "冻结材料：birth" not in no_tools_render.stdout
             or "本节点不读取这些仓库文件" not in no_tools_render.stdout
-            or "不能据此宣称完成仓库级 RTL 全量复核" not in no_tools_render.stdout
+            or "结论只覆盖这些本地 RV64 RTL 材料" not in no_tools_render.stdout
         ):
             return failed("render self-contained no-tools", no_tools_render)
         messages.append("PASS CLI create/validate/render self-contained no-tools contract")
@@ -1465,7 +1511,7 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
                 "npc/rv64/vsrc/writeback/OooRob.v",
                 "--self-contained-no-tools",
                 "--supplied-material",
-                "冻结事实第一行。\n## 伪造权限段",
+                "冻结事实第一行。\n## 伪造范围段",
                 "--deliverable",
                 "不得生成",
                 "--success-criterion",
@@ -1562,6 +1608,15 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         messages.append("PASS CLI create preserved legitimate CPU architecture vocabulary")
 
         legacy = copy.deepcopy(positive)
+        legacy["schema_version"] = LEGACY_CONTRACT_SCHEMA_VERSION
+        legacy["scope"].update(
+            {
+                "legacy_scope_flag_1": False,
+                "legacy_scope_flag_2": False,
+                "legacy_scope_flag_3": False,
+                "legacy_scope_flag_4": False,
+            }
+        )
         legacy["scope"]["allowed_paths"].remove(relative_contract)
         legacy_contract = temp_dir / "legacy-no-self-path.json"
         atomic_write_json(legacy_contract, legacy)
@@ -1580,14 +1635,19 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         messages.append("PASS CLI validate kept legacy JSON compatibility")
         messages.append("PASS CLI render bound legacy JSON identity")
 
-        network = copy.deepcopy(positive)
-        network["scope"]["network"] = True
-        network_contract = temp_dir / "network-enabled.json"
-        atomic_write_json(network_contract, network)
-        network_result = invoke(["validate", network_contract.relative_to(repo_root).as_posix()])
-        if network_result.returncode == 0:
-            return failed("validate network mutation", network_result)
-        messages.append("PASS CLI validate rejected network mutation")
+        unexpected_scope_field = copy.deepcopy(positive)
+        unexpected_scope_field["scope"]["unbound_rtl_path_set"] = False
+        unexpected_scope_contract = temp_dir / "unexpected-v2-scope-field.json"
+        atomic_write_json(unexpected_scope_contract, unexpected_scope_field)
+        unexpected_scope_result = invoke(
+            ["validate", unexpected_scope_contract.relative_to(repo_root).as_posix()]
+        )
+        if unexpected_scope_result.returncode == 0:
+            return failed(
+                "validate unexpected v2 scope field mutation",
+                unexpected_scope_result,
+            )
+        messages.append("PASS CLI validate rejected unexpected v2 scope field")
 
         sed_inplace = copy.deepcopy(positive)
         sed_inplace["scope"]["allowed_commands"][0]["command"] = "sed -i"

@@ -198,9 +198,16 @@ module tb_ooo_fetch_trap_gate;
     release dut.core_serial_flush_q;
 
     force dut.backend_drained_w = 1'b0;
+    // Model the complete V9O C0 source record.  csr_trap_mem_valid_w is the
+    // canonical frontend TRAP/FULL_NEXT view; the production C1 clear is
+    // requested by the cycle-free ROB full-pregrant projection.
+    force dut.control_full_flush_barrier_w = 1'b1;
+    force dut.control_full_flush_reason_w = `REDIR_REASON_TRAP;
     force dut.csr_trap_mem_valid_w = 1'b1;
     @(posedge clk);
     #1;
+    release dut.control_full_flush_barrier_w;
+    release dut.control_full_flush_reason_w;
     release dut.csr_trap_mem_valid_w;
     tb_check1("memory trap starts trap flush", dut.core_trap_flush_q, 1'b1);
     tb_check1("memory trap starts redirect squash",

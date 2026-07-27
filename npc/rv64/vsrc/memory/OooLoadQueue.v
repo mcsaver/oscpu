@@ -106,11 +106,16 @@ module OooLoadQueue #(
   input release0_valid_i,
   input [PRODUCER_ID_W-1:0] release0_producer_id_i,
   input release0_commit_i,
+  // Registered-completion-only readiness for cycle-free ROB C0 pregrant.
+  // release0_ready_o may also observe current formal WB for the legacy
+  // same-cycle leaf behavior; this Q-only view must not.
+  output release0_q_ready_o,
   output release0_ready_o,
   output release0_fire_o,
   input release1_valid_i,
   input [PRODUCER_ID_W-1:0] release1_producer_id_i,
   input release1_commit_i,
+  output release1_q_ready_o,
   output release1_ready_o,
   output release1_fire_o,
 
@@ -239,6 +244,8 @@ module OooLoadQueue #(
   reg query1_open_r;
   reg response0_open_r;
   reg response1_open_r;
+  reg release0_q_ready_r;
+  reg release1_q_ready_r;
   reg release0_ready_r;
   reg release1_ready_r;
   reg [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_r;
@@ -251,6 +258,8 @@ module OooLoadQueue #(
     query1_open_r = 1'b0;
     response0_open_r = 1'b0;
     response1_open_r = 1'b0;
+    release0_q_ready_r = 1'b0;
+    release1_q_ready_r = 1'b0;
     release0_ready_r = 1'b0;
     release1_ready_r = 1'b0;
     producer_live_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
@@ -282,6 +291,10 @@ module OooLoadQueue #(
           !killed_q[lookup_i] && !completed_q[lookup_i] &&
           (ordered_q[lookup_i] || response1_fault_i))
         response1_open_r = 1'b1;
+      if (release0_match_w[lookup_i] && completed_q[lookup_i])
+        release0_q_ready_r = 1'b1;
+      if (release1_match_w[lookup_i] && completed_q[lookup_i])
+        release1_q_ready_r = 1'b1;
       if (release0_match_w[lookup_i] &&
           (completed_q[lookup_i] || completion0_hit_w[lookup_i] ||
            completion1_hit_w[lookup_i]))
@@ -299,6 +312,8 @@ module OooLoadQueue #(
   assign query1_open_o = query1_open_r;
   assign response0_open_o = response0_open_r;
   assign response1_open_o = response1_open_r;
+  assign release0_q_ready_o = release0_q_ready_r;
+  assign release1_q_ready_o = release1_q_ready_r;
   assign release0_ready_o = release0_ready_r;
   assign release1_ready_o = release1_ready_r;
   assign release0_fire_o = release0_valid_i && release0_ready_o &&

@@ -182,6 +182,8 @@ module OooCoreTopGlue #(
   input mem1_translate_active_i,
   output mem_flush_o,
   output mmu_flush_o,
+  output control_full_flush_barrier_o,
+  output [`REDIR_REASON_W-1:0] control_full_flush_reason_o,
 
   output csr_cycle_count_enable_w,
   output [1:0] core_retire_count_w,
@@ -347,9 +349,33 @@ module OooCoreTopGlue #(
   wire ctrl_commit_valid_q;
   wire backend_drained_q;
   wire core_trap_flush_q;
+  wire core_trap_flush_legacy_q;
   wire trap_redirect_squash_q;
   wire core_serial_flush_q;
+  wire core_serial_flush_legacy_q;
   wire checkpoint_mem_flush_q;
+  wire control_full_flush_barrier_w;
+  wire [`REDIR_REASON_W-1:0] control_full_flush_reason_w;
+  wire control_event_request_valid_w;
+  wire [`REDIR_REASON_W-1:0] control_event_request_reason_w;
+  wire control_event_apply_valid_w;
+  wire [`REDIR_REASON_W-1:0] control_event_apply_reason_w;
+  wire [ROB_INDEX_W-1:0] control_event_apply_kill_idx_w;
+
+  assign control_full_flush_barrier_o = control_full_flush_barrier_w;
+  assign control_full_flush_reason_o = control_full_flush_reason_w;
+  // The ROB edge-old full-flush pregrant is the sole C0 request source.  The
+  // architectural trap/CSR pulses below are same-edge consequences checked
+  // against this source under OOO_ASSERT; OR-ing them back into the request
+  // would create a second representation with no guaranteed C0 barrier.
+  assign control_event_request_valid_w = control_full_flush_barrier_w;
+  assign control_event_request_reason_w = control_full_flush_reason_w;
+  assign core_trap_flush_q =
+      control_event_apply_valid_w &&
+      (control_event_apply_reason_w == `REDIR_REASON_TRAP);
+  assign core_serial_flush_q =
+      control_event_apply_valid_w &&
+      (control_event_apply_reason_w == `REDIR_REASON_CSR_COMMIT);
 
   wire orphan_stop_pending_w;
   wire can_run_w;
@@ -395,6 +421,7 @@ module OooCoreTopGlue #(
   wire head0_fp_gpr_write_w;
   wire head0_ecall_raw_w;
   wire head0_csr_raw_w;
+  wire head0_csr_dispatch_fire_w;
   wire head0_csr_inflight_w;   // 【serialize Phase1 §10.4】head0-CSR 在飞(u_frontend 出 → ControlPlane/stop)
   wire head0_xret_raw_w;
   wire head0_wfi_raw_w;
@@ -487,6 +514,7 @@ module OooCoreTopGlue #(
   wire execute0_valid_unused_w;
   wire execute1_valid_unused_w;
   wire core_mem_idle_w;
+  wire core_mem_owner_terminalized_w;
   wire core_mem_retire_quiet_w;
   wire [4:0] core_commit0_fflags_w;
   wire core_commit0_is_fp_rd_w;
@@ -694,6 +722,13 @@ module OooCoreTopGlue #(
   // 透传)——已接生产消费者 u_frontend.rob_head_idx_i(arbiter 年龄基准 + trap 口 rob_idx
   // + direct 口 head-1 哨兵)。shadow 影子段(2026-07-08~09)已随切消费点删除。
   wire [ROB_INDEX_W-1:0] core_rob_head_idx_w;
+  wire frontend_control_event_valid_w;
+  wire [`XLEN-1:0] frontend_control_event_pc_w;
+  wire [ROB_INDEX_W-1:0] frontend_control_event_kill_idx_w;
+  wire [`REDIR_REASON_W-1:0] frontend_control_event_reason_w;
+  wire frontend_control_event_flush_fetch_w;
+  wire [`OOO_BACKEND_ACTION_W-1:0]
+      frontend_control_event_backend_action_w;
   // B2 片4：后端 branch/JALR 显式 mispredict 脉冲，上送前端做 redirect。
   wire core_branch_resolve_mispredict_w;
   // 【F2】BPU issue-resolve 回训随行(execute → frontend)
@@ -788,7 +823,7 @@ module OooCoreTopGlue #(
     .core_commit1_write_w(core_commit1_write_w),
     .core_dispatch_branch_resolve_next_pc_w(core_dispatch_branch_resolve_next_pc_w),
     .core_retire_count_w(core_retire_count_w),
-    .core_serial_flush_q(core_serial_flush_q),
+    .core_serial_flush_q(core_serial_flush_legacy_q),
     .csr_ret_target_w(csr_ret_target_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
     .ctrl_commit_valid_q(ctrl_commit_valid_q),
@@ -966,6 +1001,7 @@ module OooCoreTopGlue #(
     .core_dispatch_branch_resolve_valid_w(core_dispatch_branch_resolve_valid_w),
     .core_local_flush_w(core_local_flush_w),
     .core_mem_idle_w(core_mem_idle_w),
+    .core_mem_owner_terminalized_w(core_mem_owner_terminalized_w),
     .core_mem_retire_quiet_w(core_mem_retire_quiet_w),
     .core_commit0_fflags_w(core_commit0_fflags_w),
     .core_commit0_is_fp_rd_w(core_commit0_is_fp_rd_w),
@@ -1166,8 +1202,22 @@ module OooCoreTopGlue #(
     .pending_branch_taken_w(pending_branch_taken_w),
     .rob_count_o(rob_count_o),
     .rob_head_idx_o(core_rob_head_idx_w),
+    .control_full_flush_barrier_o(control_full_flush_barrier_w),
+    .control_full_flush_reason_o(control_full_flush_reason_w),
     .rst(rst),
     .stop_pending_q(stop_pending_q)
+  );
+
+  OooControlEventApplySequencer u_control_event_apply_sequencer (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i),
+    .request_valid_i(control_event_request_valid_w),
+    .request_reason_i(control_event_request_reason_w),
+    .request_kill_idx_i(core_rob_head_idx_w),
+    .apply_valid_o(control_event_apply_valid_w),
+    .apply_reason_o(control_event_apply_reason_w),
+    .apply_kill_idx_o(control_event_apply_kill_idx_w)
   );
 
   // FP pending owner 移入 execute helper；父模块仍负责 FPR、fflags 和精确提交边界。
@@ -1306,7 +1356,9 @@ module OooCoreTopGlue #(
       branch_bpu_update_correct_w |
       csr_irq_pending_w | (|csr_irq_cause_w) | (|csr_trap_target_w) |
       (|csr_mepc_w) | (|csr_priv_mode_w) | (|csr_satp_w) |
-      (|head_packet_next_pc_w);
+      (|head_packet_next_pc_w) |
+      (|control_event_apply_kill_idx_w) |
+      core_trap_flush_legacy_q | core_serial_flush_legacy_q;
 
 
   OooControlPlane #(
@@ -1321,6 +1373,7 @@ module OooCoreTopGlue #(
     .backend_drained_w(backend_drained_w),
     .mem_retire_quiet_i(core_mem_retire_quiet_w),
     .mem_idle_i(core_mem_idle_w),
+    .mem_owner_terminalized_i(core_mem_owner_terminalized_w),
     .core_checkpoint_restore_apply_i(core_checkpoint_restore_apply_w),
     .branch_resolve_pending_match_w(branch_resolve_pending_match_w),
     .branch_resolve_untracked_w(branch_resolve_untracked_w),
@@ -1334,8 +1387,10 @@ module OooCoreTopGlue #(
     .clk(clk),
     .commit_ready_i(commit_ready_i),
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
+    .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),
     .core_branch_resolve_next_pc_w(core_branch_resolve_next_pc_w),
     .core_branch_resolve_pc_w(core_branch_resolve_pc_w),
+    .core_branch_resolve_valid_w(core_branch_resolve_valid_w),
     .core_checkpoint_capture_w(core_checkpoint_capture_w),
     .core_checkpoint_quiesce_w(core_checkpoint_quiesce_w),
     .core_checkpoint_restore_w(core_checkpoint_restore_w),
@@ -1354,10 +1409,11 @@ module OooCoreTopGlue #(
     .core_commit1_valid_w(core_commit1_valid_w),
     .core_commit_ready_w(core_commit_ready_w),
     .core_debug_gprs_w(core_debug_gprs_w),
+    .core_trap_flush_apply_i(core_trap_flush_q),
     .core_local_flush_w(core_local_flush_w),
     .core_mem_issue_block_w(core_mem_issue_block_w),
     .core_serial_flush_q(core_serial_flush_q),
-    .core_trap_flush_q(core_trap_flush_q),
+    .core_trap_flush_q(core_trap_flush_legacy_q),
     .csr_access_addr_w(csr_access_addr_w),
     .csr_access_funct3_w(csr_access_funct3_w),
     .csr_access_rs1_data_w(csr_access_rs1_data_w),
@@ -1431,6 +1487,7 @@ module OooCoreTopGlue #(
     .halted_o(halted_o),
     .halted_q(halted_q),
     .head0_csr_illegal_w(head0_csr_illegal_w),
+    .head0_csr_dispatch_fire_w(head0_csr_dispatch_fire_w),
     .head0_csr_inflight_w(head0_csr_inflight_w),
     .head0_csr_raw_w(head0_csr_raw_w),
     .head0_ecall_raw_w(head0_ecall_raw_w),
@@ -1621,6 +1678,8 @@ module OooCoreTopGlue #(
     .core_pending_load_branch_dep_w(core_pending_load_branch_dep_w),
     .core_serial_flush_q(core_serial_flush_q),
     .core_trap_flush_q(core_trap_flush_q),
+    .control_full_flush_barrier_i(control_full_flush_barrier_w),
+    .control_full_flush_reason_i(control_full_flush_reason_w),
     .csr_irq_pending_w(csr_irq_pending_w),
     .csr_mstatus_w(csr_mstatus_w),
     .csr_frm_w(csr_frm_w),
@@ -1688,6 +1747,7 @@ module OooCoreTopGlue #(
     .flush_i(flush_i),
     .halted_q(halted_q),
     .head0_arch_trap_raw_w(head0_arch_trap_raw_w),
+    .head0_csr_dispatch_fire_w(head0_csr_dispatch_fire_w),
     .head0_csr_inflight_w(head0_csr_inflight_w),
     .head0_csr_raw_w(head0_csr_raw_w),
     .head0_ctrl_w(head0_ctrl_w),
@@ -1776,6 +1836,8 @@ module OooCoreTopGlue #(
     .pending_mem_q(pending_mem_q),
     .pending_mem_resolve_ready_w(pending_mem_resolve_ready_w),
     .pending_system_csr_commit_w(pending_system_csr_commit_w),
+    .pending_system_sfence_commit_w(pending_system_sfence_commit_w),
+    .pending_system_fencei_commit_w(pending_system_fencei_commit_w),
     // 【serialize Phase1】head0-CSR 队头提交拍 redirect(seed 清 + pc-seq 重取) + §4#1 合法 CSR 放行判定。
     .head0_csr_commit_w(head0_csr_commit_w),
     .core_commit0_next_pc_w(core_commit0_next_pc_w),
@@ -1793,6 +1855,13 @@ module OooCoreTopGlue #(
     .ras_empty_w(ras_empty_w),
     .ras_full_w(ras_full_w),
     .redirect_fetch_req_valid_w(redirect_fetch_req_valid_w),
+    .control_event_valid_o(frontend_control_event_valid_w),
+    .control_event_pc_o(frontend_control_event_pc_w),
+    .control_event_kill_idx_o(frontend_control_event_kill_idx_w),
+    .control_event_reason_o(frontend_control_event_reason_w),
+    .control_event_flush_fetch_o(frontend_control_event_flush_fetch_w),
+    .control_event_backend_action_o(
+        frontend_control_event_backend_action_w),
     .reset_pc_i(reset_pc_i),
     .return_cont_attempt_ready_w(return_cont_attempt_ready_w),
     .rob_count_o(rob_count_o),
@@ -1812,25 +1881,124 @@ module OooCoreTopGlue #(
   );
 
 `ifdef OOO_ASSERT
-  // ════ 【P4】NUKE-SRC-EQ(nuke 源接线守卫, 原 shadow 段 SHADOW-EQ-NUKE 保留改名) ════
-  // 切消费点(2026-07-09)后 shadow 影子段(pre-mux 镜像/GAP-2 甲门/shadow arbiter 实例/
-  // SHADOW-EQ-PC/KILL 断言)已删除——对照物(旧散落 redirect 逻辑)不复存在, 等价由单源构造
-  // 给出。本断言与 arbiter 无关: 只钉「后端 nuke 源(core_trap_flush_q/core_serial_flush_q)
-  // 未被改接」——上拍 E1/head0-CSR 类事件 ⟺ 本拍 nuke 脉冲(FlushSequencer/CommitSequencer
-  // 晚 1 拍寄存)。本刀后端 kill/nuke 通道零触碰, 此断言恰是那颗钉子。
-  // 复位域镜像 nuke 寄存链的 rst||flush_i。
-  reg nuke_src_exp_q;
+  // The frontend arbiter is the canonical typed-event view.  Feeding its
+  // winner back into backend ready/commit would form a real combinational
+  // cycle, so production uses the cycle-free edge-old projection:
+  //   branch request && !head0_control_event_pregrant.
+  // These bidirectional assertions prove that the projection and final
+  // arbiter winner are equivalent at the observable boundary.
+  wire v9o_frontend_selective_w =
+      frontend_control_event_valid_w &&
+      (frontend_control_event_backend_action_w ==
+       `OOO_BACKEND_ACTION_SELECTIVE_NOW);
+  wire v9o_frontend_full_w =
+      frontend_control_event_valid_w &&
+      (frontend_control_event_backend_action_w ==
+       `OOO_BACKEND_ACTION_FULL_NEXT);
+  wire v9o_trap_pregrant_w =
+      control_full_flush_barrier_w &&
+      (control_full_flush_reason_w == `REDIR_REASON_TRAP);
+  wire v9o_csr_pregrant_w =
+      control_full_flush_barrier_w &&
+      (control_full_flush_reason_w == `REDIR_REASON_CSR_COMMIT);
+  wire v9o_backend_branch_event_w =
+      core_branch_resolve_valid_w &&
+      (core_branch_resolve_mispredict_w ||
+       core_branch_resolve_misaligned_w);
+  wire [`REDIR_REASON_W-1:0] v9o_backend_branch_reason_w =
+      core_branch_resolve_is_branch_w ?
+          `REDIR_REASON_BRANCH_MISS : `REDIR_REASON_JALR_MISS;
+
+  // V9O：production nuke 只由类型化 apply 的 reason 投影。旧 trap/serial
+  // sequencer 保留为 shadow，正常复位域内必须与新视图逐拍一致。
+  reg external_flush_prev_q;
   always @(posedge clk) begin
-    if (rst || flush_i) begin
-      nuke_src_exp_q <= 1'b0;
-    end else begin
-      nuke_src_exp_q <= csr_trap_mem_valid_w || head0_csr_commit_w;
-    end
+    if (rst)
+      external_flush_prev_q <= 1'b0;
+    else
+      external_flush_prev_q <= flush_i;
   end
   always @(posedge clk) if (!rst) begin
-    if (nuke_src_exp_q !== (core_trap_flush_q || core_serial_flush_q))
-      $error("[P4-NUKE-SRC-EQ] E1/head0-CSR 事件与后端 nuke 脉冲不一致: exp=%b trap_flush=%b serial_flush=%b @%0t",
-             nuke_src_exp_q, core_trap_flush_q, core_serial_flush_q, $time);
+    if (!flush_i && v9o_frontend_selective_w &&
+        (!v9o_backend_branch_event_w ||
+         (frontend_control_event_pc_w !=
+          core_branch_resolve_next_pc_w) ||
+         (frontend_control_event_kill_idx_w !=
+          core_branch_resolve_rob_idx_w) ||
+         (frontend_control_event_reason_w !=
+          v9o_backend_branch_reason_w) ||
+         (frontend_control_event_flush_fetch_w !=
+          (!core_branch_resolve_misaligned_w &&
+           !trap_redirect_squash_q)))) begin
+      $error("[V9O-CONTROL-EVENT-SELECTIVE-SOURCE] frontend winner lacks matching backend branch projection @%0t",
+             $time);
+      $fatal;
+    end
+    if (!flush_i && v9o_backend_branch_event_w &&
+        (!v9o_frontend_selective_w ||
+         (frontend_control_event_pc_w !=
+          core_branch_resolve_next_pc_w) ||
+         (frontend_control_event_kill_idx_w !=
+          core_branch_resolve_rob_idx_w) ||
+         (frontend_control_event_reason_w !=
+          v9o_backend_branch_reason_w) ||
+         (frontend_control_event_flush_fetch_w !=
+          (!core_branch_resolve_misaligned_w &&
+           !trap_redirect_squash_q)))) begin
+      $error("[V9O-CONTROL-EVENT-SELECTIVE-PROJECTION] backend branch event was not the final frontend winner @%0t",
+             $time);
+      $fatal;
+    end
+    if (!flush_i && v9o_frontend_full_w &&
+        (!control_full_flush_barrier_w ||
+         !frontend_control_event_flush_fetch_w ||
+         (frontend_control_event_reason_w !=
+          control_full_flush_reason_w))) begin
+      $error("[V9O-CONTROL-EVENT-FULL-SOURCE] frontend FULL_NEXT winner lacks matching C0 barrier @%0t",
+             $time);
+      $fatal;
+    end
+    if (!flush_i && control_full_flush_barrier_w &&
+        (!v9o_frontend_full_w ||
+         (frontend_control_event_reason_w !=
+          control_full_flush_reason_w))) begin
+      $error("[V9O-CONTROL-EVENT-FULL-PROJECTION] C0 barrier was not the final frontend FULL_NEXT winner @%0t",
+             $time);
+      $fatal;
+    end
+    // The CSR request mux consumes the actual ROB commit packet.  Prove that
+    // its architectural trap/queue-head-CSR pulses are exactly the two typed
+    // ROB pregrant projections; neither may create a late C1 request after a
+    // C0 without the younger-work barrier.
+    if (!flush_i && (csr_trap_mem_valid_w !== v9o_trap_pregrant_w)) begin
+      $error("[V9O-CONTROL-EVENT-TRAP-EQUIV] trap commit and C0 pregrant diverged: trap=%b pregrant=%b @%0t",
+             csr_trap_mem_valid_w, v9o_trap_pregrant_w, $time);
+      $fatal;
+    end
+    if (!flush_i && (head0_csr_commit_w !== v9o_csr_pregrant_w)) begin
+      $error("[V9O-CONTROL-EVENT-CSR-EQUIV] queue-head CSR commit and C0 pregrant diverged: csr=%b pregrant=%b @%0t",
+             head0_csr_commit_w, v9o_csr_pregrant_w, $time);
+      $fatal;
+    end
+    if (!flush_i && !external_flush_prev_q &&
+        ((core_trap_flush_legacy_q !== core_trap_flush_q) ||
+         (core_serial_flush_legacy_q !== core_serial_flush_q)))
+      $error("[V9O-CONTROL-EVENT-SHADOW] typed apply diverged from legacy trap/CSR views: typed=%b/%b legacy=%b/%b @%0t",
+             core_trap_flush_q, core_serial_flush_q,
+             core_trap_flush_legacy_q, core_serial_flush_legacy_q, $time);
+    if (control_event_apply_valid_w &&
+        ((control_event_apply_reason_w != `REDIR_REASON_TRAP) &&
+         (control_event_apply_reason_w != `REDIR_REASON_CSR_COMMIT)))
+      $error("[V9O-CONTROL-EVENT-REASON] illegal full-flush apply reason=%0d @%0t",
+             control_event_apply_reason_w, $time);
+    if (core_trap_flush_q && core_serial_flush_q)
+      $error("[V9O-CONTROL-EVENT-ONEHOT] trap and CSR full flush overlapped @%0t",
+             $time);
+    if (control_full_flush_barrier_w &&
+        ((control_full_flush_reason_w != `REDIR_REASON_TRAP) &&
+         (control_full_flush_reason_w != `REDIR_REASON_CSR_COMMIT)))
+      $error("[V9O-CONTROL-EVENT-C0] illegal queue-head pregrant reason=%0d @%0t",
+             control_full_flush_reason_w, $time);
   end
 `endif
 

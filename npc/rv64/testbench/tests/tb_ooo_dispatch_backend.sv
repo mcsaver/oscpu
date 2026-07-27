@@ -295,6 +295,7 @@ module tb_ooo_dispatch_backend;
     .issue1_fixed_gpr_producer_o(),
     .issue1_imm_o(issue1_imm),
     .commit_ready_i(commit_ready),
+    .commit_pregrant_ready_i(commit_ready),
     .commit1_block_i(1'b0),
     .mem_quiet_i(1'b1),
     .commit0_valid_o(commit0_valid),

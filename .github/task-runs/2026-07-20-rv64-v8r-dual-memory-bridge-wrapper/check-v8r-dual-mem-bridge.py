@@ -126,16 +126,36 @@ def structural_checks(sources: dict[str, str]) -> list[Check]:
         all(value == 1 for value in boundary_counts.values()),
         f"counts={boundary_counts}")
 
+    invalidate_sources = {
+        "dma_port": count(
+            wrapper, r"\binput\s+dcache_dma_invalidate_all_i\s*,"
+        ),
+        "ifu_ad_port": count(
+            wrapper, r"\binput\s+ifu_ad_update_invalidate_all_i\s*,"
+        ),
+        "exact_or": count(
+            wrapper,
+            r"wire\s+dcache_invalidate_all_w\s*=\s*"
+            r"dcache_dma_invalidate_all_i\s*\|\|\s*"
+            r"ifu_ad_update_invalidate_all_i\s*;",
+        ),
+    }
+    add("wrapper.invalidate_sources_exact_merge",
+        invalidate_sources
+        == {"dma_port": 1, "ifu_ad_port": 1, "exact_or": 1},
+        f"counts={invalidate_sources}")
+
     common_fanout = {
         "mmu_flush": count(wrapper, r"\.mmu_flush_i\(mmu_flush_i\)"),
-        "dma": count(
+        "dcache_invalidate": count(
             wrapper,
-            r"\.dcache_dma_invalidate_all_i\(dcache_dma_invalidate_all_i\)",
+            r"\.dcache_dma_invalidate_all_i\(dcache_invalidate_all_w\)",
         ),
         "flush": count(wrapper, r"\.flush_i\(flush_i\)"),
     }
     add("wrapper.common_context_dual_fanout",
-        common_fanout == {"mmu_flush": 2, "dma": 2, "flush": 2},
+        common_fanout
+        == {"mmu_flush": 2, "dcache_invalidate": 2, "flush": 2},
         f"counts={common_fanout}")
 
     wrapper_markers = set(re.findall(r"\[(DMBW-[A-Z0-9-]+)\]", wrapper))

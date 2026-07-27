@@ -9,6 +9,7 @@ module OooMemAxiBridge #(
   input clk,
   input rst,
   input flush_i,
+  input control_full_flush_barrier_i,
   input mmu_flush_i,
   // Registered synchronous-DMA completion event.  It is independent of
   // pipeline/MMU flush and only changes D-cache visibility.
@@ -175,9 +176,6 @@ module OooMemAxiBridge #(
   assign lsu_axi_arprot_o = 3'b000;
   assign lsu_axi_awid_o = 4'd1;
   assign lsu_axi_awlen_o = 8'd0;
-  assign lsu_axi_awsize_o =
-      (state_q == S_AD_UPDATE) ? 3'd3 :
-      axsize_from_bytes(access_size_from_wstrb(wstrb_q));
   assign lsu_axi_awburst_o = 2'b01;
   assign lsu_axi_wlast_o = 1'b1;
 
@@ -220,6 +218,11 @@ module OooMemAxiBridge #(
   reg [`XLEN-1:0] ad_pte_q;    // HW A/D: 置位后的 leaf PTE(供 S_AD_UPDATE 写 + TLB 填)
   reg [`XLEN-1:0] wdata_q;
   reg [`STRB_W-1:0] wstrb_q;
+  // Keep the state-dependent width decode after the FSM/payload declarations
+  // so full-top Icarus elaboration does not create implicit forward nets.
+  assign lsu_axi_awsize_o =
+      (state_q == S_AD_UPDATE) ? 3'd3 :
+      axsize_from_bytes(access_size_from_wstrb(wstrb_q));
   reg [`XLEN-1:0] rsp_rdata_q;
   reg rsp_error_q;
   reg rsp_page_fault_q;
@@ -588,7 +591,8 @@ module OooMemAxiBridge #(
                          ((state_q == S_IDLE) ||
                           ((state_q == S_RESP) && rsp_ready_w) ||
                           (lookup_hit_fusion_w && rsp_ready_w)) &&
-                         (!cpu_kill_w || stg_nokill_q);
+                         (!cpu_kill_w || stg_nokill_q) &&
+                         !control_full_flush_barrier_i;
   assign mem0_owner_query_valid_o = (state_q != S_IDLE);
   assign mem0_owner_query_token_o = active_owner_token_q;
   // Tracker lookup observes the registered station, not its downstream
@@ -631,7 +635,7 @@ module OooMemAxiBridge #(
        mem0_sq_query_replay_i);
   wire sq_query_retry_fire_w = mem0_sq_query_valid_o &&
       sq_query_decision_onehot_w && mem0_sq_query_replay_i &&
-      mem0_sq_query_retry_ready_i;
+      mem0_sq_query_retry_ready_i && !control_full_flush_barrier_i;
   wire req_write_w = stg_write_q;
   wire [`XLEN-1:0] req_addr_w = stg_addr_q;
   wire [`XLEN-1:0] req_wdata_w = stg_wdata_q;
@@ -1078,6 +1082,7 @@ module OooMemAxiBridge #(
   //    推迟——bubble 数不变, 观察点从 ready 压制变寄存站保持。
   // 【mmu_flush 打拍配套】mmu_flush 拍同样压 ready(复位分支吞 fire 请求防悬空)
   assign mem0_req_ready_o = !flush_i && !mmu_flush_i &&
+                            !control_full_flush_barrier_i &&
                             (!stg_valid_q || stage_advance_w);
 
   // 刀D 融合拍: hit 拍组合交付 rsp(payload 与现行锁存表达式同源); 反压/kill 拍
@@ -1148,10 +1153,11 @@ module OooMemAxiBridge #(
        !walk_pte_pmp_fault_w) ||
       (active_owner_verified_q && (state_q == S_READ_ADDR)) ||
       (active_owner_verified_q && !cpu_kill_w && (state_q == S_DEVICE_WAIT) &&
+       !control_full_flush_barrier_i &&
        mem0_device_release_i && !mem0_device_cancel_i) ||
       (active_owner_verified_q && !cpu_kill_w &&
        (state_q == S_LOOKUP) && !dcache_lookup_hit_final_w &&
-       !dcache_rmw_busy_w);
+       !dcache_rmw_busy_w && !control_full_flush_barrier_i);
   wire [`XLEN-1:0] pend_read_araddr_w =
       read_exact_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
@@ -1637,7 +1643,9 @@ module OooMemAxiBridge #(
           // handshake transfers the owner into the bank-local backend retry
           // holder and releases this bridge; an uncredited/invalid decision
           // keeps every active payload bit stable.
-          if (mem0_sq_query_valid_o && sq_query_decision_onehot_w &&
+          if (control_full_flush_barrier_i) begin
+            state_q <= S_SQ_QUERY;
+          end else if (mem0_sq_query_valid_o && sq_query_decision_onehot_w &&
               mem0_sq_query_forward_i) begin
             rsp_rdata_q <= mem0_sq_query_forward_data_i;
             rsp_error_q <= 1'b0;
@@ -1675,7 +1683,8 @@ module OooMemAxiBridge #(
             rsp_error_q <= 1'b0;
             rsp_page_fault_q <= 1'b0;
             state_q <= S_RESP;
-          end else if (mem0_device_release_i) begin
+          end else if (mem0_device_release_i &&
+                       !control_full_flush_barrier_i) begin
             state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
           end
         end
@@ -1703,8 +1712,11 @@ module OooMemAxiBridge #(
           end else begin
             // miss/跨线: 当拍发 AR(arvalid 组合含 S_LOOKUP-miss 项)。转移条件
             // 与 arvalid 的 !rmw_busy 门一致, 保持 AR 握手协议自洽。
-            state_q <= (lsu_axi_arready_i && !dcache_rmw_busy_w) ?
-                       S_READ_DATA : S_READ_ADDR;
+            if (control_full_flush_barrier_i)
+              state_q <= S_LOOKUP;
+            else
+              state_q <= (lsu_axi_arready_i && !dcache_rmw_busy_w) ?
+                         S_READ_DATA : S_READ_ADDR;
           end
         end
 
@@ -1856,6 +1868,18 @@ module OooMemAxiBridge #(
   end
 
 `ifdef OOO_ASSERT
+  wire v9o_preowner_ar_w =
+      ((state_q == S_LOOKUP) || (state_q == S_DEVICE_WAIT)) &&
+      lsu_axi_arvalid_o;
+  always @(posedge clk) begin
+    if (!rst && control_full_flush_barrier_i &&
+        (mem0_req_ready_o || stage_advance_w || v9o_preowner_ar_w)) begin
+      $error("[V9O-MEM-C0] request/station/pre-owner AR escaped barrier @%0t",
+             $time);
+      $fatal;
+    end
+  end
+
   // V8W OOO-4 selective branch-recovery contract.  The recovery authority is
   // the conjunction of the MIQ head, owner tracker and bridge sticky identity;
   // an effective-killed bit alone may not alter transport ownership.  Owners
@@ -2120,6 +2144,11 @@ module OooMemAxiBridge #(
       // MIQ flush 分支是 else-if、flush 拍 push 被忽略)。
       if (mem0_req_fire_w && flush_i) begin
         $error("[BRG-NOFIRE-FLUSH] flush 拍出现 mem0_req fire @%0t", $time);
+        $fatal;
+      end
+      if (control_full_flush_barrier_i && sq_query_retry_fire_w) begin
+        $display("[V9R-MEM-SQ-RETRY-C0-HANDOFF] bridge released SQ-query owner during full-flush barrier @%0t",
+                 $time);
         $fatal;
       end
       if (mem0_req_fire_w && (mem0_req_owner_kind_i == 2'b11)) begin

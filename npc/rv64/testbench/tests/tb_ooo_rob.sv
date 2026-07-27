@@ -74,6 +74,9 @@ module tb_ooo_rob;
   reg completion6_query_valid;
   reg [PRODUCER_ID_W-1:0] completion6_query_producer_id;
   wire completion6_query_match;
+  reg completion7_query_valid;
+  reg [PRODUCER_ID_W-1:0] completion7_query_producer_id;
+  wire completion7_query_match;
   reg resolve_query_valid;
   reg [PRODUCER_ID_W-1:0] resolve_query_producer_id;
   wire resolve_query_match;
@@ -81,11 +84,16 @@ module tb_ooo_rob;
   reg mem_quiet;
   reg head0_context_permit;
   reg fencei_retire_permit;
+  reg pending_csr_owner_valid;
+  reg [PRODUCER_ID_W-1:0] pending_csr_owner_producer_id;
   wire head0_retire_candidate_valid;
   wire head0_identity_valid;
   wire [`OOO_CONTEXT_ID_W-1:0] head0_identity;
   wire [PRODUCER_ID_W-1:0] head0_producer_id;
   wire head0_launch_open;
+  wire head0_control_event_pregrant;
+  wire head0_full_flush_pregrant;
+  wire [`REDIR_REASON_W-1:0] head0_full_flush_reason;
   wire commit0_valid;
   wire [PRODUCER_ID_W-1:0] commit0_producer_id;
   wire [`XLEN-1:0] commit0_pc;
@@ -125,6 +133,7 @@ module tb_ooo_rob;
   wire [`TRAP_CAUSE_W-1:0] trap_mem_cause;
   wire [`XLEN-1:0] trap_mem_tval;
   reg [ROB_INDEX_W-1:0] saved0;
+  reg [PRODUCER_ID_W-1:0] saved0_producer;
   reg [ROB_INDEX_W-1:0] saved1;
 
   // B2 ROB-walk 恢复端口
@@ -218,17 +227,26 @@ module tb_ooo_rob;
     .completion6_query_valid_i(completion6_query_valid),
     .completion6_query_producer_id_i(completion6_query_producer_id),
     .completion6_query_match_o(completion6_query_match),
+    .completion7_query_valid_i(completion7_query_valid),
+    .completion7_query_producer_id_i(completion7_query_producer_id),
+    .completion7_query_match_o(completion7_query_match),
     .resolve_query_valid_i(resolve_query_valid),
     .resolve_query_producer_id_i(resolve_query_producer_id),
     .resolve_query_match_o(resolve_query_match),
     .commit_ready_i(commit_ready),
+    .commit_pregrant_ready_i(commit_ready),
     .head0_context_permit_i(head0_context_permit),
     .fencei_retire_permit_i(fencei_retire_permit),
+    .pending_csr_owner_valid_i(pending_csr_owner_valid),
+    .pending_csr_owner_producer_id_i(pending_csr_owner_producer_id),
     .head0_retire_candidate_valid_o(head0_retire_candidate_valid),
     .head0_identity_valid_o(head0_identity_valid),
     .head0_identity_o(head0_identity),
     .head0_producer_id_o(head0_producer_id),
     .head0_launch_open_o(head0_launch_open),
+    .head0_control_event_pregrant_o(head0_control_event_pregrant),
+    .head0_full_flush_pregrant_o(head0_full_flush_pregrant),
+    .head0_full_flush_reason_o(head0_full_flush_reason),
     .commit1_block_i(1'b0),
     .mem_quiet_i(mem_quiet),
     .commit0_valid_o(commit0_valid),
@@ -400,12 +418,16 @@ module tb_ooo_rob;
       completion5_query_producer_id = {PRODUCER_ID_W{1'b0}};
       completion6_query_valid = 1'b0;
       completion6_query_producer_id = {PRODUCER_ID_W{1'b0}};
+      completion7_query_valid = 1'b0;
+      completion7_query_producer_id = {PRODUCER_ID_W{1'b0}};
       resolve_query_valid = 1'b0;
       resolve_query_producer_id = {PRODUCER_ID_W{1'b0}};
       kill_valid = 1'b0;
       kill_rob_idx = 4'd0;
       head0_context_permit = 1'b1;
       fencei_retire_permit = 1'b1;
+      pending_csr_owner_valid = 1'b0;
+      pending_csr_owner_producer_id = {PRODUCER_ID_W{1'b0}};
       mem_quiet = 1'b1;
     end
   endtask
@@ -551,6 +573,126 @@ module tb_ooo_rob;
       clear_inputs();
       rst = 1'b0;
       #1;
+    end
+  endtask
+
+  task automatic set_all_completion_queries;
+    input query_valid;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    begin
+      completion0_query_valid = query_valid;
+      completion0_query_producer_id = producer_id;
+      completion1_query_valid = query_valid;
+      completion1_query_producer_id = producer_id;
+      completion2_query_valid = query_valid;
+      completion2_query_producer_id = producer_id;
+      completion3_query_valid = query_valid;
+      completion3_query_producer_id = producer_id;
+      completion4_query_valid = query_valid;
+      completion4_query_producer_id = producer_id;
+      completion5_query_valid = query_valid;
+      completion5_query_producer_id = producer_id;
+      completion6_query_valid = query_valid;
+      completion6_query_producer_id = producer_id;
+      completion7_query_valid = query_valid;
+      completion7_query_producer_id = producer_id;
+    end
+  endtask
+
+  task automatic check_all_completion_queries;
+    input expected;
+    begin
+      tb_check1("V9O full-C0 completion class 0", completion0_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 1", completion1_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 2", completion2_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 3", completion3_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 4", completion4_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 5", completion5_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 6", completion6_query_match,
+                expected);
+      tb_check1("V9O full-C0 completion class 7", completion7_query_match,
+                expected);
+    end
+  endtask
+
+  // Drive a real registered exception at ROB index 15 with a live younger
+  // entry at index 0.  Before the head becomes done all eight production
+  // completion-query classes must see the younger owner; in the true C0
+  // full-pregrant cycle the same unchanged PID must be cut in every class.
+  task automatic exercise_v9o_full_pregrant_completion_matrix;
+    integer advance;
+    reg [PRODUCER_ID_W-1:0] head_id;
+    reg [PRODUCER_ID_W-1:0] younger_id;
+    begin
+      reset_dut();
+      for (advance = 0; advance < 15; advance = advance + 1) begin
+        dispatch0_valid = 1'b1;
+        dispatch0_pc = 32'h8000_2000 + (advance * 8);
+        dispatch0_inst = 32'h0000_0013;
+        #1;
+        saved0 = dispatch0_rob_idx;
+        `TB_TICK(clk);
+        clear_inputs();
+        wb0_valid = 1'b1;
+        wb0_rob_idx = saved0;
+        wb0_data = 32'h2000_0000 + advance;
+        `TB_TICK(clk);
+        clear_inputs();
+        #1;
+        tb_check1("V9O wrap setup entry retires", commit0_valid, 1'b1);
+        `TB_TICK(clk);
+        clear_inputs();
+      end
+
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_2ff0;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = 32'h8000_2ff4;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      head_id = dispatch0_producer_id;
+      younger_id = dispatch1_producer_id;
+      tb_check32("V9O full-C0 wrap head index",
+                 {{(32-ROB_INDEX_W){1'b0}}, head_id[ROB_INDEX_W-1:0]},
+                 32'd15);
+      tb_check32("V9O full-C0 wrap younger index",
+                 {{(32-ROB_INDEX_W){1'b0}}, younger_id[ROB_INDEX_W-1:0]},
+                 32'd0);
+      `TB_TICK(clk);
+      clear_inputs();
+
+      set_all_completion_queries(1'b1, younger_id);
+      #1;
+      check_all_completion_queries(1'b1);
+
+      wb0_valid = 1'b1;
+      wb0_rob_idx = head_id[ROB_INDEX_W-1:0];
+      wb0_data = 32'h2ff0_0001;
+      wb0_exception = 1'b1;
+      wb0_cause = `EXC_ILLEGAL_INST;
+      wb0_tval = 32'h2ff0_dead;
+      `TB_TICK(clk);
+      clear_inputs();
+      set_all_completion_queries(1'b1, younger_id);
+      #1;
+      tb_check1("V9O real full-C0 pregrant active",
+                head0_full_flush_pregrant, 1'b1);
+      tb_check32("V9O real full-C0 reason is trap",
+                 {{(32-`REDIR_REASON_W){1'b0}}, head0_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+      check_all_completion_queries(1'b0);
+      $display("[V9O-FULL-C0-COMPLETION-MATRIX] classes=8 wrap_head=15 wrap_younger=0 PASS");
+
+      `TB_TICK(clk);
+      clear_inputs();
+      reset_dut();
     end
   endtask
 
@@ -1191,6 +1333,7 @@ module tb_ooo_rob;
 
     exercise_v8f_producer_queries();
     exercise_v8j_resolve_query();
+    exercise_v9o_full_pregrant_completion_matrix();
 
     // Kept behind a plusarg so the normal regression remains positive while
     // the task-run negative runner can prove the dual-WB owner contract fires.
@@ -1246,7 +1389,8 @@ module tb_ooo_rob;
 
     // The numeric generate specialization used to keep the disabled dependency
     // cone canonical must preserve explicitly-enabled CSR queue-head behavior.
-    if ($test$plusargs("S2_Q2_V8A_CSR_QH_ENABLED")) begin
+    if (`OOO_CSR_QUEUE_HEAD ||
+        $test$plusargs("S2_Q2_V8A_CSR_QH_ENABLED")) begin
       dispatch0_valid = 1'b1;
       dispatch0_pc = 32'h8000_0a40;
       dispatch0_inst = 32'h0010_1073;  // csrrw x0,fflags,x0
@@ -1265,12 +1409,69 @@ module tb_ooo_rob;
                 head0_retire_candidate_valid, 1'b1);
       tb_check1("v8a csr-qh enabled holds commit while memory busy",
                 commit0_valid, 1'b0);
+      tb_check1("V9O csr-qh memory hold blocks C0 pregrant",
+                head0_full_flush_pregrant, 1'b0);
       `TB_TICK(clk);
       clear_inputs();
       #1;
       tb_check1("v8a csr-qh enabled releases on memory quiet",
                 commit0_valid, 1'b1);
+      tb_check1("V9O csr-qh emits C0 full-flush pregrant",
+                head0_full_flush_pregrant, 1'b1);
+      tb_check32("V9O csr-qh pregrant reason",
+                 {{(32-`REDIR_REASON_W){1'b0}}, head0_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_CSR_COMMIT});
+      tb_check1("V9O csr-qh C0 closes lane0 dispatch", dispatch0_ready, 1'b0);
+      tb_check1("V9O csr-qh C0 closes lane1 dispatch", dispatch1_ready, 1'b0);
       $display("[S2-Q2-V8A-CSR-QH-PASS] explicit macro-enable behavior preserved");
+      `TB_TICK(clk);
+      clear_inputs();
+      reset_dut();
+
+      // FP CSR / legacy pending-system ownership uses the same CSR opcode in
+      // the ROB but must not be reclassified as a queue-head full-flush event.
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0a60;
+      dispatch0_inst = 32'h0010_1073;
+      #1;
+      saved0 = dispatch0_rob_idx;
+      saved0_producer = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_inputs();
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = 32'h0a60_0001;
+      `TB_TICK(clk);
+      clear_inputs();
+      // A live pending lease for another ProducerId must not reclassify head0.
+      pending_csr_owner_valid = 1'b1;
+      pending_csr_owner_producer_id =
+          saved0_producer ^ {{(PRODUCER_ID_W-1){1'b0}}, 1'b1};
+      #1;
+      tb_check1("V9O mismatched pending owner keeps queue-head full pregrant",
+                head0_full_flush_pregrant, 1'b1);
+      tb_check32("V9O mismatched pending owner keeps CSR_COMMIT reason",
+                 {{(32-`REDIR_REASON_W){1'b0}}, head0_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_CSR_COMMIT});
+
+      // Only the exact typed lease/ProducerId identifies the legacy pending
+      // CSR commit owner.  It remains an older control event, so dispatch and
+      // younger branch production are closed without requesting FULL_NEXT.
+      pending_csr_owner_producer_id = saved0_producer;
+      #1;
+      tb_check1("V9O pending-owner CSR still retires", commit0_valid, 1'b1);
+      tb_check1("V9O pending-owner CSR emits control-event pregrant",
+                head0_control_event_pregrant, 1'b1);
+      tb_check1("V9O pending-owner CSR has no queue-head pregrant",
+                head0_full_flush_pregrant, 1'b0);
+      tb_check32("V9O pending-owner CSR pregrant reason is NONE",
+                 {{(32-`REDIR_REASON_W){1'b0}}, head0_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_NONE});
+      tb_check1("V9O pending-owner commit closes lane0 dispatch",
+                dispatch0_ready, 1'b0);
+      tb_check1("V9O pending-owner commit closes lane1 dispatch",
+                dispatch1_ready, 1'b0);
+      $display("[V9O-CSR-OWNER-CLASS-PASS] exact pending CSR ProducerId classified without full flush");
       `TB_TICK(clk);
       clear_inputs();
       reset_dut();
@@ -1293,6 +1494,8 @@ module tb_ooo_rob;
       #1;
       tb_check1("v8a csr-qh explicit zero keeps legacy retirement",
                 commit0_valid, 1'b1);
+      tb_check1("V9O csr-qh explicit zero has no full pregrant",
+                head0_full_flush_pregrant, 1'b0);
       $display("[S2-Q2-V8A-CSR-QH-ZERO-PASS] explicit numeric zero remains disabled");
       `TB_TICK(clk);
       clear_inputs();
@@ -1548,6 +1751,15 @@ module tb_ooo_rob;
     tb_check32("new-head exception tval", commit0_tval, 32'hdead_1000);
     tb_check1("new-head exception raises precise trap", commit_exception_trap, 1'b1);
     tb_check1("new-head exception trap valid", trap_mem_valid, 1'b1);
+    tb_check1("V9O precise exception emits C0 full-flush pregrant",
+              head0_full_flush_pregrant, 1'b1);
+    tb_check32("V9O precise exception pregrant reason",
+               {{(32-`REDIR_REASON_W){1'b0}}, head0_full_flush_reason},
+               {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+    tb_check1("V9O precise exception C0 closes lane0 dispatch",
+              dispatch0_ready, 1'b0);
+    tb_check1("V9O precise exception C0 closes lane1 dispatch",
+              dispatch1_ready, 1'b0);
     tb_check32("new-head trap pc", trap_mem_pc, 32'h8000_0084);
     tb_check32("new-head trap cause", {27'b0, trap_mem_cause},
                {27'b0, `EXC_LOAD_ACCESS_FAULT});
@@ -1586,6 +1798,8 @@ module tb_ooo_rob;
     #1;
     tb_check1("registered exception commits at head", commit0_valid, 1'b1);
     tb_check1("registered exception blocks younger", commit1_valid, 1'b0);
+    tb_check1("V9O registered exception full pregrant", head0_full_flush_pregrant,
+              1'b1);
     tb_check1("commit0 exception from ROB Q", commit0_exception, 1'b1);
     tb_check32("commit0 cause from ROB Q", {27'b0, commit0_cause}, {27'b0, `EXC_ILLEGAL_INST});
     tb_check32("commit0 tval from ROB Q", commit0_tval, 32'hfeed_beef);

@@ -40,6 +40,7 @@ module OooFrontendActionGate (
   input csr_trap_irq_valid_i,
   input core_trap_flush_i,
   input core_serial_flush_i,
+  input control_full_flush_barrier_i,
 
   output direct_frontend_flush_o,
   output stop_head_o,
@@ -49,10 +50,11 @@ module OooFrontendActionGate (
 );
 
   assign direct_frontend_flush_o =
-      direct_jal_fire_i ||
-      direct_ret0_fire_i ||
-      direct_ret1_fire_i ||
-      direct_jump_spec_fire_i;
+      !control_full_flush_barrier_i &&
+      (direct_jal_fire_i ||
+       direct_ret0_fire_i ||
+       direct_ret1_fire_i ||
+       direct_jump_spec_fire_i);
 
   assign stop_head_o =
       can_run_i &&
@@ -72,11 +74,12 @@ module OooFrontendActionGate (
        dispatch_unsupported_i);
 
   assign fifo_pop_o =
-      dispatch_fire_i ||
-      dbranch_dispatch_fire_i ||
-      dispatch1_barrier_fire_i ||
-      direct_jal0_fire_i ||
-      head0_csr_dispatch_fire_i;   // 【serialize Phase1 §4#2b】head0-CSR 单发 pop(其余 4 项对 CSR 均不 fire)
+      !control_full_flush_barrier_i &&
+      (dispatch_fire_i ||
+       dbranch_dispatch_fire_i ||
+       dispatch1_barrier_fire_i ||
+       direct_jal0_fire_i ||
+       head0_csr_dispatch_fire_i);  // 【serialize Phase1 §4#2b】head0-CSR 单发 pop(其余 4 项对 CSR 均不 fire)
 
   assign fetch_rsp_control_stop_o =
       fetch_rsp_fire_i &&
@@ -88,6 +91,7 @@ module OooFrontendActionGate (
       csr_trap_ex_valid_i ||
       csr_trap_irq_valid_i ||
       core_trap_flush_i ||
-      core_serial_flush_i;
+      core_serial_flush_i ||
+      control_full_flush_barrier_i;
 
 endmodule

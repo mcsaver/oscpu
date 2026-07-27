@@ -94,7 +94,8 @@ LSU_STAGE_ADVANCE = """wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w 
                          ((state_q == S_IDLE) ||
                           ((state_q == S_RESP) && rsp_ready_w) ||
                           (lookup_hit_fusion_w && rsp_ready_w)) &&
-                         (!cpu_kill_w || stg_nokill_q);"""
+                         (!cpu_kill_w || stg_nokill_q) &&
+                         !control_full_flush_barrier_i;"""
 LSU_RESPONSE_STALL_BLOCK = """S_RESP: begin
           // 【刀 M】back-to-back accept 已上提为 stage_advance 分支(该分支同时覆盖
           // rsp 消费拍), 本臂只处理"rsp 被消费且无寄存站项可进"的回 IDLE。
@@ -335,6 +336,7 @@ def validate_lsu_unbounded_deny_quiet_structure(text: str) -> dict[str, Any]:
         "response_state_in_wvalid_decode": False,
         "stalled_response_state": "S_RESP",
         "queued_request_advance_requires_response_ready": True,
+        "c0_barrier_holds_queued_advance": True,
         "kill_path_emits_exact_drop_terminal": True,
         "cycle_bound": "unbounded_by_state_decode",
     }

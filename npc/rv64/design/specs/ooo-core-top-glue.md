@@ -39,6 +39,10 @@
 - `OooCoreTopGlue` 不再实例化 `CsrFile`；CSR/privilege/PMP 状态由 `NpcCoreTop`
   直接例化的 `CsrFile` 持有，core glue 只能通过边界端口产生精确 CSR 事件并消费
   CSR 状态。
+- `csr_trap_mem/ex/irq_*` 必须作为三个独立请求类从 control plane 上送；
+  `NpcCoreTop.u_csr_file` 用 `mem > ex > irq` 选中唯一 trap record，并把同一记录形成的
+  `csr_trap_target_w` 原样送回 Glue/frontend redirect。Glue 不得重算 tvec BASE、
+  MODE 或 `4×cause`，也不得从未选中请求借用 cause/委托状态。
 - `OooCoreTopGlue` 不再实例化 `OooFpRegFile`；FPR 状态随 FP 迁域 A 由 execute/ FP 簇
   （`OooFpBackend` 内 `u_arch_fpr`）持有，glue 与 `NpcCoreTop` 均不再接触 FPR 读写散线
   （pending-FP 通道已拆除）。
@@ -122,3 +126,62 @@ VA/PA 范围或重算 cacheability。最终属性的 producer 是 `OooMemAxiBrid
 - S0 Boolean 只为兼容迁移，NC/IO 合并且 memory datapath 仍单 owner。S1 typed ABI 和 S2
   双 memory owner 接入时，Glue 只能扩展同构 bundle/transport slot，不得以 lane 编号恢复
   静态角色或复制 lane0 payload 伪造双端口。
+
+## V9O 类型化控制事件装配边界
+
+`OooCoreTopGlue` 只负责把 execute 子树输出的
+`head0_full_flush_pregrant/reason/head_idx` 接入
+`OooControlEventApplySequencer`，并把其 C1 输出映射到现有 production view：
+
+- `reason=TRAP -> core_trap_flush_q`
+- `reason=CSR_COMMIT -> core_serial_flush_q`
+
+旧 `OooControlFlushSequencer/OooCommitFlushSequencer` 输出保留为 shadow 对照，不再驱动
+production clear。C0→C1 唯一事件状态 owner 位于
+`control/OooControlEventApplySequencer.v`；Glue 中仅有断言采样寄存器，不拥有功能状态。
+full pregrant 同时向 `NpcCoreTop` 导出，用于两个 memory bridge lane 的 C0 准入屏障。
+sequencer 的 `request_valid/reason` 直接且仅由
+`control_full_flush_barrier/reason` 驱动。`csr_trap_mem_valid_w` 与
+`head0_csr_commit_w` 是同一 C0 记录的架构提交后果，不得重新 OR 回 request。
+
+前端 `OooRedirectArbiter` 输出
+`{valid, pc, kill_idx, reason, flush_fetch, backend_action}` 是 canonical typed-event
+参考视图。它不能直接反馈到 backend ready/commit，否则会经过 direct dispatch fire
+形成组合环；生产后端使用 ROB edge-old `head0_control_event_pregrant` 投影：
+
+```text
+backend_branch_event = authorized_branch_request &&
+                       !head0_control_event_pregrant
+```
+
+Glue 中的双向立即断言分别证明：
+
+- frontend `SELECTIVE_NOW` 当且仅当 production backend branch event，并核对
+  PC/kill_idx/reason/flush_fetch；
+- frontend `FULL_NEXT` 当且仅当 C0 full barrier，并核对 reason/flush_fetch。
+- `csr_trap_mem_valid_w` 当且仅当 C0 reason=`TRAP`；
+- `head0_csr_commit_w` 当且仅当 C0 reason=`CSR_COMMIT`。
+
+exact pending CSR action-NONE 不进入 C1 sequencer；其优先级在 ROB/execute 子树内通过
+精确 ProducerId 匹配并关闭 dispatch/branch。
+
+装配不变量：
+
+- 同一 C1 apply 记录的 `{valid, reason, kill_idx}` 必须来自同一 C0 预授权；
+- production trap/CSR clear 必须是类型化 reason 的无状态投影，禁止再次拼接独立
+  trap/CSR Boolean；
+- C1 request 必须以 ROB C0 full pregrant 为唯一 valid source；trap/CSR commit pulse 只作
+  双向同源断言，不得形成第二个 request 表示；
+- legacy shadow 与 production view 不一致时断言失败，但 shadow 不得反向影响功能；
+- C0 屏障只能暂停新工作与更年轻完成，不能作为 `flush_i` 清状态。
+- canonical frontend winner 与 cycle-free backend 投影必须双向等价；不能只证明单向
+  “有源即有赢家”。
+
+变更记录补充：
+
+- 2026-07-23（V9O）：增加类型化 C0→C1 apply sequencer、canonical frontend winner 与
+  cycle-free backend 投影双向断言；C1 request 收敛为 ROB C0 full pregrant 唯一源，并对
+  trap/queue-head CSR 架构提交增加双向同源断言；legacy Boolean sequencer 降为 shadow。
+- 2026-07-26（V9U）：冻结 CsrFile 向量目标边界。Glue 继续只传递
+  `csr_trap_mem/ex/irq_*` 与 `csr_trap_target_w`；完整 OoO 核程序证明 M cause=7、
+  S cause=9 的向量入口及 MODE=1 同步 ECALL 的 BASE 入口均通过同一 redirect/xRET 链。

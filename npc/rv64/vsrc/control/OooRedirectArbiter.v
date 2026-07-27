@@ -6,7 +6,8 @@
 // -----------------------------------------------------------------------------
 // 职责：把全核多个 redirect/flush 源仲裁成**唯一**的 redirect_request。后续切片用它取代
 //        OooFetchRequestMux 的隐式优先级链与控制面各汇合点（本切片只建模块+单测，不接线）。
-// 协议：纯组合 selector。每个源提供 {valid, pc, rob_idx, reason, flush_fetch, flush_backend}；
+// 协议：纯组合 selector。每个源提供
+// {valid, pc, rob_idx, reason, flush_fetch, backend_action}；
 //        本模块只"选择并透传胜者字段"，不发明 flush 策略，使仲裁规则显式可见。
 //
 // ---- RTL 拓扑（topology-first）----
@@ -36,7 +37,7 @@ module OooRedirectArbiter (
   input  wire [`OOO_ROB_INDEX_W-1:0] trap_rob_idx_i,
   input  wire [`REDIR_REASON_W-1:0]  trap_reason_i,
   input  wire                        trap_flush_fetch_i,
-  input  wire                        trap_flush_backend_i,
+  input  wire [`OOO_BACKEND_ACTION_W-1:0] trap_backend_action_i,
 
   // 源 1：branch / JALR 误预测（后端解析）
   input  wire                        branch_valid_i,
@@ -44,7 +45,7 @@ module OooRedirectArbiter (
   input  wire [`OOO_ROB_INDEX_W-1:0] branch_rob_idx_i,
   input  wire [`REDIR_REASON_W-1:0]  branch_reason_i,
   input  wire                        branch_flush_fetch_i,
-  input  wire                        branch_flush_backend_i,
+  input  wire [`OOO_BACKEND_ACTION_W-1:0] branch_backend_action_i,
 
   // 源 2：direct 控制流（dispatch 期直算，最年轻）
   input  wire                        direct_valid_i,
@@ -52,15 +53,18 @@ module OooRedirectArbiter (
   input  wire [`OOO_ROB_INDEX_W-1:0] direct_rob_idx_i,
   input  wire [`REDIR_REASON_W-1:0]  direct_reason_i,
   input  wire                        direct_flush_fetch_i,
-  input  wire                        direct_flush_backend_i,
+  input  wire [`OOO_BACKEND_ACTION_W-1:0] direct_backend_action_i,
 
-  // 统一输出 redirect_request
+  // 类型化控制事件与 fetch redirect 分离：misaligned branch 等事件可以只做
+  // selective backend action，而不直接改 fetch PC。
+  output wire                        control_event_valid_o,
   output wire                        redirect_valid_o,
   output wire [`XLEN-1:0]            redirect_pc_o,
   output wire [`OOO_ROB_INDEX_W-1:0] redirect_kill_idx_o,    // kill_younger_than
   output wire [`REDIR_REASON_W-1:0]  redirect_reason_o,
   output wire                        redirect_flush_fetch_o,
-  output wire                        redirect_flush_backend_o
+  output wire                        redirect_flush_backend_o,
+  output wire [`OOO_BACKEND_ACTION_W-1:0] redirect_backend_action_o
 );
 
   // (a) 年龄：age = rob_idx - head（环形减法；head 处=age0 最老，越大越年轻）
@@ -81,7 +85,8 @@ module OooRedirectArbiter (
       direct_valid_i && !trap_win_w && !branch_win_w;
 
   // (c) 胜者字段 mux（valid 时三 win 必恰好一个为真）
-  assign redirect_valid_o = trap_valid_i || branch_valid_i || direct_valid_i;
+  assign control_event_valid_o =
+      trap_valid_i || branch_valid_i || direct_valid_i;
   assign redirect_pc_o =
       trap_win_w   ? trap_pc_i   :
       branch_win_w ? branch_pc_i :
@@ -98,9 +103,34 @@ module OooRedirectArbiter (
       trap_win_w   ? trap_flush_fetch_i   :
       branch_win_w ? branch_flush_fetch_i :
                      direct_flush_fetch_i;
+  assign redirect_backend_action_o =
+      trap_win_w   ? trap_backend_action_i   :
+      branch_win_w ? branch_backend_action_i :
+                     direct_backend_action_i;
   assign redirect_flush_backend_o =
-      trap_win_w   ? trap_flush_backend_i   :
-      branch_win_w ? branch_flush_backend_i :
-                     direct_flush_backend_i;
+      redirect_backend_action_o != `OOO_BACKEND_ACTION_NONE;
+  assign redirect_valid_o =
+      control_event_valid_o && redirect_flush_fetch_o;
+
+`ifdef OOO_ASSERT
+  always @(*) begin
+    // Compare the source inputs directly.  Separate continuous legality wires
+    // can lag the valid/action pair by one simulation delta and report a
+    // transient reserved value even though the settled typed packet is legal.
+    if ((trap_valid_i &&
+         (trap_backend_action_i != `OOO_BACKEND_ACTION_NONE) &&
+         (trap_backend_action_i != `OOO_BACKEND_ACTION_SELECTIVE_NOW) &&
+         (trap_backend_action_i != `OOO_BACKEND_ACTION_FULL_NEXT)) ||
+        (branch_valid_i &&
+         (branch_backend_action_i != `OOO_BACKEND_ACTION_NONE) &&
+         (branch_backend_action_i != `OOO_BACKEND_ACTION_SELECTIVE_NOW) &&
+         (branch_backend_action_i != `OOO_BACKEND_ACTION_FULL_NEXT)) ||
+        (direct_valid_i &&
+         (direct_backend_action_i != `OOO_BACKEND_ACTION_NONE) &&
+         (direct_backend_action_i != `OOO_BACKEND_ACTION_SELECTIVE_NOW) &&
+         (direct_backend_action_i != `OOO_BACKEND_ACTION_FULL_NEXT)))
+      $error("[V9O-REDIRECT-ACTION] source supplied reserved backend action");
+  end
+`endif
 
 endmodule

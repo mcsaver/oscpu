@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scope": "local RV64 NpcSimTop Ubuntu rootfs strict guest run",
+  "rtl_design_id": "sha256:c358ce6d3ef0fe1cb4cd8337bd4dd4f35c44d713b54d047c2ea9a51d38c07e8d",
+  "configuration": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "OOO_TERMINAL_HOLDER_ASSERT": 1,
+    "OOO_ASSERT": 1,
+    "host_timeout_seconds": 21600
+  },
+  "terminal_status": "manually_terminated_before_timeout",
+  "runner_status": "FAIL rc=2",
+  "classification": "host_budget_forecast_insufficient",
+  "observed": {
+    "retired_instructions": 10000000,
+    "last_pc": "0xffffffff80426ef0",
+    "reported_inst_per_second": 13857,
+    "kernel_milestone": "Initmem setup node 0",
+    "rtl_assertion_failure": false
+  },
+  "reason": "The same rootfs route previously required approximately 340M retired instructions to reach the systemd console shell. At the measured rate, the 21600-second host budget projected fewer than 300M retired instructions, so the run was stopped early and retained as a bounded diagnostic rather than waiting for a predictable host timeout.",
+  "rootfs_gate_status": "UNRESOLVED",
+  "promotion_eligible": false,
+  "next_run": {
+    "label": "rootfs-csr-qh-on-current-10h",
+    "host_timeout_seconds": 36000,
+    "same_rtl_configuration_and_boot_artifacts": true
+  }
+}

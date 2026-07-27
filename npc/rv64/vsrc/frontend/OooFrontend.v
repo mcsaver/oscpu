@@ -32,6 +32,8 @@ module OooFrontend #(
   input core_pending_load_branch_dep_w,
   input core_serial_flush_q,
   input core_trap_flush_q,
+  input control_full_flush_barrier_i,
+  input [`REDIR_REASON_W-1:0] control_full_flush_reason_i,
   input csr_irq_pending_w,
   input [`XLEN-1:0] csr_mstatus_w,
   input [2:0] csr_frm_w,
@@ -82,6 +84,8 @@ module OooFrontend #(
   input pending_mem_q,
   input pending_mem_resolve_ready_w,
   input pending_system_csr_commit_w,
+  input pending_system_sfence_commit_w,
+  input pending_system_fencei_commit_w,
   // 【serialize Phase1】head0-CSR 队头提交拍 redirect: 脉冲 + CSR 的架构下条 PC(core_commit0_next_pc)。
   input head0_csr_commit_w,
   input [`XLEN-1:0] core_commit0_next_pc_w,
@@ -209,6 +213,7 @@ module OooFrontend #(
   output fetch_rsp_ready_o,
   output fifo_has_packet_w,
   output head0_arch_trap_raw_w,
+  output head0_csr_dispatch_fire_w,
   output head0_csr_inflight_w,   // 【serialize Phase1 §10.4】head0-CSR 在飞(→保持 stop_pending 阻 younger 越序捕获)
   output head0_csr_raw_w,
   output [`CTRL_BUS_W-1:0] head0_ctrl_w,
@@ -284,6 +289,12 @@ module OooFrontend #(
   output ras_empty_w,
   output ras_full_w,
   output redirect_fetch_req_valid_w,
+  output control_event_valid_o,
+  output [`XLEN-1:0] control_event_pc_o,
+  output [`OOO_ROB_INDEX_W-1:0] control_event_kill_idx_o,
+  output [`REDIR_REASON_W-1:0] control_event_reason_o,
+  output control_event_flush_fetch_o,
+  output [`OOO_BACKEND_ACTION_W-1:0] control_event_backend_action_o,
   output return_cont_attempt_ready_w,
   output synth_lane1_branch_append_w
 );
@@ -824,15 +835,23 @@ module OooFrontend #(
       dispatch_valid_w && head0_facts_w[`OOO_SLOT_FACT_CSR] &&
       !head0_csr_illegal_i && !head0_fp_csr_w;
   // head0-CSR 单发 fire(=进后端 valid 且 dispatch 就绪): 驱动 FIFO 单发 pop(否则前端卡死)。
-  wire head0_csr_dispatch_fire_w =
+  assign head0_csr_dispatch_fire_w =
       frontend_dispatch_to_backend_valid_w && dispatch0_csr_w && dispatch0_ready_w;
+  // 【serialize Phase1 V9P】queue-head CSR fire 后 younger 不再能进入后端，因此
+  // inflight 期间出现的 branch/JALR resolve 必然来自更老指令。若该 resolve
+  // 改流，ROB-walk 会杀掉 CSR；前端 owner 必须同拍释放，不能等待已死亡 CSR commit。
+  wire head0_csr_older_control_kill_w =
+      core_branch_resolve_valid_w &&
+      (core_branch_resolve_mispredict_w ||
+       core_branch_resolve_misaligned_w);
   // 【serialize Phase1 §10.4 修】head0-CSR 在飞锁存: dispatch 置、commit/flush 清。在飞期间(它在 ROB 未提交)
   // 须保持 stop_pending 阻止 younger 越序 dispatch/被捕获到 drain——否则 head0-CSR(ROB) 与 younger CSR
   // (lane1-drain) 共存, younger 越过在飞的 head0-CSR 被捕获, 覆写单个 pending 寄存器→drain 状态丢失死锁。
   // (根因: head0-CSR 单发 pop 后不再在 FIFO 头, dispatch0_system set 条件只 1 拍, stop 随即被 drain 清掉。)
   reg head0_csr_inflight_q;
   always @(posedge clk) begin
-    if (rst || core_trap_flush_q || core_serial_flush_q || head0_csr_commit_w)
+    if (rst || flush_i || core_trap_flush_q || core_serial_flush_q ||
+        head0_csr_commit_w || head0_csr_older_control_kill_w)
       head0_csr_inflight_q <= 1'b0;
     else if (head0_csr_dispatch_fire_w)
       head0_csr_inflight_q <= 1'b1;
@@ -1438,31 +1457,68 @@ module OooFrontend #(
   wire [`XLEN-1:0] commit_trap_pc_w =
       commit_e1_valid_w ? csr_trap_target_w :
       commit_e5_valid_w ? commit_e5_pc_w : commit_e6_pc_w;
+  wire commit_e6_system_trap_w = commit_e6_sel_system_w &&
+      (pending_system_ecall_q || pending_system_irq_q);
+  wire commit_e6_system_xret_w =
+      commit_e6_sel_system_w && pending_system_mret_q;
+  // V9W: redirect type consumes the pending holder's canonical kind through
+  // the exact commit pulses.  Do not re-decode a narrower raw encoding here:
+  // SINVAL-family operations share the SFENCE architectural action.
+  wire commit_e6_system_sfence_w =
+      commit_e6_sel_system_w && pending_system_sfence_commit_w;
+  wire commit_e6_system_fencei_w =
+      commit_e6_sel_system_w && pending_system_fencei_commit_w;
+  wire [`REDIR_REASON_W-1:0] commit_trap_reason_w =
+      commit_e1_valid_w ? `REDIR_REASON_TRAP :
+      commit_e5_valid_w ? `REDIR_REASON_CSR_COMMIT :
+      (commit_e6_sel_arch_w || commit_e6_system_trap_w) ?
+          `REDIR_REASON_TRAP :
+      commit_e6_system_xret_w ? `REDIR_REASON_XRET :
+      commit_e6_system_sfence_w ? `REDIR_REASON_SFENCE :
+      commit_e6_system_fencei_w ? `REDIR_REASON_FENCEI :
+      commit_e6_sel_system_w ? `REDIR_REASON_SERIAL :
+      commit_e6_sel_branch_w ? `REDIR_REASON_BRANCH_MISS :
+      `REDIR_REASON_DIRECT;
+  wire [`OOO_BACKEND_ACTION_W-1:0] commit_backend_action_w =
+      (commit_e1_valid_w || head0_csr_commit_w) ?
+          `OOO_BACKEND_ACTION_FULL_NEXT :
+          `OOO_BACKEND_ACTION_NONE;
+  wire branch_control_event_valid_w =
+      core_branch_resolve_valid_w &&
+      (core_branch_resolve_mispredict_w ||
+       core_branch_resolve_misaligned_w);
+  wire [`REDIR_REASON_W-1:0] branch_control_event_reason_w =
+      core_branch_resolve_is_branch_w ?
+          `REDIR_REASON_BRANCH_MISS : `REDIR_REASON_JALR_MISS;
+  wire branch_control_event_flush_fetch_w =
+      !core_branch_resolve_misaligned_w && !trap_redirect_squash_q;
 
+  wire control_event_valid_w;
   wire redirect_valid_w;
   wire [`XLEN-1:0] redirect_pc_w;
   wire [`OOO_ROB_INDEX_W-1:0] redirect_kill_idx_w;
   wire [`REDIR_REASON_W-1:0] redirect_reason_w;
   wire redirect_flush_fetch_w;
   wire redirect_flush_backend_w;
+  wire [`OOO_BACKEND_ACTION_W-1:0] redirect_backend_action_w;
   OooRedirectArbiter u_redirect_arbiter (
     .rob_head_idx_i(rob_head_idx_i),
     // trap 口 = commit 家族(E1/E5/E6 pre-mux): commit-time 源恒 ROB head(age≡0)
     .trap_valid_i(commit_trap_valid_w),
     .trap_pc_i(commit_trap_pc_w),
     .trap_rob_idx_i(rob_head_idx_i),
-    .trap_reason_i(`REDIR_REASON_TRAP),
+    .trap_reason_i(commit_trap_reason_w),
     .trap_flush_fetch_i(1'b1),
-    .trap_flush_backend_i(1'b1),
+    .trap_backend_action_i(commit_backend_action_w),
     // branch 口 = E3(后端 resolve 已带真 rob_idx): valid 用现成
     // branch_resolve_untracked_redirect(RecoveryGate = untracked && !misaligned,
     // 已含 trap_redirect_squash 掩码)。
-    .branch_valid_i(branch_resolve_untracked_redirect_w),
+    .branch_valid_i(branch_control_event_valid_w),
     .branch_pc_i(core_branch_resolve_next_pc_w),
     .branch_rob_idx_i(core_branch_resolve_rob_idx_i),
-    .branch_reason_i(`REDIR_REASON_BRANCH_MISS),
-    .branch_flush_fetch_i(1'b1),
-    .branch_flush_backend_i(1'b1),
+    .branch_reason_i(branch_control_event_reason_w),
+    .branch_flush_fetch_i(branch_control_event_flush_fetch_w),
+    .branch_backend_action_i(`OOO_BACKEND_ACTION_SELECTIVE_NOW),
     // direct 口 = E4: 取指侧无 age, 喂 head-1 哨兵(age=2^W-1 恒最年轻——direct 是
     // dispatch 拍事件, 构造上严格年轻于任何本拍后端 resolve 分支; 同拍 E3+E4 年龄律
     // branch 胜 = 原 :263 untracked-over-flush override 语义, GAP-1 双落点随之消灭;
@@ -1472,7 +1528,8 @@ module OooFrontend #(
     .direct_rob_idx_i(rob_head_idx_i - {{(`OOO_ROB_INDEX_W-1){1'b0}}, 1'b1}),
     .direct_reason_i(`REDIR_REASON_DIRECT),
     .direct_flush_fetch_i(1'b1),
-    .direct_flush_backend_i(1'b0),
+    .direct_backend_action_i(`OOO_BACKEND_ACTION_NONE),
+    .control_event_valid_o(control_event_valid_w),
     .redirect_valid_o(redirect_valid_w),
     .redirect_pc_o(redirect_pc_w),
     // kill_idx/reason/flush_* 本刀 unused sink(后端 kill/nuke 通道零触碰, 禁止项④);
@@ -1480,11 +1537,19 @@ module OooFrontend #(
     .redirect_kill_idx_o(redirect_kill_idx_w),
     .redirect_reason_o(redirect_reason_w),
     .redirect_flush_fetch_o(redirect_flush_fetch_w),
-    .redirect_flush_backend_o(redirect_flush_backend_w)
+    .redirect_flush_backend_o(redirect_flush_backend_w),
+    .redirect_backend_action_o(redirect_backend_action_w)
   );
+  assign control_event_valid_o = control_event_valid_w;
+  assign control_event_pc_o = redirect_pc_w;
+  assign control_event_kill_idx_o = redirect_kill_idx_w;
+  assign control_event_reason_o = redirect_reason_w;
+  assign control_event_flush_fetch_o = redirect_flush_fetch_w;
+  assign control_event_backend_action_o = redirect_backend_action_w;
   wire _unused_redirect_arb_w = (|redirect_kill_idx_w) |
       redirect_flush_fetch_w | redirect_flush_backend_w |
-      (|redirect_reason_w);
+      (|redirect_reason_w) | (|redirect_backend_action_w) |
+      (|control_full_flush_reason_i);
 
   // 【时序 T1】resolve 族 redirect 当拍封顺序臂、次拍发 target(内部信号)
   wire resolve_redirect_block_w;
@@ -1556,6 +1621,7 @@ module OooFrontend #(
     .csr_trap_irq_valid_i(csr_trap_irq_valid_w),
     .core_trap_flush_i(core_trap_flush_q),
     .core_serial_flush_i(core_serial_flush_q),
+    .control_full_flush_barrier_i(control_full_flush_barrier_i),
     .direct_frontend_flush_o(direct_frontend_flush_w),
     .stop_head_o(stop_head_w),
     .fifo_pop_o(fifo_pop_w),
@@ -2317,10 +2383,19 @@ module OooFrontend #(
   // branch 口不被错接(负测试实证过错接 pc 源会响的同款守卫; 刀0 探针 P4-KNIFE0-MUX-SUCC
   // 的职责由本断言 + 单源构造接替)。零误报。
   always @(posedge clk) if (!rst)
-    if (redirect_valid_w && (redirect_reason_w == `REDIR_REASON_BRANCH_MISS) &&
+    if (control_event_valid_w && redirect_flush_fetch_w &&
+        ((redirect_reason_w == `REDIR_REASON_BRANCH_MISS) ||
+         (redirect_reason_w == `REDIR_REASON_JALR_MISS)) &&
         (redirect_pc_w !== core_branch_resolve_next_pc_w))
       $error("[FLUSH-CONTRACT INV-1] arbiter branch 口赢家 PC != core_branch_resolve_next_pc: arb=%h expect=%h @%0t",
              redirect_pc_w, core_branch_resolve_next_pc_w, $time);
+  always @(posedge clk) if (!rst && control_full_flush_barrier_i) begin
+    if (direct_jal_fire_w || direct_ret0_fire_w || direct_ret1_fire_w ||
+        direct_jump_spec_fire_w || direct_frontend_flush_w || fifo_pop_w ||
+        fetch_req_valid_o)
+      $error("[V9O-FRONTEND-C0] frontend action escaped queue-head barrier @%0t",
+             $time);
+  end
 
   // GAP-3 (flush-redirect 契约 §4): mux 的 direct 重定向必蕴含 FE 的 direct_frontend_flush。
   // 二者同拍不一致时, 本拍 fetch_req 被 mux 重定向而 sequencer 未 latch next_fetch / 未 reset

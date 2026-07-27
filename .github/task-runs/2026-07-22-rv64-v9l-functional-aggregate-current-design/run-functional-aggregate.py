@@ -234,7 +234,7 @@ def module_phase() -> tuple[str, list[dict[str, Any]]]:
         f"RESULT_DIR={result_dir}", f"BUILD_DIR={build_dir}", "run",
     ]
     command = run_command(
-        "module-109", args, EVIDENCE / "raw/module-run.log")
+        "module-current-inventory", args, EVIDENCE / "raw/module-run.log")
     logs = sorted((result_dir / "logs").glob("tb_*.log"))
     required = functional.module_inventory(ROOT)
     by_name = {path.stem: path for path in logs}

@@ -60,3 +60,14 @@
 - The current census still declares `instance_graph_complete=false` and `semantic_complete=false`.
   Cohort inventory, freeze inputs, remaining architecture debt and physical PPA/signoff are open;
   therefore the parent goal remains active and no `ARCH_STABLE` or PPA promotion is claimed.
+
+## 2026-07-23 V9P reviewer correction
+
+The V9L positive “distinct retry/station token” trajectory established owner
+identity safety, not a liveness bound.  A later strict Linux rootfs run showed
+that an older SQ-dependent load could populate same-bank active/station
+capacity before replay capture, producing a finite-capacity no-progress loop.
+The V9P correction gates only candidates with `issue*_sq_block_r` when the
+target bank already has active/station LOAD residency, preserving the
+SQ-empty F4 handoff.  All V9L aggregate counts and hashes remain historical
+evidence for their original design ID and are not reused for V9P promotion.

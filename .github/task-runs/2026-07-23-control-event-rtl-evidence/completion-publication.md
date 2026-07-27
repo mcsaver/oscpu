@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-23-control-event-rtl-evidence
+- `trace_id`: e2e:2026-07-23-control-event-rtl-evidence
+- `task_slug`: control-event-rtl-evidence
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 5b028e8d21a2b5b156297bc14d0b1102ce28296902bb8fb9cad3aef5d9ae5cc0
+- `task_report_md_sha256`: fe5443a27abbc5b7973e4243a1e6adeb5f7ef6d922ca0499bf69df4b6c86c5fc
+- `run_manifest_json_sha256`: 8d7a5c226fa95469eddfc26473e086f3f47a9574cc1f80613367ae52d9fd6937
+- `context_brief_md_sha256`: d109dda97b42ac0a1a2feb2b577b8c137198b9b97cd19ff0e36a8d7b6eac6f04
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: c50c109d0fbb96283237b8505725f7aea7654f58679877cce9e2d057e2d49dce
+- `dispatch_log_md_sha256`: 0011d5dd70ccdfcb59ca8477dfaf021af6de44d6b97675f5ee1a0ab4e16356cd
+- `nodes_tsv_sha256`: 23e5bf9fdae9d8231f7c6eb03024f26d666f7f866bcc98342cefeda3b61f8df8

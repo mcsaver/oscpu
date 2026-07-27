@@ -73,6 +73,35 @@ class CheckerTests(unittest.TestCase):
             sources, "wrapper.independent_ready_response"
         ))
 
+    def test_ifu_ad_invalidate_source_removal_is_rejected(self) -> None:
+        sources = self.mutated(
+            "wrapper",
+            "dcache_dma_invalidate_all_i || ifu_ad_update_invalidate_all_i;",
+            "dcache_dma_invalidate_all_i || dcache_dma_invalidate_all_i;",
+        )
+        self.assertFalse(self.result(
+            sources, "wrapper.invalidate_sources_exact_merge"
+        ))
+
+    def test_one_lane_invalidate_fanout_bypass_is_rejected(self) -> None:
+        old = (
+            "  ) u_bridge1 (\n"
+            "    .clk(clk),\n"
+            "    .rst(rst),\n"
+            "    .flush_i(flush_i),\n"
+            "    .control_full_flush_barrier_i(control_full_flush_barrier_i),\n"
+            "    .mmu_flush_i(mmu_flush_i),\n"
+            "    .dcache_dma_invalidate_all_i(dcache_invalidate_all_w),"
+        )
+        new = old.replace(
+            ".dcache_dma_invalidate_all_i(dcache_invalidate_all_w),",
+            ".dcache_dma_invalidate_all_i(dcache_dma_invalidate_all_i),",
+        )
+        sources = self.mutated("wrapper", old, new)
+        self.assertFalse(self.result(
+            sources, "wrapper.common_context_dual_fanout"
+        ))
+
     def test_reconstructed_maintenance_is_rejected(self) -> None:
         sources = self.mutated(
             "bridge",

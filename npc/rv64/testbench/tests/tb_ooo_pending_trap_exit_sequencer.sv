@@ -115,6 +115,21 @@ module tb_ooo_pending_trap_exit_sequencer;
                  {`XLEN{1'b0}}, {`XLEN{1'b0}});
 
     rst = 1'b0;
+    if ($test$plusargs("V9X_NEG_EXIT_SQUASH")) begin
+      clear_inputs();
+      clear_exit_i = 1'b1;
+      clear_arch_squash_i = 1'b1;
+      capture_exit_i = 1'b1;
+      capture_exit_valid_i = 1'b1;
+      capture_exit_is_ecall_i = 1'b1;
+      tick();
+      clear_inputs();
+      force dut.pending_exit_o = 1'b1;
+      force dut.pending_exit_is_ecall_o = 1'b1;
+      tick();
+      $fatal(1, "V9X_NEG_EXIT_SQUASH did not trigger");
+    end
+
     capture_arch_i = 1'b1;
     capture_arch_valid_i = 1'b1;
     capture_trap_cause_i = `EXC_ILLEGAL_INST;
@@ -147,6 +162,20 @@ module tb_ooo_pending_trap_exit_sequencer;
     expect_state(1'b1, 1'b1, 1'b0, 1'b0, `EXC_ILLEGAL_INST,
                  64'h8000_1234, 64'h0000_0013);
 
+    // V9X: branch/JALR recovery marks clear_arch_squash while clearing
+    // both trap and exit holders.  A same-edge wrong-path exit capture must
+    // not revive after that accepted squash.
+    clear_inputs();
+    clear_exit_i = 1'b1;
+    clear_arch_squash_i = 1'b1;
+    capture_exit_i = 1'b1;
+    capture_exit_valid_i = 1'b1;
+    capture_exit_is_ebreak_i = 1'b1;
+    tick();
+    expect_state(1'b0, 1'b0, 1'b0, 1'b0, `EXC_ILLEGAL_INST,
+                 64'h8000_1234, 64'h0000_0013);
+    $display("[V9X-EXIT-SQUASH-COLLISION][PASS] clear_exit+squash rejects capture");
+
     clear_inputs();
     capture_arch_i = 1'b1;
     capture_arch_valid_i = 1'b1;
@@ -154,7 +183,7 @@ module tb_ooo_pending_trap_exit_sequencer;
     capture_trap_pc_i = 64'h8000_2000;
     capture_trap_tval_i = 64'h0;
     tick();
-    expect_state(1'b1, 1'b1, 1'b0, 1'b1, `EXC_BREAKPOINT,
+    expect_state(1'b0, 1'b0, 1'b0, 1'b1, `EXC_BREAKPOINT,
                  64'h8000_2000, 64'h0);
 
     clear_inputs();
