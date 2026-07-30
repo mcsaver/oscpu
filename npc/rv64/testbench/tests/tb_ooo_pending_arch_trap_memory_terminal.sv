@@ -43,6 +43,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     .branch_spec_active_i(1'b0),
     .branch_spec_checkpoint_pending_i(1'b0),
     .pending_arch_trap_i(pending_arch_trap),
+    .pending_exit_i(1'b0),
     .pending_branch_i(1'b0),
     .pending_branch_dispatched_i(1'b0),
     .pending_jump_i(1'b0),

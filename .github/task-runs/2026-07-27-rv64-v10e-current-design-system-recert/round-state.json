@@ -1,0 +1,259 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-27-rv64-v10e-current-design-system-recert",
+  "status": "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+  "classification": "verification",
+  "auxiliary_classifications": [
+    "tooling/workflow"
+  ],
+  "scope": {
+    "debt_id": "SERIALIZE-G1",
+    "design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "transaction": "systemd strict guest checks to natural poweroff and simulation exit",
+    "production_rtl_edit": false
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "worktree": "mixed-origin-dirty",
+    "staged_paths": 0
+  },
+  "original_failure": {
+    "historical_design_id": "sha256:c358ce6d3ef0fe1cb4cd8337bd4dd4f35c44d713b54d047c2ea9a51d38c07e8d",
+    "strict_labels": "16/17",
+    "last_label": "virtio-irq-growth",
+    "missing_label": "dmesg-no-critical",
+    "last_commits": 710753508,
+    "max_cycles": 3000000000,
+    "strict_done": false,
+    "natural_poweroff": false,
+    "good_trap": false
+  },
+  "hypotheses": {
+    "H1": "historical failure was bounded-run truncation and current design completes under 6B cycles",
+    "H2": "current design retains a progress or terminal lifecycle defect",
+    "H3": "simulator, configuration or boot-artifact binding invalidates the run before an RTL conclusion"
+  },
+  "experiment": {
+    "mode": "systemd-strict",
+    "uart_rx_bytes": 0,
+    "rootfs": "fresh per-run isolated work image",
+    "max_cycles": 6000000000,
+    "host_timeout_seconds": 100000,
+    "commit_gap_limit_cycles": 1000000,
+    "progress_interval": 5000000
+  },
+  "prelaunch_review_v1": {
+    "task_id": "v10e_runner_prelaunch_review_v1",
+    "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v1.json",
+    "contract_sha256": "cdad55c378c961f0a6444643975db16488bdbd9cba50eede421ce0887de5766a",
+    "contract_validation": "PASS",
+    "technical_conclusion": "GAP",
+    "shell_ownership_returned": true,
+    "counterexamples": [
+      "cleanup could bypass final status publication",
+      "printed OOO define values did not prove generated simulator defines",
+      "missing post-run simulator could skip hash verification",
+      "private launcher locks and boot artifact TOCTOU"
+    ],
+    "reconciliation": {
+      "static_negative_mutations_rejected": "28/28",
+      "cleanup_failure_fixture": "PASS rc=7 status=FAIL",
+      "rootfs_copy_fixture": "PASS first copy; existing image rejected rc=4",
+      "production_rtl_changed": false
+    }
+  },
+  "prelaunch_review_v2": {
+    "task_id": "v10e_runner_prelaunch_review_v2",
+    "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v2.json",
+    "contract_sha256": "9ea21c8a9a038762e9817ef40c0ddd7f822efcff11cfad844b41c223b58ecbb6",
+    "contract_validation": "PASS",
+    "technical_conclusion": "GAP",
+    "shell_ownership_returned": true,
+    "counterexamples": [
+      "PASS status write failure returned success",
+      "cleanup signals could terminate before final status",
+      "post-binding output failure was not merged into cleanup status",
+      "assertion evidence query errors were accepted as no match",
+      "runtime control scripts lacked post-hash comparison",
+      "background lock contention could exit without a status file"
+    ],
+    "reconciliation": {
+      "static_negative_mutations_rejected": "40/40",
+      "dynamic_fail_closed_fixtures": {
+        "status_pass_write_fallback": "PASS",
+        "shared_lock_contention": "PASS rc=3",
+        "cleanup_failure": "PASS rc=7",
+        "cleanup_term": "PASS rc=143",
+        "post_binding_output_failure": "PASS rc=1",
+        "missing_assertion_log": "PASS rg_rc=2",
+        "rootfs_reuse": "PASS rc=4"
+      },
+      "production_rtl_changed": false
+    }
+  },
+    "prelaunch_review_v3": {
+        "task_id": "v10e_runner_prelaunch_review_v3",
+        "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v3.json",
+        "contract_sha256": "0af8b5154790a3ecff4a879f9d8d4de0852d518ae65a42933a3fd965fae023dc",
+        "contract_validation": "PASS",
+        "technical_conclusion": "GAP",
+        "shell_ownership_returned": true,
+        "counterexamples": [
+            "production assertion regex was over-escaped and returned rg rc=2",
+            "self-test used a simplified pattern and produced a false-green PASS",
+            "validated scope omitted npc/rv64/vsrc and could not independently recompute rtl_binding"
+        ],
+        "reconciliation": {
+            "static_negative_mutations_rejected": "41/41",
+            "dynamic_fail_closed_fixtures": "7/7",
+            "production_assertion_regex": "PASS match/no-match/read-error rc=0/1/2",
+            "launcher_validate_only": "PASS",
+            "production_rtl_changed": false
+        }
+    },
+    "prelaunch_review_v4": {
+        "task_id": "v10e_runner_prelaunch_review_v4",
+        "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v4.json",
+        "contract_sha256": "e15a69c817ff6ee1e45e84419be653fae70c3502cc477b0de6748e216654c931",
+        "contract_validation": "PASS",
+        "technical_conclusion": "PASS",
+        "shell_ownership_returned": true,
+        "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v4",
+        "reconciliation": {
+            "static_negative_mutations_rejected": "41/41",
+            "dynamic_fail_closed_fixtures": "7/7",
+            "production_assertion_regex": "PASS match/no-match/read-error rc=0/1/2",
+            "rtl_binding": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+            "rtl_source_count": 146,
+            "immutable_inputs": "16 pre/post NO_DRIFT",
+            "evidence_checksums": "15/15 OK",
+            "production_rtl_changed": false
+        }
+    },
+    "launch_attempts": {
+        "rootfs-c1b531-systemd-strict-6b-a1": {
+            "status": "FAIL",
+            "stage": "runner-preflight",
+            "command_rc": 1,
+            "cleanup_rc": 2,
+            "simulation_started": false,
+            "rtl_conclusion": "NONE",
+            "root_cause": "guest checker is tracked mode 100644 and invoked via Bash, but the runner required executable mode",
+            "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1"
+        },
+        "rootfs-c1b531-systemd-strict-6b-a2": {
+            "status": "FAIL",
+            "validation": "42/42 static; 8/8 dynamic; launcher validate-only PASS",
+            "launched_at": "2026-07-27T18:46:03.051259024+08:00",
+            "launcher_pid": 634431,
+            "latest_stage": "simulator-define-binding",
+            "simulation_started": false,
+            "rtl_conclusion": "NONE",
+            "command_rc": 1,
+            "cleanup_rc": 2,
+            "root_cause": "runner expected +define+OOO_TERMINAL_HOLDER_ASSERT=1 while the Makefile emits the ifdef macro without a value",
+            "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2"
+        },
+        "rootfs-c1b531-systemd-strict-6b-a3": {
+            "status": "FAIL",
+            "source_status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+            "validation": "43/43 static; 9/9 dynamic; launcher validate-only PASS",
+            "prelaunch_reviewer": "v10e_runner_prelaunch_review_v6",
+            "cycles": 5071521696,
+            "commits": 1223536213,
+            "strict": "16/17; sole FAIL=dmesg-no-critical; done_rc=1",
+            "terminal_transaction": "strict-done/poweroff-begin/kernel-power-down/syscon-poweroff/GOOD-TRAP/system-reset-exit each exactly once and ordered",
+            "rtl_assertions": "empty",
+            "binding": "design/simulator/config/boot artifacts NO_DRIFT",
+            "classification": "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+            "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3"
+        },
+        "rootfs-5f9dd068-systemd-strict-6b-a4": {
+            "status": "FAIL",
+            "source_status": "FAIL rc=143 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=143 signal=TERM",
+            "classification": "INTERRUPTED_NOT_PASS_EVIDENCE",
+            "reason": "full rerun was unnecessary after A3 frozen evidence and rerun gates were reconciled"
+        }
+    },
+    "prelaunch_review_v5": {
+        "task_id": "v10e_runner_prelaunch_review_v5",
+        "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v5.json",
+        "contract_sha256": "fe7adac029fa7341f8b44c74b734ce21d3ce804403919740aedaaac36e7f1760",
+        "contract_validation": "PASS",
+        "technical_conclusion": "PASS",
+        "shell_ownership_returned": true,
+        "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v5",
+        "reconciliation": {
+            "all_gates": "23/23",
+            "static_negative_mutations_rejected": "42/42",
+            "dynamic_fail_closed_fixtures": "8/8",
+            "a2_validate_only": "PASS rc=0 targets vacant",
+            "production_assertion_regex": "PASS match/no-match/read-error rc=0/1/2",
+            "rtl_binding": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+            "immutable_inputs": "22 pre/post NO_DRIFT",
+            "evidence_checksums": "26/26 OK",
+            "production_rtl_changed": false
+        }
+    },
+    "prelaunch_review_v6": {
+        "task_id": "v10e_runner_prelaunch_review_v6",
+        "contract": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v6.json",
+        "contract_sha256": "7c62fba90d357837866db7e3654a9fa34047e7d190607264a738eb9d9b7f7792",
+        "contract_validation": "PASS",
+        "technical_conclusion": "PASS",
+        "shell_ownership_returned": true,
+        "evidence": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v6",
+        "reconciliation": {
+            "all_gates": "23/23",
+            "static_negative_mutations_rejected": "43/43",
+            "dynamic_fail_closed_fixtures": "9/9",
+            "a3_validate_only": "PASS rc=0 targets vacant",
+            "production_assertion_regex": "PASS match/no-match/read-error rc=0/1/2",
+            "terminal_holder_define_binding": "Makefile, a2 Verilator manifest and corrected runner agree on presence-only macro",
+            "rtl_binding": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+            "rtl_source_count": 146,
+            "immutable_inputs": "26 pre/post NO_DRIFT",
+            "evidence_checksums": "25/25 OK",
+            "production_rtl_changed": false
+        }
+    },
+    "checker_replay_v2": {
+        "status": "PASS",
+        "task_run": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2",
+        "source_status_preserved": true,
+        "embedded_checker_sha256": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+        "embedded_checker_binding_match": true,
+        "legacy_a3_matches": 2,
+        "legacy_match_class": "printk: debug only",
+        "current_a3_matches": 0,
+        "checker_unit_tests": "PASS 3/3",
+        "real_bug_fixture": "REJECTED",
+        "printk_debug_fixture": "ACCEPTED",
+        "full_system_rerun_required": false,
+        "promotion_eligible": false
+    },
+    "final_review_v1": {
+        "state": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+        "contract_sha256": "f4db46c50967c2464b624a35adcec6369e15c9277703de45b10ec61de9edbc21",
+        "mode": "read-only counterexample-first review",
+        "shell_ownership": "returned",
+        "blocking_findings": 0,
+        "nonblocking_tool_debt": "compare_elaboration should reject A4-only generated files by checking A3/A4 filename-set equality in a future version"
+    },
+    "record_closure": {
+        "status": "CLOSED",
+        "checker_task_run": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2",
+        "rv64_systemd_contract_e2e": ".github/task-runs/2026-07-28-rv64-a3-checker-replay",
+        "agent_system_e2e": ".github/task-runs/2026-07-28-a3-printk-debug-replay",
+        "scoped_strict_guard": "PASS",
+        "full_worktree_guard": "FAIL_UNRELATED_MIXED_ORIGIN_DIRTY_SCOPE",
+        "promotion_eligible": false
+    },
+    "promotion": {
+    "serialize_g1": "OPEN",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "eligible": false
+  }
+}

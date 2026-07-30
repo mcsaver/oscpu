@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11e-rob-slot-generation-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 production OooRob.slot_generation_q 的候选代际、accepted dispatch 写入、hard reset、ordinary flush、selective recovery、commit/reuse、ProducerId carrier 与 exact query 周期合同，并寻找合法二态输入下的 RTL 反例、testbench 假绿或范围越级。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/define.v",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse",
+      ".github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/rtl-derivation.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/subagent-contracts/v11e-rob-slot-generation-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/rtl-derivation.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 module/signal、沿前/沿后周期、PRODUCER_GEN_W=1/4 配置和 testbench/RTL 变体逐项给出 H1/H2/H3/H4 裁决；列出可操作反例、覆盖洞、替代假设、未知项、scope_extension_request 与置信度依据。"
+  ],
+  "success_criteria": [
+    "明确 production RTL 是否存在合法二态反例；确认独立 expected model 与 candidate/accepted-write/lifecycle/carrier/query 覆盖是否足以闭合 rob-slot-generation，且有限代际回绕不被误判为 OooRob 局部缺陷。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -137,6 +137,24 @@ evidence:
   定向单测和返回码。该顺序不删除反例、原始日志 marker、真实文件名或未知项。
 - 技术描述保留真实工程意图、对象、周期条件和证据边界；长期 goal 只引用本节，不复制协调场景清单。
 
+### Schema-aware RTL Evidence Publication and Receipt Closure
+
+- RV64 architecture debt publisher 必须先校验 evidence 的 schema-specific identity，再刷新通用 SHA-256。
+  candidate、review contract、review report 等混合 tuple 由一个 canonical verifier 导出精确的
+  kind/path/order/fixed hash；missing、extra、remapped、reordered 或 hash-drifted member 都要在
+  ledger 写回前 fail closed。
+- raw simulator log、current-design JSON 与 independent-review Markdown 是不同 evidence kind：
+  raw log 可以只做 hash；JSON 必须核验 design-id、status 与对应 CPU semantic check；Markdown 只有在
+  exact tuple verifier 通过后才能免于通用 JSON 解析。不得用“所有非 JSON 都例外”替代字段级分派。
+- postflight 不能只从上游 summary JSON 合成 PASS。开始校验时先撤销旧 PASS，再消费每个定向 testbench
+  或 Python suite 的 `.log`、`.rc`、唯一测试数和 terminal marker；出现非零返回码、`FAILED`、
+  `Traceback`、计数漂移或 marker 缺失时保持 GAP。
+- 独立 reviewer 合同应包含 production RTL、实际 Makefile/filelist、所有参与 oracle 的 TB 源码和
+  receipt。缺少任何决定结论的 testbench source 时只交付 GAP；修复后使用新的 versioned contract
+  复核，并保留旧 reviewer 的反例报告。
+- 中断 attempt 使用独立 status/log/output 路径保留，后续 attempt 不覆盖。Windows→WSL 工程命令
+  继续 single-flight；只有确认无残留工程进程并完成 shell ownership 交接后才开始下一次 replay。
+
 ## 结构化任务产物
 
 - 任务级产物与长期记忆分离：
@@ -288,6 +306,28 @@ recall-and-freeze
 ```
 
 适用场景：持续优化 RV64 双发射完整 OoO 核及 PPA。只有同一完整设计状态通过功能、性能、时序、面积、功耗和证据硬门后，才允许进入全局 Pareto；流程摩擦和假绿必须回流到 AI 环境的唯一真源与自动 gate。
+
+### `rv64-historical-defect-backfill-loop`
+
+```text
+historical-defect-inventory
+ → VD0..VD4 depth classification
+ → rank unresolved VD0/VD1
+ → select exactly one transaction defect
+ → recreate compile-success historical RTL behavior
+ → reject it with current directed testbench
+ → aggregate replay and independent review
+ → promote evidence depth or retain GAP
+ → architecture-freeze gate
+```
+
+适用场景：在当前 P0/P1 架构债务清零后，系统化回填曾经真实出现但缺少可重放负向证据的 RV64 缺陷。VD0 只记录叙述；VD1 有当前正向或静态 witness，但没有重建并动态拒绝历史行为；VD2 有 focused reproduction 或 raw positive，但没有 compile-success RTL negative；VD3 同时具备当前 transaction 观测、compile-success 历史 RTL version、动态拒绝与同设计 identity；VD4 再增加 aggregate/system replay、发布边界和独立复核。
+
+- VD0/VD1 是 architecture-stable 与 PPA promotion 的硬阻塞；每轮只允许一个 `SELECTED` 项，并按 severity、critical-path relevance 与 evidence gap 明确排序。
+- 历史 task-run 的原始 PASS/FAIL/TERM 状态不可改写。当前正向 case 不能替代具有不同 owner、lane、age、holder phase 或 memory dependency 的历史反例。
+- 负向版本必须是能完成 elaboration/compile 的最小 RTL 行为恢复，并由当前 testbench 的真实 cycle/transaction oracle 拒绝；不得使用去重逻辑隐藏重复 terminal，也不得削弱 assertion。
+- 证据深度提升必须绑定 production design-id、negative RTL identity、原始 marker、返回码和 reviewer 裁决；信息不足时保持原深度与 GAP。
+- 具体缺陷 ID、选择状态和证据路径只维护在 versioned historical-defect ledger，蓝图不复制活动队列。
 
 ### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
 

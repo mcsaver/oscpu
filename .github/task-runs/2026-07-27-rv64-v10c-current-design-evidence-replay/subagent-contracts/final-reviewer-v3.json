@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v10c-status-initialization-final-rereview-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复审本地 RV64 V10C 证据回放 runner 的终态发布时序及 attempt 8 证据。v2 已接受 attempt 6 的当前设计证据边界，但发现 signal trap 早于 EXIT finalizer 的确定性初始化窗口。核对当前 runner 已预置标准状态路径与字段、先安装 EXIT finalizer、再安装 HUP/INT/TERM handler，并在退出时原子覆盖详细状态；核对 helper 对 HUP/INT/TERM 的用例，以及真实 V10C runner 在 pre-init/active-stage 两个周期点对三种信号的 6/6 stale-PASS 覆盖；核对 attempt 8 只执行 closed-evidence-currentness，未冒充完整 RTL 仿真回放。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/run-current-design-evidence-replay.sh",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/test-runner-status-contract.sh",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/status-contract-validation.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-run.status",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay.status",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay-attempt-8.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/stage-logs/attempt-8/closed-evidence-currentness.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/round-state.json",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/subagent-contracts/final-reviewer-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/run-current-design-evidence-replay.sh",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/test-runner-status-contract.sh",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/status-contract-validation.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-run.status",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay.status",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay-attempt-8.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/stage-logs/attempt-8/closed-evidence-currentness.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/round-state.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按“本地 RV64 runner/状态证据对象 → attempt 8 配置 → shell/status 原始观测 → PASS/GAP 范围”输出 v3 复审。先列 findings；再判定 v2 唯一阻断项是否关闭：EXIT 与 signal trap 安装顺序、预置字段、HUP/INT/TERM、cleanup rc、原子状态、stale PASS 覆盖、test hook 默认关闭；核对 attempt 8 仅为末端 currentness 审计；最后确认 production RTL、断言、testbench oracle、compile-success variant、SERIALIZE-G1 与 arch-stable/PPA 边界均未改变。无阻断项时写 APPROVED_FOR_CURRENT_SCOPE，否则写 CHANGES_REQUIRED。"
+  ],
+  "success_criteria": [
+    "只读复核 runner/helper/tests/log/status/JSON/git diff，不运行 RTL 仿真、综合或 STA，不修改文件。必须确认任何 HUP/INT/TERM 都经已安装的 EXIT finalizer 发布 FAIL，标准状态包含 stage/evidence_complete=0/cleanup_rc/signal，详细状态覆盖旧 PASS；helper 三种信号和 runner 六种组合均有精确 PASS marker；正常路径只有在 final currentness 与 design-id 比对后才发布 evidence_complete 与 PASS；attempt 8 日志明确跳过仿真阶段，只运行 closed-evidence-currentness，并观察 design-id 13d868…、closed=15、artifacts=35、failures=0、task-run.status=PASS、replay.status=PASS complete。不得将本轮扩大为 SERIALIZE-G1、rootfs、architecture_freeze 或 PPA closure；结束时显式归还 Windows→WSL 唯一工程命令 lane。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

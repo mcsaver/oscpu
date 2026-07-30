@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "hist-qh-younger-store-final-evidence-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend.mem_idle_o、mem_retire_quiet_o 到 OooRob.head0_csr_mem_hold_w 的 queue-head CSR 与 younger StoreQueue owner 周期证据，判定 assertion-on/off 的 current owner guard、历史 transport-idle fixed 版本和历史 mem_idle&&mem_retire_quiet 循环版本是否足以把 HIST-SER-QH-YOUNGER-STORE-CYCLE 从 VD1 提升为限域 VD3。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/variants/historical_fixed/source.diff",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/variants/historical_cycle/source.diff",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/current_owner_guard-assert-on/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/current_owner_guard-assert-off/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/historical_fixed-assert-on/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/historical_fixed-assert-off/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/historical_cycle-assert-on/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases/historical_cycle-assert-off/result/logs/tb_ooo_int_backend_hist_ser_qh_younger_store.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/product-frontdoor-v2/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/module-regression/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/current-design-id.txt",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-validation-v2.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-tests-v2.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/diagnostic-t3u/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-experiment-review-v1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-final-evidence-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive 终审；逐项核对产品可达性边界、backend root 原始计数、两个历史 RTL 版本的唯一 anchor/字节差异/编译成功/动态后果、assertion-off 等价性、production 无漂移、账本 VD3 结论和仍剩 HIST-SER-QH-STOP-HOLD-DROP VD1 blocker；列出任何假绿反例与 scope_extension_request，不修改文件。"
+  ],
+  "success_criteria": [
+    "只有在 current/product 与 historical reconstruction 的语义边界未混淆、负向版本不是编译失败或无效变异、C0/C1/C2 与 physical write 使用原始事件计数、assertion-on/off 均有独立日志、production design-id 未变化时才批准本缺陷限域 VD3；不得据此宣称 architecture freeze、PPA 或 A3 新系统运行完成。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

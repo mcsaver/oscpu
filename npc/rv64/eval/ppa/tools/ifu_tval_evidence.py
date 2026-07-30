@@ -528,8 +528,15 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
             "pending", "pending_trap_tval_o <= {`XLEN{1'b0}};"),
         "stop_branch_squash_clears_validity": (
             "stop",
-            "else if (!direct_frontend_flush_i && branch_resolve_untracked_i) begin\n"
-            "        stop_pending_o <= 1'b0;"),
+            "                  (branch_spec_checkpoint_capture_i ||\n"
+            "                   branch_spec_resolve_valid_i ||\n"
+            "                   branch_resolve_untracked_i)) ||\n"
+            "                 orphan_stop_pending_i ||\n"
+            "                 pending_branch_commit_resolve_i ||\n"
+            "                 pending_branch_match_clear_i ||\n"
+            "                 head0_csr_owner_kill_i ||\n"
+            "                 pending_jump_terminal_clear_w) begin\n"
+            "      stop_pending_o <= 1'b0;"),
         "csr_request_selects_pending_tval": (
             "csr", "pending_arch_trap_fire_o ? pending_trap_tval_i"),
         "lifecycle_matrix_is_nonvacuous": (

@@ -42,6 +42,14 @@ shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` �
 
 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。guard 会读取当前工作树触碰路径（或 `--paths-file` / `--path` 指定路径），推导推荐 profile，并要求候选 evidence 的语义完成时间不早于触发文件；触发文件按微秒上取整，tracked deletion 使用父目录/Git index 时间，无法枚举 Git 或无法给不存在路径建立可信基线时 fail closed。每个候选都校验 canonical task-report 基本信息和普通 `run-manifest.json`：JSON 必须无重复键、无 NaN/Infinity，completed 必须全节点 PASS，run/report/manifest/index/dispatch 的 task/trace/slug 必须一致，report/manifest 的 started/updated 必须逐字一致且顺序合法；report mtime、touch、复制或格式化不能刷新证据。缺字段、重复/冲突字段、非对象 manifest、profile/status 冲突、无时区/未来时间、symlink evidence root/run dir/artifact（含 dangling）均 fail closed；多个合格候选按 UTC 微秒时间选择最新者。`context-brief.md` 还必须证明 canonical+profile+独立 focus chunks 在硬预算内且每个 chunk 有完整 metadata/非空正文，`profile-resolve.md` 必须带连续编号、唯一 ID 的非空 Nodes 闭包；resolve、manifest、report、dispatch 和 `nodes.tsv` 必须绑定 `node_id/source_profile/module/owner/function/status/inputs/outputs/evidence` 全元组，并由 validator 现场递归解析 live profile include closure，逐节点复核前八项。dispatch 的 startup 与节点事件必须保持 canonical 全局顺序，11 个 payload 字段逐项相等；每个节点首要 evidence 必须是 canonical `evidence/<node_id>.log`，全部辅助指针也必须属于 actual indexed ordinary evidence。`evidence-index.md` 必须逐项重算 ordinary evidence 的路径、尺寸与 SHA-256。runner 对 recall、resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都保留非零/blocked；completed 先用 `archive-markdown --sync-task-run` 精确同步 staged Markdown，再生成绑定七份 artifact 的 `complete.marker` 与严格 EOF 的 `completion-publication.md`，最后由 `publish-task-run` 在单个 SQLite 事务内复核 marker/artifact/staged DB 并提交完成记录。普通 archive/promote/migrate/backup/rehydrate 不得制造或撤销 publication，`runs` 只承认 canonical `db-marker-v1` completed report；失败会撤销本次 live marker/publication并重渲染 blocked，既有已提交 publication 不会被通用 sync 误删。strict guard 同时重算 marker、publication 与 DB/live 精确集合。若缺证据，必须补跑建议的 `scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail`，或在 task-run/memory/最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替 agent/e2e workflow 证据契约。
 
+RV64 systemd checker 合同的精确脚本、parser、三份定向单测与冻结
+`v9s-rerun4-incomplete.console` 由 strict guard 路由到更贴合的
+`rv64-systemd-contract` profile；该 profile 同时执行 benign/critical checker
+正负例、guest terminal contract、transaction parser、rootfs 工作副本与
+debug-valid 合同。其它 `Linux/**`（包括 kernel、rootfs、Makefile 和通用 Ubuntu
+检查）仍路由到 `rv64-linux`。这个 exact-path 分流只避免 checker-only 修改触发
+完整 rootfs 长门，不允许用窄 profile 替代实际 Linux/boot 语义变化。
+
 完成后必须查看 task-run report、profile resolve、关键 evidence、FAIL marker 和 memory 更新。不能只看外层退出码，也不能从 `.github/db-backup` 绕开当前 DB/index recall 链路问题。
 
 Full cron daemon execution gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_CRON_JOB_TIMEOUT__`、`__NEMU_CHECK_FULL_CRON_JOB__`、`__NEMU_CHECK_FULL_CRON_EXEC_WAIT_SECONDS__`、`__NEMU_CHECK_FULL_CRON_EXEC_FILE__:1:/run/nemu-full-cron.out` 与 `full-userland-cron-exec`；full e2e 默认 `NEMU_SYSTEMD_CRON_JOB_TIMEOUT=180`。该 gate 只证明 cron daemon 能读取 `/etc/cron.d` 并执行单个 root job，不代表 anacron、完整 timer 矩阵或长期定时维护完成。

@@ -1,0 +1,103 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "serialize-currentness-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 live 5f9dd 本地 RV64 legal non-FP head0 CSR 的 dispatch birth→C0 commit/request/barrier→C1 typed apply/holder-stop clear→C2 raw quiet，以及 lane1/FP CSR、ECALL/EBREAK、xRET、WFI、SFENCE/SINVAL、architectural trap/IRQ/fault、simulation exit 的 pending full-drain owner transaction；依据 assert/release 原始计数、可编译 RTL 变异、当前设计回放、分层身份和 A3 产品配置证据，判定 SERIALIZE-G1 能否关闭。特别裁定 A3 authoritative product config OOO_CSR_QUEUE_HEAD=1 与仓库 Makefile/RTL fallback default=0、旧架构文档 default-off 之间是否构成关闭阻塞。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench",
+      "npc/rv64/Makefile",
+      "npc/rv64/configs",
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/eval/ppa/arch-stable",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay",
+      ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/subagent-contracts/serialize-currentness-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按“RTL module/signal 或本地 evidence 文件 → 周期/编译配置 → testbench/EDA 观测 → PASS/GAP 范围”给出反例优先终审。必须分别裁定 queue-head CSR、pending SYSTEM、architectural trap、simulation exit、current-design/source applicability、A3 oracle replay 和 product/default configuration boundary；最终只能输出 APPROVED_FOR_CURRENT_SCOPE 或 GAP，并给出 SERIALIZE-G1 的 CLOSED/OPEN 建议、不可声称范围和最小后续动作。"
+  ],
+  "success_criteria": [
+    "只有在 raw owner-bound C0/C1/C2（包括 OOO_ASSERT 关闭）、选择性恢复、可编译重复副作用变异敏感性、八类 SYSTEM/pending full-drain、trap/exit exact terminal、当前 design-id 与产品配置定义全部无未解反例时才可 APPROVED；不得用 sticky output、去重、A3 原始 FAIL 重写、A4 TERM、旧 design-id 或系统终端日志替代微周期证据。若 default=0 与 product config=1 的边界阻塞关闭，必须明确说明应修改哪些配置/规范、需要重跑的最小验证层级，以及为何不需要或需要完整系统重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

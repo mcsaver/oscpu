@@ -1,0 +1,30 @@
+{
+  "schema": "npc-rv64-historical-defect-round-v1",
+  "run_id": "2026-07-29-rv64-hist-ser-qh-stop-hold-drop",
+  "status": "completed",
+  "defect_id": "HIST-SER-QH-STOP-HOLD-DROP",
+  "starting_validation_depth": "VD1",
+  "target_validation_depth": "VD3",
+  "promotion": false,
+  "production_rtl_change_planned": false,
+  "a3_full_rerun": false,
+  "current_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "hypothesis_status": "initial_rejected_dual_contract_supported",
+  "focused_matrix_status": "pass_8_of_8",
+  "historical_version_status": "compile_success_rejected_assert_on_off",
+  "module_aggregate": "pass_113_of_113_assert_on",
+  "achieved_validation_depth": "VD3",
+  "implementer_review": "pass_bounded_vd3",
+  "independent_review": "pass_bounded_vd3",
+  "ledger_audit": "pass_no_vd0_vd1",
+  "task_specific_e2e": "npc_dev_pass_5_of_5",
+  "strict_guard": "pass_scoped_20_paths",
+  "architecture_stable": "GAP",
+  "ppa_status": "UNQUALIFIED",
+  "residual_gaps": [
+    "exact historical checkout equivalence is not claimed",
+    "full-core architecture-stable remains GAP",
+    "synthesis STA and PPA promotion were not run",
+    "global DB-first audit retains eight pre-existing task-run missing_backup entries"
+  ]
+}

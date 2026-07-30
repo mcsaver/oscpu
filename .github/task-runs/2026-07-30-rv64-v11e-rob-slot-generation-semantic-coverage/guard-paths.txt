@@ -1,0 +1,7 @@
+npc/rv64/testbench/tests/tb_ooo_rob.sv
+npc/rv64/eval/ppa/tools/rob_slot_generation_semantic_evidence.py
+npc/rv64/eval/ppa/tests/test_rob_slot_generation_semantic_evidence.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md

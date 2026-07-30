@@ -1,9 +1,12 @@
 # 规范：serialize-at-retire（域 B 拆除最后一步）—— 可行性评估 + 分阶段实施计划
 
-> 状态：**spec 先行 + Phase1 flag-gated 落地（2026-07-07 生命周期校正）**。宪法 §8.4 step 4。
+> 状态：**Phase1 产品默认启用，余下阶段仍为专项计划（2026-07-28）**。宪法 §8.4 step 4。
 > `serialize-at-retire-phase1.md` 已实现 head0-CSR 队头化的 `OOO_CSR_QUEUE_HEAD` 编译期开关，
-> 但默认仍为 0；2026-07-07 已补齐 glue TB CsrFile stub 的 head0 commit 接线与 flag-ON focused Linux smokes。
-> 翻默认 1 前仍需完整 rootfs boot 与 `-v-`/full-state difftest 护航。
+> 当前规范产品配置为 1；合法 non-FP head0 CSR 走 queue-head，lane1/FP CSR 与其余
+> system/trap 保留 pending/full-drain。2026-07-28 已补齐完整系统事务证据、current-design
+> 26-stage 回放、assert/release 原始周期计数与编译成功负向 RTL 版本；V10G 第二次
+> 独立审查已批准当前设计上的 `SERIALIZE-G1=CLOSED`。该裁决不代表本计划 Phase2–5、
+> architecture freeze 或 PPA 已完成。
 > 定位：把 system/trap 指令从"全局 stop_pending + 全后端 drain"改为"ROB 队头执行 + 退休刷 younger"，
 > **架构语义不变**（cycle 会变，故 cycle-exact 中性不适用），之后物理删除
 > `OooStopPendingSequencer`/`OooPendingDrainResolveGate`/`OooPendingDispatchArbiter` 等机制。
@@ -15,6 +18,14 @@
 **判定：这是"系统指令执行模型整体重做"级别的大重写，高风险，触碰精确异常/CSR/特权全路径，
 应作为专项（对标 B2 F2 的多会话工程量），spec 先行 + Linux boot smoke 护航，不宜作为快速改动。**
 
+2026-07-28 的当前裁决只收口 Phase1 split-domain：`OOO_CSR_QUEUE_HEAD=1` 是产品默认，
+`OOO_CSR_QUEUE_HEAD=0` 是显式比较/恢复配置。A3 在该产品配置下完成 5,071,521,696 cycles、
+1,223,536,213 commits，并各观测一次 kernel power-down、syscon poweroff、GOOD TRAP 与
+system-reset clean exit；RTL assertion 文件为空、设计/仿真器/配置/启动产物无漂移。
+A3 原始发布状态仍是 FAIL，因为旧 `dmesg-no-critical` oracle 误判 `printk: debug:`；
+冻结输入上的版本化 checker replay PASS 只支持
+`execution_state=COMPLETE, oracle_state=INVALID`，不得把历史状态改写为 PASS。
+
 宪法把它写成"改一个标志位、去掉 stop_pending 依赖、语义不变、复用队头精确异常"——**严重低估**。
 RTL 真相：**除 CSR 外的系统指令（ecall/mret/sret/wfi/sfence/IRQ/arch-trap）今天根本不进 ROB**，
 副作用完全由 pending 控制面在 drain-complete 拍合成产生；CSR 也只在 drain 后作为孤儿单独再注入。
@@ -23,7 +34,10 @@ RTL 真相：**除 CSR 外的系统指令（ecall/mret/sret/wfi/sfence/IRQ/arch-
 
 ## 1. 当前 system/trap 串行机制（现状映射，file:line）
 
-域 B 是**两条并行子机制**：CSR 走"drain→再注入 ROB→commit 写"，其余系统/trap 走"drain→控制面纯合成 fire"。
+域 B 历史上是**两条并行子机制**：CSR 走"drain→再注入 ROB→commit 写"，其余
+system/trap 走"drain→控制面纯合成 fire"。当前产品配置进一步拆分 CSR：合法 non-FP
+head0 CSR 直接进入 queue-head retire；以下 CSR drain 描述只适用于 lane1/FP CSR 与
+显式 `OOO_CSR_QUEUE_HEAD=0` 比较配置。
 
 - **stop_pending 置位源**：`control/OooStopPendingSequencer.v:106-140`（IRQ/取指fault/arch-trap/exit/
   CSR-illegal/system 全族；branch/jal 臂已 `!rob_walk_mode` 门死；lane1 barrier；unsupported）。

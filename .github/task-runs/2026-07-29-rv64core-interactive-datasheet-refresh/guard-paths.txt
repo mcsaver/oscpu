@@ -1,0 +1,4 @@
+docs/rv64core/study
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-07-29-rv64core-interactive-datasheet-refresh

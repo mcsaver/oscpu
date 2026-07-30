@@ -110,7 +110,6 @@ def complete_console(legacy: bool = False) -> list[str]:
         *make_stage("autocheck", legacy),
         *make_stage("strict", legacy),
         "__NPC_SYSTEMD_POWEROFF_BEGIN__",
-        "System Power Off",
     ]
 
 

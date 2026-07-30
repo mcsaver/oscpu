@@ -1,11 +1,12 @@
 # Phase 1 实施 Spec：CSR 队头化（serialize-at-retire step 1）
 
-> 状态：**flag-gated 落地，功能就绪（2026-07-05）**。§9 mem-quiescence（sound，3 refute 验证）+ §4 CSR 队头化
+> 状态：**产品默认启用，当前设计独立关闭审查通过（2026-07-28）**。§9 mem-quiescence（sound，3 refute 验证）+ §4 CSR 队头化
 > + **中间态死锁已修复（§10.4 两修：head0_csr_inflight 保持 stop 串行化 + mem 门控改用 mem_idle 单独避 younger-store
 > 循环死锁）**。**flag ON 全 real workload 通过**：riscv 177/0 + AM 57/58 + CoreMark 0xfcaf + sbi/linux-mini-boot/
-> sv39/misa-priv/最小 ecall。收在编译期 flag `OOO_CSR_QUEUE_HEAD`，**当前默认 0=基线绿**（flag-ON focused
-> Linux smokes 已于 2026-07-07 通过；翻 1 前置=完整 rootfs boot 护航 + `-v-`/full-state difftest，见 §10.6；
-> glue TB CsrFile stub 已于 2026-07-07 接入 head0 commit）。**详见 §10。**
+> sv39/misa-priv/最小 ecall。编译期 flag `OOO_CSR_QUEUE_HEAD` 当前产品默认 1；
+> `=0` 仅是显式比较/恢复配置。完整系统事务、current-design 功能聚合与 C0/C1/C2
+> 负向敏感性已于 2026-07-28 补齐，见 §10.8；glue TB CsrFile stub 自 2026-07-07
+> 起接入 head0 commit。**详见 §10。**
 > （历史：07-04 遇 §9 flush↔LSU 障碍未落地；07-05 首轮 §9 修向① 解、暴露中间态死锁；07-05 次轮中间态两修解。）
 > 父规范 `serialize-at-retire.md`。
 > 范围：**只 head0 CSR 队头化，lane1 CSR 仍走 drain 路**（两路结构互斥，天然最小面）。
@@ -142,7 +143,8 @@ root-cause 同族（方法级）：
 
 > 状态：**§9 mem-quiescence 安全机制实现并落地（sound，已对抗验证）；§4 CSR 队头化核心机制验证成立
 > （riscv rv64mi/si 23/23 + FP 全绿）；但中间态（head0-CSR 与 lane1-drain-CSR 共存）有未解死锁，
-> 故全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`（默认 0=基线行为，树保持绿）。** flag ON 需先解中间态串行化。
+> 故当时全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`（当时默认 0=基线行为）。**
+> 这是 2026-07-05 的历史状态；中间态随后修复，当前产品默认见 §10.8。
 
 ### 10.1 §9 修向① 落地：mem_quiet 门控（sound）
 - **门控信号 = `mem_idle && mem_retire_quiet`**（二者）。mem_idle(OooIntBackend:1082,miq_empty)覆盖 younger
@@ -194,10 +196,10 @@ root-cause 同族（方法级）：
 - **诊断方法学**：带周期号自插探针(MIDSTATE/CSRWRITE/CANRUN, ifdef 已移除)逐层定位 csr_commit→head0_csr_commit
   →pending 转换→can_run blocker(OooFrontendRunGate)→stop owner；最小复现序列在 NpcSimTop 隔离(vs glue module TB)。
 
-### 10.5 验证矩阵（2 修后）
+### 10.5 验证矩阵（2026-07-05 历史默认）
 | 状态 | module TB | lint | riscv | AM | CoreMark | 结论 |
 |---|---|---|---|---|---|---|
-| **flag OFF（提交默认）** | 82/82 | 0 | 177/0 | 57/58* | — | **= 精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
+| **flag OFF（当时提交默认；现为比较配置）** | 82/82 | 0 | 177/0 | 57/58* | — | **= 当时精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
 | flag ON | 82/82** | 0 | **177/0** | **57/58*** | **0xfcaf** | **中间态死锁已修**; real workload 全绿(含 sbi/linux-mini-boot/sv39/misa-priv/最小 ecall) |
 
 *fp-difftest-probe 预存在失败。**tb_ooo_core_top_glue 的 MODE_ECALL flag-ON TB 缺口已于 2026-07-07 关闭**：
@@ -205,7 +207,7 @@ root-cause 同族（方法级）：
 `pending_system_csr_commit || head0_csr_commit` 写 CSR 状态；默认与 `-DOOO_CSR_QUEUE_HEAD=1` 下
 `tb_ooo_core_top_glue` 均 PASS。flag ON module-TB 恢复 82/82。
 
-### 10.6 翻默认 ON 的前置（当前保守 OFF 之因）
+### 10.6 翻默认 ON 的前置（历史记录；2026-07-28 已满足）
 中间态死锁已修、real workload 全绿、glue module TB MODE_ECALL flag-ON 已补 CsrFile/head0 commit 并通过；
 2026-07-07 又补可复现的 `OOO_CSR_QUEUE_HEAD=1` Linux/NPC 构建入口，并在 flag ON 下跑通 focused Linux smokes：
 `smoke-sret-user-sv39`、`smoke-sret-user-sv39-halfword`、`smoke-sret-restore`、
@@ -226,3 +228,34 @@ root-cause 同族（方法级）：
 ### 10.7 下一步（flag ON 前置，历史）
 解中间态串行化：使 head0-CSR 的 stop_pending 有效阻止 lane1-CSR 捕获（或让 lane1-CSR 也队头化 = 每 CSR
 单发经 head0，消除共存），并根治 ecall-drain 的 SQ stuck-store（核对是否 serial_flush/中间态扰动致某 store 未 drain）。
+
+### 10.8 产品默认与 current-design 证据（2026-07-28）
+
+- `npc/rv64/configs/product-rtl-defaults.mk` 是 Makefile 消费的规范配置：
+  `OOO_CSR_QUEUE_HEAD=1`、`OOO_TERMINAL_HOLDER_ASSERT=1`；`define.v` fallback
+  同步为 `1'b1`。不带命令行 override 的配置 receipt、assert/release focused TB 与
+  pending-SYSTEM matrix 均证明实际采用该配置。
+- queue-head raw scoreboard 在 assertions-on/off 下各覆盖 3 条 committed 事务
+  （ecall handler、older store、CSR/JALR callback）与 2 条 wrong-path selective-kill；
+  committed 路径逐拍要求 `birth=1, C0 commit/barrier/CsrFile request=1,
+  C1 apply=1, C2 quiet=1`，kill 路径要求 C0/C1 均为 0。
+- 两个可编译负向版本分别在 C2 重放 typed apply 与 CsrFile request；前者修改生产
+  sequencer RTL，后者采用与 `NpcCoreTop.v` 生产绑定等价的 verification wiring，
+  不能把二者都表述为 production RTL mutation。当前 raw scoreboard 都以非零仿真
+  rc 拒绝，且没有去重逻辑掩盖重复事件。产品配置下
+  lane1 SATP 另行证明 pending/full-drain + registered MMU pulse；head0 SATP
+  证明 queue-head C0/C1 且 pending MMU pulse=0。
+- pending-SYSTEM 产品配置矩阵为 3/3 baseline PASS、14/14 compile-success RTL
+  版本动态拒绝；current replay 为 26/26 stages PASS、module 113/113、
+  official 177/177、AM 59/59、DiffTest mismatch 0，设计 ID 为
+  `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`。
+- A3 在同一 active elaboration 下完成 5,071,521,696 cycles 与
+  1,223,536,213 commits，终端事务链及空 RTL assertion 文件完整。A3 原始
+  `published_gate_state=FAIL` 永久保留；冻结输入上的 checker replay 只把它分类为
+  `execution_state=COMPLETE, oracle_state=INVALID`。产品默认 manifest/fallback 的
+  文本变化没有改变 A3 elaborated RTL、device objects 或 host execution object，
+  因而 `full_system_rerun_required=NO`。
+- V10G 第二次独立审查在上述当前设计与产品配置上裁定
+  `APPROVED_FOR_CURRENT_SCOPE`，因此 `SERIALIZE-G1=CLOSED`。该裁决只支持
+  Phase1 split-domain；Phase2–5、architecture freeze、historical-defect backfill
+  与 PPA 仍保持 GAP/UNQUALIFIED。

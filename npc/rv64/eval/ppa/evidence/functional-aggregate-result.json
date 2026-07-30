@@ -1,0 +1,86 @@
+{
+  "aggregate": {
+    "kind": "functional_aggregate",
+    "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+    "sha256": "895c83be5e8ccff222e86392598bfc5e3b831db8df567a01ea66e632afb7c187"
+  },
+  "canonical_command": "make -C npc/rv64 check-functional-aggregate",
+  "checks": [
+    {
+      "check_id": "functional.json_schema",
+      "detail": "valid Draft 2020-12 functional aggregate",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.schema_design_cohort",
+      "detail": "functional aggregate schema/design/cohort/image canonicalization must match",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.simulator_binding",
+      "detail": "functional simulator is an exact frozen executable artifact",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.configuration_binding",
+      "detail": "functional configuration is an exact frozen input",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.simulator_build",
+      "detail": "fresh simulator build log is bound to the current design/config/binary",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.module_dynamic_inventory",
+      "detail": "113 module tests have exact set coverage and bound compile/simulation logs",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.official",
+      "detail": "official RV64 suite has exact 177/177 raw-log coverage",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.am",
+      "detail": "AM suite has exact 59/59 raw-log coverage with DiffTest enabled",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.difftest",
+      "detail": "same-cohort DiffTest raw log reports zero architectural mismatches",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.benchmarks",
+      "detail": "CoreMark CRC/iterations and Dhrystone run count are bound to GOOD TRAP logs",
+      "status": "PASS"
+    }
+  ],
+  "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+  "counts": {
+    "am_passed": 59,
+    "am_required": 59,
+    "difftest_mismatches": 0,
+    "evidence_mutations_compiled": 11,
+    "evidence_mutations_rejected": 11,
+    "module_passed": 113,
+    "module_required": 113,
+    "official_passed": 177,
+    "official_required": 177
+  },
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "exit_code": 0,
+  "mutation_summary": {
+    "kind": "mutation_summary",
+    "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/evidence/mutations/summary.json",
+    "sha256": "35013a5d702953774525a999ad0a1a886d0546bdb2ca28207c977cac4e534080"
+  },
+  "raw_log": {
+    "kind": "raw_log",
+    "path": "npc/rv64/eval/ppa/evidence/functional-aggregate.log",
+    "sha256": "8b64621b661d7f09899df4c46fc5d2b31524780305d7739b88db7b72211d908b"
+  },
+  "schema": "npc-rv64-functional-aggregate-result-v1",
+  "status": "PASS"
+}

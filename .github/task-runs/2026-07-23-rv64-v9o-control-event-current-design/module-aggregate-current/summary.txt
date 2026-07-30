@@ -71,6 +71,8 @@
 - PASS tb_ooo_pending_lane1_capture_gate
 - PASS tb_ooo_pending_dispatch_arbiter
 - PASS tb_ooo_pending_drain_resolve_gate
+- PASS tb_ooo_pending_arch_trap_memory_terminal
+- PASS tb_ooo_serialized_owner_exactly_once
 - PASS tb_ooo_pending_system_admission_cancel_gate
 - PASS tb_ooo_pending_system_sequencer
 - PASS tb_ooo_pending_trap_exit_sequencer
@@ -115,6 +117,6 @@
 - PASS tb_ooo_lsu_axi_lane_adapter
 - PASS tb_ooo_mem_axi_bridge
 
-- total: 111
-- passed: 111
+- total: 113
+- passed: 113
 - failed: 0

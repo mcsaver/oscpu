@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e-checker-debug-valid-bounded-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地 RV64 checker、终端事务与 debug-valid 证据事实，复核当前 verification/tooling 和 simulation-only diagnostic 差异是否存在逻辑反例、假绿或越级结论",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-28-npc-systemd-guest-check",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e-checker-debug-valid-bounded-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "a3 绑定 RTL design-id c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594、仿真器 dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218、OOO_CSR_QUEUE_HEAD=1、OOO_ASSERT=1、OOO_TERMINAL_HOLDER_ASSERT=1，5,071,521,696 周期和 1,223,536,213 commits 自然结束",
+      "a3 单一 guest/console.log 中 __NPC_SYSTEMD_STRICT_DONE__ rc=1、__NPC_SYSTEMD_POWEROFF_BEGIN__、reboot: Power down、syscon-reset poweroff、exit via system-reset code=0 与 HIT GOOD TRAP 各出现一次，RTL assertion marker 为零",
+      "a3 strict 仅 dmesg-no-critical RED；原始 witness 是 printk: debug: ignoring loglevel setting，旧 grep -i -E 中无边界 BUG: 会命中 debug: 子串",
+      "生产 strict checker 将 BUG: 改为 (^|[^[:alnum:]_])BUG:；定向单测证明 debug、DEBUG、myBUG、_BUG 不命中，真实 BUG、panic、Oops、bad trap、illegal instruction、segfault、I/O error、EXT4-fs error 仍命中，旧无边界负向变体能重现 a3 RED",
+      "guest checker 删除 System Power Off 终端 oracle；保留 OpenSBI banner、syscon reboot/shutdown device、SBI SRST、poweroff begin、内核 reboot: Power down、RTL syscon、host system-reset code=0、GOOD TRAP 原始链",
+      "guest checker 定向测试证明无 System Power Off 文本的真实链 PASS，以 System Power Off 替换内核 marker FAIL，缺 syscon FAIL；host timeout 与 exact max-cycle abort 返回 rc124，V9R SQ assertion 同时存在时优先返回普通 FAIL 而非预算 GAP",
+      "runner 对 strict done、poweroff begin、kernel power down、syscon terminal、system-reset exit、GOOD TRAP 分别从单一 guest/console.log 要求 count 等于 1；六个改成大于等于 1 的负向变体均被 runner contract 拒绝，不使用去重",
+      "runner assertion regex 已覆盖 V9R-SQ-RETRY-C0-HANDOFF 与 V9R-MEM-SQ-RETRY-C0-HANDOFF；正向 fixture 两者均命中，clean 返回 1，缺失文件查询返回大于 1",
+      "NpcSimTop 在 CONFIG_NPC_DEBUG_PORTS 分支把 debug_ooo_flags_o 顶部 18 位从 18d0 改为 bit63 等于 1 加 bits62到46 等于零；disabled 分支保持 64d0，低 46 位未改",
+      "cpu-exec 解码 debug_valid=flags[63]，以 debug_valid 门控 sv39和privilege解释，同时保留 dynamic_user_pc 诊断路线；user_progress、user_ecall 与 ooo flags 日志显式输出 debug_valid或valid",
+      "debug-valid 定向测试覆盖 enabled packing、disabled 64d0、host gate、disabled 不得声明 Sv39或privilege、dynamic_user_pc 可观测、valid U-mode Sv39 与清 bit63 负向变体；同配置 Verilator/clang++ 构建 PASS，64-cycle disabled smoke 观测 flags=0 valid=0",
+      "strict rootfs 重建与静态检查 PASS；rv64-systemd-contract task-run 的 checker 节点 PASS；当前 design-id e85a1d41729579b686596d14d9e1b7449096b56f327ccbf8fe0081f7dcafe2b5，a4 六十亿周期系统仿真尚未启动"
+    ]
+  },
+  "deliverables": [
+    "逐项判断 BUG token、真实终端链、六事件 exact-once、预算与断言优先级、debug-valid 位宽和宿主门控是否在随附材料范围内自洽，并列出反例、替代假设、unknowns 与 confidence_and_basis",
+    "明确给出 APPROVED_FOR_CURRENT_SCOPE、APPROVED_NOT_PROMOTION_ELIGIBLE 或具体 REJECTED 原因；不得把限定材料复核外推为完整源码审查或 a4 系统认证"
+  ],
+  "success_criteria": [
+    "每个结论引用具体 module、signal、marker、周期配置或定向测试事实，并明确 a4 NOT_RUN、PPA promotion 不允许以及任何仍需新增的 fail-closed test",
+    "不得建议用去重掩盖重复终端事件，不得建议削弱 assertion、checker 或 negative mutation"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

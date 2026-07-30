@@ -136,6 +136,21 @@ module tb_ooo_rob;
   reg [PRODUCER_ID_W-1:0] saved0_producer;
   reg [ROB_INDEX_W-1:0] saved1;
 
+  // V11E source-bound slot-generation oracle.  The expected state is derived
+  // only from TB stimulus and edge-old model state; DUT ProducerId and
+  // slot_generation_q are observations, never model inputs.
+  localparam V11E_ROB_ENTRIES = (1 << ROB_INDEX_W);
+  reg [PRODUCER_GEN_W-1:0] v11e_generation_model [0:V11E_ROB_ENTRIES-1];
+  reg v11e_valid_model [0:V11E_ROB_ENTRIES-1];
+  reg v11e_done_model [0:V11E_ROB_ENTRIES-1];
+  reg [ROB_INDEX_W-1:0] v11e_head_model;
+  reg [ROB_INDEX_W-1:0] v11e_tail_model;
+  reg [ROB_COUNT_W-1:0] v11e_count_model;
+  reg v11e_recover_model;
+  reg [ROB_INDEX_W-1:0] v11e_walk_ptr_model;
+  reg [ROB_INDEX_W-1:0] v11e_kill_idx_model;
+  integer v11e_cycle_model;
+
   // B2 ROB-walk 恢复端口
   reg kill_valid;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
@@ -1310,9 +1325,694 @@ module tb_ooo_rob;
     end
   endtask
 
+  function automatic [PRODUCER_ID_W-1:0] v11e_model_pid;
+    input [ROB_INDEX_W-1:0] slot;
+    begin
+      v11e_model_pid = {v11e_generation_model[slot], slot};
+    end
+  endfunction
+
+  function automatic [PRODUCER_ID_W-1:0] v11e_model_candidate_pid;
+    input [ROB_INDEX_W-1:0] slot;
+    reg [PRODUCER_GEN_W-1:0] next_generation;
+    begin
+      next_generation = v11e_generation_model[slot] +
+          {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+      v11e_model_candidate_pid = {next_generation, slot};
+    end
+  endfunction
+
+  task automatic v11e_check_bit;
+    input [1023:0] what;
+    input got;
+    input exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s got=%0b expected=%0b",
+                 v11e_cycle_model, what, got, exp);
+      end
+    end
+  endtask
+
+  task automatic v11e_check_pid;
+    input [1023:0] what;
+    input [PRODUCER_ID_W-1:0] got;
+    input [PRODUCER_ID_W-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s got=0x%0h expected=0x%0h",
+                 v11e_cycle_model, what, got, exp);
+      end
+    end
+  endtask
+
+  task automatic v11e_check_state;
+    input [1023:0] what;
+    integer slot;
+    begin
+      for (slot = 0; slot < V11E_ROB_ENTRIES; slot = slot + 1) begin
+        if (dut.slot_generation_q[slot] !==
+            v11e_generation_model[slot]) begin
+          tb_errors = tb_errors + 1;
+          $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s slot=%0d generation got=0x%0h expected=0x%0h",
+                   v11e_cycle_model, what, slot,
+                   dut.slot_generation_q[slot],
+                   v11e_generation_model[slot]);
+        end
+        if (dut.valid_q[slot] !== v11e_valid_model[slot]) begin
+          tb_errors = tb_errors + 1;
+          $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s slot=%0d valid got=%0b expected=%0b",
+                   v11e_cycle_model, what, slot, dut.valid_q[slot],
+                   v11e_valid_model[slot]);
+        end
+        if (dut.done_q[slot] !== v11e_done_model[slot]) begin
+          tb_errors = tb_errors + 1;
+          $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s slot=%0d done got=%0b expected=%0b",
+                   v11e_cycle_model, what, slot, dut.done_q[slot],
+                   v11e_done_model[slot]);
+        end
+      end
+      if (dut.head_q !== v11e_head_model) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s head got=%0d expected=%0d",
+                 v11e_cycle_model, what, dut.head_q, v11e_head_model);
+      end
+      if (dut.tail_q !== v11e_tail_model) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s tail got=%0d expected=%0d",
+                 v11e_cycle_model, what, dut.tail_q, v11e_tail_model);
+      end
+      if (dut.count_q !== v11e_count_model) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s count got=%0d expected=%0d",
+                 v11e_cycle_model, what, dut.count_q, v11e_count_model);
+      end
+      v11e_check_bit("recover_q", dut.recover_q, v11e_recover_model);
+      v11e_check_bit("empty_o", empty,
+                     v11e_count_model == {ROB_COUNT_W{1'b0}});
+      v11e_check_bit("full_o", full,
+                     v11e_count_model == V11E_ROB_ENTRIES);
+    end
+  endtask
+
+  task automatic v11e_model_reset_state;
+    integer slot;
+    begin
+      for (slot = 0; slot < V11E_ROB_ENTRIES; slot = slot + 1) begin
+        v11e_generation_model[slot] = {PRODUCER_GEN_W{1'b1}};
+        v11e_valid_model[slot] = 1'b0;
+        v11e_done_model[slot] = 1'b0;
+      end
+      v11e_head_model = {ROB_INDEX_W{1'b0}};
+      v11e_tail_model = {ROB_INDEX_W{1'b0}};
+      v11e_count_model = {ROB_COUNT_W{1'b0}};
+      v11e_recover_model = 1'b0;
+      v11e_walk_ptr_model = {ROB_INDEX_W{1'b0}};
+      v11e_kill_idx_model = {ROB_INDEX_W{1'b0}};
+      v11e_cycle_model = 0;
+    end
+  endtask
+
+  task automatic v11e_check_preedge;
+    input [1023:0] what;
+    reg ready0_exp;
+    reg ready1_exp;
+    reg fire0_exp;
+    reg commit0_exp;
+    reg commit1_exp;
+    reg [ROB_INDEX_W-1:0] lane1_slot_exp;
+    reg [ROB_INDEX_W-1:0] pair_slot_exp;
+    reg [ROB_INDEX_W-1:0] head1_slot_exp;
+    reg [ROB_INDEX_W-1:0] walk1_slot_exp;
+    integer free_slots_exp;
+    begin
+      free_slots_exp = V11E_ROB_ENTRIES - v11e_count_model;
+      ready0_exp = !rst && !flush &&
+                   !(v11e_recover_model || kill_valid) &&
+                   (free_slots_exp != 0);
+      fire0_exp = dispatch0_valid && ready0_exp;
+      ready1_exp = !rst && !flush &&
+                   !(v11e_recover_model || kill_valid) &&
+                   (free_slots_exp > fire0_exp);
+      lane1_slot_exp = v11e_tail_model + fire0_exp;
+      pair_slot_exp = v11e_tail_model +
+                      {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+      head1_slot_exp = v11e_head_model +
+                       {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+
+      v11e_check_bit("dispatch0_ready", dispatch0_ready, ready0_exp);
+      v11e_check_bit("dispatch1_ready", dispatch1_ready, ready1_exp);
+      if (dispatch0_rob_idx !== v11e_tail_model) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s lane0 slot got=%0d expected=%0d",
+                 v11e_cycle_model, what, dispatch0_rob_idx,
+                 v11e_tail_model);
+      end
+      if (dispatch1_rob_idx !== lane1_slot_exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11E-SLOT-GEN-ORACLE][FAIL] cycle=%0d %0s lane1 slot got=%0d expected=%0d",
+                 v11e_cycle_model, what, dispatch1_rob_idx,
+                 lane1_slot_exp);
+      end
+      v11e_check_pid("lane0 candidate", dispatch0_producer_id,
+                      v11e_model_candidate_pid(v11e_tail_model));
+      v11e_check_pid("lane1 actual candidate", dispatch1_producer_id,
+                      v11e_model_candidate_pid(lane1_slot_exp));
+      v11e_check_pid("lane1 pair candidate",
+                      dispatch1_pair_producer_id,
+                      v11e_model_candidate_pid(pair_slot_exp));
+      v11e_check_pid("head0 carrier", head0_producer_id,
+                      v11e_model_pid(v11e_head_model));
+
+      // Every V11E allocation uses an ordinary NOP payload, so no CSR/trap
+      // control-event pregrant is part of this source-authority experiment.
+      v11e_check_bit("head0 control-event pregrant",
+                     head0_control_event_pregrant, 1'b0);
+      commit0_exp = !(v11e_recover_model || kill_valid) &&
+                    commit_ready &&
+                    (v11e_count_model != {ROB_COUNT_W{1'b0}}) &&
+                    v11e_valid_model[v11e_head_model] &&
+                    v11e_done_model[v11e_head_model];
+      commit1_exp = commit0_exp &&
+                    (v11e_count_model >
+                     {{(ROB_COUNT_W-1){1'b0}}, 1'b1}) &&
+                    v11e_valid_model[head1_slot_exp] &&
+                    v11e_done_model[head1_slot_exp];
+      v11e_check_bit("commit0_valid", commit0_valid, commit0_exp);
+      v11e_check_bit("commit1_valid", commit1_valid, commit1_exp);
+      v11e_check_pid("commit0 carrier", commit0_producer_id,
+                      v11e_model_pid(v11e_head_model));
+      v11e_check_pid("commit1 carrier", commit1_producer_id,
+                      v11e_model_pid(head1_slot_exp));
+
+      v11e_check_bit("walk0_valid", walk0_valid,
+                     v11e_recover_model);
+      if (v11e_recover_model) begin
+        walk1_slot_exp = v11e_walk_ptr_model -
+                         {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+        v11e_check_pid("walk0 carrier", walk0_producer_id,
+                        v11e_model_pid(v11e_walk_ptr_model));
+        v11e_check_bit("walk1_valid", walk1_valid,
+                       walk1_slot_exp != v11e_kill_idx_model);
+        if (walk1_slot_exp != v11e_kill_idx_model)
+          v11e_check_pid("walk1 carrier", walk1_producer_id,
+                          v11e_model_pid(walk1_slot_exp));
+      end else begin
+        v11e_check_bit("walk1_valid", walk1_valid, 1'b0);
+      end
+    end
+  endtask
+
+  task automatic v11e_tick_model;
+    input [1023:0] what;
+    reg ready0_exp;
+    reg ready1_exp;
+    reg fire0_exp;
+    reg fire1_exp;
+    reg commit0_exp;
+    reg commit1_exp;
+    reg kill_has_younger_exp;
+    reg lane1_squash_exp;
+    reg walk_done_exp;
+    reg wb0_pre_valid;
+    reg wb1_pre_valid;
+    reg [ROB_INDEX_W-1:0] pre_head;
+    reg [ROB_INDEX_W-1:0] pre_tail;
+    reg [ROB_COUNT_W-1:0] pre_count;
+    reg [ROB_INDEX_W-1:0] lane0_slot;
+    reg [ROB_INDEX_W-1:0] lane1_slot;
+    reg [ROB_INDEX_W-1:0] head1_slot;
+    reg [ROB_INDEX_W-1:0] walk1_slot;
+    reg [PRODUCER_GEN_W-1:0] lane0_generation;
+    reg [PRODUCER_GEN_W-1:0] lane1_generation;
+    integer free_slots_exp;
+    integer slot;
+    begin
+      #1;
+      v11e_check_preedge(what);
+      pre_head = v11e_head_model;
+      pre_tail = v11e_tail_model;
+      pre_count = v11e_count_model;
+      free_slots_exp = V11E_ROB_ENTRIES - pre_count;
+      ready0_exp = !rst && !flush &&
+                   !(v11e_recover_model || kill_valid) &&
+                   (free_slots_exp != 0);
+      fire0_exp = dispatch0_valid && ready0_exp;
+      ready1_exp = !rst && !flush &&
+                   !(v11e_recover_model || kill_valid) &&
+                   (free_slots_exp > fire0_exp);
+      fire1_exp = dispatch1_valid && ready1_exp;
+      lane0_slot = pre_tail;
+      lane1_slot = pre_tail + fire0_exp;
+      lane0_generation = v11e_generation_model[lane0_slot] +
+          {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+      lane1_generation = v11e_generation_model[lane1_slot] +
+          {{(PRODUCER_GEN_W-1){1'b0}}, 1'b1};
+      head1_slot = pre_head + {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+      commit0_exp = !(v11e_recover_model || kill_valid) &&
+                    commit_ready &&
+                    (pre_count != {ROB_COUNT_W{1'b0}}) &&
+                    v11e_valid_model[pre_head] &&
+                    v11e_done_model[pre_head];
+      commit1_exp = commit0_exp &&
+                    (pre_count > {{(ROB_COUNT_W-1){1'b0}}, 1'b1}) &&
+                    v11e_valid_model[head1_slot] &&
+                    v11e_done_model[head1_slot];
+      kill_has_younger_exp =
+          kill_valid &&
+          (pre_tail !=
+           (kill_rob_idx + {{(ROB_INDEX_W-1){1'b0}}, 1'b1}));
+      wb0_pre_valid = v11e_valid_model[wb0_rob_idx];
+      wb1_pre_valid = v11e_valid_model[wb1_rob_idx];
+      lane1_squash_exp = 1'b0;
+      walk_done_exp = 1'b0;
+      walk1_slot = v11e_walk_ptr_model -
+                   {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+      if (v11e_recover_model) begin
+        lane1_squash_exp = walk1_slot != v11e_kill_idx_model;
+        walk_done_exp =
+            (walk1_slot == v11e_kill_idx_model) ||
+            (lane1_squash_exp &&
+             ((v11e_walk_ptr_model -
+               {{(ROB_INDEX_W-2){1'b0}}, 2'd2}) ==
+              v11e_kill_idx_model));
+      end
+
+      `TB_TICK(clk);
+
+      if (rst || flush) begin
+        for (slot = 0; slot < V11E_ROB_ENTRIES; slot = slot + 1) begin
+          v11e_valid_model[slot] = 1'b0;
+          v11e_done_model[slot] = 1'b0;
+          if (rst)
+            v11e_generation_model[slot] =
+                {PRODUCER_GEN_W{1'b1}};
+        end
+        v11e_head_model = {ROB_INDEX_W{1'b0}};
+        v11e_tail_model = {ROB_INDEX_W{1'b0}};
+        v11e_count_model = {ROB_COUNT_W{1'b0}};
+        v11e_recover_model = 1'b0;
+        v11e_walk_ptr_model = {ROB_INDEX_W{1'b0}};
+        v11e_kill_idx_model = {ROB_INDEX_W{1'b0}};
+      end else if (v11e_recover_model) begin
+        if (wb0_valid && wb0_pre_valid)
+          v11e_done_model[wb0_rob_idx] = 1'b1;
+        if (wb1_valid && wb1_pre_valid)
+          v11e_done_model[wb1_rob_idx] = 1'b1;
+        v11e_valid_model[v11e_walk_ptr_model] = 1'b0;
+        v11e_done_model[v11e_walk_ptr_model] = 1'b0;
+        if (lane1_squash_exp) begin
+          v11e_valid_model[walk1_slot] = 1'b0;
+          v11e_done_model[walk1_slot] = 1'b0;
+        end
+        v11e_count_model = pre_count -
+                            (lane1_squash_exp ? 2 : 1);
+        if (walk_done_exp) begin
+          v11e_recover_model = 1'b0;
+          v11e_tail_model = v11e_kill_idx_model +
+              {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+        end else begin
+          v11e_walk_ptr_model = v11e_walk_ptr_model -
+              {{(ROB_INDEX_W-2){1'b0}}, 2'd2};
+        end
+      end else if (kill_has_younger_exp) begin
+        if (wb0_valid && wb0_pre_valid)
+          v11e_done_model[wb0_rob_idx] = 1'b1;
+        if (wb1_valid && wb1_pre_valid)
+          v11e_done_model[wb1_rob_idx] = 1'b1;
+        v11e_recover_model = 1'b1;
+        v11e_kill_idx_model = kill_rob_idx;
+        v11e_walk_ptr_model = pre_tail -
+            {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+      end else begin
+        if (commit0_exp) begin
+          v11e_valid_model[pre_head] = 1'b0;
+          v11e_done_model[pre_head] = 1'b0;
+        end
+        if (commit1_exp) begin
+          v11e_valid_model[head1_slot] = 1'b0;
+          v11e_done_model[head1_slot] = 1'b0;
+        end
+        if (wb0_valid && wb0_pre_valid)
+          v11e_done_model[wb0_rob_idx] = 1'b1;
+        if (wb1_valid && wb1_pre_valid)
+          v11e_done_model[wb1_rob_idx] = 1'b1;
+        if (fire0_exp) begin
+          v11e_generation_model[lane0_slot] = lane0_generation;
+          v11e_valid_model[lane0_slot] = 1'b1;
+          v11e_done_model[lane0_slot] = 1'b0;
+        end
+        if (fire1_exp) begin
+          v11e_generation_model[lane1_slot] = lane1_generation;
+          v11e_valid_model[lane1_slot] = 1'b1;
+          v11e_done_model[lane1_slot] = 1'b0;
+        end
+        v11e_head_model = pre_head + commit0_exp + commit1_exp;
+        v11e_tail_model = pre_tail + fire0_exp + fire1_exp;
+        v11e_count_model = pre_count + fire0_exp + fire1_exp -
+                            commit0_exp - commit1_exp;
+      end
+      v11e_cycle_model = v11e_cycle_model + 1;
+      v11e_check_state(what);
+    end
+  endtask
+
+  task automatic v11e_check_query_bundle;
+    input [1023:0] what;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input current_exp;
+    input completion_exp;
+    input resolve_exp;
+    begin
+      current0_query_valid = 1'b1;
+      current0_query_producer_id = producer_id;
+      current1_query_valid = 1'b1;
+      current1_query_producer_id = producer_id;
+      set_all_completion_queries(1'b1, producer_id);
+      resolve_query_valid = 1'b1;
+      resolve_query_producer_id = producer_id;
+      #1;
+      v11e_check_bit({what, " current0"}, current0_query_match,
+                     current_exp);
+      v11e_check_bit({what, " current1"}, current1_query_match,
+                     current_exp);
+      v11e_check_bit({what, " completion0"},
+                     completion0_query_match, completion_exp);
+      v11e_check_bit({what, " completion1"},
+                     completion1_query_match, completion_exp);
+      v11e_check_bit({what, " completion2"},
+                     completion2_query_match, completion_exp);
+      v11e_check_bit({what, " completion3"},
+                     completion3_query_match, completion_exp);
+      v11e_check_bit({what, " completion4"},
+                     completion4_query_match, completion_exp);
+      v11e_check_bit({what, " completion5"},
+                     completion5_query_match, completion_exp);
+      v11e_check_bit({what, " completion6"},
+                     completion6_query_match, completion_exp);
+      v11e_check_bit({what, " completion7"},
+                     completion7_query_match, completion_exp);
+      v11e_check_bit({what, " resolve"}, resolve_query_match,
+                     resolve_exp);
+    end
+  endtask
+
+  task automatic exercise_v11e_slot_generation;
+    integer pair;
+    integer generation_bit;
+    reg [PRODUCER_ID_W-1:0] slot0_pid;
+    reg [PRODUCER_ID_W-1:0] slot1_pid;
+    reg [PRODUCER_ID_W-1:0] boundary_pid;
+    reg [PRODUCER_ID_W-1:0] younger_pid;
+    reg [PRODUCER_ID_W-1:0] stale_pid;
+    reg [PRODUCER_ID_W-1:0] first_incarnation_pid;
+    begin
+      clear_inputs();
+      rst = 1'b0;
+      commit_ready = 1'b0;
+      v11e_model_reset_state();
+      v11e_check_state("post-reset seed");
+      #1;
+      v11e_check_preedge("post-reset candidate");
+
+      // No-fire edges are sampled individually so a GEN_W=1 erroneous
+      // double advance cannot wrap back and evade an end-of-sequence check.
+      v11e_tick_model("idle no-fire");
+
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch0_pc = 32'h8000_2000;
+      v11e_tick_model("slot0 first accepted allocation");
+      clear_inputs();
+      commit_ready = 1'b0;
+      flush = 1'b1;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("ordinary flush preserves slot0 generation");
+      clear_inputs();
+      commit_ready = 1'b0;
+
+      // G[0] and G[1] are deliberately different here.  First observe a
+      // lane1-only actual candidate without taking an edge; then dual-fire
+      // distinguishes actual lane1 source from lane0 and pair semantics.
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      v11e_check_preedge("lane1-only actual versus pair candidate");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch0_pc = 32'h8000_2010;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      dispatch1_pc = 32'h8000_2014;
+      v11e_tick_model("dual-fire distinct slot generation sources");
+      $display("[V11E-SLOT-GEN-CANDIDATE] GEN_W=%0d lane0/lane1/pair source PASS",
+               PRODUCER_GEN_W);
+
+      clear_inputs();
+      commit_ready = 1'b0;
+      slot0_pid = v11e_model_pid(4'd0);
+      slot1_pid = v11e_model_pid(4'd1);
+      v11e_check_query_bundle("live slot0 exact", slot0_pid,
+                               1'b1, 1'b1, 1'b1);
+      for (generation_bit = 0;
+           generation_bit < PRODUCER_GEN_W;
+           generation_bit = generation_bit + 1) begin
+        stale_pid = slot0_pid;
+        stale_pid[ROB_INDEX_W + generation_bit] =
+            ~stale_pid[ROB_INDEX_W + generation_bit];
+        v11e_check_query_bundle("slot0 stale generation bit",
+                                 stale_pid, 1'b0, 1'b0, 1'b0);
+      end
+      clear_inputs();
+      commit_ready = 1'b0;
+      wb0_valid = 1'b1;
+      wb0_rob_idx = 4'd0;
+      v11e_tick_model("slot0 completion");
+      clear_inputs();
+      commit_ready = 1'b0;
+      v11e_check_query_bundle("done slot0 exact", slot0_pid,
+                               1'b1, 1'b0, 1'b0);
+      clear_inputs();
+      commit_ready = 1'b1;
+      v11e_tick_model("slot0 commit carrier");
+      clear_inputs();
+      commit_ready = 1'b0;
+      v11e_check_query_bundle("committed slot0 exact", slot0_pid,
+                               1'b0, 1'b0, 1'b0);
+      clear_inputs();
+      commit_ready = 1'b0;
+      flush = 1'b1;
+      v11e_check_query_bundle("flush masks live slot1", slot1_pid,
+                               1'b0, 1'b0, 1'b0);
+      v11e_tick_model("flush query death and generation hold");
+      $display("[V11E-SLOT-GEN-QUERY-CARRIER] GEN_W=%0d exact/all-generation-bit/done/commit/flush PASS",
+               PRODUCER_GEN_W);
+
+      // Hard reset is the only lifecycle event allowed to restart the
+      // generation source.
+      clear_inputs();
+      commit_ready = 1'b0;
+      rst = 1'b1;
+      v11e_tick_model("hard reset restarts generation source");
+      clear_inputs();
+      rst = 1'b0;
+      commit_ready = 1'b0;
+
+      // Prime slots0-3 once, flush, then allocate slots0-4 again.  The first
+      // recovery edge therefore observes slot4 generation 0 and slot3
+      // generation 1 even at GEN_W=1: both reset-to-ones and zero-carrier
+      // variants are distinguishable on the same walk pair.
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("recovery generation prime slots0-1");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("recovery generation prime slots2-3");
+      clear_inputs();
+      commit_ready = 1'b0;
+      flush = 1'b1;
+      v11e_tick_model("recovery generation prime flush");
+      clear_inputs();
+      commit_ready = 1'b0;
+
+      // Five live second-incarnation entries, then kill at slot1.  Two
+      // recovery walk edges cover dual-squash and final single-squash while
+      // generation is held.
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("recovery setup slots0-1");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("recovery setup slots2-3");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("recovery setup slot4");
+      clear_inputs();
+      commit_ready = 1'b0;
+      boundary_pid = v11e_model_pid(4'd1);
+      younger_pid = v11e_model_pid(4'd4);
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd1;
+      v11e_check_query_bundle("kill-start boundary", boundary_pid,
+                               1'b1, 1'b1, 1'b1);
+      v11e_check_query_bundle("kill-start younger", younger_pid,
+                               1'b0, 1'b0, 1'b1);
+      clear_inputs();
+      commit_ready = 1'b0;
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd1;
+      v11e_tick_model("selective recovery start");
+      clear_inputs();
+      commit_ready = 1'b0;
+      v11e_check_query_bundle("recovery survivor", boundary_pid,
+                               1'b1, 1'b1, 1'b0);
+      v11e_check_query_bundle("recovery younger", younger_pid,
+                               1'b0, 1'b0, 1'b0);
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("recovery dual-squash edge");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("recovery final-squash edge");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("post-recovery slot2-3 reuse");
+      clear_inputs();
+      commit_ready = 1'b0;
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd3;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("no-younger kill freezes dispatch");
+      $display("[V11E-SLOT-GEN-LIFECYCLE] GEN_W=%0d flush/kill/recovery/commit/reuse PASS",
+               PRODUCER_GEN_W);
+
+      clear_inputs();
+      commit_ready = 1'b0;
+      rst = 1'b1;
+      v11e_tick_model("hard reset before full test");
+      clear_inputs();
+      rst = 1'b0;
+      commit_ready = 1'b0;
+      for (pair = 0; pair < 8; pair = pair + 1) begin
+        dispatch0_valid = 1'b1;
+        dispatch0_inst = 32'h0000_0013;
+        dispatch0_pc = 32'h8000_3000 + pair * 8;
+        dispatch1_valid = 1'b1;
+        dispatch1_inst = 32'h0000_0013;
+        dispatch1_pc = 32'h8000_3004 + pair * 8;
+        v11e_tick_model("fill ROB pair");
+        clear_inputs();
+        commit_ready = 1'b0;
+      end
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("full rejected allocation edge0");
+      v11e_tick_model("full rejected allocation edge1");
+      clear_inputs();
+      commit_ready = 1'b0;
+      for (pair = 0; pair < 8; pair = pair + 1) begin
+        wb0_valid = 1'b1;
+        wb0_rob_idx = pair * 2;
+        wb1_valid = 1'b1;
+        wb1_rob_idx = pair * 2 + 1;
+        v11e_tick_model("complete full ROB pair");
+        clear_inputs();
+        commit_ready = 1'b0;
+      end
+      commit_ready = 1'b1;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("full same-edge commit does not lend slot");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      dispatch1_valid = 1'b1;
+      dispatch1_inst = 32'h0000_0013;
+      v11e_tick_model("post-commit slots0-1 reuse");
+      $display("[V11E-SLOT-GEN-FULL-REUSE] GEN_W=%0d two-edge reject/full-commit/reuse PASS",
+               PRODUCER_GEN_W);
+
+      clear_inputs();
+      commit_ready = 1'b0;
+      rst = 1'b1;
+      v11e_tick_model("hard reset before finite wrap");
+      clear_inputs();
+      rst = 1'b0;
+      commit_ready = 1'b0;
+      first_incarnation_pid = v11e_model_candidate_pid(4'd0);
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("finite wrap incarnation0");
+      clear_inputs();
+      commit_ready = 1'b0;
+      flush = 1'b1;
+      v11e_tick_model("finite wrap flush0");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      v11e_tick_model("finite wrap incarnation1");
+      clear_inputs();
+      commit_ready = 1'b0;
+      flush = 1'b1;
+      v11e_tick_model("finite wrap flush1");
+      clear_inputs();
+      commit_ready = 1'b0;
+      dispatch0_valid = 1'b1;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      v11e_check_preedge("finite wrap next candidate");
+      if (PRODUCER_GEN_W == 1)
+        v11e_check_bit("GEN_W=1 third candidate repeats incarnation0",
+                       dispatch0_producer_id == first_incarnation_pid,
+                       1'b1);
+      else
+        v11e_check_bit("GEN_W>1 third candidate has not wrapped",
+                       dispatch0_producer_id == first_incarnation_pid,
+                       1'b0);
+      $display("[V11E-SLOT-GEN-WRAP] GEN_W=%0d width-bounded modulo behavior PASS",
+               PRODUCER_GEN_W);
+      $display("[V11E-SLOT-GEN-ALL] GEN_W=%0d independent edge model PASS",
+               PRODUCER_GEN_W);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
+    if ($test$plusargs("V11E_SLOT_GENERATION_ONLY")) begin
+      exercise_v11e_slot_generation();
+      tb_finish("tb_ooo_rob_v11e_slot_generation");
+    end
     tb_check1("reset empty", empty, 1'b1);
     tb_check1("v8a reset candidate low", head0_retire_candidate_valid, 1'b0);
     tb_check1("v8a reset identity invalid", head0_identity_valid, 1'b0);

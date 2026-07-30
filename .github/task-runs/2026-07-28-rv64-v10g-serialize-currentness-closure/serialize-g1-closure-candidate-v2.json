@@ -1,0 +1,350 @@
+{
+  "schema": "npc-rv64-serialize-g1-closure-candidate/v2",
+  "status": "READY_FOR_INDEPENDENT_REVIEW",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture",
+      "tooling-workflow"
+    ],
+    "production_rtl_edit": false,
+    "product_configuration_edit": true,
+    "testbench_edit": true
+  },
+  "debt": {
+    "id": "SERIALIZE-G1",
+    "priority": "P1",
+    "pre_review_status": "OPEN",
+    "requested_review_transition": "CLOSED or named GAP"
+  },
+  "normative_split": {
+    "product_default": {
+      "OOO_CSR_QUEUE_HEAD": 1,
+      "OOO_TERMINAL_HOLDER_ASSERT": 1,
+      "command_line_override_required": false,
+      "queue_head_zero_role": "explicit comparison/recovery only"
+    },
+    "queue_head_domain": {
+      "scope": "legal non-FP lane0/head0 CSR",
+      "transaction": "birth -> C0 commit/CsrFile request/typed barrier -> C1 typed apply/holder+stop clear -> C2 quiet",
+      "wrong_path": "selective kill with one birth, one death, zero C0/C1"
+    },
+    "pending_full_drain_domain": {
+      "scope": [
+        "lane1 CSR",
+        "FP CSR",
+        "ECALL/EBREAK",
+        "MRET/SRET",
+        "WFI",
+        "SFENCE.VMA/Svinval",
+        "architectural trap/IRQ/fetch fault",
+        "simulation exit"
+      ],
+      "retained": true
+    },
+    "satp_position_split": {
+      "lane1": "pending/full-drain plus registered MMU pulse",
+      "head0": "queue-head C0/C1; no fabricated pending-SYSTEM MMU pulse"
+    },
+    "raw_event_counting": true,
+    "deduplication_mask": false,
+    "rtl_assertions_weakened": false
+  },
+  "evidence": {
+    "layered_identity_and_a3": {
+      "product_default_identity": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-identity.json",
+        "sha256": "e140aa5744947ad87bfef6e5e159fb075b8c4ab480ba07672371061e7ed87cf1",
+        "size_bytes": 5715
+      },
+      "a3_semantic_identity": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json",
+        "sha256": "0df921bc53d6a5c7070e5f3da9e2e2c4d460e987d1f16b1cc1b9978f1dbafaab",
+        "size_bytes": 12738
+      },
+      "current_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+      "active_generated_rtl_exact": "51/51",
+      "device_objects_exact": "8/8",
+      "host_execution_object_exact": true,
+      "a3_state": {
+        "published_gate_state": "FAIL",
+        "execution_state": "COMPLETE",
+        "dut_terminal_state": "COMPLETE",
+        "binding_state": "NO_DRIFT",
+        "raw_artifact_state": "VALID",
+        "rtl_assertion_state": "CLEAN",
+        "oracle_state": "INVALID",
+        "evidence_replayable": "YES",
+        "full_system_rerun_required": "NO",
+        "launch_authorization_state": "NOT_REQUIRED",
+        "rerun_reason": "NONE"
+      },
+      "a3_cycles": 5071521696,
+      "a3_commits": 1223536213,
+      "a3_terminal_counts": {
+        "good_trap": 1,
+        "kernel_power_down": 1,
+        "poweroff_begin": 1,
+        "strict_done": 1,
+        "syscon_poweroff": 1,
+        "system_reset_exit": 1
+      },
+      "a3_rtl_assertion_file_empty": true,
+      "system_recertification": {
+        "production_core_semantics_changed_relative_to_a4": false,
+        "active_elaborated_rtl_logic_changed_relative_to_a4": false,
+        "device_model_execution_semantics_changed": false,
+        "host_harness_execution_semantics_changed": false,
+        "a3_required_raw_evidence_missing": false,
+        "full_system_rerun_required": "NO",
+        "launch_authorization_state": "NOT_REQUIRED",
+        "rerun_reason": "NONE"
+      }
+    },
+    "queue_head_fallback_assert_release": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json",
+      "sha256": "ea36f9855b2658e63ea3b5f7264ed9e5a668f6e91701113338bdafc93732d445",
+      "size_bytes": 2317,
+      "assertions_on_off": "2/2",
+      "command_line_override": false,
+      "rtl_fallback": 1,
+      "committed_transactions": "3 per mode",
+      "selectively_killed_transactions": "2 per mode",
+      "raw_contract": "birth=1; C0 commit/barrier/CsrFile request=1; C1 apply=1; C2 quiet=1"
+    },
+    "typed_apply_c2_mutation": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/summary.json",
+      "sha256": "ffa04d8ce4c4aebf0379e23f545ee3815c6dd4dbb7c4ebd7cd42bfda5b0fbb3e",
+      "size_bytes": 3001,
+      "compile_success": true,
+      "pre_scoreboard_false_green": true,
+      "current_raw_scoreboard_rejected": true,
+      "C2_reject_markers": 3,
+      "unowned_reject_markers": 3,
+      "command_line_override": false
+    },
+    "csrfile_request_c2_mutation": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v2/summary.json",
+      "sha256": "c2f5ec7b1c1f31ac2ed0be79a4ef5f7e24775839d3135a5dd29e2bcc19499111",
+      "size_bytes": 2189,
+      "compile_success": true,
+      "current_raw_scoreboard_rejected": true,
+      "production_binding": {
+        "csr_commit_i": ".csr_commit_i(ooo_pending_system_csr_commit_w || ooo_head0_csr_commit_w),",
+        "exact_occurrences": 1,
+        "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "sha256": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe"
+      },
+      "command_line_override": false
+    },
+    "pending_system_product_matrix": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/system-product-default-matrix-v2/summary.json",
+      "sha256": "867d337884749799e3dbf59f0c9e782a6eaf107e67c987c5cb13151c5bc223d4",
+      "size_bytes": 46694,
+      "baseline_pass": "3/3",
+      "compile_success_mutations": "14/14",
+      "dynamically_rejected_mutations": "14/14",
+      "lane1_satp_pending_full_drain": "assert/release PASS",
+      "head0_satp_queue_head": "assert/release PASS",
+      "command_line_override": false
+    },
+    "trap_exit": {
+      "prior_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+      "current_design_applicability": {
+        "production_files_exact": 11,
+        "focused_testbench_exact": true,
+        "production_semantic_delta": "NONE",
+        "applicable": true
+      },
+      "focused": {
+        "focused-assert": {
+          "pass": "5/5",
+          "logs": {
+            "tb_ooo_pending_arch_trap_memory_terminal.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+              "sha256": "6ede318cb70adc9689dfd805326577f06729abd965744731f60a55b58b5d3870",
+              "size_bytes": 798
+            },
+            "tb_ooo_pending_drain_resolve_gate.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_pending_drain_resolve_gate.log",
+              "sha256": "8cbebbeb45817e0ccbe6c4ebffb8753d87328617006379d848dd4fc9fa78acf1",
+              "size_bytes": 731
+            },
+            "tb_ooo_serialized_owner_exactly_once.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+              "sha256": "b9384249bd9ce9c0d60933cd9a8970eb626fd90926447e2cf62593f73cb391df",
+              "size_bytes": 3931
+            },
+            "tb_ooo_trap_exit_event_mux.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_trap_exit_event_mux.log",
+              "sha256": "202a5d0c27d1ded34a81ee36133e36e2bf452efafdbd75d3b840f82b05618672",
+              "size_bytes": 643
+            },
+            "tb_ooo_trap_exit_output_sequencer.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_trap_exit_output_sequencer.log",
+              "sha256": "d1187755ac3b5a7d4edf58a1fa748fd56d540f3b728f6a811a9e44b6ae250082",
+              "size_bytes": 692
+            }
+          }
+        },
+        "focused-release": {
+          "pass": "5/5",
+          "logs": {
+            "tb_ooo_pending_arch_trap_memory_terminal.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+              "sha256": "f24c9eb8ff3de669ee2ee9154211b74184320e9fee31289adb5ec29ab298762b",
+              "size_bytes": 786
+            },
+            "tb_ooo_pending_drain_resolve_gate.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_pending_drain_resolve_gate.log",
+              "sha256": "3ed09fd52080730d084c39598185a13a72d8a8a5a2f383fafd5a6fc54516b49a",
+              "size_bytes": 719
+            },
+            "tb_ooo_serialized_owner_exactly_once.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+              "sha256": "887d8b05b002d3160332a7b3bfa789d9f151f2f0780d6d7eda6da0e1696d47d5",
+              "size_bytes": 3919
+            },
+            "tb_ooo_trap_exit_event_mux.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_trap_exit_event_mux.log",
+              "sha256": "f0ef1182190c605aefa83cd543112380de8b90bcbc953bc7e6967874832594a1",
+              "size_bytes": 631
+            },
+            "tb_ooo_trap_exit_output_sequencer.log": {
+              "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_trap_exit_output_sequencer.log",
+              "sha256": "8ac980624daa2e80a0690f9ca908fdc5e31c6ef73418950bf196502acfb43626",
+              "size_bytes": 680
+            }
+          }
+        }
+      },
+      "compile_success_mutations": "7/7",
+      "mutations": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/mutations/summary.json",
+        "sha256": "44ae585216ef65a964cd62839f70197c5a0137a9e6644a2779d15ce248f739d4",
+        "size_bytes": 5269
+      },
+      "round_state": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/round-state.json",
+        "sha256": "efe93aad3a95cfd5eb71dbdc142699a2db502ecdbe842713f2f12e7a321f042e",
+        "size_bytes": 6620
+      },
+      "remaining_assumption": "standalone cross-cycle trap then exit is not adversarially tested; integrated holder/run-gate transaction makes it unreachable",
+      "current_design_bridge": {
+        "product_default_identity": {
+          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-identity.json",
+          "sha256": "e140aa5744947ad87bfef6e5e159fb075b8c4ab480ba07672371061e7ed87cf1",
+          "size_bytes": 5715
+        },
+        "active_elaborated_logic_changed_relative_to_a4": false,
+        "product_current_replay_v10d_applicable_stages": [
+          "xret-current-mode",
+          "vectored-trap",
+          "control-event-focused",
+          "control-event-mutations"
+        ],
+        "current_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897"
+      }
+    },
+    "product_default_current_replay": {
+      "status": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/replay.status",
+        "sha256": "f13c62adcccd6aceae6a10de4927030c71d70cb406cbf19d1289175fff47f45a",
+        "size_bytes": 157
+      },
+      "task_status": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/task-run.status",
+        "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+        "size_bytes": 5
+      },
+      "driver": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/driver.log",
+        "sha256": "bc7341827fc4b808353d29a4f17d7e8184f860dcc710ca9d6de68376e6320a68",
+        "size_bytes": 3139
+      },
+      "launch_gate": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/launch-gate.json",
+        "sha256": "da00834f2b42629a1563c81bf655be2995da968df4f57e38a6268b9ea96628c1",
+        "size_bytes": 1367
+      },
+      "product_config_receipt": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/product-config-receipt.txt",
+        "sha256": "1cc5d87eb9e6da16673ca4e38c85e88101ffbea790185002e1fe57ee35cdd27f",
+        "size_bytes": 397
+      },
+      "stage_logs": 26,
+      "stage_pass": "26/26",
+      "module": "113/113",
+      "official": "177/177",
+      "am_difftest": "59/59; mismatch=0",
+      "benchmarks": "CoreMark + Dhrystone + microbench PASS",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+      "wall_seconds": 2005.8,
+      "cost_class": "greater-than-30-minutes-less-than-4-hours",
+      "single_flight": true
+    },
+    "normative_docs": {
+      "status": "PASS",
+      "normative_product_default": 1,
+      "split_domain_documented": true,
+      "a3_original_fail_preserved": true,
+      "documents": {
+        "npc/rv64/design/arch/ooo-core-architecture.md": {
+          "path": "npc/rv64/design/arch/ooo-core-architecture.md",
+          "sha256": "2a46b7595227309f3dd9b99c23f97e90ade8ffd590b0bdd5989f17c6dd48c97f",
+          "size_bytes": 56280
+        },
+        "npc/rv64/design/arch/ROADMAP.md": {
+          "path": "npc/rv64/design/arch/ROADMAP.md",
+          "sha256": "f77ea743f3a2916d8ef6efe588011303a6ff482340ae034a979dc536ea428d6d",
+          "size_bytes": 20316
+        },
+        "npc/rv64/design/arch/serialize-at-retire.md": {
+          "path": "npc/rv64/design/arch/serialize-at-retire.md",
+          "sha256": "86f09dc4f35211af9a118f07467503c11f0586942d38e65b62177b949a454600",
+          "size_bytes": 11853
+        },
+        "npc/rv64/design/arch/serialize-at-retire-phase1.md": {
+          "path": "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+          "sha256": "e8807f570afcc8ca28dd39c8d05281e47688620f61f75d3f09b8fb8ac488a6e5",
+          "size_bytes": 23673
+        },
+        "npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md": {
+          "path": "npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md",
+          "sha256": "6b41220dc10f14bdc7f2249530c51a9d7d2615e95e6565dab9dd4872307e14cd",
+          "size_bytes": 15981
+        }
+      }
+    }
+  },
+  "a3_publication_boundary": {
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "oracle_state": "INVALID",
+    "checker_replay": "PASS",
+    "original_status_mutated": false,
+    "a4_term_used_as_pass": false,
+    "full_system_rerun_required": "NO"
+  },
+  "review_acceptance": {
+    "approve_if": "the product-default split, exact raw C0/C1/C2 counts, two compile-success C2 replays, pending-SYSTEM matrix, trap/exit applicability, identities and docs jointly close SERIALIZE-G1 on the current design",
+    "gap_if": "name an exact uncovered lane/cycle/configuration/owner counterexample and keep SERIALIZE-G1 OPEN",
+    "prohibited": [
+      "deduplicate repeated terminal events",
+      "weaken RTL assertions",
+      "rewrite A3 original FAIL as PASS",
+      "use A4 TERM as system PASS",
+      "claim architecture freeze before historical backfill",
+      "claim PPA qualification"
+    ]
+  },
+  "promotion_boundary": {
+    "serialize_g1": "OPEN_PENDING_INDEPENDENT_REVIEW",
+    "architecture_freeze": "GAP",
+    "historical_defect_backfill": "NOT_STARTED_UNTIL_P0_P1_CLEAR",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  }
+}

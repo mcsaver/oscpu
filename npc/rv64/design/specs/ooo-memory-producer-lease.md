@@ -100,6 +100,11 @@ MIQ/SQ/bridge token arrays --------------------------X  (不得进入 ready)
    drain并触发 duplicate-source 断言，而不是形成第二次 WB。
 7. `owner_open` 和 `owner_closed` 是互斥、完备的 tuple 分类；credit 只能决定
    fire，不得把 open-but-stalled 重分类为 closed。
+8. collector dequeue/free 同沿的 LOAD terminal PID 只读 tracker edge-old
+   `producer_id_q[token]`。terminal source 在 accepted transfer 同沿必须结束该旧
+   tuple 的发射资格；LQ clear、tracker free 与 token cursor 环回之后不得重放。
+   raw-ingress 合同被破坏时的同-tuple ABA 必须由 holder fail-loud 与独立
+   assertion-off oracle 检出，不能用 collector 去重或静默丢弃补救。
 
 birth/death 采用集合事件代数，不用过程语句先后定义赢家：
 
@@ -325,6 +330,10 @@ PPA 晋级；即使后续诊断综合有改善，也只能写 diagnostic proxy�
 5. mutation：删除 dispatch collision、允许同沿 reuse、常量 PID、memory WB 绕过 exact-open、
    current mismatch 仍 capture、lane1 candidate 重新依赖 fire。
 6. focused release/assert、module aggregate、`check-contract`、结构审计与 strict guard。
+7. V11I post-LQ-clear：production source 在 32-token allocator cursor 环回前后均保持
+   old terminal quiet；同 token 新 LOAD 的 tracker/LQ state 只由新 owner 事件更新。
+   compile-success stale-source variant 在 assertion 配置命中 holder-next marker，
+   在 release 配置由独立 new-PID state oracle 拒绝。
 
 最终结果：focused release/assert 各 7/7，29/29 compile-success mutations（25 个动态后果、
 4 个仿真等价结构违约）全部命中，module aggregate 105/105；full lint 保持继承 115 条 warning，

@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11c-memory-tracker-semantic-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 OooMemOwnerTracker 的 memory-tracker-producer-map 与 memory-tracker-live-set 当前绑定闭合：复核生产 RTL 未改、assert/release baseline、四类 X-known checker 负向、九类 checker/OOO_ASSERT 关闭的编译成功 RTL 变体、逐沿 exact scoreboard、设计/源码/工具 pre-post 哈希及 5/44 fail-closed ledger；专找假绿与越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker_semantic_checker.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/eval/ppa/tools/memory_tracker_semantic_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_memory_tracker_semantic_evidence.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/memory-tracker-attempt-1",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/memory-tracker-attempt-2",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/subagent-contracts/v11c-memory-tracker-semantic-final-review.json",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/memory-tracker-attempt-2/summary.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/memory-tracker-attempt-2/summary.json",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/semantic-coverage-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象/周期/配置/EDA 观测给出 APPROVE 或 GAP；逐项验证 2/2 baseline、4/4 unknown negative、9/9 compile-success mutation 是否真实、scoreboard 是否独立、attempt-1 为何不晋级、attempt-2 哈希是否 current、两个单元与 cursor/全核边界是否精确；列出所有 blocker、反例和剩余风险。"
+  ],
+  "success_criteria": [
+    "只有生产 tracker SHA 仍为 fd7e0a1b...f889c8、设计 ID 仍为 b27ac450...c375、attempt-2 的变体均成功生成 vvp 后由无 checker/无 OOO_ASSERT 的 TB scoreboard 拒绝、X-known 负向由独立 checker 精确拒绝、ledger 仅新增两个 PASS 且 cursor/整体仍 GAP，才可 APPROVE；不得以 marker 自报或历史 V8G/V8L 代替当前证据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,15 @@
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/completion-definition.md
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/dispatch-log.md
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/final-reviewer-report-v2.md
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/round-state.json
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix.py
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix-v3.py
+.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/task-report.md
+npc/rv64/design/arch/architecture-debt-ledger.json
+npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json
+npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json
+npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json
+npc/rv64/design/arch/cohort/wfi-g1-exclusion.json
+npc/rv64/testbench/tests/tb_ooo_priv_system.sv

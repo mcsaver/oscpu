@@ -1,0 +1,8 @@
+npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+npc/rv64/eval/ppa/tools/int_iq_producer_semantic_evidence.py
+npc/rv64/eval/ppa/tests/test_int_iq_producer_semantic_evidence.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md
+npc/rv64/design/specs/ooo-int-issue-queue.md

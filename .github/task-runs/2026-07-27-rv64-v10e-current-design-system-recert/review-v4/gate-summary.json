@@ -1,0 +1,262 @@
+{
+  "schema": "v10e-runner-prelaunch-review-v4-evidence-v1",
+  "contract": {
+    "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v4.json",
+    "expected_sha256": "e15a69c817ff6ee1e45e84419be653fae70c3502cc477b0de6748e216654c931",
+    "actual_sha256": "e15a69c817ff6ee1e45e84419be653fae70c3502cc477b0de6748e216654c931"
+  },
+  "syntax": {
+    "argv": [
+      "bash",
+      "-n",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      "scripts/task-run-status.sh"
+    ],
+    "rc": 0
+  },
+  "status_helper_suite": {
+    "argv": [
+      "bash",
+      "scripts/tests/test-task-run-status.sh"
+    ],
+    "rc": 0,
+    "marker_ok": true
+  },
+  "runner_contract": {
+    "argv": [
+      "python3",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py"
+    ],
+    "rc": 0,
+    "static_negative_rejected": 41,
+    "static_negative_expected": 41,
+    "static_names_exact": true,
+    "raw_negative_markers": [
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] stale-design rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] lower-cycle-floor rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-canonical-config-stage rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-config-hash-binding rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-build rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-evidence rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-assertion-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-terminal-holder-build rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-terminal-holder-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-verilator-assert-mode rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-makefile-pre-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-manifest-pre-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-isolation rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-copy-helper-binding rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-pre-hash-proof rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-transaction-evidence rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-strict-count rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-assertion-oracle rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-evidence-completion rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] skip-missing-simulator-failure rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-kernel-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-opensbi-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-dtb-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] restore-reenables-errexit rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] cleanup-clears-signal-traps rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-post-binding-write-check rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] ignore-terminal-query-errors rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] overescape-assertion-regex rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-guest-checker-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-transaction-parser-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-helper-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-prelaunch-log-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] allow-duplicate-strict-done rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] allow-duplicate-good-trap rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] preflight-before-status-traps rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] private-v10e-lock rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] private-v9s-lock rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] v10e-no-launch-failure-status rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] v9s-no-launch-failure-status rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] PASS-write-failure-ignored rejected"
+    ],
+    "dynamic_fixture_markers": 7,
+    "dynamic_fixture_expected": 7,
+    "dynamic_coverage": {
+      "task-run status PASS-write fallback PASS": true,
+      "V9S launch rejected shared V10E lock rc=3": true,
+      "cleanup failure finalized as FAIL rc=7": true,
+      "cleanup TERM deferred and finalized as FAIL rc=143": true,
+      "post-binding redirection failure finalized as FAIL rc=1": true,
+      "production assertion regex match/no-match/read-error rc=0/1/2": true,
+      "rootfs copy hash PASS; existing run image rejected rc=4": true
+    },
+    "raw_dynamic_markers": [
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] task-run status PASS-write fallback PASS",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] V9S launch rejected shared V10E lock rc=3",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] cleanup failure finalized as FAIL rc=7",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] cleanup TERM deferred and finalized as FAIL rc=143",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] post-binding redirection failure finalized as FAIL rc=1",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] production assertion regex match/no-match/read-error rc=0/1/2",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] rootfs copy hash PASS; existing run image rejected rc=4"
+    ]
+  },
+  "assertion_regex": {
+    "runner_line": 34,
+    "pattern": "\\[(V9Q-(BRIDGE-HOLDER|TRANSIENT-HOLDER|TRANSIENT-BRIDGE|DUAL-REQ-TOKEN)-DISJOINT|S2-G1-TCOLL-INGRESS-DUP|V10D-[^]]*FAIL)\\]|%Error:|Assertion failed|RTL assertion|\\[.*ASSERT.*FAIL",
+    "expected_pattern": "\\[(V9Q-(BRIDGE-HOLDER|TRANSIENT-HOLDER|TRANSIENT-BRIDGE|DUAL-REQ-TOKEN)-DISJOINT|S2-G1-TCOLL-INGRESS-DUP|V10D-[^]]*FAIL)\\]|%Error:|Assertion failed|RTL assertion|\\[.*ASSERT.*FAIL",
+    "exact_pattern": true,
+    "match_rc": 0,
+    "no_match_rc": 1,
+    "read_error_rc": 2
+  },
+  "rtl_binding": {
+    "expected_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "pre_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "post_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "source_count": 146,
+    "source_manifest_stable": true
+  },
+  "immutable_inputs": {
+    "pre_count": 16,
+    "post_count": 16,
+    "drift": {}
+  },
+  "workspace_lock": {
+    "path": ".github/runtime-artifacts/rv64-engineering-single-flight.lock",
+    "exists_pre": true,
+    "sha256_pre": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exists_post": true,
+    "sha256_post": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nonblocking_reacquire_rc": 0
+  },
+  "terminal_oracles": {
+    "strict_done": {
+      "guard": "[[ \"${strict_done_count}\" -eq 1 ]]",
+      "occurrences": 1
+    },
+    "poweroff_begin": {
+      "guard": "[[ \"${poweroff_begin_count}\" -eq 1 ]]",
+      "occurrences": 1
+    },
+    "syscon_terminal": {
+      "guard": "[[ \"${syscon_terminal_count}\" -eq 1 ]]",
+      "occurrences": 1
+    },
+    "system_reset_exit": {
+      "guard": "[[ \"${system_reset_exit_count}\" -eq 1 ]]",
+      "occurrences": 1
+    },
+    "good_trap": {
+      "guard": "[[ \"${good_trap_count}\" -eq 1 ]]",
+      "occurrences": 1
+    }
+  },
+  "post_hash_tokens": {
+    "rootfs_template": {
+      "token": "rootfs_template_post_sha256=",
+      "occurrences": 2
+    },
+    "rootfs_cpio": {
+      "token": "rootfs_cpio_post_sha256=",
+      "occurrences": 2
+    },
+    "rtl_design_id": {
+      "token": "rtl_design_id_post=sha256:",
+      "occurrences": 1
+    },
+    "simulator": {
+      "token": "simulator_sha256_post=",
+      "occurrences": 4
+    },
+    "npc_config": {
+      "token": "verify_post_hash \"npc_config\"",
+      "occurrences": 1
+    },
+    "npc_auto_conf": {
+      "token": "verify_post_hash \"npc_auto_conf\"",
+      "occurrences": 1
+    },
+    "npc_autoconf_header": {
+      "token": "\"npc_autoconf_header\" \"${autoconf_header_path}\"",
+      "occurrences": 1
+    },
+    "npc_makefile": {
+      "token": "\"npc_makefile\" \"${repo_root}/npc/rv64/Makefile\"",
+      "occurrences": 1
+    },
+    "verilator_manifest": {
+      "token": "\"verilator_manifest\" \"${verilator_manifest}\"",
+      "occurrences": 1
+    },
+    "linux_image": {
+      "token": "verify_post_hash \"linux_image\"",
+      "occurrences": 1
+    },
+    "opensbi_fw": {
+      "token": "verify_post_hash \"opensbi_fw\"",
+      "occurrences": 1
+    },
+    "run_dtb": {
+      "token": "verify_post_hash \"run_dtb\"",
+      "occurrences": 1
+    },
+    "runner_script": {
+      "token": "\"runner_script\"",
+      "occurrences": 1
+    },
+    "task_run_status_helper": {
+      "token": "\"task_run_status_helper\"",
+      "occurrences": 1
+    },
+    "linux_makefile": {
+      "token": "\"linux_makefile\"",
+      "occurrences": 1
+    },
+    "guest_checker": {
+      "token": "\"guest_checker\"",
+      "occurrences": 1
+    },
+    "strict_checker": {
+      "token": "\"strict_checker\"",
+      "occurrences": 1
+    },
+    "transaction_parser": {
+      "token": "\"transaction_parser\"",
+      "occurrences": 1
+    },
+    "rootfs_copy_helper": {
+      "token": "\"rootfs_copy_helper\"",
+      "occurrences": 1
+    },
+    "prelaunch_contract_log": {
+      "token": "\"prelaunch_contract_log\"",
+      "occurrences": 1
+    }
+  },
+  "launcher_guards": {
+    "v10e_global_lock": true,
+    "v9s_global_lock": true,
+    "v10e_background_contention_rc73": true,
+    "v9s_background_contention_rc73": true,
+    "v10e_failure_publisher": true,
+    "v9s_failure_publisher": true
+  },
+  "all_gates": {
+    "contract_sha": true,
+    "bash_syntax": true,
+    "status_helper_suite": true,
+    "runner_contract": true,
+    "static_41_of_41": true,
+    "dynamic_7_of_7": true,
+    "production_regex_exact": true,
+    "production_regex_rc_0_1_2": true,
+    "v3_overescape_counterexample_rejected": true,
+    "rtl_design_id_pre": true,
+    "rtl_design_id_post": true,
+    "rtl_source_manifest_stable": true,
+    "immutable_inputs_stable": true,
+    "five_terminal_oracles_exact_once": true,
+    "post_hash_contract_present": true,
+    "launcher_fail_closed_guards": true,
+    "workspace_lock_released": true
+  },
+  "prelaunch_result": "PASS",
+  "long_simulation_executed": false
+}

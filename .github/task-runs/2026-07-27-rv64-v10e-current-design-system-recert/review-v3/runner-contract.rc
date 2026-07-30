@@ -1,0 +1,2 @@
+command=python3 .github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py
+rc=0

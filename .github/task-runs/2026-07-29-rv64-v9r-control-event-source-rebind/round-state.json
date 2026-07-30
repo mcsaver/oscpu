@@ -1,0 +1,46 @@
+{
+  "schema": "npc-rv64-control-event-source-rebind-round-v1",
+  "status": "BOUNDED_COMPLETE",
+  "primary_classification": "verification",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "main_objective": "Rebind V9R/V9O CONTROL-EVENT-G1 evidence to the current verification source identity without changing production RTL.",
+  "bounded_verification": {
+    "status": "PASS",
+    "v9r_baseline": "2/2",
+    "v9r_compile_success_variants": "3/3 rejected",
+    "v9o_artifacts": 167,
+    "closed_debt_currentness": "16/38/32/0",
+    "arch_stable_tests": "48/48",
+    "historical_tests": "4/4",
+    "workflow_tests": "20/20"
+  },
+  "independent_review": {
+    "version": "v2",
+    "decision": "APPROVED_FOR_CURRENT_SCOPE",
+    "contract_sha256": "cf8cd0fec3b700dbc680a0e3caad208533c6a492c4db66eb3ef568e03ba3c8db",
+    "report_sha256": "68f3ae4b8c68f96eabfcfbcea59f530db1e18498b25403be51e7aef99939c566"
+  },
+  "a3_boundary": {
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "oracle_state": "INVALID",
+    "checker_replay": "PASS",
+    "original_status_mutated": false,
+    "full_system_rerun_required": false
+  },
+  "ai_environment": {
+    "memory_publication": "PASS",
+    "npc_dev_e2e": "5/5 PASS",
+    "agent_system_e2e": "11/11 PASS",
+    "strict_guard": "PASS",
+    "db_first_audit": {
+      "status": "GAP",
+      "current_memory_hash_mismatch": 0,
+      "pre_existing_missing_backup": 8
+    }
+  },
+  "architecture_freeze": "GAP",
+  "architecture_blockers": 33,
+  "ppa": "UNQUALIFIED",
+  "promotion_eligible": false
+}

@@ -1,0 +1,27 @@
+{
+  "path": "Linux/scripts/check-npc-systemd-guest.sh",
+  "git_empty_tree_raw": ":000000 100644 000000000 c8b92b48b A\tLinux/scripts/check-npc-systemd-guest.sh",
+  "git_head_diff_empty": true,
+  "tracked_mode": "100644",
+  "current_mode_octal": "0644",
+  "sha256": "1b3cc4695f2f4c40627a5e792ae67d7ab06a434636e5ecf287000aa645d56cda",
+  "readable": true,
+  "nonempty": true,
+  "executable": false,
+  "runner_readable_guard": {
+    "line": 344,
+    "occurrences": 1
+  },
+  "runner_nonempty_guard": {
+    "line": 345,
+    "occurrences": 1
+  },
+  "runner_executable_guard": {
+    "line": 0,
+    "occurrences": 0
+  },
+  "runner_bash_call": {
+    "line": 543,
+    "occurrences": 1
+  }
+}

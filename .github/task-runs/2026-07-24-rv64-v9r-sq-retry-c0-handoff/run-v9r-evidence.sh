@@ -41,10 +41,14 @@ source_files=(
   "$repo_root/npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md"
   "$repo_root/npc/rv64/design/specs/ooo-memory-producer-lease.md"
   "$repo_root/npc/rv64/design/specs/ooo-dual-memory-datapath.md"
-  "$repo_root/npc/rv64/design/arch/producer-holder-census.json"
   "$repo_root/npc/rv64/eval/ppa/tools/producer_holder_census.py"
   "$repo_root/npc/rv64/eval/ppa/tests/test_producer_holder_census.py"
 )
+# producer-holder-census.json is an outer evidence envelope: its
+# freeze_evidence hashes are refreshed after dynamic evidence is generated.
+# Binding that whole JSON here creates a cross-run hash cycle.  The live census
+# checker and its mutation tests remain bound below and validate the envelope
+# independently.
 
 rtl_design_sha_pre=$(rtl_design_sha)
 sha256sum "${source_files[@]}" > "$evidence/source-before.sha256"
@@ -216,7 +220,6 @@ source_paths = (
     "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
     "npc/rv64/design/specs/ooo-memory-producer-lease.md",
     "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
-    "npc/rv64/design/arch/producer-holder-census.json",
     "npc/rv64/eval/ppa/tools/producer_holder_census.py",
     "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
 )

@@ -1,5 +1,125 @@
 # Agent System 模块笔记
 
+## 2026-07-30 selected-source semantic replay 与原 FAIL 保留
+
+- production RTL 局部变化后，不得把所有历史 summary 的 full design-id
+  批量替换为当前值。语义台账分开记录
+  `CURRENT_FULL_RTL_BOUND`、`CURRENT_SELECTED_SOURCE_AND_TB_BOUND` 与
+  historical/stale；只有 policy 声明的 exact RTL/include/filelist/TB
+  集合逐文件匹配，旧局部 evidence 才能继续闭合对应单元。
+- selected-source 集合必须由 binding kind 的 canonical exact set
+  fail-closed 校验；缺 TB、重标 role、换成无关 RTL 或 manifest/hash 漂移
+  都必须拒绝。ledger detail 同时保留 evidence design-id、current
+  design-id 和逐文件 live/evidence SHA，不伪装为 full-design replay。
+- runner 在完成 DUT 仿真后若只停在 checker 阶段，原 status 继续是 FAIL。
+  新 checker 只能通过独立 frozen-input receipt 重放：绑定原 FAIL stage、
+  simulation summary、focused/full pre/post、旧 checker log 和新 checker
+  sources，并明确 `rtl_simulation_reexecuted=false`。
+- V11H 初轮保留 focused attempt-3 的 stale-design checker FAIL；raw-Q
+  assertion/schema 扩展后的 attempt-4 又保留 checker-local NameError
+  `FAIL@semantic-ledger-unit`。独立 replay 冻结 4+1+62 RTL 输入，以
+  5 个 receipt unit、10 个 evidence-tool unit 和 24 个
+  semantic-ledger unit 取得 PASS，且 current closure 必须绑定该 receipt，
+  不能复用 attempt-3 historical replay。该模式与
+  A3 checker-only replay 一致，但不规避 production RTL 变化后的完整系统
+  promotion 门。
+- 局部 closure 与 system promotion 不得压成一个含糊字符串；exact schema
+  应分别记录 local-required、system-promotion-required 与 run 状态，并用
+  删除/布尔反转负测封闭假绿。
+- 结果 marker 过滤器必须按 failure marker 精确匹配，不能把同前缀的
+  testbench coverage `... PASS` 误判为 assertion failure。误判 attempt
+  原样保留，新版本 runner 使用独立 attempt 路径重放。
+- 收尾时先 `update-stored` 发布当前 V11H 领域词，再生成 bounded brief；
+  broad brief 的 independent-focus FAIL 原样保留，profile-specific recall
+  完整后才派发。current-source `npc-dev` 5/5、`agent-system` 11/11 和
+  19-path scoped strict guard PASS；全工作树只保留共享 `rv64-linux`
+  evidence GAP。该流程不替代 full-system/PPA gate。
+
+## Schema-aware RTL evidence publication and receipt closure
+
+- CLOSED RV64 debt 的 publisher 必须先验证 evidence identity，再刷新通用 hash。若一个 debt 使用 candidate/contract/review 混合 tuple，应由单一 canonical verifier 导出 exact kind/path/order/fixed SHA-256；missing、extra、remapped、reordered 或 hash-drifted member 都要在写 ledger 前失败。
+- “raw log 只做 hash”“JSON 检查 design-id/status”“review Markdown 由 canonical tuple 校验”是三种显式 evidence kind，不得把所有非 JSON 文件放进广义例外。currentness 还必须运行 canonical architecture semantic check，不能只证明文件存在和 hash 当前。
+- postflight 不能从若干上游 JSON 直接合成 PASS。开始时应先撤销旧 PASS，随后消费每个定向 suite 的 `.log` 与 `.rc`、唯一测试数、`OK` terminal 和禁止的 `FAILED/Traceback` marker；index/verifier receipt 也要绑定 design-id、artifact count 与精确 PASS marker。
+- 独立 reviewer 合同须列全 production RTL、实际 Makefile/filelist、所有参与 oracle 的 testbench 源码和 receipt；漏列一个 TB 时只能 GAP。reviewer 发现的假绿应先保留原报告，再用 versioned contract 复核，不得追认旧候选 PASS。
+- Windows→WSL 工程命令继续 single-flight。外层超时中断的 attempt 使用独立 status/log 路径保留，后续 attempt 不覆盖；无残留进程后才重新取得 shell ownership。硬件技术正文使用 module/signal/transaction、cycle/config、TB/EDA marker 与 PASS/GAP 范围，协调状态单独记录。
+
+## 2026-07-28 frozen checker replay 与完整重跑门
+
+- 系统长仿真已产生完整 raw 终端事务、空 RTL assertion、设计/仿真器/
+  配置/启动产物 post-hash 时，checker-only 误判采用版本化 replay，
+  不改写原 run 状态：先冻结 console/status/binding，再从该 run 的 rootfs
+  提取实际 checker，并要求提取字节哈希等于 launch binding。
+- legacy 与 current regex 必须对同一 SHA-bound 输入重放；同时保留一组
+  benign fixture 和一组真实 fault fixture，分别证明新 checker 不误拒绝
+  `printk: debug:` 且仍拒绝 `BUG:`。只从当前源码反推旧 regex 不足以绑定
+  历史执行语义。
+- 完整系统重跑只由四个硬件证据条件触发：production core RTL 语义变化、
+  当前配置实际 elaborated RTL 变化、device/simulator 执行语义变化、或
+  原 run 缺少冻结输入/终端链/post-hash。诊断观测日志变化本身不触发重跑；
+  必须把判断依据写入 task-run。
+- exact terminal 事件必须从 SHA-bound raw console 计数并校验顺序，不能从
+  聚合摘录推断，更不能通过 seen/dedup 逻辑掩盖重复。历史 strict FAIL、
+  return code 与中断 run 均原样保留，replay PASS 另建独立状态文件。
+- V10F 实战使用 V1 preliminary + V2 canonical 版本，不追改已发布 PASS。
+  V2 经 `prepare-rtl-task-contract` canonical
+  `create → validate → render`、`fork_turns=\"none\"` 和只读反例优先审查，
+  verdict 为 `APPROVED_NOT_PROMOTION_ELIGIBLE`；single-flight WSL lane
+  显式交接并归还。
+- reviewer 的非阻塞反例也要进入工具债务：当前 elaboration comparator
+  从 A3 文件集合单向遍历，未来版本应先断言 A3/A4 generated filename set
+  双向相等。该债务不用于篡改 V2，也不扩大 checker-only 结论。
+- 稳定收尾顺序是：业务 replay PASS → 独立 reviewer → DB-owned
+  project/module memory 发布 → 同领域 bounded recall → task-specific e2e
+  → evidence index/strict guard。checker replay 不资格化 architecture 或
+  PPA，长期 goal 保持 active。
+- guard profile 采用 exact-path 优先：systemd strict checker、transaction
+  evidence parser、三份定向单测与 incomplete-console fixture 共七个路径只映射
+  `rv64-systemd-contract` 并立即返回；generic `Linux/**` 再映射
+  `rv64-linux`。agent-system 自检必须同时穷举七个 checker-only 路径，并以
+  `Linux/scripts/check-ubuntu-rootfs.sh` 证明 broader Linux 路径仍保持
+  `rv64-linux`，避免因分类优化削弱 rootfs 验证门。
+- 实战闭环：`2026-07-28-a3-printk-debug` 的 agent-system profile
+  11/11 节点 PASS，`2026-07-28-rv64-a3-checker-replay` 的
+  rv64-systemd-contract profile completed；八个实际路径的 strict guard
+  精确要求上述两项并 PASS。全 dirty worktree guard 因任务外
+  `rv64-linux`/`npc-dev` 路径缺 evidence 而保持 FAIL，记录为范围豁免，
+  不能借 scoped PASS 掩盖。
+
+## 2026-07-27 current-design replay stage-order preflight
+
+- V10D independent final reviewer 通过 canonical
+  `create → validate → render`、`fork_turns="none"` 与 exact rendered
+  text 复核本地 RV64 collector/exit/currentness 链。合同 JSON SHA-256
+  为 `9b44a39d41d7ba9bfaab83034962e68aa0f99cd21ae1a414577ad024a3a227a1`，
+  rendered SHA-256 为
+  `3a2711cdd1d25c0712f95359f99684f53b25106d4cd4e40a918d5c68a68ce4a2`；
+  reviewer 只读、未写文件并显式归还唯一 WSL 工程命令 lane。
+- reviewer 找到一个非 RTL 假绿入口：V10C runner 实际执行
+  `control-event-index-verify`，但 `test-runner-stage-order.py` 的
+  `REQUIRED_ORDER` 未列该 stage，因此静态负向 fixture 不能拒绝验证
+  stage 被删除或移到 ledger 之后。
+- 稳定合同现要求
+  `module -> functional -> architecture -> candidate/census -> SQ-retry ->
+  GAP audit -> index build -> index verify -> ledger -> currentness`。自检
+  同时拒绝 candidate-before-architecture、missing-index-verify 与
+  verify-after-ledger；runner 对 full/resume attempt 都无条件执行该
+  preflight，不能用 resume 绕过。
+- V10C attempt 13 从 currentness resume，持久化三项负向拒绝和完整
+  PASS marker，再确认 design-id `c1b531…bb594` 的 15/35/0 currentness；
+  standard/detailed status 均 PASS 且保留 `SERIALIZE-G1=OPEN`。该修复
+  只加强本地证据 publication 顺序，不改变 RTL、断言、testbench
+  oracle 或 PPA 能力。
+- task-specific `agent-system` e2e
+  `.github/task-runs/2026-07-27-stage-order-index-verify-revtag-v10d/`
+  completed 11/11，`npc-dev` 对应 run completed 5/5；两者均完成
+  DB marker publication。最终 strict guard 为 PASS，要求的两个
+  profile 正是 `agent-system` 与 `npc-dev`，均命中 current evidence。
+- reviewer 合同中一个可选 candidate path 写错为 evidence 子目录；
+  实际 live path 是
+  `npc/rv64/eval/ppa/arch-stable/full-core-current.json`。版本化 v1
+  合同保留原记录，不追改或扩大其结论；后续需要直接审计时创建新
+  contract version。
+
 ## 2026-07-27 RV64 long-run single-flight and reviewer provenance
 
 - V9Z 两轮本地 RV64 RTL reviewer 均使用 `prepare-rtl-task-contract` canonical `create → validate → render`、`fork_turns="none"` 与精确 render 文本；v2 合同 SHA-256 为 `66f6519d35e690f5b93555e2abbed76ffd6c0683a584a452d86f1a29bd1b8ce2`。每轮只读节点均显式取得并归还唯一 Windows→WSL 工程命令 lane，协调状态保存在 dispatch log，不混入 module/signal/cycle 技术目标。
@@ -58,11 +178,13 @@
 
 - 2026-07-22（V9I 字段级 RTL 合同与 current-design forward test）：**交互叙述应把硬件性质直接绑定到 module/signal/transaction/cycle，而不是依赖可能跨领域解释的简称；真实标识符、验证强度和能力分档保持不变**。canonical renderer 现自动提示 `ARADDR/ARSIZE/ARPROT`、READY/VALID 周期、2B EXEC PMP、PMEM 读取边界和 lane0/lane1 fault owner；file/module/signal/TB/log/schema 标识符原样保留。规则不建立关键词黑名单，不减少 workspace exploration、实现工具、负向 RTL 变体、断言、覆盖矩阵、unknowns、替代假设或 scope extension。task-contract 25 项 self-test、20 项 CLI self-test、wiring audit 和 skill quick validation 均 PASS；真实 V9I no-tools reviewer 合同 SHA `00a2e4db3475a6dec764404aca44095eaac88a8289dc2fae0268066b7de09991` 返回限域 PASS。共享 `arch_stable_freeze.py` 增加 IFU-ACCESS semantic validator 后，6 个直接绑定它的 CLOSED results 均按自身 canonical 动态重建；directed architecture records 则从 DI-2 根入口递归重建九门。首轮从 DI-1 启动因 DI-2 sibling inventory 尚存在而在仿真前 fail-closed，这个反例已保留；纠正后九门全 GREEN，full-core 审计为诚实 GAP/38 blockers/PPA UNQUALIFIED，且无 CLOSED evidence drift。稳定顺序：字段级合同 create→validate→render → current-design canonical → 限域独立审查 → ledger binding → shared-consumer replay → DB memory → task-specific e2e → strict guard。
 - 2026-07-22（V9H shared-validator fail-closed replay）：**公共 RTL 证据验证器或 canonical `Makefile` 入口发生来源哈希变化时，应先区分“生产 RTL design_id 漂移”“仅入口来源漂移”和“既有 CLOSED 结果的验证工具绑定过期”，再选择动作**。本轮生产 `.v` RTL 未变；9 个 directed architecture records 只有 `Makefile` provenance 失配，允许在 exact-byte 重构旧 target block、唯一 allowed path、non-provenance semantic projection 不变且 pre/post hard gates 为 RED/GREEN 的条件下更新来源摘要。另一方面，FDG、XRET、memory lifecycle、IFU AXI、INSTRET 的 current result 都直接绑定公共 `arch_stable_freeze.py` 与 `Makefile`；新增 `IFU-FETCH-G2` semantic validator 后它们正确 fail-closed，不能沿用摘要重绑。主节点因此重放 5 组 canonical 本地仿真，恢复 6 个 CLOSED 条目的 current-source 绑定，109-module aggregates 与全部 compile-success RTL verification variants 均重新 PASS；最终 full-core blocker 从暂态 46 回到 40，并净关闭本轮一项。稳定规则：来源摘要重绑只适用于可重构、语义投影不变的入口 provenance；凡证据结果直接绑定已变化的验证工具，默认重跑 canonical 动态证明。两类动作及其 pre-state 必须都保留审计，不能用最终 GREEN 覆盖中间 fail-closed 反例。
+
 - 2026-07-22（V9F e2e manifest/state 审计接线闭合）：**规范 final-state task-run 的 DB 证据集合现精确为 ordinary evidence 与唯一 canonical `run-manifest.json` 的并集，且 state traceback 会按真实 run root 读取报告**。真实收尾审计暴露两个根因：`validate_state_traceback_payload` 把裸 `run_id` 传给接收 `run_root` 的 `task_run_report_fields`，以及 `index-evidence` 只收 `/evidence/` 普通资产、却未收 observability/trace-audit 强制要求的顶层 manifest。修复后只额外允许 `.github/task-runs/<run>/run-manifest.json` 这一精确路径，`evidence-index.md` 与 manifest 的 count/bytes/kind/list 仍只聚合 ordinary assets；runtime validator 要求 ordinary 行数精确等于 manifest `asset_count`、manifest 恰一行且 kind=json、无额外路径、总行数精确为 ordinary+1。`evidence_assets.path` 是主键，排除重复路径用计数伪装集合一致的反例。`github-index` 行为 probe 覆盖双次索引幂等、manifest SHA/size 刷新、删除清理、peer-run 隔离和 `render manifest → index → validate` 顺序；`agent-system` 行为 probe 直接验证 completed report 的七态 traceback。forward-test `.github/task-runs/2026-07-22-agent-system-observability-run-manifest-revtag-v9f/`（github-index 1/1）与 `.github/task-runs/2026-07-22-agent-system-state-traceability-observability-revtag-v9f/`（agent-system 10/10）均 completed，两个 run 的 artifact/trace/state targeted audit 全部 PASS，分别为 ordinary/DB=2/3 与 12/13。独立 reviewer 在上述集合、清理、幂等和 finalization 边界内判 PASS。声明边界：该性质只适用于 manifest 已写定且完成重新索引的规范 run；历史 run 不会自动迁移，不能把一般性的 `DB count >= manifest count` 当成一致性证明。
 - 2026-07-21（V9E architecture source-binding rebind）：**共享本地 RTL 验证入口文件变化时，不能只看 production RTL design_id；必须枚举每条证据的全部 source-binding section，并经更严格下游消费者 forward test**。新增独立 `check-xret-current-mode` Makefile target 后，九条 architecture gate 的动态 command/log/metric/status 与 RTL identity 均未变，但 `provenance.files` 哈希正确失配。首版 task-local repair 只更新九个 `provenance`，要求 pre-gate 仅两个 provenance check RED、每条唯一 live mismatch 为 Makefile、去除 source-binding 后 semantic projection 相同、candidate 9/9 GREEN 才原子替换；随后 arch-stable forward test 又捕获四个 optional `source_manifest` 仍绑定旧哈希。该首轮 coverage gap 原样保留，工具修正为遍历 `provenance` 与 `source_manifest`、复核旧aggregate、自身文件 live hash 和 post-gate GREEN。另以 byte-level reconstruction 删除唯一 10 行/598-byte XRET target block，精确重建旧 Makefile SHA，证明允许路径内没有无关字节变化。规则：来源重绑必须同时给出 exact allowed path、actual byte delta、non-source-binding projection、pre/post consumer 状态和未重跑动态证明的准确声明；不能用手工 JSON 改写或把首轮 GREEN 覆盖掉后续反例。子 agent 继续用 local RV64 module/signal/transaction/EDA 精确措辞、hash-bound JSON contract 和 self-contained no-tools review；这是减少领域歧义，不改变审查规则或模型推理能力。
 
 - 2026-07-21（V9D discriminating RTL variant reconciliation）：**任务合同中计划的 RTL 验证变体必须与最终能被定向 oracle 动态区分的变体一致，并作为证据 source binding 重新生成**。FDG 首个classifier-to-gate 绑定切片虽然可编译，但全核 precise-trap owner 在 ordinary dispatch-valid 前正确截获，所选 oracle 因而不能拒绝；该候选不计入覆盖，替换为 lane1 dual-dispatch exclusion 切片。随后同步 `contract.md`/`rtl-derivation.md`，重跑 canonical builder，再更新 ledger hash；禁止让旧计划文字与实际 aggregate 分离。v1 reviewer 又以 commit-observer 非空性和 PC/tval 值敏感性两项 P1 推动证据升级为 6/6 RTL source variants + 1/1 observer probe，v2 才判 PASS；第一轮 FAIL 与被丢弃候选都保留，不能由后续 PASS 覆盖。最终 canonical replay 又发现随机 `/tmp` 编译根使同一语义日志哈希漂移；修复只把当前 `TemporaryDirectory` 精确路径替换为 `<FDG_TRANSIENT_TMP>`，保留仓库路径、编译参数、诊断、oracle marker、return code 与结果文本，并以 109 module + 7 variant/probe live-log 检查和两次完全相同 SHA 重放证明；v3 reviewer 判 PASS、无 P0/P1。聚合 parser 可同时接受仓库既有的精确 `PASS <test>` 与 `[PASS] <test>` 成功格式，但仍须拒绝任一 FAIL/ERROR marker、非零返回码、缺失/重复测试和 membership 漂移；这是兼容已冻结 testbench 输出格式，不是降低判定强度。DB-owned memory updater 必须以条目中真实存在的稳定 identity 作 exact-line upsert，并为分块回读提供足够 token budget；本轮首次幂等复跑因identity 漂移和截断回读失败；修正 exact-line/20k-token 回读并去除一个相邻字节级重复项后，下一轮三份文档全部 unchanged。所有自然语言继续显式绑定 local RV64 module/signal/path/cycle/EDA 语义，不改变真实工程动作。
 - 2026-07-21（V9C task-specific e2e DB-first focus ordering）：**task slug 的领域词必须先有当前non-history 独立 focus，不能由同一旧 task-run 自证**。反例 `.github/task-runs/2026-07-21-rv64-instret-retirement-closure-revtag-v9c/` 在五个 NPC 合同节点5/5 PASS 时仍因 `no independent primary focus match` 正确保持 blocked；根因是当时 INSTRET 稳定结论尚未通过 `update-stored` 进入 module memory，且多出的 `closure` 不存在于独立 focus。`project-status` 属于 core chunk，不能单独替代独立 focus。先用官方 `update-stored` 发布`.github/memory/modules/npc.md`，再把 slug 收敛到确实存在的 `rv64 instret retirement` 后，bounded brief 命中该 module chunk 并 complete；随后 `npc-dev` 5/5、`agent-system` 10/10、`github-index` 1/1 均完成原子 publication。稳定顺序是：业务证据闭合 → DB-owned module memory 发布 → 同领域词 task-specific e2e → strict guard。该规则保留 non-history fail-closed、历史隔离和全部节点验证强度，只消除收尾顺序歧义；blocked 反例保留审计但不计为完成证据。
+
 - 2026-07-21（v8x 子 agent 合同与 shell ownership 实战纠偏）：**审查节点超时和合同顺序错误都必须显式降级，不能靠结果内容追认 PASS**。真实 `workspace-files/read-only` reviewer 在主 agent 交出唯一 WSL shell ownership 后完成合同哈希、focused marker 与两项 mutation witness 的部分检查，但未在限定窗口内返回 verdict；主 agent 中断该节点、收回 shell ownership，并在 dispatch log 登记 `review_interrupted`，其部分观察不授予 PASS。随后一次 no-tools follow-up 虽返回 pass，却因新版 JSON 尚未先走 canonical `create -> validate -> render`，结果只能保存为 `candidate-only`。正式 v2 合同改为真正的 `prompt-supplied-self-contained`，SHA `1b1d568b5ac9e2cec6bb7033ee7233ece6d7a6f2206927effcd39303e130678f`，无 tools/shell/files/write/external access，原样派发并允许 unknown、反例、scope extension 与 inconclusive，最终仅对冻结 V8X 证据判 pass/blockers=0。稳定规则：shell-holding 节点必须有明确归还或由主 agent 可审计中断回收；任何补派均先生成新版本合同，不口头扩权、不追认 candidate；限定材料 reviewer 不冒充完整仓库审查。准确本地 RV64 RTL 术语用于消歧，能力分档、反例强度与平台审查边界保持不变。
 - 2026-07-21（v8w 本地 RV64 RTL 子 agent 实战）：**硬件专业措辞、最小真实权限与强反例复核在不削弱模型能力的前提下再次形成可审计闭环**。两轮独立 reviewer 均由 `prepare-rtl-task-contract` 的 canonical `create → validate → render` 生成 versioned `workspace-files`/read-only JSON；正文明确对象为本地 RV64 Verilog/SystemVerilog 处理器，把 `kill/drop/flush/recovery/mutation` 分别限定为流水线事务失效、bridge terminal、checkpoint 恢复和 compile-success RTL 验证变异，并保留 counterexample、UNKNOWN/GAP、scope-extension 与否决晋级的结论出口。合同显式冻结 allowed files/commands、零 write paths，排除网络、账号、凭据和外部服务；Windows→WSL 工程 shell ownership 在主 agent 与 reviewer 间单一交接并显式归还。v2 reviewer 的 late-old-drop/new-head 与纯选择性 A/D write drain 缺口已转成 directed TB、guard 反例和新增 mutation，v3 合同 SHA `082356f2bf7338a69d71b8da064421e1717764dbbe642add7c2d5d3033ebf3e5` 仍保留真实 backend+bridge 双 owner 联合轨迹为 verification GAP，父 goal 保持 active。该规则不采用关键词黑名单、语义隐写或自动改写，不承诺消除平台误分类，也不以绕过平台检查为目标；它只提高本地硬件任务的对象/层级/作用域/工程目的准确性，技术能力和审查强度保持不变。证据 `.github/task-runs/2026-07-21-rv64-v8w-speculation-recovery/`。
 

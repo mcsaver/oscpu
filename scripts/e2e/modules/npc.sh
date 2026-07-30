@@ -252,12 +252,15 @@ e2e_npc_rv64_systemd_guest_check_contract() {
     Linux/scripts/check-npc-systemd-guest.sh \
     Linux/scripts/npc-systemd-strict-check.sh \
     Linux/scripts/npc_systemd_transaction_evidence.py \
+    Linux/scripts/tests/test_npc_systemd_strict_check.py \
+    Linux/scripts/tests/test_check_npc_systemd_guest_contract.py \
     Linux/scripts/tests/test_npc_systemd_transaction_evidence.py \
     Linux/scripts/tests/fixtures/v9s-rerun4-incomplete.console \
     Linux/scripts/prepare-npc-rootfs-run-image.sh \
     Linux/Makefile \
     npc/rv64/vsrc/bus/AxiClint.v \
     npc/rv64/vsrc/core/NpcTop.v \
+    npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py \
     npc/rv64/csrc/dpi.c \
     npc/rv64/csrc/cpu/cpu-exec.cpp \
     npc/rv64/csrc/monitor/log.c
@@ -265,7 +268,10 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   bash -n "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   bash -n "$E2E_ROOT_DIR/Linux/scripts/npc-systemd-strict-check.sh"
   bash -n "$E2E_ROOT_DIR/Linux/scripts/prepare-npc-rootfs-run-image.sh"
+  python3 "$E2E_ROOT_DIR/Linux/scripts/tests/test_npc_systemd_strict_check.py"
+  python3 "$E2E_ROOT_DIR/Linux/scripts/tests/test_check_npc_systemd_guest_contract.py"
   python3 "$E2E_ROOT_DIR/Linux/scripts/tests/test_npc_systemd_transaction_evidence.py"
+  python3 "$E2E_ROOT_DIR/npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py"
   grep -nE 'check-npc-systemd-guest|NPC_SYSTEMD_|check-npc-systemd-guest\.sh' \
     "$E2E_ROOT_DIR/Linux/Makefile" | tee "$dry_log"
 
@@ -293,6 +299,8 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   grep -q 'NPC_USER_ECALL_MIN_COMMIT' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'NPC_USER_ECALL_PATH_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'debug_ooo_satp_o' "$E2E_ROOT_DIR/npc/rv64/vsrc/sim/NpcSimTop.sv"
+  grep -q "bool debug_valid = ((flags >> 63) & 0x1u) != 0;" \
+    "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'NPC_USER_PROGRESS_INTERVAL' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'maybe_log_ecall_trap' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'trap_hit=' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"

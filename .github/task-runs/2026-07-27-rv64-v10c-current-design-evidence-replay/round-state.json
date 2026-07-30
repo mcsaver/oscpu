@@ -1,0 +1,205 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-27-rv64-v10c-current-design-evidence-replay",
+  "status": "PASS",
+  "classification": "architecture_evidence_maintenance",
+  "scope": {
+    "rtl_object": "local RV64 OoO architecture-debt contracts and evidence",
+    "production_rtl_edit_planned": false,
+    "open_debt_not_closed_here": [
+      "SERIALIZE-G1"
+    ]
+  },
+  "initial_state": {
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "worktree": "mixed-origin-dirty",
+    "staged_paths": 0
+  },
+  "original_failure": {
+    "tool": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/update-current-debt-ledger.py",
+    "first_rejected_artifact": "npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json",
+    "closed_entries_with_old_entry_design_id": 15,
+    "structured_evidence_families_requiring_replay": 13
+  },
+  "attempt_1": {
+    "fdg_arch_trap": "PASS",
+    "xret_module_tests": "113/113 PASS",
+    "xret_compile_success_variants": "8/8",
+    "xret_dynamic_rejected": "7/8",
+    "stopped_stage": "xret-current-mode",
+    "root_cause": "lane1 holder-overlap variant reached the current exact-one RTL assertion before the historical CSR-request marker",
+    "production_rtl_changed": false
+  },
+  "review": {
+    "task_id": "xret-lane1-marker-review-v1",
+    "contract_sha256": "eab2ce44e00594705019c670d0104986400c1d404704c9c84086b41eba22e0bb",
+    "verdict": "APPROVED_FOR_CURRENT_SCOPE",
+    "approved_change": "replace only the lane1 variant expected marker with the exact V10A holder-onehot assertion marker"
+  },
+  "attempt_2": {
+    "passed_stages": [
+      "fdg-arch-trap",
+      "xret-current-mode",
+      "memory-issue-lifecycle",
+      "ifu-axi-flush-drain",
+      "ifu-fetch-provenance",
+      "ifu-access"
+    ],
+    "stopped_stage": "ifu-tval",
+    "failure_class": "verification_variant_anchor_stale",
+    "first_failed_operation": "reconstruct stop_pending_retains_branch_squash variant",
+    "variant_compile_started": false,
+    "production_rtl_changed": false,
+    "correction": "mutate the unique current branch_resolve_untracked_i term inside the grouped stop-owner clear condition"
+  },
+  "attempt_3": {
+    "stopped_stage": "ifu-tval",
+    "focused": "8/8 PASS",
+    "module": "113/113 PASS",
+    "compile_success_variants": "12/12",
+    "dynamic_rejected_variants": "12/12",
+    "source_unchanged": true,
+    "failure_class": "verification_static_contract_anchor_stale",
+    "failed_anchor": "stop_branch_squash_clears_validity",
+    "correction": "bind the full current grouped recovery-clear condition through the common stop_pending_o zero assignment",
+    "production_rtl_changed": false
+  },
+  "attempt_4": {
+    "passed_stages": [
+      "ifu-tval",
+      "ptw-pmp",
+      "instret-retirement",
+      "fence-ordering",
+      "vectored-trap",
+      "control-event-sq-retry",
+      "control-event-focused",
+      "control-event-config",
+      "control-event-mutations",
+      "control-event-module-aggregate",
+      "control-event-architecture",
+      "control-event-gap-boundary"
+    ],
+    "architecture_hard_gates": "9/9 GREEN",
+    "stopped_stage": "control-event-index",
+    "failure_class": "full_core_candidate_design_binding_stale",
+    "current_design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "stale_candidate_design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+    "correction": "run current holder lifecycle, then use the existing fail-closed V9L candidate/census binder before rebuilding the control-event index",
+    "architecture_freeze_must_remain": "GAP",
+    "ppa_must_remain": "UNQUALIFIED",
+    "promotion_eligible_must_remain": false,
+    "production_rtl_changed": false
+  },
+  "attempt_5": {
+    "holder_lifecycle": "baselines 8/8; compile-success mutations 9/9; static census PASS",
+    "candidate_and_census_design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "control_event_index_build": "PASS",
+    "stopped_stage": "control-event-index-verify",
+    "failure_class": "transitive_v9r_census_artifact_hash_stale",
+    "correction": "place current holder lifecycle and candidate/census binding before V9R SQ-retry evidence generation",
+    "hash_validation_weakened": false,
+    "production_rtl_changed": false
+  },
+  "attempt_6": {
+    "start_stage": "control-event-sq-retry",
+    "passed_stages": [
+      "control-event-sq-retry",
+      "control-event-focused",
+      "control-event-config",
+      "control-event-mutations",
+      "control-event-module-aggregate",
+      "control-event-architecture",
+      "control-event-gap-boundary",
+      "control-event-index",
+      "control-event-index-verify",
+      "debt-ledger-current",
+      "closed-evidence-currentness"
+    ],
+    "architecture_hard_gates": "9/9 GREEN",
+    "closed_entries_current": "15/15",
+    "stored_artifact_hashes_current": "35/35",
+    "design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "serialize_g1": "P1 OPEN",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "production_rtl_changed": false,
+    "result": "PASS"
+  },
+  "final_review_v1": {
+    "contract_sha256": "8ae95b07d436ab20cb5b7782947570f6147b19022ee3e199a068014e0f101123",
+    "rendered_prompt_sha256": "321fbe40b3b7a96db10d5885b3e7192be00dd9e979b36958073f049b2f9966f3",
+    "verdict": "CHANGES_REQUIRED",
+    "technical_currentness": "PASS",
+    "blocker": "long replay runner lacked explicit evidence-complete status and HUP/INT/TERM stage/signal/cleanup publication"
+  },
+  "attempt_7": {
+    "classification": "workflow_status_contract_correction",
+    "start_stage": "closed-evidence-currentness",
+    "skipped_simulation_replay": true,
+    "runner_bash_syntax": "PASS",
+    "task_run_status_tests": "PASS explicit completion, early exit, command failure, cleanup failure, and HUP",
+    "closed_entries_current": "15/15",
+    "stored_artifact_hashes_current": "35/35",
+    "design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "task_run_status": "PASS",
+    "replay_status": "PASS complete",
+    "production_rtl_changed": false,
+    "result": "PASS",
+    "pending": "superseded by final review v2 and attempt 8"
+  },
+  "final_review_v2": {
+    "contract_sha256": "8b020f1ff0deceae2bbd9be2384d7d52b366afd3f5a4006cd905109ade3cfccd",
+    "rendered_prompt_sha256": "cf15b521d8f23f315a5c58ab26718db34f81560fc47d62cad097a6e4bc921d44",
+    "verdict": "CHANGES_REQUIRED",
+    "technical_currentness": "PASS",
+    "blocker": "signal handlers were installed before the EXIT finalizer, leaving a deterministic pre-init signal window; tests covered helper HUP but not INT/TERM or the real runner with stale detailed PASS"
+  },
+  "attempt_8": {
+    "classification": "workflow_status_initialization_correction",
+    "start_stage": "closed-evidence-currentness",
+    "skipped_simulation_replay": true,
+    "runner_bash_syntax": "PASS",
+    "task_run_status_tests": "PASS explicit completion, early exit, command failure, cleanup failure, and HUP/INT/TERM",
+    "runner_status_tests": "6/6 PASS: pre-init and active-stage stale PASS overwrite for HUP/INT/TERM",
+    "closed_entries_current": "15/15",
+    "stored_artifact_hashes_current": "35/35",
+    "design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "task_run_status": "PASS",
+    "replay_status": "PASS complete",
+    "production_rtl_changed": false,
+    "result": "PASS",
+    "pending": "none"
+  },
+  "final_review_v3": {
+    "contract_sha256": "cc3eb28ed2ed60ed84e9a57bd326a0642c13da56ea8d77a0d9e31419de12903b",
+    "rendered_prompt_sha256": "3ef26f04421ab0b6c48e0e62033fc245fa16b3cbc6dc733e281a3c76efb43c50",
+    "verdict": "APPROVED_FOR_CURRENT_SCOPE",
+    "status_initialization_contract": "PASS",
+    "runner_signal_matrix": "6/6 PASS",
+    "attempt_8_boundary": "final currentness audit only",
+    "scope_extension_request": "none"
+  },
+  "hypotheses": [
+    "closed contracts still pass and only evidence binding is stale",
+    "a current RTL or testbench change is rejected by a canonical target",
+    "an evidence generator no longer binds the complete current RTL source set"
+  ],
+  "budget": {
+    "canonical_groups": 12,
+    "stop_on_first_failure": true,
+    "production_rtl_edits": 0,
+    "assertion_weakening": 0
+  },
+  "promotion": {
+    "all_closed_entries_current_design_bound": true,
+    "all_artifact_hashes_match": true,
+    "rtl_design_id_stable": true,
+    "serialize_g1_remains_explicit_until_separate_closure": true
+  }
+}

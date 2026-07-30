@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11b-holder-semantic-coverage-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 NpcTop 产品配置下 OooMemOwnerTerminalCollector 的 12 路 ingress、2 路 tracker-free lane、accepted-only transfer、双 output turnover/hold、identity-known 断言与三项 collector 语义晋级；同时核验 44 单元/17 instance/50 binding 账本是否诚实保留其余 41 项 GAP，不修改 RTL 或证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+      "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/evidence",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/summary.json",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/subagent-contracts/v11b-holder-semantic-coverage-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与本地证据文件、周期/编译配置、testbench/EDA 观测、PASS/GAP 范围输出独立终审；优先寻找 lane 对调、raw ingress 越权、重复 terminal 被掩盖、断言弱化、source/hash 漂移、candidate 误晋级与 3/44 外推的反例。"
+  ],
+  "success_criteria": [
+    "只有在 12+2 lane 映射、accepted-only authority、双 output 非对称保持、unknown negative、3/3 compile-success mutation、146-file pre/post binding 与 ledger 3 PASS/41 GAP 全部可由精确文件和 marker 复核时，才批准 collector bounded scope；任何未闭合项必须保持 GAP，禁止修改证据或建议去重/削弱断言。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

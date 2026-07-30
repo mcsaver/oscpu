@@ -11,7 +11,8 @@
 > 目录与 owner。但这些 owner 之间的关系主要是**历史演化**出来的，而不是先有一张架构图、再让代码服从它。
 > 本文件就是那张图。下一步重构应**反过来用本文件约束实现**。
 >
-> **版本**：v0.6（2026-07-26，冻结 full-core single-hart capability cohort；
+> **版本**：v0.7（2026-07-28，冻结 queue-head CSR 产品配置与 split-domain 合同；
+> v0.6 于 2026-07-26 冻结 full-core single-hart capability cohort；
 > v0.5 于 2026-07-16 冻结 R4-S1.0 typed memory ABI；v0.4 为
 > 2026-07-15 不可用 PPA 交换的双发射/真 OoO 能力底线，v0.3 为 2026-07-11 current
 > topology 同步版，v0.2 为 2026-07-03
@@ -41,7 +42,8 @@
 - `OooRedirectArbiter` 已进入编译清单并在 `OooFrontend` 生产实例化，fetch redirect PC
   已按年龄律单源化；kill/reason/flush_backend 仍未成为全控制面的唯一来源。
 - pending branch/jump/memory 与 synthetic lane1-ret 相关模块已物理删除；域 B 当前只保留
-  system/trap/IRQ/fault 类 pending+drain 主路径。
+  lane1/FP CSR 与 system/trap/IRQ/fault 类 pending+drain 主路径。合法 non-FP head0 CSR
+  已进入独立的 queue-head retire 路径。
 - `DecodeStage` 当前共 4 个实例（frontend 2、backend 2），int PRF 当前为 5R2W；旧
   “8实例/10R2W”是 07-03 以前的拓扑。
 - commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；2026-07-14
@@ -71,8 +73,26 @@
 
 上述四项通过 design/cohort-bound 的 `EXCLUDED_BY_COHORT` 合同解析的是未实现的可选
 能力，不会删除现有 WFI/SFENCE/Svinval 指令路径、降低 legality 检查或削弱 testbench。
-`SERIALIZE-G1` 不在排除集内，仍须以 queue-head 默认启用或完整 pending full-drain
-恢复证据独立闭合。
+`SERIALIZE-G1` 不在排除集内。2026-07-28 起 queue-head 路径是产品默认配置；
+其关闭由 current-design 原始周期计数、负向 RTL 版本和 V10G 第二次独立审查共同裁决，
+不能由默认值本身替代。当前设计上的裁决为 `SERIALIZE-G1=CLOSED`；Phase2–5、
+architecture freeze 与 PPA 不在该裁决范围。
+
+### 0.3 queue-head CSR 产品合同（2026-07-28）
+
+- `npc/rv64/configs/product-rtl-defaults.mk` 是 Makefile 消费的产品配置真源：
+  `OOO_CSR_QUEUE_HEAD=1`、`OOO_TERMINAL_HOLDER_ASSERT=1`；`define.v` 的无外部定义 fallback
+  同步为 `1'b1`。显式 `OOO_CSR_QUEUE_HEAD=0` 仅用于比较/恢复配置，不是规范产品配置。
+- queue-head 域仅接收**合法、non-FP、lane0/head0 CSR**。一条事务按
+  `birth → C0(commit + CsrFile request + typed barrier) → C1(typed apply + holder/stop clear)
+  → C2 quiet` 计数；每个 raw pulse 都直接计数，禁止以 seen-bit 去重掩盖重复。
+- lane1 CSR、FP CSR、ECALL/EBREAK、MRET/SRET、WFI、SFENCE/Svinval、架构
+  trap/IRQ/fetch fault 与 simulation exit 继续使用单 owner pending/full-drain 域。
+- SATP 服从同一位置划分：lane1 SATP 走 pending/full-drain 并产生 registered MMU pulse；
+  head0 SATP 走 queue-head CSR request/flush，不能伪造 pending-SYSTEM SATP pulse。
+- 该产品默认与 A3 实际 elaboration 相同；配置、生成 RTL、device objects 与 host execution
+  identity 均无漂移。因此 A3 原始 `published_gate_state=FAIL` 保持不变，同时独立记录
+  `execution_state=COMPLETE`、`oracle_state=INVALID` 与 checker replay PASS。
 
 ---
 
@@ -83,19 +103,21 @@
 - **域 A（真乱序 / true-OoO）**：直线整数算术/乘除/load 等"常规" uop，走
   `decode → rename → ROB 分配 → IQ 入队 → wakeup/select/issue → execute → writeback → commit`，
   动态调度、双发射、分支投机配 ROB-walk 恢复。这是核真正的乱序数据通路。
-- **域 B（串行 pending / serialized）**：**system / trap** 类"ISA 要求串行"的指令，被前端/控制面
+- **域 B（串行 pending / serialized）**：lane1/FP CSR 与其余 **system / trap** 类
+  "ISA 要求串行"的指令，被前端/控制面
   捕获进**单 entry pending owner**，核拉高 `stop_pending`，
   **把后端完全 drain 干净（ROB/IQ 清空）**，解析这唯一一条 pending op，再恢复取指。
   这本质上是**顺序执行**。
 
 > 【现状（2026-07-03 重读更新）】域 B 的总开关仍是 `OooStopPendingSequencer`（全局 `stop_pending`）
 > + `OooPendingDrainResolveGate`（`backend_drained` 同步屏障），但覆盖面已从 v0.1 的六类收缩到
-> **仅 system/trap 类**：CSR 指令、ecall/ebreak、mret/sret、wfi、sfence.vma/Svinval、取指 fault、
+> **仅 system/trap 类**：lane1/FP CSR、ecall/ebreak、mret/sret、wfi、sfence.vma/Svinval、取指 fault、
 > 非法指令类 arch-trap、中断注入、lane1 barrier。
 > **branch/jump（F2 真预测 + issue 解析 + ROB-walk）、fp（独立 rename/IQ/流水簇 + 经 ROB 提交）、
 > load/store/AMO（SQ probe/drain + MIQ）已全部迁回域 A**；
 > `pending_branch / pending_jump / pending_mem` 与 pending-FP 相关模块均已物理删除；
-> 当前只剩 system/trap/IRQ/fault 类 pending+drain 路径。
+> 当前只剩 lane1/FP CSR 与 system/trap/IRQ/fault 类 pending+drain 路径；合法 non-FP
+> head0 CSR 已由 queue-head retire 路径承接。
 > 即：v0.1 的"对所有控制流/访存/FP/系统指令退化为近顺序"**已不再成立**，
 > 残余串行仅限稀少的 system/trap 类（这正是 §8.2 裁定 KEEP 的那一半）。
 
@@ -243,7 +265,7 @@ FP 改为 `OooIntBackend` 内的 `OooFpBackend` 真乱序簇；`OooFpRegFile` �
 | Writeback | wb0/wb1 通道 → ROB + PRF + busy-table 唤醒 | `result_event` → ROB done + PRF 写 + 唤醒广播 |
 | Commit | OooRob → OooCommitOutputMux → OooArchRegFile | ROB head → `commit_event` → 写 arch GPR / free old_preg / 更新 RRAT |
 
-### 4.2 域 B 旁路（当前仅 system/trap/IRQ/fault 类）
+### 4.2 域 B 旁路（当前为 lane1/FP CSR 与 system/trap/IRQ/fault 类）
 
 ```text
    fetch_packet ── 分类(facts) ── OooPendingDispatchArbiter 仲裁 ── capture system/trap pending
@@ -467,9 +489,11 @@ RAS 清空（权限边界 / spec restore，`OooRasUpdateGate.v:25-29`）、各 p
 ### 8.1 【现状】stop_pending + backend-drain 大锤——覆盖面已收缩到 system/trap
 
 v0.1 审计确认的「pending 隐藏主干」（6 类指令各一个单 entry owner、每条难指令全后端 drain）
-**在 2026-07-03 重读中已确认收缩**：`stop_pending` 的置位源只剩 system/trap/IRQ/fault/lane1-barrier 类
+**在 2026-07-03 重读中已确认收缩**；2026-07-28 又将合法 non-FP head0 CSR
+切换为产品默认 queue-head 路径。`stop_pending` 的置位源只剩 lane1/FP
+CSR、system/trap/IRQ/fault/lane1-barrier 类
 （`OooStopPendingSequencer.v:111-139`；分支臂被 `OOO_DBRANCH_DOMAIN_A` 关闭、FP 臂端口保留但 unused）。
-branch/jump/mem/fp 四个 pending owner 已物理删除。对仍走域 B 的 CSR/系统指令，
+branch/jump/mem/fp 四个 pending owner 已物理删除。对仍走域 B 的 lane1/FP CSR 与系统指令，
 每条数十拍的全排空成本不变——
 这是 KEEP 项的固有代价，可在 serialize-at-retire 清理时再收窄。
 
@@ -496,7 +520,7 @@ branch/jump/mem/fp 四个 pending owner 已物理删除。对仍走域 B 的 CSR
 | `OooPendingJumpSequencer` | jump | 历史单 entry + 全 drain | **✅ DELETED** | JAL 前端直算；JALR 由后端解析，RAS 仅在保守窗口使用；普通 JALR target predictor 当前缺失 | B2 残余性能项 |
 | `OooPendingMemorySequencer` | mem | 历史 lane1 barrier | **✅ DELETED** | SQ(4)+probe/late-B+physical forwarding、双 bank MIQ transport 与 shared LQ(16) 已落地；memory-dependence prediction、violation replay、MSHR/多 outstanding 仍未做 | B-LSQ（残件） |
 | `OooPendingFpSequencer` + `OooFpPendingExec` | fp | ~~单 entry，mem→long→compute 串行~~ | **✅ ELIMINATED（2026-07-02）** | 已由 `OooFpBackend`（FP rename + FpIQ + 执行簇 + 经 ROB 真 commit）取代；pending-FP 壳四文件删除、E2/E3 消除、fflags/FS-dirty 走 commit（`../specs/history/ooo-fp-cluster-implementation-plan.md` §8/§9，已归档） | 新 B-FP ✅ |
-| `OooPendingSystemSequencer` | system | drain + 执行 | **KEEP** | 改"ROB 队头执行 + 退休刷 younger"标志位（语义不变，去掉全局 `stop_pending` 依赖） | 清理 |
+| `OooPendingSystemSequencer` | system | lane1/FP CSR 与非 CSR system drain + 执行；合法 non-FP head0 CSR 已走 queue-head | **KEEP** | 后续把余下 system op 改为 ROB 队头执行 + 退休刷 younger；在此之前保留 split-domain | 清理 |
 | `OooPendingTrapExitSequencer` | trap | drain + 执行 | **KEEP / 瘦身** | 精确异常本就由 ROB 队头承接（exception 字段 + commit1 阻塞已在）；瘦掉冗余脚手架 | 清理 |
 | `OooStopPendingSequencer` / `OooPendingDrainResolveGate` / `OooPendingDispatchArbiter` / 各 …Gate | 机制 | 全局门控/屏障/仲裁 | **DELETE（最终）** | 四类拆完后只剩 system/trap 的队头串行，全局 `stop_pending` + drain 机制整体删除 | **仍 KEEP（在用）**——见下 §8.4 注 |
 
@@ -542,7 +566,8 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
    且 Sv39 开启时前递/精判整体退化 blind（VA 别名）。
 3. **FP 执行簇**（新 B-FP）：**✅ 完成（2026-07-02）**——FP 重命名 + FP IQ + FP 管线 + FP 经 ROB 提交
    已落地（rv64uf/ud 23/23 + 全集 difftest 全绿），`fp` 类清零、E2/E3 已消除。
-4. **serialize-at-retire**（清理）：`system`/`trap` 改 ROB-队头执行 + 退休刷 younger，删 `stop_pending`。
+4. **serialize-at-retire**（清理）：Phase1 合法 non-FP head0 CSR 已以 queue-head 产品配置落地；
+   余下 `system`/`trap` 仍待改为 ROB-队头执行 + 退休刷 younger，最终才可删 `stop_pending`。
 
 **推荐拆除顺序**（依赖驱动，非随意）：
 

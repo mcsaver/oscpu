@@ -1,0 +1,9 @@
+run_label=rootfs-c1b531-systemd-strict-6b-a1
+runner=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh
+lock_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-engineering-single-flight.lock
+prelaunch_contract=PASS
+session_mode=setsid-no-tty
+stdin=/dev/null
+max_cycles=6000000000
+host_timeout_seconds=100000
+commit_gap_limit_cycles=1000000

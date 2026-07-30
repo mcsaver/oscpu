@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e_checker_debug_valid_final_review_v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 NpcSimTop.debug_ooo_flags_o 与 systemd natural-poweroff 证据链：六个终端事件必须各一次且按周期顺序出现，宿主预算终止时已命名 RTL assertion marker 优先判 FAIL，debug-valid bit63 只表示诊断 payload 配置有效，并由 enabled 64-cycle Verilator 观测与 current design-id 绑定。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-debug-valid-enabled-smoke.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/debug-valid-enabled-smoke.status",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled/validation.log",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled/console.log",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled/sim-build/obj_dir/VNpcSimTop__verFiles.dat",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e-checker-debug-valid-final-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出终端事务顺序/重复、预算终止 assertion 优先级、debug-valid 位域与 host 观测、current design-id/仿真器/config 绑定的逐项 PASS/GAP；列出仍可导致假绿的具体反例、未知项、替代假设、证据路径与范围扩展请求。"
+  ],
+  "success_criteria": [
+    "六类 raw terminal event 的重复 fixture 和五个相邻逆序 fixture 均由定向 testbench 拒绝；两种 V9R SQ marker 在 host-timeout 与 exact max-cycle 两类结束方式下优先判 RTL FAIL；不可读日志 fail closed；enabled 运行观测 bit63=1、bits62:46=0、host valid=1、64 cycles/6 commits 且 config 哈希不变；runner 绑定 design-id 5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a，并明确 a3 历史 RED、a4 NOT_RUN、PPA 未资格化。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

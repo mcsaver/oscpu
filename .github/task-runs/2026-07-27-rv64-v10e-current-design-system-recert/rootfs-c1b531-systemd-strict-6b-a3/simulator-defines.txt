@@ -1,0 +1,4 @@
+verilator_assertions=enabled
+OOO_CSR_QUEUE_HEAD=1
+OOO_ASSERT=1
+OOO_TERMINAL_HOLDER_ASSERT=1

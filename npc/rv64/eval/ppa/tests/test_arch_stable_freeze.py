@@ -168,6 +168,69 @@ class GreenFixture:
 
         self.focused_log = write_text(
             root, "evidence/focused.log", "[RESULT] PASS\n")
+        live_historical = freeze.load_json(
+            REPO_ROOT
+            / "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+        )
+        self.historical_ledger = write_json(
+            root,
+            "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+            {
+                "schema": freeze.HISTORICAL_DEFECT_SCHEMA,
+                "revision": "fixture-clear-v1",
+                "scope": "synthetic full-core architecture fixture",
+                "design_id": self.design_id,
+                "depth_contract": live_historical["depth_contract"],
+                "blocking_depths": ["VD0", "VD1"],
+                "selected_id": "NONE",
+                "entries": [
+                    {
+                        "id": "FIXTURE-HIST-1",
+                        "priority_rank": 1,
+                        "title": "fixture historical defect",
+                        "domain": "evidence-binding",
+                        "severity": "low",
+                        "recurrence_risk": "low",
+                        "observation_cost": "low",
+                        "first_observed": "2026-07-28",
+                        "status": "BACKFILLED",
+                        "validation_depth": "VD4",
+                        "historical_symptom": "synthetic fixture symptom",
+                        "root_cause": "synthetic fixture root cause",
+                        "owner_paths": [
+                            self.rtl.relative_to(root).as_posix()
+                        ],
+                        "source_artifacts": [
+                            {
+                                "path": self.arch_contract.relative_to(
+                                    root
+                                ).as_posix(),
+                                "sha256": freeze.sha256_file(
+                                    self.arch_contract
+                                ),
+                            }
+                        ],
+                        "current_evidence": [
+                            {
+                                "path": self.focused_log.relative_to(
+                                    root
+                                ).as_posix(),
+                                "sha256": freeze.sha256_file(
+                                    self.focused_log
+                                ),
+                            }
+                        ],
+                        "depth_basis": [
+                            "Synthetic fixture binds positive, negative, "
+                            "aggregate and review evidence."
+                        ],
+                        "required_backfill": [
+                            "Reopen if the fixture evidence changes."
+                        ],
+                    }
+                ],
+            },
+        )
         tests = {
             name: {
                 "status": "PASS",
@@ -578,7 +641,7 @@ class GreenFixture:
             "npc/rv64/eval/ppa/tools/producer_holder_census.py",
             '''import hashlib\nimport json\n'''
             '''def digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n'''
-            '''def audit(root,manifest_path,vsrc):\n    value=json.loads(manifest_path.read_text())\n    files={p.relative_to(root).as_posix():digest(p) for p in sorted(vsrc.rglob("*")) if p.is_file()}\n    return {"status":"PASS" if files else "FAIL","scope":value.get("scope"),"status_ledger":value.get("status_ledger"),"hashes":{"manifest_sha256":digest(manifest_path),"source_files":files}}\n''',
+            '''def audit(root,manifest_path,vsrc):\n    value=json.loads(manifest_path.read_text())\n    files={p.relative_to(root).as_posix():digest(p) for p in sorted(vsrc.rglob("*")) if p.is_file()}\n    return {"status":"PASS" if files else "FAIL","scope":value.get("scope"),"status_ledger":value.get("status_ledger"),"hashes":{"manifest_sha256":digest(manifest_path),"source_files":files},"instance_graph":{"status":"PASS","design_id":value.get("design_id"),"counts":{"holder_instances":1},"graph_sha256":"0"*64}}\n''',
         )
 
     def _build_frozen_inputs(self) -> None:
@@ -771,6 +834,111 @@ class GreenFixture:
                         if relative.endswith("tools/architecture_hard_gates.py") else
                         "holder_census_checker"
                         if relative.endswith("tools/producer_holder_census.py") else
+                        "holder_instance_graph_checker"
+                        if relative.endswith(
+                            "tools/producer_holder_instance_graph.py"
+                        ) else
+                        "holder_semantic_checker"
+                        if relative.endswith(
+                            "tools/producer_holder_semantic_coverage.py"
+                        ) else
+                        "holder_lane_contract_checker"
+                        if relative.endswith(
+                            "tools/terminal_collector_lane_contract.py"
+                        ) else
+                        "memory_tracker_semantic_checker"
+                        if relative.endswith(
+                            "tools/memory_tracker_semantic_evidence.py"
+                        ) else
+                        "memory_tracker_cursor_semantic_checker"
+                        if relative.endswith(
+                            "tools/"
+                            "memory_tracker_cursor_semantic_evidence.py"
+                        ) else
+                        "holder_instance_graph_runner"
+                        if relative.endswith(
+                            "run-instance-graph.sh"
+                        ) else
+                        "holder_instance_graph_test"
+                        if relative.endswith((
+                            "tests/test_producer_holder_instance_graph.py",
+                            "tests/test_v11a_instance_graph_runner.py",
+                        )) else
+                        "holder_census_test"
+                        if relative.endswith(
+                            "tests/test_producer_holder_census.py"
+                        ) else
+                        "holder_lifecycle_runner"
+                        if relative.endswith(
+                            "rv64-v8l-global-producer-no-live-reuse/"
+                            "run-focused.sh"
+                        ) else
+                        "holder_lifecycle_builder"
+                        if relative.endswith(
+                            "rv64-v8l-global-producer-no-live-reuse/"
+                            "build-current-census-evidence.py"
+                        ) else
+                        "holder_lifecycle_mutator"
+                        if relative.endswith(
+                            "rv64-v8l-global-producer-no-live-reuse/"
+                            "mutate-v8l-global-lease.py"
+                        ) else
+                        "holder_lifecycle_test"
+                        if relative.endswith(
+                            "tests/test_v8l_current_census_evidence.py"
+                        ) else
+                        "terminal_collector_runner"
+                        if relative.endswith(
+                            "producer-holder-semantic-coverage/"
+                            "run-terminal-collector-focused.sh"
+                        ) else
+                        "terminal_collector_builder"
+                        if relative.endswith(
+                            "producer-holder-semantic-coverage/"
+                            "build-terminal-collector-evidence.py"
+                        ) else
+                        "terminal_collector_mutator"
+                        if relative.endswith(
+                            "producer-holder-semantic-coverage/"
+                            "mutate-terminal-collector.py"
+                        ) else
+                        "memory_tracker_semantic_runner"
+                        if relative.endswith(
+                            "memory-tracker-semantic-coverage/"
+                            "run-memory-tracker-focused.sh"
+                        ) else
+                        "memory_tracker_cursor_semantic_runner"
+                        if relative.endswith(
+                            "memory-tracker-cursor-semantic-coverage/"
+                            "run-memory-tracker-cursor-focused.sh"
+                        ) else
+                        "memory_tracker_semantic_test"
+                        if relative.endswith(
+                            "tests/test_memory_tracker_semantic_evidence.py"
+                        ) else
+                        "memory_tracker_cursor_semantic_test"
+                        if relative.endswith(
+                            "tests/"
+                            "test_memory_tracker_cursor_semantic_evidence.py"
+                        ) else
+                        "holder_semantic_test"
+                        if relative.endswith(
+                            "tests/test_producer_holder_semantic_coverage.py"
+                        ) else
+                        "holder_lane_contract_test"
+                        if relative.endswith(
+                            "tests/test_terminal_collector_lane_contract.py"
+                        ) else
+                        "holder_semantic_policy"
+                        if relative.endswith(
+                            "producer-holder-semantic-coverage-policy.json"
+                        ) else
+                        "task_run_status_helper"
+                        if relative == "scripts/task-run-status.sh" else
+                        "task_run_status_test"
+                        if relative == (
+                            "scripts/tests/test-task-run-status.sh"
+                        ) else
                         "audit_runner"
                         if relative.endswith("run-arch-stable-audit.sh") else
                         "audit_test"
@@ -1077,6 +1245,20 @@ class PureFunctionTests(unittest.TestCase):
         self.assertEqual(checks[0]["status"], "GAP")
         self.assertTrue(blockers)
 
+    def test_v9r_semantic_sources_exclude_census_hash_envelope(self) -> None:
+        self.assertNotIn(
+            "npc/rv64/design/arch/producer-holder-census.json",
+            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
+        )
+        self.assertIn(
+            "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
+        )
+        self.assertIn(
+            "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
+        )
+
 
 class EndToEndFixtureTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -1115,6 +1297,65 @@ class EndToEndFixtureTests(unittest.TestCase):
         self.assertEqual(result["blockers"], [])
         self.assertEqual(result["ppa"], "UNQUALIFIED")
         self.assertFalse(result["promotion_eligible"])
+
+    def test_missing_holder_instance_graph_workflow_dependency_is_rejected(
+        self,
+    ) -> None:
+        target = (
+            "npc/rv64/eval/ppa/tools/"
+            "producer_holder_instance_graph.py"
+        )
+        workflow = self.fixture.candidate_value["freeze_inputs"]["workflow"]
+        self.fixture.candidate_value["freeze_inputs"]["workflow"] = [
+            entry for entry in workflow if entry["path"] != target
+        ]
+        self.assert_gap(
+            self.fixture.audit(),
+            "freeze_inputs.workflow.exact_membership",
+        )
+
+    def test_holder_instance_graph_workflow_drift_is_rejected(self) -> None:
+        target = self.root / (
+            "npc/rv64/eval/ppa/tools/"
+            "producer_holder_instance_graph.py"
+        )
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# fixture drift\n",
+            encoding="utf-8",
+        )
+        self.assert_gap(
+            self.fixture.audit(),
+            "freeze_inputs.workflow.artifacts",
+        )
+
+    def test_missing_holder_lifecycle_builder_is_rejected(self) -> None:
+        target = (
+            ".github/task-runs/"
+            "2026-07-20-rv64-v8l-global-producer-no-live-reuse/"
+            "build-current-census-evidence.py"
+        )
+        workflow = self.fixture.candidate_value["freeze_inputs"]["workflow"]
+        self.fixture.candidate_value["freeze_inputs"]["workflow"] = [
+            entry for entry in workflow if entry["path"] != target
+        ]
+        self.assert_gap(
+            self.fixture.audit(),
+            "freeze_inputs.workflow.exact_membership",
+        )
+
+    def test_holder_lifecycle_provenance_test_drift_is_rejected(self) -> None:
+        target = self.root / (
+            "npc/rv64/eval/ppa/tests/"
+            "test_v8l_current_census_evidence.py"
+        )
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# fixture drift\n",
+            encoding="utf-8",
+        )
+        self.assert_gap(
+            self.fixture.audit(),
+            "freeze_inputs.workflow.artifacts",
+        )
 
     def test_cli_require_stable_accepts_complete_fixture(self) -> None:
         result_path = self.root / "freeze/cli-result.json"
@@ -1766,7 +2007,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
             "FDG-G1", "XRET-G1", "INSTRET-G1", "MEM-ISSUE-G1",
             "MIQ-FLUSH-G1", "IFU-AXI-G1", "IFU-FETCH-G2",
             "IFU-ACCESS-G1", "IFU-TVAL-G1", "PTW-PMP-G1",
-            "STORE-BRESP-G1", "FENCE-G1", "F0-G1",
+            "STORE-BRESP-G1", "FENCE-G1", "F0-G1", "SERIALIZE-G1",
         )
         for debt_id in current_semantic_debts:
             self.assertEqual(
@@ -1806,9 +2047,17 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             checks["debt.cohort_exclusions.exact"]["status"], "PASS")
         self.assertEqual(
-            checks["debt.SERIALIZE-G1.resolved"]["status"], "GAP")
-        self.assertTrue(any(
-            "debt.SERIALIZE-G1.resolved" in blocker
+            checks["historical_defect_backfill.valid"]["status"], "PASS")
+        self.assertEqual(
+            checks["historical_defect_backfill.vd0_vd1_clear"]["status"],
+            "PASS",
+        )
+        self.assertEqual(
+            result["observed"]["historical_defect_backfill"]["selected_id"],
+            "NONE",
+        )
+        self.assertFalse(any(
+            "historical_defect_backfill.vd0_vd1_clear" in blocker
             for blocker in result["blockers"]
         ))
         self.assertEqual(checks["functional.json_schema"]["status"], "PASS")

@@ -154,7 +154,8 @@ module tb_ooo_trap_exit_output_sequencer;
     exit_is_ebreak_i = 1'b1;
     tick();
     expect_state(1'b1, `EXC_BREAKPOINT, 64'h8000_0200,
-                 64'h0, 1'b1, 1'b0, 1'b1, 1'b1);
+                 64'h0, 1'b0, 1'b0, 1'b0, 1'b1);
+    $display("[V10D-OUTPUT-TRAP-PRIORITY-PASS] trap=1 exit=0 halted=1");
 
     $display("PASS tb_ooo_trap_exit_output_sequencer");
     $finish;

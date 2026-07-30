@@ -28,6 +28,9 @@ import jsonschema
 
 CANDIDATE_SCHEMA = "npc-rv64-arch-stable-candidate-v1"
 LEDGER_SCHEMA = "npc-rv64-architecture-debt-ledger-v2"
+HISTORICAL_DEFECT_SCHEMA = (
+    "npc-rv64-historical-defect-backfill-ledger-v1"
+)
 RESULT_SCHEMA = "npc-rv64-arch-stable-result-v1"
 ARCH_EVIDENCE_SCHEMA = "npc-rv64-architecture-directed-suite-v2"
 ARCH_RESULT_SCHEMA = "npc-rv64-architecture-hard-gates-result-v2"
@@ -68,6 +71,10 @@ DESIGN_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 SCHEMA_PATHS = {
     CANDIDATE_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v1.schema.json",
     LEDGER_SCHEMA: "npc/rv64/eval/ppa/schemas/architecture-debt-ledger-v2.schema.json",
+    HISTORICAL_DEFECT_SCHEMA: (
+        "npc/rv64/eval/ppa/schemas/"
+        "historical-defect-backfill-ledger-v1.schema.json"
+    ),
     RESULT_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-result-v1.schema.json",
     FUNCTIONAL_SCHEMA: "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
     DIFFTEST_PROFILE_SCHEMA: "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
@@ -76,9 +83,15 @@ SCHEMA_PATHS = {
 }
 WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
     "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
     "npc/rv64/eval/ppa/tools/functional_aggregate.py",
     "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+    "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+    "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+    "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+    "npc/rv64/eval/ppa/tools/memory_tracker_semantic_evidence.py",
+    "npc/rv64/eval/ppa/tools/memory_tracker_cursor_semantic_evidence.py",
     "npc/rv64/eval/ppa/tools/fdg_arch_trap_evidence.py",
     "npc/rv64/eval/ppa/tools/xret_current_mode_evidence.py",
     "npc/rv64/eval/ppa/tools/instret_retirement_evidence.py",
@@ -88,10 +101,32 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/ifu_fetch_provenance_evidence.py",
     "npc/rv64/eval/ppa/tools/vectored_trap_evidence.py",
     "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
+    ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh",
+    ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/build-current-census-evidence.py",
+    ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/mutate-v8l-global-lease.py",
     ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh",
     ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+    ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/run-instance-graph.sh",
+    ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/run-terminal-collector-focused.sh",
+    ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/build-terminal-collector-evidence.py",
+    ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/mutate-terminal-collector.py",
+    ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/run-memory-tracker-focused.sh",
+    ".github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/run-memory-tracker-cursor-focused.sh",
+    "scripts/task-run-status.sh",
+    "scripts/tests/test-task-run-status.sh",
     "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+    "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
     "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
+    "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+    "npc/rv64/eval/ppa/tests/test_v8l_current_census_evidence.py",
+    "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+    "npc/rv64/eval/ppa/tests/test_v11a_instance_graph_runner.py",
+    "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+    "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+    "npc/rv64/eval/ppa/tests/test_memory_tracker_semantic_evidence.py",
+    "npc/rv64/eval/ppa/tests/test_memory_tracker_cursor_semantic_evidence.py",
+    "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
     "npc/rv64/eval/ppa/tests/test_fdg_arch_trap_evidence.py",
     "npc/rv64/eval/ppa/tests/test_xret_current_mode_evidence.py",
     "npc/rv64/eval/ppa/tests/test_instret_retirement_evidence.py",
@@ -117,7 +152,23 @@ GROUP_KINDS = {
     "binaries": {"simulator_binary", "reference_model_binary"},
     "workflow": {
         "audit_checker", "canonical_architecture_checker",
-        "holder_census_checker", "audit_runner", "audit_test", "json_schema",
+        "holder_census_checker", "holder_instance_graph_checker",
+        "holder_semantic_checker", "holder_lane_contract_checker",
+        "holder_semantic_policy",
+        "holder_census_test",
+        "holder_lifecycle_runner", "holder_lifecycle_builder",
+        "holder_lifecycle_mutator", "holder_lifecycle_test",
+        "holder_instance_graph_runner", "holder_instance_graph_test",
+        "holder_semantic_test", "holder_lane_contract_test",
+        "terminal_collector_runner", "terminal_collector_builder",
+        "terminal_collector_mutator",
+        "memory_tracker_semantic_checker",
+        "memory_tracker_semantic_test", "memory_tracker_semantic_runner",
+        "memory_tracker_cursor_semantic_checker",
+        "memory_tracker_cursor_semantic_test",
+        "memory_tracker_cursor_semantic_runner",
+        "task_run_status_helper", "task_run_status_test",
+        "audit_runner", "audit_test", "json_schema",
     },
 }
 TOOL_VERSION_ARGS = {
@@ -211,7 +262,6 @@ V9R_SQ_RETRY_SOURCE_PATHS = {
     "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
     "npc/rv64/design/specs/ooo-memory-producer-lease.md",
     "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
-    "npc/rv64/design/arch/producer-holder-census.json",
     "npc/rv64/eval/ppa/tools/producer_holder_census.py",
     "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
 }
@@ -1655,8 +1705,7 @@ XRET_MUTATION_SPECS = {
             "  assign system_capture_o =\n"
             "      barrier_base_i && system_raw_w && !csr_illegal_i;"),
         "marker": (
-            "u-mode illegal sret does not request CsrFile sret "
-            "got=1 expected=0"),
+            "[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap"),
     },
     "precise_trap_pc_offset": {
         "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
@@ -6766,6 +6815,82 @@ def validate_vectored_trap_debt(
     return errors
 
 
+SERIALIZE_G1_COMMAND = (
+    "python3 .github/task-runs/"
+    "2026-07-28-rv64-v10g-serialize-currentness-closure/"
+    "verify_serialize_g1_closure.py"
+)
+SERIALIZE_G1_EVIDENCE = {
+    "serialize_closure_candidate": (
+        ".github/task-runs/"
+        "2026-07-28-rv64-v10g-serialize-currentness-closure/"
+        "serialize-g1-closure-candidate-v2.json"
+    ),
+    "independent_review_contract": (
+        ".github/task-runs/"
+        "2026-07-28-rv64-v10g-serialize-currentness-closure/"
+        "subagent-contracts/serialize-currentness-final-review-v2.json"
+    ),
+    "independent_review_report": (
+        ".github/task-runs/"
+        "2026-07-28-rv64-v10g-serialize-currentness-closure/"
+        "final-reviewer-report-v2.md"
+    ),
+}
+
+
+def validate_serialize_g1_debt(
+    root: pathlib.Path,
+    entry: dict[str, Any],
+    expected_design_id: str,
+) -> list[str]:
+    """Validate product-default serialize ownership and its review decision."""
+
+    errors: list[str] = []
+    if entry.get("canonical_command") != SERIALIZE_G1_COMMAND:
+        errors.append("SERIALIZE-G1 canonical command drifted")
+
+    evidence = entry.get("evidence")
+    evidence_list = evidence if isinstance(evidence, list) else []
+    by_kind = {
+        item.get("kind"): item
+        for item in evidence_list
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
+    if not (
+        len(evidence_list) == len(SERIALIZE_G1_EVIDENCE)
+        and set(by_kind) == set(SERIALIZE_G1_EVIDENCE)
+        and all(
+            by_kind[kind].get("path") == path
+            for kind, path in SERIALIZE_G1_EVIDENCE.items()
+        )
+    ):
+        errors.append(
+            "SERIALIZE-G1 requires exact candidate/contract/review evidence")
+        return errors
+
+    try:
+        verifier = load_workspace_module(
+            root,
+            ".github/task-runs/"
+            "2026-07-28-rv64-v10g-serialize-currentness-closure/"
+            "verify_serialize_g1_closure.py",
+            "serialize_g1_closure_verifier",
+        )
+        verifier_errors = verifier.validate(root)
+    except (OSError, ValueError, AttributeError, json.JSONDecodeError) as exc:
+        errors.append(f"SERIALIZE-G1 verifier could not run: {exc}")
+        return errors
+
+    if verifier.DESIGN_ID != expected_design_id:
+        errors.append(
+            "SERIALIZE-G1 verifier is not bound to the current design_id")
+    if verifier_errors:
+        errors.extend(
+            f"SERIALIZE-G1 {message}" for message in verifier_errors[:8])
+    return errors
+
+
 DEBT_SEMANTIC_VALIDATORS = {
     "F0-G1": validate_f0_debt,
     "FDG-G1": validate_fdg_debt,
@@ -6781,6 +6906,7 @@ DEBT_SEMANTIC_VALIDATORS = {
     "IFU-TVAL-G1": validate_ifu_tval_debt,
     "PTW-PMP-G1": validate_ptw_pmp_debt,
     "CONTROL-EVENT-G1": validate_control_event_debt,
+    "SERIALIZE-G1": validate_serialize_g1_debt,
     "VECTORED-TRAP-G1": validate_vectored_trap_debt,
 }
 
@@ -7316,6 +7442,7 @@ def validate_census(
 
     static_errors: list[str] = []
     static_result: dict[str, Any] | None = None
+    instance_observation: dict[str, Any] | None = None
     try:
         if census_path is None:
             raise ValueError("census manifest path is missing")
@@ -7341,6 +7468,12 @@ def validate_census(
             static_errors.append("canonical static census scope differs from manifest")
         if static_result.get("status_ledger") != census.get("status_ledger"):
             static_errors.append("canonical static census status ledger differs from manifest")
+        instance_observation = static_result.get("instance_graph")
+        if not isinstance(instance_observation, dict) or \
+                instance_observation.get("status") != "PASS":
+            static_errors.append(
+                "canonical census elaborated instance graph is not PASS"
+            )
     except (
         OSError, ValueError, AttributeError, json.JSONDecodeError,
         ImportError, SyntaxError, RuntimeError,
@@ -7349,7 +7482,8 @@ def validate_census(
     add_check(
         checks, blockers, "census.canonical_static_audit",
         not static_errors,
-        "canonical census checker rebuilt a non-empty exact source inventory"
+        "canonical census checker rebuilt a non-empty exact source inventory "
+        "and verified the bound elaborated holder instance graph"
         if not static_errors else "; ".join(static_errors[:4]),
     )
 
@@ -7416,6 +7550,7 @@ def validate_census(
         "status_ledger": ledger,
         "static_audit_sha256": canonical_sha256(static_result)
         if static_result is not None else None,
+        "instance_graph": instance_observation,
     }
 
 
@@ -8442,6 +8577,51 @@ def evaluate_candidate(
         checks.extend(subchecks)
         blockers.extend(subblockers)
         observed["debt"] = subobserved
+
+    try:
+        historical_module = load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+            "historical_defect_backfill_audit",
+        )
+        historical = historical_module.audit(
+            root,
+            expected_design_id=expected_design_id,
+        )
+    except (OSError, ValueError, AttributeError, json.JSONDecodeError) as exc:
+        historical = {
+            "valid": False,
+            "status": "INVALID",
+            "blocking_ids": [],
+            "errors": [str(exc)],
+        }
+    historical_errors = historical.get("errors")
+    historical_error_list = (
+        historical_errors if isinstance(historical_errors, list) else []
+    )
+    add_check(
+        checks,
+        blockers,
+        "historical_defect_backfill.valid",
+        historical.get("valid") is True,
+        "historical-defect ledger is schema/hash/selection valid"
+        if historical.get("valid") is True
+        else "; ".join(str(item) for item in historical_error_list[:4]),
+    )
+    add_check(
+        checks,
+        blockers,
+        "historical_defect_backfill.vd0_vd1_clear",
+        historical.get("status") == "PASS",
+        "no VD0/VD1 historical defects remain"
+        if historical.get("status") == "PASS"
+        else (
+            "blocking historical defects="
+            f"{historical.get('blocking_ids', [])}; "
+            f"selected={historical.get('selected_id')}"
+        ),
+    )
+    observed["historical_defect_backfill"] = historical
 
     architecture_evidence_path, _ = safe_regular_file(
         root, refs_map.get("architecture_evidence"))

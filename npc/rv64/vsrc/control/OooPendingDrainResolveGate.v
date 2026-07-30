@@ -18,6 +18,7 @@ module OooPendingDrainResolveGate #(
   input branch_spec_active_i,
   input branch_spec_checkpoint_pending_i,
   input pending_arch_trap_i,
+  input pending_exit_i,
   input pending_branch_i,
   input pending_branch_dispatched_i,
   input pending_jump_i,
@@ -34,8 +35,9 @@ module OooPendingDrainResolveGate #(
   input mem_idle_i,
   // V9Y/V9Z: unlike full mem_idle, this admits collector-pending-only tokens
   // but rejects every still-active memory holder without an exact terminal
-  // edge.  Both pending system controls and pending architectural traps use
-  // this boundary before their serialized control transaction can complete.
+  // edge.  Pending system controls, pending architectural traps and
+  // simulation-exit owners all use this boundary before their serialized
+  // control transaction can complete.
   input mem_owner_terminalized_i,
   input pending_system_i,
   input pending_system_fence_i,
@@ -98,7 +100,7 @@ module OooPendingDrainResolveGate #(
   wire pending_fence_mem_quiet_w =
       !pending_system_fence_i || mem_idle_i;
   wire pending_serialized_mem_terminal_w =
-      !(pending_system_i || pending_arch_trap_i) ||
+      !(pending_system_i || pending_arch_trap_i || pending_exit_i) ||
       mem_owner_terminalized_i;
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&

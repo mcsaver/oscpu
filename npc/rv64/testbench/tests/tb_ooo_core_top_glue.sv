@@ -158,6 +158,29 @@ module tb_ooo_core_top_glue;
   reg csr_branch_recovery_selective_prev;
   reg control_full_flush_barrier_prev;
   reg [`REDIR_REASON_W-1:0] control_full_flush_reason_prev;
+`ifdef V9O_CSR_QH_FOCUSED
+  integer qh_csr_birth_count;
+  integer qh_csr_c0_commit_count;
+  integer qh_csr_c0_barrier_count;
+  integer qh_csr_csrfile_request_count;
+  integer qh_csr_c1_apply_count;
+  integer qh_csr_c2_quiet_count;
+  integer qh_csr_selective_kill_count;
+  integer qh_csr_lane1_fire_count;
+  integer qh_csr_inflight_hold_cycle_count;
+  integer qh_csr_drain_root_count;
+  integer qh_csr_correct_resolve_root_count;
+  integer qh_csr_orphan_owner_gap_count;
+  integer qh_csr_stop_drop_count;
+  integer qh_csr_inflight_can_run_count;
+  integer qh_csr_successor_packet_cycle_count;
+  integer qh_csr_inflight_lane1_capture_count;
+  integer qh_csr_cycle_count;
+  reg qh_csr_owner_live;
+  reg qh_csr_expect_c1;
+  reg qh_csr_expect_c2;
+  reg [`XLEN-1:0] qh_csr_owner_pc;
+`endif
   reg saw_v8a_candidate;
   reg saw_v8a_identity;
   reg saw_fetch_fault_packet_enqueue;
@@ -197,6 +220,7 @@ module tb_ooo_core_top_glue;
   localparam [4:0] MODE_CSR_BRANCH_RECOVERY = 5'd24;
   localparam [4:0] MODE_CSR_JALR_RECOVERY = 5'd25;
   localparam [4:0] MODE_CSR_JALR_CALLBACK_CHAIN = 5'd26;
+  localparam [4:0] MODE_CSR_STOP_HOLD_OVERLAP = 5'd27;
   // Deliberately use a raw instruction whose 18-bit T3W static pack is
   // non-zero.  PacketDecode must replace it with a NOP on the fault path,
   // and the FIFO must store the sanitized NOP's all-zero static pack.
@@ -915,6 +939,32 @@ module tb_ooo_core_top_glue;
               default:       program_word = inst_beq_self();
             endcase
           end
+          MODE_CSR_STOP_HOLD_OVERLAP: begin
+            case (addr)
+              // The load keeps an older BNE unresolved until after the
+              // queue-head CSR dispatches.  Zero data makes the cold-BHT
+              // not-taken prediction correct, so its resolve must not kill
+              // the younger CSR.  It supplies natural older-control timing,
+              // but current domain-A correct resolve asserts neither
+              // branch_spec_resolve_valid nor branch_resolve_untracked, so
+              // it is not a stop-clear root.  The CSR packet is +0x10/+0x14; after its
+              // single-lane pop the next sequential packet is +0x18/+0x1c,
+              // where the second CSR is lane1.
+              32'h8000_0000: program_word = inst_auipc(5'd2, 20'h00000);
+              32'h8000_0004: program_word = inst_addi(5'd3, 5'd0, 12'h055);
+              32'h8000_0008: program_word = inst_lw(5'd1, 5'd2, 12'h040);
+              32'h8000_000c: program_word = inst_bne(13'd12, 5'd1, 5'd0);
+              32'h8000_0010: program_word = inst_csrrw(5'd0, `CSR_MSCRATCH,
+                                                       5'd0);
+              32'h8000_0014: program_word = inst_addi(5'd4, 5'd0, 12'd4);
+              32'h8000_0018: program_word = inst_addi(5'd5, 5'd0, 12'd5);
+              32'h8000_001c: program_word = inst_csrrs(5'd0, `CSR_MSTATUS,
+                                                       5'd0);
+              32'h8000_0020: program_word = inst_addi(5'd6, 5'd0, 12'd6);
+              32'h8000_0024: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           MODE_FETCH_ACCESS_FAULT: begin
             case (addr)
               // Install a real handler before injecting the fault.  CSR
@@ -964,6 +1014,77 @@ module tb_ooo_core_top_glue;
       end
     end
   endfunction
+
+`ifdef V9O_CSR_QH_FOCUSED
+  task automatic check_qh_csr_committed_scoreboard;
+    input [1023:0] label;
+    begin
+      if (qh_csr_birth_count <= 0) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s observed no queue-head CSR birth", label);
+      end
+      tb_check32("V10G queue-head CSR birth/C0 commit count",
+                 qh_csr_birth_count, qh_csr_c0_commit_count);
+      tb_check32("V10G queue-head CSR C0 commit/barrier count",
+                 qh_csr_c0_commit_count, qh_csr_c0_barrier_count);
+      tb_check32("V10G queue-head CSR C0/CsrFile request count",
+                 qh_csr_c0_commit_count, qh_csr_csrfile_request_count);
+      tb_check32("V10G queue-head CSR C0/C1 apply count",
+                 qh_csr_c0_commit_count, qh_csr_c1_apply_count);
+      tb_check32("V10G queue-head CSR C0/C2 quiet count",
+                 qh_csr_c0_commit_count, qh_csr_c2_quiet_count);
+      tb_check32("V10G committed queue-head CSR selective-kill count",
+                 qh_csr_selective_kill_count, 32'd0);
+      tb_check32("V10G queue-head CSR birth lane1 fire count",
+                 qh_csr_lane1_fire_count, 32'd0);
+      tb_check1("V10G committed queue-head CSR owner is clear",
+                qh_csr_owner_live, 1'b0);
+      tb_check1("V10G committed queue-head CSR has no pending C1",
+                qh_csr_expect_c1, 1'b0);
+      tb_check1("V10G committed queue-head CSR has completed C2",
+                qh_csr_expect_c2, 1'b0);
+      $display("[V10G-QH-CSR-RAW] %0s birth=%0d lane1_fire=%0d C0_commit=%0d C0_barrier=%0d CsrFile_request=%0d C1_apply=%0d C2_quiet=%0d PASS",
+               label, qh_csr_birth_count, qh_csr_lane1_fire_count,
+               qh_csr_c0_commit_count, qh_csr_c0_barrier_count,
+               qh_csr_csrfile_request_count, qh_csr_c1_apply_count,
+               qh_csr_c2_quiet_count);
+    end
+  endtask
+
+  task automatic check_qh_csr_killed_scoreboard;
+    input [1023:0] label;
+    begin
+      if (qh_csr_birth_count <= 0) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s observed no wrong-path queue-head CSR birth",
+                 label);
+      end
+      tb_check32("V10G killed queue-head CSR birth/selective-kill count",
+                 qh_csr_birth_count, qh_csr_selective_kill_count);
+      tb_check32("V10G killed queue-head CSR C0 commit count",
+                 qh_csr_c0_commit_count, 32'd0);
+      tb_check32("V10G killed queue-head CSR C0 barrier count",
+                 qh_csr_c0_barrier_count, 32'd0);
+      tb_check32("V10G killed queue-head CSR CsrFile request count",
+                 qh_csr_csrfile_request_count, 32'd0);
+      tb_check32("V10G killed queue-head CSR C1 apply count",
+                 qh_csr_c1_apply_count, 32'd0);
+      tb_check32("V10G killed queue-head CSR C2 quiet count",
+                 qh_csr_c2_quiet_count, 32'd0);
+      tb_check32("V10G killed queue-head CSR birth lane1 fire count",
+                 qh_csr_lane1_fire_count, 32'd0);
+      tb_check1("V10G killed queue-head CSR owner is clear",
+                qh_csr_owner_live, 1'b0);
+      tb_check1("V10G killed queue-head CSR has no pending C1",
+                qh_csr_expect_c1, 1'b0);
+      tb_check1("V10G killed queue-head CSR has no pending C2",
+                qh_csr_expect_c2, 1'b0);
+      $display("[V10G-QH-CSR-KILL] %0s birth=%0d lane1_fire=%0d selective_kill=%0d C0=0 C1=0 PASS",
+               label, qh_csr_birth_count, qh_csr_lane1_fire_count,
+               qh_csr_selective_kill_count);
+    end
+  endtask
+`endif
 
   task automatic reset_dut;
     input [4:0] mode_i;
@@ -1454,6 +1575,250 @@ module tb_ooo_core_top_glue;
       end
     end
   end
+
+`ifdef V9O_CSR_QH_FOCUSED
+  // Product configuration raw-event scoreboard.  Count every accepted
+  // queue-head CSR transaction from its real frontend birth through the ROB
+  // C0 commit/barrier, the typed C1 apply, and the quiet C2 cycle.  Sticky
+  // saw_* observations and host-side reporting are deliberately not used.
+  always @(posedge clk) begin
+    if (rst) begin
+      qh_csr_birth_count <= 0;
+      qh_csr_c0_commit_count <= 0;
+      qh_csr_c0_barrier_count <= 0;
+      qh_csr_csrfile_request_count <= 0;
+      qh_csr_c1_apply_count <= 0;
+      qh_csr_c2_quiet_count <= 0;
+      qh_csr_selective_kill_count <= 0;
+      qh_csr_lane1_fire_count <= 0;
+      qh_csr_inflight_hold_cycle_count <= 0;
+      qh_csr_drain_root_count <= 0;
+      qh_csr_correct_resolve_root_count <= 0;
+      qh_csr_orphan_owner_gap_count <= 0;
+      qh_csr_stop_drop_count <= 0;
+      qh_csr_inflight_can_run_count <= 0;
+      qh_csr_successor_packet_cycle_count <= 0;
+      qh_csr_inflight_lane1_capture_count <= 0;
+      qh_csr_cycle_count <= 0;
+      qh_csr_owner_live <= 1'b0;
+      qh_csr_expect_c1 <= 1'b0;
+      qh_csr_expect_c2 <= 1'b0;
+      qh_csr_owner_pc <= {`XLEN{1'b0}};
+    end else begin
+      qh_csr_cycle_count <= qh_csr_cycle_count + 1;
+      if ((program_mode == MODE_CSR_STOP_HOLD_OVERLAP) &&
+          dut.core_branch_resolve_valid_w)
+        $display("[HIST-SER-QH-STOP-HOLD][BRANCH-RESOLVE] cycle=%0d inflight=%0b branch_spec=%0b untracked=%0b mispredict=%0b misaligned=%0b",
+                 qh_csr_cycle_count, dut.head0_csr_inflight_w,
+                 dut.branch_spec_resolve_valid_w,
+                 dut.branch_resolve_untracked_w,
+                 dut.core_branch_resolve_mispredict_w,
+                 dut.core_branch_resolve_misaligned_w);
+      if (dut.head0_csr_commit_w !==
+          (control_full_flush_barrier &&
+           (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT))) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V10G queue-head CSR C0 commit/barrier diverged commit=%0b barrier=%0b reason=%0d",
+                 dut.head0_csr_commit_w, control_full_flush_barrier,
+                 control_full_flush_reason);
+      end
+
+      if (dut.head0_csr_dispatch_fire_w) begin
+        if (dut.u_execute_backend.u_core_slice.u_decode_backend
+                .u_int_backend.dispatch1_fire_w) begin
+          qh_csr_lane1_fire_count <= qh_csr_lane1_fire_count + 1;
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR birth also fired packet lane1");
+        end
+        if (qh_csr_owner_live || qh_csr_expect_c1) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR birth overlapped an older owner or C1 apply");
+        end
+        qh_csr_birth_count <= qh_csr_birth_count + 1;
+        qh_csr_owner_live <= 1'b1;
+        qh_csr_owner_pc <= dut.head_pc_w;
+        if (program_mode == MODE_CSR_STOP_HOLD_OVERLAP)
+          $display("[HIST-SER-QH-STOP-HOLD][BIRTH] cycle=%0d pc=%h stop=%0b inflight=%0b",
+                   qh_csr_cycle_count, dut.head_pc_w,
+                   dut.stop_pending_q, dut.head0_csr_inflight_w);
+      end
+
+      // Historical queue-head CSR stop-lifetime reconstruction.  These are
+      // raw per-cycle/event counts; no sticky witness or repeated-event
+      // suppression participates in the oracle.
+      if ((program_mode == MODE_CSR_STOP_HOLD_OVERLAP) &&
+          dut.head0_csr_inflight_w &&
+          (qh_csr_owner_pc == 64'h0000_0000_8000_0010)) begin
+        if (dut.stop_pending_q)
+          qh_csr_inflight_hold_cycle_count <=
+              qh_csr_inflight_hold_cycle_count + 1;
+
+        if (dut.orphan_stop_pending_w) begin
+          qh_csr_orphan_owner_gap_count <=
+              qh_csr_orphan_owner_gap_count + 1;
+          $display("[HIST-SER-QH-STOP-HOLD][ORPHAN-OWNER-GAP] cycle=%0d stop=%0b inflight=%0b busy=%0b can_run=%0b",
+                   qh_csr_cycle_count, dut.stop_pending_q,
+                   dut.head0_csr_inflight_w,
+                   dut.u_frontend.stop_pending_busy_w, dut.can_run_w);
+        end
+
+        if (dut.drain_complete_w && !dut.head0_csr_commit_w &&
+            !dut.u_control_plane.v9x_head0_csr_owner_kill_w) begin
+          qh_csr_drain_root_count <= qh_csr_drain_root_count + 1;
+          $display("[HIST-SER-QH-STOP-HOLD][DRAIN-ROOT] cycle=%0d stop=%0b inflight=%0b can_run=%0b rob=%0d issue=%0d",
+                   qh_csr_cycle_count, dut.stop_pending_q,
+                   dut.head0_csr_inflight_w, dut.can_run_w,
+                   rob_count, issue_count);
+        end
+
+        if ((dut.branch_spec_resolve_valid_w ||
+             dut.branch_resolve_untracked_w) &&
+            !dut.u_control_plane.v9x_head0_csr_owner_kill_w &&
+            !dut.head0_csr_commit_w) begin
+          qh_csr_correct_resolve_root_count <=
+              qh_csr_correct_resolve_root_count + 1;
+          $display("[HIST-SER-QH-STOP-HOLD][NONKILL-RESOLVE-ROOT] cycle=%0d branch_spec=%0b untracked=%0b stop=%0b inflight=%0b can_run=%0b",
+                   qh_csr_cycle_count, dut.branch_spec_resolve_valid_w,
+                   dut.branch_resolve_untracked_w,
+                   dut.stop_pending_q,
+                   dut.head0_csr_inflight_w, dut.can_run_w);
+        end
+
+        if (!dut.stop_pending_q && !dut.head0_csr_commit_w &&
+            !dut.u_control_plane.v9x_head0_csr_owner_kill_w) begin
+          qh_csr_stop_drop_count <= qh_csr_stop_drop_count + 1;
+          tb_errors = tb_errors + 1;
+          $display("[HIST-SER-QH-STOP-DROP][FAIL] cycle=%0d pc=%h inflight=1 stop=0 drain=%0b",
+                   qh_csr_cycle_count, qh_csr_owner_pc,
+                   dut.drain_complete_w);
+        end
+
+        if (dut.can_run_w && !dut.head0_csr_commit_w) begin
+          qh_csr_inflight_can_run_count <=
+              qh_csr_inflight_can_run_count + 1;
+          tb_errors = tb_errors + 1;
+          $display("[HIST-SER-QH-INFLIGHT-RUN][FAIL] cycle=%0d pc=%h stop=%0b can_run=1",
+                   qh_csr_cycle_count, qh_csr_owner_pc,
+                   dut.stop_pending_q);
+        end
+
+        if (dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_0018) &&
+            (dut.head_pc1_w == 64'h0000_0000_8000_001c))
+          qh_csr_successor_packet_cycle_count <=
+              qh_csr_successor_packet_cycle_count + 1;
+
+        if (dut.pending_system_capture_lane1_w) begin
+          qh_csr_inflight_lane1_capture_count <=
+              qh_csr_inflight_lane1_capture_count + 1;
+          tb_errors = tb_errors + 1;
+          if ((dut.head_pc1_w != 64'h0000_0000_8000_001c) ||
+              !dut.head1_csr_raw_w) begin
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] historical overlap capture payload pc=%h csr=%0b",
+                     dut.head_pc1_w, dut.head1_csr_raw_w);
+          end
+          $display("[HIST-SER-QH-LANE1-OVERLAP][FAIL] cycle=%0d older_pc=%h younger_pc=%h stop=%0b can_run=%0b",
+                   qh_csr_cycle_count, qh_csr_owner_pc,
+                   dut.head_pc1_w, dut.stop_pending_q, dut.can_run_w);
+        end
+      end
+
+      if (tb_pending_system_csr_commit_w && tb_head0_csr_commit_w) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V10G pending/head0 CsrFile CSR requests overlapped");
+      end
+
+      if (tb_csr_commit_w && !tb_pending_system_csr_commit_w) begin
+        qh_csr_csrfile_request_count <=
+            qh_csr_csrfile_request_count + 1;
+        if (!dut.head0_csr_commit_w) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G unowned/repeated CsrFile CSR request");
+        end
+      end
+
+      if (dut.frontend_control_event_valid_w &&
+          (dut.frontend_control_event_backend_action_w ==
+           `OOO_BACKEND_ACTION_SELECTIVE_NOW) &&
+          dut.head0_csr_inflight_w) begin
+        if (!qh_csr_owner_live) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR selective kill lacked a counted owner");
+        end
+        if (dut.head0_csr_commit_w ||
+            (control_full_flush_barrier &&
+             (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT)) ||
+            (dut.control_event_apply_valid_w &&
+             (dut.control_event_apply_reason_w ==
+              `REDIR_REASON_CSR_COMMIT))) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G killed queue-head CSR emitted C0/C1");
+        end
+        qh_csr_selective_kill_count <= qh_csr_selective_kill_count + 1;
+        qh_csr_owner_live <= 1'b0;
+        qh_csr_expect_c1 <= 1'b0;
+        qh_csr_expect_c2 <= 1'b0;
+      end
+
+      if (dut.head0_csr_commit_w) begin
+        if (!qh_csr_owner_live) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR C0 commit lacked a counted owner");
+        end
+        qh_csr_c0_commit_count <= qh_csr_c0_commit_count + 1;
+        qh_csr_c0_barrier_count <= qh_csr_c0_barrier_count + 1;
+        qh_csr_owner_live <= 1'b0;
+        qh_csr_expect_c1 <= 1'b1;
+      end
+
+      if (qh_csr_expect_c1) begin
+        if (!dut.control_event_apply_valid_w ||
+            (dut.control_event_apply_reason_w !=
+             `REDIR_REASON_CSR_COMMIT)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR C1 typed apply missing valid=%0b reason=%0d",
+                   dut.control_event_apply_valid_w,
+                   dut.control_event_apply_reason_w);
+        end else begin
+          qh_csr_c1_apply_count <= qh_csr_c1_apply_count + 1;
+        end
+        if (dut.head0_csr_inflight_w || dut.stop_pending_q) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G queue-head CSR C1 did not clear holder/stop inflight=%0b stop=%0b",
+                   dut.head0_csr_inflight_w, dut.stop_pending_q);
+        end
+        if (tb_csr_commit_w && !tb_pending_system_csr_commit_w) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G C1 repeated CsrFile CSR request");
+        end
+        qh_csr_expect_c1 <= 1'b0;
+        qh_csr_expect_c2 <= 1'b1;
+      end else if (dut.control_event_apply_valid_w &&
+                   (dut.control_event_apply_reason_w ==
+                    `REDIR_REASON_CSR_COMMIT)) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] V10G unowned/repeated queue-head CSR apply");
+      end
+
+      if (qh_csr_expect_c2) begin
+        if (dut.head0_csr_commit_w ||
+            (tb_csr_commit_w && !tb_pending_system_csr_commit_w) ||
+            (control_full_flush_barrier &&
+             (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT)) ||
+            (dut.control_event_apply_valid_w &&
+             (dut.control_event_apply_reason_w ==
+              `REDIR_REASON_CSR_COMMIT))) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G C2 repeated queue-head CSR request/apply");
+        end else begin
+          qh_csr_c2_quiet_count <= qh_csr_c2_quiet_count + 1;
+        end
+        qh_csr_expect_c2 <= 1'b0;
+      end
+    end
+  end
+`endif
 
 `ifdef V8Z_FRONTEND_II1_FOCUSED
   integer v8z_request_count;
@@ -2637,6 +3002,64 @@ module tb_ooo_core_top_glue;
   end
 `else
 `ifdef V9O_CSR_QH_FOCUSED
+`ifdef HIST_SER_QH_STOP_HOLD_FOCUSED
+  // Historical queue-head CSR stop-lifetime reconstruction uses only the
+  // product frontend/control/backend topology.  No owner, stop, capture or
+  // commit signal is forced.
+  initial begin : hist_ser_qh_stop_hold_focused
+    tb_errors = 0;
+    reset_dut(MODE_CSR_STOP_HOLD_OVERLAP, 32'h0000_0000);
+    repeat (320) begin
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check1("historical stop-hold program reaches ebreak",
+              exit_valid, 1'b1);
+    tb_check1("historical stop-hold older branch resolves in backend",
+              saw_backend_branch_resolve, 1'b1);
+    tb_check1("historical stop-hold older branch does not restore",
+              saw_branch_spec_restore, 1'b0);
+    tb_check32("historical stop-hold first refetched witness",
+               gpr(5'd4), 32'd4);
+    tb_check32("historical stop-hold successor witness",
+               gpr(5'd5), 32'd5);
+    tb_check32("historical stop-hold post-CSR witness",
+               gpr(5'd6), 32'd6);
+    tb_check32("historical stop-hold queue-head birth count",
+               qh_csr_birth_count, 32'd2);
+    if (qh_csr_inflight_hold_cycle_count <= 0) begin
+      tb_errors = tb_errors + 1;
+      $display("[HIST-SER-QH-STOP-HOLD][STIMULUS-GAP] no inflight hold cycle");
+    end
+    tb_check32("historical stop-hold production orphan-owner gap cycles",
+               qh_csr_orphan_owner_gap_count, 32'd0);
+    tb_check32("historical stop-hold production stop-drop cycles",
+               qh_csr_stop_drop_count, 32'd0);
+    tb_check32("historical stop-hold production inflight can-run cycles",
+               qh_csr_inflight_can_run_count, 32'd0);
+    tb_check32("historical stop-hold production lane1 overlap count",
+               qh_csr_inflight_lane1_capture_count, 32'd0);
+    tb_check32("historical stop-hold ROB drained",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("historical stop-hold issue queue drained",
+               {28'b0, issue_count}, 32'd0);
+    check_qh_csr_committed_scoreboard(
+        "historical stop-hold two-CSR sequence");
+    if ((qh_csr_stop_drop_count == 0) &&
+        (qh_csr_orphan_owner_gap_count == 0) &&
+        (qh_csr_inflight_can_run_count == 0) &&
+        (qh_csr_inflight_lane1_capture_count == 0))
+      $display("[HIST-SER-QH-STOP-HOLD][RAW-PASS] hold_cycles=%0d nonkill_resolve_root=%0d ordinary_drain_root=%0d orphan_owner_gap=0 stop_drop=0 inflight_can_run=0 successor_packet_cycles=%0d lane1_overlap=0 C0=%0d C1=%0d C2_quiet=%0d",
+               qh_csr_inflight_hold_cycle_count,
+               qh_csr_correct_resolve_root_count,
+               qh_csr_drain_root_count,
+               qh_csr_successor_packet_cycle_count,
+               qh_csr_c0_commit_count, qh_csr_c1_apply_count,
+               qh_csr_c2_quiet_count);
+    tb_finish("tb_ooo_core_top_glue_hist_ser_qh_stop_hold");
+  end
+`else
   // Macro-on integration is intentionally bounded to the real queue-head CSR,
   // precise-trap, and exact pending-system FP-CSR owner paths.  The legacy
   // all-program aggregate has independent memory-mode expectations and is
@@ -2715,6 +3138,7 @@ module tb_ooo_core_top_glue;
     tb_check32("V9O macro-on ROB drained", {27'b0, rob_count}, 32'd0);
     tb_check32("V9O macro-on issue queue drained",
                {28'b0, issue_count}, 32'd0);
+    check_qh_csr_committed_scoreboard("ecall handler queue-head CSR");
     $display("[V9O-CSR-QH-CORE-INTEGRATION] real queue-head CSR C0/C1 PASS");
 
     reset_dut(MODE_PENDING_FP_CSR, 32'h0000_0000);
@@ -2759,6 +3183,7 @@ module tb_ooo_core_top_glue;
                {27'b0, rob_count}, 32'd0);
     tb_check32("V9O CSR/memory order issue queue drained",
                {28'b0, issue_count}, 32'd0);
+    check_qh_csr_committed_scoreboard("older-store queue-head CSR");
     $display("[V9O-CSR-MEMORY-ORDER-INTEGRATION] older drain/younger refetch PASS");
 
     reset_dut(MODE_CSR_BRANCH_RECOVERY, 32'h0000_0000);
@@ -2786,6 +3211,7 @@ module tb_ooo_core_top_glue;
                {27'b0, rob_count}, 32'd0);
     tb_check32("V9P branch recovery issue queue drained",
                {28'b0, issue_count}, 32'd0);
+    check_qh_csr_killed_scoreboard("branch-recovery wrong-path CSR");
     $display("[V9P-CSR-BRANCH-RECOVERY] wrong-path CSR death/refetch PASS");
 
     reset_dut(MODE_CSR_JALR_RECOVERY, 32'h0000_0000);
@@ -2814,6 +3240,7 @@ module tb_ooo_core_top_glue;
                {27'b0, rob_count}, 32'd0);
     tb_check32("V9P JALR recovery issue queue drained",
                {28'b0, issue_count}, 32'd0);
+    check_qh_csr_killed_scoreboard("JALR-recovery wrong-path CSR");
     $display("[V9P-CSR-JALR-RECOVERY] wrong-path CSR death/refetch PASS");
 
     reset_dut(MODE_CSR_JALR_CALLBACK_CHAIN, 32'h0000_0000);
@@ -2837,9 +3264,11 @@ module tb_ooo_core_top_glue;
                {27'b0, rob_count}, 32'd0);
     tb_check32("V9P CSR/JALR callback chain issue queue drained",
                {28'b0, issue_count}, 32'd0);
+    check_qh_csr_committed_scoreboard("CSR/JALR callback chain");
     $display("[V9P-CSR-JALR-CALLBACK-CHAIN] CSR/call/return/branch PASS");
     tb_finish("tb_ooo_core_top_glue_v9o_csr_qh");
   end
+`endif
 `else
   initial begin
     tb_errors = 0;

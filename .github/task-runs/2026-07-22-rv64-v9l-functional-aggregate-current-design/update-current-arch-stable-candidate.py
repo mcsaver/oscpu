@@ -160,16 +160,19 @@ def bind_census(design_id: str) -> None:
         census.get("schema_version") == "rv64-producer-holder-census-v1"
         and isinstance(scope, dict)
         and scope.get("field_level_complete") is True
-        and scope.get("instance_graph_complete") is False
+        and scope.get("instance_graph_complete") is True
         and scope.get("semantic_complete") is False
         and isinstance(ledger, dict)
         and ledger.get("current_production_holder_census")
-        == "STATIC_FIELD_COMPLETE"
-        and ledger.get("global_no_live_reuse") == "DYNAMIC_EVIDENCE_REQUIRED"
+        == "ELABORATED_INSTANCE_COMPLETE"
+        and ledger.get("global_no_live_reuse") == "SEMANTIC_COVERAGE_REQUIRED"
         and ledger.get("whole_architecture") == "RED"
         and ledger.get("ppa_promotion") == "UNPROMOTED"
     ):
-        raise RuntimeError("bounded census scope/status changed or overclaims closure")
+        raise RuntimeError(
+            "bounded field/instance census scope changed or overclaims "
+            "semantic closure"
+        )
     census["design_id"] = design_id
     census["freeze_evidence"] = {
         "canonical_command":

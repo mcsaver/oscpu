@@ -140,8 +140,7 @@ MUTATIONS = (
             "  assign system_capture_o =\n"
             "      barrier_base_i && system_raw_w && !csr_illegal_i;"),
         expected_marker=(
-            "u-mode illegal sret does not request CsrFile sret "
-            "got=1 expected=0"),
+            "[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap"),
     ),
     MutationSpec(
         name="precise_trap_pc_offset",

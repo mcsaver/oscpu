@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "hist-qh-stop-hold-experiment-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 OooStopPendingSequencer.stop_pending_o 在 queue-head CSR dispatch 到 C0 commit 窗口必须由 head0_csr_inflight_i 连续保持；只读追踪 tb_ooo_core_top_glue.sv 中产品可达的 younger lane1 CSR pending capture，并给出 assertion-on/off 原始周期计数与删除 hold 臂的 compile-success RTL 版本判据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-stop-pending-sequencer.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/verification/historical-defect-ledger.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/task-report.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/hypothesis.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/subagent-contracts/hist-qh-stop-hold-experiment-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/task-report.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/hypothesis.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 queue-head CSR birth、ordinary drain、stop hold、can_run、后续 fetch packet、lane1 pending capture、C0/C1/C2 的逐周期可证伪 trace，并标出精确信号与源码位置。",
+    "给出不强制 owner 信号的最小产品级 instruction sequence、raw scoreboard 计数项、compile-success 删除 inflight hold 臂版本的精确 source transform，以及 assertion-on/off 预期终止 marker。",
+    "列出竞争假设、未知项、误计合法 post-C1 younger CSR capture 的反例与必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "识别一个产品可达的 younger lane1 CSR overlap 激励及其判定边界；若当前允许路径不足，必须返回 inconclusive 和具体范围扩展，不得把 standalone 信号激励表述为产品可达证据。",
+    "production 预测必须是 inflight stop-drop=0、inflight can_run=0、inflight lane1 capture=0 且 C0/C1/C2 exactly-once；历史版本必须保持原有 RTL assertions，assertion-on 定向 fail-loud、assertion-off 由 raw overlap scoreboard 拒绝。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

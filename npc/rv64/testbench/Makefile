@@ -16,6 +16,8 @@ ARCH_GATE_RESULT ?= $(abspath $(BUILD_DIR)/arch-gates/result.json)
 ARCH_GATE_TEST_DIR := $(NPC_SINGLE_HOME)/eval/ppa/tests
 VECTORED_TRAP_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/vectored-trap-mutations)
 VECTORED_TRAP_MUTATION_RUNNER := scripts/run_csr_vectored_trap_mutations.py
+V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(RESULT_DIR)/v11i-terminal-lifecycle)
+V11I_TERMINAL_LIFECYCLE_RUNNER := scripts/run_v11i_terminal_lifecycle.py
 # iverilog 与 vvp 必须同源同版本：14.0 编译产物喂 12.0 runtime 会拒跑
 # ("VVP input file 14.0 can not be run with run time version 12.0")。
 # 取实际命中 iverilog 的同目录 vvp，找不到才退回 PATH。
@@ -143,9 +145,12 @@ TESTS := \
 FOCUSED_TESTS := \
   tb_v9n_sq_owner_residency \
   tb_v9n_amo_owner_residency \
+  tb_ooo_int_backend_hist_ser_qh_younger_store \
+  tb_ooo_int_backend_v11i_terminal_lifecycle \
   tb_ooo_int_backend_v9r_sq_retry_c0 \
   tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 \
   tb_ooo_core_top_glue_v9o_csr_qh \
+  tb_ooo_core_top_glue_hist_ser_qh_stop_hold \
   tb_ooo_core_top_glue_v9a_width_continuity \
   tb_ooo_core_top_glue_v9a_width_stall_probe \
   tb_ooo_core_top_glue_v8z_frontend_ii1 \
@@ -199,6 +204,12 @@ TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
 TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
 TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_LOAD_QUEUE) $(RTL_OOO_MEM_OWNER_TRACKER) $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_int_backend_hist_ser_qh_younger_store := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_hist_ser_qh_younger_store := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_hist_ser_qh_younger_store := -DOOO_CSR_QUEUE_HEAD=1 -DHIST_SER_QH_YOUNGER_STORE_FOCUSED $(HIST_QH_MODE_FLAG)
+TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11i_terminal_lifecycle := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11i_terminal_lifecycle := -DOOO_ASSERT -DV11I_TERMINAL_LIFECYCLE_FOCUSED
 TB_SRCS_tb_ooo_int_backend_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v9r_sq_retry_c0 := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
@@ -227,6 +238,9 @@ TB_IVFLAGS_tb_ooo_core_top_glue_v8z_frontend_ii1 := -DV8Z_FRONTEND_II1_FOCUSED
 TB_SRCS_tb_ooo_core_top_glue_v9o_csr_qh := $(TB_SRCS_tb_ooo_core_top_glue)
 TB_TOP_tb_ooo_core_top_glue_v9o_csr_qh := tb_ooo_core_top_glue
 TB_IVFLAGS_tb_ooo_core_top_glue_v9o_csr_qh := -DOOO_CSR_QUEUE_HEAD=1 -DV9O_CSR_QH_FOCUSED
+TB_SRCS_tb_ooo_core_top_glue_hist_ser_qh_stop_hold := $(TB_SRCS_tb_ooo_core_top_glue)
+TB_TOP_tb_ooo_core_top_glue_hist_ser_qh_stop_hold := tb_ooo_core_top_glue
+TB_IVFLAGS_tb_ooo_core_top_glue_hist_ser_qh_stop_hold := -DOOO_CSR_QUEUE_HEAD=1 -DV9O_CSR_QH_FOCUSED -DHIST_SER_QH_STOP_HOLD_FOCUSED
 TB_SRCS_tb_ooo_core_top_glue_v9a_width_continuity := $(TB_SRCS_tb_ooo_core_top_glue)
 TB_TOP_tb_ooo_core_top_glue_v9a_width_continuity := tb_ooo_core_top_glue
 TB_IVFLAGS_tb_ooo_core_top_glue_v9a_width_continuity := -DV9A_WIDTH_CONTINUITY_FOCUSED
@@ -256,7 +270,7 @@ TB_SRCS_tb_ooo_pending_lane1_capture_gate := tests/tb_ooo_pending_lane1_capture_
 TB_SRCS_tb_ooo_pending_dispatch_arbiter := tests/tb_ooo_pending_dispatch_arbiter.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER)
 TB_SRCS_tb_ooo_pending_drain_resolve_gate := tests/tb_ooo_pending_drain_resolve_gate.sv $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE)
 TB_SRCS_tb_ooo_pending_arch_trap_memory_terminal := tests/tb_ooo_pending_arch_trap_memory_terminal.sv $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
-TB_SRCS_tb_ooo_serialized_owner_exactly_once := tests/tb_ooo_serialized_owner_exactly_once.sv $(RTL_OOO_FRONTEND_RUN_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_PENDING_SYSTEM_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX) $(RTL_CSR_FILE)
+TB_SRCS_tb_ooo_serialized_owner_exactly_once := tests/tb_ooo_serialized_owner_exactly_once.sv $(RTL_OOO_FRONTEND_RUN_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_PENDING_SYSTEM_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX) $(RTL_OOO_TRAP_EXIT_EVENT_MUX) $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER) $(RTL_CSR_FILE)
 TB_SRCS_tb_ooo_pending_system_admission_cancel_gate := tests/tb_ooo_pending_system_admission_cancel_gate.sv $(RTL_OOO_PENDING_SYSTEM_ADMISSION_CANCEL_GATE)
 TB_SRCS_tb_ooo_pending_system_sequencer := tests/tb_ooo_pending_system_sequencer.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)
 TB_SRCS_tb_ooo_pending_system_lease_probe := tests/tb_ooo_pending_system_lease_probe.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)
@@ -311,7 +325,8 @@ TB_SRCS_tb_ooo_dual_mem_bridge_wrapper := tests/tb_ooo_dual_mem_bridge_wrapper.s
 
 .PHONY: axi-dpi-sized ifu-access-assert-negative ifu-icache-coherence-contract \
         arch-gates arch-gates-self-test print-tests vectored-trap \
-        vectored-trap-mutations
+        vectored-trap-mutations print-v11i-terminal-lifecycle-context \
+        v11i-terminal-lifecycle
 print-tests:
 	@printf '%s\n' $(TESTS)
 
@@ -321,6 +336,14 @@ vectored-trap: $(LOG_DIR)/tb_csr_file_vectored_trap.log
 vectored-trap-mutations:
 	@$(PYTHON) $(VECTORED_TRAP_MUTATION_RUNNER) \
 	  --result-dir "$(VECTORED_TRAP_MUTATION_RESULT)"
+
+print-v11i-terminal-lifecycle-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+
+v11i-terminal-lifecycle:
+	@$(PYTHON) $(V11I_TERMINAL_LIFECYCLE_RUNNER) \
+	  --result-dir "$(V11I_TERMINAL_LIFECYCLE_RESULT)"
 
 axi-dpi-sized:
 	@AXI_DPI_SIZED_BUILD_DIR="$(abspath $(BUILD_DIR)/axi-dpi-sized)" \
@@ -439,5 +462,6 @@ clean:
 
 .PHONY: run summary clean v8z-frontend-ii1 v8y-speculation-recovery \
         v9r-sq-retry-c0-handoff \
+        v11i-terminal-lifecycle \
         v8x-backend-bridge-recovery \
         v8x-backend-bridge-regressions

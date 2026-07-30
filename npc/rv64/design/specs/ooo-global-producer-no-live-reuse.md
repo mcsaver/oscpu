@@ -1,9 +1,12 @@
 # OoO 全局 ProducerId 持有者与有限代际不复用合同
 
-> 状态：v8l current-production-top 合同。这里只关闭
-> `NpcTop -> NpcCoreTop -> OooCoreTopGlue -> OooIntBackend` 范围内的
-> ProducerId 持有者枚举与 no-live-reuse；完整双 memory、系统级验证、全核 architecture
-> promotion 和 PPA 仍按 `../arch/rv64-architecture-ppa-contract.md` 保持 RED/unpromoted。
+> 状态：v11f current-production-top 审计合同。字段 census 与
+> `NpcTop` product elaboration instance graph 已闭合；44 个语义单元中 terminal
+> collector 的 3 个单元、memory tracker map/live-set 的 2 个单元、tracker
+> cursor 的 1 个单元、ROB slot generation 的 1 个单元及 integer IQ
+> ProducerId holder 的 1 个单元具有当前 source-bound 正/负向证据，余下 36 个保持 GAP。
+> 因而全局 no-live-reuse、完整双 memory、系统级验证、全核 architecture promotion
+> 和 PPA 仍按 `../arch/rv64-architecture-ppa-contract.md` 保持 RED/unpromoted。
 
 ## 1. 身份与出生门
 
@@ -73,6 +76,20 @@ transport、formal WB 与 ROB retirement。branch recovery 后已 launch 的 inc
 tombstone 继续持有 full P，直到精确 memory terminal；因此 LQ mask 不能退化为 MIQ occupancy mask，
 也不能在 normal transport terminal 上提前清除。
 
+normal terminal 可以先于 formal completion 到达。LQ 必须以 `terminal_seen_q[]` 记录该精确事件：
+entry 仍保留到 ROB release，但不得再次 issue/query/response；后续 recovery 对该 entry 直接 clear，
+不得转换成等待第二个 terminal 的 killed tombstone。同一 full ProducerId 的第二个 normal terminal
+是合同违例，必须由断言拒绝；不得增加去重/吞事件逻辑来制造 PASS。
+
+collector pending 期间 tracker token→ProducerId 映射必须保持 edge-old 稳定，dequeue/free
+同沿 allocation 不得借用该 token。LQ entry 已清且 tracker 随后 exact-free 后，
+production response/drop/reservation/buffer/retry source 必须永久结束旧 tuple 的发射资格。
+若旧 `{kind,token,epoch}` 跨越 allocator cursor 环回，在同 token 已绑定新 ProducerId 后再次
+到达，collector 的局部 tuple 比较会把它解释为新 owner；因此 source one-shot 与 holder census
+是承重合同，不能被“collector 会自行去重”的假设替代。V11I 要以 assertions-on/off 的真实
+32-token 环回和 compile-success stale-source variant 分别证明 production 静默与 fail-loud
+敏感性。
+
 所有本地 holder 还必须满足 `valid => identity known`：有效 full-P Q 在参与 onehot/位图索引前
 必须是确定的二态值，有效 token Q 在参与 tracker/residency 索引前也必须是确定的二态值。该约束
 由 holder 所在模块的 raw Q 断言承担，顶层 union/subset 断言不能替代它；否则 X 索引可能让
@@ -110,7 +127,83 @@ runner，并要求 mutation 先成功生成 vvp 后才允许以预期运行后�
 
 ## 5. 声明边界
 
-静态 census PASS 只表示当前 source-tree 的字段级清单闭合，不表示实例图或语义形式证明完成；
-这两个布尔值在 manifest 中固定为 `false`。只有 source-bound focused/mutation/legacy/aggregate
-证据同时通过，才可称 current-production-top 的 global no-live-reuse scoped GREEN。该结论不得
-外推为完整架构 GREEN、系统级 GREEN、200 MHz、Power 或 PPA promotion。
+静态 census PASS 只表示当前 source-tree 的字段级清单闭合。V11H 以当前 product
+配置重新 elaboration，证明 15 个 holder module 仍对应 17 个实例和 194 个可达实例，且两个
+`OooMemInflightQueue` 与两个 `OooMemAxiBridge` 实例保持独立可审计；因此
+`instance_graph_complete=true`。
+
+V11B/V11C/V11D/V11E/V11F/V11G/V11H 语义账本将 44 个 census 单元展开成 50 条
+unit×instance 绑定。当前
+`terminal-output0-token`、`terminal-output1-token` 和 `terminal-pending-set`
+通过 12 路 ingress lane、2 路 tracker-free lane、accepted-only transfer authority、
+非对称 output turnover/hold、unknown-value 断言与 3 个 compile-success RTL
+反例的联合检查；`memory-tracker-producer-map` 与 `memory-tracker-live-set`
+通过 assert/release 2/2、4 类 X-known 负向、逐沿 exact token→ProducerId/kind/epoch
+scoreboard，以及关闭 checker/`OOO_ASSERT` 后仍由 TB 拒绝的 9 个 compile-success
+RTL 反例。`tracker-next-token-cursor` 另由完全基于 stimulus 与沿前 expected
+live/PID/cursor 状态的参数化 scoreboard 核对 4-token 与 production 32-token
+配置；assert/release 四个 profile 覆盖 lane0/lane1-only、双出生、blocked lane、
+原子单 credit、idle/full hold、exact/bulk death 同沿不可见、全环扫描与回绕，
+并在关闭 `OOO_ASSERT` 后拒绝 9 个 compile-success cursor RTL 反例。生产
+`OooMemOwnerTracker.v` 未修改。
+
+`rob-slot-generation` 由 V11E 沿前独立 generation/valid/done/head/tail/count/
+recovery model 逐沿核对全部 16 个 slot；`PRODUCER_GEN_W=1/4` 的
+assert/release 四个 profile 覆盖 lane0 actual、lane1 actual、lane1 pair candidate、
+accepted-only write、ordinary flush 保留、hard reset seed、selective-recovery
+walk carrier、commit/reuse、full ROB 连续两沿拒绝、full+commit 不借槽，以及
+current/completion/resolve 对每个 generation bit 的 exact query。关闭
+`OOO_ASSERT` 后，17 个 compile-success RTL 反例在两种 generation width 下的
+34 个仿真均由同一独立 oracle 拒绝；production `OooRob.v` 未修改。有限位宽
+回绕后相同 ProducerId 再现仍由外部 holder collision fence 决定，不被误写成
+`OooRob` 局部缺陷。
+
+`integer-iq-producers` 由 V11F 的 stimulus-owned 八槽 full-ProducerId list
+逐沿核对 raw `valid_q/producer_id_q`、Q-only live mask 与 issue/pair carrier；
+`PRODUCER_GEN_W=1/4` 的 assert/release 四个 profile 覆盖双出生、full 拒绝、
+READY/recovery 保持、非零 index overtaking、单/双 terminal fire、同沿替换、
+memory pair READY-low 与 pop2、ROB-index 回绕 selective kill、flush/reset。
+oracle 不从 DUT mask 或 raw Q 反推 expected；关闭 `OOO_ASSERT` 后，20 个
+compile-success RTL 反例在两种 generation width 下的 40 个仿真全部由同一
+`[V11F-INT-IQ-ORACLE][FAIL]` 路径拒绝，包含 lane0/lane1/compaction 三类
+X-bearing full-P 反例。production `OooIntIssueQueue.v` 未修改。
+
+`store-queue-producers` 与 `store-queue-owner-tokens` 由 V11G 的 stimulus-owned
+四槽 entry/owner tuple model 逐沿核对；GEN_W=1/4、assert/release 四个 profile
+和 24 个 compile-success RTL 反例的 48 次 assertion-off 仿真均闭合。production
+`OooStoreQueue.v` 未修改。
+
+`load-queue-producers` 由 V11H 的 stimulus-owned 四槽 model 核对 raw
+`valid_q/launched_q/completed_q/killed_q/terminal_seen_q/producer_id_q` 与最终 PA
+metadata。GEN_W=1/4、assert/release 四个 profile 覆盖 normal terminal 先于
+completion、terminal 后 recovery、killed drain、retire reuse、同沿
+launch/completion/terminal recovery priority；31 个 compile-success RTL 反例在
+两种 generation width 下的 62 次 assertion-off 仿真全部由
+`[V11H-LQ-PRODUCER-ORACLE][FAIL]` 拒绝。pre-fix 反例固定为
+`count=1/live=1/killed=1`，production 修复增加 `terminal_seen_q[]`。
+production RTL 还必须以 `[V11H-LQ-PID-KNOWN]` 直接断言
+`valid_q => full producer_id_q known`；GEN_W=4 unknown-generation probe
+必须失败，而四个合法 profile 与 ordinary LQ/parent 回归不得误触发。
+
+局部证据重放必须区分绑定强度。V11B–V11G 的旧 full-design snapshot 不得改写
+design-id；仅当 policy 中逐项列出的 RTL、include/filelist 与 testbench SHA-256
+全部仍匹配当前工作区时，台账才可标记
+`CURRENT_SELECTED_SOURCE_AND_TB_BOUND`。V8L 的旧 full snapshot 因 LoadQueue
+变化只能标记 `HISTORICAL_FULL_RTL_BOUND`。V11H focused attempt-4 原始
+`FAIL@semantic-ledger-unit` 永久保留；独立 checker replay 只消费冻结的 4 个
+正向配置、1 个 raw-Q assertion probe、31×2 负向仿真及 pre/post 输入，
+生成新 PASS receipt，且明确 `rtl_simulation_reexecuted=false`。系统边界
+必须用 exact object 记录 local closure 不要求重跑、system promotion 要求重跑、
+当前未运行；字段删除或弱化必须 fail closed。
+
+其余 33 个单元继续记录具体覆盖缺口，所以
+`semantic_complete=false`，global no-live-reuse 仍为 RED。
+
+不得把字段 census、实例图或 11/44 局部语义 PASS 单独外推为完整架构 GREEN、
+系统级 GREEN、200 MHz、Power 或 PPA promotion。只有所有 44 个单元在各自
+product instance 上具备当前 source-bound 正向、反例与语义 oracle，且全局门重新验证，
+才允许晋级 global no-live-reuse。
+
+V11H 修改了 production core RTL 语义，因此旧 A3 系统 evidence 不再是当前设计绑定。
+新的完整系统运行是未来 system-level promotion 的前置条件；本地 focused closure 不自动
+启动该高成本运行，也不能用旧 A3 checker replay 代替当前设计的系统验证。

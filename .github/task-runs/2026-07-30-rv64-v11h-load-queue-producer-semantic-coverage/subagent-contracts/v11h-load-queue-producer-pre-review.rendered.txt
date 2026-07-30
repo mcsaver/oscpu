@@ -1,0 +1,86 @@
+# 本地 RV64 CPU RTL/验证子任务 `v11h-load-queue-producer-pre-review`
+
+- RV64 RTL/证据对象：独立复核本地 RV64 `OooLoadQueue` 的 `producer_id_q` 在双 dispatch allocation、issue/launch、双 final-PA query、allow/replay、response/completion、normal/killed terminal、ROB release、selective/global recovery、killed tombstone drain 与同拍优先级中的 full-ProducerId holder 生命周期；判决 H1=production RTL 合同正确但缺 source-bound raw-Q 语义证据、H2=存在合法接口可达的 production RTL 合同违例、H3=V8V 既有 9 个变体已经充分闭合当前 semantic ledger 单元。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/subagent-contracts/v11h-load-queue-producer-pre-review.json`
+- 合同 JSON SHA-256：`4217b1131e3a87060f5960d3236c614781ec0aa22c30e9c4dccd078af8030d63`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc/memory/OooLoadQueue.v
+- npc/rv64/testbench/tests/tb_ooo_load_queue.sv
+- npc/rv64/design/specs/ooo-load-queue.md
+- npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md
+- npc/rv64/design/arch/producer-holder-census.json
+- npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+- npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+- npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+- .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-lq-mutations.py
+- .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/mutation-results.json
+- .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/lq/logs/tb_ooo_load_queue.log
+- .github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/pre-review-result.md
+- .github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/run-store-queue-holder-focused.sh
+- npc/rv64/eval/ppa/tools/store_queue_holder_semantic_evidence.py
+- npc/rv64/eval/ppa/tests/test_store_queue_holder_semantic_evidence.py
+- .github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/evidence/semantic-coverage-ledger.json
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/subagent-contracts/v11h-load-queue-producer-pre-review.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git status; mode=read-only
+- command=git diff; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git status: purpose=inspect-worktree-status; label=只读查看工作树状态
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/specs/ooo-load-queue.md
+- npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按 edge-old/edge-new 周期链审查 `valid_q`/`producer_id_q` 的创建、持有、精确 CAM 命中、recovery 转换、normal/killed terminal 与 release death；判决 H1/H2/H3，列出合法接口反例或其缺失依据，并给出 GEN_W=1/4、OOO_ASSERT on/off 的最小正向矩阵及断言关闭时仍应由刺激侧独立 raw-Q oracle 拒绝的 compile-success RTL 变体集合。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：明确 production `OooLoadQueue.v` 是否需要修改；每项结论绑定真实 signal、周期优先级、完整 ProducerId 与现有/缺失 TB oracle。不得从 DUT snoop/mask 输出反推 expected raw-Q 状态，不得把带断言的 V8V FAIL 当作 assertion-off 独立 oracle，不得把 `load-queue-producers` 的局部闭合外推为全局 no-live-reuse 或 architecture gate PASS。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

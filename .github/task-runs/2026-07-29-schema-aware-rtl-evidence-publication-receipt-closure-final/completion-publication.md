@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-29-schema-aware-rtl-evidence-publication-receipt-closure-final
+- `trace_id`: e2e:2026-07-29-schema-aware-rtl-evidence-publication-receipt-closure-final
+- `task_slug`: schema-aware-rtl-evidence-publication-receipt-closure-final
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 49f52e9c793c3232a1a4b91bfddc055d611c3ae206b892aca52fc41fab233e61
+- `task_report_md_sha256`: 9f3a841360404cc03782e85840d51b879442033f8f8fe96799c00d75fd71e7ca
+- `run_manifest_json_sha256`: 6588934d33318dbf074462143474592cad7d9d3658fe9d86a5a77fe07de82b2a
+- `context_brief_md_sha256`: a84fd83aec4afabc3258efc80646ecaadb766dded9fb4db14d87466c08f4f31a
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: 7d2cc464595e02cddc67c4a1b1604b3513ce98ab98aff027c9c8861f83351c67
+- `dispatch_log_md_sha256`: e94a79ab838b69afc549fe1b18395fb8cbb21eaaccd470d9cd04191fd6d5dbed
+- `nodes_tsv_sha256`: 3dfebfa4945c5b076f472ca5e042c666013a40348a085b248d34e5950d0c9533

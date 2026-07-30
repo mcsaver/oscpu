@@ -446,6 +446,7 @@ module OooControlPlane #(
     .branch_spec_active_i(branch_spec_active_q),
     .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending_q),
     .pending_arch_trap_i(pending_arch_trap_q),
+    .pending_exit_i(pending_exit_q),
     .pending_branch_i(pending_branch_q),
     .pending_branch_dispatched_i(pending_branch_dispatched_q),
     .pending_jump_i(pending_jump_q),
@@ -980,25 +981,39 @@ module OooControlPlane #(
     end
   end
 
-  // V10A SERIALIZE-G1: the registered architectural-trap and system holders
-  // share one stop lease and therefore must be exact-one across birth, drain
-  // and clear.  The request mux now emits only the request selected below a
-  // higher-priority ROB-head exception; direct redirects remain
-  // constructively disjoint through can_run/stop_pending_busy.
+  // V10A/V10D SERIALIZE-G1: the registered architectural-trap, system and
+  // simulation-exit holders share one stop lease and therefore must be
+  // exact-one across birth, drain and clear.  The request mux now emits only
+  // the request selected below a higher-priority ROB-head exception; direct
+  // redirects remain constructively disjoint through
+  // can_run/stop_pending_busy.
   reg v10a_arch_fire_prev_q;
+  reg v10d_exit_fire_prev_q;
   always @(posedge clk) begin
     if (rst || flush_i || core_local_flush_w) begin
       v10a_arch_fire_prev_q <= 1'b0;
+      v10d_exit_fire_prev_q <= 1'b0;
     end else begin
       if (pending_arch_trap_q && pending_system_q) begin
         $error("[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap @%0t",
                $time);
         $fatal;
       end
+      if (pending_exit_q &&
+          (pending_arch_trap_q || pending_system_q)) begin
+        $error("[V10D-SERIAL-EXIT-ONEHOT] exit holder overlapped arch/system holder arch=%b system=%b @%0t",
+               pending_arch_trap_q, pending_system_q, $time);
+        $fatal;
+      end
       if ((pending_arch_trap_q || pending_system_q) &&
           !stop_pending_q) begin
         $error("[V10A-SERIAL-OWNER-STOP] live serialized holder lost stop lease arch=%b system=%b @%0t",
                pending_arch_trap_q, pending_system_q, $time);
+        $fatal;
+      end
+      if (pending_exit_q && !stop_pending_q) begin
+        $error("[V10D-SERIAL-EXIT-STOP] live exit holder lost stop lease @%0t",
+               $time);
         $fatal;
       end
       if (pending_arch_trap_fire_w && csr_trap_mem_valid_w) begin
@@ -1027,7 +1042,26 @@ module OooControlPlane #(
                pending_arch_trap_fire_w, $time);
         $fatal;
       end
+      if (trap_exit_output_exit_w && !mem_owner_terminalized_i) begin
+        $error("[V10D-EXIT-MEM-TERMINAL] raw exit escaped with an active memory owner @%0t",
+               $time);
+        $fatal;
+      end
+      if (trap_exit_output_exit_w && trap_exit_output_trap_w) begin
+        $error("[V10D-TRAP-EXIT-ONEHOT] raw trap and raw exit overlapped @%0t",
+               $time);
+        $fatal;
+      end
+      if (v10d_exit_fire_prev_q &&
+          (pending_exit_q || stop_pending_q ||
+           trap_exit_output_exit_w)) begin
+        $error("[V10D-EXIT-C1-CLEAR] accepted exit did not clear owner/stop or repeated: exit=%b stop=%b fire=%b @%0t",
+               pending_exit_q, stop_pending_q,
+               trap_exit_output_exit_w, $time);
+        $fatal;
+      end
       v10a_arch_fire_prev_q <= pending_arch_trap_fire_w;
+      v10d_exit_fire_prev_q <= trap_exit_output_exit_w;
     end
   end
 

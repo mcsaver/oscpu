@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "memory-control-integration-study-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前本地 RV64 Core 的 LSU、Store Queue、MMU/PMP、D-Cache、双 lane AXI bridge、控制面、Core/SoC 集成、仿真/调试与 SRAM module/signal/transaction 拓扑，为讲义逐文件解释真实实例可达性、owner、周期握手、失效/冲刷和外设边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/bus",
+      "npc/rv64/vsrc/cache",
+      "npc/rv64/vsrc/control",
+      "npc/rv64/vsrc/core",
+      "npc/rv64/vsrc/debug",
+      "npc/rv64/vsrc/memory",
+      "npc/rv64/vsrc/sim",
+      "npc/rv64/vsrc/sram",
+      "npc/rv64/vsrc/README.md",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/pipeline-stage-boundary.md",
+      "npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-28-rv64core-study-manual/subagent-contracts/memory-control-integration-study-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/README.md",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/pipeline-stage-boundary.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按合同目录内每个文件给出中文教学职责、直接上下游、关键状态 owner、transaction 周期/valid-ready 事实、当前 NpcTop/NpcSimTop 可达性、建议 WaveDrom 场景、易误解点，以及 unknowns/反例/替代假设/范围扩展请求/置信依据。"
+  ],
+  "success_criteria": [
+    "合同允许的每个文件都有可核对的职责说明；Load/Store 到 SQ/MMU/PMP/D-Cache/AXI、控制命令到 flush/epoch/retire fence、Core 到 SoC/仿真外设的边沿语义均绑定真实 module/signal；明确区分 NpcTop 生产路径、NpcSimTop 仿真路径、focused checker、catalog-only 源文件与过期 README 注释，不把静态复核外推为仿真、综合或 STA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,135 @@
+# 本地 RV64 CPU RTL/验证子任务 `serialize-currentness-final-review-v2`
+
+- RV64 RTL/证据对象：独立终审当前本地 RV64 product-default RTL 设计 sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897 的 SERIALIZE-G1：复核 legal non-FP lane0/head0 CSR 的 dispatch birth→C0 commit/CsrFile request/typed barrier→C1 typed apply/holder-stop clear→C2 raw quiet，lane1/FP CSR 与其余 SYSTEM/trap/simulation-exit 的 pending full-drain owner transaction，以及 SATP lane1/head0 位置分域。产品默认必须由 Makefile manifest 与 define.v fallback 同时给出 OOO_CSR_QUEUE_HEAD=1；显式 0 只作比较/恢复配置。依据 assert/release 原始周期计数、两个可编译 C2 负向 RTL 版本、3/3 baseline+14/14 SYSTEM 负向版本、26/26 current-design 回放、分层设计身份与 A3 冻结证据，裁定 SERIALIZE-G1 能否在当前设计上关闭。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/subagent-contracts/serialize-currentness-final-review-v2.json`
+- 合同 JSON SHA-256：`b1316f46171145a8265393d29a0069a9b12f0eb61ae8f13e68b43d8c21aa1af2`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc
+- npc/rv64/testbench
+- npc/rv64/Makefile
+- npc/rv64/configs
+- npc/rv64/design/arch
+- .github/task-runs/2026-07-23-rv64-v9o-control-event-current-design
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay
+- .github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once
+- .github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert
+- .github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/arch/rv64-hardware-wording-profile.md
+- npc/rv64/design/arch/architecture-debt-ledger.json
+- npc/rv64/configs/product-rtl-defaults.mk
+- npc/rv64/vsrc/include/define.v
+- npc/rv64/vsrc/core/NpcCoreTop.v
+- npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv
+- npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh
+- npc/rv64/testbench/tests/tb_ooo_priv_system.sv
+- npc/rv64/design/arch/ooo-core-architecture.md
+- npc/rv64/design/arch/ROADMAP.md
+- npc/rv64/design/arch/serialize-at-retire.md
+- npc/rv64/design/arch/serialize-at-retire-phase1.md
+- npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate-v2.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-identity.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v2/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/system-product-default-matrix-v2/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/launch-gate.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/replay.status
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/task-run.status
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/driver.log
+- .github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/round-state.json
+- .github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/mutations/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/subagent-contracts/serialize-currentness-final-review-v2.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git status; mode=read-only
+- command=git diff; mode=read-only
+- command=git show; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git status: purpose=inspect-worktree-status; label=只读查看工作树状态
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- git show: purpose=inspect-versioned-content; label=只读查看版本化内容
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/arch/rv64-hardware-wording-profile.md
+- npc/rv64/design/arch/architecture-debt-ledger.json
+- npc/rv64/configs/product-rtl-defaults.mk
+- npc/rv64/Makefile
+- npc/rv64/vsrc/include/define.v
+- npc/rv64/vsrc/core/NpcCoreTop.v
+- npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv
+- npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh
+- npc/rv64/testbench/tests/tb_ooo_priv_system.sv
+- npc/rv64/design/arch/ooo-core-architecture.md
+- npc/rv64/design/arch/ROADMAP.md
+- npc/rv64/design/arch/serialize-at-retire.md
+- npc/rv64/design/arch/serialize-at-retire-phase1.md
+- npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate-v2.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-identity.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v2/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/system-product-default-matrix-v2/summary.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/launch-gate.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/replay.status
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/task-run.status
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-current-replay/driver.log
+- .github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/round-state.json
+- .github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/mutations/summary.json
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按“RTL module/signal 或本地 evidence 文件 → 周期/编译配置 → testbench/EDA 观测 → PASS/GAP 范围”给出反例优先终审。分别裁定：(1) product-default manifest/fallback 与 current design-id；(2) queue-head CSR raw owner-bound C0/C1/C2、OOO_ASSERT on/off、3 条 committed 与 2 条 killed；(3) typed apply 和 CsrFile request 两个 C2 负向 RTL 版本的动态拒绝；(4) pending SYSTEM 及 SATP 位置分域；(5) architectural trap 与 simulation exit；(6) A3 publication/oracle 边界。最终只能给出 APPROVED_FOR_CURRENT_SCOPE 或 GAP，并明确建议 SERIALIZE-G1=CLOSED/OPEN、不可声称范围和最小后续动作。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：只有在当前 design-id、产品默认定义、raw owner-bound C0/C1/C2、选择性恢复、两个可编译 C2 负向 RTL 版本、3/3 baseline+14/14 SYSTEM 负向版本、trap/exit 当前设计适用性和 26/26 分层回放均无未解反例时才可 APPROVED。GAP 必须指出具体 lane、周期、配置、owner/holder 或本地证据路径。不得以 sticky 输出或去重掩盖重复终端事务，不得削弱 RTL assertion，不得把 A3 原始 FAIL 改写成 PASS，不得把 A4 TERM 当作 PASS；即使关闭 SERIALIZE-G1，architecture freeze 仍为 GAP、PPA 仍为 UNQUALIFIED，须等待历史缺陷回填。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

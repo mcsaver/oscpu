@@ -10,6 +10,7 @@ module tb_ooo_int_backend;
   localparam ISSUE_COUNT_W = 4;
   localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
   localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+  localparam V11I_LQ_ENTRY_N = (1 << ROB_INDEX_W);
   localparam FP_ISSUE_PACKET_W =
       PRODUCER_ID_W + `INST_W + (5 * PHY_REG_ADDR_W) + 3;
   localparam integer V8P_KIND_ALU = 0;
@@ -333,6 +334,18 @@ module tb_ooo_int_backend;
   integer v8n_rob_valid_peak;
   integer v8n_rob_peak;
   integer v8n_retire_order_violations;
+
+`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+  integer hist_qh_dispatch0_fire_count_q;
+  integer hist_qh_dispatch1_fire_count_q;
+  integer hist_qh_sq_alloc_fire_count_q;
+  integer hist_qh_probe_req_fire_count_q;
+  integer hist_qh_probe_rsp_fire_count_q;
+  integer hist_qh_c0_commit_count_q;
+  integer hist_qh_c0_barrier_count_q;
+  integer hist_qh_c1_flush_count_q;
+  integer hist_qh_phys_write_fire_count_q;
+`endif
 
   wire unused_mem_ready = mem_rsp_ready;
   wire unused_mem1_ready = mem1_rsp_ready;
@@ -778,6 +791,55 @@ module tb_ooo_int_backend;
         end
         v8x_ledger_step_q <= v8x_ledger_step_q + 1;
       end
+    end
+  end
+`endif
+
+`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+  // Historical queue-head CSR / younger-SQ proof ledger.  Every event is
+  // counted directly on its accepting edge; no sticky "seen" state and no
+  // duplicate suppression participates in the oracle.
+  always @(posedge clk) begin
+    if (rst) begin
+      hist_qh_dispatch0_fire_count_q <= 0;
+      hist_qh_dispatch1_fire_count_q <= 0;
+      hist_qh_sq_alloc_fire_count_q <= 0;
+      hist_qh_probe_req_fire_count_q <= 0;
+      hist_qh_probe_rsp_fire_count_q <= 0;
+      hist_qh_c0_commit_count_q <= 0;
+      hist_qh_c0_barrier_count_q <= 0;
+      hist_qh_c1_flush_count_q <= 0;
+      hist_qh_phys_write_fire_count_q <= 0;
+    end else begin
+      if (dut.dispatch0_fire_w)
+        hist_qh_dispatch0_fire_count_q <=
+            hist_qh_dispatch0_fire_count_q + 1;
+      if (dut.dispatch1_fire_w)
+        hist_qh_dispatch1_fire_count_q <=
+            hist_qh_dispatch1_fire_count_q + 1;
+      if ((dut.sq_alloc0_valid_w && dut.sq_alloc0_ready_w) ||
+          (dut.sq_alloc1_valid_w && dut.sq_alloc1_ready_w))
+        hist_qh_sq_alloc_fire_count_q <=
+            hist_qh_sq_alloc_fire_count_q + 1;
+      if (mem_req_valid && mem_req_ready && mem_req_probe)
+        hist_qh_probe_req_fire_count_q <=
+            hist_qh_probe_req_fire_count_q + 1;
+      if (mem_rsp_valid && mem_rsp_ready && dut.sq_fill_valid_w &&
+          dut.sq_fill_probe_w)
+        hist_qh_probe_rsp_fire_count_q <=
+            hist_qh_probe_rsp_fire_count_q + 1;
+      if (commit0_valid)
+        hist_qh_c0_commit_count_q <= hist_qh_c0_commit_count_q + 1;
+      if (control_full_flush_barrier &&
+          (control_full_flush_reason == `REDIR_REASON_CSR_COMMIT))
+        hist_qh_c0_barrier_count_q <=
+            hist_qh_c0_barrier_count_q + 1;
+      if (flush)
+        hist_qh_c1_flush_count_q <= hist_qh_c1_flush_count_q + 1;
+      if (mem_req_valid && mem_req_ready && mem_req_write &&
+          !mem_req_probe)
+        hist_qh_phys_write_fire_count_q <=
+            hist_qh_phys_write_fire_count_q + 1;
     end
   end
 `endif
@@ -7612,6 +7674,349 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // V11I: close the post-LQ-clear terminal lifecycle at the real parent
+  // wiring.  Thirty-two completed LOAD owners advance the production tracker
+  // cursor through every token.  The next LOAD reuses the first token with a
+  // different full ProducerId and remains resident under request
+  // backpressure; every old terminal source must stay quiet.
+  task automatic v11i_complete_local_load_owner;
+    input integer owner_sequence;
+    output [PRODUCER_ID_W-1:0] owner_pid;
+    output [4:0] owner_token;
+    integer wait_cycles;
+    begin
+      mem_translate_active = 1'b1;
+      mem_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8001_0000 +
+                    (owner_sequence * 8),
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd1,
+                    64'h0000_0000_4000_1ffc);
+      dispatch0_inst = 32'h0000_3083;
+      set_dispatch1(64'h0000_0000_8001_0004 +
+                    (owner_sequence * 8),
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd0, 64'd0);
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      if (!dispatch0_ready || !dispatch1_ready) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d dispatch_ready=%b%b @%0t",
+                 owner_sequence, dispatch1_ready, dispatch0_ready, $time);
+        $fatal(1);
+      end
+      owner_pid = dut.u_dispatch_backend.rob_dispatch0_producer_id_w;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if (!dut.mem_issue_res_capture_w) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d no reservation capture @%0t",
+                 owner_sequence, $time);
+        $fatal(1);
+      end
+      owner_token = dut.mem_owner_alloc0_token_w;
+      if (owner_token != (owner_sequence % 32)) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d expected=%0d @%0t",
+                 owner_sequence, owner_token, owner_sequence % 32, $time);
+        $fatal(1);
+      end
+
+      `TB_TICK(clk);
+      #1;
+      if (!dut.mem_issue_res_valid_q ||
+          !dut.issue0_mem_exception_w ||
+          !dut.mem_terminal_ingress_valid_w[6] ||
+          !dut.mem_terminal_ingress_accept_w[6]) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d valid=%0b exception=%0b ingress=%0b accept=%0b @%0t",
+                 owner_sequence, owner_token,
+                 dut.mem_issue_res_valid_q,
+                 dut.issue0_mem_exception_w,
+                 dut.mem_terminal_ingress_valid_w[6],
+                 dut.mem_terminal_ingress_accept_w[6], $time);
+        $fatal(1);
+      end
+      `TB_TICK(clk);
+      #1;
+
+      wait_cycles = 0;
+      while (((rob_count != 0) || (issue_count != 0) ||
+              (dut.lq_count_w != 0) ||
+              (dut.mem_owner_live_count_w != 0) ||
+              (dut.mem_terminal_pending_count_w != 0) ||
+              dut.mem_issue_res_valid_q || dut.ex0_valid_q ||
+              dut.ex1_valid_q) &&
+             (wait_cycles < 24)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      if ((rob_count != 0) || (issue_count != 0) ||
+          (dut.lq_count_w != 0) ||
+          (dut.mem_owner_live_count_w != 0) ||
+          (dut.mem_terminal_pending_count_w != 0) ||
+          dut.mem_issue_res_valid_q || dut.ex0_valid_q ||
+          dut.ex1_valid_q) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d drain_timeout rob=%0d iq=%0d lq=%0d live=%0d pending=%0d res=%0b ex=%0b%0b @%0t",
+                 owner_sequence, rob_count, issue_count, dut.lq_count_w,
+                 dut.mem_owner_live_count_w,
+                 dut.mem_terminal_pending_count_w,
+                 dut.mem_issue_res_valid_q, dut.ex1_valid_q,
+                 dut.ex0_valid_q, $time);
+        $fatal(1);
+      end
+    end
+  endtask
+
+  task automatic run_v11i_terminal_lifecycle_after_lq_clear;
+    reg [PRODUCER_ID_W-1:0] old_pid;
+    reg [PRODUCER_ID_W-1:0] filler_pid;
+    reg [PRODUCER_ID_W-1:0] new_pid;
+    reg [4:0] old_token;
+    reg [4:0] filler_token;
+    reg [4:0] new_token;
+    reg new_lq_found;
+    reg new_lq_terminal_seen;
+    integer owner_sequence;
+    integer quiet_cycle;
+    integer wait_cycles;
+    integer lq_entry;
+    begin
+      reset_dut();
+      commit_ready = 1'b1;
+
+      old_pid = {PRODUCER_ID_W{1'b0}};
+      old_token = 5'd0;
+      for (owner_sequence = 0; owner_sequence < 32;
+           owner_sequence = owner_sequence + 1) begin
+        v11i_complete_local_load_owner(owner_sequence,
+                                        filler_pid, filler_token);
+        if (owner_sequence == 0) begin
+          old_pid = filler_pid;
+          old_token = filler_token;
+        end
+      end
+
+      mem_translate_active = 1'b0;
+      mem_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8001_1000,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd2,
+                    64'h0000_0000_0000_1800);
+      dispatch0_inst = 32'h0000_3103;
+      set_dispatch1(64'h0000_0000_8001_1004,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd0, 64'd0);
+      dispatch1_inst = 32'h0000_0013;
+      #1;
+      if (!dispatch0_ready || !dispatch1_ready) begin
+        $display("[V11I-TOKEN-WRAP][FAIL] reuse dispatch was not accepted @%0t",
+                 $time);
+        $fatal(1);
+      end
+      new_pid = dut.u_dispatch_backend.rob_dispatch0_producer_id_w;
+      if (new_pid == old_pid) begin
+        $display("[V11I-TOKEN-WRAP][FAIL] old/new full PID aliased old=%h new=%h @%0t",
+                 old_pid, new_pid, $time);
+        $fatal(1);
+      end
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if (!dut.mem_issue_res_capture_w) begin
+        $display("[V11I-TOKEN-WRAP][FAIL] reuse reservation did not capture @%0t",
+                 $time);
+        $fatal(1);
+      end
+      new_token = dut.mem_owner_alloc0_token_w;
+      if (new_token != old_token) begin
+        $display("[V11I-TOKEN-WRAP][FAIL] cursor did not reuse token old=%0d new=%0d @%0t",
+                 old_token, new_token, $time);
+        $fatal(1);
+      end
+      `TB_TICK(clk);
+      #1;
+
+      new_lq_found = 1'b0;
+      new_lq_terminal_seen = 1'b0;
+      for (lq_entry = 0; lq_entry < V11I_LQ_ENTRY_N;
+           lq_entry = lq_entry + 1) begin
+        if (dut.u_load_queue.valid_q[lq_entry] &&
+            (dut.u_load_queue.producer_id_q[lq_entry] == new_pid)) begin
+          new_lq_found = 1'b1;
+          new_lq_terminal_seen =
+              dut.u_load_queue.terminal_seen_q[lq_entry];
+        end
+      end
+      if (!dut.mem_issue_res_valid_q ||
+          dut.issue0_mem_exception_w || dut.mem_req_fire_any_w ||
+          !new_lq_found || new_lq_terminal_seen ||
+          !dut.mem_owner_live_mask_w[new_token] ||
+          (dut.mem_owner_producer_id_table_w[
+              new_token*PRODUCER_ID_W +: PRODUCER_ID_W] != new_pid)) begin
+        $display("[V11I-TOKEN-WRAP][FAIL] new holder state res=%0b exception=%0b req_fire=%0b lq_found=%0b terminal_seen=%0b token_live=%0b table_pid=%h expected_pid=%h @%0t",
+                 dut.mem_issue_res_valid_q,
+                 dut.issue0_mem_exception_w,
+                 dut.mem_req_fire_any_w,
+                 new_lq_found, new_lq_terminal_seen,
+                 dut.mem_owner_live_mask_w[new_token],
+                 dut.mem_owner_producer_id_table_w[
+                     new_token*PRODUCER_ID_W +: PRODUCER_ID_W],
+                 new_pid, $time);
+        $fatal(1);
+      end
+
+`ifdef V11I_STALE_TERMINAL_MUTATION
+      // The compile-success RTL variant holds the first token-0 tuple, waits
+      // for the tracker cursor to wrap to a different full ProducerId, then
+      // raises the delayed old tuple on the following cycle.
+      `TB_TICK(clk);
+      #1;
+      if (!dut.mem_terminal_ingress_valid_w[6] ||
+          !dut.mem_terminal_ingress_accept_w[6]) begin
+        $display("[V11I-STALE-SOURCE-ACTIVATION][FAIL] old_pid=%h new_pid=%h token=%0d ingress=%0b accept=%0b @%0t",
+                 old_pid, new_pid, new_token,
+                 dut.mem_terminal_ingress_valid_w[6],
+                 dut.mem_terminal_ingress_accept_w[6], $time);
+        $fatal(1);
+      end
+      $display("[V11I-STALE-SOURCE-ACTIVE] old_pid=%h new_pid=%h token=%0d lane=6 @%0t",
+               old_pid, new_pid, new_token, $time);
+`ifdef OOO_ASSERT
+      // The mutated pulse is accepted on this edge.  The real B reservation
+      // remains resident; the next edge must therefore trip the production
+      // holder-after-terminal assertion.
+      `TB_TICK(clk);
+      #1;
+      `TB_TICK(clk);
+      #1;
+      $display("[V11I-HOLDER-ASSERTION-ESCAPED][FAIL] old_pid=%h new_pid=%h token=%0d @%0t",
+               old_pid, new_pid, new_token, $time);
+      $fatal(1);
+`else
+      // Accept into the collector, then let its dequeue/free edge update both
+      // tracker and LQ.  The independent raw-Q observation proves that the old
+      // tuple was interpreted as the new full ProducerId; this is harmful ABA,
+      // not a harmless duplicate that may be filtered.
+      `TB_TICK(clk);
+      #1;
+      `TB_TICK(clk);
+      #1;
+      new_lq_found = 1'b0;
+      new_lq_terminal_seen = 1'b0;
+      for (lq_entry = 0; lq_entry < V11I_LQ_ENTRY_N;
+           lq_entry = lq_entry + 1) begin
+        if (dut.u_load_queue.valid_q[lq_entry] &&
+            (dut.u_load_queue.producer_id_q[lq_entry] == new_pid)) begin
+          new_lq_found = 1'b1;
+          new_lq_terminal_seen =
+              dut.u_load_queue.terminal_seen_q[lq_entry];
+        end
+      end
+      if (!new_lq_found || !new_lq_terminal_seen ||
+          dut.mem_owner_live_mask_w[new_token] ||
+          !dut.mem_issue_res_valid_q) begin
+        $display("[V11I-LATE-TUPLE-OBSERVATION][FAIL] old_pid=%h new_pid=%h token=%0d lq_found=%0b terminal_seen=%0b tracker_live=%0b holder_live=%0b @%0t",
+                 old_pid, new_pid, new_token, new_lq_found,
+                 new_lq_terminal_seen,
+                 dut.mem_owner_live_mask_w[new_token],
+                 dut.mem_issue_res_valid_q, $time);
+        $fatal(1);
+      end
+      $display("[V11I-LATE-TUPLE-ABA][FAIL] old_pid=%h new_pid=%h token=%0d lane=6 accepted=1 tracker_freed_new_owner=1 lq_terminal_seen_new_pid=1 @%0t",
+               old_pid, new_pid, new_token, $time);
+      $fatal(1);
+`endif
+`else
+      for (quiet_cycle = 0; quiet_cycle < 3;
+           quiet_cycle = quiet_cycle + 1) begin
+        new_lq_found = 1'b0;
+        new_lq_terminal_seen = 1'b0;
+        for (lq_entry = 0; lq_entry < V11I_LQ_ENTRY_N;
+             lq_entry = lq_entry + 1) begin
+          if (dut.u_load_queue.valid_q[lq_entry] &&
+              (dut.u_load_queue.producer_id_q[lq_entry] == new_pid)) begin
+            new_lq_found = 1'b1;
+            new_lq_terminal_seen =
+                dut.u_load_queue.terminal_seen_q[lq_entry];
+          end
+        end
+        if ((dut.mem_terminal_ingress_valid_w != 12'b0) ||
+            (dut.mem_terminal_ingress_accept_w != 12'b0) ||
+            dut.lq_terminal0_valid_w || dut.lq_terminal1_valid_w ||
+            !dut.mem_issue_res_valid_q ||
+            !dut.mem_owner_live_mask_w[new_token] ||
+            !new_lq_found || new_lq_terminal_seen) begin
+          $display("[V11I-PRODUCTION-QUIET][FAIL] cycle=%0d old_pid=%h new_pid=%h token=%0d ingress=%b accept=%b lq_terminal=%b%b res=%0b live=%0b lq_found=%0b terminal_seen=%0b @%0t",
+                   quiet_cycle, old_pid, new_pid, new_token,
+                   dut.mem_terminal_ingress_valid_w,
+                   dut.mem_terminal_ingress_accept_w,
+                   dut.lq_terminal1_valid_w, dut.lq_terminal0_valid_w,
+                   dut.mem_issue_res_valid_q,
+                   dut.mem_owner_live_mask_w[new_token],
+                   new_lq_found, new_lq_terminal_seen, $time);
+          $fatal(1);
+        end
+        `TB_TICK(clk);
+        #1;
+      end
+
+      // End only B's current holder through the production global-cancel
+      // rule.  This is the sole post-wrap terminal and must drain exactly.
+      flush = 1'b1;
+      #1;
+      if (!dut.mem_terminal_ingress_valid_w[6] ||
+          !dut.mem_terminal_ingress_accept_w[6]) begin
+        $display("[V11I-NEW-OWNER-TERMINAL][FAIL] token=%0d ingress=%0b accept=%0b @%0t",
+                 new_token, dut.mem_terminal_ingress_valid_w[6],
+                 dut.mem_terminal_ingress_accept_w[6], $time);
+        $fatal(1);
+      end
+      `TB_TICK(clk);
+      flush = 1'b0;
+      clear_dispatch();
+      #1;
+      wait_cycles = 0;
+      while (((rob_count != 0) || (issue_count != 0) ||
+              (dut.lq_count_w != 0) ||
+              (dut.mem_owner_live_count_w != 0) ||
+              (dut.mem_terminal_pending_count_w != 0) ||
+              dut.mem_issue_res_valid_q) &&
+             (wait_cycles < 24)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      if ((rob_count != 0) || (issue_count != 0) ||
+          (dut.lq_count_w != 0) ||
+          (dut.mem_owner_live_count_w != 0) ||
+          (dut.mem_terminal_pending_count_w != 0) ||
+          dut.mem_issue_res_valid_q) begin
+        $display("[V11I-NEW-OWNER-DRAIN][FAIL] rob=%0d iq=%0d lq=%0d live=%0d pending=%0d res=%0b @%0t",
+                 rob_count, issue_count, dut.lq_count_w,
+                 dut.mem_owner_live_count_w,
+                 dut.mem_terminal_pending_count_w,
+                 dut.mem_issue_res_valid_q, $time);
+        $fatal(1);
+      end
+      for (quiet_cycle = 0; quiet_cycle < 3;
+           quiet_cycle = quiet_cycle + 1) begin
+        if ((dut.mem_terminal_ingress_valid_w != 12'b0) ||
+            (dut.mem_terminal_ingress_accept_w != 12'b0)) begin
+          $display("[V11I-POST-DRAIN-QUIET][FAIL] cycle=%0d ingress=%b accept=%b @%0t",
+                   quiet_cycle, dut.mem_terminal_ingress_valid_w,
+                   dut.mem_terminal_ingress_accept_w, $time);
+          $fatal(1);
+        end
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11I-TERMINAL-WRAP] owners=33 cursor_wrap=1 old_pid=%h new_pid=%h token=%0d pre_terminal_quiet=3 post_drain_quiet=3 new_owner_terminal=1 PASS",
+               old_pid, new_pid, new_token);
+`endif
+    end
+  endtask
+
   // V8W global-recovery isolation: owner A may already have been removed by
   // the MIQ flush compactor while its accepted bridge transaction still owes
   // a late drop.  A new correct-path owner B can then become the same-bank
@@ -8992,6 +9397,262 @@ module tb_ooo_int_backend;
       end
     end
   endtask
+
+`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+  // Historical defect backfill for serialize-at-retire Phase1 §10.4.
+  //
+  // This is an IntBackend boundary experiment, not a claim that the product
+  // frontend can dispatch a younger uop after a queue-head CSR.  The exact
+  // dual-dispatch state isolates the former ROB mem_quiet dependency:
+  //   current owner guard: mem_idle=0 while the SQ STORE owner is live;
+  //   reconstructed fixed history: transport idle=1, mem_quiet=mem_idle;
+  //   reconstructed defect: transport idle=1, mem_quiet also waits SQ empty.
+  task automatic run_hist_ser_qh_younger_store_cycle;
+    localparam [`XLEN-1:0] CSR_PC =
+        64'h0000_0000_8000_6e80;
+    localparam [`XLEN-1:0] STORE_PC =
+        64'h0000_0000_8000_6e84;
+    localparam [`XLEN-1:0] STORE_VA =
+        64'h0000_0000_0000_0a80;
+    localparam [`XLEN-1:0] STORE_PA =
+        64'h0000_0000_9000_0a80;
+    integer wait_cycles;
+    integer root_window;
+    reg [PRODUCER_ID_W-1:0] csr_pid;
+    reg [PRODUCER_ID_W-1:0] store_pid;
+    reg [4:0] store_token;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+
+      set_dispatch0(CSR_PC,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd3, 64'd1);
+      // csrrw x3, mscratch, x0: ROB recognizes the architectural CSR from
+      // the instruction, while this leaf bench supplies its execution ctrl.
+      dispatch0_inst = 32'h3400_11f3;
+      set_dispatch1(STORE_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, STORE_VA);
+      dispatch1_inst = 32'h0000_3023;  // sd x0,0(x0)
+      #1;
+      tb_check1("HIST-QH dual dispatch0 ready", dispatch0_ready, 1'b1);
+      tb_check1("HIST-QH dual dispatch1 ready", dispatch1_ready, 1'b1);
+      tb_check1("HIST-QH exact CSR lane fires", dut.dispatch0_fire_w,
+                1'b1);
+      tb_check1("HIST-QH exact STORE lane fires", dut.dispatch1_fire_w,
+                1'b1);
+      tb_check1("HIST-QH exact one SQ allocation",
+                ((dut.sq_alloc0_valid_w && dut.sq_alloc0_ready_w) ^
+                 (dut.sq_alloc1_valid_w && dut.sq_alloc1_ready_w)),
+                1'b1);
+      csr_pid = dut.dispatch0_producer_id_w;
+      store_pid = dut.dispatch1_producer_id_w;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      wait_cycles = 0;
+      while (!mem_req_valid && (wait_cycles < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("HIST-QH younger STORE reaches request", mem_req_valid,
+                1'b1);
+      tb_check1("HIST-QH younger STORE request is probe", mem_req_probe,
+                1'b1);
+      tb_check1("HIST-QH younger STORE retains write semantics",
+                mem_req_write, 1'b1);
+      tb_check1("HIST-QH younger STORE request remains killable",
+                mem_req_nokill, 1'b0);
+      tb_check32("HIST-QH request owner kind is STORE",
+                 {30'b0, mem_req_owner_kind},
+                 {30'b0, 2'b01});
+      store_token = mem_req_owner_token;
+      mem_req_ready = 1'b1;
+      #1;
+      tb_check1("HIST-QH probe request accepts", dut.mem_req_fire_any_w,
+                1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = STORE_PA;
+      #1;
+      tb_check1("HIST-QH probe response ready", mem_rsp_ready, 1'b1);
+      tb_check1("HIST-QH probe response fills SQ", dut.sq_fill_valid_w,
+                1'b1);
+      tb_check1("HIST-QH fill remains a successful probe",
+                dut.sq_fill_probe_w, 1'b1);
+      tb_check64("HIST-QH SQ receives translated PA",
+                 dut.sq_fill_paddr_w, STORE_PA);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+
+      wait_cycles = 0;
+      while ((!dut.u_dispatch_backend.u_rob.head0_is_csr_w ||
+              (dut.sq_count_w != 1) ||
+              (dut.miq_count_w != 0) ||
+              dut.mem_pending_q || dut.mem_buffer_valid_q ||
+              dut.mem_retry0_valid_q || dut.mem_retry1_valid_q ||
+              dut.mem_issue_res_valid_q || dut.mem_issue1_res_valid_q) &&
+             (wait_cycles < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+
+      tb_check1("HIST-QH ROB head is completed CSR",
+                dut.u_dispatch_backend.u_rob.head0_is_csr_w, 1'b1);
+      tb_check32("HIST-QH ROB head identity",
+                 {{(32-PRODUCER_ID_W){1'b0}},
+                  dut.rob_head_producer_id_w},
+                 {{(32-PRODUCER_ID_W){1'b0}}, csr_pid});
+      tb_check32("HIST-QH younger STORE remains in SQ",
+                 {29'b0, dut.sq_count_w}, 32'd1);
+      tb_check32("HIST-QH STORE owner count",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd1);
+      tb_check1("HIST-QH STORE token remains live",
+                dut.mem_owner_live_mask_w[store_token], 1'b1);
+      tb_check32("HIST-QH STORE token kind",
+                 {30'b0,
+                  dut.mem_owner_kind_table_w[store_token*2 +: 2]},
+                 {30'b0, 2'b01});
+      tb_check32("HIST-QH STORE token ProducerId",
+                 {{(32-PRODUCER_ID_W){1'b0}},
+                  dut.mem_owner_producer_id_table_w[
+                      store_token*PRODUCER_ID_W +: PRODUCER_ID_W]},
+                 {{(32-PRODUCER_ID_W){1'b0}}, store_pid});
+      tb_check1("HIST-QH STORE token is an SQ holder",
+                dut.v8l_sq_owner_token_mask_r[store_token], 1'b1);
+      tb_check32("HIST-QH collector pending count",
+                 {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
+      tb_check1("HIST-QH retire side is nonquiet",
+                dut.mem_retire_quiet_o, 1'b0);
+      tb_check32("HIST-QH dispatch0 raw count",
+                 hist_qh_dispatch0_fire_count_q, 32'd1);
+      tb_check32("HIST-QH dispatch1 raw count",
+                 hist_qh_dispatch1_fire_count_q, 32'd1);
+      tb_check32("HIST-QH SQ allocation raw count",
+                 hist_qh_sq_alloc_fire_count_q, 32'd1);
+      tb_check32("HIST-QH probe request raw count",
+                 hist_qh_probe_req_fire_count_q, 32'd1);
+      tb_check32("HIST-QH probe response raw count",
+                 hist_qh_probe_rsp_fire_count_q, 32'd1);
+      tb_check32("HIST-QH no physical write before root window",
+                 hist_qh_phys_write_fire_count_q, 32'd0);
+
+      $display("[HIST-SER-QH-YOUNGER-STORE][ROOT] csr_pid=%0d store_pid=%0d token=%0d sq_count=%0d owner_live=%0d terminal_pending=%0d mem_idle=%0b mem_retire_quiet=%0b",
+               csr_pid, store_pid, store_token, dut.sq_count_w,
+               dut.mem_owner_live_count_w,
+               dut.mem_terminal_pending_count_w,
+               dut.mem_idle_o, dut.mem_retire_quiet_o);
+
+      commit_ready = 1'b1;
+      #1;
+      root_window = 0;
+      while ((hist_qh_c0_barrier_count_q == 0) &&
+             (root_window < 4)) begin
+        `TB_TICK(clk);
+        #1;
+        root_window = root_window + 1;
+      end
+
+`ifdef HIST_SER_QH_EXPECT_C0
+      tb_check1("HIST-QH reconstructed fixed transport idle",
+                dut.mem_idle_o, 1'b1);
+      tb_check32("HIST-QH reconstructed fixed CSR C0 commit count",
+                 hist_qh_c0_commit_count_q, 32'd1);
+      tb_check32("HIST-QH reconstructed fixed CSR C0 barrier count",
+                 hist_qh_c0_barrier_count_q, 32'd1);
+      tb_check32("HIST-QH C0 cannot write younger STORE",
+                 hist_qh_phys_write_fire_count_q, 32'd0);
+      flush = 1'b1;
+      `TB_TICK(clk);
+      flush = 1'b0;
+      #1;
+      wait_cycles = 0;
+      while (((dut.mem_owner_live_count_w != 0) ||
+              (dut.mem_terminal_pending_count_w != 0)) &&
+             (wait_cycles < 12)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check32("HIST-QH C1 flush count",
+                 hist_qh_c1_flush_count_q, 32'd1);
+      tb_check32("HIST-QH C1 clears younger SQ",
+                 {29'b0, dut.sq_count_w}, 32'd0);
+      tb_check32("HIST-QH C1 clears younger ROB",
+                 {27'b0, rob_count}, 32'd0);
+      tb_check32("HIST-QH C1 releases STORE owner",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("HIST-QH C2 has no repeated CSR C0",
+                 hist_qh_c0_barrier_count_q, 32'd1);
+      tb_check32("HIST-QH C2 has no physical STORE write",
+                 hist_qh_phys_write_fire_count_q, 32'd0);
+      $display("[HIST-SER-QH-YOUNGER-STORE][HISTORICAL-FIXED-PASS] root_window=%0d C0=1 C1=1 C2_quiet=1 physical_write=0",
+               root_window);
+`elsif HIST_SER_QH_EXPECT_CYCLE
+      if ((hist_qh_c0_commit_count_q != 0) ||
+          (hist_qh_c0_barrier_count_q != 0) ||
+          (dut.mem_idle_o !== 1'b1) ||
+          (dut.mem_retire_quiet_o !== 1'b0) ||
+          (dut.u_dispatch_backend.u_rob.head0_csr_mem_hold_w !== 1'b1) ||
+          (dut.sq_count_w != 1) ||
+          (dut.mem_owner_live_count_w != 1) ||
+          (hist_qh_phys_write_fire_count_q != 0)) begin
+        $display("[HIST-SER-QH-YOUNGER-STORE][SETUP-FAIL] root_window=%0d C0_commit=%0d C0_barrier=%0d mem_idle=%0b mem_retire_quiet=%0b hold=%0b sq_count=%0d owner_live=%0d physical_write=%0d",
+                 root_window, hist_qh_c0_commit_count_q,
+                 hist_qh_c0_barrier_count_q, dut.mem_idle_o,
+                 dut.mem_retire_quiet_o,
+                 dut.u_dispatch_backend.u_rob.head0_csr_mem_hold_w,
+                 dut.sq_count_w, dut.mem_owner_live_count_w,
+                 hist_qh_phys_write_fire_count_q);
+        $finish_and_return(2);
+      end
+      $display("[HIST-SER-QH-YOUNGER-STORE][EXPECTED-FAIL] root_window=%0d C0=0 mem_idle=1 mem_retire_quiet=0 hold=1 sq_count=1 owner_live=1 physical_write=0",
+               root_window);
+      $finish_and_return(1);
+`else
+      tb_check1("HIST-QH current owner guard keeps mem_idle low",
+                dut.mem_idle_o, 1'b0);
+      tb_check32("HIST-QH current owner guard blocks CSR C0 commit",
+                 hist_qh_c0_commit_count_q, 32'd0);
+      tb_check32("HIST-QH current owner guard blocks CSR C0 barrier",
+                 hist_qh_c0_barrier_count_q, 32'd0);
+      tb_check1("HIST-QH current hold is owner-live sensitive",
+                dut.u_dispatch_backend.u_rob.head0_csr_mem_hold_w, 1'b1);
+      tb_check32("HIST-QH current guard emits no physical write",
+                 hist_qh_phys_write_fire_count_q, 32'd0);
+      $display("[HIST-SER-QH-YOUNGER-STORE][CURRENT-OWNER-GUARD-PASS] root_window=%0d C0=0 mem_idle=0 mem_retire_quiet=0 owner_live=1 sq_count=1 physical_write=0",
+               root_window);
+      flush = 1'b1;
+      `TB_TICK(clk);
+      flush = 1'b0;
+      #1;
+      wait_cycles = 0;
+      while (((dut.mem_owner_live_count_w != 0) ||
+              (dut.mem_terminal_pending_count_w != 0)) &&
+             (wait_cycles < 12)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check32("HIST-QH current cleanup clears younger SQ",
+                 {29'b0, dut.sq_count_w}, 32'd0);
+      tb_check32("HIST-QH current cleanup releases STORE owner",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+`endif
+    end
+  endtask
+`endif
 
   // P0-A focused truth table: no clock edge is taken while internal owners are
   // forced, so this probes only the combinational write-enable topology and
@@ -14162,8 +14823,12 @@ module tb_ooo_int_backend;
     tb_errors = 0;
     reset_dut();
 
-`ifdef V9R_SQ_RETRY_C0_FOCUSED
+`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+    run_hist_ser_qh_younger_store_cycle();
+`elsif V9R_SQ_RETRY_C0_FOCUSED
     run_v9r_sq_retry_c0_handoff();
+`elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
+    run_v11i_terminal_lifecycle_after_lq_clear();
 `elsif V8S_DUAL_MEMORY_FOCUSED
     run_v8s_dual_memory_core_integration();
 `elsif V8W_MEMORY_RECOVERY_FOCUSED
@@ -15555,8 +16220,12 @@ module tb_ooo_int_backend;
     release dut.branch_resolve_payload_bht_idx_w;
     $display("[V9O-PENDING-CSR-BRANCH-PRIORITY] older action-NONE commit suppresses younger branch PASS");
 
-`ifdef V9R_SQ_RETRY_C0_FOCUSED
+`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+        tb_finish("tb_ooo_int_backend_hist_ser_qh_younger_store");
+`elsif V9R_SQ_RETRY_C0_FOCUSED
         tb_finish("tb_ooo_int_backend_v9r_sq_retry_c0");
+`elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11i_terminal_lifecycle");
 `elsif V8Y_SPECULATION_RECOVERY_FOCUSED
         tb_finish("tb_ooo_int_backend_v8y_speculation_recovery");
 `elsif V8X_BACKEND_BRIDGE_RECOVERY_FOCUSED

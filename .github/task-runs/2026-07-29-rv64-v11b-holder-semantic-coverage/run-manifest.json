@@ -1,0 +1,122 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence",
+    "evidence_index": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage",
+    "run_manifest": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 6,
+    "by_kind": {
+      "log": 6
+    },
+    "total_size_bytes": 3395
+  },
+  "final_result": "profile=npc-dev 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "af027d1bc",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 5
+    },
+    "total": 5
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence/software-flow-contract.log",
+      "function": "e2e_software_flow_contract",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "source_profile": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence/npc-sim-contract.log",
+      "function": "e2e_npc_sim_contract",
+      "inputs": "npc/sim + backend manifests",
+      "module": "npc",
+      "node_id": "npc-sim-contract",
+      "outputs": "NPC 开发环境入口只检查 NPC 仿真后端合同",
+      "owner_agent": "npc",
+      "source_profile": "npc-dev",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence/npc-single-contract.log",
+      "function": "e2e_npc_single_contract",
+      "inputs": "npc/single Makefile/Kconfig/vsrc/csrc",
+      "module": "npc",
+      "node_id": "npc-single-contract",
+      "outputs": "NPC single 后端合约入口存在",
+      "owner_agent": "npc",
+      "source_profile": "npc-dev",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence/npc-soc-contract.log",
+      "function": "e2e_npc_soc_contract",
+      "inputs": "npc/soc + ysyxSoC CPU ABI",
+      "module": "npc",
+      "node_id": "npc-soc-contract",
+      "outputs": "NPC SoC 后端合约入口存在",
+      "owner_agent": "npc",
+      "source_profile": "npc-dev",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-29-rv64-v11b-holder-semantic-coverage/evidence/npc-rv64-contract.log",
+      "function": "e2e_npc_rv64_contract",
+      "inputs": "npc/rv64 + Linux README",
+      "module": "npc",
+      "node_id": "npc-rv64-contract",
+      "outputs": "NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate",
+      "owner_agent": "npc",
+      "source_profile": "npc-dev",
+      "status": "PASS"
+    }
+  ],
+  "profile": "npc-dev",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-29-rv64-v11b-holder-semantic-coverage",
+  "schema_version": 1,
+  "started_at": "2026-07-29 22:36:07 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "rv64-v11b-holder-semantic-coverage",
+  "trace_id": "e2e:2026-07-29-rv64-v11b-holder-semantic-coverage",
+  "updated_at": "2026-07-29 22:36:33 +0800"
+}

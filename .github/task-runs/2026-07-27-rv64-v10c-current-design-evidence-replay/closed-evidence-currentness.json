@@ -1,0 +1,90 @@
+{
+  "schema": "npc-rv64-closed-debt-currentness-audit-v1",
+  "status": "FAIL",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "closed_entries": [
+    "FDG-G1",
+    "XRET-G1",
+    "MEM-ISSUE-G1",
+    "IFU-AXI-G1",
+    "IFU-FETCH-G2",
+    "IFU-ACCESS-G1",
+    "IFU-TVAL-G1",
+    "PTW-PMP-G1",
+    "INSTRET-G1",
+    "F0-G1",
+    "MIQ-FLUSH-G1",
+    "STORE-BRESP-G1",
+    "FENCE-G1",
+    "CONTROL-EVENT-G1",
+    "SERIALIZE-G1",
+    "VECTORED-TRAP-G1"
+  ],
+  "closed_count": 16,
+  "artifact_count": 38,
+  "open_entries": [
+    {
+      "id": "A-COHERENCE-G1",
+      "priority": "P1",
+      "status": "EXCLUDED_BY_COHORT"
+    },
+    {
+      "id": "WFI-G1",
+      "priority": "P1",
+      "status": "EXCLUDED_BY_COHORT"
+    },
+    {
+      "id": "SFENCE-SINVAL-G1",
+      "priority": "P1",
+      "status": "EXCLUDED_BY_COHORT"
+    },
+    {
+      "id": "DEBUG-TRIGGER-G1",
+      "priority": "P1",
+      "status": "EXCLUDED_BY_COHORT"
+    }
+  ],
+  "canonical_semantic_check_count": 32,
+  "failures": [
+    {
+      "entry": "FDG-G1",
+      "reason": "canonical_check_not_pass:debt.FDG-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "XRET-G1",
+      "reason": "canonical_check_not_pass:debt.XRET-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "MEM-ISSUE-G1",
+      "reason": "canonical_check_not_pass:debt.MEM-ISSUE-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "IFU-AXI-G1",
+      "reason": "canonical_check_not_pass:debt.IFU-AXI-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "IFU-FETCH-G2",
+      "reason": "canonical_check_not_pass:debt.IFU-FETCH-G2.semantic_evidence:GAP"
+    },
+    {
+      "entry": "IFU-ACCESS-G1",
+      "reason": "canonical_check_not_pass:debt.IFU-ACCESS-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "IFU-TVAL-G1",
+      "reason": "canonical_check_not_pass:debt.IFU-TVAL-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "PTW-PMP-G1",
+      "reason": "canonical_check_not_pass:debt.PTW-PMP-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "MIQ-FLUSH-G1",
+      "reason": "canonical_check_not_pass:debt.MIQ-FLUSH-G1.semantic_evidence:GAP"
+    },
+    {
+      "entry": "FENCE-G1",
+      "reason": "canonical_check_not_pass:debt.FENCE-G1.semantic_evidence:GAP"
+    }
+  ]
+}

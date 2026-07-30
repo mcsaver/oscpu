@@ -1,0 +1,6 @@
+command	purpose	rc
+sha256sum	subagent-contracts/v10e_runner_prelaunch_review_v3.json	0
+bash -n	V10E runner + V10E launcher + V9S launcher + status helper	0
+bash	scripts/tests/test-task-run-status.sh	0
+python3	.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py	0
+rg	exact production assertion regex from runner:151	2

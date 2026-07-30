@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e_runner_prelaunch_review_v6",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "对本地 RV64 双发射 OoO design-id sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594 的 V10E systemd-strict runner 做第六轮启动前独立验证；裁决 a2 在 simulator-define-binding 因 terminal-holder 宏文本格式不匹配而失败的根因，交叉验证 npc/rv64/Makefile、a2 实际 VNpcSimTop__verFiles.dat 与修正 runner oracle，复核 43 个静态负向变体、9 类动态 fixture、a3 launcher validate-only、当前 RTL design-id、全工作区锁、post-hash 与五类 terminal marker 恰好一次合同；不启动长时仿真，不修改 production RTL、testbench、runner、launcher 或共享 helper。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      ".github/runtime-artifacts/rv64-engineering-single-flight.lock",
+      ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "Linux/Makefile",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/prepare-npc-rootfs-run-image.sh",
+      "npc/rv64/Makefile",
+      "npc/rv64/scripts/config.mk",
+      "npc/rv64/configs/default_defconfig",
+      "npc/rv64/vsrc",
+      "npc/rv64/eval/ppa/tools",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/dispatch-log.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v5/review.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/post-binding.txt",
+      ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/sim-build/obj_dir/VNpcSimTop__verFiles.dat",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v6.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v6"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/dispatch-log.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v5/review.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/post-binding.txt",
+      ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/sim-build/obj_dir/VNpcSimTop__verFiles.dat",
+      "npc/rv64/Makefile",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "在 review-v6 保存原始命令、返回码、43/43 静态反例 marker、9/9 动态 fixture marker、a2 define-binding 根因裁决、Makefile/实际 manifest/runner 三方 token 证据、a3 validate-only、production assertion regex 0/1/2、rtl_binding design-id、锁与 SHA-256 清单；首行按 RTL 对象或本地证据文件、周期或编译配置、testbench/EDA 观测、PASS/GAP 范围组织，报告未知项、反例、替代假设、scope_extension_request、confidence_and_basis，并明确归还 single-flight ownership。"
+  ],
+  "success_criteria": [
+    "只有 a2 status、构建产物与缺失 driver/guest 证明未开始 guest cycle，Makefile 实际发出 +define+OOO_TERMINAL_HOLDER_ASSERT、a2 generated manifest 含同一 token 且不含 =1、runner oracle 与该 token 精确一致、错误 =1 回退变体被拒绝、runner 与两份 launcher 语法通过、status helper 测试通过、43/43 静态变体被拒绝、9/9 动态 fixture 返回预期码、a3 launcher validate-only 通过、production assertion regex 得到 0/1/2、rtl_binding 重算为 c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594、全局锁可获取且 a3 目标未占用，才给出 pre-launch PASS；否则给出 GAP 或 inconclusive 并绑定文件、行、返回码与 marker。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

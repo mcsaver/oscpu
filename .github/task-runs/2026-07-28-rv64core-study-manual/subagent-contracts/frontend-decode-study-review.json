@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "frontend-decode-study-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前本地 RV64 取指、packet FIFO、RVC、静态/头部分类、双槽 dispatch、BPU/RAS 与 redirect 事务的 module/signal/周期拓扑，为讲义逐文件解释真实 parent/child、valid-ready、流水取消与反压边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/decode",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+      "npc/rv64/vsrc/common",
+      "npc/rv64/vsrc/pipeline",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/README.md",
+      "npc/rv64/design/arch/pipeline-stage-boundary.md",
+      "npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-28-rv64core-study-manual/subagent-contracts/frontend-decode-study-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/README.md",
+      "npc/rv64/design/arch/pipeline-stage-boundary.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按目录内每个文件给出中文教学职责、直接上下游、关键状态 owner、周期/握手事实、建议 WaveDrom 场景、易误解点，以及 unknowns/反例/替代假设/范围扩展请求/置信依据。"
+  ],
+  "success_criteria": [
+    "合同允许的每个文件都有可核对的职责说明；前端请求响应、FIFO 双槽、dispatch 反压、预测更新和 redirect 恢复的边沿语义均能绑定真实 module/signal；明确区分当前可达逻辑、头文件观测事实与历史死路径，不把静态复核外推为仿真或时序 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

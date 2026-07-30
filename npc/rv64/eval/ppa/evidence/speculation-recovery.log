@@ -1,11 +1,11 @@
 OOO-4 local RV64 speculation and recovery evidence
 task_run_id=2026-07-21-rv64-v8y-speculation-recovery
-suite_run_id=v8y-ooo4-20260727T005640Z-178109
-generated_at_utc=2026-07-27T01:00:40.147785+00:00
-design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951
+suite_run_id=v8y-ooo4-20260729T124408Z-2283026
+generated_at_utc=2026-07-29T12:58:46.674368+00:00
+design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
 rtl_file_count=146
-provenance_sha256=f5121e5d2d2e84462e8c073afcc506452988cf7473cdb7d68883b1db00c7092c
-source_manifest_sha256=47888c3282f32ab046c77540ce2ab777170de456245c4b3ba883c3e5c4508ac6
+provenance_sha256=8823a3b38d16791d62b31fb3618d49aeba7474693326d2d64649eb88b1c9f7f5
+source_manifest_sha256=3b8cb5e485477ec4cd55afe086f1f753b9261cbb1da8863d6e4372bf988ef77d
 focused_profiles=assert,release
 compile_success_rtl_verification_mutations=9
 adjacent_regressions=6
@@ -23,26 +23,26 @@ metric ghost_after_recovery 0
 metric multiple_controls_inflight true
 metric oldest_mispredict_wins true
 metric wrong_path_selective_squash true
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/assert/logs/tb_ooo_int_backend_v8y_speculation_recovery.log eea8b29837d656d71fb541f252a6fb5869b5922766d05e048a4b18e8064530b3
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/release/logs/tb_ooo_int_backend_v8y_speculation_recovery.log 73179e342e581a151c3a58f5785c0d1e33f051de3cf3f804d0a408e243c77e4a
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_branch_bpu_update_gate.log 14877b54276f1abe50f15a60134e681ef787bb7923192e1494d66e27845c767b
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log 12d52de3ac3308d998a139676e89ccae668b1d135925073a15f0cfd2cfd0c371
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_dual_mem_bridge_wrapper.log 71424ff58150effea684125df8f9ce5bc6130a6a718eea5d53605d8bfee5742a
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_int_backend.log b53c863520665d00f6a7b3da646d8221f85c33ffa58982606439bd830b852cb3
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_mem_axi_bridge.log 66c75888874d354b9bdd6d1ec9c7a7901e243e2da66ea94aac9b02001912c090
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_redirect_arbiter.log 948154c52adddd7689deb003ac7b6dfa940cf5ee26e7df86f5094642b6ea6b16
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.post.sha256 7bf071fdfa636876254598fefcc225a8dbf5bc4bd338727289a03f7395fc8998
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.pre.sha256 7bf071fdfa636876254598fefcc225a8dbf5bc4bd338727289a03f7395fc8998
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/same-design-predecessors.log 410192114c078a203ce660336a3840de3f5f049e8981548c63ee79d9739ad3c0
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/suite-run-id.txt aec8abe171a5ec0f4e887252d55fc31fe78cc60d275e929d694672b9fdd567de
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/block_killed_station_promotion.log 4b1e7fa1f010dcdb07f177c8ebc7684bbfe576c2135bcae13e726729c241815c
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/completion_replay_one_cycle.log 2e3ec1b734d1c2321eeecd803259432782f566c507df040fdea3fd0651751a5f
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/control_admit_b.log eedad9ee9a54633c421967256ad15f2627dc42c88d57a06410f4f1cc3e4af1e6
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/iq_kill_holder_bypass.log abbccb133538b5ed90ddca6d4641c4dc3813fe60c2cf22e185a91f8397d7bec4
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/mask_active_recovery_while_station_valid.log 77300db7f1f1b59f5dddad6f639ddd80f1fc1159ad0c87e81305a8046a5609f4
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/resolve_issue_close_bypass.log f4b3f1b904edaa47fd14d22ad21cc045490f5fce6dfe8c28e7bdf087c9d090d7
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/retire1_owner_remap.log eec3a4541b6d717a09cf5ea55c95379611d6559e8c80b6cda513d31e91f8dc6b
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/rob_tail_boundary_off_by_one.log db0595bb5e524bce8f3f35178744a550b818e1997e0faaf8007f0e3fc8d5fef6
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/summary.json 36d145b25cf559649d01e379eff9d9f96dab416d9ef408f52665835e2faa6e14
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/youngest_control_select.log 2eb7548fbc2a06ceefd1db6614d154054b936509726fd54d97361fde2050f86b
-[ARCH-GATE] speculation_recovery PASS suite_run_id=v8y-ooo4-20260727T005640Z-178109 design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951 mutations=9
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/assert/logs/tb_ooo_int_backend_v8y_speculation_recovery.log 37f1c9e9e56d96217c4f64f306bfee3cebd75577f5f33b0f993505e0e351e280
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/focused/release/logs/tb_ooo_int_backend_v8y_speculation_recovery.log baa48af9b4033f451e875d008d19cf9a3a3e31dda5c08e4c22161afe555487e0
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_branch_bpu_update_gate.log 99e058d918afe231f16fe8e8a3f63e260c67e7c9c5129300e66dadd2edd1f130
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_core_top_glue.log 12d91b19db5a396357807bc97e2eb7bd93113f7335149fdd6bc82bf93e6d9903
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_dual_mem_bridge_wrapper.log a567e6b8b877e1bf1423d7594b3d9711e6a0d25f5b576c959f2dd3f6416f37a6
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_int_backend.log 63ec6b88347a3fc8ff041461b712612544633e4878b9b42c6b8f581fe806c28c
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_mem_axi_bridge.log a7b3c52e1a3477d4a2a28e9a53342baad9020c4d5f85996cd4d15803e09fe70f
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/regressions/logs/tb_ooo_redirect_arbiter.log af119f5e008a69d1ed83e0e4e4d1fab3d823ec5deec672a8a4de5ff03fd0f18d
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.post.sha256 bcf004151d76c544d6de0cac7f5c14a87e4e1d7ca56bb38f5f413fca67642daa
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/sources.pre.sha256 bcf004151d76c544d6de0cac7f5c14a87e4e1d7ca56bb38f5f413fca67642daa
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/static/same-design-predecessors.log a7fb6a6dc09ab40e49b362a2023332eb073c635d8c693d5a3ea1555c4df502b2
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/final-run/suite-run-id.txt 4bf4e2cb81beb16d27648cd50c34f211477deb4b58907eec6d540504c27c3e4b
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/block_killed_station_promotion.log 57a786ad3d2e4c32ab6526fe5d7d563e3623a667bb6d23746210b7bab82e715e
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/completion_replay_one_cycle.log 9d99f63418d75ca2188a3a5c4d0526cc568be124c6bc4a0c036d062527df1652
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/control_admit_b.log a46ae2af638ceee3633271bf76256e710984ce0dcc28f648e2a89ebad298ed1f
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/iq_kill_holder_bypass.log ec4ebb09966784c4b892956ab4df65142d68b51f4ac82be1b3905c2cfa5c56ac
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/mask_active_recovery_while_station_valid.log 05267e91f8c252a997439fedc6b91a6423af13c5f404e5a866f38ebb88e4cf3b
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/resolve_issue_close_bypass.log ec3a9a8edf2f6280e4df4533a4caf0b0c3eceb63156953ad07f3a341efb0d031
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/retire1_owner_remap.log 7461af4078c2df4a4010740e2abe4410031376aaff000c2eab85f47076984ca3
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/rob_tail_boundary_off_by_one.log 007a53c798a9ae192b00625b51ba288381baa8ef4c1f801963f354278e3abfcb
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/summary.json dc6ef2e724a82ecf514c69fd4445d4963550735ca37db9671168766d9c3b8f4e
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/evidence/mutations/youngest_control_select.log 3d9d7523113d427558a5fbcf2dfa6ba85bcc7cc418b798c1d3a336907fff80ce
+[ARCH-GATE] speculation_recovery PASS suite_run_id=v8y-ooo4-20260729T124408Z-2283026 design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897 mutations=9

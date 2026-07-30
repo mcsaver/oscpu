@@ -1,7 +1,7 @@
 {
   "schema": "npc-rv64-architecture-debt-exclusion-v1",
   "debt_id": "SFENCE-SINVAL-G1",
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
   "rationale": "The cohort serializes every accepted SFENCE.VMA and Svinval-family encoding into a conservative global translation and fetch invalidation; address-selective or ASID-selective invalidation is not a promised capability."
 }

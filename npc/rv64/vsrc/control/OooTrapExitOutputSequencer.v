@@ -42,7 +42,10 @@ module OooTrapExitOutputSequencer (
         trap_tval_o <= trap_tval_i;
       end
 
-      if (exit_i) begin
+      // trap_i and exit_i are required to be one-hot at the event mux.  Keep
+      // trap priority explicit at this final sticky boundary as well, so an
+      // invalid overlap cannot create dual terminal status.
+      if (!trap_i && exit_i) begin
         halted_o <= 1'b1;
         exit_valid_o <= 1'b1;
         exit_is_ecall_o <= exit_is_ecall_i;

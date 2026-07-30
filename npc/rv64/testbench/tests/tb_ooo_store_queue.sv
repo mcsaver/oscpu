@@ -534,6 +534,804 @@ module tb_ooo_store_queue;
     end
   endtask
 
+  // V11G closes only the resident StoreQueue ProducerId/owner-token holder
+  // lifecycle.  The expected state below is owned by the testbench stimulus;
+  // DUT raw Q state is observation-only and never feeds the model.
+  reg v11g_expected_valid [0:3];
+  reg [PRODUCER_ID_W-1:0] v11g_expected_pid [0:3];
+  reg v11g_expected_owner_valid [0:3];
+  reg [1:0] v11g_expected_owner_kind [0:3];
+  reg [4:0] v11g_expected_owner_token [0:3];
+  reg [1:0] v11g_expected_owner_epoch [0:3];
+  reg v11g_expected_filled [0:3];
+  reg v11g_expected_request_sent [0:3];
+  reg v11g_expected_terminal [0:3];
+  reg [ENTRY_COUNT_W-1:0] v11g_expected_head;
+  reg [ENTRY_COUNT_W-1:0] v11g_expected_tail;
+  integer v11g_expected_count;
+  integer v11g_i;
+
+  function automatic [PRODUCER_ID_W-1:0] v11g_pid;
+    input [ROB_INDEX_W-1:0] ridx;
+    input [31:0] generation_seed;
+    begin
+      v11g_pid = {
+          generation_seed[`OOO_PRODUCER_GEN_W-1:0], ridx};
+    end
+  endfunction
+
+  function automatic [PRODUCER_ID_W-1:0] v11g_other_generation;
+    input [PRODUCER_ID_W-1:0] pid;
+    begin
+      v11g_other_generation = pid;
+      v11g_other_generation[ROB_INDEX_W] =
+          !v11g_other_generation[ROB_INDEX_W];
+    end
+  endfunction
+
+  function automatic [`XLEN-1:0] v11g_tval;
+    input [PRODUCER_ID_W-1:0] pid;
+    begin
+      v11g_tval = 64'h0000_0000_6000_0000 |
+          {{(`XLEN-PRODUCER_ID_W-4){1'b0}}, pid, 4'b0};
+    end
+  endfunction
+
+  task automatic v11g_fail;
+    input [1023:0] label;
+    begin
+      tb_errors = tb_errors + 1;
+      $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s", label);
+    end
+  endtask
+
+  task automatic v11g_model_clear;
+    begin
+      v11g_expected_head = {ENTRY_COUNT_W{1'b0}};
+      v11g_expected_tail = {ENTRY_COUNT_W{1'b0}};
+      v11g_expected_count = 0;
+      for (v11g_i = 0; v11g_i < 4; v11g_i = v11g_i + 1) begin
+        v11g_expected_valid[v11g_i] = 1'b0;
+        v11g_expected_pid[v11g_i] = {PRODUCER_ID_W{1'b0}};
+        v11g_expected_owner_valid[v11g_i] = 1'b0;
+        v11g_expected_owner_kind[v11g_i] = 2'b00;
+        v11g_expected_owner_token[v11g_i] = 5'd0;
+        v11g_expected_owner_epoch[v11g_i] = 2'b00;
+        v11g_expected_filled[v11g_i] = 1'b0;
+        v11g_expected_request_sent[v11g_i] = 1'b0;
+        v11g_expected_terminal[v11g_i] = 1'b0;
+      end
+    end
+  endtask
+
+  task automatic v11g_check_raw_state;
+    input [1023:0] label;
+    begin
+      if (dut.head_q !== v11g_expected_head) begin
+        $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s head got=%0d expected=%0d",
+                 label, dut.head_q, v11g_expected_head);
+        tb_errors = tb_errors + 1;
+      end
+      if (dut.tail_q !== v11g_expected_tail) begin
+        $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s tail got=%0d expected=%0d",
+                 label, dut.tail_q, v11g_expected_tail);
+        tb_errors = tb_errors + 1;
+      end
+      if (dut.count_q !== v11g_expected_count[ENTRY_COUNT_W:0]) begin
+        $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s count got=%0d expected=%0d",
+                 label, dut.count_q, v11g_expected_count);
+        tb_errors = tb_errors + 1;
+      end
+      for (v11g_i = 0; v11g_i < 4; v11g_i = v11g_i + 1) begin
+        if (dut.valid_q[v11g_i] !== v11g_expected_valid[v11g_i]) begin
+          $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s valid[%0d] got=%b expected=%b",
+                   label, v11g_i, dut.valid_q[v11g_i],
+                   v11g_expected_valid[v11g_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (dut.owner_valid_q[v11g_i] !==
+            v11g_expected_owner_valid[v11g_i]) begin
+          $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s owner_valid[%0d] got=%b expected=%b",
+                   label, v11g_i, dut.owner_valid_q[v11g_i],
+                   v11g_expected_owner_valid[v11g_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (dut.filled_q[v11g_i] !== v11g_expected_filled[v11g_i]) begin
+          $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s filled[%0d] got=%b expected=%b",
+                   label, v11g_i, dut.filled_q[v11g_i],
+                   v11g_expected_filled[v11g_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (dut.request_sent_q[v11g_i] !==
+            v11g_expected_request_sent[v11g_i]) begin
+          $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s request_sent[%0d] got=%b expected=%b",
+                   label, v11g_i, dut.request_sent_q[v11g_i],
+                   v11g_expected_request_sent[v11g_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (dut.terminal_q[v11g_i] !==
+            v11g_expected_terminal[v11g_i]) begin
+          $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s terminal[%0d] got=%b expected=%b",
+                   label, v11g_i, dut.terminal_q[v11g_i],
+                   v11g_expected_terminal[v11g_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (v11g_expected_valid[v11g_i]) begin
+          if (^dut.producer_id_q[v11g_i] === 1'bx) begin
+            $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s raw PID unknown entry=%0d",
+                     label, v11g_i);
+            tb_errors = tb_errors + 1;
+          end else if (dut.producer_id_q[v11g_i] !==
+                       v11g_expected_pid[v11g_i]) begin
+            $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s PID[%0d] got=%h expected=%h",
+                     label, v11g_i, dut.producer_id_q[v11g_i],
+                     v11g_expected_pid[v11g_i]);
+            tb_errors = tb_errors + 1;
+          end
+          if (dut.rob_idx_q[v11g_i] !==
+              v11g_expected_pid[v11g_i][ROB_INDEX_W-1:0]) begin
+            $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s ROB[%0d] got=%h expected=%h",
+                     label, v11g_i, dut.rob_idx_q[v11g_i],
+                     v11g_expected_pid[v11g_i][ROB_INDEX_W-1:0]);
+            tb_errors = tb_errors + 1;
+          end
+        end
+        if (v11g_expected_owner_valid[v11g_i]) begin
+          if ((^dut.owner_kind_q[v11g_i] === 1'bx) ||
+              (^dut.owner_token_q[v11g_i] === 1'bx) ||
+              (^dut.mmu_epoch_q[v11g_i] === 1'bx)) begin
+            $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s raw owner tuple unknown entry=%0d",
+                     label, v11g_i);
+            tb_errors = tb_errors + 1;
+          end else if ((dut.owner_kind_q[v11g_i] !==
+                        v11g_expected_owner_kind[v11g_i]) ||
+                       (dut.owner_token_q[v11g_i] !==
+                        v11g_expected_owner_token[v11g_i]) ||
+                       (dut.mmu_epoch_q[v11g_i] !==
+                        v11g_expected_owner_epoch[v11g_i])) begin
+            $display("[V11G-SQ-HOLDER-ORACLE][FAIL] %0s owner tuple[%0d] got={%h,%h,%h} expected={%h,%h,%h}",
+                     label, v11g_i, dut.owner_kind_q[v11g_i],
+                     dut.owner_token_q[v11g_i], dut.mmu_epoch_q[v11g_i],
+                     v11g_expected_owner_kind[v11g_i],
+                     v11g_expected_owner_token[v11g_i],
+                     v11g_expected_owner_epoch[v11g_i]);
+            tb_errors = tb_errors + 1;
+          end
+        end
+      end
+    end
+  endtask
+
+  task automatic v11g_model_allocate;
+    input [PRODUCER_ID_W-1:0] pid0;
+    input [PRODUCER_ID_W-1:0] pid1;
+    input dual;
+    reg [ENTRY_COUNT_W-1:0] idx0;
+    reg [ENTRY_COUNT_W-1:0] idx1;
+    begin
+      idx0 = v11g_expected_tail;
+      idx1 = v11g_expected_tail + 1'b1;
+      v11g_expected_valid[idx0] = 1'b1;
+      v11g_expected_pid[idx0] = pid0;
+      v11g_expected_owner_valid[idx0] = 1'b0;
+      v11g_expected_filled[idx0] = 1'b0;
+      v11g_expected_request_sent[idx0] = 1'b0;
+      v11g_expected_terminal[idx0] = 1'b0;
+      if (dual) begin
+        v11g_expected_valid[idx1] = 1'b1;
+        v11g_expected_pid[idx1] = pid1;
+        v11g_expected_owner_valid[idx1] = 1'b0;
+        v11g_expected_filled[idx1] = 1'b0;
+        v11g_expected_request_sent[idx1] = 1'b0;
+        v11g_expected_terminal[idx1] = 1'b0;
+      end
+      v11g_expected_tail = v11g_expected_tail + 1'b1 + dual;
+      v11g_expected_count = v11g_expected_count + 1 + dual;
+    end
+  endtask
+
+  task automatic v11g_model_bind;
+    input [PRODUCER_ID_W-1:0] pid;
+    input [4:0] token;
+    input [1:0] epoch;
+    integer bind_i;
+    reg found;
+    begin
+      found = 1'b0;
+      for (bind_i = 0; bind_i < 4; bind_i = bind_i + 1) begin
+        if (v11g_expected_valid[bind_i] &&
+            !v11g_expected_owner_valid[bind_i] &&
+            (v11g_expected_pid[bind_i] == pid)) begin
+          v11g_expected_owner_valid[bind_i] = 1'b1;
+          v11g_expected_owner_kind[bind_i] = 2'b01;
+          v11g_expected_owner_token[bind_i] = token;
+          v11g_expected_owner_epoch[bind_i] = epoch;
+          found = 1'b1;
+        end
+      end
+      if (!found)
+        v11g_fail("expected model bind found no exact PID");
+    end
+  endtask
+
+  task automatic v11g_model_fill;
+    input [ROB_INDEX_W-1:0] ridx;
+    input [4:0] token;
+    input [1:0] epoch;
+    integer fill_i;
+    reg found;
+    begin
+      found = 1'b0;
+      for (fill_i = 0; fill_i < 4; fill_i = fill_i + 1) begin
+        if (v11g_expected_valid[fill_i] &&
+            v11g_expected_owner_valid[fill_i] &&
+            !v11g_expected_filled[fill_i] &&
+            (v11g_expected_pid[fill_i][ROB_INDEX_W-1:0] == ridx) &&
+            (v11g_expected_owner_kind[fill_i] == 2'b01) &&
+            (v11g_expected_owner_token[fill_i] == token) &&
+            (v11g_expected_owner_epoch[fill_i] == epoch)) begin
+          v11g_expected_filled[fill_i] = 1'b1;
+          found = 1'b1;
+        end
+      end
+      if (!found)
+        v11g_fail("expected model fill found no exact owner");
+    end
+  endtask
+
+  task automatic v11g_model_request_head;
+    begin
+      if (!v11g_expected_valid[v11g_expected_head])
+        v11g_fail("expected model request head invalid");
+      else
+        v11g_expected_request_sent[v11g_expected_head] = 1'b1;
+    end
+  endtask
+
+  task automatic v11g_model_terminal;
+    input [ROB_INDEX_W-1:0] ridx;
+    input [4:0] token;
+    input [1:0] epoch;
+    integer terminal_i;
+    reg found;
+    begin
+      found = 1'b0;
+      for (terminal_i = 0; terminal_i < 4;
+           terminal_i = terminal_i + 1) begin
+        if (v11g_expected_valid[terminal_i] &&
+            v11g_expected_owner_valid[terminal_i] &&
+            !v11g_expected_terminal[terminal_i] &&
+            (v11g_expected_pid[terminal_i][ROB_INDEX_W-1:0] == ridx) &&
+            (v11g_expected_owner_kind[terminal_i] == 2'b01) &&
+            (v11g_expected_owner_token[terminal_i] == token) &&
+            (v11g_expected_owner_epoch[terminal_i] == epoch)) begin
+          v11g_expected_terminal[terminal_i] = 1'b1;
+          found = 1'b1;
+        end
+      end
+      if (!found)
+        v11g_fail("expected model terminal found no exact owner");
+    end
+  endtask
+
+  task automatic v11g_model_release_head;
+    begin
+      if (!v11g_expected_valid[v11g_expected_head])
+        v11g_fail("expected model released invalid head");
+      v11g_expected_valid[v11g_expected_head] = 1'b0;
+      v11g_expected_owner_valid[v11g_expected_head] = 1'b0;
+      v11g_expected_filled[v11g_expected_head] = 1'b0;
+      v11g_expected_request_sent[v11g_expected_head] = 1'b0;
+      v11g_expected_terminal[v11g_expected_head] = 1'b0;
+      v11g_expected_head = v11g_expected_head + 1'b1;
+      v11g_expected_count = v11g_expected_count - 1;
+    end
+  endtask
+
+  task automatic v11g_model_flush;
+    input flush_all_model;
+    input [ROB_INDEX_W-1:0] flush_head_model;
+    input [ROB_INDEX_W-1:0] boundary_model;
+    input release_head_model;
+    reg keep [0:3];
+    reg [ROB_INDEX_W-1:0] boundary_dist;
+    reg [ROB_INDEX_W-1:0] entry_dist;
+    reg [ENTRY_COUNT_W-1:0] old_head;
+    integer keep_count;
+    integer flush_i;
+    begin
+      old_head = v11g_expected_head;
+      keep_count = 0;
+      boundary_dist = boundary_model - flush_head_model;
+      for (flush_i = 0; flush_i < 4; flush_i = flush_i + 1) begin
+        entry_dist =
+            v11g_expected_pid[flush_i][ROB_INDEX_W-1:0] -
+            flush_head_model;
+        keep[flush_i] = v11g_expected_valid[flush_i] &&
+            (v11g_expected_request_sent[flush_i] ||
+             (!flush_all_model && (entry_dist <= boundary_dist)));
+        if (keep[flush_i])
+          keep_count = keep_count + 1;
+      end
+      if (release_head_model && keep[old_head])
+        keep_count = keep_count - 1;
+      for (flush_i = 0; flush_i < 4; flush_i = flush_i + 1) begin
+        if (v11g_expected_valid[flush_i] &&
+            (!keep[flush_i] ||
+             (release_head_model &&
+              (flush_i[ENTRY_COUNT_W-1:0] == old_head)))) begin
+          v11g_expected_valid[flush_i] = 1'b0;
+          v11g_expected_owner_valid[flush_i] = 1'b0;
+          v11g_expected_filled[flush_i] = 1'b0;
+          v11g_expected_request_sent[flush_i] = 1'b0;
+          v11g_expected_terminal[flush_i] = 1'b0;
+        end
+      end
+      v11g_expected_head = old_head + release_head_model;
+      v11g_expected_count = keep_count;
+      v11g_expected_tail = v11g_expected_head +
+          keep_count[ENTRY_COUNT_W-1:0];
+    end
+  endtask
+
+  task automatic v11g_drive_allocate;
+    input [PRODUCER_ID_W-1:0] pid0;
+    input [PRODUCER_ID_W-1:0] pid1;
+    input dual;
+    begin
+      alloc0_valid = 1'b1;
+      alloc0_rob_idx = pid0[ROB_INDEX_W-1:0];
+      alloc0_producer_id = pid0;
+      alloc1_valid = dual;
+      alloc1_rob_idx = pid1[ROB_INDEX_W-1:0];
+      alloc1_producer_id = pid1;
+      #1;
+      if (alloc0_ready !== 1'b1)
+        v11g_fail("accepted allocation lane0 not ready");
+      if (dual && (alloc1_ready !== 1'b1))
+        v11g_fail("accepted allocation lane1 not ready");
+      `TB_TICK(clk);
+      alloc0_valid = 1'b0;
+      alloc1_valid = 1'b0;
+      v11g_model_allocate(pid0, pid1, dual);
+      #1;
+      v11g_check_raw_state("post allocation");
+    end
+  endtask
+
+  task automatic v11g_drive_bind_pair;
+    input [PRODUCER_ID_W-1:0] pid0;
+    input [4:0] token0;
+    input [1:0] epoch0;
+    input [PRODUCER_ID_W-1:0] pid1;
+    input [4:0] token1;
+    input [1:0] epoch1;
+    input dual;
+    begin
+      owner_bind_valid = 1'b1;
+      owner_bind_rob_idx = pid0[ROB_INDEX_W-1:0];
+      owner_bind_producer_id = pid0;
+      owner_bind_kind = 2'b01;
+      owner_bind_token = token0;
+      owner_bind_mmu_epoch = epoch0;
+      owner_bind_fault_tval = v11g_tval(pid0);
+      owner_bind1_valid = dual;
+      owner_bind1_rob_idx = pid1[ROB_INDEX_W-1:0];
+      owner_bind1_producer_id = pid1;
+      owner_bind1_kind = 2'b01;
+      owner_bind1_token = token1;
+      owner_bind1_mmu_epoch = epoch1;
+      owner_bind1_fault_tval = v11g_tval(pid1);
+      `TB_TICK(clk);
+      owner_bind_valid = 1'b0;
+      owner_bind1_valid = 1'b0;
+      v11g_model_bind(pid0, token0, epoch0);
+      if (dual)
+        v11g_model_bind(pid1, token1, epoch1);
+      #1;
+      v11g_check_raw_state("post owner bind");
+    end
+  endtask
+
+  task automatic v11g_drive_fill_pair;
+    input [PRODUCER_ID_W-1:0] pid0;
+    input [4:0] token0;
+    input [1:0] epoch0;
+    input [PRODUCER_ID_W-1:0] pid1;
+    input [4:0] token1;
+    input [1:0] epoch1;
+    begin
+      // Deliberately route the younger owner through fill0 and the older
+      // owner through fill1; holder identity must not depend on fill lane.
+      fill0_valid = 1'b1;
+      fill0_rob_idx = pid1[ROB_INDEX_W-1:0];
+      fill0_owner_kind = 2'b01;
+      fill0_owner_token = token1;
+      fill0_mmu_epoch = epoch1;
+      fill0_fault_tval = v11g_tval(pid1);
+      fill0_vaddr = 64'h1000_0000 | pid1;
+      fill0_paddr = 64'h8000_0000 | pid1;
+      fill0_attr_valid = 1'b1;
+      fill0_class = `OOO_MEM_CLASS_CACHED;
+      fill0_cacheable = 1'b1;
+      fill0_data = 64'h1111_0000 | pid1;
+      fill0_strb = 8'hff;
+      fill1_valid = 1'b1;
+      fill1_rob_idx = pid0[ROB_INDEX_W-1:0];
+      fill1_owner_kind = 2'b01;
+      fill1_owner_token = token0;
+      fill1_mmu_epoch = epoch0;
+      fill1_fault_tval = v11g_tval(pid0);
+      fill1_vaddr = 64'h2000_0000 | pid0;
+      fill1_paddr = 64'h9000_0000 | pid0;
+      fill1_attr_valid = 1'b1;
+      fill1_class = `OOO_MEM_CLASS_NC;
+      fill1_cacheable = 1'b0;
+      fill1_data = 64'h2222_0000 | pid0;
+      fill1_strb = 8'hff;
+      `TB_TICK(clk);
+      fill0_valid = 1'b0;
+      fill1_valid = 1'b0;
+      fill0_attr_valid = 1'b0;
+      fill1_attr_valid = 1'b0;
+      fill0_class = `OOO_MEM_CLASS_RSVD;
+      fill1_class = `OOO_MEM_CLASS_RSVD;
+      fill0_cacheable = 1'b0;
+      fill1_cacheable = 1'b0;
+      v11g_model_fill(pid1[ROB_INDEX_W-1:0], token1, epoch1);
+      v11g_model_fill(pid0[ROB_INDEX_W-1:0], token0, epoch0);
+      #1;
+      v11g_check_raw_state("post out-of-order fill");
+    end
+  endtask
+
+  task automatic v11g_drive_request;
+    input [PRODUCER_ID_W-1:0] pid;
+    input [4:0] token;
+    begin
+      rob_head_valid = 1'b1;
+      rob_head_idx = pid[ROB_INDEX_W-1:0];
+      rob_head_owner_open = 1'b1;
+      rob_head_launch_open = 1'b1;
+      rob_head_producer_id = v11g_other_generation(pid);
+      #1;
+      if (req_valid !== 1'b0)
+        v11g_fail("wrong-generation ROB head authorized request");
+      rob_head_producer_id = pid;
+      #1;
+      if (req_valid !== 1'b1)
+        v11g_fail("exact full-P ROB head did not authorize request");
+      if ((req_producer_id !== pid) || (req_owner_token !== token))
+        v11g_fail("request carrier changed full-P or owner token");
+      req_fire = 1'b1;
+      `TB_TICK(clk);
+      req_fire = 1'b0;
+      v11g_model_request_head();
+      #1;
+      v11g_check_raw_state("post physical request");
+    end
+  endtask
+
+  task automatic run_v11g_store_queue_holder_lifecycle;
+    reg [PRODUCER_ID_W-1:0] pid0;
+    reg [PRODUCER_ID_W-1:0] pid1;
+    reg [PRODUCER_ID_W-1:0] pid2;
+    reg [PRODUCER_ID_W-1:0] pid3;
+    reg [PRODUCER_ID_W-1:0] pid4;
+    reg [PRODUCER_ID_W-1:0] pid5;
+    reg [PRODUCER_ID_W-1:0] pid6;
+    reg [PRODUCER_ID_W-1:0] pid7;
+    reg [PRODUCER_ID_W-1:0] pid8;
+    reg [PRODUCER_ID_W-1:0] pid9;
+    reg [PRODUCER_ID_W-1:0] pid10;
+    begin
+      pid0 = v11g_pid(4'd3, 32'hb);
+      pid1 = v11g_pid(4'd4, 32'h5);
+      pid2 = v11g_pid(4'd5, 32'hc);
+      pid3 = v11g_pid(4'd6, 32'h3);
+      pid4 = v11g_pid(4'd3, 32'ha);
+      pid5 = v11g_pid(4'd6, 32'hd);
+      pid6 = v11g_pid(4'd7, 32'h2);
+      pid7 = v11g_pid(4'd8, 32'h7);
+      pid8 = v11g_pid(4'd9, 32'h9);
+      pid9 = v11g_pid(4'd10, 32'h6);
+      pid10 = v11g_pid(4'd11, 32'he);
+
+      v11g_model_clear();
+      v11g_check_raw_state("reset");
+
+      v11g_drive_allocate(pid0, pid1, 1'b1);
+      v11g_drive_bind_pair(
+          pid0, 5'd19, 2'b01, pid1, 5'd6, 2'b11, 1'b1);
+      v11g_drive_allocate(pid2, pid3, 1'b1);
+      v11g_drive_bind_pair(
+          pid2, 5'd23, 2'b10, pid3, 5'd2, 2'b00, 1'b1);
+      alloc0_valid = 1'b1;
+      alloc0_rob_idx = pid4[ROB_INDEX_W-1:0];
+      alloc0_producer_id = pid4;
+      #1;
+      if (alloc0_ready !== 1'b0)
+        v11g_fail("full queue accepted allocation");
+      `TB_TICK(clk);
+      alloc0_valid = 1'b0;
+      #1;
+      v11g_check_raw_state("full queue hold");
+      v11g_drive_fill_pair(
+          pid0, 5'd19, 2'b01, pid1, 5'd6, 2'b11);
+      $display("[V11G-SQ-BIRTH-BIND] GEN_W=%0d dual/full/asymmetric-tuple PASS",
+               `OOO_PRODUCER_GEN_W);
+
+      v11g_drive_request(pid0, 5'd19);
+      terminal_valid = 1'b1;
+      terminal_rob_idx = pid0[ROB_INDEX_W-1:0];
+      terminal_owner_kind = 2'b01;
+      terminal_owner_token = 5'd19;
+      terminal_mmu_epoch = 2'b01;
+      terminal_fault_tval = v11g_tval(pid0);
+      `TB_TICK(clk);
+      terminal_valid = 1'b0;
+      v11g_model_terminal(pid0[ROB_INDEX_W-1:0], 5'd19, 2'b01);
+      #1;
+      v11g_check_raw_state("terminal retains holders");
+      release_rob_idx = pid0[ROB_INDEX_W-1:0];
+      release_producer_id = v11g_other_generation(pid0);
+      #1;
+      if (release_ready !== 1'b0)
+        v11g_fail("wrong-generation release was authorized");
+      release_producer_id = pid0;
+      release_valid = 1'b1;
+      alloc0_valid = 1'b1;
+      alloc0_rob_idx = pid4[ROB_INDEX_W-1:0];
+      alloc0_producer_id = pid4;
+      #1;
+      if (release_ready !== 1'b1)
+        v11g_fail("exact terminal head release not ready");
+      if (alloc0_ready !== 1'b0)
+        v11g_fail("full+release borrowed edge-new capacity");
+      if (owner_release_mask !== (32'b1 << 19))
+        v11g_fail("release token mask did not use asymmetric owner token");
+      `TB_TICK(clk);
+      release_valid = 1'b0;
+      alloc0_valid = 1'b0;
+      v11g_model_release_head();
+      #1;
+      if (owner_release_mask !== 32'd0)
+        v11g_fail("release token mask was not exactly one cycle");
+      v11g_check_raw_state("post exact release");
+      v11g_drive_allocate(pid4, {PRODUCER_ID_W{1'b0}}, 1'b0);
+      v11g_drive_bind_pair(
+          pid4, 5'd11, 2'b11,
+          {PRODUCER_ID_W{1'b0}}, 5'd0, 2'b00, 1'b0);
+      $display("[V11G-SQ-REQUEST-TERMINAL] GEN_W=%0d wrong-gen/resident/release/reuse PASS",
+               `OOO_PRODUCER_GEN_W);
+
+      // Request the second physical owner, then selectively retain the exact
+      // boundary entry while killing the younger suffix (including reused slot0).
+      v11g_drive_request(pid1, 5'd6);
+      flush_valid = 1'b1;
+      flush_all = 1'b0;
+      flush_rob_head = pid1[ROB_INDEX_W-1:0];
+      flush_boundary_rob = pid2[ROB_INDEX_W-1:0];
+      #1;
+      if (owner_release_mask !==
+          ((32'b1 << 2) | (32'b1 << 11)))
+        v11g_fail("selective flush token death mask mismatch");
+      `TB_TICK(clk);
+      flush_valid = 1'b0;
+      v11g_model_flush(
+          1'b0, pid1[ROB_INDEX_W-1:0],
+          pid2[ROB_INDEX_W-1:0], 1'b0);
+      #1;
+      v11g_check_raw_state("selective inclusive-prefix flush");
+
+      terminal_valid = 1'b1;
+      terminal_rob_idx = pid1[ROB_INDEX_W-1:0];
+      terminal_owner_kind = 2'b01;
+      terminal_owner_token = 5'd6;
+      terminal_mmu_epoch = 2'b11;
+      terminal_fault_tval = v11g_tval(pid1);
+      `TB_TICK(clk);
+      terminal_valid = 1'b0;
+      v11g_model_terminal(pid1[ROB_INDEX_W-1:0], 5'd6, 2'b11);
+      #1;
+      v11g_check_raw_state("second owner terminal");
+
+      // At count=2, one terminal release and two edge-old allocations are
+      // independent: old(2)-release(1)+alloc(2)=3.
+      release_valid = 1'b1;
+      release_rob_idx = pid1[ROB_INDEX_W-1:0];
+      release_producer_id = pid1;
+      alloc0_valid = 1'b1;
+      alloc0_rob_idx = pid5[ROB_INDEX_W-1:0];
+      alloc0_producer_id = pid5;
+      alloc1_valid = 1'b1;
+      alloc1_rob_idx = pid6[ROB_INDEX_W-1:0];
+      alloc1_producer_id = pid6;
+      #1;
+      if (!release_ready || !alloc0_ready || !alloc1_ready)
+        v11g_fail("release+dual-allocation readiness mismatch");
+      if (owner_release_mask !== (32'b1 << 6))
+        v11g_fail("release+dual-allocation token mask mismatch");
+      `TB_TICK(clk);
+      release_valid = 1'b0;
+      alloc0_valid = 1'b0;
+      alloc1_valid = 1'b0;
+      v11g_model_release_head();
+      v11g_model_allocate(pid5, pid6, 1'b1);
+      #1;
+      v11g_check_raw_state("release plus dual allocation");
+      v11g_drive_bind_pair(
+          pid5, 5'd28, 2'b01, pid6, 5'd14, 2'b10, 1'b1);
+
+      // The remaining old boundary store becomes the accepted physical owner.
+      fill0_valid = 1'b1;
+      fill0_rob_idx = pid2[ROB_INDEX_W-1:0];
+      fill0_owner_kind = 2'b01;
+      fill0_owner_token = 5'd23;
+      fill0_mmu_epoch = 2'b10;
+      fill0_fault_tval = v11g_tval(pid2);
+      fill0_vaddr = 64'h3000_0000 | pid2;
+      fill0_paddr = 64'ha000_0000 | pid2;
+      fill0_attr_valid = 1'b1;
+      fill0_class = `OOO_MEM_CLASS_CACHED;
+      fill0_cacheable = 1'b1;
+      fill0_data = 64'h3333_0000 | pid2;
+      fill0_strb = 8'hff;
+      `TB_TICK(clk);
+      fill0_valid = 1'b0;
+      fill0_attr_valid = 1'b0;
+      fill0_class = `OOO_MEM_CLASS_RSVD;
+      fill0_cacheable = 1'b0;
+      v11g_model_fill(pid2[ROB_INDEX_W-1:0], 5'd23, 2'b10);
+      #1;
+      v11g_check_raw_state("third owner fill");
+      v11g_drive_request(pid2, 5'd23);
+
+      flush_valid = 1'b1;
+      flush_all = 1'b1;
+      flush_rob_head = pid2[ROB_INDEX_W-1:0];
+      #1;
+      if (owner_release_mask !==
+          ((32'b1 << 28) | (32'b1 << 14)))
+        v11g_fail("global flush killed wrong owner tokens");
+      `TB_TICK(clk);
+      flush_valid = 1'b0;
+      flush_all = 1'b0;
+      v11g_model_flush(
+          1'b1, pid2[ROB_INDEX_W-1:0],
+          pid2[ROB_INDEX_W-1:0], 1'b0);
+      #1;
+      v11g_check_raw_state("global flush request_sent survives");
+
+      terminal_valid = 1'b1;
+      terminal_rob_idx = pid2[ROB_INDEX_W-1:0];
+      terminal_owner_kind = 2'b01;
+      terminal_owner_token = 5'd23;
+      terminal_mmu_epoch = 2'b10;
+      terminal_fault_tval = v11g_tval(pid2);
+      release_valid = 1'b1;
+      release_rob_idx = pid2[ROB_INDEX_W-1:0];
+      release_producer_id = pid2;
+      flush_valid = 1'b1;
+      flush_all = 1'b1;
+      flush_rob_head = pid2[ROB_INDEX_W-1:0];
+      #1;
+      if (!release_ready)
+        v11g_fail("same-cycle terminal release bypass missing");
+      if (owner_release_mask !== (32'b1 << 23))
+        v11g_fail("terminal+release+flush token mask mismatch");
+      `TB_TICK(clk);
+      terminal_valid = 1'b0;
+      release_valid = 1'b0;
+      flush_valid = 1'b0;
+      flush_all = 1'b0;
+      v11g_model_terminal(pid2[ROB_INDEX_W-1:0], 5'd23, 2'b10);
+      v11g_model_flush(
+          1'b1, pid2[ROB_INDEX_W-1:0],
+          pid2[ROB_INDEX_W-1:0], 1'b1);
+      #1;
+      v11g_check_raw_state("terminal release global flush");
+      $display("[V11G-SQ-RECOVERY] GEN_W=%0d selective/global/request-sent PASS",
+               `OOO_PRODUCER_GEN_W);
+
+      // Bind, local terminal and ROB release share one edge.  Token 19 is
+      // intentionally reused only after its previous holder died.
+      v11g_drive_allocate(pid7, {PRODUCER_ID_W{1'b0}}, 1'b0);
+      rob_head_valid = 1'b1;
+      rob_head_idx = pid7[ROB_INDEX_W-1:0];
+      rob_head_producer_id = pid7;
+      owner_bind_valid = 1'b1;
+      owner_bind_rob_idx = pid7[ROB_INDEX_W-1:0];
+      owner_bind_producer_id = pid7;
+      owner_bind_kind = 2'b01;
+      owner_bind_token = 5'd19;
+      owner_bind_mmu_epoch = 2'b00;
+      owner_bind_fault_tval = v11g_tval(pid7);
+      terminal1_valid = 1'b1;
+      terminal1_rob_idx = pid7[ROB_INDEX_W-1:0];
+      terminal1_owner_kind = 2'b01;
+      terminal1_owner_token = 5'd19;
+      terminal1_mmu_epoch = 2'b00;
+      terminal1_fault_tval = v11g_tval(pid7);
+      release_valid = 1'b1;
+      release_rob_idx = pid7[ROB_INDEX_W-1:0];
+      release_producer_id = pid7;
+      #1;
+      if (!release_ready)
+        v11g_fail("bind+terminal release bypass missing");
+      if (owner_release_mask !== (32'b1 << 19))
+        v11g_fail("bind+release mask bypass missing");
+      `TB_TICK(clk);
+      owner_bind_valid = 1'b0;
+      terminal1_valid = 1'b0;
+      release_valid = 1'b0;
+      v11g_model_bind(pid7, 5'd19, 2'b00);
+      v11g_model_terminal(pid7[ROB_INDEX_W-1:0], 5'd19, 2'b00);
+      v11g_model_release_head();
+      #1;
+      v11g_check_raw_state("bind terminal release bypass");
+
+      v11g_drive_allocate(pid8, pid9, 1'b1);
+      v11g_drive_bind_pair(
+          pid8, 5'd25, 2'b01, pid9, 5'd4, 2'b10, 1'b1);
+      terminal_valid = 1'b1;
+      terminal_rob_idx = pid8[ROB_INDEX_W-1:0];
+      terminal_owner_kind = 2'b01;
+      terminal_owner_token = 5'd25;
+      terminal_mmu_epoch = 2'b01;
+      terminal_fault_tval = v11g_tval(pid8);
+      terminal1_valid = 1'b1;
+      terminal1_rob_idx = pid9[ROB_INDEX_W-1:0];
+      terminal1_owner_kind = 2'b01;
+      terminal1_owner_token = 5'd4;
+      terminal1_mmu_epoch = 2'b10;
+      terminal1_fault_tval = v11g_tval(pid9);
+      `TB_TICK(clk);
+      terminal_valid = 1'b0;
+      terminal1_valid = 1'b0;
+      v11g_model_terminal(pid8[ROB_INDEX_W-1:0], 5'd25, 2'b01);
+      v11g_model_terminal(pid9[ROB_INDEX_W-1:0], 5'd4, 2'b10);
+      #1;
+      v11g_check_raw_state("dual terminal holders remain resident");
+
+      release_valid = 1'b1;
+      release_rob_idx = pid8[ROB_INDEX_W-1:0];
+      release_producer_id = pid8;
+      #1;
+      if (owner_release_mask !== (32'b1 << 25))
+        v11g_fail("dual-terminal first release token mismatch");
+      `TB_TICK(clk);
+      release_valid = 1'b0;
+      v11g_model_release_head();
+      release_valid = 1'b1;
+      release_rob_idx = pid9[ROB_INDEX_W-1:0];
+      release_producer_id = pid9;
+      #1;
+      if (owner_release_mask !== (32'b1 << 4))
+        v11g_fail("dual-terminal second release token mismatch");
+      `TB_TICK(clk);
+      release_valid = 1'b0;
+      v11g_model_release_head();
+      #1;
+      v11g_check_raw_state("dual terminal ordered release");
+
+      v11g_drive_allocate(pid10, {PRODUCER_ID_W{1'b0}}, 1'b0);
+      v11g_drive_bind_pair(
+          pid10, 5'd30, 2'b11,
+          {PRODUCER_ID_W{1'b0}}, 5'd0, 2'b00, 1'b0);
+      rst = 1'b1;
+      `TB_TICK(clk);
+      rst = 1'b0;
+      v11g_model_clear();
+      #1;
+      v11g_check_raw_state("dirty-state reset");
+      $display("[V11G-SQ-SAME-EDGE] GEN_W=%0d release-alloc/terminal-release/bind-terminal/dual-terminal PASS",
+               `OOO_PRODUCER_GEN_W);
+      $display("[V11G-SQ-ALL] GEN_W=%0d stimulus-owned raw-Q model PASS",
+               `OOO_PRODUCER_GEN_W);
+    end
+  endtask
+
   task automatic final_pa_query_matrix;
     begin
       rob_head_valid = 1'b1;
@@ -846,6 +1644,11 @@ module tb_ooo_store_queue;
 
     tb_check32("reset count", {28'b0, count}, 32'd0);
     tb_check1("reset request invalid", req_valid, 1'b0);
+
+    if ($test$plusargs("V11G_SQ_HOLDER_ONLY")) begin
+      run_v11g_store_queue_holder_lifecycle();
+      tb_finish("tb_ooo_store_queue_v11g_holder_lifecycle");
+    end
 
     // Four stores, with the first two allocated together.
     alloc0_valid = 1'b1; alloc0_rob_idx = 4'd3;

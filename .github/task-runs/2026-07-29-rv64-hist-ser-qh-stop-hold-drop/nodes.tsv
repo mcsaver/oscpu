@@ -1,0 +1,8 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+HIST-STOP-R0	root	V10G	ledger + historical RTL + current owner cone	initial cause and competing hypotheses	owner state/run-gate/drain roots separated	retain VD1	PASS
+HIST-STOP-R1	hist-qh-stop-hold-experiment-review-v1	HIST-STOP-R0	local RTL/spec/TB	product reachability trace and raw counters	real lane1 capture path and compile-success mutation defined	retain GAP	PASS
+HIST-STOP-V0	root	HIST-STOP-R1	product glue TB	current and diagnostic raw traces	natural birth/inflight/C0/C1/C2 observed without forced owner	retain VD1	PASS
+HIST-STOP-V1	root	HIST-STOP-V0	four RTL semantics + assertion on/off	eight-case matrix	8/8 compile; current positive; negative owner gap/run/overlap rejected	retain VD1	PASS
+HIST-STOP-V2	root	HIST-STOP-V1	runner checker + V9O + standalone + module	replay and layered regression	7/7 checker; replay stable; V9O on/off; standalone on/off; 113/113	retain VD1	PASS
+HIST-STOP-R2	hist-qh-stop-hold-final-review-v1	HIST-STOP-V1,HIST-STOP-V2	frozen RTL/spec/evidence	independent bounded verdict	no false-green or VD4/PPA scope escalation	retain VD1	PASS
+HIST-STOP-C0	root	HIST-STOP-R2	ledger + memory + e2e + guard	auditable bounded checkpoint	VD3 ledger, npc-dev 5/5, evidence index and scoped strict guard	record residual GAP	PASS

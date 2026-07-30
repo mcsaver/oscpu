@@ -515,8 +515,11 @@ module NpcSimTop (
   assign debug_clint_mtime_o = clint_mtime_w;
 `ifdef CONFIG_NPC_DEBUG_PORTS
   assign debug_ooo_satp_o = u_top.u_core.u_ooo_core.csr_satp_w;
+  // Bit 63 declares that the simulation diagnostic payload is wired.
+  // It is configuration-valid, not a per-cycle transaction-valid signal.
   assign debug_ooo_flags_o = {
-    18'd0,
+    1'b1,
+    17'd0,
     u_top.u_core.u_ooo_core.head0_csr_inflight_w,
     u_top.u_core.u_ooo_core.branch_spec_active_q,
     u_top.u_core.u_ooo_core.branch_spec_checkpoint_pending_q,

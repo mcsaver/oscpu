@@ -129,6 +129,11 @@ module OooLoadQueue #(
   reg ordered_q [0:ENTRY_N-1];
   reg completed_q [0:ENTRY_N-1];
   reg killed_q [0:ENTRY_N-1];
+  // A normal terminal ends the physical memory-owner lifetime but does not
+  // end ROB retire residency.  Preserve that edge history so a later recovery
+  // does not create a killed tombstone waiting for a terminal that already
+  // occurred.
+  reg terminal_seen_q [0:ENTRY_N-1];
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_N-1];
   reg [PRODUCER_ID_W-1:0] producer_id_q [0:ENTRY_N-1];
   reg [`XLEN-1:0] paddr_q [0:ENTRY_N-1];
@@ -270,25 +275,31 @@ module OooLoadQueue #(
         producer_live_mask_r[producer_id_q[lookup_i]] = 1'b1;
       end
       if (issue0_hit_w[lookup_i] && !killed_q[lookup_i] &&
+          !terminal_seen_q[lookup_i] &&
           !completed_q[lookup_i])
         issue0_open_r = 1'b1;
       if (issue1_hit_w[lookup_i] && !killed_q[lookup_i] &&
+          !terminal_seen_q[lookup_i] &&
           !completed_q[lookup_i])
         issue1_open_r = 1'b1;
       if (query0_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !completed_q[lookup_i] &&
+          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
+          !completed_q[lookup_i] &&
           query0_meta_match_w[lookup_i] && !query_pair_same_pid_w)
         query0_open_r = 1'b1;
       if (query1_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !completed_q[lookup_i] &&
+          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
+          !completed_q[lookup_i] &&
           query1_meta_match_w[lookup_i] && !query_pair_same_pid_w)
         query1_open_r = 1'b1;
       if (response0_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !completed_q[lookup_i] &&
+          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
+          !completed_q[lookup_i] &&
           (ordered_q[lookup_i] || response0_fault_i))
         response0_open_r = 1'b1;
       if (response1_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !completed_q[lookup_i] &&
+          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
+          !completed_q[lookup_i] &&
           (ordered_q[lookup_i] || response1_fault_i))
         response1_open_r = 1'b1;
       if (release0_match_w[lookup_i] && completed_q[lookup_i])
@@ -333,6 +344,7 @@ module OooLoadQueue #(
         ordered_q[i] <= 1'b0;
         completed_q[i] <= 1'b0;
         killed_q[i] <= 1'b0;
+        terminal_seen_q[i] <= 1'b0;
         rob_idx_q[i] <= {ROB_INDEX_W{1'b0}};
         producer_id_q[i] <= {PRODUCER_ID_W{1'b0}};
         paddr_q[i] <= {`XLEN{1'b0}};
@@ -351,17 +363,19 @@ module OooLoadQueue #(
           ordered_q[i] <= 1'b0;
           completed_q[i] <= 1'b0;
           killed_q[i] <= 1'b0;
+          terminal_seen_q[i] <= 1'b0;
           attr_valid_q[i] <= 1'b0;
           class_q[i] <= `OOO_MEM_CLASS_RSVD;
           strb_q[i] <= {`STRB_W{1'b0}};
         end else if (flush_target_w[i]) begin
           if (((launched_q[i] || launch0_hit_w[i] || launch1_hit_w[i]) &&
                !completed_q[i] && !completion0_hit_w[i] &&
-               !completion1_hit_w[i]) &&
+               !completion1_hit_w[i] && !terminal_seen_q[i]) &&
               !(terminal0_hit_w[i] || terminal1_hit_w[i])) begin
             launched_q[i] <= 1'b1;
             completed_q[i] <= 1'b0;
             killed_q[i] <= 1'b1;
+            terminal_seen_q[i] <= 1'b0;
           end else begin
             valid_q[i] <= 1'b0;
             launched_q[i] <= 1'b0;
@@ -369,6 +383,7 @@ module OooLoadQueue #(
             ordered_q[i] <= 1'b0;
             completed_q[i] <= 1'b0;
             killed_q[i] <= 1'b0;
+            terminal_seen_q[i] <= 1'b0;
             attr_valid_q[i] <= 1'b0;
             class_q[i] <= `OOO_MEM_CLASS_RSVD;
             strb_q[i] <= {`STRB_W{1'b0}};
@@ -376,6 +391,8 @@ module OooLoadQueue #(
         end else begin
           if (completion0_hit_w[i] || completion1_hit_w[i])
             completed_q[i] <= 1'b1;
+          if (terminal0_hit_w[i] || terminal1_hit_w[i])
+            terminal_seen_q[i] <= 1'b1;
           if (query0_update_i && query0_hit_w[i] && query0_open_o) begin
             pa_valid_q[i] <= 1'b1;
             paddr_q[i] <= query0_paddr_i;
@@ -405,6 +422,7 @@ module OooLoadQueue #(
         ordered_q[alloc0_idx_r] <= 1'b0;
         completed_q[alloc0_idx_r] <= 1'b0;
         killed_q[alloc0_idx_r] <= 1'b0;
+        terminal_seen_q[alloc0_idx_r] <= 1'b0;
         rob_idx_q[alloc0_idx_r] <= alloc0_rob_idx_i;
         producer_id_q[alloc0_idx_r] <= alloc0_producer_id_i;
         paddr_q[alloc0_idx_r] <= {`XLEN{1'b0}};
@@ -419,6 +437,7 @@ module OooLoadQueue #(
         ordered_q[alloc1_idx_r] <= 1'b0;
         completed_q[alloc1_idx_r] <= 1'b0;
         killed_q[alloc1_idx_r] <= 1'b0;
+        terminal_seen_q[alloc1_idx_r] <= 1'b0;
         rob_idx_q[alloc1_idx_r] <= alloc1_rob_idx_i;
         producer_id_q[alloc1_idx_r] <= alloc1_producer_id_i;
         paddr_q[alloc1_idx_r] <= {`XLEN{1'b0}};
@@ -552,14 +571,27 @@ module OooLoadQueue #(
       end
       for (assert_i = 0; assert_i < ENTRY_N; assert_i = assert_i + 1) begin
         if (valid_q[assert_i] &&
+            (^producer_id_q[assert_i] === 1'bx)) begin
+          $display("[V11H-LQ-PID-KNOWN] entry=%0d pid=%h @%0t",
+                   assert_i, producer_id_q[assert_i], $time);
+          $fatal;
+        end
+        if (valid_q[assert_i] &&
             (producer_id_q[assert_i][ROB_INDEX_W-1:0] != rob_idx_q[assert_i])) begin
           $display("[V8V-LQ-PID-INDEX] entry=%0d pid=%h rob=%h @%0t",
                    assert_i, producer_id_q[assert_i], rob_idx_q[assert_i], $time);
           $fatal;
         end
         if (valid_q[assert_i] && killed_q[assert_i] &&
-            (!launched_q[assert_i] || completed_q[assert_i])) begin
+            (!launched_q[assert_i] || completed_q[assert_i] ||
+             terminal_seen_q[assert_i])) begin
           $display("[V8V-LQ-KILLED-STATE] entry=%0d @%0t", assert_i, $time);
+          $fatal;
+        end
+        if (valid_q[assert_i] && terminal_seen_q[assert_i] &&
+            (terminal0_hit_w[assert_i] || terminal1_hit_w[assert_i])) begin
+          $display("[V11H-LQ-DUP-TERMINAL] entry=%0d pid=%h @%0t",
+                   assert_i, producer_id_q[assert_i], $time);
           $fatal;
         end
         for (assert_j = assert_i + 1; assert_j < ENTRY_N;

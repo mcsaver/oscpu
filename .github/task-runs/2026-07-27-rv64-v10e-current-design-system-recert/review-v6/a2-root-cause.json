@@ -1,0 +1,53 @@
+{
+  "status": "FAIL rc=1 stage=simulator-define-binding evidence_complete=0 cleanup_rc=2",
+  "expected_status": "FAIL rc=1 stage=simulator-define-binding evidence_complete=0 cleanup_rc=2",
+  "build_artifacts_present_nonempty": {
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/config-canonical.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/rootfs-build.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/rootfs-check.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/sim-build.log": true,
+    ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/sim-build/obj_dir/VNpcSimTop__verFiles.dat": true,
+    ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/sim-build/NpcSimTop": true
+  },
+  "guest_artifacts_absent": {
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/driver.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/guest": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/systemd-transaction-evidence.json": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/binding.txt": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a2/simulator-defines.txt": true,
+    ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/rootfs.ext4": true
+  },
+  "missing_driver_query": true,
+  "missing_guest_query": true,
+  "evidence_query_fail_markers": 3,
+  "post_binding": {
+    "rtl_design_id_post": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "simulator_sha256_post": "0332824953b7960f7195c197bd64042b2a67c69585a139e71673a35756bb4a0e",
+    "npc_makefile_pre_sha256": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+    "npc_makefile_post_sha256": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+    "verilator_manifest_pre_sha256": "UNAVAILABLE",
+    "verilator_manifest_post_sha256": "PREHASH_UNAVAILABLE",
+    "linux_image_pre_sha256": "UNAVAILABLE",
+    "run_dtb_pre_sha256": "UNAVAILABLE"
+  },
+  "actual_simulator_sha256": "0332824953b7960f7195c197bd64042b2a67c69585a139e71673a35756bb4a0e",
+  "actual_manifest_sha256": "682689cc7f96cfc730de4a456ba60309ab4258e5732858c2ba8acb610e5778c4",
+  "a2_runner_sha256": "71c4d23a96421008a2e8bbe2c6218837685ee1d1b806b3887486afb412d7a27a",
+  "a2_runner_matches_v5_snapshot": true,
+  "a2_runner_differs_from_corrected_runner": true,
+  "v5_prelaunch_pass_provenance": true,
+  "a2_prelaunch_static_count": 42,
+  "a2_prelaunch_dynamic_count": 8,
+  "a2_prelaunch_lacked_value_regression": true,
+  "dispatch_root_cause_record": true,
+  "corrected_stage_order": {
+    "simulator_define_binding": 438,
+    "evidence_binding_pre": 452,
+    "systemd_strict_guest": 517
+  },
+  "three_way_binding_closed": true,
+  "historical_runner_source_snapshot_available": false,
+  "historical_runner_traceability": "a2 source is bound by runner SHA + V5 input snapshot + dispatch record; no standalone byte-for-byte a2 runner copy exists",
+  "no_guest_cycle_closed": true,
+  "root_cause_closed": true
+}

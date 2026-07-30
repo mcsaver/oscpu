@@ -1,0 +1,95 @@
+# 本地 RV64 CPU RTL/验证子任务 `rv64-v10c-status-initialization-final-rereview-v3`
+
+- RV64 RTL/证据对象：独立复审本地 RV64 V10C 证据回放 runner 的终态发布时序及 attempt 8 证据。v2 已接受 attempt 6 的当前设计证据边界，但发现 signal trap 早于 EXIT finalizer 的确定性初始化窗口。核对当前 runner 已预置标准状态路径与字段、先安装 EXIT finalizer、再安装 HUP/INT/TERM handler，并在退出时原子覆盖详细状态；核对 helper 对 HUP/INT/TERM 的用例，以及真实 V10C runner 在 pre-init/active-stage 两个周期点对三种信号的 6/6 stale-PASS 覆盖；核对 attempt 8 只执行 closed-evidence-currentness，未冒充完整 RTL 仿真回放。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/subagent-contracts/final-reviewer-v3.json`
+- 合同 JSON SHA-256：`cc3eb28ed2ed60ed84e9a57bd326a0642c13da56ea8d77a0d9e31419de12903b`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay
+- scripts/task-run-status.sh
+- scripts/tests/test-task-run-status.sh
+- npc/rv64/design/arch/architecture-debt-ledger.json
+- npc/rv64/eval/ppa/arch-stable/full-core-current.json
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/run-current-design-evidence-replay.sh
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/test-runner-status-contract.sh
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/status-contract-validation.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-run.status
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay.status
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay-attempt-8.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/stage-logs/attempt-8/closed-evidence-currentness.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/round-state.json
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/subagent-contracts/final-reviewer-v3.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git status; mode=read-only
+- command=git diff; mode=read-only
+- command=git show; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git status: purpose=inspect-worktree-status; label=只读查看工作树状态
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- git show: purpose=inspect-versioned-content; label=只读查看版本化内容
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- scripts/task-run-status.sh
+- scripts/tests/test-task-run-status.sh
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/run-current-design-evidence-replay.sh
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/test-runner-status-contract.sh
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/status-contract-validation.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-run.status
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay.status
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay-attempt-8.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/stage-logs/attempt-8/closed-evidence-currentness.log
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md
+- .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/round-state.json
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按“本地 RV64 runner/状态证据对象 → attempt 8 配置 → shell/status 原始观测 → PASS/GAP 范围”输出 v3 复审。先列 findings；再判定 v2 唯一阻断项是否关闭：EXIT 与 signal trap 安装顺序、预置字段、HUP/INT/TERM、cleanup rc、原子状态、stale PASS 覆盖、test hook 默认关闭；核对 attempt 8 仅为末端 currentness 审计；最后确认 production RTL、断言、testbench oracle、compile-success variant、SERIALIZE-G1 与 arch-stable/PPA 边界均未改变。无阻断项时写 APPROVED_FOR_CURRENT_SCOPE，否则写 CHANGES_REQUIRED。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：只读复核 runner/helper/tests/log/status/JSON/git diff，不运行 RTL 仿真、综合或 STA，不修改文件。必须确认任何 HUP/INT/TERM 都经已安装的 EXIT finalizer 发布 FAIL，标准状态包含 stage/evidence_complete=0/cleanup_rc/signal，详细状态覆盖旧 PASS；helper 三种信号和 runner 六种组合均有精确 PASS marker；正常路径只有在 final currentness 与 design-id 比对后才发布 evidence_complete 与 PASS；attempt 8 日志明确跳过仿真阶段，只运行 closed-evidence-currentness，并观察 design-id 13d868…、closed=15、artifacts=35、failures=0、task-run.status=PASS、replay.status=PASS complete。不得将本轮扩大为 SERIALIZE-G1、rootfs、architecture_freeze 或 PPA closure；结束时显式归还 Windows→WSL 唯一工程命令 lane。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

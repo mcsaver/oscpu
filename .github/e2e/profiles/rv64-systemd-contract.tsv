@@ -1,0 +1,1 @@
+npc-rv64-systemd-guest-check-contract|npc|e2e_npc_rv64_systemd_guest_check_contract|npc|RV64 systemd guest checker + terminal transaction + isolated rootfs + debug-valid diagnostic contract|Checker 正反例、真实 power-down/syscon/system-reset 事务、rootfs 工作副本与 debug-valid 合同 PASS

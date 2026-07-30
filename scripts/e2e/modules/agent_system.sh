@@ -179,6 +179,51 @@ e2e_agent_system_discovery() {
     printf 'PASS profile catalog propagates find failure and rejects empty catalog\n'
   fi
 
+  echo "[agent-system] RV64 systemd checker guard routing"
+  local -a guard_saved_profiles=("${E2E_GUARD_PROFILES[@]}")
+  local -a guard_saved_reasons=("${E2E_GUARD_PROFILE_REASONS[@]}")
+  local -a guard_saved_mtimes=("${E2E_GUARD_PROFILE_MTIME_US[@]}")
+  E2E_GUARD_PROFILES=()
+  E2E_GUARD_PROFILE_REASONS=()
+  E2E_GUARD_PROFILE_MTIME_US=()
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/check-npc-systemd-guest.sh"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/npc-systemd-strict-check.sh"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/npc_systemd_transaction_evidence.py"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/tests/test_npc_systemd_strict_check.py"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py"
+  e2e_guard_profiles_for_path \
+    "Linux/scripts/tests/fixtures/v9s-rerun4-incomplete.console"
+  if [[ ${#E2E_GUARD_PROFILES[@]} -eq 1 &&
+        ${E2E_GUARD_PROFILES[0]} = "rv64-systemd-contract" ]]; then
+    printf 'PASS checker-only paths require rv64-systemd-contract\n'
+  else
+    printf 'FAIL checker-only paths require unexpected profiles: %s\n' \
+      "${E2E_GUARD_PROFILES[*]:-<none>}"
+    rc=1
+  fi
+  E2E_GUARD_PROFILES=()
+  E2E_GUARD_PROFILE_REASONS=()
+  E2E_GUARD_PROFILE_MTIME_US=()
+  e2e_guard_profiles_for_path "Linux/scripts/check-ubuntu-rootfs.sh"
+  if [[ ${#E2E_GUARD_PROFILES[@]} -eq 1 &&
+        ${E2E_GUARD_PROFILES[0]} = "rv64-linux" ]]; then
+    printf 'PASS broader Linux paths retain rv64-linux\n'
+  else
+    printf 'FAIL broader Linux path routing changed: %s\n' \
+      "${E2E_GUARD_PROFILES[*]:-<none>}"
+    rc=1
+  fi
+  E2E_GUARD_PROFILES=("${guard_saved_profiles[@]}")
+  E2E_GUARD_PROFILE_REASONS=("${guard_saved_reasons[@]}")
+  E2E_GUARD_PROFILE_MTIME_US=("${guard_saved_mtimes[@]}")
+
   local guard_tmp guard_token guard_run_prefix guard_paths guard_evidence guard_report_only guard_missing_node
   local guard_context_injected guard_context_profile_mismatch guard_context_indented_heading guard_context_truncated
   local guard_resolve_injected guard_resolve_profile_mismatch guard_resolve_indented_heading guard_resolve_truncated

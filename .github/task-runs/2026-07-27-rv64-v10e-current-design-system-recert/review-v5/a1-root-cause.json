@@ -1,0 +1,31 @@
+{
+  "status": "FAIL rc=1 stage=runner-preflight evidence_complete=0 cleanup_rc=2",
+  "expected_status": "FAIL rc=1 stage=runner-preflight evidence_complete=0 cleanup_rc=2",
+  "launcher_prelaunch_contract_pass": true,
+  "max_cycles_6b": true,
+  "missing_driver_log_query": true,
+  "missing_guest_query": true,
+  "evidence_query_fail_markers": 3,
+  "prehash_unavailable": {
+    "rtl_design_id_post": "PREHASH_UNAVAILABLE",
+    "npc_makefile_pre_sha256": "UNAVAILABLE",
+    "guest_checker_pre_sha256": "UNAVAILABLE"
+  },
+  "a1_runner_sha256": "63e2d9f1cb1a3a2d74efadb02e1daae5d6168c291b6d21d443b11f26614da8f9",
+  "a1_runner_matches_v4_snapshot": true,
+  "a1_runner_differs_from_corrected_runner": true,
+  "guest_checker_unchanged_from_v4": true,
+  "dispatch_root_cause_record": true,
+  "no_build_or_sim_artifacts": {
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/config-canonical.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/rootfs-build.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/rootfs-check.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/sim-build.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/simulator-defines.txt": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/binding.txt": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/driver.log": true,
+    ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a1/guest": true,
+    ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a1": true
+  },
+  "launcher_log_size": 0
+}

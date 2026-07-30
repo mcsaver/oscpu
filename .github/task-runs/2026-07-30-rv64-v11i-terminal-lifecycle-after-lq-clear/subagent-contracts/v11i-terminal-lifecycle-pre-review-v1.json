@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11i-terminal-lifecycle-pre-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 OooMemOwnerTerminalCollector→OooMemOwnerTracker→OooLoadQueue 在 terminal ingress、双 dequeue、tracker exact-free 与 LQ terminal PID 采样周期中，判定 LQ entry 清除后的迟到同 tuple terminal 是现有 holder 合同可排除的验证缺口，还是 token 复用后会误绑定新 ProducerId 的生产 RTL 反例；给出最小周期序列与 lane/owner/PID 证据，不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/final-review-v3-result.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11i-terminal-lifecycle-after-lq-clear/subagent-contracts/v11i-terminal-lifecycle-pre-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/final-review-v3-result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 handshake/backpressure/recovery/exception-order/memory-ordering/single-source-of-truth 六类合同输出周期表；列出当前源码能证明与不能证明的边界；若存在反例，给出无需改变合法接口的最小激励和期望 marker；若仅为覆盖缺口，给出最小 assertions-on/off 与 compile-success 变异矩阵。"
+  ],
+  "success_criteria": [
+    "必须明确裁决 H1=当前 RTL 正确但缺端到端定向证据、H2=token 复用后旧 terminal 可误释放新 owner、H3=dequeue 同沿读取错误 PID 三者之一或保持 inconclusive；不得把 raw ingress 去重、吞事件或断言弱化作为修复；所有结论绑定真实 module/signal/周期并保留反例、未知项和范围扩展请求。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,5 +1,5 @@
 schema=npc-rv64-instret-retirement-evidence-v1
-design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
+design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
 canonical_command=make -C npc/rv64 check-instret-retirement
 metric exception_lanes 2
 metric exception_zero_delta 2
@@ -7,11 +7,11 @@ metric mret_control_delta_one 1
 metric sret_control_delta_one 6
 metric sfence_vma_control_delta_one 1
 metric control_exact 8
-metric csr_delta_checks 1052
+metric csr_delta_checks 1103
 compile_success_rtl_mutations=3
 dynamic_rejected_rtl_mutations=3
 focused_tests=3/3
-module_aggregate=111/111
+module_aggregate=113/113
 ppa=UNQUALIFIED
 promotion_eligible=false
 [INSTRET-G1-GATE] PASS

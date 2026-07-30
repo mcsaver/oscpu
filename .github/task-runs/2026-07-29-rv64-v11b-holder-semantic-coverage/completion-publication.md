@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-29-rv64-v11b-holder-semantic-coverage
+- `trace_id`: e2e:2026-07-29-rv64-v11b-holder-semantic-coverage
+- `task_slug`: rv64-v11b-holder-semantic-coverage
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: a3a0c06c8e41476124652559ac12eb3d0ddce577600ee10df04ea36cc5acd7bd
+- `task_report_md_sha256`: 41fee0097cdc17cd2dee81592c95a3ec07735ad938e10abc6770ad403b21f73b
+- `run_manifest_json_sha256`: 7ae8cb71bded581575b1aec544d84dba8a4a14919d600059aaf09b3201c20f48
+- `context_brief_md_sha256`: 4c6d7e3fb62069fc6aa480d07150cfdaf0f3835982da54de01f7b07b3473d589
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 0f27e85d7f16af6c1c253fc796b7e2638cf272a1d80c8b447e3b8fbea3bab95e
+- `dispatch_log_md_sha256`: 03c3b3ecff2cef5d20966a0f54c9416c1c992db9b97b16ced1428fa0b03268f5
+- `nodes_tsv_sha256`: 18adc1fed776a199fa002094df4d5e4f5181d4ef617385c25fd00deb598f5614

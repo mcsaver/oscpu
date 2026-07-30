@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "active_a3_elaboration_unchanged": true,
+    "csrfile_c2_mutation_design_id": true,
+    "csrfile_c2_mutation_pass": true,
+    "full_system_rerun_not_required": true,
+    "live_design_id_match": true,
+    "product_config_holder_assert": true,
+    "product_config_queue_head": true,
+    "product_config_schema": true,
+    "product_identity_current": true,
+    "product_identity_pass": true,
+    "system_matrix_baselines": true,
+    "system_matrix_design_id_match": true,
+    "system_matrix_mutations": true,
+    "system_matrix_pass": true,
+    "system_matrix_product_binding": true
+  },
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "expected_duration": "approximately 35 minutes",
+  "full_system_recertification": "NOT_REQUIRED",
+  "over_30_minute_gate": {
+    "information_gain": "replace the prior default-off aggregate with a current-design product-default aggregate and detect any flag-on regression",
+    "necessity": "bind module, functional, architecture, trap/exit and mutation evidence to the normative queue-head=1 product configuration",
+    "single_flight": true,
+    "stop_condition": "stop on the first failed stage or RTL design-id drift"
+  },
+  "over_4_hour_user_authorization": "NOT_REQUIRED",
+  "schema": "npc-rv64-v10g-product-default-current-replay-launch/v1",
+  "status": "PASS"
+}

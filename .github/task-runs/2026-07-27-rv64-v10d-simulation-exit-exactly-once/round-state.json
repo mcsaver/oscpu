@@ -1,0 +1,175 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-27-rv64-v10d-simulation-exit-exactly-once",
+  "status": "APPROVED_FOR_CURRENT_SCOPE_RECORD_CLOSED",
+  "classification": "architecture",
+  "auxiliary_classifications": [
+    "verification",
+    "tooling/workflow"
+  ],
+  "scope": {
+    "rtl_object": "pending_exit owner to raw exit event to latched output",
+    "production_rtl_edit": "exact pending-exit memory-terminal gate plus explicit older-trap priority and non-weakened assertions",
+    "parent_debt": "SERIALIZE-G1",
+    "non_claims": [
+      "Linux/rootfs terminal",
+      "architecture-stable",
+      "synthesis",
+      "STA",
+      "power",
+      "PPA"
+    ]
+  },
+  "initial_state": {
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+    "worktree": "mixed-origin-dirty",
+    "staged_paths": 0
+  },
+  "predecessors": {
+    "V9Y": "memory-owner terminal bounded PASS",
+    "V9Z": "pending arch-trap memory-terminal bounded PASS",
+    "V10A": "arch-trap clocked exactly-once bounded PASS",
+    "V10B": "eight-kind SYSTEM post-fire bounded PASS",
+    "V10C": "current-design evidence PASS"
+  },
+  "hypotheses": [
+    "production exit path is correct and the remaining gap is raw-event observation",
+    "pending_exit clear timing permits a repeated raw exit pulse",
+    "trap and exit overlap can set both latched terminal statuses",
+    "core_local_flush clears the holder and stop owner but an unobserved pulse escapes"
+  ],
+  "highest_information_experiment": "production-module clocked lane0/lane1 exit transaction with active-memory block, exact terminal C0, C1 holder/stop death, C2 raw no-repeat, flush kill and compile-success variants",
+  "recall": {
+    "status": "failed_closed",
+    "reason": "no independent non-history primary focus match for the new simulation-exit identifiers"
+  },
+  "pre_review_v1": {
+    "contract_sha256": "bd482aef4214cecafef36a8934b14f3c73973c46f8c829bd846c82ee934afc96",
+    "rendered_prompt_sha256": "25034dbf21e04b43fee4fd16eb60c6870f196aa12a57e1abe5eaeacc77cac258",
+    "verdict": "RTL_BUG_FOUND",
+    "confirmed_root_cause": "pending_exit is absent from OooPendingDrainResolveGate exact memory-owner terminal condition",
+    "remaining_gaps": [
+      "branch-spec misaligned trap versus exit priority/reachability",
+      "core_local_flush raw exit suppression and no output latch"
+    ],
+    "shell_ownership": "returned"
+  },
+  "implementation": {
+    "current_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "confirmed_root_cause": "pending_exit was absent from OooPendingDrainResolveGate exact memory-owner terminal condition",
+    "repair": [
+      "pending_exit participates in exact memory-owner terminal eligibility",
+      "older terminal trap suppresses raw exit",
+      "output sequencer cannot dual-latch trap and exit",
+      "control-plane assertions cover exit owner onehot, memory terminal, C1 clear and C2 no-repeat"
+    ],
+    "dedup_added": false,
+    "assertion_weakened": false
+  },
+  "validation": {
+    "focused_assert_on": "PASS 5/5",
+    "focused_assert_off": "PASS 5/5",
+    "compile_success_negative_variants": "PASS 7/7 rejected",
+    "module_aggregate": "PASS 113/113",
+    "functional_aggregate": {
+      "status": "PASS",
+      "module": "113/113",
+      "official": "177/177",
+      "am_difftest": "59/59",
+      "difftest_mismatches": 0
+    },
+    "architecture_hard_gates": "GREEN 9/9",
+    "closed_evidence_currentness": {
+      "status": "PASS",
+      "closed_count": 15,
+      "artifact_count": 35,
+      "failures": 0
+    }
+  },
+  "historical_system_boundary": {
+    "run": "2026-07-23-rv64-v9p-serialize-current-design/rootfs-v9q-terminal-pair-a1",
+    "design_id": "sha256:4655eabea13d2ecce9ac94784bbcb0a8bd2151b65bcd7325f950c6abb9b91380",
+    "simulator_sha256": "669c983b22ce52beb433e50870e8950c522f8fd2a1072798fb86489bc2af6c87",
+    "configuration": {
+      "OOO_CSR_QUEUE_HEAD": 1,
+      "OOO_TERMINAL_HOLDER_ASSERT": 1
+    },
+    "status": "FAIL rc=2",
+    "last_commit": 405000000,
+    "last_pc": "0xffffffff80002f68",
+    "terminal_markers": 0,
+    "current_design_evidence": false
+  },
+  "final_review_v1": {
+    "state": "APPROVED_FOR_CURRENT_SCOPE",
+    "contract_sha256": "9b44a39d41d7ba9bfaab83034962e68aa0f99cd21ae1a414577ad024a3a227a1",
+    "rendered_prompt_sha256": "3a2711cdd1d25c0712f95359f99684f53b25106d4cd4e40a918d5c68a68ce4a2",
+    "mode": "read-only counterexample-first review",
+    "shell_ownership": "returned",
+    "verdict": "APPROVED_FOR_CURRENT_SCOPE",
+    "blocking_rtl_findings": 0,
+    "workflow_gap": "V10C stage-order self-test omitted control-event-index-verify",
+    "reconciliation": {
+      "required_order_includes_index_verify": true,
+      "negative_fixtures": [
+        "candidate-before-architecture",
+        "missing-index-verify",
+        "verify-after-ledger"
+      ],
+      "unconditional_replay_preflight": true,
+      "attempt": 13,
+      "attempt_status": "PASS",
+      "currentness": "PASS closed=15 artifacts=35 failures=0"
+    },
+    "remaining_assumption": "standalone cross-cycle trap then exit is not adversarially tested; integrated holder/run-gate transaction makes it unreachable"
+  },
+  "record_closure": {
+    "status": "PASS",
+    "memory_updated": [
+      ".github/memory/project-status.md",
+      ".github/memory/modules/npc.md",
+      ".github/memory/modules/agent-system.md"
+    ],
+    "bounded_recall": {
+      "simulation_exit": "complete",
+      "stage_order_index_verify": "complete"
+    },
+    "task_specific_e2e": {
+      "npc_dev": {
+        "status": "completed",
+        "result": "PASS 5/5",
+        "run": "2026-07-27-simulation-exit-exactly-once-revtag-v10d"
+      },
+      "agent_system": {
+        "status": "completed",
+        "result": "PASS 11/11",
+        "run": "2026-07-27-stage-order-index-verify-revtag-v10e"
+      }
+    },
+    "strict_guard": {
+      "status": "PASS",
+      "mode": "strict",
+      "changed_paths": 553,
+      "required_profiles": 2,
+      "profiles": [
+        "agent-system",
+        "npc-dev"
+      ]
+    },
+    "retained_fail_closed_counterexample": {
+      "run": "2026-07-27-stage-order-index-verify-revtag-v10d-r2",
+      "node_result": "PASS 11/11",
+      "overall_status": "blocked",
+      "reason": "task slug introduced unmatched r2 recall term"
+    },
+    "task_run_index": "published"
+  },
+  "promotion": {
+    "serialize_g1": "OPEN",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "eligible": false
+  }
+}

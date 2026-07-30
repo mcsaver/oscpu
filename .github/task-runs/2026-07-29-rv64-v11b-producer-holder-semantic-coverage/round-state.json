@@ -1,0 +1,37 @@
+{
+  "schema": "rv64-v11b-semantic-coverage-round-state-v1",
+  "status": "GLOBAL_SEMANTIC_GAP",
+  "design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+  "instance_graph_complete": true,
+  "semantic_complete": false,
+  "counts": {
+    "semantic_units": 44,
+    "holder_instances": 17,
+    "unit_instance_bindings": 50,
+    "semantic_pass": 3,
+    "semantic_gap": 41
+  },
+  "collector_scope": {
+    "status": "PASS",
+    "ingress_lanes": 12,
+    "tracker_free_lanes": 2,
+    "positive_profiles": 2,
+    "compile_success_mutations_rejected": 3,
+    "unknown_negative_rejected": true,
+    "duplicate_ingress_merged": false
+  },
+  "independent_review": {
+    "status": "PASS_BOUNDED_COLLECTOR_SCOPE",
+    "contract_sha256": "49177c45a363d2953e59387018e8d82675543ab3415cba89b1e5f90368a18f80",
+    "semantic_lane_unit_tests": 16,
+    "policy_unit_rebind_negative": "PASS"
+  },
+  "architecture": "RED",
+  "ppa": "UNPROMOTED",
+  "full_system_rerun_required": false,
+  "preserved_failures": [
+    "terminal-collector-attempt-1",
+    "terminal-collector-attempt-2",
+    "currentness-rebind-attempt-21"
+  ]
+}

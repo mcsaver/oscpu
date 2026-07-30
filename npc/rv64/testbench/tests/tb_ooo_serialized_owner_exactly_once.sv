@@ -28,6 +28,7 @@ module tb_ooo_serialized_owner_exactly_once;
   localparam [`INST_W-1:0] INST_ADDI  = 32'h0000_0013;
   localparam [`INST_W-1:0] INST_BAD   = 32'hffff_ffff;
   localparam [`INST_W-1:0] INST_ECALL = 32'h0000_0073;
+  localparam [`INST_W-1:0] INST_EBREAK = 32'h0010_0073;
   localparam [`INST_W-1:0] INST_MRET  = 32'h3020_0073;
   localparam [`INST_W-1:0] INST_CSR   = 32'h3000_1073;
   localparam [`INST_W-1:0] INST_FENCE = 32'h0000_000f;
@@ -61,6 +62,12 @@ module tb_ooo_serialized_owner_exactly_once;
 
   reg mem_owner_terminalized;
   reg mem_idle;
+  reg core_local_flush;
+  reg branch_spec_active;
+  reg branch_spec_checkpoint_pending;
+  reg branch_spec_resolve_valid;
+  reg branch_spec_restore;
+  reg branch_spec_misaligned;
   reg core_commit0_valid;
   reg core_commit0_exception;
   reg [`XLEN-1:0] core_commit0_pc;
@@ -140,6 +147,22 @@ module tb_ooo_serialized_owner_exactly_once;
   wire real_mret_valid;
   wire priv_predictor_boundary;
 
+  wire raw_trap;
+  wire [`TRAP_CAUSE_W-1:0] raw_trap_cause;
+  wire [`XLEN-1:0] raw_trap_pc;
+  wire [`XLEN-1:0] raw_trap_tval;
+  wire raw_exit;
+  wire raw_exit_ecall;
+  wire raw_exit_ebreak;
+  wire trap_valid;
+  wire [`TRAP_CAUSE_W-1:0] terminal_trap_cause;
+  wire [`XLEN-1:0] terminal_trap_pc;
+  wire [`XLEN-1:0] terminal_trap_tval;
+  wire exit_valid;
+  wire exit_ecall;
+  wire exit_ebreak;
+  wire halted;
+
   wire [`XLEN-1:0] csr_mepc;
   wire [`TRAP_CAUSE_W-1:0] csr_ecall_cause;
   wire [`XLEN-1:0] csr_trap_target;
@@ -156,6 +179,8 @@ module tb_ooo_serialized_owner_exactly_once;
   integer csr_arch_accept_count_q;
   integer csr_mem_accept_count_q;
   integer blocked_kind_count_q;
+  integer raw_exit_count_q;
+  integer raw_trap_count_q;
 
   wire [3:0] pending_system_kind_count =
       {3'b000, pending_system_csr} +
@@ -203,12 +228,12 @@ module tb_ooo_serialized_owner_exactly_once;
     .pending_system_i(pending_system),
     .synth_lane1_ret_pending_i(1'b0),
     .synth_lane1_branch_drop_pending_i(1'b0),
-    .branch_spec_checkpoint_pending_i(1'b0),
-    .branch_spec_active_i(1'b0),
+    .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending),
+    .branch_spec_active_i(branch_spec_active),
     .head0_csr_inflight_i(1'b0),
-    .halted_i(1'b0),
-    .trap_valid_i(1'b0),
-    .exit_valid_i(1'b0),
+    .halted_i(halted),
+    .trap_valid_i(trap_valid),
+    .exit_valid_i(exit_valid),
     .fifo_storage_head_valid_i(fifo_has_packet),
     .outstanding_valid_i(1'b0),
     .fifo_count_i(3'd0),
@@ -227,7 +252,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .can_run_i(can_run),
     .fifo_has_packet_i(fifo_has_packet),
     .csr_irq_pending_i(csr_irq_pending),
-    .branch_spec_resolve_valid_i(1'b0),
+    .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .pending_branch_commit_resolve_i(1'b0),
     .pending_branch_match_clear_i(1'b0),
     .branch_resolve_untracked_i(1'b0),
@@ -286,7 +311,7 @@ module tb_ooo_serialized_owner_exactly_once;
 
   OooPendingTrapExitSequencer u_trap_sequencer (
     .clk(clk),
-    .rst(rst),
+    .rst(rst || core_local_flush),
     .late_clear_i(trap_mem_valid),
     .clear_exit_i(pending_trap_clear_exit),
     .clear_arch_i(pending_trap_clear_arch),
@@ -311,7 +336,7 @@ module tb_ooo_serialized_owner_exactly_once;
 
   OooPendingSystemSequencer u_system_sequencer (
     .clk(clk),
-    .rst(rst),
+    .rst(rst || core_local_flush),
     .clear_i(pending_system_clear),
     .clear_dispatched_i(orphan_stop_pending),
     .dispatch_fire_i(system_csr_dispatch_fire),
@@ -374,9 +399,10 @@ module tb_ooo_serialized_owner_exactly_once;
     .pending_control_ready_i(1'b1),
     .dispatch0_ready_i(1'b1),
     .branch_resolve_pending_match_i(1'b0),
-    .branch_spec_active_i(1'b0),
-    .branch_spec_checkpoint_pending_i(1'b0),
+    .branch_spec_active_i(branch_spec_active),
+    .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending),
     .pending_arch_trap_i(pending_arch_trap),
+    .pending_exit_i(pending_exit),
     .pending_branch_i(1'b0),
     .pending_branch_dispatched_i(1'b0),
     .pending_jump_i(1'b0),
@@ -412,7 +438,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .direct_branch1_fire_i(1'b0),
     .direct_branch_resolve_redirect_i(1'b0),
     .branch_spec_checkpoint_capture_i(1'b0),
-    .branch_spec_resolve_valid_i(1'b0),
+    .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .orphan_stop_pending_i(orphan_stop_pending),
     .pending_branch_commit_resolve_i(1'b0),
     .pending_branch_match_clear_i(1'b0),
@@ -432,7 +458,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .pending_owner_birth_i(pending_owner_birth),
     .pending_owner_live_i(pending_owner_live),
     .pending_system_producer_valid_i(pending_system_producer_valid),
-    .core_local_flush_i(1'b0),
+    .core_local_flush_i(core_local_flush),
     .drain_complete_i(drain_complete),
     .rob_walk_mode_i(1'b1),
     .stop_pending_o(stop_pending)
@@ -483,6 +509,70 @@ module tb_ooo_serialized_owner_exactly_once;
     .sret_valid_o(sret_valid),
     .real_mret_valid_o(real_mret_valid),
     .priv_predictor_boundary_o(priv_predictor_boundary)
+  );
+
+  OooTrapExitEventMux u_trap_exit_event_mux (
+    .csr_trap_mem_valid_i(trap_mem_valid),
+    .direct_frontend_flush_i(direct_frontend_flush),
+    .stop_pending_i(stop_pending),
+    .drain_complete_i(drain_complete),
+    .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
+    .branch_spec_restore_i(branch_spec_restore),
+    .core_branch_resolve_misaligned_i(branch_spec_misaligned),
+    .core_branch_resolve_pc_i(ARCH_PC),
+    .core_branch_resolve_next_pc_i(ARCH_PC + 64'd2),
+    .pending_branch_commit_resolve_i(1'b0),
+    .pending_branch_match_clear_i(1'b0),
+    .branch_resolve_untracked_i(1'b0),
+    .pending_branch_misaligned_i(1'b0),
+    .pending_branch_pc_i({`XLEN{1'b0}}),
+    .pending_branch_target_i({`XLEN{1'b0}}),
+    .pending_branch_valid_i(1'b0),
+    .pending_branch_dispatched_i(1'b0),
+    .pending_jump_resolve_ready_i(1'b0),
+    .pending_jump_misaligned_i(1'b0),
+    .pending_jump_pc_i({`XLEN{1'b0}}),
+    .pending_jump_resolved_target_i({`XLEN{1'b0}}),
+    .pending_mem_resolve_ready_i(1'b0),
+    .system_csr_dispatch_fire_i(system_csr_dispatch_fire),
+    .pending_system_csr_commit_i(1'b0),
+    .pending_arch_trap_i(pending_arch_trap),
+    .pending_system_i(pending_system),
+    .pending_jump_i(1'b0),
+    .pending_mem_i(1'b0),
+    .pending_exit_i(pending_exit),
+    .pending_exit_is_ecall_i(pending_exit_ecall),
+    .pending_exit_is_ebreak_i(pending_exit_ebreak),
+    .pending_trap_cause_i(pending_trap_cause),
+    .pending_trap_pc_i(pending_trap_pc),
+    .pending_trap_tval_i(pending_trap_tval),
+    .trap_o(raw_trap),
+    .trap_cause_o(raw_trap_cause),
+    .trap_pc_o(raw_trap_pc),
+    .trap_tval_o(raw_trap_tval),
+    .exit_o(raw_exit),
+    .exit_is_ecall_o(raw_exit_ecall),
+    .exit_is_ebreak_o(raw_exit_ebreak)
+  );
+
+  OooTrapExitOutputSequencer u_trap_exit_output_sequencer (
+    .clk(clk),
+    .rst(rst),
+    .trap_i(raw_trap),
+    .trap_cause_i(raw_trap_cause),
+    .trap_pc_i(raw_trap_pc),
+    .trap_tval_i(raw_trap_tval),
+    .exit_i(raw_exit),
+    .exit_is_ecall_i(raw_exit_ecall),
+    .exit_is_ebreak_i(raw_exit_ebreak),
+    .trap_valid_o(trap_valid),
+    .trap_cause_o(terminal_trap_cause),
+    .trap_pc_o(terminal_trap_pc),
+    .trap_tval_o(terminal_trap_tval),
+    .exit_valid_o(exit_valid),
+    .exit_is_ecall_o(exit_ecall),
+    .exit_is_ebreak_o(exit_ebreak),
+    .halted_o(halted)
   );
 
   CsrFile u_csr_file (
@@ -543,6 +633,8 @@ module tb_ooo_serialized_owner_exactly_once;
       pending_arch_request_count_q <= 0;
       csr_arch_accept_count_q <= 0;
       csr_mem_accept_count_q <= 0;
+      raw_exit_count_q <= 0;
+      raw_trap_count_q <= 0;
     end else begin
       if (pending_arch_trap_fire)
         pending_arch_request_count_q <=
@@ -551,6 +643,10 @@ module tb_ooo_serialized_owner_exactly_once;
         csr_arch_accept_count_q <= csr_arch_accept_count_q + 1;
       if (trap_mem_valid)
         csr_mem_accept_count_q <= csr_mem_accept_count_q + 1;
+      if (raw_exit)
+        raw_exit_count_q <= raw_exit_count_q + 1;
+      if (raw_trap)
+        raw_trap_count_q <= raw_trap_count_q + 1;
     end
   end
 
@@ -606,6 +702,12 @@ module tb_ooo_serialized_owner_exactly_once;
       head1_fencei = 1'b0;
       mem_owner_terminalized = 1'b0;
       mem_idle = 1'b1;
+      core_local_flush = 1'b0;
+      branch_spec_active = 1'b0;
+      branch_spec_checkpoint_pending = 1'b0;
+      branch_spec_resolve_valid = 1'b0;
+      branch_spec_restore = 1'b0;
+      branch_spec_misaligned = 1'b0;
       core_commit0_valid = 1'b0;
       core_commit0_exception = 1'b0;
       core_commit0_pc = MEM_PC;
@@ -630,6 +732,27 @@ module tb_ooo_serialized_owner_exactly_once;
       fifo_has_packet = 1'b1;
       head_inst0 = INST_BAD;
       head0_facts[`OOO_SLOT_FACT_ARCH_TRAP] = 1'b1;
+    end
+  endtask
+
+  task automatic drive_exit_candidate;
+    input integer lane;
+    input integer is_ecall;
+    begin
+      clear_inputs();
+      fifo_has_packet = 1'b1;
+      if (lane == 0) begin
+        head0_facts[`OOO_SLOT_FACT_EXIT] = 1'b1;
+        head0_facts[`OOO_SLOT_FACT_ECALL] = is_ecall != 0;
+        head0_facts[`OOO_SLOT_FACT_EBREAK] = is_ecall == 0;
+        head_inst0 = is_ecall ? INST_ECALL : INST_EBREAK;
+      end else begin
+        dispatch1_barrier_fire = 1'b1;
+        head1_facts[`OOO_SLOT_FACT_EXIT] = 1'b1;
+        head1_facts[`OOO_SLOT_FACT_ECALL] = is_ecall != 0;
+        head1_facts[`OOO_SLOT_FACT_EBREAK] = is_ecall == 0;
+        head_inst1 = is_ecall ? INST_ECALL : INST_EBREAK;
+      end
     end
   endtask
 
@@ -969,6 +1092,189 @@ module tb_ooo_serialized_owner_exactly_once;
     end
   endtask
 
+  task automatic test_exit_lane_exactly_once;
+    input integer lane;
+    input integer is_ecall;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_case();
+      drive_exit_candidate(lane, is_ecall);
+      #1;
+      tb_check1("V10D exit candidate can run", can_run, 1'b1);
+      tb_check1("V10D exit capture request",
+                pending_trap_capture_exit, 1'b1);
+      tb_check1("V10D exit capture valid",
+                pending_trap_capture_exit_valid, 1'b1);
+      tb_check1("V10D exit capture ecall kind",
+                pending_trap_capture_exit_ecall, is_ecall != 0);
+      tb_check1("V10D exit capture ebreak kind",
+                pending_trap_capture_exit_ebreak, is_ecall == 0);
+      `TB_TICK(clk);
+
+      clear_inputs();
+      #1;
+      tb_check1("V10D registered exit owner", pending_exit, 1'b1);
+      tb_check1("V10D registered exit ecall kind",
+                pending_exit_ecall, is_ecall != 0);
+      tb_check1("V10D registered exit ebreak kind",
+                pending_exit_ebreak, is_ecall == 0);
+      tb_check1("V10D registered exit stop", stop_pending, 1'b1);
+      tb_check1("V10D active memory holder blocks drain",
+                drain_complete, 1'b0);
+      tb_check1("V10D active memory holder blocks raw exit",
+                raw_exit, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("V10D blocked cycle retains exit owner",
+                pending_exit, 1'b1);
+      tb_check1("V10D blocked cycle retains stop",
+                stop_pending, 1'b1);
+      check_int("V10D blocked cycle raw exit count",
+                raw_exit_count_q, 0);
+
+      // mem_idle intentionally stays low: simulation exit consumes the V9Y
+      // exact terminal scalar, not the stronger ordinary-FENCE full-idle
+      // predicate.
+      mem_idle = 1'b0;
+      mem_owner_terminalized = 1'b1;
+      #1;
+      tb_check1("V10D C0 exact terminal completes drain",
+                drain_complete, 1'b1);
+      tb_check1("V10D C0 raw exit pulse", raw_exit, 1'b1);
+      tb_check1("V10D C0 raw trap excluded", raw_trap, 1'b0);
+      tb_check1("V10D C0 raw exit ecall kind",
+                raw_exit_ecall, is_ecall != 0);
+      tb_check1("V10D C0 raw exit ebreak kind",
+                raw_exit_ebreak, is_ecall == 0);
+      `TB_TICK(clk);
+
+      check_int("V10D C1 raw exit exactly once",
+                raw_exit_count_q, 1);
+      check_int("V10D C1 raw trap count",
+                raw_trap_count_q, 0);
+      tb_check1("V10D C1 clears exit owner", pending_exit, 1'b0);
+      tb_check1("V10D C1 clears stop", stop_pending, 1'b0);
+      tb_check1("V10D C1 raw exit is low", raw_exit, 1'b0);
+      tb_check1("V10D C1 latches exit status", exit_valid, 1'b1);
+      tb_check1("V10D C1 latches halted status", halted, 1'b1);
+      tb_check1("V10D C1 output ecall kind",
+                exit_ecall, is_ecall != 0);
+      tb_check1("V10D C1 output ebreak kind",
+                exit_ebreak, is_ecall == 0);
+
+      `TB_TICK(clk);
+      `TB_TICK(clk);
+      check_int("V10D C2 raw exit no-repeat",
+                raw_exit_count_q, 1);
+      tb_check1("V10D C2 exit owner remains clear",
+                pending_exit, 1'b0);
+      tb_check1("V10D C2 stop remains clear",
+                stop_pending, 1'b0);
+      tb_check1("V10D C2 raw exit remains low", raw_exit, 1'b0);
+      tb_check1("V10D C2 latched exit remains high",
+                exit_valid, 1'b1);
+      if (tb_errors == errors_before)
+        $display("[V10D-EXIT-EXACTLY-ONCE-PASS] lane=%0d kind=%0s C0-raw=1 C1-owner-stop-clear=1 C2-repeat=0",
+                 lane, is_ecall ? "ECALL" : "EBREAK");
+      else
+        $display("[V10D-EXIT-EXACTLY-ONCE-RED] lane=%0d errors=%0d",
+                 lane, tb_errors - errors_before);
+    end
+  endtask
+
+  task automatic test_exit_core_local_flush_kill;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_case();
+      drive_exit_candidate(0, 0);
+      `TB_TICK(clk);
+      clear_inputs();
+      core_local_flush = 1'b1;
+      mem_owner_terminalized = 1'b0;
+      #1;
+      tb_check1("V10D local flush active-holder raw exit blocked",
+                raw_exit, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("V10D local flush clears exit owner",
+                pending_exit, 1'b0);
+      tb_check1("V10D local flush clears stop owner",
+                stop_pending, 1'b0);
+      tb_check1("V10D local flush does not latch exit",
+                exit_valid, 1'b0);
+      tb_check1("V10D local flush does not halt", halted, 1'b0);
+      check_int("V10D local flush raw exit count",
+                raw_exit_count_q, 0);
+      core_local_flush = 1'b0;
+      mem_owner_terminalized = 1'b1;
+      `TB_TICK(clk);
+      tb_check1("V10D killed exit cannot revive", raw_exit, 1'b0);
+      check_int("V10D killed exit remains no-event",
+                raw_exit_count_q, 0);
+      if (tb_errors == errors_before)
+        $display("[V10D-EXIT-LOCAL-FLUSH-PASS] owner=0 stop=0 raw-exit=0 output=0");
+      else
+        $display("[V10D-EXIT-LOCAL-FLUSH-RED] errors=%0d",
+                 tb_errors - errors_before);
+    end
+  endtask
+
+  task automatic test_exit_branch_spec_priority;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_case();
+      drive_exit_candidate(0, 0);
+      // The speculative branch remains older while the younger exit obtains
+      // its registered holder/stop lease.  branch_spec_active alone does not
+      // stall fetch; the accepted exit owner does so from the next cycle.
+      branch_spec_active = 1'b1;
+      #1;
+      tb_check1("V10D younger exit capture below older branch",
+                pending_trap_capture_exit, 1'b1);
+      `TB_TICK(clk);
+      tb_check1("V10D younger exit owner registered",
+                pending_exit, 1'b1);
+      tb_check1("V10D younger exit stop registered",
+                stop_pending, 1'b1);
+
+      clear_inputs();
+      branch_spec_active = 1'b1;
+      branch_spec_checkpoint_pending = 1'b1;
+      branch_spec_resolve_valid = 1'b1;
+      branch_spec_restore = 1'b1;
+      branch_spec_misaligned = 1'b1;
+      mem_owner_terminalized = 1'b1;
+      #1;
+      tb_check1("V10D exit lease blocks frontend on recovery",
+                can_run, 1'b0);
+      tb_check1("V10D recovery cycle has no exit recapture",
+                pending_trap_capture_exit, 1'b0);
+      tb_check1("V10D older branch recovery emits trap", raw_trap, 1'b1);
+      tb_check1("V10D older branch recovery excludes raw exit",
+                raw_exit, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("V10D branch recovery latches trap", trap_valid, 1'b1);
+      tb_check1("V10D branch recovery does not latch exit",
+                exit_valid, 1'b0);
+      tb_check1("V10D branch recovery creates no exit owner",
+                pending_exit, 1'b0);
+      tb_check1("V10D branch recovery creates no stop owner",
+                stop_pending, 1'b0);
+      check_int("V10D branch recovery raw trap count",
+                raw_trap_count_q, 1);
+      check_int("V10D branch recovery raw exit count",
+                raw_exit_count_q, 0);
+      if (tb_errors == errors_before)
+        $display("[V10D-EXIT-RECOVERY-PRIORITY-PASS] branch-trap=1 raw-exit=0 dual-latch=0");
+      else
+        $display("[V10D-EXIT-RECOVERY-PRIORITY-RED] errors=%0d",
+                 tb_errors - errors_before);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -976,11 +1282,17 @@ module tb_ooo_serialized_owner_exactly_once;
     blocked_kind_count_q = 0;
     clear_inputs();
 
-    test_same_edge_birth_priority();
-    test_standalone_system_kinds();
-    test_live_arch_blocks_system_kinds();
-    test_commit_trap_priority();
-    test_clocked_arch_exactly_once();
+    if (!$test$plusargs("V10D_ONLY")) begin
+      test_same_edge_birth_priority();
+      test_standalone_system_kinds();
+      test_live_arch_blocks_system_kinds();
+      test_commit_trap_priority();
+      test_clocked_arch_exactly_once();
+    end
+    test_exit_lane_exactly_once(0, 0);
+    test_exit_lane_exactly_once(1, 1);
+    test_exit_core_local_flush_kill();
+    test_exit_branch_spec_priority();
 
     tb_finish("tb_ooo_serialized_owner_exactly_once");
   end

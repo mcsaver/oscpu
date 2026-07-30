@@ -1,0 +1,95 @@
+{
+  "schema": "v10e-runner-prelaunch-review-v3-evidence-v1",
+  "contract_json": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v3.json",
+  "contract_sha256": "0af8b5154790a3ecff4a879f9d8d4de0852d518ae65a42933a3fd965fae023dc",
+  "syntax": {
+    "rc": 0,
+    "result": "PASS"
+  },
+  "status_helper_suite": {
+    "rc": 0,
+    "result": "PASS"
+  },
+  "runner_contract": {
+    "rc": 0,
+    "static_negative_rejected": 40,
+    "static_negative_expected": 40,
+    "dynamic_fixture_markers": 7,
+    "dynamic_fixture_expected": 7,
+    "raw_negative_markers": [
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] stale-design rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] lower-cycle-floor rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-canonical-config-stage rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-config-hash-binding rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-build rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-evidence rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-queue-head-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-assertion-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-terminal-holder-build rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-terminal-holder-compiled-define rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-verilator-assert-mode rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-makefile-pre-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-manifest-pre-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-isolation rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-copy-helper-binding rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-pre-hash-proof rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-transaction-evidence rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-strict-count rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-assertion-oracle rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-evidence-completion rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] skip-missing-simulator-failure rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-kernel-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-opensbi-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-dtb-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] restore-reenables-errexit rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] cleanup-clears-signal-traps rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-post-binding-write-check rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] ignore-terminal-query-errors rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-guest-checker-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-transaction-parser-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-rootfs-helper-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] drop-prelaunch-log-post-hash rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] allow-duplicate-strict-done rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] allow-duplicate-good-trap rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] preflight-before-status-traps rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] private-v10e-lock rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] private-v9s-lock rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] v10e-no-launch-failure-status rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] v9s-no-launch-failure-status rejected",
+      "[V10E-RUNNER-CONTRACT][NEGATIVE] PASS-write-failure-ignored rejected"
+    ],
+    "raw_dynamic_markers": [
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] task-run status PASS-write fallback PASS",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] V9S launch rejected shared V10E lock rc=3",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] cleanup failure finalized as FAIL rc=7",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] cleanup TERM deferred and finalized as FAIL rc=143",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] post-binding redirection failure finalized as FAIL rc=1",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] missing assertion log produced rg rc=2",
+      "[V10E-RUNNER-CONTRACT][DYNAMIC] rootfs copy hash PASS; existing run image rejected rc=4"
+    ]
+  },
+  "assertion_regex_exact_fixture": {
+    "runner_line": 151,
+    "argv": [
+      "rg",
+      "\\\\[(V9Q-(BRIDGE-HOLDER|TRANSIENT-HOLDER|TRANSIENT-BRIDGE|DUAL-REQ-TOKEN)-DISJOINT|S2-G1-TCOLL-INGRESS-DUP|V10D-[^]]*FAIL)\\\\]|%Error:|Assertion failed|RTL assertion|\\\\[.*ASSERT.*FAIL"
+    ],
+    "rc": 2,
+    "expected_clean_or_match_rc": [
+      0,
+      1
+    ],
+    "control_corrected_rc": 0,
+    "result": "FAIL",
+    "selftest_simplified_pattern_line": 754
+  },
+  "design_id": {
+    "configured_expected": "c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "contract_expected": "c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "configured_match": true,
+    "rtl_binding_recomputed": false,
+    "scope_gap": "npc/rv64/vsrc/** is not an allowed input path in the V3 contract"
+  },
+  "prelaunch_result": "GAP",
+  "long_simulation_authorized": false
+}

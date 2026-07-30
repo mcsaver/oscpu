@@ -1,0 +1,308 @@
+{
+  "binding": {
+    "design_id_post": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "design_id_pre": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "pre_post_pairs": {
+      "guest_checker": {
+        "post": "1b3cc4695f2f4c40627a5e792ae67d7ab06a434636e5ecf287000aa645d56cda",
+        "pre": "1b3cc4695f2f4c40627a5e792ae67d7ab06a434636e5ecf287000aa645d56cda"
+      },
+      "linux_image": {
+        "post": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a",
+        "pre": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a"
+      },
+      "linux_makefile": {
+        "post": "bfdb35090cf155839cb44cc51b29e8c40e55f2188c2d7cd26728f232181e88fb",
+        "pre": "bfdb35090cf155839cb44cc51b29e8c40e55f2188c2d7cd26728f232181e88fb"
+      },
+      "npc_auto_conf": {
+        "post": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4",
+        "pre": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4"
+      },
+      "npc_autoconf_header": {
+        "post": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9",
+        "pre": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9"
+      },
+      "npc_config": {
+        "post": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+        "pre": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+      },
+      "npc_makefile": {
+        "post": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+        "pre": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118"
+      },
+      "opensbi_fw": {
+        "post": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9",
+        "pre": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9"
+      },
+      "prelaunch_contract_log": {
+        "post": "6e7a1fa51722910b5cf713d71069c80f12746d0e249556945ceb082690419247",
+        "pre": "6e7a1fa51722910b5cf713d71069c80f12746d0e249556945ceb082690419247"
+      },
+      "rootfs_copy_helper": {
+        "post": "6e47a5c943b5be6ef1fd6285ab025bece953d723916d799add58d79d9cd0d19a",
+        "pre": "6e47a5c943b5be6ef1fd6285ab025bece953d723916d799add58d79d9cd0d19a"
+      },
+      "rootfs_cpio": {
+        "post": "d782b7c481dd6e8205dbbaa6a79fdafed92537edc30a3de0f123dfc401205a04",
+        "pre": "d782b7c481dd6e8205dbbaa6a79fdafed92537edc30a3de0f123dfc401205a04"
+      },
+      "rootfs_template": {
+        "post": "22ad3013e16d4236569f3fd43a0eefd3d24e03d67412b2cb08ed49e8614643e1",
+        "pre": "22ad3013e16d4236569f3fd43a0eefd3d24e03d67412b2cb08ed49e8614643e1"
+      },
+      "run_dtb": {
+        "post": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a",
+        "pre": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a"
+      },
+      "runner_script": {
+        "post": "88a9261a95ebd77dc49a2aa71c68b6da912deead26db69b078632f57f85f4b21",
+        "pre": "88a9261a95ebd77dc49a2aa71c68b6da912deead26db69b078632f57f85f4b21"
+      },
+      "strict_checker": {
+        "post": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+        "pre": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a"
+      },
+      "task_run_status_helper": {
+        "post": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6",
+        "pre": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6"
+      },
+      "transaction_parser": {
+        "post": "b07d307fe934c94e6a678815310278ce08e2caf28f1caf995f835a1893e88277",
+        "pre": "b07d307fe934c94e6a678815310278ce08e2caf28f1caf995f835a1893e88277"
+      },
+      "verilator_manifest": {
+        "post": "24b9739186f24a147cb95fa7a139ea675a8e1584160c355eb3a68d165f7c9a20",
+        "pre": "24b9739186f24a147cb95fa7a139ea675a8e1584160c355eb3a68d165f7c9a20"
+      }
+    },
+    "simulator_sha256_post": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+    "simulator_sha256_pre": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218"
+  },
+  "classification": "verification-checker-replay",
+  "conclusion": "A3_SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+  "full_system_rerun_gate": {
+    "a3_required_evidence_missing": false,
+    "a4_is_system_pass_evidence": false,
+    "a4_status": "FAIL rc=143 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=143 signal=TERM",
+    "actual_elaborated_rtl_changed": false,
+    "device_model_execution_objects_changed": false,
+    "elaboration_comparison": {
+      "actual_elaborated_rtl_logic_changed": false,
+      "cpu_exec_object_sha256": {
+        "a3": "6afc3d5911908e5a3849c689b313a8d54778ea9c096eb1f70ceaef608f317ce2",
+        "a4": "3da34fdd91d1692947eef13eb3fd963455233b120e3db1157e42e0ae51eeaec5"
+      },
+      "device_model_objects_changed": [],
+      "device_object_hashes": {
+        "device.o": {
+          "a3": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7",
+          "a4": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7"
+        },
+        "dpi.o": {
+          "a3": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7",
+          "a4": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7"
+        },
+        "keyboard.o": {
+          "a3": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c",
+          "a4": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c"
+        },
+        "map.o": {
+          "a3": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510",
+          "a4": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510"
+        },
+        "paddr.o": {
+          "a3": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d",
+          "a4": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d"
+        },
+        "timer.o": {
+          "a3": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3",
+          "a4": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3"
+        },
+        "vga.o": {
+          "a3": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51",
+          "a4": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51"
+        },
+        "virtio_blk.o": {
+          "a3": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca",
+          "a4": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca"
+        }
+      },
+      "generated_exact_differences": [
+        "VNpcSimTop___024root__DepSet_h00145668__4.cpp"
+      ],
+      "generated_exact_match_count": 50,
+      "generated_file_count": 51,
+      "generated_normalized_differences": [],
+      "host_cpu_exec_object_changed": true
+    },
+    "host_diagnostic_observation_object_changed": true,
+    "production_core_semantics_changed": false,
+    "rerun_required_for_oracle_correction": false,
+    "stable_binding_comparison": {
+      "NPC_SYSTEMD_GUEST_COMMAND_MODE": {
+        "a3": "systemd-strict",
+        "a4": "systemd-strict"
+      },
+      "OOO_ASSERT": {
+        "a3": "1",
+        "a4": "1"
+      },
+      "OOO_CSR_QUEUE_HEAD": {
+        "a3": "1",
+        "a4": "1"
+      },
+      "OOO_TERMINAL_HOLDER_ASSERT": {
+        "a3": "1",
+        "a4": "1"
+      },
+      "linux_image_sha256": {
+        "a3": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a",
+        "a4": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a"
+      },
+      "max_cycles": {
+        "a3": "6000000000",
+        "a4": "6000000000"
+      },
+      "npc_auto_conf_sha256": {
+        "a3": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4",
+        "a4": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4"
+      },
+      "npc_autoconf_header_sha256": {
+        "a3": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9",
+        "a4": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9"
+      },
+      "npc_config_sha256": {
+        "a3": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+        "a4": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+      },
+      "npc_makefile_sha256": {
+        "a3": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+        "a4": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118"
+      },
+      "opensbi_fw_sha256": {
+        "a3": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9",
+        "a4": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9"
+      },
+      "run_dtb_sha256": {
+        "a3": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a",
+        "a4": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a"
+      },
+      "uart_rx_bytes": {
+        "a3": "0",
+        "a4": "0"
+      }
+    }
+  },
+  "oracle_replay": {
+    "checker_test": "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+    "checker_test_sha256": "d381684ee2d57ed918fcdd9d3ae4b1c616c1cc09fcfa69bdebe631062dd5cade",
+    "current_a3_match_count": 0,
+    "current_regex": "kernel panic|oops|(^|[^[:alnum:]_])BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error",
+    "debug_witness": {
+      "current_match": false,
+      "legacy_match": true,
+      "text": "[    0.000000] printk: debug: ignoring loglevel setting."
+    },
+    "legacy_a3_match_count": 2,
+    "legacy_a3_matches": [
+      "[    0.000000] printk: debug: ignoring loglevel setting.",
+      "[    0.000000] printk: debug: ignoring loglevel setting."
+    ],
+    "legacy_regex": "kernel panic|oops|BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error",
+    "production_checker": "Linux/scripts/npc-systemd-strict-check.sh",
+    "production_checker_sha256": "1cb1c6b9e9c7440447dd3fa3f0759938e9d5e4aede90d87357676f32c71fbbe6",
+    "real_bug_fixture": {
+      "current_match": true,
+      "text": "[   12.300000] BUG: unable to handle page fault"
+    }
+  },
+  "promotion": {
+    "eligible": false,
+    "reason": "checker replay does not qualify architecture or PPA"
+  },
+  "schema": "npc-rv64-a3-checker-replay/v1",
+  "source_run": {
+    "commits": 1223536213,
+    "cycles": 5071521696,
+    "design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "frozen_inputs": {
+      "binding": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+        "sha256": "6f96d1f4b45846d1db03ea21ba25fec5f0234389e74b6cf7ea6dc48d0538efad",
+        "size_bytes": 4574
+      },
+      "console": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+        "sha256": "4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0",
+        "size_bytes": 125024
+      },
+      "npc_log": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/npc.log",
+        "sha256": "f4a5b09ceed54682d101150775e989bbf277e55f8a401a2c8a4c99ee54c66e62",
+        "size_bytes": 123794
+      },
+      "post_binding": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/post-binding.txt",
+        "sha256": "d5c3778c34dd99d42824834312dce53836b7937a6497ee28cf6c847a4a16c06d",
+        "size_bytes": 3488
+      },
+      "rtl_assertions": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/rtl-assertion-failures.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      "status": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+        "sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8",
+        "size_bytes": 70
+      },
+      "terminal_markers": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/terminal-markers.txt",
+        "sha256": "050bc2713f76c9c39be5cd9e81b489e4f637ca4f38bb54ead82516a61af51b3b",
+        "size_bytes": 1232
+      },
+      "transaction": {
+        "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+        "sha256": "6875930ad696a0b75773c1facefbfe5eee22fb2436a9db4d1944f2155e46358c",
+        "size_bytes": 4663
+      }
+    },
+    "original_status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+    "original_status_preserved": true,
+    "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3"
+  },
+  "status": "PASS",
+  "system_transaction": {
+    "autocheck_status": "PASS",
+    "classification": "COMPLETE_WITH_LEGACY_ORACLE_FALSE_POSITIVE",
+    "preflight_status": "PASS",
+    "rtl_assertion_file_empty": true,
+    "strict_expected_pass_count": 17,
+    "strict_historical_done_rc": 1,
+    "strict_historical_fail_markers": [
+      {
+        "line": 686,
+        "text": "__NPC_CHECK_FAIL__:dmesg-no-critical"
+      }
+    ],
+    "strict_historical_pass_count": 16,
+    "strict_historical_status": "FAIL",
+    "terminal_counts": {
+      "good_trap": 1,
+      "kernel_power_down": 1,
+      "poweroff_begin": 1,
+      "strict_done": 1,
+      "syscon_poweroff": 1,
+      "system_reset_exit": 1
+    },
+    "terminal_offsets": {
+      "good_trap": 120239,
+      "kernel_power_down": 120100,
+      "poweroff_begin": 76834,
+      "strict_done": 76801,
+      "syscon_poweroff": 120119,
+      "system_reset_exit": 120333
+    }
+  }
+}

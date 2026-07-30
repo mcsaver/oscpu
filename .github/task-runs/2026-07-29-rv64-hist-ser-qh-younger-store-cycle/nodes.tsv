@@ -1,0 +1,8 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+HIST-QH-R0	root	V10G	ledger + historical fix + product RTL	root cause and competing hypotheses	exact wait-for cycle identified	retain VD1	PASS
+HIST-QH-R1	experiment-review-v1	HIST-QH-R0	local RTL/spec/TB	product reachability and discriminating experiment	current/fixed/cycle semantics separated	retain GAP	PASS
+HIST-QH-V0	root	HIST-QH-R1	product glue TB	raw lane-pair evidence	three commit and two kill transactions have lane1_fire=0	reopen frontend cone	PASS
+HIST-QH-V1	root	HIST-QH-R1	backend TB + three RTL semantics	six assertion-on/off cases	6/6 compile; 4 positive PASS; 2 exact rejection	retain VD1	PASS
+HIST-QH-V2	root	HIST-QH-V1	ledger + directed tests	valid fail-closed ledger	VD3 entry accepted and remaining VD1 selected	revert ledger promotion	PASS
+HIST-QH-R2	final-evidence-review-v3	HIST-QH-V0,HIST-QH-V1,HIST-QH-V2	frozen evidence	independent bounded verdict	no false-green or scope escalation	retain VD1	PASS
+HIST-QH-C0	root	HIST-QH-R2	task-run + memory + e2e + guard	auditable bounded checkpoint	bounded brief, npc-dev 5/5, evidence index and scoped strict guard complete	record external DB drift	PASS

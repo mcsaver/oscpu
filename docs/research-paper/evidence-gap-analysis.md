@@ -15,6 +15,8 @@
 3. 七月的部分证据确实携带 design-id、原始结果哈希和指定错误变体的动态拒绝结果。
 4. full-core `GAP` 和 PPA `UNQUALIFIED` 在局部测试全绿后仍被保留。
 5. Yosys 结构统计和代理 STA 可用于风险定位或候选筛选，不能替代物理签核。
+6. 十九小时 A3 记录确实完成了 Ubuntu/systemd/rootfs/virtio 到自然关机的 guest 系统事务，
+   并在保留原始 FAIL 的前提下把唯一 live gate 缺口定位为旧 oracle 假阳性。
 
 当前证据不可支持：
 
@@ -23,6 +25,8 @@
 3. 不能证明现有 mutation 集覆盖了全部重要 RTL 故障。
 4. 不能把不同快照、workload 和测量边界中的 CPI、面积或时序拼成连续改进曲线。
 5. 不能把 focused、module、代理综合或理想时钟 STA 通过写成全核完成或物理 PPA 签核。
+6. 不能把冻结 console 上的 oracle 重放写成一次新的 raw 17/17 live run，也不能把
+   19 小时宿主耗时写成 guest 连续运行 19 小时。
 
 ## 3. 缺口台账
 
@@ -43,6 +47,7 @@
 | G13 | 论文可复现性 | `PARTIALLY_SUPPORTED` | 所有正文数字到原始文件和工具版本的机器追踪 | 数字随文档复制而失去来源 | claim-evidence map + 只读抽取脚本 |
 | G14 | 外部有效性 | `MISSING` | 其他 RTL 仓库、HDL、EDA 流程和团队中的重复 | 单仓库经验被外推为普遍规律 | 将当前结论限制在本仓库，未来跨项目复现 |
 | G15 | 模块纵向快照归因 | `OBSERVATIONAL_ONLY` | 同一 base design 上只开关 drain 条件的 paired variant、相同 workload/EDA 配置与重复测量 | 把 `OooPendingDrainResolveGate` 的三快照源码演化误写成单一机制导致性能或正确率提升 | 保留精确 Git/file SHA 历史用于机制追踪；因果问题另做配对消融 |
+| G16 | 长跑系统事务 | `PARTIALLY_SUPPORTED` | 修正 checker 后、绑定当前目标 design-id 的新 live 17/17 run；A4 已被 TERM 中断 | 把 A3 冻结重放升级为新运行，或把旧 design-id 的结果自动外推到后续 RTL | 保留 A3 source FAIL 和 replay classification；需要 promotion 时重跑完整 live gate |
 
 ## 4. 论文提交前的 P0 边界
 
@@ -55,6 +60,8 @@
 5. G10：结构综合和代理 STA 不写成物理签核。
 6. G13：正文关键数字必须落到 `claim-evidence-map.tsv` 的真实路径。
 7. G15：三个模块快照只证明合同演化；不把跨快照指标差异归因于某一新增或删除条件。
+8. G16：A3 可以写系统事务完成与 legacy-oracle 假阳性，不写 raw 17/17 PASS；
+   A4 中断、architecture `GAP` 和 PPA `UNQUALIFIED` 必须同时保留。
 
 ## 5. 推荐措辞
 
@@ -73,3 +80,4 @@
 - “mutation 已覆盖全部关键错误。”
 - “RV64CORE 已完成物理 PPA 签核。”
 - “task-run 数量就是独立实验数量。”
+- “冻结日志重放 PASS 等于一次新 live run PASS。”

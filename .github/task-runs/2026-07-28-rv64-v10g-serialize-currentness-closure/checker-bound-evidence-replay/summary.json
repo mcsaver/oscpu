@@ -1,0 +1,424 @@
+{
+  "claim_boundary": {
+    "architecture_freeze": "GAP",
+    "module_simulation_rerun": false,
+    "ppa": "UNQUALIFIED",
+    "production_rtl_semantics_changed": false,
+    "system_simulation_rerun": false
+  },
+  "derived_outputs": {
+    "npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json",
+      "sha256": "ccc1a654d9211edc3f8fbf97a7087766ad2d8d5907c20b332a41d767bca9f8d5",
+      "size_bytes": 55026
+    },
+    "npc/rv64/eval/ppa/evidence/fdg-arch-trap.log": {
+      "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap.log",
+      "sha256": "72594f17b15a2244b90f82327c86d33cf82cdfbe2f81e588e7215bf8de502a69",
+      "size_bytes": 753
+    },
+    "npc/rv64/eval/ppa/evidence/fence-ordering-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/fence-ordering-current.json",
+      "sha256": "dc821d558c89f4ccac530e900dce2d8ea7d8a4daccb32db7a0ff567e50bac131",
+      "size_bytes": 55941
+    },
+    "npc/rv64/eval/ppa/evidence/fence-ordering.log": {
+      "path": "npc/rv64/eval/ppa/evidence/fence-ordering.log",
+      "sha256": "0f53d0cbda93b7c19850c18dbd00b33d2f3ad62c764723db16b0516f507db9f1",
+      "size_bytes": 700
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-access-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      "sha256": "45ac473dc0f65265155579f53038c972435a19f6beb4ff9ea03cf7e5a57070f0",
+      "size_bytes": 80726
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-access.log": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-access.log",
+      "sha256": "0ce8a3c0a4963f720f0c664d1e842d2ed38281201a1c77fe0d956f595c59a294",
+      "size_bytes": 694
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "sha256": "0586ee1be40ffbab5e7356fe01e50fc162d363ad263fb11f3773ca7e884ca5d5",
+      "size_bytes": 74137
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log",
+      "sha256": "93b5f374377d6041d8471ac5761da73024ffa5cac46cfc9f67170590250cd722",
+      "size_bytes": 853
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance-current.json",
+      "sha256": "277868d0debb67036f34a0aef9b65fd40989b08a04e895c17a49ee4dbe56a137",
+      "size_bytes": 74995
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance.log": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance.log",
+      "sha256": "de009fd7c90989cd323f39d21c121d60bc89fd470df49b9e642924aa19ef273e",
+      "size_bytes": 743
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-tval-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-tval-current.json",
+      "sha256": "cd8283682b3a65351c2c20352934320a09cca289ef3def51b88beaccc206ebe8",
+      "size_bytes": 81319
+    },
+    "npc/rv64/eval/ppa/evidence/ifu-tval.log": {
+      "path": "npc/rv64/eval/ppa/evidence/ifu-tval.log",
+      "sha256": "2861239a7f3a81b931d591c20b9a06f5ef5586a28bfce7d3e198d60d22692bf9",
+      "size_bytes": 650
+    },
+    "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
+      "sha256": "a69eda88c5118cdfa135a27aa84ecd61255e9edabd9c25e807a157dfe804ab8c",
+      "size_bytes": 67801
+    },
+    "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log": {
+      "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
+      "sha256": "a74bf836ede067cb45ff114a5d82b7897154f7c1ef68929cb2aba716f537fdf1",
+      "size_bytes": 820
+    },
+    "npc/rv64/eval/ppa/evidence/ptw-pmp-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/ptw-pmp-current.json",
+      "sha256": "366ba3a5ee6480c3a8fe78704bf833a0b1117904e860e18e702e1a6643de2f8c",
+      "size_bytes": 91218
+    },
+    "npc/rv64/eval/ppa/evidence/ptw-pmp.log": {
+      "path": "npc/rv64/eval/ppa/evidence/ptw-pmp.log",
+      "sha256": "7b7014deb1b024b9adb8906f37b5438d7c6f3571c23f6e2f852f4f7b5e76190f",
+      "size_bytes": 935
+    },
+    "npc/rv64/eval/ppa/evidence/xret-current-mode-current.json": {
+      "path": "npc/rv64/eval/ppa/evidence/xret-current-mode-current.json",
+      "sha256": "6e0f7fc491e77eb042c8469b83634e0787a597c9755b1f268255c56cb4a61a8a",
+      "size_bytes": 57774
+    },
+    "npc/rv64/eval/ppa/evidence/xret-current-mode.log": {
+      "path": "npc/rv64/eval/ppa/evidence/xret-current-mode.log",
+      "sha256": "722feed99c27b7926c55a65eec274efde5cea2cbe37c8e2836de97603a9ef2d3",
+      "size_bytes": 798
+    }
+  },
+  "design_id_after": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id_before": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "frozen_inputs": {
+    ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fp_legality_dispatch_path.log": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fp_legality_dispatch_path.log",
+      "sha256": "a04421b43eea75f20a85c849786a14077e7b90663de1a94d1437bbae3583a27f",
+      "size_bytes": 1794
+    },
+    ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_priv_system.log": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
+      "sha256": "600b201fe52ca4dd3551a8fe62b904acefdd6a2b69bccf1352a8e55163ffff7b",
+      "size_bytes": 28479
+    },
+    ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/summary.txt",
+      "sha256": "a27d5466be28757cc3c7d7a92d0f444f5266c1db151ea400c99c9b4765e583e5",
+      "size_bytes": 3806
+    },
+    ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/mutations/summary.json",
+      "sha256": "b425330a3575fc07adf91ff5c6fd1ef6f0520b4dd9b9474eafb2ba63dd01ac48",
+      "size_bytes": 7802
+    },
+    ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_head_classify_gate.log": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_head_classify_gate.log",
+      "sha256": "1fbde9ba1245760f85e62cc1ef00520766a0b027643667f3cc9b6e79db0091c7",
+      "size_bytes": 762
+    },
+    ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/logs/tb_ooo_priv_system.log": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
+      "sha256": "82ffd483f8a4c5a0391e8d359991403a0b710be24718ffdaa23cb8b0a263968c",
+      "size_bytes": 28480
+    },
+    ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "e1aae8430de287b4d24f7a6eef1978e50a48066f29281fee0ee63c18d939d8b5",
+      "size_bytes": 3812
+    },
+    ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/mutations/summary.json",
+      "sha256": "c7f41791c8116d091f9ccec6c2f916ec92dc872bf7afa80d0f7dc162a0186da5",
+      "size_bytes": 10684
+    },
+    ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/focused/mem-issue/logs/tb_ooo_int_backend.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/focused/mem-issue/logs/tb_ooo_int_backend.log",
+      "sha256": "05676ab71f5ffbd1896c1cc35e5f19a57c07d1f4afeea42424273710a2edba8a",
+      "size_bytes": 22018
+    },
+    ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/focused/miq-flush/logs/tb_ooo_mem_inflight_queue.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/focused/miq-flush/logs/tb_ooo_mem_inflight_queue.log",
+      "sha256": "eb261aabc22eec8612d0be60389b8d05eec120733b702a8ba85fe7b660278e63",
+      "size_bytes": 1362
+    },
+    ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/summary.txt",
+      "sha256": "fe8ac2aeba52dfa389aa0eb34891829dd858ce8d4b692c5dfa74d6a9c42a6817",
+      "size_bytes": 3815
+    },
+    ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/summary.json",
+      "sha256": "52accf242aab086dc25f310ea47e60bbdd8a2a9078c3af155a6c55638e20b908",
+      "size_bytes": 12833
+    },
+    ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_axi_xbar.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_axi_xbar.log",
+      "sha256": "65a9db9e24db5be042bc8a4a1f901d92dad04243b27d463a8501fcba135a3dd1",
+      "size_bytes": 3408
+    },
+    ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge.log",
+      "sha256": "cf759346c8417ebbb1faff992e900dcc52c91b171e7db581dfda3a9c050c4a63",
+      "size_bytes": 105378
+    },
+    ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge_xbar.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge_xbar.log",
+      "sha256": "1f2fbfd26f8cbe7a371a847c52181d398149bb14850436ef011c62b801717c83",
+      "size_bytes": 106691
+    },
+    ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "e824c918f6c3478276a4c93bee4883933fd1e3da3784dd12c03217152ca37137",
+      "size_bytes": 3815
+    },
+    ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/summary.json",
+      "sha256": "a8542ac6e47fcbbc452970b83ba0c3d5999a32cfe98b049148993d288110576b",
+      "size_bytes": 18628
+    },
+    ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_packet_decode.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_packet_decode.log",
+      "sha256": "f8d0b0a8bc4d34c305bd5d1f480e9e52f7ac816ae2c04f1ee6fe0116f85af38a",
+      "size_bytes": 763
+    },
+    ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_page_end_fault.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/focused/logs/tb_ooo_fetch_page_end_fault.log",
+      "sha256": "6c7747b662222fdd7dd3c4fb995d5c4a20e9b9d1de6e044df2b11e88be597c99",
+      "size_bytes": 108112
+    },
+    ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "45c3bb9fb6e0e48cf60d1e7ddf8fe4f50c8426f36914ea7617c47e936564208b",
+      "size_bytes": 3828
+    },
+    ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design/evidence/mutations/summary.json",
+      "sha256": "a8d2e78dae5498425402208fa50a0cd33aa87cd0d8e44d9811b787ccb9aca705",
+      "size_bytes": 17559
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_axi_exec_firewall.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_axi_exec_firewall.log",
+      "sha256": "bce0abe2cbadefbfa70f082021fc2099d07fdfc1b233cdfcb53690c682449332",
+      "size_bytes": 3627
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_fetch_access_footprint.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_fetch_access_footprint.log",
+      "sha256": "eca9669e5901df0f24598e639038218a22aa3b6e8f1505d5d85f1dd0fe391287",
+      "size_bytes": 114215
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_fetch_axi_access_attrs.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_fetch_axi_access_attrs.log",
+      "sha256": "b2200049e2ed35913a531588ce7603b5a14af3802c50567cdc0339476feea684",
+      "size_bytes": 103763
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_ifu_lane1_fault_owner.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/focused/logs/tb_ooo_ifu_lane1_fault_owner.log",
+      "sha256": "521599c22ecdc8491a3b2efaaacd5f116d5156c602d8978d2c48491d9dc6e7cd",
+      "size_bytes": 8827
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "05b77c7febd6e167e6eed51665659b25c76feeee8071beb25ad4efd8493ec40b",
+      "size_bytes": 3818
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/mutations/summary.json",
+      "sha256": "5718f3eaee7bcaf219b03fd8b28a911e5b562301dbc0f45ddf2cace13667ea2d",
+      "size_bytes": 21625
+    },
+    ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/sized-dpi/run.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/evidence/sized-dpi/run.log",
+      "sha256": "97112bd0000ff444cc06b899921b435424431f90bf7a982557f538403b9ff831",
+      "size_bytes": 11509
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_csr_trap_request_mux.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_csr_trap_request_mux.log",
+      "sha256": "6cd2788c5915f212964c87db5548c38748695019368174a9b3fbf827c7f38312",
+      "size_bytes": 597
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_packet_decode.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_packet_decode.log",
+      "sha256": "e295e87a64bb9a78350003c91b4bca9b8b2732702f0602c6908c80fe266aab6e",
+      "size_bytes": 762
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_packet_fifo.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_packet_fifo.log",
+      "sha256": "2b0b82b96f7902835f394ad7f9685965d341afaa2a53f30b18631288f189fed6",
+      "size_bytes": 1169
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_page_end_fault.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_fetch_page_end_fault.log",
+      "sha256": "e5769f0bbb9ec37755051330fece67e71718b3690baeacb5548ad0639671ea10",
+      "size_bytes": 108111
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_ifu_lane1_fault_owner.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_ifu_lane1_fault_owner.log",
+      "sha256": "0e588cdb6086328fe092c1d89236cb7edab9e59e7f237d7f67c36cb33247aa54",
+      "size_bytes": 8825
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_dispatch_arbiter.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_dispatch_arbiter.log",
+      "sha256": "8d6e74f735d35997a1e8b4cae6eeaa2bc3c84151f30cd8e998342412f7cafd54",
+      "size_bytes": 1183
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_lane1_capture_gate.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_lane1_capture_gate.log",
+      "sha256": "13d6404179a3658d9b09b498c03a28c474c1a126c434b556cba74ce114a88f65",
+      "size_bytes": 971
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_trap_exit_sequencer.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/focused/logs/tb_ooo_pending_trap_exit_sequencer.log",
+      "sha256": "2375f4b2dd2b8781244b69850e7d553a22098f287853e697de374080ae3b36e4",
+      "size_bytes": 728
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "7fe839c85ead14a0a0f2eea42f1e8d2c4aa2e1014549ae33a587304c56dfc8a7",
+      "size_bytes": 3816
+    },
+    ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9j-ifu-tval-current-design/evidence/mutations/summary.json",
+      "sha256": "ac5b9200346fcf737a80ff0fc0b310db91200c4a5676081c8151dc46f24ace08",
+      "size_bytes": 14970
+    },
+    ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge.log",
+      "sha256": "b2417467167bfd29ff92b6d3454831cf8c9689da42a7207369bd52f77ad0dfb0",
+      "size_bytes": 105378
+    },
+    ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/focused/logs/tb_ooo_mem_axi_bridge.log": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/focused/logs/tb_ooo_mem_axi_bridge.log",
+      "sha256": "778956927dfb35f28613684691dcede1709391ac9da59d5ab6200c815535e782",
+      "size_bytes": 74613
+    },
+    ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "5e04a0179457f4ab6aece20786a0856b99bacf3a521b1e15b3a82c5fc6bcec82",
+      "size_bytes": 3815
+    },
+    ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/summary.json": {
+      "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/summary.json",
+      "sha256": "013abd7b46c1a40fb43f9461785379abed95d0930300b07f06901e7b9f111bdb",
+      "size_bytes": 27518
+    },
+    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/focused/logs/tb_ooo_pending_drain_resolve_gate.log": {
+      "path": ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/focused/logs/tb_ooo_pending_drain_resolve_gate.log",
+      "sha256": "6332d90c506634d7b16d5df0e4e93c92d2d257daa47b2f44535389a5501747f1",
+      "size_bytes": 745
+    },
+    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/focused/logs/tb_ooo_priv_system.log": {
+      "path": ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/focused/logs/tb_ooo_priv_system.log",
+      "sha256": "191fa3a2bb33fe3c898dbb813075a894334c3fbc6e88bb4c8cea9de55f6f97d9",
+      "size_bytes": 28577
+    },
+    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/module-aggregate/summary.txt": {
+      "path": ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/module-aggregate/summary.txt",
+      "sha256": "659cab4ce4fc167f880a1c7d186d76ab5905328369c90c8b6e0d273d4ec14960",
+      "size_bytes": 3822
+    },
+    ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/rtl-variants/summary.json": {
+      "path": ".github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/evidence/rtl-variants/summary.json",
+      "sha256": "4807897c6af795e8bd47fbcca2567271e2c8f2c6ce38285d353498b9cce947f2",
+      "size_bytes": 2960
+    }
+  },
+  "frozen_inputs_unchanged": true,
+  "generated_at_utc": "2026-07-28T15:31:52.087635+00:00",
+  "schema": "npc-rv64-v10g-checker-bound-evidence-replay-v1",
+  "stage_results": [
+    {
+      "id": "fdg-arch-trap",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/fdg-arch-trap.log",
+        "sha256": "3ceb8d33fcb86587bc07326966d76e034d9687d3427b2984648251ff30d9eaf5",
+        "size_bytes": 155
+      },
+      "returncode": 0
+    },
+    {
+      "id": "xret-current-mode",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/xret-current-mode.log",
+        "sha256": "5614c31b049ff03fb4c8385177c005808006bc11b729abaec8c6093d2ce575de",
+        "size_bytes": 156
+      },
+      "returncode": 0
+    },
+    {
+      "id": "memory-issue-lifecycle",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/memory-issue-lifecycle.log",
+        "sha256": "c11935c66b77faecbe542404fc7251380f50841d53e968e9acca8bbb21d6c3c4",
+        "size_bytes": 149
+      },
+      "returncode": 0
+    },
+    {
+      "id": "ifu-axi-flush-drain",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/ifu-axi-flush-drain.log",
+        "sha256": "4f5e51b36493a502b207f79701177ff2aad4fc9892ae6814d17000d52977a6fc",
+        "size_bytes": 140
+      },
+      "returncode": 0
+    },
+    {
+      "id": "ifu-fetch-provenance",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/ifu-fetch-provenance.log",
+        "sha256": "217474acdc60307a968893a03bd76a27f59fd6b7ddb611ceae22396605997a06",
+        "size_bytes": 142
+      },
+      "returncode": 0
+    },
+    {
+      "id": "ifu-access",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/ifu-access.log",
+        "sha256": "ca86299b9727d4e0d5abafef9ca4930234fe8b47a78f0850a925cbaf5725112b",
+        "size_bytes": 143
+      },
+      "returncode": 0
+    },
+    {
+      "id": "ifu-tval",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/ifu-tval.log",
+        "sha256": "2861239a7f3a81b931d591c20b9a06f5ef5586a28bfce7d3e198d60d22692bf9",
+        "size_bytes": 650
+      },
+      "returncode": 0
+    },
+    {
+      "id": "ptw-pmp",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/ptw-pmp.log",
+        "sha256": "7b7014deb1b024b9adb8906f37b5438d7c6f3571c23f6e2f852f4f7b5e76190f",
+        "size_bytes": 935
+      },
+      "returncode": 0
+    },
+    {
+      "id": "fence-ordering",
+      "log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/logs/fence-ordering.log",
+        "sha256": "ccfa8a3110629e8845ee0bbc294854a74d4fe7778b07a1b919e83b20e6865d0a",
+        "size_bytes": 152
+      },
+      "returncode": 0
+    }
+  ],
+  "stages_passed": 9,
+  "stages_required": 9,
+  "status": "PASS"
+}

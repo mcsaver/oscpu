@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "hist-qh-younger-store-experiment-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend.mem_quiet_i、OooRob.head0_csr_mem_hold_w 与 glue testbench 的周期级判别实验：lane0 queue-head CSR 与 lane1 younger store 同包进入后端，store probe 完成后 mem_idle_o=1 且 mem_retire_quiet_o=0；生产连线必须完成 C0/C1/C2，历史 mem_idle_o&&mem_retire_quiet_o 连线必须在有界进度观测处被检出。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-experiment-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出最小程序顺序、commit_ready staging 条件、必须计数的 CSR/SQ/memory raw event、预期失败 marker、可能假绿反例及所需 scope_extension_request；不修改文件。"
+  ],
+  "success_criteria": [
+    "结论明确区分生产 RTL PASS、历史可编译 RTL EXPECTED_FAIL 与信息不足；任何反例都精确绑定 module/signal/cycle/testbench oracle，且不以超时或 sticky saw 标志替代根因观测。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

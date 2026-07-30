@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Fail-closed census for finite-generation ProducerId holders.
 
-The checker is intentionally narrower than a Verilog elaborator.  It proves
-that every source-level full-P Q field, every ProducerId-bearing PipeStageReg,
-and every registered memory owner-token field in the current production RTL is
-classified by the manifest.  Semantic/runtime closure remains a separate TB
-and mutation gate.
+The source scan proves that every full-P Q field, ProducerId-bearing
+PipeStageReg and registered memory owner-token field is classified by the
+manifest.  A separately generated, hash-bound Yosys result proves the live
+NpcTop instance multiplicity for every holder-bearing module.  Semantic and
+runtime closure remain a separate testbench and mutation gate.
 """
 
 from __future__ import annotations
@@ -18,19 +18,26 @@ import sys
 from pathlib import Path
 from typing import Any
 
+TOOLS_DIR = Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+import producer_holder_instance_graph as instance_graph
+
 
 SCHEMA = "rv64-producer-holder-census-v1"
 EXPECTED_SCOPE = {
     "source_root": "npc/rv64/vsrc",
-    "topology_root": "NpcTop->NpcCoreTop->OooCoreTopGlue->OooIntBackend",
-    "coverage_granularity": "field-plus-packed-stage",
+    "topology_root": "NpcTop",
+    "coverage_granularity":
+        "field-plus-packed-stage-plus-elaborated-instance",
     "field_level_complete": True,
-    "instance_graph_complete": False,
+    "instance_graph_complete": True,
     "semantic_complete": False,
 }
 EXPECTED_LEDGER = {
-    "current_production_holder_census": "STATIC_FIELD_COMPLETE",
-    "global_no_live_reuse": "DYNAMIC_EVIDENCE_REQUIRED",
+    "current_production_holder_census": "ELABORATED_INSTANCE_COMPLETE",
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
     "whole_architecture": "RED",
     "ppa_promotion": "UNPROMOTED",
 }
@@ -533,6 +540,14 @@ def audit(repo_root: Path, manifest_path: Path, source_root: Path) -> dict[str, 
     manifest = json.loads(manifest_bytes.decode("utf-8"))
     inventory = source_inventory(repo_root, source_root)
     errors = validate_manifest(manifest, inventory)
+    frozen_instance_graph = instance_graph.audit_frozen(
+        repo_root, manifest_path
+    )
+    if frozen_instance_graph.get("status") != "PASS":
+        errors.extend(
+            "instance graph: " + error
+            for error in frozen_instance_graph.get("errors", [])
+        )
     checker_path = Path(__file__).resolve()
     return {
         "schema_version": SCHEMA,
@@ -563,6 +578,12 @@ def audit(repo_root: Path, manifest_path: Path, source_root: Path) -> dict[str, 
             "generation_authorities": [list(item) for item in sorted(inventory["generation"])],
             "token_q_fields": [list(item) for item in sorted(inventory["token_q"])],
             "packed_full_p_stages": [list(item) for item in sorted(inventory["packed"])],
+        },
+        "instance_graph": {
+            "status": frozen_instance_graph.get("status"),
+            "design_id": frozen_instance_graph.get("design_id"),
+            "counts": frozen_instance_graph.get("counts"),
+            "graph_sha256": frozen_instance_graph.get("graph_sha256"),
         },
         "errors": errors,
     }

@@ -1,0 +1,78 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-28-npc-systemd-guest-check/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-28-npc-systemd-guest-check/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-28-npc-systemd-guest-check/evidence",
+    "evidence_index": ".github/task-runs/2026-07-28-npc-systemd-guest-check/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-28-npc-systemd-guest-check/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-28-npc-systemd-guest-check/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-28-npc-systemd-guest-check",
+    "run_manifest": ".github/task-runs/2026-07-28-npc-systemd-guest-check/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-28-npc-systemd-guest-check/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 3,
+    "by_kind": {
+      "log": 3
+    },
+    "total_size_bytes": 20295
+  },
+  "final_result": "profile=rv64-systemd-contract 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "af027d1bc",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-28-npc-systemd-guest-check/evidence/npc-rv64-systemd-guest-check-contract.log",
+      "function": "e2e_npc_rv64_systemd_guest_check_contract",
+      "inputs": "RV64 systemd guest checker + terminal transaction + isolated rootfs + debug-valid diagnostic contract",
+      "module": "npc",
+      "node_id": "npc-rv64-systemd-guest-check-contract",
+      "outputs": "Checker 正反例、真实 power-down/syscon/system-reset 事务、rootfs 工作副本与 debug-valid 合同 PASS",
+      "owner_agent": "npc",
+      "source_profile": "rv64-systemd-contract",
+      "status": "PASS"
+    }
+  ],
+  "profile": "rv64-systemd-contract",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-28-npc-systemd-guest-check",
+  "schema_version": 1,
+  "started_at": "2026-07-28 15:07:56 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "npc-systemd-guest-check",
+  "trace_id": "e2e:2026-07-28-npc-systemd-guest-check",
+  "updated_at": "2026-07-28 15:08:14 +0800"
+}

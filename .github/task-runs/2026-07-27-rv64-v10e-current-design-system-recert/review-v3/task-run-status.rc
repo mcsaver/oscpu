@@ -1,0 +1,2 @@
+command=bash scripts/tests/test-task-run-status.sh
+rc=0

@@ -96,7 +96,7 @@ module OooTrapExitEventMux (
       !jump_misaligned_w &&
       !drain_branch_misaligned_w;
 
-  assign trap_o =
+  wire terminal_trap_w =
       branch_commit_misaligned_w ||
       branch_match_misaligned_w ||
       untracked_branch_misaligned_w ||
@@ -104,6 +104,7 @@ module OooTrapExitEventMux (
       drain_branch_misaligned_w ||
       drain_trap_payload_w ||
       branch_spec_misaligned_w;
+  assign trap_o = terminal_trap_w;
   assign trap_cause_o =
       drain_trap_payload_w ? pending_trap_cause_i : `EXC_INST_ADDR_MISALIGN;
   assign trap_pc_o =
@@ -121,6 +122,10 @@ module OooTrapExitEventMux (
 
   assign exit_o =
       drain_reached_w &&
+      // A resolved older control-flow trap owns the terminal transaction.
+      // This is a combinational priority decision, not event de-duplication:
+      // every accepted raw exit still appears exactly once when no trap wins.
+      !terminal_trap_w &&
       !pending_arch_trap_i &&
       !pending_system_i &&
       !(pending_branch_valid_i && !pending_branch_dispatched_i) &&

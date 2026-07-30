@@ -1,0 +1,403 @@
+{
+  "schema": "npc-rv64-serialize-g1-closure-candidate/v1",
+  "status": "READY_FOR_INDEPENDENT_REVIEW",
+  "design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture",
+      "tooling-workflow"
+    ],
+    "production_rtl_edit": false,
+    "testbench_edit": true
+  },
+  "debt": {
+    "id": "SERIALIZE-G1",
+    "priority": "P1",
+    "pre_review_status": "OPEN",
+    "closure_requirement": "close and enable queue-head serialize contract, or normatively freeze pending full-drain product architecture"
+  },
+  "candidate_architecture": {
+    "queue_head_domain": {
+      "scope": "legal non-FP head0 CSR",
+      "birth": "head0_csr_dispatch_fire_w",
+      "c0": [
+        "head0_csr_commit_w exactly once",
+        "CSR architectural request exactly once",
+        "typed CSR_COMMIT full-flush barrier exactly once"
+      ],
+      "c1": [
+        "typed CSR_COMMIT apply exactly once",
+        "head0 CSR holder clear",
+        "stop owner clear"
+      ],
+      "c2": [
+        "no repeated CSR architectural request",
+        "no repeated typed apply",
+        "no unowned apply"
+      ],
+      "recovery": "wrong-path branch/JALR kill has one birth and selective death with zero C0/C1 side effects"
+    },
+    "pending_full_drain_domain": {
+      "scope": [
+        "lane1 CSR",
+        "FP CSR",
+        "ECALL/EBREAK",
+        "MRET/SRET",
+        "WFI",
+        "SFENCE.VMA/Svinval",
+        "architectural trap/IRQ/fetch fault",
+        "simulation exit"
+      ],
+      "contract": "single pending owner; exact memory-terminal or pending-only C0; owner/stop clear at C1; no unowned repeat at C2",
+      "retained": true
+    },
+    "no_deduplication_mask": true,
+    "assertions_weakened": false
+  },
+  "queue_head_csr_evidence": {
+    "focused": {
+      "assertions_on": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/focused-assert/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
+        "sha256": "b4ad463859b2441193edd072789bb573eb47a2829468b828ebc60381270be834",
+        "size_bytes": 26542,
+        "mode": "assertions-on",
+        "committed_transactions": 3,
+        "selectively_killed_transactions": 2,
+        "raw_c0_c1_c2_exact": true
+      },
+      "assertions_off": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/focused-release/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
+        "sha256": "7b08af8a14183ee8e9d0b6085388e9e06c67f01a6cd3544d26ee5e12f5073c42",
+        "size_bytes": 25589,
+        "mode": "assertions-off",
+        "committed_transactions": 3,
+        "selectively_killed_transactions": 2,
+        "raw_c0_c1_c2_exact": true
+      }
+    },
+    "oracle_sensitivity": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v2/summary.json",
+      "sha256": "b1d919f9f3b7b20c686723f1048c6a8c8714120408a2aa3003224293b43a673d",
+      "size_bytes": 2397,
+      "compile_success": true,
+      "old_sticky_scoreboard_false_green": true,
+      "current_raw_scoreboard_rejected": true,
+      "production_rtl_sha256": "ba3124ea66ed569445df24912a5a51906e86a7301a16fd6662514d4051f61d0c",
+      "mutated_rtl_sha256": "b2499517803985471d87b49f29730dad9e1158a270e4cf14ac9f78830548db53",
+      "current_testbench_sha256": "ca3a00d5c6c4422db8a4fedafee0bd4bd1d2774a18c5bf1cb956d1e6cbe423ce"
+    }
+  },
+  "pending_system_evidence": {
+    "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/system-current-matrix/summary.json",
+    "sha256": "6332583399e350a381d8c65f6e3aa274bc7e055eaee33a4b3262383eae3e5c7d",
+    "size_bytes": 42468,
+    "design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+    "baseline_pass": "3/3",
+    "compile_success_mutations": "14/14",
+    "dynamically_rejected_mutations": "14/14",
+    "testbench_sha256_map": {
+      "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "bab9479a2007900879bd8469ca992f9095dc6da2d597bf63ae3fb9b145338bd7",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv": "bdb8191629d7868e2150ef3f2d480a9d2767f26256133c8e6b12a386dd1e968d",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv": "c92e591727b68bf1cea3321091e5000c2a95064a49255b9f25550a3e2fb4cfde"
+    }
+  },
+  "trap_exit_evidence": {
+    "prior_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "current_design_applicability": {
+      "production_files_exact": 11,
+      "focused_testbench_exact": true,
+      "production_semantic_delta": "NONE",
+      "applicable": true
+    },
+    "focused": {
+      "focused-assert": {
+        "pass": "5/5",
+        "logs": {
+          "tb_ooo_pending_arch_trap_memory_terminal.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+            "sha256": "6ede318cb70adc9689dfd805326577f06729abd965744731f60a55b58b5d3870",
+            "size_bytes": 798
+          },
+          "tb_ooo_pending_drain_resolve_gate.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_pending_drain_resolve_gate.log",
+            "sha256": "8cbebbeb45817e0ccbe6c4ebffb8753d87328617006379d848dd4fc9fa78acf1",
+            "size_bytes": 731
+          },
+          "tb_ooo_serialized_owner_exactly_once.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+            "sha256": "b9384249bd9ce9c0d60933cd9a8970eb626fd90926447e2cf62593f73cb391df",
+            "size_bytes": 3931
+          },
+          "tb_ooo_trap_exit_event_mux.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_trap_exit_event_mux.log",
+            "sha256": "202a5d0c27d1ded34a81ee36133e36e2bf452efafdbd75d3b840f82b05618672",
+            "size_bytes": 643
+          },
+          "tb_ooo_trap_exit_output_sequencer.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-assert/result/logs/tb_ooo_trap_exit_output_sequencer.log",
+            "sha256": "d1187755ac3b5a7d4edf58a1fa748fd56d540f3b728f6a811a9e44b6ae250082",
+            "size_bytes": 692
+          }
+        }
+      },
+      "focused-release": {
+        "pass": "5/5",
+        "logs": {
+          "tb_ooo_pending_arch_trap_memory_terminal.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+            "sha256": "f24c9eb8ff3de669ee2ee9154211b74184320e9fee31289adb5ec29ab298762b",
+            "size_bytes": 786
+          },
+          "tb_ooo_pending_drain_resolve_gate.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_pending_drain_resolve_gate.log",
+            "sha256": "3ed09fd52080730d084c39598185a13a72d8a8a5a2f383fafd5a6fc54516b49a",
+            "size_bytes": 719
+          },
+          "tb_ooo_serialized_owner_exactly_once.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_serialized_owner_exactly_once.log",
+            "sha256": "887d8b05b002d3160332a7b3bfa789d9f151f2f0780d6d7eda6da0e1696d47d5",
+            "size_bytes": 3919
+          },
+          "tb_ooo_trap_exit_event_mux.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_trap_exit_event_mux.log",
+            "sha256": "f0ef1182190c605aefa83cd543112380de8b90bcbc953bc7e6967874832594a1",
+            "size_bytes": 631
+          },
+          "tb_ooo_trap_exit_output_sequencer.log": {
+            "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/focused-release/result/logs/tb_ooo_trap_exit_output_sequencer.log",
+            "sha256": "8ac980624daa2e80a0690f9ca908fdc5e31c6ef73418950bf196502acfb43626",
+            "size_bytes": 680
+          }
+        }
+      }
+    },
+    "compile_success_mutations": "7/7",
+    "mutations": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/mutations/summary.json",
+      "sha256": "44ae585216ef65a964cd62839f70197c5a0137a9e6644a2779d15ce248f739d4",
+      "size_bytes": 5269
+    },
+    "round_state": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/round-state.json",
+      "sha256": "efe93aad3a95cfd5eb71dbdc142699a2db502ecdbe842713f2f12e7a321f042e",
+      "size_bytes": 6620
+    },
+    "remaining_assumption": "standalone cross-cycle trap then exit is not adversarially tested; integrated holder/run-gate transaction makes it unreachable"
+  },
+  "current_design_replay": {
+    "status": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/replay.status",
+      "sha256": "ed5f8208e584003a5a60d4b1d6cbbeab12255053205b27eb96f6f7e1e6126bef",
+      "size_bytes": 157
+    },
+    "task_status": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/task-run.status",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "size_bytes": 5
+    },
+    "driver": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/driver.log",
+      "sha256": "b03414c71bf64184aefe6c1a68f0b76070acda5340e9461b4a6e2ec2cd41de18",
+      "size_bytes": 3139
+    },
+    "design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+    "stage_count": 26,
+    "stage_logs": {
+      "candidate-and-census-current.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/candidate-and-census-current.log",
+        "sha256": "7b45f8030e50999611c4ffabde4e2d10ae9bb978f26e4da92e0e18b7fb331d51",
+        "size_bytes": 189
+      },
+      "closed-evidence-currentness.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/closed-evidence-currentness.log",
+        "sha256": "b47090638432e23cee225bc9453f06aaf0f5764e3df40d4b9d9a1bae0cb02707",
+        "size_bytes": 141
+      },
+      "control-event-architecture.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-architecture.log",
+        "sha256": "11ace94561d828f41e593cb7b01a008adc14606d7c9af3e4c99094a4cf9c4469",
+        "size_bytes": 6418
+      },
+      "control-event-config.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-config.log",
+        "sha256": "8095f80ff0674af43d98449c2f35c2d9ba53c398a04253a24d3a5218bfa1d4dc",
+        "size_bytes": 1407
+      },
+      "control-event-focused.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-focused.log",
+        "sha256": "df51af7ad5f761b49b277aa52117b64400ac195754f109bc2e78a213dd0972cb",
+        "size_bytes": 2714
+      },
+      "control-event-gap-boundary.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-gap-boundary.log",
+        "sha256": "4dc46003dd7f38175a4b2ed4797af23da12a5a446276636ffa4a261d612453ca",
+        "size_bytes": 5308
+      },
+      "control-event-index-verify.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-index-verify.log",
+        "sha256": "0783816e46197b04139e0bae931aa98e517c3d5822c81b513bca5fe09c203f00",
+        "size_bytes": 224
+      },
+      "control-event-index.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-index.log",
+        "sha256": "54e8a83440e780a46c584eedb88b402dc039c19c072aea9bf29764a49e7ffc11",
+        "size_bytes": 263
+      },
+      "control-event-module-aggregate.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-module-aggregate.log",
+        "sha256": "175e074186656e60ce17501c490cce9f105f2c3678e40d805127cf5b6cf31645",
+        "size_bytes": 4461
+      },
+      "control-event-mutations.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-mutations.log",
+        "sha256": "184776d98fc8c5967cdeabfd09042fed6d89a68e33583610d1f70133af15c9ea",
+        "size_bytes": 307
+      },
+      "control-event-sq-retry.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/control-event-sq-retry.log",
+        "sha256": "1b9d45d8a21f909d855a6262b8b85bd64a5c1defd8d127f558452f48304a2b71",
+        "size_bytes": 2460
+      },
+      "debt-ledger-current.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/debt-ledger-current.log",
+        "sha256": "12f2e9156686253b5c7d090156b1525172c845f162a4ca017c23f77af2a2f0f3",
+        "size_bytes": 129
+      },
+      "fdg-arch-trap.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/fdg-arch-trap.log",
+        "sha256": "625d7f20c4905561f3679650b3caab27262e3f8a368cb907d192b045dc8d11d7",
+        "size_bytes": 6716
+      },
+      "fence-ordering.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/fence-ordering.log",
+        "sha256": "3cf762a1899f31294a6a2e9767f6f385693ff9ba7dab02f7c8d07a5af968598f",
+        "size_bytes": 5911
+      },
+      "functional-aggregate-current.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/functional-aggregate-current.log",
+        "sha256": "62837f6df1efb8ca329e25f7fb84f6744c9b78358ad919f3472483f7c2e4c7e7",
+        "size_bytes": 12211
+      },
+      "holder-lifecycle-current.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/holder-lifecycle-current.log",
+        "sha256": "c4045032b7726d580dc29fa57898cbd419308d62159d40abfad4c64a17b2d492",
+        "size_bytes": 503
+      },
+      "ifu-access.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/ifu-access.log",
+        "sha256": "273f4ae938f5cac1c8a1743a494236ff00e03ec2b0117ae6021b867c6c35f45c",
+        "size_bytes": 48229
+      },
+      "ifu-axi-flush-drain.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/ifu-axi-flush-drain.log",
+        "sha256": "91e6e7c739ed14206ebcb4e4eeb6f5604462c4b2ca122add9354860e1fdb7f05",
+        "size_bytes": 9681
+      },
+      "ifu-fetch-provenance.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/ifu-fetch-provenance.log",
+        "sha256": "f4eb373d23bbc82ffcc21b62e5e3a094f549fe4b16ca6ea5d02757e9544fd680",
+        "size_bytes": 18860
+      },
+      "ifu-tval.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/ifu-tval.log",
+        "sha256": "f8193656a5ddcc2b805d6a4dc8f3f518c1624cb183c5d575a85154ce11b63f9c",
+        "size_bytes": 22380
+      },
+      "instret-retirement.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/instret-retirement.log",
+        "sha256": "2d94601f90a5172c97607d04efd2c0141ef5db78283869c12009cc8e7fc01319",
+        "size_bytes": 5312
+      },
+      "memory-issue-lifecycle.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/memory-issue-lifecycle.log",
+        "sha256": "1ca24085518dce670af1af968092937dfec31afe585912b646d3392d6bdc1785",
+        "size_bytes": 9759
+      },
+      "ptw-pmp.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/ptw-pmp.log",
+        "sha256": "3f4d12841297a4cc3a64dba049cba3119987026348870ceb89619a55719ec318",
+        "size_bytes": 16515
+      },
+      "replay-stage-order-contract.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/replay-stage-order-contract.log",
+        "sha256": "1e1f70fd4f9ab9e79185d3897748aaa8d8e468a0bbb80312408f81c2c14cba95",
+        "size_bytes": 372
+      },
+      "vectored-trap.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/vectored-trap.log",
+        "sha256": "fa01eb49a6287f23eae4291501f04341a94c94c4ee21791493ced73cbc84e8d2",
+        "size_bytes": 3816
+      },
+      "xret-current-mode.log": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/current-replay/stage-logs/xret-current-mode.log",
+        "sha256": "abf3127bad6463b0f2dab8127b0053d289220b72fd9c62fb955bdab2d6d70207",
+        "size_bytes": 7609
+      }
+    },
+    "driver_birth_epoch": 1785238936,
+    "completion_epoch": 1785240942,
+    "elapsed_seconds_from_filesystem": 2006,
+    "parent_command_wall_seconds": 2006.2,
+    "cost_class_actual": "greater-than-30-minutes-less-than-4-hours",
+    "prelaunch_gates": {
+      "necessity": "bind all closed architecture evidence to live RTL",
+      "information_gain": "distinguish stale evidence from current closure input",
+      "single_flight": true,
+      "stop_on_stage_failure_or_design_drift": true,
+      "user_authorization_required": false
+    }
+  },
+  "layered_identity_and_a3_oracle": {
+    "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/semantic-delta-identity.json",
+    "sha256": "0df921bc53d6a5c7070e5f3da9e2e2c4d460e987d1f16b1cc1b9978f1dbafaab",
+    "size_bytes": 12738
+  },
+  "configuration_boundary": {
+    "a3_product_recert_OOO_CSR_QUEUE_HEAD": 1,
+    "npc_makefile_default": 0,
+    "rtl_fallback_default": 0,
+    "architecture_docs_describe_default_off": true,
+    "review_question": "Does authoritative product configuration=1 satisfy enabled, or must repository defaults and normative docs change before SERIALIZE-G1 may close?"
+  },
+  "system_observation_boundary": {
+    "a3": {
+      "cycles": 5071521696,
+      "commits": 1223536213,
+      "terminal_counts": {
+        "good_trap": 1,
+        "kernel_power_down": 1,
+        "poweroff_begin": 1,
+        "strict_done": 1,
+        "syscon_poweroff": 1,
+        "system_reset_exit": 1
+      },
+      "rtl_assertion_file_empty": true,
+      "original_published_gate": "FAIL",
+      "execution_state": "COMPLETE",
+      "oracle_state": "INVALID",
+      "versioned_checker_replay": "PASS"
+    },
+    "proves": "system transaction completion under queue-head CSR config",
+    "does_not_prove": "internal C0/C1/C2 microcycle uniqueness",
+    "full_system_rerun_required": "NO"
+  },
+  "review_acceptance": {
+    "approved": "all source identities, raw counters, mutation sensitivity, pending-system matrix, trap/exit applicability and product configuration boundary support the normative split",
+    "gap": "name the exact missing cycle/configuration/owner counterexample and keep SERIALIZE-G1 OPEN",
+    "prohibited": [
+      "use deduplication to hide repeated terminal events",
+      "weaken RTL assertions",
+      "reinterpret A3 original FAIL as historical PASS",
+      "use A4 TERM as system PASS evidence",
+      "claim architecture freeze or PPA qualification"
+    ]
+  },
+  "promotion": {
+    "serialize_g1": "OPEN_PENDING_REVIEW",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "eligible": false
+  }
+}

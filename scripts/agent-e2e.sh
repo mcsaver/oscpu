@@ -514,6 +514,19 @@ e2e_guard_profiles_for_path() {
   esac
 
   case "$path" in
+    Linux/scripts/check-npc-systemd-guest.sh|\
+    Linux/scripts/npc-systemd-strict-check.sh|\
+    Linux/scripts/npc_systemd_transaction_evidence.py|\
+    Linux/scripts/tests/test_check_npc_systemd_guest_contract.py|\
+    Linux/scripts/tests/test_npc_systemd_strict_check.py|\
+    Linux/scripts/tests/test_npc_systemd_transaction_evidence.py|\
+    Linux/scripts/tests/fixtures/v9s-rerun4-incomplete.console)
+      e2e_guard_add_profile "rv64-systemd-contract" "$path"
+      return 0
+      ;;
+  esac
+
+  case "$path" in
     npc/rv64/*|npc/sim/*|npc/single/*|npc/soc/*)
       e2e_guard_add_profile "npc-dev" "$path"
       ;;

@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "final-study-manual-adversarial-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对 docs/rv64core/study 的当前 RV64 Core 学习讲义做最终对抗式审查：以本地 vsrc module/signal/transaction 为真源，寻找拓扑错误、固定周期臆测、Store/FP/ROB/redirect/AXI 时相错误、文件覆盖假绿、坏链接和越级 PASS，并给出可定位的修正建议。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "docs/rv64core/study",
+      "npc/rv64/vsrc",
+      "npc/rv64/design/arch/ooo-core-architecture.md",
+      "npc/rv64/design/arch/pipeline-stage-boundary.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-28-rv64core-study-manual/task-report.md",
+      ".github/task-runs/2026-07-28-rv64core-study-manual/dispatch-log.md",
+      ".github/task-runs/2026-07-28-rv64core-study-manual/subagent-contracts/final-study-manual-adversarial-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "docs/rv64core/study/README.md",
+      "docs/rv64core/study/11-逐文件源码地图.md",
+      "docs/rv64core/study/tools/audit_vsrc_coverage.py",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/writeback/OooRob.v"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 P0/P1/P2 列出可执行发现，每项绑定讲义真实路径/行号与反证 RTL module/signal；复核 150/150 文件覆盖、全部 WaveDrom 严格 JSON、本地链接、NpcTop/NpcSimTop/Catalog 标签、Decode→dispatch、FP raw→done FIFO→formal-WB、Store SQ/ROB-head→B terminal、ROB WB→commit 和 redirect/AXI 跨拍边界；若无阻断问题明确给出 PASS/GAP 范围。"
+  ],
+  "success_criteria": [
+    "审查者优先寻找反例、覆盖洞、假绿和越级结论；所有发现可由本地文件复核；不把静态文档审计外推为 RTL 动态功能、综合、STA 或 PPA PASS；无写入。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

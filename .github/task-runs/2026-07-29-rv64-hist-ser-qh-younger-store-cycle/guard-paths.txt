@@ -1,0 +1,17 @@
+npc/rv64/testbench/Makefile
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv
+npc/rv64/design/arch/historical-defect-backfill-ledger.json
+npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/test_historical_reconstruction_runner.py
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/check_historical_reconstruction_replay.py
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/hypothesis.md
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/dispatch-log.md
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/round-state.json
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/nodes.tsv
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/task-report.md
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/final-reviewer-report-v3.md
+.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/final-reviewer-report-v4.md

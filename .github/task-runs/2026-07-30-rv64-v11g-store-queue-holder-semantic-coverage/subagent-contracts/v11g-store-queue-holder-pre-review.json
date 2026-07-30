@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11g-store-queue-holder-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooStoreQueue 的 resident producer_id_q 与 owner_token_q 在双 dispatch allocate、双 owner bind、out-of-order fill、physical head request、B/probe terminal、ROB release、selective/global flush 以及同拍 release+allocate/terminal+release 周期中的精确 holder 生命周期；判断 production RTL 是否存在可达缺陷，并区分 RTL 修复与 source-bound 验证补强。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/owner-open-verification-variant/summary.json",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-launch-admission-substitution/summary.json",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/rtl-verification-variants/sq-owner-authorization-negative-stimulus/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/run-int-iq-producer-focused.sh",
+      "npc/rv64/eval/ppa/tools/int_iq_producer_semantic_evidence.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/subagent-contracts/v11g-store-queue-holder-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按周期因果链审查两个不可分割 holder：producer_id_q 从 allocation 到 release/flush death，owner_token_q 从 bind 到 terminal/release/flush death；判决 H1 当前 RTL 正确但缺 source-bound 语义证据、H2 存在可达 RTL 缺陷、H3 V9L 现有证据已足够，并给出最小正向矩阵与 OOO_ASSERT 关闭时仍应被独立 oracle 拒绝的 compile-success RTL 变异清单。"
+  ],
+  "success_criteria": [
+    "明确 production OooStoreQueue.v 是否需要修改；每个发现绑定真实 signal、edge-old/edge-new 周期条件、精确 ProducerId 或 {owner_kind,owner_token,mmu_epoch} tuple 与现有/缺失 TB oracle；不得以 snoop 输出自证 raw-Q 正确，不得把局部 PASS 外推为全局 no-live-reuse GREEN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11a-holder-instance-graph-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 NpcTop 产品配置下 ProducerId holder module 的 17 条 elaborated instance path、双 OooMemInflightQueue/双 OooMemAxiBridge 实例倍数及 frozen evidence 绑定，寻找会使 instance_graph_complete=true 假绿或越界传播到 lifecycle/architecture/PPA 的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/Makefile",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/update-current-arch-stable-candidate.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/contract.md",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/rtl-derivation.md",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/subagent-contracts/v11a-holder-instance-graph-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/contract.md",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/rtl-derivation.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出按 RTL 对象、产品配置、Yosys hierarchy 观测和 PASS/GAP 边界组织的独立审查；列出所有可操作反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "确认或否决每个 census holder module 的实例集合精确性、source/config/declaration/tool/graph hash 绑定、负向 fixture 判别力与 semantic_complete=false/whole_architecture=RED/PPA=UNPROMOTED 边界；任何无法由允许路径判定的事实必须保持 GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

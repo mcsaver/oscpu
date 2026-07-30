@@ -1,0 +1,42 @@
+{
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "mutation": {
+    "compile_success": true,
+    "mutated_path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v1/include/tb_ooo_core_top_glue_csr.svh",
+    "mutated_sha256": "df265193b1326e8d52b95a358b07d555f96bd99e0a25b7d413892697fd8cb19b",
+    "name": "duplicate-csrfile-request-at-c2",
+    "scope": "verification wiring mirroring NpcCoreTop csr_commit_i",
+    "source_path": "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh",
+    "source_sha256": "f3899f8fcfca9af39b1092f7acc7f36eaf019082b8f854c136db2664dfeed633"
+  },
+  "non_claims": [
+    "production RTL mutation",
+    "SERIALIZE-G1 closure before independent review",
+    "architecture freeze",
+    "PPA qualification"
+  ],
+  "oracle_claim": "the owner-bound raw scoreboard rejects a compile-success C2 CsrFile request replay after the queue-head CSR owner cleared",
+  "product_config": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "command_line_override": false,
+    "source": "npc/rv64/configs/product-rtl-defaults.mk"
+  },
+  "production_binding": {
+    "csr_commit_i": ".csr_commit_i(ooo_pending_system_csr_commit_w || ooo_head0_csr_commit_w),",
+    "exact_occurrences": 1,
+    "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+    "sha256": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe"
+  },
+  "run": {
+    "baseline_pass_marker": false,
+    "c2_request_apply_rejected": true,
+    "compile_command": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v1/run/compile-command.txt",
+    "compile_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v1/run/compile.log",
+    "compile_returncode": 0,
+    "simulation_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csrfile-c2-replay-v1/run/simulation.log",
+    "simulation_returncode": 1,
+    "unowned_csrfile_request_rejected": true
+  },
+  "schema": "npc-rv64-v10g-qh-csrfile-request-mutation/v1",
+  "status": "PASS"
+}

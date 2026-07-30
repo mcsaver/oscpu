@@ -3,19 +3,19 @@
     "green": 9,
     "manifest": {
       "path": "npc/rv64/eval/ppa/evidence/architecture-current.json",
-      "sha256": "25871d1a5413503ee76861847f15f02bf63c4d73c6d5a9224dca7bf0c4b7c5d5",
+      "sha256": "2f3c664d390ddec49858dd8f28fd01e1fb6e25807ee1a8c4b55b16ca99a11e2c",
       "size_bytes": 104006
     },
     "negative_unit_tests": 30,
     "refresh_log": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/gates/architecture-evidence-refresh.log",
-      "sha256": "6b1aafb5c79ab9e0b4bc883e603e6f45bf0da844e39dfa98a844b05273bdc070",
+      "sha256": "c9b31638accae263779988e800b10dd4d42de364693a09c93ec3a66578f504ae",
       "size_bytes": 6418
     },
     "required": 9,
     "result": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/gates/final-architecture-hard-gates.json",
-      "sha256": "6a2b31282043f7bbdd1f1dafa80e99a2b56b1adcdb56af24a395ec56ec3838d1",
+      "sha256": "29cafaa42a5fa92070d1351cdfb7897277dc7ef7369c819a1e911f7d785dc287",
       "size_bytes": 61963
     }
   },
@@ -25,17 +25,17 @@
     "logs": {
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/config-variants/logs/tb_ooo_core_top_glue.log",
-        "sha256": "55538d51bb8eed86919693005f841d804b3ad0bd680a7e47ba7b2e2202492af1",
+        "sha256": "cf6fe96bc0d3294743b3f0a6978aa12e20e3f8ad782338c7527a1991f077f0f9",
         "size_bytes": 25807
       },
       "tb_ooo_core_top_glue_v9o_csr_qh": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/config-variants/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
-        "sha256": "b6750f1aad5cee0daa42bee66c7a4f5e5efdf21307a4f4588cef47f5836c795a",
-        "size_bytes": 25932
+        "sha256": "16e8ba884f917ba57000510f7fdcf877a3aaae87468ec0e749299fca401d106c",
+        "size_bytes": 26648
       },
       "tb_ooo_rob": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/config-variants/logs/tb_ooo_rob.log",
-        "sha256": "0579c286bf3ac6daf55b37637321dabbb2ae3da907f92d2ca70d43437f18fc85",
+        "sha256": "38ca6d443a5e320c15ccfa1ab96b54dfe98b8d205e1d7c7a8adffd10b9c04bbf",
         "size_bytes": 1772
       }
     },
@@ -47,58 +47,58 @@
     "immediate_assertions": 471,
     "unit_tests": 13
   },
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "focused": {
     "logs": {
       "tb_ooo_control_event_apply_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_control_event_apply_sequencer.log",
-        "sha256": "5a77da796bdbaa1aee340b2aa08928cf111ceee77e9adee97717e9b2d4dae0b2",
+        "sha256": "dbf4f4b20ee41727286d33299fae747693908a3345d3fa482bb16828d6b94efa",
         "size_bytes": 1093
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_core_top_glue.log",
-        "sha256": "36ebd1da1d3e3e313ba03ca65c2990831084e06caa385e8ca60dbe7819792e38",
-        "size_bytes": 25608
+        "sha256": "cf148a6ce1150057c8674c39719cd483389617d9377737a6276fb14bba884c6b",
+        "size_bytes": 25730
       },
       "tb_ooo_dispatch_backend": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_dispatch_backend.log",
-        "sha256": "5623b980b7de1e5ad287c67692e2169eb8dc55adb7c9e6cafceac58c0e564f6d",
+        "sha256": "e9a273f39dd1af166d60d5b594ff99a080a49d7cf201118d81f351b7deb84ffd",
         "size_bytes": 5949
       },
       "tb_ooo_dual_mem_bridge_wrapper": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_dual_mem_bridge_wrapper.log",
-        "sha256": "8ef29144a61d3bb01c3f760646d2f5f2a83d2f26f7794d45e3aac3efcdb61b98",
+        "sha256": "26a4c02568fcca75fb466c986abf5db1550d1df7f4ec79e844ea5c0ab845909a",
         "size_bytes": 138865
       },
       "tb_ooo_frontend_action_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_frontend_action_gate.log",
-        "sha256": "019a576b018677a7a138a7b30a32f8d3d79a210e9d063cba4713f1d57033fb23",
+        "sha256": "309b4c274fd1eccfc5098be96a6a437a205d97eddf52417ad1be126a54dbe826",
         "size_bytes": 718
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_int_backend.log",
-        "sha256": "735dee00c18e2ae0aff3822899fdc154c86aa4640626fb804df355939699d059",
-        "size_bytes": 26914
+        "sha256": "4f19f2d69ba5033dc98400509f96011a68749e2dadffb62142e40099172ab1f0",
+        "size_bytes": 27048
       },
       "tb_ooo_load_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_load_queue.log",
-        "sha256": "068756bfa333b19ea3f4bb9a621d4488a21096106112bf38df1ac94435244969",
+        "sha256": "71b2da70ddd2e101c11356e45713e7e102b90aa88db261236672aeec6181eb43",
         "size_bytes": 4402
       },
       "tb_ooo_mem_axi_bridge": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_mem_axi_bridge.log",
-        "sha256": "17ec75b3a12cd98b92ba0bf945648ec24ab90691f32a8eec5b8e34b936bbfb77",
+        "sha256": "34698d132cb84a6ed49d1dc4c42d4c2bea51b14a2e0395d0f17ccb33738343be",
         "size_bytes": 74825
       },
       "tb_ooo_redirect_arbiter": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_redirect_arbiter.log",
-        "sha256": "7a7ad3ce17dcc2bcc743c3412b0ef856bd2afbbf572d426d7db6e94b22b0810e",
+        "sha256": "28047b5003684ffc03220a91b32369ca890f2c71629482c4cd33a45df672d218",
         "size_bytes": 694
       },
       "tb_ooo_rob": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/focused/logs/tb_ooo_rob.log",
-        "sha256": "a570472eb7dce34ffeb64077ed953d9365464a72197431927e14495aaa549eb9",
-        "size_bytes": 1549
+        "sha256": "5058f509f2ae09a06ffe5fafff2f40dc2dca1ed9f802e89cae34672fd686c651",
+        "size_bytes": 1700
       }
     },
     "passed": 10,
@@ -106,13 +106,13 @@
   },
   "full_core_boundary": {
     "architecture_freeze": "GAP",
-    "blockers": 95,
-    "candidate_design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+    "blockers": 53,
+    "candidate_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
     "current_design_match": true,
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "generated_at_utc": "2026-07-26T15:08:50.489884+00:00",
+  "generated_at_utc": "2026-07-29T13:06:00.143774+00:00",
   "module_aggregate": {
     "failed": 0,
     "inventory": [
@@ -184,6 +184,8 @@
       "tb_ooo_pending_lane1_capture_gate",
       "tb_ooo_pending_dispatch_arbiter",
       "tb_ooo_pending_drain_resolve_gate",
+      "tb_ooo_pending_arch_trap_memory_terminal",
+      "tb_ooo_serialized_owner_exactly_once",
       "tb_ooo_pending_system_admission_cancel_gate",
       "tb_ooo_pending_system_sequencer",
       "tb_ooo_pending_trap_exit_sequencer",
@@ -231,571 +233,581 @@
     "logs": {
       "tb_alu": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_alu.log",
-        "sha256": "78551f7353e63d7112e44a7e7e518b38ed117aad94f3dffebae7f5968b3ce9f1",
+        "sha256": "d6575c3b607a5e151867ea8f98dc682e0cef4be61022aa3a7a97d458c300f043",
         "size_bytes": 611
       },
       "tb_axi_clint": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_clint.log",
-        "sha256": "e26bde40638d6289a5800a420b9371843de73457d498b7f4f3f193fc5b83633e",
+        "sha256": "9cbfc6e1fbad88cc6d42839d482a59b6310e476db87a9a1279a85d309af5a304",
         "size_bytes": 643
       },
       "tb_axi_exec_firewall": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_exec_firewall.log",
-        "sha256": "3ec2eeff95c3f2db2c406d57f8370543df5c0413d805850e24a0a8c440e0a04c",
+        "sha256": "146fc7ff3228c67b912e9f0588a7938f5203261d1d87ede6581430dbd9f69bf6",
         "size_bytes": 3853
       },
       "tb_axi_plic": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_plic.log",
-        "sha256": "62944edffdf698e6b5d6147f5bb34517dc770d36bf8808c8dbff658d6a257b2f",
+        "sha256": "0f1fad5c87f16d90d6af969fdf708d9f27fca8326e573ed1acfd1554a6d5c20c",
         "size_bytes": 751
       },
       "tb_axi_reset_syscon": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_reset_syscon.log",
-        "sha256": "8bdd76d14228d373f5875792dedbd22e099fdd110de57bc7012aad48337491ea",
+        "sha256": "f337b2f07a3a15e65f164fbe5c612f4e0883da65472480232e786c127c7721bc",
         "size_bytes": 840
       },
       "tb_axi_to_uart": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_to_uart.log",
-        "sha256": "a008f2dd08feae5bdc861659051958ba92c13d15fbe3de4d8aa8dde07e8a949f",
+        "sha256": "1edc5d76ef9f761f86efc449dee634ace45af6ddaad2d388787738af05def252",
         "size_bytes": 707
       },
       "tb_axi_xbar": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_axi_xbar.log",
-        "sha256": "3a63eeb7443e99aaa4bc6e4a6691e3754b6d4f4f66e63cb6cfa906306f5c9131",
+        "sha256": "895074891cf66eb05137cfdc08ac095142d290fa2e5770f294006ba5be181197",
         "size_bytes": 3637
       },
       "tb_compare": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_compare.log",
-        "sha256": "c0b8108bf0c811cd6874efe121ea37b2782cb45000a4beb5fe73fbaaa9890b91",
+        "sha256": "a46e15dbbc8cc249d85436faae30041665a7c48c54a30ab6551941ed70f5d58f",
         "size_bytes": 638
       },
       "tb_csr_file": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_csr_file.log",
-        "sha256": "67db5d19f6d38dbc8977bd6f804b4d8867eff935f34772f6a363fdea23ad8849",
+        "sha256": "79c75ebfe79e153133bb7fcfd53ef34eb53244933cbfcd84a9882daf1564a413",
         "size_bytes": 638
       },
       "tb_csr_file_vectored_trap": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_csr_file_vectored_trap.log",
-        "sha256": "dcc3f2ac1f3edbf00205330ffd3a3f5bc83d7918ad9ed534fda16b4844fcdcf8",
+        "sha256": "dfdb8bc7d2c14bb6fea501329b9ddc63e1a3c9260ccad8cb5913349e9457116b",
         "size_bytes": 823
       },
       "tb_decode_stage": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_decode_stage.log",
-        "sha256": "b4cd16fcdb4bb30a016bd51af2e307a8afd968b42b72901f54aa38e91d4773b0",
+        "sha256": "070d89ddf8f825e6a506601b6fa6a99e1b2996012eb198ee2ae3c6d08ed9e48f",
         "size_bytes": 782
       },
       "tb_decode_unit": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_decode_unit.log",
-        "sha256": "6376f09ff541cbbadb7dcef03e4d4fc36154e988a0686bc2cdcbccd32823dfb0",
+        "sha256": "e83ef1ea4478e6601d9a1799c44e925de1146490248391889c46d2199a6b5370",
         "size_bytes": 657
       },
       "tb_immgen": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_immgen.log",
-        "sha256": "49743acc0906a0b90916bc4cba41823de391a922934cb66d232351c49509a912",
+        "sha256": "ead34970acec2d062b1da8399900a58fef8eab8df25a57db379d38dccf287f87",
         "size_bytes": 627
       },
       "tb_lsu": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_lsu.log",
-        "sha256": "a668fe342bc0bc97c2e7991e857ce7376e2bb284a20eeb7c8f4743571606df95",
+        "sha256": "180bbc44a3b2ab0394c53e0904d884ce0eab2769063d88968463c8586bad0e93",
         "size_bytes": 734
       },
       "tb_lsu_control": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_lsu_control.log",
-        "sha256": "9f09080a061973e7d63a26cb5678844e20c7a78acb323e9781996fdaa686d817",
+        "sha256": "9b0b74d4cc7283b8027df6414ac5c814e4f1f0fd04807a56e260681aafbe59fe",
         "size_bytes": 656
       },
       "tb_lsu_datapath": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_lsu_datapath.log",
-        "sha256": "295a2c0ab6e35c7b58cf90324969088b09a4261a821be1c2c6787dd189410189",
+        "sha256": "9402405e2dbde09599b4e3481124eec62ca40df8a6cfd972188f0f9877ce7db6",
         "size_bytes": 662
       },
       "tb_ooo_alu_core_slice": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_alu_core_slice.log",
-        "sha256": "f453fc1114a9a0dfb996b40288b46cdb22be573098accaec97321d5c25ee153b",
+        "sha256": "44355dddb3862d00d7a71ab7a2082164b9a07ec002c433c07fa648f313405b4a",
         "size_bytes": 31636
       },
       "tb_ooo_alu_decode_backend": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_alu_decode_backend.log",
-        "sha256": "bec0fafd738ec60d71bd60e3c5310cc43f24ec612353a7675b99577518f5f9db",
+        "sha256": "cee3c5d1e06a262d2852c22321718d115b8a49ead79affb20d5ad8152a8ac064",
         "size_bytes": 31816
       },
       "tb_ooo_amo_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_amo_gate.log",
-        "sha256": "20c001f3b3684c46ed94e13036a2eb0adf7ad09532c9b7bbae53251577fcc6f9",
+        "sha256": "8e4a77f6d6d07ae76895b084e7abbe5c704d6a3a3839963335b2288fcbaf5599",
         "size_bytes": 662
       },
       "tb_ooo_backend_drain_tracker": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_backend_drain_tracker.log",
-        "sha256": "2e24322dcdfc8f6c2051a75ed0de55fa95ed114e1999d377f9ccafd5ec92f1f9",
+        "sha256": "8c9df650e013d59416c62a2d8453c1652f610408557f3693afbfd9ef0ff35ac6",
         "size_bytes": 741
       },
       "tb_ooo_bitmanip_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_bitmanip_gate.log",
-        "sha256": "11943cda1f684be3a1c53be99c8f8c198dea939749034ba278308488d9843ee2",
+        "sha256": "454a72dc395751a4e5b010961dc7cfcb489ac932c27a2034a6cdcbe20be331de",
         "size_bytes": 694
       },
       "tb_ooo_branch_append_dispatch_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_branch_append_dispatch_gate.log",
-        "sha256": "a2a5f31e3d8a05c19a57982f56353033e8ea9aa118b9366e8b91cd9e3834df1a",
+        "sha256": "6de78689f2edaab4341d50f442d7211553b059d9f690a5d434b0b55a10a0dde6",
         "size_bytes": 1119
       },
       "tb_ooo_branch_bpu_update_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_branch_bpu_update_gate.log",
-        "sha256": "89fd4427e790fcb4c4babdf4ad2b2792800167399afdc977b5e7107cb3c130e0",
+        "sha256": "d1ec57e55b13f30cdc1193019d7963db52ab06c8736e15ae22a3bf2540e63c82",
         "size_bytes": 1074
       },
       "tb_ooo_branch_direction_predictor": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_branch_direction_predictor.log",
-        "sha256": "dabcc0ab47e4f3059d94866e303e143ab85f0bd6a72c0b885b26cf21f94776aa",
+        "sha256": "dac8eff048c7d7a2a8d86c0acc054e0b0f4e225040dafbba06c6549736cbc10d",
         "size_bytes": 857
       },
       "tb_ooo_branch_resolve_recovery_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_branch_resolve_recovery_gate.log",
-        "sha256": "105fb3381c95a562f54ee3e2972f91fcdb064a81a99ed44f17cfdac2ab5c87f7",
+        "sha256": "97f67c9df8b29d6bd86ed007298b7f8a8e3cfd23d63172e73a7d5b0f66f2d885",
         "size_bytes": 1129
       },
       "tb_ooo_branch_spec_tracker": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_branch_spec_tracker.log",
-        "sha256": "999a3a06fa458005d9a7a79b6433bfab3d24db0d5a280d94daf43d768e16db1b",
+        "sha256": "574c14a72b373e18409122427c442063daf2f27f76b76e3f894a5562371a0174",
         "size_bytes": 729
       },
       "tb_ooo_busy_table": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_busy_table.log",
-        "sha256": "1380a9689a8fee6d4a95cee719b0edb89c76b0c05fdb0d5e75eecd556a24bde5",
+        "sha256": "ae2869d54c090db55341beeff14c8c61e99c862b517d22289eb1dc7f29925984",
         "size_bytes": 814
       },
       "tb_ooo_clmul_unit": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_clmul_unit.log",
-        "sha256": "faa88a81d659e1dacc1dc0114e796dc344b7e923b590d0c7c3626377e7570f25",
+        "sha256": "5662053a144ebc9027f2fdfcf4cd647ce5d17ea5b23818f69545058530bfe881",
         "size_bytes": 677
       },
       "tb_ooo_commit_output_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_commit_output_mux.log",
-        "sha256": "8f522c990f3a978be69e3b99f2bb4ee0be3eacd38c6efc1cb5fbdf69535d3a35",
+        "sha256": "0e9fa671374e9ee1c2bf8d1024849c8f4971a47eca93a700b77bae328aa623ad",
         "size_bytes": 1032
       },
       "tb_ooo_control_commit_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_control_commit_sequencer.log",
-        "sha256": "b4fccaa597b2d53c44f3ef26e14266eab0218f5a76c716b0205baf770102f46b",
+        "sha256": "724067682395256817f713166e253ea7307f008d58735fe274c55d9edccbf041",
         "size_bytes": 1097
       },
       "tb_ooo_control_event_apply_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_control_event_apply_sequencer.log",
-        "sha256": "95b791979be7e14718819b7f3774afbd49f581c18e90020fa41633e1835e318a",
+        "sha256": "8396044132d1ecd2ec626b3fd1d999945cd4fff9c74604da94fa194a4b21fd5a",
         "size_bytes": 1110
       },
       "tb_ooo_control_flush_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_control_flush_sequencer.log",
-        "sha256": "1d7dffe1e899d656dabad43d1c79f72b5684e3cff6b61afd6e5d76814dff0799",
+        "sha256": "0597bb8c9458619632f32063f28323f433ec4e73fc27159cb9d05b6de1301f24",
         "size_bytes": 1084
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_core_top_glue.log",
-        "sha256": "5b950b437c975453ac74b16a3c42c78c384e84226e2973067cced30a8314863f",
-        "size_bytes": 25625
+        "sha256": "a30cffa1edea769a05f522a0e409f32d35878eb1a585ba976e66e7952cd56144",
+        "size_bytes": 25747
       },
       "tb_ooo_csr_access_request_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_csr_access_request_mux.log",
-        "sha256": "637f028b306ec25bd845a7269e12dc9d7196f98908904afcd2deb5c47f20c471",
+        "sha256": "da8fcc7177865cf2ede503d5a0402e672fb5f1b79807a2bc753192aa80d566ed",
         "size_bytes": 762
       },
       "tb_ooo_csr_trap_request_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_csr_trap_request_mux.log",
-        "sha256": "3d734b238893897a624de946f7760c6a45401602bf0803b3384ee721b93934b7",
+        "sha256": "5ed44e064c1f01b95beb3ab48328f17c5a43ff88f5a4c4f92fe577dfcae8e440",
         "size_bytes": 825
       },
       "tb_ooo_data_word_cache": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_data_word_cache.log",
-        "sha256": "6100811c8f82977949aa7afcbf461e59e8f465634f68104fec2880fee512b0d9",
+        "sha256": "280f1b5f07e8575172bdaaf21446a39fc8e89dcb384d4fcaef7ebed75c4dc083",
         "size_bytes": 840
       },
       "tb_ooo_direct_branch_resolve_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_direct_branch_resolve_gate.log",
-        "sha256": "a487a439963954458ea42a94c55e3ac7697b7e5ab7fdf645b415cfd3eccfdba4",
+        "sha256": "b323cd6a021052d658b08c5045135bc44e3da136deb7fe3cb6832efb7ee0e0ef",
         "size_bytes": 770
       },
       "tb_ooo_direct_branch_wait_buffer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_direct_branch_wait_buffer.log",
-        "sha256": "871e8dd13ecd322fba882e637e39708aaa885d168e257c92a479d74d08c29899",
+        "sha256": "8e71d3a91cbe62fd190ffd68f84224dcf8a6f5425b882e08abe5829eb22d5f00",
         "size_bytes": 764
       },
       "tb_ooo_direct_ras_candidate_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_direct_ras_candidate_gate.log",
-        "sha256": "b16f8b8b57939501dadf4635cceaa92db52b05b7e32329bcc20a4c8e2b25342c",
+        "sha256": "7195d8281317e791fa3c75a80d8c0b095f585bea7bec39e90c3c7afa3d129873",
         "size_bytes": 764
       },
       "tb_ooo_dispatch_backend": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_dispatch_backend.log",
-        "sha256": "bf065ec6ec035699380a058341e3a9c5693fd3a422997063c7b9aa59e0a46170",
+        "sha256": "5868e1101e300a6c95100604eec6386147647196a915a6cd732235c76170b176",
         "size_bytes": 5966
       },
       "tb_ooo_dual_memory_sustained_issue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_dual_memory_sustained_issue.log",
-        "sha256": "3c0f1acd1d312a7bdb5995015a7b9d94c5a64027bae5b6908149879874fbd651",
+        "sha256": "d786f58ac99fdf7efb097db0fee4c82e96153215286eb6801b63ac95481f7df4",
         "size_bytes": 306583
       },
       "tb_ooo_fetch_access_footprint": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_access_footprint.log",
-        "sha256": "49463cb3363bc066d8c06baf66819341f05153626622140a15a3f2ca8c813272",
+        "sha256": "3bb38a89d3749bfae25f42878785862b29dc433cccffe58214fe3c1c8ecb94ab",
         "size_bytes": 114441
       },
       "tb_ooo_fetch_axi_access_attrs": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_axi_access_attrs.log",
-        "sha256": "5753ec3fda7b1241cd637e2315a7a79fcc7ab24a93157810bc301dc4d51eadad",
+        "sha256": "515340d65b4a2bd50100231fb62743dfdbd19b3781643403d9160373b0f9d760",
         "size_bytes": 103989
       },
       "tb_ooo_fetch_axi_bridge": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_axi_bridge.log",
-        "sha256": "f2e8b90b61313127bf41e0bf1187828f53208501cc2b9b52d7fa6c0c5480e4a5",
-        "size_bytes": 105504
+        "sha256": "0a6eabe8c91d29f7da9c512cff6259a027e149b11c256ff7117ed22663fafb7b",
+        "size_bytes": 105607
       },
       "tb_ooo_fetch_axi_bridge_xbar": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_axi_bridge_xbar.log",
-        "sha256": "0e25f46dddc4798d64d05b1a2e03046f0490a1cce8e0fd0ba73d43e1406f6628",
+        "sha256": "45e04d65c57e962f179940392ae1a8331787b262a8e2450ec31461c121a0b0ab",
         "size_bytes": 106920
       },
       "tb_ooo_fetch_branch_target": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_branch_target.log",
-        "sha256": "2708227c17d886e20c44422d2f1fa6660c95a49f132852e4cebd2df9d327c005",
+        "sha256": "ea2c1f04a850b463f9da2f4932e78e90cb9de8201b104b960edc4c91936167b9",
         "size_bytes": 731
       },
       "tb_ooo_fetch_flow_control": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_flow_control.log",
-        "sha256": "2500c5f448a7ca5feb604a8a2b915c902ce621256db32cdee90aa700fc77ef01",
+        "sha256": "9341b75036ff8f4fa8e15dd1b786d200f89ced6b999592fe0af28fd57acb9e81",
         "size_bytes": 723
       },
       "tb_ooo_fetch_head_classify_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_head_classify_gate.log",
-        "sha256": "79c63f82c2320692ce5ccd726917279762a2411c30412faddd5b7de7c7041e0d",
+        "sha256": "b3c216440057180e03d95ab23d43b5840f970b6ac3c8c82975c51c8936763b03",
         "size_bytes": 999
       },
       "tb_ooo_fetch_head_pair_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_head_pair_gate.log",
-        "sha256": "a5f14782256d91b5073af866803114f919f74f7692fffb78ef742f34a31c2303",
+        "sha256": "e802c28d6756e796cbd5a17a9851668d12ae6772b4d1aa9716366dae81023fc9",
         "size_bytes": 951
       },
       "tb_ooo_fetch_packet_cache": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_packet_cache.log",
-        "sha256": "cc9d5e3d6cf47a0a8947a1d37ab9a926260a55b83254c3b56385574b317106d1",
+        "sha256": "5490f4b2fa47c0b14c9cae1ba42e415cee605f98f9d8c30b5168ca6974a7fa21",
         "size_bytes": 860
       },
       "tb_ooo_fetch_packet_decode": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_packet_decode.log",
-        "sha256": "8e13726f8f8bf477cd64187a14a0ebcf353126c7f149022d3ca7da716038604c",
+        "sha256": "e1637517ec2a087b54a57491c8a2ff9446387b67a21c8a72e46a4187832c749d",
         "size_bytes": 990
       },
       "tb_ooo_fetch_packet_fifo": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_packet_fifo.log",
-        "sha256": "b709f22c6f87312a6bb1b4984f0f1e56b7550bbaf5f8fdc2d5f0c22b53d60545",
+        "sha256": "cdd419eff12fd562a30fda1100ee9af3236498563136a2cab821f4ed60a060c4",
         "size_bytes": 1397
       },
       "tb_ooo_fetch_packet_head_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_packet_head_mux.log",
-        "sha256": "35c753bf768de06408d2c2de23df3e1962aaa3b557d0bdf9592f372297b9b8aa",
+        "sha256": "3b67b3c15c6a15871c02c3a4483d7e399ba19a9841ea34cfb1f18a10004b883c",
         "size_bytes": 739
       },
       "tb_ooo_fetch_packet_seed_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_packet_seed_mux.log",
-        "sha256": "2017618dff2ad18930b4fb9d05ded08b8531860d9819b3f67a4f7e8b32c08b64",
+        "sha256": "47b0de34ee5285d808f2bd750573ec1ef442ddc4a1c02f06b04d216f3b22207b",
         "size_bytes": 740
       },
       "tb_ooo_fetch_page_end_fault": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_page_end_fault.log",
-        "sha256": "829b08c983c6618cedc3dbe50c2098863e86d76f4be6bbb18a7a841306323fa2",
+        "sha256": "caa06784b7c745f85e366f985eece3bfae408ec5568898d900bc376fe7afe22a",
         "size_bytes": 108339
       },
       "tb_ooo_fetch_pc_outstanding_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_pc_outstanding_sequencer.log",
-        "sha256": "8005f992f6e856ed752f02891ed0835b044011cbb7591ec1ec617fe78e02d0f9",
+        "sha256": "16a97ba53d592e64e2f2b9780f1b725d9d0492072358ee32f3c2dd46e62abf83",
         "size_bytes": 794
       },
       "tb_ooo_fetch_request_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_request_mux.log",
-        "sha256": "cb22126f2dd1defb4cca3dc41da156f6dc9ef37f6aad00f068e429923086d13e",
+        "sha256": "910a6c084ec519a22389531e4a0af53fcb15b8c24838b0ffd8882aea0ffc62cb",
         "size_bytes": 717
       },
       "tb_ooo_fetch_static_classify": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_static_classify.log",
-        "sha256": "7ff82714209f67f3a5e0981865cfc3c5d2ec64d9b3ea3af838ea3bebd7a0fb6f",
+        "sha256": "a5c1fc5f9fdd45c99581e3a1c078e18775aff60748eec39abc3d11bfd651b91e",
         "size_bytes": 1229
       },
       "tb_ooo_fetch_trap_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fetch_trap_gate.log",
-        "sha256": "4b2b1206da5ba312a802a949eb9e6fb64667563a45a6a280731facb1901d5935",
+        "sha256": "5ae019877c92d2b265a68126227642da740dd089392a9d98e97aa195d5c9a767",
         "size_bytes": 34643
       },
       "tb_ooo_fp_arith_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_arith_gate.log",
-        "sha256": "813d7bd64876fd0d18bda7c062a0b085c7cfbd5e8d204a467e69c8f1134d2b88",
+        "sha256": "086aa1b18abbe2ae5609363a665b1759399ffa098ac83c61eca4e28fac0d84c5",
         "size_bytes": 693
       },
       "tb_ooo_fp_classify_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_classify_gate.log",
-        "sha256": "e2f802f34a8a807fe745b5459057e1eb6e8399d261a8c37279df5e2bbc394dde",
+        "sha256": "431bd62e80645a2416b9fd8b820abe825a8e1752baf249383a251de2df26b39b",
         "size_bytes": 710
       },
       "tb_ooo_fp_compare_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_compare_gate.log",
-        "sha256": "c4c98dc2b19f425e21e247b85babc4e57fff57e78f0e2bffe5241c7139b43963",
+        "sha256": "ef10d2b22097146e44423d1d74f4ba1919216662968c13698e33f0b14d2f23c1",
         "size_bytes": 704
       },
       "tb_ooo_fp_convert_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_convert_gate.log",
-        "sha256": "12ad3be29308c50b22630cc1b854b9da06803178264ff69bd72ebd90cdd0c1c7",
+        "sha256": "7bab3a78708f623c38a9972ee26bc6cf9e2794f601920cb3320f38c3c94b6125",
         "size_bytes": 703
       },
       "tb_ooo_fp_issue_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_issue_queue.log",
-        "sha256": "07c08f557db6ac017c0818a365c0a4c2372769936f931a9b504d6ec6aa3461fa",
+        "sha256": "d96367b9057247674d458066de784e93b4b4c1ef80862e0a1ab17830c6824f62",
         "size_bytes": 4199
       },
       "tb_ooo_fp_iter": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_iter.log",
-        "sha256": "56c7f6298882b4b162dba518bfef04988e5f6713107b29a0a6cda3c074c777d9",
+        "sha256": "cf111ac33e5dd9e8e4c47626d87bd97d2d64a5767631934286fe25fb5161e835",
         "size_bytes": 728
       },
       "tb_ooo_fp_legality_dispatch_path": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_legality_dispatch_path.log",
-        "sha256": "38c30fdfac2257ffbde5ed657c519608e5df91f8635cdc9c0d78ce8dd2381e9f",
+        "sha256": "e1be771429cc55bb8ae331c617908cbda0541f9410da705eea95396f03a3192a",
         "size_bytes": 2032
       },
       "tb_ooo_fp_long_op_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_long_op_gate.log",
-        "sha256": "0c726f5e95f06e2068ec68c17f2ed82851bfbe0270f19949c93d7e295eb46676",
+        "sha256": "d5c7696531db62b320809024bc8ad029cc291c7f6cd64fabe326f8ae0a8d8eb1",
         "size_bytes": 835
       },
       "tb_ooo_fp_phys_reg_file": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_phys_reg_file.log",
-        "sha256": "301a99f592c11f855ec918075a4230b4b4becbf4d16fab8f61f488b0b982de1c",
+        "sha256": "04e60f94f50706f8200c17d34692129990e7d450cc079651cb4eb864eae6dd92",
         "size_bytes": 1242
       },
       "tb_ooo_fp_reg_file": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_reg_file.log",
-        "sha256": "e78e1b2ebff3c6c54a73d09493c4c8be7b2307e8fa413877c8f3cbc7bfe5d59b",
+        "sha256": "2a069ad90b885f2374b4de9f7255a5c4530fd7b05dbccb98081749f828d6ea53",
         "size_bytes": 989
       },
       "tb_ooo_fp_sgnj_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_fp_sgnj_gate.log",
-        "sha256": "11ee98ca8fc24a7a4b1f3659590bdee16c4af5f82ce9dec2ace6e5aafbf07d7f",
+        "sha256": "4cf117d6f3110d8fde43cf8dcfebb54783000003cc3aa8a79d462418253620fb",
         "size_bytes": 685
       },
       "tb_ooo_free_list": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_free_list.log",
-        "sha256": "d61e77d93cc6be21f841831cf08a81264fce845968b7f067b29060ed9c17a217",
+        "sha256": "c3f7459cb5137824368ca61333b6458de555bfcc33469508a906eb9beccb4afa",
         "size_bytes": 677
       },
       "tb_ooo_frontend_action_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_frontend_action_gate.log",
-        "sha256": "81f3bd47572f7c5ce61b9ca20afe46666f929b89d919b21948f034db408e11cb",
+        "sha256": "2c3629c2f39455ec274ca6be3f79f138db90e321da1f9d2ffca1663f52cdcc95",
         "size_bytes": 735
       },
       "tb_ooo_frontend_backend_dispatch_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_frontend_backend_dispatch_mux.log",
-        "sha256": "2e5ac912ad27ab7eaf213dd468aa5f82b6a95ce5d6ae242a2dc4c6b7b5c4f3c9",
+        "sha256": "f6c3a80bbe4f217d3b2b8038aa6ddb65b58bceb8e5cc77db20e49acb17e2bd69",
         "size_bytes": 1143
       },
       "tb_ooo_frontend_dispatch_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_frontend_dispatch_gate.log",
-        "sha256": "c28a4d997cd34d462dea8abcaf76ac19db707d57e0223e3c80a55a2796f082ac",
+        "sha256": "3dbd7eccc546f51ebf5532d13ef3cc320d2db434ee8601a0097994119166bac2",
         "size_bytes": 1055
       },
       "tb_ooo_frontend_run_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_frontend_run_gate.log",
-        "sha256": "839ea657f2ec4678e9cc269fb95a1670d95266b41faabd90cda1d5624c289e06",
+        "sha256": "d6875b0883f9272ca8075d27e9e8dc5c12d5ebe8ac848b223298fed468f5b80f",
         "size_bytes": 717
       },
       "tb_ooo_frontend_uop_safety": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_frontend_uop_safety.log",
-        "sha256": "c8e0b15638551d2bd7dc7487da642e49a96d6addaef4550aedda4e1b5e05a52a",
+        "sha256": "e55e45e55082047b128df9b428ef51c4cf08a79a34c68c7f4b05ed5fc2e3de8e",
         "size_bytes": 729
       },
       "tb_ooo_ifu_lane1_fault_owner": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_ifu_lane1_fault_owner.log",
-        "sha256": "000fd22170241c19846632d5a15f9b3d61898771e550455dcd3d887335a8930b",
+        "sha256": "7797c27101528a045e653277f6b929d4c399801ded19e76d2e12dae2b1625a70",
         "size_bytes": 9053
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_int_backend.log",
-        "sha256": "9d174534009e3c50f2444ba435281fd9e733be73c615898a10f413d6978b9f45",
-        "size_bytes": 26931
+        "sha256": "c17c80fe49aa99068f3400fff9d98aa0b5992e5b4f27a5d8e52c1c364ae3a37c",
+        "size_bytes": 27065
       },
       "tb_ooo_int_issue_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_int_issue_queue.log",
-        "sha256": "97ed620cbed0540782427afdf20bb6f418fc43b3d397e46d7c48a08fbf0bf6c7",
+        "sha256": "768406d96a123574ae2babc3c2e5594f9e0147f4f116dd4b3e3c6c6908a643f1",
         "size_bytes": 11723
       },
       "tb_ooo_load_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_load_queue.log",
-        "sha256": "a2c13ad0bfe3a7050751265b537609973875f9c9c548a8933c7a4aef0e47a642",
+        "sha256": "78ff067dd79020b91897d58c215ad5fe3814b25f0559883d5fe5330abfd06b9e",
         "size_bytes": 4419
       },
       "tb_ooo_lsu_axi_lane_adapter": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_lsu_axi_lane_adapter.log",
-        "sha256": "09aa7226583b6c6e9ddfb06a623af7917f34ceddaaf5739605ae543d37ba7101",
+        "sha256": "84c619eeabcdc0fda3da52432a2f66d25f6e454774d53be3e39cdd46c0f08aa4",
         "size_bytes": 1087
       },
       "tb_ooo_mem_axi_bridge": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_mem_axi_bridge.log",
-        "sha256": "15c9982097a0a7b427bcde2c32c8edbe8becf9d982896c146b3649f9c67ff399",
+        "sha256": "1e48767f76ab41e7921a8099978f0530906cb3dae5e603b78ebaa46b5a0bdcc3",
         "size_bytes": 74842
       },
       "tb_ooo_mem_inflight_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_mem_inflight_queue.log",
-        "sha256": "5ff2d9ed1a83bf1f9e4029ecb5eab3326889d3eb008ef8f99e7e0e2fce31eb40",
+        "sha256": "d51887f2e07149455a6d2f5a6b729c344d5815a131eb61cc3c5effc541305c66",
         "size_bytes": 1590
       },
       "tb_ooo_mem_owner_terminal_collector": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_mem_owner_terminal_collector.log",
-        "sha256": "a93b16ba1fe39f56b70d9ff52b3cbbb6bc57f84d85bf3fa21f13ac537c0f556c",
-        "size_bytes": 1241
+        "sha256": "8a1dd554b5c7e9aea16e9f6b32b119c2ffe5816aa893370d533122305d098234",
+        "size_bytes": 1340
       },
       "tb_ooo_mem_owner_tracker": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_mem_owner_tracker.log",
-        "sha256": "166d8c1bc10180e6b23ed22b2dd1c38aeedacd2db1a5dacb4001a8a4bc999ff5",
+        "sha256": "f328ba4b9d389defe037abc5f0f2e6b7852eddbbd514ee7bc40ef2e3b2f667f6",
         "size_bytes": 1555
       },
       "tb_ooo_memory_request_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_memory_request_gate.log",
-        "sha256": "d84c2bc30f1ba29836c563b0ff7e1c8de8392038a65992b87c1e9f859bef44ca",
+        "sha256": "c9d67103332c741da6cc900bc16daaf9f460bd717e31a7248e9b9c2abbcbd0f3",
         "size_bytes": 1187
       },
       "tb_ooo_mmu_epoch_owner": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_mmu_epoch_owner.log",
-        "sha256": "d7f7e29bf8cc7e4e467ca9d39c1f4c85269422f7a9b97e951bb10ade4f036eb2",
+        "sha256": "0cc1a9373bd16488797682f3f16a2d8ca832f06b9c0d6f9bb787ed91136e9acb",
         "size_bytes": 942
       },
       "tb_ooo_muldiv_unit": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_muldiv_unit.log",
-        "sha256": "6f3323322e86139d0fb6d57415f53cc99d15fbbad00bc6d996f4fcbd2f3cada2",
+        "sha256": "4ab95371b78185ba6a11f89fde26136258bc6bcdb6d2941b15910fa1e589d0ea",
         "size_bytes": 685
+      },
+      "tb_ooo_pending_arch_trap_memory_terminal": {
+        "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+        "sha256": "d13d629b7de326330485924f9ffc2a21e2822af665fe2aa6635baa0b20dbe83f",
+        "size_bytes": 952
       },
       "tb_ooo_pending_dispatch_arbiter": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_dispatch_arbiter.log",
-        "sha256": "92801466ba8d97d78f780bb7668c18e4b97dda8c2fc6e935d173b62d5b815900",
+        "sha256": "a78b1563475570c1582f1b368d3d5fa89f746d9cd17b37a41069cd90af97e676",
         "size_bytes": 1411
       },
       "tb_ooo_pending_drain_resolve_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_drain_resolve_gate.log",
-        "sha256": "a0c188d14928ba6107efe4f6293b6c9caa3abea2a6ba4426f77a2f5ecb96721d",
-        "size_bytes": 769
+        "sha256": "34b49983a068a9a5bcdece22ff4ec53043eff08bcdfe8091497f1903fbb2dde0",
+        "size_bytes": 885
       },
       "tb_ooo_pending_lane1_capture_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_lane1_capture_gate.log",
-        "sha256": "82157f62d7f0f9817af97f78fbee3fbc70f3361b746421ac44900fbc0fe269b7",
+        "sha256": "4ff14af77bc214e9d4b2511922165ec767b4ecc53e592ae23a10ff76e3f8b93e",
         "size_bytes": 1199
       },
       "tb_ooo_pending_system_admission_cancel_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_system_admission_cancel_gate.log",
-        "sha256": "90eb3532066536a2d8fba2b710765316a4c5b5caa86e22b38d1c7e2dd09cb43f",
+        "sha256": "8accdf997d29a9037a9c6e18726e3b8ec6f7a29385cec22064ddbdf01c5aad70",
         "size_bytes": 1226
       },
       "tb_ooo_pending_system_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_system_sequencer.log",
-        "sha256": "f2c4faf292d83ffaa5560769521dbb4f260a60df163f7f311db328896d198397",
+        "sha256": "de48aa7e0ce156274ff689b4571eaa474afd96570d2b4c36094718af706ad63a",
         "size_bytes": 1190
       },
       "tb_ooo_pending_trap_exit_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pending_trap_exit_sequencer.log",
-        "sha256": "ea0b311446b4ef4f6a318fede3122330da0ddb4e537e11bc3cd8250ed3e52528",
-        "size_bytes": 887
+        "sha256": "776cdf119242f1103fdfa293016bedab5f1b6f59f907126214c4d960dddef963",
+        "size_bytes": 956
       },
       "tb_ooo_phys_reg_file": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_phys_reg_file.log",
-        "sha256": "d5f58980c92d4cc193d16d875c287fd271682bb5cb57835068157c0ae0f173e7",
+        "sha256": "724bfae8de080769cf9a4100ffb8cdd2ce5fe064433dcce7f77a61d1c625bb66",
         "size_bytes": 699
       },
       "tb_ooo_pma_checker": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_pma_checker.log",
-        "sha256": "25cfe1e109cbdc10bde0991362a51d3317b2bcd933b4c8ff671ad2d2ddac9046",
+        "sha256": "38ed0df54ca90de47999e8790867680cac186e4d6555f99dd433c47d5c604704",
         "size_bytes": 821
       },
       "tb_ooo_priv_system": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_priv_system.log",
-        "sha256": "271387b948ecd19a4559b68132001ce50b043382b1c9a3bc7af0e9718eebcffd",
-        "size_bytes": 27208
+        "sha256": "60d3e0602b3b0195fcaea52020452fca8b7e0921b0aec146e2b9083c9e622585",
+        "size_bytes": 28717
       },
       "tb_ooo_ras_update_gate": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_ras_update_gate.log",
-        "sha256": "320541f910cc5ebdb6185900e7d9ce5a1c73b34b7f98b7e51bca979f552fb1eb",
+        "sha256": "d6639416f0a6df9f770c42b2a6bce2a30668ec908ad2aa1914441777e4144cee",
         "size_bytes": 705
       },
       "tb_ooo_redirect_arbiter": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_redirect_arbiter.log",
-        "sha256": "820f7aec644a4180a3864dd696208ca27da96a0e627502fce56dace1dde6efea",
+        "sha256": "c1f1e14e623757f46cf17b06a7bf02ea842fdccb9b40b4158558be22303524a4",
         "size_bytes": 711
       },
       "tb_ooo_rename_map": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_rename_map.log",
-        "sha256": "449a673558d7b4aa3f04efc2b6af9e38e17a4fd6960b80374cd4445b03c2f85d",
+        "sha256": "c01cf363be32ae26f12b815d5c3e025cfbd21acfb131c8ade868da5a734e5963",
         "size_bytes": 683
       },
       "tb_ooo_rob": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_rob.log",
-        "sha256": "7cc42b3d0ef5d8c3718185794b8f1be5d7667b26bf2adc01829908f421bf19ac",
-        "size_bytes": 1566
+        "sha256": "d56cde091cf8c8515ee249ba6b1b38444be92a60757151dee4a66d97ec947618",
+        "size_bytes": 1717
+      },
+      "tb_ooo_serialized_owner_exactly_once": {
+        "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_serialized_owner_exactly_once.log",
+        "sha256": "6e8b857e222a834e68c39c1df37558530de25efac43f02e88c9c7015c13eccac",
+        "size_bytes": 4085
       },
       "tb_ooo_stop_pending_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_stop_pending_sequencer.log",
-        "sha256": "614c1ead85f38e9d44d1903c96d6d704c2d71c2d906718e2020ac9deb2a9c93f",
-        "size_bytes": 1075
+        "sha256": "591b45752d955a839ba275467c47407041ee69e4df62f3a339ee179503e10a97",
+        "size_bytes": 1143
       },
       "tb_ooo_store_queue": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_store_queue.log",
-        "sha256": "cfc3c2e884c093be14f0bb7b7b335f30738efd964940b5c9d18e00507840d74a",
+        "sha256": "87ea9a4e5a9889d6e8ec77a85dddc7d8a026c3d1ce5ac75f5cfaaf59f6deab38",
         "size_bytes": 7079
       },
       "tb_ooo_sv39_boot": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_sv39_boot.log",
-        "sha256": "c48fa7bdb027723faf0c9f117ed269dc6552ef676ac454cb18c3f9e627f0ac67",
+        "sha256": "0aef7b48ad89f5f54563c43ca260223d3cab0c2c626d4ff4b8e0075b8417d8c1",
         "size_bytes": 287313
       },
       "tb_ooo_trap_exit_event_mux": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_trap_exit_event_mux.log",
-        "sha256": "517edbdac624587052ed28d577dcb219dc38cede6f2b90aa767c0adf47152eaf",
-        "size_bytes": 741
+        "sha256": "214cc1058250180f9b82ab4b42bbd189370e7186fc0cd88cbb602954fd827398",
+        "size_bytes": 797
       },
       "tb_ooo_trap_exit_output_sequencer": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_trap_exit_output_sequencer.log",
-        "sha256": "b4b2b97a09e69884d9eb66e47366d872161dd0c099175a61e608f57b251baedb",
-        "size_bytes": 790
+        "sha256": "186697945a62cdabe11d9f87c1229e12dd97e52e518e830b140ba8ab5b964f51",
+        "size_bytes": 846
       },
       "tb_ooo_typed_memory_classifier": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_ooo_typed_memory_classifier.log",
-        "sha256": "17d97b27df1ef5277acd5a78a5698dc542ae18fc925c14f65d22769c7ad9563b",
+        "sha256": "4834293e4127c2ce9cfd67492de1ab0c56fac56a9a6e1bcc438bd2dfd5ea2931",
         "size_bytes": 841
       },
       "tb_pipe_stage_reg": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_pipe_stage_reg.log",
-        "sha256": "6bb8f03d5ae5e03f2daf5cef6f42cc8e0ce3b1a8d73c48404361e626bde849fc",
+        "sha256": "bfa5193aee3847c8a25cb8a70f6f5ee9324513c2b3d2924cec14a39ef7344d60",
         "size_bytes": 676
       },
       "tb_pmp_checker": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_pmp_checker.log",
-        "sha256": "9b9b8287749d12edccd89948b36670cc9b0b1e7c065fd2246470d17a55d120c6",
+        "sha256": "0c4a4a2d5ab9e2b79a3eec6a624093c5af5089ae32b5f01cbf85f69070742c8f",
         "size_bytes": 17803
       },
       "tb_uart": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_uart.log",
-        "sha256": "ca1c90bb865bcd6eca8fefac84c99d01fcaec74b4bbad172b35eaac398a76df7",
+        "sha256": "28caf9792b6945268905785d952f066079a2c96769bcfdb470319560e9e089de",
         "size_bytes": 614
       },
       "tb_wbu": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/logs/tb_wbu.log",
-        "sha256": "3bc0e20b541d32bb10885003dfade03d7a4137cd91457ef8e59b1a630faae9ab",
+        "sha256": "027d2b98eea79b734f7e80bf23e57b2cb3dff181ea6ad7fddd475b733be935a7",
         "size_bytes": 612
       }
     },
-    "passed": 111,
-    "required": 111,
+    "passed": 113,
+    "required": 113,
     "run_log": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/run.log",
-      "sha256": "1f6b058264a874eaa6d0ba9d1191241f4979d70a44da37f2d9bbcb921f4cc07c",
-      "size_bytes": 4369
+      "sha256": "60e1dbc9a361f02c63496abe146c06422e172f7aaf20437e6f33d349b6e9040e",
+      "size_bytes": 4461
     },
     "summary": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/module-aggregate-current/summary.txt",
-      "sha256": "279ab85ec0a403cc7c94a3be2a99c74ea5bf00b23a53c45f6eeecab0db35b41b",
-      "size_bytes": 3728
+      "sha256": "538082a5fd5188d7327916b98528125feb6e34bf1c554554bfb88147585ff3ae",
+      "size_bytes": 3820
     }
   },
   "provenance": {
@@ -866,8 +878,8 @@
     },
     "npc/rv64/design/specs/ooo-flush-redirect-contract.md": {
       "path": "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
-      "sha256": "c06c99cbfa714ea961190c98cbbb73f9c66dfe83fd4db9dc47a14a6571bd4821",
-      "size_bytes": 61292
+      "sha256": "a0ec08cb8e3cb8a23ea842ae172acbe03026308759d43c961eff4870dbeb42b5",
+      "size_bytes": 62965
     },
     "npc/rv64/design/specs/ooo-frontend-action-gate.md": {
       "path": "npc/rv64/design/specs/ooo-frontend-action-gate.md",
@@ -901,13 +913,13 @@
     },
     "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py": {
       "path": "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
-      "sha256": "f53f3a4b1d6862059d295213aba16a1029419e3e8a7fd49409cdda6572030018",
-      "size_bytes": 78015
+      "sha256": "a55c3227556d277d19bd4d91f0179142787a28b55c19d96a5f66c3af9c657fdf",
+      "size_bytes": 85991
     },
     "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": {
       "path": "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
-      "sha256": "98172046f59d4d01425e2afe2c9819f8de8f87b105f6d1c5a5cb89fc188a0a3a",
-      "size_bytes": 366965
+      "sha256": "8a105027c8d11a7cf7bfb806033a18fd9a78ee000d0db6133a450910b8961bec",
+      "size_bytes": 373026
     },
     "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": {
       "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
@@ -915,12 +927,12 @@
       "size_bytes": 103354
     }
   },
-  "provenance_sha256": "b0ccbdf7a2014810b602b4ac5a2377654e2e2f2065f455df949b1bf2ecb791e9",
+  "provenance_sha256": "655d0ae2c956bc0e430981b7165fa7d6f3331776ef7141d7fedc1ea20fe9ce33",
   "rtl_mutations": {
     "baseline_lint": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/baseline-verilator.log",
-      "sha256": "91ec0c427bd04f18df72064d9eb0ccbd515d19d6b9caf8b0ff0344764b4013c1",
-      "size_bytes": 295300
+      "sha256": "5b889a14bb570725f26840e5c49983ee56633c24c08603ae6a728acce7b4b763",
+      "size_bytes": 296745
     },
     "compile_success": 11,
     "dynamic_rejected": 10,
@@ -928,57 +940,57 @@
     "logs": {
       "c0_request_does_not_reach_c1": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/c0_request_does_not_reach_c1.log",
-        "sha256": "a6d2c6b0ca7674a4e10ca3e3d8ef1f6123bc2db2b65a97b2c3bf63dbf345e2db",
+        "sha256": "d0fc5268601c60754dcf76e3f70475525c768bd65a46b89f92718b6377e24cb9",
         "size_bytes": 1513
       },
       "c0_request_is_reconstructed_from_trap_pulse": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/c0_request_is_reconstructed_from_trap_pulse.log",
-        "sha256": "88e16730dc2acfafbe4a9b2095a38c3c92e4ed30fb7375e4cd652988108b7b41",
-        "size_bytes": 27249
+        "sha256": "73e6c23c4911dc3ebe382e5ba5a27551347e34897a7877790a522f3ce7d0797e",
+        "size_bytes": 28444
       },
       "head0_pregrant_does_not_mask_branch_event": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/head0_pregrant_does_not_mask_branch_event.log",
-        "sha256": "ffccee28fa88813df8478f1eddec29185e1493fc4d99b183387edf45d74dd72d",
-        "size_bytes": 27329
+        "sha256": "8d2501b4cb9c1d777458efe18755bc0718d42a851838ddfd0f53c3f840f8f972",
+        "size_bytes": 27463
       },
       "head0_pregrant_does_not_mask_branch_recovery": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/head0_pregrant_does_not_mask_branch_recovery.log",
-        "sha256": "babd4e6e902754591a6e0c691212f7bcc1e44a9eee5375e1e2e6cd0aec466f58",
-        "size_bytes": 27475
+        "sha256": "5f45c3952e1069f40df725b6484c139fc7116ed2fa7ee9eba174f321a5f71ed4",
+        "size_bytes": 27609
       },
       "pending_csr_owner_ignores_producer_id": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/pending_csr_owner_ignores_producer_id.log",
-        "sha256": "1bab51939cab9ca733ec5a03ac20018a1bb23d085375940333be7ad17cca94cb",
+        "sha256": "48eda58626162cbefc98f87cf80cfe00f466c3583bfc159f8b88a4a3004c8899",
         "size_bytes": 2147
       },
       "pregrant_reads_current_completion_ready": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/pregrant_reads_current_completion_ready.log",
-        "sha256": "d97c5adf8572771bce5ac753e5a736f9c712bd25a35f97f86c7b3bc4f10dd162",
-        "size_bytes": 384962
+        "sha256": "b5d1b94d3d17678a7dc072f4b25416dfcea2a31b6630ef47e6281f9746451357",
+        "size_bytes": 386558
       },
       "queue_head_mode_requires_both_memory_pair_ids_at_head": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/queue_head_mode_requires_both_memory_pair_ids_at_head.log",
-        "sha256": "76d10428284094838b5d1cd837f840a7bf5c3fe5f59e8395be25b55b41457cb2",
+        "sha256": "d880d0cf89ad4742b129026f99363dfacc7e0b93a748e2703d017dea66384ce9",
         "size_bytes": 27470
       },
       "registered_read_address_valid_is_barrier_gated": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/registered_read_address_valid_is_barrier_gated.log",
-        "sha256": "186e8c02ba44a2ba9c889890e558cb027f1b459acdcb4244a69632a0f075f39c",
+        "sha256": "091dde8de8e30a7e97a5a3bb6c1cf5084f3fd9c9ecf217f246d5747a0e2e1c75",
         "size_bytes": 70369
       },
       "registered_write_valids_are_barrier_gated": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/registered_write_valids_are_barrier_gated.log",
-        "sha256": "5c0ab5ac27c6eb41181f2bf848f59c82308d918d3851dd180e286b8ac9568d80",
+        "sha256": "24b92e93e9911ec718a30378146a933ecbed319dcd21075d2cb6b9bfdb107c64",
         "size_bytes": 83362
       },
       "strict_younger_changed_to_greater_equal": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/strict_younger_changed_to_greater_equal.log",
-        "sha256": "18a3f55b670338e2ed9022cee2f359841a4b967a3f9f2bbf5f1a5517f63b1b15",
-        "size_bytes": 2157
+        "sha256": "f5024e912509b04f1d87e6321cb16d1c0a67bd863efbdfab49200c9873611107",
+        "size_bytes": 2308
       },
       "typed_reason_is_not_latched": {
         "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/logs/typed_reason_is_not_latched.log",
-        "sha256": "b55aeee59abca06d9947987e1b825416f174c8b9ccac432ccc58f56cb4cf3292",
+        "sha256": "e76194b40f55c85d65e77af2c26fe0be132bedb6a4f8df5f78deec4896ee17ce",
         "size_bytes": 2080
       }
     },
@@ -986,12 +998,12 @@
     "required": 11,
     "summary": {
       "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json",
-      "sha256": "1329edf63e2bda277262043283b888695f7a063b5571a4617a7cfac97ba4f14c",
-      "size_bytes": 51783
+      "sha256": "98db7346ace213628ff1da607a900dc37e817223c7062e12fc95d03e027484de",
+      "size_bytes": 52359
     }
   },
   "rtl_source_set": {
-    "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+    "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
     "file_count": 146,
     "files": {
       "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
@@ -1012,26 +1024,26 @@
       "npc/rv64/vsrc/common/OooSlotFacts.v": "9e57f514234340a93943bbaea8504b4bb6f9d57d9ef8bc20121fb6575613163a",
       "npc/rv64/vsrc/control/OooControlEventApplySequencer.v": "ba3124ea66ed569445df24912a5a51906e86a7301a16fd6662514d4051f61d0c",
       "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
-      "npc/rv64/vsrc/control/OooControlPlane.v": "bb74fb39fcafa73c4a2fabdb7ebe1cfa2c196a9aafbad969735253be8790e35e",
+      "npc/rv64/vsrc/control/OooControlPlane.v": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
       "npc/rv64/vsrc/control/OooCoreObservableOutputGate.v": "3c3aeafabfbf8a2bc6821173f0a19826b44645699c7d34c4da4e0ad561428bfb",
       "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
       "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
       "npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v": "5007f5970858cdf3baf0e6f29c44a6c8e7bb4e926a3888c510d1b2f1d389d7af",
-      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "3d1a9e2b712b15c1af7247ba5d4863e23e38e0136af28af837a42acf61a5a6a8",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
       "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
-      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "6be380f766d03dfffbbe970b696226c14fd6eea4c6d741b491108c760be108b6",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
       "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
       "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
       "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
-      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "be0e2810faf76a95d4ab5e9638d1b8b8f4182fdd23a1f0d160411539e5a12a9f",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "759eabf4952f062d9c9143ad35c19daecbf340c8dc86e601229d19b23f5de304",
       "npc/rv64/vsrc/control/OooRedirectArbiter.v": "6ac39c942a1cf0a8a9e782f546e2508bd94a33804e6f78cdcf4684c1557bf3c1",
-      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "1f49276a62b3c8c06e1f2e51351dc837300a9822eb1c05d120fb0ae72b4059f9",
-      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "177e232cbf04e47721b34f9ae329b8d6448d2b34169520079d9f12a78c0b8a75",
-      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "af8bf333c2dee7928790b30eae4562e7c57c91cdc10014f9db557e073f411244",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
+      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
+      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
       "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
-      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "0fdb0b5737157efef30d25f0d622c0280140b58afbb2a0391125f5c79e12dd66",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
       "npc/rv64/vsrc/debug/OooAdUpdateChecker.sv": "3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42",
       "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv": "c8b76d3d8abf32cfef2516a0024e2ba6f3d9306526ab3382e438b021982d09d4",
       "npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv": "ecbcf80612859aa41a6da8bf50a4cfbc55d2ddf785c21071e014244bfb9e4d38",
@@ -1041,16 +1053,16 @@
       "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
       "npc/rv64/vsrc/decode/DecodeUnit.v": "a457a7b1fe65e528295de35c5107fa26f2bcf501c2a71af064517224c58ab763",
       "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
-      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "48a268510c8b688ebce829f99637b9d932f4bcc3e3d95f504e2cded18e976c5d",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
       "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
       "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
       "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
       "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
-      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "98d4e997aa1a87f808e1bd1285f4d8aab860baea324d8b1fd5b787d898fa6109",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
       "npc/rv64/vsrc/execute/OooAmoGate.v": "6a1f7818864646f390bd3d69b21d8aa97252abfabcb3ec4cdf8f02a60229eebb",
       "npc/rv64/vsrc/execute/OooBitmanipGate.v": "441a38dc7e70ac2768d613fdb5558be6d946faa3118b6bc601e7a6b2f6c47e19",
       "npc/rv64/vsrc/execute/OooClmulUnit.v": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
-      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "b7959de74f0c223898d7e60ff19d01d157919a3802e474ac0ab7966e985dedfe",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
       "npc/rv64/vsrc/execute/OooFpArithGate.v": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
       "npc/rv64/vsrc/execute/OooFpBackend.v": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
       "npc/rv64/vsrc/execute/OooFpClassifyGate.v": "a9c9ae843b0455ac9b9f13effcc3f28aa60277131f58612511caa3728f5ef015",
@@ -1062,7 +1074,7 @@
       "npc/rv64/vsrc/execute/OooFpRound.v": "030ced9ded4ea32062dd9b72e178d6bbbb5ef256b3f7c0a3e278995256a27ce2",
       "npc/rv64/vsrc/execute/OooFpSgnjGate.v": "8557cc364a19060f6cc09d413c24ef71d153b2bb20237b5bc34fb901b822451a",
       "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
-      "npc/rv64/vsrc/execute/OooIntBackend.v": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
       "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
       "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
@@ -1087,7 +1099,7 @@
       "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
       "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
       "npc/rv64/vsrc/frontend/OooFetchStaticClassify.v": "1b8a4e3f1a06d69af1d3277f3a009520d94587bb9a4f8bcb06e434bbfbbf316a",
-      "npc/rv64/vsrc/frontend/OooFrontend.v": "816473c9ae6296b707e00840a512fdfbd18975ad28dcf40a11ba34c6938dc760",
+      "npc/rv64/vsrc/frontend/OooFrontend.v": "cf146eb2d8a1a007bb876420c1243ad3500b0a7e4b20aa51769521ac7cbcd1d9",
       "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "ab30a7d0d944c7f1e41d7cd0c48b82a1569afbf7ebd35e9f05fd91749aa2176d",
       "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
       "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": "89de85b5302b8a54427b754c0398065c2c02d8c5baddbf85942ab68ad8f61da3",
@@ -1095,7 +1107,7 @@
       "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
       "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
       "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
-      "npc/rv64/vsrc/include/define.v": "9773faaa76f10a450945b30bfc6ac9aec5c796a3baab89ba90998e09b136d781",
+      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
       "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
       "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
@@ -1105,7 +1117,7 @@
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
       "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
       "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
-      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "56c1cc17662c96cbf4300e77fa7b26d4420e6130cde0eb49b6a7f3402e90aefb",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
       "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
       "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
@@ -1131,7 +1143,7 @@
       "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
       "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
       "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
-      "npc/rv64/vsrc/sim/NpcSimTop.sv": "e897b4257d96e538e7846dadaea6f6b99702c3212cdf45ce45d5e1c9b3d35334",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
       "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
       "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
       "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -1141,7 +1153,7 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "sha256": "1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702"
+    "sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897"
   },
   "run_id": "2026-07-23-rv64-v9o-control-event-current-design",
   "schema": "npc-rv64-control-event-evidence-index-v1",
@@ -1155,12 +1167,12 @@
   },
   "status": "PASS",
   "verification_source_set": {
-    "file_count": 135,
+    "file_count": 139,
     "files": {
-      "npc/rv64/testbench/Makefile": "1a044aca87fed86a5032a648323e65da309607002a003452ac319b7f12508a4c",
+      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
       "npc/rv64/testbench/common/rv32_encode.svh": "4f304dc71e654a523bdaa5f511afc2b7a28769f04c9bd0043fd5164cbb6f6d01",
       "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
-      "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh": "5cafd5594562ea08c70ac81d5c4c0f1ef82f92166ceef391ba9bf0480204c48a",
+      "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh": "f3899f8fcfca9af39b1092f7acc7f36eaf019082b8f854c136db2664dfeed633",
       "npc/rv64/testbench/scripts/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
       "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py": "a6a825b36a6913560e3d64f570db8080336d5378aec1bfd8bedb871cf7b96a6f",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
@@ -1175,6 +1187,7 @@
       "npc/rv64/testbench/scripts/run_int_dispatch_packet_packed_assert_negative.sh": "466458875535aac2f2750c37613d321733a00981214b47e7ada9f15c546a01a9",
       "npc/rv64/testbench/scripts/run_int_issue_queue_packed_hole_negative.sh": "99f64b8e6755ad05f01e56b426c6dd02c4dcd498943a12b4f58456b4a8632286",
       "npc/rv64/testbench/scripts/test_check_tb_result.py": "a1dc88622513458db955d6ff3f134055cf8606d296035312e4d043fe7c6ed503",
+      "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py": "f8c41eb8a3e3b07d6af42c3672d09455b53a25d0e8eb6d539c39faa5d149f15f",
       "npc/rv64/testbench/tests/tb_alu.sv": "58580db3b14701c112c1f0980bf96c340c04f0ed07f93fd0c211401e455dcd71",
       "npc/rv64/testbench/tests/tb_axi_clint.sv": "0a95dca122ad71a9cc1ac0c64b3447c96ff2fa26aded27fb315e43874ed24426",
       "npc/rv64/testbench/tests/tb_axi_exec_firewall.sv": "fa16713377c9d462bcd44fc58b1ea55f4ed6620d480befcd5b57f9a4df3fa5bf",
@@ -1207,7 +1220,7 @@
       "npc/rv64/testbench/tests/tb_ooo_control_commit_sequencer.sv": "0dd18d6ef66ba4c983c5269558deaa10b41e3fdc8d6e5ba055e4e95fe2b9f3d5",
       "npc/rv64/testbench/tests/tb_ooo_control_event_apply_sequencer.sv": "e637153f377947bc865cf067f2a0fefe01f4b986b49beecb169e1328d035ca43",
       "npc/rv64/testbench/tests/tb_ooo_control_flush_sequencer.sv": "1ec559ee8d322f2e2735c197d95f75b1028dc475279ad2e33058b65416344d69",
-      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "d5116a349ce1d619887c5b11b42412cffde2e4c1875306bdf910a68a9a6d5775",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv": "a6cd3c93d42109b9319e4fc9e5544cc0b0a2e52ee576c645ef4fb2a433e928aa",
       "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
       "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv": "cc499ce89bf915b95745241813f6298615e0d5c3f3e6c201ebb2e917b22f449d",
       "npc/rv64/testbench/tests/tb_ooo_data_word_cache.sv": "ec365384303805d687a8775f3af72e5baa0cf6c8655191b0b0d554800682bdd5",
@@ -1220,7 +1233,7 @@
       "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv": "39a6851e0b374f39196e4329c9d0c08f8e847546ce2989eaf43ffc8e60f4d270",
       "npc/rv64/testbench/tests/tb_ooo_fetch_access_footprint.sv": "be383e88d54738dedeba630896e68612b01ad8afdf47de559e53ee3733e50f4d",
       "npc/rv64/testbench/tests/tb_ooo_fetch_axi_access_attrs.sv": "0ab826e4a915fe88f98e8bb729bc9d793d2daeca3529f791249252c8b665312a",
-      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "76fd13670430b07bf1e33c461d99824f02990da4ff64955fab2645f5532d52f8",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "bab9479a2007900879bd8469ca992f9095dc6da2d597bf63ae3fb9b145338bd7",
       "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv": "92b6d0b087a4bc8d47349ba3cfff296efff9201e87a7f70579472792ca89d2ff",
       "npc/rv64/testbench/tests/tb_ooo_fetch_branch_target.sv": "d968990f3840f5362129c5df82a248a4554c04a8cfd6896fbc728362f55b84be",
       "npc/rv64/testbench/tests/tb_ooo_fetch_flow_control.sv": "f569f3c9e9f45f5eaee33c97a8f330dcabe2aaba1c683efc0fb22484f6359bef",
@@ -1254,38 +1267,41 @@
       "npc/rv64/testbench/tests/tb_ooo_frontend_run_gate.sv": "7f19df4b80fa3cc26474bd2e9b6937a24aec18d7a27e8fdc13ca0f786162efad",
       "npc/rv64/testbench/tests/tb_ooo_frontend_uop_safety.sv": "6991a373f336783e964e013619a4bd5e78ef8729c56611270e82a3a2dc03bf90",
       "npc/rv64/testbench/tests/tb_ooo_ifu_access_assert_negative_driver.sv": "c8b3874de8ab614dd8a49d4f3235d0bafcf12af3f5d5d5660bb6039a364aa191",
-      "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv": "b7d95e2574c2a0e8226379430be3c89b436102f930bcbba03e1a447dcb1f8d0c",
-      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "17bd60028b95baa21247f8f54ad3a5745c4a8732cfb985b15b3d625e90843d0e",
+      "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv": "3343b29197c910713841a5e8582a43b58a24703ba8c387e8598e0119df821e4b",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "d46ca7723fa89f120e24efa8ba25ac7f4344e87cde767d42e502f16d01303a8b",
       "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh": "afc893e507a1cacd178ef5019554e0e86375e6835c27cd5c0d89f2fecedc2916",
       "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv": "8d4fb518de3200066aead9de133a33c2a747c6cee5980b50e6104463a14ed35f",
       "npc/rv64/testbench/tests/tb_ooo_load_queue.sv": "a36814bc1ce51bd35b360bb62cb70774047da5199723edfa20c8aaf840bf0599",
       "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv": "17675c45fb4d8079ecb6ac954ae7b654ab8f4ee63b3487c4b5ced5ac89b4b739",
       "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv": "fc6d14ad406c8758dbd87238b05f2e962fabd52ef28a61bc204c4df1ccdac7b2",
       "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54",
-      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv": "21088380dc9cb5dd1b5d5970ece84d8cbdec9d94364408cef96d46eca902f21e",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv": "af18e3318ccde89f7b43ba2b738e8301dfd58f0d21df0781d679d2defc1179d0",
       "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv": "70cc31ef8c170f91aae025009f31320873d4afde7e3d35d9310091df1554c9cf",
       "npc/rv64/testbench/tests/tb_ooo_memory_request_gate.sv": "f0131ca7c65af2037c25e76e7e12f08ca99d023aef278768f421e4944ad3034c",
       "npc/rv64/testbench/tests/tb_ooo_mmu_epoch_owner.sv": "e6661d3bd830b63c672c7bf4fcfb75f5a4e43eaa889c2b2fc4e59fa7cfa9f670",
       "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv": "74b7277b89e269945d44c08460dfce036a32ea7c18f0467b885077b69c39fd1f",
+      "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv": "049415506d00b2d09f0f6f46dcc01dcca0a2b84d784a40ffad8e19b70cf9655b",
       "npc/rv64/testbench/tests/tb_ooo_pending_dispatch_arbiter.sv": "d73c02d4e773c4dd06bd3d928e0b4fe63e6e8c15cf9a9d3bc0fc59741a60debf",
-      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv": "63a9342f72842b23be683eb02a5422fb059ccca26f26fb74fb4e94540bc44ac5",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv": "bdb8191629d7868e2150ef3f2d480a9d2767f26256133c8e6b12a386dd1e968d",
       "npc/rv64/testbench/tests/tb_ooo_pending_lane1_capture_gate.sv": "8caa8cd8ad19946d2040451eb10527a6cd3267afbb6b31dca842e9fd47b29700",
       "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv": "f37c48e9f744f5e1bd65e5c653d8b6842dbc671b9dc965ca24c9a454b2a40fcd",
       "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv": "acc97efdd7c736d78c491cb7515b943b8523afe9c275d9d74ed2ed7e2dfee2db",
       "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
-      "npc/rv64/testbench/tests/tb_ooo_pending_trap_exit_sequencer.sv": "a5f83d08b047cf70529f501f486e4b23337273695cb264f46abebbcc6c1e30fd",
+      "npc/rv64/testbench/tests/tb_ooo_pending_trap_exit_sequencer.sv": "c26d1c54001b6ddf9a1ddb2a2b1d7a0130d91b791109c297eff1f38b079b767e",
       "npc/rv64/testbench/tests/tb_ooo_phys_reg_file.sv": "3bcd63607a243891c94aa3eabb3df7fac08798b51415ce33461ef1a2a45f475e",
       "npc/rv64/testbench/tests/tb_ooo_pma_checker.sv": "f3333ca045278234a1741de81cbe46c27a32f543585b43c3c76bf09caba07b8a",
-      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv": "dac1001f56de1eec9f5fee4ea23987abc626094a81e3c6ccd11d08fdf760cc56",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",
       "npc/rv64/testbench/tests/tb_ooo_ras_update_gate.sv": "192c9d4762344e52f9c333f95af738129a3e2213affe90c077a3aa49eda7352b",
       "npc/rv64/testbench/tests/tb_ooo_redirect_arbiter.sv": "7140202bcc728e76b6274f08f6d0e37d6d20d32829229b3732e9be5673faeb53",
       "npc/rv64/testbench/tests/tb_ooo_rename_map.sv": "a296aab784f3d1608ed18d454cac04442019066951e9bcca699f0389fc5d7b08",
       "npc/rv64/testbench/tests/tb_ooo_rob.sv": "ecf96ab30a3de19c385a9c1ce5b3c4645812b3f1e3f629384f85c5e42ce92890",
-      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv": "de287763062d7082a9d6dedb8a123c1c96e73520d47013ff73c81c02d6592301",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv": "533a02415276c6c042c83bb04a848ae698f8f1ce94fc6d30bbf33150291f5481",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv": "95aa37812eee0ed60fb48014649df65ca152c0ffe1ce2e184bd8bd69a17c7f59",
+      "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer_assert_negative.sv": "0adbde5ca0bfe080f758020af963370963ff48403f257e399d9cd3b6576b0433",
       "npc/rv64/testbench/tests/tb_ooo_store_queue.sv": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70",
       "npc/rv64/testbench/tests/tb_ooo_sv39_boot.sv": "11d4614f30d72c28d78b806b29308d76e96a0f5c3a8eac72950a39b2df0725eb",
-      "npc/rv64/testbench/tests/tb_ooo_trap_exit_event_mux.sv": "a3a8091a7c76479c724df1a5bfbd73c5d43e7d48ba2b781474e565e2d282613d",
-      "npc/rv64/testbench/tests/tb_ooo_trap_exit_output_sequencer.sv": "2b29e5275dec4c348deddc91ab2dc39e1d903edb983da5bdcf34a20e257ef8ce",
+      "npc/rv64/testbench/tests/tb_ooo_trap_exit_event_mux.sv": "cba58d99d251af430230524655dcb203a39d919c469c45cf4a8495405920f863",
+      "npc/rv64/testbench/tests/tb_ooo_trap_exit_output_sequencer.sv": "64784d280b103a617e222578eabb23c3aa661a879df1fd5a368c5ae9c5147e92",
       "npc/rv64/testbench/tests/tb_ooo_typed_memory_classifier.sv": "eb1dcff06dadc24b67b428c0a1fa939b5f5adaf75bbde4c6aeadc713e657c9eb",
       "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv": "5a1491e7914b50b76fea0d29c0de84d0fe3874b0bc394493d8f9e4e1c1935519",
       "npc/rv64/testbench/tests/tb_pmp_checker.sv": "390bceee53fc09ea72f8c40228ea68c304f1355ee02e67b2cdf20d126685730f",
@@ -1293,6 +1309,6 @@
       "npc/rv64/testbench/tests/tb_wbu.sv": "25c0e72072692a5c2ccffa012edc517ede1e622b8359f234ec4e468c1ce6118c",
       "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e"
     },
-    "sha256": "c1f64d038c4ead52a3566911186f415ba0d8d56d8567bb10736bbb5025369035"
+    "sha256": "5e8107e641f459131fc86220a84ef206870ebc773cc6931ecc65921d8b1c4a92"
   }
 }

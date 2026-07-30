@@ -1,0 +1,384 @@
+{
+  "schema_version": "rv64-producer-holder-semantic-coverage-policy-v1",
+  "claim_boundary": "Candidate evidence is classified per census unit and elaborated product instance. No candidate evidence set is sufficient by itself to promote global no-live-reuse, whole-architecture GREEN, or PPA.",
+  "semantic_complete": false,
+  "evidence_sets": [
+    {
+      "id": "v8l-current-global-subset",
+      "binding_kind": "v8l_full_rtl_snapshot",
+      "scope": "PARTIAL",
+      "snapshot_pre": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/rtl-source-binding.pre.json",
+      "snapshot_post": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/rtl-source-binding.post.json",
+      "lifecycle_log": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
+      "mutation_summary": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
+      "unit_ids": [
+        "integer-iq-producers",
+        "integer-ex0-packed-alias",
+        "integer-ex1-packed-alias",
+        "integer-ex0-packet",
+        "integer-ex1-packet",
+        "branch-resolve-packet",
+        "memory-reservation-producer",
+        "memory-reservation-token",
+        "memory-tracker-producer-map",
+        "memory-tracker-live-set",
+        "rob-slot-generation"
+      ],
+      "gap_classifications": [
+        "UNIT_LIFECYCLE_COVERAGE_GAP",
+        "RAW_IDENTITY_NEGATIVE_COVERAGE_GAP"
+      ]
+    },
+    {
+      "id": "v9r-current-bank-retry-subset",
+      "binding_kind": "v9r_json_source_binding",
+      "scope": "PARTIAL",
+      "summary": ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      "unit_ids": [
+        "memory-retry0-producer-cache",
+        "memory-retry1-producer-cache",
+        "memory-retry0-token",
+        "memory-retry1-token",
+        "bridge-active-token",
+        "bridge-response-token",
+        "bridge-stage-token",
+        "bridge-verified-token-alias",
+        "bridge-residency-set",
+        "miq-owner-tokens"
+      ],
+      "gap_classifications": [
+        "UNIT_LIFECYCLE_COVERAGE_GAP",
+        "PRODUCT_INSTANCE_DISTINGUISHABILITY_GAP"
+      ]
+    },
+    {
+      "id": "v8h-leaf-source-and-tb-match",
+      "binding_kind": "sha256_manifest_subset",
+      "scope": "PARTIAL",
+      "manifest_pre": ".github/task-runs/2026-07-19-rv64-v8h-integer-longop-producer-lease/evidence/focused/sources.pre.sha256",
+      "manifest_post": ".github/task-runs/2026-07-19-rv64-v8h-integer-longop-producer-lease/evidence/focused/sources.post.sha256",
+      "required_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "muldiv-producer",
+        "clmul-producer"
+      ],
+      "gap_classifications": [
+        "CURRENT_FULL_DESIGN_REPLAY_GAP",
+        "PRODUCT_INSTANCE_PATH_OBSERVATION_GAP"
+      ]
+    },
+    {
+      "id": "v8i-fp-stale-source",
+      "binding_kind": "sha256_manifest_subset",
+      "scope": "HISTORICAL",
+      "manifest_pre": ".github/task-runs/2026-07-19-rv64-v8i-fp-producer-lease/evidence/focused-run/sources.pre.sha256",
+      "manifest_post": ".github/task-runs/2026-07-19-rv64-v8i-fp-producer-lease/evidence/focused-run/sources.post.sha256",
+      "required_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "fp-arith-stage-producers",
+        "fp-done-fifo-producers",
+        "fp-exec1-packed-alias",
+        "fp-long-producer",
+        "fp-iq-producers",
+        "fp-issue-packet",
+        "fp-exec1-packet"
+      ],
+      "gap_classifications": [
+        "CANDIDATE_RTL_SOURCE_DRIFT",
+        "CURRENT_DYNAMIC_REPLAY_GAP"
+      ]
+    },
+    {
+      "id": "v8k-pending-system-stale-source",
+      "binding_kind": "sha256_manifest_subset",
+      "scope": "HISTORICAL",
+      "manifest_pre": ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/evidence/focused-run/sources.pre.sha256",
+      "manifest_post": ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease/evidence/focused-run/sources.post.sha256",
+      "required_bindings": [
+        {
+          "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "pending-system-producer"
+      ],
+      "gap_classifications": [
+        "CANDIDATE_RTL_SOURCE_DRIFT",
+        "CURRENT_DYNAMIC_REPLAY_GAP"
+      ]
+    },
+    {
+      "id": "v9y-terminal-rtl-match-tb-drift",
+      "binding_kind": "json_declared_bindings",
+      "scope": "PARTIAL",
+      "summary": ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal/evidence/acceptance-mutations/summary.json",
+      "required_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl",
+          "json_path": [
+            "rtl",
+            "npc/rv64/vsrc/execute/OooIntBackend.v"
+          ]
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl",
+          "json_path": [
+            "rtl",
+            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+          ]
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench",
+          "json_path": [
+            "testbench_sha256"
+          ]
+        }
+      ],
+      "unit_ids": [
+        "terminal-output0-token",
+        "terminal-output1-token",
+        "terminal-pending-set"
+      ],
+      "gap_classifications": [
+        "CANDIDATE_TESTBENCH_SOURCE_DRIFT",
+        "CURRENT_PRODUCT_INSTANCE_REPLAY_GAP"
+      ]
+    },
+    {
+      "id": "v11b-terminal-collector-current-closure",
+      "binding_kind": "v11b_terminal_collector",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "terminal-output0-token",
+        "terminal-output1-token",
+        "terminal-pending-set"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11c-memory-tracker-current-closure",
+      "binding_kind": "v11c_memory_tracker",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/evidence/memory-tracker-attempt-2/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker_semantic_checker.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "memory-tracker-producer-map",
+        "memory-tracker-live-set"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11d-memory-tracker-cursor-current-closure",
+      "binding_kind": "v11d_memory_tracker_cursor",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/evidence/cursor-attempt-2/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker_cursor.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "tracker-next-token-cursor"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11e-rob-slot-generation-current-closure",
+      "binding_kind": "v11e_rob_slot_generation",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/evidence/slot-generation-attempt-3/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/writeback/OooRob.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/filelist.mk",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "rob-slot-generation"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11f-int-iq-producer-current-closure",
+      "binding_kind": "v11f_int_iq_producer",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/evidence/int-iq-producer-attempt-3/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/filelist.mk",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "integer-iq-producers"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11g-store-queue-holder-current-closure",
+      "binding_kind": "v11g_store_queue_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/evidence/store-queue-holder-attempt-1/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/filelist.mk",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "store-queue-producers",
+        "store-queue-owner-tokens"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11h-load-queue-producer-current-closure",
+      "binding_kind": "v11h_load_queue_producer",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4/summary.json",
+      "checker_replay_receipt": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4-checker-replay/receipt.json",
+      "semantic_closure": true,
+      "unit_ids": [
+        "load-queue-producers"
+      ],
+      "gap_classifications": []
+    }
+  ]
+}

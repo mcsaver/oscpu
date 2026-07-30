@@ -1,0 +1,2 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/guest/npc.log:[cpu-exec.cpp:2459 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/guest/console.log:[1;34m[cpu-exec.cpp:2459 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0[0m

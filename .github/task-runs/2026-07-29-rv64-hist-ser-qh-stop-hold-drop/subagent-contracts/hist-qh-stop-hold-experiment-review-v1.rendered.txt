@@ -1,0 +1,89 @@
+# 本地 RV64 CPU RTL/验证子任务 `hist-qh-stop-hold-experiment-review-v1`
+
+- RV64 RTL/证据对象：本地 RV64 OooStopPendingSequencer.stop_pending_o 在 queue-head CSR dispatch 到 C0 commit 窗口必须由 head0_csr_inflight_i 连续保持；只读追踪 tb_ooo_core_top_glue.sv 中产品可达的 younger lane1 CSR pending capture，并给出 assertion-on/off 原始周期计数与删除 hold 臂的 compile-success RTL 版本判据。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/subagent-contracts/hist-qh-stop-hold-experiment-review-v1.json`
+- 合同 JSON SHA-256：`6225cf0183d3983fbf2a0d9fe8e4c785612c077eda6c69fc35ef6c341a64552d`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc/control/OooStopPendingSequencer.v
+- npc/rv64/vsrc/frontend/OooFrontend.v
+- npc/rv64/vsrc/control/OooControlPlane.v
+- npc/rv64/vsrc/control/OooPendingDispatchArbiter.v
+- npc/rv64/vsrc/control/OooPendingSystemSequencer.v
+- npc/rv64/vsrc/frontend/OooFrontendRunGate.v
+- npc/rv64/vsrc/core/OooCoreTopGlue.v
+- npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv
+- npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv
+- npc/rv64/testbench/Makefile
+- npc/rv64/design/specs/ooo-stop-pending-sequencer.md
+- npc/rv64/design/arch/serialize-at-retire-phase1.md
+- npc/rv64/design/verification/historical-defect-ledger.json
+- .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json
+- .github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/task-report.md
+- .github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/hypothesis.md
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/subagent-contracts/hist-qh-stop-hold-experiment-review-v1.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git show; mode=read-only
+- command=git diff; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git show: purpose=inspect-versioned-content; label=只读查看版本化内容
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/task-report.md
+- .github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/hypothesis.md
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：给出 queue-head CSR birth、ordinary drain、stop hold、can_run、后续 fetch packet、lane1 pending capture、C0/C1/C2 的逐周期可证伪 trace，并标出精确信号与源码位置。
+- 本地 RV64 RTL 交付：给出不强制 owner 信号的最小产品级 instruction sequence、raw scoreboard 计数项、compile-success 删除 inflight hold 臂版本的精确 source transform，以及 assertion-on/off 预期终止 marker。
+- 本地 RV64 RTL 交付：列出竞争假设、未知项、误计合法 post-C1 younger CSR capture 的反例与必要的 scope_extension_request。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：识别一个产品可达的 younger lane1 CSR overlap 激励及其判定边界；若当前允许路径不足，必须返回 inconclusive 和具体范围扩展，不得把 standalone 信号激励表述为产品可达证据。
+- 本地 RV64 RTL 判定：production 预测必须是 inflight stop-drop=0、inflight can_run=0、inflight lane1 capture=0 且 C0/C1/C2 exactly-once；历史版本必须保持原有 RTL assertions，assertion-on 定向 fail-loud、assertion-off 由 raw overlap scoreboard 拒绝。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

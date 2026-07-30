@@ -1,0 +1,139 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "task_id": "2026-07-27-rv64-v10b-serialized-system-post-fire",
+  "status": "BOUNDED_COMPLETE",
+  "classification": {
+    "primary": "verification",
+    "auxiliary": [
+      "architecture_evidence_maintenance",
+      "tooling_workflow"
+    ],
+    "production_rtl_changed": false
+  },
+  "scope": {
+    "modules": [
+      "OooPendingSystemSequencer",
+      "OooPendingDrainResolveGate",
+      "OooCsrAccessRequestMux",
+      "OooCsrTrapRequestMux",
+      "CsrFile",
+      "OooFetchAxiBridge",
+      "OooFetchPacketCache"
+    ],
+    "transactions": [
+      "CSR",
+      "ECALL",
+      "XRET",
+      "WFI",
+      "SFENCE_FAMILY",
+      "FENCEI",
+      "FENCE",
+      "IRQ"
+    ],
+    "cycle_contract": "C0 terminal -> C1 clear/side-effect -> C2 no-repeat; CSR enqueue -> exact ProducerId/PC commit"
+  },
+  "git": {
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "worktree_dirty": true,
+    "staged_empty_at_round_audit": true,
+    "commit_eligible": false,
+    "commit_blocker": "dirty worktree contains mixed-origin tracked and untracked evidence; atomic ownership is not yet proven"
+  },
+  "rtl_design_id": "sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951",
+  "original_failure": {
+    "observation": "pre-change tb_ooo_priv_system passed after the FENCE.I MMU input was disconnected",
+    "evidence": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/prechange-mmu-observation-gap/report.json",
+    "classification": "verification_observation_gap"
+  },
+  "debt": {
+    "id": "SERIALIZE-G1",
+    "priority": "P1",
+    "status": "OPEN"
+  },
+  "hypotheses": {
+    "primary": "the production eight-kind paths satisfy the frozen contract, while the prior testbench did not observe raw MMU/FPC and C1/C2 effects",
+    "competing": [
+      "SATP, SFENCE or FENCE.I MMU wiring is incomplete",
+      "ordinary FENCE can retire without full mem_idle",
+      "CSR can commit with a mismatched ProducerId or PC",
+      "non-CSR holder or stop state repeats after terminal"
+    ]
+  },
+  "highest_information_experiment": {
+    "description": "direct raw-pulse C0/C1/C2 scoreboard plus 14 minimal compile-success RTL versions",
+    "stop_condition": "all baselines pass and every negative version reaches simulation and fails the intended oracle",
+    "result": "3 baseline PASS; 14/14 compile-success versions dynamically rejected"
+  },
+  "run_budget": {
+    "focused_cases": 17,
+    "module_tests": 113,
+    "functional_reuse_reason": "production RTL unchanged after the same-design canonical functional run",
+    "system_reproducer": "NOT_RUN",
+    "synthesis_sta_power": "NOT_RUN"
+  },
+  "gates": {
+    "focused_v3": "PASS",
+    "module": "PASS_113_OF_113",
+    "functional": "PASS",
+    "architecture": "GREEN_9_OF_9",
+    "final_reviewer": "APPROVED_FOR_CURRENT_SCOPE",
+    "workflow": "PASS",
+    "full_core": "GAP",
+    "simulation_exit": "NOT_RUN",
+    "linux_terminal": "NOT_RUN",
+    "architecture_stable": "NOT_RUN",
+    "ppa": "UNQUALIFIED"
+  },
+  "evidence": {
+    "focused_v3": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/v10b-focused-matrix-v3/summary.json",
+      "sha256": "524d61360fff6f74dcefc20284c64575abcffac7f42c34023b4527cc45a80125"
+    },
+    "module": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/module-current-v3/summary.txt",
+      "sha256": "b5a61e38f2e05a26ad227bc189302e08cf33102cf22a5776afc82e0f3a6edb9b"
+    },
+    "functional": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/functional-current/functional-aggregate-result.json",
+      "sha256": "98510a16531fe7265c7447649d66805fbb96bef1d72867fcf9bddc44d327bb97"
+    },
+    "architecture": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/architecture/final-architecture-hard-gates.json",
+      "sha256": "9098dd448c4315500c30e59e897e36c0137d854bebf39443381834b0bea93083"
+    },
+    "review_contract": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/subagent-contracts/final-reviewer-v2.json",
+      "sha256": "47102bd84f587b9ff99e3d4edd63d66b7404fb829d0e232e828183a0e30a8420"
+    },
+    "review_report": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/final-reviewer-report-v2.md",
+      "sha256": "8473cdb17722159b9bb9d17d4f8dc339b361f9b5c87aea691083e76f47d4dc3b"
+    },
+    "npc_dev_e2e": {
+      "path": ".github/task-runs/2026-07-27-serialized-system-revtag-v10b/task-report.md",
+      "sha256": "9058a3ddfbd869ab0db7313b5d7e2c5fa0ed020f8da4b688ee01a01a1890a1a8",
+      "status": "COMPLETED_5_OF_5"
+    },
+    "strict_guard": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/strict-guard.log",
+      "sha256": "70d5b035d018a1395220692188bb41407903ed34a59e3cacc2eae1b687d91bff",
+      "status": "PASS"
+    }
+  },
+  "reviewer": {
+    "verdict": "APPROVED_FOR_CURRENT_SCOPE",
+    "remaining_gaps": [
+      "fdg-arch-trap-current.json is bound to an old design-id and 111-module inventory",
+      "SERIALIZE-G1 remains P1 OPEN",
+      "FENCE.I evidence is a bounded composition rather than a full-core self-modifying program",
+      "no formal exhaustive proof was run"
+    ]
+  },
+  "promotion": {
+    "eligible": false,
+    "state": "INTERMEDIATE_CHECKPOINT",
+    "reason": "full-core architecture currentness and SERIALIZE-G1 are open"
+  },
+  "next_highest_information_action": "refresh the FDG architectural-trap evidence on the current 113-module design and rerun the debt-ledger currentness updater"
+}

@@ -154,6 +154,18 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def rtl_design_id() -> str:
+    import sys
+
+    sys.path.insert(0, str(REPO / "npc/rv64/eval/ppa/tools"))
+    import architecture_hard_gates as architecture
+
+    source_sha, source_files = architecture.rtl_binding(REPO)
+    if not source_files:
+        raise RuntimeError("canonical RV64 RTL source set is empty")
+    return f"sha256:{source_sha}"
+
+
 def write_status(completed: int, total: int, current: str) -> None:
     STATUS.parent.mkdir(parents=True, exist_ok=True)
     STATUS.write_text(
@@ -323,10 +335,17 @@ def write_markdown(summary: dict[str, object]) -> None:
         [
             "",
             f"- all_pass: `{str(summary['all_pass']).lower()}`",
+            f"- design_id: `{summary['design_id']}`",
             f"- compile_success_mutations: "
             f"`{summary['compile_success_mutations']}`",
             f"- dynamically_rejected_mutations: "
             f"`{summary['dynamically_rejected_mutations']}`",
+            "- testbench_sha256_map:",
+            *[
+                f"  - `{path}`: `{digest}`"
+                for path, digest in
+                summary["testbench_sha256_map"].items()
+            ],
             "",
         ]
     )
@@ -386,12 +405,28 @@ def main() -> int:
     dynamically_rejected_mutations = sum(
         bool(case["passed"]) for case in cases[len(baselines) :]
     )
+    testbench_paths = {
+        str(case["test"]): (
+            TB_DIR / "tests" / f"{case['test']}.sv"
+        )
+        for case in cases
+    }
+    testbench_sha256_map = {
+        path.relative_to(REPO).as_posix(): sha256(path)
+        for path in sorted(testbench_paths.values())
+    }
+    for case in cases:
+        path = testbench_paths[str(case["test"])]
+        case["testbench_path"] = path.relative_to(REPO).as_posix()
+        case["testbench_sha256"] = sha256(path)
     summary: dict[str, object] = {
         "schema": SCHEMA,
+        "design_id": rtl_design_id(),
         "testbench": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
         "testbench_sha256": sha256(
             TB_DIR / "tests/tb_ooo_priv_system.sv"
         ),
+        "testbench_sha256_map": testbench_sha256_map,
         "iverilog": real_iverilog,
         "vvp": real_vvp,
         "cases": cases,

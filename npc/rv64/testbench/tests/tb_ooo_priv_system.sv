@@ -108,6 +108,7 @@ module tb_ooo_priv_system;
   localparam [3:0] MODE_M_VEC_IRQ = 4'd9;
   localparam [3:0] MODE_S_VEC_IRQ = 4'd10;
   localparam [3:0] MODE_M_VEC_SYNC = 4'd11;
+  localparam [3:0] MODE_QH_SATP = 4'd12;
   localparam [3:0] V10B_KIND_NONE = 4'd0;
   localparam [3:0] V10B_KIND_CSR = 4'd1;
   localparam [3:0] V10B_KIND_ECALL = 4'd2;
@@ -216,6 +217,15 @@ module tb_ooo_priv_system;
   reg [3:0] v10b_c2_kind_q;
   reg [`XLEN-1:0] v10b_c2_pc_q;
   reg [`INST_W-1:0] v10b_c2_inst_q;
+  reg [31:0] v10g_satp_lane1_capture_count;
+  reg [31:0] v10g_qh_satp_birth_count;
+  reg [31:0] v10g_qh_satp_c0_commit_count;
+  reg [31:0] v10g_qh_satp_c0_barrier_count;
+  reg [31:0] v10g_qh_satp_csrfile_request_count;
+  reg [31:0] v10g_qh_satp_c1_apply_count;
+  reg v10g_qh_satp_owner_live_q;
+  reg v10g_qh_satp_expect_c1_q;
+  reg v10g_qh_satp_expect_c2_q;
   integer v10b_monitor_index;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
@@ -660,7 +670,9 @@ module tb_ooo_priv_system;
             BASE_PC + 64'h24: program_word = inst_addi(5'd4, 5'd4, 12'h800);
             BASE_PC + 64'h28: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd4);
             BASE_PC + 64'h2c: program_word = inst_mret();
-            S_ENTRY_PC + 64'h00: program_word = inst_csrrs(5'd5, `CSR_SSTATUS, 5'd0);
+            // Keep SATP in lane1 so the product queue-head configuration still
+            // proves the lane1/full-drain CSR domain and its registered MMU pulse.
+            S_ENTRY_PC + 64'h00: program_word = inst_addi(5'd5, 5'd0, 12'h055);
             S_ENTRY_PC + 64'h04: program_word = inst_csrrw(5'd0, `CSR_SATP, 5'd0);
             S_ENTRY_PC + 64'h08: program_word = inst_sfence_vma(5'd0, 5'd0);
             S_ENTRY_PC + 64'h0c: program_word = inst_ecall();
@@ -896,6 +908,17 @@ module tb_ooo_priv_system;
             HANDLER_PC + 64'h10:
                 program_word = inst_addi(5'd11, 5'd0, 12'h062);
             HANDLER_PC + 64'h14: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
+        MODE_QH_SATP: begin
+          case (addr)
+            // SATP is deliberately lane0/head0 here.  The product configuration
+            // must use the queue-head C0/C1 transaction without a pending-SYSTEM
+            // SATP pulse; the following ebreak proves forward progress.
+            BASE_PC + 64'h00:
+                program_word = inst_csrrw(5'd0, `CSR_SATP, 5'd0);
+            BASE_PC + 64'h04: program_word = inst_ebreak();
             default: begin end
           endcase
         end
@@ -1180,6 +1203,15 @@ module tb_ooo_priv_system;
       v10b_c2_kind_q = V10B_KIND_NONE;
       v10b_c2_pc_q = {`XLEN{1'b0}};
       v10b_c2_inst_q = {`INST_W{1'b0}};
+      v10g_satp_lane1_capture_count = 32'd0;
+      v10g_qh_satp_birth_count = 32'd0;
+      v10g_qh_satp_c0_commit_count = 32'd0;
+      v10g_qh_satp_c0_barrier_count = 32'd0;
+      v10g_qh_satp_csrfile_request_count = 32'd0;
+      v10g_qh_satp_c1_apply_count = 32'd0;
+      v10g_qh_satp_owner_live_q = 1'b0;
+      v10g_qh_satp_expect_c1_q = 1'b0;
+      v10g_qh_satp_expect_c2_q = 1'b0;
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -1924,6 +1956,119 @@ module tb_ooo_priv_system;
     end
   end
 
+  // Product configuration split-domain SATP scoreboard:
+  //   * lane1 SATP remains in the pending-SYSTEM/full-drain domain;
+  //   * legal lane0/head0 SATP uses the queue-head C0/C1 transaction.
+  // Raw request pulses are counted directly and C2 must be quiet.
+  always @(posedge clk) begin
+    if (rst) begin
+      v10g_satp_lane1_capture_count <= 32'd0;
+      v10g_qh_satp_birth_count <= 32'd0;
+      v10g_qh_satp_c0_commit_count <= 32'd0;
+      v10g_qh_satp_c0_barrier_count <= 32'd0;
+      v10g_qh_satp_csrfile_request_count <= 32'd0;
+      v10g_qh_satp_c1_apply_count <= 32'd0;
+      v10g_qh_satp_owner_live_q <= 1'b0;
+      v10g_qh_satp_expect_c1_q <= 1'b0;
+      v10g_qh_satp_expect_c2_q <= 1'b0;
+    end else begin
+      if ((program_mode == MODE_SMODE_BOOT) &&
+          dut.pending_system_capture_lane1_w &&
+          (dut.head_pc1_w == (S_ENTRY_PC + 64'h04)) &&
+          (dut.head_inst1_w == inst_csrrw(5'd0, `CSR_SATP, 5'd0))) begin
+        v10g_satp_lane1_capture_count <=
+            v10g_satp_lane1_capture_count + 32'd1;
+      end
+
+      if ((program_mode == MODE_QH_SATP) &&
+          dut.head0_csr_dispatch_fire_w &&
+          (dut.u_frontend.fifo_head_pc0_w == BASE_PC) &&
+          (dut.head_inst0_w == inst_csrrw(5'd0, `CSR_SATP, 5'd0))) begin
+        if (v10g_qh_satp_owner_live_q ||
+            v10g_qh_satp_expect_c1_q) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP birth overlapped an owner");
+        end
+        v10g_qh_satp_birth_count <= v10g_qh_satp_birth_count + 32'd1;
+        v10g_qh_satp_owner_live_q <= 1'b1;
+      end
+
+      if ((program_mode == MODE_QH_SATP) &&
+          dut.head0_csr_commit_w &&
+          (dut.core_commit0_pc_w == BASE_PC) &&
+          (dut.core_commit0_inst_w ==
+           inst_csrrw(5'd0, `CSR_SATP, 5'd0))) begin
+        if (!v10g_qh_satp_owner_live_q) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C0 lacked a live owner");
+        end
+        if (!dut.control_full_flush_barrier_w ||
+            (dut.control_full_flush_reason_w !=
+             `REDIR_REASON_CSR_COMMIT)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C0 barrier/reason missing");
+        end else begin
+          v10g_qh_satp_c0_barrier_count <=
+              v10g_qh_satp_c0_barrier_count + 32'd1;
+        end
+        if (!tb_csr_commit_w || !tb_head0_csr_commit_w ||
+            tb_pending_system_csr_commit_w ||
+            !tb_csr_access_valid_w ||
+            (tb_csr_access_addr_w != `CSR_SATP)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP CsrFile request mismatch commit=%0b head0=%0b pending=%0b access=%0b addr=%03h",
+                   tb_csr_commit_w, tb_head0_csr_commit_w,
+                   tb_pending_system_csr_commit_w,
+                   tb_csr_access_valid_w, tb_csr_access_addr_w);
+        end else begin
+          v10g_qh_satp_csrfile_request_count <=
+              v10g_qh_satp_csrfile_request_count + 32'd1;
+        end
+        v10g_qh_satp_c0_commit_count <=
+            v10g_qh_satp_c0_commit_count + 32'd1;
+        v10g_qh_satp_owner_live_q <= 1'b0;
+        v10g_qh_satp_expect_c1_q <= 1'b1;
+      end
+
+      if (v10g_qh_satp_expect_c1_q) begin
+        if (!dut.control_event_apply_valid_w ||
+            (dut.control_event_apply_reason_w !=
+             `REDIR_REASON_CSR_COMMIT)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C1 typed apply missing");
+        end else begin
+          v10g_qh_satp_c1_apply_count <=
+              v10g_qh_satp_c1_apply_count + 32'd1;
+        end
+        if (dut.head0_csr_inflight_w || dut.stop_pending_q) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C1 holder/stop not clear");
+        end
+        if (tb_csr_commit_w && !tb_pending_system_csr_commit_w) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C1 repeated CsrFile request");
+        end
+        v10g_qh_satp_expect_c1_q <= 1'b0;
+        v10g_qh_satp_expect_c2_q <= 1'b1;
+      end
+
+      if (v10g_qh_satp_expect_c2_q) begin
+        if (dut.head0_csr_commit_w ||
+            (tb_csr_commit_w && !tb_pending_system_csr_commit_w) ||
+            (dut.control_full_flush_barrier_w &&
+             (dut.control_full_flush_reason_w ==
+              `REDIR_REASON_CSR_COMMIT)) ||
+            (dut.control_event_apply_valid_w &&
+             (dut.control_event_apply_reason_w ==
+              `REDIR_REASON_CSR_COMMIT))) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] V10G head0 SATP C2 repeated request/apply");
+        end
+        v10g_qh_satp_expect_c2_q <= 1'b0;
+      end
+    end
+  end
+
   // V10B production-glue scoreboard.  Every raw terminal request is counted
   // directly; no event is deduplicated.  The C1/C2 checks therefore expose a
   // repeated fire instead of hiding it behind a seen-bit.
@@ -2187,7 +2332,8 @@ module tb_ooo_priv_system;
                v10b_mmu_fencei_source_count, 32'd1);
     tb_check32("V10B mixed-system registered MMU actions",
                v10b_mmu_flush_count, 32'd5);
-    if ((v10b_terminal_count[V10B_KIND_ECALL] == 32'd1) &&
+    if ((tb_errors == 0) &&
+        (v10b_terminal_count[V10B_KIND_ECALL] == 32'd1) &&
         (v10b_terminal_count[V10B_KIND_XRET] == 32'd1) &&
         (v10b_terminal_count[V10B_KIND_WFI] == 32'd1) &&
         (v10b_terminal_count[V10B_KIND_SFENCE] == 32'd4) &&
@@ -2198,6 +2344,22 @@ module tb_ooo_priv_system;
         (v10b_mmu_fencei_source_count == 32'd1) &&
         (v10b_mmu_flush_count == 32'd5)) begin
       $display("[V10B-SYSTEM-MIXED] csr=exercised ecall=1 xret=1 wfi=1 sfence-family=4 fencei=1 typed=exact raw-csr-selected=exact C1=clear C2=no-repeat mmu=5 PASS");
+    end else begin
+      $display("[V10B-SYSTEM-MIXED] csr=%0d ecall=%0d xret=%0d wfi=%0d sfence-family=%0d fencei=%0d typed-fencei=%0d/%0d C1=%0d/%0d C2=%0d/%0d mmu=%0d errors=%0d violations=%0d FAIL",
+               v10b_terminal_count[V10B_KIND_CSR],
+               v10b_terminal_count[V10B_KIND_ECALL],
+               v10b_terminal_count[V10B_KIND_XRET],
+               v10b_terminal_count[V10B_KIND_WFI],
+               v10b_terminal_count[V10B_KIND_SFENCE],
+               v10b_terminal_count[V10B_KIND_FENCEI],
+               v10b_redirect_match_count[V10B_KIND_FENCEI],
+               v10b_terminal_count[V10B_KIND_FENCEI],
+               v10b_c1_clear_count[V10B_KIND_FENCEI],
+               v10b_terminal_count[V10B_KIND_FENCEI],
+               v10b_c2_quiet_count[V10B_KIND_FENCEI],
+               v10b_terminal_count[V10B_KIND_FENCEI],
+               v10b_mmu_flush_count, tb_errors,
+               v10b_violation_count);
     end
 
     reset_dut(MODE_IRQ_WFI);
@@ -2224,6 +2386,10 @@ module tb_ooo_priv_system;
     tb_check1("sret back to s-mode observed", saw_sret_commit, 1'b1);
     tb_check1("satp csr commit observed", saw_satp_commit, 1'b1);
     tb_check1("sfence after satp observed", saw_sfence_commit, 1'b1);
+    tb_check64("s-mode older lane0 before SATP retires",
+               gpr(5'd5), 64'h55);
+    tb_check32("product SATP lane1 capture count",
+               v10g_satp_lane1_capture_count, 32'd1);
     tb_check64("s-mode delegated scause", gpr(5'd8), {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_SMODE});
     tb_check64("s-mode sepc plus four", gpr(5'd9), S_ENTRY_PC + 64'h10);
     tb_check64("s-mode handler body executed", gpr(5'd10), 64'h66);
@@ -2254,8 +2420,9 @@ module tb_ooo_priv_system;
     if ((v10b_mmu_satp_source_count == 32'd1) &&
         (v10b_mmu_sfence_source_count == 32'd1) &&
         (v10b_mmu_fencei_source_count == 32'd0) &&
-        (v10b_mmu_flush_count == 32'd2)) begin
-      $display("[V10B-SATP-MMU] exact-csr-commit=1 sfence=1 registered-mmu-actions=2 C1=clear C2=no-repeat PASS");
+        (v10b_mmu_flush_count == 32'd2) &&
+        (v10g_satp_lane1_capture_count == 32'd1)) begin
+      $display("[V10B-SATP-MMU] lane1-capture=1 exact-csr-commit=1 sfence=1 registered-mmu-actions=2 C1=clear C2=no-repeat PASS");
     end
 
     reset_dut(MODE_SBI_ECALL);
@@ -2678,6 +2845,58 @@ module tb_ooo_priv_system;
         (v10b_c2_quiet_count[V10B_KIND_FENCE] == 32'd1) &&
         (v10b_mmu_flush_count == 32'd0)) begin
       $display("[V10B-FENCE-POST-FIRE] full-mem-idle=1 typed-serial=1 ctrl-commit=1 mmu=0 C1-owner-stop-clear=1 C2-repeat=0 PASS");
+    end
+
+    if (`OOO_CSR_QUEUE_HEAD) begin
+      reset_dut(MODE_QH_SATP);
+      run_until_exit(300);
+      tb_check1("product head0 SATP reaches ebreak exit",
+                exit_valid, 1'b1);
+      tb_check1("product head0 SATP exits via ebreak",
+                exit_is_ebreak, 1'b1);
+      tb_check1("product head0 SATP has no fatal trap",
+                trap_valid, 1'b0);
+      tb_check1("product head0 SATP commit observed",
+                saw_satp_commit, 1'b1);
+      tb_check32("product head0 SATP birth count",
+                 v10g_qh_satp_birth_count, 32'd1);
+      tb_check32("product head0 SATP C0 commit count",
+                 v10g_qh_satp_c0_commit_count, 32'd1);
+      tb_check32("product head0 SATP C0 barrier count",
+                 v10g_qh_satp_c0_barrier_count, 32'd1);
+      tb_check32("product head0 SATP CsrFile request count",
+                 v10g_qh_satp_csrfile_request_count, 32'd1);
+      tb_check32("product head0 SATP C1 apply count",
+                 v10g_qh_satp_c1_apply_count, 32'd1);
+      tb_check1("product head0 SATP owner clear",
+                v10g_qh_satp_owner_live_q, 1'b0);
+      tb_check1("product head0 SATP C1 pending clear",
+                v10g_qh_satp_expect_c1_q, 1'b0);
+      tb_check1("product head0 SATP C2 completed",
+                v10g_qh_satp_expect_c2_q, 1'b0);
+      tb_check32("product head0 SATP has no pending-SYSTEM terminal",
+                 v10b_terminal_count[V10B_KIND_CSR], 32'd0);
+      tb_check32("product head0 SATP has no pending MMU source",
+                 v10b_mmu_satp_source_count, 32'd0);
+      tb_check32("product head0 SATP has no registered MMU pulse",
+                 v10b_mmu_flush_count, 32'd0);
+      tb_check32("product head0 SATP backend drained",
+                 {27'b0, rob_count}, 32'd0);
+      check_v10b_scoreboard(MODE_QH_SATP);
+      if ((v10g_qh_satp_birth_count == 32'd1) &&
+          (v10g_qh_satp_c0_commit_count == 32'd1) &&
+          (v10g_qh_satp_c0_barrier_count == 32'd1) &&
+          (v10g_qh_satp_csrfile_request_count == 32'd1) &&
+          (v10g_qh_satp_c1_apply_count == 32'd1) &&
+          !v10g_qh_satp_owner_live_q &&
+          !v10g_qh_satp_expect_c1_q &&
+          !v10g_qh_satp_expect_c2_q &&
+          (v10b_terminal_count[V10B_KIND_CSR] == 32'd0) &&
+          (v10b_mmu_satp_source_count == 32'd0) &&
+          (v10b_mmu_flush_count == 32'd0) &&
+          (rob_count == 5'd0)) begin
+        $display("[V10G-PRODUCT-QH-SATP] birth=1 C0_commit=1 C0_barrier=1 CsrFile_request=1 C1_apply=1 C2_quiet=1 pending_terminal=0 pending_mmu=0 backend_drained=1 PASS");
+      end
     end
 
     reset_dut(MODE_FDG_ARCH_TRAP);

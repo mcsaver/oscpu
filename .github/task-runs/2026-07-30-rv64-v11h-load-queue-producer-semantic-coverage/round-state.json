@@ -1,0 +1,112 @@
+{
+  "schema": "rv64-v11h-load-queue-producer-round-v2",
+  "status": "BOUNDED_COMPLETE_SYSTEM_RERUN_REQUIRED",
+  "classification": {
+    "primary": "architecture",
+    "secondary": [
+      "verification",
+      "tooling/workflow",
+      "architecture-evidence-publication"
+    ]
+  },
+  "scope": {
+    "module": "OooLoadQueue",
+    "holder": [
+      "valid_q",
+      "producer_id_q",
+      "terminal_seen_q"
+    ],
+    "semantic_unit": "load-queue-producers",
+    "production_rtl_change_planned": true,
+    "production_rtl_change_implemented": true,
+    "design_id": "sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f"
+  },
+  "hypothesis_decision": {
+    "selected": "H2",
+    "H1": "REJECTED",
+    "H2": "CONFIRMED",
+    "H3": "REJECTED"
+  },
+  "hypotheses": {
+    "H1": "production RTL satisfies the current contract; source-bound assertion-independent raw-Q semantic evidence is missing",
+    "H2": "a legal interface sequence exposes a production RTL contract violation",
+    "H3": "the existing V8V nine-variant suite is sufficient for current semantic closure"
+  },
+  "experiment": {
+    "generation_widths": [
+      1,
+      4
+    ],
+    "assertion_modes": [
+      "on",
+      "off"
+    ],
+    "model": "stimulus-owned four-entry edge model",
+    "raw_arrays": [
+      "valid_q",
+      "producer_id_q"
+    ],
+    "mutation_assertions": "off"
+  },
+  "system_evidence": {
+    "a3_original_published_state": "FAIL_PRESERVED",
+    "a3_dut_transaction_state": "COMPLETE",
+    "a3_oracle_state": "OLD_ORACLE_FALSE_POSITIVE",
+    "current_production_semantics_changed": true,
+    "full_system_rerun_before_system_promotion": "REQUIRED_NOT_RUN"
+  },
+    "evidence": {
+    "pre_fix_reproducer": "FAIL_EXPECTED",
+    "final_review_v2": "GAP_TWO_BLOCKERS",
+    "final_review_v3": "BOUNDED_APPROVE_BLOCKER_0",
+    "raw_q_knownness_assertion_probe": "PASS_EXPECTED_REJECTION",
+    "current_instance_graph_v2": "PASS",
+    "focused_simulation_attempt_3": "FAIL_PRESERVED_AT_SEMANTIC_LEDGER_UNIT",
+    "focused_simulation_attempt_4": "FAIL_PRESERVED_AT_SEMANTIC_LEDGER_UNIT",
+    "checker_replay_attempt_3": "HISTORICAL_PASS",
+    "checker_replay_attempt_4": "PASS",
+    "positive_profiles": 4,
+    "raw_q_knownness_assertion_probes": 1,
+    "mutation_cases": 31,
+    "mutation_simulations_rejected": 62,
+    "ordinary_regression_attempt_3": "PASS",
+        "semantic_units_pass": 11,
+        "semantic_units_gap": 33
+    },
+    "environment_closure": {
+        "bounded_briefs": {
+            "npc_dev": "COMPLETE",
+            "agent_system": "COMPLETE"
+        },
+        "profile_e2e": {
+            "npc_dev": "PASS_5_OF_5",
+            "agent_system": "PASS_11_OF_11"
+        },
+        "strict_guard": {
+            "scoped_19_paths": "PASS",
+            "full_worktree": "GAP_RV64_LINUX_ONLY",
+            "full_worktree_changed_files": 2013
+        },
+        "database": {
+            "snapshot_stored": "PASS",
+            "db_first_audit": "PASS",
+            "markdown_coverage": "PASS",
+            "runtime_artifact_audit": "PASS"
+        },
+        "checker_units": "PASS_39_OF_39",
+        "commit_gate": {
+            "branch": "ai",
+            "head": "af027d1bce085bace474b748dcd89113145f8772",
+            "tracked_changed_files": 258,
+            "untracked_files": 1755,
+            "staged_files": [
+                ".github/e2e/profiles/rv64-systemd-contract.tsv"
+            ],
+            "action": "NOT_STAGED_OR_COMMITTED_MIXED_ORIGIN"
+        }
+    },
+    "promotion": {
+        "architecture_gate": "RED",
+        "ppa": "NOT_ELIGIBLE"
+  }
+}

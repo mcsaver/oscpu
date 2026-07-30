@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(git -C "$RUN_DIR" rev-parse --show-toplevel)
@@ -9,6 +10,8 @@ EVIDENCE_DIR="$RUN_DIR/evidence/focused"
 MUTATOR="$RUN_DIR/mutate-v8l-global-lease.py"
 CHECKER="$NPC_HOME/eval/ppa/tools/producer_holder_census.py"
 MANIFEST="$NPC_HOME/design/arch/producer-holder-census.json"
+GATE_TOOL="$NPC_HOME/eval/ppa/tools/architecture_hard_gates.py"
+PROVENANCE_TEST="$NPC_HOME/eval/ppa/tests/test_v8l_current_census_evidence.py"
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/v8l-global-lease.XXXXXX")
 
 cleanup() {
@@ -29,6 +32,9 @@ case "$EVIDENCE_DIR" in
 esac
 mkdir -p "$EVIDENCE_DIR/static"
 
+python3 "$RUN_DIR/build-current-census-evidence.py" \
+  --snapshot-out "$EVIDENCE_DIR/rtl-source-binding.pre.json"
+
 IQ="$NPC_HOME/vsrc/scheduling/OooIntIssueQueue.v"
 DISPATCH="$NPC_HOME/vsrc/rename_allocate/OooDispatchBackend.v"
 BACKEND="$NPC_HOME/vsrc/execute/OooIntBackend.v"
@@ -42,7 +48,8 @@ source_paths=(
   "$MUTATOR"
   "$RUN_DIR/build-current-census-evidence.py"
   "$CHECKER"
-  "$MANIFEST"
+  "$GATE_TOOL"
+  "$PROVENANCE_TEST"
   "$NPC_HOME/design/specs/ooo-global-producer-no-live-reuse.md"
   "$NPC_HOME/vsrc/include/define.v"
   "$NPC_HOME/vsrc/filelist.mk"
@@ -58,11 +65,18 @@ source_paths=(
   "$TB_HOME/tests/tb_ooo_mem_owner_tracker.sv"
   "$TB_HOME/tests/tb_ooo_store_queue.sv"
 )
+# The census manifest is the outer evidence envelope: it stores the hashes of
+# the lifecycle log and mutation summary produced below.  Including it in this
+# pre/post source list would create a manifest -> evidence -> manifest hash
+# cycle.  The canonical census checker still validates the live manifest both
+# before and after every dynamic run.
 sha256sum "${source_paths[@]}" > "$EVIDENCE_DIR/sources.pre.sha256"
 
 python3 -m unittest \
   "$NPC_HOME/eval/ppa/tests/test_producer_holder_census.py" -v \
   > "$EVIDENCE_DIR/static/checker-unit.log" 2>&1
+python3 -m unittest "$PROVENANCE_TEST" -v \
+  > "$EVIDENCE_DIR/static/provenance-unit.log" 2>&1
 python3 "$CHECKER" --manifest "$MANIFEST" \
   --json-out "$EVIDENCE_DIR/static/producer-holder-census-result.json" \
   > "$EVIDENCE_DIR/static/producer-holder-census.log" 2>&1
@@ -236,9 +250,14 @@ done
 python3 "$CHECKER" --manifest "$MANIFEST" \
   --json-out "$EVIDENCE_DIR/static/producer-holder-census-result.post.json" \
   > "$EVIDENCE_DIR/static/producer-holder-census.post.log" 2>&1
+python3 "$RUN_DIR/build-current-census-evidence.py" \
+  --snapshot-out "$EVIDENCE_DIR/rtl-source-binding.post.json"
 sha256sum "${source_paths[@]}" > "$EVIDENCE_DIR/sources.post.sha256"
 cmp "$EVIDENCE_DIR/sources.pre.sha256" "$EVIDENCE_DIR/sources.post.sha256" ||
   fail "canonical sources changed while running mutations"
+cmp "$EVIDENCE_DIR/rtl-source-binding.pre.json" \
+    "$EVIDENCE_DIR/rtl-source-binding.post.json" ||
+  fail "canonical RTL source binding changed while running focused evidence"
 
 python3 "$RUN_DIR/build-current-census-evidence.py"
 

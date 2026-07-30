@@ -23,8 +23,8 @@ RTL_CORE_TOP ?= NpcTop
 SIM_TOP ?= NpcSimTop
 TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
-OOO_CSR_QUEUE_HEAD ?= 0
-OOO_TERMINAL_HOLDER_ASSERT ?= 0
+RV64_PRODUCT_RTL_DEFAULTS ?= $(NPC_HOME)/configs/product-rtl-defaults.mk
+include $(RV64_PRODUCT_RTL_DEFAULTS)
 BUILD_DIR ?= ./build$(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),-csrqh,)
 OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
@@ -220,6 +220,16 @@ endif
 lint:
 	$(VERILATOR) --lint-only --timescale 1ns/1ps -Wall -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
 
+.PHONY: print-product-rtl-config
+print-product-rtl-config:
+	@printf '%s\n' \
+	  "schema=$(NPC_PRODUCT_RTL_CONFIG_SCHEMA)" \
+	  "manifest=$(RV64_PRODUCT_RTL_DEFAULTS)" \
+	  "OOO_CSR_QUEUE_HEAD=$(OOO_CSR_QUEUE_HEAD)" \
+	  "OOO_TERMINAL_HOLDER_ASSERT=$(OOO_TERMINAL_HOLDER_ASSERT)" \
+	  "BUILD_DIR=$(BUILD_DIR)" \
+	  "RTL_VERILATOR_DEFINES=$(RTL_VERILATOR_DEFINES)"
+
 # 打印可综合核心 RTL 文件清单(供 RTL 风格检查器使用)
 print-synth-rtl:
 	@echo $(RTL_CORE_SRCS)
@@ -235,9 +245,17 @@ check-rtl-style:
 # lookup, and manifest overclaim; the second binds the current production RTL,
 # manifest, checker and per-source hashes.
 .PHONY: check-producer-holder-census
-check-producer-holder-census:
+check-producer-holder-census: check-producer-holder-instance-graph
 	@python3 -m unittest -q eval/ppa/tests/test_producer_holder_census.py
 	@python3 $(abspath eval/ppa/tools/producer_holder_census.py)
+
+# Current product NpcTop elaboration companion to the source-level census.
+# The frozen result binds every holder-bearing module to every reachable
+# instance, including duplicated MIQ and memory-bridge instances.  This gate
+# closes instance multiplicity only; lifecycle semantics remain independent.
+.PHONY: check-producer-holder-instance-graph
+check-producer-holder-instance-graph:
+	@V11H_INSTANCE_GRAPH_REVISION=2 bash $(abspath ../../.github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/run-current-instance-graph.sh)
 
 # Dynamic companion to the static census: assert/release baselines, real
 # GEN_W=1 wrap/death-edge/backpressure paths, legacy memory cancellation, and
@@ -245,8 +263,21 @@ check-producer-holder-census:
 # focused gate rather than making every check-contract invocation rebuild the
 # full simulation matrix.
 .PHONY: check-global-producer-no-live-reuse
-check-global-producer-no-live-reuse: check-producer-holder-census
+check-global-producer-no-live-reuse: check-producer-holder-census check-producer-holder-instance-graph
 	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh)
+
+# V11I exact memory-owner terminal lifecycle: the real IntBackend collector,
+# tracker and LQ traverse all 32 tracker tokens before token-0 reuse.  Both
+# assertions-on/off production profiles must stay quiet; a compile-success
+# delayed-old-tuple RTL copy must be rejected by the holder assertion and the
+# independent LQ/tracker raw-Q oracle.  This focused target never launches a
+# full-system workload and cannot promote architecture or PPA by itself.
+V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(BUILD_DIR)/v11i-terminal-lifecycle)
+.PHONY: check-memory-terminal-lifecycle
+check-memory-terminal-lifecycle:
+	@$(MAKE) --no-print-directory -C testbench \
+	  V11I_TERMINAL_LIFECYCLE_RESULT="$(V11I_TERMINAL_LIFECYCLE_RESULT)" \
+	  v11i-terminal-lifecycle
 
 # OOO-2 selective scheduling: prove that a registered Universal reservation
 # blocks only that terminal while independent ALU work continues through the

@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v10b-serialized-system-post-fire-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 `OooPendingSystemSequencer` 八类 canonical SYSTEM/CSR/IRQ transaction：核对 accepted owner、C0 raw fire、C1 registered side effect/holder/stop clear、C2 no-repeat，CSR enqueue 到 exact ProducerId/PC commit lease，SATP/SFENCE/FENCE.I MMU action、typed redirect、`OooControlCommitSequencer` action 与 `OooFetchAxiBridge` stale-instruction clear；复核 pre-change false-green、14 个 compile-success RTL version 动态拒绝、113 项 module、functional 与 9 项 architecture gate 是否同一 design-id。优先寻找去重掩盖、间接观测、未覆盖 encoding、错误外推或证据身份漂移。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooRedirectArbiter.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+      "npc/rv64/vsrc/memory/OooMemoryAccess.v",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
+      "npc/rv64/vsrc/memory/OooFetchAxiBridge.v",
+      "npc/rv64/vsrc/core/CsrFile.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/writeback/OooWriteback.v",
+      "npc/rv64/vsrc/writeback/OooControlCommitSequencer.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/design/specs/ooo-csrfile.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      ".github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/task-report.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/completion-definition.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/reviewer-report-v1.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-current.status",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/module-current",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/functional-current",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/architecture",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/prechange-mmu-observation-gap",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/current-assert",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/fencei-cache-consumer",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/v10b-focused-matrix-v2",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-prechange-mmu-gap-probe.py",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix-v2.py",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/subagent-contracts/final-reviewer-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按“RTL 对象或本地证据文件 → C0/C1/C2 或 compile/config → testbench/EDA raw observation → PASS/GAP 范围”输出独立终审。逐类裁决 CSR/ECALL/XRET/WFI/SFENCE_FAMILY/FENCEI/FENCE/IRQ；列出最强 reachable counterexample，判断 production glue MMU pulse 与独立 FPC consumer test 是否足以证明 FENCE.I stale-instruction clear，核对变异 compile rc/result、113 个 design-id marker、functional/architecture identity；显式区分 V10B bounded sub-slice 与 simulation exit/Linux/SERIALIZE-G1/full-core arch-stable/PPA。"
+  ],
+  "success_criteria": [
+    "只读复核真实 RTL、TB 与本地证据，不运行仿真/综合/STA、不修改文件；不得因已有 PASS marker 推定覆盖，必须检查 raw counter/negative variant/identity；不得用去重或断言降级；如证据不能排除反例则给出 GAP、unknowns 与 scope_extension_request，如 bounded contract 成立则给出可审计 PASS 及残余边界；结束时显式归还 Windows→WSL 唯一工程命令 lane。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

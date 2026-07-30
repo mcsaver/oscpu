@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11b-holder-semantic-coverage-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 NpcTop 产品配置下 44 个 ProducerId/owner-token holder 语义单元及 17 条 elaborated instance path 到 birth、hold、handoff、death、finite-generation no-live-reuse、identity-known 与 compile-success negative evidence 的可审计映射；区分仅缺机器账本、已有证据只覆盖子集、或存在真实 RTL/TB 语义缺口，不修改生产 RTL。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease",
+      ".github/task-runs/2026-07-19-rv64-v8h-integer-longop-producer-lease",
+      ".github/task-runs/2026-07-19-rv64-v8i-fp-producer-lease",
+      ".github/task-runs/2026-07-19-rv64-v8j-branch-resolve-producer-authorization",
+      ".github/task-runs/2026-07-20-rv64-v8k-pending-csr-producer-lease",
+      ".github/task-runs/2026-07-26-rv64-v9y-serialize-memory-owner-terminal",
+      ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph",
+      ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/subagent-contracts/v11b-holder-semantic-coverage-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 holder/domain 与 elaborated instance 列出当前可复用的正向观测、断言、compile-success negative sensitivity 和 source/design/config 绑定；明确每项 PASS/GAP/UNKNOWN、最小缺证动作、H1/H2/H3 裁决、假绿反例与禁止越级范围。"
+  ],
+  "success_criteria": [
+    "只有在每个清册语义单元和双实例路径都具有当前绑定、非自证的 birth/hold/death/reuse 及 negative sensitivity 证据时才允许建议 semantic_complete=true；否则必须逐项保持 GAP，并给出最低成本且不削弱断言、不去重 terminal event 的验证闭合顺序。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,5 +1,678 @@
 # YSYX 项目状态总览
 
+## 2026-07-30 RV64 V11H LoadQueue terminal-history architecture closure
+
+- `OooLoadQueue` 的 legal-interface pre-fix 反例为 normal terminal 先于
+  completion，下一拍 recovery 后观测
+  `count=1/live=1/killed=1`。独立预审确认 H2：旧 RTL 将已经发生精确
+  terminal 的 entry 变成永远等不到第二个 terminal 的 killed tombstone。
+- production RTL 新增 `terminal_seen_q[0:3]`。normal terminal 保留
+  retire residency 但关闭 issue/query/response；terminal-seen recovery
+  直接 clear；重复 exact terminal 由 `[V11H-LQ-DUP-TERMINAL]` fatal
+  assertion 拒绝。每个 live entry 的完整 PID knownness 由
+  `[V11H-LQ-PID-KNOWN]` 直接断言。没有增加 event dedup，也没有削弱断言。
+- 当前 146-file design-id 为
+  `sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f`；
+  production LQ SHA-256 为
+  `4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427`。
+  V11H fresh Yosys instance graph 为 15 holder modules、17 instances、
+  194 reachable instances，五类 canonical 产物逐字节 replay PASS。
+- focused attempt-4 完成 GEN_W=1/4 × assert/release 4/4 positive PASS、
+  1 个 raw-Q PID knownness assertion probe 与 31 个 compile-success
+  variants 的 62 次 assertion-off 仿真；probe 命中 production marker，
+  62/62 均由 stimulus-owned raw-Q oracle 拒绝。原 runner 状态永久保留
+  `FAIL@semantic-ledger-unit`；独立 frozen-input checker replay 不重跑
+  RTL，取得 replay builder 5/5、evidence checker 10/10、semantic ledger
+  24/24 PASS。exact system-rerun schema 的缺字段/弱化反例均被拒绝。
+- 语义 checker 不再把旧 full design-id 偷改为当前值。V11B–V11G 仅在
+  exact RTL/include/filelist/TB closure 仍匹配时标记
+  `CURRENT_SELECTED_SOURCE_AND_TB_BOUND`；V8L 降为
+  `HISTORICAL_FULL_RTL_BOUND`。当前 ledger 为 11 PASS / 33 GAP / 44。
+- ordinary attempt-1 因 runner 将合法 `[V8V-LQ-*] ... PASS` marker
+  误判而保留 FAIL；attempt-2 的 `tb_ooo_load_queue` 与父级
+  `tb_ooo_int_backend` 是旧 RTL PASS；current attempt-3 在
+  `OOO_ASSERT`、GEN_W=4 下再次 PASS，PID-known 与 duplicate-terminal
+  marker 均为 0，full RTL pre/post 无漂移。
+- final-review v2 先以 GAP 找出 raw-Q assertion 和 system-rerun schema
+  两个 blocker；versioned final-review v3 在二者闭合后给出
+  `load-queue-producers` bounded APPROVE、blocker=0。
+- architecture directed-suite 保持 overall RED：当前 design-id 与旧
+  suite 不同，且 Makefile provenance 已更新。由于本轮确有 production
+  core 语义变化，新的完整系统运行是后续 system promotion 前置条件；
+  本轮未自动启动高成本 A4。PPA 保持 UNPROMOTED。
+- current-source `npc-dev` 5/5 与 `agent-system` 11/11 均完成并发布；
+  19-path scoped strict guard PASS。全工作树 strict 只保留共享
+  `rv64-linux` evidence GAP。stored snapshot、DB-first、Markdown
+  coverage 与两份 task-run 的 runtime-artifact audit 均 PASS；当前
+  checker 单元 39/39 PASS。
+- commit gate 为 `ai@af027d1bce085bace474b748dcd89113145f8772`；
+  共享工作树有 258 个 tracked 修改、较多未跟踪证据文件和一个无关
+  staged profile，未执行 stage/commit。精确文件数只记录在本轮
+  post-review handoff，避免环境 e2e 自身新增 task-run 后使 retained
+  memory 立即过期。
+- canonical task-run：
+  `.github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/`。
+
+## 2026-07-30 RV64 V11G StoreQueue resident holder 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 保持
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`；
+  production `OooStoreQueue.v` 未修改，SHA-256 为
+  `5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241`。
+- `+V11G_SQ_HOLDER_ONLY` 使用 stimulus-owned 四槽 raw-Q model，沿
+  allocation→bind→OOO fill/request→terminal→release/flush 检查 full
+  ProducerId、独立 `{kind,token,epoch}`、valid/owner-valid、
+  head/tail/count 与 raw knownness。expected 不读取 DUT raw Q 或
+  `snoop_*` 输出，并使用与 ROB index 不对称的 token/epoch。
+- canonical attempt-1 的 assert/release × `PRODUCER_GEN_W=1/4` 正向
+  4/4 PASS；二十四个 compile-success production-RTL variants 在两种
+  width 下形成四十八次 `OOO_ASSERT` 关闭仿真，48/48 均由
+  `[V11G-SQ-HOLDER-ORACLE][FAIL]` 拒绝。
+- focused 16-source manifest 与 146-file RTL snapshot 的 pre/post
+  identity 均无漂移；normal `tb_ooo_store_queue` 1/1 PASS；evidence
+  tool 8/8、semantic-ledger 15/15 PASS。
+- 独立预审裁决 H1，终审给出 bounded APPROVE、`blocker=0`。V11F→V11G
+  仅 `store-queue-producers` 与 `store-queue-owner-tokens` 从 GAP
+  晋级 PASS；semantic ledger 当前为 10 PASS / 34 GAP / 44。
+- global no-live-reuse 保持 `SEMANTIC_COVERAGE_REQUIRED`，whole
+  architecture 保持 RED，PPA 保持 UNPROMOTED。ARCH_STABLE 观测为
+  51/53 expected GAP、V11G 新增失败 0；upstream illegal-input
+  reachability、全局 holder collision fence、system、synthesis、STA
+  与 power 均未闭合。
+- 本轮没有 production/elaborated RTL、device model 或 simulator
+  执行语义变化，也不缺 A3 原始输入、终端链或 post-hash 证据；A3
+  继续保持“原始 FAIL、系统事务完成、旧 oracle 误判、
+  checker-replay PASS”，不触发完整系统重跑。
+- task-specific `npc-dev` 首轮因 DB 尚未保存新 V11G memory、bounded
+  brief 缺独立 focus match 而 fail closed；该 blocked run 原样保留。
+  将 project/NPC memory `update-stored` 后，第二轮
+  `2026-07-30-store-queue-holder-semantic-revtag-v11g-2` 取得完整
+  recall 与 5/5 completed，未放宽 recall 规则。
+- 8-path scoped strict guard PASS；全工作树 strict guard 仅保留 shared
+  `rv64-linux` missing-evidence GAP。final identity PASS，351 个 raw
+  assets 已建立 index-only 索引；9 份技术 Markdown 与两份 memory
+  已发布，DB-first、Markdown coverage 与 runtime-artifact audit PASS。
+- commit gate 为 `ai@af027d1bce085bace474b748dcd89113145f8772`；
+  共享工作树有 254 个 tracked 修改、1,688 个 untracked 文件与一个
+  无关 staged profile，故未 stage/commit。
+- canonical 证据入口：
+  `.github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/`。
+
+## 2026-07-30 RV64 V11F integer IQ ProducerId 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 保持
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`；
+  production `OooIntIssueQueue.v` 未修改，SHA-256 为
+  `d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b`。
+- `+V11F_INT_IQ_PRODUCER_ONLY` 使用 stimulus-owned 八槽
+  `{valid, full ProducerId}` model，逐沿检查 birth、READY-low/recover
+  hold、regular single/dual issue、memory pair、compaction、selective
+  wrap kill、flush/reset、raw Q、full-P live mask、count 与 carriers。
+  expected 不从 DUT `valid_q`、`producer_id_q` 或
+  `producer_live_mask_o` 推导。
+- canonical attempt-3 的 assert/release × `PRODUCER_GEN_W=1/4` 4/4
+  baseline PASS；二十个 compile-success RTL variants 在两种 width 下
+  形成 40 个 release 仿真，关闭 `OOO_ASSERT` 后全部由
+  `[V11F-INT-IQ-ORACLE][FAIL]` 拒绝。三项 PID-X 变体分别覆盖 lane0、
+  lane1 与 resident/compaction raw identity knownness。
+- focused 16-source pre/post manifest 与 146-file RTL pre/post snapshot
+  均无漂移；normal `tb_ooo_int_issue_queue` regression PASS；evidence
+  tool 8/8 与 semantic ledger tests 合计 22/22 PASS。
+- 独立终审给出 bounded APPROVE、`blocker=0`，仅将
+  `integer-iq-producers` 从 GAP 晋级 PASS；semantic ledger 从
+  7 PASS / 37 GAP 变为 8 PASS / 36 GAP。上游 kill/flush
+  transaction barrier 自然可达性仍需 dispatch/backend 集成证据。
+- global no-live-reuse 保持 `SEMANTIC_COVERAGE_REQUIRED`，whole
+  architecture 保持 RED，PPA 保持 UNPROMOTED；system、synthesis、STA
+  与 power 未运行。本轮没有 production/elaborated RTL、device model 或
+  simulator 语义变化，A3 保持“原始 FAIL、系统事务完成、旧 oracle
+  误判、checker-replay PASS”，不触发完整系统重跑。
+- task-specific `npc-dev`
+  `2026-07-30-integer-iq-producer-semantic-revtag-v11f` 为 completed 5/5；
+  8-path scoped strict guard PASS。全工作树 strict guard 仅因 shared
+  `Linux/scripts/check-ubuntu-rootfs.sh` 缺 `rv64-linux` evidence 而保持
+  GAP。ARCH_STABLE 为 51/53 expected GAP、V11F 新增失败 0；873 个 raw
+  evidence assets 已索引，final identity PASS。9 份技术 Markdown 与
+  project/NPC memory 已存储；snapshot-stored、DB-first、Markdown
+  coverage 与 runtime-artifact audit 均 PASS。
+- commit gate 为 `ai@af027d1bce085bace474b748dcd89113145f8772`；
+  共享工作树有 253 个 tracked 修改、1,639 个 untracked 文件与一个无关
+  staged profile，故未 stage/commit。
+- canonical 证据入口：
+  `.github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/`。
+
+## 2026-07-30 RV64 V11E ROB slot generation 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 保持
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`；
+  production `OooRob.v` 未修改，SHA-256 为
+  `bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561`。
+- V11E 以沿前独立 generation/valid/done/head/tail/count/recovery model
+  每沿核对全部 16 个 slot，以及 lane0 actual、lane1 actual、lane1 pair
+  candidate、head/commit/walk carrier 和 current/completion/resolve exact
+  query。expected 只由 stimulus 与 model 状态产生，不复用 DUT
+  generation 或 ProducerId。
+- canonical attempt-3 的 `PRODUCER_GEN_W=1/4 × assert/release` 4/4
+  baseline PASS；17 个 compile-success RTL variants 在两种 generation
+  width 下形成 34 个 release 仿真，关闭 `OOO_ASSERT` 后仍全部由
+  `[V11E-SLOT-GEN-ORACLE][FAIL]` 拒绝。attempt-1 的 walk zero-carrier
+  与 attempt-2 的 recovery reset-to-ones 假绿原样保留；attempt-3 以
+  generation 0/1 混合 recovery pair 同时关闭两类可判别性缺口。
+- 独立终审给出 bounded APPROVE、`blocker=0`，只把
+  `rob-slot-generation` 从 GAP 晋级 PASS；semantic ledger 当前为
+  7 PASS / 37 GAP / 44。有限 generation 回绕仍依赖外部 holder
+  collision fence，不能外推为 global no-live-reuse 或 whole
+  architecture PASS。
+- normal `tb_ooo_rob` regression PASS；evidence tool 9/9 与 ledger
+  13/13 原始日志合计 22/22 PASS；ARCH_STABLE 为 51/53 expected GAP，
+  `v11e_new_failures=0`。终审指出的 active spec 页首 v11c/5/39 旧值已
+  同步为 v11e/7/37；该 documentation-only 变化由独立 publication
+  receipt 记录，attempt-3 原始 summary/source hash 不重写，builder
+  对 live 文档漂移继续 fail closed。
+- task-specific `npc-dev` 的终审后 current-source run
+  `2026-07-30-rob-slot-generation-final` 为 completed 5/5；7-path
+  scoped strict guard PASS。全工作树 strict guard 仍只因共享
+  `Linux/scripts/check-ubuntu-rootfs.sh` 缺 `rv64-linux` evidence 而保持
+  GAP。V11E 609 个 raw evidence assets 已索引，8 份技术 Markdown 与
+  project/NPC memory 已存储；snapshot-stored、DB-first、Markdown
+  coverage 与 runtime-artifact audit 均 PASS。本轮无
+  production/elaboration/device-model/simulator 语义变化，
+  A3 继续保持“原始 FAIL、系统事务完成、旧 oracle 误判、checker-replay
+  PASS”，不触发完整系统重跑。
+- commit gate 为 `ai@af027d1bce085bace474b748dcd89113145f8772`；
+  共享工作树有 251 个 tracked 修改、1,611 个 untracked 文件与一个无关
+  staged profile，故未 stage/commit，避免混入 mixed-origin provenance。
+  证据入口：
+  `.github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/`。
+
+## 2026-07-30 RV64 V11D memory tracker cursor 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 保持
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`；
+  production `OooMemOwnerTracker.v` 未修改，SHA-256 仍为
+  `fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8`。
+- V11D 用独立沿前 model 闭合 `tracker-next-token-cursor`：lane0 从 cursor
+  取第一 FREE，lane1 只在合法 lane0 claim 后排除其 token，atomic pair
+  单 credit 零出生，同沿 exact/bulk death 不参与 scan，cursor 按
+  lane1 fire、lane0 fire、零 fire 的优先级推进或保持，并覆盖 4/32-token
+  自然回绕。
+- canonical `cursor-attempt-2` 为 4/32-token × assert/release 4/4 PASS；
+  9 个 32-token、`OOO_ASSERT` 关闭配置的 compile-success RTL variants
+  9/9 被拒绝。expected token/ready/fire/live/PID/cursor 不使用 DUT token
+  反喂；直接 `dut.next_token_q` 比较是第二个 oracle。attempt-1 因
+  invalid-lane token 输出过约束而保留但不晋级。
+- V11C compatibility、V11D evidence 与 semantic ledger 定向复核
+  24/24 PASS。ledger 仅把 cursor 从 GAP 晋级，当前为
+  6 PASS / 38 GAP / 44，整体仍 `GAP`。独立终审给出 bounded
+  `APPROVE`、blocker=0，并保留 valid-qualified 而非 fire-qualified
+  token 合同边界。
+- ARCH_STABLE current-workspace 观测为 51/53；V11D 接线没有新增失败，
+  其余两项仍是 V11C 已记录的 V9R identity/status 漂移与旧 full-core
+  candidate dynamic-inventory 缺口，不能宣称全核、ARCH_STABLE 或 PPA
+  PASS。本轮没有 production/elaboration/device-model/simulator 语义变化，
+  因而不触发 A3 完整系统重跑；A3 原始 FAIL 与 checker-replay 分类保持不变。
+- task-specific `npc-dev`
+  `2026-07-30-memory-tracker-cursor-semantic-revtag-v11d` 为 completed
+  5/5；10-path scoped strict guard PASS。全工作树 strict guard 仅因共享
+  `Linux/scripts/check-ubuntu-rootfs.sh` 缺 `rv64-linux` evidence 而 FAIL，
+  保持范围外 GAP。V11D 141 个 raw evidence assets 已索引，ARCH_STABLE
+  51/53 原始日志已保存；8 份技术 Markdown 与两份 memory 已存储，
+  snapshot-stored、DB-first、Markdown coverage 与 runtime-artifact audit
+  均 PASS；final identity helper 重算的 146-file RTL binding 与 canonical
+  attempt-2 一致。共享工作树有 249 个 tracked 修改、1,564 个 untracked
+  文件及一个无关 staged profile，故 V11D 未 stage/commit，避免混入
+  mixed-origin provenance。证据入口：
+  `.github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/`。
+
+## 2026-07-29 RV64 V11C memory tracker 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 保持
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`；
+  production `OooMemOwnerTracker.v` SHA-256 仍为
+  `fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8`，
+  本轮没有修改综合网表语义。
+- 预审确认合法二态输入下未发现 tracker map/live-set RTL 反例，但旧 TB
+  不直接检查 `live_mask_o[token]`，也没有用不同 PID 隔离 dying-token
+  same-edge no-reuse，V8L 的 9 个 mutation 又不针对 tracker，因此原 3/44
+  ledger 保持 GAP 是正确的。
+- 新 TB 使用独立 expected live/PID/kind/epoch 数组逐沿核对 birth、hold、
+  exact death、STORE bulk death、满表同沿不复用与下一周期复用；验证专用
+  `OooMemOwnerTrackerSemanticChecker` 明确拒绝 allocation tuple、
+  release mask、live map 与 live set 的 X 状态，不进入 production RTL。
+- canonical attempt-2 为 assert/release 2/2 PASS、X-known negative 4/4
+  精确拒绝、9/9 compile-success RTL variant 动态拒绝。9 个 variant 的
+  vvp 均生成，编译时同时关闭 checker 与 `OOO_ASSERT`，所以 rejection
+  来自 TB 独立 scoreboard。attempt-1 因不必要的 Makefile source coupling
+  后续漂移而保留原始 PASS、但不晋级。
+- 独立 final reviewer 给出 bounded `APPROVE`、blocker=0；语义 ledger
+  现为 5 PASS / 39 GAP / 44，新增 PASS 仅
+  `memory-tracker-producer-map` 与 `memory-tracker-live-set`。
+  `tracker-next-token-cursor`、生产尺寸特有扫描/公平性、其它 holder、
+  whole architecture、系统重放与 PPA 均未闭合。
+- V11C evidence tool、unit test 与 runner 已加入 ARCH_STABLE workflow
+  exact binding；verification-only checker 保持由 `test_sources` 精确绑定。
+  该更新会让未重绑的 full-core
+  candidate 继续 fail closed，不把局部 tracker PASS 外推为架构冻结。
+  定向 Python 复核 16/16 PASS；ARCH_STABLE 53 项自检为 51/53，V11C
+  fixture 无新增失败，剩余项仅为既有 V9R identity/status 漂移与旧
+  full-core candidate dynamic-inventory 重绑缺口。
+  task-specific `npc-dev` 5/5 completed 且 DB publication 可召回；
+  V11C 12-path scoped strict guard PASS。全工作树 strict guard 的
+  `agent-system`、`rv64-systemd-contract`、`npc-dev` PASS，唯一
+  `rv64-linux` 缺证据来自共享 `Linux/scripts/check-ubuntu-rootfs.sh`，
+  保持范围外 GAP。V11C 165 个 raw evidence asset 已索引，8 份 task-run
+  Markdown 已同步；snapshot-stored、DB-first 与全局 artifact audit PASS。
+  A3 的 production/elaboration/device-model/simulator 语义未变化，不触发完整
+  rootfs 重跑。证据入口：
+  `.github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/`。
+
+## 2026-07-29 RV64 V11B ProducerId holder 语义覆盖
+
+- 当前 146-file RV64 RTL design-id 为
+  `sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375`。
+  V11A product graph 已重新绑定：15 个 holder module、17 个 exact
+  instance path、194 个 reachable user-module instance；两个 MIQ 与两个
+  AXI bridge 路径不合并。
+- 新的 fail-closed ledger 将 44 个语义单元展开成 50 条 unit×instance
+  binding。当前 candidate=34、no-candidate=10、ledger-only=0；只有
+  `terminal-output0-token`、`terminal-output1-token`、
+  `terminal-pending-set` 三项为 current semantic PASS，其余 41 项保持
+  GAP。字段 census 与 instance graph PASS 均不再被误写成 semantic
+  completion。
+- `OooMemOwnerTerminalCollector` 只在 assertion 区新增 pending、valid
+  ingress、tracker truth 与 output tuple 的二态性检查；release 功能逻辑未改，
+  duplicate/same-edge/owner/hold/conservation 断言未删除或放宽。TB 新增
+  output0/output1 非对称 turnover/hold 与 valid ingress unknown negative，
+  raw dequeue fire 直接计数，不使用 seen/reported 去重。
+- terminal collector attempt-3 为 assert/release 2/2、unknown negative
+  rejected、3/3 compile-success RTL mutation rejected、12 ingress + 2
+  tracker-free lane contract PASS，且 146-file RTL pre/post binding 相同。
+  attempt-1/2 原始失败保留；currentness attempt-21 的 10 项
+  `semantic_evidence:GAP` 也保持 FAIL，不被新账本覆盖。
+- 独立 reviewer 批准 collector 3-unit bounded PASS，并指出 closure
+  evidence 可被 policy 改绑无关单实例 unit 的工具反例。checker 已新增
+  exact collector unit-set 约束及改绑 `pending-system-producer` 的负向
+  单测；修订后 semantic/lane tests 16/16 PASS，3 PASS / 41 GAP 不变。
+- V8L lifecycle 重新绑定当前设计并保留 5 个 marker、9/9 mutation
+  rejection；V9R retry C0 为 2/2 baseline、3/3 mutation rejection。
+  `arch_stable_freeze.py` 已把 semantic checker、lane checker、policy、
+  collector evidence runner/builder/mutator 与对应 tests 纳入 workflow
+  exact binding；旧 closed-debt/full-core evidence 因 source identity
+  未整体重绑继续 fail closed。
+- 本轮 assertion-only production source 变化不改变 release profile 的
+  product 功能语义，不满足 A3 完整 rootfs 重跑条件。global no-live-reuse
+  与 whole architecture 保持 RED/GAP，PPA 保持
+  `UNPROMOTED/UNQUALIFIED`。task-specific `npc-dev` 为 5/5 completed；
+  strict guard 的 agent-system/systemd/npc-dev PASS，唯一剩余 FAIL 是
+  本轮范围外 `Linux/scripts/check-ubuntu-rootfs.sh` 缺 `rv64-linux`
+  evidence，按 mixed-origin guard GAP 保留。长期 goal 继续 active。证据入口：
+  `.github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/`。
+
+## 2026-07-29 RV64 V11A ProducerId holder elaborated instance graph
+
+- 当前 product `NpcTop`、127-file Yosys source list 与 design-id
+  `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`
+  已绑定。fresh elaboration 观察 194 个 reachable user-module instances、
+  15 个 holder-bearing modules 与 17 条 exact holder paths；
+  `OooMemInflightQueue`、`OooMemAxiBridge` 均保留 2 个物理实例。
+- V11A 证据升级为 result/receipt/canonical-full-json/script/log 五件套。
+  receipt 与 reachable graph 直接从完整 Yosys JSON 重算；canonicalizer
+  只规范化 map key 内进程局部 `$0x<hex>:` token，碰撞 fail closed，
+  values 和其它 keys 不变。五件套 SHA-256 分别为
+  `87b5a1fb…9ed06`、`dc483c6d…d4c71`、`464c04dc…09416`、
+  `be9ba9f9…7890`、`3869b0fe…ddde`。
+- 定向验证为 instance/runner 23/23、census 15/15、task-status PASS、
+  fresh byte-identity PASS、ARCH_STABLE 50/50。Makefile 变化使
+  `STORE-BRESP-G1` 的 owner-residency provenance 先 fail closed；补跑 V9N
+  后 currentness 为 16 entries / 38 artifacts / 32 semantic checks /
+  0 failures，postflight 保持 `production_rtl_unchanged=true`。
+- 独立 reviewer v1/v2 两轮反例已由完整 JSON、canonical path、fresh
+  predecessor、原始 ARCH_STABLE log 和动态 stale-PASS fixtures 关闭；
+  v3 给出 `APPROVED_FOR_CURRENT_SCOPE`。本轮没有修改
+  `npc/rv64/vsrc/**`。
+- DB-first memory 已发布；task-specific `npc-dev`
+  `.github/task-runs/2026-07-29-producerid-holder-revtag-v11a/` 为 5/5
+  completed，12-path scoped strict guard PASS。更宽 focus 的首次 run
+  保持 blocked，不因节点 5/5 被追认。全工作树 guard 仅保留本轮范围外
+  `Linux/scripts/check-ubuntu-rootfs.sh` 缺 `rv64-linux` evidence 的全局
+  GAP。
+- 该 PASS 只闭合 holder instance multiplicity：
+  `semantic_complete=false`、
+  `global_no_live_reuse=SEMANTIC_COVERAGE_REQUIRED`、whole architecture
+  `RED`、PPA `UNPROMOTED/UNQUALIFIED`；长期 RV64 OoO/PPA goal 继续。
+
+## 2026-07-29 RV64core interactive datasheet Rev C refresh
+
+- `docs/rv64core/study/index.html` 已按当前 product RTL 配置重建为 Rev. C。产品真源 `npc/rv64/configs/product-rtl-defaults.mk` 与 `define.v` fallback 均启用 `OOO_CSR_QUEUE_HEAD=1`：合法非 FP head0 CSR 走 ROB queue-head，lane1/FP CSR 与非 CSR SYSTEM/trap 保持 pending full-drain；本轮未修改 production RTL。
+- 新增 `tools/generate_elaboration_xml.sh`，分别生成 production `NpcTop` 与带 `OOO_ASSERT` 的 `NpcSimTop` XML；builder 对 Makefile、product config、filelist 和全部 HDL 输入执行 mtime freshness gate，旧 XML 负向测试被拒绝且没有生成输出。最终 NpcTop XML SHA-256 为 `6cf2f322655e8a49cae0a57aa58bcbb25ba432a6e7804809d985c32057829ead`。
+- 单文件 HTML 为 1,066,834 bytes，SHA-256 `73e6975aa440160c61531ce4a3cea236457d58ac2e7592e2ba0a5f8e63752002`，source fingerprint `e7ee837ab46b329793bc53600b3809e2617649667f825ab79b36af71f4200add`。静态 inventory 为 150 files、136 modules、195 elaborated instances、9 transactions、38 WaveDrom、58 primary phases、2 sidePaths、240 data fields、975 self-check answers、1218 sequential targets、0 external resources。
+- 独立 HTML reviewer 发现并关闭一项 P1：`serial_flush_q` 侧支路已从 C1 apply 模块移回 C0 `CsrFile`，审计器新增 parent-module 负向门。最终 reviewer closure 为 PASS；浏览器动态布局、RTL testbench、综合、STA 与 PPA 本轮均未执行，不从静态文档审计外推。
+- `docs/rv64core/study` scoped strict guard 为 PASS 且不触发 e2e profile。全工作树 strict guard 因大量既有/并发变更要求 `rv64-linux` 与 `npc-dev` 新证据而 FAIL；该全局 GAP 不属于本轮只改本地教学文档的范围，不能改写为 RTL 或系统验证 PASS。
+
+## 2026-07-29 RV64 V9R current-source evidence closure
+
+- 当前 RV64 design-id 保持 `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`。`OooIntBackend.v` 与 `OooMemAxiBridge.v` production SHA-256 在 current-source replay 前后不变；V9R SQ-query retry C0 baseline 2/2 PASS，bank0/bank1/bridge 三个 compile-success RTL 负向版本分别由 `@18/@39/@24` raw assertion 拒绝。
+- V9O evidence-index 为 167/167 PASS，verification-id 为 `sha256:5e8107e641f459131fc86220a84ef206870ebc773cc6931ecc65921d8b1c4a92`。16 个 CLOSED debt 当前绑定 38 个 artifact 和 32 个 canonical semantic check，failures=0。
+- `SERIALIZE-G1` publisher/currentness 已改为 schema-aware exact tuple：candidate、independent contract、review report 的 kind/path/order/fixed SHA-256 必须逐项相等，missing/extra/remapped evidence 均在 ledger hash refresh 前 fail closed。泛化的非 JSON 例外不能绕过该 tuple identity。
+- postflight 在开始校验时先发布 `GAP validation_not_completed`，仅在 architecture currentness 48/48、historical backfill 4/4、task-local workflow 20/20、V9O index 与 SERIALIZE verifier 的日志、返回码、测试数和终端 marker 全部通过后重新发布 PASS。v1 reviewer 准确发现旧 48-test rc=1、缺少 task-local receipt 和 bridge TB 合同；修复后的隔离 v2 reviewer 给出 `APPROVED_FOR_CURRENT_SCOPE`。
+- A3 原始 published state 仍为 `FAIL rc=1`；其 execution/DUT terminal/binding/raw input/RTL assertion 为 `COMPLETE/COMPLETE/NO_DRIFT/VALID/CLEAN`，旧 dmesg oracle 把 `printk: debug:` 误判。frozen-input checker replay 为 PASS 且正向接受该行、负向拒绝真正 `BUG:`；没有修改 A3 历史状态，也没有触发 production/elaboration/device-model/simulator-semantics/required-input 的完整重跑条件。
+- historical backfill 当前 `VD0=0, VD1=0, selected=NONE`，但 full architecture freeze 仍有 33 个 inventory/census/proof-depth blocker；因此 `ARCH_STABLE=GAP`、`PPA=UNQUALIFIED`、promotion=false。当前 PASS 只闭合 source/evidence workflow 子范围。
+
+## 2026-07-29 RV64 queue-head CSR stop-owner historical VD3
+
+- `HIST-SER-QH-STOP-HOLD-DROP` 已由 VD1 提升为限域 VD3。根因从旧的
+  “单一 sequencer hold + ordinary drain”修正为双合同：
+  `OooStopPendingSequencer` 保存 queue-head CSR inflight stop state，
+  `OooFrontendRunGate` 把同一 inflight owner 映射为
+  `orphan=0/busy=1/can_run=0`。当前 topology 要求 ROB empty 才能
+  backend drained，所以实测 `ordinary_drain_root=0`，combined negative
+  的 stop drop 来自 orphan cleanup。
+- current、drop-stop-hold、drop-RunGate-owner、historical-pre-T3U
+  四种可编译语义均跑 assertion on/off，`8/8 compile-success`。current 与
+  hold-only 为 zero gap/drop/run/overlap；drop-RunGate-owner 得到
+  `gap=2, run=2, real lane1 overlap=1`；combined assertion-off 得到
+  `gap=1, drop=1, run=2, real lane1 overlap=1`，assertion-on 保留并触发
+  T3U/V9X 既有断言。
+- raw scoreboard 由真实 `head0_csr_dispatch_fire`、inflight、RunGate 与
+  lane1 pending-system capture 驱动，不 force owner，也不做事件去重；
+  current/hold-only 均观察 `hold_cycles=6, C0=2, C1=2, C2_quiet=2`。
+  runner/oracle 单测 7/7、重放 summary/log/normalized VVP identity 稳定，
+  V9O 与 standalone assertion on/off PASS，module aggregate 113/113 PASS。
+- 独立 reviewer 合同 SHA-256 为
+  `f585e77a3b99d950897d91c527f1c542cb5008445c0eaf26ad1ebce9ca693988`，
+  结论为 bounded VD3 PASS。reviewer 指出的 BNE “competing clear”注释已
+  修正，并对最终 TB 重新完成 8-case replay 与 113/113 aggregate。
+- ledger 审计为 `VD0×0, VD1×0, VD3×3, VD4×2`，
+  `selected_id=NONE, status=PASS`，只表示 historical backfill
+  `ELIGIBLE_FOR_REVIEW`；arch-stable 仍受独立 currentness/debt 条目约束，
+  `PPA=UNQUALIFIED`、promotion=false。hold-only bounded survival 不是
+  production 删除、综合、STA 或 PPA 等价证据。
+- production `OooStopPendingSequencer.v` 与 `OooFrontendRunGate.v` 未改，
+  146-file design-id 保持
+  `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`。
+  本轮不改变 production/elaborated system RTL、device model 或 simulator
+  语义，也不缺 A3 terminal/post-hash，因此 A3 原始 FAIL 保持且无需完整重跑。
+- task-specific `npc-dev` run
+  `2026-07-29-rv64-queue-head-stop-owner-historical` completed 5/5，7 个
+  evidence asset 已索引；20 条本轮路径的 scoped strict guard PASS。
+  DB-first 的两份本轮 memory 已无 hash mismatch；全局 audit 仅剩 8 个既有
+  历史 task-run `missing_backup`，保持显式环境 GAP。
+- 该单项完成不代表长期 RV64 OoO/PPA goal 完成。证据入口：
+  `.github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/`。
+
+## 2026-07-29 RV64 queue-head younger-store historical VD3
+
+- `HIST-SER-QH-YOUNGER-STORE-CYCLE` 已由 VD1 提升为限域 VD3。产品 glue
+  路径直接观察 3 个 committed 与 2 个 selectively killed queue-head CSR
+  transaction，均为 `birth=1, lane1_fire=0`；因此 backend CSR+younger
+  STORE 双派发只作为历史 root-cone 判别输入，不代表当前 frontend 可达。
+- 三种可编译语义在相同原始计数器输入上完成 assertion-on/off 六组对照：
+  current owner guard 2/2 PASS；历史 transport-idle fixed 2/2 在
+  `root_window=1` 产生唯一 C0/C1、C2 无重复且 physical write=0；恢复历史
+  `mem_idle && mem_retire_quiet` 的 cycle 版本 2/2 在
+  `root_window=4, mem_idle=1, mem_retire_quiet=0, hold=1, SQ=1,
+  owner=1` 被专用 oracle 拒绝。6/6 均编译成功，不依赖 assertion-only
+  行为，也未用 sticky/去重掩盖重复 terminal。
+- 收尾重放曾因 Icarus VVP 内部 allocator-derived 符号地址导致 raw image
+  SHA 漂移，ledger 正确 fail-closed。runner v2 现在保留每次 raw receipt，
+  ledger-bound summary 使用地址归一化后的 elaboration SHA；2/2 正负向
+  单测与连续两次六 case replay 的字节相等检查均 PASS。
+- production `OooIntBackend.v` 前后 SHA-256 保持
+  `49ec3d7e…cca5a`；146-file design-id 仍为
+  `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`。
+  `tb_ooo_int_backend` PASS，ledger audit `valid=true/errors=[]`，定向单测
+  4/4 PASS。
+- 独立 reviewer v3/v4 均裁决为 `APPROVED_FOR_BOUNDED_VD3`；v4 额外确认
+  normalized VVP SHA 未替代 RTL source、compile log、专用 oracle 或最终
+  raw image receipt。两轮共同保留 backend
+  C1 为 TB 注入、两个版本只是 root-cone reconstruction、T3U 仅为诊断失败、
+  四拍观测不是无限期形式证明，以及 normalizer 单测不是未来所有 VVP 语法
+  的完备证明等边界。整体账本现在为
+  `VD4×2, VD3×2, VD1×1`；唯一 blocker 与下一选择是
+  `HIST-SER-QH-STOP-HOLD-DROP`。
+- 本轮没有 production core、实际 elaborated RTL 或 simulator/device
+  执行语义变化，也不缺 A3 原始输入/终端/post-hash，因此不触发完整 A3
+  重跑。A3 原始 FAIL 保持不变，仍定义为“系统 transaction 完成、旧
+  oracle 误判”。
+- 可发现/可执行闭环已重放：non-history bounded brief 独立命中
+  `rv64-historical-defect-backfill-loop`；task-specific `npc-dev`
+  completed 5/5；17 路径 scoped strict guard PASS。DB-first 当前
+  memory 没有 missing/mismatch；全局 rc=1 仅剩 183 个本轮范围外的历史
+  task-run live-content drift，保持显式 workflow GAP/豁免。
+- 该单项完成不授予 architecture freeze 或 PPA promotion；
+  `ARCH_STABLE=GAP`、`PPA=UNQUALIFIED`，长期 RV64 OoO/PPA goal
+  继续 active。证据入口：
+  `.github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/`。
+
+## 2026-07-28 RV64 V10G queue-head serialization currentness
+
+- 当前 product-default RV64 design-id 为 `sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`，产品配置固定 `OOO_CSR_QUEUE_HEAD=1` 与 holder assertion=1。合法非 FP lane0/head0 CSR 使用 queue-head retirement；lane1/FP CSR、其余 SYSTEM、architectural trap 与 simulation exit 保留 pending/full-drain owner。
+- queue-head CSR assertion/release C0/C1/C2 均 PASS；每种配置观察 3 个 committed 与 2 个 killed transaction。两份 compile-success C2 RTL 版本均被动态拒绝。SYSTEM product-default 为 3/3 baseline 与 14/14 compile-success RTL version；current replay 为 26/26、module 113/113、official 177/177、AM 59/59、DiffTest mismatch 0、architecture 9/9 GREEN。
+- 隔离 final reviewer v2/v3 均给出 `APPROVED_FOR_CURRENT_SCOPE`；v3 额外核验 historical depth、9/9 checker replay、XRET holder-onehot、4 份 cohort contract、V9O 167/167 与 A3/A4 状态边界，未发现当前范围可复现 false-green。`SERIALIZE-G1` 仅对 Phase1 split-domain CLOSED；Phase2–5、whole-core holder census、正式 freeze-input inventory 与 PPA promotion 均未关闭。
+- A3 原始 published state 保持 FAIL；其 execution/DUT terminal/binding/raw artifact/RTL assertion 为 `COMPLETE/COMPLETE/NO_DRIFT/VALID/CLEAN`，旧 dmesg oracle 为 INVALID。A4 保持 TERM/FAIL，不作为 PASS。当前没有 production/elaborated RTL、device model 或 simulator semantics 变化，因此不需要完整系统重跑。
+- historical-defect backfill 已成为 freeze gate。当前 5 项中 VD4×2、VD3×1、VD1×2；两个 VD1 会阻止 architecture freeze，选择 `HIST-SER-QH-YOUNGER-STORE-CYCLE` 为下一项。
+- checker identity 维护从冻结日志/RTL-version summary 重放 9 个 closed-debt checker，9/9 PASS 且输入前后哈希不变；XRET 8 个 RTL version + 2 个 observer probe 全部编译成功并被拒绝；V9O index 167/167、arch-stable 单测 48/48。当前 audit 仅保留 32 个真实边界 blocker，`ARCH_STABLE=GAP`、`PPA=UNQUALIFIED`、promotion=false。
+- AI 环境已增加通用 `rv64-historical-defect-backfill-loop`；非历史 bounded brief 可独立命中蓝图。`npc-dev` 5/5、`agent-system` 11/11 与双 profile strict guard 均 PASS；最初含 `v10g` 的无独立 focus task-run 保持 blocked，不改写为完成。
+
+## 2026-07-28 RV64 A3 checker replay V10F
+
+- A3 原始状态保持
+  `FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0`；
+  本轮未改写历史 run。冻结事务完成 5,071,521,696 cycles、
+  1,223,536,213 commits；strict-done、poweroff-begin、kernel power-down、
+  syscon poweroff、`GOOD TRAP`、system-reset clean exit 在 SHA-bound raw
+  guest console 中各一次且有序，RTL assertion 文件为空，设计/仿真器/配置/
+  启动产物前后哈希无漂移。
+- 从 A3 rootfs 只读提取的实际 strict checker SHA-256 为
+  `83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a`，
+  与 A3 `strict_checker_sha256` 完全一致。旧未限定 `BUG:` 正则在冻结
+  console 中只命中两条 `printk: debug:`；当前限定 token 的正则命中 0
+  条，3/3 定向单测同时证明接受 benign debug 文本并拒绝真实 `BUG:`。
+- canonical V2 replay 为 PASS，独立合同审查给出
+  `APPROVED_NOT_PROMOTION_ELIGIBLE`。A3 因而定义为
+  `SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE`，但原始
+  strict 16/17、唯一 `dmesg-no-critical` FAIL 与 rc=1 全部保留。A4
+  保持 `FAIL rc=143 ... signal=TERM`，不是 PASS 证据。
+- 四项完整重跑触发条件均未成立：production core RTL 语义、实际
+  elaborated RTL、device/simulator 执行语义均未变化，A3 原始输入、终端链
+  和 post-hash 证据齐全。reviewer 记录的低风险工具债务是未来对 A3/A4
+  generated filename set 做双向相等检查；不追改已批准 V2。
+- checker/transaction-evidence 的七个精确脚本、单测与 fixture 路径在
+  strict guard 中只路由到 `rv64-systemd-contract`；`Linux/` 的其它变更继续
+  路由到 `rv64-linux`。该 exact-path 规则已由 agent-system 自检约束，
+  checker 两个实际 changed paths 的 scoped strict guard 为 PASS，不替代
+  production RTL、rootfs、device model 或 simulator 语义变化所需的完整验证。
+- task-specific `rv64-systemd-contract` 与 `agent-system` run 均 completed；
+  后者 11/11 节点 PASS。本轮八个实现/说明路径的 strict guard 精确要求并
+  通过这两个 profile。全 dirty worktree guard 仍因既有
+  `check-ubuntu-rootfs.sh` 与 NPC/RTL/PPA/testbench 变化缺
+  `rv64-linux`、`npc-dev` evidence 而 FAIL；该结果作为 mixed-origin
+  范围豁免原样保留，不被写成 PASS，也不触发本 checker-only 切片的无关长跑。
+- 本切片只关闭 checker oracle 分类；`SERIALIZE-G1` 保持 OPEN，
+  architecture freeze 保持 GAP，PPA 保持 UNQUALIFIED，长期 RV64 OoO/PPA
+  goal 继续 active。证据入口：
+  `.github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/`。
+
+## 2026-07-28 RV64 Core 交互式 Datasheet
+
+- 新增单文件离线入口 `docs/rv64core/study/index.html`，以半导体 datasheet 的
+  General Description、Features、Quick Facts、Functional Block Diagram、Interfaces、
+  Timing、Source Evidence 与 Revision History 结构组织当前 RV64 Core；没有复制厂商
+  商标或专有版式。
+- 交互数据绑定当前讲义与 `NpcTop` elaboration：150 个 `vsrc` 文件、136 个 module
+  定义、195 个生产实例、8 条关键 transaction 和 37 个 WaveDrom。默认从
+  `NpcTop.u_core : NpcCoreTop` 进入，也可切到 SoC 根；实例树明确显示
+  `instance_name : ModuleType`，支持父/子钻取、面包屑、hash deep-link、浏览器历史、
+  全局搜索、源码反向索引、键盘导航、移动侧栏和打印布局。
+- 实例层次与 transaction 拓扑严格分开：树边表示例化/包含；transaction phase 是
+  自上而下的 module-definition/data flow，先进入源码定义页，再从完整反向索引选择
+  lane0/lane1 等精确实例，禁止按 module 类型猜实例。8 条 transaction 共 51 个主阶段、
+  1 条 owner-lifetime sidePath 和 208 个 Data In/State/Data Out/Guard 字段。无模块
+  专属 WaveDrom 时明确显示 `NO MODULE-SPECIFIC TIMING`，不借用无关波形。
+- 生成器 `build_interactive_datasheet.py` 将 CSS、JavaScript、payload、WaveDrom
+  3.6.2 runtime/skin 与 MIT notice 全部内嵌；最新产物 1054123 bytes，
+  `source_sha256=0da5f044d36a50580d0fa3943f2dd4e5b455743811fee8b6310e5cc6476809f8`。
+  `audit_interactive_datasheet.py` 校验层次 parent/child 互反、计数、transaction/timing
+  引用、固定 datasheet 章节、深链接 marker、无外部资源和旧错误实现 forbidden marker；
+  当前 975 个 Self-check answer slots、1218 个 sequential targets、
+  `external_resources=0`、PASS。原讲义 150/150 覆盖门与 JavaScript/Python 语法门
+  同样 PASS。
+- 用户截图暴露的两项视觉缺陷已从源头关闭：9 章 71 个 WaveDrom `"wave"` 字段把
+  重复显式 `0`/`1` 改为保持符号 `.`，字符数和周期位置不变；transaction phase 从
+  固定宽横排、独立箭头/绝对定位标签改为全宽纵向有序列表，handoff 文本和四类数据
+  位于所属卡片内部。Features、lead-grid、callout 使用 container-adaptive grid 与强制
+  断词，不再在 sidebar 后的临界宽度强挤两栏。`normalize_wavedrom_levels.py`、Markdown audit、
+  generator 防御性规范化和最终 payload audit 形成三层防回归闭环；当前 37/37
+  WaveDrom、8/8 transaction 均通过。
+- 每个生产实例的 Self-check 已从只有问题升级为 5 个原生可展开答案，共 975 个；
+  答案绑定父实例、握手对、状态 owner、kill/drain 与 completion/commit。状态机械提取
+  同时识别 `always` 与 `always_ff`；`AxiDpiSlave=1/11`、
+  `AxiVirtioBlk=2/16`（posedge blocks/sequential targets），不再误判为组合模块。
+  ADD/DIV 教学例明确 `DIV(older) → ADD(younger)`，ADD 可先 formal-WB，但 commit0
+  必须是 older DIV，commit1 才可在同一顺序窗口携带 younger ADD。
+- Store 数据流明确拆成两条 RTL 事实链：bridge B response 含
+  `{kind,token,mmu_epoch,fault_tval}+error/page_fault`；`OooIntBackend` exact-match
+  MIQ/live table 后才按 token 恢复 ProducerId/ROB，形成 formal WB 与 SQ terminal。
+  并行 `OooMemOwnerTerminalCollector` 分支只携带 `{kind,token,epoch}` 并回收 live owner，
+
+不承载异常/PID，也不向 ROB 供数。
+- 独立 HTML reviewer 首轮发现错 lane 猜测、筛选跨 route 泄漏、无关 timing 回退和
+  A4 越界 4 个 P1；全部修正后复读为 0 P0/P1。用户截图修复的第二轮定点复核又得到
+  0 P0/P1/P2。Rev. B 对抗复核继续发现 always_ff 漏识别、Store B 回程缺口、
+  lead-grid 临界宽度及 owner tuple/completion payload 混画；全部修正并由同一 reviewer
+  回归为 0 P0/P1/P2。已尝试以 Codex 内置浏览器打开本地单文件，但 `file://` 被 URL 安全
+  策略拒绝且未绕过，因此真实 320/375 px、触控和打印预览保持 GAP；动态 RTL TB、
+  综合、STA 或 PPA 也未运行，production RTL 未修改。
+  证据入口：`.github/task-runs/2026-07-28-rv64core-interactive-datasheet/`。
+- 全工作树 strict guard 已再次按规则执行，但当前共享脏工作树 764 个 changed paths 中含本任务
+  未触碰的 agent-system、Linux 和 NPC 开发改动，因此缺少 `agent-system`、`rv64-linux`、
+  `npc-dev` 本轮 profile evidence。为避免把文档交付扩权成耗时 RTL/Linux 回归，本任务对
+  这些外部路径显式豁免；对 docs、task-run 与两份 memory 共 4 个真实交付 path root
+  运行 scoped strict guard，结果为 `required_profiles=0`、PASS。该豁免只覆盖 guard
+  归因，不把外部脏改动或动态硬件状态判为 PASS。
+
+## 2026-07-28 RV64 Core 源码学习讲义与逐文件地图
+
+- 新增常驻学习入口 `docs/rv64core/study/README.md`，按 00–12 章从状态 owner、
+  transaction、valid-ready 和精确时相讲解当前 RV64 双发射 OoO Core；正文共
+  4335 行、37 个严格 JSON WaveDrom。用户可先读全局拓扑，再沿前端、rename/ROB、
+  整数/FP、memory/MMU/cache/AXI、退休/CSR、控制、SoC/仿真进入逐文件地图与实验。
+- 当前 `npc/rv64/vsrc/` 共 150 个文件。`NpcTop`/`NpcSimTop` Verilator XML 合并清册为
+  124 个生产实例树可达、6 个仿真专用、3 个 focused checker、3 个 catalog-only、
+  9 个 header/include、5 个 document/build；第 11 章逐项解释全部 150 个真实路径。
+- 当前实例真源确认 `NpcCoreTop` 已生产例化 `OooDualMemBridgeWrapper`，内部为
+  2×`OooMemAxiBridge`、2×DTLB、2×D-cache 和共享 `OooDualMemAxiArbiter`；旧
+  `vsrc/README.md`/`filelist.mk` 的“未实例化”注释过期。前端生产 DecodeStage 为 2，
+  另有 2 个 `OOO_ASSERT` reference；不存在旧文档所述 6 个前端实例。
+- 讲义已绑定四条高风险周期合同：Decode→rename→dispatch 为组合融合、dispatch 沿
+  原子写 RAT/FreeList/Busy/ROB/IQ；普通整数 ALU 从 dispatch 到架构 GPR 更新的局部
+  最短路径至少跨 3 个后续上升沿；FP raw result 先 PRF/wake→8-entry done FIFO→
+  formal FPWB→ROB done→commit；Store 只在 SQ head 匹配 ROB head 且 launch-open 时
+  发物理请求，等 B terminal 后才释放 ROB/SQ owner。
+- 前端边界按当前 RTL 修正为 C0 request、C1/H1 packet response+FIFO enqueue、C2
+  registered head dispatch；无 response→dispatch bypass，也无 full+pop look-through。
+  redirect 在边沿更新 PC、下一拍再请求；已 handoff 的 IFU/LSU AXI transaction 只可
+  drain，不能被 flush 撤回。
+- 机械门 `docs/rv64core/study/tools/audit_vsrc_coverage.py` 强制所有 150 个路径进入
+  第 11 章，并检查本地链接与全部 WaveDrom JSON；当前输出为
+  `markdown_files=14`、`vsrc_files=150`、`atlas_rows=150`、
+  `covered_vsrc_files=150`、`wavedrom_blocks=37`、`PASS`。该门只解析 marker
+  内结构化 atlas row，并校验每个路径恰好一次、合法身份标签和 124/6/3/3/9/5
+  精确计数；inventory 工具可从两个 XML 重建 parent/child、instance status 和
+  posedge 清册。
+- 最终隔离 reviewer 给出 0 个 P0，并指出 2 个 P1、2 个 P2；IFU redirect 旧响应
+  已改为 `discard_fetch_rsp_q` 物理消费但不入 FIFO，Store 改为 SQ/ROB 双头
+  launch→AW/W→B terminal 精确链，branch resolve 改为控制/恢复事件并对应 EX0
+  formal WB，逐文件门补上结构性防假绿。四项均已修正并重跑审计。
+- 本轮只写讲义、审计工具、task-run 与 DB-backed memory，没有修改 production RTL，
+  没有运行动态 TB、综合、STA 或 PPA；静态拓扑/周期说明不外推为功能、Linux、
+  architecture-freeze 或 PPA PASS。bounded non-history recall 与 strict guard 已
+  PASS；证据入口：
+  `.github/task-runs/2026-07-28-rv64core-study-manual/`。
+
+## 2026-07-27 RV64 V10D simulation-exit exactly-once
+
+- 当前本地 RV64 双发射 OoO RTL design-id 为
+  `sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594`。
+  根因是 `OooPendingDrainResolveGate` 的 exact memory-owner terminal
+  条件遗漏 `pending_exit_i`；在 ROB/issue 已排空但旧 memory holder
+  仍 active 时，raw exit 可提前有效并同沿清 holder/stop、锁存
+  `exit_valid/halted`。
+- 最小 RTL 修复把 exit 纳入
+  `pending_system_i || pending_arch_trap_i || pending_exit_i` 的 exact
+  terminal gate；`OooTrapExitEventMux` 明确 older trap 压制 exit，
+  `OooTrapExitOutputSequencer` 在 sticky 边界阻止同周期双 latch。
+  `OooControlPlane` 新增 exit owner onehot、memory terminal、C1 clear
+  与 C2 raw no-repeat 断言；未增加 terminal 去重，未削弱断言。
+- production-module TB 直接计 raw mux pulse。assertion-on/off 各 5/5
+  PASS，lane0 EBREAK、lane1 ECALL、active-holder block、C0 raw、C1
+  holder/stop clear、C2 no-repeat、`core_local_flush` kill 与 older branch
+  recovery priority 均有 marker；七个 compile-success RTL 版本 7/7
+  被对应 oracle 拒绝，完整 module aggregate 为 113/113 PASS。
+- current-design V10C replay 为 module 113/113、official 177/177、AM
+  DiffTest 59/59 且 mismatch 0、CoreMark/Dhrystone PASS、architecture
+  9/9 GREEN、closed currentness 15 entries/35 artifacts/0 failures。独立
+  final reviewer verdict 为 `APPROVED_FOR_CURRENT_SCOPE`。
+- reviewer 发现 V10C stage-order 自检遗漏
+  `control-event-index-verify`。现已加入 required order、缺失/晚于 ledger
+  两个负向 fixture，并把该合同设为每次 full/resume replay 的无条件
+  preflight。attempt 13 持久化三项负向拒绝 marker、完整顺序 PASS 与
+  currentness PASS；标准/详细状态均 PASS，仍明确
+  `SERIALIZE-G1=OPEN`。
+- 历史 V9Q rootfs 只绑定旧 design-id `4655…1380` 与 simulator
+  `669c…6c87`，配置 queue-head/terminal-holder assertion 开启，最终
+  `FAIL rc=2`、405,000,000 commits、PC `0xffffffff80002f68`、空 terminal
+  marker。它不是当前设计系统 PASS。full-core candidate 的 nested
+  claim 仍为 `architecture_freeze=GAP`、`ppa=UNQUALIFIED`、
+  promotion=false；Linux/rootfs current-design recert 与长期 goal
+  均保持 active。
+- V10D 记录层已闭合：bounded non-history recall 对 simulation-exit 与
+  stage-order/index-verify 均 complete；`npc-dev` task-specific e2e
+  5/5、`agent-system` 11/11 completed，并通过 DB marker publication。
+  最终 strict guard 为 PASS（536 changed paths、2 required profiles，
+  `agent-system`/`npc-dev` 均命中 current evidence）；该结果不外推为
+  Linux/rootfs、architecture freeze 或 PPA PASS。
+- 证据入口：
+  `.github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/`
+  与
+  `.github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/replay-attempt-13.log`。
+
+## 2026-07-27 RV64 V10B serialized SYSTEM post-fire
+
+- 当前本地 RV64 双发射 OoO RTL design-id 保持
+  `sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951`。
+  V10B 未修改 production RTL；主要分类为 verification，补齐
+  `CSR/ECALL/XRET/WFI/SFENCE_FAMILY/FENCEI/FENCE/IRQ` 从 C0 terminal
+  到 C1 clear/architectural side effect、C2 no-repeat 的 raw scoreboard，
+  CSR 另覆盖 enqueue 到 exact ProducerId/PC commit lease。
+- pre-change `tb_ooo_priv_system` 在切断 FENCE.I MMU input 后仍 PASS，
+  证明旧 oracle 不敏感。V3 最终为 3/3 baseline PASS、14/14
+  compile-success 负向 RTL 版本被动态拒绝；四个 testbench path/SHA
+  逐 case 绑定。切断 `OooFetchPacketCache.clear_i(mmu_flush_i)` 会出现
+  stale response、无 AXI refetch 与旧 instruction packet，并由目标
+  checker 失败。
+- 同源分层证据为 module 113/113、official 177/177、AM 59/59、
+  DiffTest mismatch 0、CoreMark/Dhrystone PASS、architecture
+  DI-1..DI-5/OOO-1..OOO-4 共 9/9 GREEN。final-reviewer-v2 的标准化裁决
+  为 `APPROVED_FOR_CURRENT_SCOPE`；v1 的 cohort identity、真实 Fetch
+  bridge 路径、辅助 TB SHA 与局部 marker 四项反证均已关闭。
+- FENCE.I 结论是 production MMU pulse、顶层静态连线与 fetch bridge
+  动态 consumer 的 bounded 组合证明，不等价于 full-core
+  self-modifying/Linux 证明。本轮没有形式穷举、综合、STA 或 power。
+- `npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json` 仍绑定旧
+  design-id 和 111-module inventory，full-core currentness 保持 GAP。
+  `SERIALIZE-G1` 仍为 P1/OPEN；simulation exit、Linux terminal、
+  architecture-stable 与 PPA 均未关闭，`ppa=UNQUALIFIED`、
+  promotion=false。下一动作是重放 FDG current evidence 与 ledger
+  updater，再继续 P1 serialize 主线；P0/P1 清零后才进入历史缺陷
+  backfill 默认队列。
+- 证据入口为
+  `.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/`；
+  task-specific `npc-dev` run
+  `.github/task-runs/2026-07-27-serialized-system-revtag-v10b/` 为
+  completed 5/5，限定本轮 15 路径的 strict guard PASS。
+  长期 goal 保持 active。
+
 ## 2026-07-27 RV64 V10A clocked serialized-owner exactly-once
 
 - 当前本地 RV64 双发射 OoO RTL design-id 为 `sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951`。根因是 `OooCsrTrapRequestMux.pending_arch_trap_fire_o` 原先未被同沿 ROB-head commit exception 屏蔽；虽然生产 `CsrFile` 选择 `mem > ex > irq`，raw pending architectural-trap request 与 predictor boundary 仍会额外有效，因而不代表唯一被选中的 CSR transaction。

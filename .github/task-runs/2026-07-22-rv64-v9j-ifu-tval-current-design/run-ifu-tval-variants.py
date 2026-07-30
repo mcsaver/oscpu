@@ -196,12 +196,14 @@ VARIANTS = (
         make_variable="RTL_OOO_STOP_PENDING_SEQUENCER",
         test_name="tb_ooo_ifu_lane1_fault_owner",
         old=(
-            "      end else if (!direct_frontend_flush_i && branch_resolve_untracked_i) begin\n"
-            "        stop_pending_o <= 1'b0;"
+            "                  (branch_spec_checkpoint_capture_i ||\n"
+            "                   branch_spec_resolve_valid_i ||\n"
+            "                   branch_resolve_untracked_i)) ||"
         ),
         new=(
-            "      end else if (!direct_frontend_flush_i && branch_resolve_untracked_i) begin\n"
-            "        stop_pending_o <= stop_pending_o;"
+            "                  (branch_spec_checkpoint_capture_i ||\n"
+            "                   branch_spec_resolve_valid_i ||\n"
+            "                   1'b0)) ||"
         ),
         expected_marker="[TVAL-G1-CONTROL-RED] c.beqz squash PF",
     ),

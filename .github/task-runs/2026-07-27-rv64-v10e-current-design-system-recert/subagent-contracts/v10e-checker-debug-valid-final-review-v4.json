@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e_checker_debug_valid_final_review_v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 systemd natural-poweroff 终端事务与 NpcSimTop.debug_ooo_flags_o 开启态证据：六类 raw terminal event 按出现次数精确为一且保持周期顺序；宿主预算结束前 RTL assertion marker 优先判 FAIL；bit63 仅表示诊断 payload 配置有效；64-cycle Verilator 观测绑定 current design-id、仿真器、RTL/C++ 源文件与三份配置哈希。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-debug-valid-enabled-smoke.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-strict-checker-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-guest-checker-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-transaction-parser-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-debug-flags-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract-current.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/debug-valid-enabled-smoke-v2.status",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled-v2/validation.log",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled-v2/console.log",
+      ".github/runtime-artifacts/rv64-systemd-strict/prelaunch-5f9dd068-debug-valid-enabled-v2/sim-build/obj_dir/VNpcSimTop__verFiles.dat",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e-checker-debug-valid-final-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件、周期或编译配置、testbench/EDA 观测、PASS/GAP 范围组织结论；优先尝试构造同一日志行重复终端事件、断言查询返回码大于一、unexpected sim_rc、源码或配置 post-hash 漂移造成假绿的具体反例；保留 a3 历史 RED、a4 尚未运行与 PPA 未资格化边界。"
+  ],
+  "success_criteria": [
+    "guest checker 当前日志为 12/12 PASS，源码同时覆盖六类跨行重复、六类同一行重复、五个相邻逆序、两种 V9R marker 乘 host-timeout/max-cycle 以及 assertion 查询 rc=2；runner contract 明确拒绝按行计数和忽略终端查询错误两个变体；enabled v2 status 为 PASS，观测 bit63=1、bits62:46=0、valid=1、64 cycles/6 commits、sim_rc=1，design-id 前后均为 5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a，NpcSimTop/cpu-exec/.config/auto.conf/autoconf.h 前后哈希一致。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

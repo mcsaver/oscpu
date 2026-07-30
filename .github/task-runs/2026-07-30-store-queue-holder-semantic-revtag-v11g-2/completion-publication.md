@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-store-queue-holder-semantic-revtag-v11g-2
+- `trace_id`: e2e:2026-07-30-store-queue-holder-semantic-revtag-v11g-2
+- `task_slug`: store-queue-holder-semantic-revtag-v11g
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: ec41cf5f3737b195f5430684c518252ec3799922f3fca062da8df34a7d99c48b
+- `task_report_md_sha256`: c9353527a05336e7ab828b87cc84f4bdca1d816fe30d467e7f2a990426c4cd97
+- `run_manifest_json_sha256`: 7733d417093f29cf65705397d9d23488d719126a8edcaf158f762a1a4baa195a
+- `context_brief_md_sha256`: cc3284bc99a91e1f668786b5ee4afcbf2d207dbded9124f011ad6d24686b1c4d
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 58990bf312cbead976a7449561d361b48018c136aa3622c420bd7e2212c14631
+- `dispatch_log_md_sha256`: 4b3f783c726b474176ff3c4c5d1169527ec48232501b92b4435aab940551989e
+- `nodes_tsv_sha256`: 87d214fc878fada657a889f723bb91dc19a9def0dcecb0cc78e8b45c20c39a61

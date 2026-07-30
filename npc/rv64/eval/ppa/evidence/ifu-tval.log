@@ -1,5 +1,5 @@
 schema=npc-rv64-ifu-tval-evidence-v2
-design_id=sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702
+design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
 canonical_command=make -C npc/rv64 check-ifu-tval
 decoder_frontier_rows=4
 page_end_pf_rows=9
@@ -15,7 +15,7 @@ lifecycle_manifest_rows=24
 dispatch_stall_rows=1
 compile_success_rtl_variants=12
 dynamic_rejected_rtl_variants=12
-module_aggregate=111/111
+module_aggregate=113/113
 production_rtl_changed=false
 ppa=UNQUALIFIED
 promotion_eligible=false

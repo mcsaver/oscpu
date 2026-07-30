@@ -1,0 +1,103 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-28-rv64-v10f-a3-checker-replay-v2",
+  "status": "APPROVED_NOT_PROMOTION_ELIGIBLE_RECORD_CLOSED",
+  "classification": "verification",
+  "auxiliary_classifications": [
+    "tooling/workflow"
+  ],
+  "source_run": {
+    "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3",
+    "status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+    "status_preserved": true,
+    "design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "simulator_sha256": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+    "cycles": 5071521696,
+    "commits": 1223536213
+  },
+  "implementation": {
+    "production_rtl_changed": false,
+    "production_checker": "Linux/scripts/npc-systemd-strict-check.sh",
+    "repair": "bound BUG token with (^|[^[:alnum:]_])",
+    "dedup_added": false,
+    "assertion_weakened": false
+  },
+  "validation": {
+    "status": "PASS",
+    "embedded_checker_sha256": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+    "embedded_checker_binding_match": true,
+    "legacy_a3_matches": 2,
+    "legacy_match_class": "printk: debug only",
+    "current_a3_matches": 0,
+    "checker_unit_tests": "PASS 3/3",
+    "printk_debug_fixture": "ACCEPTED",
+    "real_bug_fixture": "REJECTED",
+    "strict_history": "16/17 done_rc=1 sole FAIL=dmesg-no-critical",
+    "terminal_transaction": "PASS 6/6 exactly once and ordered",
+    "rtl_assertions": "empty",
+    "binding": "NO_DRIFT",
+    "full_system_rerun_required": false
+  },
+  "a4": {
+    "status": "FAIL rc=143 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=143 signal=TERM",
+    "classification": "INTERRUPTED_NOT_PASS_EVIDENCE"
+  },
+  "final_review_v1": {
+    "contract_sha256": "f4db46c50967c2464b624a35adcec6369e15c9277703de45b10ec61de9edbc21",
+    "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "blocking_findings": 0,
+    "shell_ownership": "returned",
+    "nonblocking_tool_debt": "future version should compare A3/A4 generated filename sets bidirectionally"
+  },
+  "record_closure": {
+    "status": "CLOSED",
+    "memory_updated": true,
+    "memory_paths": [
+      ".github/memory/project-status.md",
+      ".github/memory/modules/npc.md",
+      ".github/memory/modules/agent-system.md",
+      ".github/memory/known-issues.md"
+    ],
+    "db_snapshot": "PASS",
+    "db_first_audit": "PASS",
+    "evidence_indexed": true,
+    "task_specific_e2e": {
+      "rv64_systemd_contract": {
+        "status": "PASS",
+        "run": ".github/task-runs/2026-07-28-rv64-a3-checker-replay"
+      },
+      "agent_system": {
+        "status": "PASS 11/11",
+        "run": ".github/task-runs/2026-07-28-a3-printk-debug-replay",
+        "after_final_memory_publication": true
+      }
+    },
+    "scoped_strict_guard": {
+      "status": "PASS",
+      "changed_paths": 12,
+      "required_profiles": [
+        "rv64-systemd-contract",
+        "agent-system"
+      ]
+    },
+    "full_worktree_strict_guard": {
+      "status": "FAIL_UNRELATED_MIXED_ORIGIN_DIRTY_SCOPE",
+      "changed_paths": 836,
+      "passed_profiles": [
+        "rv64-systemd-contract",
+        "agent-system"
+      ],
+      "missing_profiles": [
+        "rv64-linux",
+        "npc-dev"
+      ],
+      "exemption": "Unrelated existing rootfs and NPC/RTL/PPA/testbench changes are outside this checker-only record closure; no green result is claimed."
+    }
+  },
+  "promotion": {
+    "serialize_g1": "OPEN",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "eligible": false
+  }
+}

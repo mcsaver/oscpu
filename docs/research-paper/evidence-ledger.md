@@ -32,30 +32,42 @@
 | `CONTRADICTED` | 仓库中的反例或边界直接否定该主张 |
 | `MISSING` | 现有材料不足以支撑该主张 |
 
-完整逐项映射见 `claim-evidence-map.tsv`。只读校验脚本当前检查 21 项主张，得到：
+完整逐项映射见 `claim-evidence-map.tsv`。只读校验脚本当前检查 26 项主张，得到：
 
-- `SUPPORTED`：11；
+- `SUPPORTED`：15；
 - `PARTIALLY_SUPPORTED`：3；
 - `OBSERVATIONAL_ONLY`：1；
-- `CONTRADICTED`：5；
+- `CONTRADICTED`：6；
 - `MISSING`：1。
 
 这些数量只是台账分类，不是研究效果指标。
 
 ## 4. task-run 目录盘点
 
-`scripts/paper_evidence_extract.py` 对 `.github/task-runs/` 顶层目录做只读盘点：
+`scripts/paper_evidence_extract.py` 对 `.github/task-runs/` 顶层目录做只读盘点。下表冻结于
+2026-07-29 13:36 CST；工作区继续产生记录时，后续计数不回写为本文既有证据：
 
 | 月份 | workflow-event 目录 | task-report | legacy report | manifest | evidence index | complete marker | publication |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | 2026-04 | 8 | 8 | 0 | 0 | 0 | 0 | 0 |
 | 2026-05 | 137 | 132 | 0 | 0 | 0 | 0 | 0 |
 | 2026-06 | 1246 | 1149 | 10 | 556 | 667 | 0 | 0 |
-| 2026-07 | 586 | 557 | 0 | 421 | 514 | 195 | 190 |
+| 2026-07 | 670 | 636 | 0 | 480 | 585 | 224 | 219 |
 
 计数口径非常重要：一个顶层日期目录只算一个 **workflow-event directory**。它不自动等于独立任务、成功任务、实验样本或生产率。六月的 1246 个目录主要说明工作流记录密度上升，不能写成“完成了 1246 个独立工程任务”。
 
 ## 5. 关键 task episode
+
+正文把阶段里程碑限定为“当时新增且能够由原始记录支持的最高工程能力”，而不是当月所有
+工作的集合：
+
+| 工程阶段 | 可证里程碑 | 主要原始对象 |
+|---|---|---|
+| RV32 single（4 月） | 从 9 文件 lint-only RV32I 骨架推进到 AM image、pmem、serial/trace 和 code 0 构成的最小动态闭环；NEMU 此时提供分层与 ABI 参照，尚未成为运行时 DiffTest oracle | E01、E02 |
+| RV32 SoC（5 月 23—24 日） | `npc/sim` 分流 `single/soc`，同一 `riscv32-ysyxsoc` 镜像和 MROM/SRAM 地址图进入 ysyxSoCFull target 与 NEMU reference；cpu-tests 39/39 DiffTest | E02-SOC |
+| RV64 target/reference（5 月 29—30 日） | NPC 宽度迁移先形成无对拍 38/38；NEMU 补齐 RV64 reference 后形成 40/40 与 CoreMark DiffTest | E02-RV64 |
+| RV64 系统与协议（5 月底—6 月） | 真实 OpenSBI handoff 后，NEMU 进入非交互 Ubuntu shell、NPC 到达 rootfs + systemd/banner；聚合回归定位并回退 branch speculation/JALR pending 全核死锁 | E03—E05 |
+| RV64 系统事务与证据工程（7 月） | design-id、mutation、freshness 与发布边界进入同一证据链；A3 完成绑定快照的 Ubuntu 系统事务且永久保留 raw FAIL | E06—E11 |
 
 ### E01：4 月 RV32I 骨架——语法通过不等于功能完成
 
@@ -68,9 +80,46 @@
 ### E02：4 月 NPC DPI bring-up——第一次形成动态反馈
 
 - 报告：`.github/task-runs/2026-04-13-npc-dpic-bringup/task-report.md`
+- trace 补充报告：`.github/task-runs/2026-04-14-npc-trace-experience/task-report.md`
 - 已证事实：DPI/C++、AM 镜像、pmem 与退出协议接通；`hello` 可输出并以 code 0 退出。
-- 意义：Agent 的候选第一次进入“生成—运行—观察—修正”闭环。
+- trace 已证事实：batch `itrace`、batch `mtrace+dtrace` 和 monitor 动态 trace 三条路径均
+  实测通过；mtrace 明确排除 ifetch。
+- 意义：在本文回查材料中，Agent 候选首次进入“生成—运行—观察—修正”闭环。
 - 边界：只证明最小运行链，不证明 ISA 或系统完整性。
+
+### E02-SOC：RV32 single/soc 分层与 ysyxSoC/NEMU 对拍
+
+- 目录与入口：
+  - `.github/task-runs/2026-05-23-npc-single-soc-split/task-report.md`
+  - `.github/task-runs/2026-05-23-npc-platform-switch/task-report.md`
+- CPU ABI 与 SoC 接入：
+  - `.github/task-runs/2026-05-23-npc-ysyx-soc-integration/task-report.md`
+  - `.github/task-runs/2026-05-23-am-ysyxsoc-platform/task-report.md`
+- Full SoC/cache：
+  - `.github/task-runs/2026-05-24-b2-ysyxsocfull-cache/task-report.md`
+- 已证数据流：`ARCH=riscv32-ysyxsoc -> npc/sim BACKEND=soc -> npc/soc ->
+  ysyxSoCFull -> ysyx_26010035`；NEMU `CONFIG_SOC_SIM` 使用同类 MROM/SRAM
+  地址图承担 DiffTest reference。
+- 已证结果：MROM 入口 `0x20000000`，SRAM
+  `0x0f000000..0x0f001fff`；新增 `char-test` 后 cpu-tests 39/39
+  DiffTest PASS；Full SoC `char-test` 输出两条 UART 路径，`mem-test` 在
+  PC `0x200002c6` GOOD TRAP。
+- 边界：这些结果属于 Verilator/AM/NEMU 仿真闭环，不证明 ChipLink、FPGA 或物理芯片。
+
+### E02-RV64：NPC 宽度迁移与 NEMU RV64 reference 同步形成
+
+- NPC 首个 RV64 后端：
+  `.github/task-runs/2026-05-29-npc-rv64-backend/task-report.md`
+- NEMU RV64 DiffTest：
+  `.github/task-runs/2026-05-30-rv64-nemu-difftest/task-report.md`
+- 第一个冻结点：PC/GPR/CSR/AXI/DPI 扩宽，`*W` 和 8-byte lane 重新定义；
+  cacheable 与 DiffTest 主动关闭，cpu-tests 38/38。
+- 第二个冻结点：NEMU 补齐 RV64 CPU state/CSR、RV64I/M/B/C/W 等 reference
+  路径；cpu-tests 40/40 DiffTest，CoreMark PASS、GOOD TRAP，
+  `cycles=1915750807`、`commits=318393507`。
+- 台账结论：38/38 只证明 NPC 在给定测试内自洽；40/40 与 CoreMark
+  DiffTest 才增加了 target/reference 一致性证据。两者都不等于完整 ISA、Linux 或 PPA
+  证明。
 
 ### E03：5 月 IQ 修复与候选淘汰
 
@@ -188,6 +237,59 @@ STORE/AMO V9N：
 - 发布边界：full-core `GAP`、38 blockers、PPA `UNQUALIFIED`、promotion=false。
 
 台账结论：三个不可变快照直接支持同一模块合同的源码演化；T3I 和 V9M 还支持指定 fault set 内的辨识力。由于快照之间存在 LSQ/SQ、pending event 和其他模块的并行变化，这不是单因素实验，不能把性能或全核正确性的变化归因于某一条新增/删除的布尔条件。
+
+### E11：7 月 NPC Ubuntu 22.04 十九小时 A3 系统事务
+
+完整复核表：`docs/research-paper/ubuntu-19h-milestone-evidence.md`。
+
+运行身份与口径：
+
+- 源 run：`.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/`；
+- design-id：`sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594`，pre/post 相同；
+- console SHA-256：`4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0`；
+- 启动：2026-07-27 19:16:03；fail-closed 状态落盘：2026-07-28 14:30:46；
+- 墙钟约 19 h 14 min 43 s，其中 simulator 自报 host time 18 h 48 min 22 s；
+- guest 在 49.720532 s 虚拟时间发起 power down。因此“十九小时”是宿主仿真耗时，不是 guest 连续运行十九小时。
+
+系统数据流：
+
+- OpenSBI v1.8 → Linux 6.6；
+- `virtio_blk virtio0` 识别 2 GiB `/dev/vda`；
+- EXT4 根文件系统挂载到 device 254:0；
+- Ubuntu 22.04 的 systemd 249 作为 PID1 运行；
+- guest strict checker 在 root context 下验证 `/bin/sh`、`/bin/bash`、vda 驱动、root-on-vda、EXT4 read-write；
+- rootfs 写入、`sync`、回读通过；
+- 128×4 KiB direct read 后 virtio IRQ 计数从 537 增至 672；
+- systemd 自然关机，kernel `Power down`，syscon poweroff，`GOOD TRAP`，system-reset code 0。
+
+终点规模：
+
+- 5,071,521,696 guest cycles；
+- 1,223,536,213 commits；
+- CPI 4.145；
+- 18,072 inst/s。
+
+原始 gate：
+
+- preflight 6/6 PASS；
+- autocheck 6/6 PASS；
+- strict 16/17，唯一 FAIL 为 `dmesg-no-critical`；
+- 原始状态保持 `FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0`。
+
+根因与冻结 oracle 重放：
+
+- A3 rootfs 内的旧规则使用大小写不敏感的裸 `BUG:` 子串，误匹配了两次
+  `printk: debug: ignoring loglevel setting.`；
+- 当前规则把 `BUG:` 限制为独立 token，A3 console 的 match 从 2 变为 0，同时真实
+  `BUG: unable to handle page fault` fixture 仍被拒绝；
+- 重放 run：`.github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/`；
+- terminal 6/6，独立 reviewer 给出 `APPROVED_NOT_PROMOTION_ELIGIBLE`；
+- A4 是 `FAIL rc=143 ... signal=TERM`，不是新 live PASS。
+
+台账结论：A3 支持“指定冻结设计完成 Ubuntu 22.04 guest 系统事务，并由独立重放定位旧
+oracle 假阳性”。它不支持“raw 17/17 live recertification PASS”；更不能据此完成
+architecture freeze 或 PPA qualification。这里最重要的工程信号是：系统行为、检查器结果
+和 promotion 状态被拆成三个可独立审计的命题，十九小时成本没有迫使流程把它们粗暴合并。
 
 ## 6. 八类失败模式
 

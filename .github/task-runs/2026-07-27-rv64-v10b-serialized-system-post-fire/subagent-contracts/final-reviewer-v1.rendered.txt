@@ -1,0 +1,122 @@
+# 本地 RV64 CPU RTL/验证子任务 `rv64-v10b-serialized-system-post-fire-final-review-v1`
+
+- RV64 RTL/证据对象：独立终审本地 RV64 `OooPendingSystemSequencer` 八类 canonical SYSTEM/CSR/IRQ transaction：核对 accepted owner、C0 raw fire、C1 registered side effect/holder/stop clear、C2 no-repeat，CSR enqueue 到 exact ProducerId/PC commit lease，SATP/SFENCE/FENCE.I MMU action、typed redirect、`OooControlCommitSequencer` action 与 `OooFetchAxiBridge` stale-instruction clear；复核 pre-change false-green、14 个 compile-success RTL version 动态拒绝、113 项 module、functional 与 9 项 architecture gate 是否同一 design-id。优先寻找去重掩盖、间接观测、未覆盖 encoding、错误外推或证据身份漂移。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/subagent-contracts/final-reviewer-v1.json`
+- 合同 JSON SHA-256：`35fdaa2c961b2158d45e9abe078ae7f3028135524fdaf9012ee3f7d5b56a9857`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc/control/OooPendingSystemSequencer.v
+- npc/rv64/vsrc/control/OooPendingDispatchArbiter.v
+- npc/rv64/vsrc/control/OooPendingDrainResolveGate.v
+- npc/rv64/vsrc/control/OooCsrAccessRequestMux.v
+- npc/rv64/vsrc/control/OooCsrTrapRequestMux.v
+- npc/rv64/vsrc/control/OooControlPlane.v
+- npc/rv64/vsrc/control/OooStopPendingSequencer.v
+- npc/rv64/vsrc/control/OooRedirectArbiter.v
+- npc/rv64/vsrc/control/OooControlEventApplySequencer.v
+- npc/rv64/vsrc/frontend/OooFrontend.v
+- npc/rv64/vsrc/frontend/OooFrontendRunGate.v
+- npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v
+- npc/rv64/vsrc/memory/OooMemoryAccess.v
+- npc/rv64/vsrc/memory/OooMemoryRequestGate.v
+- npc/rv64/vsrc/memory/OooFetchAxiBridge.v
+- npc/rv64/vsrc/core/CsrFile.v
+- npc/rv64/vsrc/core/NpcCoreTop.v
+- npc/rv64/vsrc/core/OooCoreTopGlue.v
+- npc/rv64/vsrc/writeback/OooWriteback.v
+- npc/rv64/vsrc/writeback/OooControlCommitSequencer.v
+- npc/rv64/testbench/Makefile
+- npc/rv64/testbench/tests/tb_ooo_priv_system.sv
+- npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv
+- npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv
+- npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv
+- npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py
+- npc/rv64/design/specs/ooo-pending-system-sequencer.md
+- npc/rv64/design/specs/ooo-flush-redirect-contract.md
+- npc/rv64/design/specs/ooo-csr-trap-request-mux.md
+- npc/rv64/design/specs/ooo-csrfile.md
+- npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md
+- npc/rv64/design/arch/cohort/wfi-g1-exclusion.json
+- npc/rv64/eval/ppa/evidence/architecture-current.json
+- .github/task-runs/2026-07-27-rv64-v10a-serialize-clocked-owner-clear/task-report.md
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/task-report.md
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/completion-definition.md
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/reviewer-report-v1.md
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-binding.txt
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-current.status
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/layered-current.log
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/module-current
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/functional-current
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/architecture
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/prechange-mmu-observation-gap
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/current-assert
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/fencei-cache-consumer
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/evidence/v10b-focused-matrix-v2
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-prechange-mmu-gap-probe.py
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix-v2.py
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/run-v10b-focused-matrix.py
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-07-27-rv64-v10b-serialized-system-post-fire/subagent-contracts/final-reviewer-v1.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git status; mode=read-only
+- command=git diff; mode=read-only
+- command=git show; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git status: purpose=inspect-worktree-status; label=只读查看工作树状态
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- git show: purpose=inspect-versioned-content; label=只读查看版本化内容
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/specs/ooo-pending-system-sequencer.md
+- npc/rv64/design/specs/ooo-flush-redirect-contract.md
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按“RTL 对象或本地证据文件 → C0/C1/C2 或 compile/config → testbench/EDA raw observation → PASS/GAP 范围”输出独立终审。逐类裁决 CSR/ECALL/XRET/WFI/SFENCE_FAMILY/FENCEI/FENCE/IRQ；列出最强 reachable counterexample，判断 production glue MMU pulse 与独立 FPC consumer test 是否足以证明 FENCE.I stale-instruction clear，核对变异 compile rc/result、113 个 design-id marker、functional/architecture identity；显式区分 V10B bounded sub-slice 与 simulation exit/Linux/SERIALIZE-G1/full-core arch-stable/PPA。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：只读复核真实 RTL、TB 与本地证据，不运行仿真/综合/STA、不修改文件；不得因已有 PASS marker 推定覆盖，必须检查 raw counter/negative variant/identity；不得用去重或断言降级；如证据不能排除反例则给出 GAP、unknowns 与 scope_extension_request，如 bounded contract 成立则给出可审计 PASS 及残余边界；结束时显式归还 Windows→WSL 唯一工程命令 lane。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

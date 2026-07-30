@@ -1,0 +1,295 @@
+{
+  "schema": "npc-rv64-semantic-delta-identity/v1",
+  "status": "PASS",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling-workflow",
+      "architecture-evidence"
+    ],
+    "production_rtl_change": false,
+    "verification_oracle_change": true
+  },
+  "semantic_delta": {
+    "from_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "to_design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+    "aggregate_rtl_changed_files": [
+      {
+        "path": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+        "old_sha256": "e897b4257d96e538e7846dadaea6f6b99702c3212cdf45ce45d5e1c9b3d35334",
+        "current_sha256": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
+        "module": "NpcSimTop",
+        "guard": "CONFIG_NPC_DEBUG_PORTS",
+        "change": "debug_ooo_flags_o[63] configuration-valid marker"
+      }
+    ],
+    "category": "inactive-config-plus-diagnostic-observation-only",
+    "production_design_rtl_changed": false,
+    "active_elaborated_rtl_logic_changed": false,
+    "device_model_execution_semantics_changed": false,
+    "host_harness_delta": "diagnostic-observation-only",
+    "dut_input_changed": false,
+    "cycle_timing_changed": false,
+    "architectural_state_changed": false,
+    "termination_changed": false,
+    "randomization_changed": false,
+    "testbench_delta": {
+      "classification": "verification-only",
+      "path": "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "purpose": "owner-bound queue-head CSR raw C0/C1/C2 scoreboard",
+      "production_semantics_changed": false
+    }
+  },
+  "identity": {
+    "aggregate_rtl_source_set": {
+      "a3_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+      "current_design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+      "file_count": 146
+    },
+    "production_design_rtl": {
+      "a3_id": "sha256:c2a67fde1d734378173c7d34f9e25503f021ac0aa57f1e48779c8a6b9c28bb5e",
+      "current_id": "sha256:c2a67fde1d734378173c7d34f9e25503f021ac0aa57f1e48779c8a6b9c28bb5e",
+      "file_count": 136,
+      "match": true
+    },
+    "simulation_top_source": {
+      "path": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "a3_sha256": "e897b4257d96e538e7846dadaea6f6b99702c3212cdf45ce45d5e1c9b3d35334",
+      "current_sha256": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e"
+    },
+    "active_elaborated_rtl": {
+      "file_count": 51,
+      "filename_sets_equal": true,
+      "exact": {
+        "a3_id": "sha256:3754da3c0c41b98a600ac4ab1deff8331aecbbbc2699c213cc1ad58fb7337ddd",
+        "a4_id": "sha256:66ae33975f58edeeeb96182126882400a6812e742e089e26b96eb8b1370c5b88",
+        "match_count": 50,
+        "differences": [
+          "VNpcSimTop___024root__DepSet_h00145668__4.cpp"
+        ]
+      },
+      "source_location_normalized": {
+        "a3_id": "sha256:585c0bf0b210de35babb346a930fde32da28d7310f82194668d29ce069ff34f1",
+        "a4_id": "sha256:585c0bf0b210de35babb346a930fde32da28d7310f82194668d29ce069ff34f1",
+        "differences": [],
+        "logic_changed": false
+      }
+    },
+    "device_model": {
+      "id": "sha256:0e47eb54d810eb0c7f3f05942eeb4d27e7e0223fb10d804702c0d9b59a245882",
+      "objects": {
+        "device.o": {
+          "a3": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7",
+          "a4": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7"
+        },
+        "dpi.o": {
+          "a3": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7",
+          "a4": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7"
+        },
+        "keyboard.o": {
+          "a3": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c",
+          "a4": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c"
+        },
+        "map.o": {
+          "a3": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510",
+          "a4": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510"
+        },
+        "paddr.o": {
+          "a3": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d",
+          "a4": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d"
+        },
+        "timer.o": {
+          "a3": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3",
+          "a4": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3"
+        },
+        "vga.o": {
+          "a3": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51",
+          "a4": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51"
+        },
+        "virtio_blk.o": {
+          "a3": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca",
+          "a4": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca"
+        }
+      },
+      "execution_semantics_changed": false
+    },
+    "host_harness": {
+      "object": "cpu-exec.o",
+      "a3_sha256": "6afc3d5911908e5a3849c689b313a8d54778ea9c096eb1f70ceaef608f317ce2",
+      "a4_sha256": "3da34fdd91d1692947eef13eb3fd963455233b120e3db1157e42e0ae51eeaec5",
+      "changed": true,
+      "classification": "diagnostic-observation-only",
+      "dut_input_changed": false,
+      "cycle_timing_changed": false,
+      "architectural_state_changed": false,
+      "termination_changed": false,
+      "randomization_changed": false
+    },
+    "simulator": {
+      "a3_sha256": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+      "current_recert_sha256": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+      "match": true
+    },
+    "checker_oracle": {
+      "legacy_embedded_sha256": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+      "current_sha256": "1cb1c6b9e9c7440447dd3fa3f0759938e9d5e4aede90d87357676f32c71fbbe6",
+      "change": "bounded BUG token"
+    },
+    "guest": {
+      "linux_image_sha256": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a",
+      "rootfs_cpio_sha256": "d782b7c481dd6e8205dbbaa6a79fdafed92537edc30a3de0f123dfc401205a04"
+    },
+    "boot": {
+      "opensbi_fw_sha256": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9",
+      "run_dtb_sha256": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a"
+    },
+    "input_log": {
+      "console_sha256": "4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0",
+      "uart_rx_bytes": 0
+    },
+    "configuration": {
+      "npc_config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+      "npc_auto_conf_sha256": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4",
+      "npc_autoconf_header_sha256": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9",
+      "OOO_CSR_QUEUE_HEAD": 1,
+      "OOO_ASSERT": 1,
+      "OOO_TERMINAL_HOLDER_ASSERT": 1,
+      "guest_command_mode": "systemd-strict",
+      "max_cycles": 6000000000
+    },
+    "raw_artifact_bundle": {
+      "id": "sha256:54b8dd592751def9404af4816acd1d87c1008fba7d4d1f9a339692d238941796",
+      "files": {
+        "binding": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+          "sha256": "6f96d1f4b45846d1db03ea21ba25fec5f0234389e74b6cf7ea6dc48d0538efad",
+          "size_bytes": 4574
+        },
+        "console": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+          "sha256": "4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0",
+          "size_bytes": 125024
+        },
+        "npc_log": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/npc.log",
+          "sha256": "f4a5b09ceed54682d101150775e989bbf277e55f8a401a2c8a4c99ee54c66e62",
+          "size_bytes": 123794
+        },
+        "post_binding": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/post-binding.txt",
+          "sha256": "d5c3778c34dd99d42824834312dce53836b7937a6497ee28cf6c847a4a16c06d",
+          "size_bytes": 3488
+        },
+        "rtl_assertions": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/rtl-assertion-failures.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size_bytes": 0
+        },
+        "status": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+          "sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8",
+          "size_bytes": 70
+        },
+        "terminal_markers": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/terminal-markers.txt",
+          "sha256": "050bc2713f76c9c39be5cd9e81b489e4f637ca4f38bb54ead82516a61af51b3b",
+          "size_bytes": 1232
+        },
+        "transaction": {
+          "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+          "sha256": "6875930ad696a0b75773c1facefbfe5eee22fb2436a9db4d1944f2155e46358c",
+          "size_bytes": 4663
+        }
+      }
+    }
+  },
+  "evidence_state": {
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE"
+  },
+  "a3": {
+    "original_status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+    "original_status_preserved": true,
+    "cycles": 5071521696,
+    "commits": 1223536213,
+    "terminal_counts": {
+      "good_trap": 1,
+      "kernel_power_down": 1,
+      "poweroff_begin": 1,
+      "strict_done": 1,
+      "syscon_poweroff": 1,
+      "system_reset_exit": 1
+    },
+    "rtl_assertion_file_empty": true,
+    "legacy_oracle_result": "FAIL_16_OF_17",
+    "legacy_false_matches": [
+      "[    0.000000] printk: debug: ignoring loglevel setting.",
+      "[    0.000000] printk: debug: ignoring loglevel setting."
+    ]
+  },
+  "a4": {
+    "status": "FAIL rc=143 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=143 signal=TERM",
+    "status_preserved": true,
+    "qualifies_as_system_pass": false,
+    "relaunch": "PROHIBITED_BY_CURRENT_DECISION"
+  },
+  "checker_replay": {
+    "result": "PASS",
+    "version": "v2",
+    "source_run": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3",
+    "evidence": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+    "evidence_sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+    "base_evidence": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/base-replay-evidence.json",
+    "base_evidence_sha256": "be2fe8133f83c4b4936d58d6302b0a14132fd67942e79d25c82b9beba67d124d",
+    "printk_debug_accepted": true,
+    "real_bug_rejected": true,
+    "proves": [
+      "frozen A3 terminal transaction completeness",
+      "A3 binding and raw-artifact integrity",
+      "legacy dmesg oracle false-positive classification",
+      "corrected checker accepts printk debug and rejects BUG token"
+    ],
+    "does_not_prove": [
+      "new production RTL semantics",
+      "architecture-debt closure",
+      "PPA qualification"
+    ]
+  },
+  "cost_and_launch_decision": {
+    "a3_replay": {
+      "class": "frozen-input-minute-scale",
+      "authorization_required": false,
+      "completed": true
+    },
+    "current_design_architecture_replay": {
+      "class": "minute-scale",
+      "authorization_required": false,
+      "single_flight_required": true,
+      "stop_condition": "stop at first stage failure or RTL identity drift"
+    },
+    "a4_full_system_relaunch": {
+      "class": "greater-than-4-hours",
+      "authorization_required": true,
+      "required": false,
+      "launch_authorization_state": "NOT_REQUIRED"
+    }
+  },
+  "decision": {
+    "system_transaction": "COMPLETE",
+    "legacy_oracle": "FALSE_POSITIVE",
+    "current_checker_replay": "PASS",
+    "full_system_rerun_required": false,
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "hist-qh-younger-store-final-evidence-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend.mem_idle_o、mem_retire_quiet_o 到 OooRob.head0_csr_mem_hold_w 的 assertion-on/off 六组历史根锥证据，并核对 Icarus raw image receipt、allocator-normalized VVP elaboration SHA、两次 replay byte equality、产品 lane1_fire=0、ledger VD3 与 production design-id 无漂移是否共同支持 HIST-SER-QH-YOUNGER-STORE-CYCLE 限域 VD3。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/test_historical_reconstruction_runner.py",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/check_historical_reconstruction_replay.py",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/variants/historical_fixed/source.diff",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/variants/historical_cycle/source.diff",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/cases",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/replay-identity-v2/stability.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/product-frontdoor-v2/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/module-regression/logs/tb_ooo_int_backend.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/current-design-id.txt",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-validation-v3.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-tests-v3.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-runner-identity-tests.log",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/task-report.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/round-state.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/final-reviewer-report-v3.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-final-evidence-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS、GAP 或 inconclusive；核对 VVP normalizer 只消除内部 pointer-like cross-reference、语义内容变更仍改 SHA、raw receipt 未被丢弃、两次六 case summary/log 身份稳定、历史 fixed/cycle 原始 marker 不变、产品 frontdoor 与 production design-id 未漂移，并列出任何假绿反例、未知项与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "只有在 evidence identity v2 不降低 RTL source/log/oracle 绑定强度、六个版本仍 compile-success、4/4 正向 PASS、2/2 专用根窗口拒绝、assertion-on/off 等价、ledger valid 且唯一剩余 blocker 为 HIST-SER-QH-STOP-HOLD-DROP 时才批准限域 VD3；不得外推 architecture freeze、PPA 或 A3 新系统运行。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

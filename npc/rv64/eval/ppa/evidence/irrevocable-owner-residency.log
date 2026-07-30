@@ -1,8 +1,8 @@
 RV64 irrevocable physical-write owner residency evidence
 run_id=2026-07-23-rv64-v9n-irrevocable-write-owner-residency
-generated_at_utc=2026-07-27T00:56:50.151364+00:00
-design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951
-provenance_sha256=8fc30e8622aba69717356d824223aa1e0da7f0b6eaca7d7389fb2f190c455d3d
+generated_at_utc=2026-07-29T12:44:18.287544+00:00
+design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
+provenance_sha256=08f3757600e821527a6578fed7f8ad263df850388d892e56263d37e05f505ab5
 store_next_edge_owner_residency=true
 amo_next_edge_owner_residency=true
 canonical_top_global_flush_static_low=true
@@ -10,9 +10,9 @@ focused_passed=2
 compile_success_variants=2
 dynamic_rejected_variants=2
 old_same_edge_assertion_quiet=2
-artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log 19cf7d67d3d294aa266781dfa15917523cafa0553a807a9beed43789ad8de22c
-artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log 0493df7581ff518267acdfc366569f4daed7f26da228e599dee5906a9a96a0c6
-artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/amo_clear_kind_on_write_fire.log c50a54d537c8b2deb5946e43c08b1ee38342f4f273940964b117c4022cba7f88
-artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/sq_clear_owner_valid_on_request_fire.log 0f0d4746ab9010d8c148ecb1b2e4252b2a86c597930f1a4315e07ff92da7f16a
-artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json 9766463d73be536feec8685fef5b16aed2f537ef6f0df996f717d38eba36a877
+artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log 7eab0613c454b0f1871ef9ec7d579459c953b0f726fb702c8585060ec6d98650
+artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log 455423064e94387e7df28c35d120c70d4f203fecc85e14d744a1832cb14c89cc
+artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/amo_clear_kind_on_write_fire.log 61a8cdcf38465964bc1457c80db2d51251db2b8449086237c2cb5f3668f0820c
+artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/sq_clear_owner_valid_on_request_fire.log 0fece38a81b7e0a1c087a7f70bda5306783439a7f94eae7889ee1ee683c2bbb6
+artifact_sha256 .github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json 73c0970315fbefb9cf867b821e7d59144c58b12cb0a1992db2f08c513f3b9741
 [STORE-BRESP-G1-OWNER-RESIDENCY] PASS focused=2 variants=2 ppa=UNQUALIFIED

@@ -1,0 +1,82 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "xret-lane1-marker-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核编译成功的 lane1_arch_trap_system_exclusion_removed RTL 变体：该变体删除 OooPendingLane1CaptureGate 的 lane1 架构异常排除项后，tb_ooo_priv_system 在周期 1717 由 [V10A-SERIAL-OWNER-ONEHOT] 检出 arch/system holder 重叠，但旧 XRET marker 未出现；确定 run-xret-mutations.py 的最小精确 marker 绑定，使此变体按真实 RTL 不变量计为动态检出，同时仍拒绝任意无关非零仿真结果。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/run-xret-mutations.py",
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/mutations/summary.json",
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design/evidence/mutations/logs/lane1_arch_trap_system_exclusion_removed.log",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md",
+      "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/eval/ppa/tools/xret_current_mode_evidence.py",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/subagent-contracts/xret-lane1-marker-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-flush-redirect-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RTL 变体源行、lane1 capture/arch-holder/system-holder 周期关系、实际断言 marker、旧 marker 未出现的原因、最小证据驱动器修改建议、会导致假绿的反例、未知项与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "结论必须区分生产 RTL 功能缺陷与证据 marker 漂移；只认可与 lane1 arch/system holder 重叠直接对应的精确断言或定向 testbench marker，不得把任意 make_returncode 非零当作动态检出，并说明基线 PASS 与变体 FAIL 的必要验证。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

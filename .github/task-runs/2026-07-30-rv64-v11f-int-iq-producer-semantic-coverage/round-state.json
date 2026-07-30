@@ -1,0 +1,81 @@
+{
+  "schema": "rv64-v11f-int-iq-producer-semantic-round-state-v1",
+  "status": "GLOBAL_SEMANTIC_GAP",
+  "design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+  "production_int_iq_sha256": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+  "production_rtl_modified": false,
+  "semantic_complete": false,
+  "counts": {
+    "semantic_units": 44,
+    "holder_instances": 17,
+    "unit_instance_bindings": 50,
+    "semantic_pass": 8,
+    "semantic_gap": 36
+  },
+  "integer_iq_producer_scope": {
+    "status": "PASS",
+    "unit_ids": [
+      "integer-iq-producers"
+    ],
+    "baseline_profiles_passed": 4,
+    "compile_success_mutation_cases": 20,
+    "mutation_simulations_rejected": 40,
+    "generation_widths": [
+      1,
+      4
+    ],
+    "assert_release_covered": true,
+    "raw_identity_knownness_covered": true
+  },
+  "attempts": {
+    "int-iq-producer-attempt-1": "PRESERVED_DEVELOPMENT_RUN_NOT_PROMOTED",
+    "int-iq-producer-attempt-2": "PRESERVED_DEVELOPMENT_RUN_NOT_PROMOTED",
+    "int-iq-producer-attempt-3": "CANONICAL_PASS"
+  },
+  "independent_review": {
+    "status": "APPROVED_BOUNDED_INTEGER_IQ_PRODUCER_SCOPE",
+    "contract_sha256": "b41dab889c477796f8397cde8dccf7eecc457524c70c193ea8c508e86bda9234",
+    "blockers": 0,
+    "scope_extension_request": "none-for-bounded-unit",
+    "remaining_boundary": "upstream-kill-flush-transaction-barrier"
+  },
+  "workflow_evidence": {
+    "npc_dev": {
+      "status": "PASS",
+      "run_id": "2026-07-30-integer-iq-producer-semantic-revtag-v11f",
+      "nodes_pass": 5
+    },
+    "arch_stable_observation": "EXPECTED_GAP_51_OF_53_NO_V11F_NEW_FAILURE",
+    "scoped_strict_guard": "PASS",
+    "full_worktree_strict_guard": "GAP_RV64_LINUX_MISSING_EVIDENCE",
+    "indexed_raw_evidence_assets": 873,
+    "stored_task_run_markdown": 9,
+    "stored_memory_documents": 2,
+    "snapshot_stored": "PASS",
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS",
+    "runtime_artifact_audit": "PASS",
+    "final_identity": "PASS"
+  },
+  "commit_gate": {
+    "status": "GAP_MIXED_ORIGIN_WORKTREE",
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "tracked_modified": 253,
+    "untracked_files": 1639,
+    "preexisting_staged_files": 1,
+    "staged_or_committed_by_v11f": false
+  },
+  "a3": {
+    "historical_status": "FAIL_RC_1_PRESERVED",
+    "system_transaction": "COMPLETE",
+    "classification": "OLD_DMESG_ORACLE_FALSE_POSITIVE",
+    "checker_replay": "PASS",
+    "full_rerun_required": false
+  },
+  "promotion": {
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  }
+}

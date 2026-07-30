@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-loadqueue-attempt-revtag-v11h
+- `trace_id`: e2e:2026-07-30-loadqueue-attempt-revtag-v11h
+- `task_slug`: loadqueue-attempt-revtag-v11h
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 76c6d9fb701186f3136922d7f98857fb1fe2cfbaac1f695c71f130ac5945298c
+- `task_report_md_sha256`: ba764848cb969c9034fe5f2c3665c01401ab31bf36c87bdfa5585bfa8fe49399
+- `run_manifest_json_sha256`: a6d47b917c6dedd8363188b6043ca2cd3e27760a0ac6db30963cd8d56edbcb26
+- `context_brief_md_sha256`: 799d3418bc528114f5dcde65b884be555ccbe81c5dbe95ff6359f2d50dc3c05e
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: ea40dbf2f179cd797c4be4a2188cb9bc6f52ad565952694b07f2f20765d16b7b
+- `dispatch_log_md_sha256`: fb94e526aa2ddf1034b419f16488b2d4744561d2bb8a3442fa9f2e7f07d583e9
+- `nodes_tsv_sha256`: 2292f216f6c692bb57dea57c02377bb6eae3348313085dda750fb1a885b5cd3c

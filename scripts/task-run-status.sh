@@ -77,8 +77,18 @@ task_run_status_finalize() {
         "${command_rc}" -eq 0 &&
         "${cleanup_rc}" -eq 0 &&
         "${TASK_RUN_STATUS_SIGNAL}" == "none" ]]; then
-    _task_run_status_write "PASS"
-    return 0
+    local pass_write_rc=0
+    if _task_run_status_write "PASS"; then
+      return 0
+    else
+      pass_write_rc=$?
+    fi
+    status_line="FAIL rc=${pass_write_rc} stage=${TASK_RUN_STATUS_STAGE}"
+    status_line+=" evidence_complete=${TASK_RUN_STATUS_EVIDENCE_COMPLETE}"
+    status_line+=" cleanup_rc=${cleanup_rc}"
+    status_line+=" status_write_rc=${pass_write_rc}"
+    _task_run_status_write "${status_line}" || return "${pass_write_rc}"
+    return "${pass_write_rc}"
   fi
 
   if [[ "${final_rc}" -eq 0 ]]; then

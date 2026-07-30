@@ -1,0 +1,6 @@
+schema=npc-rv64-product-rtl-config-v1
+manifest=/home/lyg/PA/ysyx-workbench/npc/rv64/configs/product-rtl-defaults.mk
+OOO_CSR_QUEUE_HEAD=1
+OOO_TERMINAL_HOLDER_ASSERT=1
+BUILD_DIR=./build-csrqh
+RTL_VERILATOR_DEFINES=+define+CONFIG_NPC_SIM_STATS +define+CONFIG_NPC_BRANCH_STATS +define+CONFIG_NPC_CACHE_STATS +define+CONFIG_NPC_OOO_STATS +define+OOO_CSR_QUEUE_HEAD=1 +define+OOO_TERMINAL_HOLDER_ASSERT

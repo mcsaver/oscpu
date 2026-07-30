@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-27。
+> **最近更新**：2026-07-28。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
 > `../../eval/ppa/evidence/architecture-current.json`、
@@ -29,7 +29,9 @@
   global completion 2。
 - branch、FP、load/store/AMO 已进入正式 OoO 主路径；branch/jump/memory/FP pending
   owner 已物理删除。
-- system/trap/IRQ/fault 默认仍走 pending + full drain；`OOO_CSR_QUEUE_HEAD` 默认 0。
+- 产品默认 `OOO_CSR_QUEUE_HEAD=1`：合法 non-FP head0 CSR 走 queue-head
+  `C0 commit/CsrFile/barrier → C1 apply/clear → C2 quiet`；lane1/FP CSR 与
+  system/trap/IRQ/fault 仍走 pending + full drain。显式 `=0` 仅为比较/恢复配置。
 - fetch redirect PC 已由年龄律 `OooRedirectArbiter` 单源化；kill/reason/flush_backend 与
   trap/pending 副作用仍未形成唯一 control event。
 - IFU 单 outstanding；memory bridge 为 one active + one staged，真实 MLP 约等于 1。
@@ -40,7 +42,7 @@
 | gate | 2026-07-14 可采信结果 | 当前边界 |
 | --- | --- | --- |
 | official riscv-tests | 177/177 逐项 PASS | current-config sweep 非 Difftest；F0 另有 Difftest-ON AM gate |
-| module testbench | 历史 100/100 真 PASS；当前 required inventory=112 | V9Z 已在当前 design_id 下由 `testbench/Makefile` 的 `TESTS` 动态推导并取得 112/112；该 module-only aggregate 不替代同源 official/AM/DiffTest aggregate |
+| module testbench | 历史 100/100 真 PASS；当前 required inventory=113 | 2026-07-28 product-default current replay 由 `testbench/Makefile` 的 `TESTS` 动态推导并取得 113/113；该 module-only aggregate 不替代同源 official/AM/DiffTest aggregate |
 | AM cpu-tests | 59/59 真 PASS | `fp-difftest-probe` 明确 Difftest ON |
 | benchmark/DPI | CoreMark、Dhrystone-10000、sized DPI PASS | Dhrystone 默认500000在20min timeout，未宣称长跑 PASS |
 | lint/build | Verilator build + lint 零告警 | 不替代功能和合同 gate |
@@ -48,12 +50,14 @@
 F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍不得只凭外层摘要扩写为
 功能、Linux 或物理签核完成。
 
-### 1.3 2026-07-27 full-core freeze 资格
+### 1.3 2026-07-28 full-core freeze 资格
 
 - DI-1..DI-5、OOO-1..OOO-4 已在同一
-  `design_id=sha256:bbb9c95199ada2e0e8160c235705a270f924240b28fde6e611bd9342398084c9`
-  下 9/9 GREEN；这是必要条件，不替代全核债务、holder census 或功能 aggregate。
-- 当前 full-core `ARCH_STABLE=GAP`：15 个 CLOSED 债务均已绑定当前设计；
+  `design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`
+  下 9/9 GREEN；这是必要条件，不替代全核债务、holder census、功能 aggregate 或
+  historical-defect backfill。
+- 当前 full-core `ARCH_STABLE=GAP`：所有 CLOSED P0/P1 债务均已由 26-stage
+  product-default current replay 绑定当前设计；
   `CONTROL-EVENT-G1` 由 V9O 10/10 focused、3/3 queue-head 配置、11/11 负向 RTL
   版本与 V9R owner/holder 交接证据闭合，`VECTORED-TRAP-G1` 由 V9U 13 类
   CsrFile 用例、3 条全核路径与 7/7 负向 RTL 版本闭合。当前同源功能聚合为模块
@@ -63,10 +67,18 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   合同解析为 `EXCLUDED_BY_COHORT`。V9Y 已闭合 pending-system exact
   memory-owner terminal consumer，V9Z 已闭合 pending architectural-trap 的同一组合
   consumer 边界；当前同源功能聚合为 module 112/112、official 177/177、AM 59/59、
-  DiffTest mismatch 0。剩余显式 P1 债务只有 `SERIALIZE-G1=OPEN`：clocked
-  fire-to-owner-clear、arch-trap 与 ECALL/IRQ/xRET/CSR/FENCE overlap、七类
-  exactly-once、holder census 实例图/语义闭包与 exact freeze-input cohort inventory
-  仍未完成。
+  DiffTest mismatch 0；current module 113/113、official 177/177、AM 59/59，
+  DiffTest mismatch 0。V10G 第二次独立审查已在当前设计上批准
+  `SERIALIZE-G1=CLOSED`：product-default queue-head CSR 的 assert/release 原始周期
+  计数覆盖 3 条 committed 与 2 条 selective-kill，typed-apply 生产 RTL 负向版本和
+  CsrFile 生产绑定等价 verification wiring 均被 C2 raw scoreboard 拒绝，
+  pending-SYSTEM 为 3/3 baseline + 14/14 compile-success RTL 版本。至此 active
+  P0/P1 均为 `CLOSED` 或 `EXCLUDED_BY_COHORT`。architecture freeze 仍为 GAP：
+  `historical-defect-backfill-ledger.json` 必须清除 VD0/VD1 后才可申请冻结。
+  初始机器账本为 5 项：VD1×2、VD3×1、VD4×2；自动选择
+  `HIST-SER-QH-YOUNGER-STORE-CYCLE`。该项要求在 current design 上构造
+  head0 CSR + younger SQ store，直接计数 bounded progress/C0/C1/C2，并用可编译
+  RTL 负向版本恢复 `mem_idle && mem_retire_quiet` 依赖以证明门能拒绝历史死锁。
 - `architecture-debt-ledger.json` 是 active P0/P1 裁决的机器真源；
   `eval/ppa/tools/arch_stable_freeze.py` 负责 exact-input audit。资格闭合前只允许诊断性
   synthesis/STA，PPA 保持 `UNQUALIFIED`、`promotion_eligible=false`。
@@ -138,12 +150,14 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 - `CONTROL-EVENT-G1` 已在当前设计关闭：ROB full pregrant 是唯一 C0 请求，
   `OooControlEventApplySequencer` 是唯一 C0→C1 state owner，V9R 继续约束
   SQ-query retry holder 在 full-flush barrier 下的交接。
-- `SERIALIZE-G1`：serialize-at-retire 仍是高风险专项；必须在 P0 与验证聚合修复后，再评估
-  `OOO_CSR_QUEUE_HEAD=1` 和 system/trap ROB 公民化。V9Y 已证明 pending-system
-  drain 消费 exact memory-owner terminal，V9Z 已把同一条件接入 pending
-  architectural-trap 的 gate→mux 组合边界；但 clocked next-edge owner clear、无新
-  capture 时副作用不重复、arch-trap 与 ECALL/IRQ/xRET/CSR/FENCE overlap
-  priority/unreachability 及七类联合 exactly-once 仍为 OPEN。
+- `SERIALIZE-G1`：产品默认现为 `OOO_CSR_QUEUE_HEAD=1`，规范边界只包含合法 non-FP
+  head0 CSR；lane1/FP CSR 与其余 system/trap 保留 pending/full-drain。V10G 已在
+  `design_id=sha256:04c5458…a73897` 下完成 queue-head raw C0/C1/C2、恢复路径、
+  C2 apply/CsrFile 重复请求负向版本、pending-SYSTEM 3/3+14/14、26-stage current
+  replay；A3 原始 FAIL 不改写，另以 `execution_state=COMPLETE/oracle_state=INVALID`
+  表达旧 checker 误判。V10G 第二次独立审查裁定
+  `APPROVED_FOR_CURRENT_SCOPE`，当前状态为 `CLOSED`；该裁定不包含 Phase2–5、
+  architecture freeze 或 PPA。
 - `VECTORED-TRAP-G1` 已声明为 full-core cohort required：mtvec/stvec Direct/Vectored
   WARL、`BASE+4×cause` 中断入口、同步 BASE 入口、未委派 supervisor interrupt
   进入 M 以及 `mem > ex > irq` 单记录合同由 V9U 当前设计门覆盖；局部关闭不产生

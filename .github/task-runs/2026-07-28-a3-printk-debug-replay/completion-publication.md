@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-28-a3-printk-debug-replay
+- `trace_id`: e2e:2026-07-28-a3-printk-debug-replay
+- `task_slug`: a3-printk-debug-replay
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 75c4a21054e8f17274d162c4aed5633f52633f65a099325b61d881920c16e9dd
+- `task_report_md_sha256`: 57fdd484bbce14a1361b3b0b2445abe4dd2aea1c63eea3492691e5c80c7bd140
+- `run_manifest_json_sha256`: 7b7900124bd75a6248f55a7baaddd6c85b5ab0cf5124a0efd98ce341a6fe35cc
+- `context_brief_md_sha256`: 996d137353847f1b204ccca0d984a80fd24e53291907f43eada14c234e8a9cbb
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: 55eddc66faf5540bd734f8e1fd45c1b3f390253dd5ce081dcde2862d5bc0d12f
+- `dispatch_log_md_sha256`: 24add4aecb257a7df6a216eaf03e2cb7d8d80cb31da60bd956e294f1332d4d47
+- `nodes_tsv_sha256`: e07e594ecd7cf998790554e6864b665f0a22f721472126e9680ba197a8341626

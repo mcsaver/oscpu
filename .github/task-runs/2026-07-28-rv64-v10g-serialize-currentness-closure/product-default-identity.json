@@ -1,0 +1,130 @@
+{
+  "schema": "npc-rv64-product-default-identity/v1",
+  "status": "PASS",
+  "prior_design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+  "current_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "semantic_delta": {
+    "changed_rtl_files": [
+      {
+        "path": "npc/rv64/vsrc/include/define.v",
+        "prior_sha256": "9773faaa76f10a450945b30bfc6ac9aec5c796a3baab89ba90998e09b136d781",
+        "current_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+        "change": "OOO_CSR_QUEUE_HEAD fallback 0 to normative product 1"
+      }
+    ],
+    "makefile_change": "consume canonical product RTL defaults manifest",
+    "manifest_added": "npc/rv64/configs/product-rtl-defaults.mk",
+    "active_queue_head_logic_changed_relative_to_a4": false,
+    "product_default_changed": true
+  },
+  "product_config": {
+    "receipt": {
+      "schema": "npc-rv64-product-rtl-config-v1",
+      "manifest": "/home/lyg/PA/ysyx-workbench/npc/rv64/configs/product-rtl-defaults.mk",
+      "OOO_CSR_QUEUE_HEAD": "1",
+      "OOO_TERMINAL_HOLDER_ASSERT": "1",
+      "BUILD_DIR": "./build-csrqh",
+      "RTL_VERILATOR_DEFINES": "+define+CONFIG_NPC_SIM_STATS +define+CONFIG_NPC_BRANCH_STATS +define+CONFIG_NPC_CACHE_STATS +define+CONFIG_NPC_OOO_STATS +define+OOO_CSR_QUEUE_HEAD=1 +define+OOO_TERMINAL_HOLDER_ASSERT"
+    },
+    "manifest_sha256": "7b3b4b571366d6c70600ff0a5fd27624753d7153c6576f2a980ced31af0d8154",
+    "makefile_sha256": "f4d4e221d3d01a384444c3cb5be4606c9b2c643f08fd988ce1d29461577dcc4e",
+    "define_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+    "rtl_fallback": 1,
+    "build_receipts": {
+      "generic_default": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-sim-build",
+        "compiler": "g++ from default_defconfig",
+        "result": "COMPILE_PASS"
+      },
+      "a3_toolchain_identity": {
+        "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-a3-toolchain-build",
+        "compiler": "/usr/bin/clang++",
+        "linker": "/usr/bin/clang++",
+        "queue_head_command_override": false,
+        "result": "COMPILE_PASS"
+      }
+    },
+    "a3_a4_simulator_defines": [
+      "OOO_ASSERT=1",
+      "OOO_CSR_QUEUE_HEAD=1",
+      "OOO_TERMINAL_HOLDER_ASSERT=1",
+      "verilator_assertions=enabled"
+    ],
+    "a3_a4_define_sets_equal": true
+  },
+  "active_elaborated_rtl": {
+    "file_count": 51,
+    "filename_sets_equal": true,
+    "exact": {
+      "a4_id": "sha256:66ae33975f58edeeeb96182126882400a6812e742e089e26b96eb8b1370c5b88",
+      "product_default_id": "sha256:66ae33975f58edeeeb96182126882400a6812e742e089e26b96eb8b1370c5b88",
+      "differences": [],
+      "match_count": 51
+    },
+    "source_location_normalized": {
+      "a4_id": "sha256:585c0bf0b210de35babb346a930fde32da28d7310f82194668d29ce069ff34f1",
+      "product_default_id": "sha256:585c0bf0b210de35babb346a930fde32da28d7310f82194668d29ce069ff34f1",
+      "differences": [],
+      "logic_changed": false
+    }
+  },
+  "host_and_device_execution": {
+    "device_objects": {
+      "device.o": {
+        "a4": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7",
+        "product_default": "c720620c79a57f1963d04fc6c4c34ef26e4135e686a2fac7d94f3a53120ebcb7"
+      },
+      "dpi.o": {
+        "a4": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7",
+        "product_default": "7b27b39f6d2822181e2129de8cd437631f896dd4658fbf8fec3a09275d5bf3b7"
+      },
+      "keyboard.o": {
+        "a4": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c",
+        "product_default": "b150e1a5386047e7a4bfe1452e99f606bda0de1f64b93f4a994404ded474c31c"
+      },
+      "map.o": {
+        "a4": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510",
+        "product_default": "ed0ee638cc1d70b7c2a219ed0d7b4a4b37601905eb51e34c1ef80ba6528a4510"
+      },
+      "paddr.o": {
+        "a4": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d",
+        "product_default": "59d7300a86fd42a038bdd21e2d66cd3227a9fe8bae2309cb35d927ab3b0d350d"
+      },
+      "timer.o": {
+        "a4": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3",
+        "product_default": "3b03ce763e42a9b5d612d0deb685ccafa892abe410dcab17415670284cad95c3"
+      },
+      "vga.o": {
+        "a4": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51",
+        "product_default": "81f699f6b7f0ffbb198ce055fdd44afe69f3a36ad3fef1b5526629e95bd37a51"
+      },
+      "virtio_blk.o": {
+        "a4": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca",
+        "product_default": "6078c51b89d2b05f4388f19b77462a9734360de5292ac851a8d6b8d66d3deeca"
+      }
+    },
+    "device_objects_changed": false,
+    "cpu_exec_o": {
+      "a4": "3da34fdd91d1692947eef13eb3fd963455233b120e3db1157e42e0ae51eeaec5",
+      "product_default": "3da34fdd91d1692947eef13eb3fd963455233b120e3db1157e42e0ae51eeaec5",
+      "changed": false
+    }
+  },
+  "system_recert_decision": {
+    "production_core_semantics_changed_relative_to_a4": false,
+    "active_elaborated_rtl_logic_changed_relative_to_a4": false,
+    "device_model_execution_semantics_changed": false,
+    "host_harness_execution_semantics_changed": false,
+    "a3_required_raw_evidence_missing": false,
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE"
+  },
+  "non_claims": [
+    "SERIALIZE-G1 closure before second independent review",
+    "architecture freeze",
+    "PPA qualification",
+    "A3 original PASS",
+    "A4 system PASS"
+  ]
+}

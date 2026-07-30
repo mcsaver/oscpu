@@ -1,0 +1,159 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "task_id": "2026-07-29-rv64-hist-ser-qh-younger-store-cycle",
+  "status": "BOUNDED_COMPLETE",
+  "classification": {
+    "primary": "historical_rtl_verification",
+    "auxiliary": [
+      "architecture_evidence_maintenance",
+      "workflow_evidence"
+    ],
+    "production_rtl_changed": false
+  },
+  "scope": {
+    "historical_defect_id": "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+    "modules": [
+      "OooIntBackend",
+      "OooRob",
+      "OooFrontend",
+      "StoreQueue"
+    ],
+    "signals": [
+      "mem_idle_o",
+      "mem_retire_quiet_o",
+      "head0_csr_mem_hold_w",
+      "head0_csr_inflight_w"
+    ],
+    "cycle_contract": "queue-head CSR C0 -> externally modeled C1 flush -> C2 no-repeat, with a younger SQ STORE owner held through the root window"
+  },
+  "git": {
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "worktree_dirty": true,
+    "commit_eligible": false,
+    "commit_blocker": "the worktree contains mixed-origin tracked, staged and untracked files; an atomic commit boundary is not proven"
+  },
+  "rtl_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "root_cause": "the historical queue-head CSR gate waited for mem_idle and mem_retire_quiet; mem_retire_quiet included sq_empty even though the younger SQ entry could only be flushed after the CSR retired",
+  "hypotheses": {
+    "primary": "a root-cone-equivalent historical fixed source reaches one C0/C1 while restoring the historical mem_idle-and-mem_retire_quiet dependency reproduces the bounded cycle",
+    "competing": [
+      "the product frontend naturally dispatches a younger lane1 uop with a queue-head CSR",
+      "current mem_idle owner-lifetime semantics can be used as the historical fixed source",
+      "the historical negative result is caused by compile failure or assertion-only behavior",
+      "the older-store product case already covers the younger-store cycle"
+    ]
+  },
+  "highest_information_experiment": {
+    "description": "three compile-success RTL semantics under an identical raw-counter CSR plus younger STORE stimulus, each with assertions enabled and disabled",
+    "stop_condition": "six images compile, four positive cases pass, two historical-cycle cases reach only the dedicated root marker and are rejected",
+    "result": "6/6 compile-success; 4/4 positive PASS; 2/2 expected rejection"
+  },
+  "run_budget": {
+    "focused_cases": 6,
+    "product_frontdoor_cases": 5,
+    "module_regressions": 1,
+    "ledger_unit_tests": 4,
+    "full_system_rerun": "NOT_REQUIRED",
+    "synthesis_sta_power": "NOT_RUN"
+  },
+  "gates": {
+    "historical_reconstruction": "PASS",
+    "product_frontdoor": "PASS_3_COMMIT_2_KILL",
+    "module_regression": "PASS",
+    "ledger_audit": "VALID_GAP",
+    "ledger_tests": "PASS_4_OF_4",
+    "final_reviewer": "APPROVED_FOR_BOUNDED_VD3_V4",
+    "workflow": "PASS_SCOPED_STRICT",
+    "db_first_audit": "GAP_PREEXISTING_HISTORICAL_TASK_RUN_DRIFT",
+    "architecture_stable": "GAP",
+    "ppa": "UNQUALIFIED"
+  },
+  "evidence": {
+    "historical_reconstruction": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
+      "sha256": "a7c15649be90432aa6961671b10e1be06ade4ddef18e8e06846fb6f3cd7b9fa0"
+    },
+    "product_frontdoor": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/product-frontdoor-v2/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
+      "sha256": "1ac4a715d1d18d91e11fa4d1ef2589e0291b4f7bea4a00d2ff24dd41f2c0228a"
+    },
+    "module_regression": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/module-regression/logs/tb_ooo_int_backend.log",
+      "sha256": "afba2d8cbd4f7c52ed86a75a5fea95087c6f6643497325653eaa0bd0004bc78c"
+    },
+    "runner": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py",
+      "sha256": "2e1fbf6c38beab1ce3e11a47e7c4c287f9f9551410b00d3c9deabfb58bb37dde",
+      "identity_policy": "raw VVP receipt plus allocator-normalized elaboration SHA"
+    },
+    "runner_identity_tests": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/test_historical_reconstruction_runner.py",
+      "sha256": "c429158c880af268527e016e4c3269bccfdff869f6b48d39c3cd410d533ec2a9",
+      "status": "PASS_2_OF_2"
+    },
+    "replay_identity": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/replay-identity-v2/stability.json",
+      "sha256": "bc93313525dcc6f89a5a2d387fe5796489b6687f6d7b6757abe76e6995d3107f",
+      "status": "PASS_6_OF_6_NORMALIZED_AND_LOG_STABLE"
+    },
+    "ledger_validation": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-validation-v3.json",
+      "sha256": "636469198aa526f6314e8c305bbe32b18acbad365380ce97e09d2881a48ab361"
+    },
+    "ledger_tests": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-ledger-tests-v3.log",
+      "sha256": "d20d2953cab735d14b85f353390c66da1cbfd4ee983a7059d05184c9814195bf"
+    },
+    "review_contract": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-final-evidence-review-v4.json",
+      "sha256": "b10cb173f390f7ae84f5dc6d4801aa7d2ddf2cad6a100f32c0a946654ffd5435"
+    },
+    "review_report": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/final-reviewer-report-v4.md"
+    },
+    "bounded_brief": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/context-brief.md",
+      "sha256": "4efa7b44b207a8814da2f45f5c00bfebeb2f9430b6bb3b6ef15fde052fb74fed",
+      "status": "COMPLETE_NON_HISTORY_BLUEPRINT_MATCH"
+    },
+    "npc_dev_e2e": {
+      "path": ".github/task-runs/2026-07-29-rv64-historical-defect-backfill-loop/task-report.md",
+      "sha256": "46a0598ca2603ffbe18bc8698d3a4343e3811c2a5d2d769b10ffb1929dd71c64",
+      "status": "COMPLETED_5_OF_5"
+    },
+    "strict_guard": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/strict-guard.log",
+      "sha256": "6dcea821d97677c7de7bc4d749d478fcdf008313377ebd3913c661216b82f2b2",
+      "status": "PASS_SCOPED_NPC_DEV"
+    },
+    "db_first_audit": {
+      "status": "GAP_EXTERNAL_TO_SLICE",
+      "current_memory_missing_or_mismatch": 0,
+      "preexisting_historical_task_run_live_drift": 183,
+      "reason": "the remaining drift paths predate this slice and exclude current project-status, modules/npc and this task-run"
+    }
+  },
+  "a3_boundary": {
+    "original_status": "FAIL_PRESERVED",
+    "classification": "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+    "full_rerun_required": false,
+    "reason": "production core semantics, elaborated RTL, simulator/device execution semantics and required frozen A3 evidence did not change"
+  },
+  "reviewer": {
+    "verdict": "APPROVED_FOR_BOUNDED_VD3_V4",
+    "remaining_gaps": [
+      "the backend C1 flush is externally injected and product typed C1 is covered separately",
+      "the historical variants are root-cone-equivalent reconstructions rather than full snapshots",
+      "the four-cycle rejection is not an unbounded formal liveness proof",
+      "the VVP normalizer tests are representative sensitivity checks rather than a complete proof over all future VVP syntax",
+      "HIST-SER-QH-STOP-HOLD-DROP remains VD1"
+    ]
+  },
+  "promotion": {
+    "eligible": false,
+    "state": "INTERMEDIATE_CHECKPOINT",
+    "reason": "one historical defect remains at VD1 and architecture/PPA gates remain open"
+  },
+  "next_highest_information_action": "build the assertion-on/off product-glue raw scoreboard and compile-success negative OooStopPendingSequencer version for HIST-SER-QH-STOP-HOLD-DROP"
+}

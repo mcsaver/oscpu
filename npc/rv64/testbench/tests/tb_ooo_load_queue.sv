@@ -244,6 +244,53 @@ module tb_ooo_load_queue;
     end
   endtask
 
+  // V11H pre-fix discriminator.  The public LQ contract permits a normal
+  // memory-owner terminal before formal completion while retaining ROB
+  // residency.  A later recovery must not create a killed tombstone for an
+  // owner whose exact terminal has already occurred.
+  task automatic run_v11h_prior_terminal_recovery_repro;
+    reg [PRODUCER_ID_W-1:0] pid;
+    begin
+      reset_dut();
+      pid = {{`OOO_PRODUCER_GEN_W{1'b1}}, 4'h2};
+
+      alloc0_valid = 1'b1;
+      alloc0_rob = pid[ROB_INDEX_W-1:0];
+      alloc0_pid = pid;
+      #1;
+      tb_check1("V11H repro allocation has edge-old credit",
+                alloc0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_events();
+
+      launch0_valid = 1'b1;
+      launch0_pid = pid;
+      `TB_TICK(clk);
+      clear_events();
+
+      terminal0_valid = 1'b1;
+      terminal0_pid = pid;
+      `TB_TICK(clk);
+      clear_events();
+      #1;
+      tb_check1("V11H normal terminal retains retire residency",
+                count == 1 && producer_live_mask[pid], 1'b1);
+
+      flush_valid = 1'b1;
+      flush_all = 1'b1;
+      `TB_TICK(clk);
+      clear_events();
+      #1;
+      if ((count !== 0) || (producer_live_mask[pid] !== 1'b0)) begin
+        tb_errors = tb_errors + 1;
+        $display("[V11H-LQ-PRIOR-TERMINAL-RECOVERY][FAIL] count=%0d live=%b killed=%b",
+                 count, producer_live_mask[pid], dut.killed_q[0]);
+      end else begin
+        $display("[V11H-LQ-PRIOR-TERMINAL-RECOVERY] prior_terminal=1 recovery_clear=1 ghost=0 PASS");
+      end
+    end
+  endtask
+
   reg [PRODUCER_ID_W-1:0] p0;
   reg [PRODUCER_ID_W-1:0] p1;
   reg [PRODUCER_ID_W-1:0] p2;
@@ -283,6 +330,11 @@ module tb_ooo_load_queue;
     clear_events();
 
     reset_dut();
+    if ($test$plusargs("V11H_PRIOR_TERMINAL_REPRO_ONLY")) begin
+      run_v11h_prior_terminal_recovery_repro();
+      tb_finish("tb_ooo_load_queue_v11h_prior_terminal_recovery");
+    end
+
     p0 = make_pid(4'h1, 4'h0);
     p1 = make_pid(4'h1, 4'h1);
     alloc_pair(p0, p1);

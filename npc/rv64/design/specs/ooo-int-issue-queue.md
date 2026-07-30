@@ -16,6 +16,10 @@
 > 非空接受、完整 ProducerId 账本与定向变异证据验证；整体架构仍 RED，不能外推 OOO-3 或 PPA**。
 > **v8o：DI-4 无静态 lane 语义已由 12 个双位置能力排列、24 个完整 ProducerId、
 > split-accept 反例与 6 个已激活变异固化为常驻门；只提升 DI-4，整体架构仍 RED**。
+> **v11f：`producer_id_q` holder 生命周期已由 stimulus-owned 八槽 full-P
+> 模型在 assert/release × `PRODUCER_GEN_W=1/4` 下逐沿闭合；20 个 compile-success
+> 反例的 40 个 release 仿真全部由独立 raw-Q oracle 拒绝。production IQ RTL 未修改，
+> 仅 `integer-iq-producers` 单元晋级 PASS；全局 no-live-reuse 与 PPA 仍 RED**。
 
 ## 1. 目的与范围
 保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 full-WB wakeup
@@ -264,6 +268,15 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   损坏；checker 对 production predicate/metadata/capture/compaction/selector/swap/binding 使用
   精确结构计数，并绑定 source/image SHA 与原子 manifest 合并，防止注释占位、空覆盖和
   stale replay。该门只提升 DI-4；DI-1/2/3/5、OOO-3/4 与 PPA 均不在证明范围。
+- V11F `integer-iq-producers` 语义门使用
+  `.github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/run-int-iq-producer-focused.sh`。
+  testbench expected 仅由 accepted dispatch stimulus、定向 fire/pop/kill/flush/reset
+  日程和八槽 full-P list 推导；禁止从 `producer_live_mask_o`、`dut.valid_q` 或
+  `dut.producer_id_q` 回授 expected。四个正向 profile 必须全部 PASS；20 个 carrier、
+  lifetime、mask 与 X-knownness 变体必须在 `OOO_ASSERT` 关闭时编译成功，并在
+  `GEN_W=1/4` 的 40 个仿真中全部命中 `[V11F-INT-IQ-ORACLE][FAIL]`。该门只关闭
+  `integer-iq-producers`，不证明上游 kill/flush transaction barrier、外部 holder
+  collision fence、全局 no-live-reuse、系统、综合、STA、Power 或 PPA。
 
 ## 6. 变更记录
 - 2026-06-28：逆向文档化(压缩程序序队列/2 唤醒/2 oldest-ready 发射/dispatch 旁路/快路径/不变量)。
@@ -321,3 +334,8 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   24 个完整 PID、split-accept 反例、6 个已激活 compile-success mutation、exact provenance
   与原子 manifest sibling-preservation 固化为 `check-no-static-lane-semantics`。只将同一
   design_id 的 DI-4 提升为 GREEN，并保留 OOO-1/OOO-2；整体架构和 PPA 继续 RED。
+- 2026-07-30 V11F：不修改 production `OooIntIssueQueue.v`，在现有模块 TB 增加
+  `+V11F_INT_IQ_PRODUCER_ONLY` 路径，以 stimulus-owned 八槽 full-P list 逐沿核对
+  birth/hold/compaction/issue/pair/kill/flush/reset 和 raw PID knownness。assert/release
+  × `GEN_W=1/4` 为 4/4 PASS；20 个 compile-success 反例的 40/40 release 仿真由独立
+  oracle 拒绝。语义账本只将 `integer-iq-producers` 从 GAP 晋级 PASS，整体仍 RED。

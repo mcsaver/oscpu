@@ -1,0 +1,2 @@
+command=bash -n .github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh .github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh .github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh scripts/task-run-status.sh
+rc=0

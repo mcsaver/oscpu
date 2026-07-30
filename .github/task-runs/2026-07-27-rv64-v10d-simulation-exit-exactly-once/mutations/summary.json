@@ -1,0 +1,121 @@
+{
+  "configuration": {
+    "iverilog": "/usr/bin/iverilog",
+    "simulation_plusarg": "+V10D_ONLY",
+    "systemverilog": "2012",
+    "vvp": "/usr/bin/vvp"
+  },
+  "mutations": [
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D active memory holder blocks drain",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "c02a80e255bd13d5b40ef6fab3e7ad67f6832ece7469cbb83290ea8813853ebf"
+      },
+      "name": "drop-exit-memory-terminal-term",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D active memory holder blocks drain",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "7a98fc45e1273efdcb5981bef96e1b2d425223f35532fb228308c148b62d5228"
+      },
+      "name": "replace-exact-terminal-with-full-mem-idle",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D C1 clears exit owner",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "bc89907cdb68e85507af6a0757a58a9ba799f1fecee593dbfa3d8fb15229de65"
+      },
+      "name": "drop-exit-holder-drain-clear",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D C1 clears stop",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "ac260f4988f79ffe38b216a59d084f1c239d7f27dfba2ecd0ad938b02912f3aa"
+      },
+      "name": "drop-stop-drain-clear",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D exit capture ecall kind",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "bdc0e78ea723ede38e1cf909c35046c667da46d2d13cf554c85b05710fe873e2"
+      },
+      "name": "swap-exit-kind-selection",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": true,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D older branch recovery excludes raw exit",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "53baf5e8a96d737a5c85378bf5bb957a6ed6444411d0d93a05eaf74ffaf69c05"
+      },
+      "name": "drop-trap-over-exit-priority",
+      "rejected": true,
+      "simulation_rc": 1
+    },
+    {
+      "assertions": false,
+      "compile_rc": 0,
+      "compile_success": true,
+      "expected_rejection_marker": "[CHECK-FAIL] V10D C2 raw exit no-repeat",
+      "marker_observed": true,
+      "mutated_rtl_sha256": {
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "bc89907cdb68e85507af6a0757a58a9ba799f1fecee593dbfa3d8fb15229de65",
+        "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "ac260f4988f79ffe38b216a59d084f1c239d7f27dfba2ecd0ad938b02912f3aa"
+      },
+      "name": "extend-raw-exit-beyond-terminal-cycle",
+      "rejected": true,
+      "simulation_rc": 1
+    }
+  ],
+  "passed": true,
+  "production_rtl_sha256": {
+    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
+    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
+    "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
+    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
+    "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "759eabf4952f062d9c9143ad35c19daecbf340c8dc86e601229d19b23f5de304",
+    "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
+    "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
+    "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
+    "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+    "npc/rv64/vsrc/frontend/OooFrontendRunGate.v": "f58b0944cc55f94cb6d1268b20bbf6300e77599372a246d17c0c68bffde7c7b9"
+  },
+  "rejected_count": 7,
+  "schema": "rv64-v10d-simulation-exit-mutation-summary-v1",
+  "testbench": "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+  "testbench_sha256": "533a02415276c6c042c83bb04a848ae698f8f1ce94fc6d30bbf33150291f5481",
+  "total_count": 7
+}

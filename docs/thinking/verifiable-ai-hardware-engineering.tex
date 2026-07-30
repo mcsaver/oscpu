@@ -1,5 +1,5 @@
 % !TEX program = xelatex
-% 研究型工程文章；证据审计截止 2026-07-24。
+% 研究型工程文章；证据审计截止 2026-07-29。
 \documentclass[UTF8,a4paper,zihao=-4,oneside]{ctexart}
 
 \usepackage[
@@ -123,6 +123,18 @@
   \end{quote}
 }
 
+\newenvironment{milestonebox}[1]{%
+  \par\smallskip
+  \begingroup\small
+  \noindent\begin{minipage}{\linewidth}
+  \noindent\rule{\linewidth}{0.8pt}\par\smallskip
+  \noindent\textbf{阶段里程碑｜#1：}\ignorespaces
+}{%
+  \par\smallskip\noindent\rule{\linewidth}{0.8pt}
+  \end{minipage}
+  \endgroup\par\medskip
+}
+
 \hypersetup{
   pdftitle={从提示约束到可执行约束：仓库级 RTL Agent 的证据闭环与声明—证据失配治理},
   pdfsubject={基于 ysyx-workbench 四月至七月工程记录的探索性研究},
@@ -151,12 +163,23 @@ Analysis，STA）工具。然而，“命令返回
 原用语，下文亦简称“假完成”。它判断的是主张与证据的关系，不涉及实现者的主观动机。
 
 本文以 \taskpath{ysyx-workbench} 中 2026 年 4—7 月的 task-run、原始日志、结构化结果和
-回滚记录为材料，研究自然语言约束如何迁移为可执行工程约束。所分析的机制包括：
+回滚记录为材料，沿 RV32（32 位 RISC-V）\texttt{single} 单核后端、RV32 SoC（片上系统）、
+RV64（64 位 RISC-V）目标机/参考机（target/reference）、RV64 Linux/Ubuntu 与证据化优化
+五个工程阶段，研究自然语言约束如何迁移为可执行工程约束。NPC 是 RTL/Verilator 目标平台，
+始终承担待验证的 RTL target；NEMU 是软件参考模拟器，其责任随阶段变化：RV32 \texttt{single} 时只提供
+环境分层和 ABI 参照，从 RV32 SoC 同图对拍开始才承担运行时 reference 语义。所分析的机制包括：
 有界上下文召回、任务合同、设计身份（design-id）绑定、分层验证、负向 RTL 变体、
 证据新鲜度、失败关闭发布和回滚。四个月记录显示，这些机制曾实际暴露 lint-only 的
 功能空白、定向测试后的组合环、分支推测与 JALR pending 的死锁、跨设计证据错配以及
 mutation oracle 的假绿风险；多个候选因此被拒绝或回退。七月的部分切片已能把
 focused test、模块回归、负向变体、原始日志哈希和 full-core GAP 同时保存在一条证据链中。
+7 月 27—28 日，本工作区 RTL/Verilator 仿真平台（NPC）的 A3 运行实例又把同一方法推进到
+系统尺度：实际运行模拟器的宿主机（host）流水线耗时约 19 小时，仿真处理器内的软件系统
+（guest）从 OpenSBI 运行到 Ubuntu 22.04 systemd、rootfs/virtio 严格检查以及由 systemd
+发起并完成的有序关机；
+原始 live gate 因旧正则把 \texttt{debug} 误识别为 \texttt{BUG} 而保持 16/17 与
+\texttt{FAIL}；冻结 oracle 重放在固定日志上重新执行判定器而不重新执行 RTL，虽确认了
+oracle 假阳性，仍没有改写原状态或授权架构/PPA 晋级。
 
 这些结果支持一个有限结论：在本文所列案例中，把 Prompt 中的要求编译成机器可检查的
 对象、配置、命令、反例和发布条件，为 Agent 主张的归属、检验、拒绝和限定提供了机制。
@@ -173,8 +196,10 @@ focused test、模块回归、负向变体、原始日志哈希和 full-core GAP
 
 四月时，我主要把 AI 当作代码生成器。它可以一次铺开若干 RTL 模块，Verilator
 也能完成 lint；但如果没有 testbench、镜像加载、对拍和退出状态，所谓“完成”只能说明
-语法进入了下一阶段。五月以后，AI 开始跨越 Cache、乱序后端和 SoC 修改多个文件，
-候选生成速度上升，错误半径也随之扩大。六月和七月，真正改变交付质量的工作不再只是
+语法进入了下一阶段。此后的主线不是抽象的“任务变复杂”，而是处理器工程从 RV32
+\texttt{single} 进入 ysyxSoC，再由 \texttt{npc/rv64} 与 NEMU RV64 reference 共同扩展到
+Linux/Ubuntu；AI 开始跨越 Cache、乱序后端、SoC 和系统软件修改多个文件，候选生成速度
+上升，错误半径也随之扩大。六月和七月，真正改变交付质量的工作不再只是
 换模型或写更多 Prompt，而是持续改造工程环境：让 Agent 知道应读取哪些事实、如何运行
 真实工具、结果属于哪份设计、什么反例必须出现，以及证据不足时为什么不能宣布完成。
 
@@ -199,7 +224,7 @@ focused test、模块回归、负向变体、原始日志哈希和 full-core GAP
     表面结果 & 真实记录 & 能够成立的结论 \\
     \midrule
     9 个 RTL 文件且 lint 通过 &
-    四月 RV32I 尚无 testbench、镜像加载和 NEMU 对拍 &
+    四月 RV32I 尚无 testbench、镜像加载和 NEMU 软件参考模拟器对拍 &
     语法和部分结构进入可仿真前状态，功能仍未知 \\
     focused test 通过 &
     五月 branch+ret 候选随后出现 \texttt{UNOPTFLAT}；六月分支推测破坏系统回归 &
@@ -305,6 +330,9 @@ focused test、模块回归、负向变体、原始日志哈希和 full-core GAP
   \toprule
   术语 & 通俗含义 & 在本文中的严格作用 \\
   \midrule
+  DiffTest；target/reference &
+  目标机 target 是待验证的 NPC RTL，参考机 reference 是执行同一程序的 NEMU &
+  在提交边界比较可比的架构状态；一致只覆盖给定程序、配置和 skip 规则，不是完整 ISA 证明 \\
   oracle &
   判断结果正确或错误的观测规则 &
   testbench、断言、差分模型和日志解析器都可能是 oracle，也可能有盲点 \\
@@ -595,7 +623,7 @@ conn.commit()
 \begin{table}[htbp]
   \centering
   \small
-  \caption{task-run 顶层目录盘点（审计日：2026-07-24）}
+  \caption{task-run 顶层目录盘点（审计时点：2026-07-29 13:36 CST）}
   \label{tab:run-counts}
   \begin{tabular}{@{}lrrrrrrr@{}}
     \toprule
@@ -604,7 +632,7 @@ conn.commit()
     4 月 & 8 & 8 & 0 & 0 & 0 & 0 \\
     5 月 & 137 & 132 & 0 & 0 & 0 & 0 \\
     6 月 & 1246 & 1149 & 556 & 667 & 0 & 0 \\
-    7 月 & 586 & 557 & 421 & 514 & 195 & 190 \\
+    7 月 & 670 & 636 & 480 & 585 & 224 & 219 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -622,9 +650,9 @@ design-id、配置、命令、退出码、指标、负向证据、回滚、结�
 \taskpath{docs/research-paper/claim-evidence-map.tsv}
 \end{center}
 
-当前 21 条主张中，11 条为 \claimstatus{SUPPORTED}，3 条为
+当前 26 条主张中，15 条为 \claimstatus{SUPPORTED}，3 条为
 \claimstatus{PARTIALLY\_SUPPORTED}，1 条为
-\claimstatus{OBSERVATIONAL\_ONLY}，5 条为
+\claimstatus{OBSERVATIONAL\_ONLY}，6 条为
 \claimstatus{CONTRADICTED}，1 条为 \claimstatus{MISSING}。这些数量只是审计分类，
 不是系统成绩。
 
@@ -643,9 +671,57 @@ design-id、配置、命令、退出码、指标、负向证据、回滚、结�
 因此，本文能说“该门禁在这次事件中拒绝了这个候选”，不能说“相同任务下，闭环平均使
 正确率提高了多少”。后者需要固定其余变量，只改变工作流条件。
 
-\section{纵向案例：约束是如何长出来的}
+\section{工程演进：NEMU 与 NPC 如何共同把处理器推到系统级}
 
-\subsection{4 月：从代码生成到最小可观察闭环}
+如果只按月份书写，很容易把“做了更多任务”误当成“工程能力自然提高”。更准确的分析单位
+是\textbf{工程对象发生了什么变化}：先有 RV32 \texttt{single} 核，再把同一套软件和地址
+契约接入 SoC，随后派生 RV64 后端，最后才进入 OpenSBI、Linux、Ubuntu 与乱序核证据治理。
+NPC 始终是待验证的 RTL target；NEMU 的责任随阶段变化：RV32 \texttt{single} 时只提供
+环境分层和 ABI 参照，从 RV32 SoC 同图对拍开始才承担运行时 reference 语义。二者只有使用
+同一镜像、ISA、地址图和可比观察点时，才构成对拍。
+
+下文中的 AM（Abstract Machine）是为裸机程序提供统一运行接口的软件层，DPI（Direct
+Programming Interface）是 SystemVerilog 与 C/C++ 之间的调用桥；ABI（Application Binary
+Interface）规定软硬件交接约定，AXI 是片上总线协议。MROM 是启动只读存储区，SRAM 是可写
+片上存储区；GPR 是通用寄存器，CSR 是控制与状态寄存器。\texttt{single} 专指工作区中直接
+承载单核 RTL 的 NPC 后端。先明确这些对象，才能区分“程序能跑”“SoC 接通”和“参考机可对拍”。
+
+\begin{table}[H]
+  \centering
+  \footnotesize
+  \caption{从 RV32 single 到 RV64 系统事务的工程演进轴}
+  \label{tab:project-evolution}
+  \begin{tabularx}{\linewidth}{@{}L{0.18\linewidth}L{0.24\linewidth}L{0.25\linewidth}Y@{}}
+    \toprule
+    工程阶段 & NPC 主对象 & NEMU 的同期责任 & 可证里程碑 \\
+    \midrule
+    RV32 single\\4 月 &
+    9 文件多周期核、DPI、AM、pmem、trace &
+    提供 monitor/memory/device 分层与 AM ABI 参照；尚未进入运行时对拍 &
+    从 lint-only 到 \texttt{hello + trace + code 0} \\
+    RV32 SoC\\5 月 23—24 日 &
+    \texttt{npc/sim} 分流 \texttt{single/soc}，接入
+    \texttt{ysyxSoCFull}、AXI 和 MROM/SRAM &
+    以 \texttt{CONFIG\_SOC\_SIM} 对齐同一地址图和镜像，承担 DiffTest reference &
+    \texttt{riscv32-ysyxsoc} 39/39 DiffTest；Full SoC 的
+    \texttt{char-test/mem-test} GOOD TRAP \\
+    RV64 后端\\5 月 29—30 日 &
+    \texttt{npc/rv64} 扩宽 PC/GPR/CSR/AXI/DPI，先得 38/38 &
+    补齐 RV64 CPU state、CSR、I/M/B/C/W 指令和共享库 reference &
+    次日推进为 40/40 DiffTest，并让 CoreMark 在双端逐提交一致 \\
+    RV64 系统\\5 月底—7 月 &
+    OpenSBI、Linux、virtio-blk、EXT4、systemd，最终形成 A3 系统事务 &
+    先闭合 rootfs、设备和 Ubuntu shell，提供可拆层的软件黄金路径 &
+    从 mini payload、NEMU shell、NPC banner 推进到十九小时 NPC A3 \\
+    RV64 证据化优化\\6—7 月 &
+    OoO、恢复、owner、FENCE、Yosys/PPA proxy &
+    与 official/AM/模块门共同充当功能 oracle；不替代结构与时序门 &
+    死锁候选被回退，design-id、mutation、freshness 和晋级边界进入证据链 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{工程一：RV32 single——先让“可以编译”变成“可以运行”}
 
 4 月 13 日的 RV32I 非流水线核心一次生成了 9 个 RTL 文件，目标包括译码、立即数、
 ALU、比较、LSU、WBU 和顶层多周期状态机。Verilator lint 通过，但报告同时明确：
@@ -654,21 +730,100 @@ ALU、比较、LSU、WBU 和顶层多周期状态机。Verilator lint 通过，�
 
 随后 NPC 的 DPI/C++、AM image、pmem 和退出协议被接通，
 \taskpath{hello-riscv32-npc.bin} 可以输出并以 code 0 退出；itrace、mtrace 和 dtrace
-分别记录指令、内存和设备活动，batch mode 使相同输入能够无人值守重放。
+分别记录指令、内存和设备活动，batch mode（不进入交互监视器、按固定输入自动执行的
+批处理模式）使相同输入能够无人值守重放。
+
+这个阶段已经同时涉及 NEMU，但还不是“NPC 与 NEMU 逐指令一致”。NPC 的 C++ 仿真器先
+学习了 NEMU 的 \texttt{monitor -> cpu-exec -> paddr -> device/map} 分层，并复用 AM/NEMU
+既有的 pmem、串口和键盘 ABI；NEMU 在这里提供的是\textbf{环境结构和接口参照}，不是尚未
+建立的动态正确性证明。把这一区别写清，才能解释后来 DiffTest 出现时工程责任为什么发生了
+质变。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={RV32 single 首个可重放数据流}]
+AM riscv32-npc image
+  -> NPC monitor -> pmem/device map -> DPI
+  -> RV32 NpcCore -> commit/serial/itrace
+  -> ebreak + a0 -> process exit code
+
+NEMU at this stage:
+  architecture/ABI reference, not yet runtime DiffTest
+\end{lstlisting}
 
 \begin{evidencebox}
-\taskpath{2026-04-13-rv32i-nonpipe-core} 支持“9 个 RTL 文件和 lint 通过”，也明确记录
-“无 testbench、镜像和对拍”。\taskpath{2026-04-13-npc-dpic-bringup} 支持 hello 与
-退出码。它们共同证明最小反馈链形成，不证明处理器已经完整正确。
+\taskpath{.github/task-runs/2026-04-13-rv32i-nonpipe-core/task-report.md} 支持“9 个 RTL 文件和 lint 通过”，也明确记录
+“无 testbench、镜像和对拍”。\taskpath{.github/task-runs/2026-04-13-npc-dpic-bringup/task-report.md} 支持 hello 与
+退出码，并记录仿真器参考 NEMU 分层重构；\taskpath{.github/task-runs/2026-04-14-npc-trace-experience/task-report.md}
+支持 itrace、mtrace、dtrace 与 batch 回归。它们共同证明最小反馈链形成，不证明处理器
+已经完整正确。
 \end{evidencebox}
 
-这一阶段 AI 对工程的介入仍然较浅：我决定接口、测试和结果含义，AI 主要展开实现。
-但环境开始改变角色分工——模型不再只能听我转述错误，而能看到真实程序如何执行和退出。
+\begin{milestonebox}{RV32 single 最小动态闭环}
+可证的跨越不是“生成了更多 RTL”，而是从 lint-only 骨架推进到
+\texttt{AM image -> pmem -> RTL -> serial/trace -> code 0}。AI 对工程的介入仍较浅：
+我决定接口、测试和结果含义，AI 主要展开实现；但从此模型不再只能听我转述错误，而能消费
+确定的程序输入、执行轨迹和退出状态。随源码保存 smoke（只检查最短关键路径是否打通的
+冒烟测试）与 trace 后，下游拿到的是可重放输入和退出状态，而不再只是一组“可以编译”的
+源码。
+\end{milestonebox}
 
-\subsection{5 月：候选生成变快，拒绝机制开始重要}
+\subsection{工程二：RV32 SoC——把 single 的核接进 ysyxSoC，并让 NEMU 参与同图对拍}
 
-5 月的工作进入 Cache、SoC 和乱序后端。乱序执行要求指令在操作数就绪时选择执行，
-同时由 ROB（Reorder Buffer，重排序缓冲区）保持按程序顺序退休；IQ（Issue Queue，
+5 月 23 日发生的关键变化不是继续往 \texttt{single} 里堆接口，而是主动拆开三层责任：
+\texttt{npc/sim} 成为平台无关入口，\texttt{npc/single} 保留普通 NPC 自仿真后端，
+\texttt{npc/soc} 保存 ysyxSoC 接入版本。外部的 AM 只调用 \texttt{npc/sim}，再由
+Kconfig 或 \texttt{BACKEND=single/soc} 选择实现。这样，SoC 所需的 CPU ABI、AXI bridge
+和地址图不会反向污染单核实验线。
+
+SoC 路径把 \texttt{ysyx\_26010035} 顶层接入 \texttt{ysyxSoCFull}。取指和只读段从
+MROM \texttt{0x20000000} 启动，可写 \texttt{.data/.bss/heap/stack} 位于 SRAM。
+其地址窗口从 \texttt{0x0f000000} 延伸至 \texttt{0x0f001fff}；AM 的 \texttt{\_start} 负责把 MROM 中的
+\texttt{.data} load image 复制到 SRAM。NPC 和 NEMU reference 同时加载 MROM/SRAM，
+只对真实 MMIO 做 skip-ref，因而比较的是同一个软件状态，而不是两个看似相似的程序。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={RV32 SoC 的 target/reference 双路径}]
+AM ARCH=riscv32-ysyxsoc
+  -> npc/sim BACKEND=soc
+  -> npc/soc -> ysyxSoCFull -> ysyx_26010035
+  -> NpcCore + NpcSoCAxiBridge -> UART/MROM/SRAM/PSRAM
+
+same image + same address map
+  -> NEMU CONFIG_SOC_SIM reference
+  -> commit state DiffTest
+\end{lstlisting}
+
+首轮结果是 \texttt{riscv32-ysyxsoc} cpu-tests 38/38；加入串口
+\texttt{char-test} 后为 39/39 DiffTest PASS。随后 Full SoC harness 获得真实镜像 backing、
+commit/exit DPI 与 behavioural PSRAM：\texttt{char-test} 输出两条 UART 路径，
+\texttt{mem-test} 在 PC \texttt{0x200002c6} GOOD TRAP，并实际触发 DCache
+hit/miss/dirty writeback/refill。这里的 NEMU 不再只是代码组织的参照，而成为与 NPC
+共享镜像和地址图的运行时 oracle。
+
+\begin{evidencebox}
+目录拆分与数据流来自
+\taskpath{.github/task-runs/2026-05-23-npc-single-soc-split/task-report.md}、
+\taskpath{.github/task-runs/2026-05-23-npc-platform-switch/task-report.md} 和
+\taskpath{.github/task-runs/2026-05-23-npc-ysyx-soc-integration/task-report.md}；39/39 DiffTest、MROM/SRAM 布局来自
+\taskpath{.github/task-runs/2026-05-23-am-ysyxsoc-platform/task-report.md}；Full SoC 的
+\texttt{char-test/mem-test}、cache/PSRAM 证据来自
+\taskpath{.github/task-runs/2026-05-24-b2-ysyxsocfull-cache/task-report.md}。
+这些材料证明当前仿真 SoC 闭环，不等价于 FPGA、ChipLink 或物理芯片签核。
+\end{evidencebox}
+
+\begin{milestonebox}{RV32 SoC 软硬件协同闭环}
+里程碑是同一 AM 程序第一次能够沿 target/reference 两条路径穿过明确的 MROM/SRAM
+地址图：NPC 承担 RTL、AXI、cache 和外设事务，NEMU 承担参考状态，DiffTest 在提交边界
+比较二者。AI 的工作从单目录 RTL 生成扩展到 CPU ABI、Chisel 生成物、AM linker、设备
+模型和对拍路由；我必须冻结哪些状态可比、哪些 MMIO 必须 skip、以及 \texttt{single}
+和 \texttt{soc} 不能互相借用什么结论。这样的分层可支持固件、SoC 与核团队围绕稳定 ABI
+并行推进，同时保留各后端独立退化的可定位性。
+\end{milestonebox}
+
+\subsubsection{single 并行支线：候选必须能够被拒绝}
+
+SoC 接入没有停止 \texttt{single} 的微架构实验。乱序执行要求指令在操作数就绪时选择
+执行，同时由 ROB（Reorder Buffer，重排序缓冲区）保持按程序顺序退休；IQ（Issue Queue，
 发射队列）保存等待执行的微操作。
 
 5 月 29 日的记录定位了一个具体错误：ready 的新指令可以走 dispatch-bypass 直接发射，
@@ -680,7 +835,7 @@ ALU、比较、LSU、WBU 和顶层多周期状态机。Verilator lint 通过，�
 \begin{table}[htbp]
   \centering
   \small
-  \caption{5 月候选的接受与拒绝}
+  \caption{single 优化候选的接受与拒绝}
   \label{tab:may-candidates}
   \begin{tabularx}{\linewidth}{@{}L{0.24\linewidth}Y L{0.21\linewidth}@{}}
     \toprule
@@ -700,13 +855,142 @@ ALU、比较、LSU、WBU 和顶层多周期状态机。Verilator lint 通过，�
 \end{table}
 
 这说明 Agent 已经能够产生多个架构候选，但真正构成工程能力的是环境能否对候选说“不”。
-CPI 只在同一程序、编译选项和测量边界内可比；5 月其他记录中的 CoreMark phase metric
+CPI 只在同一程序、编译选项和测量边界内可比；其他记录中的 CoreMark phase metric
 不能与 0.645 直接拼成趋势线。
 
-\subsection{6 月：跨模块任务暴露了局部正确性的极限}
+\begin{milestonebox}{RV32 single 候选淘汰}
+IQ compact 根因修复被保留，CPI 退化到 0.665 的双 memory 候选和引入
+\texttt{UNOPTFLAT} 组合环的 branch/ret 候选被回退。AI 开始参与根因定位、候选生成和
+局部性能搜索，接受权却仍由同配置测量、完整 build 与回滚条件共同掌握。被拒候选及其反例
+也成为设计决策记录，使后来者能够复核取舍和识别已经出现过的性能、结构陷阱。
+\end{milestonebox}
 
-六月开始形成 profile、manifest、bounded recall 和实现者/审查者分离。AI 可以在更长的
-任务链中阅读多个模块，但也更容易把一个局部组件的通过误写成系统方案成立。
+\subsection{工程三：从 RV32 到 RV64——NPC 扩宽数据通路，NEMU 补齐参考模型}
+
+5 月 29 日，\texttt{npc/rv64} 从 \texttt{single} 派生，但验收不是把宏中的 32 改成
+64。PC、GPR、CSR、AXI payload 和 DPI 类型都要扩宽；\texttt{*W} 指令先形成 32 位
+子结果再符号扩展；\texttt{LW/LWU/LD} 与 8-byte bus lane 的提取规则也必须重新定义。
+AM 通过 \texttt{ARCH=riscv64-npc -> npc/sim BACKEND=rv64} 进入新后端，上层仍不直接
+依赖私有目录。
+
+第一个冻结点主动关闭 cacheable 范围和 DiffTest，因为当时 RV64 NEMU reference 尚不
+完整。该版本 lint/build 通过，基础 cpu-tests 38/38；这只证明 NPC 自身跑完给定测试，
+不证明与参考 ISA 语义一致。次日 NEMU 补入 RV64 CPU state/CSR、RV64I load/store、
+OP-32、RV64M/W、RV64B、RV64C 与 64 位 trap/打印，并生成
+\texttt{riscv64-nemu-interpreter-so}。NPC 随即重新打开 DiffTest，cpu-tests 从 38 项
+扩展为 RV64-aware 的 40/40，CoreMark 也在逐提交对拍下完成。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={RV64 target 与 reference 同步演进的两个冻结点}]
+2026-05-29  NPC RV64 only:
+  lint/build PASS, cpu-tests 38/38
+  cacheable=off, DiffTest=off (reference incomplete)
+
+2026-05-30  NPC + NEMU RV64:
+  cpu-tests 40/40, DiffTest ON
+  CoreMark PASS, GOOD TRAP, mismatch=0
+  cycles=1915750807, commits=318393507
+\end{lstlisting}
+
+\begin{evidencebox}
+\taskpath{.github/task-runs/2026-05-29-npc-rv64-backend/task-report.md} 记录
+RV64 宽度迁移、38/38 和当时的 reference 缺口；
+\taskpath{.github/task-runs/2026-05-30-rv64-nemu-difftest/task-report.md} 记录
+NEMU RV64 reference、40/40 DiffTest 与 CoreMark。两次冻结点相隔一天，正好说明
+“目标机能跑”和“目标机与参考机一致”是两个不同里程碑。
+\end{evidencebox}
+
+\begin{milestonebox}{RV64 target/reference 闭环}
+RV64 的关键跨越不是位宽翻倍本身，而是 NPC 与 NEMU 必须同时升级：前者承担真实 RTL
+数据通路、总线和提交，后者承担 64 位架构语义；AM 保持同一上层入口，DiffTest 在 commit
+边界把两者连接起来。先保留 38/38 的无对拍阶段，再记录 40/40 与 CoreMark 对拍阶段，
+使能力增长可追溯而不被一次最终 PASS 抹平。对工程交付而言，这种 target/reference
+解耦允许参考模型先稳定软件语义、RTL 团队独立承担时序和实现风险。
+\end{milestonebox}
+
+\subsection{工程四：RV64 系统软件——NEMU 与 NPC 分层推进 Ubuntu}
+
+RV64 cpu-tests 闭合以后，下一步不是直接宣称“能跑 Linux”，而是把固件交接、特权级、
+DTB、内核、块设备、rootfs 和用户空间逐层拆开。六月同时开始形成 profile、manifest、
+bounded recall 和实现者/审查者分离；AI 可以在更长的任务链中阅读多个模块，但也更容易
+把一个局部组件的通过误写成系统方案成立。
+
+\subsubsection{固件里程碑：从 AM handoff 到真实 OpenSBI}
+
+5 月 30 日的第一个 Linux handoff 仍是 AM 内的 mini payload：M-mode 设置
+\texttt{mstatus.MPP=S} 与 \texttt{mepc} 后执行 \texttt{mret}，S-mode 检查
+\texttt{a0=hartid}、\texttt{a1=DTB} 和 FDT header，再以 SBI \texttt{ecall} 返回。
+四项 handoff/timer/console 测试通过，证明的是特权级边界，不是 Linux。
+
+同日真实 OpenSBI bring-up 又暴露了三层不同问题：错误的
+\texttt{FW\_TEXT\_START} 破坏了固件 \texttt{fw\_rw\_offset} 的 2 次幂约束；
+OpenSBI semihosting probe 中的 \texttt{ebreak} 被 NPC 误当作 AM 退出；mini payload
+用 \texttt{lw} 读取 FDT magic 时又发生 32 位符号扩展。分别修正固件布局、
+semihosting magic trap 和 \texttt{lwu} 后，真实 OpenSBI v1.8 能把控制权交给 S-mode
+payload，payload 打印 \texttt{S} 并 GOOD TRAP。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={从 CPU-test 到真实 OpenSBI 的中间里程碑}]
+OpenSBI v1.8
+  -> a0 = hartid
+  -> a1 = embedded DTB physical address
+  -> mret to S-mode mini payload
+  -> UART prints "S"
+  -> GOOD TRAP
+\end{lstlisting}
+
+\begin{evidencebox}
+\taskpath{.github/task-runs/2026-05-30-rv64-linux-handoff/task-report.md} 支持
+AM mini handoff 4/4；\taskpath{.github/task-runs/2026-05-30-rv64-opensbi-mini-boot/task-report.md}
+支持真实 OpenSBI v1.8、S-mode payload 和 GOOD TRAP。二者都没有运行 Linux kernel，
+因此只承担固件—payload 交接里程碑。
+\end{evidencebox}
+
+\begin{milestonebox}{真实 OpenSBI 交接}
+这一节点把“RV64 指令能执行”推进为“真实固件能够按照 RISC-V boot protocol 把 hartid、
+DTB 与 S-mode 控制权交给下一阶段”。AI 已经不只修改 RTL，而是在固件链接布局、特权态
+陷阱、FDT 端序和指令符号扩展之间追踪同一失败链。我提供分层验收：mini handoff、真实
+OpenSBI 和 Linux 必须分别过门，前一层不能替后一层背书。这种固件/RTL 边界的提前闭合，
+可用于在完整操作系统长跑之前暴露 boot protocol 错位。
+\end{milestonebox}
+
+\subsubsection{操作系统里程碑：NEMU 先进入 shell，NPC 再到达 systemd}
+
+6 月 4 日，NEMU 软件参考模拟器通过 virtio-mmio 暴露 2 GiB vda，挂载 Ubuntu 22.04.5
+的 EXT4 rootfs，rootfs 内 \texttt{/bin/sh -c} 返回 0，随后进入无 tty、无 job control
+的 \texttt{/bin/sh}。6 月 15 日，同一类软件栈在 NPC RTL/Verilator 平台上推进到 vda、
+EXT4 根挂载、systemd 249、Ubuntu banner 和 hostname；但该次 340M-cycle smoke 没有
+出现 root prompt，也没有 \texttt{\_\_NPC\_SYSTEMD\_CHECK\_DONE\_\_ rc=0}。两条路线
+采用同类 Ubuntu/EXT4 软件栈和 virtio-mmio 设备契约，但平台与证明责任不同。镜像与设备
+契约可以先在 NEMU 复核，NPC 仍保留独立门禁，参考模型进度不会自动迁移成 RTL 结论。
+
+\begin{lstlisting}[language={},numbers=none,
+  caption={6 月 NEMU 与 NPC Ubuntu 分层里程碑的原始 marker}]
+[NEMU, 2026-06-04]
+virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
+VFS: Mounted root (ext4 filesystem) on device 254:0.
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+[ysyx-rootfs] /bin/sh -c exit=0
+/bin/sh: 0: can't access tty; job control turned off
+
+[NPC, 2026-06-15]
+virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
+VFS: Mounted root (ext4 filesystem) on device 254:0.
+systemd 249.11-0ubuntu3.21 running in system mode
+Welcome to Ubuntu 22.04.5 LTS!
+Hostname set to <ysyx-ubuntu2204>.
+\end{lstlisting}
+
+\begin{evidencebox}
+NEMU 原始 console 位于
+\taskpath{Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs-virtio-8b/console.log}；
+NPC 原始 console 位于
+\taskpath{.github/task-runs/2026-06-15-npc-ubuntu-current-direct/evidence/npc-rv64-linux-rootfs-mount-smoke-script/console.log}。
+前者支持“参考模型进入非交互 shell”，后者只支持“NPC rootfs mount +
+systemd/banner”，不能合并成两个平台均完整启动 Ubuntu。
+\end{evidencebox}
+
+\subsubsection{协议里程碑：局部恢复正确仍可能形成全核死锁}
 
 分支推测案例最能说明这个问题。把休眠 checkpoint 路径从
 \texttt{1'b0} 打开后，lint 和 module 113/113 通过；系统回归却变为 riscv-tests
@@ -730,37 +1014,192 @@ root cause: branch-spec active <-> pending JALR drain deadlock
 它支持“聚合门禁发现并回退了该候选”，不支持“ROB-walk 无效”或“所有分支推测方案都会失败”。
 \end{evidencebox}
 
-\subsubsection{Ubuntu 里程碑：同一个词必须有不同证据等级}
+\begin{milestonebox}{RV64 系统与协议分层}
+这一阶段形成了两个互相呼应的里程碑：系统软件侧把“启动”拆成参考模型 shell、NPC
+systemd/banner 等不同层级；微架构侧则用聚合回归与 trace 证明，隔离通过的 ROB-walk
+恢复组件仍可能与 branch speculation、JALR pending 和 drain 构成闭环等待。AI 的介入
+由局部实现扩展到跨模块追踪和系统日志分析；两类结果由不同 platform、task-run 和 gate
+状态分别保存，使后续审查不能在不说明层级的情况下合并结论。
+\end{milestonebox}
 
-NEMU 与 NPC 的 Ubuntu 日志也是一次结论边界训练。NEMU 的原始 console 记录了：
+\subsection{工程五：RV64 证据化优化——让结果本身也接受验证}
+
+\begin{milestonebox}{RV64 可审计晋级}
+里程碑不再由一个更大的 PASS 定义，而由证据是否带有身份、分母、反例与发布边界定义：
+design-id 阻止旧候选借用当前结论，mutation 检查 oracle 能否拒绝已知错误，freshness
+要求上游字节变化后重放消费者，PPA proxy 即使正裕量也因约束不完整保持
+\texttt{UNQUALIFIED}。十九小时 A3 进一步把 design-id、输入哈希、严格 checker 和失败
+关闭状态带到 Ubuntu 系统事务；mutation、freshness 与 PPA 资格仍分别受各自切片的证据
+边界限制。此时 AI 已深入参与设计优化、验证编排、日志诊断和证据打包，我主要设计它必须
+面对的反例与晋级条件。接收者由此可以按绑定身份和命令重算结论，而不必依赖某位工程师或
+某个模型对“已经通过”的口头解释。
+\end{milestonebox}
+
+\subsubsection{Ubuntu 里程碑：从分层启动到十九小时系统事务}
+
+“启动 Ubuntu”不是一个二值事件。OpenSBI 交接、Linux 打印、块设备识别、根文件系统挂载、
+systemd 成为 PID1、root 身份执行、持久化读写和有序关机，分别依赖处理器特权态、MMU、
+中断、AXI、virtio、文件系统与用户空间。下文中，NEMU 指软件参考模拟器，NPC 指本工作区
+的 RTL/Verilator 仿真平台；A3、A4 是同一 task-run 内的运行实例标识，不是证据等级；
+guest 指仿真处理器内的软件系统，host 指实际运行模拟器的宿主机。本文把一条从固定输入
+启动、执行预先定义的 guest 检查、再由 guest systemd 发起关机并经关机设备回到仿真器
+终点的有序链称为\textbf{系统事务}。它是工作区内的操作性术语，不表示所有 Ubuntu
+服务、全部 ISA 或长期稳定性已经验证。
+
+表\ref{tab:ubuntu-milestones}显示，同一个词在三次记录中实际处于不同层级。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Ubuntu 证据从参考模型到 NPC 系统事务的推进}
+  \label{tab:ubuntu-milestones}
+  \begin{tabularx}{\linewidth}{@{}L{0.16\linewidth}L{0.18\linewidth}Y L{0.22\linewidth}@{}}
+    \toprule
+    时间与平台 & 绑定对象 & 最高原始观测 & 当时能够成立的结论 \\
+    \midrule
+    6 月 4 日 NEMU &
+    NEMU + Ubuntu rootfs &
+    vda、EXT4、Ubuntu 22.04.5、\texttt{/bin/sh -c} 返回 0 并进入 shell &
+    参考模型进入 Ubuntu shell；不是 NPC 证据 \\
+    6 月 15 日 NPC &
+    340M-cycle smoke &
+    vda、EXT4、systemd 249、Ubuntu banner、hostname &
+    rootfs mount + systemd/banner；无 root prompt 和完整门禁完成标志 \\
+    7 月 27—28 日 NPC A3 &
+    design-id \texttt{c1b531...bb594} &
+    strict 16/17、rootfs/virtio 动态检查、systemd 有序 poweroff、system-reset clean exit &
+    冻结快照完成 guest 系统事务；raw live recert 仍为 FAIL \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+NEMU 日志中的 shell 同时明确提示无 tty、无 job control，所以该行只表示参考模型进入了
+非交互 shell，不表示具备完整终端交互环境。
+
+相较六月仅到 banner 的 smoke，七月 A3 新增了 root 身份、PID1、块设备归属、持久化读写、
+virtio 中断推进和有序关机等可回查观测。它于 2026-07-27 19:16:03 启动；失败关闭
+status 文件的 mtime 为 2026-07-28 14:30:46，据此计算整条流水线墙钟约
+$19\,\mathrm{h}\,14\,\mathrm{min}\,43\,\mathrm{s}$；simulator 自报主仿真耗时
+$67\,702.309\,461\,\mathrm{s}$，即约
+$18\,\mathrm{h}\,48\,\mathrm{min}\,22\,\mathrm{s}$。guest 的
+\texttt{reboot: Power down} 时间戳却是 $49.720532\,\mathrm{s}$。
+因此“十九小时”描述的是宿主机为 RTL 仿真支付的时间，而不是 Ubuntu 在 guest 中连续
+运行了十九小时。两种时间分开报告，既能体现验证深度，也直接暴露该 A3 冻结快照记录的
+系统仿真吞吐仅为 18\,072 inst/s。
 
 \begin{lstlisting}[language={},numbers=none,
-  caption={NEMU 挂载 Ubuntu rootfs 并进入 shell 的日志摘录}]
+  caption={A3 从固件到 systemd 有序关机的关键 console 证据},
+  label={code:a3-system-transaction}]
+OpenSBI v1.8
+Linux version 6.6.0
 virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
 VFS: Mounted root (ext4 filesystem) on device 254:0.
-PRETTY_NAME="Ubuntu 22.04.5 LTS"
-[ysyx-rootfs-sh] /bin/sh -c marker
-[ysyx-rootfs] /bin/sh -c exit=0
-[ysyx-rootfs] launching /bin/sh
-/bin/sh: 0: can't access tty; job control turned off
+systemd 249.11-0ubuntu3.21 running in system mode
+__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=0
+__NPC_CHECK_PASS__:root-shell
+__NPC_CHECK_PASS__:systemd-state
+__NPC_CHECK_PASS__:root-on-vda
+__NPC_CHECK_PASS__:rootfs-write-sync-readback
+__NPC_CHECK_PASS__:virtio-blk-direct-read
+__NPC_CHECK_VIRTIO_IRQ__:537->672
+__NPC_CHECK_PASS__:virtio-irq-growth
+[    0.000000] printk: debug: ignoring loglevel setting.
+__NPC_CHECK_FAIL__:dmesg-no-critical
+__NPC_SYSTEMD_STRICT_DONE__ rc=1
+reboot: Power down
+syscon-reset: poweroff requested value=0x00005555
+npc: HIT GOOD TRAP
+exit via system-reset, code=0,
+  cycles=5071521696, commits=1223536213
+CPI (cycles/instruction) = 4.145
 \end{lstlisting}
 
-NPC 的对应 console 则到达：
+这里的 \texttt{root-shell} 不是“我在终端里看见一个提示符”的同义词，它只表示
+\texttt{id -u} 返回 0，即检查服务处于 root 执行上下文。PID1 为 systemd、根分区位于
+\texttt{/dev/vda}、rootfs 可写并能在 \texttt{sync} 后回读、块设备可做 128 个 4 KiB
+direct read，以及 virtio IRQ 从 537 增至 672，分别由其他独立标签支持。换言之，A3
+相较六月 banner smoke 新增了这些可回查证据；但它仍没有证明人工 tty 交互、全部服务
+健康或长期 workload 稳定。
+
+十七项 strict gate 唯一没有打印 PASS 的是
+\texttt{dmesg-no-critical}。A3 rootfs 中冻结的旧检查器以
+\texttt{grep -i} 使用裸 \texttt{BUG:} 子串；大小写不敏感匹配会把
+\texttt{debug:} 末尾的 \texttt{bug:} 当成内核 BUG。修正后的规则要求
+\texttt{BUG:} 位于行首或前接非标识符字符：
 
 \begin{lstlisting}[language={},numbers=none,
-  caption={NPC rootfs mount 与 systemd/banner 里程碑日志摘录}]
-virtio_blk virtio0: [vda] 4194304 512-byte logical blocks
-VFS: Mounted root (ext4 filesystem) on device 254:0.
-systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode
-systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+  caption={A3 假阳性的旧规则与带 token 边界的新规则}]
+# legacy
+kernel panic|oops|BUG:|bad trap|illegal instruction|segfault|
+I/O error|Buffer I/O error|EXT4-fs error
+
+# current
+kernel panic|oops|(^|[^[:alnum:]_])BUG:|bad trap|
+illegal instruction|segfault|I/O error|Buffer I/O error|
+EXT4-fs error
 \end{lstlisting}
 
-NEMU 可以写“进入 \texttt{/bin/sh}”；NPC 只能写“rootfs mount + systemd/banner smoke”。
-NPC 报告明确没有真实 root prompt，也没有
-\texttt{\_\_NPC\_SYSTEMD\_CHECK\_DONE\_\_ rc=0}。里程碑并没有因此失去价值；恰恰是
-保留 GAP，使后来者知道下一步还差什么。
+\taskpath{Linux/scripts/tests/test_npc_systemd_strict_check.py} 的三组定向测试同时要求：
+\texttt{printk: debug:} 不得命中，真实的
+\texttt{BUG: unable to handle page fault} 必须命中，去掉边界的 mutation 必须复现
+A3 假红。保存的结果为 \texttt{Ran 3 tests ... OK}。
 
-\subsection{7 月：让证据本身也接受验证}
+随后进行的\textbf{冻结 oracle 重放}没有重新运行 RTL，而是对 SHA-256 固定的 A3 console
+分别执行旧、新判定规则。结果为 \texttt{legacy\_matches=2}、
+\texttt{current\_matches=0}、terminal 6/6；独立评审结论是
+\texttt{APPROVED\_NOT\_PROMOTION\_ELIGIBLE}。两次 legacy 命中来自 console 中两条
+内容相同的 \texttt{printk: debug:} 记录，并不表示存在两个独立内核故障；十七项 strict
+label 唯一缺失的仍是 \texttt{dmesg-no-critical}。因此，在该冻结日志与既定 fault
+fixture 范围内，重放把唯一 strict 缺口定位为旧规则假阳性；它不能伪装成一次修正规则
+后的新 live run。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{A3 里程碑必须同时保留的四层状态}
+  \label{tab:a3-status-layers}
+  \begin{tabularx}{\linewidth}{@{}L{0.24\linewidth}Y L{0.25\linewidth}@{}}
+    \toprule
+    状态层 & 证据事实 & 严格结论 \\
+    \midrule
+    guest 系统行为 &
+    16/17 strict labels；systemd 发起有序 poweroff；syscon、GOOD TRAP、system-reset code 0 &
+    系统事务的行为链完成；live strict 状态仍为 16/17 \\
+    原始 live runner &
+    \texttt{strict done rc=1}，source status 为 \texttt{FAIL rc=1} &
+    原始 FAIL 永久保留，不补写成 17/17 \\
+    冻结 oracle 重放 &
+    旧规则命中两条相同 benign 日志，新规则 0 次，真实 BUG fixture 仍被拒绝 &
+    只批准 oracle 诊断，不等于新仿真 \\
+    晋级状态 &
+    A4 为 \texttt{signal=TERM}；architecture \texttt{GAP}；PPA
+    \texttt{UNQUALIFIED} &
+    不授权架构冻结、当前后续 RTL 外推或 PPA/STA signoff \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+这次里程碑也直接说明 AI 环境为什么不是附属脚本。A3 在启动前后绑定同一 design-id、
+simulator、Linux Image、OpenSBI、DTB、配置和 rootfs template 哈希；
+\texttt{OOO\_CSR\_QUEUE\_HEAD=1}、\texttt{OOO\_ASSERT=1} 和
+\texttt{OOO\_TERMINAL\_HOLDER\_ASSERT=1} 三个 RTL assertion 开关保持启用；
+UART RX 为 0 byte，表示没有通过宿主 UART 向 guest 注入命令；guest 只写隔离的 rootfs
+副本，模板哈希前后不变。
+如果没有这些条件，AI 很容易把“日志看起来像 Ubuntu”当成完成。正是环境把系统行为、
+oracle 判定与 promotion 资格拆开，才使流程既永久保留原始 FAIL，也允许把已经发生的
+系统行为与检查器误判分别归档；systemd 有序关机同样没有被越级包装成全门通过。
+
+\begin{evidencebox}
+A3 原始 console 位于
+\taskpath{.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log}，
+结构化事务位于同目录的
+\taskpath{systemd-transaction-evidence.json}；冻结重放的短 verdict 位于
+\taskpath{.github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/evidence/replay-verdict.log}。
+完整计算、哈希和行号见
+\taskpath{docs/research-paper/ubuntu-19h-milestone-evidence.md}。这些材料支持冻结
+design-id 上的 guest 系统事务和 legacy-oracle 假阳性，不支持 raw 17/17 live recert、
+后续 RTL 的同结果外推、architecture freeze 或 PPA qualification。
+\end{evidencebox}
 
 \subsubsection{Yosys：结构成功不等于 PPA 成功}
 
@@ -1181,6 +1620,23 @@ Agent 可执行、工具可验证、后来者可复查的制度。它使工程�
   回查，且每个必需环节都有真实文件或结构化字段承载。 &
   不等于数学完备性、形式化证明或所有错误均已覆盖；它只表示现有结论可追溯且缺口可见。 \\
 
+  系统事务 &
+  在固定 design-id、boot artifacts 和配置下，guest 按预定顺序从固件/内核启动，执行具名
+  用户空间与设备检查，再经 poweroff、reset-syscon 和 simulator exit 到达唯一终点；阶段
+  marker、返回码与终点计数必须能够从同一原始 console 回查。 &
+  不等于全部服务、全部设备、所有 ISA 状态、交互 tty 或长期 workload 已验证；事务完成也
+  不自动等于 raw runner、architecture 或 PPA promotion 通过。 \\
+
+  冻结 oracle 重放 &
+  对同一 SHA-256 固定的原始日志分别运行旧、新判定规则，并保存两组命中、正反 fixture 和
+  原始状态；重放不执行 RTL，也不修改 source-run status。 &
+  可以隔离检查器假阳性或假阴性，不能替代修正后的新 live run，更不能把历史 FAIL 改写成 PASS。 \\
+
+  guest time / host time &
+  guest time 由虚拟时钟和内核时间戳给出；host time 是 simulator 在宿主机消耗的墙钟时间。
+  二者必须分别记录，A3 的 $49.720532$ guest-second 对应约 $18.8$ host-hour 主仿真。 &
+  宿主运行十九小时不表示 Ubuntu 在 guest 中连续运行十九小时，也不能单独证明稳定性。 \\
+
   drain &
   控制面停止接纳会越过串行点的新工作，同时让已经发出、不能撤回的事务继续到 terminal
   response；当规定的队列、pending 状态和 owner 均静默时，\texttt{drain\_complete} 才成立。 &
@@ -1235,9 +1691,18 @@ Agent 可执行、工具可验证、后来者可复查的制度。它使工程�
 \subsection{构念有效性：可计数对象不等于工程质量}
 
 PASS 数、Token 数、task-run 目录数、代码行数和生成文件数都容易计数，却都不是质量或
-生产率的直接测量。Token 图只证明调用规模与持续性；workflow-event directory 只证明记录
+生产率的直接测量。图\ref{fig:token-activity}只证明调用规模与持续性；workflow-event directory 只证明记录
 密度；mutation score 只描述指定变体的检出比例。本文用这些量标识活动、覆盖和成本边界，
 不把它们当作“高水平”“更聪明”或“更正确”的替代指标。
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=0.68\linewidth]{token-activity.png}
+  \caption{同期账户 Token 活动截图。累计 160.5 亿、峰值 14.6 亿、最长任务 24 小时 11 分、
+  当前与最长连续天数均为 17 天。该图只说明使用规模和连续性，不证明工程质量、个人贡献、
+  生产率或本文任何因果结论。}
+  \label{fig:token-activity}
+\end{figure}
 
 同理，代码\ref{code:drain-stage1}至代码\ref{code:drain-stage3}中的合取项变多，并不天然
 表示设计更优。只有新增条件对应明确协议义务、正向实现仍通过、删除条件的负向版本被拒绝，
@@ -1273,6 +1738,21 @@ base design 上构造保持其余源码不变的 paired variant，并以完全�
 stale/cross-design 风险，但尚未系统注入并发 writer、崩溃中断、半写文件和路径漂移，因而
 不能声称消除了所有证据串用。
 
+\subsection{长跑系统证据的时间与 oracle 边界}
+
+A3 的系统行为与原始 runner 状态并不相同：console 记录了 rootfs/virtio 检查、由 guest
+systemd 发起并完成的有序关机和 clean simulator exit，但 live strict marker 仍是
+16/17、\texttt{rc=1}。冻结 oracle 重放能够在同一日志上定位旧 \texttt{BUG:} 正则对
+\texttt{debug:} 的误伤，却没有重新执行当时的 RTL、rootfs 和 simulator。因此本文把
+“系统事务完成”“source status FAIL”“oracle 诊断被接受”和“promotion 不合格”作为
+四个并列变量，而不选择其中一个覆盖其余三个。
+
+时间口径也可能制造外推错误。A3 的约十九小时是宿主流水线时间，其中主仿真约 18.8 小时，
+guest 只推进到约 49.7 秒。这个结果适合证明完整启动—检查—关机路径可以到达，不足以证明
+guest 十九小时稳定性。A4 随后被 \texttt{TERM} 中断，故仍缺一份修正 checker 后、绑定目标
+design-id 的新 live 17/17 证据。该缺口不否定 A3 的系统行为，但阻止它承担 raw
+recertification 和当前设计晋级结论。
+
 \subsection{mutation 的故障集合与 oracle 边界}
 
 fault set 由设计者选择，可能遗漏真实缺陷。等价变体、同值连接、未真正改变源码的替换，
@@ -1299,7 +1779,9 @@ CTS）和片上变化（On-Chip Variation，OCV）。因此，即使内部受约
 材料来自单一 RISC-V 工作区、一套个人构建的 Agent 环境和有限的 NPC/NEMU/EDA 工具链。
 这里观察到的机制可能迁移到其他 HDL 或软件—硬件协同项目，但其效果会受仓库规模、测试质量、
 接口稳定性、团队组织与商业工具约束影响。本文的直接结论限定在所列设计身份、命令、故障集合
-和 task episode；普遍性需要跨仓库、跨模型和跨团队重复研究。
+和 task episode；普遍性需要跨仓库、跨模型和跨团队重复研究。文中关于 IP 交接、并行探索、
+跨团队复核和软件提前协同的表述，属于由机制推导的应用场景，不是已经测得的人力、周期或成本
+收益。
 
 \section{后续受控实验}
 
@@ -1373,11 +1855,26 @@ cross-configuration 和 incomplete evidence 全部被拒绝；发布中断不能
 多个真实候选在现有门禁下没有越过不应越过的完成边界。
 \end{researchclaim}
 
-四月的核心问题是生成之后没有足够反馈；五月的关键变化是候选开始被比较和回退；六月的
-跨模块失败说明局部组件正确不等于协议正确；七月进一步把 design-id、mutation、freshness、
-full-core GAP 和 PPA UNQUALIFIED 放进同一证据链。AI 对工程的介入越来越深，原因既包括
-模型能力，也包括我持续为它构造了更好的上下文、工具、反馈和交付环境；二者的效应在现有
-纵向材料中无法分离。
+沿工程对象而非月份回看，可以辨认出五个连续里程碑。第一，RV32 \texttt{single} 从
+9 文件 lint-only 骨架进入 AM 镜像、pmem、trace 和 code 0 组成的最小动态闭环。第二，
+\texttt{npc/sim} 把 \texttt{single/soc} 分离后，同一
+\texttt{riscv32-ysyxsoc} 镜像能够穿过 MROM/SRAM、ysyxSoCFull 与 NEMU reference，
+形成 39/39 DiffTest；并行的 \texttt{single} 优化线开始保留 IQ 根因修复、拒绝性能退化
+与组合环候选。第三，NPC 从 RV32 派生 RV64 后端时先诚实保存无对拍的 38/38，NEMU
+补齐 RV64 reference 后再推进到 40/40 与 CoreMark DiffTest。第四，系统软件沿真实
+OpenSBI、NEMU ext4 shell、NPC systemd/banner 分层推进，聚合回归同时定位了 branch
+speculation 和 JALR pending 的全核死锁。第五，design-id、mutation、freshness、
+full-core GAP 和 PPA UNQUALIFIED 被放进同一证据链，最终到达 A3 的 Ubuntu 系统事务。
+AI 对工程的介入越来越深，原因既包括模型能力，也包括我持续为它构造了更好的上下文、工具、
+反馈和交付环境；二者的效应在现有纵向材料中无法分离。
+
+十九小时 A3 是这条路径上最能说明问题的里程碑：在本文回查到的 NPC 记录中，它首次以
+同一条 SHA-bound 证据链连接固件交接、Linux、Ubuntu 22.04 systemd、rootfs/virtio
+动态检查以及由 guest systemd 发起并完成的有序关机，却仍因旧 checker 的一个 token
+边界错误保留原始 FAIL。冻结 oracle 重放解释了这个假阳性，但没有冒充新仿真，也没有
+越过 architecture GAP 和 PPA UNQUALIFIED。换言之，系统已经走得足够深，工程判断反而
+必须更克制；AI 环境的价值就在于让“做到了什么”“判定器是否可信”和“可以发布到哪一层”
+成为三个可独立审计的问题。
 
 我真正想保留的不是“AI 替我写了多少代码”，而是另一种工程能力：把不确定性变成可以被
 运行、被反驳、被回滚、被后来者重新检查的证据。面向未来，Agent 的生成能力仍会继续提高；
@@ -1453,42 +1950,37 @@ marker/publication/DB 一致性，后者还要检查 profile 是否覆盖真实�
 
 \section{月份、模型记录与角色变化}
 
-这一附录回答“当时是什么模型”时采用三层口径：产品或执行端、精确模型快照、Agent
-工作方式必须分开。报告中出现 GitHub Copilot、Codex 或 Agent，只能证明当时使用了相应
-执行表面或交互方式；若没有同时保存精确模型标识、配置和任务输入，就不能据产品名称反推
-底层模型版本。后来的产品命名也不能回填早期历史。
-
-表\ref{tab:model-month}中的“AI 主要角色”按 task episode 中可观察的动作编码：局部生成、
-跨文件候选、工具反馈循环、跨模块审计或证据治理。“我的主要角色”则按可回查的工程决策编码：
-接口定义、基线冻结、候选拒绝、回滚、fault set 与 hard gate。两列描述职责重心的迁移，
-不构成工时、生产率或贡献比例的量化测量。
-
-因此，表中“精确模型快照未保存”不是为了回避比较，而是在维持变量的可复核性。只有模型身份
-与代码快照、上下文、命令、预算和结果共同进入 manifest，未来才可能把“模型变化”和
-“环境变化”作为两个独立因素分析。
+表\ref{tab:model-month}把产品或执行端、精确模型快照和 Agent 工作方式分开记录。GitHub
+Copilot、Codex 或 Agent 的名称只能证明当时采用的执行表面，不能反推出未保存的底层模型版本。
+“AI 主要角色”按 task episode 中可观察的动作编码，“我的主要角色”按接口定义、基线冻结、
+候选拒绝、回滚、fault set 与 hard gate 等工程决策编码；两列只描述职责重心，不量化贡献比例。
+精确快照未保存时即记为未知。只有模型身份与代码快照、上下文、命令、预算和结果共同进入
+manifest，模型变化和环境变化才可能作为两个独立变量分析。
 
 \begin{table}[H]
   \centering
-  \small
-  \caption{四个月中模型记录与工程角色的变化}
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{0.92}
+  \caption{四个月中主工程、模型记录与角色的变化}
   \label{tab:model-month}
-  \begin{tabularx}{\linewidth}{@{}C{0.10\linewidth}L{0.22\linewidth}YY@{}}
+  \begin{tabularx}{\linewidth}{@{}L{0.15\linewidth}L{0.22\linewidth}YY@{}}
     \toprule
-    月份 & 同期可核验执行端 & AI 主要角色 & 我的主要角色 \\
+    月份与主工程 & 同期可核验执行端 & AI 主要角色 & 我的主要角色 \\
     \midrule
-    4 月 &
+    4 月\\RV32 single &
     task-report 多记录 GitHub Copilot；更早 UART 个人记录称 GPT-4，但未进入统一 manifest &
     局部生成、解释报错、铺开 RTL &
     定接口、搬运上下文、手动验证 \\
-    5 月 &
+    5 月\\RV32 SoC $\rightarrow$ RV64 &
     精确商业模型快照未稳定保存，不据记忆补写 &
     跨文件候选、Cache/OoO 修改、定向调试 &
     固定基线、比较候选、决定回退 \\
-    6 月 &
+    6 月\\RV64 Linux/OoO &
     进入 Codex/agent 式环境；逐 run 精确模型仍不完整 &
     跨模块审计、任务图、Linux bring-up、长链调试 &
     建 profile、bounded recall、审查与证据结构 \\
-    7 月 &
+    7 月\\RV64 系统事务/证据工程 &
     记录表明进入 Codex/Agent 式环境；精确模型快照未统一保存 &
     设计身份绑定、mutation、证据重建、分层验证 &
     定义 fault set、hard gate、主张边界和 promotion 规则 \\
@@ -1498,14 +1990,5 @@ marker/publication/DB 一致性，后者还要检查 profile 是否覆盖真实�
 
 表中的缺失不是疏漏，而是一项方法结论：若模型身份没有同代码、配置、命令和结果一起保存，
 它就不能被当作可复核的历史变量。
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.78\linewidth]{token-activity.png}
-  \caption{同期账户 Token 活动截图。累计 160.5 亿、峰值 14.6 亿、最长任务 24 小时 11 分、
-  当前与最长连续天数均为 17 天。该图只说明使用规模和连续性，不证明工程质量、个人贡献、
-  生产率或本文任何因果结论。}
-  \label{fig:token-activity}
-\end{figure}
 
 \end{document}

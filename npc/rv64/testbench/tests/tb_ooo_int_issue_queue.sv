@@ -125,6 +125,11 @@ module tb_ooo_int_issue_queue;
   reg [1:0] v8o_slot_coverage [0:5];
   reg [PRODUCER_COUNT-1:0] v8o_accepted_mask;
   reg [PRODUCER_COUNT-1:0] v8o_fired_mask;
+  reg v11f_expected_valid [0:7];
+  reg [PRODUCER_ID_W-1:0] v11f_expected_pid [0:7];
+  integer v11f_expected_count;
+  integer v11f_i;
+  integer v11f_case_i;
 
   OooIntIssueQueue #(
     .PRODUCER_ID_W(PRODUCER_ID_W)
@@ -1235,9 +1240,541 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
+  // V11F uses a stimulus-owned full-ProducerId list as the sole expected
+  // holder model.  It never reads producer_live_mask or DUT raw Q to advance
+  // expected state; those signals are only compared against the model.
+  function automatic [PRODUCER_ID_W-1:0] v11f_pid;
+    input integer generation_seed;
+    input [ROB_INDEX_W-1:0] rob_index;
+    reg [PRODUCER_GEN_W-1:0] generation;
+    begin
+      generation = generation_seed;
+      v11f_pid = {generation, rob_index};
+    end
+  endfunction
+
+  task automatic v11f_fail;
+    input [1023:0] label;
+    begin
+      tb_errors = tb_errors + 1;
+      $display("[V11F-INT-IQ-ORACLE][FAIL] %0s", label);
+    end
+  endtask
+
+  task automatic v11f_model_clear;
+    begin
+      v11f_expected_count = 0;
+      for (v11f_i = 0; v11f_i < 8; v11f_i = v11f_i + 1) begin
+        v11f_expected_valid[v11f_i] = 1'b0;
+        v11f_expected_pid[v11f_i] = {PRODUCER_ID_W{1'b0}};
+      end
+    end
+  endtask
+
+  task automatic v11f_model_append;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    begin
+      if (v11f_expected_count >= 8) begin
+        v11f_fail("model append exceeded eight entries");
+      end else begin
+        v11f_expected_valid[v11f_expected_count] = 1'b1;
+        v11f_expected_pid[v11f_expected_count] = producer_id;
+        v11f_expected_count = v11f_expected_count + 1;
+      end
+    end
+  endtask
+
+  task automatic v11f_model_remove;
+    input integer remove_index;
+    begin
+      if ((remove_index < 0) ||
+          (remove_index >= v11f_expected_count)) begin
+        v11f_fail("model remove index outside resident list");
+      end else begin
+        for (v11f_i = remove_index;
+             v11f_i < v11f_expected_count - 1;
+             v11f_i = v11f_i + 1) begin
+          v11f_expected_valid[v11f_i] =
+              v11f_expected_valid[v11f_i+1];
+          v11f_expected_pid[v11f_i] =
+              v11f_expected_pid[v11f_i+1];
+        end
+        v11f_expected_count = v11f_expected_count - 1;
+        v11f_expected_valid[v11f_expected_count] = 1'b0;
+        v11f_expected_pid[v11f_expected_count] =
+            {PRODUCER_ID_W{1'b0}};
+      end
+    end
+  endtask
+
+  task automatic v11f_model_selective_kill;
+    input [ROB_INDEX_W-1:0] boundary_index;
+    input [ROB_INDEX_W-1:0] head_index;
+    integer keep_count;
+    reg [ROB_INDEX_W-1:0] boundary_age;
+    reg [ROB_INDEX_W-1:0] entry_age;
+    begin
+      keep_count = 0;
+      boundary_age = boundary_index - head_index;
+      for (v11f_i = 0;
+           v11f_i < v11f_expected_count;
+           v11f_i = v11f_i + 1) begin
+        entry_age =
+            v11f_expected_pid[v11f_i][ROB_INDEX_W-1:0] - head_index;
+        if (entry_age <= boundary_age)
+          keep_count = keep_count + 1;
+      end
+      for (v11f_i = keep_count; v11f_i < 8;
+           v11f_i = v11f_i + 1) begin
+        v11f_expected_valid[v11f_i] = 1'b0;
+        v11f_expected_pid[v11f_i] = {PRODUCER_ID_W{1'b0}};
+      end
+      v11f_expected_count = keep_count;
+    end
+  endtask
+
+  task automatic v11f_check_model;
+    input [1023:0] label;
+    reg [PRODUCER_COUNT-1:0] expected_mask;
+    begin
+      expected_mask = {PRODUCER_COUNT{1'b0}};
+      if (count !== v11f_expected_count[ENTRY_COUNT_W-1:0]) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s count got=%0d expected=%0d",
+                 label, count, v11f_expected_count);
+        tb_errors = tb_errors + 1;
+      end
+      for (v11f_i = 0; v11f_i < 8; v11f_i = v11f_i + 1) begin
+        if (dut.valid_q[v11f_i] !== v11f_expected_valid[v11f_i]) begin
+          $display("[V11F-INT-IQ-ORACLE][FAIL] %0s valid[%0d] got=%b expected=%b",
+                   label, v11f_i, dut.valid_q[v11f_i],
+                   v11f_expected_valid[v11f_i]);
+          tb_errors = tb_errors + 1;
+        end
+        if (v11f_expected_valid[v11f_i]) begin
+          expected_mask[v11f_expected_pid[v11f_i]] = 1'b1;
+          if (^dut.producer_id_q[v11f_i] === 1'bx) begin
+            $display("[V11F-INT-IQ-ORACLE][FAIL] %0s raw PID unknown idx=%0d",
+                     label, v11f_i);
+            tb_errors = tb_errors + 1;
+          end else if (dut.producer_id_q[v11f_i] !==
+                       v11f_expected_pid[v11f_i]) begin
+            $display("[V11F-INT-IQ-ORACLE][FAIL] %0s PID[%0d] got=%h expected=%h",
+                     label, v11f_i, dut.producer_id_q[v11f_i],
+                     v11f_expected_pid[v11f_i]);
+            tb_errors = tb_errors + 1;
+          end
+        end
+      end
+      if (producer_live_mask !== expected_mask) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s mask got=%h expected=%h",
+                 label, producer_live_mask, expected_mask);
+        tb_errors = tb_errors + 1;
+      end
+    end
+  endtask
+
+  task automatic v11f_check_issue0;
+    input [PRODUCER_ID_W-1:0] expected_pid;
+    input [1023:0] label;
+    begin
+      if (issue0_valid !== 1'b1)
+        v11f_fail({label, " issue0 not valid"});
+      if (issue0_producer_id !== expected_pid) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s issue0 PID got=%h expected=%h",
+                 label, issue0_producer_id, expected_pid);
+        tb_errors = tb_errors + 1;
+      end
+      if (issue0_rob_idx !== expected_pid[ROB_INDEX_W-1:0]) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s issue0 raw index got=%h expected=%h",
+                 label, issue0_rob_idx,
+                 expected_pid[ROB_INDEX_W-1:0]);
+        tb_errors = tb_errors + 1;
+      end
+    end
+  endtask
+
+  task automatic v11f_check_issue1;
+    input [PRODUCER_ID_W-1:0] expected_pid;
+    input [1023:0] label;
+    begin
+      if (issue1_valid !== 1'b1)
+        v11f_fail({label, " issue1 not valid"});
+      if (issue1_producer_id !== expected_pid) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s issue1 PID got=%h expected=%h",
+                 label, issue1_producer_id, expected_pid);
+        tb_errors = tb_errors + 1;
+      end
+      if (issue1_rob_idx !== expected_pid[ROB_INDEX_W-1:0]) begin
+        $display("[V11F-INT-IQ-ORACLE][FAIL] %0s issue1 raw index got=%h expected=%h",
+                 label, issue1_rob_idx,
+                 expected_pid[ROB_INDEX_W-1:0]);
+        tb_errors = tb_errors + 1;
+      end
+    end
+  endtask
+
+  task automatic run_v11f_int_iq_producer_lifecycle;
+    reg [PRODUCER_ID_W-1:0] pid0;
+    reg [PRODUCER_ID_W-1:0] pid1;
+    reg [PRODUCER_ID_W-1:0] pid2;
+    reg [PRODUCER_ID_W-1:0] pid3;
+    reg [PRODUCER_ID_W-1:0] pid4;
+    begin
+      // Birth and edge-old hold.
+      v11f_model_clear();
+      reset_dut();
+      v11f_check_model("clean reset");
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      pid0 = v11f_pid(1, 4'd3);
+      pid1 = v11f_pid(3, 4'd4);
+      set_dispatch0(32'h8b00_0000, 4'd3,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd32);
+      dispatch0_producer_id = pid0;
+      set_dispatch1(32'h8b00_0004, 4'd4,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd33);
+      dispatch1_producer_id = pid1;
+      #1;
+      v11f_check_model("dual birth edge-old");
+      v11f_model_append(pid0);
+      v11f_model_append(pid1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("dual birth edge-new");
+      v11f_check_issue0(pid0, "dual birth");
+      v11f_check_issue1(pid1, "dual birth");
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("READY-low hold");
+      recover_active = 1'b1;
+      #1;
+      if (issue0_valid || issue1_valid)
+        v11f_fail("recover hold exposed issue valid");
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("recover hold");
+
+      // Fill all eight entries with generation patterns that exercise every
+      // production generation bit when GEN_W=4.
+      v11f_model_clear();
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      for (v11f_case_i = 0; v11f_case_i < 4;
+           v11f_case_i = v11f_case_i + 1) begin
+        pid0 = v11f_pid(1 << v11f_case_i,
+                        (2 * v11f_case_i));
+        pid1 = v11f_pid(15 ^ (1 << v11f_case_i),
+                        (2 * v11f_case_i + 1));
+        set_dispatch0(32'h8b00_0100 + (v11f_case_i * 8),
+                      (2 * v11f_case_i),
+                      6'd1, 1'b1, 6'd2, 1'b1, 6'd34);
+        dispatch0_producer_id = pid0;
+        set_dispatch1(32'h8b00_0104 + (v11f_case_i * 8),
+                      (2 * v11f_case_i + 1),
+                      6'd3, 1'b1, 6'd4, 1'b1, 6'd35);
+        dispatch1_producer_id = pid1;
+        v11f_model_append(pid0);
+        v11f_model_append(pid1);
+        `TB_TICK(clk);
+        clear_inputs();
+        issue0_ready = 1'b0;
+        issue1_ready = 1'b0;
+        #1;
+        v11f_check_model("eight-entry fill");
+      end
+      set_dispatch0(32'h8b00_0140, 4'd9,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd36);
+      dispatch0_producer_id = v11f_pid(9, 4'd9);
+      #1;
+      if (dispatch0_ready !== 1'b0)
+        v11f_fail("full queue accepted dispatch0");
+      v11f_check_model("full queue edge-old hold");
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("full queue rejected append");
+      rst = 1'b1;
+      #1;
+      v11f_check_model("dirty reset edge-old");
+      v11f_model_clear();
+      `TB_TICK(clk);
+      rst = 1'b0;
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("dirty reset edge-new");
+      $display("[V11F-INT-IQ-BIRTH-HOLD] GEN_W=%0d dual/full/ready/recover/reset PASS",
+               PRODUCER_GEN_W);
+
+      // Overtake reads a non-zero queue index and therefore distinguishes
+      // issue-carrier/raw-index wiring from an accidental entry0 projection.
+      v11f_model_clear();
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      pid0 = v11f_pid(8, 4'd5);
+      pid1 = v11f_pid(4, 4'd6);
+      set_dispatch0(32'h8b00_0200, 4'd5,
+                    6'd21, 1'b0, 6'd0, 1'b1, 6'd37);
+      dispatch0_producer_id = pid0;
+      set_dispatch1(32'h8b00_0204, 4'd6,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd38);
+      dispatch1_producer_id = pid1;
+      v11f_model_append(pid0);
+      v11f_model_append(pid1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("overtake resident list");
+      v11f_check_issue0(pid1, "overtake idx1");
+      if (issue1_valid)
+        v11f_fail("overtake unexpectedly exposed issue1");
+      issue0_ready = 1'b1;
+      v11f_check_model("overtake death edge-old");
+      v11f_model_remove(1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("overtake death edge-new");
+
+      // Single fire with dual accepted replacements, followed by dual fire.
+      v11f_model_clear();
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      pid0 = v11f_pid(1, 4'd1);
+      pid1 = v11f_pid(3, 4'd2);
+      pid2 = v11f_pid(5, 4'd3);
+      pid3 = v11f_pid(8, 4'd4);
+      pid4 = v11f_pid(15, 4'd5);
+      set_dispatch0(32'h8b00_0300, 4'd1,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd39);
+      dispatch0_producer_id = pid0;
+      set_dispatch1(32'h8b00_0304, 4'd2,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd40);
+      dispatch1_producer_id = pid1;
+      v11f_model_append(pid0);
+      v11f_model_append(pid1);
+      `TB_TICK(clk);
+      clear_inputs();
+      set_dispatch0(32'h8b00_0308, 4'd3,
+                    6'd5, 1'b1, 6'd6, 1'b1, 6'd41);
+      dispatch0_producer_id = pid2;
+      v11f_model_append(pid2);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8b00_030c, 4'd4,
+                    6'd7, 1'b1, 6'd8, 1'b1, 6'd42);
+      dispatch0_producer_id = pid3;
+      set_dispatch1(32'h8b00_0310, 4'd5,
+                    6'd9, 1'b1, 6'd10, 1'b1, 6'd43);
+      dispatch1_producer_id = pid4;
+      #1;
+      v11f_check_issue0(pid0, "single fire");
+      v11f_check_issue1(pid1, "single fire held peer");
+      v11f_check_model("single fire edge-old");
+      v11f_model_remove(0);
+      v11f_model_append(pid3);
+      v11f_model_append(pid4);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("single fire plus replacements");
+      v11f_check_issue0(pid1, "post-compaction issue0");
+      v11f_check_issue1(pid2, "post-compaction issue1");
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      v11f_check_model("dual fire edge-old");
+      v11f_model_remove(0);
+      v11f_model_remove(0);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("dual fire edge-new");
+      $display("[V11F-INT-IQ-ISSUE-COMPACTION] GEN_W=%0d overtake/single/dual/replacement PASS",
+               PRODUCER_GEN_W);
+
+      // The Q-only memory-pair face must hold both owners with READY low and
+      // retire them atomically on the accepted edge while appending new PIDs.
+      v11f_model_clear();
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      pid0 = v11f_pid(3, 4'd6);
+      pid1 = v11f_pid(12, 4'd7);
+      pid2 = v11f_pid(5, 4'd8);
+      pid3 = v11f_pid(10, 4'd9);
+      set_dispatch0(32'h8b00_0400, 4'd6,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd44);
+      dispatch0_ctrl = r3_complex_ctrl(3);
+      dispatch0_producer_id = pid0;
+      set_dispatch1(32'h8b00_0404, 4'd7,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd45);
+      dispatch1_ctrl = r3_complex_ctrl(3);
+      dispatch1_producer_id = pid1;
+      v11f_model_append(pid0);
+      v11f_model_append(pid1);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      universal_owner_present = 1'b1;
+      memory_pair_peek_enable = 1'b1;
+      memory_pair_peek_ready = 1'b0;
+      #1;
+      if (!memory_pair_peek_valid)
+        v11f_fail("memory pair READY-low lacked valid");
+      if ((issue0_producer_id !== pid0) ||
+          (issue0_rob_idx !== pid0[ROB_INDEX_W-1:0]))
+        v11f_fail("memory pair entry0 carrier mismatch");
+      if ((issue1_producer_id !== pid1) ||
+          (issue1_rob_idx !== pid1[ROB_INDEX_W-1:0]))
+        v11f_fail("memory pair entry1 carrier mismatch");
+      v11f_check_model("memory pair READY-low edge-old");
+      `TB_TICK(clk);
+      #1;
+      v11f_check_model("memory pair READY-low hold");
+      memory_pair_peek_ready = 1'b1;
+      set_dispatch0(32'h8b00_0408, 4'd8,
+                    6'd5, 1'b1, 6'd6, 1'b1, 6'd46);
+      dispatch0_producer_id = pid2;
+      set_dispatch1(32'h8b00_040c, 4'd9,
+                    6'd7, 1'b1, 6'd8, 1'b1, 6'd47);
+      dispatch1_producer_id = pid3;
+      #1;
+      v11f_check_model("memory pair pop2 edge-old");
+      v11f_model_remove(0);
+      v11f_model_remove(0);
+      v11f_model_append(pid2);
+      v11f_model_append(pid3);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("memory pair pop2 plus append");
+      $display("[V11F-INT-IQ-PAIR-DEATH] GEN_W=%0d ready-hold/pop2/append PASS",
+               PRODUCER_GEN_W);
+
+      // Selective recovery uses only the ROB-index projection for age while
+      // preserving each surviving full ProducerId.
+      v11f_model_clear();
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      pid0 = v11f_pid(1, 4'd14);
+      pid1 = v11f_pid(2, 4'd15);
+      pid2 = v11f_pid(4, 4'd0);
+      pid3 = v11f_pid(8, 4'd1);
+      set_dispatch0(32'h8b00_0500, 4'd14,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd48);
+      dispatch0_producer_id = pid0;
+      set_dispatch1(32'h8b00_0504, 4'd15,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd49);
+      dispatch1_producer_id = pid1;
+      v11f_model_append(pid0);
+      v11f_model_append(pid1);
+      `TB_TICK(clk);
+      clear_inputs();
+      set_dispatch0(32'h8b00_0508, 4'd0,
+                    6'd5, 1'b1, 6'd6, 1'b1, 6'd50);
+      dispatch0_producer_id = pid2;
+      set_dispatch1(32'h8b00_050c, 4'd1,
+                    6'd7, 1'b1, 6'd8, 1'b1, 6'd51);
+      dispatch1_producer_id = pid3;
+      v11f_model_append(pid2);
+      v11f_model_append(pid3);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd15;
+      rob_head_idx = 4'd14;
+      #1;
+      if (issue0_valid || issue1_valid)
+        v11f_fail("selective kill exposed issue valid");
+      v11f_check_model("selective kill edge-old");
+      v11f_model_selective_kill(4'd15, 4'd14);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("selective kill edge-new");
+      flush = 1'b1;
+      #1;
+      v11f_check_model("flush edge-old");
+      v11f_model_clear();
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("flush edge-new");
+
+      set_dispatch0(32'h8b00_0510, 4'd10,
+                    6'd1, 1'b1, 6'd2, 1'b1, 6'd52);
+      dispatch0_producer_id = v11f_pid(7, 4'd10);
+      set_dispatch1(32'h8b00_0514, 4'd11,
+                    6'd3, 1'b1, 6'd4, 1'b1, 6'd53);
+      dispatch1_producer_id = v11f_pid(9, 4'd11);
+      v11f_model_append(dispatch0_producer_id);
+      v11f_model_append(dispatch1_producer_id);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("dirty reset setup");
+      rst = 1'b1;
+      v11f_check_model("nonempty reset edge-old");
+      v11f_model_clear();
+      `TB_TICK(clk);
+      rst = 1'b0;
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+      v11f_check_model("nonempty reset edge-new");
+      $display("[V11F-INT-IQ-KILL-FLUSH-RESET] GEN_W=%0d wrap/kill/flush/reset PASS",
+               PRODUCER_GEN_W);
+      $display("[V11F-INT-IQ-ALL] GEN_W=%0d independent edge model PASS",
+               PRODUCER_GEN_W);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
+
+    if ($test$plusargs("V11F_INT_IQ_PRODUCER_ONLY")) begin
+      run_v11f_int_iq_producer_lifecycle();
+      tb_finish("tb_ooo_int_issue_queue_v11f_producer_lifecycle");
+    end
 
 `ifdef V8O_NO_STATIC_LANE_SEMANTICS_FOCUSED
     v8o_same_cycle_pair_fires = 0;

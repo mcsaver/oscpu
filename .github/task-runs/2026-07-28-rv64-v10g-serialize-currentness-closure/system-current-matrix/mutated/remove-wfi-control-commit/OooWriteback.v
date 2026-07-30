@@ -1,0 +1,226 @@
+`include "define.v"
+`include "common/OooSlotFacts.v"
+
+// OooWriteback: OoO core 子系统 wrapper（纯结构聚合，从 OooCoreTopGlue 抽出 5 个实例）。
+// 行为与原扁平实例化等价：仅把跨边界信号导出为端口，内部信号下沉。
+module OooWriteback (
+  input clk,
+  input core_commit0_exception_w,
+  input [`INST_W-1:0] core_commit0_inst_w,
+  input [`XLEN-1:0] core_commit0_next_pc_w,
+  input [`XLEN-1:0] core_commit0_pc_w,
+  input [`REG_ADDR_W-1:0] core_commit0_rd_addr_w,
+  input [`XLEN-1:0] core_commit0_rd_data_w,
+  input core_commit0_rd_en_w,
+  input core_commit0_valid_w,
+  input core_commit0_write_w,
+  input core_commit1_exception_w,
+  input [`INST_W-1:0] core_commit1_inst_w,
+  input [`XLEN-1:0] core_commit1_next_pc_w,
+  input [`XLEN-1:0] core_commit1_pc_w,
+  input [`REG_ADDR_W-1:0] core_commit1_rd_addr_w,
+  input [`XLEN-1:0] core_commit1_rd_data_w,
+  input core_commit1_rd_en_w,
+  input core_commit1_valid_w,
+  input core_commit1_write_w,
+  input [`XLEN-1:0] core_dispatch_branch_resolve_next_pc_w,
+  input [1:0] core_retire_count_w,
+  input [`XLEN-1:0] csr_ret_target_w,
+  input csr_trap_mem_valid_w,
+  input direct_frontend_flush_w,
+  input drain_complete_w,
+  input flush_i,
+  input [`INST_W-1:0] head_inst0_w,
+  input [`XLEN-1:0] head_pc_w,
+  input [`XLEN-1:0] mem_rsp_rdata_i,
+  input pending_arch_trap_q,
+  input pending_branch_dispatched_q,
+  input [`INST_W-1:0] pending_branch_inst_q,
+  input pending_branch_misaligned_w,
+  input [`XLEN-1:0] pending_branch_next_pc_w,
+  input [`XLEN-1:0] pending_branch_pc_q,
+  input pending_branch_q,
+  input [`INST_W-1:0] pending_jump_inst_q,
+  input pending_jump_nolink_commit_w,
+  input [`XLEN-1:0] pending_jump_pc_q,
+  input pending_jump_q,
+  input [`XLEN-1:0] pending_jump_resolved_target_w,
+  input pending_mem_q,
+  input pending_system_ecall_q,
+  input [`INST_W-1:0] pending_system_inst_q,
+  input pending_system_irq_q,
+  input pending_system_mret_q,
+  input [`XLEN-1:0] pending_system_next_pc_q,
+  input [`XLEN-1:0] pending_system_pc_q,
+  input pending_system_q,
+  input rst,
+  input stop_pending_q,
+  input head0_csr_commit_i,   // 【serialize Phase1】head0-CSR 提交脉冲 → serial_flush 复活
+  input synth_lane1_branch_append_w,
+  output commit0_exception_o,
+  output [`INST_W-1:0] commit0_inst_o,
+  output [`XLEN-1:0] commit0_next_pc_o,
+  output [`XLEN-1:0] commit0_pc_o,
+  output [`REG_ADDR_W-1:0] commit0_rd_addr_o,
+  output [`XLEN-1:0] commit0_rd_data_o,
+  output commit0_rd_en_o,
+  output commit0_valid_o,
+  output commit0_write_o,
+  output commit1_exception_o,
+  output [`INST_W-1:0] commit1_inst_o,
+  output [`XLEN-1:0] commit1_next_pc_o,
+  output [`XLEN-1:0] commit1_pc_o,
+  output [`REG_ADDR_W-1:0] commit1_rd_addr_o,
+  output [`XLEN-1:0] commit1_rd_data_o,
+  output commit1_rd_en_o,
+  output commit1_valid_o,
+  output commit1_write_o,
+  output core_serial_flush_q,
+  output ctrl_commit_valid_q,
+  output [1:0] retire_count_o
+);
+
+  wire [`INST_W-1:0] ctrl_commit_inst_q;
+  wire [`XLEN-1:0] ctrl_commit_next_pc_q;
+  wire [`XLEN-1:0] ctrl_commit_pc_q;
+  wire [`REG_ADDR_W-1:0] ctrl_commit_rd_addr_q;
+  wire [`XLEN-1:0] ctrl_commit_rd_data_q;
+  wire ctrl_commit_rd_en_q;
+  wire ctrl_commit_write_q;
+
+
+  OooControlCommitSequencer u_control_commit_sequencer (
+    .clk(clk),
+    .rst(rst || flush_i),
+    .pending_jump_nolink_commit_i(pending_jump_nolink_commit_w),
+    .pending_jump_pc_i(pending_jump_pc_q),
+    .pending_jump_inst_i(pending_jump_inst_q),
+    .pending_jump_target_i(pending_jump_resolved_target_w),
+    .drain_complete_i(!csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+                      stop_pending_q && drain_complete_w),
+    .drain_pending_arch_trap_i(pending_arch_trap_q),
+    .drain_pending_system_i(
+        pending_system_q &&
+        (pending_system_inst_q != 32'h1050_0073)),
+    .drain_pending_system_ecall_i(pending_system_ecall_q),
+    .drain_pending_system_irq_i(pending_system_irq_q),
+    .drain_pending_system_mret_i(pending_system_mret_q),
+    .pending_system_pc_i(pending_system_pc_q),
+    .pending_system_inst_i(pending_system_inst_q),
+    .pending_system_next_pc_i(pending_system_next_pc_q),
+    .csr_ret_target_i(csr_ret_target_w),
+    .drain_pending_branch_undispatched_i(pending_branch_q &&
+                                         !pending_branch_dispatched_q),
+    .drain_pending_branch_misaligned_i(pending_branch_misaligned_w),
+    .pending_branch_pc_i(pending_branch_pc_q),
+    .pending_branch_inst_i(pending_branch_inst_q),
+    .pending_branch_next_pc_i(pending_branch_next_pc_w),
+    .drain_pending_jump_i(pending_jump_q),
+    .drain_pending_mem_i(pending_mem_q),
+    .head0_csr_commit_i(head0_csr_commit_i),
+    .ctrl_commit_valid_o(ctrl_commit_valid_q),
+    .ctrl_commit_pc_o(ctrl_commit_pc_q),
+    .ctrl_commit_inst_o(ctrl_commit_inst_q),
+    .ctrl_commit_next_pc_o(ctrl_commit_next_pc_q),
+    .ctrl_commit_rd_en_o(ctrl_commit_rd_en_q),
+    .ctrl_commit_rd_addr_o(ctrl_commit_rd_addr_q),
+    .ctrl_commit_rd_data_o(ctrl_commit_rd_data_q),
+    .ctrl_commit_write_o(ctrl_commit_write_q),
+    .core_serial_flush_o(core_serial_flush_q)
+  );
+
+
+  OooCommitOutputMux u_commit_output_mux (
+    .ctrl_commit_valid_i(ctrl_commit_valid_q),
+    .ctrl_commit_pc_i(ctrl_commit_pc_q),
+    .ctrl_commit_inst_i(ctrl_commit_inst_q),
+    .ctrl_commit_next_pc_i(ctrl_commit_next_pc_q),
+    .ctrl_commit_rd_en_i(ctrl_commit_rd_en_q),
+    .ctrl_commit_rd_addr_i(ctrl_commit_rd_addr_q),
+    .ctrl_commit_rd_data_i(ctrl_commit_rd_data_q),
+    .ctrl_commit_write_i(ctrl_commit_write_q),
+    .synth_lane1_branch_append_i(synth_lane1_branch_append_w),
+    .synth_branch_append_pc_i(head_pc_w),
+    .synth_branch_append_inst_i(head_inst0_w),
+    .synth_branch_append_next_pc_i(core_dispatch_branch_resolve_next_pc_w),
+    .core_commit0_valid_i(core_commit0_valid_w),
+    .core_commit0_pc_i(core_commit0_pc_w),
+    .core_commit0_next_pc_i(core_commit0_next_pc_w),
+    .core_commit0_inst_i(core_commit0_inst_w),
+    .core_commit0_rd_en_i(core_commit0_rd_en_w),
+    .core_commit0_rd_addr_i(core_commit0_rd_addr_w),
+    .core_commit0_rd_data_i(core_commit0_rd_data_w),
+    .core_commit0_exception_i(core_commit0_exception_w),
+    .core_commit0_write_i(core_commit0_write_w),
+    .core_commit1_valid_i(core_commit1_valid_w),
+    .core_commit1_pc_i(core_commit1_pc_w),
+    .core_commit1_next_pc_i(core_commit1_next_pc_w),
+    .core_commit1_inst_i(core_commit1_inst_w),
+    .core_commit1_rd_en_i(core_commit1_rd_en_w),
+    .core_commit1_rd_addr_i(core_commit1_rd_addr_w),
+    .core_commit1_rd_data_i(core_commit1_rd_data_w),
+    .core_commit1_exception_i(core_commit1_exception_w),
+    .core_commit1_write_i(core_commit1_write_w),
+    .commit0_valid_o(commit0_valid_o),
+    .commit0_pc_o(commit0_pc_o),
+    .commit0_inst_o(commit0_inst_o),
+    .commit0_next_pc_o(commit0_next_pc_o),
+    .commit0_rd_en_o(commit0_rd_en_o),
+    .commit0_rd_addr_o(commit0_rd_addr_o),
+    .commit0_rd_data_o(commit0_rd_data_o),
+    .commit0_exception_o(commit0_exception_o),
+    .commit0_write_o(commit0_write_o),
+    .commit1_valid_o(commit1_valid_o),
+    .commit1_pc_o(commit1_pc_o),
+    .commit1_inst_o(commit1_inst_o),
+    .commit1_next_pc_o(commit1_next_pc_o),
+    .commit1_rd_en_o(commit1_rd_en_o),
+    .commit1_rd_addr_o(commit1_rd_addr_o),
+    .commit1_rd_data_o(commit1_rd_data_o),
+    .commit1_exception_o(commit1_exception_o),
+    .commit1_write_o(commit1_write_o),
+    .retire_count_o(retire_count_o)
+  );
+
+`ifdef OOO_ASSERT
+  wire core_commit0_isa_retire_w =
+      core_commit0_valid_w && !core_commit0_exception_w;
+  wire core_commit1_isa_retire_w =
+      core_commit1_valid_w && !core_commit1_exception_w;
+  wire [1:0] core_isa_retire_count_w = {
+      core_commit0_isa_retire_w && core_commit1_isa_retire_w,
+      core_commit0_isa_retire_w ^ core_commit1_isa_retire_w
+  };
+  wire final_commit0_isa_retire_w =
+      commit0_valid_o && !commit0_exception_o;
+  wire final_commit1_isa_retire_w =
+      commit1_valid_o && !commit1_exception_o;
+  wire [1:0] final_isa_retire_count_w = {
+      final_commit0_isa_retire_w && final_commit1_isa_retire_w,
+      final_commit0_isa_retire_w ^ final_commit1_isa_retire_w
+  };
+
+  // INSTRET-G1: preserve the distinction between core ROB dequeue and ISA
+  // retirement, then prove that the externally selected lanes are the one
+  // authoritative count source.  A value of three is impossible for two
+  // commit lanes and therefore also catches accidental multi-source addition.
+  always @(posedge clk) begin
+    if (!rst && !flush_i) begin
+      if (core_retire_count_w !== core_isa_retire_count_w) begin
+        $error("[INSTRET-G1-CORE-EQ] core_count=%0d expected=%0d @%0t",
+               core_retire_count_w, core_isa_retire_count_w, $time);
+        $fatal;
+      end
+      if ((retire_count_o !== final_isa_retire_count_w) ||
+          (retire_count_o === 2'b11)) begin
+        $error("[INSTRET-G1-FINAL-EQ] final_count=%0d expected=%0d c0=%b/%b c1=%b/%b @%0t",
+               retire_count_o, final_isa_retire_count_w,
+               commit0_valid_o, commit0_exception_o,
+               commit1_valid_o, commit1_exception_o, $time);
+        $fatal;
+      end
+    end
+  end
+`endif
+
+endmodule

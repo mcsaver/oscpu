@@ -1,0 +1,55 @@
+{
+  "base_v2_marker_evaluation": {
+    "current_marker": "[CHECK-FAIL] V10G C2 repeated queue-head CSR request/apply",
+    "obsolete_marker": "[CHECK-FAIL] V10G C2 repeated queue-head CSR apply",
+    "returncode": 1,
+    "status": "GAP_MARKER_SCHEMA_ONLY"
+  },
+  "cases": [
+    {
+      "compile_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/runs/pre-scoreboard-release/compile.log",
+      "compile_returncode": 0,
+      "name": "pre-scoreboard-release",
+      "pass_marker": true,
+      "scoreboard_reject_marker": false,
+      "simulation_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/runs/pre-scoreboard-release/simulation.log",
+      "simulation_returncode": 0,
+      "testbench": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/tb/tb_ooo_core_top_glue.pre-v10g.sv",
+      "testbench_sha256": "e2fd9091589c4e7da37a8dfa290362c479049346953e9ab766e2e4499d8d98f4",
+      "unowned_reject_marker": false
+    },
+    {
+      "c2_request_apply_reject_count": 3,
+      "c2_request_apply_reject_marker": true,
+      "compile_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/runs/current-scoreboard-release/compile.log",
+      "compile_returncode": 0,
+      "name": "current-scoreboard-release",
+      "pass_marker": false,
+      "scoreboard_reject_marker": false,
+      "simulation_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/runs/current-scoreboard-release/simulation.log",
+      "simulation_returncode": 1,
+      "testbench": "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "testbench_sha256": "c2b879bee880b27a9bac069ea8858797c2d5100773b511ebe5af78b304714680",
+      "unowned_apply_reject_count": 3,
+      "unowned_reject_marker": true
+    }
+  ],
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "mutation": {
+    "compile_success": true,
+    "mutated_path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/mutations/qh-csr-c2-replay-v5/rtl/OooControlEventApplySequencer.v",
+    "mutated_sha256": "b2499517803985471d87b49f29730dad9e1158a270e4cf14ac9f78830548db53",
+    "name": "duplicate-csr-apply-at-c2-when-no-successor",
+    "production_path": "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+    "production_sha256": "ba3124ea66ed569445df24912a5a51906e86a7301a16fd6662514d4051f61d0c"
+  },
+  "oracle_claim": "the pre-V10G sticky integration accepts the C2 replay while the owner-bound raw scoreboard rejects the same compile-success RTL",
+  "product_default_binding": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "command_line_override": false,
+    "manifest": "npc/rv64/configs/product-rtl-defaults.mk",
+    "source": "npc/rv64/vsrc/include/define.v fallback"
+  },
+  "schema": "npc-rv64-v10g-qh-csr-raw-mutation-v5",
+  "status": "PASS"
+}

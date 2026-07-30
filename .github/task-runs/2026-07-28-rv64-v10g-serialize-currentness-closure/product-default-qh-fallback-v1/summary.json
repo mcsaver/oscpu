@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "assertions": true,
+      "compile_command": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/assert/compile-command.txt",
+      "compile_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/assert/compile.log",
+      "compile_returncode": 0,
+      "fallback_value": 1,
+      "markers": {
+        "committed": 3,
+        "selectively_killed": 2
+      },
+      "mode": "assert",
+      "passed": true,
+      "queue_head_command_define_present": false,
+      "simulation_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/assert/simulation.log",
+      "simulation_returncode": 0
+    },
+    {
+      "assertions": false,
+      "compile_command": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/release/compile-command.txt",
+      "compile_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/release/compile.log",
+      "compile_returncode": 0,
+      "fallback_value": 1,
+      "markers": {
+        "committed": 3,
+        "selectively_killed": 2
+      },
+      "mode": "release",
+      "passed": true,
+      "queue_head_command_define_present": false,
+      "simulation_log": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/release/simulation.log",
+      "simulation_returncode": 0
+    }
+  ],
+  "coverage": {
+    "assertions_on_off": "2/2",
+    "c2_quiet_required": true,
+    "committed_transactions_per_mode": 3,
+    "raw_csrfile_request_counted": true,
+    "selectively_killed_transactions_per_mode": 2
+  },
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "product_config": {
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "command_line_override": false,
+    "manifest": "npc/rv64/configs/product-rtl-defaults.mk",
+    "manifest_sha256": "7b3b4b571366d6c70600ff0a5fd27624753d7153c6576f2a980ced31af0d8154",
+    "rtl_fallback": "npc/rv64/vsrc/include/define.v",
+    "rtl_fallback_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+  },
+  "schema": "npc-rv64-v10g-product-default-qh-fallback/v1",
+  "status": "PASS"
+}

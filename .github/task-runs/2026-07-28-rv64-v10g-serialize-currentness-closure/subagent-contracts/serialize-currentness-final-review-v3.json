@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "serialize-currentness-final-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 product-default design sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897 的 SERIALIZE-G1 Phase1 关闭后 currentness：检查 historical-defect ledger 的 VD0..VD4 深度、唯一 SELECTED 项、queue-head CSR 与 younger SQ store 历史 wait-for cycle 的 VD1 保留，arch_stable_freeze 集成、9 份 checker frozen-input replay、XRET holder-onehot 负向标记、四份 cohort current-design 合同、9/9 architecture record、167/167 V9O index 与 32 项最终 GAP 边界。优先寻找 CLOSED debt 假绿、历史状态改写、负向版本缺失、terminal 去重、断言弱化和 PPA/architecture 越级。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/agentic-hardware-blueprint.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench",
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa",
+      ".github/task-runs/2026-07-21-rv64-v9e-xret-current-design",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/summary.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/arch-stable-audit-current.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/final-reviewer-report-v2.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/evidence/currentness-summary.txt",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/evidence-index.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/subagent-contracts/serialize-currentness-final-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/agentic-hardware-blueprint.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/checker-bound-evidence-replay/summary.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/arch-stable-audit-current.json",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/final-reviewer-report-v2.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/evidence/currentness-summary.txt",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/evidence-index.md",
+      ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/task-report.md",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按“RTL/ledger/evidence 对象 → cycle/config 或检查器配置 → testbench/EDA/JSON 观测 → PASS/GAP 范围”给出反例优先裁决。逐项检查：(1) historical ledger schema/hash/唯一选择及 VD1 是否被错误提升；(2) arch_stable 是否确实让 VD0/VD1 阻止 freeze，且 zero-VD0/VD1 fixture 可 PASS；(3) 9/9 frozen-input checker replay 是否足以更新 checker identity、是否遗漏必须重跑的 RTL 语义；(4) XRET compile-success RTL 版本和 holder-onehot marker 是否同源；(5) CLOSED debt/cohort/architecture/V9O currentness 是否无剩余假绿；(6) A3/A4 原始状态、SERIALIZE Phase1、ARCH_STABLE/PPA 边界是否准确。最终只能给出 APPROVED_FOR_CURRENT_SCOPE 或 GAP，并列出反例、未知项、真实文件和最小后续动作。"
+  ],
+  "success_criteria": [
+    "只有 ledger 深度没有越级、历史 published 状态未改写、compile-success RTL negative 和 current transaction oracle 保留、48 项 freeze 单测及当前 32-blocker 审计语义一致、所有 CLOSED debt currentness 无未解反例时才可 APPROVED。不得以当前 older-store positive 代替 younger-store 历史反例，不得用去重隐藏重复 terminal，不得削弱 assertion，不得将 A3/A4 变成 PASS，不得把 Phase1 SERIALIZE closure 外推为 architecture-stable 或 PPA。若发现问题，必须给出具体 defect id、lane/owner/holder/cycle、schema 字段、证据路径与 GAP 范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

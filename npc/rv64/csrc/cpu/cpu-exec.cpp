@@ -721,26 +721,30 @@ static void maybe_log_user_trace(npc_word_t pc, uint32_t inst, npc_word_t next_p
   }
 
   uint64_t flags = g_top ? (uint64_t)g_top->debug_ooo_flags_o : 0;
+  // Bit 63 is payload/configuration validity, not transaction validity.
+  bool debug_valid = ((flags >> 63) & 0x1u) != 0;
   uint64_t priv = (flags >> 27) & 0x3u;
   bool sv39 = ((flags >> 29) & 0x1u) != 0;
   bool user_pc = sv39_lower_user_va(pc);
   bool dynamic_user_pc = dynamic_user_va(pc);
-  bool user_context = (sv39 && user_pc) || dynamic_user_pc;
+  bool user_context = (debug_valid && sv39 && user_pc) || dynamic_user_pc;
   if (!user_context) return;
 
-  if (g_user_progress_enabled && (priv == 0 || dynamic_user_pc) &&
+  if (g_user_progress_enabled &&
+      ((debug_valid && priv == 0) || dynamic_user_pc) &&
       g_user_progress_count < g_user_progress_limit &&
       commit >= g_user_progress_next_commit) {
     LogBothTag("user_progress",
                "sample=%llu commit=%llu pc=0x%016" NPC_PRIxWORD
                " inst=0x%08x next=0x%016" NPC_PRIxWORD
-               " priv=%llu sv39=%u ra=0x%016" NPC_PRIxWORD
+               " debug_valid=%u priv=%llu sv39=%u ra=0x%016" NPC_PRIxWORD
                " sp=0x%016" NPC_PRIxWORD " a0=0x%016" NPC_PRIxWORD
                " a1=0x%016" NPC_PRIxWORD " a2=0x%016" NPC_PRIxWORD
                " a3=0x%016" NPC_PRIxWORD " a4=0x%016" NPC_PRIxWORD
                " a5=0x%016" NPC_PRIxWORD " a7=0x%016" NPC_PRIxWORD,
                (unsigned long long)(g_user_progress_count + 1),
                (unsigned long long)commit, pc, inst, next_pc,
+               debug_valid ? 1u : 0u,
                (unsigned long long)priv, sv39 ? 1u : 0u,
                g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[10],
                g_shadow_gpr[11], g_shadow_gpr[12], g_shadow_gpr[13],
@@ -754,7 +758,8 @@ static void maybe_log_user_trace(npc_word_t pc, uint32_t inst, npc_word_t next_p
       g_user_ecall_trace_count < g_user_ecall_trace_limit) {
     LogBothTag("user_ecall",
                "hit=%llu commit=%llu pc=0x%016" NPC_PRIxWORD
-               " next=0x%016" NPC_PRIxWORD " priv=%llu sv39=%u"
+               " next=0x%016" NPC_PRIxWORD
+               " debug_valid=%u priv=%llu sv39=%u"
                " syscall=%llu ra=0x%016" NPC_PRIxWORD
                " sp=0x%016" NPC_PRIxWORD " a0=0x%016" NPC_PRIxWORD
                " a1=0x%016" NPC_PRIxWORD " a2=0x%016" NPC_PRIxWORD
@@ -763,6 +768,7 @@ static void maybe_log_user_trace(npc_word_t pc, uint32_t inst, npc_word_t next_p
                " a7=0x%016" NPC_PRIxWORD,
                (unsigned long long)(g_user_ecall_trace_count + 1),
                (unsigned long long)commit, pc, next_pc,
+               debug_valid ? 1u : 0u,
                (unsigned long long)priv, sv39 ? 1u : 0u,
                (unsigned long long)g_shadow_gpr[17],
                g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[10],
@@ -2023,7 +2029,7 @@ static void report_ooo_debug_flags(void) {
   uint64_t fetch_pte = g_top ? (uint64_t)g_top->debug_fetch_pte_o : 0;
   uint64_t fetch_pte_meta = g_top ? (uint64_t)g_top->debug_fetch_pte_meta_o : 0;
   LogBothTag("cpu_exec",
-             "ooo flags=0x%016llx stop=%llu owner=%llu orphan=%llu "
+             "ooo flags=0x%016llx valid=%llu stop=%llu owner=%llu orphan=%llu "
              "csr_head=%llu spec=%llu/%llu synth=%llu/%llu exit=%llu branch=%llu "
              "jump=%llu mem=%llu arch_trap=%llu system=%llu irq=%llu csr=%llu "
              "csr_dispatched=%llu irq_pending=%llu drained_q=%llu drained=%llu "
@@ -2033,6 +2039,7 @@ static void report_ooo_debug_flags(void) {
              "priv=%llu satp_sv39=%llu arch_trap_fire=%llu csr_trap_ex=%llu drain_complete=%llu "
              "replay_wait=%llu direct_flush=%llu",
              (unsigned long long)flags,
+             (unsigned long long)((flags >> 63) & 1u),
              (unsigned long long)((flags >> 0) & 1u),
              (unsigned long long)((flags >> 1) & 1u),
              (unsigned long long)((flags >> 2) & 1u),

@@ -235,7 +235,8 @@ module tb_ooo_trap_exit_event_mux;
     pending_exit_i = 1'b1;
     pending_exit_is_ebreak_i = 1'b1;
     expect_event(1'b1, `EXC_INST_ADDR_MISALIGN, 64'h8000_0100,
-                 64'h8000_0102, 1'b1, 1'b0, 1'b1);
+                 64'h8000_0102, 1'b0, 1'b0, 1'b1);
+    $display("[V10D-TRAP-EXIT-PRIORITY-PASS] branch-trap=1 raw-exit=0");
 
     $display("PASS tb_ooo_trap_exit_event_mux");
     $finish;

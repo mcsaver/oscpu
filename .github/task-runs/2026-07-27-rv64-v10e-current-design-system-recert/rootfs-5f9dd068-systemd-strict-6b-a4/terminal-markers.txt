@@ -1,0 +1,5 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/driver.log:10:[npc-systemd-check] done marker: __NPC_SYSTEMD_STRICT_DONE__ rc=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/driver.log:45:OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/driver.log:65:Platform Reboot Device      : syscon-reboot
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/driver.log:66:Platform Shutdown Device    : syscon-poweroff
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/driver.log:116:[    0.000000] SBI SRST extension detected

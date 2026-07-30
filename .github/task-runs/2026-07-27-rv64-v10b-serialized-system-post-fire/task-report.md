@@ -2,7 +2,7 @@
 
 ## 状态
 
-`IN_PROGRESS`。
+`BOUNDED_COMPLETE`。
 
 本切片只裁决本地 RV64 双发射 OoO 核中
 `OooPendingSystemSequencer` 的八类 canonical kind：
@@ -15,6 +15,39 @@ exactly-once 与 V9Y/V9Z memory-owner terminal 作为前置，不在本轮改写
 
 入口 design-id：
 `sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951`。
+
+## 本轮执行记录
+
+- 主要任务分类：`verification`。
+- 辅助分类：
+  - `architecture evidence maintenance`：四份 cohort exclusion 的
+    current-design rebind；
+  - `tooling/workflow`：V3 oracle identity、versioned reviewer contract
+    与 dispatch/provenance。
+- production RTL 修改：`NONE`。
+- 作用范围：八类 canonical pending-system transaction 的 C0/C1/C2
+  side effect、holder/stop death、typed redirect、MMU/FPC consumer 与
+  CSR exact commit lease。
+- 当前分支/HEAD：`ai` /
+  `af027d1bce085bace474b748dcd89113145f8772`。
+- 工作区：存在本轮证据、验证文件及其它既有 dirty/untracked 文件；
+  staged 为空，不把来源不同的修改混入提交。
+- 原始失败：
+  pre-change `tb_ooo_priv_system` 在切断 FENCE.I MMU input 后仍 PASS，
+  证明旧 oracle 对真实 MMU side effect 不敏感；final-review v1 另发现
+  cohort identity、真实 bridge 路径、辅助 TB SHA 与局部 marker 四项
+  provenance/假绿风险。
+- architecture debt：`SERIALIZE-G1`，P1/OPEN。
+- 根因假设：production 八类 kind 路径本身满足既有合同，主要缺口是
+  testbench 未观察 raw MMU/FPC 与 C1/C2 side effect。
+- 竞争假设：SATP/SFENCE/FENCE.I wiring、FENCE full-idle、CSR exact
+  lease 或 holder/stop clear 存在真实 production 缺陷。
+- 最高信息增益实验：同一 production-module scoreboard 直接计 raw
+  pulse，再用 14 个语义最小、compile-success RTL 版本逐项切断合同。
+- 运行预算：17 个 focused case、113 个 module test；production RTL
+  未变化时复用同 design-id 的 functional/architecture canonical run。
+- promotion：`false`；本轮为 intermediate checkpoint，不具备
+  architecture-stable/PPA 晋级资格。
 
 ## 图任务
 
@@ -136,6 +169,103 @@ V2 因此保留全核 store-ordering 程序，并把该差分版本绑定到
   WFI control commit、零伪 MMU action、SFENCE.INVAL.IR decode 与
   FENCE.I→FPC clear。
 
-权威汇总为
-`evidence/v10b-focused-matrix-v2/summary.json` 与 `summary.md`，
-`all_pass=true`。该矩阵证明列出的反例被拒绝，不单独外推为系统级闭合。
+V2 暴露的证据身份和局部 marker 问题已由 V3 修正。当前权威汇总为
+`evidence/v10b-focused-matrix-v3/summary.json` 与 `summary.md`：
+
+- current design-id：
+  `sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951`；
+- 3/3 baseline PASS；
+- 14/14 compile-success RTL version 被动态拒绝；
+- 四个 testbench path/SHA 与每 case oracle identity 均已绑定；
+- typed-reason 版本的局部 marker 与最终 `[RESULT]` 均为 FAIL。
+
+该矩阵证明列出的反例被拒绝，不单独外推为系统级闭合。
+
+## 分层同源证据
+
+- `module-current-v3/summary.txt`：113/113 PASS，113 份日志均携带
+  current design-id。
+- `functional-current/functional-aggregate-result.json`：PASS，
+  module 113/113、official 177/177、AM 59/59、DiffTest mismatch 0，
+  CoreMark/Dhrystone marker 通过。
+- `architecture/final-architecture-hard-gates.json`：DI-1..DI-5 与
+  OOO-1..OOO-4 共 9/9 GREEN。
+- 三层结果均绑定
+  `sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951`。
+- `layered-current.status` 为 PASS。由于 V3 最后一次只修正 testbench
+  marker/provenance、production RTL 未变化，复跑 113/113 module
+  用于确认 oracle currentness；未机械重复相同 official/AM/benchmark。
+
+## 实现者结论
+
+- 实际结果支持“production 八类 kind 路径满足既有 bounded 合同，
+  原主要问题是 verification observation gap”。
+- `CSR / ECALL / XRET / WFI / SFENCE_FAMILY / FENCEI / FENCE / IRQ`
+  均有 C0 raw authority、C1 owner/stop clear 或 architectural side
+  effect、C2 no-repeat 的直接观测；CSR 另有错误 PID/PC 拒绝与 exact
+  commit。
+- verification 修改包括 raw scoreboard、四编码 SFENCE family、
+  FENCE.I stale-instruction consumer、V3 oracle identity 与 marker
+  fail-closed。
+- production RTL、assertion 强度和 terminal-event 处理均未修改；
+  没有添加去重或静默丢弃逻辑。
+- pre-change 敏感性：切断 FENCE.I MMU input 的可编译版本在旧 TB 上
+  仍 PASS；新 V3 中对应 MMU/FPC 断线版本均被目标 oracle 拒绝。
+- 原始 Linux/system reproducer：`NOT_RUN`。本轮最低层验证已闭合，
+  但系统级 terminal 是独立 P1 主线，不能由本切片替代。
+- synthesis/STA/power：`NOT_RUN`；evidence class 为 RTL
+  verification，promotion_eligible=false。
+
+## 独立审查者结论
+
+final-reviewer-v2 标准化裁决为：
+
+`APPROVED_FOR_CURRENT_SCOPE`
+
+审查者确认 v1 四项反证均已关闭，八类 bounded transaction 可 PASS。
+最强被拒绝反例是断开
+`OooFetchPacketCache.clear_i(mmu_flush_i)`：版本编译成功，但出现
+stale response、无 AXI refetch 与旧 instruction packet，最终 FAIL。
+完整报告见 `final-reviewer-report-v2.md`。
+
+审查者保留以下边界：
+
+- FENCE.I 是 production pulse、顶层静态连线和 bridge 动态 consumer
+  的组合证明，不是 full-core self-modifying/Linux 证明；
+- 没有形式穷举；
+- `fdg-arch-trap-current.json` 仍是旧 design-id/111-module evidence；
+- `SERIALIZE-G1`、simulation exit、Linux terminal、architecture-stable
+  与 PPA 均未关闭。
+
+## 当前声明等级与下一动作
+
+- 本切片声明：八类 canonical SYSTEM post-fire
+  `APPROVED_FOR_CURRENT_SCOPE`。
+- 全核声明：`GAP`。
+- PPA：`UNQUALIFIED`，promotion=false。
+- 下一项最高信息增益动作：另立 architecture-evidence maintenance
+  节点，重放 `make -C npc/rv64 check-fdg-arch-trap`，证明
+  `fdg-arch-trap-current.json` 与 113-module current design 一致；
+  随后重新运行 debt-ledger currentness updater。若 current P1 仍在，
+  继续 `SERIALIZE-G1` simulation-exit/terminal 主线；只有不存在
+  P0/P1 时才进入 historical-defect-backfill 默认队列。
+
+## 工作流闭环
+
+- task-run JSON：`round-state.json` 已记录分类、Git/设计身份、原始失败、
+  假设/竞争假设、判别实验、运行预算、gate、reviewer verdict 与
+  promotion=false。
+- evidence index：已用 `github_index_db.py index-evidence` 登记 V10B
+  raw evidence；最终文件新增后再次刷新。
+- retained memory：`project-status.md` 与 `modules/npc.md` 已通过
+  `update-stored` 写回 DB。
+- task-specific e2e：
+  `.github/task-runs/2026-07-27-serialized-system-revtag-v10b/`
+  为 `npc-dev` completed，5/5 PASS，含 canonical recall、resolve、
+  manifest、evidence index、complete marker 与 publication。
+- strict guard：以 `guard-paths.txt` 限定本轮 15 个 source/contract/
+  report 路径，要求一个 `npc-dev` profile；绑定上述 completed run 后
+  PASS，exit 0。原始输出见 `strict-guard.log`。
+- Git：staged 仍为空。当前工作区含来源混合的大量 tracked/untracked
+  证据和生成物；尚未证明可安全组成原子提交，因此本切片不 commit，
+  不执行 push/amend/reset/restore/clean/stash。

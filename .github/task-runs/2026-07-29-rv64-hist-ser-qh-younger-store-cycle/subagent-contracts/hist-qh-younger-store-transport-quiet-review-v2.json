@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "hist-qh-younger-store-transport-quiet-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend 为 queue-head CSR 提供独立 head0_csr_transport_quiet_w 的最小安全布尔合同：允许无 request_sent 的 SQ-resident STORE owner 由下一拍 serial flush 取消，同时拒绝 MIQ、bridge、reservation、buffer、retry、collector pending、同拍 request fire、drain_inflight、非 SQ live owner；不得削弱全局 mem_idle_o 或 mem_owner_terminalized_o。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/subagent-contracts/hist-qh-younger-store-transport-quiet-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出允许/拒绝状态真值边界、最小 predicate、组合环与 PPA 风险、后端真实 dual-dispatch→probe→SQ residency→C0→外部 C1 flush→C2 raw event 观测，以及至少一个竞争方案；不修改文件。"
+  ],
+  "success_criteria": [
+    "predicate 只能在所有外部内存传输与不可撤销写均静默时放行，SQ owner tuple/ProducerId 必须可审计；指出任何会把相同 token 的 SQ+bridge 双 holder 错当静默、或使历史 AND mutation 失去判别力的反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

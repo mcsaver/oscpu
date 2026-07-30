@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -29,16 +31,66 @@ class ProducerHolderCensusTests(unittest.TestCase):
         self.manifest = (
             self.repo / "npc/rv64/design/arch/producer-holder-census.json"
         )
+        nemu_kconfig = self.repo / "nemu/Kconfig"
+        nemu_kconfig.parent.mkdir(parents=True, exist_ok=True)
+        nemu_kconfig.write_text("# census fixture\n", encoding="utf-8")
         self.source.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(RV64_DIR / "vsrc", self.source)
+        (self.repo / "npc/rv64/csrc").mkdir(parents=True, exist_ok=True)
         self.manifest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(MANIFEST, self.manifest)
+        for relative in (
+            "Makefile",
+            "npc/rv64/configs/product-rtl-defaults.mk",
+            "npc/rv64/Makefile",
+            "npc/rv64/scripts/config.mk",
+        ):
+            source = REPO_ROOT / relative
+            target = self.repo / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        self.manifest_value = json.loads(
+            self.manifest.read_text(encoding="utf-8")
+        )
+        self.instance_graph_fixture = {
+            "status": "PASS",
+            "design_id": self.manifest_value["design_id"],
+            "counts": {
+                "holder_modules": 15,
+                "holder_instances": 17,
+                "duplicate_holder_modules": 2,
+                "reachable_module_instances": 194,
+            },
+            "graph_sha256": "fixture-census-unit-graph",
+            "errors": [],
+        }
+
+    def copy_instance_evidence(self) -> None:
+        evidence_bundle = self.manifest_value[
+            "elaborated_instance_graph"
+        ]["evidence"]
+        for entry in evidence_bundle.values():
+            evidence_relative = entry["path"]
+            evidence_source = REPO_ROOT / evidence_relative
+            evidence_target = self.repo / evidence_relative
+            evidence_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(evidence_source, evidence_target)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def audit(self) -> dict[str, object]:
-        return census.audit(self.repo, self.manifest, self.source)
+    def audit(
+        self, *, full_instance_graph: bool = False
+    ) -> dict[str, object]:
+        if full_instance_graph:
+            self.copy_instance_evidence()
+            return census.audit(self.repo, self.manifest, self.source)
+        with patch.object(
+            census.instance_graph,
+            "audit_frozen",
+            return_value=self.instance_graph_fixture,
+        ):
+            return census.audit(self.repo, self.manifest, self.source)
 
     def mutate_before_endmodule(self, relative: str, payload: str) -> None:
         path = self.source / relative
@@ -55,8 +107,8 @@ class ProducerHolderCensusTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def test_baseline_is_field_complete_and_hash_bound(self) -> None:
-        result = self.audit()
+    def test_baseline_is_field_and_instance_complete_and_hash_bound(self) -> None:
+        result = self.audit(full_instance_graph=True)
         self.assertEqual(result["status"], "PASS", result["errors"])
         self.assertEqual(
             result["counts"],
@@ -71,6 +123,41 @@ class ProducerHolderCensusTests(unittest.TestCase):
         self.assertEqual(len(result["hashes"]["manifest_sha256"]), 64)
         self.assertEqual(len(result["hashes"]["checker_sha256"]), 64)
         self.assertEqual(len(result["hashes"]["source_set_sha256"]), 64)
+        self.assertEqual(result["instance_graph"]["status"], "PASS")
+        self.assertEqual(
+            result["instance_graph"]["counts"]["holder_instances"], 17
+        )
+
+    def test_checker_loads_by_file_path_without_external_pythonpath(
+        self,
+    ) -> None:
+        checker = TOOLS_DIR / "producer_holder_census.py"
+        code = (
+            "import importlib.util,sys;"
+            f"p={str(checker)!r};"
+            "s=importlib.util.spec_from_file_location('isolated_census',p);"
+            "m=importlib.util.module_from_spec(s);"
+            "sys.modules[s.name]=m;"
+            "s.loader.exec_module(m);"
+            "print(m.SCHEMA)"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=self.temp.name,
+            env={"PATH": str(Path(sys.executable).parent)},
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(
+            completed.returncode,
+            0,
+            completed.stderr + completed.stdout,
+        )
+        self.assertEqual(
+            completed.stdout.strip(),
+            "rv64-producer-holder-census-v1",
+        )
 
     def test_load_queue_is_a_retire_resident_direct_holder(self) -> None:
         data = json.loads(self.manifest.read_text(encoding="utf-8"))

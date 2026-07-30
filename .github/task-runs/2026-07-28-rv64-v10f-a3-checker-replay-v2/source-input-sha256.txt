@@ -1,0 +1,9 @@
+85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status
+4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log
+f4a5b09ceed54682d101150775e989bbf277e55f8a401a2c8a4c99ee54c66e62  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/npc.log
+cbe38f997cb364fd36b20d3ef083288e872971bbc895ac557baef8e119468fcd  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/rootfs-binding.txt
+6f96d1f4b45846d1db03ea21ba25fec5f0234389e74b6cf7ea6dc48d0538efad  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt
+d5c3778c34dd99d42824834312dce53836b7937a6497ee28cf6c847a4a16c06d  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/post-binding.txt
+6875930ad696a0b75773c1facefbfe5eee22fb2436a9db4d1944f2155e46358c  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/rtl-assertion-failures.txt
+050bc2713f76c9c39be5cd9e81b489e4f637ca4f38bb54ead82516a61af51b3b  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/terminal-markers.txt

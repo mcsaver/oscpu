@@ -353,12 +353,58 @@ module OooMemOwnerTerminalCollector #(
       out1_hold_check_q <= 1'b0;
       out1_hold_tuple_q <= 9'd0;
     end else begin
+      if (^pending_q === 1'bx) begin
+        $display("[V11B-TCOLL-PENDING-MASK-KNOWN] pending token set is unknown");
+        $fatal;
+      end
+      for (ingress_assert_i = 0; ingress_assert_i < INGRESS_N;
+           ingress_assert_i = ingress_assert_i + 1) begin
+        if (ingress_valid_i[ingress_assert_i]) begin
+          if (((^ingress_kind_at(
+                    ingress_kind_i, ingress_assert_i)) === 1'bx) ||
+              ((^ingress_token_at(
+                    ingress_token_i, ingress_assert_i)) === 1'bx) ||
+              ((^ingress_epoch_at(
+                    ingress_epoch_i, ingress_assert_i)) === 1'bx)) begin
+            $display("[V11B-TCOLL-INGRESS-TUPLE-KNOWN] lane=%0d valid terminal carried unknown kind/token/epoch",
+                     ingress_assert_i);
+            $fatal;
+          end else if (
+              (live_mask_i[
+                  ingress_token_at(ingress_token_i,
+                                   ingress_assert_i)] === 1'bx) ||
+              ((^owner_table_at(
+                    live_kind_table_i,
+                    ingress_token_at(ingress_token_i,
+                                     ingress_assert_i))) === 1'bx) ||
+              ((^owner_table_at(
+                    live_epoch_table_i,
+                    ingress_token_at(ingress_token_i,
+                                     ingress_assert_i))) === 1'bx)) begin
+            $display("[V11B-TCOLL-TRACKER-TUPLE-KNOWN] lane=%0d tracker live/kind/epoch truth is unknown",
+                     ingress_assert_i);
+            $fatal;
+          end
+        end
+      end
       if (out0_valid_q && (^out0_token_q === 1'bx)) begin
         $display("[V8L-TCOLL-OUT0-TOKEN-KNOWN] valid output0 has unknown token");
         $fatal;
       end
+      if (out0_valid_q &&
+          (((^out0_kind_q) === 1'bx) ||
+           ((^out0_epoch_q) === 1'bx))) begin
+        $display("[V11B-TCOLL-OUT0-TUPLE-KNOWN] valid output0 has unknown kind/epoch");
+        $fatal;
+      end
       if (out1_valid_q && (^out1_token_q === 1'bx)) begin
         $display("[V8L-TCOLL-OUT1-TOKEN-KNOWN] valid output1 has unknown token");
+        $fatal;
+      end
+      if (out1_valid_q &&
+          (((^out1_kind_q) === 1'bx) ||
+           ((^out1_epoch_q) === 1'bx))) begin
+        $display("[V11B-TCOLL-OUT1-TUPLE-KNOWN] valid output1 has unknown kind/epoch");
         $fatal;
       end
       if (|ingress_reserved_violation_r) begin

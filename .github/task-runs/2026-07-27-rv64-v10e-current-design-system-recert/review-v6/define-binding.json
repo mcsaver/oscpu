@@ -1,0 +1,43 @@
+{
+  "makefile": {
+    "path": "npc/rv64/Makefile",
+    "line": 93,
+    "source_text": "RTL_VERILATOR_DEFINES += $(if $(filter 1 y,$(OOO_TERMINAL_HOLDER_ASSERT)),+define+OOO_TERMINAL_HOLDER_ASSERT)",
+    "token": "+define+OOO_TERMINAL_HOLDER_ASSERT",
+    "sha256": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+    "a2_pre_sha256": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+    "a2_post_sha256": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118"
+  },
+  "a2_manifest": {
+    "path": ".github/runtime-artifacts/rv64-systemd-strict/rootfs-c1b531-systemd-strict-6b-a2/sim-build/obj_dir/VNpcSimTop__verFiles.dat",
+    "sha256": "682689cc7f96cfc730de4a456ba60309ab4258e5732858c2ba8acb610e5778c4",
+    "command_line_count": 1,
+    "no_value_token_count": 1,
+    "value_token_count": 0,
+    "required_tokens": {
+      "--assert": true,
+      "+define+OOO_CSR_QUEUE_HEAD=1": true,
+      "+define+OOO_ASSERT": true,
+      "+define+OOO_TERMINAL_HOLDER_ASSERT": true,
+      "+define+OOO_TERMINAL_HOLDER_ASSERT=1": true
+    }
+  },
+  "corrected_runner": {
+    "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+    "line": 443,
+    "pattern_count": 1,
+    "pattern": "+define+OOO_TERMINAL_HOLDER_ASSERT ",
+    "expected_pattern": "+define+OOO_TERMINAL_HOLDER_ASSERT ",
+    "rejected_pattern_occurrences": 0
+  },
+  "rtl_consumers": {
+    "rg_rc": 0,
+    "count": 3,
+    "raw_lines": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v:7174:`ifdef OOO_TERMINAL_HOLDER_ASSERT",
+      "npc/rv64/vsrc/execute/OooIntBackend.v:7371:`ifdef OOO_TERMINAL_HOLDER_ASSERT",
+      "npc/rv64/vsrc/execute/OooIntBackend.v:7828:`ifdef OOO_TERMINAL_HOLDER_ASSERT"
+    ],
+    "semantics": "`ifdef presence test; macro replacement text is unused"
+  }
+}

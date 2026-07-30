@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11f-int-iq-producer-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntIssueQueue.producer_id_q 在 dispatch 接受、阻塞保持、双 terminal 发射、memory pair dequeue、compaction、选择性恢复、flush 与 reset 周期中的 edge-old full-ProducerId holder 合同，判断当前 production RTL 是否存在可达反例，并区分 RTL 修复与验证补强。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/mutate-v8l-global-lease.py",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/subagent-contracts/v11f-int-iq-producer-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按因果链列出 holder 出生、edge-old 阻塞、保持、handoff/death、flush/reset 与二态 knownness 的反例审查；给出 H1 当前 RTL 正确、H2 可达 RTL 缺陷、H3 现有 V8L 证据充分三组竞争假设的判决，以及最小正向周期矩阵和 compile-success RTL 变异清单。"
+  ],
+  "success_criteria": [
+    "明确给出 production OooIntIssueQueue.v 是否需要修改；每个发现绑定真实 signal、周期条件与现有/缺失 TB oracle；不得以 producer_live_mask_o 重述自身作为独立 oracle，不得把局部 PASS 外推为全局 no-live-reuse GREEN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

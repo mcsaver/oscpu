@@ -1,11 +1,11 @@
 {
   "schema": "npc-rv64-architecture-debt-ledger-v2",
-  "revision": "v9v-20260726",
+  "revision": "v10g-20260728",
   "scope": "full-core single-hart RV64 dual-issue OoO architecture-stable cohort",
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "roadmap": {
     "path": "npc/rv64/design/arch/ROADMAP.md",
-    "sha256": "c5227c370aea3350cb7231bfd6049cac7b98bf1585181f1306272f8254b5b157"
+    "sha256": "2b53ed9ce000cb82060d18a4b7c8021be9a3b1a028ba787476039fce088381b0"
   },
   "entries": [
     {
@@ -22,7 +22,7 @@
         "Bind the legal and illegal FP arch_trap focused matrix, program aggregate and compile-success RTL source mutation to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-fdg-arch-trap",
       "coverage": {
         "positive": true,
@@ -33,12 +33,12 @@
         {
           "kind": "fdg_arch_trap_result",
           "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap-current.json",
-          "sha256": "428d698e57058be3113646ef7b8edc575a4f1e0f7a6a1d8489bbeb4772c03b32"
+          "sha256": "9d9d1aca0ee47e7ddf2bd073b023550706b79afcf7dc48730d29ba60792a249b"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/fdg-arch-trap.log",
-          "sha256": "6eef55ee01d01367d44a74939830e8029793a8305b38ac9efe462e473779d62b"
+          "sha256": "72594f17b15a2244b90f82327c86d33cf82cdfbe2f81e588e7215bf8de502a69"
         }
       ]
     },
@@ -59,7 +59,7 @@
         "Rebind current-mode MRET/SRET legal and illegal program cases plus a compile-success RTL source mutation to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-xret-current-mode",
       "coverage": {
         "positive": true,
@@ -70,12 +70,12 @@
         {
           "kind": "xret_current_mode_result",
           "path": "npc/rv64/eval/ppa/evidence/xret-current-mode-current.json",
-          "sha256": "3a3536e4d27801433b6c881636b3e9b9c33c95e8729dc6d8927bd7d49bdfa199"
+          "sha256": "9c92daf8a7e6acb15364c8f17ef8daa4fce48e316e5fd5f4a384737e29dbe1a0"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/xret-current-mode.log",
-          "sha256": "2595b509fe8f712366376fa3a9b42f17d8b06c03c578ad5a4c40f9b0346c3633"
+          "sha256": "722feed99c27b7926c55a65eec274efde5cea2cbe37c8e2836de97603a9ef2d3"
         }
       ]
     },
@@ -93,7 +93,7 @@
         "Bind atomic dual-memory capture, edge-old terminal ordering, owner-qualified request-fire/terminal-consume/MIQ-birth agreement, 15-field transaction identity, competing-owner arbitration, backpressure retention and exactly-once launch variants to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-memory-issue-lifecycle",
       "coverage": {
         "positive": true,
@@ -104,12 +104,12 @@
         {
           "kind": "memory_issue_lifecycle_result",
           "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
-          "sha256": "ead400e5e6ff43702bc3326234ee5d75ee2fbd48d3da6449f5e54e9c9f05d04a"
+          "sha256": "793e6ce4db8f72c5dd09a24a931b9526cc4947e1bf62cf57df2c8975a5286180"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
-          "sha256": "c6259323acc3eb0b256133e398def538a8e07b67a95218ccb7973f1e6f12cb8e"
+          "sha256": "a74bf836ede067cb45ff114a5d82b7897154f7c1ef68929cb2aba716f537fdf1"
         }
       ]
     },
@@ -126,7 +126,7 @@
         "Bind the AW/W/B backpressure and flush-drain matrix plus source mutation to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-axi-flush-drain",
       "coverage": {
         "positive": true,
@@ -137,12 +137,12 @@
         {
           "kind": "ifu_axi_flush_drain_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
-          "sha256": "455f32348bf84495d0e9134385c7df728744ffea3a451b980f12e1431b2645a6"
+          "sha256": "3e93930326457d05cd607d8c91909bd02b501f18295a5388827333bb635b7ea4"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log",
-          "sha256": "766dcdbaec871b37f55c76ff7f0640498ca55dcd71e54383fb0ac0eb934f85de"
+          "sha256": "93b5f374377d6041d8471ac5761da73024ffa5cac46cfc9f67170590250cd722"
         }
       ]
     },
@@ -159,7 +159,7 @@
         "Bind the page-end 16/32-bit second-page positive, poison and source-mutation cases to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-fetch-provenance",
       "coverage": {
         "positive": true,
@@ -170,12 +170,12 @@
         {
           "kind": "ifu_fetch_provenance_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance-current.json",
-          "sha256": "0131c753ee9e70a7c364a5d4b7342e443c772c2305e2c7c0f63e30c06420f71b"
+          "sha256": "21a1c8a40db386784e47aa7266cc2a347eb081493005b74d238492e031f82443"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/ifu-fetch-provenance.log",
-          "sha256": "22f403638c2022907812195927ecb2f02b7e376f37d355504a8a9a7fd7e5a6de"
+          "sha256": "de009fd7c90989cd323f39d21c121d60bc89fd470df49b9e642924aa19ef273e"
         }
       ]
     },
@@ -202,7 +202,7 @@
         "Bind F=0/2/4/6, exact 2B EXEC PMP, RRESP owner, PMEM tail bounds and lane1 owner counterexamples to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-access",
       "coverage": {
         "positive": true,
@@ -213,12 +213,12 @@
         {
           "kind": "ifu_access_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
-          "sha256": "0bd129e95c11b965236a330171ffc9d348900b6e5bdd3e542d99ddde06f301cf"
+          "sha256": "bec7995f521a6c1487d11be252703d0b4f0cccfee8ed3e9742346e482f0f3a17"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/ifu-access.log",
-          "sha256": "e91183fa37126476e8d2db8f30b3721e24f79f9bd3438a2b957828bacfa559ce"
+          "sha256": "0ce8a3c0a4963f720f0c664d1e842d2ed38281201a1c77fe0d956f595c59a294"
         }
       ]
     },
@@ -243,7 +243,7 @@
         "Bind offset 2/4/6, compressed-control, dispatch backpressure and exact joint PC/cause/tval lifecycle evidence plus source variants to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-tval",
       "coverage": {
         "positive": true,
@@ -254,12 +254,12 @@
         {
           "kind": "ifu_tval_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-tval-current.json",
-          "sha256": "bd21fa1479f7e6a64704449a4a06d89f752db20098d01c81a2727cb2d8099186"
+          "sha256": "7b65a221faf9dc73f62a48a573196a9b1a94fc8e2cc0b400699f1f645bcf9e92"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/ifu-tval.log",
-          "sha256": "ac0cef3003ab1975de895a3210a27779834db22dfd88932a624b2ccf93fca012"
+          "sha256": "2861239a7f3a81b931d591c20b9a06f5ef5586a28bfce7d3e198d60d22692bf9"
         }
       ]
     },
@@ -277,7 +277,7 @@
         "Bind PTE WRITE deny/allow and deny-with-no-AW/W counterexamples plus source mutation to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ptw-pmp",
       "coverage": {
         "positive": true,
@@ -288,12 +288,12 @@
         {
           "kind": "ptw_pmp_result",
           "path": "npc/rv64/eval/ppa/evidence/ptw-pmp-current.json",
-          "sha256": "381829ae198374eb9225ffbfee5899f62b9bbbac21687976eb429c350e324343"
+          "sha256": "5a6a05a39fbd0549f8086cef0230e41c2800c0796ef12a28f642db5d6577fe8b"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/ptw-pmp.log",
-          "sha256": "647981e78253c8a96c6f34ff8bee820d93096c9523e6b860d7cea9e0aca149ab"
+          "sha256": "7b7014deb1b024b9adb8906f37b5438d7c6f3571c23f6e2f852f4f7b5e76190f"
         }
       ]
     },
@@ -312,7 +312,7 @@
         "Add a program-level regression proving exception retirement contributes zero and each legal control retirement contributes exactly one, with current-design mutation evidence."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-instret-retirement",
       "coverage": {
         "positive": true,
@@ -323,12 +323,12 @@
         {
           "kind": "instret_retirement_result",
           "path": "npc/rv64/eval/ppa/evidence/instret-retirement-current.json",
-          "sha256": "5d5cf3ad9b3a48e78960493eef373529c2db3e254f81aa4284001beca315dd2a"
+          "sha256": "ef7d9f39c41d7330834cb7c53934616a11bee9a69631c58c772bd2ddeff93269"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/instret-retirement.log",
-          "sha256": "2426327ead340c74e8e7e44c09b164a83996e3382ea94d0387ed9cb539f4e00a"
+          "sha256": "eb80933c480beadbfa8fe7dd34b9fdc30a7c9c5afdf2c4f8fc9a18e049f1edfe"
         }
       ]
     },
@@ -345,7 +345,7 @@
         "Produce one same-design aggregate for the dynamically derived 109 module tests, official 177, AM 59 with DiffTest enabled, applicable DiffTest zero failures and benchmark semantic gates."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-functional-aggregate",
       "coverage": {
         "positive": true,
@@ -356,22 +356,22 @@
         {
           "kind": "functional_aggregate_result",
           "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
-          "sha256": "cafe000efe49146a575aac0f63e04af964efd1ecef95b074953ccccda4d29d9b"
+          "sha256": "992af8637be187adef24d2da3469cc6f0f98cf34c80a613664bfe5c6a6076f67"
         },
         {
           "kind": "functional_aggregate",
           "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
-          "sha256": "f404ffcffc2525d135b8ac8fa18037d5271b630b34aa210418ea0e512f28ff15"
+          "sha256": "895c83be5e8ccff222e86392598bfc5e3b831db8df567a01ea66e632afb7c187"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/functional-aggregate.log",
-          "sha256": "f7c7eda2f4c99574a68776095ee3d9418957b0bf4494b20961cbe8cfc7344f19"
+          "sha256": "8b64621b661d7f09899df4c46fc5d2b31524780305d7739b88db7b72211d908b"
         },
         {
           "kind": "mutation_summary",
           "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/evidence/mutations/summary.json",
-          "sha256": "603fcca3bad1b82caa9e874cf199dbb5922708612954b59952934d1279f9d658"
+          "sha256": "35013a5d702953774525a999ad0a1a886d0546bdb2ca28207c977cac4e534080"
         }
       ]
     },
@@ -389,7 +389,7 @@
         "Bind same-cycle exact-owner fired-head subtraction, valid-without-pop DRAIN head preservation, owner-mismatch assertion, survivor identity and wrapped mixed-entry FIFO order plus compile-success RTL variants to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-memory-issue-lifecycle",
       "coverage": {
         "positive": true,
@@ -400,12 +400,12 @@
         {
           "kind": "memory_issue_lifecycle_result",
           "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle-current.json",
-          "sha256": "ead400e5e6ff43702bc3326234ee5d75ee2fbd48d3da6449f5e54e9c9f05d04a"
+          "sha256": "793e6ce4db8f72c5dd09a24a931b9526cc4947e1bf62cf57df2c8975a5286180"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/memory-issue-lifecycle.log",
-          "sha256": "c6259323acc3eb0b256133e398def538a8e07b67a95218ccb7973f1e6f12cb8e"
+          "sha256": "a74bf836ede067cb45ff114a5d82b7897154f7c1ef68929cb2aba716f537fdf1"
         }
       ]
     },
@@ -423,7 +423,7 @@
         "Prove no retirement before successful B, one exact B terminal, precise cause/tval on an error B response, and independent next-edge residency of every accepted STORE/AMO physical-write owner until its exact terminal response."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-memory-ordering",
       "coverage": {
         "positive": true,
@@ -434,22 +434,22 @@
         {
           "kind": "architecture_directed_suite",
           "path": "npc/rv64/eval/ppa/evidence/architecture-current.json",
-          "sha256": "25871d1a5413503ee76861847f15f02bf63c4d73c6d5a9224dca7bf0c4b7c5d5"
+          "sha256": "2f3c664d390ddec49858dd8f28fd01e1fb6e25807ee1a8c4b55b16ca99a11e2c"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/memory-ordering.log",
-          "sha256": "a6f447f7d0a13ffe6ce8d02a185edc5adf067f92bc58f0719b5feee5aa2f7117"
+          "sha256": "b488ac4e1dd61a0e41194d404d736ebaac8af86fb2db784c1411715691e2aec6"
         },
         {
           "kind": "irrevocable_owner_residency_result",
           "path": "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency-current.json",
-          "sha256": "6cbfe1e3cfc824f806f4590e8715e6fbd47cf0a0a0db092ce1ff041459998255"
+          "sha256": "d285a7239178a7ac6fc924b16d4633d93aa0089886874de86ee38ebf7f265138"
         },
         {
           "kind": "irrevocable_owner_residency_raw",
           "path": "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency.log",
-          "sha256": "94997a418c092c73bedec0e9f887f4d2bd2e099cdac85b5effc3d375a32ba084"
+          "sha256": "9eed68866f01abda349283fb1f4ac3460e65777a5585af50ab6ac131f3eba360"
         }
       ]
     },
@@ -466,7 +466,7 @@
         "Bind the store-to-FENCE-to-device-read program, runtime CoreGlue-to-ControlPlane mem_idle connection, exact full-drain checks and compile-success RTL variants to the current design_id."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-fence-ordering",
       "coverage": {
         "positive": true,
@@ -477,12 +477,12 @@
         {
           "kind": "fence_ordering_result",
           "path": "npc/rv64/eval/ppa/evidence/fence-ordering-current.json",
-          "sha256": "ddb769e20cce67753f854eab219e8fa3ee920a40a5edf5196afd4aa294718b51"
+          "sha256": "a5aeb427da55f66989d0df3ea8cfee8f7326be93563668197fc99bd0e5c1929b"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/fence-ordering.log",
-          "sha256": "268d0b8cbd9dc4d45e313b52f8fe38a938dcfabcc4098bc96a73f6a989389a8a"
+          "sha256": "0f53d0cbda93b7c19850c18dbd00b33d2f3ad62c764723db16b0516f507db9f1"
         }
       ]
     },
@@ -502,7 +502,7 @@
       "scope_rationale": "The cohort contains one RV64 hart and no autonomous coherent or exclusive peer that may write the active LR/SC reservation granule; multi-master invalidation and coherent transport are outside this product boundary.",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
-        "sha256": "ebb44f78a3ed8c9ae39aadc92641234a079908e9732a45453591f2a3265ffdb2"
+        "sha256": "15b59eed54fb591426d3114bca024adbd1504e0362b06cb21b9f8e9bb0feafa6"
       }
     },
     {
@@ -532,7 +532,7 @@
         "Rebind the V9R bank0/bank1 SQ-query retry READY/capture and bridge retry-fire C0 hold contract, including the natural ROB trap-head case and three compile-success RTL variants, to the complete current-design CONTROL-EVENT-G1 evidence set."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "python3 .github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/build-evidence-index.py --verify",
       "scope_rationale": "V9O C0-to-C1 control ownership and V9R bank0/bank1 SQ-query retry handoff now share the exact current RTL design identity; focused, macro-on, module, nine-gate architecture and compile-success source variants were replayed before closure.",
       "coverage": {
@@ -544,17 +544,17 @@
         {
           "kind": "control_event_evidence_index",
           "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/evidence-index.json",
-          "sha256": "55e22753445877546d2ae1d4b32c3abc238c2c94467d2157f24a611ec81063d0"
+          "sha256": "bca086d240c060996cafe1954cb01fce7e748f4cbaa8e51dcb343b9e48e04afa"
         },
         {
           "kind": "control_event_rtl_mutations",
           "path": ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/mutations/summary.json",
-          "sha256": "1329edf63e2bda277262043283b888695f7a063b5571a4617a7cfac97ba4f14c"
+          "sha256": "98db7346ace213628ff1da607a900dc37e817223c7062e12fc95d03e027484de"
         },
         {
           "kind": "v9r_sq_retry_c0_evidence",
           "path": ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
-          "sha256": "89339c42adb3574680720e1f341231d23a3f3bbfc9ffbe1c03e12e693aac4d88"
+          "sha256": "25c81d147e7ab30ced6894f5192df43c84c656cb46e528c88df6f4a22489f0a7"
         }
       ]
     },
@@ -562,7 +562,7 @@
       "id": "SERIALIZE-G1",
       "priority": "P1",
       "title": "serialize-at-retire system and trap path",
-      "status": "OPEN",
+      "status": "CLOSED",
       "owner_paths": [
         "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
         "npc/rv64/vsrc/writeback/OooRob.v",
@@ -570,6 +570,32 @@
       ],
       "closure_requirements": [
         "Either close and enable the queue-head serialize contract or normatively freeze the pending full-drain mechanism as the product architecture with complete recovery evidence."
+      ],
+      "current_design_bound": true,
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+      "canonical_command": "python3 .github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/verify_serialize_g1_closure.py",
+      "scope_rationale": "The product configuration enables queue-head retirement only for legal non-FP lane0/head0 CSR while retaining pending full-drain ownership for lane1/FP CSR and the remaining SYSTEM, architectural-trap and simulation-exit classes; raw C0/C1/C2 counters, selective recovery, compile-success RTL negative versions, current-design replay and an independent read-only review jointly close this Phase1 split-domain.",
+      "coverage": {
+        "positive": true,
+        "counterexample": true,
+        "compile_success_rtl_mutation": true
+      },
+      "evidence": [
+        {
+          "kind": "serialize_closure_candidate",
+          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate-v2.json",
+          "sha256": "158cf6328943a275cd3e12eac780c0cc48223012e2692ca9d9e7f9dace110bab"
+        },
+        {
+          "kind": "independent_review_contract",
+          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/subagent-contracts/serialize-currentness-final-review-v2.json",
+          "sha256": "b1316f46171145a8265393d29a0069a9b12f0eb61ae8f13e68b43d8c21aa1af2"
+        },
+        {
+          "kind": "independent_review_report",
+          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/final-reviewer-report-v2.md",
+          "sha256": "c79a301cdb5a2ae9210bf872d6cb786a78adcbdc41244f53b20716bfdb2ff93b"
+        }
       ]
     },
     {
@@ -588,7 +614,7 @@
       "scope_rationale": "The cohort implements legal WFI as a serialized immediate-resume hint with TW legality enforcement and makes no promise of a clock or power sleep state, interrupt-only wakeup, or wakeup latency.",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
-        "sha256": "ff5ef47c2b46f6c7480adb1a945f98c0ed9259d2667740838cbf81b23bc4d89f"
+        "sha256": "ea15a867e596e6a4793a3fa19e8fdb8cada311c66ada8eb1d9b6600b8554889a"
       }
     },
     {
@@ -607,7 +633,7 @@
       "scope_rationale": "The cohort serializes every accepted SFENCE.VMA and Svinval-family encoding into a conservative global translation and fetch invalidation; address-selective or ASID-selective invalidation is not a promised capability.",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
-        "sha256": "8f3dcb15e9c4a2158a1e6cefab22f7f78517129233d37def195b9e1894ac4a1f"
+        "sha256": "12893b68936f4c4a901abf43f27fcb24684c61b43f6b7ffe8c5ae9be2f3950d8"
       }
     },
     {
@@ -623,7 +649,7 @@
         "Require Direct/Vectored mtvec/stvec WARL, interrupt BASE+4*cause, synchronous BASE targeting and a single mem>ex>irq record across redirect and architectural state."
       ],
       "current_design_bound": true,
-      "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+      "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-vectored-trap",
       "coverage": {
         "positive": true,
@@ -634,12 +660,12 @@
         {
           "kind": "vectored_trap_result",
           "path": "npc/rv64/eval/ppa/evidence/vectored-trap-current.json",
-          "sha256": "e409fd3fa3177dd1ea62d790215f54279d7e5c657371a7cbca9cbd9150fc7390"
+          "sha256": "5313f6b05326ee2029b509c3e4f3c9224f8dcc806a92782fcdae593c230f5f62"
         },
         {
           "kind": "raw_log",
           "path": "npc/rv64/eval/ppa/evidence/vectored-trap.log",
-          "sha256": "82b2923b076282fa42dcfc554fa5fa4ef6003c83637da015d7f3fd699766212b"
+          "sha256": "376a57fc4d7b1e60fa75a64bf91b110c57ff2dffd35942ef0f9c5e21ad43285e"
         }
       ]
     },
@@ -659,7 +685,7 @@
       "scope_rationale": "The cohort provides simulation observability and semihost EBREAK only; it does not advertise a RISC-V Debug Module, debug mode, halt or resume transport, or executable trigger action.",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
-        "sha256": "d52e5e72c5f02db26986fe95abed2bb8fd1d05068991c666fcb9f3ff168e1ef8"
+        "sha256": "186e7a72bfc28ba8802ff7161b1458ad8c3c55e160c863b29856cd5713cb75c3"
       }
     }
   ]

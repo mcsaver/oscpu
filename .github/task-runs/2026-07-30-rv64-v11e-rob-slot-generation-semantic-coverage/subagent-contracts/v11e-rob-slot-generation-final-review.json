@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11e-rob-slot-generation-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooRob.slot_generation_q 的 V11E current-source 语义证据：核对沿前独立 model、PRODUCER_GEN_W=1/4 assert/release baseline、34 个 release 负向仿真、attempt-1/2 假绿纠偏、carrier/query generation-bit 灵敏度、semantic ledger 单元晋级与全局范围边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/eval/ppa/tools/rob_slot_generation_semantic_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_rob_slot_generation_semantic_evidence.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/evidence/semantic-coverage-ledger.json",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage",
+      ".github/task-runs/2026-07-30-rob-slot-generation",
+      ".github/task-runs/2026-07-30-rob-slot-generation-semantic-revtag-v11e",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/completion-definition.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/implementation-review.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/subagent-contracts/v11e-rob-slot-generation-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/completion-definition.md",
+      ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/implementation-review.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、周期/编译配置、testbench/EDA 原始观测和 PASS/GAP 范围给出终审；优先寻找 DUT 反喂 expected、仅被 OOO_ASSERT 拒绝、未生成 vvp、变体不等价、attempt 纠偏不足、ledger 误晋级或全局范围越级，并列出 blocker、未知项、scope_extension_request 与置信度。"
+  ],
+  "success_criteria": [
+    "明确 blocker 数与 bounded APPROVE/GAP；只有 source binding、4/4 baseline、17x2 compile-success release 变体、独立逐沿全槽 oracle、normal regression、ledger 唯一晋级和 51/53 既有 GAP 均可信时，才批准 rob-slot-generation 单元 PASS，且不得批准 global no-live-reuse、whole architecture、system 或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

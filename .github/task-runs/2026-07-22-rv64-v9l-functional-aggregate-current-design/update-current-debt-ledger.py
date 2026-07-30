@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import subprocess
 import sys
 from typing import Any
 
@@ -15,6 +16,27 @@ RUN_ID = "2026-07-22-rv64-v9l-functional-aggregate-current-design"
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 LEDGER = ROOT / "npc/rv64/design/arch/architecture-debt-ledger.json"
 F0_RESULT = ROOT / "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json"
+SERIALIZE_VERIFY = (
+    ROOT
+    / ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure"
+    / "verify_serialize_g1_closure.py"
+)
+SERIALIZE_COMMAND = (
+    "python3 "
+    ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/"
+    "verify_serialize_g1_closure.py"
+)
+SERIALIZE_PASS_MARKER = "[SERIALIZE-G1-VERIFY]"
+SERIALIZE_SPEC = importlib.util.spec_from_file_location(
+    "v9l_serialize_evidence_contract", SERIALIZE_VERIFY
+)
+assert SERIALIZE_SPEC is not None and SERIALIZE_SPEC.loader is not None
+serialize_contract = importlib.util.module_from_spec(SERIALIZE_SPEC)
+sys.modules[SERIALIZE_SPEC.name] = serialize_contract
+SERIALIZE_SPEC.loader.exec_module(serialize_contract)
+SERIALIZE_EXPECTED_EVIDENCE = tuple(
+    dict(item) for item in serialize_contract.EXPECTED_LEDGER_EVIDENCE
+)
 
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
 SPEC = importlib.util.spec_from_file_location("v9l_debt_binding_gate", TOOL)
@@ -58,6 +80,42 @@ def require_current_json(path: pathlib.Path, design_id: str) -> None:
             f"structured evidence is not current-design bound: {relative(path)}")
     if "status" in value and value.get("status") != "PASS":
         raise RuntimeError(f"structured evidence is not PASS: {relative(path)}")
+
+
+def verify_serialize_entry(entry: dict[str, Any]) -> None:
+    if entry.get("canonical_command") != SERIALIZE_COMMAND:
+        raise RuntimeError(
+            "SERIALIZE-G1 canonical verifier command is not exact"
+        )
+    tuple_errors = serialize_contract.validate_ledger_evidence(
+        entry.get("evidence")
+    )
+    if tuple_errors:
+        raise RuntimeError(
+            "SERIALIZE-G1 evidence tuple is not exact: "
+            + "; ".join(tuple_errors)
+        )
+    completed = subprocess.run(
+        ["python3", str(SERIALIZE_VERIFY)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise RuntimeError(
+            "SERIALIZE-G1 canonical verifier failed"
+            + (f": {detail}" if detail else "")
+        )
+    if (
+        SERIALIZE_PASS_MARKER not in completed.stdout
+        or not completed.stdout.rstrip().endswith("PASS")
+    ):
+        raise RuntimeError(
+            "SERIALIZE-G1 canonical verifier lacks the exact PASS marker"
+        )
+    print(completed.stdout.rstrip())
 
 
 def main() -> int:
@@ -122,6 +180,14 @@ def main() -> int:
     for entry in entries:
         if not isinstance(entry, dict) or entry.get("status") != "CLOSED":
             continue
+        serialize_entry = entry.get("id") == "SERIALIZE-G1"
+        if serialize_entry:
+            # SERIALIZE-G1 intentionally binds a pre-review candidate JSON,
+            # the read-only reviewer contract and the final reviewer report.
+            # Their individual top-level status fields are not generic PASS
+            # records.  The canonical verifier validates the complete tuple
+            # and the current design before the publisher refreshes hashes.
+            verify_serialize_entry(entry)
         entry["current_design_bound"] = True
         entry["design_id"] = design_id
         evidence = entry.get("evidence")
@@ -132,7 +198,7 @@ def main() -> int:
                 raise RuntimeError(f"{entry.get('id')}: malformed evidence artifact")
             path = ROOT / item["path"]
             item["sha256"] = sha256(path)
-            if item["kind"] not in {
+            if not serialize_entry and item["kind"] not in {
                 "raw_log",
                 "irrevocable_owner_residency_raw",
             }:

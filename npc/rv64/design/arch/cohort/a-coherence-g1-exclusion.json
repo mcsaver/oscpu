@@ -1,7 +1,7 @@
 {
   "schema": "npc-rv64-architecture-debt-exclusion-v1",
   "debt_id": "A-COHERENCE-G1",
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
   "rationale": "The cohort contains one RV64 hart and no autonomous coherent or exclusive peer that may write the active LR/SC reservation granule; multi-master invalidation and coherent transport are outside this product boundary."
 }

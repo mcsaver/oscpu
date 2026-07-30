@@ -1,0 +1,49 @@
+{
+  "schema": "npc-rv64-task-round-state-v1",
+  "run_id": "2026-07-28-rv64-v10g-serialize-currentness-closure",
+  "classification": "architecture-debt-closure-diagnostic",
+  "status": "BOUNDED_COMPLETE",
+  "branch": "ai",
+  "git_head": "af027d1bce085bace474b748dcd89113145f8772",
+  "live_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "prior_current_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+  "active_architecture_debt": {
+    "id": "SERIALIZE-G1",
+    "priority": "P1",
+    "status": "CLOSED",
+    "review": "APPROVED_FOR_CURRENT_SCOPE"
+  },
+  "historical_defect_backfill": {
+    "status": "GAP",
+    "selected_id": "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+    "selected_depth": "VD1",
+    "blocking_ids": [
+      "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+      "HIST-SER-QH-STOP-HOLD-DROP"
+    ]
+  },
+  "verification": {
+    "serialize_closure": "PASS",
+    "checker_bound_replay": "9/9 PASS",
+    "architecture_directed_gates": "9/9 GREEN",
+    "architecture_negative_tests": "30/30 PASS",
+    "arch_stable_freeze_tests": "48/48 PASS",
+    "control_event_index": "167/167 PASS",
+    "current_audit_blockers": 32
+  },
+  "independent_currentness_review": {
+    "version": "v3",
+    "decision": "APPROVED_FOR_CURRENT_SCOPE",
+    "contract_sha256": "17447bad26426b3695ba8811f91c7b4894ecbea507c4f546f84f0c029533ff6e",
+    "report_sha256": "0d816e291693986cdc7e40a92ce6d48eeca0306ffaef22b7de613b922a21f207"
+  },
+  "promotion": {
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "full_system_rerun": {
+    "required": false,
+    "basis": "A3/A4 frozen evidence reports no production-core, actual-elaboration, device-model execution, configuration or required-input drift"
+  }
+}

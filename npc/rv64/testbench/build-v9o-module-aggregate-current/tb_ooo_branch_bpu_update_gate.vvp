@@ -8,86 +8,86 @@
 :vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2005_math.vpi";
 :vpi_module "/usr/lib/x86_64-linux-gnu/ivl/va_math.vpi";
 :vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2009.vpi";
-S_0x57d003e19270 .scope package, "$unit" "$unit" 2 1;
+S_0x5bddb5f43270 .scope package, "$unit" "$unit" 2 1;
  .timescale 0 0;
-S_0x57d003e18ec0 .scope module, "tb_ooo_branch_bpu_update_gate" "tb_ooo_branch_bpu_update_gate" 3 7;
+S_0x5bddb5f42ec0 .scope module, "tb_ooo_branch_bpu_update_gate" "tb_ooo_branch_bpu_update_gate" 3 7;
  .timescale -9 -12;
-v0x57d003e65d00_0 .net "branch_bpu_lookup_bht_valid", 0 0, L_0x57d003e68550;  1 drivers
-v0x57d003e65dc0_0 .net "branch_bpu_lookup_event", 0 0, L_0x57d003e67f30;  1 drivers
-v0x57d003e65e60_0 .net "branch_bpu_pending0_capture", 0 0, L_0x57d003e677c0;  1 drivers
-v0x57d003e65f60_0 .net "branch_bpu_pending1_capture", 0 0, L_0x57d003e67cc0;  1 drivers
-v0x57d003e66030_0 .net "branch_bpu_update_bht_idx", 9 0, L_0x57d003e68cc0;  1 drivers
-v0x57d003e66120_0 .net "branch_bpu_update_correct", 0 0, L_0x57d003e68a60;  1 drivers
-v0x57d003e661f0_0 .net "branch_bpu_update_pc", 63 0, L_0x57d003e68bb0;  1 drivers
-v0x57d003e662c0_0 .net "branch_bpu_update_pred_taken", 0 0, L_0x57d003e686b0;  1 drivers
-v0x57d003e66390_0 .net "branch_bpu_update_taken", 0 0, L_0x57d003e68830;  1 drivers
-v0x57d003e66460_0 .net "branch_bpu_update_valid", 0 0, L_0x57d003e68720;  1 drivers
-v0x57d003e66530_0 .var "can_run", 0 0;
-v0x57d003e66600_0 .var "direct_branch0_dispatch_valid", 0 0;
-v0x57d003e666d0_0 .var "direct_branch_bht_valid", 0 0;
-v0x57d003e667a0_0 .var "direct_branch_fire", 0 0;
-v0x57d003e66870_0 .var "direct_frontend_flush", 0 0;
-v0x57d003e66940_0 .var "dispatch0_branch", 0 0;
-v0x57d003e66a10_0 .var "dispatch1_barrier_fire", 0 0;
-v0x57d003e66ae0_0 .var/i "errors", 31 0;
-v0x57d003e66b80_0 .var "fifo_has_packet", 0 0;
-v0x57d003e66c50_0 .var "head0_branch_bht_valid", 0 0;
-v0x57d003e66d20_0 .var "head1_branch_bht_valid", 0 0;
-v0x57d003e66df0_0 .var "head1_branch_raw", 0 0;
-v0x57d003e66ec0_0 .var "resolve_update_bht_idx", 9 0;
-v0x57d003e66f90_0 .var "resolve_update_pc", 63 0;
-v0x57d003e67060_0 .var "resolve_update_pred_taken", 0 0;
-v0x57d003e67130_0 .var "resolve_update_taken", 0 0;
-v0x57d003e67200_0 .var "resolve_update_valid", 0 0;
-S_0x57d003e44190 .scope task, "check1" "check1" 3 67, 3 67 0, S_0x57d003e18ec0;
+v0x5bddb5f8fd00_0 .net "branch_bpu_lookup_bht_valid", 0 0, L_0x5bddb5f92550;  1 drivers
+v0x5bddb5f8fdc0_0 .net "branch_bpu_lookup_event", 0 0, L_0x5bddb5f91f30;  1 drivers
+v0x5bddb5f8fe60_0 .net "branch_bpu_pending0_capture", 0 0, L_0x5bddb5f917c0;  1 drivers
+v0x5bddb5f8ff60_0 .net "branch_bpu_pending1_capture", 0 0, L_0x5bddb5f91cc0;  1 drivers
+v0x5bddb5f90030_0 .net "branch_bpu_update_bht_idx", 9 0, L_0x5bddb5f92cc0;  1 drivers
+v0x5bddb5f90120_0 .net "branch_bpu_update_correct", 0 0, L_0x5bddb5f92a60;  1 drivers
+v0x5bddb5f901f0_0 .net "branch_bpu_update_pc", 63 0, L_0x5bddb5f92bb0;  1 drivers
+v0x5bddb5f902c0_0 .net "branch_bpu_update_pred_taken", 0 0, L_0x5bddb5f926b0;  1 drivers
+v0x5bddb5f90390_0 .net "branch_bpu_update_taken", 0 0, L_0x5bddb5f92830;  1 drivers
+v0x5bddb5f90460_0 .net "branch_bpu_update_valid", 0 0, L_0x5bddb5f92720;  1 drivers
+v0x5bddb5f90530_0 .var "can_run", 0 0;
+v0x5bddb5f90600_0 .var "direct_branch0_dispatch_valid", 0 0;
+v0x5bddb5f906d0_0 .var "direct_branch_bht_valid", 0 0;
+v0x5bddb5f907a0_0 .var "direct_branch_fire", 0 0;
+v0x5bddb5f90870_0 .var "direct_frontend_flush", 0 0;
+v0x5bddb5f90940_0 .var "dispatch0_branch", 0 0;
+v0x5bddb5f90a10_0 .var "dispatch1_barrier_fire", 0 0;
+v0x5bddb5f90ae0_0 .var/i "errors", 31 0;
+v0x5bddb5f90b80_0 .var "fifo_has_packet", 0 0;
+v0x5bddb5f90c50_0 .var "head0_branch_bht_valid", 0 0;
+v0x5bddb5f90d20_0 .var "head1_branch_bht_valid", 0 0;
+v0x5bddb5f90df0_0 .var "head1_branch_raw", 0 0;
+v0x5bddb5f90ec0_0 .var "resolve_update_bht_idx", 9 0;
+v0x5bddb5f90f90_0 .var "resolve_update_pc", 63 0;
+v0x5bddb5f91060_0 .var "resolve_update_pred_taken", 0 0;
+v0x5bddb5f91130_0 .var "resolve_update_taken", 0 0;
+v0x5bddb5f91200_0 .var "resolve_update_valid", 0 0;
+S_0x5bddb5f6e190 .scope task, "check1" "check1" 3 67, 3 67 0, S_0x5bddb5f42ec0;
  .timescale -9 -12;
-v0x57d003e44320_0 .var "exp", 0 0;
-v0x57d003e62730_0 .var "got", 0 0;
-v0x57d003e627f0_0 .var "name", 191 0;
+v0x5bddb5f6e320_0 .var "exp", 0 0;
+v0x5bddb5f8c730_0 .var "got", 0 0;
+v0x5bddb5f8c7f0_0 .var "name", 191 0;
 TD_tb_ooo_branch_bpu_update_gate.check1 ;
-    %load/vec4 v0x57d003e62730_0;
-    %load/vec4 v0x57d003e44320_0;
+    %load/vec4 v0x5bddb5f8c730_0;
+    %load/vec4 v0x5bddb5f6e320_0;
     %cmp/ne;
     %jmp/0xz  T_0.0, 6;
-    %load/vec4 v0x57d003e66ae0_0;
+    %load/vec4 v0x5bddb5f90ae0_0;
     %addi 1, 0, 32;
-    %store/vec4 v0x57d003e66ae0_0, 0, 32;
-    %vpi_call/w 3 74 "$display", "[FAIL] %0s got=%0b exp=%0b", v0x57d003e627f0_0, v0x57d003e62730_0, v0x57d003e44320_0 {0 0 0};
+    %store/vec4 v0x5bddb5f90ae0_0, 0, 32;
+    %vpi_call/w 3 74 "$display", "[FAIL] %0s got=%0b exp=%0b", v0x5bddb5f8c7f0_0, v0x5bddb5f8c730_0, v0x5bddb5f6e320_0 {0 0 0};
 T_0.0 ;
     %end;
-S_0x57d003e628b0 .scope task, "check64" "check64" 3 79, 3 79 0, S_0x57d003e18ec0;
+S_0x5bddb5f8c8b0 .scope task, "check64" "check64" 3 79, 3 79 0, S_0x5bddb5f42ec0;
  .timescale -9 -12;
-v0x57d003e62ab0_0 .var "exp", 63 0;
-v0x57d003e62b90_0 .var "got", 63 0;
-v0x57d003e62c70_0 .var "name", 191 0;
+v0x5bddb5f8cab0_0 .var "exp", 63 0;
+v0x5bddb5f8cb90_0 .var "got", 63 0;
+v0x5bddb5f8cc70_0 .var "name", 191 0;
 TD_tb_ooo_branch_bpu_update_gate.check64 ;
-    %load/vec4 v0x57d003e62b90_0;
-    %load/vec4 v0x57d003e62ab0_0;
+    %load/vec4 v0x5bddb5f8cb90_0;
+    %load/vec4 v0x5bddb5f8cab0_0;
     %cmp/ne;
     %jmp/0xz  T_1.2, 6;
-    %load/vec4 v0x57d003e66ae0_0;
+    %load/vec4 v0x5bddb5f90ae0_0;
     %addi 1, 0, 32;
-    %store/vec4 v0x57d003e66ae0_0, 0, 32;
-    %vpi_call/w 3 86 "$display", "[FAIL] %0s got=0x%016x exp=0x%016x", v0x57d003e62c70_0, v0x57d003e62b90_0, v0x57d003e62ab0_0 {0 0 0};
+    %store/vec4 v0x5bddb5f90ae0_0, 0, 32;
+    %vpi_call/w 3 86 "$display", "[FAIL] %0s got=0x%016x exp=0x%016x", v0x5bddb5f8cc70_0, v0x5bddb5f8cb90_0, v0x5bddb5f8cab0_0 {0 0 0};
 T_1.2 ;
     %end;
-S_0x57d003e62d30 .scope task, "check_bht" "check_bht" 3 91, 3 91 0, S_0x57d003e18ec0;
+S_0x5bddb5f8cd30 .scope task, "check_bht" "check_bht" 3 91, 3 91 0, S_0x5bddb5f42ec0;
  .timescale -9 -12;
-v0x57d003e62f10_0 .var "exp", 9 0;
-v0x57d003e62ff0_0 .var "got", 9 0;
-v0x57d003e630d0_0 .var "name", 191 0;
+v0x5bddb5f8cf10_0 .var "exp", 9 0;
+v0x5bddb5f8cff0_0 .var "got", 9 0;
+v0x5bddb5f8d0d0_0 .var "name", 191 0;
 TD_tb_ooo_branch_bpu_update_gate.check_bht ;
-    %load/vec4 v0x57d003e62ff0_0;
-    %load/vec4 v0x57d003e62f10_0;
+    %load/vec4 v0x5bddb5f8cff0_0;
+    %load/vec4 v0x5bddb5f8cf10_0;
     %cmp/ne;
     %jmp/0xz  T_2.4, 6;
-    %load/vec4 v0x57d003e66ae0_0;
+    %load/vec4 v0x5bddb5f90ae0_0;
     %addi 1, 0, 32;
-    %store/vec4 v0x57d003e66ae0_0, 0, 32;
-    %vpi_call/w 3 98 "$display", "[FAIL] %0s got=0x%0x exp=0x%0x", v0x57d003e630d0_0, v0x57d003e62ff0_0, v0x57d003e62f10_0 {0 0 0};
+    %store/vec4 v0x5bddb5f90ae0_0, 0, 32;
+    %vpi_call/w 3 98 "$display", "[FAIL] %0s got=0x%0x exp=0x%0x", v0x5bddb5f8d0d0_0, v0x5bddb5f8cff0_0, v0x5bddb5f8cf10_0 {0 0 0};
 T_2.4 ;
     %end;
-S_0x57d003e63190 .scope module, "dut" "OooBranchBpuUpdateGate" 3 38, 4 3 0, S_0x57d003e18ec0;
+S_0x5bddb5f8d190 .scope module, "dut" "OooBranchBpuUpdateGate" 3 38, 4 3 0, S_0x5bddb5f42ec0;
  .timescale 0 0;
     .port_info 0 /INPUT 1 "direct_frontend_flush_i";
     .port_info 1 /INPUT 1 "can_run_i";
@@ -115,126 +115,126 @@ S_0x57d003e63190 .scope module, "dut" "OooBranchBpuUpdateGate" 3 38, 4 3 0, S_0x
     .port_info 23 /OUTPUT 1 "branch_bpu_update_correct_o";
     .port_info 24 /OUTPUT 64 "branch_bpu_update_pc_o";
     .port_info 25 /OUTPUT 10 "branch_bpu_update_bht_idx_o";
-L_0x57d003e673a0 .functor AND 1, L_0x57d003e672d0, v0x57d003e66530_0, C4<1>, C4<1>;
-L_0x57d003e674b0 .functor AND 1, L_0x57d003e673a0, v0x57d003e66b80_0, C4<1>, C4<1>;
-L_0x57d003e675c0 .functor AND 1, L_0x57d003e674b0, v0x57d003e66940_0, C4<1>, C4<1>;
-L_0x57d003e677c0 .functor AND 1, L_0x57d003e675c0, L_0x57d003e676d0, C4<1>, C4<1>;
-L_0x57d003e679f0 .functor AND 1, L_0x57d003e67950, v0x57d003e66530_0, C4<1>, C4<1>;
-L_0x57d003e67ab0 .functor AND 1, L_0x57d003e679f0, v0x57d003e66b80_0, C4<1>, C4<1>;
-L_0x57d003e67bb0 .functor AND 1, L_0x57d003e67ab0, v0x57d003e66a10_0, C4<1>, C4<1>;
-L_0x57d003e67cc0 .functor AND 1, L_0x57d003e67bb0, v0x57d003e66df0_0, C4<1>, C4<1>;
-L_0x57d003e67e70 .functor OR 1, v0x57d003e667a0_0, L_0x57d003e677c0, C4<0>, C4<0>;
-L_0x57d003e67f30 .functor OR 1, L_0x57d003e67e70, L_0x57d003e67cc0, C4<0>, C4<0>;
-L_0x57d003e68280 .functor OR 1, L_0x57d003e680a0, L_0x57d003e68190, C4<0>, C4<0>;
-L_0x57d003e68550 .functor OR 1, L_0x57d003e68280, L_0x57d003e68390, C4<0>, C4<0>;
-L_0x57d003e68720 .functor BUFZ 1, v0x57d003e67200_0, C4<0>, C4<0>, C4<0>;
-L_0x57d003e68830 .functor BUFZ 1, v0x57d003e67130_0, C4<0>, C4<0>, C4<0>;
-L_0x57d003e686b0 .functor BUFZ 1, v0x57d003e67060_0, C4<0>, C4<0>, C4<0>;
-L_0x57d003e68a60 .functor XNOR 1, L_0x57d003e686b0, L_0x57d003e68830, C4<0>, C4<0>;
-L_0x57d003e68bb0 .functor BUFZ 64, v0x57d003e66f90_0, C4<0000000000000000000000000000000000000000000000000000000000000000>, C4<0000000000000000000000000000000000000000000000000000000000000000>, C4<0000000000000000000000000000000000000000000000000000000000000000>;
-L_0x57d003e68cc0 .functor BUFZ 10, v0x57d003e66ec0_0, C4<0000000000>, C4<0000000000>, C4<0000000000>;
-v0x57d003e635f0_0 .net *"_ivl_1", 0 0, L_0x57d003e672d0;  1 drivers
-v0x57d003e636d0_0 .net *"_ivl_13", 0 0, L_0x57d003e67950;  1 drivers
-v0x57d003e63790_0 .net *"_ivl_15", 0 0, L_0x57d003e679f0;  1 drivers
-v0x57d003e63830_0 .net *"_ivl_17", 0 0, L_0x57d003e67ab0;  1 drivers
-v0x57d003e638f0_0 .net *"_ivl_19", 0 0, L_0x57d003e67bb0;  1 drivers
-v0x57d003e63a00_0 .net *"_ivl_23", 0 0, L_0x57d003e67e70;  1 drivers
-L_0x7682368ce018 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
-v0x57d003e63ac0_0 .net/2u *"_ivl_26", 0 0, L_0x7682368ce018;  1 drivers
-v0x57d003e63ba0_0 .net *"_ivl_28", 0 0, L_0x57d003e680a0;  1 drivers
-v0x57d003e63c80_0 .net *"_ivl_3", 0 0, L_0x57d003e673a0;  1 drivers
-L_0x7682368ce060 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
-v0x57d003e63d40_0 .net/2u *"_ivl_30", 0 0, L_0x7682368ce060;  1 drivers
-v0x57d003e63e20_0 .net *"_ivl_32", 0 0, L_0x57d003e68190;  1 drivers
-v0x57d003e63f00_0 .net *"_ivl_34", 0 0, L_0x57d003e68280;  1 drivers
-L_0x7682368ce0a8 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
-v0x57d003e63fe0_0 .net/2u *"_ivl_36", 0 0, L_0x7682368ce0a8;  1 drivers
-v0x57d003e640c0_0 .net *"_ivl_38", 0 0, L_0x57d003e68390;  1 drivers
-v0x57d003e641a0_0 .net *"_ivl_5", 0 0, L_0x57d003e674b0;  1 drivers
-v0x57d003e64260_0 .net *"_ivl_7", 0 0, L_0x57d003e675c0;  1 drivers
-v0x57d003e64320_0 .net *"_ivl_9", 0 0, L_0x57d003e676d0;  1 drivers
-v0x57d003e643e0_0 .net "branch_bpu_lookup_bht_valid_o", 0 0, L_0x57d003e68550;  alias, 1 drivers
-v0x57d003e644a0_0 .net "branch_bpu_lookup_event_o", 0 0, L_0x57d003e67f30;  alias, 1 drivers
-v0x57d003e64560_0 .net "branch_bpu_pending0_capture_o", 0 0, L_0x57d003e677c0;  alias, 1 drivers
-v0x57d003e64620_0 .net "branch_bpu_pending1_capture_o", 0 0, L_0x57d003e67cc0;  alias, 1 drivers
-v0x57d003e646e0_0 .net "branch_bpu_update_bht_idx_o", 9 0, L_0x57d003e68cc0;  alias, 1 drivers
-v0x57d003e647c0_0 .net "branch_bpu_update_correct_o", 0 0, L_0x57d003e68a60;  alias, 1 drivers
-v0x57d003e64880_0 .net "branch_bpu_update_pc_o", 63 0, L_0x57d003e68bb0;  alias, 1 drivers
-v0x57d003e64960_0 .net "branch_bpu_update_pred_taken_o", 0 0, L_0x57d003e686b0;  alias, 1 drivers
-v0x57d003e64a20_0 .net "branch_bpu_update_taken_o", 0 0, L_0x57d003e68830;  alias, 1 drivers
-v0x57d003e64ae0_0 .net "branch_bpu_update_valid_o", 0 0, L_0x57d003e68720;  alias, 1 drivers
-v0x57d003e64ba0_0 .net "can_run_i", 0 0, v0x57d003e66530_0;  1 drivers
-v0x57d003e64c60_0 .net "direct_branch0_dispatch_valid_i", 0 0, v0x57d003e66600_0;  1 drivers
-v0x57d003e64d20_0 .net "direct_branch_bht_valid_i", 0 0, v0x57d003e666d0_0;  1 drivers
-v0x57d003e64de0_0 .net "direct_branch_fire_i", 0 0, v0x57d003e667a0_0;  1 drivers
-v0x57d003e64ea0_0 .net "direct_frontend_flush_i", 0 0, v0x57d003e66870_0;  1 drivers
-v0x57d003e64f60_0 .net "dispatch0_branch_i", 0 0, v0x57d003e66940_0;  1 drivers
-v0x57d003e65020_0 .net "dispatch1_barrier_fire_i", 0 0, v0x57d003e66a10_0;  1 drivers
-v0x57d003e650e0_0 .net "fifo_has_packet_i", 0 0, v0x57d003e66b80_0;  1 drivers
-v0x57d003e651a0_0 .net "head0_branch_bht_valid_i", 0 0, v0x57d003e66c50_0;  1 drivers
-v0x57d003e65260_0 .net "head1_branch_bht_valid_i", 0 0, v0x57d003e66d20_0;  1 drivers
-v0x57d003e65320_0 .net "head1_branch_raw_i", 0 0, v0x57d003e66df0_0;  1 drivers
-v0x57d003e653e0_0 .net "resolve_update_bht_idx_i", 9 0, v0x57d003e66ec0_0;  1 drivers
-v0x57d003e654c0_0 .net "resolve_update_pc_i", 63 0, v0x57d003e66f90_0;  1 drivers
-v0x57d003e655a0_0 .net "resolve_update_pred_taken_i", 0 0, v0x57d003e67060_0;  1 drivers
-v0x57d003e65660_0 .net "resolve_update_taken_i", 0 0, v0x57d003e67130_0;  1 drivers
-v0x57d003e65720_0 .net "resolve_update_valid_i", 0 0, v0x57d003e67200_0;  1 drivers
-L_0x57d003e672d0 .reduce/nor v0x57d003e66870_0;
-L_0x57d003e676d0 .reduce/nor v0x57d003e66600_0;
-L_0x57d003e67950 .reduce/nor v0x57d003e66870_0;
-L_0x57d003e680a0 .functor MUXZ 1, L_0x7682368ce018, v0x57d003e666d0_0, v0x57d003e667a0_0, C4<>;
-L_0x57d003e68190 .functor MUXZ 1, L_0x7682368ce060, v0x57d003e66c50_0, L_0x57d003e677c0, C4<>;
-L_0x57d003e68390 .functor MUXZ 1, L_0x7682368ce0a8, v0x57d003e66d20_0, L_0x57d003e67cc0, C4<>;
-S_0x57d003e65b20 .scope task, "reset_inputs" "reset_inputs" 3 103, 3 103 0, S_0x57d003e18ec0;
+L_0x5bddb5f913a0 .functor AND 1, L_0x5bddb5f912d0, v0x5bddb5f90530_0, C4<1>, C4<1>;
+L_0x5bddb5f914b0 .functor AND 1, L_0x5bddb5f913a0, v0x5bddb5f90b80_0, C4<1>, C4<1>;
+L_0x5bddb5f915c0 .functor AND 1, L_0x5bddb5f914b0, v0x5bddb5f90940_0, C4<1>, C4<1>;
+L_0x5bddb5f917c0 .functor AND 1, L_0x5bddb5f915c0, L_0x5bddb5f916d0, C4<1>, C4<1>;
+L_0x5bddb5f919f0 .functor AND 1, L_0x5bddb5f91950, v0x5bddb5f90530_0, C4<1>, C4<1>;
+L_0x5bddb5f91ab0 .functor AND 1, L_0x5bddb5f919f0, v0x5bddb5f90b80_0, C4<1>, C4<1>;
+L_0x5bddb5f91bb0 .functor AND 1, L_0x5bddb5f91ab0, v0x5bddb5f90a10_0, C4<1>, C4<1>;
+L_0x5bddb5f91cc0 .functor AND 1, L_0x5bddb5f91bb0, v0x5bddb5f90df0_0, C4<1>, C4<1>;
+L_0x5bddb5f91e70 .functor OR 1, v0x5bddb5f907a0_0, L_0x5bddb5f917c0, C4<0>, C4<0>;
+L_0x5bddb5f91f30 .functor OR 1, L_0x5bddb5f91e70, L_0x5bddb5f91cc0, C4<0>, C4<0>;
+L_0x5bddb5f92280 .functor OR 1, L_0x5bddb5f920a0, L_0x5bddb5f92190, C4<0>, C4<0>;
+L_0x5bddb5f92550 .functor OR 1, L_0x5bddb5f92280, L_0x5bddb5f92390, C4<0>, C4<0>;
+L_0x5bddb5f92720 .functor BUFZ 1, v0x5bddb5f91200_0, C4<0>, C4<0>, C4<0>;
+L_0x5bddb5f92830 .functor BUFZ 1, v0x5bddb5f91130_0, C4<0>, C4<0>, C4<0>;
+L_0x5bddb5f926b0 .functor BUFZ 1, v0x5bddb5f91060_0, C4<0>, C4<0>, C4<0>;
+L_0x5bddb5f92a60 .functor XNOR 1, L_0x5bddb5f926b0, L_0x5bddb5f92830, C4<0>, C4<0>;
+L_0x5bddb5f92bb0 .functor BUFZ 64, v0x5bddb5f90f90_0, C4<0000000000000000000000000000000000000000000000000000000000000000>, C4<0000000000000000000000000000000000000000000000000000000000000000>, C4<0000000000000000000000000000000000000000000000000000000000000000>;
+L_0x5bddb5f92cc0 .functor BUFZ 10, v0x5bddb5f90ec0_0, C4<0000000000>, C4<0000000000>, C4<0000000000>;
+v0x5bddb5f8d5f0_0 .net *"_ivl_1", 0 0, L_0x5bddb5f912d0;  1 drivers
+v0x5bddb5f8d6d0_0 .net *"_ivl_13", 0 0, L_0x5bddb5f91950;  1 drivers
+v0x5bddb5f8d790_0 .net *"_ivl_15", 0 0, L_0x5bddb5f919f0;  1 drivers
+v0x5bddb5f8d830_0 .net *"_ivl_17", 0 0, L_0x5bddb5f91ab0;  1 drivers
+v0x5bddb5f8d8f0_0 .net *"_ivl_19", 0 0, L_0x5bddb5f91bb0;  1 drivers
+v0x5bddb5f8da00_0 .net *"_ivl_23", 0 0, L_0x5bddb5f91e70;  1 drivers
+L_0x789617157018 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v0x5bddb5f8dac0_0 .net/2u *"_ivl_26", 0 0, L_0x789617157018;  1 drivers
+v0x5bddb5f8dba0_0 .net *"_ivl_28", 0 0, L_0x5bddb5f920a0;  1 drivers
+v0x5bddb5f8dc80_0 .net *"_ivl_3", 0 0, L_0x5bddb5f913a0;  1 drivers
+L_0x789617157060 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v0x5bddb5f8dd40_0 .net/2u *"_ivl_30", 0 0, L_0x789617157060;  1 drivers
+v0x5bddb5f8de20_0 .net *"_ivl_32", 0 0, L_0x5bddb5f92190;  1 drivers
+v0x5bddb5f8df00_0 .net *"_ivl_34", 0 0, L_0x5bddb5f92280;  1 drivers
+L_0x7896171570a8 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v0x5bddb5f8dfe0_0 .net/2u *"_ivl_36", 0 0, L_0x7896171570a8;  1 drivers
+v0x5bddb5f8e0c0_0 .net *"_ivl_38", 0 0, L_0x5bddb5f92390;  1 drivers
+v0x5bddb5f8e1a0_0 .net *"_ivl_5", 0 0, L_0x5bddb5f914b0;  1 drivers
+v0x5bddb5f8e260_0 .net *"_ivl_7", 0 0, L_0x5bddb5f915c0;  1 drivers
+v0x5bddb5f8e320_0 .net *"_ivl_9", 0 0, L_0x5bddb5f916d0;  1 drivers
+v0x5bddb5f8e3e0_0 .net "branch_bpu_lookup_bht_valid_o", 0 0, L_0x5bddb5f92550;  alias, 1 drivers
+v0x5bddb5f8e4a0_0 .net "branch_bpu_lookup_event_o", 0 0, L_0x5bddb5f91f30;  alias, 1 drivers
+v0x5bddb5f8e560_0 .net "branch_bpu_pending0_capture_o", 0 0, L_0x5bddb5f917c0;  alias, 1 drivers
+v0x5bddb5f8e620_0 .net "branch_bpu_pending1_capture_o", 0 0, L_0x5bddb5f91cc0;  alias, 1 drivers
+v0x5bddb5f8e6e0_0 .net "branch_bpu_update_bht_idx_o", 9 0, L_0x5bddb5f92cc0;  alias, 1 drivers
+v0x5bddb5f8e7c0_0 .net "branch_bpu_update_correct_o", 0 0, L_0x5bddb5f92a60;  alias, 1 drivers
+v0x5bddb5f8e880_0 .net "branch_bpu_update_pc_o", 63 0, L_0x5bddb5f92bb0;  alias, 1 drivers
+v0x5bddb5f8e960_0 .net "branch_bpu_update_pred_taken_o", 0 0, L_0x5bddb5f926b0;  alias, 1 drivers
+v0x5bddb5f8ea20_0 .net "branch_bpu_update_taken_o", 0 0, L_0x5bddb5f92830;  alias, 1 drivers
+v0x5bddb5f8eae0_0 .net "branch_bpu_update_valid_o", 0 0, L_0x5bddb5f92720;  alias, 1 drivers
+v0x5bddb5f8eba0_0 .net "can_run_i", 0 0, v0x5bddb5f90530_0;  1 drivers
+v0x5bddb5f8ec60_0 .net "direct_branch0_dispatch_valid_i", 0 0, v0x5bddb5f90600_0;  1 drivers
+v0x5bddb5f8ed20_0 .net "direct_branch_bht_valid_i", 0 0, v0x5bddb5f906d0_0;  1 drivers
+v0x5bddb5f8ede0_0 .net "direct_branch_fire_i", 0 0, v0x5bddb5f907a0_0;  1 drivers
+v0x5bddb5f8eea0_0 .net "direct_frontend_flush_i", 0 0, v0x5bddb5f90870_0;  1 drivers
+v0x5bddb5f8ef60_0 .net "dispatch0_branch_i", 0 0, v0x5bddb5f90940_0;  1 drivers
+v0x5bddb5f8f020_0 .net "dispatch1_barrier_fire_i", 0 0, v0x5bddb5f90a10_0;  1 drivers
+v0x5bddb5f8f0e0_0 .net "fifo_has_packet_i", 0 0, v0x5bddb5f90b80_0;  1 drivers
+v0x5bddb5f8f1a0_0 .net "head0_branch_bht_valid_i", 0 0, v0x5bddb5f90c50_0;  1 drivers
+v0x5bddb5f8f260_0 .net "head1_branch_bht_valid_i", 0 0, v0x5bddb5f90d20_0;  1 drivers
+v0x5bddb5f8f320_0 .net "head1_branch_raw_i", 0 0, v0x5bddb5f90df0_0;  1 drivers
+v0x5bddb5f8f3e0_0 .net "resolve_update_bht_idx_i", 9 0, v0x5bddb5f90ec0_0;  1 drivers
+v0x5bddb5f8f4c0_0 .net "resolve_update_pc_i", 63 0, v0x5bddb5f90f90_0;  1 drivers
+v0x5bddb5f8f5a0_0 .net "resolve_update_pred_taken_i", 0 0, v0x5bddb5f91060_0;  1 drivers
+v0x5bddb5f8f660_0 .net "resolve_update_taken_i", 0 0, v0x5bddb5f91130_0;  1 drivers
+v0x5bddb5f8f720_0 .net "resolve_update_valid_i", 0 0, v0x5bddb5f91200_0;  1 drivers
+L_0x5bddb5f912d0 .reduce/nor v0x5bddb5f90870_0;
+L_0x5bddb5f916d0 .reduce/nor v0x5bddb5f90600_0;
+L_0x5bddb5f91950 .reduce/nor v0x5bddb5f90870_0;
+L_0x5bddb5f920a0 .functor MUXZ 1, L_0x789617157018, v0x5bddb5f906d0_0, v0x5bddb5f907a0_0, C4<>;
+L_0x5bddb5f92190 .functor MUXZ 1, L_0x789617157060, v0x5bddb5f90c50_0, L_0x5bddb5f917c0, C4<>;
+L_0x5bddb5f92390 .functor MUXZ 1, L_0x7896171570a8, v0x5bddb5f90d20_0, L_0x5bddb5f91cc0, C4<>;
+S_0x5bddb5f8fb20 .scope task, "reset_inputs" "reset_inputs" 3 103, 3 103 0, S_0x5bddb5f42ec0;
  .timescale -9 -12;
 TD_tb_ooo_branch_bpu_update_gate.reset_inputs ;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66870_0, 0, 1;
+    %store/vec4 v0x5bddb5f90870_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66530_0, 0, 1;
+    %store/vec4 v0x5bddb5f90530_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66b80_0, 0, 1;
+    %store/vec4 v0x5bddb5f90b80_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66940_0, 0, 1;
+    %store/vec4 v0x5bddb5f90940_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66600_0, 0, 1;
+    %store/vec4 v0x5bddb5f90600_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66a10_0, 0, 1;
+    %store/vec4 v0x5bddb5f90a10_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66df0_0, 0, 1;
+    %store/vec4 v0x5bddb5f90df0_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e667a0_0, 0, 1;
+    %store/vec4 v0x5bddb5f907a0_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e666d0_0, 0, 1;
+    %store/vec4 v0x5bddb5f906d0_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66c50_0, 0, 1;
+    %store/vec4 v0x5bddb5f90c50_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e66d20_0, 0, 1;
+    %store/vec4 v0x5bddb5f90d20_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e67200_0, 0, 1;
+    %store/vec4 v0x5bddb5f91200_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e67130_0, 0, 1;
+    %store/vec4 v0x5bddb5f91130_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e67060_0, 0, 1;
+    %store/vec4 v0x5bddb5f91060_0, 0, 1;
     %pushi/vec4 2147484160, 0, 64;
-    %store/vec4 v0x57d003e66f90_0, 0, 64;
+    %store/vec4 v0x5bddb5f90f90_0, 0, 64;
     %pushi/vec4 0, 0, 10;
-    %store/vec4 v0x57d003e66ec0_0, 0, 10;
+    %store/vec4 v0x5bddb5f90ec0_0, 0, 10;
     %end;
-    .scope S_0x57d003e18ec0;
+    .scope S_0x5bddb5f42ec0;
 T_4 ;
     %pushi/vec4 0, 0, 32;
-    %store/vec4 v0x57d003e66ae0_0, 0, 32;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %store/vec4 v0x5bddb5f90ae0_0, 0, 32;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66530_0, 0, 1;
+    %store/vec4 v0x5bddb5f90530_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66b80_0, 0, 1;
+    %store/vec4 v0x5bddb5f90b80_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66940_0, 0, 1;
+    %store/vec4 v0x5bddb5f90940_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66c50_0, 0, 1;
+    %store/vec4 v0x5bddb5f90c50_0, 0, 1;
     %delay 1000, 0;
     %pushi/vec4 108, 0, 32; draw_string_vec4
     %pushi/vec4 1634624816, 0, 32; draw_string_vec4
@@ -247,12 +247,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1953854053, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65e60_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fe60_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 27759, 0, 32; draw_string_vec4
@@ -265,12 +265,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634624816, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65dc0_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fdc0_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 27759, 0, 32; draw_string_vec4
     %pushi/vec4 1869313392, 0, 32; draw_string_vec4
@@ -283,15 +283,15 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634624816, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65d00_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fd00_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66600_0, 0, 1;
+    %store/vec4 v0x5bddb5f90600_0, 0, 1;
     %delay 1000, 0;
     %pushi/vec4 3369264864, 0, 33;
     %concati/vec4 3270035152, 0, 32;
@@ -299,25 +299,25 @@ T_4 ;
     %concati/vec4 2376977537, 0, 32;
     %concati/vec4 3247815057, 0, 32;
     %concati/vec4 695101232, 0, 30;
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65e60_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fe60_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66530_0, 0, 1;
+    %store/vec4 v0x5bddb5f90530_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66b80_0, 0, 1;
+    %store/vec4 v0x5bddb5f90b80_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66a10_0, 0, 1;
+    %store/vec4 v0x5bddb5f90a10_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66df0_0, 0, 1;
+    %store/vec4 v0x5bddb5f90df0_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66d20_0, 0, 1;
+    %store/vec4 v0x5bddb5f90d20_0, 0, 1;
     %delay 1000, 0;
     %pushi/vec4 108, 0, 32; draw_string_vec4
     %pushi/vec4 1634624817, 0, 32; draw_string_vec4
@@ -330,12 +330,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1953854053, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65f60_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8ff60_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 27759, 0, 32; draw_string_vec4
     %pushi/vec4 1869313392, 0, 32; draw_string_vec4
@@ -348,15 +348,15 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634624817, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65d00_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fd00_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e66870_0, 0, 1;
+    %store/vec4 v0x5bddb5f90870_0, 0, 1;
     %delay 1000, 0;
     %pushi/vec4 3940995136, 0, 33;
     %concati/vec4 3302547142, 0, 32;
@@ -364,19 +364,19 @@ T_4 ;
     %concati/vec4 3269249634, 0, 32;
     %concati/vec4 2173535681, 0, 33;
     %concati/vec4 880112229, 0, 30;
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65f60_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8ff60_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e667a0_0, 0, 1;
+    %store/vec4 v0x5bddb5f907a0_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e666d0_0, 0, 1;
+    %store/vec4 v0x5bddb5f906d0_0, 0, 1;
     %delay 1000, 0;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 6580594, 0, 32; draw_string_vec4
@@ -389,12 +389,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1986358900, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65dc0_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fdc0_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 6580594, 0, 32; draw_string_vec4
     %pushi/vec4 1701016608, 0, 32; draw_string_vec4
@@ -407,14 +407,14 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634494820, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e65d00_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f8fd00_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %delay 1000, 0;
     %pushi/vec4 3940600002, 0, 33;
@@ -423,25 +423,25 @@ T_4 ;
     %concati/vec4 3838502622, 0, 32;
     %concati/vec4 3639396928, 0, 32;
     %concati/vec4 1768189029, 0, 31;
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66460_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90460_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e67200_0, 0, 1;
+    %store/vec4 v0x5bddb5f91200_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e67130_0, 0, 1;
+    %store/vec4 v0x5bddb5f91130_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e67060_0, 0, 1;
+    %store/vec4 v0x5bddb5f91060_0, 0, 1;
     %pushi/vec4 2147487748, 0, 64;
-    %store/vec4 v0x57d003e66f90_0, 0, 64;
+    %store/vec4 v0x5bddb5f90f90_0, 0, 64;
     %pushi/vec4 291, 0, 10;
-    %store/vec4 v0x57d003e66ec0_0, 0, 10;
+    %store/vec4 v0x5bddb5f90ec0_0, 0, 10;
     %delay 1000, 0;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 1919251311, 0, 32; draw_string_vec4
@@ -454,12 +454,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634494820, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66460_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90460_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 1919251311, 0, 32; draw_string_vec4
@@ -472,12 +472,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634428270, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66390_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90390_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 114, 0, 32; draw_string_vec4
     %pushi/vec4 1702063980, 0, 32; draw_string_vec4
@@ -490,12 +490,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1668572516, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e662c0_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f902c0_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 29285, 0, 32; draw_string_vec4
     %pushi/vec4 1936682102, 0, 32; draw_string_vec4
@@ -508,12 +508,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1919247220, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66120_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90120_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 114, 0, 32; draw_string_vec4
@@ -526,12 +526,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1696624739, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e62c70_0, 0, 192;
-    %load/vec4 v0x57d003e661f0_0;
-    %store/vec4 v0x57d003e62b90_0, 0, 64;
+    %store/vec4 v0x5bddb5f8cc70_0, 0, 192;
+    %load/vec4 v0x5bddb5f901f0_0;
+    %store/vec4 v0x5bddb5f8cb90_0, 0, 64;
     %pushi/vec4 2147487748, 0, 64;
-    %store/vec4 v0x57d003e62ab0_0, 0, 64;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check64, S_0x57d003e628b0;
+    %store/vec4 v0x5bddb5f8cab0_0, 0, 64;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check64, S_0x5bddb5f8c8b0;
     %join;
     %pushi/vec4 0, 0, 32; draw_string_vec4
     %pushi/vec4 29285, 0, 32; draw_string_vec4
@@ -544,25 +544,25 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 543320180, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e630d0_0, 0, 192;
-    %load/vec4 v0x57d003e66030_0;
-    %store/vec4 v0x57d003e62ff0_0, 0, 10;
+    %store/vec4 v0x5bddb5f8d0d0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90030_0;
+    %store/vec4 v0x5bddb5f8cff0_0, 0, 10;
     %pushi/vec4 291, 0, 10;
-    %store/vec4 v0x57d003e62f10_0, 0, 10;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check_bht, S_0x57d003e62d30;
+    %store/vec4 v0x5bddb5f8cf10_0, 0, 10;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check_bht, S_0x5bddb5f8cd30;
     %join;
-    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x57d003e65b20;
+    %fork TD_tb_ooo_branch_bpu_update_gate.reset_inputs, S_0x5bddb5f8fb20;
     %join;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e67200_0, 0, 1;
+    %store/vec4 v0x5bddb5f91200_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e67130_0, 0, 1;
+    %store/vec4 v0x5bddb5f91130_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e67060_0, 0, 1;
+    %store/vec4 v0x5bddb5f91060_0, 0, 1;
     %pushi/vec4 2147491840, 0, 64;
-    %store/vec4 v0x57d003e66f90_0, 0, 64;
+    %store/vec4 v0x5bddb5f90f90_0, 0, 64;
     %pushi/vec4 86, 0, 10;
-    %store/vec4 v0x57d003e66ec0_0, 0, 10;
+    %store/vec4 v0x5bddb5f90ec0_0, 0, 10;
     %delay 1000, 0;
     %pushi/vec4 2176165325, 0, 34;
     %concati/vec4 3251213713, 0, 32;
@@ -570,12 +570,12 @@ T_4 ;
     %concati/vec4 3586232709, 0, 32;
     %concati/vec4 3516170713, 0, 32;
     %concati/vec4 560752996, 0, 30;
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66460_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90460_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 1919251311, 0, 32; draw_string_vec4
     %pushi/vec4 1819698464, 0, 32; draw_string_vec4
@@ -588,12 +588,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1634428270, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66390_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90390_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 1, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 3639396928, 0, 33;
     %concati/vec4 3671254752, 0, 32;
@@ -601,12 +601,12 @@ T_4 ;
     %concati/vec4 3337109714, 0, 32;
     %concati/vec4 3704020708, 0, 32;
     %concati/vec4 1919247220, 0, 31;
-    %store/vec4 v0x57d003e627f0_0, 0, 192;
-    %load/vec4 v0x57d003e66120_0;
-    %store/vec4 v0x57d003e62730_0, 0, 1;
+    %store/vec4 v0x5bddb5f8c7f0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90120_0;
+    %store/vec4 v0x5bddb5f8c730_0, 0, 1;
     %pushi/vec4 0, 0, 1;
-    %store/vec4 v0x57d003e44320_0, 0, 1;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x57d003e44190;
+    %store/vec4 v0x5bddb5f6e320_0, 0, 1;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check1, S_0x5bddb5f6e190;
     %join;
     %pushi/vec4 114, 0, 32; draw_string_vec4
     %pushi/vec4 1702063980, 0, 32; draw_string_vec4
@@ -619,12 +619,12 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 1948282979, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e62c70_0, 0, 192;
-    %load/vec4 v0x57d003e661f0_0;
-    %store/vec4 v0x57d003e62b90_0, 0, 64;
+    %store/vec4 v0x5bddb5f8cc70_0, 0, 192;
+    %load/vec4 v0x5bddb5f901f0_0;
+    %store/vec4 v0x5bddb5f8cb90_0, 0, 64;
     %pushi/vec4 2147491840, 0, 64;
-    %store/vec4 v0x57d003e62ab0_0, 0, 64;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check64, S_0x57d003e628b0;
+    %store/vec4 v0x5bddb5f8cab0_0, 0, 64;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check64, S_0x5bddb5f8c8b0;
     %join;
     %pushi/vec4 29285, 0, 32; draw_string_vec4
     %pushi/vec4 1936682102, 0, 32; draw_string_vec4
@@ -637,20 +637,20 @@ T_4 ;
     %concat/vec4; draw_string_vec4
     %pushi/vec4 543320180, 0, 32; draw_string_vec4
     %concat/vec4; draw_string_vec4
-    %store/vec4 v0x57d003e630d0_0, 0, 192;
-    %load/vec4 v0x57d003e66030_0;
-    %store/vec4 v0x57d003e62ff0_0, 0, 10;
+    %store/vec4 v0x5bddb5f8d0d0_0, 0, 192;
+    %load/vec4 v0x5bddb5f90030_0;
+    %store/vec4 v0x5bddb5f8cff0_0, 0, 10;
     %pushi/vec4 86, 0, 10;
-    %store/vec4 v0x57d003e62f10_0, 0, 10;
-    %fork TD_tb_ooo_branch_bpu_update_gate.check_bht, S_0x57d003e62d30;
+    %store/vec4 v0x5bddb5f8cf10_0, 0, 10;
+    %fork TD_tb_ooo_branch_bpu_update_gate.check_bht, S_0x5bddb5f8cd30;
     %join;
-    %load/vec4 v0x57d003e66ae0_0;
+    %load/vec4 v0x5bddb5f90ae0_0;
     %cmpi/e 0, 0, 32;
     %jmp/0xz  T_4.0, 4;
     %vpi_call/w 3 195 "$display", "[PASS] tb_ooo_branch_bpu_update_gate" {0 0 0};
     %vpi_call/w 3 196 "$finish" {0 0 0};
 T_4.0 ;
-    %vpi_call/w 3 198 "$display", "[FAIL] tb_ooo_branch_bpu_update_gate errors=%0d", v0x57d003e66ae0_0 {0 0 0};
+    %vpi_call/w 3 198 "$display", "[FAIL] tb_ooo_branch_bpu_update_gate errors=%0d", v0x5bddb5f90ae0_0 {0 0 0};
     %vpi_call/w 3 199 "$finish" {0 0 0};
     %end;
     .thread T_4;

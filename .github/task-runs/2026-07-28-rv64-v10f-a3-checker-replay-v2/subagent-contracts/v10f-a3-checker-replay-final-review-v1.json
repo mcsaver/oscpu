@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10f_a3_checker_replay_final_review_v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 A3 冻结系统事务与 checker replay：核验镜像内实际 strict checker 哈希、旧/新 dmesg 正则、六类终端事务、周期/提交数、RTL assertion 空集、设计/仿真器/配置前后绑定以及完整重跑门；保留 A3 原始 FAIL 与 A4 中断状态。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay/contract.md",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay/replay-a3-checker.py",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay/checker-replay-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay/a3-checker-replay.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/contract.md",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/replay-a3-checker-v2.py",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/run-v10f-a3-checker-replay-v2.sh",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/a3-checker-replay-v2.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/base-replay-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/a3-embedded-strict-checker.sh",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2.log",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/strict-checker-unit.log",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/source-input-sha256.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/post-binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/simulator-defines.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/terminal-markers.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/rtl-assertion-failures.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/rootfs-binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-5f9dd068-systemd-strict-6b-a4/simulator-defines.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/subagent-contracts/v10f-a3-checker-replay-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地证据文件→周期/配置→testbench/EDA 观测→PASS/GAP 范围组织结论；优先寻找镜像 checker 与绑定不一致、旧正则还命中其它关键行、新正则漏报真实 BUG、重复/乱序终端事件、非空 RTL assertion、哈希漂移或重跑门误判等反例；最终只可给出 APPROVED_NOT_PROMOTION_ELIGIBLE 或带具体证据的 REJECTED。"
+  ],
+  "success_criteria": [
+    "确认 A3 原始 FAIL 未改写；镜像 checker SHA-256 与 strict_checker_sha256 相等；旧 regex 仅命中两条 printk debug、当前 regex 对 A3 为零命中且真实 BUG fixture 被拒绝；strict 历史 16/17 与唯一 dmesg-no-critical FAIL 保留；六类终端 marker 各一次且有序；5,071,521,696 cycles、1,223,536,213 commits；RTL assertion 文件为空；设计/仿真器/配置/启动产物无漂移；四项完整重跑触发条件均不成立；A4 不得作为 PASS，checker replay 不得资格化架构或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

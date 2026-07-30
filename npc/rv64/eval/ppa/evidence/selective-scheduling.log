@@ -1,6 +1,6 @@
 OOO-2 selective-scheduling directed evidence
-generated_at_utc=2026-07-27T00:58:48.859776+00:00
-design_id=sha256:13d868334de2a0813f91af318f25434f8e93c581adc67d0b562fcc1f6f8dc951
+generated_at_utc=2026-07-29T12:54:16.139876+00:00
+design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
 backend_profiles=release,assert
 leaf_profiles=release,assert
 target_producer_ids=3,3
@@ -9,10 +9,10 @@ younger_independent_issued=true
 different_resource_issued=true
 global_freeze_cycles=0
 mutation_count=5
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-assert-backend/logs/tb_ooo_int_backend.log 62d7298677e825ec8d2bff0a17c33b433ceebb2adb9f98b9cd6796c6c90bb911
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-assert-leaf/logs/tb_ooo_int_issue_queue.log c2421fd0e1f8d04a6e428f663dd8db8d906be05b3334756be537492a73be6aa4
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-release-backend/logs/tb_ooo_int_backend.log a678ed46808d5239666b6d2cb0bcdc12f791272fbe21eae5ab2e5296bbd76b47
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-release-leaf/logs/tb_ooo_int_issue_queue.log 6445de94e307eb279bf06427f7f6c566d1bd126a3da1e9f1e5d19d5a801d2051
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-assert-backend/logs/tb_ooo_int_backend.log c549c61029c88cfd7cb0672af780b99227afab59953fc68213e5e25f97a6bb27
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-assert-leaf/logs/tb_ooo_int_issue_queue.log f47d11b618ac293e8c9677c96c179eb2b25bc80a0826e12087e4c4cbbf31cb46
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-release-backend/logs/tb_ooo_int_backend.log fc79770b4fa7b3505bd35753b662c260ba11b18bfc3e924ab1e63a3baa3bdbf9
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/baseline-release-leaf/logs/tb_ooo_int_issue_queue.log 6a9e43e2160346d9db6af7ce14d209ae35c8b7881bbf176264da50ad8df58ce5
 artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/mutation-summary.log 6738cf196f5e533219f14577eb05521580ff6255362e3e4c78f17419d4a78f9d
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/sources.pre.sha256 73a80036a3fd6875a72fdc89527feaf7c6a19d8f4482e3d6b35488a368a4a71f
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/evidence/focused/sources.pre.sha256 22bcd78824cac83a1d8f04a7527155fcc6c60a94dabfa783ecad5f5b0d8b34a0
 [ARCH-GATE] selective_scheduling PASS

@@ -1,0 +1,106 @@
+{
+  "schema": "rv64-round-state-v1",
+  "round": "V11G",
+  "primary_objective": "OooStoreQueue resident ProducerId and owner-token semantic coverage",
+  "classification": "verification-only",
+  "status": "GLOBAL_SEMANTIC_GAP",
+  "design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+  "production_store_queue_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+  "verification_testbench_sha256": "86ea1b71c03071c965fc09af1068475d0c0bca314b73b6b4338bb23ab1516fb0",
+  "production_rtl_changed": false,
+  "bounded_scope_status": "PASS",
+  "semantic_complete": false,
+  "hypotheses": {
+    "H1": "current production OooStoreQueue holder lifecycle is correct under the declared legal interface contract, but current source-bound semantic evidence is incomplete",
+    "H2": "a reachable production RTL defect exists in allocation, bind, request, terminal, release, or flush holder lifetime",
+    "H3": "V9L assertion evidence already closes both semantic units"
+  },
+  "hypothesis_decision": {
+    "accepted": "H1",
+    "rejected": [
+      "H2",
+      "H3"
+    ],
+    "review_blockers": 0
+  },
+  "discriminating_experiment": {
+    "oracle": "stimulus-owned four-entry raw-Q edge model",
+    "positive_profiles": 4,
+    "generation_widths": [
+      1,
+      4
+    ],
+    "assertion_modes": [
+      "OOO_ASSERT on",
+      "OOO_ASSERT off"
+    ],
+    "compile_success_mutation_cases": 24,
+    "mutation_simulations": 48,
+    "mutation_simulations_rejected": 48
+  },
+  "cost_class": "focused-low",
+  "windows_to_wsl": {
+    "policy": "single-flight",
+    "second_engineering_process_started": false
+  },
+  "semantic_counts": {
+    "semantic_units": 44,
+    "holder_instances": 17,
+    "unit_instance_bindings": 50,
+    "semantic_pass": 10,
+    "semantic_gap": 34
+  },
+  "independent_review": {
+    "status": "APPROVED_BOUNDED_STORE_QUEUE_HOLDER_SCOPE",
+    "contract_sha256": "60ae84f5ea0a1b09a337ec6f71f2d0a284cc9f1f9e59f7a3eaca5780cc888dd5",
+    "blockers": 0,
+    "scope_extension_request": "none",
+    "remaining_boundary": "upstream-illegal-input-reachability-and-global-holder-collision-fence"
+  },
+  "workflow_evidence": {
+    "npc_dev_first_attempt": "BLOCKED_BOUNDED_RECALL_FOCUS_NOT_STORED",
+    "npc_dev": {
+      "status": "PASS",
+      "run_id": "2026-07-30-store-queue-holder-semantic-revtag-v11g-2",
+      "nodes_pass": 5
+    },
+    "arch_stable_observation": "EXPECTED_GAP_51_OF_53_NO_V11G_NEW_FAILURE",
+    "scoped_strict_guard": "PASS",
+    "full_worktree_strict_guard": "GAP_RV64_LINUX_MISSING_EVIDENCE",
+    "indexed_raw_evidence_assets": 351,
+    "stored_task_run_markdown": 9,
+    "stored_memory_documents": 2,
+    "snapshot_stored": "PASS",
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS",
+    "runtime_artifact_audit": "PASS",
+    "final_identity": "PASS"
+  },
+  "commit_gate": {
+    "status": "GAP_MIXED_ORIGIN_WORKTREE",
+    "branch": "ai",
+    "head": "af027d1bce085bace474b748dcd89113145f8772",
+    "tracked_modified": 254,
+    "untracked_files": 1688,
+    "preexisting_staged_files": 1,
+    "staged_or_committed_by_v11g": false
+  },
+  "promotion": {
+    "store-queue-producers": "PASS",
+    "store-queue-owner-tokens": "PASS",
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  },
+  "system_run": {
+    "started": false,
+    "reason": "no production RTL, elaborated RTL, simulator, or device-model semantic change"
+  },
+  "a3": {
+    "historical_status": "FAIL_RC_1_PRESERVED",
+    "system_transaction": "COMPLETE",
+    "classification": "OLD_DMESG_ORACLE_FALSE_POSITIVE",
+    "checker_replay": "PASS",
+    "full_rerun_required": false
+  }
+}

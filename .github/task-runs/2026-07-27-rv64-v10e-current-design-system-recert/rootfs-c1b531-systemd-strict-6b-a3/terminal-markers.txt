@@ -1,0 +1,6 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:10:[npc-systemd-check] done marker: __NPC_SYSTEMD_STRICT_DONE__ rc=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:481:__NPC_SYSTEMD_STRICT_BEGIN__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:635:__NPC_SYSTEMD_STRICT_DONE__ rc=1
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:636:__NPC_SYSTEMD_POWEROFF_BEGIN__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:881:[1;34m[cpu-exec.cpp:2232 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x00000000800237ae[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/driver.log:1007:[1;34m[cpu-exec.cpp:2232 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x00000000800237ae[0m

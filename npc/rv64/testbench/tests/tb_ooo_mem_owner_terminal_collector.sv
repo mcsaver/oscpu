@@ -33,6 +33,7 @@ module tb_ooo_mem_owner_terminal_collector;
   integer drain_i;
   reg [8:0] held0_tuple;
   reg [8:0] held1_tuple;
+  reg [8:0] held1_turnover_tuple;
 
   OooMemOwnerTerminalCollector #(
     .INGRESS_N(INGRESS_N)
@@ -124,6 +125,15 @@ module tb_ooo_mem_owner_terminal_collector;
     @(negedge clk);
     rst = 1'b0;
 
+`ifdef V11B_TCOLL_UNKNOWN_NEGATIVE
+    configure_lane(0, 5'd2, 2'b00, 2'b01);
+    ingress_token[4:0] = 5'bxxxxx;
+    ingress_valid[0] = 1'b1;
+    @(posedge clk);
+    #1;
+    $display("[V11B-TCOLL-UNKNOWN-NEGATIVE][FAIL] unknown valid ingress escaped the assertion");
+    $fatal(1);
+`else
     // Acceptance is the transfer authority exported to OooIntBackend.  Probe
     // malformed and duplicate raw ingress only combinationally so the
     // fail-loud assertion configuration is never weakened or bypassed.
@@ -200,19 +210,45 @@ module tb_ooo_mem_owner_terminal_collector;
       fail("stalled dequeue tuple or pending count changed");
 
     @(negedge clk);
-    deq0_ready = 1'b1;
+    deq0_ready = 1'b0;
     deq1_ready = 1'b1;
     ingress_valid[0] = 1'b1;
-    ingress_kind[1:0] = deq0_kind;
-    ingress_token[4:0] = deq0_token;
-    ingress_epoch[1:0] = deq0_epoch;
+    ingress_kind[1:0] = deq1_kind;
+    ingress_token[4:0] = deq1_token;
+    ingress_epoch[1:0] = deq1_epoch;
     #1;
     if (ingress_accept[0])
       fail("same-edge dequeue/re-enqueue raw ingress was marked accepted");
     ingress_valid[0] = 1'b0;
     #1;
     $display("[V9Y-TCOLL-SAME-EDGE-REENQUEUE] accept=0 PASS");
-    for (drain_i = 0; drain_i < 14; drain_i = drain_i + 1) begin
+
+    // Exercise the dequeue pair asymmetrically.  Lane1 turns over while lane0
+    // holds its exact tuple, then lane0 turns over while the refilled lane1
+    // tuple is held.  The scoreboard counts raw dequeue fires directly.
+    record_terminal(deq1_token, deq1_kind, deq1_epoch);
+    @(posedge clk);
+    #1;
+    if ({deq0_kind, deq0_token, deq0_epoch} !== held0_tuple ||
+        !deq1_valid || (pending_count !== 6'd11))
+      fail("lane1 turnover changed held lane0 or lost pending ownership");
+    held1_turnover_tuple = {deq1_kind, deq1_token, deq1_epoch};
+    $display("[V11B-TCOLL-LANE1-TURNOVER] lane0_hold=1 pending=11 PASS");
+
+    @(negedge clk);
+    deq0_ready = 1'b1;
+    deq1_ready = 1'b0;
+    record_terminal(deq0_token, deq0_kind, deq0_epoch);
+    @(posedge clk);
+    #1;
+    if ({deq1_kind, deq1_token, deq1_epoch} !== held1_turnover_tuple ||
+        !deq0_valid || (pending_count !== 6'd10))
+      fail("lane0 turnover changed held lane1 or lost pending ownership");
+    $display("[V11B-TCOLL-LANE0-TURNOVER] lane1_hold=1 pending=10 PASS");
+
+    @(negedge clk);
+    deq1_ready = 1'b1;
+    for (drain_i = 0; drain_i < 12; drain_i = drain_i + 1) begin
       #1;
       if (deq0_valid)
         record_terminal(deq0_token, deq0_kind, deq0_epoch);
@@ -235,5 +271,6 @@ module tb_ooo_mem_owner_terminal_collector;
              seen_count, seen_mask);
     $display("[PASS] tb_ooo_mem_owner_terminal_collector");
     $finish;
+`endif
   end
 endmodule

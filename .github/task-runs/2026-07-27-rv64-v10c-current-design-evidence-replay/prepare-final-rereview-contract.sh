@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+run_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(git -C "${run_dir}" rev-parse --show-toplevel)"
+tool="${repo_root}/.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py"
+contract_rel=".github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/subagent-contracts/final-reviewer-v2.json"
+contract="${repo_root}/${contract_rel}"
+rendered="${run_dir}/subagent-contracts/final-reviewer-v2.rendered.txt"
+
+if [[ -e "${contract}" || -e "${rendered}" ]]; then
+  printf 'refusing to overwrite existing V10C final-rereview artifacts\n' >&2
+  exit 2
+fi
+
+python3 "${tool}" create \
+  --task-id rv64-v10c-status-contract-final-rereview-v2 \
+  --task-kind read-only-review \
+  --goal '独立复审本地 RV64 V10C 长回放状态发布修复。v1 已确认 attempt 6 的 9/9 architecture、15/15 CLOSED、35/35 artifact hash、当前 design-id 与三处 compile-success 负向敏感度均为技术 PASS，但因 runner 缺少显式 evidence-complete 和 HUP/INT/TERM stage/signal/cleanup 发布而给出 CHANGES_REQUIRED。核对 `run-current-design-evidence-replay.sh` 现在只在 final currentness audit 与 unchanged design-id 之后 mark evidence complete，所有普通失败与 HUP/INT/TERM 都经 `scripts/task-run-status.sh` 写标准 FAIL，且详细 `replay.status` 不会把中断保留为旧 PASS。核对 helper 单测、attempt 7 final-audit-only 语义、标准/详细状态和无 RTL/oracle 变更。' \
+  --allow-path .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay \
+  --allow-path scripts/task-run-status.sh \
+  --allow-path scripts/tests/test-task-run-status.sh \
+  --allow-path npc/rv64/design/arch/architecture-debt-ledger.json \
+  --allow-path npc/rv64/eval/ppa/arch-stable/full-core-current.json \
+  --allow-path .github/AGENTS.md \
+  --allow-path .github/instructions/rtl-agent-task-contract.instructions.md \
+  --allow-read-command rg \
+  --allow-read-command sed \
+  --allow-read-command 'git status' \
+  --allow-read-command 'git diff' \
+  --allow-read-command 'git show' \
+  --allow-read-command sha256sum \
+  --required-context .github/AGENTS.md \
+  --required-context .github/instructions/rtl-agent-task-contract.instructions.md \
+  --required-context scripts/task-run-status.sh \
+  --required-context scripts/tests/test-task-run-status.sh \
+  --required-context .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/run-current-design-evidence-replay.sh \
+  --required-context .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/task-report.md \
+  --required-context .github/task-runs/2026-07-27-rv64-v10c-current-design-evidence-replay/round-state.json \
+  --deliverable '按“本地 RV64 runner/状态证据对象 → attempt/config → raw shell/status observation → PASS/GAP 范围”输出 v2 复审。先列 findings；再逐项判定 v1 P1 blocker 是否关闭：显式 evidence-complete、失败 stage、HUP/INT/TERM signal、cleanup rc、原子状态、旧 PASS 覆盖；再核对 attempt 7 只声明末端审计而未冒充仿真重跑；最后确认 RTL/oracle/GAP/PPA 边界未改变。无阻断项时写 APPROVED_FOR_CURRENT_SCOPE，否则写 CHANGES_REQUIRED。' \
+  --success-criterion '只读复核 runner/helper/tests/log/status/JSON/git diff，不运行仿真、综合或 STA，不修改文件。必须确认 runner 初始化时标准状态先变 RUNNING；信号与普通失败经 EXIT finalizer 写 FAIL 且包含 stage/evidence_complete/cleanup_rc 以及信号名；PASS 只有 mark_evidence_complete 后可达；attempt 7 日志明确跳过仿真阶段，只运行 closed-evidence-currentness，并观察 design-id 13d868…、closed=15、artifacts=35、failures=0、task-run.status=PASS、replay.status=PASS complete。不得将该状态修复扩大为 SERIALIZE-G1、rootfs、arch-stable 或 PPA closure；结束时显式归还 Windows→WSL 唯一工程命令 lane。' \
+  --out "${contract_rel}"
+
+python3 "${tool}" validate "${contract_rel}"
+python3 "${tool}" render "${contract_rel}" | tee "${rendered}"

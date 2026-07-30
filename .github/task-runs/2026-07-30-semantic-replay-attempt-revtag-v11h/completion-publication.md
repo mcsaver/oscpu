@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-semantic-replay-attempt-revtag-v11h
+- `trace_id`: e2e:2026-07-30-semantic-replay-attempt-revtag-v11h
+- `task_slug`: semantic-replay-attempt-revtag-v11h
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 17632c6d15d37195e91949e946fbc937c2d4180a1ee07573711568c5362e4cbb
+- `task_report_md_sha256`: b22bff0ef43aee3799d423cc4e8221a3afc8c21134d3399cd14c5388035753c8
+- `run_manifest_json_sha256`: 650d920d37a50bf0c0ce40e3191ede4ba9a2dc95edfe1220ec80399582784b17
+- `context_brief_md_sha256`: 4ce5f5ce9814241dd228aeee59a8cd9f15917b22d69bc7237fce577b5d9cb853
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 4370bebda6ced557a1c9747d4881017f4c9cbb6dcf740f38da7fd9323a64fa7a
+- `dispatch_log_md_sha256`: b7aad1ea544f8c0f262300e9a684139b1d5ce17ba467f42adfb2b4f005639045
+- `nodes_tsv_sha256`: a8e4f2519e6eeb93749b81030ff21288298980a201cd3ce7721671913e32c2e2

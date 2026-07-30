@@ -70,6 +70,12 @@ rootfs_file_contains() {
   rootfs_cat "$path" | grep -Eq -- "$pattern"
 }
 
+rootfs_file_contains_fixed() {
+  local path=$1
+  local text=$2
+  rootfs_cat "$path" | grep -Fq -- "$text"
+}
+
 rootfs_file_contains_binary() {
   local path=$1
   local pattern=$2
@@ -555,10 +561,11 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^    done_marker=__NPC_SYSTEMD_STRICT_DONE__$' &&
        rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^echo "\$done_marker rc=\$check_fail"$' &&
        rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check 'pass virtio-blk-direct-read' &&
+       rootfs_file_contains_fixed /usr/local/sbin/ysyx-npc-systemd-strict-check '(^|[^[:alnum:]_])BUG:' &&
        rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-strict-check '^  systemctl --no-wall poweroff '; then
-      echo "[ubuntu-rootfs-check] OK      NPC strict guest markers and virtio-blk check"
+      echo "[ubuntu-rootfs-check] OK      NPC strict markers, bounded BUG token, and virtio-blk check"
     else
-      echo "[ubuntu-rootfs-check] MISSING NPC strict guest markers or virtio-blk check"
+      echo "[ubuntu-rootfs-check] MISSING NPC strict markers, bounded BUG token, or virtio-blk check"
       systemd_missing=1
     fi
 

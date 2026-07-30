@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11c-memory-tracker-semantic-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooMemOwnerTracker 的 memory-tracker-producer-map 与 memory-tracker-live-set 逐周期合同：allocation birth、live hold、exact/bulk death、edge-old no-rebirth、ProducerId map 与 token-set 一致性、X-known 入口；判断当前 RTL 是否正确且仅缺当前绑定的负向灵敏度，明确排除 tracker-next-token-cursor 与全核结论，不修改 RTL。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-07-19-rv64-v8g-memory-producer-lease",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse",
+      ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/subagent-contracts/v11c-memory-tracker-semantic-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与周期边界给出 H1/H2/H3 裁决；列出 map/live-set 已覆盖与缺失的正向观测、断言、compile-success 负向变体、X-known 反例、假绿风险；每项标明 PASS/GAP/UNKNOWN 和最小闭合动作。"
+  ],
+  "success_criteria": [
+    "只有两个单实例单元在当前 RTL/TB 绑定下具备非自证 birth/hold/death/next-cycle-reuse、exact membership/map、unknown-input 拒绝及编译成功变体拒绝证据时才建议闭合；不得闭合 next-token cursor，不得削弱断言或用终端事件去重掩盖重复事件。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

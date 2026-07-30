@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e_runner_prelaunch_review_v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 双发射 OoO design-id sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594 的 V10E systemd-strict 修订执行器做第二轮启动前独立反例复核，逐项确认 cleanup 失败必落 FAIL、VNpcSimTop Verilator manifest 证明 queue-head 与两类断言 define、V10E/V9S 共用全工作区 single-flight lock、隔离 rootfs 初始哈希及 config/Makefile/simulator/kernel/OpenSBI/DTB pre/post 哈希均为 fail-closed；不修改 RTL、testbench 或脚本，并判定 pre-launch PASS、GAP 或 inconclusive。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      "Linux/Makefile",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/prepare-npc-rootfs-run-image.sh",
+      "scripts/task-run-status.sh",
+      "npc/rv64/Makefile",
+      "npc/rv64/scripts/config.mk",
+      "npc/rv64/configs/default_defconfig",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/contract.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v1.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/contract.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v1.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/prepare-npc-rootfs-run-image.sh",
+      "scripts/task-run-status.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "首行按 RV64 RTL 对象或本地证据文件、周期或编译配置、testbench 或 EDA 观测、PASS/GAP 范围组织；随后逐项裁决 V1 反例是否闭合，列出任何新假绿路径、未知项、替代假设、scope_extension_request 与 confidence_and_basis，并明确归还 single-flight ownership。"
+  ],
+  "success_criteria": [
+    "仅当修订执行器能证明当前设计、默认 Kconfig、实际生成的三项 Verilator define、6B 预算、全工作区互斥、rootfs pre-image、17/17 transaction evidence、自然 poweroff、reset-syscon 与 GOOD TRAP、clean simulator exit、全部 immutable artifact post-hash 及所有失败状态落盘均为 fail-closed 时给出 pre-launch PASS；任何仍可使错误配置、产物漂移、不完整退出或 cleanup 失败取得 PASS 或滞留 RUNNING 的路径均须给出 GAP 或 inconclusive，并精确指向文件与行。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

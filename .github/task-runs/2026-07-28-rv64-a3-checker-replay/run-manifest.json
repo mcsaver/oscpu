@@ -1,0 +1,78 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/evidence",
+    "evidence_index": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-28-rv64-a3-checker-replay",
+    "run_manifest": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 3,
+    "by_kind": {
+      "log": 3
+    },
+    "total_size_bytes": 20302
+  },
+  "final_result": "profile=rv64-systemd-contract 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "af027d1bc",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-28-rv64-a3-checker-replay/evidence/npc-rv64-systemd-guest-check-contract.log",
+      "function": "e2e_npc_rv64_systemd_guest_check_contract",
+      "inputs": "RV64 systemd guest checker + terminal transaction + isolated rootfs + debug-valid diagnostic contract",
+      "module": "npc",
+      "node_id": "npc-rv64-systemd-guest-check-contract",
+      "outputs": "Checker 正反例、真实 power-down/syscon/system-reset 事务、rootfs 工作副本与 debug-valid 合同 PASS",
+      "owner_agent": "npc",
+      "source_profile": "rv64-systemd-contract",
+      "status": "PASS"
+    }
+  ],
+  "profile": "rv64-systemd-contract",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-28-rv64-a3-checker-replay",
+  "schema_version": 1,
+  "started_at": "2026-07-28 17:51:16 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "rv64-a3-checker-replay",
+  "trace_id": "e2e:2026-07-28-rv64-a3-checker-replay",
+  "updated_at": "2026-07-28 17:52:05 +0800"
+}

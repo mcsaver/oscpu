@@ -182,7 +182,8 @@ case "$irq_before:$irq_after" in
     ;;
 esac
 
-bad_dmesg="$(dmesg 2>/dev/null | grep -i -E 'kernel panic|oops|BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error' | tail -20 || true)"
+bad_dmesg_regex='kernel panic|oops|(^|[^[:alnum:]_])BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error'
+bad_dmesg="$(dmesg 2>/dev/null | grep -i -E "$bad_dmesg_regex" | tail -20 || true)"
 if [ -z "$bad_dmesg" ]; then
   pass dmesg-no-critical
 else

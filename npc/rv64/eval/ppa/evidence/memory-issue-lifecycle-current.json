@@ -3,7 +3,7 @@
     {
       "kind": "mem_issue_focused_log",
       "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/focused/mem-issue/logs/tb_ooo_int_backend.log",
-      "sha256": "0b5690059a4dd75a696d4a4e7a5dc0268eaa4753c7f76fe594487be316776b64"
+      "sha256": "74d1d50e73f2405f32013af1fb6bc65b04b0c178dd76cb6ea6e5347eec8dd0af"
     },
     {
       "kind": "miq_flush_focused_log",
@@ -13,12 +13,12 @@
     {
       "kind": "module_aggregate_summary",
       "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/summary.txt",
-      "sha256": "27b40a7936f5b89b3381e721b717d36275a9640ceafccef478133129045e97cb"
+      "sha256": "fe8ac2aeba52dfa389aa0eb34891829dd858ce8d4b692c5dfa74d6a9c42a6817"
     },
     {
       "kind": "rtl_variant_summary",
       "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/summary.json",
-      "sha256": "57277c22f548a31278079d06a86c01234b9f5a9b2a7127bf3f03ad477939f5b4"
+      "sha256": "fd7b0dfa093c8537c23a4a868ea6e99e5e6b0f8180e6ff8ceec0d00d9bcec67b"
     }
   ],
   "canonical_command": "make -C npc/rv64 check-memory-issue-lifecycle",
@@ -30,10 +30,10 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "focused_tests": {
     "mem_issue_lifecycle": {
-      "log_sha256": "0b5690059a4dd75a696d4a4e7a5dc0268eaa4753c7f76fe594487be316776b64",
+      "log_sha256": "74d1d50e73f2405f32013af1fb6bc65b04b0c178dd76cb6ea6e5347eec8dd0af",
       "status": "PASS"
     },
     "miq_flush_lifecycle": {
@@ -120,8 +120,8 @@
   },
   "module_aggregate": {
     "failed": 0,
-    "passed": 111,
-    "required": 111,
+    "passed": 113,
+    "required": 113,
     "tests": {
       "tb_alu": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_alu.log",
@@ -253,7 +253,7 @@
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_core_top_glue.log",
-        "sha256": "ebbcb52557997bf7e66a37f5b4de8f0cd0f28f076a8b45757cbf2c14ead3e5e5"
+        "sha256": "914e522f1c3c31f29d6722c79e66b416fb6f49c7da0f10775409016d5814368d"
       },
       "tb_ooo_csr_access_request_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_csr_access_request_mux.log",
@@ -297,7 +297,7 @@
       },
       "tb_ooo_fetch_axi_bridge": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge.log",
-        "sha256": "be0475699ad1d5fe152c017bc4c64a22b0a24bb89b4f72f25602f5814d2ab317"
+        "sha256": "5c972d0d41dea395bc8ff01ef7204cc7caf5ab2c040dd698dd36816d8a295000"
       },
       "tb_ooo_fetch_axi_bridge_xbar": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge_xbar.log",
@@ -433,7 +433,7 @@
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_int_backend.log",
-        "sha256": "2dfbe16da919544b4e0042019f12da371fb31ced674699a100be9931e5d34e25"
+        "sha256": "1bd2c0dad048e6a57a8f826797b3f052c1f807872c779a7bdf8c654b7a52548d"
       },
       "tb_ooo_int_issue_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_int_issue_queue.log",
@@ -457,7 +457,7 @@
       },
       "tb_ooo_mem_owner_terminal_collector": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_mem_owner_terminal_collector.log",
-        "sha256": "0acbaeec5e6201ff6b2b028617f4f673ee2184a60ba273de41362dc0873455ae"
+        "sha256": "3639af0780b1e23e91dd6aee49bac69f0265827b1cd53e9e7a2d699b952737b9"
       },
       "tb_ooo_mem_owner_tracker": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_mem_owner_tracker.log",
@@ -475,13 +475,17 @@
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_muldiv_unit.log",
         "sha256": "f327b6b4e39700854c3ce5c7658231b2ef629481d5a188853be687bda86875f8"
       },
+      "tb_ooo_pending_arch_trap_memory_terminal": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_pending_arch_trap_memory_terminal.log",
+        "sha256": "d9c1b73a5977baa17ad723ad84ee446f16a32a8cabb1f21068988f6302148fb2"
+      },
       "tb_ooo_pending_dispatch_arbiter": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_pending_dispatch_arbiter.log",
         "sha256": "d93e4b8005a64e4f822b01bf2fdce255db34515503660e0c678de7901405584e"
       },
       "tb_ooo_pending_drain_resolve_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_pending_drain_resolve_gate.log",
-        "sha256": "cc11a4db7397b372fc31e685a232f8f1609036b005dfc3af546546d5cfcf8325"
+        "sha256": "ba30cd5dd159e107097b17a086415e30805f157f3b20ba91529e96d8acec8f55"
       },
       "tb_ooo_pending_lane1_capture_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_pending_lane1_capture_gate.log",
@@ -497,7 +501,7 @@
       },
       "tb_ooo_pending_trap_exit_sequencer": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_pending_trap_exit_sequencer.log",
-        "sha256": "6acb20457fa0714a9a515355c8e89b2ee81e9b5754304a925058aed504f3d614"
+        "sha256": "bbbccdcd232d34e8648e12af9678483ccc7fd6bfc1cd5870826cf6bbb810f167"
       },
       "tb_ooo_phys_reg_file": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_phys_reg_file.log",
@@ -509,7 +513,7 @@
       },
       "tb_ooo_priv_system": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
-        "sha256": "7cc9fff3bd48b3ba0530d4909ad13673cc8ef76766a50b031523fd80408f9a5d"
+        "sha256": "51d764ce3ef3211df844a91fa731c8ddeed1bc17d993a555f256b4af612ed8e4"
       },
       "tb_ooo_ras_update_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_ras_update_gate.log",
@@ -525,11 +529,15 @@
       },
       "tb_ooo_rob": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_rob.log",
-        "sha256": "10caa3d2a4901c9f8e2c8ba29e6fd9bc7d274cc414c2db5940fc4f603ccdb14e"
+        "sha256": "f01236ab0adf3f8ec7a89552ff9902d4e6477d23838df050b33cdaed9f7e9335"
+      },
+      "tb_ooo_serialized_owner_exactly_once": {
+        "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_serialized_owner_exactly_once.log",
+        "sha256": "4e87a052945565b0f224b2896f0d85f1a250a06b61a9b8cb0fdeed0f91445d46"
       },
       "tb_ooo_stop_pending_sequencer": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_stop_pending_sequencer.log",
-        "sha256": "37e6d2caa55822c203a9d7aa04044628f77620e70d28bf807d6dcbd47030edf1"
+        "sha256": "690fadb40be34485dcb0b14c620ba91bb2667f4c145ea21ff178869c0a560ea2"
       },
       "tb_ooo_store_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_store_queue.log",
@@ -537,15 +545,15 @@
       },
       "tb_ooo_sv39_boot": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_sv39_boot.log",
-        "sha256": "85f9df4d9aca20a0cb72fc1accb9e7702a19d88ded943495cfba334777e3ae2a"
+        "sha256": "837cc9e72b9d8618555b4d22f5d0b4172fb6c338865d3b8a8a31938247860b2b"
       },
       "tb_ooo_trap_exit_event_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_trap_exit_event_mux.log",
-        "sha256": "358f8fe85cd982db43721ede2274705d5885d37ef0aea7e36b82f13263ca5813"
+        "sha256": "f5af9ce428c2e06eca986be1278f753c36a7bfd7f65563927d340b991cb0ea07"
       },
       "tb_ooo_trap_exit_output_sequencer": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_trap_exit_output_sequencer.log",
-        "sha256": "02041b61a009591fec6e77a02a8e61b180a8959533d917c3185184cf0d57f9d6"
+        "sha256": "c60dbe52d066f2796ac89700598e5b97a9e9dd4f0507ca40ab0866ed0da09282"
       },
       "tb_ooo_typed_memory_classifier": {
         "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/module-aggregate/logs/tb_ooo_typed_memory_classifier.log",
@@ -589,26 +597,26 @@
       "npc/rv64/vsrc/common/OooSlotFacts.v": "9e57f514234340a93943bbaea8504b4bb6f9d57d9ef8bc20121fb6575613163a",
       "npc/rv64/vsrc/control/OooControlEventApplySequencer.v": "ba3124ea66ed569445df24912a5a51906e86a7301a16fd6662514d4051f61d0c",
       "npc/rv64/vsrc/control/OooControlFlushSequencer.v": "1f3e568a1896361c611a754796263a11873cacde6cdc5b02ba8ee0307a291260",
-      "npc/rv64/vsrc/control/OooControlPlane.v": "bb74fb39fcafa73c4a2fabdb7ebe1cfa2c196a9aafbad969735253be8790e35e",
+      "npc/rv64/vsrc/control/OooControlPlane.v": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
       "npc/rv64/vsrc/control/OooCoreObservableOutputGate.v": "3c3aeafabfbf8a2bc6821173f0a19826b44645699c7d34c4da4e0ad561428bfb",
       "npc/rv64/vsrc/control/OooCoreSliceControlGate.v": "95841293d4190cdb2073243228881074c31852a040c0d5f541c8341e5115cb7e",
       "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
       "npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v": "5007f5970858cdf3baf0e6f29c44a6c8e7bb4e926a3888c510d1b2f1d389d7af",
-      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "3d1a9e2b712b15c1af7247ba5d4863e23e38e0136af28af837a42acf61a5a6a8",
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
       "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": "157608c4fba71ec4469f99620ca43bf5659a5fdcaa28a8616f5bc332edab635e",
-      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "6be380f766d03dfffbbe970b696226c14fd6eea4c6d741b491108c760be108b6",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
       "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": "856322775198cb694f3d8d9d534545319d16cdb70e3dc65272ffb8c4d423d83d",
       "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
       "npc/rv64/vsrc/control/OooPendingSystemSequencer.v": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
-      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "be0e2810faf76a95d4ab5e9638d1b8b8f4182fdd23a1f0d160411539e5a12a9f",
+      "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": "759eabf4952f062d9c9143ad35c19daecbf340c8dc86e601229d19b23f5de304",
       "npc/rv64/vsrc/control/OooRedirectArbiter.v": "6ac39c942a1cf0a8a9e782f546e2508bd94a33804e6f78cdcf4684c1557bf3c1",
-      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "1f49276a62b3c8c06e1f2e51351dc837300a9822eb1c05d120fb0ae72b4059f9",
-      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "177e232cbf04e47721b34f9ae329b8d6448d2b34169520079d9f12a78c0b8a75",
-      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "af8bf333c2dee7928790b30eae4562e7c57c91cdc10014f9db557e073f411244",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
+      "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
+      "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
       "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
-      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "0fdb0b5737157efef30d25f0d622c0280140b58afbb2a0391125f5c79e12dd66",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
       "npc/rv64/vsrc/debug/OooAdUpdateChecker.sv": "3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42",
       "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv": "c8b76d3d8abf32cfef2516a0024e2ba6f3d9306526ab3382e438b021982d09d4",
       "npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv": "ecbcf80612859aa41a6da8bf50a4cfbc55d2ddf785c21071e014244bfb9e4d38",
@@ -618,16 +626,16 @@
       "npc/rv64/vsrc/decode/DecodeStage.v": "3565521516a719773a3d440b3d9de592ce263927546da1ff8c52a5aec06f68e5",
       "npc/rv64/vsrc/decode/DecodeUnit.v": "a457a7b1fe65e528295de35c5107fa26f2bcf501c2a71af064517224c58ab763",
       "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
-      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "48a268510c8b688ebce829f99637b9d932f4bcc3e3d95f504e2cded18e976c5d",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
       "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
       "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
       "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
       "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
-      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "98d4e997aa1a87f808e1bd1285f4d8aab860baea324d8b1fd5b787d898fa6109",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
       "npc/rv64/vsrc/execute/OooAmoGate.v": "6a1f7818864646f390bd3d69b21d8aa97252abfabcb3ec4cdf8f02a60229eebb",
       "npc/rv64/vsrc/execute/OooBitmanipGate.v": "441a38dc7e70ac2768d613fdb5558be6d946faa3118b6bc601e7a6b2f6c47e19",
       "npc/rv64/vsrc/execute/OooClmulUnit.v": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
-      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "b7959de74f0c223898d7e60ff19d01d157919a3802e474ac0ab7966e985dedfe",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
       "npc/rv64/vsrc/execute/OooFpArithGate.v": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
       "npc/rv64/vsrc/execute/OooFpBackend.v": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
       "npc/rv64/vsrc/execute/OooFpClassifyGate.v": "a9c9ae843b0455ac9b9f13effcc3f28aa60277131f58612511caa3728f5ef015",
@@ -639,7 +647,7 @@
       "npc/rv64/vsrc/execute/OooFpRound.v": "030ced9ded4ea32062dd9b72e178d6bbbb5ef256b3f7c0a3e278995256a27ce2",
       "npc/rv64/vsrc/execute/OooFpSgnjGate.v": "8557cc364a19060f6cc09d413c24ef71d153b2bb20237b5bc34fb901b822451a",
       "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
-      "npc/rv64/vsrc/execute/OooIntBackend.v": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
       "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
       "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
@@ -664,7 +672,7 @@
       "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v": "ffaf24fce78f01de87446870bd1b1e4e4a1e05d09cdd3418160f4bbee599ccae",
       "npc/rv64/vsrc/frontend/OooFetchRequestMux.v": "256a87074e242ad4f051e4fd733147319db8af1f3314cf3e7ec44e48838a13a2",
       "npc/rv64/vsrc/frontend/OooFetchStaticClassify.v": "1b8a4e3f1a06d69af1d3277f3a009520d94587bb9a4f8bcb06e434bbfbbf316a",
-      "npc/rv64/vsrc/frontend/OooFrontend.v": "816473c9ae6296b707e00840a512fdfbd18975ad28dcf40a11ba34c6938dc760",
+      "npc/rv64/vsrc/frontend/OooFrontend.v": "cf146eb2d8a1a007bb876420c1243ad3500b0a7e4b20aa51769521ac7cbcd1d9",
       "npc/rv64/vsrc/frontend/OooFrontendActionGate.v": "ab30a7d0d944c7f1e41d7cd0c48b82a1569afbf7ebd35e9f05fd91749aa2176d",
       "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v": "4e47268041261ca51615772ac6cadf92acd60399e69bbb8cfc907b94777ba49c",
       "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": "89de85b5302b8a54427b754c0398065c2c02d8c5baddbf85942ab68ad8f61da3",
@@ -672,7 +680,7 @@
       "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
       "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
       "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
-      "npc/rv64/vsrc/include/define.v": "9773faaa76f10a450945b30bfc6ac9aec5c796a3baab89ba90998e09b136d781",
+      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
       "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
       "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
@@ -682,7 +690,7 @@
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
       "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
       "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
-      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "56c1cc17662c96cbf4300e77fa7b26d4420e6130cde0eb49b6a7f3402e90aefb",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
       "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
       "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
@@ -708,7 +716,7 @@
       "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
       "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
       "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
-      "npc/rv64/vsrc/sim/NpcSimTop.sv": "e897b4257d96e538e7846dadaea6f6b99702c3212cdf45ce45d5e1c9b3d35334",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
       "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
       "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
       "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -718,21 +726,21 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "rtl_sha256": "1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+    "rtl_sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
     "source_bindings": {
       ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/contract.md": "9b54cd1b0c2a7d2236cc8b9ade5d3b2dca5b824eee256696fb9cd85a3ac4edd4",
       ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/rtl-derivation.md": "ba6fac7081d3b972e4aa4a83c6816a4e17441a6df3d7d6256f5c75b166563374",
       ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/run-focused.sh": "a7ce8662824c40ce4466608e94a99a82af5e8f7ed7554d94937c64d71a286b86",
       ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/run-memory-lifecycle-variants.py": "917150b594f0dac5c7ef6778f91aca06a5a8331959899de99b18fb9127c38387",
-      "npc/rv64/Makefile": "fb4110acb7cf3c4ff1964b8b93e3e516ffdea4a4cf1f97b6f8f96c1dc0f81118",
+      "npc/rv64/Makefile": "e062f72d6ec79e44568dea09595c1cfda27db1380c72982cbffab30395f2dfe9",
       "npc/rv64/eval/ppa/tests/test_memory_issue_lifecycle_evidence.py": "03db6f096825d076aafc4cb9e1d6f3244786aeeee7c67790511a33348f7cf9a9",
-      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "98172046f59d4d01425e2afe2c9819f8de8f87b105f6d1c5a5cb89fc188a0a3a",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "f005650ee9e8e11a7225ee32eaa6bb35fac4a7a6ca081c8a8c92df84c6e54724",
       "npc/rv64/eval/ppa/tools/memory_issue_lifecycle_evidence.py": "61d609d5496cd15bb439328c7d1c0ae872d1d7e2a4f251ab54f73ac4f04e0a30",
-      "npc/rv64/testbench/Makefile": "1a044aca87fed86a5032a648323e65da309607002a003452ac319b7f12508a4c",
+      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
-      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "17bd60028b95baa21247f8f54ad3a5745c4a8732cfb985b15b3d625e90843d0e",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "d46ca7723fa89f120e24efa8ba25ac7f4344e87cde767d42e502f16d01303a8b",
       "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54",
-      "npc/rv64/vsrc/execute/OooIntBackend.v": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
       "npc/rv64/vsrc/memory/OooStoreQueue.v": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
     }
@@ -779,17 +787,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue0_miq_birth_uses_terminal1_identity.log",
-          "sha256": "90114c2a201fc6420aa0065fd1a9ee41746988f93863fd093fa52abe231c130b"
+          "sha256": "5866d330f6f933eee018671cdcb879b92c960952faf026e000249b712ecd70ba"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue0_miq_birth_uses_terminal1_identity",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Select terminal1 ROB identity for a terminal0-owned request fire to prove MIQ birth is qualified by the actual request-mux owner.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "00daac786551791fe86af69632c15aa38b4c526201b24f1fb77934128f0aac9c"
+        "variant_sha256": "080d1304ec24805ff460ce256707fbec0e66623f74459f6253bba4b707807c9a"
       },
       {
         "compile_success": true,
@@ -799,17 +807,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_consume_uses_global_port_fire.log",
-          "sha256": "befa1195a0aa236d2380faba259cad36db9217f646bc2f1b69abb7682a30b0fd"
+          "sha256": "9aed5061e21a7e81f2b0d6c5ba22b0cd1f9882ec1fafb2278d9725fa0324e05f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_consume_uses_global_port_fire",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Consume terminal1 on any accepted bank0 request instead of only terminal1's own selected request or local terminal event.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "19ce6e4a2a46e604d2629972f1fe46e8413b35f71993f2ccc29b593426138da5"
+        "variant_sha256": "9f323b172090716ea28ac15d3a8849005796aa2553f36ad8446ab22fc2a010f2"
       },
       {
         "compile_success": true,
@@ -819,17 +827,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_consume_uses_valid_under_backpressure.log",
-          "sha256": "8cf8181543947843e9a4febc417bbde10b62fdb048eb8790cfdeb6b98b62aa96"
+          "sha256": "825447944f70d96393393de30f4089e690e7c717cd8f41579c0bc9933a7f9f39"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_consume_uses_valid_under_backpressure",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Use request VALID rather than request fire eligibility to consume a backpressured terminal1 transaction.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "22706a4abdfefc2cd6876c9f9c090f982faf33e75b1893c843e18b45762ef41c"
+        "variant_sha256": "cf4d3b15a23b49620245fb003cb595f38fca46868a0c6c3720f2806db4b3ba74"
       },
       {
         "compile_success": true,
@@ -839,17 +847,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_normal_launch_false_closed.log",
-          "sha256": "d8612b1971f950accb5b515d5d01c4979d5364081ab1fcddb1e212da5ef2bc43"
+          "sha256": "f0416fc9939ac75a6ad97a22b644be12ba6347f9ad0b078a3eea19b19896a697"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_normal_launch_false_closed",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Close terminal1 normal request VALID so the later positive launch proves the oracle is not satisfied by permanent hold.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "007d57778ec72467e08c8a6cae95e4be66810f53f0070d38a3b1237597c29339"
+        "variant_sha256": "2b46e176d31a4a7fb187ce461626e05b9a29d29f3b6a11d58e211d12ed05c713"
       },
       {
         "compile_success": true,
@@ -859,17 +867,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_request_without_terminal_consume.log",
-          "sha256": "138a9f96bdcee37cdd97ce0e6e42df03981c62d66e1edaca6b6f49e99b4d19c4"
+          "sha256": "3da54440d9b2db4dfae387bc384dd0d86a1113ff3f9fe846fce937620ec90c71"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_request_without_terminal_consume",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Remove the edge-old terminal0 exclusion from terminal1 request VALID while retaining it on terminal1 consume.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "cef429ab3db0ba7bbe44419459d4bb6343a025fc54fd7c95dc4ee2e078879c96"
+        "variant_sha256": "a831894ed34d6a86e9ad2e51eb662cacfa548f395a806d8b5fa0055d288007cc"
       },
       {
         "compile_success": true,
@@ -879,17 +887,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_terminal_consume_without_request.log",
-          "sha256": "9db0eda2f2db639762463ddd122c72b46a555fc638a529e41920692ebb36f1fb"
+          "sha256": "02cb5d130315099ba7b13aca6227f043255f919bf27a464303ff95de221dc5bf"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_terminal_consume_without_request",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Remove the edge-old terminal0 exclusion from terminal1 consume while retaining it on terminal1 request VALID.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "708cfd6bd0a9d2197ea345d228a22e0d99c26867bf026d85b7aa4173b848dd12"
+        "variant_sha256": "e6d6ff97cf3d32a6b68aa3409413d544eafdb5697fcbdabded1bcba6eaea1abf"
       },
       {
         "compile_success": true,
@@ -899,17 +907,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/issue1_terminal_retained_after_launch.log",
-          "sha256": "492b5f0b6b108d316a06c36160c8d1117cff0d5071e4311ef58c603c8c215a14"
+          "sha256": "773031c25e80090a221682e1f44574aa298f25991efba1150fd15c399ee385d7"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "issue1_terminal_retained_after_launch",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Retain terminal1 valid after an accepted launch so the same transaction is offered again on the following cycle.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "dc607d142e4f04675d0c98afa980e6cc5d06e3e52673ae2fc695ed9427d56722"
+        "variant_sha256": "901f89d9a9668ee339c3ebfdec4d5f16ec9267bae292094e02d1f165d9f124e1"
       },
       {
         "compile_success": true,
@@ -919,17 +927,17 @@
         "ivflags": "-DV9F_MEMORY_ISSUE_LIFECYCLE_FOCUSED",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/miq_birth_uses_valid_under_backpressure.log",
-          "sha256": "da2281128cd70c1282072f8d5d4be5a7401f41a19d4b1dc6de4470000b90e74e"
+          "sha256": "608e009e11b6ff778b0944b582b2e8c3eded1d28dfcad7cc0c55be26b6fed022"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_INT_BACKEND",
         "marker_observed": true,
         "name": "miq_birth_uses_valid_under_backpressure",
-        "original_sha256": "f73a9b4c9d1453a2b057c141090e0e394096476b65e48ef542617a3bc9a6e3b8",
+        "original_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "purpose": "Create the bank0 MIQ owner from request VALID instead of the accepted request handshake under backpressure.",
         "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
-        "variant_sha256": "31fbc80f17a0169bd183fddb673290358ce2ef438f3bd58535535ae91e01014c"
+        "variant_sha256": "07595aef4adf8869140a775a41e84c337f37528d8ccbb85296c5cd850f18bcf5"
       },
       {
         "compile_success": true,
@@ -939,7 +947,7 @@
         "ivflags": "",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/miq_flush_drops_unconsumed_drain.log",
-          "sha256": "55a97d3d91d335ad878397d2d652be03356f3f6610f78fc39174f95e9d8521ac"
+          "sha256": "4b89ba27088df0de378993d1ad0f21946af98906e376be5f995c57f46a996b4c"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_INFLIGHT_QUEUE",
@@ -959,7 +967,7 @@
         "ivflags": "",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/miq_flush_replays_consumed_drain.log",
-          "sha256": "d8abffba45a865eb842f439b5e4e030b9d9418c27f381aebfae5d0c667cde7a9"
+          "sha256": "285fd67275ece7549716bc22ff934de899368f760f36960be1a1bd053446144f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_INFLIGHT_QUEUE",
@@ -979,7 +987,7 @@
         "ivflags": "",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9f-memory-issue-lifecycle/evidence/mutations/logs/miq_flush_treats_valid_head_as_fired.log",
-          "sha256": "6b52a55f546a63e4d6d23380be97803e001d2c3daafcbace44e227899f866ea0"
+          "sha256": "13fabb7c825bb23a34f262aca06ca04e0ddf8ad967c02edd0c2ab4da7862f8dc"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_INFLIGHT_QUEUE",

@@ -5,6 +5,7 @@
 本文只读取现有工程记录，并新增：
 
 - `docs/research-paper/` 下的研究台账、实验计划和只读脚本；
+- `docs/research-paper/ubuntu-19h-milestone-evidence.md`；
 - `docs/thinking/verifiable-ai-hardware-engineering.tex`；
 - 同名 PDF；
 - 原 TeX 的备份 `verifiable-ai-hardware-engineering.before-evidence-integration.tex`。
@@ -40,14 +41,14 @@ python3 docs/research-paper/scripts/paper_evidence_extract.py
 
 脚本对 `.github/task-runs/` 顶层目录做只读盘点。它不会把目录数解释为独立实验数。
 
-在 2026-07-24 的工作区快照中，脚本得到：
+在 2026-07-29 的工作区快照中，脚本得到：
 
 | 月份 | workflow-event directory |
 |---|---:|
 | 2026-04 | 8 |
 | 2026-05 | 137 |
 | 2026-06 | 1246 |
-| 2026-07 | 586 |
+| 2026-07 | 670 |
 
 这些数字只描述记录目录密度。仓库继续演进后，脚本输出会自然变化。
 
@@ -64,7 +65,7 @@ python3 docs/research-paper/scripts/paper_evidence_extract.py \
 claim_map_check.ok = true
 claim_map_check.errors = []
 claim_map_check.path_warnings = []
-rows = 21
+rows = 26
 ```
 
 路径存在只说明材料可回查，不自动把某条主张升级为 `SUPPORTED`。状态仍需根据设计身份、配置、负向证据和结论边界人工审计。
@@ -112,10 +113,20 @@ python3 scripts/github_index_db.py load \
 | 论证 | 路径 |
 |---|---|
 | 4 月 lint-only 边界 | `.github/task-runs/2026-04-13-rv32i-nonpipe-core/task-report.md` |
+| RV32 single 动态闭环 | `.github/task-runs/2026-04-13-npc-dpic-bringup/task-report.md` |
+| RV32 SoC 的 AM/NEMU 39/39 对拍 | `.github/task-runs/2026-05-23-am-ysyxsoc-platform/task-report.md` |
+| ysyxSoCFull 镜像、UART、cache/PSRAM | `.github/task-runs/2026-05-24-b2-ysyxsocfull-cache/task-report.md` |
+| NPC RV64 首个 38/38 冻结点 | `.github/task-runs/2026-05-29-npc-rv64-backend/task-report.md` |
+| NEMU RV64 reference 与 40/40 DiffTest | `.github/task-runs/2026-05-30-rv64-nemu-difftest/task-report.md` |
+| 真实 OpenSBI mini handoff | `.github/task-runs/2026-05-30-rv64-opensbi-mini-boot/task-report.md` |
 | 5 月 IQ、CPI 与回滚 | `.github/task-runs/2026-05-29-ooo-cpi-645-iq-fix/task-report.md` |
 | 6 月分支推测失败与回退 | `.github/task-runs/2026-06-29-rv64-ooo-core-architecture-constitution/report.md` |
 | NEMU Ubuntu `/bin/sh` | `Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs-virtio-8b/console.log` |
 | NPC systemd/banner | `.github/task-runs/2026-06-15-npc-ubuntu-current-direct/evidence/npc-rv64-linux-rootfs-mount-smoke-script/console.log` |
+| NPC 十九小时 A3 原始 console | `.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log` |
+| A3 结构化 systemd transaction | `.github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json` |
+| A3 冻结 oracle 重放 | `.github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/evidence/replay-verdict.log` |
+| 十九小时里程碑复核表 | `docs/research-paper/ubuntu-19h-milestone-evidence.md` |
 | Yosys 结构统计 | `.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p4-alu-terminal/light-yosys/yosys.log` |
 | IFU 19 个变体 | `.github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/task-report.md` |
 | V9L 功能聚合 | `.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/task-report.md` |

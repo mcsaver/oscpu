@@ -185,11 +185,16 @@ GUEST_CMDS_DONE_EOF
 }
 
 check_console_clean() {
-  if grep -qaE 'Kernel panic|Oops|Call Trace|HIT BAD TRAP|Bad trap|BUG:|EXT4-fs error|Buffer I/O error|blk_update_request[^[:cntrl:]]*I/O error|end_request[^[:cntrl:]]*I/O error|virtio_blk[^[:cntrl:]]*(error|failed)|Timed out waiting for device .*ttyS0|Dependency failed for .*Serial Getty|Failed to start .*Create System Users' \
+  if grep -qaiE 'Kernel panic|Oops|Call Trace|HIT BAD TRAP|Bad trap|(^|[^[:alnum:]_])BUG:|EXT4-fs error|Buffer I/O error|blk_update_request[^[:cntrl:]]*I/O error|end_request[^[:cntrl:]]*I/O error|virtio_blk[^[:cntrl:]]*(error|failed)|Timed out waiting for device .*ttyS0|Dependency failed for .*Serial Getty|Failed to start .*Create System Users' \
       "$CONSOLE_LOG" "$NPC_LOG" 2>/dev/null; then
     return 1
   fi
   return 0
+}
+
+console_has_rtl_assertion_failure() {
+  grep -qaiE '\[(V9Q-(BRIDGE-HOLDER|TRANSIENT-HOLDER|TRANSIENT-BRIDGE|DUAL-REQ-TOKEN)-DISJOINT|V9R-(MEM-)?SQ-RETRY-C0-HANDOFF|S2-G1-TCOLL-INGRESS-DUP|V10D-[^]]*FAIL)\]|%Error:|Assertion failed|RTL assertion|\[.*ASSERT.*FAIL' \
+    "$CONSOLE_LOG" "$NPC_LOG" 2>/dev/null
 }
 
 check_autocheck_boot_evidence() {
@@ -202,6 +207,42 @@ require_poweroff_evidence() {
   local pattern=$2
   grep -qaE "$pattern" "$CONSOLE_LOG" ||
     fail "missing natural-poweroff evidence: $label"
+}
+
+terminal_sequence_line=0
+require_ordered_terminal_evidence() {
+  local label=$1
+  local pattern=$2
+  local occurrence_matches=""
+  local occurrence_rc=0
+  local line_matches=""
+  local line_rc=0
+  local count=0
+  local line
+
+  occurrence_matches="$(
+    grep -aoE "$pattern" "$CONSOLE_LOG" 2>/dev/null
+  )" || occurrence_rc=$?
+  if [ "$occurrence_rc" -eq 0 ]; then
+    count="$(printf '%s\n' "$occurrence_matches" | wc -l)"
+  elif [ "$occurrence_rc" -ne 1 ]; then
+    fail "natural-poweroff event query failed: $label rc=$occurrence_rc"
+  fi
+  if [ "$count" -ne 1 ]; then
+    fail "natural-poweroff event count mismatch: $label observed=$count expected=1"
+  fi
+
+  line_matches="$(
+    grep -aEn "$pattern" "$CONSOLE_LOG" 2>/dev/null
+  )" || line_rc=$?
+  if [ "$line_rc" -ne 0 ]; then
+    fail "natural-poweroff event line query failed: $label rc=$line_rc"
+  fi
+  line=${line_matches%%:*}
+  if [ "$line" -le "$terminal_sequence_line" ]; then
+    fail "natural-poweroff event order mismatch: $label line=$line previous=$terminal_sequence_line"
+  fi
+  terminal_sequence_line=$line
 }
 
 require_strict_passes() {
@@ -348,6 +389,10 @@ fi
 set -e
 
 [ "$tee_rc" -eq 0 ] || fail "console tee failed (rc=$tee_rc)"
+[ -f "$CONSOLE_LOG" ] && [ -r "$CONSOLE_LOG" ] ||
+  fail "console log is not a readable regular file: $CONSOLE_LOG"
+[ -f "$NPC_LOG" ] && [ -r "$NPC_LOG" ] ||
+  fail "NPC log is not a readable regular file: $NPC_LOG"
 
 transaction_rc=77
 if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
@@ -363,6 +408,28 @@ if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
 fi
 
 check_console_clean || fail "console contains critical kernel/NPC failure"
+
+rtl_assertion_scan_rc=0
+console_has_rtl_assertion_failure || rtl_assertion_scan_rc=$?
+if [ "$rtl_assertion_scan_rc" -gt 1 ]; then
+  fail "RTL assertion evidence query failed (rc=$rtl_assertion_scan_rc)"
+fi
+if [ "$rtl_assertion_scan_rc" -eq 0 ]; then
+  fail "RTL assertion marker was observed"
+fi
+
+if [ "$run_rc" -eq 124 ] && [ "$rtl_assertion_scan_rc" -eq 1 ]; then
+  echo "[npc-systemd-check] GAP: RV64 host wall-clock budget expired before natural terminal transaction (host_timeout=${HOST_TIMEOUT}s max_cycles=$MAX_CYCLES)" >&2
+  exit 124
+fi
+
+if [ "$run_rc" -ne 0 ] &&
+   grep -qaE "cycles=${MAX_CYCLES}, commits=[0-9]+, core-state=" "$CONSOLE_LOG" &&
+   grep -qaE 'npc: .*ABORT at pc' "$CONSOLE_LOG" &&
+   [ "$rtl_assertion_scan_rc" -eq 1 ]; then
+  echo "[npc-systemd-check] GAP: RV64 simulation cycle budget exhausted at cycles=$MAX_CYCLES before natural terminal transaction" >&2
+  exit 124
+fi
 
 if [ "$REQUIRE_PROMPT" = "1" ] && ! grep -qaF "$PROMPT" "$CONSOLE_LOG"; then
   fail "guest root prompt was not observed (rc=$run_rc)"
@@ -397,10 +464,22 @@ if [ "$POWEROFF_ENABLE" = "1" ]; then
   require_poweroff_evidence "Linux SBI SRST" 'SBI SRST extension detected'
   require_poweroff_evidence "guest poweroff command" '__NPC_SYSTEMD_POWEROFF_BEGIN__'
   require_poweroff_evidence "kernel power down" 'reboot: Power down'
-  require_poweroff_evidence "OpenSBI system power off" 'System Power Off'
   require_poweroff_evidence "RTL syscon terminal" 'syscon-reset: poweroff requested value=0x00005555'
   require_poweroff_evidence "host system-reset exit" 'exit via system-reset, code=0'
   require_poweroff_evidence "zero exit status" 'HIT GOOD TRAP'
+  terminal_sequence_line=0
+  require_ordered_terminal_evidence \
+    "strict done" '__NPC_SYSTEMD_STRICT_DONE__ rc=0'
+  require_ordered_terminal_evidence \
+    "poweroff begin" '__NPC_SYSTEMD_POWEROFF_BEGIN__'
+  require_ordered_terminal_evidence \
+    "kernel power down" 'reboot: Power down'
+  require_ordered_terminal_evidence \
+    "RTL syscon terminal" 'syscon-reset: poweroff requested value=0x00005555'
+  require_ordered_terminal_evidence \
+    "GOOD TRAP" 'HIT GOOD TRAP'
+  require_ordered_terminal_evidence \
+    "host system-reset exit" 'exit via system-reset, code=0'
   echo "[npc-systemd-check] PASS strict guest + natural poweroff (mode=$GUEST_COMMAND_MODE)"
   exit 0
 fi

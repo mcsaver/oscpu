@@ -2,17 +2,135 @@
   "schema_version": "rv64-producer-holder-census-v1",
   "scope": {
     "source_root": "npc/rv64/vsrc",
-    "topology_root": "NpcTop->NpcCoreTop->OooCoreTopGlue->OooIntBackend",
-    "coverage_granularity": "field-plus-packed-stage",
+    "topology_root": "NpcTop",
+    "coverage_granularity": "field-plus-packed-stage-plus-elaborated-instance",
     "field_level_complete": true,
-    "instance_graph_complete": false,
+    "instance_graph_complete": true,
     "semantic_complete": false
   },
   "status_ledger": {
-    "current_production_holder_census": "STATIC_FIELD_COMPLETE",
-    "global_no_live_reuse": "DYNAMIC_EVIDENCE_REQUIRED",
+    "current_production_holder_census": "ELABORATED_INSTANCE_COMPLETE",
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
     "whole_architecture": "RED",
     "ppa_promotion": "UNPROMOTED"
+  },
+  "elaborated_instance_graph": {
+    "schema_version": "rv64-producer-holder-instance-graph-v1",
+    "top_module": "NpcTop",
+    "product_config": {
+      "schema": "npc-rv64-product-rtl-config-v1",
+      "defines": {
+        "OOO_CSR_QUEUE_HEAD": "1",
+        "OOO_TERMINAL_HOLDER_ASSERT": "1"
+      },
+      "inputs": [
+        {
+          "path": "npc/rv64/configs/product-rtl-defaults.mk",
+          "sha256": "7b3b4b571366d6c70600ff0a5fd27624753d7153c6576f2a980ced31af0d8154"
+        },
+        {
+          "path": "npc/rv64/Makefile",
+          "sha256": "c4bb4cc06a979abc2ce99d951a52bc2e259ab9f70127c534f2c1dbc7daf024f8"
+        }
+      ]
+    },
+    "instances": [
+      {
+        "module": "OooClmulUnit",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_clmul_unit"
+      },
+      {
+        "module": "OooFpArithGate",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_arith"
+      },
+      {
+        "module": "OooFpBackend",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
+      },
+      {
+        "module": "OooFpIssueQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue"
+      },
+      {
+        "module": "OooIntBackend",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
+      },
+      {
+        "module": "OooIntIssueQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue"
+      },
+      {
+        "module": "OooLoadQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_load_queue"
+      },
+      {
+        "module": "OooMemAxiBridge",
+        "path": "NpcTop.u_core.u_ooo_dual_mem_bridge.u_bridge0"
+      },
+      {
+        "module": "OooMemAxiBridge",
+        "path": "NpcTop.u_core.u_ooo_dual_mem_bridge.u_bridge1"
+      },
+      {
+        "module": "OooMemInflightQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem1_inflight_queue"
+      },
+      {
+        "module": "OooMemInflightQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem_inflight_queue"
+      },
+      {
+        "module": "OooMemOwnerTerminalCollector",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem_owner_terminal_collector"
+      },
+      {
+        "module": "OooMemOwnerTracker",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem_owner_tracker"
+      },
+      {
+        "module": "OooMulDivUnit",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_muldiv_unit"
+      },
+      {
+        "module": "OooPendingSystemSequencer",
+        "path": "NpcTop.u_core.u_ooo_core.u_control_plane.u_pending_system_sequencer"
+      },
+      {
+        "module": "OooRob",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_dispatch_backend.u_rob"
+      },
+      {
+        "module": "OooStoreQueue",
+        "path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_store_queue"
+      }
+    ],
+    "evidence": {
+      "result": {
+        "kind": "holder_instance_graph_result",
+        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/holder-instance-graph.json",
+        "sha256": "e422d75d4498b53d3fd1d1a8332a87e730da9fb16740339b9d22400d925872e8"
+      },
+      "receipt": {
+        "kind": "holder_instance_graph_receipt",
+        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph-receipt.json",
+        "sha256": "f3f0a78f772b1ed3ebed5c45ef88b33767009bad16b41b51a71f7c230712ff76"
+      },
+      "full": {
+        "kind": "holder_instance_graph_yosys_canonical_full_json_gzip",
+        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.full.json.gz",
+        "sha256": "1dc0056a125746ac10b937e733774a54802aeef9ac0c59d2ad37498482f15214"
+      },
+      "script": {
+        "kind": "holder_instance_graph_yosys_script",
+        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.ys",
+        "sha256": "be9ba9f96f7c4e4d90a0b6e1c910cdf6da27a91427fe7d956fe0ae8c4bfd7890"
+      },
+      "log": {
+        "kind": "holder_instance_graph_yosys_log",
+        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.log",
+        "sha256": "3869b0fe0ac8b00604b3e975b33475962afe3abc07a56e985ab891042f24ddde"
+      }
+    }
   },
   "direct_full_p_fields": [
     {
@@ -587,18 +705,18 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:1252332b723017ab370ee6a49d945ad86dce1f2e5b585aaea4dccb7388a79702",
+  "design_id": "sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {
       "kind": "holder_lifecycle_log",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
-      "sha256": "85d04d110d641f52641fd04f4ef73644721f5980b2c0597794a7c491f6dd9929"
+      "sha256": "489f4ee8ed8f42f18f24697bf18d8c7e701d47698ad3781b1227295029bed9c6"
     },
     "mutation_summary": {
       "kind": "mutation_summary",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
-      "sha256": "f651dea9b8c756a24b24e278661262dea04d38088a3cc21fd6be4e718df37ddf"
+      "sha256": "a5391b844dbf570661ff9402eabbbb7329b22356ed2fc74d581c408068920c60"
     }
   }
 }

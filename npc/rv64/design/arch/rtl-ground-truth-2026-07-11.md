@@ -1,9 +1,11 @@
 # RV64 OoO RTL Ground Truth — 2026-07-11
 
-> **类型**：snapshot + current delta（2026-07-21 V9D 证据重绑后校正）。
+> **类型**：snapshot + current delta（2026-07-28 product-default current replay 校正）。
 >
 > **状态**：CURRENT。主体基于代码快照 `cab1814b0622e53e1e62f2b0fc17ed6873c72ba2`；
-> 2026-07-21 已同步 FDG-G1/INSTRET-G1 的当前设计证据；V9D 未修改生产 RTL。下一次结构性架构切片必须生成新的
+> current delta 已绑定
+> `design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897`。
+> 2026-07-28 同步 queue-head CSR 产品配置与 26-stage current replay；下一次结构性架构切片必须生成新的
 > dated snapshot 并把本文件整体归档，避免继续累积 delta。
 >
 > **预期归宿**：下一份 ground-truth snapshot 产生时，移入 `history/` 并登记为
@@ -13,6 +15,25 @@
 > `as-is`。若数字或接线与 RTL 冲突，以当前 RTL 为准，并在同一任务内校正文档。
 
 ---
+
+## 0. 2026-07-28 current delta
+
+- Makefile 消费 `configs/product-rtl-defaults.mk`，规范配置为
+  `OOO_CSR_QUEUE_HEAD=1`、`OOO_TERMINAL_HOLDER_ASSERT=1`；`define.v` fallback
+  与之相同。产品默认生成 RTL 与 A3/A4 的 51 个 Verilator 文件逐项等价，
+  8 个 device objects 与 `cpu-exec.o` 精确一致，因此没有触发完整系统重跑条件。
+- queue-head CSR assertions-on/off 均覆盖 3 条 committed 与 2 条 selectively-killed
+  事务；C2 typed-apply replay、C2 CsrFile-request replay 两个 compile-success
+  负向版本均被 raw scoreboard 拒绝；后者是生产绑定等价 verification wiring，
+  不宣称为第二份 production RTL mutation。
+- 产品默认 pending-SYSTEM matrix 为 3/3 baseline + 14/14 compile-success mutation；
+  current replay 为 26/26 stages、module 113/113、official 177/177、AM 59/59、
+  DiffTest mismatch 0。V10G 第二次独立审查已批准
+  `SERIALIZE-G1=CLOSED`；historical-defect backfill 尚未清零，因此
+  `ARCH_STABLE=GAP`、PPA `UNQUALIFIED`。
+- A3 原始发布 FAIL 不变；系统执行、终端事务与 RTL assertions 分类独立记录为
+  COMPLETE/COMPLETE/CLEAN，旧 dmesg oracle 分类为 INVALID，冻结输入上的 checker
+  replay 为 PASS。A4 TERM 不作为系统 PASS 证据。
 
 ## 1. 当前定位与真实拓扑
 
@@ -84,7 +105,9 @@ NpcSimTop                         仿真 shell
 - wrong-path FP div/sqrt 可清 metadata，但迭代器本身仍可能继续占用。
 - 无 load queue、memory dependence predictor、violation replay、MSHR、hit-under-miss、L2、
   coherence 或 ECC；Dcache 只有 8B line。
-- 默认 system/CSR/interrupt 多走 pending + full drain；`OOO_CSR_QUEUE_HEAD` 默认 0。
+- 产品默认 `OOO_CSR_QUEUE_HEAD=1`：合法 non-FP head0 CSR 走 queue-head
+  `birth→C0 commit/CsrFile/barrier→C1 apply/clear→C2 quiet`；lane1/FP CSR 与
+  system/trap/interrupt/fault 仍走 pending + full drain。显式 `=0` 仅为比较/恢复配置。
 - 普通 `FENCE` 当前译码为 legal no-op，`pred/succ` 未进入专用排序控制。
 - WFI 不是真正 sleep；SFENCE/SINVAL 偏全刷；无 vectored trap、完整 debug/trigger、NMI、
   H、V、Zfh 或多核一致性。

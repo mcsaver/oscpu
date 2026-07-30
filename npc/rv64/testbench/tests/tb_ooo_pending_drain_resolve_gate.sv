@@ -19,6 +19,7 @@ module tb_ooo_pending_drain_resolve_gate;
   reg branch_spec_active;
   reg branch_spec_checkpoint_pending;
   reg pending_arch_trap;
+  reg pending_exit;
   reg pending_branch;
   reg pending_branch_dispatched;
   reg pending_jump;
@@ -66,6 +67,7 @@ module tb_ooo_pending_drain_resolve_gate;
     .branch_spec_active_i(branch_spec_active),
     .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending),
     .pending_arch_trap_i(pending_arch_trap),
+    .pending_exit_i(pending_exit),
     .pending_branch_i(pending_branch),
     .pending_branch_dispatched_i(pending_branch_dispatched),
     .pending_jump_i(pending_jump),
@@ -106,6 +108,7 @@ module tb_ooo_pending_drain_resolve_gate;
       branch_spec_active = 1'b0;
       branch_spec_checkpoint_pending = 1'b0;
       pending_arch_trap = 1'b0;
+      pending_exit = 1'b0;
       pending_branch = 1'b0;
       pending_branch_dispatched = 1'b0;
       pending_jump = 1'b0;
@@ -258,6 +261,24 @@ module tb_ooo_pending_drain_resolve_gate;
     tb_check1("pending arch trap admits exact terminal or pending-only owner",
               drain_complete, 1'b1);
     $display("[V9Z-DRAIN-GATE] pending_arch_trap exact memory terminal PASS");
+
+    // V10D: simulation exit is a serialized owner too.  It must use the
+    // exact memory-owner terminal scalar rather than treating ROB/issue
+    // drain as proof that MIQ/bridge/reservation state is terminal.
+    clear_inputs();
+    stop_pending = 1'b1;
+    pending_control_ready = 1'b1;
+    pending_exit = 1'b1;
+    mem_idle = 1'b0;
+    mem_owner_terminalized = 1'b0;
+    #1;
+    tb_check1("pending exit blocks active memory holder",
+              drain_complete, 1'b0);
+    mem_owner_terminalized = 1'b1;
+    #1;
+    tb_check1("pending exit admits exact terminal or pending-only owner",
+              drain_complete, 1'b1);
+    $display("[V10D-EXIT-DRAIN-GATE] active=0 exact-terminal=1 PASS");
 
     clear_inputs();
     stop_pending = 1'b1;

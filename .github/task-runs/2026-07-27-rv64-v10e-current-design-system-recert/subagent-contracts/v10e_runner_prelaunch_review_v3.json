@@ -1,0 +1,115 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v10e_runner_prelaunch_review_v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "对本地 RV64 双发射 OoO design-id sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594 的 V10E systemd-strict 执行器做第三轮启动前独立验证；运行 runner/launcher/status-helper 的语法与定向 fixture，确认 PASS 写失败、cleanup TERM、post-binding 输出失败、assertion 日志读取错误、rootfs 复用、全工作区锁冲突、控制脚本漂移及重复终端 marker 均不能获得 PASS 或滞留 RUNNING，并将验证日志只写入声明的 V3 evidence 目录；不修改生产 RTL、testbench、runner 或共享 helper。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      ".github/runtime-artifacts/rv64-engineering-single-flight.lock",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "Linux/Makefile",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/prepare-npc-rootfs-run-image.sh",
+      "npc/rv64/Makefile",
+      "npc/rv64/scripts/config.mk",
+      "npc/rv64/configs/default_defconfig",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/contract.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v1.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v2.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/subagent-contracts/v10e_runner_prelaunch_review_v3.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/review-v3"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/contract.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v1.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/prelaunch-review-v2.md",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/run-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/launch-v10e-current-design-systemd-strict.sh",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/test-runner-contract.py",
+      ".github/task-runs/2026-07-24-rv64-v9s-serialize-default/launch-v9s-rootfs-csr-qh-systemd-strict.sh",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/prepare-npc-rootfs-run-image.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "在 review-v3 目录保存命令、返回码与原始 PASS/FAIL marker；首行按 RV64 RTL 或本地证据对象、周期或编译配置、testbench/EDA 观测、PASS/GAP 范围组织，随后逐项裁决 V2 反例、报告任何新假绿路径、未知项、替代假设、scope_extension_request 与 confidence_and_basis，并明确归还 single-flight ownership。"
+  ],
+  "success_criteria": [
+    "只有 runner 与两份 launcher 语法通过、task-run status helper 定向测试通过、40/40 静态负向变体被拒绝、7 类动态 fixture 返回预期码、当前 design-id 匹配、V2 六项反例闭合且没有新的错误配置/产物漂移/重复 terminal 事件/cleanup 或 launcher 失败路径可取得 PASS 或遗留 RUNNING 时，才给出 pre-launch PASS；否则必须给出 GAP 或 inconclusive 并精确指向文件、行、命令返回码及 evidence marker。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}
