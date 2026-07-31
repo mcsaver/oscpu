@@ -1,6 +1,6 @@
 # V11I：LoadQueue 清除后的 memory terminal 生命周期合同
 
-> 状态：**FROZEN / implementation pending**  
+> 状态：**FROZEN / APPROVED_FOR_CURRENT_SCOPE / blocker=0**
 > 范围：本地 RV64 `OooMemOwnerTerminalCollector` →
 > `OooMemOwnerTracker` → `OooLoadQueue` 与 `OooIntBackend` production
 > terminal source。  
@@ -64,8 +64,10 @@ old LQ entry clear
 
 ### 4.1 production 正向
 
-在真实 `OooIntBackend` 中连续建立并结束 32 个 LOAD owner，使 tracker cursor
-完成一圈。保留首个 `token=T/PID_A`；当 T 再绑定 `PID_B` 时：
+在真实 `OooIntBackend` 中让 32 个 LOAD owner 依次完成
+`request → MIQ → response terminal lane0 → formal WB → ROB/LQ release`，
+使 tracker cursor 完成一圈。保留首个 `token=T/PID_A`；当 T 再绑定
+`PID_B` 时：
 
 1. B reservation 至少稳定保持两个完整周期；
 2. `mem_terminal_ingress_valid_w == 0`、
@@ -76,8 +78,9 @@ old LQ entry clear
 
 ### 4.2 compile-success source variant
 
-只在冻结副本中把 lane6 production predicate 改为：当 token T 已环回复用且
-reservation live、collector pending 尚空时，额外产生一次 stale terminal pulse。
+只在冻结副本中保存首次 token-T 的 lane0 response
+`{kind,token,epoch,old_pid}`。当 token T 已环回复用、new PID reservation live
+且 collector pending 尚空时，在 lane0 额外重放一次旧 response tuple。
 variant 必须编译和展开成功：
 
 - assertions-on：accepted pulse 后新 B holder 仍驻留，必须由
@@ -113,4 +116,3 @@ V11I 只有在以下条件同时满足时才能把本子范围登记为 PASS：
 该 PASS 只证明当前 production source 的 LOAD terminal one-shot 与
 collector→tracker→LQ token-wrap 生命周期；不证明任意非法 raw ingress 安全、
 全局 no-live-reuse、whole architecture、system、synthesis/STA/power 或 PPA。
-

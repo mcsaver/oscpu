@@ -1,0 +1,123 @@
+{
+  "schema": "rv64-v11q-verification-receipt-v1",
+  "run_id": "2026-07-31-rv64-v11q-int-lane0-completion-resolve-packet-semantic",
+  "status": "PASS",
+  "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "binding": {
+    "branch": "ai",
+    "head_sha": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "production_rtl_changed": false,
+    "production_sources": {
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+      "npc/rv64/vsrc/pipeline/PipeStageReg.v": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+    }
+  },
+  "scope": {
+    "mechanism": "integer-lane0-completion-resolve-paired-packet",
+    "closed_units": [
+      "integer-ex0-packed-alias",
+      "integer-ex0-packet",
+      "branch-resolve-packet"
+    ],
+    "excluded_units": [
+      "integer-ex1-packed-alias",
+      "integer-ex1-packet"
+    ]
+  },
+  "focused_simulation": {
+    "status": "PASS",
+    "baselines": "4/4",
+    "compile_success_semantic_variants": "24/24",
+    "ordinary_regressions": "3/3",
+    "summary_path": "evidence/focused-fullwidth-current-attempt-3/summary.json",
+    "summary_sha256": "c4ce58074c9602978f51940973a6b38737ba464bedc60af15f46f0084ea58d9f"
+  },
+  "static_and_contract_gates": {
+    "runner_unit": "6/6 PASS",
+    "instance_graph_tests": "17/17 PASS",
+    "census_tests": "15/15 PASS",
+    "assertion_count": 502,
+    "assertion_baseline": 89,
+    "status": "PASS",
+    "log_path": "evidence/final-static-gates-attempt-2.log",
+    "log_sha256": "b6063dbbd1e505dace8348b249e07f8fafa7971e1883bba21f0d9bef283886af"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "units": 44,
+    "holder_instances": 17,
+    "bindings": 50,
+    "pass": 32,
+    "gap": 12,
+    "path": "evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "sha256": "2f97063ac61b404923cc152238c8903a710a437b5b52cb6f79556c8b19885cfc"
+  },
+  "product_graph": {
+    "status": "PASS",
+    "holder_modules": 15,
+    "holder_instances": 17,
+    "duplicate_modules": 2,
+    "summary_path": "evidence/v11o-memory-buffer-rebind-current-attempt-3/summary.json",
+    "summary_sha256": "4ba5128b4cf03fc9082969d64f48d3f3d15dcc737e27595d3b1d06a17d564ca2"
+  },
+  "checker_replays": {
+    "v11h_rtl_checker": {
+      "status": "PASS",
+      "path": "evidence/v11h-checker-replay-current-receipt.json",
+      "sha256": "ea4aa6e9c7eb08b0b6aeb952ea738f9be78a6f80675145f9a4e56b447dd85a3e"
+    },
+    "a3_dmesg_oracle": {
+      "original_status_preserved": true,
+      "status": "PASS",
+      "path": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      "sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+      "conclusion": "A3_SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE"
+    },
+    "independent_evidence_chains": true
+  },
+  "development_environment": {
+    "brief": {
+      "status": "PASS",
+      "recall_status": "complete",
+      "path": "evidence/brief-v11q-current.log",
+      "sha256": "b710638e17dcd7bc1bbcadcc85519ffad4b3d9096f2f47069416a587bb7e5e1e"
+    },
+    "npc_dev_e2e": {
+      "status": "PASS",
+      "nodes": "5/5",
+      "run_id": "2026-07-31-OooIntBackend-Lane0-completion-resolve-paired-packet-V11Q",
+      "run_manifest_sha256": "737bf572c2cb14e8d166155b20f9ba70dc95ae48efbc06724ee31a5b98e6fd98"
+    },
+    "scoped_strict_guard": {
+      "status": "PASS",
+      "paths": 12,
+      "profile": "npc-dev",
+      "log_path": "evidence/scoped-strict-guard-attempt-2.log",
+      "log_sha256": "634d73ff767be2833ea87aa936da2d801ebcfce2c6309e3e337cd5d1fb44e61d"
+    },
+    "full_worktree_strict_guard": {
+      "status": "GAP_OUT_OF_SCOPE",
+      "npc_dev": "PASS",
+      "gap": "nemu/src/isa/riscv64/inst/amo.c -> nemu-dev",
+      "log_path": "evidence/full-worktree-strict-guard.log",
+      "log_sha256": "7fea12c7bc586d1b102a6bbf2596a27191a96c20173e88ebaa0f09e0b55ad312"
+    }
+  },
+  "record_closure": {
+    "raw_evidence_assets": 3016,
+    "raw_evidence_policy": "INDEX_ONLY",
+    "task_run_markdown_policy": "DB_FIRST_WITH_COMPATIBILITY_SHIMS",
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS",
+    "artifact_audit": "GLOBAL_PASS",
+    "run_id_artifact_audit": "NOT_APPLICABLE_TO_HAND_AUTHORED_NON_E2E_TASK_RUN"
+  },
+  "promotion": {
+    "architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "full_system_rerun_started": false,
+    "eligible": false
+  }
+}

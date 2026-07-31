@@ -1,0 +1,8 @@
+.github/task-runs/2026-07-31-tmp-log-selective-migration-a1/inventory_tmp_logs.py
+.github/task-runs/2026-07-31-tmp-log-selective-migration-a1/migrate_tmp_logs.py
+.github/task-runs/2026-07-31-tmp-log-selective-migration-a1/execute_migration.sh
+.github/task-runs/2026-07-31-tmp-log-selective-migration-a1/evidence/migration-result.json
+.github/runtime-artifacts/rv64-artifact-archive/2026-07-31-tmp-log-selective-migration-a1/migration-manifest.json
+.github/memory/project-status.md
+.github/memory/modules/agent-system.md
+.github/memory/modules/yosys-sta.md

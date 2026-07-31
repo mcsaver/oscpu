@@ -39,7 +39,7 @@
 
 | 工程性质 | 推荐叙述 |
 | --- | --- |
-| instruction 属性选择 | `ARPROT[2]` 为 instruction 属性；当 `SLAVE_EXEC_MASK[decoded]==0` 时，`AxiXbar` 在 slave 观察 `ARVALID` 前选择 default slave |
+| instruction 属性选择 | `ARPROT[2]` 为 instruction 属性；当 `SLAVE_EXEC_MASK[decoded]==0` 时，`AxiCrossbar` 在 slave 观察 `ARVALID` 前选择 default slave |
 | AR 通道反压 | 在 `ARVALID && !ARREADY` 周期内，由已锁存 transaction owner 保持 `ARADDR/ARSIZE/ARPROT` |
 | instruction PMP | `PmpChecker` 对当前 instruction halfword 的相同 PA、2B access size 与 EXEC 权限进行判定 |
 | DPI 访问边界 | `AxiDpiSlave` 将 AXI size 转换为 `nbytes`；PMEM 尾界 2B 读取边界 oracle 证明不读取相邻字节 |

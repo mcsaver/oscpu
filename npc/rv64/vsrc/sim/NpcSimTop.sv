@@ -562,9 +562,9 @@ module NpcSimTop (
   };
   assign debug_bus_flags_o = {
     9'd0,
-    u_top.u_bus.u_xbar.rd_active_q,
-    u_top.u_bus.u_xbar.rd_resp_valid_q,
-    u_top.u_bus.u_xbar.rd_master_busy_q,
+    u_top.u_bus.u_crossbar.rd_active_q,
+    u_top.u_bus.u_crossbar.rd_resp_valid_q,
+    u_top.u_bus.u_crossbar.rd_master_busy_q,
     u_top.lsu_axi_bready_w,
     u_top.lsu_axi_bvalid_w,
     u_top.lsu_axi_wready_w,
@@ -600,12 +600,12 @@ module NpcSimTop (
   };
   assign debug_bus2_flags_o = {
     15'd0,
-    u_top.u_bus.u_xbar.rd_ar_sent_q,  // AXI4化S2: rd_drop_q 已删,占位换 ar_sent
-    u_top.u_bus.u_xbar.rd_ar_sent_q,
-    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_DEFAULT],
-    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_RESET_SYSCON],
-    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_UART],
-    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_CLINT],
+    u_top.u_bus.u_crossbar.rd_ar_sent_q,  // AXI4化S2: rd_drop_q 已删,占位换 ar_sent
+    u_top.u_bus.u_crossbar.rd_ar_sent_q,
+    u_top.u_bus.u_crossbar.rd_owner_q[AXI_S_DEFAULT],
+    u_top.u_bus.u_crossbar.rd_owner_q[AXI_S_RESET_SYSCON],
+    u_top.u_bus.u_crossbar.rd_owner_q[AXI_S_UART],
+    u_top.u_bus.u_crossbar.rd_owner_q[AXI_S_CLINT],
     u_top.bus_axi_rready_w[AXI_S_RESET_SYSCON],
     u_top.bus_axi_rvalid_w[AXI_S_RESET_SYSCON],
     u_top.bus_axi_arready_w[AXI_S_RESET_SYSCON],

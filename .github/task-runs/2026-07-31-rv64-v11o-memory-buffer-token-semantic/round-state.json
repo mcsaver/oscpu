@@ -1,0 +1,251 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-31-rv64-v11o-memory-buffer-token-semantic",
+  "status": "APPROVED_NOT_PROMOTION_ELIGIBLE_RECORD_CLOSED",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "module": "OooIntBackend",
+    "instances": [
+      "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
+    ],
+    "semantic_units": [
+      "memory-buffer-token"
+    ]
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "worktree": "mixed-dirty-preserved",
+    "staged_by_v11o": false,
+    "single_flight_lane": "AVAILABLE"
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "elaborated_rtl_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "simulation_top_id": "tb_ooo_int_backend:V11O_MEMORY_BUFFER_TOKEN_FOCUSED",
+    "device_model_id": "UNCHANGED_NOT_IN_FOCUSED_SCOPE",
+    "host_harness_id": "npc-rv64-v11o-memory-buffer-token-semantic-evidence-v1",
+    "simulator_semantics_id": "BOUND_IN_FOCUSED_SUMMARY",
+    "checker_oracle_id_old": "no-dedicated-product-plus-legacy-conjunction",
+    "checker_oracle_id_new": "sha256:90b4d4a2a7a7701fa0a255d7806e1bc8782aef4c56f466ec0216a5355a1f6b85",
+    "guest_payload_id": "A3_UNCHANGED",
+    "boot_artifact_id": "A3_UNCHANGED",
+    "test_input_log_id": "sha256:a026c6427475bec1fc691223a8be0eef9b10eb5b3782350dea07e0d948e418df",
+    "run_configuration_id": "product-dual-memory1-plus-legacy-dual-memory0-gen1-gen4",
+    "raw_artifact_bundle_id": "focused-fullwidth-current",
+    "production_rtl_changed_by_v11o": false
+  },
+  "evidence_state": {
+    "published_gate_state": "BOUNDED_PASS",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE_FOR_FOCUSED_PROFILES",
+    "binding_state": "CURRENT_SELECTED_SOURCE_TB_AND_ELABORATED_GRAPH_BOUND",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "VALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO_FOR_V11O_LOCAL_CLAIM; YES_BEFORE_CURRENT_DESIGN_SYSTEM_PROMOTION_DUE_TO_PRIOR_V11H_PRODUCTION_RTL_DELTA",
+    "launch_authorization_state": "NOT_AUTHORIZED_IN_V11O",
+    "rerun_reason": "V11O has no production RTL delta; prior V11H delta remains a future promotion condition",
+    "evidence_scope": [
+      "product ENABLE_DUAL_MEM parameter reachability",
+      "elaborated constant-zero legacy birth/request nets",
+      "legacy lane0 and lane1 token birth",
+      "three-cycle resident hold",
+      "buffer-to-MIQ transfer",
+      "SQ terminal death",
+      "selective-cancel STORE authority death",
+      "GEN_W=1/4 and OOO_ASSERT on/off",
+      "8 compile-success mutations across two generation widths",
+      "three ordinary regressions"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "VERIFICATION_AND_EVIDENCE_ONLY",
+    "changed_files": [
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/run_v11o_memory_buffer_token_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11o_memory_buffer_token_semantic.py",
+      "npc/rv64/eval/ppa/tools/memory_buffer_product_reachability.py",
+      "npc/rv64/eval/ppa/tests/test_memory_buffer_product_reachability.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py",
+      "npc/rv64/Makefile"
+    ],
+    "changed_modules": [
+      "tb_ooo_int_backend"
+    ],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "V11O adds macro-isolated TB and evidence logic. Canonical graph/census/policy edits only bind current evidence. Production OooIntBackend.v remains hash-identical."
+  },
+  "hypotheses": {
+    "confirmed": "Product ENABLE_DUAL_MEM=1 makes the legacy buffer birth/request path elaborated constant-zero while ENABLE_DUAL_MEM=0 preserves full token lifecycle.",
+    "rejected": [
+      "broken parameter propagation or hidden valid-set path makes the product buffer reachable",
+      "legacy token truncation or DUT-derived expected state creates a false green"
+    ],
+    "unknown": [
+      "whole-architecture no-live-reuse",
+      "current-design full-system behavior after prior V11H production RTL delta",
+      "synthesis STA power and PPA"
+    ]
+  },
+  "evidence": {
+    "focused_summary": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/focused-fullwidth-current/summary.json",
+    "product_reachability": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/focused-fullwidth-current/product-reachability/receipt.json",
+    "instance_graph": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/focused-fullwidth-current/product-reachability/current-instance-graph/holder-instance-graph.json",
+    "instance_graph_audit": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/focused-fullwidth-current/product-reachability/current-instance-graph/instance-graph-frozen-audit.json",
+    "semantic_ledger": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "v11j_current_rebind": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/v11j-bridge-rebind-fullwidth-current/summary.json",
+    "v11k_current_rebind": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/v11k-miq-rebind-fullwidth-current/summary.json",
+    "v11l_current_rebind": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/v11l-memory-retry-rebind-fullwidth-current/summary.json",
+    "v11m_current_rebind": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/v11m-memory-reservation-rebind-fullwidth-current/summary.json",
+    "v11n_current_rebind": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/evidence/v11n-memory-pending-rebind-fullwidth-current/summary.json",
+    "v11h_checker_replay": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/v11h-checker-replay-current-receipt.json"
+  },
+  "implementation": {
+    "production_rtl": "UNCHANGED",
+    "testbench": "MACRO_ISOLATED_STIMULUS_OWNED_MEMORY_BUFFER_TOKEN_ORACLE",
+    "product_static_tests": "8/8 PASS",
+    "profiles": "20/20 PASS",
+    "baselines": "4/4 PASS",
+    "mutations": "8 compile-success cases; 16/16 release profiles rejected",
+    "ordinary_regressions": "3/3 PASS",
+    "runner_unit_tests": "4/4 PASS",
+    "semantic_evaluator_unit_tests": "64/64 PASS direct",
+    "combined_semantic_gate": "17/17, 15/15, 70/70 PASS",
+    "v11j_rebind": "32/32 PASS",
+    "v11k_rebind": "34/34 PASS",
+    "v11l_rebind": "34/34 PASS",
+    "v11m_rebind": "39/39 PASS",
+    "v11n_rebind": "30/30 PASS",
+    "v11h_replay": "PASS",
+    "instance_graph": "PASS 15 holder modules 17 holder instances 2 duplicate modules"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "before": {
+      "units_pass": 27,
+      "units_gap": 17
+    },
+    "after": {
+      "units_pass": 28,
+      "units_gap": 16
+    },
+    "changed_units": [
+      "memory-buffer-token"
+    ]
+  },
+  "a3_frozen_system_evidence": {
+    "source_run": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3",
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID_OLD_CHECKER",
+    "evidence_replayable": "YES",
+    "commits": 1223536213,
+    "cycles": 5071521696,
+    "replay_result": "PASS",
+    "original_fail_preserved": true
+  },
+  "replay": {
+    "source_run_id": "rootfs-c1b531-systemd-strict-6b-a3",
+    "replay_result": "PASS",
+    "proven_scope": [
+      "printk: debug is accepted",
+      "real BUG token is rejected",
+      "A3 terminal chain and frozen binding remain valid"
+    ],
+    "unproven_scope": [
+      "current production RTL system behavior",
+      "whole-architecture closure",
+      "PPA qualification"
+    ],
+    "limitations": [
+      "A3 original strict FAIL remains immutable",
+      "replay does not reexecute DUT"
+    ]
+  },
+  "review": {
+    "preaudit_contract": ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/subagent-contracts/preaudit-v1.json",
+    "preaudit_contract_sha256": "c818f28c584e22489851b63955638e8af7ea9f28c4b5b625383585a2acfd5301",
+    "fresh_isolated_subagent_status": "NOT_RUN_AGENT_THREAD_LIMIT",
+    "review_mode": "MAIN_AGENT_IMPLEMENTER_REVIEWER_ROLE_SEPARATION",
+    "reviewer_conclusion": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "blocking_findings": 0,
+    "scope_extension_request": "none for bounded V11O claim",
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED_FOR_V11O_LOCAL_CLAIM"
+  },
+  "promotion": {
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "eligible": false,
+    "full_system_run": "NOT_TRIGGERED",
+    "current_design_system_recertification": "REQUIRED_BEFORE_SYSTEM_PROMOTION_DUE_TO_PRIOR_V11H_PRODUCTION_RTL_DELTA",
+    "current_design_system_launch_authorization": "NOT_AUTHORIZED_IN_V11O"
+  },
+  "environment_closeout": {
+    "memory_updated": true,
+    "evidence_indexed": true,
+    "evidence_assets": 1783,
+    "task_markdown_archive": {
+      "stored_documents": 8,
+      "live_files": 0,
+      "compatibility_shims": 8
+    },
+    "task_specific_e2e": {
+      "profile": "npc-dev",
+      "first_run": ".github/task-runs/2026-07-31-OooIntBackend-memory-buffer-token-revtag-v11o",
+      "first_run_status": "BLOCKED_CONTEXT_BRIEF_FOCUS_CHUNK",
+      "first_run_nodes": "5/5 PASS",
+      "corrective_action": "one searchable OooIntBackend memory buffer token memory heading",
+      "current_run": ".github/task-runs/2026-07-31-OooIntBackend-memory-buffer-token-revtag-v11o-2",
+      "current_run_status": "COMPLETED_5_OF_5",
+      "complete_marker": "VALID",
+      "freshness_run": ".github/task-runs/2026-07-31-OooIntBackend-memory-buffer-token-revtag-v11o-3",
+      "freshness_run_status": "COMPLETED_5_OF_5"
+    },
+    "strict_guard": {
+      "status": "PASS",
+      "mode": "strict",
+      "scope": "V11O_13_SOURCE_PATHS",
+      "evidence_dir": ".github/task-runs/2026-07-31-OooIntBackend-memory-buffer-token-revtag-v11o-3",
+      "required_profiles": [
+        "npc-dev"
+      ],
+      "record_freshness_gate": "DB_FIRST_MARKDOWN_COVERAGE_AND_ARTIFACT_AUDIT"
+    },
+    "full_worktree_guard": {
+      "status": "EXEMPT_MIXED_ORIGIN_SCOPE",
+      "observed_result": "FAIL_MISSING_NEMU_DEV",
+      "unrelated_path": "nemu/src/isa/riscv64/inst/amo.c",
+      "reason": "the path is outside V11O ownership and was not modified or validated by this round"
+    }
+  },
+  "next_action": {
+    "target": "highest-information remaining semantic GAP",
+    "classification": "verification-first",
+    "stop_condition": "production RTL counterexample, binding drift, bounded PASS, or explicit residual GAP"
+  }
+}

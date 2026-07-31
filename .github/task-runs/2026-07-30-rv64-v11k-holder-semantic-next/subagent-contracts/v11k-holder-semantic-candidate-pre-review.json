@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11k-holder-semantic-candidate-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 双发射 OoO 核 producer/holder 语义覆盖预审：比较 OooMemInflightQueue owner token、OooIntBackend memory owner、OooFpBackend producer 与叶单元 producer 的当前 RTL、实例路径和 testbench 观测，选择下一轮可闭合真实生命周期、字段 knownness 和双实例区分性的最高收益对象。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/current-instance-graph/holder-instance-graph.json",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/task-report.md",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/testbench/tests",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "只评估本地 RV64 RTL 信号与 testbench/EDA 证据，不修改文件；不得把已有模块 PASS、历史绑定或叶级算术 PASS 推导为 holder 生命周期闭合。",
+      "优先检查 capture→hold/stall→exact consume/retire/flush/kill、字段 X/Z knownness 负向激励、同 ROB 不同 owner/token、以及两个 product instance 的独立命中与交叉拒绝。",
+      "当前账本为 16 PASS/28 GAP；架构结论仍为 RED，PPA 不可 promotion。",
+      ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/subagent-contracts/v11k-holder-semantic-candidate-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "只评估本地 RV64 RTL 信号与 testbench/EDA 证据，不修改文件；不得把已有模块 PASS、历史绑定或叶级算术 PASS 推导为 holder 生命周期闭合。",
+      "优先检查 capture→hold/stall→exact consume/retire/flush/kill、字段 X/Z knownness 负向激励、同 ROB 不同 owner/token、以及两个 product instance 的独立命中与交叉拒绝。",
+      "当前账本为 16 PASS/28 GAP；架构结论仍为 RED，PPA 不可 promotion。"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出候选分组排序、每组可真实关闭的 unit ID、所需最小 RTL/TB/证据改动、最强反例和推荐的单一下一轮主对象；按 RTL 对象→配置/周期→TB/EDA 观测→PASS/GAP 边界组织。"
+  ],
+  "success_criteria": [
+    "推荐项必须由当前 source SHA、实例路径、现有 testbench 可观测性和未覆盖生命周期共同支撑，并明确不能关闭的账本项。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

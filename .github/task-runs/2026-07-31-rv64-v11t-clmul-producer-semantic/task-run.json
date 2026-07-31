@@ -1,0 +1,193 @@
+{
+  "schema": "npc-rv64-task-run-v1",
+  "task_id": "rv64-v11t-clmul-producer-semantic",
+  "status": "PASS_SCOPED",
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "state": "DIRTY_SHARED_WORKTREE_PRESERVED",
+    "git_actions": "NO_NEW_STAGE_NO_COMMIT_NO_SWITCH_NO_RESET_NO_CLEAN_EXISTING_30_PATH_CLEANUP_DELETIONS_PRESERVED"
+  },
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow",
+      "architecture-ledger"
+    ]
+  },
+  "evidence_state": {
+    "published_gate_state": "CLMUL_UNIT_PASS_WHOLE_LEDGER_GAP",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "FOCUSED_TB_COMPLETE",
+    "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+    "raw_artifact_state": "VALID_COMPACT",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "VALID_V11T_A3_LEGACY_ORACLE_INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "evidence_scope": [
+      "OooIntBackend.u_clmul_unit request-to-terminal ProducerId lifecycle",
+      "CLMUL and CLMULH product path",
+      "nine named compile-success mutation classes",
+      "current selected-source binding",
+      "compact secondary-artifact retirement"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "VERIFICATION_CHECKER_AND_LEDGER_ONLY",
+    "changed_files": [
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+      "npc/rv64/testbench/scripts/run_v11t_clmul_producer_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11t_clmul_producer_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json"
+    ],
+    "changed_modules": [],
+    "observed_modules": [
+      "OooIntBackend",
+      "OooClmulUnit"
+    ],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "Production RTL and product execution semantics are byte-unchanged; changes add directed stimulus, mutation sensitivity, compact evidence validation and ledger projection only."
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+    "elaborated_rtl_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+    "simulation_top_id": "tb_ooo_int_backend@sha256:252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+    "device_model_id": "NOT_APPLICABLE_FOCUSED_TB",
+    "host_harness_id": "run_v11t_clmul_producer_semantic.py@sha256:adda4886063276e2b228e8b7c1046e7b408aaa6a394041c161e42e813ec8802c",
+    "simulator_semantics_id": "iverilog@sha256:a6071e4b4a68feafca0c8ee0e6aa275eee9a43a108c62801cfd1eca6eab6d8a3+vvp@sha256:a10bd7d4a0850308ac8c2c98115b6a3084f9be978307610f2a521190c28f4023",
+    "checker_oracle_id_old": "A3_LEGACY_DMESG_ORACLE_RETAINED_INVALID",
+    "checker_oracle_id_new": "producer_holder_semantic_coverage.py@sha256:018511bec0b0f1f25e8b91771a563826cc8ab36c992f506d81cd122258a7e877",
+    "guest_payload_id": "NOT_APPLICABLE_FOCUSED_TB",
+    "boot_artifact_id": "NOT_APPLICABLE_FOCUSED_TB",
+    "test_input_log_id": "attempt-2-summary@sha256:08fbe5360fe0514be54d9b44b08966bc5eb7475ad87d2e9232847ad034d8f163",
+    "run_configuration_id": "tb_ooo_int_backend+V11T_CLMUL_PRODUCER_FOCUSED+PRODUCER_GEN_W_1_4",
+    "raw_artifact_bundle_id": "attempt-2-compact@sha256:08fbe5360fe0514be54d9b44b08966bc5eb7475ad87d2e9232847ad034d8f163",
+    "selected_rtl": {
+      "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+    }
+  },
+  "replay": {
+    "source_run_id": "2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2",
+    "source_raw_log_sha": "sha256:08fbe5360fe0514be54d9b44b08966bc5eb7475ad87d2e9232847ad034d8f163",
+    "source_input_sha": "sha256:60e7513f3939bf14147049853659df9204295f3e72e44b371b52425573e0c2ba",
+    "replay_command": "producer_holder_semantic_coverage.py verify --input evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "replay_result": "PASS_WITH_EXPECTED_WHOLE_LEDGER_GAP",
+    "proven_scope": [
+      "CLMUL producer unit current-source closure",
+      "22 profile and 4 regression receipt validation",
+      "36 retired secondary artifact records",
+      "36 PASS / 8 GAP ledger accounting"
+    ],
+    "unproven_scope": [
+      "eight-younger pressure",
+      "global no-live-reuse",
+      "combined response-backpressure flush same-index-reissue interleavings",
+      "whole architecture",
+      "system recertification",
+      "synthesis STA power PPA"
+    ],
+    "limitations": [
+      "Local hashes are audit bindings, not external signatures.",
+      "The nine mutations are named-fault sensitivity evidence, not exhaustive state-space proof."
+    ]
+  },
+  "cost": {
+    "expected_wallclock": "ordinary ledger about 1.66 seconds; full 97-test checker suite about 58 seconds",
+    "historical_runtime_reference": "ordinary ledger about 11.2 seconds and 1.5 GB before compact projection",
+    "runtime_estimate_confidence": "MEASURED",
+    "single_flight_resource": "Windows-to-WSL RV64 engineering shell",
+    "expected_occupancy": "LOW_FOR_ORDINARY_VERIFY",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "compact hash-bound V11O reachability projection",
+      "build-scoped file digest reuse",
+      "frozen-material no-tools review after workspace review exceeded budget"
+    ],
+    "stop_condition": "Stop after deterministic focused evidence, full checker suite, ledger verify and bounded review; do not launch system or synthesis work."
+  },
+  "retention": {
+    "authoritative_attempt_secondary_artifacts_removed": 36,
+    "authoritative_attempt_secondary_artifacts_removed_bytes": 283273537,
+    "superseded_attempt_and_temp_removed_bytes": 1598753,
+    "current_round_removed_bytes": 284872290,
+    "retained_full_yosys_graphs": 1,
+    "negative_fixture_runtime_path": ".github/runtime-artifacts/test-scratch/producer-holder-semantic",
+    "negative_fixture_post_test_state": "EMPTY",
+    "repository_root_tmp_json_state": "ABSENT"
+  },
+  "test_disposition": {
+    "v11t_focused_and_mutations": "KEEP_CURRENT_SENSITIVE",
+    "ordinary_regressions": "KEEP_CURRENT_SENSITIVE",
+    "historical_selected_source_evidence": "KEEP_WHEN_SELECTED_RTL_TB_HASHES_MATCH",
+    "testbench_makefile": "ORCHESTRATION_ONLY_NOT_SEMANTIC_BINDING",
+    "negative_contract_fixtures": "RUNTIME_SCRATCH_AUTO_REMOVE_NOT_TASK_RUN_EVIDENCE",
+    "eight_younger_pressure": "UNKNOWN_PENDING_REVIEW"
+  },
+  "a3": {
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "next_action": "VERSIONED_ORACLE_REPLAY"
+  },
+  "implementation": {
+    "conclusion": "CLMUL producer unit current-design verification closure is complete without production RTL change.",
+    "promotion_eligibility": "UNIT_ONLY",
+    "next_highest_information_action": "Rebind and verify pending-system-producer before the seven FP producer paths."
+  },
+  "closure_bookkeeping": {
+    "architecture_debt_ledger": "UPDATED_BY_PRODUCER_HOLDER_SEMANTIC_LEDGER_36_PASS_8_GAP",
+    "historical_defect_backfill_ledger": "NOT_APPLICABLE_NO_HISTORICAL_PRODUCTION_DEFECT_CLOSED",
+    "evidence_index": "UPDATED",
+    "artifact_boundary_audit": "PASS",
+    "db_first_audit": "PASS_AFTER_TASK_RUN_PROMOTION_AND_STORED_SNAPSHOT_REFRESH",
+    "db_first_initial_audit": "FAIL_RETAINED_MISSING_STORED_TASK_RUN_MARKDOWN_AND_STALE_MEMORY_BACKUP_HASH",
+    "baseline_manifest": "NOT_APPLICABLE_NO_PPA_BASELINE_OR_CANDIDATE",
+    "layered_identity": "UPDATED_IN_TASK_RUN_JSON",
+    "e2e_profile": "NOT_RUN_LIGHTWEIGHT_DEVELOPMENT_CLASS",
+    "strict_guard": "NOT_RUN_LIGHTWEIGHT_DEVELOPMENT_CLASS_NO_RELEASE_OR_MIGRATION",
+    "git_commit": "NOT_RUN_MIXED_CONCURRENT_WORKTREE_AND_NO_COMMIT_REQUEST"
+  },
+  "review": {
+    "reviewer_conclusion": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "contract_sha256": "13beb54fda379afd0d14c5adf1ad5367f80163d6a7ecfae0b22cdc45cfab0fd6",
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED",
+    "known_limits": [
+      "No eight-younger or global reuse proof.",
+      "No full-system, synthesis, STA, power or PPA run.",
+      "First workspace-files reviewer was stopped without verdict and is not counted as approval."
+    ]
+  },
+  "artifacts": {
+    "focused_summary": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/summary.json",
+    "semantic_ledger": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "semantic_checker_tests": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-checker-tests.log",
+    "instance_graph_audit": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/current-instance-graph-audit/instance-graph-frozen-audit.json",
+    "evidence_index": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence-index.md",
+    "cleanup": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/cleanup-selection.json",
+    "review": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/review-result.md"
+  }
+}

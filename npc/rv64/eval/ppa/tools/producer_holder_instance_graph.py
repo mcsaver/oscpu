@@ -42,31 +42,34 @@ EVIDENCE_KINDS = {
 }
 CANONICAL_EVIDENCE_PATHS = {
     "result": (
-        ".github/task-runs/2026-07-30-rv64-v11h-"
-        "load-queue-producer-semantic-coverage/evidence/"
-        "current-instance-graph-v2/holder-instance-graph.json"
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
+        "holder-instance-graph.json"
     ),
     "receipt": (
-        ".github/task-runs/2026-07-30-rv64-v11h-"
-        "load-queue-producer-semantic-coverage/evidence/"
-        "current-instance-graph-v2/"
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
         "yosys-instance-graph-receipt.json"
     ),
     "full": (
-        ".github/task-runs/2026-07-30-rv64-v11h-"
-        "load-queue-producer-semantic-coverage/evidence/"
-        "current-instance-graph-v2/"
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
         "yosys-instance-graph.full.json.gz"
     ),
     "script": (
-        ".github/task-runs/2026-07-30-rv64-v11h-"
-        "load-queue-producer-semantic-coverage/evidence/"
-        "current-instance-graph-v2/yosys-instance-graph.ys"
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
+        "yosys-instance-graph.ys"
     ),
     "log": (
-        ".github/task-runs/2026-07-30-rv64-v11h-"
-        "load-queue-producer-semantic-coverage/evidence/"
-        "current-instance-graph-v2/yosys-instance-graph.log"
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
+        "yosys-instance-graph.log"
     ),
 }
 # Compatibility name for callers that only need the primary result kind.
@@ -254,7 +257,6 @@ def _parse_make_assignment(text: str, name: str) -> str | None:
 
 def config_binding(repo_root: Path) -> dict[str, Any]:
     config_path = repo_root / CONFIG_PATH
-    makefile_path = repo_root / MAKEFILE_PATH
     config_text = config_path.read_text(encoding="utf-8")
     schema = _parse_make_assignment(
         config_text, "NPC_PRODUCT_RTL_CONFIG_SCHEMA"
@@ -270,10 +272,6 @@ def config_binding(repo_root: Path) -> dict[str, Any]:
             {
                 "path": CONFIG_PATH,
                 "sha256": sha256_file(config_path),
-            },
-            {
-                "path": MAKEFILE_PATH,
-                "sha256": sha256_file(makefile_path),
             },
         ],
     }

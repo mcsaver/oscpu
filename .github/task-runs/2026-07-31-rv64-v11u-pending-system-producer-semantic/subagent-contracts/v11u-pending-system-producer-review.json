@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11u-pending-system-producer-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooPendingSystemSequencer producer_id_q 从 CSR dispatch birth、raw lease hold、exact commit 或 core-local flush death 到 OooIntBackend live-mask reuse fence 的完整事务合同，并检查 attempt-2、语义账本与历史 V8K stale 候选是否存在假绿、覆盖洞或越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/copilot-instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/vsrc/control/README.md",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+      "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/scripts/run_v11u_pending_system_producer_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11u_pending_system_producer_semantic.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/attempt-1",
+      ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/attempt-2",
+      ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/semantic-ledger-current",
+      ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/subagent-contracts/v11u-pending-system-producer-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/copilot-instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+      "npc/rv64/vsrc/control/README.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象、1/4-bit ProducerId 配置、testbench/EDA 观测和 PASS/GAP 范围给出独立复核；逐项列明反例、未知项、替代假设、证据 marker、真实路径与任何 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认或反驳 pending-system-producer 单元当前 closure；所有支持结论必须能回指 RTL signal/transaction、attempt-2 profile 或 mutation 日志、source pre/post 哈希、42 项 artifact cleanup 和 37/7 账本投影，且不得把未运行的 full-system、PPA 或 7 个 FP 单元升级为 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

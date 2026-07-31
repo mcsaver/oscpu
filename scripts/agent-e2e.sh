@@ -12,7 +12,6 @@ E2E_VALIDATE_PROFILE=0
 E2E_VALIDATE_ALL_PROFILES=0
 E2E_GUARD=0
 E2E_GUARD_MODE=strict
-E2E_GUARD_SINCE_REF=HEAD
 E2E_GUARD_PATHS_FILE=
 E2E_GUARD_PATH_ARGS=()
 E2E_GUARD_EVIDENCE_DIRS=()
@@ -30,19 +29,19 @@ usage() {
   scripts/agent-e2e.sh [--profile name] [--task-slug slug] [--run-dir dir] [--stop-on-fail] [--list-profiles]
   scripts/agent-e2e.sh --validate-profile [--profile name]
   scripts/agent-e2e.sh --validate-all-profiles
-  scripts/agent-e2e.sh --guard [--guard-mode strict|warn] [--paths-file file] [--path path] [--evidence-dir dir]
+  scripts/agent-e2e.sh --guard [--guard-mode strict|warn] (--paths-file file | --path path...) [--evidence-dir dir]
 
 说明:
   profile 定义放在 .github/e2e/profiles/*.tsv。
   具体模块 gate 放在 scripts/e2e/modules/*.sh。
   本脚本只负责展开 profile、调度节点和生成 task-run 证据包。
   validate 模式只检查 profile 展开和函数绑定，不执行具体 gate。
-  guard 模式按工作树触碰路径推导推荐 profile，并检查本轮 task-run 证据和 DB 召回产物。
+  guard 模式只消费显式 paths-file/path，不扫描 Git 工作树；推荐 profile 并检查本轮 task-run 证据。
 
 示例:
   scripts/agent-e2e.sh --list-profiles
   scripts/agent-e2e.sh --validate-all-profiles
-  scripts/agent-e2e.sh --guard --guard-mode strict
+  scripts/agent-e2e.sh --guard --guard-mode strict --paths-file <agent-flow-paths.log>
   scripts/agent-e2e.sh --profile discovery
   scripts/agent-e2e.sh --profile abstract-machine
   scripts/agent-e2e.sh --profile npc
@@ -93,9 +92,8 @@ parse_args() {
         shift 2
         ;;
       --since-ref)
-        [[ $# -ge 2 ]] || { echo "--since-ref 需要一个 Git ref" >&2; exit 2; }
-        E2E_GUARD_SINCE_REF=$2
-        shift 2
+        echo "--since-ref 已停用；请使用 agent-flow paths.log 或显式 --path" >&2
+        exit 2
         ;;
       --paths-file)
         [[ $# -ge 2 ]] || { echo "--paths-file 需要一个文件参数" >&2; exit 2; }
@@ -362,49 +360,18 @@ e2e_guard_add_unique_evidence_dir() {
 }
 
 e2e_guard_path_mtime_us() {
-  local reason=$1 absolute_path="$E2E_ROOT_DIR/$1" parent index_path deletion_known=0
+  local reason=$1 absolute_path="$E2E_ROOT_DIR/$1" timestamp source_path
   if [[ -e $absolute_path || -L $absolute_path ]]; then
-    python3 - "$absolute_path" <<'PY'
-import os
-import sys
-
-try:
-    mtime_ns = os.lstat(sys.argv[1]).st_mtime_ns
-except OSError:
-    raise SystemExit(1)
-print((mtime_ns + 999) // 1000)
-PY
-    return $?
+    source_path=$absolute_path
+  elif [[ -n $E2E_GUARD_PATHS_FILE && -f $E2E_GUARD_PATHS_FILE ]]; then
+    # 显式路径日志的 mtime 是删除项的任务归属基线；不读取 Git index。
+    source_path=$E2E_GUARD_PATHS_FILE
+  else
+    return 1
   fi
 
-  if git -C "$E2E_ROOT_DIR" ls-files --deleted -- "$reason" 2>/dev/null | grep -Fqx -- "$reason"; then
-    deletion_known=1
-  elif ! git -C "$E2E_ROOT_DIR" diff --cached --quiet --no-renames --diff-filter=D -- "$reason" 2>/dev/null; then
-    deletion_known=1
-  fi
-  [[ $deletion_known -eq 1 ]] || return 1
-
-  parent=$(dirname -- "$absolute_path")
-  while [[ ! -e $parent && $parent != "$E2E_ROOT_DIR" && $parent != / ]]; do
-    parent=$(dirname -- "$parent")
-  done
-  [[ -d $parent ]] || return 1
-  index_path=$(git -C "$E2E_ROOT_DIR" rev-parse --git-path index 2>/dev/null) || return 1
-  [[ $index_path = /* ]] || index_path="$E2E_ROOT_DIR/$index_path"
-  python3 - "$parent" "$index_path" <<'PY'
-import os
-import sys
-
-mtimes = []
-for raw_path in sys.argv[1:]:
-    try:
-        mtimes.append(os.lstat(raw_path).st_mtime_ns)
-    except OSError:
-        pass
-if not mtimes:
-    raise SystemExit(1)
-print((max(mtimes) + 999) // 1000)
-PY
+  timestamp=$(stat -c '%y' -- "$source_path") || return 1
+  date -d "$timestamp" '+%s%6N'
 }
 
 e2e_guard_add_profile() {
@@ -429,7 +396,7 @@ e2e_guard_add_profile() {
 }
 
 e2e_guard_collect_paths() {
-  local path auto_paths auto_paths_sorted collect_rc=0
+  local path
   E2E_GUARD_PATHS=()
   E2E_GUARD_AUTO_EVIDENCE_DIRS=()
 
@@ -445,21 +412,9 @@ e2e_guard_collect_paths() {
   done
 
   if [[ ${#E2E_GUARD_PATHS[@]} -eq 0 ]]; then
-    auto_paths=$(mktemp) || return 2
-    auto_paths_sorted=$(mktemp) || { rm -f -- "$auto_paths"; return 2; }
-    git -C "$E2E_ROOT_DIR" diff --name-only "$E2E_GUARD_SINCE_REF" -- >> "$auto_paths" 2>/dev/null || collect_rc=1
-    git -C "$E2E_ROOT_DIR" diff --name-only --cached -- >> "$auto_paths" 2>/dev/null || collect_rc=1
-    git -C "$E2E_ROOT_DIR" diff --name-only -- >> "$auto_paths" 2>/dev/null || collect_rc=1
-    git -C "$E2E_ROOT_DIR" ls-files --others --exclude-standard >> "$auto_paths" 2>/dev/null || collect_rc=1
-    if [[ $collect_rc -ne 0 ]] || ! awk 'NF' "$auto_paths" | sort -u > "$auto_paths_sorted"; then
-      rm -f -- "$auto_paths" "$auto_paths_sorted"
-      printf '[agent-e2e-guard] FAIL unable to enumerate changed paths\n' >&2
-      return 2
-    fi
-    while IFS= read -r path || [[ -n $path ]]; do
-      e2e_guard_add_unique_path "$path"
-    done < "$auto_paths_sorted"
-    rm -f -- "$auto_paths" "$auto_paths_sorted" || return 2
+    printf '%s\n' \
+      '[agent-e2e-guard] FAIL explicit --paths-file or --path is required; Git worktree enumeration is disabled' >&2
+    return 2
   fi
 
   for path in "${E2E_GUARD_PATHS[@]}"; do

@@ -31,7 +31,7 @@ class VariantSpec:
 
 
 BRIDGE = "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
-XBAR = "npc/rv64/vsrc/bus/AxiXbar.v"
+CROSSBAR = "npc/rv64/vsrc/bus/AxiCrossbar.v"
 
 VARIANTS = (
     VariantSpec(
@@ -267,10 +267,10 @@ VARIANTS = (
     VariantSpec(
         name="xbar_b_fire_does_not_release_owner",
         purpose=(
-            "Prevent the exact slave B handshake from releasing the AxiXbar "
+            "Prevent the exact slave B handshake from releasing the AxiCrossbar "
             "write owner and its master-busy state."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_ooo_fetch_axi_bridge_xbar",
         old=(
@@ -288,10 +288,10 @@ VARIANTS = (
     VariantSpec(
         name="xbar_releases_owner_on_bvalid",
         purpose=(
-            "Release the AxiXbar write owner on slave BVALID without the "
+            "Release the AxiCrossbar write owner on slave BVALID without the "
             "master BREADY handshake."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_xbar",
         old=(
@@ -315,7 +315,7 @@ VARIANTS = (
             "Require WVALID in the same cycle as an accepted AW channel, "
             "breaking legal AW-first master presentation."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_xbar",
         old="        if (m_awvalid_i[m] && m_awready_r[m]) begin",
@@ -331,7 +331,7 @@ VARIANTS = (
             "Require AWVALID in the same cycle as an accepted W channel, "
             "breaking legal W-first master presentation."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_xbar",
         old="        if (m_wvalid_i[m] && m_wready_r[m]) begin",

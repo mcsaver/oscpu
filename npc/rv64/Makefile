@@ -239,6 +239,7 @@ print-synth-rtl:
 # 可综合文件须为 .v、不得用 SV 的 always_comb/always_ff/logic(iverilog 模块 TB 不兼容)。
 check-rtl-style:
 	@RTL_FILES="$$($(MAKE) -s print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
+	@bash $(abspath eval/tests/test-check-rtl-style.sh)
 
 # Finite-generation ProducerId holder census.  The first command proves the
 # checker fails closed under added fields/stages/tokens, cut unions, raw-index
@@ -250,12 +251,33 @@ check-producer-holder-census: check-producer-holder-instance-graph
 	@python3 $(abspath eval/ppa/tools/producer_holder_census.py)
 
 # Current product NpcTop elaboration companion to the source-level census.
-# The frozen result binds every holder-bearing module to every reachable
-# instance, including duplicated MIQ and memory-bridge instances.  This gate
-# closes instance multiplicity only; lifecycle semantics remain independent.
+# The canonical V11J bundle binds every holder-bearing module to every
+# reachable instance, including duplicated MIQ and memory-bridge instances.
+# The daily gate replays the fail-closed unit suite and frozen full-graph
+# receipt without rewriting task-run history.  Fresh Yosys elaboration remains
+# an explicit evidence-generation action.
 .PHONY: check-producer-holder-instance-graph
 check-producer-holder-instance-graph:
-	@V11H_INSTANCE_GRAPH_REVISION=2 bash $(abspath ../../.github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/run-current-instance-graph.sh)
+	@python3 -m unittest -q eval/ppa/tests/test_producer_holder_instance_graph.py
+	@python3 $(abspath eval/ppa/tools/producer_holder_instance_graph.py) --check-frozen
+
+# Current partial semantic ledger.  GAP is an expected ledger status while any
+# holder unit remains open; this gate verifies that every granted local PASS is
+# still source/TB/instance bound and that the stored GAP ledger exactly matches
+# the current census, graph, policy, replay receipt and checker.
+PRODUCER_HOLDER_SEMANTIC_LEDGER := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/ledger-attempt-9/producer-holder-semantic-coverage.json)
+PRODUCER_HOLDER_SEMANTIC_INSTANCE_GRAPH := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/current-instance-graph-rebind-attempt-1/holder-instance-graph.json)
+V11H_CHECKER_REPLAY_RECEIPT := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/v11h-checker-replay-after-graph-attempt-9-receipt.json)
+.PHONY: check-producer-holder-semantic-coverage
+check-producer-holder-semantic-coverage: check-producer-holder-census
+	@python3 -m unittest -q \
+	  eval/ppa/tests/test_load_queue_producer_checker_replay.py \
+	  eval/ppa/tests/test_producer_holder_semantic_coverage.py
+	@python3 $(abspath eval/ppa/tools/load_queue_producer_checker_replay.py) \
+	  verify --input $(V11H_CHECKER_REPLAY_RECEIPT)
+	@python3 $(abspath eval/ppa/tools/producer_holder_semantic_coverage.py) \
+	  --instance-graph $(PRODUCER_HOLDER_SEMANTIC_INSTANCE_GRAPH) \
+	  verify --input $(PRODUCER_HOLDER_SEMANTIC_LEDGER)
 
 # Dynamic companion to the static census: assert/release baselines, real
 # GEN_W=1 wrap/death-edge/backpressure paths, legacy memory cancellation, and
@@ -263,7 +285,7 @@ check-producer-holder-instance-graph:
 # focused gate rather than making every check-contract invocation rebuild the
 # full simulation matrix.
 .PHONY: check-global-producer-no-live-reuse
-check-global-producer-no-live-reuse: check-producer-holder-census check-producer-holder-instance-graph
+check-global-producer-no-live-reuse: check-producer-holder-semantic-coverage
 	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh)
 
 # V11I exact memory-owner terminal lifecycle: the real IntBackend collector,
@@ -273,11 +295,17 @@ check-global-producer-no-live-reuse: check-producer-holder-census check-producer
 # independent LQ/tracker raw-Q oracle.  This focused target never launches a
 # full-system workload and cannot promote architecture or PPA by itself.
 V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(BUILD_DIR)/v11i-terminal-lifecycle)
+V11I_TERMINAL_LIFECYCLE_VALIDATOR := $(abspath eval/ppa/tools/v11i_terminal_lifecycle_evidence.py)
 .PHONY: check-memory-terminal-lifecycle
 check-memory-terminal-lifecycle:
 	@$(MAKE) --no-print-directory -C testbench \
 	  V11I_TERMINAL_LIFECYCLE_RESULT="$(V11I_TERMINAL_LIFECYCLE_RESULT)" \
 	  v11i-terminal-lifecycle
+	@python3 $(V11I_TERMINAL_LIFECYCLE_VALIDATOR) \
+	  --summary "$(V11I_TERMINAL_LIFECYCLE_RESULT)/summary.json" \
+	  --receipt-out "$(V11I_TERMINAL_LIFECYCLE_RESULT)/validation-receipt.json"
+	@V11I_EVIDENCE_SUMMARY="$(V11I_TERMINAL_LIFECYCLE_RESULT)/summary.json" \
+	  python3 eval/ppa/tests/test_v11i_terminal_lifecycle_evidence.py -q
 
 # OOO-2 selective scheduling: prove that a registered Universal reservation
 # blocks only that terminal while independent ALU work continues through the

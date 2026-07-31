@@ -32,7 +32,7 @@ class VariantSpec:
 
 BRIDGE = "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
 PMP = "npc/rv64/vsrc/memory/PmpChecker.v"
-XBAR = "npc/rv64/vsrc/bus/AxiXbar.v"
+CROSSBAR = "npc/rv64/vsrc/bus/AxiCrossbar.v"
 PAIR = "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v"
 DISPATCH = "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
 CAPTURE = "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v"
@@ -248,7 +248,7 @@ VARIANTS = (
             "Ignore SLAVE_EXEC_MASK[decoded] while ARPROT[2] marks an "
             "instruction read, allowing the decoded device slave to accept AR."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_exec_firewall",
         old=(
@@ -264,7 +264,7 @@ VARIANTS = (
             "Drive slave ARADDR during ARVALID backpressure from live "
             "m_araddr_i instead of rd_addr_q for the registered read owner."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_exec_firewall",
         old="        s_araddr_r[s*ADDR_W +: ADDR_W] = rd_addr_q[s];",
@@ -280,7 +280,7 @@ VARIANTS = (
             "Release the buffered read owner on RVALID alone instead of the "
             "master RVALID/RREADY handshake."
         ),
-        source_rel=XBAR,
+        source_rel=CROSSBAR,
         make_variable="RTL_AXI_XBAR",
         test_name="tb_axi_xbar",
         old=(

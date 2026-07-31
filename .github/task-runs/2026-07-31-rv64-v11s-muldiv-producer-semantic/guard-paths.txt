@@ -1,0 +1,16 @@
+npc/rv64/Makefile
+npc/rv64/design/arch/producer-holder-census.json
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/design/arch/producer-holder-semantic-coverage.json
+npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py
+npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py
+npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py
+npc/rv64/eval/ppa/tests/test_load_queue_producer_checker_replay.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/testbench/Makefile
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv
+npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh
+npc/rv64/testbench/scripts/run_v11s_muldiv_producer_semantic.py
+npc/rv64/testbench/scripts/test_run_v11s_muldiv_producer_semantic.py

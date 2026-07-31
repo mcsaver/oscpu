@@ -24,9 +24,13 @@
 
 ### 3. Agent = 自动维护流程层
 
-- 真实入口：`.github/agents/*.agent.md`、`ysyx-coordinator` 图任务模型、`agent-system` 架构 agent、`.github/ai-env/contracts/agent-env-policy.json`、`.github/ai-env/contracts/agent-env-review-routing.json`、`.github/ai-env/contracts/agent-env-branch-health.json`、`.github/ai-env/contracts/agent-env-observability.json`、`.github/ai-env/contracts/agent-env-state-traceability.json`、`.github/ai-env/contracts/agent-env-delivery.json`、`scripts/package-ai-dev-env.sh`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`。
-- 保存对象：角色边界、调度图、review routing、branch-health dashboard、observability contract、state traceback contract、delivery contract、e2e profile、自动检查节点、task-run 证据包和商业交付包。
-- 文件语义：Agent 负责把用户目标映射成图节点并收口验证；每个跨层任务至少留下 profile resolve、task report、dispatch log 或等价证据；工具范围、MCP、retention、CI/nightly 规则由 `.github/ai-env/contracts/agent-env-policy.json` 统一声明。
+- 真实入口：`scripts/agent-flow.c`、`scripts/agent-flow.sh`、`.github/agents/*.agent.md`、
+  `ysyx-coordinator`、`agent-system`、`.github/ai-env/contracts/agent-env-policy.json`、相关 contract、
+  `scripts/agent-e2e.sh`、`scripts/agent-maintain.sh` 和 `scripts/package-ai-dev-env.sh`。
+- 保存对象：任务分类、显式修改路径、gate pointer、review routing、e2e profile、compact/durable
+  task-run、长期 runner 状态和商业交付包。
+- 文件语义：普通任务由 C 调度器在目标轮次末尾按路径收口；只有 profile/release/长链任务才进入
+  完整图执行。工具范围、retention、CI/nightly 和预算规则由 policy 声明。
 - 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小充分工程边界，并由 `agent-system` 的 `rtl-task-contract` 节点验证能力不变的 `rv64-hardware-professional` 语境渲染；该层不使用关键词黑名单，协调状态留在主 agent 记录中，review 暂停只作用于当前节点。
 - 长跑状态：RV64 仿真、综合、STA 与 Linux 系统回放使用 `scripts/task-run-status.sh` 的显式
   evidence-complete 位；退出码为零但未到证据末端、cleanup 失败或 `HUP/INT/TERM` 都必须落成
@@ -35,33 +39,26 @@
 
 ## 维护闭环
 
-`report-audit -> policy-audit -> blueprint -> skill/instruction/script edits -> validate-discovery -> inspect -> record`
+`classify -> implement/verify -> record explicit paths/evidence/decisions -> finish selected gates -> compact result`
 
-最低验证：
+日常入口：
 
 ```bash
-scripts/agent-maintain.sh --mode check
+scripts/agent-flow.sh begin --task <id> --class environment
+scripts/agent-flow.sh record --task <id> --path <changed-path>
+scripts/agent-flow.sh finish --task <id>
 ```
 
-其中 `scripts/agent-maintain.sh --mode check` 必须覆盖：
+`scripts/agent-maintain.sh` 分层执行：
 
-- `python3 scripts/github_index_db.py report-audit`
-- `python3 scripts/github_index_db.py schema-audit`
-- `python3 scripts/github_index_db.py artifact-audit`
-- `python3 scripts/github_index_db.py delivery-audit`
-- `python3 scripts/github_index_db.py trace-audit`
-- `python3 scripts/github_index_db.py state-audit`
-- `python3 scripts/github_index_db.py policy-audit`
-- `python3 scripts/github_index_db.py skill-audit`
-- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit`
-- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test`
-- `python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test`
-- `scripts/tests/test-task-run-status.sh`
-- `python3 scripts/github_index_db.py branch-health-report`
-- `python3 scripts/github_index_db.py branch-health-audit`
-- `python3 scripts/github_index_db.py audit-db-first`
-- `python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence`
-- `scripts/agent-e2e.sh --validate-all-profiles`
+- `quick`：shell syntax + C 调度器自测，不调用 Python/DB/profile；
+- `final`：一轮 AI 环境目标结束后运行 quick、非发布类 contract/audit 和 profile binding；
+- `release`：在 final 上追加 package、delivery、branch-health 和 DB coverage；
+- `full`：在 release 上追加 `agent-system` profile；兼容名 `check` 等价于 `final`。
+
+日常路径不要求 `final/release/full` 全部执行；C 根据显式修改路径选择 `policy-audit`、
+`profile-bindings`、`state-audit`、`rtl-task-contract` 等固定指针。流程时间相对开发时间约 40%
+是事后观测目标，不作为 PASS/BLOCKED 的精确时间条件。
 
 跨层任务还必须维护：
 
@@ -75,12 +72,14 @@ scripts/agent-maintain.sh --mode check
 - `.github/ai-env/contracts/agent-env-branch-health.json`：把当前分支、HEAD、upstream、git status、矩阵状态和维护 gate 变成轻量 dashboard 契约。
 - `.github/instructions/agent-env-state-machine.instructions.md`：把 recall、classify、plan、implement、verify、inspect、persist 状态和回退规则固定下来。
 
-触及 profile 或 e2e 节点时追加：
+触及 profile 或 e2e 节点时，C 自动选择：
 
 ```bash
 scripts/agent-e2e.sh --validate-all-profiles
-scripts/agent-e2e.sh --profile agent-system
 ```
+
+真实 `agent-system` profile 只在 `full`、release 证据或用户明确要求时运行，不作为普通环境编辑的
+默认收尾。
 
 ## 判定规则
 

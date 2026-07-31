@@ -1,0 +1,3 @@
+2026-07-31T10:59:23Z	hypothesis	AxiXbar-to-AxiCrossbar is symbol-only; IFU AW/W/B owner and execute-access contracts remain dynamically valid on current design	-
+2026-07-31T10:59:23Z	counterexample	A renamed source path may have broken elaboration, mutation injection, or current-design binding even when the RTL body hash matches	-
+2026-07-31T11:21:58Z	evidence	Independent RV64 reviewer approved current IFU/AxiCrossbar scoped evidence; ledger remains old single-cohort GAP.	.github/task-runs/2026-07-31-rv64-ifu-crossbar-current-replay/subagent-contracts/ifu-crossbar-current-replay-review-v1.json

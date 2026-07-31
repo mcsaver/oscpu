@@ -1,0 +1,41 @@
+{
+  "schema": "rv64-round-state-v1",
+  "run_id": "2026-07-31-rv64-v11s-muldiv-producer-semantic",
+  "updated_at_utc": "2026-07-31T03:09:37Z",
+  "mechanism": "muldiv-producer-lifecycle",
+  "implementation_state": "PASS_NO_PRODUCTION_RTL_CHANGE",
+  "focused_verification_state": "PASS_22_OF_22",
+  "semantic_ledger_state": "GAP",
+  "semantic_counts": {
+    "units": 44,
+    "pass": 35,
+    "gap": 9,
+    "holder_instances": 17,
+    "bindings": 50
+  },
+  "review_state": "PASS_BOUNDED",
+  "memory_state": "PASS_RECALL_COMPLETE",
+  "e2e_state": "PASS_NPC_DEV_5_OF_5",
+  "guard_state": "SCOPED_PASS_FULL_WORKTREE_OUT_OF_SCOPE_NEMU_GAP",
+  "raw_evidence_state": "INDEX_ONLY_985_ASSETS",
+  "db_state": "PASS_DB_FIRST_MARKDOWN_COVERAGE_ARTIFACT_AUDIT",
+  "evidence_process_state": "PASS_CANONICAL_ATTEMPTS_IMMUTABLE",
+  "architecture_state": "RED",
+  "system_state": "A3_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+  "system_rerun_state": "NOT_REQUIRED",
+  "ppa_state": "UNPROMOTED",
+  "production_rtl_modified": false,
+  "bounded_verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "remaining_semantic_gaps": [
+    "clmul-producer",
+    "fp-arith-stage-producers",
+    "fp-done-fifo-producers",
+    "fp-exec1-packed-alias",
+    "fp-exec1-packet",
+    "fp-iq-producers",
+    "fp-issue-packet",
+    "fp-long-producer",
+    "pending-system-producer"
+  ],
+  "next_highest_information_gain_action": "clmul-producer current product-path lifecycle"
+}

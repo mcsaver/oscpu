@@ -1,8 +1,8 @@
-# 规范：AXI4 总线（完整 AXI4 化战役 + AxiXbar 契约）
+# 规范：AXI4 总线（完整 AXI4 化战役 + AxiCrossbar 契约）
 
 > 状态：**single-beat AXI4 主干已落地；IFU-ACCESS-G1 于 2026-07-13 补齐 read
 > ARSIZE/ARPROT 的 slave-side owner 与 execute-device firewall；T4I 已关闭 LSU
-> exact-window 外泄，并把 AWSIZE 铺到 slave/external 端；T4R 已把 AxiXbar read
+> exact-window 外泄，并把 AWSIZE 铺到 slave/external 端；T4R 已把 AxiCrossbar read
 > response 收口为严格非穿透的 per-master registered slice**。原始战役侦查存
 > `.github/task-runs/2026-07-10-axi4-campaign/evidence/`。
 > 动机：现总线是自定义 single-beat AXI-like（带非标 arstrb/aruser/abort 边带，缺
@@ -70,7 +70,7 @@ ysyxSoC 32-bit master，仍需独立 64→32 降宽桥，不能拿本轮同宽 l
 
 ## 5. 落地记录（2026-07-10 同日，S1-S5 全部完成）
 
-- **架构定型**：主干（master 桥↔NpcAxiBus↔AxiXbar master 口）=完整 AXI4
+- **架构定型**：主干（master 桥↔NpcAxiBus↔AxiCrossbar master 口）=完整 AXI4
   （ID/LEN/SIZE/BURST/PROT/LAST 全信号集，单 beat 常量位）；xbar slave 口与
   外设保持 single-beat 子集（read address 侧保留 ARSIZE/ARPROT；简单内部外设可忽略，
   DPI/memory slave 必须消费）。外设文件名 AxiClint/AxiPlic/AxiToUart/AxiVirtioBlk
@@ -87,7 +87,7 @@ ysyxSoC 32-bit master，仍需独立 64→32 降宽桥，不能拿本轮同宽 l
 
 ## 5.1 IFU-ACCESS-G1 read owner 与设备执行防火墙（2026-07-13）
 
-- `AxiXbar` 的 read grant 同时锁存 `ARADDR/ARSIZE/ARPROT/ARID/owner`；slave
+- `AxiCrossbar` 的 read grant 同时锁存 `ARADDR/ARSIZE/ARPROT/ARID/owner`；slave
   `ARREADY=0` 时，master 即使撤销 VALID 并改变 payload，slave 侧四拍保持原事务。
 - `SLAVE_EXEC_MASK` 默认全 1 以保持通用例化兼容。`NpcTop` 只允许 SRAM、MROM、FLASH、
   PSRAM、SDRAM 与 CHIPLINK_MEM 成为 instruction read 目标；其余 device/MMIO 在仲裁前
@@ -114,14 +114,14 @@ ysyxSoC 32-bit master，仍需独立 64→32 降宽桥，不能拿本轮同宽 l
   byte 微事务并聚合 R/B；MMIO/PTE misaligned 本地 DECERR、零下游副作用；
 - bridge 的上游 AW/W fire 现在只代表 adapter capture，因此删除旧
   `bpend_q/store_decouple` 早完成路，所有 store 等待聚合 B；
-- AxiXbar/NpcAxiBus/NpcTop 将 AWSIZE 与 owner/address 同步锁存并送到 external 端；
+- AxiCrossbar/NpcAxiBus/NpcTop 将 AWSIZE 与 owner/address 同步锁存并送到 external 端；
 - UART/CLINT/PLIC、DPI memory 与 virtio 仿真 wrapper 统一消费标准 lane。旧 exact-window 扩展
   只存在 adapter 上游，不再泄漏到 xbar/slave/physical ABI；
 - ysyxSoC 32-bit 降宽仍是明确范围外的另一层 adapter，本切片只关闭当前 NpcTop 64-bit ABI。
 - 定向证据：adapter、bridge、xbar、UART/CLINT/PLIC、DPI guard 均 PASS；
   完整 module **100/100** PASS。系统软件与 fresh 5ns STA 由 T4I task-run 给出最终结论。
 
-## 5.3 T4R AxiXbar registered R response slice（2026-07-15，已落地）
+## 5.3 T4R AxiCrossbar registered R response slice（2026-07-15，已落地）
 
 - 每个 master 各有一组 `rd_resp_valid/data/resp/id_q`，slave R 不再组合穿透到
   `m_rvalid/rdata/rresp/rid`。只有对应 master 的 response slice 为空时，xbar 才向其
@@ -146,6 +146,9 @@ ysyxSoC 32-bit master，仍需独立 64→32 降宽桥，不能拿本轮同宽 l
   split、uncached exact read 与 slave/external AWSIZE owner。
 - 2026-07-14（T4I implementation）：上述 RTL/连接/设备/DPI 收口，删除旧
   PMEM AW/W-fire 早完成路；验证状态见 §5.2。
-- 2026-07-15（T4R）：AxiXbar R 通道改为 per-master strict registered response slice；
+- 2026-07-15（T4R）：AxiCrossbar R 通道改为 per-master strict registered response slice；
   slave R fire 捕获并释放 slave，master R fire 才释放 slice/master busy，返回固定增加 1 拍且
   反压期间 payload 稳定。
+- 2026-07-31：生产 module/file/instance 从 `AxiXbar/AxiXbar.v/u_xbar` 统一为
+  `AxiCrossbar/AxiCrossbar.v/u_crossbar`；端口、参数、owner/FSM、周期行为和逻辑拓扑不变。
+  历史 test 名与日志 marker 保留原字样，避免改写已冻结证据。

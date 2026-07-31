@@ -12,6 +12,7 @@
 | `.github/skills/agent-env-maintenance/SKILL.md` | 标准化维护规则 |
 | `.github/skills/prepare-rtl-task-contract/` | RTL 子任务契约生成、校验、渲染与前向使用规则 |
 | `.github/e2e/profiles/agent-system.tsv` | 交付验收 profile |
+| `scripts/agent-flow.c` / `scripts/agent-flow.sh` | 任务分类、路径日志、非阻断占用观测与结果归档 |
 | `scripts/agent-maintain.sh` | 维护总门禁 |
 | `scripts/package-ai-dev-env.sh` | 可交付包生成器 |
 | `deliverables/ai-dev-env-commercial-v1/` | 当前商业交付源文档、模板和验收定义 |

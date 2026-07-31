@@ -394,6 +394,33 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
             "product config" in error for error in result["errors"]
         ))
 
+    def test_frozen_makefile_non_elaboration_edit_remains_bound(self) -> None:
+        self.freeze_baseline()
+        makefile = self.repo / graph.MAKEFILE_PATH
+        self._write(
+            graph.MAKEFILE_PATH,
+            makefile.read_text(encoding="utf-8")
+            + "# semantic-evidence pointer only\n",
+        )
+        result = graph.audit_frozen(self.repo, self.manifest)
+        self.assertEqual(result["status"], "PASS", result["errors"])
+
+    def test_frozen_makefile_source_list_drift_fails_closed(self) -> None:
+        self.freeze_baseline()
+        self._write(
+            graph.MAKEFILE_PATH,
+            "print-synth-rtl:\n"
+            "\t@printf '%s\\n' "
+            "$(CURDIR)/vsrc/core/NpcTop.v "
+            "$(CURDIR)/vsrc/core/Core.v "
+            "$(CURDIR)/vsrc/holder/HolderA.v\n",
+        )
+        result = graph.audit_frozen(self.repo, self.manifest)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any(
+            "source list" in error for error in result["errors"]
+        ))
+
     def test_frozen_graph_payload_edit_fails_closed(self) -> None:
         result = self.freeze_baseline()
         result["graph"]["reachable_instances"].pop()

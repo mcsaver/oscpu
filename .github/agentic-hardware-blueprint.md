@@ -159,11 +159,12 @@ evidence:
 
 - 任务级产物与长期记忆分离：
   - `.github/memory/` 保存稳定结论、长期经验和设计决策
-  - `.github/task-runs/` 保存单次图任务的执行摘要和派发历史
+  - `.github/task-runs/` 按 none/compact/durable 保存确定性结果；完整图任务才保存派发历史
 - 模板入口：
   - `.github/task-runs/templates/task-report.template.md`
   - `.github/task-runs/templates/dispatch-log.template.md`
-- 建议每个重要图任务创建一个目录：`.github/task-runs/YYYY-MM-DD-<task-slug>/`
+- 重要落盘开发、环境、长跑和 release 由 `agent-flow` 在 PASS 后创建 compact/durable 目录；
+  review/analysis 默认不创建
 - `task-report.md` 用于汇总当前任务的目标、选图、节点状态、关键产物、阻塞点、下一步和模板升级候选
 - `dispatch-log.md` 用于追加记录节点派发、状态变更、输入输出、证据与 handoff
 - RTL 子 agent 契约放在 `subagent-contracts/`，`dispatch-log.md` 记录相对路径与 SHA-256；下游只消费
@@ -345,7 +346,10 @@ historical-defect-inventory
 db-audit → skill-contract → agent-flow → validate-discovery → record
 ```
 
-适用场景：重构 `.github/` 下的 Database/Skill/Agent 三层环境。`db-audit` 负责 retained memory/log stored documents、memory/task-run/evidence 与备份 manifest；`skill-contract` 负责 `.github/skills/*/SKILL.md` live 标准规则和 `.github/instructions` 的流程契约；`agent-flow` 负责 `.github/agents`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`、profile 与 task-run 证据包。最低验证是 `scripts/agent-maintain.sh --mode check`，触及 profile 时追加 `scripts/agent-e2e.sh --profile agent-system`。
+适用场景：重构 `.github/` 下的 Database/Skill/Agent 三层环境。`db-audit` 负责 retained
+memory/log 与备份边界；`skill-contract` 负责 live 规则；C `agent-flow` 负责分类、显式路径、约 40%
+非阻断占用观测和结果归档。普通环境轮次由路径指针选择 gate；`agent-maintain --mode final` 用于整轮收尾，
+`release/full` 才追加商业交付或完整 `agent-system` profile。
 
 ### `regression-debug-loop`
 

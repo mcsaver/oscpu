@@ -21,7 +21,7 @@
 - `control/`：flush/recovery/pending SYSTEM/CSR/interrupt/pending trap-exit、
   pending drain/resolve gate、CSR illegal probe gate、core slice control gate、final trap/debug/CSR observable output、PMU 等跨阶段控制的落点。
 - `core/`：顶层装配（`NpcTop.v`/`NpcCoreTop.v`/`OooCoreTopGlue.v`）与 CSR 状态实现 `CsrFile.v`。
-- `bus/`：SoC AXI/AXI-Lite 互连与外设（xbar、CLINT、PLIC、UART、default slave）。
+- `bus/`：SoC AXI/AXI-Lite 互连与外设（crossbar、CLINT、PLIC、UART、default slave）。
 - `include/`：`define.v` 全局宏（`XLEN`、`OOO_*` 容量、模式开关）。
 - `sim/`：仿真专用壳（`NpcSimTop.sv`、AXI DPI slave、virtio-blk）；`.sv` 仅限验证侧。
 - `debug/`：旁挂仿真 checker，配合 `common/*Facts*` 审核 RTL 是否符合 spec 语义；不进入
@@ -62,7 +62,7 @@ CSR 事件/状态边界；FPR 状态（架构 `regread_bypass/OooFpRegFile.v` �
 保持 exact PA，`wdata/wstrb` 从 lane0 开始表达访问宽度。
 `memory/OooLsuAxiLaneAdapter.v` 在 NpcCoreTop master 边界将自然对齐请求转为
 标准 AXI byte lane，只对完整范围已通过 translation/PMP/PMA 的普通 PMEM
-非对齐请求逐 byte split 并聚合 R/B。xbar、设备、DPI 与对外 64-bit 端口
+非对齐请求逐 byte split 并聚合 R/B。crossbar、设备、DPI 与对外 64-bit 端口
 均只看标准 lane/AxSIZE；MMIO/PTE 不获得 split 授权。
 AMO/LR/SC 仍在执行后端保留对齐异常约束。
 

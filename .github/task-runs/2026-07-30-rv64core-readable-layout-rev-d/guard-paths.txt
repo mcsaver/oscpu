@@ -1,0 +1,4 @@
+docs/rv64core/study
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-07-30-rv64core-readable-layout-rev-d

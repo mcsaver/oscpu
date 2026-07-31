@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-31-OooIntBackend-checkpoint-irrevocable-write-revtag-v11p-3
+- `trace_id`: e2e:2026-07-31-OooIntBackend-checkpoint-irrevocable-write-revtag-v11p-3
+- `task_slug`: OooIntBackend-checkpoint-irrevocable-write-revtag-v11p-3
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 8057bd491be6650cecb10a7e92e35f49acbd72c624e602e0bbbf8fe6a458bc23
+- `task_report_md_sha256`: e30f6b219e7f03a0565a0e4024f7e9305118dc35b554b66c37a65ea42d1652e0
+- `run_manifest_json_sha256`: cd519e76563fc6283e641d3dbf4ba3499aa4dd224dfed29ce0d72d7452ae3869
+- `context_brief_md_sha256`: efbb79f729dafa897df9cf52d7c46172726dfc26f359650a856fbe73dfe51ca1
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: bfb5ad11233652d681bf56b9b13e550f6b4d450f40428666d42e87c1d9f55f76
+- `dispatch_log_md_sha256`: 0611cf4dc339dc723fe2436f8db1c04f7aab9a7bdb6bac92ba655df96e7e3750
+- `nodes_tsv_sha256`: 0af73f42dfc3d1acac6e81e2f46a07f808f65f5262d0bf08a79ef26c016f4ee9

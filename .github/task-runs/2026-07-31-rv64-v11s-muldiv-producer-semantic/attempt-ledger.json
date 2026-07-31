@@ -1,0 +1,246 @@
+{
+  "schema": "rv64-attempt-ledger-v1",
+  "run_id": "2026-07-31-rv64-v11s-muldiv-producer-semantic",
+  "generated_at_utc": "2026-07-31T03:09:37Z",
+  "attempts": [
+    {
+      "id": "self-test-attempt-1",
+      "result": "FAIL",
+      "classification": "PYTHON_TEST_IMPORT_PATH",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "self-test-attempt-2",
+      "result": "FAIL",
+      "classification": "REQUEST_MUTATION_ANCHOR_NOT_UNIQUE",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "self-test-attempt-3",
+      "result": "FAIL",
+      "classification": "FLUSH_MUTATION_ANCHOR_NOT_UNIQUE",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "self-test-attempt-6",
+      "result": "PASS",
+      "classification": "CANONICAL_RUNNER_UNIT_10_OF_10",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": true
+    },
+    {
+      "id": "focused-attempt-1",
+      "result": "FAIL",
+      "classification": "ITERATIVE_HOLD_GLOBAL_LIVE_ORACLE_OVERCONSTRAINED",
+      "raw_artifact_state": "PRESERVED",
+      "profiles_pass": 8,
+      "profiles_total": 22,
+      "promotion_eligible": false
+    },
+    {
+      "id": "focused-attempt-2",
+      "result": "PASS",
+      "classification": "PRE_OVERLAY_FOCUSED_PASS",
+      "raw_artifact_state": "PRESERVED",
+      "profiles_pass": 22,
+      "profiles_total": 22,
+      "promotion_eligible": false
+    },
+    {
+      "id": "focused-attempt-3",
+      "result": "PASS",
+      "classification": "PRE_FINAL_BINDING_FOCUSED_PASS",
+      "raw_artifact_state": "PRESERVED",
+      "profiles_pass": 22,
+      "profiles_total": 22,
+      "promotion_eligible": false
+    },
+    {
+      "id": "focused-attempt-4",
+      "result": "PASS",
+      "classification": "CANONICAL_GENERATED_OVERLAY_FOCUSED_SEMANTIC",
+      "raw_artifact_state": "PRESERVED",
+      "summary": "evidence/focused-attempt-4/summary.json",
+      "summary_sha256": "2eb4984961fe34bdac751ae2dfb455de7c9256dd03bab4c31e25de0948a8e93b",
+      "profiles_pass": 22,
+      "profiles_total": 22,
+      "promotion_eligible": true
+    },
+    {
+      "id": "ledger-attempts-1-through-4",
+      "result": "FAIL",
+      "classification": "PRE_CURRENT_BINDING_AND_NEGATIVE_TEST_REFINEMENT",
+      "raw_artifact_state": "PRESERVED",
+      "attempt_ids": [
+        "ledger-attempt-1",
+        "ledger-attempt-2",
+        "ledger-attempt-3",
+        "ledger-attempt-4"
+      ],
+      "promotion_eligible": false
+    },
+    {
+      "id": "ledger-attempt-5",
+      "result": "PASS",
+      "classification": "PRE_GRAPH_WORKFLOW_PASS",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "ledger-attempt-6",
+      "result": "FAIL",
+      "classification": "V11H_REPLAY_BINDING_STALE",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "ledger-attempt-7",
+      "result": "FAIL",
+      "classification": "V11O_FROZEN_GRAPH_TOOL_BINDING_POLICY_TOO_STRICT",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "ledger-attempt-8",
+      "result": "PASS",
+      "classification": "OLD_CLI_DEFAULT_GRAPH_PASS",
+      "raw_artifact_state": "PRESERVED",
+      "pass": 35,
+      "gap": 9,
+      "promotion_eligible": false
+    },
+    {
+      "id": "ledger-attempt-9",
+      "result": "PASS",
+      "classification": "CANONICAL_CURRENT_GRAPH_LEDGER",
+      "raw_artifact_state": "PRESERVED",
+      "ledger_sha256": "80d50ba80916a4823479748cfa69dc4ecea1a4025abf50ff3414caa0a7205944",
+      "pass": 35,
+      "gap": 9,
+      "promotion_eligible": true
+    },
+    {
+      "id": "current-instance-graph-rebind-attempt-1",
+      "result": "PASS",
+      "classification": "CURRENT_PRODUCT_CONFIG_SOURCE_LIST_GRAPH",
+      "raw_artifact_state": "PRESERVED",
+      "graph_sha256": "bc77764cc3367fdbf28c0babe90f12c56ef527c382d1ac8b44a49a9fdc7ef62d",
+      "frozen_audit_sha256": "dc638594e064d18b0d965291ef8f9e514bbab9442d9629347b32de160a2312af",
+      "promotion_eligible": true
+    },
+    {
+      "id": "combined-semantic-gate-attempt-1",
+      "result": "FAIL",
+      "classification": "WHOLE_MAKEFILE_PRODUCT_CONFIG_FALSE_DRIFT",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "combined-semantic-gate-attempt-2",
+      "result": "FAIL",
+      "classification": "CLI_DEFAULT_GRAPH_MISMATCH",
+      "raw_artifact_state": "PRESERVED",
+      "promotion_eligible": false
+    },
+    {
+      "id": "combined-semantic-gate-attempt-3",
+      "result": "PASS",
+      "classification": "CURRENT_GRAPH_CENSUS_REPLAY_LEDGER_GATE",
+      "raw_artifact_state": "PRESERVED",
+      "stdout_sha256": "2934233ee184031f94025300bd824170c667496836989a0360c7aa3d0e20d216",
+      "promotion_eligible": true
+    },
+    {
+      "id": "materialize-ledger-attempt-3",
+      "result": "PASS",
+      "classification": "LIVE_LEDGER_BYTE_EXACT",
+      "raw_artifact_state": "PRESERVED",
+      "ledger_sha256": "80d50ba80916a4823479748cfa69dc4ecea1a4025abf50ff3414caa0a7205944",
+      "promotion_eligible": true
+    },
+    {
+      "id": "independent-final-review",
+      "result": "PASS",
+      "classification": "BOUNDED_MULDIV_PRODUCER_REVIEW",
+      "raw_artifact_state": "PRESERVED",
+      "contract": "subagent-contracts/v11s-muldiv-producer-final-review.json",
+      "contract_sha256": "11c12f24688d9570081c3940ac04e9dbde7d21cb7860aa900986219816eba378",
+      "result_path": "final-review-result.md",
+      "blockers": 0,
+      "promotion_eligible": true
+    },
+    {
+      "id": "memory-update-attempt-1",
+      "result": "PASS",
+      "classification": "DB_FIRST_MODULE_AND_PROJECT_MEMORY",
+      "raw_artifact_state": "DB_STORED_AND_SNAPSHOTTED",
+      "promotion_eligible": true
+    },
+    {
+      "id": "npc-dev-e2e",
+      "result": "PASS",
+      "classification": "COMPLETED_5_OF_5",
+      "raw_artifact_state": "DB_PUBLISHED",
+      "e2e_run_id": "2026-07-31-OooMulDivUnit-producer-lifecycle-revtag-v11s",
+      "promotion_eligible": true
+    },
+    {
+      "id": "scoped-strict-guard-attempt-1",
+      "result": "PASS",
+      "classification": "NPC_DEV_16_PATH_CURRENT_EVIDENCE",
+      "raw_artifact_state": "PRESERVED",
+      "stdout_sha256": "3066e19bcd04eab40db04707c2ed4a8f62e54cdff4d7e9a524602bbd8fbd16c5",
+      "promotion_eligible": true
+    },
+    {
+      "id": "full-worktree-strict-guard-attempt-1",
+      "result": "FAIL",
+      "classification": "OUT_OF_SCOPE_NEMU_DEV_EVIDENCE_MISSING",
+      "raw_artifact_state": "PRESERVED",
+      "stdout_sha256": "ac38d764fbf70a43a0563f1c6e539256ef0c03674ddf3fa8e28ae7ed6630942e",
+      "scope_path": "nemu/src/isa/riscv64/inst/amo.c",
+      "required_profile": "nemu-dev",
+      "promotion_eligible": false
+    },
+    {
+      "id": "final-static-gates-attempt-1",
+      "result": "PASS",
+      "classification": "RUNNER_GRAPH_REPLAY_SEMANTIC_CONTRACT_JSON_RTL_BINDING",
+      "raw_artifact_state": "PRESERVED",
+      "stdout_sha256": "3dce71d8d06e8fba03b154bcd88ab87d1a78e588f736c016872af91c21f934a8",
+      "promotion_eligible": true
+    },
+    {
+      "id": "raw-evidence-index",
+      "result": "PASS",
+      "classification": "INDEX_ONLY_RETENTION",
+      "raw_artifact_state": "DB_INDEXED",
+      "asset_count": 985,
+      "total_size_bytes": 1165310081,
+      "index": "evidence-index.md",
+      "promotion_eligible": true
+    },
+    {
+      "id": "task-doc-publish-attempt-1",
+      "result": "PASS",
+      "classification": "DB_STORED_DOCUMENT_MATERIALIZE_BYTE_EXACT",
+      "raw_artifact_state": "DB_STORED_AND_SNAPSHOTTED",
+      "promotion_eligible": true
+    },
+    {
+      "id": "db-audits-attempt-1",
+      "result": "PASS",
+      "classification": "DB_FIRST_MARKDOWN_COVERAGE_RUNTIME_ARTIFACT",
+      "raw_artifact_state": "PRESERVED",
+      "db_first_sha256": "951f30c116a7cf8aa03037386a7b0b70cc45f56216c06c168118496bcd8c4818",
+      "markdown_coverage_sha256": "175ed51a8f540d98045d28207954900f4a1e705b354d4a36c23ab0dd5d5d6203",
+      "artifact_audit_sha256": "fbfb73d5d4062bacd97cb0743d87c523875e4dea9f60e6a8cb0e3f272446e9e7",
+      "promotion_eligible": true
+    }
+  ],
+  "evidence_process_state": "PASS_CANONICAL_ATTEMPTS_IMMUTABLE",
+  "semantic_conclusion_uses_only_canonical_bound_evidence": true
+}

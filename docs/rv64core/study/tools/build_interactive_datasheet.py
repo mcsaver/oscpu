@@ -1737,7 +1737,7 @@ def product_configuration() -> dict[str, str]:
     fallback = fallback_match.group("value")
     if queue_head not in {"1", "y"} or fallback not in {"1", "1'b1"}:
         raise ValueError(
-            "当前 Rev. C 的 CSR 队头事务要求产品默认与 define fallback 均开启："
+            "当前 CSR 队头事务要求产品默认与 define fallback 均开启："
             f"product={queue_head} fallback={fallback}"
         )
 
@@ -1848,7 +1848,7 @@ def build_payload(
         "meta": {
             "title": "RV64 Core Interactive Technical Reference",
             "documentId": "RV64CORE-TRM-001",
-            "revision": "Rev. C",
+            "revision": "Rev. D",
             "snapshotDate": date.today().isoformat(),
             "sourceFingerprint": source_fingerprint(fingerprint_paths),
             "elaborationSha256": hashlib.sha256(xml_path.read_bytes()).hexdigest(),
@@ -1899,7 +1899,7 @@ def html_document(
 {css_text}
   </style>
 </head>
-<body>
+<body data-font-scale="large">
   <!-- RV64_INTERACTIVE_DATASHEET_BEGIN -->
   <header class="topbar">
     <div class="brand">
@@ -1925,6 +1925,7 @@ def html_document(
     </div>
     <div class="top-actions">
       <button id="menuButton" type="button" class="action-button menu-button" data-menu-open aria-controls="sidebar" aria-expanded="false">目录</button>
+      <button id="fontScaleButton" type="button" class="action-button font-scale-button" data-font-scale-control aria-label="当前字号：大；点击切换字号">字号 大</button>
       <button type="button" class="action-button" data-copy-link>复制深链接</button>
       <button type="button" class="action-button" data-print>打印 / PDF</button>
     </div>

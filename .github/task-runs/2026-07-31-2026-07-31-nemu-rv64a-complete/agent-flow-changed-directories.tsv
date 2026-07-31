@@ -1,0 +1,6 @@
+nemu/src/isa/riscv64/inst
+nemu/src/memory
+nemu/include/memory
+am-kernels/tests/cpu-tests/tests
+.github/memory
+.github/memory/modules

@@ -41,6 +41,8 @@ word_t paddr_read(paddr_t addr, int len);
 void paddr_write(paddr_t addr, int len, word_t data);
 // 物理地址区间是否落在合法访问窗口内 (pmem/CLINT/PLIC/SoC/MMIO); 用于访存越界优雅抬 access-fault。
 bool paddr_is_accessible(paddr_t addr, int len);
+// 当前平台只把主存声明为完整 Zaamo/Zalrsc 区域；设备窗口采用 AMONone/RsrvNone。
+bool paddr_supports_atomic(paddr_t addr, int len);
 bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len);
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data);
 // DMA 一致读: 经 dcache peek 视图读 guest 内存(dirty 未回写也拿到最新值)。

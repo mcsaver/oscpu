@@ -1,0 +1,160 @@
+{
+  "schema": "rv64-attempt-ledger-v1",
+  "run_id": "2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic",
+  "generated_at_utc": "2026-07-30T23:10:40Z",
+  "attempts": [
+    {
+      "id": "focused-diagnostic-1",
+      "result": "FAIL",
+      "classification": "TB_HIERARCHY_BINDING_ERROR",
+      "raw_artifact_state": "NOT_PRESERVED",
+      "recovery": "attempt-recovery.md#focused-diagnostic-1",
+      "promotion_eligible": false
+    },
+    {
+      "id": "focused-diagnostic-2",
+      "result": "FAIL",
+      "classification": "DUAL_MEMORY_CONFIGURATION_DISABLED",
+      "raw_artifact_state": "NOT_PRESERVED",
+      "recovery": "attempt-recovery.md#focused-diagnostic-2",
+      "promotion_eligible": false
+    },
+    {
+      "id": "focused-attempt-1",
+      "result": "PASS",
+      "classification": "CANONICAL_FOCUSED_SEMANTIC",
+      "raw_artifact_state": "PRESERVED",
+      "summary": "evidence/focused-attempt-1/summary.json",
+      "summary_sha256": "90264425dd6704f087c73d8bc11ac03d49474e6df5261f180efa939bc992cb97",
+      "promotion_eligible": true
+    },
+    {
+      "id": "semantic-unit-diagnostic-1",
+      "result": "FAIL",
+      "classification": "EXPECTED_PASS_SET_OMITTED_V11R_UNITS",
+      "raw_artifact_state": "NOT_PRESERVED",
+      "recovery": "attempt-recovery.md#semantic-unit-diagnostic-1",
+      "promotion_eligible": false
+    },
+    {
+      "id": "semantic-unit-current",
+      "result": "PASS",
+      "classification": "CURRENT_LEDGER_UNIT_TEST",
+      "raw_artifact_state": "PRESERVED",
+      "status": "semantic-unit-current.status",
+      "tests": 79,
+      "promotion_eligible": true
+    },
+    {
+      "id": "combined-semantic-gate",
+      "result": "PASS",
+      "classification": "CURRENT_GRAPH_CENSUS_REPLAY_LEDGER_GATE",
+      "raw_artifact_state": "PRESERVED",
+      "status": "combined-semantic-gate.status",
+      "stdout": "combined-semantic-gate.stdout.log",
+      "stdout_sha256": "47e5ab21384bce8cca122c783bd6a2e4e97615f5c55e67b9ca849bbebd6226f5",
+      "promotion_eligible": true
+    },
+    {
+      "id": "independent-final-review",
+      "result": "PASS",
+      "classification": "BOUNDED_TWO_UNIT_REVIEW",
+      "raw_artifact_state": "PRESERVED",
+      "contract": "subagent-contracts/v11r-int-lane1-packet-final-review.json",
+      "contract_sha256": "74d26bb9a244e4745cf208e54d9297e71c1b83eafc0236b9dcfd059def83eddd",
+      "result_path": "final-review-result.md",
+      "promotion_eligible": true
+    },
+    {
+      "id": "npc-dev-e2e",
+      "result": "PASS",
+      "classification": "COMPLETED_5_OF_5",
+      "raw_artifact_state": "DB_PUBLISHED",
+      "run_id": "2026-07-31-OooIntBackend-integer-EX1-packet-lane1-V11R",
+      "promotion_eligible": true
+    },
+    {
+      "id": "scoped-strict-guard",
+      "result": "PASS",
+      "classification": "NPC_DEV_11_PATH_CURRENT_EVIDENCE",
+      "raw_artifact_state": "PRESERVED",
+      "stdout": "scoped-strict-guard.stdout.log",
+      "stdout_sha256": "a16fd4cc2d691c82b26dea07755e0f3bb5da5167fe87ece0cbf65023153c5f69",
+      "promotion_eligible": true
+    },
+    {
+      "id": "full-worktree-strict-guard",
+      "result": "FAIL",
+      "classification": "OUT_OF_SCOPE_NEMU_DEV_EVIDENCE_MISSING",
+      "raw_artifact_state": "PRESERVED",
+      "stdout": "full-worktree-strict-guard.stdout.log",
+      "stdout_sha256": "6077d3f4c6a846ff49767cf0e5ad7a6d4a8a5e68069d02ca69d74be4cf05d077",
+      "scope_path": "nemu/src/isa/riscv64/inst/amo.c",
+      "required_profile": "nemu-dev",
+      "promotion_eligible": false
+    },
+    {
+      "id": "final-static-gates",
+      "result": "PASS",
+      "classification": "RUNNER_CONTRACT_JSON_DIFF_RTL_BINDING",
+      "raw_artifact_state": "PRESERVED",
+      "stdout": "final-static-gates.stdout.log",
+      "stdout_sha256": "4c747182bc5939f05bbd3efb4ffa2ea3056bf6cacd10691a8355183df8bda245",
+      "promotion_eligible": true
+    },
+    {
+      "id": "final-static-gates-attempt-2",
+      "result": "PASS",
+      "classification": "POST_REPORT_JSON_AND_FINAL_RTL_BINDING",
+      "raw_artifact_state": "PRESERVED",
+      "stdout": "final-static-gates-attempt-2.stdout.log",
+      "stdout_sha256": "f1864e5d8cfef8cdf3f40b80a6da0b84f6f4bf225f64d10e8a5ae45dc758b79e",
+      "promotion_eligible": true
+    },
+    {
+      "id": "raw-evidence-index",
+      "result": "PASS",
+      "classification": "INDEX_ONLY_RETENTION",
+      "raw_artifact_state": "DB_INDEXED",
+      "asset_count": 2452,
+      "total_size_bytes": 2740579918,
+      "index": "evidence-index.md",
+      "promotion_eligible": true
+    },
+    {
+      "id": "db-audits",
+      "result": "FAIL",
+      "classification": "MEMORY_BACKUP_MANIFEST_HASH_STALE",
+      "raw_artifact_state": "PRESERVED",
+      "db_first_log": "audit-db-first.log",
+      "db_first_log_sha256": "b5354831b6d8985ec6c10beac70d9816a8ef60356dbf38a29cdb7e76eef984b1",
+      "affected_paths": [
+        ".github/memory/modules/npc.md",
+        ".github/memory/project-status.md"
+      ],
+      "promotion_eligible": false
+    },
+    {
+      "id": "db-audits-attempt-2",
+      "result": "PASS",
+      "classification": "DB_FIRST_MARKDOWN_COVERAGE_ARTIFACT",
+      "raw_artifact_state": "PRESERVED",
+      "db_first_sha256": "c94470fa6a4a49a2884c036af144bbcdab0f70605248138dbd0eb91a20c38cba",
+      "markdown_coverage_sha256": "e3839db3ce6a64a3dcd6422d69004153e7204febdceef33ff3a91e824d4ef310",
+      "artifact_audit_sha256": "fbfb73d5d4062bacd97cb0743d87c523875e4dea9f60e6a8cb0e3f272446e9e7",
+      "promotion_eligible": true
+    },
+    {
+      "id": "db-audits-attempt-3",
+      "result": "PASS",
+      "classification": "POST_FINAL_MEMORY_SNAPSHOT_CONFIRMATION",
+      "raw_artifact_state": "PRESERVED",
+      "db_first_sha256": "c94470fa6a4a49a2884c036af144bbcdab0f70605248138dbd0eb91a20c38cba",
+      "markdown_coverage_sha256": "e3839db3ce6a64a3dcd6422d69004153e7204febdceef33ff3a91e824d4ef310",
+      "artifact_audit_sha256": "fbfb73d5d4062bacd97cb0743d87c523875e4dea9f60e6a8cb0e3f272446e9e7",
+      "promotion_eligible": true
+    }
+  ],
+  "evidence_process_state": "GAP_EARLY_DIAGNOSTIC_ARTIFACTS_NOT_IMMUTABLE",
+  "semantic_conclusion_uses_only_canonical_bound_evidence": true
+}

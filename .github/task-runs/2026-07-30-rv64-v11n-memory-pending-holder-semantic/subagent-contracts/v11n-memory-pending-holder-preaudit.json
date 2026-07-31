@@ -1,0 +1,72 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11n-memory-pending-holder-preaudit",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooIntBackend 在 ENABLE_DUAL_MEM=1 配置下 mem_pending_q、mem_producer_id_q 与 mem_owner_token_q 从 lane0/lane1 AMO 入口、read-response 转入 write phase、write request、final response 或 interphase cancel 到 collector terminal/death 的逐拍合同，并判定现有 V9N 证据能否支撑 memory-pending-producer-cache 与 memory-pending-token 的语义闭合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/evidence/irrevocable-owner-residency-current.json",
+      ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/subagent-contracts/v11n-memory-pending-holder-preaudit.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 lane0/lane1 入口、AMO read/write 两阶段、hold、final response、interphase cancel 与 collector lane9 的 source-edge 表；指出 stimulus-owned oracle、full-width ProducerId/token 激励及 compile-success RTL 变体的最小集合，并区分生产 RTL 语义缺陷与验证覆盖 GAP。"
+  ],
+  "success_criteria": [
+    "每个结论绑定真实 signal、周期条件、配置和本地文件；识别 V9N DUT-derived expected state 的能力边界；报告可执行反例、unknowns、替代假设、scope_extension_request 与 confidence_and_basis，并以 PASS/GAP/inconclusive 限定本节点范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

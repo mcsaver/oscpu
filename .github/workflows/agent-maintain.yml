@@ -20,11 +20,10 @@ jobs:
       - name: Rehydrate task-run DB evidence
         run: python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes
 
-      - name: Run maintenance gate
-        run: scripts/agent-maintain.sh --mode check
+      - name: Run deterministic final gate for pull requests
+        if: github.event_name == 'pull_request'
+        run: scripts/agent-maintain.sh --mode final
 
-      - name: Validate all e2e profiles
-        run: scripts/agent-e2e.sh --validate-all-profiles
-
-      - name: Run delivery audit
-        run: python3 scripts/github_index_db.py delivery-audit
+      - name: Run release gate for nightly and manual delivery
+        if: github.event_name != 'pull_request'
+        run: scripts/agent-maintain.sh --mode release

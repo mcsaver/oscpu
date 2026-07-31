@@ -1,6 +1,0 @@
-[TEST] tb_ooo_typed_memory_classifier
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_typed_memory_classifier -o build/tb_ooo_typed_memory_classifier.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v tests/tb_ooo_typed_memory_classifier.sv
-[R4-S1.1-TYPED-CLASS] enabled_matrix=16 disabled_leaf=16 + Bare/deny/priority/IO-NC PASS
-[PASS] tb_ooo_typed_memory_classifier
-common/tb_common.svh:32: $finish called at 113 (1s)
-[RESULT] PASS

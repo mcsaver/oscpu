@@ -1,0 +1,2 @@
+PASS package-ai-dev-env package_root=dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial files=172
+PASS delivery-audit contract=.github/ai-env/contracts/agent-env-delivery.json delivery_root=deliverables/ai-dev-env-commercial-v1 package_files=172 archive=.github/archive/legacy-ai-dev-env-2026-06-13

@@ -112,6 +112,7 @@ static int decode_exec(Decode *s) {
     case OPC_JALR: {
       if (funct3 != 0x0) goto invalid;
       word_t target = (R(rs1) + IMM_I(inst)) & ~(word_t)1;
+      if (!rv_instruction_target_valid(target)) break;
       R(rd) = s->pc + 4;
       s->dnpc = target;
       IFDEF(CONFIG_FTRACE, {
@@ -120,11 +121,14 @@ static int decode_exec(Decode *s) {
       })
       break;
     }
-    case OPC_JAL:
+    case OPC_JAL: {
+      word_t target = s->pc + IMM_J(inst);
+      if (!rv_instruction_target_valid(target)) break;
       R(rd) = s->pc + 4;
-      s->dnpc = s->pc + IMM_J(inst);
+      s->dnpc = target;
       IFDEF(CONFIG_FTRACE, if (rd == 1 || rd == 5) ftrace_log(1, s->pc, s->dnpc));
       break;
+    }
     case OPC_LUI:
       R(rd) = IMM_U(inst);
       break;

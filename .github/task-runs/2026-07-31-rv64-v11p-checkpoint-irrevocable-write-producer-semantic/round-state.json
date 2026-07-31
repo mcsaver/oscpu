@@ -1,0 +1,46 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-31-rv64-v11p-checkpoint-irrevocable-write-producer-semantic",
+  "status": "APPROVED_NOT_PROMOTION_ELIGIBLE_RECORD_CLOSED",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "rtl_object": "OooIntBackend.checkpoint_irrevocable_write_pid_q",
+  "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+  "production_rtl_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+  "production_rtl_change": false,
+  "semantic_ledger": {
+    "units_pass": 29,
+    "units_gap": 15,
+    "changed_units": [
+      "checkpoint-irrevocable-write-producer"
+    ]
+  },
+  "review": {
+    "mode": "MAIN_AGENT_IMPLEMENTER_REVIEWER_ROLE_SEPARATION",
+    "fresh_isolated_subagent": "NOT_RUN_AGENT_THREAD_LIMIT",
+    "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "blocking_findings": 0
+  },
+  "environment_closeout": {
+    "raw_evidence_assets": 1978,
+    "raw_evidence_bytes": 1993029958,
+    "task_markdown_stored_documents": 8,
+    "memory_stored_documents": 2,
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS",
+    "artifact_audit": "PASS",
+    "npc_dev_first_run": "BLOCKED_CONTEXT_RECALL_WITH_5_OF_5_NODES_PASS",
+    "npc_dev_second_run": "COMPLETED_5_OF_5",
+    "npc_dev_freshness_run": "COMPLETED_5_OF_5",
+    "scoped_strict_guard": "PASS_12_PATHS",
+    "full_worktree_guard": "EXEMPT_MIXED_ORIGIN_MISSING_NEMU_DEV"
+  },
+  "whole_architecture": "RED",
+  "ppa": "UNPROMOTED",
+  "system_rerun": false
+}

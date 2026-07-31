@@ -7,6 +7,9 @@
 #      模块 testbench gate 用 Icarus iverilog 12.0,它对 always_comb 内变量常量位选
 #      静默错仿真(见 known-issues.md 2026-06-29 条);可综合 RTL 统一用 Verilog-2001
 #      always @(posedge clk) / always @(*) / wire+reg。
+#   3. 每个可综合主 module 的文件名必须与 module 名一致，并拒绝已经退役的
+#      精确 module 标识 AxiXbar；其它合法 crossbar module 与 AXI4-Lite、
+#      CLINT/PLIC/UART/DPI 等协议标准名不在此列。
 #
 # 用法:
 #   RTL_FILES="<空格分隔的可综合文件清单>" eval/check-rtl-style.sh
@@ -43,6 +46,23 @@ for f in $files; do
     if grep -qE '(^|[^A-Za-z0-9_])logic([^A-Za-z0-9_]|$)' <<<"$stripped"; then
       report "可综合 .v 使用了 SV logic 类型($f);改用 wire/reg"
     fi
+
+    module_names="$(sed -nE \
+      's/^[[:space:]]*module[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/p' \
+      "$f")"
+    module_count="$(grep -c . <<<"$module_names")"
+    if [[ "$module_count" -gt 1 ]]; then
+      report "可综合源文件包含多个 module($f);保持一个 module 一个源文件"
+    elif [[ "$module_count" -eq 1 ]]; then
+      module_name="$module_names"
+      file_module_name="$(basename "$f" .v)"
+      if [[ "$module_name" != "$file_module_name" ]]; then
+        report "文件名与主 module 不一致($f: module $module_name)"
+      fi
+      if [[ "$module_name" == "AxiXbar" ]]; then
+        report "生产 module 使用退役命名($module_name);使用当前 AXI4 全称"
+      fi
+    fi
   fi
 done
 
@@ -50,5 +70,5 @@ if [[ "$violations" -gt 0 ]]; then
   echo "[check-rtl-style] FAIL: $violations 处违规(见上)。规范见 .github/instructions/rtl-generation-workflow.instructions.md"
   exit 1
 fi
-echo "[check-rtl-style] PASS: 可综合 RTL 全部为 .v 且无 SV always_comb/always_ff/logic 关键字"
+echo "[check-rtl-style] PASS: 可综合 RTL 扩展名、Verilog-2001 关键字和 module 命名均合规"
 exit 0

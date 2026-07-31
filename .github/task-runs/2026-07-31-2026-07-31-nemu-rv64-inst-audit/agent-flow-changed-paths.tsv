@@ -1,0 +1,13 @@
+nemu/src/isa/riscv64/inst/common.c
+nemu/src/isa/riscv64/inst/fp.c
+nemu/src/isa/riscv64/inst/csr.c
+nemu/src/isa/riscv64/inst/rv64i.c
+nemu/src/isa/riscv64/inst/decode.c
+nemu/src/isa/riscv64/inst/compressed.c
+nemu/src/isa/riscv64/inst/bitmanip.c
+nemu/src/isa/riscv64/include/isa-def.h
+nemu/src/isa/riscv64/include/isa-platform.h
+nemu/src/isa/riscv64/system/intr.c
+am-kernels/tests/cpu-tests/tests/rv64-inst-audit.c
+.github/memory/project-status.md
+.github/memory/modules/nemu.md

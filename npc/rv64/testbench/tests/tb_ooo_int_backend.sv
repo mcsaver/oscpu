@@ -24,6 +24,3081 @@ module tb_ooo_int_backend;
   localparam integer V8P_EXCLUDED_SC = 2;
   localparam integer V8P_EXCLUDED_FP_LOAD = 3;
   localparam integer V8P_EXCLUDED_FP_STORE = 4;
+`ifdef V11R_INT_LANE1_PACKET_FOCUSED
+  // Eighteen exact MulDiv retirements make the next dual allocation
+  // P0={generation=1,index=2}, P1={generation=1,index=3}.  Both identities
+  // come from the stimulus schedule, never from EX1 or memory holder state.
+  localparam [PRODUCER_ID_W-1:0] V11R_PID0 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 2);
+  localparam [PRODUCER_ID_W-1:0] V11R_PID1 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 3);
+  localparam [PRODUCER_ID_W-1:0] V11R_PID1_WRONG_GEN =
+      V11R_PID1 ^ (1 << ROB_INDEX_W);
+  localparam [`XLEN-1:0] V11R_ALU0_PC =
+      64'h0000_0000_8001_7000;
+  localparam [`XLEN-1:0] V11R_ALU1_PC =
+      64'h0000_0000_8001_7004;
+  localparam [`XLEN-1:0] V11R_ALU0_RESULT =
+      64'h0f0e_0d0c_0b0a_0908;
+  localparam [`XLEN-1:0] V11R_ALU1_RESULT =
+      64'h8877_6655_4433_2211;
+  localparam [`XLEN-1:0] V11R_MEM0_PC =
+      64'h0000_0000_8001_7080;
+  localparam [`XLEN-1:0] V11R_MEM1_PC =
+      64'h0000_0000_8001_7084;
+  localparam [`XLEN-1:0] V11R_MEM0_ADDR =
+      64'h0000_0000_0000_1a00;
+  localparam [`XLEN-1:0] V11R_MEM1_MISALIGNED =
+      64'h0000_0000_0000_1ffe;
+  localparam integer V11R_EX_RESULT_LSB =
+      `XLEN + `TRAP_CAUSE_W + 1;
+  localparam integer V11R_EX_RESULT_MSB =
+      V11R_EX_RESULT_LSB + `XLEN - 1;
+  localparam integer V11R_EX_PDEST_LSB =
+      V11R_EX_RESULT_MSB + 1;
+  localparam integer V11R_EX_PDEST_MSB =
+      V11R_EX_PDEST_LSB + PHY_REG_ADDR_W - 1;
+  localparam integer V11R_EX_ROB_LSB =
+      V11R_EX_PDEST_MSB + 1;
+  localparam integer V11R_EX_ROB_MSB =
+      V11R_EX_ROB_LSB + ROB_INDEX_W - 1;
+  localparam integer V11R_EX_GEN_LSB =
+      V11R_EX_ROB_MSB + 2;
+  localparam integer V11R_EX_GEN_MSB =
+      V11R_EX_GEN_LSB + PRODUCER_GEN_W - 1;
+
+  task automatic v11r_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11R-INT-LANE1-PACKET-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11r_prime_identity;
+    integer prime_i;
+    integer wait_cycle;
+    begin
+      // The independent MulDiv response path keeps EX1 packet variants from
+      // perturbing the allocation schedule before their declared oracle.
+      commit_ready = 1'b1;
+      for (prime_i = 0; prime_i < 18; prime_i = prime_i + 1) begin
+        set_dispatch0(
+            64'h0000_0000_8001_6f00 + (prime_i * 4),
+            make_muldiv_ctrl(), 5'd0, 5'd0, 5'd0, 64'd0);
+        dispatch0_inst =
+            inst_op(`FUNCT7_MULDIV, 5'd0, 5'd0, 3'b101, 5'd0);
+        #1;
+        if (dispatch0_ready !== 1'b1)
+          v11r_oracle_fail("identity-prime-dispatch");
+        `TB_TICK(clk);
+        clear_dispatch();
+        #1;
+        wait_cycle = 0;
+        while ((commit0_valid !== 1'b1) &&
+               (wait_cycle < 24)) begin
+          `TB_TICK(clk);
+          #1;
+          wait_cycle = wait_cycle + 1;
+        end
+        if ((commit0_valid !== 1'b1) ||
+            (commit0_data !== {`XLEN{1'b1}}))
+          v11r_oracle_fail("identity-prime-commit");
+        `TB_TICK(clk);
+        #1;
+        if (commit0_valid !== 1'b0)
+          v11r_oracle_fail("identity-prime-exactly-once");
+      end
+      if ((rob_count !== 0) || (issue_count !== 0))
+        v11r_oracle_fail("identity-prime-drain");
+    end
+  endtask
+
+  task automatic v11r_stage_alu_packet;
+    reg [PHY_REG_ADDR_W-1:0] expected_pdest0;
+    reg [PHY_REG_ADDR_W-1:0] expected_pdest1;
+    reg [PRODUCER_ID_W-1:0] raw_packet_pid;
+    begin
+      reset_dut();
+      v11r_prime_identity();
+      commit_ready = 1'b0;
+      set_dispatch0(
+          V11R_ALU0_PC,
+          make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                        `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+          5'd0, 5'd0, 5'd5, V11R_ALU0_RESULT);
+      set_dispatch1(
+          V11R_ALU1_PC,
+          make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                        `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+          5'd0, 5'd0, 5'd6, V11R_ALU1_RESULT);
+      #1;
+      expected_pdest0 = dut.dispatch0_pdest_w;
+      expected_pdest1 = dut.dispatch1_new_pdest_probe_w;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11R_PID0) ||
+          (dut.dispatch1_producer_id_w !== V11R_PID1))
+        v11r_oracle_fail("alu-dual-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.issue0_fire_w !== 1'b1) ||
+          (dut.issue1_exec_fire_w !== 1'b1) ||
+          (dut.ex0_up_valid_w !== 1'b1) ||
+          (dut.ex1_up_valid_w !== 1'b1) ||
+          (dut.ex1_up_from_mem_w !== 1'b0) ||
+          (dut.ex1_up_producer_id_w !== V11R_PID1) ||
+          (dut.ex1_up_result_w !== V11R_ALU1_RESULT) ||
+          (dut.issue0_pdest_w !== expected_pdest0) ||
+          (dut.issue1_pdest_w !== expected_pdest1))
+        v11r_oracle_fail("alu-up-packet");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.ex0_valid_q !== 1'b1) ||
+          (dut.ex1_valid_q !== 1'b1))
+        v11r_oracle_fail("alu-stage-birth");
+      raw_packet_pid = {
+          dut.ex1_down_payload_w[
+              V11R_EX_GEN_MSB:V11R_EX_GEN_LSB],
+          dut.ex1_down_payload_w[
+              V11R_EX_ROB_MSB:V11R_EX_ROB_LSB]
+      };
+      if (raw_packet_pid !== V11R_PID1)
+        v11r_oracle_fail("alu-down-packet-pid");
+      if (dut.ex1_producer_id_q !== V11R_PID1)
+        v11r_oracle_fail("alu-down-alias-pid");
+      if ((dut.ex1_down_payload_w[
+               V11R_EX_RESULT_MSB:V11R_EX_RESULT_LSB] !==
+           V11R_ALU1_RESULT) ||
+          (dut.ex1_result_q !== V11R_ALU1_RESULT) ||
+          (dut.ex1_down_payload_w[
+               V11R_EX_PDEST_MSB:V11R_EX_PDEST_LSB] !==
+           expected_pdest1) ||
+          (dut.ex1_pdest_q !== expected_pdest1))
+        v11r_oracle_fail("alu-down-payload");
+      if ((dut.ex1_exception_q !== 1'b0) ||
+          (dut.ex1_cause_q !== {`TRAP_CAUSE_W{1'b0}}) ||
+          (dut.ex1_tval_q !== {`XLEN{1'b0}}))
+        v11r_oracle_fail("alu-down-control");
+      if ((dut.ex1_pre_auth_valid_w !== 1'b1) ||
+          (dut.ex1_producer_open_w !== 1'b1) ||
+          (dut.ex1_same_edge_claimed_w !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b1) ||
+          (dut.wb1_producer_id_w !== V11R_PID1) ||
+          (dut.wb1_pdest_w !== expected_pdest1) ||
+          (dut.wb1_data_w !== V11R_ALU1_RESULT))
+        v11r_oracle_fail("alu-completion-authority");
+
+      // Hold EX0 semantically open while changing only its generation to
+      // match EX1's ROB index.  Full-P equality must not claim EX1.
+      force dut.ex0_producer_id_q = V11R_PID1_WRONG_GEN;
+      force dut.ex0_producer_open_w = 1'b1;
+      #1;
+      if ((dut.ex0_wb_valid_w !== 1'b1) ||
+          (dut.ex1_same_edge_claimed_w !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b1))
+        v11r_oracle_fail("same-index-wrong-generation-fence");
+      release dut.ex0_producer_id_q;
+      release dut.ex0_producer_open_w;
+      #1;
+
+      // Keep the registered payload live and change only the EX1 generation.
+      // The exact ROB query must close and suppress all completion authority.
+      force dut.ex1_producer_id_q = V11R_PID1_WRONG_GEN;
+      #1;
+      if ((dut.ex1_producer_open_w !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b0))
+        v11r_oracle_fail("alu-wrong-generation-authorization");
+      release dut.ex1_producer_id_q;
+      #1;
+      `TB_TICK(clk);
+      #1;
+      if ((dut.ex1_valid_q !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b0))
+        v11r_oracle_fail("alu-one-cycle-death");
+      $display("[V11R-EX1-ALU-PACKET][PASS] pid=%0h result=%0h birth=1 death=1",
+               V11R_PID1, V11R_ALU1_RESULT);
+      $display("[V11R-EX1-AUTH-EDGES][PASS] exact_open=1 wrong_generation=1 same_index_other_generation=1");
+    end
+  endtask
+
+  task automatic v11r_stage_local_memory_packet;
+    reg [PHY_REG_ADDR_W-1:0] expected_pdest0;
+    reg [PHY_REG_ADDR_W-1:0] expected_pdest1;
+    reg [PRODUCER_ID_W-1:0] raw_packet_pid;
+    begin
+      reset_dut();
+      v11r_prime_identity();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(
+          V11R_MEM0_PC, make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+          5'd0, 5'd0, 5'd14, V11R_MEM0_ADDR);
+      set_dispatch1(
+          V11R_MEM1_PC, make_load_ctrl(`MEM_SIZE_DWORD, 1'b0),
+          5'd0, 5'd0, 5'd15, V11R_MEM1_MISALIGNED);
+      #1;
+      expected_pdest0 = dut.dispatch0_pdest_w;
+      expected_pdest1 = dut.dispatch1_new_pdest_probe_w;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11R_PID0) ||
+          (dut.dispatch1_producer_id_w !== V11R_PID1))
+        v11r_oracle_fail("local-dual-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.iq_memory_pair_w !== 1'b1) ||
+          (dut.mem_issue_pair_capture_w !== 1'b1) ||
+          (dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_issue1_res_capture_w !== 1'b1))
+        v11r_oracle_fail("local-reservation-capture");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue1_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_producer_id_q !== V11R_PID0) ||
+          (dut.mem_issue1_res_producer_id_q !== V11R_PID1) ||
+          (dut.mem_issue_res_pdest_q !== expected_pdest0) ||
+          (dut.mem_issue1_res_pdest_q !== expected_pdest1))
+        v11r_oracle_fail("local-reservation-holder");
+
+      mem_translate_active = 1'b1;
+      mem1_translate_active = 1'b1;
+      #1;
+      if ((dut.mem_issue1_res_local_complete_w !== 1'b1) ||
+          (dut.mem_issue1_res_consume_fire_w !== 1'b1) ||
+          (dut.ex1_up_valid_w !== 1'b1) ||
+          (dut.ex1_up_from_mem_w !== 1'b1) ||
+          (mem1_req_valid !== 1'b0) ||
+          (dut.ex1_up_producer_id_w !== V11R_PID1) ||
+          (dut.ex1_up_result_w !== {`XLEN{1'b0}}) ||
+          (dut.mem_issue1_res_pdest_q !== expected_pdest1))
+        begin
+          $display("[V11R-LOCAL-UP-DIAG] local=%b consume=%b ex1_valid=%b from_mem=%b req=%b pid=%h expected_pid=%h result=%h pdest=%h expected_pdest=%h issue1_mem=%b exception=%b addr=%h global_ready=%b order_ready=%b lq_open=%b sc_premature=%b mispredict=%b",
+                   dut.mem_issue1_res_local_complete_w,
+                   dut.mem_issue1_res_consume_fire_w,
+                   dut.ex1_up_valid_w,
+                   dut.ex1_up_from_mem_w,
+                   mem1_req_valid,
+                   dut.ex1_up_producer_id_w,
+                   V11R_PID1,
+                   dut.ex1_up_result_w,
+                   dut.mem_issue1_res_pdest_q,
+                   expected_pdest1,
+                   dut.issue1_is_mem_w,
+                   dut.issue1_mem_exception_w,
+                   dut.mem_issue1_res_eff_addr_w,
+                   dut.issue0_global_ready_w,
+                   dut.issue1_mem_order_ready_w,
+                   dut.lq_issue1_open_w,
+                   dut.issue1_sc_premature_w,
+                   dut.branch_resolve_mispredict_w);
+          v11r_oracle_fail("local-up-packet");
+        end
+      if ((dut.ex1_up_exception_w !== 1'b1) ||
+          (dut.ex1_up_cause_w !== `EXC_LOAD_ADDR_MISALIGN))
+        v11r_oracle_fail("local-up-exception");
+      if (dut.ex1_up_tval_w !== V11R_MEM1_MISALIGNED)
+        v11r_oracle_fail("local-up-tval");
+      `TB_TICK(clk);
+      mem_translate_active = 1'b0;
+      mem1_translate_active = 1'b0;
+      #1;
+      if ((dut.ex1_valid_q !== 1'b1) ||
+          (dut.mem_issue1_res_valid_q !== 1'b0))
+        v11r_oracle_fail("local-stage-birth");
+      raw_packet_pid = {
+          dut.ex1_down_payload_w[
+              V11R_EX_GEN_MSB:V11R_EX_GEN_LSB],
+          dut.ex1_down_payload_w[
+              V11R_EX_ROB_MSB:V11R_EX_ROB_LSB]
+      };
+      if (raw_packet_pid !== V11R_PID1)
+        v11r_oracle_fail("local-down-packet-pid");
+      if (dut.ex1_producer_id_q !== V11R_PID1)
+        v11r_oracle_fail("local-down-alias-pid");
+      if ((dut.ex1_pdest_q !== expected_pdest1) ||
+          (dut.ex1_result_q !== {`XLEN{1'b0}}) ||
+          (dut.ex1_exception_q !== 1'b1) ||
+          (dut.ex1_cause_q !== `EXC_LOAD_ADDR_MISALIGN) ||
+          (dut.ex1_tval_q !== V11R_MEM1_MISALIGNED))
+        v11r_oracle_fail("local-down-payload");
+      if ((dut.ex1_pre_auth_valid_w !== 1'b1) ||
+          (dut.ex1_producer_open_w !== 1'b1) ||
+          (dut.ex1_wb_valid_w !== 1'b1) ||
+          (dut.wb1_producer_id_w !== V11R_PID1) ||
+          (dut.wb1_pdest_w !== expected_pdest1) ||
+          (dut.wb1_exception_w !== 1'b1) ||
+          (dut.wb1_cause_w !== `EXC_LOAD_ADDR_MISALIGN) ||
+          (dut.wb1_tval_w !== V11R_MEM1_MISALIGNED))
+        v11r_oracle_fail("local-completion-authority");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.ex1_valid_q !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b0))
+        v11r_oracle_fail("local-one-cycle-death");
+      $display("[V11R-EX1-LOCAL-PACKET][PASS] pid=%0h exception=load_misaligned birth=1 death=1",
+               V11R_PID1);
+      reset_dut();
+    end
+  endtask
+
+  task automatic v11r_run_flush_edge;
+    begin
+      reset_dut();
+      v11r_prime_identity();
+      commit_ready = 1'b0;
+      set_dispatch0(
+          V11R_ALU0_PC,
+          make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                        `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+          5'd0, 5'd0, 5'd5, V11R_ALU0_RESULT);
+      set_dispatch1(
+          V11R_ALU1_PC,
+          make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                        `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+          5'd0, 5'd0, 5'd6, V11R_ALU1_RESULT);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1))
+        v11r_oracle_fail("flush-dual-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.ex0_up_valid_w !== 1'b1) ||
+          (dut.ex1_up_valid_w !== 1'b1))
+        v11r_oracle_fail("flush-up-packet");
+      `TB_TICK(clk);
+      #1;
+      if (dut.ex1_valid_q !== 1'b1)
+        v11r_oracle_fail("flush-stage-birth");
+      force dut.ex1_producer_open_w = 1'b1;
+      flush = 1'b1;
+      #1;
+      if ((dut.ex1_pre_auth_valid_w !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b0))
+        v11r_oracle_fail("ex1-flush-cut");
+      `TB_TICK(clk);
+      flush = 1'b0;
+      release dut.ex1_producer_open_w;
+      #1;
+      if ((dut.ex1_valid_q !== 1'b0) ||
+          (dut.ex1_wb_valid_w !== 1'b0))
+        v11r_oracle_fail("flush-next-cycle-empty");
+      $display("[V11R-EX1-DEATH-EDGES][PASS] flush_mask=1 next_cycle_empty=1");
+    end
+  endtask
+
+  task automatic run_v11r_int_lane1_packet_semantic;
+    begin
+      v11r_stage_alu_packet();
+      v11r_stage_local_memory_packet();
+      v11r_run_flush_edge();
+      $display("[V11R-INT-LANE1-PACKET-MATRIX][PASS] ex1_packet=1 ex1_alias=1 alu_source=1 local_memory_source=1 generation=1 index=3 wrong_generation=1 flush=1");
+      reset_dut();
+    end
+  endtask
+`endif
+`ifdef V11Q_INT_LANE0_PACKET_FOCUSED
+  // Eighteen exact MulDiv retirements make the next lane0 allocation
+  // P={generation=1,index=2}.  This oracle identity is derived from the
+  // stimulus schedule, never from either registered packet holder.
+  localparam [PRODUCER_ID_W-1:0] V11Q_PID =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 2);
+  localparam [PRODUCER_ID_W-1:0] V11Q_WRONG_GEN_PID =
+      V11Q_PID ^ (1 << ROB_INDEX_W);
+  localparam [`XLEN-1:0] V11Q_ALU_PC =
+      64'h0000_0000_8001_6000;
+  localparam [`XLEN-1:0] V11Q_ALU_RESULT =
+      64'h1357_9bdf_2468_ace0;
+  localparam [`XLEN-1:0] V11Q_BRANCH_PC =
+      64'h0000_0000_8001_6080;
+  localparam [`XLEN-1:0] V11Q_BRANCH_NEXT_PC =
+      V11Q_BRANCH_PC + 64'd8;
+  localparam [`BPU_BHT_INDEX_W-1:0] V11Q_BRANCH_BHT =
+      10'h2b6;
+  localparam integer V11Q_EX_RESULT_LSB =
+      `XLEN + `TRAP_CAUSE_W + 1;
+  localparam integer V11Q_EX_RESULT_MSB =
+      V11Q_EX_RESULT_LSB + `XLEN - 1;
+  localparam integer V11Q_EX_PDEST_LSB =
+      V11Q_EX_RESULT_MSB + 1;
+  localparam integer V11Q_EX_PDEST_MSB =
+      V11Q_EX_PDEST_LSB + PHY_REG_ADDR_W - 1;
+  localparam integer V11Q_EX_ROB_LSB =
+      V11Q_EX_PDEST_MSB + 1;
+  localparam integer V11Q_EX_ROB_MSB =
+      V11Q_EX_ROB_LSB + ROB_INDEX_W - 1;
+  localparam integer V11Q_EX_GEN_LSB =
+      V11Q_EX_ROB_MSB + 2;
+  localparam integer V11Q_EX_GEN_MSB =
+      V11Q_EX_GEN_LSB + PRODUCER_GEN_W - 1;
+
+  task automatic v11q_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11Q-INT-LANE0-PACKET-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11q_prime_identity;
+    integer prime_i;
+    integer wait_cycle;
+    begin
+      // Prime through the independent MulDiv response path.  EX0 packet
+      // mutations therefore cannot corrupt the allocation schedule before
+      // reaching their declared focused observation.
+      commit_ready = 1'b1;
+      for (prime_i = 0; prime_i < 18; prime_i = prime_i + 1) begin
+        set_dispatch0(
+            64'h0000_0000_8001_5f00 + (prime_i * 4),
+            make_muldiv_ctrl(), 5'd0, 5'd0, 5'd0, 64'd0);
+        dispatch0_inst =
+            inst_op(`FUNCT7_MULDIV, 5'd0, 5'd0, 3'b101, 5'd0);
+        #1;
+        if (dispatch0_ready !== 1'b1)
+          v11q_oracle_fail("identity-prime-dispatch");
+        `TB_TICK(clk);
+        clear_dispatch();
+        #1;
+        wait_cycle = 0;
+        while ((commit0_valid !== 1'b1) &&
+               (wait_cycle < 24)) begin
+          `TB_TICK(clk);
+          #1;
+          wait_cycle = wait_cycle + 1;
+        end
+        if ((commit0_valid !== 1'b1) ||
+            (commit0_data !== {`XLEN{1'b1}}))
+          v11q_oracle_fail("identity-prime-commit");
+        `TB_TICK(clk);
+        #1;
+        if (commit0_valid !== 1'b0)
+          v11q_oracle_fail("identity-prime-exactly-once");
+      end
+      if ((rob_count !== 0) || (issue_count !== 0))
+        v11q_oracle_fail("identity-prime-drain");
+    end
+  endtask
+
+  task automatic v11q_check_branch_silent;
+    input [1023:0] stage;
+    begin
+      if ((branch_resolve_valid !== 1'b0) ||
+          (branch_resolve_pc !== {`XLEN{1'b0}}) ||
+          (branch_resolve_next_pc !== {`XLEN{1'b0}}) ||
+          (branch_resolve_misaligned !== 1'b0) ||
+          (branch_resolve_rob_idx !== {ROB_INDEX_W{1'b0}}) ||
+          (branch_resolve_mispredict !== 1'b0) ||
+          (branch_resolve_is_branch !== 1'b0) ||
+          (branch_resolve_taken !== 1'b0) ||
+          (branch_resolve_pred_taken !== 1'b0) ||
+          (branch_resolve_bht_idx !==
+           {`BPU_BHT_INDEX_W{1'b0}}))
+        v11q_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11q_stage_alu_packet;
+    reg [PHY_REG_ADDR_W-1:0] expected_pdest;
+    reg [PRODUCER_ID_W-1:0] raw_packet_pid;
+    begin
+      reset_dut();
+      v11q_prime_identity();
+      commit_ready = 1'b0;
+      set_dispatch0(
+          V11Q_ALU_PC,
+          make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                        `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+          5'd0, 5'd0, 5'd5, V11Q_ALU_RESULT);
+      #1;
+      expected_pdest = dut.dispatch0_pdest_w;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11Q_PID))
+        v11q_oracle_fail("alu-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.issue0_fire_w !== 1'b1) ||
+          (dut.ex0_up_valid_w !== 1'b1) ||
+          (dut.ex0_up_producer_id_w !== V11Q_PID) ||
+          (dut.ex0_up_result_w !== V11Q_ALU_RESULT) ||
+          (dut.issue0_pdest_w !== expected_pdest))
+        v11q_oracle_fail("alu-up-packet");
+      `TB_TICK(clk);
+      #1;
+      if (dut.ex0_valid_q !== 1'b1)
+        v11q_oracle_fail("alu-stage-birth");
+      raw_packet_pid = {
+          dut.ex0_down_payload_w[
+              V11Q_EX_GEN_MSB:V11Q_EX_GEN_LSB],
+          dut.ex0_down_payload_w[
+              V11Q_EX_ROB_MSB:V11Q_EX_ROB_LSB]
+      };
+      if (raw_packet_pid !== V11Q_PID)
+        v11q_oracle_fail("alu-down-packet-pid");
+      if (dut.ex0_producer_id_q !== V11Q_PID)
+        v11q_oracle_fail("alu-down-alias-pid");
+      if ((dut.ex0_down_payload_w[
+               V11Q_EX_RESULT_MSB:V11Q_EX_RESULT_LSB] !==
+           V11Q_ALU_RESULT) ||
+          (dut.ex0_result_q !== V11Q_ALU_RESULT) ||
+          (dut.ex0_down_payload_w[
+               V11Q_EX_PDEST_MSB:V11Q_EX_PDEST_LSB] !==
+           expected_pdest) ||
+          (dut.ex0_pdest_q !== expected_pdest))
+        v11q_oracle_fail("alu-down-result");
+      if ((dut.ex0_pre_auth_valid_w !== 1'b1) ||
+          (dut.ex0_producer_open_w !== 1'b1) ||
+          (dut.ex0_wb_valid_w !== 1'b1) ||
+          (dut.wb0_producer_id_w !== V11Q_PID) ||
+          (dut.wb0_data_w !== V11Q_ALU_RESULT))
+        v11q_oracle_fail("alu-completion-authority");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.ex0_valid_q !== 1'b0) ||
+          (dut.ex0_wb_valid_w !== 1'b0))
+        v11q_oracle_fail("alu-one-cycle-death");
+      $display("[V11Q-EX0-PACKET][PASS] pid=%0h result=%0h birth=1 death=1",
+               V11Q_PID, V11Q_ALU_RESULT);
+    end
+  endtask
+
+  task automatic v11q_stage_branch_packet;
+    reg [PRODUCER_ID_W-1:0] raw_ex0_packet_pid;
+    begin
+      reset_dut();
+      v11q_prime_identity();
+      commit_ready = 1'b0;
+      set_dispatch0(
+          V11Q_BRANCH_PC, make_branch_ctrl(`CMP_OP_EQ),
+          5'd0, 5'd0, 5'd0, 64'd8);
+      dispatch0_pred_npc = V11Q_BRANCH_PC + 64'd4;
+      dispatch0_bht_idx = V11Q_BRANCH_BHT;
+      dispatch0_pred_taken = 1'b1;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11Q_PID))
+        v11q_oracle_fail("branch-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.issue0_ctrlflow_fire_w !== 1'b1) ||
+          (dut.ex0_up_valid_w !== 1'b1) ||
+          (dut.issue0_resolve_emit_w !== 1'b1) ||
+          (dut.ex0_up_producer_id_w !== V11Q_PID) ||
+          (dut.iq_issue0_producer_id_w !== V11Q_PID))
+        v11q_oracle_fail("branch-up-pair");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.ex0_valid_q !== 1'b1) ||
+          (dut.branch_resolve_stage_valid_w !== 1'b1))
+        v11q_oracle_fail("branch-stage-birth");
+      raw_ex0_packet_pid = {
+          dut.ex0_down_payload_w[
+              V11Q_EX_GEN_MSB:V11Q_EX_GEN_LSB],
+          dut.ex0_down_payload_w[
+              V11Q_EX_ROB_MSB:V11Q_EX_ROB_LSB]
+      };
+      if ((raw_ex0_packet_pid !== V11Q_PID) ||
+          (dut.ex0_producer_id_q !== V11Q_PID))
+        v11q_oracle_fail("branch-ex0-packet-pid");
+      if (dut.branch_resolve_payload_producer_id_w !== V11Q_PID)
+        v11q_oracle_fail("branch-down-pid");
+      if ((dut.branch_resolve_payload_pc_w !== V11Q_BRANCH_PC) ||
+          (dut.branch_resolve_payload_next_pc_w !==
+           V11Q_BRANCH_NEXT_PC) ||
+          (dut.branch_resolve_payload_misaligned_w !== 1'b0) ||
+          (dut.branch_resolve_payload_mispredict_w !== 1'b1) ||
+          (dut.branch_resolve_payload_is_branch_w !== 1'b1) ||
+          (dut.branch_resolve_payload_taken_w !== 1'b1) ||
+          (dut.branch_resolve_payload_pred_taken_w !== 1'b1) ||
+          (dut.branch_resolve_payload_bht_idx_w !==
+           V11Q_BRANCH_BHT))
+        v11q_oracle_fail("branch-down-payload");
+      if ((dut.branch_resolve_rob_open_w !== 1'b1) ||
+          (dut.branch_resolve_raw_ex0_coherent_w !== 1'b1))
+        v11q_oracle_fail("branch-raw-coherence");
+    end
+  endtask
+
+  task automatic v11q_run_branch_pair;
+    begin
+      v11q_stage_branch_packet();
+      if ((dut.branch_resolve_authorized_w !== 1'b1) ||
+          (branch_resolve_valid !== 1'b1) ||
+          (branch_resolve_pc !== V11Q_BRANCH_PC) ||
+          (branch_resolve_next_pc !== V11Q_BRANCH_NEXT_PC) ||
+          (branch_resolve_rob_idx !==
+           V11Q_PID[ROB_INDEX_W-1:0]) ||
+          (branch_resolve_mispredict !== 1'b1))
+        v11q_oracle_fail("branch-public-packet");
+
+      // Keep the ROB query open and change only the raw EX0 generation.
+      // Index-only coherence would incorrectly authorize this packet.
+      force dut.ex0_producer_id_q = V11Q_WRONG_GEN_PID;
+      #1;
+      if ((dut.branch_resolve_rob_open_w !== 1'b1) ||
+          (dut.branch_resolve_raw_ex0_coherent_w !== 1'b0) ||
+          (dut.branch_resolve_authorized_w !== 1'b0))
+        v11q_oracle_fail("branch-wrong-generation-fence");
+      v11q_check_branch_silent("branch-wrong-generation-fence");
+      rst = 1'b1;
+      #1;
+      release dut.ex0_producer_id_q;
+      `TB_TICK(clk);
+      rst = 1'b0;
+      clear_dispatch();
+      #1;
+      $display("[V11Q-BRANCH-PAIR][PASS] pid=%0h raw_coherence=1 wrong_generation_rejected=1",
+               V11Q_PID);
+    end
+  endtask
+
+  task automatic v11q_run_death_edges;
+    begin
+      v11q_stage_branch_packet();
+      force dut.branch_resolve_rob_open_w = 1'b1;
+      force dut.ex0_producer_open_w = 1'b1;
+      flush = 1'b1;
+      #1;
+      v11q_check_branch_silent("branch-flush-cut");
+      if ((dut.ex0_pre_auth_valid_w !== 1'b0) ||
+          (dut.ex0_wb_valid_w !== 1'b0))
+        v11q_oracle_fail("ex0-flush-cut");
+      `TB_TICK(clk);
+      flush = 1'b0;
+      release dut.branch_resolve_rob_open_w;
+      release dut.ex0_producer_open_w;
+      #1;
+      if ((dut.branch_resolve_stage_valid_w !== 1'b0) ||
+          (dut.ex0_valid_q !== 1'b0))
+        v11q_oracle_fail("flush-next-cycle-empty");
+      $display("[V11Q-DEATH-EDGES][PASS] branch_mask=1 ex0_mask=1 next_cycle_empty=1");
+    end
+  endtask
+
+  task automatic run_v11q_int_lane0_packet_semantic;
+    begin
+      v11q_stage_alu_packet();
+      v11q_run_branch_pair();
+      v11q_run_death_edges();
+      $display("[V11Q-INT-LANE0-PACKET-MATRIX][PASS] ex0_packet=1 ex0_alias=1 branch_packet=1 generation=1 index=2 wrong_generation=1 flush=1");
+      reset_dut();
+    end
+  endtask
+`endif
+`ifdef V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+  task automatic v11p_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11P-CHECKPOINT-IRREVOCABLE-WRITE-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11p_check_tracker_exact;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [1:0] owner_kind;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[token*2 +: 2] !== owner_kind) ||
+          (dut.mem_owner_epoch_table_w[token*2 +: 2] !== V11P_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              token*PRODUCER_ID_W +: PRODUCER_ID_W] !== producer_id))
+        v11p_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11p_check_holder;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [1023:0] stage;
+    reg [(1 << PRODUCER_ID_W)-1:0] expected_mask;
+    begin
+      expected_mask = {(1 << PRODUCER_ID_W){1'b0}};
+      expected_mask[producer_id] = 1'b1;
+      if ((dut.checkpoint_irrevocable_write_q !== 1'b1) ||
+          (dut.checkpoint_irrevocable_write_pid_q !== producer_id) ||
+          (dut.checkpoint_irrevocable_write_live_mask_w !==
+           expected_mask) ||
+          (dut.transient_producer_live_mask_w[producer_id] !== 1'b1) ||
+          (dut.external_producer_live_mask_w[producer_id] !== 1'b1) ||
+          (dut.producer_live_mask_w[producer_id] !== 1'b1))
+        v11p_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11p_check_lane0_terminal;
+    input [4:0] token;
+    input [1:0] owner_kind;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_terminal_ingress_valid_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_kind_w[1:0] !== owner_kind) ||
+          (dut.mem_terminal_ingress_token_w[4:0] !== token) ||
+          (dut.mem_terminal_ingress_epoch_w[1:0] !== V11P_EPOCH))
+        v11p_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11p_wait_token_dead;
+    input [4:0] token;
+    input [1023:0] stage;
+    integer wait_cycle;
+    begin
+      wait_cycle = 0;
+      while (((dut.mem_owner_live_mask_w[token] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[token] === 1'b1)) &&
+             (wait_cycle < 12)) begin
+        v11p_check_holder(V11P_PID, stage);
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[token] !== 1'b0))
+        v11p_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11p_prime_identity;
+    begin
+      run_v8n_prime_producer_generation();
+      force dut.u_mem_owner_tracker.next_token_q = V11P_TOKEN;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11P_TOKEN)
+        v11p_oracle_fail("token-cursor-prime-force");
+      release dut.u_mem_owner_tracker.next_token_q;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11P_TOKEN)
+        v11p_oracle_fail("token-cursor-prime-release");
+    end
+  endtask
+
+  task automatic v11p_request_restore;
+    input [1023:0] stage;
+    begin
+      checkpoint_restore = 1'b1;
+      #1;
+      if ((dut.checkpoint_restore_apply_w !== 1'b0) ||
+          (dut.checkpoint_restore_hold_w !== 1'b1))
+        v11p_oracle_fail(stage);
+      `TB_TICK(clk);
+      checkpoint_restore = 1'b0;
+      #1;
+      if ((dut.checkpoint_restore_pending_q !== 1'b1) ||
+          (dut.checkpoint_restore_apply_w !== 1'b0))
+        v11p_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11p_launch_store;
+    integer wait_cycle;
+    begin
+      reset_dut();
+      v11p_prime_identity();
+      commit_ready = 1'b0;
+      mem_translate_active = 1'b1;
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(
+          V11P_STORE_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+          5'd0, 5'd0, 5'd0, V11P_STORE_VA);
+      dispatch0_inst = 32'h0000_3023;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11P_PID))
+        v11p_oracle_fail("store-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b1) ||
+          (mem_req_probe !== 1'b1) ||
+          (mem_req_owner_kind !== V11P_STORE_KIND) ||
+          (mem_req_owner_token !== V11P_TOKEN) ||
+          (mem_req_mmu_epoch !== V11P_EPOCH))
+        v11p_oracle_fail("store-probe-request");
+      v11p_check_tracker_exact(
+          V11P_PID, V11P_TOKEN, V11P_STORE_KIND,
+          "store-probe-tracker");
+      `TB_TICK(clk);
+      #1;
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = V11P_STORE_PA;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.sq_fill_valid_w !== 1'b1))
+        v11p_oracle_fail("store-probe-response");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+
+      wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b1) ||
+          (mem_req_probe !== 1'b0) ||
+          (mem_req_pretrans !== 1'b1) ||
+          (mem_req_nokill !== 1'b1) ||
+          (mem_req_owner_kind !== V11P_STORE_KIND) ||
+          (mem_req_owner_token !== V11P_TOKEN) ||
+          (dut.checkpoint_irrevocable_write_launch_w !== 1'b1) ||
+          (dut.checkpoint_irrevocable_write_launch_pid_w !== V11P_PID))
+        v11p_oracle_fail("store-launch-edge");
+      `TB_TICK(clk);
+      #1;
+      v11p_check_holder(V11P_PID, "store-holder-birth");
+      v11p_check_tracker_exact(
+          V11P_PID, V11P_TOKEN, V11P_STORE_KIND,
+          "store-holder-birth");
+      if ((dut.sq_snoop_request_sent_w !== 1) ||
+          (dut.miq_count_w !== 1))
+        v11p_oracle_fail("store-holder-birth");
+    end
+  endtask
+
+  task automatic v11p_run_store_lifecycle;
+    integer hold_cycle;
+    begin
+      v11p_launch_store();
+      v11p_request_restore("store-restore-gate");
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        v11p_check_holder(V11P_PID, "store-preterminal-hold");
+        v11p_check_tracker_exact(
+            V11P_PID, V11P_TOKEN, V11P_STORE_KIND,
+            "store-preterminal-hold");
+        `TB_TICK(clk);
+        #1;
+      end
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_drain_rsp_fire_w !== 1'b1) ||
+          (dut.miq_drain_wb_fire_w !== 1'b1) ||
+          (commit0_valid !== 1'b0)) begin
+        $display("[V11P-STORE-TERMINAL-DIAG] ready=%b drain_rsp=%b drain_wb=%b commit0=%b miq_kind=%b token=%0d",
+                 mem_rsp_ready, dut.miq_drain_rsp_fire_w,
+                 dut.miq_drain_wb_fire_w, commit0_valid,
+                 dut.miq_head_kind_w, dut.miq_head_owner_token_w);
+        v11p_oracle_fail("store-terminal-edge");
+      end
+      if (dut.mem_terminal_ingress_valid_w[0] !== 1'b0)
+        v11p_oracle_fail("store-terminal-edge");
+      v11p_check_holder(V11P_PID, "store-terminal-edge");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      v11p_check_holder(V11P_PID, "store-post-terminal-holder");
+      if ((dut.sq_snoop_terminal_w !== 1) ||
+          (dut.checkpoint_restore_apply_w !== 1'b0))
+        v11p_oracle_fail("store-post-terminal-holder");
+
+      commit_ready = 1'b1;
+      #1;
+      if ((commit0_valid !== 1'b1) ||
+          (commit0_producer_id !== V11P_PID) ||
+          (dut.checkpoint_irrevocable_write_retire_w !== 1'b1) ||
+          (dut.sq_release_fire_w !== 1'b1) ||
+          (commit1_valid !== 1'b0) ||
+          (dut.checkpoint_restore_apply_w !== 1'b0))
+        v11p_oracle_fail("store-exact-retire-edge");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.checkpoint_irrevocable_write_q !== 1'b0) ||
+          (dut.checkpoint_irrevocable_write_pid_q !==
+           {PRODUCER_ID_W{1'b0}}) ||
+          (dut.sq_count_w !== 0) ||
+          (dut.checkpoint_restore_apply_w !== 1'b1))
+        v11p_oracle_fail("store-exact-retire-clear");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.checkpoint_restore_apply_w !== 1'b0) ||
+          (dut.checkpoint_restore_pending_q !== 1'b0) ||
+          (rob_count !== 0))
+        v11p_oracle_fail("store-restore-complete");
+      $display("[V11P-STORE-LIFECYCLE][PASS] pid=%0h token=%0d birth=1 hold=2 terminal=1 lane0_retire=1 restore=1",
+               V11P_PID, V11P_TOKEN);
+    end
+  endtask
+
+  task automatic v11p_launch_amo_write;
+    integer wait_cycle;
+    begin
+      reset_dut();
+      v11p_prime_identity();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(
+          V11P_AMO_PC,
+          make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b0),
+          5'd0, 5'd0, 5'd20, 64'd0);
+      dispatch0_inst =
+          inst_amo(5'b00000, 5'd0, 5'd0, `FUNCT3_LD, 5'd20);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11P_PID))
+        v11p_oracle_fail("amo-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b0) ||
+          (mem_req_owner_kind !== V11P_ATOMIC_KIND) ||
+          (mem_req_owner_token !== V11P_TOKEN))
+        v11p_oracle_fail("amo-read-request");
+      v11p_check_tracker_exact(
+          V11P_PID, V11P_TOKEN, V11P_ATOMIC_KIND,
+          "amo-read-request");
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.issue0_mem_request_fire_w !== 1'b1) ||
+          (dut.miq_push_valid_w !== 1'b1))
+        v11p_oracle_fail("amo-read-request");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = V11P_AMO_READ_VALUE;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_amo_read_rsp_w !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b0))
+        v11p_oracle_fail("amo-read-response");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if ((dut.mem_pending_q !== 1'b1) ||
+          (dut.mem_amo_write_phase_q !== 1'b1) ||
+          (dut.mem_producer_id_q !== V11P_PID) ||
+          (dut.mem_owner_token_q !== V11P_TOKEN) ||
+          (mem_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b1))
+        v11p_oracle_fail("amo-write-visible");
+
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.push_amo_write_w !== 1'b1) ||
+          (dut.checkpoint_irrevocable_write_launch_w !== 1'b1) ||
+          (dut.checkpoint_irrevocable_write_launch_pid_w !== V11P_PID))
+        v11p_oracle_fail("amo-launch-edge");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      v11p_check_holder(V11P_PID, "amo-holder-birth");
+      v11p_check_tracker_exact(
+          V11P_PID, V11P_TOKEN, V11P_ATOMIC_KIND,
+          "amo-holder-birth");
+      if ((dut.mem_amo_write_sent_q !== 1'b1) ||
+          (dut.miq_count_w !== 1))
+        v11p_oracle_fail("amo-holder-birth");
+    end
+  endtask
+
+  task automatic v11p_run_amo_lifecycle;
+    integer hold_cycle;
+    begin
+      v11p_launch_amo_write();
+      v11p_request_restore("amo-restore-gate");
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        v11p_check_holder(V11P_PID, "amo-preterminal-hold");
+        v11p_check_tracker_exact(
+            V11P_PID, V11P_TOKEN, V11P_ATOMIC_KIND,
+            "amo-preterminal-hold");
+        `TB_TICK(clk);
+        #1;
+      end
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b1) ||
+          (dut.mem_wb_fire_w !== 1'b1) ||
+          (commit0_valid !== 1'b0)) begin
+        $display("[V11P-AMO-TERMINAL-DIAG] ready=%b final=%b mem_wb=%b commit0=%b miq_kind=%b token=%0d",
+                 mem_rsp_ready, dut.mem_rsp_final_fire_w,
+                 dut.mem_wb_fire_w, commit0_valid,
+                 dut.miq_head_kind_w, dut.miq_head_owner_token_w);
+        v11p_oracle_fail("amo-terminal-edge");
+      end
+      v11p_check_lane0_terminal(
+          V11P_TOKEN, V11P_ATOMIC_KIND, "amo-terminal-edge");
+      v11p_check_holder(V11P_PID, "amo-terminal-edge");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      v11p_check_holder(V11P_PID, "amo-post-terminal-holder");
+      v11p_wait_token_dead(
+          V11P_TOKEN, "amo-post-terminal-tracker-death");
+      v11p_check_holder(
+          V11P_PID, "amo-post-terminal-tracker-death");
+      if (dut.checkpoint_restore_apply_w !== 1'b0)
+        v11p_oracle_fail("amo-post-terminal-tracker-death");
+
+      commit_ready = 1'b1;
+      #1;
+      if ((commit0_valid !== 1'b1) ||
+          (commit0_producer_id !== V11P_PID) ||
+          (dut.checkpoint_irrevocable_write_retire_w !== 1'b1) ||
+          (commit1_valid !== 1'b0) ||
+          (dut.checkpoint_restore_apply_w !== 1'b0))
+        v11p_oracle_fail("amo-exact-retire-edge");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.checkpoint_irrevocable_write_q !== 1'b0) ||
+          (dut.checkpoint_irrevocable_write_pid_q !==
+           {PRODUCER_ID_W{1'b0}}) ||
+          (dut.checkpoint_restore_apply_w !== 1'b1))
+        v11p_oracle_fail("amo-exact-retire-clear");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.checkpoint_restore_apply_w !== 1'b0) ||
+          (dut.checkpoint_restore_pending_q !== 1'b0) ||
+          (rob_count !== 0))
+        v11p_oracle_fail("amo-restore-complete");
+      $display("[V11P-AMO-LIFECYCLE][PASS] pid=%0h token=%0d birth=1 hold=2 terminal=1 tracker_dead_before_retire=1 lane0_retire=1 restore=1",
+               V11P_PID, V11P_TOKEN);
+    end
+  endtask
+
+  task automatic v11p_run_wrong_generation_retire_guard;
+    begin
+      v11p_launch_store();
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_drain_rsp_fire_w !== 1'b1))
+        v11p_oracle_fail("wrong-generation-terminal");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      commit_ready = 1'b1;
+      #1;
+      if ((commit0_valid !== 1'b1) ||
+          (commit0_producer_id !== V11P_PID))
+        v11p_oracle_fail("wrong-generation-retire-precondition");
+      force dut.rob_commit0_producer_id_w = V11P_WRONG_GEN_PID;
+      #1;
+      if (dut.checkpoint_irrevocable_write_retire_w !== 1'b0)
+        v11p_oracle_fail("wrong-generation-retire-guard");
+      `TB_TICK(clk);
+      release dut.rob_commit0_producer_id_w;
+      #1;
+      v11p_check_holder(V11P_PID, "wrong-generation-retire-hold");
+      $display("[V11P-WRONG-GENERATION-RETIRE-GUARD][PASS] holder_pid=%0h injected_commit_pid=%0h retained=1",
+               V11P_PID, V11P_WRONG_GEN_PID);
+      reset_dut();
+    end
+  endtask
+
+  task automatic run_v11p_checkpoint_irrevocable_write_semantic;
+    begin
+      tb_check32("V11P production dual-memory parameter",
+                 TB_ENABLE_DUAL_MEM, 32'd1);
+      v11p_run_store_lifecycle();
+      v11p_run_amo_lifecycle();
+      v11p_run_wrong_generation_retire_guard();
+      $display("[V11P-CHECKPOINT-IRREVOCABLE-WRITE-MATRIX][PASS] store=1 amo=1 generation=1 widths=2 hold=4 terminal=2 tracker_pre_retire_death=1 exact_lane0_retire=2 wrong_generation_guard=1 restore=2");
+      reset_dut();
+    end
+  endtask
+`endif
+`ifdef V11O_MEMORY_BUFFER_TOKEN_FOCUSED
+  task automatic v11o_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11O-MEMORY-BUFFER-TOKEN-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11o_check_tracker_live;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [1:0] owner_kind;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[token*2 +: 2] !== owner_kind) ||
+          (dut.mem_owner_epoch_table_w[token*2 +: 2] !== V11O_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              token*PRODUCER_ID_W +: PRODUCER_ID_W] !== producer_id))
+        v11o_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11o_check_buffer;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [`XLEN-1:0] address;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_buffer_valid_q !== 1'b1) ||
+          (dut.mem_buffer_rob_idx_q !==
+           producer_id[ROB_INDEX_W-1:0]) ||
+          (dut.mem_buffer_load_q !== 1'b1) ||
+          (dut.mem_buffer_store_q !== 1'b0) ||
+          (dut.mem_buffer_eff_addr_q !== address) ||
+          (dut.mem_buffer_fault_tval_q !== address) ||
+          (dut.mem_buffer_owner_kind_q !== V11O_LOAD_KIND) ||
+          (dut.mem_buffer_owner_token_q !== token) ||
+          (dut.mem_buffer_mmu_epoch_q !== V11O_EPOCH))
+        v11o_oracle_fail(stage);
+      v11o_check_tracker_live(
+          producer_id, token, V11O_LOAD_KIND, stage);
+    end
+  endtask
+
+  task automatic v11o_check_terminal_lane;
+    input integer expected_lane;
+    input [4:0] token;
+    input [1:0] owner_kind;
+    input [1023:0] stage;
+    integer lane;
+    integer matching_lanes;
+    begin
+      matching_lanes = 0;
+      for (lane = 0; lane < 10; lane = lane + 1) begin
+        if ((dut.mem_terminal_ingress_valid_w[lane] === 1'b1) &&
+            (dut.mem_terminal_ingress_token_w[lane*5 +: 5] === token))
+          matching_lanes = matching_lanes + 1;
+      end
+      if ((matching_lanes != 1) ||
+          (dut.mem_terminal_ingress_valid_w[expected_lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[expected_lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_kind_w[
+              expected_lane*2 +: 2] !== owner_kind) ||
+          (dut.mem_terminal_ingress_token_w[
+              expected_lane*5 +: 5] !== token) ||
+          (dut.mem_terminal_ingress_epoch_w[
+              expected_lane*2 +: 2] !== V11O_EPOCH))
+        v11o_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11o_wait_token_dead;
+    input [4:0] token;
+    input [1023:0] stage;
+    integer wait_cycle;
+    begin
+      wait_cycle = 0;
+      while (((dut.mem_owner_live_mask_w[token] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[token] === 1'b1)) &&
+             (wait_cycle < 12)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[token] !== 1'b0))
+        v11o_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11o_prime_identity;
+    begin
+      run_v8n_prime_producer_generation();
+      force dut.u_mem_owner_tracker.next_token_q = V11O_TOKEN_OLD;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11O_TOKEN_OLD)
+        v11o_oracle_fail("token-cursor-prime-force");
+      release dut.u_mem_owner_tracker.next_token_q;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11O_TOKEN_OLD)
+        v11o_oracle_fail("token-cursor-prime-release");
+    end
+  endtask
+
+  task automatic v11o_seed_legacy_buffer;
+    input create_branch_boundary;
+    input [PRODUCER_ID_W-1:0] expected_load_pid;
+    input [`XLEN-1:0] load_pc;
+    input [`XLEN-1:0] load_address;
+    integer hold_cycle;
+    begin
+      reset_dut();
+      v11o_prime_identity();
+      commit_ready = !create_branch_boundary;
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(
+          V11O_LR_PC,
+          make_amo_ctrl(`MEM_SIZE_DWORD, 1'b1, 1'b0),
+          5'd0, 5'd0, 5'd20, V11O_LR_ADDRESS);
+      dispatch0_inst =
+          inst_amo(5'b00010, 5'd0, 5'd0, `FUNCT3_LD, 5'd20);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11O_PID_OLD))
+        v11o_oracle_fail("legacy-lr-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("legacy-lr-reservation-capture");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_producer_id_q !== V11O_PID_OLD) ||
+          (dut.mem_issue_res_owner_kind_q !== V11O_ATOMIC_KIND) ||
+          (dut.mem_issue_res_owner_token_q !== V11O_TOKEN_OLD) ||
+          (mem_req_valid !== 1'b1) ||
+          (mem_req_owner_token !== V11O_TOKEN_OLD) ||
+          (dut.miq_push_owner_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("legacy-lr-request-fire");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_pending_q !== 1'b1) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("legacy-lr-pending");
+      v11o_check_tracker_live(
+          V11O_PID_OLD, V11O_TOKEN_OLD, V11O_ATOMIC_KIND,
+          "legacy-lr-tracker-live");
+
+      if (create_branch_boundary) begin
+        set_dispatch0(
+            V11O_BRANCH_PC, make_branch_ctrl(`CMP_OP_EQ),
+            5'd0, 5'd0, 5'd0, 64'd8);
+        dispatch0_pred_taken = 1'b1;
+        dispatch0_pred_npc = V11O_BRANCH_PC + 64'd8;
+        #1;
+        if ((dispatch0_ready !== 1'b1) ||
+            (dispatch0_producer_id !== V11O_PID_BRANCH))
+          v11o_oracle_fail("branch-boundary-dispatch");
+        `TB_TICK(clk);
+        clear_dispatch();
+        #1;
+        if (dut.issue0_ctrlflow_fire_w !== 1'b1)
+          v11o_oracle_fail("branch-boundary-fire");
+        t3v_force_branch_rob = dut.issue0_rob_idx_w;
+        `TB_TICK(clk);
+        #1;
+        if ((branch_resolve_valid !== 1'b1) ||
+            (branch_resolve_mispredict !== 1'b0))
+          v11o_oracle_fail("branch-boundary-initial-resolve");
+        `TB_TICK(clk);
+        #1;
+      end
+
+      set_dispatch0(
+          load_pc, make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+          5'd0, 5'd0, 5'd21, load_address);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== expected_load_pid))
+        v11o_oracle_fail("buffer-load-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("buffer-load-reservation-capture");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_producer_id_q !== expected_load_pid) ||
+          (dut.mem_issue_res_owner_token_q !== V11O_TOKEN_BUFFER) ||
+          (dut.issue0_mem_buffer_fire_w !== 1'b1) ||
+          (dut.issue0_mem_request_fire_w !== 1'b0)) begin
+        $display("[V11O-BIRTH-DIAG] valid=%b pid=%h expected_pid=%h token=%h expected_token=%h buffer_fire=%b request_fire=%b is_mem=%b is_amo=%b exception=%b sq_fwd=%b consume=%b pending=%b miq_count=%0d",
+                 dut.mem_issue_res_valid_q,
+                 dut.mem_issue_res_producer_id_q, expected_load_pid,
+                 dut.mem_issue_res_owner_token_q, V11O_TOKEN_BUFFER,
+                 dut.issue0_mem_buffer_fire_w,
+                 dut.issue0_mem_request_fire_w, dut.issue0_is_mem_w,
+                 dut.issue0_is_amo_w, dut.issue0_mem_exception_w,
+                 dut.issue0_sq_fwd_w, dut.mem_issue_res_consume_fire_w,
+                 dut.mem_pending_q, dut.miq_count_w);
+        v11o_oracle_fail("legacy-buffer-birth-fire");
+      end
+      `TB_TICK(clk);
+      #1;
+      v11o_check_buffer(
+          expected_load_pid, V11O_TOKEN_BUFFER, load_address,
+          "legacy-buffer-birth");
+      if (dut.mem_buffer_req_valid_w !== 1'b0)
+        v11o_oracle_fail("legacy-buffer-old-owner-block");
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        v11o_check_buffer(
+            expected_load_pid, V11O_TOKEN_BUFFER, load_address,
+            "legacy-buffer-hold");
+        if ((dut.mem_buffer_req_valid_w !== 1'b0) ||
+            (mem_req_valid !== 1'b0))
+          v11o_oracle_fail("legacy-buffer-hold-blocked");
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11O-LEGACY-BIRTH-HOLD][PASS] pid=%0h token=%0d cycles=3",
+               expected_load_pid, V11O_TOKEN_BUFFER);
+    end
+  endtask
+
+  task automatic v11o_complete_old_lr;
+    begin
+      mem_req_ready = 1'b0;
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0123_4567_89ab_cdef;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b1) ||
+          (dut.miq_pop_w !== 1'b1))
+        v11o_oracle_fail("old-lr-final-response");
+      v11o_check_terminal_lane(
+          0, V11O_TOKEN_OLD, V11O_ATOMIC_KIND,
+          "old-lr-lane0-terminal");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+      if ((dut.mem_pending_q !== 1'b0) || (dut.miq_count_w !== 0))
+        v11o_oracle_fail("old-lr-next-cycle-clear");
+      v11o_wait_token_dead(
+          V11O_TOKEN_OLD, "old-lr-tracker-death");
+    end
+  endtask
+
+  task automatic v11o_unused_load_blocked_probe;
+    integer lane;
+    begin
+      if (TB_ENABLE_DUAL_MEM != 0)
+        v11o_oracle_fail("legacy-testbench-parameter");
+
+      // A. Natural legacy LR blocking creates the buffer.  The younger load
+      // retains stimulus-owned token 29 across three cycles, transfers the
+      // exact tuple to MIQ, and finally dies through collector lane0.
+      v11o_seed_legacy_buffer(
+          1'b0, V11O_PID_TRANSFER, V11O_TRANSFER_PC,
+          V11O_TRANSFER_ADDRESS);
+      v11o_complete_old_lr();
+      mem_req_ready = 1'b1;
+      #1;
+      v11o_check_buffer(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER,
+          V11O_TRANSFER_ADDRESS, "buffer-transfer-edge-holder");
+      if ((dut.mem_buffer_req_valid_w !== 1'b1) ||
+          (dut.mem_buffer_req_fire_w !== 1'b1) ||
+          (mem_req_valid !== 1'b1) ||
+          (mem_req_owner_kind !== V11O_LOAD_KIND) ||
+          (mem_req_owner_token !== V11O_TOKEN_BUFFER) ||
+          (mem_req_mmu_epoch !== V11O_EPOCH) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq_push_owner_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("buffer-transfer-request");
+      for (lane = 0; lane < 10; lane = lane + 1)
+        if ((dut.mem_terminal_ingress_valid_w[lane] === 1'b1) &&
+            (dut.mem_terminal_ingress_token_w[lane*5 +: 5] ===
+             V11O_TOKEN_BUFFER))
+          v11o_oracle_fail("buffer-transfer-is-not-terminal");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_buffer_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_kind_w !== V11O_LOAD_KIND) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("buffer-transfer-next-cycle-clear");
+      v11o_check_tracker_live(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER, V11O_LOAD_KIND,
+          "buffer-transfer-miq-holder");
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'hfeed_face_cafe_babe;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b1))
+        v11o_oracle_fail("buffer-load-final-response");
+      v11o_check_terminal_lane(
+          0, V11O_TOKEN_BUFFER, V11O_LOAD_KIND,
+          "buffer-load-lane0-terminal");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if (dut.miq_count_w !== 0)
+        v11o_oracle_fail("buffer-load-miq-clear");
+      v11o_wait_token_dead(
+          V11O_TOKEN_BUFFER, "buffer-load-tracker-death");
+      $display("[V11O-LEGACY-TRANSFER-LANE0-DEATH][PASS] token=%0d",
+               V11O_TOKEN_BUFFER);
+
+      // B. A real older branch boundary plus a delayed mispredict cancels a
+      // resident younger load before an otherwise-ready buffer request.  The
+      // exact token is accepted once at collector lane8 and then dies.
+      v11o_seed_legacy_buffer(
+          1'b1, V11O_PID_CANCEL, V11O_CANCEL_PC,
+          V11O_CANCEL_ADDRESS);
+      v11o_complete_old_lr();
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.mem_buffer_req_valid_w !== 1'b1) ||
+          (dut.mem_buffer_req_fire_w !== 1'b1))
+        v11o_oracle_fail("cancel-open-slot-precondition");
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.branch_resolve_rob_idx_o = t3v_force_branch_rob;
+      #1;
+      v11o_check_buffer(
+          V11O_PID_CANCEL, V11O_TOKEN_BUFFER,
+          V11O_CANCEL_ADDRESS, "buffer-cancel-edge-holder");
+      if ((dut.mem_buffer_kill_w !== 1'b1) ||
+          (dut.mem_buffer_cancel_w !== 1'b1) ||
+          (dut.mem_buffer_req_fire_w !== 1'b0) ||
+          (mem_req_valid !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b0))
+        v11o_oracle_fail("buffer-selective-cancel");
+      v11o_check_terminal_lane(
+          8, V11O_TOKEN_BUFFER, V11O_LOAD_KIND,
+          "buffer-cancel-lane8");
+      `TB_TICK(clk);
+      release dut.branch_resolve_mispredict_w;
+      release dut.branch_resolve_rob_idx_o;
+      #1;
+      if ((dut.mem_buffer_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 0) ||
+          (mem_req_valid !== 1'b0))
+        v11o_oracle_fail("buffer-cancel-next-cycle-clear");
+      v11o_wait_token_dead(
+          V11O_TOKEN_BUFFER, "buffer-cancel-tracker-death");
+      $display("[V11O-LEGACY-CANCEL-LANE8-DEATH][PASS] token=%0d",
+               V11O_TOKEN_BUFFER);
+
+      $display("[V11O-MEMORY-BUFFER-TOKEN-MATRIX][PASS] legacy_birth=2 hold_cycles=6 transfer=1 lane0_terminal=1 lane8_cancel=1 tracker_death=2 product_reachability=external");
+      reset_dut();
+    end
+  endtask
+
+  task automatic v11o_check_store_buffer;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [`XLEN-1:0] address;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_buffer_valid_q !== 1'b1) ||
+          (dut.mem_buffer_rob_idx_q !==
+           producer_id[ROB_INDEX_W-1:0]) ||
+          (dut.mem_buffer_load_q !== 1'b0) ||
+          (dut.mem_buffer_store_q !== 1'b1) ||
+          (dut.mem_buffer_eff_addr_q !== address) ||
+          (dut.mem_buffer_fault_tval_q !== address) ||
+          (dut.mem_buffer_owner_kind_q !== V11O_STORE_KIND) ||
+          (dut.mem_buffer_owner_token_q !== token) ||
+          (dut.mem_buffer_mmu_epoch_q !== V11O_EPOCH))
+        v11o_oracle_fail(stage);
+      v11o_check_tracker_live(
+          producer_id, token, V11O_STORE_KIND, stage);
+    end
+  endtask
+
+  task automatic v11o_wait_request;
+    input [`XLEN-1:0] address;
+    input [4:0] token;
+    input expect_probe;
+    input [1023:0] stage;
+    integer wait_cycle;
+    begin
+      wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_addr !== address) ||
+          (mem_req_probe !== expect_probe) ||
+          (mem_req_owner_kind !== V11O_STORE_KIND) ||
+          (mem_req_owner_token !== token) ||
+          (mem_req_mmu_epoch !== V11O_EPOCH))
+        v11o_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11o_seed_store0_filled;
+    begin
+      set_dispatch0(
+          V11O_LR_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+          5'd0, 5'd0, 5'd0, V11O_STORE0_VA);
+      dispatch0_inst = 32'h0000_3023;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11O_PID_OLD))
+        v11o_oracle_fail("store0-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("store0-reservation-capture");
+      v11o_wait_request(
+          V11O_STORE0_VA, V11O_TOKEN_OLD, 1'b1,
+          "store0-probe-request");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("store0-probe-miq");
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = V11O_STORE0_PA;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_OLD) ||
+          (dut.sq_fill_valid_w !== 1'b1))
+        v11o_oracle_fail("store0-probe-response");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+      if ((dut.sq_drain_valid_w !== 1'b1) ||
+          (dut.grant_sq_w !== 1'b1) ||
+          (dut.sq_drain_req_fire_w !== 1'b0))
+        v11o_oracle_fail("store0-filled-sq-priority");
+      v11o_check_tracker_live(
+          V11O_PID_OLD, V11O_TOKEN_OLD, V11O_STORE_KIND,
+          "store0-filled-tracker");
+    end
+  endtask
+
+  task automatic v11o_transfer_store_buffer;
+    integer hold_cycle;
+    begin
+      reset_dut();
+      v11o_prime_identity();
+      mem_translate_active = 1'b1;
+      commit_ready = 1'b1;
+      mem_req_ready = 1'b1;
+
+      set_dispatch0(
+          V11O_LR_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+          5'd0, 5'd0, 5'd0, V11O_STORE0_VA);
+      dispatch0_inst = 32'h0000_3023;
+      set_dispatch1(
+          V11O_TRANSFER_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+          5'd0, 5'd0, 5'd0, V11O_STORE1_TRANSFER_VA);
+      dispatch1_inst = 32'h0000_3023;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11O_PID_OLD) ||
+          (dut.dispatch1_producer_id_w !== V11O_PID_TRANSFER))
+        v11o_oracle_fail("transfer-pair-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11O_TOKEN_OLD) ||
+          (dut.mem_owner_alloc1_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("transfer-pair-allocation");
+      v11o_wait_request(
+          V11O_STORE0_VA, V11O_TOKEN_OLD, 1'b1,
+          "transfer-store0-probe");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("transfer-store0-miq");
+      if ((dut.mem_issue1_res_valid_q !== 1'b1) ||
+          (dut.mem_issue1_res_producer_id_q !== V11O_PID_TRANSFER) ||
+          (dut.mem_issue1_res_owner_token_q !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("transfer-store1-reservation");
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = V11O_STORE0_PA;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.sq_fill_valid_w !== 1'b1))
+        v11o_oracle_fail("transfer-store0-probe-response");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.grant_sq_w !== 1'b1) ||
+          (mem_req_owner_token !== V11O_TOKEN_OLD) ||
+          (dut.issue1_mem_buffer_fire_w !== 1'b1) ||
+          (dut.issue1_mem_request_fire_w !== 1'b0) ||
+          (dut.mem_issue1_res_owner_token_q !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("lane1-buffer-birth-fire");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      v11o_check_store_buffer(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER,
+          V11O_STORE1_TRANSFER_VA, "lane1-buffer-birth");
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        v11o_check_store_buffer(
+            V11O_PID_TRANSFER, V11O_TOKEN_BUFFER,
+            V11O_STORE1_TRANSFER_VA, "lane1-buffer-hold");
+        if (dut.mem_buffer_req_fire_w !== 1'b0)
+          v11o_oracle_fail("lane1-buffer-backpressure");
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11O-LEGACY-BIRTH-HOLD][PASS] lane=1 pid=%0h token=%0d cycles=3",
+               V11O_PID_TRANSFER, V11O_TOKEN_BUFFER);
+
+      mem_req_ready = 1'b1;
+      #1;
+      v11o_check_store_buffer(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER,
+          V11O_STORE1_TRANSFER_VA, "buffer-transfer-edge-holder");
+      if ((dut.mem_buffer_req_valid_w !== 1'b1) ||
+          (dut.mem_buffer_req_fire_w !== 1'b1) ||
+          (mem_req_probe !== 1'b1) ||
+          (mem_req_owner_kind !== V11O_STORE_KIND) ||
+          (mem_req_owner_token !== V11O_TOKEN_BUFFER) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq_push_owner_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("buffer-transfer-request");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_buffer_valid_q !== 1'b0) ||
+          (dut.miq_occupancy_token_mask_w[V11O_TOKEN_BUFFER] !== 1'b1))
+        v11o_oracle_fail("buffer-transfer-next-cycle-clear");
+      v11o_check_tracker_live(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER, V11O_STORE_KIND,
+          "buffer-transfer-miq-holder");
+
+      // Complete store0 B/commit, then store1 probe, physical write, B and
+      // commit.  Token29 must remain live through every authority handoff.
+      mem_rsp_valid = 1'b1;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_OLD))
+        v11o_oracle_fail("transfer-store0-b");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if (commit0_valid !== 1'b1)
+        v11o_oracle_fail("transfer-store0-commit");
+      v11o_check_tracker_live(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER, V11O_STORE_KIND,
+          "transfer-store1-before-probe-response");
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = V11O_STORE1_TRANSFER_PA;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_BUFFER) ||
+          (dut.sq_fill_valid_w !== 1'b1))
+        v11o_oracle_fail("transfer-store1-probe-response");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.grant_sq_w !== 1'b1) ||
+          (mem_req_owner_token !== V11O_TOKEN_BUFFER) ||
+          (mem_req_addr !== V11O_STORE1_TRANSFER_PA) ||
+          (mem_req_pretrans !== 1'b1))
+        v11o_oracle_fail("transfer-store1-physical-write");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      v11o_check_tracker_live(
+          V11O_PID_TRANSFER, V11O_TOKEN_BUFFER, V11O_STORE_KIND,
+          "transfer-store1-post-write");
+      mem_rsp_valid = 1'b1;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.miq_head_owner_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("transfer-store1-b");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if (commit0_valid !== 1'b1)
+        v11o_oracle_fail("transfer-store1-commit");
+      `TB_TICK(clk);
+      #1;
+      v11o_wait_token_dead(
+          V11O_TOKEN_BUFFER, "transfer-store1-tracker-death");
+      $display("[V11O-LEGACY-TRANSFER-SQ-DEATH][PASS] lane=1 token=%0d",
+               V11O_TOKEN_BUFFER);
+    end
+  endtask
+
+  task automatic v11o_cancel_store_buffer;
+    integer hold_cycle;
+    integer lane;
+    begin
+      reset_dut();
+      v11o_prime_identity();
+      mem_translate_active = 1'b1;
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b1;
+      v11o_seed_store0_filled();
+
+      set_dispatch0(
+          V11O_BRANCH_PC, make_branch_ctrl(`CMP_OP_EQ),
+          5'd0, 5'd0, 5'd0, 64'd8);
+      dispatch0_pred_taken = 1'b1;
+      dispatch0_pred_npc = V11O_BRANCH_PC + 64'd8;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11O_PID_BRANCH))
+        v11o_oracle_fail("cancel-branch-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if (dut.issue0_ctrlflow_fire_w !== 1'b1)
+        v11o_oracle_fail("cancel-branch-fire");
+      t3v_force_branch_rob = dut.issue0_rob_idx_w;
+      `TB_TICK(clk);
+      #1;
+      if ((branch_resolve_valid !== 1'b1) ||
+          (branch_resolve_mispredict !== 1'b0))
+        v11o_oracle_fail("cancel-branch-initial-resolve");
+      `TB_TICK(clk);
+      #1;
+
+      set_dispatch0(
+          V11O_CANCEL_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+          5'd0, 5'd0, 5'd0, V11O_STORE1_CANCEL_VA);
+      dispatch0_inst = 32'h0000_3023;
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11O_PID_CANCEL))
+        v11o_oracle_fail("cancel-store1-dispatch");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11O_TOKEN_BUFFER))
+        v11o_oracle_fail("cancel-store1-allocation");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_owner_token_q !== V11O_TOKEN_BUFFER) ||
+          (dut.grant_sq_w !== 1'b1) ||
+          (dut.issue0_mem_buffer_fire_w !== 1'b1) ||
+          (dut.issue0_mem_request_fire_w !== 1'b0))
+        v11o_oracle_fail("lane0-buffer-birth-fire");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      v11o_check_store_buffer(
+          V11O_PID_CANCEL, V11O_TOKEN_BUFFER,
+          V11O_STORE1_CANCEL_VA, "lane0-buffer-birth");
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        v11o_check_store_buffer(
+            V11O_PID_CANCEL, V11O_TOKEN_BUFFER,
+            V11O_STORE1_CANCEL_VA, "lane0-buffer-hold");
+        if (dut.mem_buffer_req_fire_w !== 1'b0)
+          v11o_oracle_fail("lane0-buffer-backpressure");
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11O-LEGACY-BIRTH-HOLD][PASS] lane=0 pid=%0h token=%0d cycles=3",
+               V11O_PID_CANCEL, V11O_TOKEN_BUFFER);
+
+      mem_req_ready = 1'b1;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.branch_resolve_rob_idx_o = t3v_force_branch_rob;
+      #1;
+      v11o_check_store_buffer(
+          V11O_PID_CANCEL, V11O_TOKEN_BUFFER,
+          V11O_STORE1_CANCEL_VA, "buffer-cancel-edge-holder");
+      if ((dut.mem_buffer_kill_w !== 1'b1) ||
+          (dut.mem_buffer_cancel_w !== 1'b1) ||
+          (dut.mem_buffer_req_fire_w !== 1'b0) ||
+          (dut.mem_buffer_store_authority_end_mask_w !==
+           (32'b1 << V11O_TOKEN_BUFFER)) ||
+          (dut.sq_owner_release_effective_mask_w[V11O_TOKEN_BUFFER] !==
+           1'b1) ||
+          ((dut.miq_push_valid_w === 1'b1) &&
+           (dut.miq_push_owner_token_w === V11O_TOKEN_BUFFER)))
+        v11o_oracle_fail("buffer-selective-cancel");
+      for (lane = 0; lane < 10; lane = lane + 1)
+        if ((dut.mem_terminal_ingress_valid_w[lane] === 1'b1) &&
+            (dut.mem_terminal_ingress_token_w[lane*5 +: 5] ===
+             V11O_TOKEN_BUFFER))
+          v11o_oracle_fail("store-cancel-uses-authority-end");
+      `TB_TICK(clk);
+      release dut.branch_resolve_mispredict_w;
+      release dut.branch_resolve_rob_idx_o;
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_buffer_valid_q !== 1'b0) ||
+          (dut.miq_occupancy_token_mask_w[V11O_TOKEN_BUFFER] !== 1'b0))
+        v11o_oracle_fail("buffer-cancel-next-cycle-clear");
+      v11o_wait_token_dead(
+          V11O_TOKEN_BUFFER, "buffer-cancel-tracker-death");
+      $display("[V11O-LEGACY-CANCEL-AUTHORITY-DEATH][PASS] lane=0 token=%0d",
+               V11O_TOKEN_BUFFER);
+    end
+  endtask
+
+  task automatic run_v11o_memory_buffer_token_semantic;
+    begin
+      if (TB_ENABLE_DUAL_MEM != 0)
+        v11o_oracle_fail("legacy-testbench-parameter");
+      v11o_transfer_store_buffer();
+      v11o_cancel_store_buffer();
+      $display("[V11O-MEMORY-BUFFER-TOKEN-MATRIX][PASS] birth_lane0=1 birth_lane1=1 hold_cycles=6 transfer_miq=1 cancel_authority=1 tracker_death=2 product_reachability=external");
+      reset_dut();
+    end
+  endtask
+`endif
+`ifdef V11N_MEMORY_PENDING_HOLDER_FOCUSED
+  task automatic v11n_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11n_check_tracker_exact;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[token*2 +: 2] !==
+           V11N_ATOMIC_KIND) ||
+          (dut.mem_owner_epoch_table_w[token*2 +: 2] !== V11N_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              token*PRODUCER_ID_W +: PRODUCER_ID_W] !== producer_id)) begin
+        $display("[V11N-TRACKER-DIAG] stage=%0s token=%0d live=%b kind=%h epoch=%h pid=%h expected_pid=%h",
+                 stage, token, dut.mem_owner_live_mask_w[token],
+                 dut.mem_owner_kind_table_w[token*2 +: 2],
+                 dut.mem_owner_epoch_table_w[token*2 +: 2],
+                 dut.mem_owner_producer_id_table_w[
+                     token*PRODUCER_ID_W +: PRODUCER_ID_W],
+                 producer_id);
+        v11n_oracle_fail(stage);
+      end
+    end
+  endtask
+
+  task automatic v11n_check_pending_holder;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input write_phase;
+    input write_sent;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_pending_q !== 1'b1) ||
+          (dut.mem_amo_q !== 1'b1) ||
+          (dut.mem_amo_lr_q !== 1'b0) ||
+          (dut.mem_amo_sc_q !== 1'b0) ||
+          (dut.mem_producer_id_q !== producer_id) ||
+          (dut.mem_rob_idx_q !== producer_id[ROB_INDEX_W-1:0]) ||
+          (dut.mem_owner_kind_q !== V11N_ATOMIC_KIND) ||
+          (dut.mem_owner_token_q !== token) ||
+          (dut.mem_mmu_epoch_q !== V11N_EPOCH) ||
+          (dut.mem_amo_write_phase_q !== write_phase) ||
+          (dut.mem_amo_write_sent_q !== write_sent) ||
+          (dut.mem_amo_tracker_exact_w !== 1'b1) ||
+          (dut.mem_amo_tracker_producer_id_w !== producer_id)) begin
+        $display("[V11N-PENDING-DIAG] stage=%0s pending=%b amo=%b lr/sc=%b/%b pid=%h expected_pid=%h rob=%h kind=%h token=%0d expected_token=%0d epoch=%h phase/sent=%b/%b tracker=%b tracker_pid=%h",
+                 stage, dut.mem_pending_q, dut.mem_amo_q,
+                 dut.mem_amo_lr_q, dut.mem_amo_sc_q,
+                 dut.mem_producer_id_q, producer_id, dut.mem_rob_idx_q,
+                 dut.mem_owner_kind_q, dut.mem_owner_token_q, token,
+                 dut.mem_mmu_epoch_q, dut.mem_amo_write_phase_q,
+                 dut.mem_amo_write_sent_q, dut.mem_amo_tracker_exact_w,
+                 dut.mem_amo_tracker_producer_id_w);
+        v11n_oracle_fail(stage);
+      end
+      v11n_check_tracker_exact(producer_id, token, stage);
+    end
+  endtask
+
+  task automatic v11n_check_terminal_lane;
+    input integer lane;
+    input [4:0] token;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_terminal_ingress_valid_w[lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_kind_w[lane*2 +: 2] !==
+           V11N_ATOMIC_KIND) ||
+          (dut.mem_terminal_ingress_token_w[lane*5 +: 5] !== token) ||
+          (dut.mem_terminal_ingress_epoch_w[lane*2 +: 2] !==
+           V11N_EPOCH))
+        v11n_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11n_wait_token_dead;
+    input [4:0] token;
+    input [1023:0] stage;
+    integer wait_cycle;
+    begin
+      wait_cycle = 0;
+      while (((dut.mem_owner_live_mask_w[token] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[token] === 1'b1)) &&
+             (wait_cycle < 12)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[token] !== 1'b0))
+        v11n_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11n_prime_full_width_identity;
+    begin
+      run_v8n_prime_producer_generation();
+      force dut.u_mem_owner_tracker.next_token_q = V11N_TOKEN;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11N_TOKEN)
+        v11n_oracle_fail("token-cursor-prime-force");
+      release dut.u_mem_owner_tracker.next_token_q;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11N_TOKEN)
+        v11n_oracle_fail("token-cursor-prime-release");
+    end
+  endtask
+
+  task automatic v11n_seed_amo_read;
+    input dispatch_lane1;
+    input [PRODUCER_ID_W-1:0] expected_pid;
+    integer wait_cycle;
+    begin
+      reset_dut();
+      v11n_prime_full_width_identity();
+      commit_ready = 1'b1;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      if (dispatch_lane1) begin
+        set_dispatch0(
+            V11N_PC0,
+            make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                          `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+            5'd0, 5'd0, 5'd22, 64'h66);
+        set_dispatch1(
+            V11N_PC1, make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b0),
+            5'd0, 5'd0, 5'd21, 64'd0);
+        dispatch1_inst =
+            inst_amo(5'b00000, 5'd0, 5'd0, `FUNCT3_LD, 5'd21);
+        #1;
+        if ((dispatch0_ready !== 1'b1) ||
+            (dispatch1_ready !== 1'b1) ||
+            (dispatch0_producer_id !== V11N_PID0) ||
+            (dut.dispatch1_producer_id_w !== expected_pid))
+          v11n_oracle_fail("dispatch1-amo-identity");
+      end else begin
+        set_dispatch0(
+            V11N_PC0, make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b0),
+            5'd0, 5'd0, 5'd20, 64'd0);
+        dispatch0_inst =
+            inst_amo(5'b00000, 5'd0, 5'd0, `FUNCT3_LD, 5'd20);
+        #1;
+        if ((dispatch0_ready !== 1'b1) ||
+            (dispatch0_producer_id !== expected_pid))
+          v11n_oracle_fail("dispatch0-amo-identity");
+      end
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      wait_cycle = 0;
+      while ((dut.mem_issue_res_valid_q !== 1'b1) &&
+             (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_ctrl_q[`CTRL_AMO_BIT] !== 1'b1) ||
+          (dut.mem_issue_res_producer_id_q !== expected_pid) ||
+          (dut.mem_issue_res_owner_kind_q !== V11N_ATOMIC_KIND) ||
+          (dut.mem_issue_res_owner_token_q !== V11N_TOKEN) ||
+          (dut.mem_issue_res_mmu_epoch_q !== V11N_EPOCH) ||
+          (dut.mem_issue1_res_ctrl_q[`CTRL_AMO_BIT] !== 1'b0) ||
+          (dut.issue1_is_amo_w !== 1'b0))
+        v11n_oracle_fail("amo-terminal0-reservation");
+      v11n_check_tracker_exact(
+          expected_pid, V11N_TOKEN, "reservation-tracker-exact");
+
+      wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b0) ||
+          (mem_req_owner_kind !== V11N_ATOMIC_KIND) ||
+          (mem_req_owner_token !== V11N_TOKEN) ||
+          (mem_req_mmu_epoch !== V11N_EPOCH) ||
+          (dut.issue0_mem_req_valid_w !== 1'b1))
+        v11n_oracle_fail("amo-read-request-visible");
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.issue0_mem_request_fire_w !== 1'b1) ||
+          (dut.issue1_mem_request_fire_w !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq_push_owner_token_w !== V11N_TOKEN))
+        v11n_oracle_fail("amo-read-request-fire");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+
+      if ((dut.mem_issue_res_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_kind_w !== V11N_ATOMIC_KIND) ||
+          (dut.miq_head_owner_token_w !== V11N_TOKEN))
+        v11n_oracle_fail("amo-read-next-cycle-miq");
+      v11n_check_pending_holder(
+          expected_pid, V11N_TOKEN, 1'b0, 1'b0,
+          "amo-read-pending-birth");
+      if (dispatch_lane1)
+        $display("[V11N-DISPATCH1-TO-TERMINAL0][PASS] pid=%0h token=%0d",
+                 expected_pid, V11N_TOKEN);
+      else
+        $display("[V11N-LANE0-FULL-WIDTH-BIRTH][PASS] pid=%0h token=%0d",
+                 expected_pid, V11N_TOKEN);
+    end
+  endtask
+
+  task automatic v11n_enter_write_phase;
+    input [PRODUCER_ID_W-1:0] expected_pid;
+    input [`XLEN-1:0] read_value;
+    begin
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = read_value;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_amo_read_rsp_w !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[0] !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[9] !== 1'b0))
+        v11n_oracle_fail("successful-read-nonterminal");
+      v11n_check_pending_holder(
+          expected_pid, V11N_TOKEN, 1'b0, 1'b0,
+          "successful-read-edge-old-holder");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if (dut.miq_count_w !== 0)
+        v11n_oracle_fail("successful-read-miq-pop");
+      v11n_check_pending_holder(
+          expected_pid, V11N_TOKEN, 1'b1, 1'b0,
+          "successful-read-write-phase");
+    end
+  endtask
+
+  task automatic run_v11n_memory_pending_holder_semantic;
+    integer hold_cycle;
+    begin
+      tb_check32("V11N production dual-memory parameter",
+                 TB_ENABLE_DUAL_MEM, 32'd1);
+
+      // A. Lane0 AMO: full-width birth, read hold, phase transition, stalled
+      // write grant, write fire, post-write hold, exact final lane0 and death.
+      v11n_seed_amo_read(1'b0, V11N_PID0);
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        v11n_check_pending_holder(
+            V11N_PID0, V11N_TOKEN, 1'b0, 1'b0, "read-hold");
+        `TB_TICK(clk);
+        #1;
+      end
+      v11n_enter_write_phase(V11N_PID0, V11N_READ_VALUE0);
+
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        if ((mem_req_valid !== 1'b1) ||
+            (mem_req_write !== 1'b1) ||
+            (mem_req_owner_kind !== V11N_ATOMIC_KIND) ||
+            (mem_req_owner_token !== V11N_TOKEN) ||
+            (mem_req_mmu_epoch !== V11N_EPOCH) ||
+            (dut.push_amo_write_w !== 1'b0))
+          v11n_oracle_fail("write-grant-stall");
+        v11n_check_pending_holder(
+            V11N_PID0, V11N_TOKEN, 1'b1, 1'b0, "write-grant-hold");
+        `TB_TICK(clk);
+        #1;
+      end
+
+      mem_req_ready = 1'b1;
+      #1;
+      if ((dut.push_amo_write_w !== 1'b1) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq_push_owner_kind_w !== V11N_ATOMIC_KIND) ||
+          (dut.miq_push_owner_token_w !== V11N_TOKEN) ||
+          (dut.mem_amo_launch_authorized_w !== 1'b1))
+        v11n_oracle_fail("amo-write-fire");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_kind_w !== V11N_ATOMIC_KIND) ||
+          (dut.miq_head_owner_token_w !== V11N_TOKEN))
+        v11n_oracle_fail("amo-write-next-cycle-miq");
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        v11n_check_pending_holder(
+            V11N_PID0, V11N_TOKEN, 1'b1, 1'b1, "post-write-hold");
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11N-READ-WRITE-HOLD][PASS] read=2 interphase=2 postwrite=2");
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'd0;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_rsp_final_fire_w !== 1'b1) ||
+          (dut.mem_amo_read_rsp_w !== 1'b0) ||
+          (dut.mem_completion_producer_id_w !== V11N_PID0) ||
+          (dut.mem_terminal_ingress_valid_w[9] !== 1'b0))
+        v11n_oracle_fail("amo-final-response");
+      v11n_check_terminal_lane(0, V11N_TOKEN, "amo-final-lane0");
+      v11n_check_pending_holder(
+          V11N_PID0, V11N_TOKEN, 1'b1, 1'b1,
+          "amo-final-edge-old-holder");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      if ((dut.mem_pending_q !== 1'b0) || (dut.miq_count_w !== 0))
+        v11n_oracle_fail("amo-final-next-cycle-clear");
+      v11n_wait_token_dead(V11N_TOKEN, "amo-final-tracker-death");
+      $display("[V11N-FINAL-LANE0-DEATH][PASS] pid=%0h token=%0d",
+               V11N_PID0, V11N_TOKEN);
+
+      // B. An AMO accepted in dispatch lane1 must be scheduled through the
+      // singleton execution terminal0.  Cancel between read and write uses
+      // collector lane9 with the same stimulus-owned token.
+      v11n_seed_amo_read(1'b1, V11N_PID1);
+      v11n_enter_write_phase(V11N_PID1, V11N_READ_VALUE1);
+      checkpoint_restore = 1'b1;
+      #1;
+      if ((dut.checkpoint_restore_apply_w !== 1'b1) ||
+          (dut.mem_amo_interphase_cancel_w !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[0] !== 1'b0) ||
+          (mem_req_valid !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b0))
+        v11n_oracle_fail("amo-interphase-cancel");
+      v11n_check_terminal_lane(9, V11N_TOKEN, "amo-interphase-lane9");
+      v11n_check_pending_holder(
+          V11N_PID1, V11N_TOKEN, 1'b1, 1'b0,
+          "amo-interphase-edge-old-holder");
+      `TB_TICK(clk);
+      checkpoint_restore = 1'b0;
+      #1;
+      if ((dut.mem_pending_q !== 1'b0) || (dut.miq_count_w !== 0))
+        v11n_oracle_fail("amo-interphase-next-cycle-clear");
+      v11n_wait_token_dead(V11N_TOKEN, "amo-interphase-tracker-death");
+      $display("[V11N-INTERPHASE-LANE9-DEATH][PASS] pid=%0h token=%0d",
+               V11N_PID1, V11N_TOKEN);
+
+      // C. Read fault is a final lane0 terminal, never a second lane9 event.
+      v11n_seed_amo_read(1'b0, V11N_PID0);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'd0;
+      mem_rsp_error = 1'b1;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (dut.mem_amo_read_rsp_w !== 1'b0) ||
+          (dut.mem_rsp_final_fire_w !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[9] !== 1'b0))
+        v11n_oracle_fail("amo-read-fault-final");
+      v11n_check_terminal_lane(0, V11N_TOKEN, "amo-read-fault-lane0");
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_error = 1'b0;
+      #1;
+      if ((dut.mem_pending_q !== 1'b0) || (dut.miq_count_w !== 0))
+        v11n_oracle_fail("amo-read-fault-next-cycle-clear");
+      v11n_wait_token_dead(V11N_TOKEN, "amo-read-fault-tracker-death");
+      $display("[V11N-READ-FAULT-LANE0][PASS] token=%0d", V11N_TOKEN);
+
+      $display("[V11N-MEM-PENDING-HOLDER-MATRIX][PASS] birth=2 read_hold=2 phase=2 write_hold=2 final_lane0=1 cancel_lane9=1 read_fault_lane0=1 death=3");
+      reset_dut();
+    end
+  endtask
+`endif
+`ifdef V11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+  task automatic v11m_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11M-RESERVATION-HOLDER-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11m_check_tracker_exact;
+    input [4:0] token;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[token*2 +: 2] !==
+           V11M_LOAD_KIND) ||
+          (dut.mem_owner_epoch_table_w[token*2 +: 2] !==
+           V11M_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              token*PRODUCER_ID_W +: PRODUCER_ID_W] !== producer_id)) begin
+        $display("[V11M-TRACKER-DIAG] token=%0d live=%b kind=%h epoch=%h pid=%h expected_pid=%h",
+                 token,
+                 dut.mem_owner_live_mask_w[token],
+                 dut.mem_owner_kind_table_w[token*2 +: 2],
+                 dut.mem_owner_epoch_table_w[token*2 +: 2],
+                 dut.mem_owner_producer_id_table_w[
+                     token*PRODUCER_ID_W +: PRODUCER_ID_W],
+                 producer_id);
+        v11m_oracle_fail(stage);
+      end
+    end
+  endtask
+
+  task automatic v11m_check_reservation0;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [`XLEN-1:0] pc;
+    input [`XLEN-1:0] address;
+    input [1:0] size;
+    input unsigned_load;
+    input [PHY_REG_ADDR_W-1:0] pdest;
+    begin
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue_res_producer_id_q !== producer_id) ||
+          (dut.mem_issue_res_owner_token_q !== token) ||
+          (dut.mem_issue_res_owner_kind_q !== V11M_LOAD_KIND) ||
+          (dut.mem_issue_res_mmu_epoch_q !== V11M_EPOCH) ||
+          (dut.mem_issue_res_fault_tval_q !== address) ||
+          (dut.mem_issue_res_pc_q !== pc) ||
+          (dut.mem_issue_res_imm_q !== address) ||
+          (dut.mem_issue_res_pdest_q !== pdest) ||
+          (dut.mem_issue_res_ctrl_q[`CTRL_LOAD_BIT] !== 1'b1) ||
+          (dut.mem_issue_res_ctrl_q[`CTRL_STORE_BIT] !== 1'b0) ||
+          (dut.mem_issue_res_ctrl_q[
+              `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB] !== size) ||
+          (dut.mem_issue_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT] !==
+           unsigned_load)) begin
+        $display("[V11M-RES0-DIAG] valid=%b pid=%h token=%h kind=%h epoch=%h tval=%h pc=%h imm=%h pdest=%h size=%h unsigned=%b",
+                 dut.mem_issue_res_valid_q,
+                 dut.mem_issue_res_producer_id_q,
+                 dut.mem_issue_res_owner_token_q,
+                 dut.mem_issue_res_owner_kind_q,
+                 dut.mem_issue_res_mmu_epoch_q,
+                 dut.mem_issue_res_fault_tval_q,
+                 dut.mem_issue_res_pc_q,
+                 dut.mem_issue_res_imm_q,
+                 dut.mem_issue_res_pdest_q,
+                 dut.mem_issue_res_ctrl_q[
+                     `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB],
+                 dut.mem_issue_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT]);
+        v11m_oracle_fail("reservation0-holder-tuple");
+      end
+    end
+  endtask
+
+  task automatic v11m_check_reservation1;
+    input [PRODUCER_ID_W-1:0] producer_id;
+    input [4:0] token;
+    input [`XLEN-1:0] pc;
+    input [`XLEN-1:0] address;
+    input [1:0] size;
+    input unsigned_load;
+    input [PHY_REG_ADDR_W-1:0] pdest;
+    begin
+      if ((dut.mem_issue1_res_valid_q !== 1'b1) ||
+          (dut.mem_issue1_res_producer_id_q !== producer_id) ||
+          (dut.mem_issue1_res_owner_token_q !== token) ||
+          (dut.mem_issue1_res_owner_kind_q !== V11M_LOAD_KIND) ||
+          (dut.mem_issue1_res_mmu_epoch_q !== V11M_EPOCH) ||
+          (dut.mem_issue1_res_fault_tval_q !== address) ||
+          (dut.mem_issue1_res_pc_q !== pc) ||
+          (dut.mem_issue1_res_imm_q !== address) ||
+          (dut.mem_issue1_res_pdest_q !== pdest) ||
+          (dut.mem_issue1_res_ctrl_q[`CTRL_LOAD_BIT] !== 1'b1) ||
+          (dut.mem_issue1_res_ctrl_q[`CTRL_STORE_BIT] !== 1'b0) ||
+          (dut.mem_issue1_res_ctrl_q[
+              `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB] !== size) ||
+          (dut.mem_issue1_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT] !==
+           unsigned_load)) begin
+        $display("[V11M-RES1-DIAG] valid=%b pid=%h token=%h kind=%h epoch=%h tval=%h pc=%h imm=%h pdest=%h size=%h unsigned=%b",
+                 dut.mem_issue1_res_valid_q,
+                 dut.mem_issue1_res_producer_id_q,
+                 dut.mem_issue1_res_owner_token_q,
+                 dut.mem_issue1_res_owner_kind_q,
+                 dut.mem_issue1_res_mmu_epoch_q,
+                 dut.mem_issue1_res_fault_tval_q,
+                 dut.mem_issue1_res_pc_q,
+                 dut.mem_issue1_res_imm_q,
+                 dut.mem_issue1_res_pdest_q,
+                 dut.mem_issue1_res_ctrl_q[
+                     `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB],
+                 dut.mem_issue1_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT]);
+        v11m_oracle_fail("reservation1-holder-tuple");
+      end
+    end
+  endtask
+
+  task automatic v11m_wait_token_dead;
+    input [4:0] token;
+    input [1023:0] stage;
+    integer wait_cycle;
+    begin
+      wait_cycle = 0;
+      while (((dut.mem_owner_live_mask_w[token] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[token] === 1'b1)) &&
+             (wait_cycle < 10)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycle = wait_cycle + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[token] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[token] !== 1'b0))
+        v11m_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11m_prime_full_width_identity;
+    begin
+      // Consume one complete ROB turn through legal ALU dispatch/retirement
+      // so the next four ProducerIds carry generation=1.  The reservation
+      // test owns these expected identities; it does not sample DUT holder
+      // state to construct them.
+      run_v8n_prime_producer_generation();
+
+      // The token cursor contract was closed separately.  Seed it at a
+      // deterministic reset-domain boundary so this holder test exercises
+      // token[4:2] without spending 28 unrelated memory transactions.
+      force dut.u_mem_owner_tracker.next_token_q = V11M_TOKEN0;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11M_TOKEN0)
+        v11m_oracle_fail("token-cursor-prime-force");
+      release dut.u_mem_owner_tracker.next_token_q;
+      #1;
+      if (dut.u_mem_owner_tracker.next_token_q !== V11M_TOKEN0)
+        v11m_oracle_fail("token-cursor-prime-release");
+    end
+  endtask
+
+  task automatic v11m_seed_first_pair;
+    input [`XLEN-1:0] address0;
+    input [`XLEN-1:0] address1;
+    input [1:0] size0;
+    input unsigned0;
+    input [1:0] size1;
+    input unsigned1;
+    input check_credit_barrier;
+    begin
+      reset_dut();
+      v11m_prime_full_width_identity();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(V11M_PC0, make_load_ctrl(size0, unsigned0),
+                    5'd0, 5'd0, 5'd14, address0);
+      set_dispatch1(V11M_PC1, make_load_ctrl(size1, unsigned1),
+                    5'd0, 5'd0, 5'd15, address1);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11M_PID0) ||
+          (dut.dispatch1_producer_id_w !== V11M_PID1))
+        v11m_oracle_fail("dual-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      if ((dut.iq_memory_pair_w !== 1'b1) ||
+          (dut.mem_issue_pair_capture_candidate_w !== 1'b1) ||
+          (dut.mem_issue_res_capture_candidate_w !== 1'b1) ||
+          (dut.mem_issue1_res_capture_candidate_w !== 1'b1))
+        v11m_oracle_fail("pair-capture-candidate");
+
+      if (check_credit_barrier) begin
+        force dut.mem_owner_alloc1_ready_w = 1'b0;
+        #1;
+        if ((dut.mem_issue_pair_capture_w !== 1'b0) ||
+            (dut.mem_issue_res_capture_w !== 1'b0) ||
+            (dut.mem_issue1_res_capture_w !== 1'b0) ||
+            (dut.iq_issue0_ready_w !== 1'b0))
+          v11m_oracle_fail("pair-credit-atomic");
+        `TB_TICK(clk);
+        #1;
+        if ((dut.mem_issue_res_valid_q !== 1'b0) ||
+            (dut.mem_issue1_res_valid_q !== 1'b0) ||
+            (issue_count !== 2))
+          v11m_oracle_fail("pair-credit-edge");
+        release dut.mem_owner_alloc1_ready_w;
+        #1;
+      end
+
+      if ((dut.mem_issue_pair_capture_w !== 1'b1) ||
+          (dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_issue1_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11M_TOKEN0) ||
+          (dut.mem_owner_alloc1_token_w !== V11M_TOKEN1))
+        v11m_oracle_fail("pair-credit-atomic");
+      `TB_TICK(clk);
+      #1;
+
+      v11m_check_reservation0(
+          V11M_PID0, V11M_TOKEN0, V11M_PC0, address0,
+          size0, unsigned0, V11M_PDEST0);
+      v11m_check_reservation1(
+          V11M_PID1, V11M_TOKEN1, V11M_PC1, address1,
+          size1, unsigned1, V11M_PDEST1);
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "tracker0-exact-live");
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "tracker1-exact-live");
+      if (issue_count !== 0)
+        v11m_oracle_fail("pair-source-iq-not-empty");
+    end
+  endtask
+
+  task automatic v11m_check_terminal_lane;
+    input integer lane;
+    input [4:0] token;
+    input [1023:0] stage;
+    begin
+      if ((dut.mem_terminal_ingress_valid_w[lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[lane] !== 1'b1) ||
+          (dut.mem_terminal_ingress_token_w[lane*5 +: 5] !== token) ||
+          (dut.mem_terminal_ingress_kind_w[lane*2 +: 2] !==
+           V11M_LOAD_KIND) ||
+          (dut.mem_terminal_ingress_epoch_w[lane*2 +: 2] !==
+           V11M_EPOCH))
+        v11m_oracle_fail(stage);
+    end
+  endtask
+
+  task automatic v11m_drain_dual_miq_responses;
+    input [4:0] token0;
+    input [4:0] token1;
+    input [PRODUCER_ID_W-1:0] producer0;
+    input [PRODUCER_ID_W-1:0] producer1;
+    begin
+      // Feed final-PA dispositions from the stimulus-owned owner tuple.  The
+      // query does not sample MIQ/tracker state to manufacture its identity.
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = V11M_LOAD_KIND;
+      mem_sq_query_owner_token = token0;
+      mem_sq_query_mmu_epoch = V11M_EPOCH;
+      mem_sq_query_paddr = V11M_ADDR0;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = {`STRB_W{1'b1}};
+      mem1_sq_query_valid = 1'b1;
+      mem1_sq_query_owner_kind = V11M_LOAD_KIND;
+      mem1_sq_query_owner_token = token1;
+      mem1_sq_query_mmu_epoch = V11M_EPOCH;
+      mem1_sq_query_paddr = V11M_ADDR1;
+      mem1_sq_query_attr_valid = 1'b1;
+      mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem1_sq_query_wstrb = {`STRB_W{1'b1}};
+      #1;
+      if ((dut.mem_sq_query_exact_w !== 1'b1) ||
+          (dut.mem1_sq_query_exact_w !== 1'b1) ||
+          (mem_sq_query_allow !== 1'b1) ||
+          (mem1_sq_query_allow !== 1'b1) ||
+          (dut.lq_query0_update_w !== 1'b1) ||
+          (dut.lq_query1_update_w !== 1'b1))
+        v11m_oracle_fail("dual-final-pa-order");
+      `TB_TICK(clk);
+      mem_sq_query_valid = 1'b0;
+      mem_sq_query_owner_kind = 2'b00;
+      mem_sq_query_owner_token = 5'b0;
+      mem_sq_query_mmu_epoch = 2'b0;
+      mem_sq_query_paddr = {`XLEN{1'b0}};
+      mem_sq_query_attr_valid = 1'b0;
+      mem_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem_sq_query_wstrb = {`STRB_W{1'b0}};
+      mem1_sq_query_valid = 1'b0;
+      mem1_sq_query_owner_kind = 2'b00;
+      mem1_sq_query_owner_token = 5'b0;
+      mem1_sq_query_mmu_epoch = 2'b0;
+      mem1_sq_query_paddr = {`XLEN{1'b0}};
+      mem1_sq_query_attr_valid = 1'b0;
+      mem1_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem1_sq_query_wstrb = {`STRB_W{1'b0}};
+      #1;
+
+      commit_ready = 1'b1;
+      mem_rsp_valid = 1'b1;
+      mem1_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h1111_2222_3333_4444;
+      mem1_rsp_rdata = 64'haaaa_bbbb_cccc_dddd;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (mem1_rsp_ready !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[1] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[1] !== 1'b1) ||
+          (dut.mem_terminal_ingress_token_w[0 +: 5] !== token0) ||
+          (dut.mem_terminal_ingress_token_w[5 +: 5] !== token1) ||
+          (dut.mem_completion_producer_id_w !== producer0) ||
+          (dut.mem1_completion_producer_id_w !== producer1)) begin
+        $display("[V11M-RESPONSE-DIAG] ready=%b/%b ingress=%b/%b accept=%b/%b token=%h/%h pid=%h/%h expected=%h/%h miq=%0d/%0d",
+                 mem_rsp_ready, mem1_rsp_ready,
+                 dut.mem_terminal_ingress_valid_w[0],
+                 dut.mem_terminal_ingress_valid_w[1],
+                 dut.mem_terminal_ingress_accept_w[0],
+                 dut.mem_terminal_ingress_accept_w[1],
+                 dut.mem_terminal_ingress_token_w[0 +: 5],
+                 dut.mem_terminal_ingress_token_w[5 +: 5],
+                 dut.mem_completion_producer_id_w,
+                 dut.mem1_completion_producer_id_w,
+                 producer0, producer1,
+                 dut.miq_count_w, dut.miq1_count_w);
+        v11m_oracle_fail("dual-response-terminal");
+      end
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem1_rsp_valid = 1'b0;
+      #1;
+      v11m_wait_token_dead(token0, "response0-tracker-death");
+      v11m_wait_token_dead(token1, "response1-tracker-death");
+    end
+  endtask
+
+  task automatic run_v11m_memory_reservation_holder_semantic;
+    integer hold_cycle;
+    begin
+      tb_check32("V11M production parameter enabled",
+                 TB_ENABLE_DUAL_MEM, 32'd1);
+
+      // A/B: pair credit, birth, full tuple hold and asymmetric request
+      // transfer.  All expected identities are reset/allocation predictions.
+      v11m_seed_first_pair(
+          V11M_ADDR0, V11M_ADDR1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_WORD, 1'b0, 1'b1);
+      $display("[V11M-BIRTH-CREDIT-ATOMIC][PASS] pid=%0h/%0h token=%0d/%0d",
+               V11M_PID0, V11M_PID1, V11M_TOKEN0, V11M_TOKEN1);
+      $display("[V11M-FULL-WIDTH-IDENTITY][PASS] generation=1 token=28/29");
+
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        v11m_check_reservation0(
+            V11M_PID0, V11M_TOKEN0, V11M_PC0, V11M_ADDR0,
+            `MEM_SIZE_DWORD, 1'b1, V11M_PDEST0);
+        v11m_check_reservation1(
+            V11M_PID1, V11M_TOKEN1, V11M_PC1, V11M_ADDR1,
+            `MEM_SIZE_WORD, 1'b0, V11M_PDEST1);
+        v11m_check_tracker_exact(
+            V11M_TOKEN0, V11M_PID0, "hold-tracker0-exact");
+        v11m_check_tracker_exact(
+            V11M_TOKEN1, V11M_PID1, "hold-tracker1-exact");
+        if ((dut.mem_issue_res_consume_fire_w !== 1'b0) ||
+            (dut.mem_issue1_res_consume_fire_w !== 1'b0) ||
+            (dut.miq_push_valid_w !== 1'b0) ||
+            (dut.miq1_push_valid_w !== 1'b0))
+          v11m_oracle_fail("ready00-hold-event");
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V11M-HOLD-TUPLE][PASS] cycles=3");
+
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((mem_req_valid !== 1'b1) ||
+          (mem_req_owner_token !== V11M_TOKEN0) ||
+          (mem_req_owner_kind !== V11M_LOAD_KIND) ||
+          (mem_req_mmu_epoch !== V11M_EPOCH) ||
+          (mem_req_fault_tval !== V11M_ADDR0) ||
+          (mem_req_addr !== V11M_ADDR0) ||
+          (dut.mem_issue_res_consume_fire_w !== 1'b1) ||
+          (dut.mem_issue1_res_consume_fire_w !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq_push_owner_token_w !== V11M_TOKEN0))
+        v11m_oracle_fail("request0-transfer");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11M_TOKEN0) ||
+          (dut.miq_occupancy_token_mask_w !==
+           (32'b1 << V11M_TOKEN0)))
+        v11m_oracle_fail("request0-next-cycle-miq");
+      v11m_check_reservation1(
+          V11M_PID1, V11M_TOKEN1, V11M_PC1, V11M_ADDR1,
+          `MEM_SIZE_WORD, 1'b0, V11M_PDEST1);
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "request0-tracker-live");
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "request1-holder-tracker-live");
+
+      mem1_req_ready = 1'b1;
+      #1;
+      if ((mem1_req_valid !== 1'b1) ||
+          (mem1_req_owner_token !== V11M_TOKEN1) ||
+          (mem1_req_owner_kind !== V11M_LOAD_KIND) ||
+          (mem1_req_mmu_epoch !== V11M_EPOCH) ||
+          (mem1_req_fault_tval !== V11M_ADDR1) ||
+          (mem1_req_addr !== V11M_ADDR1) ||
+          (dut.mem_issue1_res_consume_fire_w !== 1'b1) ||
+          (dut.miq1_push_valid_w !== 1'b1) ||
+          (dut.miq1_push_owner_token_w !== V11M_TOKEN1))
+        v11m_oracle_fail("request1-transfer");
+      `TB_TICK(clk);
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_issue1_res_valid_q !== 1'b0) ||
+          (dut.miq1_count_w !== 1) ||
+          (dut.miq1_head_owner_token_w !== V11M_TOKEN1) ||
+          (dut.miq1_occupancy_token_mask_w !==
+           (32'b1 << V11M_TOKEN1)))
+        v11m_oracle_fail("request1-next-cycle-miq");
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "request0-miq-tracker-live");
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "request1-miq-tracker-live");
+      $display("[V11M-ASYMMETRIC-TRANSFER][PASS] ready=10/01");
+      v11m_drain_dual_miq_responses(
+          V11M_TOKEN0, V11M_TOKEN1, V11M_PID0, V11M_PID1);
+
+      // Lane0 local exception must transfer only token0 through collector
+      // lane6 while the exact lane1 reservation remains resident.
+      v11m_seed_first_pair(
+          V11M_MISALIGNED0, V11M_ADDR1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_WORD, 1'b0, 1'b0);
+      mem_translate_active = 1'b1;
+      #1;
+      if ((dut.mem_issue_res_local_complete_w !== 1'b1) ||
+          (dut.mem_issue_res_consume_fire_w !== 1'b1) ||
+          (mem_req_valid !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[7] !== 1'b0)) begin
+        $display("[V11M-LOCAL0-DIAG] local=%b consume=%b req=%b ex=%b eligible=%b addr=%h lane6=%b/%b lane7=%b",
+                 dut.mem_issue_res_local_complete_w,
+                 dut.mem_issue_res_consume_fire_w,
+                 mem_req_valid,
+                 dut.issue0_mem_exception_w,
+                 dut.issue0_mem_issue_eligible_w,
+                 dut.mem_issue_res_eff_addr_w,
+                 dut.mem_terminal_ingress_valid_w[6],
+                 dut.mem_terminal_ingress_accept_w[6],
+                 dut.mem_terminal_ingress_valid_w[7]);
+        v11m_oracle_fail("local0-terminal");
+      end
+      v11m_check_terminal_lane(6, V11M_TOKEN0, "local0-terminal");
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "local0-edge-old-tracker");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b0) ||
+          (dut.mem_issue1_res_valid_q !== 1'b1))
+        v11m_oracle_fail("local0-next-cycle");
+      v11m_wait_token_dead(V11M_TOKEN0, "local0-tracker-death");
+      v11m_check_reservation1(
+          V11M_PID1, V11M_TOKEN1, V11M_PC1, V11M_ADDR1,
+          `MEM_SIZE_WORD, 1'b0, V11M_PDEST1);
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "local0-survivor-exact");
+      $display("[V11M-LOCAL0-LANE6-EXACT][PASS] token=%0d",
+               V11M_TOKEN0);
+
+      // Lane1 mirror: lane7 is accepted while lane0 remains exact.
+      v11m_seed_first_pair(
+          V11M_ADDR0, V11M_MISALIGNED1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_DWORD, 1'b0, 1'b0);
+      mem_translate_active = 1'b1;
+      mem1_translate_active = 1'b1;
+      #1;
+      if ((dut.mem_issue1_res_local_complete_w !== 1'b1) ||
+          (dut.mem_issue1_res_consume_fire_w !== 1'b1) ||
+          (mem1_req_valid !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[6] !== 1'b0)) begin
+        $display("[V11M-LOCAL1-DIAG] local=%b consume=%b req=%b ex=%b order=%b addr=%h lane6=%b lane7=%b/%b",
+                 dut.mem_issue1_res_local_complete_w,
+                 dut.mem_issue1_res_consume_fire_w,
+                 mem1_req_valid,
+                 dut.issue1_mem_exception_w,
+                 dut.issue1_mem_order_ready_w,
+                 dut.mem_issue1_res_eff_addr_w,
+                 dut.mem_terminal_ingress_valid_w[6],
+                 dut.mem_terminal_ingress_valid_w[7],
+                 dut.mem_terminal_ingress_accept_w[7]);
+        v11m_oracle_fail("local1-terminal");
+      end
+      v11m_check_terminal_lane(7, V11M_TOKEN1, "local1-terminal");
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "local1-edge-old-tracker");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.mem_issue1_res_valid_q !== 1'b0) ||
+          (dut.mem_issue_res_valid_q !== 1'b1))
+        v11m_oracle_fail("local1-next-cycle");
+      v11m_wait_token_dead(V11M_TOKEN1, "local1-tracker-death");
+      v11m_check_reservation0(
+          V11M_PID0, V11M_TOKEN0, V11M_PC0, V11M_ADDR0,
+          `MEM_SIZE_DWORD, 1'b1, V11M_PDEST0);
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "local1-survivor-exact");
+      $display("[V11M-LOCAL1-LANE7-EXACT][PASS] token=%0d",
+               V11M_TOKEN1);
+
+      // Selective recovery boundary is producer0.  Lane0 survives; lane1 is
+      // younger and terminalizes through lane7.  READY=11 proves request
+      // transport remains quiet on the recovery edge.
+      v11m_seed_first_pair(
+          V11M_ADDR0, V11M_ADDR1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_WORD, 1'b0, 1'b0);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.branch_resolve_rob_idx_o = V11M_PID0[ROB_INDEX_W-1:0];
+      #1;
+      if ((dut.mem_issue_res_kill_w !== 1'b0) ||
+          (dut.mem_issue1_res_kill_w !== 1'b1) ||
+          (mem_req_valid !== 1'b0) ||
+          (mem1_req_valid !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b0) ||
+          (dut.miq1_push_valid_w !== 1'b0))
+        v11m_oracle_fail("selective-recovery");
+      v11m_check_terminal_lane(
+          7, V11M_TOKEN1, "selective-recovery-terminal");
+      `TB_TICK(clk);
+      release dut.branch_resolve_mispredict_w;
+      release dut.branch_resolve_rob_idx_o;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b1) ||
+          (dut.mem_issue1_res_valid_q !== 1'b0))
+        v11m_oracle_fail("selective-recovery-next-cycle");
+      v11m_wait_token_dead(
+          V11M_TOKEN1, "selective-recovery-tracker-death");
+      v11m_check_reservation0(
+          V11M_PID0, V11M_TOKEN0, V11M_PC0, V11M_ADDR0,
+          `MEM_SIZE_DWORD, 1'b1, V11M_PDEST0);
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "selective-survivor-exact");
+      flush = 1'b1;
+      #1;
+      v11m_check_terminal_lane(
+          6, V11M_TOKEN0, "selective-survivor-flush");
+      `TB_TICK(clk);
+      flush = 1'b0;
+      #1;
+      v11m_wait_token_dead(
+          V11M_TOKEN0, "selective-survivor-tracker-death");
+      $display("[V11M-SELECTIVE-RECOVERY][PASS] survivor=0 killed=1");
+
+      // Global flush overlaps READY=11.  Both pre-request reservations must
+      // use lanes6/7 and no request may enter either MIQ.
+      v11m_seed_first_pair(
+          V11M_ADDR0, V11M_ADDR1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_WORD, 1'b0, 1'b0);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      flush = 1'b1;
+      #1;
+      if ((dut.mem_issue_res_global_cancel_w !== 1'b1) ||
+          (dut.mem_issue1_res_global_cancel_w !== 1'b1) ||
+          (mem_req_valid !== 1'b0) ||
+          (mem1_req_valid !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b0) ||
+          (dut.miq1_push_valid_w !== 1'b0))
+        v11m_oracle_fail("global-flush-priority");
+      v11m_check_terminal_lane(6, V11M_TOKEN0, "global-flush-lane6");
+      v11m_check_terminal_lane(7, V11M_TOKEN1, "global-flush-lane7");
+      `TB_TICK(clk);
+      flush = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_issue_res_valid_q !== 1'b0) ||
+          (dut.mem_issue1_res_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 0) ||
+          (dut.miq1_count_w !== 0))
+        v11m_oracle_fail("global-flush-next-cycle");
+      v11m_wait_token_dead(V11M_TOKEN0, "global-flush-token0-death");
+      v11m_wait_token_dead(V11M_TOKEN1, "global-flush-token1-death");
+      $display("[V11M-GLOBAL-FLUSH][PASS] lanes=6/7");
+
+      // Pair turnover: A/B leave for the two MIQs on the same edge that C/D
+      // atomically replace both reservation Qs with tokens2/3.
+      v11m_seed_first_pair(
+          V11M_ADDR0, V11M_ADDR1,
+          `MEM_SIZE_DWORD, 1'b1, `MEM_SIZE_WORD, 1'b0, 1'b0);
+      set_dispatch0(V11M_PC2,
+                    make_load_ctrl(`MEM_SIZE_HALF, 1'b1),
+                    5'd0, 5'd0, 5'd12, V11M_ADDR2);
+      set_dispatch1(V11M_PC3,
+                    make_load_ctrl(`MEM_SIZE_BYTE, 1'b0),
+                    5'd0, 5'd0, 5'd13, V11M_ADDR3);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11M_PID2) ||
+          (dut.dispatch1_producer_id_w !== V11M_PID3))
+        v11m_oracle_fail("turnover-dispatch-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      #1;
+      if ((dut.iq_memory_pair_peek_valid_w !== 1'b1) ||
+          (dut.mem_issue_res_consume_fire_w !== 1'b1) ||
+          (dut.mem_issue1_res_consume_fire_w !== 1'b1) ||
+          (dut.mem_issue_pair_turnover_capture_w !== 1'b1) ||
+          (dut.mem_issue_res_capture_w !== 1'b1) ||
+          (dut.mem_issue1_res_capture_w !== 1'b1) ||
+          (dut.mem_owner_alloc0_token_w !== V11M_TOKEN2) ||
+          (dut.mem_owner_alloc1_token_w !== V11M_TOKEN3) ||
+          (mem_req_owner_token !== V11M_TOKEN0) ||
+          (mem1_req_owner_token !== V11M_TOKEN1))
+        v11m_oracle_fail("pair-turnover");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      v11m_check_reservation0(
+          V11M_PID2, V11M_TOKEN2, V11M_PC2, V11M_ADDR2,
+          `MEM_SIZE_HALF, 1'b1, V11M_PDEST2);
+      v11m_check_reservation1(
+          V11M_PID3, V11M_TOKEN3, V11M_PC3, V11M_ADDR3,
+          `MEM_SIZE_BYTE, 1'b0, V11M_PDEST3);
+      v11m_check_tracker_exact(
+          V11M_TOKEN0, V11M_PID0, "turnover-old0-tracker");
+      v11m_check_tracker_exact(
+          V11M_TOKEN1, V11M_PID1, "turnover-old1-tracker");
+      v11m_check_tracker_exact(
+          V11M_TOKEN2, V11M_PID2, "turnover-new0-tracker");
+      v11m_check_tracker_exact(
+          V11M_TOKEN3, V11M_PID3, "turnover-new1-tracker");
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq1_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11M_TOKEN0) ||
+          (dut.miq1_head_owner_token_w !== V11M_TOKEN1) ||
+          (issue_count !== 0))
+        v11m_oracle_fail("pair-turnover-next-cycle");
+      $display("[V11M-PAIR-TURNOVER][PASS] old=%0d/%0d new=%0d/%0d",
+               V11M_TOKEN0, V11M_TOKEN1, V11M_TOKEN2, V11M_TOKEN3);
+      v11m_drain_dual_miq_responses(
+          V11M_TOKEN0, V11M_TOKEN1, V11M_PID0, V11M_PID1);
+      flush = 1'b1;
+      #1;
+      v11m_check_terminal_lane(6, V11M_TOKEN2, "turnover-flush-lane6");
+      v11m_check_terminal_lane(7, V11M_TOKEN3, "turnover-flush-lane7");
+      `TB_TICK(clk);
+      flush = 1'b0;
+      #1;
+      v11m_wait_token_dead(V11M_TOKEN2, "turnover-token2-death");
+      v11m_wait_token_dead(V11M_TOKEN3, "turnover-token3-death");
+
+      $display("[V11M-RESERVATION-HOLDER-MATRIX][PASS] birth=2 hold=2 transfer=2 local=2 selective=2 flush=2 turnover=4");
+      reset_dut();
+    end
+  endtask
+`endif
+
+`ifdef V11L_MEMORY_RETRY_HOLDER_FOCUSED
+  // Reset starts every ROB generation at all-ones and advances it on the
+  // accepted allocation.  The first dual dispatch therefore owns full
+  // ProducerIds 0 and 1; the memory-owner allocator likewise returns tokens
+  // 0 and 1.  These constants are stimulus/spec predictions, not DUT samples.
+  localparam [PRODUCER_ID_W-1:0] V11L_PID0 =
+      {PRODUCER_ID_W{1'b0}};
+  localparam [PRODUCER_ID_W-1:0] V11L_PID1 =
+      {{(PRODUCER_ID_W-1){1'b0}}, 1'b1};
+  localparam [4:0] V11L_TOKEN0 = 5'd0;
+  localparam [4:0] V11L_TOKEN1 = 5'd1;
+  localparam [1:0] V11L_LOAD_KIND = 2'b00;
+  localparam [1:0] V11L_EPOCH = 2'b00;
+  localparam [`XLEN-1:0] V11L_ADDR0 =
+      64'h0000_0000_0000_0a00;
+  localparam [`XLEN-1:0] V11L_ADDR1 =
+      64'h0000_0000_0000_0a08;
+  localparam [`XLEN-1:0] V11L_PADDR0 =
+      64'h0000_0000_a000_0a00;
+  localparam [`XLEN-1:0] V11L_PADDR1 =
+      64'h0000_0000_a000_0a08;
+`endif
+`ifdef V11O_MEMORY_BUFFER_TOKEN_FOCUSED
+  // One legal ROB turn makes the next allocations generation=1.  The legacy
+  // LR receives token 28 and the younger buffered load receives token 29.
+  // These values are stimulus-owned and never sampled from buffer state.
+  localparam [PRODUCER_ID_W-1:0] V11O_PID_OLD =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W));
+  localparam [PRODUCER_ID_W-1:0] V11O_PID_TRANSFER =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 1);
+  localparam [PRODUCER_ID_W-1:0] V11O_PID_BRANCH =
+      V11O_PID_TRANSFER;
+  localparam [PRODUCER_ID_W-1:0] V11O_PID_CANCEL =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 2);
+  localparam [4:0] V11O_TOKEN_OLD = 5'd28;
+  localparam [4:0] V11O_TOKEN_BUFFER = 5'd29;
+  localparam [1:0] V11O_LOAD_KIND = 2'b00;
+  localparam [1:0] V11O_STORE_KIND = 2'b01;
+  localparam [1:0] V11O_ATOMIC_KIND = 2'b10;
+  localparam [1:0] V11O_EPOCH = 2'b00;
+  localparam [`XLEN-1:0] V11O_LR_PC =
+      64'h0000_0000_8001_4000;
+  localparam [`XLEN-1:0] V11O_BRANCH_PC =
+      64'h0000_0000_8001_4004;
+  localparam [`XLEN-1:0] V11O_TRANSFER_PC =
+      64'h0000_0000_8001_4004;
+  localparam [`XLEN-1:0] V11O_CANCEL_PC =
+      64'h0000_0000_8001_4008;
+  localparam [`XLEN-1:0] V11O_LR_ADDRESS =
+      64'h0000_0000_0000_0200;
+  localparam [`XLEN-1:0] V11O_TRANSFER_ADDRESS =
+      64'h0000_0000_0000_1400;
+  localparam [`XLEN-1:0] V11O_CANCEL_ADDRESS =
+      64'h0000_0000_0000_1480;
+  localparam [`XLEN-1:0] V11O_STORE0_VA =
+      64'h0000_0000_4000_4400;
+  localparam [`XLEN-1:0] V11O_STORE0_PA =
+      64'h0000_0000_8000_4400;
+  localparam [`XLEN-1:0] V11O_STORE1_TRANSFER_VA =
+      64'h0000_0000_4000_4480;
+  localparam [`XLEN-1:0] V11O_STORE1_TRANSFER_PA =
+      64'h0000_0000_8000_4480;
+  localparam [`XLEN-1:0] V11O_STORE1_CANCEL_VA =
+      64'h0000_0000_4000_4500;
+`endif
+`ifdef V11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+  // One legal full ROB turn makes the next four allocations generation=1.
+  // The memory-owner cursor is seeded to 28 at a reset-domain boundary, so
+  // both full ProducerId generation and token[4:2] are observable.  These
+  // identities remain stimulus-owned; no DUT holder state constructs them.
+  localparam [PRODUCER_ID_W-1:0] V11M_PID0 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W));
+  localparam [PRODUCER_ID_W-1:0] V11M_PID1 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 1);
+  localparam [PRODUCER_ID_W-1:0] V11M_PID2 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 2);
+  localparam [PRODUCER_ID_W-1:0] V11M_PID3 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 3);
+  localparam [4:0] V11M_TOKEN0 = 5'd28;
+  localparam [4:0] V11M_TOKEN1 = 5'd29;
+  localparam [4:0] V11M_TOKEN2 = 5'd30;
+  localparam [4:0] V11M_TOKEN3 = 5'd31;
+  localparam [PHY_REG_ADDR_W-1:0] V11M_PDEST0 = 6'd48;
+  localparam [PHY_REG_ADDR_W-1:0] V11M_PDEST1 = 6'd49;
+  localparam [PHY_REG_ADDR_W-1:0] V11M_PDEST2 = 6'd50;
+  localparam [PHY_REG_ADDR_W-1:0] V11M_PDEST3 = 6'd51;
+  localparam [1:0] V11M_LOAD_KIND = 2'b00;
+  localparam [1:0] V11M_EPOCH = 2'b00;
+  localparam [`XLEN-1:0] V11M_PC0 =
+      64'h0000_0000_8001_2000;
+  localparam [`XLEN-1:0] V11M_PC1 =
+      64'h0000_0000_8001_2004;
+  localparam [`XLEN-1:0] V11M_PC2 =
+      64'h0000_0000_8001_2008;
+  localparam [`XLEN-1:0] V11M_PC3 =
+      64'h0000_0000_8001_200c;
+  localparam [`XLEN-1:0] V11M_ADDR0 =
+      64'h0000_0000_0000_0b00;
+  localparam [`XLEN-1:0] V11M_ADDR1 =
+      64'h0000_0000_0000_0b08;
+  localparam [`XLEN-1:0] V11M_ADDR2 =
+      64'h0000_0000_0000_0c00;
+  localparam [`XLEN-1:0] V11M_ADDR3 =
+      64'h0000_0000_0000_0c08;
+  localparam [`XLEN-1:0] V11M_MISALIGNED0 =
+      64'h0000_0000_0000_0ffd;
+  localparam [`XLEN-1:0] V11M_MISALIGNED1 =
+      64'h0000_0000_0000_0ffe;
+`endif
+`ifdef V11N_MEMORY_PENDING_HOLDER_FOCUSED
+  // One legal ROB turn makes the next allocations generation=1.  The owner
+  // cursor is seeded to token 28 so both identity high-bit domains are
+  // checked by a stimulus-owned oracle.
+  localparam [PRODUCER_ID_W-1:0] V11N_PID0 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W));
+  localparam [PRODUCER_ID_W-1:0] V11N_PID1 =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W) | 1);
+  localparam [4:0] V11N_TOKEN = 5'd28;
+  localparam [1:0] V11N_ATOMIC_KIND = 2'b10;
+  localparam [1:0] V11N_EPOCH = 2'b00;
+  localparam [`XLEN-1:0] V11N_PC0 =
+      64'h0000_0000_8001_3000;
+  localparam [`XLEN-1:0] V11N_PC1 =
+      64'h0000_0000_8001_3004;
+  localparam [`XLEN-1:0] V11N_READ_VALUE0 =
+      64'h1122_3344_5566_7788;
+  localparam [`XLEN-1:0] V11N_READ_VALUE1 =
+      64'h8877_6655_4433_2211;
+`endif
+`ifdef V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+  // One legal ROB turn makes the next allocation generation=1.  The expected
+  // ProducerId and token are stimulus-owned; neither is sampled from the
+  // checkpoint holder under test.
+  localparam [PRODUCER_ID_W-1:0] V11P_PID =
+      ({{PRODUCER_ID_W{1'b0}}} | (1 << ROB_INDEX_W));
+  localparam [PRODUCER_ID_W-1:0] V11P_WRONG_GEN_PID =
+      V11P_PID ^ (1 << ROB_INDEX_W);
+  localparam [4:0] V11P_TOKEN = 5'd28;
+  localparam [1:0] V11P_STORE_KIND = 2'b01;
+  localparam [1:0] V11P_ATOMIC_KIND = 2'b10;
+  localparam [1:0] V11P_EPOCH = 2'b00;
+  localparam [`XLEN-1:0] V11P_STORE_PC =
+      64'h0000_0000_8001_5000;
+  localparam [`XLEN-1:0] V11P_STORE_VA =
+      64'h0000_0000_4000_5000;
+  localparam [`XLEN-1:0] V11P_STORE_PA =
+      64'h0000_0000_8000_5000;
+  localparam [`XLEN-1:0] V11P_AMO_PC =
+      64'h0000_0000_8001_5080;
+  localparam [`XLEN-1:0] V11P_AMO_READ_VALUE =
+      64'h0123_4567_89ab_cdef;
+`endif
 
   reg [14:0] v8p_pair_matrix_seen_q;
   reg [PRODUCER_ID_W-1:0] v8p_mem_pid_seen_q [0:7];
@@ -350,7 +3425,19 @@ module tb_ooo_int_backend;
   wire unused_mem_ready = mem_rsp_ready;
   wire unused_mem1_ready = mem1_rsp_ready;
 
-`ifdef V9R_SQ_RETRY_C0_FOCUSED
+`ifdef V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V11R_INT_LANE1_PACKET_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V11N_MEMORY_PENDING_HOLDER_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V11O_MEMORY_BUFFER_TOKEN_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 0;
+`elsif V11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V11L_MEMORY_RETRY_HOLDER_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V9R_SQ_RETRY_C0_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
 `elsif V8S_DUAL_MEMORY_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
@@ -7679,19 +10766,20 @@ module tb_ooo_int_backend;
   // cursor through every token.  The next LOAD reuses the first token with a
   // different full ProducerId and remains resident under request
   // backpressure; every old terminal source must stay quiet.
-  task automatic v11i_complete_local_load_owner;
+  task automatic v11i_complete_response_load_owner;
     input integer owner_sequence;
     output [PRODUCER_ID_W-1:0] owner_pid;
     output [4:0] owner_token;
     integer wait_cycles;
     begin
-      mem_translate_active = 1'b1;
-      mem_req_ready = 1'b0;
+      mem_translate_active = 1'b0;
+      mem_req_ready = 1'b1;
       set_dispatch0(64'h0000_0000_8001_0000 +
                     (owner_sequence * 8),
                     make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
                     5'd0, 5'd0, 5'd1,
-                    64'h0000_0000_4000_1ffc);
+                    64'h0000_0000_0000_2000 +
+                    (owner_sequence * 8));
       dispatch0_inst = 32'h0000_3083;
       set_dispatch1(64'h0000_0000_8001_0004 +
                     (owner_sequence * 8),
@@ -7724,18 +10812,41 @@ module tb_ooo_int_backend;
       `TB_TICK(clk);
       #1;
       if (!dut.mem_issue_res_valid_q ||
-          !dut.issue0_mem_exception_w ||
-          !dut.mem_terminal_ingress_valid_w[6] ||
-          !dut.mem_terminal_ingress_accept_w[6]) begin
-        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d valid=%0b exception=%0b ingress=%0b accept=%0b @%0t",
+          dut.issue0_mem_exception_w ||
+          !mem_req_valid || !dut.mem_req_fire_any_w) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d valid=%0b exception=%0b req_valid=%0b req_fire=%0b @%0t",
                  owner_sequence, owner_token,
                  dut.mem_issue_res_valid_q,
                  dut.issue0_mem_exception_w,
-                 dut.mem_terminal_ingress_valid_w[6],
-                 dut.mem_terminal_ingress_accept_w[6], $time);
+                 mem_req_valid, dut.mem_req_fire_any_w, $time);
         $fatal(1);
       end
       `TB_TICK(clk);
+      #1;
+      if (!dut.miq_head_valid_w ||
+          (dut.miq_head_owner_token_w != owner_token)) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d miq_valid=%0b miq_token=%0d @%0t",
+                 owner_sequence, owner_token, dut.miq_head_valid_w,
+                 dut.miq_head_owner_token_w, $time);
+        $fatal(1);
+      end
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0000_0000_5100_0000 + owner_sequence;
+      mem_rsp_error = 1'b0;
+      #1;
+      if (!mem_rsp_ready ||
+          !dut.mem_terminal_ingress_valid_w[0] ||
+          !dut.mem_terminal_ingress_accept_w[0]) begin
+        $display("[V11I-OWNER-CYCLE][FAIL] seq=%0d token=%0d rsp_ready=%0b ingress0=%0b accept0=%0b @%0t",
+                 owner_sequence, owner_token, mem_rsp_ready,
+                 dut.mem_terminal_ingress_valid_w[0],
+                 dut.mem_terminal_ingress_accept_w[0], $time);
+        $fatal(1);
+      end
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
       #1;
 
       wait_cycles = 0;
@@ -7788,8 +10899,8 @@ module tb_ooo_int_backend;
       old_token = 5'd0;
       for (owner_sequence = 0; owner_sequence < 32;
            owner_sequence = owner_sequence + 1) begin
-        v11i_complete_local_load_owner(owner_sequence,
-                                        filler_pid, filler_token);
+        v11i_complete_response_load_owner(owner_sequence,
+                                           filler_pid, filler_token);
         if (owner_sequence == 0) begin
           old_pid = filler_pid;
           old_token = filler_token;
@@ -7869,18 +10980,18 @@ module tb_ooo_int_backend;
 `ifdef V11I_STALE_TERMINAL_MUTATION
       // The compile-success RTL variant holds the first token-0 tuple, waits
       // for the tracker cursor to wrap to a different full ProducerId, then
-      // raises the delayed old tuple on the following cycle.
+      // raises the delayed old response tuple on lane0 in the following cycle.
       `TB_TICK(clk);
       #1;
-      if (!dut.mem_terminal_ingress_valid_w[6] ||
-          !dut.mem_terminal_ingress_accept_w[6]) begin
+      if (!dut.mem_terminal_ingress_valid_w[0] ||
+          !dut.mem_terminal_ingress_accept_w[0]) begin
         $display("[V11I-STALE-SOURCE-ACTIVATION][FAIL] old_pid=%h new_pid=%h token=%0d ingress=%0b accept=%0b @%0t",
                  old_pid, new_pid, new_token,
-                 dut.mem_terminal_ingress_valid_w[6],
-                 dut.mem_terminal_ingress_accept_w[6], $time);
+                 dut.mem_terminal_ingress_valid_w[0],
+                 dut.mem_terminal_ingress_accept_w[0], $time);
         $fatal(1);
       end
-      $display("[V11I-STALE-SOURCE-ACTIVE] old_pid=%h new_pid=%h token=%0d lane=6 @%0t",
+      $display("[V11I-STALE-SOURCE-ACTIVE] old_pid=%h new_pid=%h token=%0d lane=0 @%0t",
                old_pid, new_pid, new_token, $time);
 `ifdef OOO_ASSERT
       // The mutated pulse is accepted on this edge.  The real B reservation
@@ -7898,6 +11009,8 @@ module tb_ooo_int_backend;
       // tracker and LQ.  The independent raw-Q observation proves that the old
       // tuple was interpreted as the new full ProducerId; this is harmful ABA,
       // not a harmless duplicate that may be filtered.
+      `TB_TICK(clk);
+      #1;
       `TB_TICK(clk);
       #1;
       `TB_TICK(clk);
@@ -7923,7 +11036,7 @@ module tb_ooo_int_backend;
                  dut.mem_issue_res_valid_q, $time);
         $fatal(1);
       end
-      $display("[V11I-LATE-TUPLE-ABA][FAIL] old_pid=%h new_pid=%h token=%0d lane=6 accepted=1 tracker_freed_new_owner=1 lq_terminal_seen_new_pid=1 @%0t",
+      $display("[V11I-LATE-TUPLE-ABA][FAIL] old_pid=%h new_pid=%h token=%0d lane=0 accepted=1 tracker_freed_new_owner=1 lq_terminal_seen_new_pid=1 @%0t",
                old_pid, new_pid, new_token, $time);
       $fatal(1);
 `endif
@@ -13248,6 +16361,587 @@ module tb_ooo_int_backend;
     end
   endtask
 
+`ifdef V11L_MEMORY_RETRY_HOLDER_FOCUSED
+  task automatic v11l_oracle_fail;
+    input [1023:0] stage;
+    begin
+      $display("[V11L-RETRY-HOLDER-ORACLE][FAIL] stage=%0s @%0t",
+               stage, $time);
+      $fatal(1);
+    end
+  endtask
+
+  task automatic v11l_check_tracker0_live;
+    begin
+      if ((dut.mem_owner_live_mask_w[V11L_TOKEN0] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[
+              V11L_TOKEN0*2 +: 2] !== V11L_LOAD_KIND) ||
+          (dut.mem_owner_epoch_table_w[
+              V11L_TOKEN0*2 +: 2] !== V11L_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              V11L_TOKEN0*PRODUCER_ID_W +: PRODUCER_ID_W] !==
+           V11L_PID0))
+        v11l_oracle_fail("tracker0-not-exact-live");
+    end
+  endtask
+
+  task automatic v11l_check_tracker1_live;
+    begin
+      if ((dut.mem_owner_live_mask_w[V11L_TOKEN1] !== 1'b1) ||
+          (dut.mem_owner_kind_table_w[
+              V11L_TOKEN1*2 +: 2] !== V11L_LOAD_KIND) ||
+          (dut.mem_owner_epoch_table_w[
+              V11L_TOKEN1*2 +: 2] !== V11L_EPOCH) ||
+          (dut.mem_owner_producer_id_table_w[
+              V11L_TOKEN1*PRODUCER_ID_W +: PRODUCER_ID_W] !==
+           V11L_PID1))
+        v11l_oracle_fail("tracker1-not-exact-live");
+    end
+  endtask
+
+  task automatic v11l_check_retry0_tuple;
+    begin
+      if ((dut.mem_retry0_valid_q !== 1'b1) ||
+          (dut.mem_retry0_producer_id_q !== V11L_PID0) ||
+          (dut.mem_retry0_owner_token_q !== V11L_TOKEN0) ||
+          (dut.mem_retry0_owner_kind_q !== V11L_LOAD_KIND) ||
+          (dut.mem_retry0_mmu_epoch_q !== V11L_EPOCH) ||
+          (dut.mem_retry0_fault_tval_q !== V11L_ADDR0) ||
+          (dut.mem_retry0_addr_q !== V11L_ADDR0) ||
+          (dut.mem_retry0_size_q !== `MEM_SIZE_DWORD) ||
+          (dut.mem_retry0_unsigned_q !== 1'b1) ||
+          (dut.mem_retry0_wdata_q !== {`XLEN{1'b0}}) ||
+          (dut.mem_retry0_wstrb_q !== {`STRB_W{1'b1}})) begin
+        $display("[V11L-RETRY0-TUPLE-DIAG] valid=%b pid=%h token=%h kind=%h epoch=%h tval=%h addr=%h size=%h unsigned=%b wdata=%h wstrb=%h",
+                 dut.mem_retry0_valid_q,
+                 dut.mem_retry0_producer_id_q,
+                 dut.mem_retry0_owner_token_q,
+                 dut.mem_retry0_owner_kind_q,
+                 dut.mem_retry0_mmu_epoch_q,
+                 dut.mem_retry0_fault_tval_q,
+                 dut.mem_retry0_addr_q,
+                 dut.mem_retry0_size_q,
+                 dut.mem_retry0_unsigned_q,
+                 dut.mem_retry0_wdata_q,
+                 dut.mem_retry0_wstrb_q);
+        v11l_oracle_fail("retry0-holder-tuple");
+      end
+    end
+  endtask
+
+  task automatic v11l_check_retry1_tuple;
+    begin
+      if ((dut.mem_retry1_valid_q !== 1'b1) ||
+          (dut.mem_retry1_producer_id_q !== V11L_PID1) ||
+          (dut.mem_retry1_owner_token_q !== V11L_TOKEN1) ||
+          (dut.mem_retry1_owner_kind_q !== V11L_LOAD_KIND) ||
+          (dut.mem_retry1_mmu_epoch_q !== V11L_EPOCH) ||
+          (dut.mem_retry1_fault_tval_q !== V11L_ADDR1) ||
+          (dut.mem_retry1_addr_q !== V11L_ADDR1) ||
+          (dut.mem_retry1_size_q !== `MEM_SIZE_WORD) ||
+          (dut.mem_retry1_unsigned_q !== 1'b0) ||
+          (dut.mem_retry1_wdata_q !== {`XLEN{1'b0}}) ||
+          (dut.mem_retry1_wstrb_q !== 8'h0f)) begin
+        $display("[V11L-RETRY1-TUPLE-DIAG] valid=%b pid=%h token=%h kind=%h epoch=%h tval=%h addr=%h size=%h unsigned=%b wdata=%h wstrb=%h",
+                 dut.mem_retry1_valid_q,
+                 dut.mem_retry1_producer_id_q,
+                 dut.mem_retry1_owner_token_q,
+                 dut.mem_retry1_owner_kind_q,
+                 dut.mem_retry1_mmu_epoch_q,
+                 dut.mem_retry1_fault_tval_q,
+                 dut.mem_retry1_addr_q,
+                 dut.mem_retry1_size_q,
+                 dut.mem_retry1_unsigned_q,
+                 dut.mem_retry1_wdata_q,
+                 dut.mem_retry1_wstrb_q);
+        v11l_oracle_fail("retry1-holder-tuple");
+      end
+    end
+  endtask
+
+  task automatic v11l_seed_dual_retry_holders;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      // The first reset-domain allocations have fully specified, distinct
+      // ProducerIds and owner tokens.  Address bit 3 routes one LOAD to each
+      // physical memory bank; size/unsigned/address also remain lane-distinct.
+      set_dispatch0(64'h0000_0000_8001_1000,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd14, V11L_ADDR0);
+      set_dispatch1(64'h0000_0000_8001_1004,
+                    make_load_ctrl(`MEM_SIZE_WORD, 1'b0),
+                    5'd0, 5'd0, 5'd15, V11L_ADDR1);
+      #1;
+      if ((dispatch0_ready !== 1'b1) ||
+          (dispatch1_ready !== 1'b1) ||
+          (dispatch0_producer_id !== V11L_PID0) ||
+          (dut.dispatch1_producer_id_w !== V11L_PID1) ||
+          (V11L_PID0 === V11L_PID1) ||
+          (V11L_TOKEN0 === V11L_TOKEN1))
+        v11l_oracle_fail("dual-dispatch-distinct-identity");
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+
+      if ((mem_req_valid !== 1'b1) ||
+          (mem1_req_valid !== 1'b1) ||
+          (mem_req_write !== 1'b0) ||
+          (mem1_req_write !== 1'b0) ||
+          (mem_req_owner_token !== V11L_TOKEN0) ||
+          (mem1_req_owner_token !== V11L_TOKEN1) ||
+          (mem_req_owner_kind !== V11L_LOAD_KIND) ||
+          (mem1_req_owner_kind !== V11L_LOAD_KIND) ||
+          (mem_req_mmu_epoch !== V11L_EPOCH) ||
+          (mem1_req_mmu_epoch !== V11L_EPOCH) ||
+          (mem_req_addr !== V11L_ADDR0) ||
+          (mem1_req_addr !== V11L_ADDR1))
+        v11l_oracle_fail("dual-first-request-tuple");
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      #1;
+      if ((dut.mem_req_fire_any_w !== 1'b1) ||
+          (dut.mem1_req_fire_any_w !== 1'b1) ||
+          (dut.miq_push_valid_w !== 1'b1) ||
+          (dut.miq1_push_valid_w !== 1'b1))
+        v11l_oracle_fail("dual-first-request-fire");
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq1_count_w !== 1) ||
+          (dut.miq_head_owner_token_w !== V11L_TOKEN0) ||
+          (dut.miq1_head_owner_token_w !== V11L_TOKEN1) ||
+          (dut.miq_head_addr_w !== V11L_ADDR0) ||
+          (dut.miq1_head_addr_w !== V11L_ADDR1))
+        v11l_oracle_fail("dual-miq-source-tuple");
+
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = V11L_LOAD_KIND;
+      mem_sq_query_owner_token = V11L_TOKEN0;
+      mem_sq_query_mmu_epoch = V11L_EPOCH;
+      mem_sq_query_paddr = V11L_PADDR0;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = {`STRB_W{1'b1}};
+      mem1_sq_query_valid = 1'b1;
+      mem1_sq_query_owner_kind = V11L_LOAD_KIND;
+      mem1_sq_query_owner_token = V11L_TOKEN1;
+      mem1_sq_query_mmu_epoch = V11L_EPOCH;
+      mem1_sq_query_paddr = V11L_PADDR1;
+      mem1_sq_query_attr_valid = 1'b1;
+      mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem1_sq_query_wstrb = {`STRB_W{1'b1}};
+
+      // Isolate the holder from StoreQueue contents while retaining real
+      // owner allocation, bank routing, MIQ heads and exact query matching.
+      // The forced value represents the legal "older unfilled STORE" replay
+      // decision already proven by V9R.
+      force dut.sq_query0_allow_w = 1'b0;
+      force dut.sq_query0_forward_w = 1'b0;
+      force dut.sq_query0_replay_w = 1'b1;
+      force dut.sq_query1_allow_w = 1'b0;
+      force dut.sq_query1_forward_w = 1'b0;
+      force dut.sq_query1_replay_w = 1'b1;
+      force dut.control_full_flush_barrier_w = 1'b1;
+      #1;
+      if ((dut.mem_sq_query_exact_w !== 1'b1) ||
+          (dut.mem1_sq_query_exact_w !== 1'b1) ||
+          (mem_sq_query_replay !== 1'b1) ||
+          (mem1_sq_query_replay !== 1'b1) ||
+          (mem_sq_query_retry_ready !== 1'b0) ||
+          (mem1_sq_query_retry_ready !== 1'b0) ||
+          (dut.mem_sq_retry0_capture_w !== 1'b0) ||
+          (dut.mem_sq_retry1_capture_w !== 1'b0))
+        v11l_oracle_fail("c0-empty-holder-capture-barrier");
+      `TB_TICK(clk);
+      #1;
+      if ((dut.miq_count_w !== 1) ||
+          (dut.miq1_count_w !== 1) ||
+          (dut.mem_retry0_valid_q !== 1'b0) ||
+          (dut.mem_retry1_valid_q !== 1'b0))
+        v11l_oracle_fail("c0-empty-holder-edge");
+      release dut.control_full_flush_barrier_w;
+      #1;
+
+      if ((mem_sq_query_retry_ready !== 1'b1) ||
+          (mem1_sq_query_retry_ready !== 1'b1) ||
+          (dut.mem_sq_retry0_capture_w !== 1'b1) ||
+          (dut.mem_sq_retry1_capture_w !== 1'b1) ||
+          (dut.mem_terminal_ingress_mask_w[V11L_TOKEN0] !== 1'b0) ||
+          (dut.mem_terminal_ingress_mask_w[V11L_TOKEN1] !== 1'b0))
+        v11l_oracle_fail("dual-retry-capture");
+      `TB_TICK(clk);
+      mem_sq_query_valid = 1'b0;
+      mem_sq_query_attr_valid = 1'b0;
+      mem_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem_sq_query_wstrb = {`STRB_W{1'b0}};
+      mem1_sq_query_valid = 1'b0;
+      mem1_sq_query_attr_valid = 1'b0;
+      mem1_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem1_sq_query_wstrb = {`STRB_W{1'b0}};
+      release dut.sq_query0_allow_w;
+      release dut.sq_query0_forward_w;
+      release dut.sq_query0_replay_w;
+      release dut.sq_query1_allow_w;
+      release dut.sq_query1_forward_w;
+      release dut.sq_query1_replay_w;
+      #1;
+
+      if ((dut.miq_count_w !== 0) ||
+          (dut.miq1_count_w !== 0))
+        v11l_oracle_fail("dual-retry-capture-source-not-empty");
+      v11l_check_retry0_tuple();
+      v11l_check_retry1_tuple();
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      $display("[V11L-RETRY0-CAPTURE-TUPLE][PASS] pid=%0d token=%0d",
+               V11L_PID0, V11L_TOKEN0);
+      $display("[V11L-RETRY1-CAPTURE-TUPLE][PASS] pid=%0d token=%0d",
+               V11L_PID1, V11L_TOKEN1);
+      $display("[V11L-LANE-DISTINCT][PASS] pid0=%0d pid1=%0d token0=%0d token1=%0d",
+               V11L_PID0, V11L_PID1, V11L_TOKEN0, V11L_TOKEN1);
+    end
+  endtask
+
+  task automatic run_v11l_memory_retry_holder_semantic;
+    integer hold_cycle;
+    integer terminal_wait;
+    begin
+      v11l_seed_dual_retry_holders();
+
+      // With both request lanes stalled, every retry field and both exact
+      // owner leases must remain stable.  The source MIQs are already empty,
+      // preventing a combinational source path from masquerading as storage.
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        #1;
+        v11l_check_retry0_tuple();
+        v11l_check_retry1_tuple();
+        v11l_check_tracker0_live();
+        v11l_check_tracker1_live();
+        if ((dut.mem_retry0_req_fire_w !== 1'b0) ||
+            (dut.mem_retry1_req_fire_w !== 1'b0) ||
+            (dut.miq_push_valid_w !== 1'b0) ||
+            (dut.miq1_push_valid_w !== 1'b0))
+          v11l_oracle_fail("dual-backpressure-hold-event");
+        `TB_TICK(clk);
+      end
+      $display("[V11L-RETRY-HOLD][PASS] cycles=3 source_miq_empty=1");
+
+      // A filled holder must also pause under C0 even if both transport READY
+      // inputs are asserted.  The full tuple remains resident and no re-push
+      // is exposed until the barrier is removed.
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      force dut.control_full_flush_barrier_w = 1'b1;
+      for (hold_cycle = 0; hold_cycle < 2;
+           hold_cycle = hold_cycle + 1) begin
+        #1;
+        v11l_check_retry0_tuple();
+        v11l_check_retry1_tuple();
+        if ((mem_req_valid !== 1'b0) ||
+            (mem1_req_valid !== 1'b0) ||
+            (dut.mem_retry0_req_fire_w !== 1'b0) ||
+            (dut.mem_retry1_req_fire_w !== 1'b0) ||
+            (dut.miq_push_valid_w !== 1'b0) ||
+            (dut.miq1_push_valid_w !== 1'b0))
+          v11l_oracle_fail("c0-filled-holder-pause");
+        `TB_TICK(clk);
+      end
+      release dut.control_full_flush_barrier_w;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      v11l_check_retry0_tuple();
+      v11l_check_retry1_tuple();
+      $display("[V11L-C0-HOLDER-PAUSE][PASS] cycles=2");
+
+      // READY=10 transfers only bank0.  Before this edge both destination
+      // MIQs are empty, so next-cycle occupancy cannot match a stale entry.
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((mem_req_valid !== 1'b1) ||
+          (dut.mem_retry0_req_fire_w !== 1'b1) ||
+          (dut.push_retry0_w !== 1'b1) ||
+          (dut.mem_retry1_req_fire_w !== 1'b0) ||
+          (dut.push_retry1_w !== 1'b0) ||
+          (mem_req_owner_kind !== V11L_LOAD_KIND) ||
+          (mem_req_owner_token !== V11L_TOKEN0) ||
+          (mem_req_mmu_epoch !== V11L_EPOCH) ||
+          (mem_req_fault_tval !== V11L_ADDR0) ||
+          (mem_req_addr !== V11L_ADDR0) ||
+          (dut.miq_push_owner_token_w !== V11L_TOKEN0))
+        v11l_oracle_fail("retry0-fire-transfer");
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_retry0_valid_q !== 1'b0) ||
+          (dut.mem_retry1_valid_q !== 1'b1) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq1_count_w !== 0) ||
+          (dut.miq_head_owner_token_w !== V11L_TOKEN0) ||
+          (dut.miq_occupancy_token_mask_w !==
+           (32'b1 << V11L_TOKEN0)))
+        v11l_oracle_fail("retry0-next-cycle-miq");
+      v11l_check_retry1_tuple();
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      $display("[V11L-RETRY0-FIRE-TRANSFER][PASS] ready=10 occupancy=1");
+
+      // READY=01 now transfers only bank1 while bank0 remains resident.
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b1;
+      #1;
+      if ((mem1_req_valid !== 1'b1) ||
+          (dut.mem_retry1_req_fire_w !== 1'b1) ||
+          (dut.push_retry1_w !== 1'b1) ||
+          (dut.mem_retry0_req_fire_w !== 1'b0) ||
+          (dut.push_retry0_w !== 1'b0) ||
+          (mem1_req_owner_kind !== V11L_LOAD_KIND) ||
+          (mem1_req_owner_token !== V11L_TOKEN1) ||
+          (mem1_req_mmu_epoch !== V11L_EPOCH) ||
+          (mem1_req_fault_tval !== V11L_ADDR1) ||
+          (mem1_req_addr !== V11L_ADDR1) ||
+          (dut.miq1_push_owner_token_w !== V11L_TOKEN1))
+        v11l_oracle_fail("retry1-fire-transfer");
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      `TB_TICK(clk);
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_retry0_valid_q !== 1'b0) ||
+          (dut.mem_retry1_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 1) ||
+          (dut.miq1_count_w !== 1) ||
+          (dut.miq1_head_owner_token_w !== V11L_TOKEN1) ||
+          (dut.miq1_occupancy_token_mask_w !==
+           (32'b1 << V11L_TOKEN1)))
+        v11l_oracle_fail("retry1-next-cycle-miq");
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      $display("[V11L-RETRY1-FIRE-TRANSFER][PASS] ready=01 occupancy=1");
+
+      // The first final-PA query deliberately recorded REPLAY in the LQ.
+      // After retry re-push, emulate the bridge's second exact final-PA query
+      // with ALLOW so both LQ entries become response-ordered.  This is a
+      // distinct transfer phase; it does not recreate either retry holder.
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = V11L_LOAD_KIND;
+      mem_sq_query_owner_token = V11L_TOKEN0;
+      mem_sq_query_mmu_epoch = V11L_EPOCH;
+      mem_sq_query_paddr = V11L_PADDR0;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = {`STRB_W{1'b1}};
+      mem1_sq_query_valid = 1'b1;
+      mem1_sq_query_owner_kind = V11L_LOAD_KIND;
+      mem1_sq_query_owner_token = V11L_TOKEN1;
+      mem1_sq_query_mmu_epoch = V11L_EPOCH;
+      mem1_sq_query_paddr = V11L_PADDR1;
+      mem1_sq_query_attr_valid = 1'b1;
+      mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem1_sq_query_wstrb = {`STRB_W{1'b1}};
+      force dut.sq_query0_allow_w = 1'b1;
+      force dut.sq_query0_forward_w = 1'b0;
+      force dut.sq_query0_replay_w = 1'b0;
+      force dut.sq_query1_allow_w = 1'b1;
+      force dut.sq_query1_forward_w = 1'b0;
+      force dut.sq_query1_replay_w = 1'b0;
+      #1;
+      if ((dut.mem_sq_query_exact_w !== 1'b1) ||
+          (dut.mem1_sq_query_exact_w !== 1'b1) ||
+          (mem_sq_query_allow !== 1'b1) ||
+          (mem1_sq_query_allow !== 1'b1) ||
+          (mem_sq_query_replay !== 1'b0) ||
+          (mem1_sq_query_replay !== 1'b0) ||
+          (dut.lq_query0_update_w !== 1'b1) ||
+          (dut.lq_query1_update_w !== 1'b1))
+        v11l_oracle_fail("dual-retry-second-query-allow");
+      `TB_TICK(clk);
+      mem_sq_query_valid = 1'b0;
+      mem_sq_query_attr_valid = 1'b0;
+      mem_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem_sq_query_wstrb = {`STRB_W{1'b0}};
+      mem1_sq_query_valid = 1'b0;
+      mem1_sq_query_attr_valid = 1'b0;
+      mem1_sq_query_class = `OOO_MEM_CLASS_RSVD;
+      mem1_sq_query_wstrb = {`STRB_W{1'b0}};
+      release dut.sq_query0_allow_w;
+      release dut.sq_query0_forward_w;
+      release dut.sq_query0_replay_w;
+      release dut.sq_query1_allow_w;
+      release dut.sq_query1_forward_w;
+      release dut.sq_query1_replay_w;
+      #1;
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+
+      // Both trackers remain live through capture, hold, request fire and MIQ
+      // residency.  Only exact response collector acceptance may terminate
+      // them.
+      mem_rsp_valid = 1'b1;
+      mem1_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h1111_0000_0000_0000;
+      mem1_rsp_rdata = 64'h2222_0000_0000_0001;
+      #1;
+      if ((mem_rsp_ready !== 1'b1) ||
+          (mem1_rsp_ready !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[1] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[0] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[1] !== 1'b1) ||
+          (dut.mem_terminal_ingress0_mask_w !==
+           (32'b1 << V11L_TOKEN0)) ||
+          (dut.mem_terminal_ingress1_mask_w !==
+           (32'b1 << V11L_TOKEN1))) begin
+        $display("[V11L-RESPONSE-DIAG] ready=%b/%b barrier=%b pop_match=%b/%b tracker=%b/%b rob_open=%b/%b killed=%b/%b done=%b/%b base_open=%b/%b lq_open=%b/%b owner_open=%b/%b terminal_credit=%b/%b sink_credit=%b/%b wb_credit=%b/%b ingress=%b/%b accept=%b/%b mask0=%h mask1=%h miq=%0d/%0d",
+                 mem_rsp_ready, mem1_rsp_ready,
+                 dut.control_full_flush_barrier_w,
+                 dut.miq_pop_owner_match_w,
+                 dut.miq1_pop_owner_match_w,
+                 dut.miq_head_tracker_exact_w,
+                 dut.miq1_head_tracker_exact_w,
+                 dut.mem_completion_rob_open_w,
+                 dut.mem1_completion_rob_open_w,
+                 dut.miq_head_effective_killed_w,
+                 dut.miq1_head_effective_killed_w,
+                 dut.mem_completion_done_now_w,
+                 dut.mem1_completion_done_now_w,
+                 dut.mem_owner_base_open_w,
+                 dut.mem1_owner_base_open_w,
+                 dut.lq_response0_open_w,
+                 dut.lq_response1_open_w,
+                 dut.mem_owner_open_w,
+                 dut.mem1_owner_open_w,
+                 dut.mem_response_terminal_credit_w,
+                 dut.mem1_response_terminal_credit_w,
+                 dut.mem_open_nonwb_sink_credit_w,
+                 dut.mem1_open_nonwb_sink_credit_w,
+                 dut.mem_wb_route_credit_w,
+                 dut.mem1_wb_route_credit_w,
+                 dut.mem_terminal_ingress_valid_w[0],
+                 dut.mem_terminal_ingress_valid_w[1],
+                 dut.mem_terminal_ingress_accept_w[0],
+                 dut.mem_terminal_ingress_accept_w[1],
+                 dut.mem_terminal_ingress0_mask_w,
+                 dut.mem_terminal_ingress1_mask_w,
+                 dut.miq_count_w, dut.miq1_count_w);
+        v11l_oracle_fail("dual-response-terminal-accept");
+      end
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem1_rsp_valid = 1'b0;
+      #1;
+      if ((dut.mem_terminal_ingress_valid_w[0] !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[1] !== 1'b0))
+        v11l_oracle_fail("dual-response-terminal-repeated");
+      terminal_wait = 0;
+      while (((dut.mem_owner_live_mask_w[V11L_TOKEN0] === 1'b1) ||
+              (dut.mem_owner_live_mask_w[V11L_TOKEN1] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[V11L_TOKEN0] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[V11L_TOKEN1] === 1'b1)) &&
+             (terminal_wait < 8)) begin
+        `TB_TICK(clk);
+        #1;
+        terminal_wait = terminal_wait + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[V11L_TOKEN0] !== 1'b0) ||
+          (dut.mem_owner_live_mask_w[V11L_TOKEN1] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[V11L_TOKEN0] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[V11L_TOKEN1] !== 1'b0))
+        v11l_oracle_fail("dual-response-terminal-death");
+      $display("[V11L-RESPONSE-TERMINAL-EXACT][PASS] lanes=2 wait=%0d",
+               terminal_wait);
+
+      // Rebuild both holders, then overlap global pipeline flush with READY=11.
+      // Cancel must dominate transport: lanes10/11 are the sole exact holder
+      // terminals and neither LOAD may be re-pushed into an MIQ.
+      v11l_seed_dual_retry_holders();
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      flush = 1'b1;
+      #1;
+      if ((dut.mem_retry0_cancel_w !== 1'b1) ||
+          (dut.mem_retry1_cancel_w !== 1'b1) ||
+          (mem_req_valid !== 1'b0) ||
+          (mem1_req_valid !== 1'b0) ||
+          (dut.mem_retry0_req_fire_w !== 1'b0) ||
+          (dut.mem_retry1_req_fire_w !== 1'b0) ||
+          (dut.miq_push_valid_w !== 1'b0) ||
+          (dut.miq1_push_valid_w !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[10] !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[11] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[10] !== 1'b1) ||
+          (dut.mem_terminal_ingress_accept_w[11] !== 1'b1) ||
+          (dut.mem_terminal_ingress_token_w[10*5 +: 5] !==
+           V11L_TOKEN0) ||
+          (dut.mem_terminal_ingress_token_w[11*5 +: 5] !==
+           V11L_TOKEN1) ||
+          (dut.mem_terminal_ingress_kind_w[10*2 +: 2] !==
+           V11L_LOAD_KIND) ||
+          (dut.mem_terminal_ingress_kind_w[11*2 +: 2] !==
+           V11L_LOAD_KIND) ||
+          (dut.mem_terminal_ingress_epoch_w[10*2 +: 2] !==
+           V11L_EPOCH) ||
+          (dut.mem_terminal_ingress_epoch_w[11*2 +: 2] !==
+           V11L_EPOCH))
+        v11l_oracle_fail("flush-cancel-terminal-priority");
+      v11l_check_tracker0_live();
+      v11l_check_tracker1_live();
+      `TB_TICK(clk);
+      flush = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      if ((dut.mem_retry0_valid_q !== 1'b0) ||
+          (dut.mem_retry1_valid_q !== 1'b0) ||
+          (dut.miq_count_w !== 0) ||
+          (dut.miq1_count_w !== 0) ||
+          (dut.mem_terminal_ingress_valid_w[10] !== 1'b0) ||
+          (dut.mem_terminal_ingress_valid_w[11] !== 1'b0) ||
+          (mem_req_valid !== 1'b0) ||
+          (mem1_req_valid !== 1'b0))
+        v11l_oracle_fail("flush-cancel-next-cycle");
+      terminal_wait = 0;
+      while (((dut.mem_owner_live_mask_w[V11L_TOKEN0] === 1'b1) ||
+              (dut.mem_owner_live_mask_w[V11L_TOKEN1] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[V11L_TOKEN0] === 1'b1) ||
+              (dut.mem_terminal_pending_mask_w[V11L_TOKEN1] === 1'b1)) &&
+             (terminal_wait < 8)) begin
+        `TB_TICK(clk);
+        #1;
+        terminal_wait = terminal_wait + 1;
+      end
+      if ((dut.mem_owner_live_mask_w[V11L_TOKEN0] !== 1'b0) ||
+          (dut.mem_owner_live_mask_w[V11L_TOKEN1] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[V11L_TOKEN0] !== 1'b0) ||
+          (dut.mem_terminal_pending_mask_w[V11L_TOKEN1] !== 1'b0))
+        v11l_oracle_fail("flush-cancel-terminal-death");
+      $display("[V11L-FLUSH-CANCEL-LANE10-EXACT][PASS] token=%0d",
+               V11L_TOKEN0);
+      $display("[V11L-FLUSH-CANCEL-LANE11-EXACT][PASS] token=%0d",
+               V11L_TOKEN1);
+      $display("[V11L-RETRY-HOLDER-MATRIX][PASS] capture=2 hold=2 c0=2 transfer=2 response=2 cancel=2");
+      reset_dut();
+    end
+  endtask
+`endif
+
   task automatic seed_v8t_retry1_from_unfilled_older_store;
     input load_is_fp;
     output [PRODUCER_ID_W-1:0] load_pid;
@@ -14825,6 +18519,20 @@ module tb_ooo_int_backend;
 
 `ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
     run_hist_ser_qh_younger_store_cycle();
+`elsif V11R_INT_LANE1_PACKET_FOCUSED
+    run_v11r_int_lane1_packet_semantic();
+`elsif V11Q_INT_LANE0_PACKET_FOCUSED
+    run_v11q_int_lane0_packet_semantic();
+`elsif V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+    run_v11p_checkpoint_irrevocable_write_semantic();
+`elsif V11O_MEMORY_BUFFER_TOKEN_FOCUSED
+    run_v11o_memory_buffer_token_semantic();
+`elsif V11N_MEMORY_PENDING_HOLDER_FOCUSED
+    run_v11n_memory_pending_holder_semantic();
+`elsif V11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+    run_v11m_memory_reservation_holder_semantic();
+`elsif V11L_MEMORY_RETRY_HOLDER_FOCUSED
+    run_v11l_memory_retry_holder_semantic();
 `elsif V9R_SQ_RETRY_C0_FOCUSED
     run_v9r_sq_retry_c0_handoff();
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
@@ -16222,6 +19930,20 @@ module tb_ooo_int_backend;
 
 `ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
         tb_finish("tb_ooo_int_backend_hist_ser_qh_younger_store");
+`elsif V11R_INT_LANE1_PACKET_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11r_int_lane1_packet");
+`elsif V11Q_INT_LANE0_PACKET_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11q_int_lane0_packet");
+`elsif V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11p_checkpoint_irrevocable_write");
+`elsif V11O_MEMORY_BUFFER_TOKEN_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11o_memory_buffer_token");
+`elsif V11N_MEMORY_PENDING_HOLDER_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11n_memory_pending_holder");
+`elsif V11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11m_memory_reservation_holder");
+`elsif V11L_MEMORY_RETRY_HOLDER_FOCUSED
+        tb_finish("tb_ooo_int_backend_v11l_memory_retry_holder");
 `elsif V9R_SQ_RETRY_C0_FOCUSED
         tb_finish("tb_ooo_int_backend_v9r_sq_retry_c0");
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED

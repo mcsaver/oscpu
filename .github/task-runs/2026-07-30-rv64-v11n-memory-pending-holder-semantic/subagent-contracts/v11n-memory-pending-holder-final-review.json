@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11n-memory-pending-holder-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooIntBackend 在 ENABLE_DUAL_MEM=1 配置下 mem_pending_q、mem_producer_id_q 与 mem_owner_token_q 的 AMO read/write 两阶段 holder 合同及 V11N 证据；优先寻找 lane1 路由、DUT 派生 oracle、重复 terminal、断言削弱、A3 历史状态漂移和证据哈希失配反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11n_memory_pending_holder_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/focused-fullwidth-current/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/subagent-contracts/v11n-memory-pending-holder-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/focused-fullwidth-current/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件→周期或编译配置→testbench/EDA 观测→PASS/GAP 范围给出独立终审；列出任何可复现反例、未知项与最窄剩余风险，核实 A3 原始 FAIL 与 replay PASS 未混同。"
+  ],
+  "success_criteria": [
+    "逐项核验 V11N 4 个正向 profile、13 个 compile-success mutation 在 2 个 generation 宽度下共 26 个拒绝、3 个回归、lane0/lane9 terminal、dispatch lane1 到 execution terminal0、full-width stimulus-owned PID/token、实例图 15 modules/17 instances 和语义台账 27/44；不得把局部 PASS 提升为整机或 PPA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

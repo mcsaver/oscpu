@@ -13,7 +13,9 @@ description: 维护 YSYX AI 开发环境三层架构时使用：数据库长期�
 
 ## 工作流
 
-1. 先加载 live/indexed 基线：`.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/modules/agent-system.md`、`.github/agentic-hardware-blueprint.md`；普通文档可用 `load --source auto`，memory/log 可用 retained stored source。
+1. 先读取 `.github/instructions/agent-lightweight-workflow.instructions.md`，用
+   `scripts/agent-flow.sh begin --class environment` 建立本轮记录。只加载与本次修改直接相关的 live
+   基线；只有需要历史事实时才读取 project/module memory 或运行 DB brief。
 2. 判断改动属于哪一层。长期事实写入数据库/记忆；可复用流程写入 Skill 或 instruction；自动执行与证据收集写入 Agent/e2e/profile。
 3. 修改 Skill、instructions、agents、e2e profile/module、contract 和说明文档时保持 live 可读；只有修改 `.github/memory/**` 或 `.github/task-runs/**` retained log/report 时才同步写回数据库。
 4. 修改报告要求、验收状态或剩余路线图时同步 `.github/ai-env/contracts/agent-env-rebuild-matrix.json`，并确认 `python3 scripts/github_index_db.py report-audit` 通过。
@@ -25,8 +27,12 @@ description: 维护 YSYX AI 开发环境三层架构时使用：数据库长期�
 10. 修改 agent 工具范围、retention、CI/nightly、FSM、交付或证据策略时同步 `.github/ai-env/contracts/agent-env-policy.json`，并确认 `python3 scripts/github_index_db.py policy-audit` 通过。
 11. 修改 review 路由、分支健康或 dashboard 口径时同步 `.github/ai-env/contracts/agent-env-review-routing.json` 与 `.github/ai-env/contracts/agent-env-branch-health.json`，并确认 `python3 scripts/github_index_db.py branch-health-audit` 通过。
 12. 修改本地 RTL 子 agent 派发边界时同步 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、`.github/instructions/rtl-agent-task-contract.instructions.md`、`.github/skills/prepare-rtl-task-contract/` 与 `rtl-task-contract` profile 节点，并运行脚本 `audit/self-test/cli-self-test`。
-13. 维护完成后运行 `scripts/agent-maintain.sh --mode check`。若触及 e2e/profile/脚本，再运行相关 `scripts/agent-e2e.sh --profile <profile>`。
-14. 最后更新 `project-status` 与 `memory/modules/agent-system.md`，并为跨层任务留下 `.github/task-runs/<日期-任务名>/` 证据包。
+13. 每批修改用 `agent-flow record --path` 登记；关键假设、反例和选择理由用 `decision` 记录。只有
+    一轮目标达到确定性交付点时才运行 `agent-flow finish`，由 C 根据路径调用相关 audit/profile
+    pointer，并确保门禁时间不超过工作时间的 40%。
+14. `agent-maintain --mode quick` 只做 C/shell 自测；`final` 用于 AI 环境目标轮次收尾，
+    `release` 用于 CI/nightly/商业包，`full` 仅用于显式完整 agent-system 证据。稳定跨会话结论才更新
+    memory；环境修改默认由 C 生成 compact task-run，不再默认生成完整 profile evidence 包。
 
 ## 边界
 

@@ -15,13 +15,13 @@
 - 用 DB-first memory 保存长期事实，避免上下文漂移。
 - 用 Skill 固化可复用处理规则，避免规则散落在对话里。
 - 用 Agent/e2e profile 把自动维护、验证、回归和证据包串成闭环。
+- 用 C 调度器完成任务分类、显式路径日志、约 40% 非阻断占用观测和 compact/durable 结果归档。
 - 用 runtime artifact boundary 把源码、证据索引和重型运行态 payload 分开。
 
 ## 快速验证
 
 ```bash
-python3 scripts/github_index_db.py delivery-audit
-scripts/agent-maintain.sh --mode check
+scripts/agent-maintain.sh --mode release
 scripts/agent-e2e.sh --profile agent-system --task-slug commercial-delivery-smoke
 ```
 

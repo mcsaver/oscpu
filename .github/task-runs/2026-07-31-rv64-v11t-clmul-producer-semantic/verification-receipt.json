@@ -1,0 +1,99 @@
+{
+  "schema": "npc-rv64-v11t-delivery-receipt-v1",
+  "status": "PASS_SCOPED",
+  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+  "production_rtl_modified": false,
+  "checks": {
+    "runner_unit": {
+      "status": "PASS",
+      "tests_pass": 10,
+      "tests_total": 10
+    },
+    "focused_attempt_2": {
+      "status": "PASS",
+      "profiles_pass": 22,
+      "profiles_total": 22,
+      "baseline_profiles": 4,
+      "mutation_kinds": 9,
+      "mutation_profiles": 18,
+      "regressions_pass": 4,
+      "regressions_total": 4,
+      "retired_secondary_artifacts": 36,
+      "retired_secondary_artifact_bytes": 283273537,
+      "summary": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/summary.json"
+    },
+    "semantic_checker_suite": {
+      "status": "PASS",
+      "tests_pass": 97,
+      "tests_total": 97,
+      "elapsed_seconds": 57.517,
+      "maxrss_kb": 96896,
+      "artifact": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-checker-tests.log"
+    },
+    "compact_projection_and_replay_tests": {
+      "status": "PASS",
+      "tests_pass": 14,
+      "tests_total": 14
+    },
+    "current_instance_graph_audit": {
+      "status": "PASS",
+      "holder_instances": 17,
+      "reachable_module_instances": 194,
+      "artifact": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/current-instance-graph-audit/instance-graph-frozen-audit.json"
+    },
+    "semantic_ledger": {
+      "status": "GAP",
+      "units_pass": 36,
+      "units_gap": 8,
+      "units_total": 44,
+      "bindings": 50,
+      "artifact": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json"
+    },
+    "independent_review": {
+      "status": "PASS_BOUNDED_FROZEN_MATERIAL",
+      "contract_sha256": "13beb54fda379afd0d14c5adf1ad5367f80163d6a7ecfae0b22cdc45cfab0fd6",
+      "artifact": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/review-result.md"
+    },
+    "selective_cleanup": {
+      "status": "PASS",
+      "removed_total_bytes": 1598753,
+      "current_round_removed_bytes": 284872290,
+      "negative_fixture_runtime_path": ".github/runtime-artifacts/test-scratch/producer-holder-semantic",
+      "negative_fixture_post_test_state": "EMPTY",
+      "repository_root_tmp_json_state": "ABSENT",
+      "artifact": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/cleanup-selection.json"
+    },
+    "artifact_boundary_audit": {
+      "status": "PASS",
+      "tracked_heavy_files": 0
+    },
+    "db_first_audit": {
+      "status": "PASS",
+      "initial_status": "FAIL_RETAINED",
+      "initial_reason": "missing stored task-run Markdown and stale memory backup hashes",
+      "correction": "promote four task-run Markdown documents and refresh stored snapshot"
+    }
+  },
+  "a3": {
+    "original_status": "FAIL_RETAINED",
+    "strict_checks": "16/17",
+    "execution_state": "COMPLETE",
+    "terminal_state": "COMPLETE",
+    "oracle_state": "OLD_ORACLE_INVALID",
+    "checker_replay": "PASS_INDEPENDENT"
+  },
+  "not_run": [
+    "eight_younger_pressure",
+    "full_system_replay",
+    "synthesis",
+    "sta",
+    "power",
+    "ppa_promotion"
+  ],
+  "promotion": {
+    "clmul_producer": "PASS",
+    "global_no_live_reuse": "NOT_PROVEN",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  }
+}

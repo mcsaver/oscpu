@@ -25,6 +25,11 @@ HOLDER_ASSERT = "[V9Y-HOLDER-TERMINAL-NEXT]"
 ASSERT_ESCAPED = "[V11I-HOLDER-ASSERTION-ESCAPED][FAIL]"
 ABA_FAIL = "[V11I-LATE-TUPLE-ABA][FAIL]"
 ABA_OBSERVATION_FAIL = "[V11I-LATE-TUPLE-OBSERVATION][FAIL]"
+FOCUSED_DEFINE = "-DV11I_TERMINAL_LIFECYCLE_FOCUSED"
+TESTBENCH_OBSERVATION = (
+    "lane0 response-terminal collector ingress/accept, tracker live/table, "
+    "LQ valid/terminal_seen raw Q, holder-next assertion"
+)
 
 
 @dataclass(frozen=True)
@@ -43,17 +48,24 @@ PROFILES = (
 
 
 TERMINAL_ANCHOR = """\
-  wire mem_issue_res_tagged_terminal_w =
-      (mem_issue_res_owner_kind_q != MEM_OWNER_STORE) &&
-      (mem_issue_res_local_complete_w || mem_issue_res_kill_w ||
-       mem_issue_res_global_cancel_w);
+  wire mem_terminal_rsp_valid_w =
+      mem_rsp_final_fire_w ||
+      (miq_load_rsp_fire_w &&
+       (mem_owner_open_w || mem_legal_closed_response_w)) ||
+      (miq_probe_rsp_fire_w && mem_legal_closed_response_w);
 """
 
 TERMINAL_MUTATION = """\
   // V11I compile-success sensitivity variant.  It captures the first
-  // token-0 LOAD terminal tuple, retains it after the source has ended, and
-  // re-emits that old tuple only after token 0 is bound to a different full
-  // ProducerId.  This block exists only in the generated evidence copy.
+  // token-0 LOAD response tuple, retains it after the response source has
+  // ended, and re-emits that old lane0 tuple only after token 0 is bound to a
+  // different full ProducerId.  This block exists only in the generated
+  // evidence copy.
+  wire mem_terminal_rsp_base_valid_w =
+      mem_rsp_final_fire_w ||
+      (miq_load_rsp_fire_w &&
+       (mem_owner_open_w || mem_legal_closed_response_w)) ||
+      (miq_probe_rsp_fire_w && mem_legal_closed_response_w);
   reg v11i_stale_tuple_wait_q;
   reg v11i_stale_tuple_pulse_q;
   reg [1:0] v11i_stale_tuple_kind_q;
@@ -71,15 +83,14 @@ TERMINAL_MUTATION = """\
     end else begin
       v11i_stale_tuple_pulse_q <= 1'b0;
       if (!v11i_stale_tuple_wait_q &&
-          mem_issue_res_valid_q &&
-          (mem_issue_res_owner_kind_q == MEM_OWNER_LOAD) &&
-          (mem_issue_res_owner_token_q == 5'd0) &&
-          mem_issue_res_local_complete_w) begin
+          mem_terminal_rsp_base_valid_w &&
+          (miq_head_owner_kind_w == MEM_OWNER_LOAD) &&
+          (miq_head_owner_token_w == 5'd0)) begin
         v11i_stale_tuple_wait_q <= 1'b1;
-        v11i_stale_tuple_kind_q <= mem_issue_res_owner_kind_q;
-        v11i_stale_tuple_token_q <= mem_issue_res_owner_token_q;
-        v11i_stale_tuple_epoch_q <= mem_issue_res_mmu_epoch_q;
-        v11i_stale_tuple_pid_q <= mem_issue_res_producer_id_q;
+        v11i_stale_tuple_kind_q <= miq_head_owner_kind_w;
+        v11i_stale_tuple_token_q <= miq_head_owner_token_w;
+        v11i_stale_tuple_epoch_q <= miq_head_mmu_epoch_w;
+        v11i_stale_tuple_pid_q <= mem_completion_producer_id_w;
       end
       if (v11i_stale_tuple_wait_q &&
           mem_issue_res_valid_q &&
@@ -92,79 +103,70 @@ TERMINAL_MUTATION = """\
       end
     end
   end
-  wire [1:0] v11i_lane6_terminal_kind_w =
+  wire [1:0] v11i_lane0_terminal_kind_w =
       v11i_stale_tuple_pulse_q ? v11i_stale_tuple_kind_q :
-                                 mem_issue_res_owner_kind_q;
-  wire [4:0] v11i_lane6_terminal_token_w =
+                                 miq_head_owner_kind_w;
+  wire [4:0] v11i_lane0_terminal_token_w =
       v11i_stale_tuple_pulse_q ? v11i_stale_tuple_token_q :
-                                 mem_issue_res_owner_token_q;
-  wire [1:0] v11i_lane6_terminal_epoch_w =
+                                 miq_head_owner_token_w;
+  wire [1:0] v11i_lane0_terminal_epoch_w =
       v11i_stale_tuple_pulse_q ? v11i_stale_tuple_epoch_q :
-                                 mem_issue_res_mmu_epoch_q;
-  wire mem_issue_res_tagged_terminal_w =
-      ((mem_issue_res_owner_kind_q != MEM_OWNER_STORE) &&
-       (mem_issue_res_local_complete_w || mem_issue_res_kill_w ||
-        mem_issue_res_global_cancel_w)) ||
-      v11i_stale_tuple_pulse_q;
+                                 miq_head_mmu_epoch_w;
+  wire mem_terminal_rsp_valid_w =
+      mem_terminal_rsp_base_valid_w || v11i_stale_tuple_pulse_q;
 """
 
 MUTATION_REPLACEMENTS = (
     (
         TERMINAL_ANCHOR,
         TERMINAL_MUTATION,
-        "capture-and-delay-old-lane6-tuple",
+        "capture-and-delay-old-lane0-response-tuple",
     ),
     (
         """\
-      mem_issue1_res_owner_kind_q,
-      mem_issue_res_owner_kind_q,
-      mem1_drop1_owner_kind_i,
+      miq1_head_owner_kind_w,
+      miq_head_owner_kind_w
 """,
         """\
-      mem_issue1_res_owner_kind_q,
-      v11i_lane6_terminal_kind_w,
-      mem1_drop1_owner_kind_i,
+      miq1_head_owner_kind_w,
+      v11i_lane0_terminal_kind_w
 """,
-        "lane6-kind-selects-old-tuple",
+        "lane0-kind-selects-old-tuple",
     ),
     (
         """\
-      mem_issue1_res_owner_token_q,
-      mem_issue_res_owner_token_q,
-      mem1_drop1_owner_token_i,
+      miq1_head_owner_token_w,
+      miq_head_owner_token_w
 """,
         """\
-      mem_issue1_res_owner_token_q,
-      v11i_lane6_terminal_token_w,
-      mem1_drop1_owner_token_i,
+      miq1_head_owner_token_w,
+      v11i_lane0_terminal_token_w
 """,
-        "lane6-token-selects-old-tuple",
+        "lane0-token-selects-old-tuple",
     ),
     (
         """\
-      mem_issue1_res_mmu_epoch_q,
-      mem_issue_res_mmu_epoch_q,
-      mem1_drop1_mmu_epoch_i,
+      miq1_head_mmu_epoch_w,
+      miq_head_mmu_epoch_w
 """,
         """\
-      mem_issue1_res_mmu_epoch_q,
-      v11i_lane6_terminal_epoch_w,
-      mem1_drop1_mmu_epoch_i,
+      miq1_head_mmu_epoch_w,
+      v11i_lane0_terminal_epoch_w
 """,
-        "lane6-epoch-selects-old-tuple",
+        "lane0-epoch-selects-old-tuple",
     ),
     (
         """\
-  assign mem_terminal_ingress6_mask_w =
-      mem_issue_res_tagged_terminal_w ?
-      (32'b1 << mem_issue_res_owner_token_q) : 32'b0;
+  assign mem_terminal_ingress0_mask_w =
+      mem_terminal_rsp_valid_w ?
+      (32'b1 << miq_head_owner_token_w) : 32'b0;
 """,
         """\
-  assign mem_terminal_ingress6_mask_w =
-      mem_issue_res_tagged_terminal_w ?
-      (32'b1 << v11i_lane6_terminal_token_w) : 32'b0;
+  assign mem_terminal_ingress0_mask_w =
+      mem_terminal_rsp_valid_w ?
+      (32'b1 << v11i_lane0_terminal_token_w) : 32'b0;
 """,
-        "lane6-mask-selects-old-token",
+        "lane0-mask-selects-old-token",
     ),
 )
 
@@ -447,7 +449,7 @@ def run_profile(
         else path
         for path in production_sources
     ]
-    defines = ["-DV11I_TERMINAL_LIFECYCLE_FOCUSED"]
+    defines = [FOCUSED_DEFINE]
     if profile.assertions:
         defines.append("-DOOO_ASSERT")
     if profile.stale_tuple_variant:
@@ -534,7 +536,18 @@ def run_profile(
             ),
         },
     }
-    write_json(profile_dir / "commands.json", command_record)
+    commands_path = profile_dir / "commands.json"
+    write_json(commands_path, command_record)
+    raw_paths = (
+        profile_dir / "compile.stdout",
+        profile_dir / "compile.stderr",
+        profile_dir / "compile.rc",
+        profile_dir / "sim.stdout",
+        profile_dir / "sim.stderr",
+        profile_dir / "sim.log",
+        profile_dir / "sim.rc",
+        commands_path,
+    )
     return {
         "profile": profile.name,
         "assertions": profile.assertions,
@@ -555,8 +568,13 @@ def run_profile(
             "timeout": sim_timeout,
             "elapsed_seconds": round(sim_seconds, 6),
             "log": repo_path(profile_dir / "sim.log", repo_root),
+            "log_sha256": sha256_file(profile_dir / "sim.log"),
         },
         "markers": counts,
+        "raw_evidence": {
+            repo_path(path, repo_root): sha256_file(path)
+            for path in raw_paths
+        },
     }
 
 
@@ -638,10 +656,46 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         runner_inputs = [
             *production_sources,
+            repo_root / "npc" / "rv64" / "Makefile",
             testbench_dir / "Makefile",
             testbench_dir / "common" / "tb_common.svh",
             repo_root / "npc" / "rv64" / "vsrc" / "filelist.mk",
             Path(__file__).resolve(),
+            Path(__file__).with_name(
+                "test_run_v11i_terminal_lifecycle.py"
+            ).resolve(),
+            repo_root
+            / "npc"
+            / "rv64"
+            / "design"
+            / "specs"
+            / "ooo-load-queue.md",
+            repo_root
+            / "npc"
+            / "rv64"
+            / "design"
+            / "specs"
+            / "ooo-global-producer-no-live-reuse.md",
+            repo_root
+            / "npc"
+            / "rv64"
+            / "design"
+            / "specs"
+            / "ooo-memory-producer-lease.md",
+            repo_root
+            / "npc"
+            / "rv64"
+            / "eval"
+            / "ppa"
+            / "tools"
+            / "v11i_terminal_lifecycle_evidence.py",
+            repo_root
+            / "npc"
+            / "rv64"
+            / "eval"
+            / "ppa"
+            / "tests"
+            / "test_v11i_terminal_lifecycle_evidence.py",
         ]
         input_pre = source_manifest(runner_inputs, repo_root)
         write_sha256_manifest(result_dir / "sources.pre.sha256", input_pre)
@@ -696,8 +750,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "token-0 reuse with a different full ProducerId"
                 ),
                 "testbench_observation": (
-                    "lane6 collector ingress/accept, tracker live/table, "
-                    "LQ valid/terminal_seen raw Q, holder-next assertion"
+                    TESTBENCH_OBSERVATION
                 ),
                 "profiles": [profile.name for profile in PROFILES],
                 "prohibited_shortcut": (

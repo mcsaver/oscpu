@@ -264,7 +264,12 @@ mem0_req_ready_o = !flush_i && !control_full_flush_barrier_i &&
   BRG-NOFIRE-FLUSH（flush 拍无 fire）、BRG-ADV-NODROP（advance ⇒ drop_rsp_q=0）、
   BRG-STG-LOOKUP（req 源 lookup 只在 advance 拍）、BRG-STG-HOLD（stall 拍站内字段冻结）、
   BRG-STG-NOKILL（flush 拍未 advance 的 nokill 项次拍存活）、MEM-PMA-*（静态地址图 deny 与
-  pretrans provenance）；跨模块（NpcSimTop）：
+  pretrans provenance），以及 V11J 对 active/stage/response/verified
+  `{owner_kind,token,mmu_epoch}` 全 tuple 的 X-knownness 检查
+  `[V11J-BRIDGE-ACTIVE-TUPLE-KNOWN]`、
+  `[V11J-BRIDGE-STAGE-TUPLE-KNOWN]`、
+  `[V11J-BRIDGE-RSP-TUPLE-KNOWN]`、
+  `[V11J-BRIDGE-VERIFIED-TUPLE-KNOWN]`；跨模块（NpcSimTop）：
   KM-STG-MIQ（站占用⇒MIQ 非空）、KM-STG-CTX（站占用期 satp/mstatus/priv/svpbmt 冻结，
   pretrans 豁免）。
 
@@ -277,6 +282,12 @@ upstream AW/W fire 只是 capture，split write 可能尚有多个下游 beat。
 `design/arch/history/mem-store-decouple.md`，不得当作当前行为依据。
 
 ## 7. 变更记录
+- 2026-07-30（V11J bridge holder semantic coverage）：release FSM、holder 与
+  datapath 不变；仅在 `OOO_ASSERT` 下补齐 active/stage/response/verified
+  全 tuple knownness。双 bridge stimulus-owned oracle 核对逐沿 tuple、lifecycle 与
+  32-bit residency set；32/32 profile、13 个 compile-success 反例的
+  assert/release 26/26 rejection，以及 3/3 ordinary bridge regression PASS。
+  当前 producer/holder ledger 仅提升五个 bridge 单元，整体仍为 16 PASS / 28 GAP。
 - 2026-07-23（V9O）：增加双 lane registered-AR owner × persistent C0 barrier 定向矩阵；
   两 lane 同时进入 `S_READ_ADDR` 后保持 4 拍 barrier，并在 barrier 持续期间完成两个
   address/R terminal，验证 payload/arbiter owner 保持及两个 token 各完成一次。

@@ -246,7 +246,8 @@ RTL_OOO_FRONTEND_HELPERS := $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FP_DECODE) \
 RTL_OOO_CORE_TOP_GLUE := $(RTL_CORE_DIR)/OooCoreTopGlue.v
 
 RTL_NPC_AXI_BUS := $(RTL_BUS_DIR)/NpcAxiBus.v
-RTL_AXI_XBAR := $(RTL_BUS_DIR)/AxiXbar.v
+# 兼容历史 mutation runner 的 RTL_AXI_XBAR=... 覆盖；生产清单只暴露当前全称。
+RTL_AXI_CROSSBAR := $(if $(RTL_AXI_XBAR),$(RTL_AXI_XBAR),$(RTL_BUS_DIR)/AxiCrossbar.v)
 RTL_AXI_DEFAULT_SLAVE := $(RTL_BUS_DIR)/AxiDefaultSlave.v
 RTL_AXI_RESET_SYSCON := $(RTL_BUS_DIR)/AxiResetSyscon.v
 RTL_AXI_CLINT := $(RTL_BUS_DIR)/AxiClint.v
@@ -278,7 +279,7 @@ RTL_CORE_SRCS := $(strip \
 		$(RTL_AXI_RESET_SYSCON) \
 		$(RTL_AXI_CLINT) \
 		$(RTL_AXI_PLIC) \
-		$(RTL_AXI_XBAR) \
+		$(RTL_AXI_CROSSBAR) \
 	$(RTL_UART) \
 	$(RTL_AXI_TO_UART) \
 	$(RTL_COMPARE_UNIT) \

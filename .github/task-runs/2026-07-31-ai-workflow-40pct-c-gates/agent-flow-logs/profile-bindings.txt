@@ -1,0 +1,296 @@
+[agent-e2e] validate profile=abstract-machine nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] validate profile=agent-system nodes=11
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK three-layer-contract | agent-system | agent-system | e2e_agent_system_three_layer_contract | AI_ENVIRONMENT.md;.github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh -> 验证一页导航、canonical 路径与 Database/Skill/Agent 三层契约
+[agent-e2e] OK runtime-artifact-boundary | agent-system | agent-system | e2e_agent_system_runtime_artifact_boundary | .github/ai-env/contracts/agent-env-runtime-artifacts.json;.github/ai-env/contracts/agent-env-policy.json;scripts/agent-maintain.sh -> 验证源码面与运行态 artifact/store 分层边界
+[agent-e2e] OK state-machine-traceback | agent-system | agent-system | e2e_agent_system_state_traceback | .github/instructions/agent-env-state-machine.instructions.md;.github/ai-env/contracts/agent-env-state-traceability.json;scripts/e2e/lib/report.sh -> 验证状态机回退和 task-run state_traceback 字段
+[agent-e2e] OK reviewer-inspector-gate | agent-system | agent-system | e2e_agent_system_reviewer_inspector_gate | .github/ai-env/contracts/agent-env-review-routing.json;.github/ai-env/contracts/agent-env-policy.json;.github/e2e/profiles/agent-system.tsv -> 验证 Reviewer/Inspector 路由已落成 profile 执行节点
+[agent-e2e] OK rtl-task-contract | agent-system | agent-system | e2e_agent_system_rtl_task_contract | .github/ai-env/contracts/agent-env-rtl-task-contract.json;.github/instructions/rtl-agent-task-contract.instructions.md;.github/skills/prepare-rtl-task-contract/SKILL.md;.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py -> 验证本地 RTL 子任务契约可生成、校验、渲染并检出合同外路径 mutation
+[agent-e2e] OK task-run-status-fail-closed | agent-system | agent-system | e2e_agent_system_task_run_status_fail_closed | scripts/task-run-status.sh;scripts/tests/test-task-run-status.sh;scripts/agent-maintain.sh;AGENTS.md;.github/AGENTS.md;AI_ENVIRONMENT.md -> 验证长时间 RV64 runner 只有证据完成位才能授权 PASS，并检出 early-exit、cleanup failure 与 HUP
+[agent-e2e] OK commercial-delivery-readiness | agent-system | agent-system | e2e_agent_system_commercial_delivery_readiness | .github/ai-env/contracts/agent-env-delivery.json;deliverables/ai-dev-env-commercial-v1;scripts/package-ai-dev-env.sh -> 验证商业交付包装、旧产物归档和 delivery audit
+[agent-e2e] OK profile-index | agent-system | agent-system | e2e_agent_system_profile_index | .github/e2e/profiles -> 列出所有可执行 profile
+[agent-e2e] validate profile=am-kernels nodes=5
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK am-kernels-contract | am-kernels | am-kernels | e2e_am_kernels_contract | cpu-tests/am-tests/klib-tests/benchmarks -> 测试与 benchmark 合约入口存在
+[agent-e2e] validate profile=contracts nodes=25
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK profile-index | agent-system | agent-system | e2e_agent_system_profile_index | .github/e2e/profiles -> 列出所有可执行 profile
+[agent-e2e] OK ysyx-coordinator-contract | ysyx-coordinator | ysyx-coordinator | e2e_ysyx_coordinator_contract | coordinator agent + blueprint + profile root -> 总调度 e2e 合约入口存在
+[agent-e2e] OK hardware-flow-contract | hardware-flow | hardware-flow | e2e_hardware_flow_contract | hardware-flow agent + scripts/am-regression.sh + e2e profiles -> 硬件流程合约入口存在
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK github-index-contract | agent-system | github-index | e2e_github_index_contract | scripts/github_index_db.py + .github files -> .github SQLite 索引数据库入口可构建、查询和巡检
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK am-kernels-contract | am-kernels | am-kernels | e2e_am_kernels_contract | cpu-tests/am-tests/klib-tests/benchmarks -> 测试与 benchmark 合约入口存在
+[agent-e2e] OK nemu-config-probe | nemu | nemu | e2e_nemu_config_probe | nemu Kconfig/configs/device filelist -> NEMU 当前配置和参考入口可见
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-single-contract | npc | npc | e2e_npc_single_contract | npc/single Makefile/Kconfig/vsrc/csrc -> NPC single 后端合约入口存在
+[agent-e2e] OK npc-soc-contract | npc | npc | e2e_npc_soc_contract | npc/soc + ysyxSoC CPU ABI -> NPC SoC 后端合约入口存在
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK ysyx-soc-contract | ysyx-soc | ysyx-soc | e2e_ysyx_soc_contract | ysyxSoC Makefile/spec/agent/memory -> ysyxSoC 合约入口存在
+[agent-e2e] OK difftest-contract | difftest | difftest | e2e_difftest_contract | NEMU spike-diff + npc/sim difftest-ref -> DiffTest 合约入口存在
+[agent-e2e] OK yosys-sta-contract | yosys-sta | yosys-sta | e2e_yosys_sta_contract | yosys-sta Makefile/tools/memory + RV64 PPA workflow/architecture contract -> 综合/STA 与 RV64 PPA 合约入口和工具状态可见
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] OK linux-device-contract | linux-device | linux-device | e2e_linux_device_contract | virtio-rootfs instruction + Linux scripts -> Linux 设备合约入口存在
+[agent-e2e] OK display-vga-contract | display-vga | display-vga | e2e_display_vga_contract | linux-framebuffer-vga instruction + Linux README -> 显示/fbcon 合约入口存在
+[agent-e2e] OK verilator-tapeout-contract | verilator-tapeout | verilator-tapeout | e2e_verilator_tapeout_contract | verilator realism instruction + RV64 PPA workflow/architecture contract + npc/rv64 -> Verilator-first 流片边界与 RV64 PPA 合约入口存在
+[agent-e2e] OK fceux-am-contract | fceux-am | fceux-am | e2e_fceux_am_contract | fceux-am Makefile/agent/memory -> FCEUX-AM 合约入口存在
+[agent-e2e] OK nvboard-contract | nvboard | nvboard | e2e_nvboard_contract | nvboard README/scripts/example/agent -> NVBoard 合约入口存在
+[agent-e2e] OK digital-logic-contract | digital-logic | digital-logic | e2e_digital_logic_contract | digital_logic_experiment + agent -> 数字逻辑实验合约入口存在
+[agent-e2e] validate profile=difftest nodes=8
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK nemu-config-probe | nemu | nemu | e2e_nemu_config_probe | nemu Kconfig/configs/device filelist -> NEMU 当前配置和参考入口可见
+[agent-e2e] OK nemu-reference-config-contract | nemu | nemu | e2e_nemu_reference_config_contract | NEMU build target/ISA + reference smoke profile binding -> host-native RISC-V 接受且 AM/SHARE/非 RISC-V/缺失配置 fail closed
+[agent-e2e] OK nemu-add-smoke | nemu | nemu | e2e_nemu_native_add_smoke | 当前 NEMU host-native reference 配置 + cpu-tests add -> NEMU reference 最小 smoke PASS 或配置边界 SKIP
+[agent-e2e] OK difftest-contract | difftest | difftest | e2e_difftest_contract | NEMU spike-diff + npc/sim difftest-ref -> DiffTest 合约入口存在
+[agent-e2e] validate profile=digital-logic nodes=5
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK nvboard-contract | nvboard | nvboard | e2e_nvboard_contract | nvboard README/scripts/example/agent -> NVBoard 合约入口存在
+[agent-e2e] OK digital-logic-contract | digital-logic | digital-logic | e2e_digital_logic_contract | digital_logic_experiment + agent -> 数字逻辑实验合约入口存在
+[agent-e2e] validate profile=discovery nodes=3
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] validate profile=display-vga nodes=11
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK npc-rv64-sv39-sret-u-mode | npc | npc | e2e_npc_rv64_sv39_sret_u_mode | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB -> NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS
+[agent-e2e] OK npc-rv64-linux-focused-smokes | npc | npc | e2e_npc_rv64_linux_focused_smokes | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC -> NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
+[agent-e2e] OK npc-rv64-uart-rx-smoke | npc | npc | e2e_npc_rv64_uart_rx_smoke | NPC 16550 UART RX register + gated DPI injection smoke -> NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
+[agent-e2e] OK npc-rv64-linux-rootfs-mount-smoke | npc | npc | e2e_npc_rv64_linux_rootfs_mount_smoke | Ubuntu rootfs mount + systemd banner smoke on NPC -> NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | Linux systemd guest checker + isolated writable rootfs work image -> NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] OK display-vga-contract | display-vga | display-vga | e2e_display_vga_contract | linux-framebuffer-vga instruction + Linux README -> 显示/fbcon 合约入口存在
+[agent-e2e] validate profile=fceux-am nodes=6
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK am-kernels-contract | am-kernels | am-kernels | e2e_am_kernels_contract | cpu-tests/am-tests/klib-tests/benchmarks -> 测试与 benchmark 合约入口存在
+[agent-e2e] OK fceux-am-contract | fceux-am | fceux-am | e2e_fceux_am_contract | fceux-am Makefile/agent/memory -> FCEUX-AM 合约入口存在
+[agent-e2e] validate profile=full nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK am-full-regression | hardware-flow | hardware-flow | e2e_hardware_flow_full_regression | scripts/am-regression.sh full -> AM/NEMU 完整参考回归证据
+[agent-e2e] validate profile=github-index nodes=1
+[agent-e2e] OK github-index-contract | agent-system | github-index | e2e_github_index_contract | scripts/github_index_db.py + .github files -> SQLite index can build, query and doctor .github metadata without owning originals
+[agent-e2e] validate profile=hardware-flow nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK hardware-flow-contract | hardware-flow | hardware-flow | e2e_hardware_flow_contract | hardware-flow agent + scripts/am-regression.sh + e2e profiles -> 硬件流程合约入口存在
+[agent-e2e] validate profile=linux-device nodes=11
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK npc-rv64-sv39-sret-u-mode | npc | npc | e2e_npc_rv64_sv39_sret_u_mode | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB -> NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS
+[agent-e2e] OK npc-rv64-linux-focused-smokes | npc | npc | e2e_npc_rv64_linux_focused_smokes | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC -> NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
+[agent-e2e] OK npc-rv64-uart-rx-smoke | npc | npc | e2e_npc_rv64_uart_rx_smoke | NPC 16550 UART RX register + gated DPI injection smoke -> NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
+[agent-e2e] OK npc-rv64-linux-rootfs-mount-smoke | npc | npc | e2e_npc_rv64_linux_rootfs_mount_smoke | Ubuntu rootfs mount + systemd banner smoke on NPC -> NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | Linux systemd guest checker + isolated writable rootfs work image -> NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] OK linux-device-contract | linux-device | linux-device | e2e_linux_device_contract | virtio-rootfs instruction + Linux scripts -> Linux 设备合约入口存在
+[agent-e2e] validate profile=nemu nodes=7
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK nemu-config-probe | nemu | nemu | e2e_nemu_config_probe | nemu Kconfig/configs/device filelist -> NEMU 当前配置和参考入口可见
+[agent-e2e] OK nemu-reference-config-contract | nemu | nemu | e2e_nemu_reference_config_contract | NEMU build target/ISA + reference smoke profile binding -> host-native RISC-V 接受且 AM/SHARE/非 RISC-V/缺失配置 fail closed
+[agent-e2e] OK nemu-add-smoke | nemu | nemu | e2e_nemu_native_add_smoke | 当前 NEMU host-native reference 配置 + cpu-tests add -> NEMU reference 最小 smoke PASS 或配置边界 SKIP
+[agent-e2e] validate profile=nemu-dev nodes=3
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] profile-boundary=nemu-dev mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-dev NEMU-only closure
+[agent-e2e] validate profile=nemu-dev-full-gate nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-dev-full-focused-gate | nemu | nemu | e2e_nemu_ubuntu_full_focused_gate | optional NEMU-only full Ubuntu rootfs/systemd guest gate -> AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 时运行 NEMU-only full rootfs guest gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-dev-full-gate mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-dev-full-gate NEMU-only closure
+[agent-e2e] validate profile=nemu-dev-full-soak nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-dev-full-soak-gate | nemu | nemu | e2e_nemu_ubuntu_full_soak_gate | optional NEMU-only full Ubuntu rootfs soak gate -> AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行 NEMU-only full rootfs soak gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-dev-full-soak mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-dev-full-soak NEMU-only closure
+[agent-e2e] validate profile=nemu-dev-gate nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-dev-focused-gate | nemu | nemu | e2e_nemu_ubuntu_focused_gate | optional NEMU-only Ubuntu rootfs/systemd guest gate -> AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行 NEMU-only minimized guest gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-dev-gate mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-dev-gate NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu nodes=3
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] profile-boundary=nemu-ubuntu mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu-focused nodes=3
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] profile-boundary=nemu-ubuntu-focused mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-focused NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu-full-gate nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-ubuntu-full-focused-gate | nemu | nemu | e2e_nemu_ubuntu_full_focused_gate | optional full Ubuntu rootfs/systemd guest gate -> AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 时运行真实 full rootfs guest gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-ubuntu-full-gate mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-full-gate NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu-full-soak nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-ubuntu-full-soak-gate | nemu | nemu | e2e_nemu_ubuntu_full_soak_gate | optional full Ubuntu rootfs soak gate -> AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行真实 full rootfs soak gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-ubuntu-full-soak mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-full-soak NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu-gate nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-ubuntu-focused-gate | nemu | nemu | e2e_nemu_ubuntu_focused_gate | optional focused Ubuntu rootfs/systemd guest gate -> AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行真实 guest gate，否则 SKIP
+[agent-e2e] profile-boundary=nemu-ubuntu-gate mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-gate NEMU-only closure
+[agent-e2e] validate profile=nemu-ubuntu-integrated nodes=13
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK npc-rv64-sv39-sret-u-mode | npc | npc | e2e_npc_rv64_sv39_sret_u_mode | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB -> NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS
+[agent-e2e] OK npc-rv64-linux-focused-smokes | npc | npc | e2e_npc_rv64_linux_focused_smokes | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC -> NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
+[agent-e2e] OK npc-rv64-uart-rx-smoke | npc | npc | e2e_npc_rv64_uart_rx_smoke | NPC 16550 UART RX register + gated DPI injection smoke -> NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
+[agent-e2e] OK npc-rv64-linux-rootfs-mount-smoke | npc | npc | e2e_npc_rv64_linux_rootfs_mount_smoke | Ubuntu rootfs mount + systemd banner smoke on NPC -> NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | Linux systemd guest checker + isolated writable rootfs work image -> NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] validate profile=nemu-ubuntu-profile nodes=4
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK nemu-ubuntu-static | nemu | nemu | e2e_nemu_ubuntu_static_gate | Linux/NEMU Ubuntu rootfs scripts + performance config -> NEMU Ubuntu 切片静态生产守门 PASS
+[agent-e2e] OK nemu-ubuntu-slice-contract | nemu | nemu | e2e_nemu_ubuntu_slice_contract | recent NEMU Ubuntu device slice hooks and guest markers -> 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+[agent-e2e] OK nemu-ubuntu-profile | nemu | nemu | e2e_nemu_ubuntu_profile_gate | NEMU_PROFILE=1 full Ubuntu boot budget with guest tests off -> profile-summary.txt console.log nemu.log
+[agent-e2e] profile-boundary=nemu-ubuntu-profile mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-profile NEMU-only closure
+[agent-e2e] validate profile=npc nodes=7
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK abstract-machine-contract | abstract-machine | abstract-machine | e2e_abstract_machine_contract | AM Makefile/scripts/include/memory -> AM 平台合约入口存在
+[agent-e2e] OK am-kernels-contract | am-kernels | am-kernels | e2e_am_kernels_contract | cpu-tests/am-tests/klib-tests/benchmarks -> 测试与 benchmark 合约入口存在
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-cpu-tests-full | npc | npc | e2e_npc_cpu_tests_full | riscv32-npc full cpu-tests + npc/sim current backend -> NPC target 全量 cpu-tests PASS
+[agent-e2e] validate profile=npc-dev nodes=5
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backend manifests -> NPC 开发环境入口只检查 NPC 仿真后端合同
+[agent-e2e] OK npc-single-contract | npc | npc | e2e_npc_single_contract | npc/single Makefile/Kconfig/vsrc/csrc -> NPC single 后端合约入口存在
+[agent-e2e] OK npc-soc-contract | npc | npc | e2e_npc_soc_contract | npc/soc + ysyxSoC CPU ABI -> NPC SoC 后端合约入口存在
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate
+[agent-e2e] profile-boundary=npc-dev mode=NPC-only
+[agent-e2e] PASS profile-boundary npc-dev NPC-only closure
+[agent-e2e] validate profile=npc-sim nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] validate profile=npc-single nodes=5
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-single-contract | npc | npc | e2e_npc_single_contract | npc/single Makefile/Kconfig/vsrc/csrc -> NPC single 后端合约入口存在
+[agent-e2e] validate profile=npc-soc nodes=5
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-soc-contract | npc | npc | e2e_npc_soc_contract | npc/soc + ysyxSoC CPU ABI -> NPC SoC 后端合约入口存在
+[agent-e2e] validate profile=nvboard nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK nvboard-contract | nvboard | nvboard | e2e_nvboard_contract | nvboard README/scripts/example/agent -> NVBoard 合约入口存在
+[agent-e2e] validate profile=quick nodes=5
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK nemu-reference-config-contract | nemu | nemu | e2e_nemu_reference_config_contract | NEMU build target/ISA + reference smoke profile binding -> host-native RISC-V 接受且 AM/SHARE/非 RISC-V/缺失配置 fail closed
+[agent-e2e] OK nemu-add-smoke | nemu | nemu | e2e_nemu_native_add_smoke | 当前 NEMU host-native reference 配置 + cpu-tests add -> NEMU reference 最小 smoke PASS 或配置边界 SKIP
+[agent-e2e] validate profile=reference nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK am-reference-regression | hardware-flow | hardware-flow | e2e_hardware_flow_reference_regression | scripts/am-regression.sh --no-bench --skip-devscan -> AM/NEMU 参考回归证据
+[agent-e2e] validate profile=rv64-linux nodes=10
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK npc-rv64-sv39-sret-u-mode | npc | npc | e2e_npc_rv64_sv39_sret_u_mode | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB -> NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS
+[agent-e2e] OK npc-rv64-linux-focused-smokes | npc | npc | e2e_npc_rv64_linux_focused_smokes | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC -> NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
+[agent-e2e] OK npc-rv64-uart-rx-smoke | npc | npc | e2e_npc_rv64_uart_rx_smoke | NPC 16550 UART RX register + gated DPI injection smoke -> NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
+[agent-e2e] OK npc-rv64-linux-rootfs-mount-smoke | npc | npc | e2e_npc_rv64_linux_rootfs_mount_smoke | Ubuntu rootfs mount + systemd banner smoke on NPC -> NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | Linux systemd guest checker + isolated writable rootfs work image -> NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] validate profile=rv64-systemd-contract nodes=1
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | RV64 systemd guest checker + terminal transaction + isolated rootfs + debug-valid diagnostic contract -> Checker 正反例、真实 power-down/syscon/system-reset 事务、rootfs 工作副本与 debug-valid 合同 PASS
+[agent-e2e] validate profile=software-flow nodes=1
+[agent-e2e] OK software-flow-contract | software-flow | software-flow | e2e_software_flow_contract | software-flow agent + profile + memory -> 软件开发全流程 agent 合约入口存在
+[agent-e2e] validate profile=verilator-tapeout nodes=11
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-rv64-contract | npc | npc | e2e_npc_rv64_contract | npc/rv64 + Linux README -> RV64 core/Linux 入口合约存在
+[agent-e2e] OK npc-rv64-sv39-sret-u-mode | npc | npc | e2e_npc_rv64_sv39_sret_u_mode | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB -> NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS
+[agent-e2e] OK npc-rv64-linux-focused-smokes | npc | npc | e2e_npc_rv64_linux_focused_smokes | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC -> NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk
+[agent-e2e] OK npc-rv64-uart-rx-smoke | npc | npc | e2e_npc_rv64_uart_rx_smoke | NPC 16550 UART RX register + gated DPI injection smoke -> NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入
+[agent-e2e] OK npc-rv64-linux-rootfs-mount-smoke | npc | npc | e2e_npc_rv64_linux_rootfs_mount_smoke | Ubuntu rootfs mount + systemd banner smoke on NPC -> NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner
+[agent-e2e] OK npc-rv64-systemd-guest-check-contract | npc | npc | e2e_npc_rv64_systemd_guest_check_contract | Linux systemd guest checker + isolated writable rootfs work image -> NPC RV64 guest checker具备 UART/autocheck/systemd-strict 入口，并将可写 block image 隔离到每轮工作副本
+[agent-e2e] OK rv64-linux-contract | rv64-linux | rv64-linux | e2e_rv64_linux_contract | Linux Makefile/env/platform/instructions -> RV64 Linux/Ubuntu 合约入口存在
+[agent-e2e] OK verilator-tapeout-contract | verilator-tapeout | verilator-tapeout | e2e_verilator_tapeout_contract | verilator realism instruction + RV64 PPA workflow/architecture contract + npc/rv64 -> Verilator-first 流片边界与 RV64 PPA 合约入口存在
+[agent-e2e] validate profile=yosys-sta nodes=7
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-single-contract | npc | npc | e2e_npc_single_contract | npc/single Makefile/Kconfig/vsrc/csrc -> NPC single 后端合约入口存在
+[agent-e2e] OK yosys-sta-contract | yosys-sta | yosys-sta | e2e_yosys_sta_contract | yosys-sta Makefile/tools/memory + RV64 PPA workflow/architecture contract -> 综合/STA 与 RV64 PPA 合约入口和工具状态可见
+[agent-e2e] OK yosys-sta-contract-fail-closed | yosys-sta | yosys-sta | e2e_yosys_sta_contract_failure_propagation | yosys-sta contract return-code path -> 综合/STA 合同失败不可被后续成功命令覆盖
+[agent-e2e] validate profile=ysyx-coordinator nodes=4
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK ysyx-coordinator-contract | ysyx-coordinator | ysyx-coordinator | e2e_ysyx_coordinator_contract | coordinator agent + blueprint + profile root -> 总调度 e2e 合约入口存在
+[agent-e2e] validate profile=ysyx-soc nodes=6
+[agent-e2e] OK recall-discovery | agent-system | agent-system | e2e_agent_system_discovery | AGENTS/copilot/instructions/memory/e2e profiles -> 规则发现链和 e2e 配置入口存在
+[agent-e2e] OK tool-env-check | agent-system | toolchain | e2e_toolchain_check | agent-env + bash/git/make/python/gcc/verilator/toolchain -> 非交互软环境、hard requirements 与 optional tools 可见
+[agent-e2e] OK npc-sim-status | hardware-flow | hardware-flow | e2e_hardware_flow_npc_sim_status | npc/sim Kconfig 与 backend mk -> 当前 npc/sim 后端状态
+[agent-e2e] OK npc-sim-contract | npc | npc | e2e_npc_sim_contract | npc/sim + backends -> NPC 统一仿真入口合约存在
+[agent-e2e] OK npc-soc-contract | npc | npc | e2e_npc_soc_contract | npc/soc + ysyxSoC CPU ABI -> NPC SoC 后端合约入口存在
+[agent-e2e] OK ysyx-soc-contract | ysyx-soc | ysyx-soc | e2e_ysyx_soc_contract | ysyxSoC Makefile/spec/agent/memory -> ysyxSoC 合约入口存在

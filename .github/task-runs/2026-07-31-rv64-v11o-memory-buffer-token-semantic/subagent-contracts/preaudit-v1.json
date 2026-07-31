@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11o-memory-buffer-token-preaudit",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooIntBackend.mem_buffer_owner_token_q：逐写点确认 ENABLE_DUAL_MEM=1 产品实例中的 birth 不可达性，追踪 ENABLE_DUAL_MEM=0 legacy 配置的 reservation→buffer→MIQ 或 cancel terminal 生命周期，并判断 semantic ledger 是否必须合取产品不可达证据与 legacy 动态证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/subagent-contracts/preaudit-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-31-rv64-v11o-memory-buffer-token-semantic/contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按产品参数链、legacy birth/hold/transfer/cancel/death 顺序列出 RTL 事实、反例和未知项。",
+    "给出最小 focused TB 与 compile-success RTL 负向版本矩阵，指出 expected token 如何独立于 DUT buffer 状态。",
+    "明确建议：产品不可达豁免、legacy 动态闭合，或二者合取；若路径不足则提交 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "枚举 mem_buffer_valid_q 与 mem_buffer_owner_token_q 的全部时序写点及 terminal/MIQ 消费点，不遗漏 lane0/lane1。",
+    "结论能被至少一个产品配置 birth-gate 反例和一个 legacy token identity 反例推翻。",
+    "不把本单元结论外推为 global_no_live_reuse、whole architecture、system 或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

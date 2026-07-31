@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "ifu-crossbar-current-replay-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 AxiCrossbar 当前设计下 IFU-AXI-G1 的 AW/W/B owner 与 flush-drain 周期合同，以及 IFU-ACCESS-G1 的 F=0/2/4/6、2B EXEC PMP、ARPROT/ARSIZE、PMEM 尾界和 lane0/lane1 fault owner 证据；判断两项 current evidence 是否 CLOSED_ELIGIBLE，并检查保留旧单一 design-id architecture ledger GAP 是否避免跨 cohort 假闭合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/bus",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tools/ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_access_evidence.py",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh",
+      ".github/task-runs/2026-07-31-rv64-ifu-crossbar-current-replay",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-ifu-crossbar-current-replay/evidence/current-design-replay.json",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/naming-migration.json",
+      ".github/task-runs/2026-07-31-rv64-ifu-crossbar-current-replay/subagent-contracts/ifu-crossbar-current-replay-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-ifu-crossbar-current-replay/evidence/current-design-replay.json",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/naming-migration.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出实现者证据之外的反例优先结论：逐项裁决源等价、focused marker、113-module aggregate、compile-success RTL 负向变体、artifact SHA、current design_id 与 ledger 单一 cohort 边界；列出 unknowns、替代假设、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "仅当当前 AxiCrossbar 源路径与 design_id=sha256:82febf4a... 的两份 PASS 证据、3/3 与 5/5 focused、113/113 aggregate、18/18 与 19/19 动态拒绝、历史 PASS 保留和 artifact SHA 均可复核，且结论不外推 full-core architecture/PPA/system 时返回 APPROVED_FOR_CURRENT_SCOPE；任一绑定、敏感性或单一 cohort 反例则明确 REJECTED_* 或 UNKNOWN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

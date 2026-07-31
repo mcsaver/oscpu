@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11j-bridge-holder-semantic-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 OooMemAxiBridge 双实例 holder tuple 生命周期、刺激侧 oracle、变异仿真、当前 elaboration 图、producer-holder census、语义台账及 V11H 冻结证据重放绑定执行独立反例优先终审；确认 V11J 仅增加 OOO_ASSERT 观测且不改变 release FSM、holder 或 datapath 语义，并保持系统重跑与 PPA 晋级边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_holder_semantic.sv",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue_producer_semantic.sv",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/scripts/run_v11j_bridge_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11j_bridge_holder_semantic.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_load_queue_producer_checker_replay.py",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/implementation-result.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/test-disposition.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/subagent-contracts/v11j-bridge-holder-semantic-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/implementation-result.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/test-disposition.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 PASS 或 GAP 终审结论，按 RTL 对象或本地证据文件、周期或编译配置、testbench/EDA 观测、PASS/GAP 范围组织；列出可复现反例、false-green 覆盖洞、真实文件名与日志 marker。",
+    "逐项核验五个 bridge 语义单元是否在 bridge0/bridge1 两条 elaborated instance path 上闭合，核验刺激侧 oracle 独立性、26/26 变异拒绝、32/32 profile、13 个编译成功变体、3/3 普通回归及所有 SHA 绑定。",
+    "核验 V11H replay 只证明冻结输入上的 checker 语义与当前 selected binding，不把历史 full RTL snapshot 误报为当前系统认证；明确 28 个剩余 GAP、全局 no-live-reuse、完整系统和 PPA 的未晋级边界。"
+  ],
+  "success_criteria": [
+    "独立审查能明确证明或否定 V11J 五个语义单元在 OooMemAxiBridge 两个产品实例上的闭合；任何缺证据、哈希漂移、oracle 同源、实例遗漏或假绿均必须判 GAP，不允许通过削弱断言、去重终端事件或改写历史状态获得 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

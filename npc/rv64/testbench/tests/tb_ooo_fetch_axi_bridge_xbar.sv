@@ -1,7 +1,7 @@
 `include "define.v"
 `include "tb_common.svh"
 
-// IFU-AXI-G1 集成合同：bridge flush-drain 必须真正释放 AxiXbar 的 B owner，
+// IFU-AXI-G1 集成合同：bridge flush-drain 必须真正释放 AxiCrossbar 的 B owner，
 // 不能只在 bridge 内部看见 IDLE。M0=真实 IFU bridge，M1=后一笔合成 LSU write。
 module tb_ooo_fetch_axi_bridge_xbar;
   localparam integer M_COUNT = 2;
@@ -161,7 +161,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
     .ifu_axi_bresp_i(ifu_bresp)
   );
 
-  AxiXbar #(
+  AxiCrossbar #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W),
@@ -170,7 +170,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
     .DEFAULT_SLAVE(0),
     .SLAVE_BASE({`XLEN{1'b0}}),
     .SLAVE_MASK({`XLEN{1'b0}})
-  ) u_xbar (
+  ) u_crossbar (
     .clk(clk),
     .rst(rst),
     .m_arvalid_i({1'b0, ifu_arvalid}),
@@ -304,20 +304,20 @@ module tb_ooo_fetch_axi_bridge_xbar;
 
     // master-side capture -> slave grant -> slave AW/W fire，之后故意延迟 B。
     tick();
-    tb_check1("xbar captured IFU AW", u_xbar.wr_aw_hold_q[0], 1'b1);
-    tb_check1("xbar captured IFU W", u_xbar.wr_w_hold_q[0], 1'b1);
+    tb_check1("xbar captured IFU AW", u_crossbar.wr_aw_hold_q[0], 1'b1);
+    tb_check1("xbar captured IFU W", u_crossbar.wr_w_hold_q[0], 1'b1);
     tick();
-    tb_check1("xbar grants IFU owner", u_xbar.wr_active_q[0], 1'b1);
+    tb_check1("xbar grants IFU owner", u_crossbar.wr_active_q[0], 1'b1);
     #1;
     tb_check1("slave sees IFU AW", s_awvalid[0], 1'b1);
     tb_check1("slave sees IFU W", s_wvalid[0], 1'b1);
     tb_check64_local("slave IFU AWADDR", s_awaddr[0 +: `XLEN], PTE_ADDR);
     tb_check64_local("slave IFU WDATA", s_wdata[0 +: `XLEN], PTE_DATA);
     tick();
-    tb_check1("slave accepted IFU AW", u_xbar.wr_aw_sent_q[0], 1'b1);
-    tb_check1("slave accepted IFU W", u_xbar.wr_w_sent_q[0], 1'b1);
+    tb_check1("slave accepted IFU AW", u_crossbar.wr_aw_sent_q[0], 1'b1);
+    tb_check1("slave accepted IFU W", u_crossbar.wr_w_sent_q[0], 1'b1);
 
-    // B pending 时 flush；同时把 M1 写排队到 xbar master-side hold。
+    // B pending 时 flush；同时把 M1 写排队到 crossbar master-side hold。
     mmu_flush = 1'b1;
     tick();
     mmu_flush = 1'b0;
@@ -330,7 +330,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
     lsu_awvalid = 1'b0;
     lsu_wvalid = 1'b0;
 
-    // 关键 RED：旧 bridge 已撤 BREADY，xbar owner 永不释放；修复后本拍消费 B。
+    // 关键 RED：旧 bridge 已撤 BREADY，crossbar owner 永不释放；修复后本拍消费 B。
     s_bvalid[0] = 1'b1;
     s_bresp[1:0] = 2'b00;
     #1;
@@ -340,7 +340,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
     s_bvalid[0] = 1'b0;
     #1;
     tb_check1("IFU bridge drops to IDLE after B", u_bridge.state_q == S_IDLE_TB, 1'b1);
-    tb_check1("xbar releases IFU write owner", u_xbar.wr_active_q[0], 1'b0);
+    tb_check1("xbar releases IFU write owner", u_crossbar.wr_active_q[0], 1'b0);
 
     // 外部进展判据：不能只看 internal owner bit；后一 master 必须真的到 slave。
     waits = 0;
@@ -367,7 +367,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
       tick();
       s_bvalid[0] = 1'b0;
       #1;
-      tb_check1("xbar releases later owner", u_xbar.wr_active_q[0], 1'b0);
+      tb_check1("xbar releases later owner", u_crossbar.wr_active_q[0], 1'b0);
     end
 
     $display("[IFU-AXI-G1-XBAR] ifu_b_owner_release=1 later_master_progress=1 later_master_payload=1 later_master_b=1 PASS");

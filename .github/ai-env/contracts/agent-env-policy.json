@@ -45,6 +45,36 @@
     ],
     "allow_mcp_servers": false
   },
+  "lightweight_workflow": {
+    "instruction": ".github/instructions/agent-lightweight-workflow.instructions.md",
+    "controller_source": "scripts/agent-flow.c",
+    "controller_entry": "scripts/agent-flow.sh",
+    "state_root": ".github/runtime-artifacts/agent-flow",
+    "task_classes": [
+      "review",
+      "analysis",
+      "docs",
+      "development",
+      "verification",
+      "environment",
+      "longrun",
+      "cleanup",
+      "release"
+    ],
+    "overhead_target_percent_approx": 40,
+    "overhead_target_blocks_delivery": false,
+    "gate_frequency": "goal-round-finish-only",
+    "changed_path_source": "explicit-agent-flow-log",
+    "git_worktree_enumeration": false,
+    "read_only_review_runs_guard": false,
+    "task_run_modes": [
+      "none",
+      "compact",
+      "durable"
+    ],
+    "private_token_reasoning_archived": false,
+    "structured_engineering_decision_trace": true
+  },
   "retention": {
     "db_owned_markdown_must_be_shim": true,
     "task_run_markdown_archive": true,
@@ -123,14 +153,15 @@
     ]
   },
   "observability": {
-    "task_run_report_required": true,
+    "task_run_report_required": false,
+    "task_run_policy": "class-dependent-none-compact-durable",
     "trace_id_required": true,
     "run_manifest_required": true,
     "observability_contract": ".github/ai-env/contracts/agent-env-observability.json",
     "profile_resolve_required": true,
     "evidence_index_required": true,
-    "memory_update_required": true,
-    "branch_health_report_required": true
+    "memory_update_required": false,
+    "branch_health_report_required": false
   },
   "branch_health": {
     "dashboard": ".github/ai-env/contracts/agent-env-branch-health.json",
@@ -159,9 +190,8 @@
     "required_commands": [
       "python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/stored-snapshot --yes",
       "python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes",
-      "scripts/agent-maintain.sh --mode check",
-      "scripts/agent-e2e.sh --validate-all-profiles",
-      "python3 scripts/github_index_db.py delivery-audit"
+      "scripts/agent-maintain.sh --mode final",
+      "scripts/agent-maintain.sh --mode release"
     ],
     "nightly_required": true
   }

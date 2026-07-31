@@ -79,6 +79,19 @@ void vaddr_ifetch_cache_invalidate_paddr(paddr_t addr, uint32_t len);
 word_t vaddr_read(vaddr_t addr, int len);
 //写数据
 void vaddr_write(vaddr_t addr, int len, word_t data);
+
+/*
+ * 原子访存必须在一次完整的 MMU/PMP/PMA 检查后使用同一翻译结果完成。
+ * 调用方负责先检查自然对齐；返回 false 表示 fault 已进入 vaddr pending 通道。
+ */
+typedef word_t (*vaddr_atomic_compute_t)(word_t old_value, const void *opaque);
+bool vaddr_atomic_load_reserved(vaddr_t addr, int len,
+    word_t *value, paddr_t *paddr);
+bool vaddr_atomic_store_conditional(vaddr_t addr, int len, word_t data,
+    bool reservation_valid, paddr_t reservation_paddr, bool *stored);
+bool vaddr_atomic_rmw(vaddr_t addr, int len, vaddr_atomic_compute_t compute,
+    const void *opaque, word_t *old_value);
+
 void vaddr_set_fault(word_t cause, vaddr_t tval);
 bool vaddr_take_fault(word_t *cause, vaddr_t *tval);
 

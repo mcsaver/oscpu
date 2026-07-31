@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11l-retry-holder-experiment-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooIntBackend 的 mem_retry0_* 与 mem_retry1_* 双 lane LOAD retry holder 生命周期判别实验，判断其是否足以区分当前 RTL 正确、ProducerId/token 跨 lane 混接、backpressure 保持失败、request-fire 迁移失败和 cancel terminal 失败。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/subagent-contracts/v11l-retry-holder-experiment-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 OooIntBackend.v SHA-256 为 49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a；retry0/1 在 exact SQ replay capture 时分别锁存本 lane MIQ 的 full ProducerId、owner token/kind/epoch 与 payload。",
+      "holder 在 mem_req_ready_i 或 mem1_req_ready_i 反压期间保持；request fire 时 valid 清零且同沿把 exact LOAD tuple push 回对应 MIQ；flush_i、checkpoint_restore_apply_w 或更年轻分支恢复会产生 lane10/11 exact collector terminal 并清 holder。",
+      "旧 V9R 仅证明 C0 full-flush barrier 阻断两路 retry READY/capture/fire，baseline 2/2 PASS 且 bank0/bank1/bridge 三个编译成功负向 RTL 版本被拒绝；它未闭合完整 holder 生命周期或 raw tuple 负向覆盖。",
+      "候选实验以 reset 后确定的 ProducerId/owner-token 分配序列为 stimulus-owned expected state，分别让 bank0 与 bank1 产生 SQ replay capture，检查 capture 后 full ProducerId/token/kind/epoch/payload、连续反压保持、request-fire 输出与 next-cycle MIQ residency、response terminal 后 tracker death，并重建 holder 检查 flush cancel 的 lane10/11 collector acceptance 与 next-cycle death。",
+      "四个 release-mode 编译成功负向 RTL 版本分别把 retry0 ProducerId、retry0 token、retry1 ProducerId、retry1 token 的 capture source 改接到对侧 lane；testbench 不使用 retry holder DUT 输出构造 expected tuple，必须由定向 marker 拒绝每个版本。"
+    ]
+  },
+  "deliverables": [
+    "给出竞争假设、逐周期反例、oracle 独立性检查、缺失覆盖与最小修订建议，并明确结论范围、unknowns、替代假设、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "结论必须逐项判断 capture、hold、C0 pause、request-fire transfer、response terminal、flush cancel、双 lane tuple distinguishability 与四个 release-mode 负向 RTL 版本的可判别性；若存在假绿路径，给出可落成 testbench 或变异的精确修订。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

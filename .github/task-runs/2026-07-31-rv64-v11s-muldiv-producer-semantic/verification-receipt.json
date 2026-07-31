@@ -1,0 +1,210 @@
+{
+  "schema": "rv64-v11s-verification-receipt-v1",
+  "run_id": "2026-07-31-rv64-v11s-muldiv-producer-semantic",
+  "generated_at_utc": "2026-07-31T03:09:37Z",
+  "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow",
+      "documentation/metadata"
+    ]
+  },
+  "evidence_state": {
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "evidence_scope": [
+      "A3 frozen DUT execution and terminal transaction",
+      "A3 versioned checker replay",
+      "V11S muldiv-producer directed lifecycle"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "mixed",
+    "changed_files": [
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+      "npc/rv64/testbench/scripts/run_v11s_muldiv_producer_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11s_muldiv_producer_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json"
+    ],
+    "changed_modules": [
+      "V11S directed testbench overlay only"
+    ],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "Verification harness, offline graph/ledger tooling and metadata only. Production OooIntBackend, OooMulDivUnit and define identities are unchanged; no V11S file participates in the frozen A3 execution."
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "elaborated_rtl_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "simulation_top_id": "bound-by-a3-checker-replay-v2",
+    "device_model_id": "no-drift-by-a3-checker-replay-v2",
+    "host_harness_id": "diagnostic-observation-only-delta",
+    "simulator_semantics_id": "sha256:dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+    "checker_oracle_id_old": "sha256:83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+    "checker_oracle_id_new": "sha256:1cb1c6b9e9c7440447dd3fa3f0759938e9d5e4aede90d87357676f32c71fbbe6",
+    "guest_payload_id": "sha256:c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a",
+    "boot_artifact_id": "sha256:2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9",
+    "test_input_log_id": "sha256:4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0",
+    "run_configuration_id": "sha256:63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "raw_artifact_bundle_id": "a3-checker-replay-v2:5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8"
+  },
+  "design": {
+    "current_v11s_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "production_rtl_modified": false,
+    "ooo_int_backend_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "ooo_muldiv_unit_sha256": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+    "define_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+  },
+  "focused": {
+    "summary": "evidence/focused-attempt-4/summary.json",
+    "summary_sha256": "2eb4984961fe34bdac751ae2dfb455de7c9256dd03bab4c31e25de0948a8e93b",
+    "profiles_pass": 22,
+    "profiles_total": 22,
+    "baseline_pass": 4,
+    "baseline_total": 4,
+    "compile_success_mutation_profiles_rejected": 18,
+    "compile_success_mutation_profiles_total": 18,
+    "ordinary_regressions_pass": 4,
+    "ordinary_regressions_total": 4,
+    "source_pre_post_match": true,
+    "runner_unit_pass": 10,
+    "runner_unit_total": 10
+  },
+  "aggregate": {
+    "graph_unit_pass": 19,
+    "graph_unit_total": 19,
+    "census_unit_pass": 15,
+    "census_unit_total": 15,
+    "replay_unit_pass": 6,
+    "replay_unit_total": 6,
+    "semantic_unit_pass": 85,
+    "semantic_unit_total": 85,
+    "combined_gate_rc": 0,
+    "combined_gate_stdout_sha256": "2934233ee184031f94025300bd824170c667496836989a0360c7aa3d0e20d216",
+    "final_static_gate_rc": 0,
+    "final_static_stdout_sha256": "3dce71d8d06e8fba03b154bcd88ab87d1a78e588f736c016872af91c21f934a8"
+  },
+  "graph_and_ledger": {
+    "holder_graph_sha256": "bc77764cc3367fdbf28c0babe90f12c56ef527c382d1ac8b44a49a9fdc7ef62d",
+    "frozen_graph_audit_sha256": "dc638594e064d18b0d965291ef8f9e514bbab9442d9629347b32de160a2312af",
+    "holder_modules": 15,
+    "holder_instances": 17,
+    "duplicate_modules": 2,
+    "reachable_modules": 194,
+    "ledger": "evidence/ledger-attempt-9/producer-holder-semantic-coverage.json",
+    "ledger_sha256": "80d50ba80916a4823479748cfa69dc4ecea1a4025abf50ff3414caa0a7205944",
+    "semantic_units": 44,
+    "bindings": 50,
+    "pass": 35,
+    "gap": 9,
+    "promoted_units": [
+      "muldiv-producer"
+    ],
+    "remaining_gaps": [
+      "clmul-producer",
+      "fp-arith-stage-producers",
+      "fp-done-fifo-producers",
+      "fp-exec1-packed-alias",
+      "fp-exec1-packet",
+      "fp-iq-producers",
+      "fp-issue-packet",
+      "fp-long-producer",
+      "pending-system-producer"
+    ],
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  },
+  "replay": {
+    "source_run_id": "rootfs-c1b531-systemd-strict-6b-a3",
+    "source_raw_log_sha": "4cd087fc5ef5d466d6232987fecaf3765db5dc93dfe28366401e2da4501c60f0",
+    "source_input_sha": "22ad3013e16d4236569f3fd43a0eefd3d24e03d67412b2cb08ed49e8614643e1",
+    "replay_command": "python3 .github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay/replay-a3-checker.py",
+    "replay_result": "PASS",
+    "proven_scope": [
+      "A3 system transaction completed",
+      "legacy BUG token regex produced a false positive on printk: debug:",
+      "new bounded BUG token accepts printk: debug:",
+      "new bounded BUG token rejects a real BUG: fixture"
+    ],
+    "unproven_scope": [
+      "modified production RTL execution",
+      "new guest or boot artifact behavior",
+      "new device model or simulator execution semantics",
+      "unrecorded internal cycle contracts"
+    ],
+    "limitations": [
+      "A3 original FAIL remains immutable",
+      "checker replay does not qualify architecture or PPA"
+    ]
+  },
+  "cost": {
+    "expected_wallclock": "V11S directed attempts under 30 minutes",
+    "historical_runtime_reference": "A3 approximately 19 hours; 5,071,521,696 cycles",
+    "runtime_estimate_confidence": "HIGH",
+    "single_flight_resource": "Windows-to-WSL engineering lane",
+    "expected_occupancy": "minutes for bounded V11S gates; zero A4 occupancy",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "frozen A3 checker replay",
+      "directed V11S RTL TB",
+      "compile-success semantic mutations",
+      "current graph and ledger evaluation"
+    ],
+    "stop_condition": "Stop and reclassify on production RTL drift, baseline failure, surviving mutation, assertion fire, evidence binding mismatch or duplicate WSL lane owner."
+  },
+  "review": {
+    "reviewer_conclusion": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "review_state": "PASS_BOUNDED",
+    "contract": "subagent-contracts/v11s-muldiv-producer-final-review.json",
+    "contract_sha256": "11c12f24688d9570081c3940ac04e9dbde7d21cb7860aa900986219816eba378",
+    "blockers": 0,
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED"
+  },
+  "environment": {
+    "brief_post_memory": "complete",
+    "brief_post_memory_sha256": "52fc64e0f6a9faf479d44ec55327815a90e1b996d5e0c2c13f2821792d85a6db",
+    "e2e_run_id": "2026-07-31-OooMulDivUnit-producer-lifecycle-revtag-v11s",
+    "e2e_profile": "npc-dev",
+    "e2e_nodes_pass": 5,
+    "e2e_nodes_total": 5,
+    "scoped_strict_guard_rc": 0,
+    "scoped_strict_guard_sha256": "3066e19bcd04eab40db04707c2ed4a8f62e54cdff4d7e9a524602bbd8fbd16c5",
+    "full_worktree_guard_rc": 1,
+    "full_worktree_gap": "nemu/src/isa/riscv64/inst/amo.c requires out-of-scope nemu-dev evidence",
+    "full_worktree_guard_sha256": "ac38d764fbf70a43a0563f1c6e539256ef0c03674ddf3fa8e28ae7ed6630942e",
+    "raw_evidence_retention": "INDEX_ONLY",
+    "raw_evidence_index_status": "PASS",
+    "raw_evidence_asset_count": 985,
+    "raw_evidence_total_size_bytes": 1165310081,
+    "task_document_publication": "PASS_MATERIALIZE_BYTE_EXACT",
+    "db_first_audit": "PASS",
+    "db_first_audit_sha256": "951f30c116a7cf8aa03037386a7b0b70cc45f56216c06c168118496bcd8c4818",
+    "markdown_coverage_audit": "PASS_LIVE_EVIDENCE_ZERO",
+    "markdown_coverage_audit_sha256": "175ed51a8f540d98045d28207954900f4a1e705b354d4a36c23ab0dd5d5d6203",
+    "runtime_artifact_audit": "PASS_TRACKED_HEAVY_FILES_ZERO",
+    "runtime_artifact_audit_sha256": "fbfb73d5d4062bacd97cb0743d87c523875e4dea9f60e6a8cb0e3f272446e9e7"
+  }
+}

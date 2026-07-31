@@ -43,10 +43,10 @@ static inline bool exec_zb_op_imm(uint32_t inst, int rd, word_t src1) {
         if (imm5 != 0x07) return false;
         R(rd) = orc_b_xlen(src1);                               // orc.b
         return true;
-      case 0x34:
       case 0x35:
         if (imm5 != 0x18) return false;
-        R(rd) = rev8_xlen(src1);                                // rev8
+        // RV64 REV8 的 imm[11:0]=0x6b8；0x698 是 RV32 专属编码。
+        R(rd) = rev8_xlen(src1);                                // rev8 (RV64)
         return true;
       default:
         return false;
@@ -57,6 +57,7 @@ static inline bool exec_zb_op_imm(uint32_t inst, int rd, word_t src1) {
 }
 
 static inline bool exec_zb_op(uint32_t funct3, uint32_t funct7, int rd, int rs2, word_t src1, word_t src2) {
+  (void)rs2; // 保留 unity-build/译码缓存共享签名；RV64 Zbb 的 OP 类不再需要检查 RV32 ZEXT.H 的 rs2。
   switch (OP_KEY(funct3, funct7)) {
     case OP_KEY(0x2, 0x10): R(rd) = (src1 << 1) + src2; return true; // sh1add
     case OP_KEY(0x4, 0x10): R(rd) = (src1 << 2) + src2; return true; // sh2add
@@ -77,10 +78,6 @@ static inline bool exec_zb_op(uint32_t funct3, uint32_t funct7, int rd, int rs2,
     case OP_KEY(0x1, 0x24): R(rd) = src1 & ~((word_t)1 << SHAMT_XLEN(src2)); return true;     // bclr
     case OP_KEY(0x5, 0x24): R(rd) = (src1 >> SHAMT_XLEN(src2)) & 1u; return true;             // bext
     case OP_KEY(0x1, 0x34): R(rd) = src1 ^ ((word_t)1 << SHAMT_XLEN(src2)); return true;      // binv
-    case OP_KEY(0x4, 0x04):
-      if (rs2 != 0) return false;
-      R(rd) = src1 & 0xffffu;                                      // zext.h
-      return true;
     default:
       return false;
   }

@@ -1,0 +1,116 @@
+{
+  "schema": "rv64-round-start-v1",
+  "run_id": "2026-07-31-rv64-v11s-muldiv-producer-semantic",
+  "created_at_utc": "2026-07-31T00:08:35Z",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow",
+      "documentation/metadata"
+    ]
+  },
+  "scope": {
+    "mechanism": "muldiv-producer-lifecycle",
+    "module": "OooMulDivUnit",
+    "product_instance": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_muldiv_unit",
+    "holder_signal": "producer_id_q",
+    "integration_module": "OooIntBackend",
+    "semantic_unit": "muldiv-producer"
+  },
+  "git": {
+    "repo_root": "/home/lyg/PA/ysyx-workbench",
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "staged_paths": [],
+    "worktree_state": "MIXED_DIRTY_PRESERVE_EXISTING_CHANGES",
+    "production_rtl_modified_at_round_start": false
+  },
+  "original_evidence": {
+    "architecture_debt": "muldiv-producer",
+    "status": "SEMANTIC_LIFECYCLE_NOT_CLOSED",
+    "candidate_evidence": "v8h-leaf-source-and-tb-match",
+    "candidate_scope": "PARTIAL",
+    "gap_classifications": [
+      "CURRENT_FULL_DESIGN_REPLAY_GAP",
+      "PRODUCT_INSTANCE_PATH_OBSERVATION_GAP",
+      "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
+      "SEMANTIC_LIFECYCLE_NOT_CLOSED"
+    ],
+    "authoritative_prior_ledger": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "authoritative_prior_ledger_sha256": "53999f711c91f076ce3f2e6014a383970d308c5958853db379bc4e46c124cec7",
+    "authoritative_prior_counts": {
+      "semantic_units": 44,
+      "pass": 34,
+      "gap": 10
+    },
+    "live_ledger_observation": {
+      "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "sha256": "587b4f1562de0c053597994991e2af695fd267e4466261ba1c7c29e6e281f097",
+      "counts": {
+        "semantic_units": 44,
+        "pass": 29,
+        "gap": 15
+      },
+      "classification": "STALE_PRE_V11Q_V11R_MATERIALIZATION_PENDING_REBUILD"
+    }
+  },
+  "hypotheses": {
+    "primary": "Current integrated V8N MulDiv traffic preserves the stimulus-owned full ProducerId from issue acceptance through the variable-latency holder, authorized completion, ordered retirement and terminal release; the remaining GAP is missing current product-path and mutation evidence.",
+    "competing": [
+      "The current integrated scenario observes only data/ROB-index behavior and is insensitive to generation-bit corruption.",
+      "The holder releases early or changes identity under younger dual-issue traffic without the existing positive test detecting it.",
+      "The current RTL contains a production lifecycle defect and must be reclassified before ledger promotion."
+    ],
+    "highest_information_gain_experiment": "Run the current OooIntBackend V8N MulDiv path for PRODUCER_GEN_W=1 and 4 with assertions enabled and released, then execute compile-success semantic mutations at capture, hold, completion authorization and terminal release boundaries."
+  },
+  "semantic_delta": {
+    "classification": "documentation-or-metadata-only",
+    "changed_files": [
+      ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/round-start.json"
+    ],
+    "changed_modules": [],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "Round-start metadata only; no Verilog/SystemVerilog or test execution semantics changed."
+  },
+  "cost": {
+    "run_class": "directed-low-cost",
+    "expected_wallclock": "under 30 minutes",
+    "runtime_estimate_confidence": "MEDIUM",
+    "single_flight_resource": "Windows-to-WSL engineering lane",
+    "single_flight_state": "AVAILABLE",
+    "expected_occupancy": "minutes per bounded attempt",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "source inspection",
+      "frozen V11R ledger comparison",
+      "current V8N marker audit"
+    ],
+    "stop_condition": "Stop and reclassify if the unmodified baseline fails, an assertion fires, a compile-success mutation survives, production RTL identity drifts, or another WSL engineering process takes the lane."
+  },
+  "system_evidence": {
+    "source_run": "A3",
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "replay_result": "A3_SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE"
+  },
+  "promotion": {
+    "semantic_unit": "PENDING_DISCRIMINATING_EXPERIMENT",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  }
+}

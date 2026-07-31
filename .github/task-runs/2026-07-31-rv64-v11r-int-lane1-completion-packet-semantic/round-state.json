@@ -1,0 +1,28 @@
+{
+  "schema": "rv64-round-state-v1",
+  "run_id": "2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic",
+  "updated_at_utc": "2026-07-30T23:43:16Z",
+  "mechanism": "integer-lane1-completion-packet",
+  "implementation_state": "PASS",
+  "focused_verification_state": "PASS",
+  "semantic_ledger_state": "GAP",
+  "semantic_counts": {
+    "units": 44,
+    "pass": 34,
+    "gap": 10,
+    "holder_instances": 17,
+    "bindings": 50
+  },
+  "review_state": "PASS_BOUNDED",
+  "memory_state": "PASS_RECALL_COMPLETE",
+  "e2e_state": "PASS_NPC_DEV_5_OF_5",
+  "guard_state": "SCOPED_PASS_FULL_WORKTREE_OUT_OF_SCOPE_NEMU_GAP",
+  "evidence_process_state": "GAP_EARLY_DIAGNOSTIC_ARTIFACTS_NOT_IMMUTABLE",
+  "architecture_state": "RED",
+  "system_state": "A3_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+  "system_rerun_state": "NOT_REQUIRED",
+  "ppa_state": "UNPROMOTED",
+  "production_rtl_modified": false,
+  "bounded_verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "next_semantic_gap_count": 10
+}

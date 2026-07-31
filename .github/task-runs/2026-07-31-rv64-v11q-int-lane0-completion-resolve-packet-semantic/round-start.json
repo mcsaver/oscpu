@@ -1,0 +1,124 @@
+{
+  "schema": "rv64-round-start-v1",
+  "run_id": "2026-07-31-rv64-v11q-int-lane0-completion-resolve-packet-semantic",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "mechanism": "integer-lane0-completion-resolve-paired-packet",
+    "rtl_modules": [
+      "OooIntBackend",
+      "PipeStageReg"
+    ],
+    "signals": [
+      "ex0_up_payload_w",
+      "ex0_down_payload_w",
+      "ex0_producer_id_q",
+      "branch_resolve_up_payload_w",
+      "branch_resolve_down_payload_w",
+      "branch_resolve_payload_producer_id_w",
+      "branch_resolve_raw_ex0_coherent_w"
+    ],
+    "semantic_units": [
+      "integer-ex0-packed-alias",
+      "integer-ex0-packet",
+      "branch-resolve-packet"
+    ],
+    "excluded_this_round": [
+      "integer-ex1-packed-alias",
+      "integer-ex1-packet",
+      "production RTL modification",
+      "full-system rerun",
+      "formal PPA"
+    ]
+  },
+  "repository": {
+    "branch": "ai",
+    "head_sha": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "staged_path_count": 0,
+    "worktree_state": "MIXED_DIRTY_PRESERVE",
+    "production_rtl": {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a"
+    },
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043"
+  },
+  "original_evidence": {
+    "candidate_id": "v8l-current-global-subset",
+    "binding_state": "HISTORICAL_FULL_RTL_BOUND",
+    "scope": "PARTIAL",
+    "open_classifications": [
+      "RAW_IDENTITY_NEGATIVE_COVERAGE_GAP",
+      "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
+      "SEMANTIC_LIFECYCLE_NOT_CLOSED",
+      "UNIT_LIFECYCLE_COVERAGE_GAP"
+    ]
+  },
+  "debt": {
+    "ids": [
+      "integer-ex0-packed-alias",
+      "integer-ex0-packet",
+      "branch-resolve-packet"
+    ],
+    "architecture_state": "RED",
+    "promotion_state": "NOT_ELIGIBLE",
+    "ppa_state": "UNPROMOTED"
+  },
+  "hypotheses": {
+    "primary": "Current lane0 ALU/control-flow issue preserves one full ProducerId and its semantic payload through the EX0 completion packet and the paired branch-resolve packet, with exact next-cycle raw coherence and fail-closed cancellation.",
+    "competing": [
+      "A generation or raw-index field is truncated or mis-sliced while the low-index-only historical checks still pass.",
+      "The resolve packet is authorized by a semantic completion signal rather than the raw EX0 registered holder, creating a feedback-dependent or stale-identity escape.",
+      "A flush or checkpoint death edge masks public outputs but leaves an effective packet capability live.",
+      "Historical V8L/V8J evidence is correct for its bound source but cannot establish current selected-source lifecycle sensitivity."
+    ]
+  },
+  "experiment": {
+    "highest_information_gain": "Compile current selected RTL and focused TB for PRODUCER_GEN_W=1 and 4; use a stimulus-owned generation=1, nonzero-index ProducerId; observe EX0 and resolve packet birth, next-cycle full-width payload, raw coherence, authorization, one-cycle death, and flush masking; then require compile-success release-mode mutations to fail at one exact oracle stage.",
+    "observations": [
+      "dispatch ProducerId",
+      "EX0 up/down valid and full ProducerId",
+      "EX0 result and destination payload",
+      "resolve up/down valid and full ProducerId",
+      "resolve PC/next-PC/control payload",
+      "raw EX0/resolve coherence",
+      "ROB exact-open authorization",
+      "public resolve and EX0 completion suppression on death edges"
+    ],
+    "controls": [
+      "release and OOO_ASSERT baselines",
+      "two ProducerId generation widths",
+      "four-state exact comparisons",
+      "source pre/post SHA manifests",
+      "independent product-instance graph binding",
+      "ordinary integer-backend regressions"
+    ],
+    "expected_difference": "Production baselines pass. Each semantic mutation compiles successfully and is rejected only by its declared focused oracle stage.",
+    "stop_condition": "Stop before any production RTL edit if current baselines and all mutations close the three verification units; reclassify to production RTL fix immediately if a current baseline exposes a real RTL mismatch."
+  },
+  "cost": {
+    "expected_wallclock": "10-30 minutes",
+    "runtime_estimate_confidence": "MEDIUM",
+    "single_flight_resource": "Windows-to-WSL engineering command lane",
+    "single_flight_state": "UNOCCUPIED_AT_ROUND_START",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "Current-source replay of V8F and V8J only; rejected as insufficient because it does not prove mutation sensitivity for the packed field boundaries."
+    ]
+  },
+  "system_evidence": {
+    "a3_published_gate_state": "FAIL_PRESERVED",
+    "a3_execution_state": "COMPLETE",
+    "a3_dut_terminal_state": "COMPLETE",
+    "a3_binding_state": "NO_DRIFT",
+    "a3_rtl_assertion_state": "CLEAN",
+    "a3_oracle_state": "OLD_ORACLE_INVALID",
+    "a3_checker_replay_state": "PASS_INDEPENDENT_EVIDENCE",
+    "full_system_rerun_required_for_this_round": false,
+    "launch_authorization_state": "NOT_REQUIRED"
+  }
+}

@@ -22,13 +22,14 @@ python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task
 ## Gate
 
 ```bash
-python3 scripts/github_index_db.py policy-audit
-python3 scripts/github_index_db.py schema-audit
-python3 scripts/github_index_db.py artifact-audit
-python3 scripts/github_index_db.py delivery-audit
-scripts/agent-e2e.sh --validate-all-profiles
-scripts/agent-maintain.sh --mode check
+scripts/agent-flow.sh classify
+scripts/agent-maintain.sh --mode quick
+scripts/agent-maintain.sh --mode final
+scripts/agent-maintain.sh --mode release
 ```
+
+日常修改由 C 调度器按显式路径选择具体 audit pointer；上述 `final/release` 只在目标轮次或发布边界
+运行，不在普通 review 和每次编辑后重复执行。
 
 ## 产物边界
 

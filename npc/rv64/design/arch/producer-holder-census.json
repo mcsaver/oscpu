@@ -18,7 +18,6 @@
     "schema_version": "rv64-producer-holder-instance-graph-v1",
     "top_module": "NpcTop",
     "product_config": {
-      "schema": "npc-rv64-product-rtl-config-v1",
       "defines": {
         "OOO_CSR_QUEUE_HEAD": "1",
         "OOO_TERMINAL_HOLDER_ASSERT": "1"
@@ -27,12 +26,9 @@
         {
           "path": "npc/rv64/configs/product-rtl-defaults.mk",
           "sha256": "7b3b4b571366d6c70600ff0a5fd27624753d7153c6576f2a980ced31af0d8154"
-        },
-        {
-          "path": "npc/rv64/Makefile",
-          "sha256": "c4bb4cc06a979abc2ce99d951a52bc2e259ab9f70127c534f2c1dbc7daf024f8"
         }
-      ]
+      ],
+      "schema": "npc-rv64-product-rtl-config-v1"
     },
     "instances": [
       {
@@ -107,28 +103,28 @@
     "evidence": {
       "result": {
         "kind": "holder_instance_graph_result",
-        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/holder-instance-graph.json",
-        "sha256": "e422d75d4498b53d3fd1d1a8332a87e730da9fb16740339b9d22400d925872e8"
+        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/holder-instance-graph.json",
+        "sha256": "819a15d84375341cad18ba50e5e7ce660925c41550626bd65e1710dc3ef38bf3"
       },
       "receipt": {
         "kind": "holder_instance_graph_receipt",
-        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph-receipt.json",
-        "sha256": "f3f0a78f772b1ed3ebed5c45ef88b33767009bad16b41b51a71f7c230712ff76"
+        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+        "sha256": "24f63cca669b88c92e014b634c85f6c3aea6f9bc5967644351caf1b2e422dee0"
       },
       "full": {
         "kind": "holder_instance_graph_yosys_canonical_full_json_gzip",
-        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.full.json.gz",
-        "sha256": "1dc0056a125746ac10b937e733774a54802aeef9ac0c59d2ad37498482f15214"
+        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+        "sha256": "1fbb781acb509e30fa919c57f318f2a85df3ceac28ede21312400243c1dc4d89"
       },
       "script": {
         "kind": "holder_instance_graph_yosys_script",
-        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.ys",
-        "sha256": "be9ba9f96f7c4e4d90a0b6e1c910cdf6da27a91427fe7d956fe0ae8c4bfd7890"
+        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
+        "sha256": "ba7cd306a1bed385f3d5f76c15aa9ac5de661d7165040641600fa19c117ea601"
       },
       "log": {
         "kind": "holder_instance_graph_yosys_log",
-        "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/yosys-instance-graph.log",
-        "sha256": "3869b0fe0ac8b00604b3e975b33475962afe3abc07a56e985ab891042f24ddde"
+        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.log",
+        "sha256": "5f610f717d956c20c9ffdf26c8a1a52fb4e3450dac44a3f96db0912be8cd483b"
       }
     }
   },
@@ -705,7 +701,7 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f",
+  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {

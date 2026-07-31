@@ -1,0 +1,5 @@
+2026-07-31T08:41:58Z	decision	RV64A按当前单hart平台闭合：PMEM声明AMOArithmetic+RsrvEventual，设备窗口声明AMONone+RsrvNone；不把串行解释器结果外推为多hart cache-coherent实现。	nemu/src/memory/paddr.c
+2026-07-31T08:41:58Z	decision	LR/SC/AMO必须在一次checked translation后复用同一物理地址事务；SC即使reservation无效也完成store/AMO权限检查并在成功、失败、异常后清reservation。	nemu/src/memory/vaddr.c
+2026-07-31T08:41:58Z	counterexample	旧实现以Mr后Mw拼接AMO会把AMO权限失败误报load fault，并可能触发MMIO读副作用；旧失败SC跳过权限检查且fault路径残留reservation。	nemu/src/isa/riscv64/inst/amo.c
+2026-07-31T08:41:58Z	note	全量NEMU回归排除源码内明确标注为NPC-only且与NEMU有意分歧的sv39-xpage-misalign；其余59项全部PASS，该排除不计作A扩展通过证据。	am-kernels/tests/cpu-tests/tests/sv39-xpage-misalign.c
+2026-07-31T08:45:41Z	decision	Reviewer PASS: checked illegal-encoding precedence, natural alignment, single checked translation, store-class AMO faults, failed-SC permission checks, reservation invalidation on successful/failed/faulting SC, physical-address alias matching, PMEM-only atomic PMA, and .W sign-extension/source truncation; no unresolved counterexample in current single-hart NEMU scope.	.github/runtime-artifacts/agent-flow/2026-07-31-nemu-rv64a-complete/verification-summary.txt

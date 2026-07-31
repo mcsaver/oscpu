@@ -359,7 +359,7 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
         root, root / "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
     ).read_text(encoding="utf-8")
     xbar = safe_file(
-        root, root / "npc/rv64/vsrc/bus/AxiXbar.v"
+        root, root / "npc/rv64/vsrc/bus/AxiCrossbar.v"
     ).read_text(encoding="utf-8")
     bridge_tb = safe_file(
         root, root / "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv"
@@ -410,7 +410,7 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
         "        if (m_wvalid_i[m] && m_wready_r[m]) begin",
     )
     if any(xbar.count(anchor) != 1 for anchor in xbar_anchors):
-        raise ValueError("AxiXbar write-owner topology anchor drifted")
+        raise ValueError("AxiCrossbar write-owner topology anchor drifted")
 
     bridge_tb_anchors = (
         "[IFU-AXI-G1-FOCUSED]",
@@ -448,7 +448,7 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     if any(
         generic_xbar_tb.count(anchor) != 1 for anchor in generic_xbar_anchors
     ):
-        raise ValueError("AxiXbar backpressure/skew oracle anchor drifted")
+        raise ValueError("AxiCrossbar backpressure/skew oracle anchor drifted")
     return {
         "bridge_write_owner_excludes_ordinary_flush_clear": True,
         "bridge_aw_w_valid_are_independent_done_gated": True,
@@ -468,7 +468,7 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 SOURCE_BINDING_PATHS = (
     "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/bus/AxiXbar.v",
+    "npc/rv64/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
@@ -521,7 +521,7 @@ def build(
         "canonical_command": CANONICAL_COMMAND,
         "scope": (
             "local RV64 instruction-fetch PTE A-update AW/W/B lifecycle "
-            "through OooFetchAxiBridge and AxiXbar"
+            "through OooFetchAxiBridge and AxiCrossbar"
         ),
         "metrics": metrics,
         "invariants": INVARIANTS,
@@ -565,7 +565,7 @@ def raw_summary(result: dict[str, Any]) -> str:
     variants = result["variant_audit"]
     module = result["module_aggregate"]
     bridge_source = "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
-    xbar_source = "npc/rv64/vsrc/bus/AxiXbar.v"
+    xbar_source = "npc/rv64/vsrc/bus/AxiCrossbar.v"
     return "\n".join((
         f"schema={result['schema']}",
         f"design_id={result['design_id']}",

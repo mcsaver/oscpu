@@ -2,15 +2,26 @@
 
 本文件定义 AI 开发环境重做任务的 Agent 层状态机。它把报告中提到的 FSM、state traceback、reviewer/inspector 和验证器要求，收敛成当前仓库可执行的最小规则。
 
+## 两级状态机
+
+- 普通 `review/analysis/docs/development/verification` 使用
+  `classify -> work -> verify -> finish`；只读 review/analysis 不进入 persist、profile 或 guard。
+- `environment/longrun/cleanup/release` 才使用下述七状态审计模型。状态由
+  `scripts/agent-flow.c` 的 event/decision/evidence log 汇总，目标轮次末尾一次性检查。
+- 下述完整 state traceback 是 durable/release/显式 agent-system task-run 的要求；compact task-run
+  只保存修改目录、验证证据、工程决策轨迹、选中门禁和 bounded log。
+
 ## 状态
 
 1. `recall_context`：读取 AGENTS、copilot instructions、memory、known issues、相关 instructions/skills 和当前 task-run 历史。
 2. `classify_layer`：把任务归类到 Database、Skill、Agent 或 cross-layer，不允许直接改快照目录当作 active config。
 3. `plan_graph`：选择 e2e profile 或定义本轮节点；跨层任务默认以 `agent-system` profile 留证。
 4. `implement`：按层落地修改。Database 只写入 retained memory/log stored document 与 backup；Skill 保持 live `SKILL.md`；Agent 修改 profile/script/policy/workflow 等活文件。
-5. `verify`：运行 `scripts/agent-maintain.sh --mode check`；触及 profile/e2e 时运行对应 `scripts/agent-e2e.sh --profile ...`。
+5. `verify`：用 `agent-flow evidence` 登记真实开发验证；目标末尾由 `finish` 按路径运行固定 gate。
+   AI 环境整轮审计使用 `agent-maintain --mode final`，release 使用 `--mode release`。
 6. `inspect`：由 `agent-system` 视角复核报告追踪矩阵、policy、retention、task-run report、profile resolve、关键 evidence 和 FAIL marker。
-7. `persist`：更新 `.github/memory/project-status.md` 和相关 module memory，刷新 retained DB backup/snapshot，并 stage 本轮产物。
+7. `persist`：生成 compact/durable task-run；只有稳定跨会话结论才更新 memory/DB。Git stage、DB
+   backup/snapshot 和完整 profile publication 不属于普通任务的默认动作。
 
 ## 回退
 
@@ -35,7 +46,8 @@
 
 - `ysyx-coordinator` 负责把用户目标映射到图任务和 domain agent。
 - `agent-system` 负责 inspector 职责：检查三层边界、policy、report matrix、e2e profile、task-run 证据和 memory 写回。
-- 每次交付前都要执行实现者/审查者双角色复核：实现者角色给出改动、证据、完成边界和豁免理由；审查者角色优先找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。冲突必须在最终回复、task-run 或 memory 中记录为“已由证据关闭”或“剩余风险/下一步”，不得静默吞掉。
+- 有落盘实现、跨模块结论、长跑或 release 时执行实现者/审查者双角色复核；纯代码 review/analysis
+  不追加同构二次审查。冲突记录为“已由证据关闭”或“剩余风险/下一步”。
 - domain agents 只负责各自模块执行，不负责关闭整个 AI 环境重做目标。
 - `agent-system` profile 必须执行 `state-machine-traceback` 节点，验证状态机和 `state_traceback` 字段进入 task-run 证据。
 - `agent-system` profile 必须执行 `reviewer-inspector-gate` 节点，验证 R7 被 review routing 映射到 `agent-layer`，且 `ysyx-coordinator`/`agent-system` 的 reviewer/inspector 关系不是只停留在文档。

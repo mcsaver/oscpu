@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11n-memory-pending-holder-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对已冻结的 V11N memory-pending holder 最小证据集进行独立终审，核对周期合同、oracle 独立性、mutation/回归计数、实例图和 A3 历史状态分离；不得扩大为整机或 PPA 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/focused-fullwidth-current/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/current-instance-graph/holder-instance-graph.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-gate.log",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/semantic-gate.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/a3-checker-replay-v2.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/subagent-contracts/v11n-memory-pending-holder-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/focused-fullwidth-current/summary.json",
+      ".github/task-runs/2026-07-30-rv64-v11n-memory-pending-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 bounded APPROVE 或 BLOCKED；按 RTL/证据对象→周期/配置→TB/EDA 观测→PASS/GAP 报告 blocker、unknowns 和最窄 scope_extension_request，并明确归还 WSL 命令权。"
+  ],
+  "success_criteria": [
+    "核实 4 baseline、13 mutation×2 generation widths=26、3 regression、lane0/lane9、dispatch lane1→execution terminal0、stimulus-owned full PID/token、15 modules/17 instances、27/44 PASS，以及 A3 original FAIL retained 与 independent replay PASS；不重跑命令、不改文件。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

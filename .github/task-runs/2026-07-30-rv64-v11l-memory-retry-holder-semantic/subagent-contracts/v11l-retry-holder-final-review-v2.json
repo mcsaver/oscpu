@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11l-retry-holder-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooIntBackend 的 mem_retry0_* 与 mem_retry1_* 双 lane LOAD retry holder 语义证据，复核 capture、hold、C0 pause、request-fire→MIQ transfer、response terminal、flush cancel 及四个 ProducerId/token 单元的 bounded semantic closure 是否成立。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/run_v11l_memory_retry_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11l_memory_retry_holder_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/focused-current",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11j-bridge-rebind-current",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11k-miq-rebind-current",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11h-attempt4-checker-replay-current/receipt.json",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/subagent-contracts/v11l-retry-holder-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出固定 verdict=APPROVED_FOR_CURRENT_SCOPE、GAP 或 REJECTED；逐项列出 RTL 对象、周期/编译配置、TB/EDA 观测、可操作反例、blockers、unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "核验 production OooIntBackend 设计身份未变化、V11L 34/34 profile 与 32 个 compile-success release 变体的精确 stage 拒绝、3/3 回归、V11J/V11K 共享 Makefile 重绑定、V11H frozen-input checker replay，以及 semantic ledger 仅四个指定单元从 GAP→PASS；任何哈希漂移、oracle 自引用、变体未实际编译、断言被削弱、重复 terminal 被掩盖或全局/PPA 越级结论均须返回 GAP/REJECTED。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

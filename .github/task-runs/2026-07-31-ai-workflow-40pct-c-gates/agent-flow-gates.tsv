@@ -1,0 +1,12 @@
+9	flow-self-test	PASS	853	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/flow-self-test.log
+9	skill-audit	PASS	101	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/skill-audit.log
+9	state-audit	PASS	101	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/state-audit.log
+9	delivery-audit	PASS	602	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/delivery-audit.log
+9	profile-bindings	PASS	501	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/profile-bindings.log
+9	policy-audit	PASS	652	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/policy-audit.log
+10	flow-self-test	PASS	952	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/flow-self-test.log
+10	skill-audit	PASS	100	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/skill-audit.log
+10	state-audit	PASS	100	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/state-audit.log
+10	delivery-audit	PASS	601	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/delivery-audit.log
+10	profile-bindings	PASS	451	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/profile-bindings.log
+10	policy-audit	PASS	100	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/gates/policy-audit.log

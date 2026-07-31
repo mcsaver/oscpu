@@ -1,0 +1,9 @@
+nemu/src/isa/riscv64/inst/amo.c
+nemu/src/memory/vaddr.c
+nemu/include/memory/vaddr.h
+nemu/src/memory/paddr.c
+nemu/include/memory/paddr.h
+am-kernels/tests/cpu-tests/tests/rv64a-amo.c
+.github/memory/project-status.md
+.github/memory/modules/nemu.md
+.github/memory/modules/am-kernels.md

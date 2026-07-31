@@ -1,0 +1,2 @@
+2026-07-31T08:50:40Z	counterexample	冻结引用路径未变化，但 reviewer/DB 只读访问改变 SQLite mtime/size，旧预检因此在 staged=0,index_updated=false,purged=0 处 fail-closed；改为比较完整引用路径集合 SHA 和精确文件引用集合 SHA。	.github/task-runs/2026-07-31-workspace-temp-untrack-cleanup-a2/evidence/cleanup-result.json
+2026-07-31T08:56:19Z	decision	清理边界固定为：task-run/runtime/系统输入不删；结果与日志保留；现存精确证据文件保留；目录级证据指针不再保留其下可复现 build；旧 Yosys 产品仅保留精确证据绑定项，未绑定完整产品最多保留最新一组。	.github/task-runs/2026-07-31-workspace-temp-untrack-cleanup-a2/evidence/cleanup-plan.json

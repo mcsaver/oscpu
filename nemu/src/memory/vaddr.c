@@ -647,6 +647,104 @@ static inline void vaddr_notify_write_committed(VaddrTranslateResult trans, int 
 #endif
 }
 
+static inline word_t vaddr_read_one_translated(vaddr_t addr, int len, int type,
+    VaddrTranslateResult trans) {
+  vaddr_last_read_trace_record(addr, len, trans.paddr);
+  word_t ret = MUXDEF(CONFIG_CACHE,
+      (type == MEM_TYPE_IFETCH ? icache_read(trans.paddr, len) : dcache_read(trans.paddr, len)),
+      vaddr_paddr_read_fast(trans, len));
+  if (type == MEM_TYPE_READ) {
+    vaddr_gdbstub_watchpoint_after_access(addr, len, false);
+  }
+  return ret;
+}
+
+static inline void vaddr_write_one_translated(vaddr_t addr, int len, word_t data,
+    VaddrTranslateResult trans) {
+#ifdef CONFIG_CACHE
+  dcache_write(trans.paddr, len, data);
+  bool host_fast = false;
+#else
+  vaddr_ifetch_cache_invalidate_write(trans, len);
+  bool host_fast = vaddr_write_host_fast_hit(trans);
+  vaddr_paddr_write_fast(trans, len, data);
+#endif
+  vaddr_notify_write_committed(trans, len);
+  vaddr_write_trace_after_write(addr, len, data, trans, host_fast);
+}
+
+static bool vaddr_atomic_translate_checked(vaddr_t addr, int len, int type,
+    VaddrTranslateResult *trans) {
+  *trans = vaddr_translate_checked(addr, len, type);
+  if (vaddr_fault_pending) return false;
+  /*
+   * 原子能力属于物理区域属性。NEMU 当前只为 PMEM 声明完整 A 扩展，
+   * 对设备窗口 fail closed，避免 MMIO read/write 副作用被错误拼成 AMO。
+   */
+  if (!paddr_supports_atomic(trans->paddr, len)) {
+    vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
+    return false;
+  }
+  return true;
+}
+
+bool vaddr_atomic_load_reserved(vaddr_t addr, int len,
+    word_t *value, paddr_t *paddr) {
+  vaddr_last_read_trace_clear();
+  VaddrTranslateResult trans;
+  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_READ, &trans)) {
+    return false;
+  }
+  *value = vaddr_read_one_translated(addr, len, MEM_TYPE_READ, trans);
+  *paddr = trans.paddr;
+  return true;
+}
+
+bool vaddr_atomic_store_conditional(vaddr_t addr, int len, word_t data,
+    bool reservation_valid, paddr_t reservation_paddr, bool *stored) {
+  VaddrTranslateResult trans;
+  /*
+   * 即使 reservation 已失效，SC 退休前仍必须完成 store/AMO 权限检查；
+   * 只有翻译和 PMA 均成功后，reservation 才决定是否真正提交写入。
+   */
+  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_WRITE, &trans)) {
+    return false;
+  }
+  *stored = reservation_valid && trans.paddr == reservation_paddr;
+  if (*stored) {
+    vaddr_write_one_translated(addr, len, data, trans);
+    vaddr_gdbstub_watchpoint_after_access(addr, len, true);
+  }
+  return true;
+}
+
+bool vaddr_atomic_rmw(vaddr_t addr, int len, vaddr_atomic_compute_t compute,
+    const void *opaque, word_t *old_value) {
+  vaddr_last_read_trace_clear();
+  VaddrTranslateResult trans;
+  /*
+   * AMO 的显式访问统一按 store/AMO 分类。一次写类型翻译同时验证页表写权限，
+   * 再补读侧 PMP 权限；任何失败都报告 store/AMO fault，而不是 load fault。
+   */
+  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_WRITE, &trans)) {
+    return false;
+  }
+#ifdef CONFIG_ISA_riscv
+  if (!isa_riscv_pmp_check(trans.paddr, len, MEM_TYPE_READ)) {
+    vaddr_set_fault(vaddr_access_fault_cause_for_type(MEM_TYPE_WRITE), addr);
+    return false;
+  }
+#endif
+
+  word_t old = vaddr_read_one_translated(addr, len, MEM_TYPE_WRITE, trans);
+  vaddr_gdbstub_watchpoint_after_access(addr, len, false);
+  word_t data = compute(old, opaque);
+  vaddr_write_one_translated(addr, len, data, trans);
+  vaddr_gdbstub_watchpoint_after_access(addr, len, true);
+  *old_value = old;
+  return true;
+}
+
 static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
   vaddr_last_read_trace_clear();
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
@@ -659,14 +757,7 @@ static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
   }
   VaddrTranslateResult trans = vaddr_translate_checked(addr, len, type);
   if (vaddr_fault_pending) return 0;
-  vaddr_last_read_trace_record(addr, len, trans.paddr);
-  word_t ret = MUXDEF(CONFIG_CACHE,
-      (type == MEM_TYPE_IFETCH ? icache_read(trans.paddr, len) : dcache_read(trans.paddr, len)),
-      vaddr_paddr_read_fast(trans, len));
-  if (type == MEM_TYPE_READ) {
-    vaddr_gdbstub_watchpoint_after_access(addr, len, false);
-  }
-  return ret;
+  return vaddr_read_one_translated(addr, len, type, trans);
 }
 
 word_t vaddr_ifetch(vaddr_t addr, int len) {
@@ -744,32 +835,13 @@ void vaddr_write(vaddr_t addr, int len, word_t data) {
       if (vaddr_fault_pending) return;
     }
     for (int i = 0; i < len; i++) {
-#ifdef CONFIG_CACHE
-      dcache_write(translations[i].paddr, 1, data >> (i * 8));
-      bool host_fast = false;
-#else
-      vaddr_ifetch_cache_invalidate_write(translations[i], 1);
-      bool host_fast = vaddr_write_host_fast_hit(translations[i]);
-      vaddr_paddr_write_fast(translations[i], 1, data >> (i * 8));
-#endif
-      vaddr_notify_write_committed(translations[i], 1);
-      vaddr_write_trace_after_write(addr + i, 1, data >> (i * 8),
-          translations[i], host_fast);
+      vaddr_write_one_translated(addr + i, 1, data >> (i * 8), translations[i]);
     }
     vaddr_gdbstub_watchpoint_after_access(addr, len, true);
     return;
   }
   VaddrTranslateResult trans = vaddr_translate_checked(addr, len, MEM_TYPE_WRITE);
   if (vaddr_fault_pending) return;
-#ifdef CONFIG_CACHE
-  dcache_write(trans.paddr, len, data);
-  bool host_fast = false;
-#else
-  vaddr_ifetch_cache_invalidate_write(trans, len);
-  bool host_fast = vaddr_write_host_fast_hit(trans);
-  vaddr_paddr_write_fast(trans, len, data);
-#endif
-  vaddr_notify_write_committed(trans, len);
-  vaddr_write_trace_after_write(addr, len, data, trans, host_fast);
+  vaddr_write_one_translated(addr, len, data, trans);
   vaddr_gdbstub_watchpoint_after_access(addr, len, true);
 }

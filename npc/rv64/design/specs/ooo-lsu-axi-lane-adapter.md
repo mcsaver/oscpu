@@ -134,7 +134,7 @@ adapter capture；D-cache hit 不经过 adapter。misaligned 最多 8 笔，属�
   粘滞 error、稀疏/zero WSTRB 拒绝、write 阻止 read；
 - bridge TB：cacheable line read 保持 aligned 8B+fill；uncacheable read 改 exact addr/原 size+no fill；
   Sv39 leaf 同合同；misaligned PMEM store 不走早期 B decouple；
-- bus/device TB：AxiXbar 的 AWSIZE owner/hold；UART/CLINT/PLIC 标准 lane；
+- bus/device TB：AxiCrossbar 的 AWSIZE owner/hold；UART/CLINT/PLIC 标准 lane；
 - NpcTop/NpcSimTop：AxiDpiSlave data read/write lane、virtio AR/AWSIZE 实际消费；
 - end-to-end：misaligned load/store、ma_data、virtio/UART/CLINT/PLIC、official 177、AM、CoreMark。
 

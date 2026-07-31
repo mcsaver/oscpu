@@ -1,0 +1,68 @@
+{
+  "schema": "npc-rv64-selective-evidence-cleanup-v1",
+  "status": "PASS",
+  "removed_total_bytes": 1598753,
+  "authoritative_attempt_secondary_artifacts_removed_bytes": 283273537,
+  "current_round_removed_bytes": 284872290,
+  "retention_policy": "retain-current-results-logs-hashes-and-one-latest-elaboration-graph",
+  "retained": [
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2",
+      "purpose": "authoritative V11T focused, mutation, regression, source-binding, cleanup and log evidence"
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      "purpose": "current 44-unit producer/holder semantic ledger"
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/current-instance-graph-audit/instance-graph-frozen-audit.json",
+      "purpose": "compact current-design instance-graph pointer and hash audit"
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+      "purpose": "single latest retained full Yosys elaboration graph"
+    }
+  ],
+  "migrated": [
+    {
+      "from": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      "to": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "purpose": "canonical architecture ledger"
+    },
+    {
+      "from": "repository-root tmp*.json negative-contract fixtures",
+      "to": ".github/runtime-artifacts/test-scratch/producer-holder-semantic/case-*",
+      "purpose": "per-test runtime scratch with automatic teardown; never retained as task-run evidence"
+    }
+  ],
+  "remove": [
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-1",
+      "file_count": 146,
+      "size_bytes": 1050856,
+      "summary_sha256": "c0b87347f1e5d6462a8936863fb78d424229e77cb798dfa4285d2d92e0a359ca",
+      "reason": "superseded by authoritative attempt-2 after runner evidence-schema correction"
+    },
+    {
+      "paths": [
+        "tmp5prg7vrq.json",
+        "tmpfmijmj2g.json",
+        "tmpka2w4z_n.json",
+        "tmpohc36bu7.json",
+        "tmpr80zrb2e.json"
+      ],
+      "size_bytes": 547897,
+      "reason": "untracked unittest temporary policy/summary files left by interrupted checker runs"
+    }
+  ],
+  "temporary_artifact_routing": {
+    "root_cause": "NamedTemporaryFile used the repository root and interrupted unittest teardown left scratch JSON behind",
+    "runtime_path": ".github/runtime-artifacts/test-scratch/producer-holder-semantic",
+    "lifetime": "per unittest case",
+    "cleanup": "TemporaryDirectory teardown",
+    "artifact_cleanup_binding": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/artifact-cleanup.json",
+    "post_test_runtime_entries": 0,
+    "post_test_repository_root_tmp_json": 0
+  },
+  "recovery": "Deleted workspace copies are not recoverable by Git; attempt-2 retains the authoritative reproducible result and logs."
+}

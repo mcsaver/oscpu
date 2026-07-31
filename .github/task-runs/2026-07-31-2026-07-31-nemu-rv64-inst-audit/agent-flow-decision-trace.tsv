@@ -1,0 +1,7 @@
+2026-07-31T09:50:44Z	evidence	定向 rv64-inst-audit 在修复前以 failure bitmask 0xffcf 进入 BAD TRAP；同一反例集修复后在 C=on 与临时 C=off 两种解释器配置均 HIT GOOD TRAP。	-
+2026-07-31T09:50:44Z	decision	审计范围为 inst 目录除 decode_cache.c 与上一轮 amo.c 以外的全部 C 源；只修复可由 ISA 条文和可执行反例确认的问题，不改 decode-cache 路径。	-
+2026-07-31T09:50:44Z	evidence	预构建 RISC-V 架构测试共 134 个：rv64mi 17、rv64si 7、rv64ua 19、rv64uc 1、rv64ud 12、rv64uf 11、rv64ui 54、rv64um 13；按各 ELF 的真实 tohost 地址运行后 134/134 PASS。	-
+2026-07-31T09:52:26Z	note	按用户要求使用 lightweight development 流程；未触发 agent-e2e/strict guard，memory 以 DB-backed 整体物化、追加、bytes 单调增长后 update-stored。	-
+2026-07-31T09:55:03Z	counterexample	审查者发现原计数器测试在 mcountinhibit=5 下只能证明 64 位写宽度，不能排除 CSRW 后 post-exec 立即加一的假绿；新增连续 CSRW/CSRR 汇编反例后仍 GOOD TRAP。	-
+2026-07-31T09:55:03Z	evidence	审查复核 audit ELF 包含完整 trap/反例符号且 binary=16544 bytes，并非 AM c 目标宏传播缺陷导致的 160-byte 空壳；架构日志按 4 个 ELF-specific tohost recheck 选择后 134 PASS、0 FAIL。	-
+2026-07-31T09:55:39Z	decision	审查者结论 APPROVE：逐项回看 ISA 编码/特权边界、定向 trap 的 mcause/mtval、无 C 配置恢复哈希、完整测试符号和 134 个架构测试日志；未发现未解决的范围内反例。保留 GAP：decode_cache.c 及其缓存专用 JAL/JALR 路径按用户要求未审计。	-

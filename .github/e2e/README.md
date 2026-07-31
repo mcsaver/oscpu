@@ -1,5 +1,8 @@
 # Agent E2E Profiles
 
+本目录只用于真实 profile dispatch、release 或显式完整 workflow evidence。普通 code review/analysis
+不进入本流程；一般 RTL/软件开发使用 `scripts/agent-flow.sh` 和真实 domain evidence 收口。
+
 ## 场景隔离入口
 
 - `nemu-dev`: NEMU-only static/slice/software-flow contract。
@@ -34,7 +37,9 @@ no-tools 仅用于限定材料复核；两者都必须保留未知项、替代�
 关键词黑名单，也不改变
 `workspace-files`、no-tools、shell、命令、路径或推理能力。profile PASS 不替代任何 RTL/PPA 业务 gate。
 
-开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包；未确定 profile 时只省略 `--profile`，仍保留 non-history focus，再根据 `Profile Suggestions` 选择。只有 `recall_status=complete` 才可派发；显式 profile、canonical 规则、独立 focus 缺失或必需 chunk 超出硬预算时必须 fail closed。回查历史 task-run/evidence 时使用 `python3 scripts/github_index_db.py runs --profile <profile>` 与 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+真实 profile dispatch 开工用 bounded brief；普通任务只有需要历史事实时才调用 brief。只有
+`recall_status=complete` 才可派发 profile。历史 task-run/evidence 回查使用 `runs --profile` 与
+`evidence --run-id`。
 
 CLI/API 与 e2e runner 的 bounded brief 默认预算统一为 2400 tokens，runner 可用 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 显式覆盖；覆盖不改变必需 focus 的 fail-closed 语义。
 
@@ -48,7 +53,11 @@ Windows `Start-Process wsl.exe` 启动长门时，`-- bash -lc "..."` 必须作�
 
 正式 profile 在生成 startup context 前先重建 live 索引，通过目录级剪枝排除 DB-first 的 `.github/{memory,task-runs}/**` 与历史 `.github/{archive,shujuku_aireview}/**`，只刷新 active rules/profile/root shims，并把结果写入 `evidence/context-live-index-refresh.log`；scoped rebuild 只允许把本次扫描范围内且未被排除的旧行标成 missing，排除区索引状态必须保持。刷新失败必须使 context recall 和整轮运行 fail closed，不能继续接受旧 skill/instruction chunk，也不能为刷新重复扫描海量历史证据。
 
-收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查 task-run 的 canonical completed report、全 PASS manifest、完整 recall/resolve、可重算 evidence index、hash-bound marker、completion publication 与已发布 DB Markdown 精确集合。触发 mtime 保留微秒，tracked deletion 使用父目录/Git index 基线；Git 枚举失败、未知不存在路径、明显未来 evidence、非法/冲突/重复 JSON、无时区时间、symlink run/evidence/artifact 都 fail closed。`context-brief.md` 必须在硬 token budget 内按序包含 canonical 规则、请求 profile 和独立 focus chunks，且每个 chunk 有完整 metadata/非空正文；`profile-resolve.md` 的 Nodes 必须连续编号、ID 唯一，并与 manifest、report、dispatch、`nodes.tsv` 的节点全元组同序一致；validator 还会递归解析当前 live profile include closure，逐节点复核 `node/source/module/owner/function/status/inputs/outputs`。dispatch 必须严格保持 startup PASS 与逐节点 `in-progress -> PASS` 顺序，全部 payload 字段受绑定；每个节点的首要 evidence 必须是 canonical `evidence/<node_id>.log`，辅助指针也必须指向 actual indexed ordinary asset。run/report/manifest/index/dispatch 的 task/trace/slug 与 report/manifest 语义时间也必须一致。`evidence-index.md` 的 task/profile/count/size、每项路径、普通文件属性与 SHA-256 都会现场重算。report mtime 永不参与判定；多个候选按 UTC 微秒完成时间选最新。recall、resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都传播为非零/blocked。completed 先精确同步 staged Markdown，再生成七 artifact hash-bound marker 与严格 EOF 的 `completion-publication.md`，最后用 `publish-task-run` 原子提交；普通 archive/promote/migrate/backup/rehydrate 不得制造或撤销完成记录，`runs` 不接受缺失/降级 publication contract 的 completed report。失败会撤销本次 live marker/publication并重渲染 blocked；既有已提交 publication 不会被通用 sync 误删。strict guard 同时复核 marker、publication 和 DB/live 精确集合。缺少证据时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
+release/迁移收尾可运行
+`scripts/agent-e2e.sh --guard --guard-mode strict --paths-file <agent-flow-paths.log>`。guard 不再扫描
+Git 工作树；删除项使用显式 paths-file 的 mtime。它仍检查 completed report、全 PASS manifest、
+recall/resolve、evidence index、hash-bound marker、completion publication 与 DB/live 精确集合。
+普通任务不要求生成这些 publication 产物。
 
 guard 对 RV64 systemd checker 合同使用 exact-path 分流：
 `check-npc-systemd-guest.sh`、`npc-systemd-strict-check.sh`、

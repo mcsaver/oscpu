@@ -11,7 +11,7 @@ import sys
 from typing import Any
 
 
-SCHEMA = "rv64-v11h-load-queue-attempt4-checker-replay-v1"
+SCHEMA = "rv64-v11h-load-queue-attempt4-checker-replay-v2"
 RUN_ID = "2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage"
 RUN_ROOT = pathlib.Path(".github/task-runs") / RUN_ID
 ATTEMPT_ROOT = RUN_ROOT / "evidence/load-queue-producer-attempt-4"
@@ -56,31 +56,68 @@ CURRENT_FILES = {
             "npc/rv64/eval/ppa/tests/"
             "test_load_queue_producer_checker_replay.py"
         ),
-    "checker_replay_runner":
-        RUN_ROOT / "run-attempt-4-checker-replay.sh",
     "producer_holder_census":
         pathlib.Path(
             "npc/rv64/design/arch/producer-holder-census.json"
         ),
-    "current_instance_graph_result":
-        RUN_ROOT
-        / "evidence/current-instance-graph-v2/holder-instance-graph.json",
-    "current_instance_graph_receipt":
-        RUN_ROOT
-        / (
-            "evidence/current-instance-graph-v2/"
-            "yosys-instance-graph-receipt.json"
+    "current_instance_graph_result": pathlib.Path(
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
+        "holder-instance-graph.json"
+    ),
+    "current_instance_graph_receipt": pathlib.Path(
+        ".github/task-runs/2026-07-31-rv64-"
+        "axi-xbar-naming-refresh/evidence/"
+        "current-holder-instance-graph/"
+        "yosys-instance-graph-receipt.json"
+    ),
+    "current_instance_graph_audit": pathlib.Path(
+        ".github/task-runs/2026-07-31-rv64-v11t-"
+        "clmul-producer-semantic/evidence/"
+        "current-instance-graph-audit/"
+        "instance-graph-frozen-audit.json"
+    ),
+    "producer_holder_instance_graph_tool": pathlib.Path(
+        "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py"
+    ),
+    "producer_holder_instance_graph_tests": pathlib.Path(
+        "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py"
+    ),
+    "producer_holder_census_tool": pathlib.Path(
+        "npc/rv64/eval/ppa/tools/producer_holder_census.py"
+    ),
+    "producer_holder_census_tests": pathlib.Path(
+        "npc/rv64/eval/ppa/tests/test_producer_holder_census.py"
+    ),
+}
+SELECTED_BINDINGS = {
+    (
+        pathlib.Path("npc/rv64/vsrc/memory/OooLoadQueue.v"),
+        "rtl",
+    ),
+    (
+        pathlib.Path(
+            "npc/rv64/testbench/tests/"
+            "tb_ooo_load_queue_producer_semantic.sv"
         ),
-    "current_instance_graph_status":
-        RUN_ROOT / "v11h-current-instance-graph-v2.status",
+        "testbench",
+    ),
+    (
+        pathlib.Path(
+            "npc/rv64/testbench/tests/tb_ooo_load_queue.sv"
+        ),
+        "testbench",
+    ),
 }
 CLAIM_BOUNDARY = (
     "This receipt proves that the frozen V11H positive/mutation inputs were "
     "complete before attempt 4 stopped at semantic-ledger-unit, and binds the "
-    "corrected checker, exact system-rerun scope, and current instance graph "
-    "to the same RTL design. It does not rewrite the original FAIL, rerun RTL "
-    "simulation, promote whole-architecture GREEN, satisfy the required "
-    "full-system rerun, or authorize PPA."
+    "corrected checker, unchanged LoadQueue RTL/testbench subset, exact "
+    "system-rerun scope, and current instance graph. It does not rewrite the "
+    "original FAIL, claim that the historical full-RTL snapshot is current, "
+    "rerun RTL simulation, promote whole-architecture GREEN, satisfy the "
+    "required full-system rerun, or authorize PPA."
 )
 
 
@@ -126,6 +163,78 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
     return payload
 
 
+def parse_sha_manifest(path: pathlib.Path) -> dict[str, str]:
+    records: dict[str, str] = {}
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        try:
+            digest, relative = line.split("  ", 1)
+        except ValueError as exc:
+            raise ReplayError(
+                f"malformed SHA-256 manifest line {line_number}: {path}"
+            ) from exc
+        if (
+            len(digest) != 64
+            or any(char not in "0123456789abcdef" for char in digest)
+            or not relative
+            or relative in records
+        ):
+            raise ReplayError(
+                f"invalid SHA-256 manifest record {line_number}: {path}"
+            )
+        records[relative] = digest
+    if not records:
+        raise ReplayError(f"SHA-256 manifest is empty: {path}")
+    return records
+
+
+def current_selected_binding(
+    root: pathlib.Path,
+    manifest_path: pathlib.Path,
+    evidence_design_id: str,
+    live_design_id: str,
+) -> dict[str, Any]:
+    manifest = parse_sha_manifest(repo_path(root, manifest_path))
+    records: list[dict[str, Any]] = []
+    for relative, role in sorted(
+        SELECTED_BINDINGS, key=lambda item: item[0].as_posix()
+    ):
+        relative_value = relative.as_posix()
+        evidence_sha = manifest.get(relative_value)
+        if evidence_sha is None:
+            raise ReplayError(
+                "frozen focused manifest lacks selected LoadQueue binding: "
+                f"{relative_value}"
+            )
+        live_path = repo_path(root, relative)
+        live_sha = sha256_file(live_path)
+        if live_sha != evidence_sha:
+            raise ReplayError(
+                "selected LoadQueue RTL/testbench binding is stale: "
+                f"{relative_value}"
+            )
+        records.append(
+            {
+                "path": relative_value,
+                "role": role,
+                "evidence_sha256": evidence_sha,
+                "live_sha256": live_sha,
+                "matches_live": True,
+            }
+        )
+    return {
+        "binding_state": (
+            "CURRENT_FULL_RTL_BOUND"
+            if evidence_design_id == live_design_id
+            else "CURRENT_SELECTED_SOURCE_AND_TB_BOUND"
+        ),
+        "evidence_design_id": evidence_design_id,
+        "current_design_id": live_design_id,
+        "records": records,
+    }
+
+
 def current_design_id(root: pathlib.Path) -> str:
     tools_dir = root / "npc/rv64/eval/ppa/tools"
     sys.path.insert(0, str(tools_dir))
@@ -135,6 +244,15 @@ def current_design_id(root: pathlib.Path) -> str:
         sys.path.pop(0)
     digest, _ = architecture.rtl_binding(root)
     return f"sha256:{digest}"
+
+
+def valid_design_id(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith("sha256:")
+        and len(value) == 71
+        and all(char in "0123456789abcdef" for char in value[7:])
+    )
 
 
 def validate_original_status_line(value: str) -> None:
@@ -170,8 +288,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         summary.get("schema")
         != "rv64-v11h-load-queue-producer-semantic-evidence-v2"
         or summary.get("status") != "PASS"
-        or not isinstance(attempt_design_id, str)
-        or attempt_design_id != live_design_id
+        or not valid_design_id(attempt_design_id)
         or not isinstance(positives, dict)
         or len(positives) != 4
         or not isinstance(assertion_probe, dict)
@@ -228,6 +345,12 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         or len(rtl_snapshot.get("rtl_files", {})) != 146
     ):
         raise ReplayError("attempt-4 full RTL snapshot is incomplete")
+    selected_binding = current_selected_binding(
+        root,
+        sources_pre,
+        attempt_design_id,
+        live_design_id,
+    )
 
     evidence_unit_relative = ATTEMPT_ROOT / "evidence-tool-unit.log"
     evidence_unit = repo_path(root, evidence_unit_relative).read_text(
@@ -259,6 +382,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         "design_id": attempt_design_id,
         "current_design_id_at_replay": live_design_id,
         "original_design_is_current": attempt_design_id == live_design_id,
+        "current_selected_binding": selected_binding,
         "original_attempt": 4,
         "original_failure": {
             "stage": "semantic-ledger-unit",
@@ -291,6 +415,9 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             "rtl_simulation_reexecuted": False,
             "full_rtl_pre_post_identical": True,
             "focused_sources_pre_post_identical": True,
+            "historical_full_rtl_snapshot_is_current":
+                attempt_design_id == live_design_id,
+            "current_selected_source_and_tb_bound": True,
             "system_rerun_required_before_system_promotion": True,
             "system_rerun_executed": False,
             "replacement_checker_must_run_positive_and_negative_units": True,

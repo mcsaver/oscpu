@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-v11i-3
+- `trace_id`: e2e:2026-07-30-v11i-3
+- `task_slug`: v11i
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 6327424325a5a29ec1415e227f1346a4902509dfcc2fa50854e2786e1ab3447b
+- `task_report_md_sha256`: 8744749aab69e819cd8d1dcf8b347688776dffcebb62e8bc47131221c600f293
+- `run_manifest_json_sha256`: d9ba64081c20de491f9f63530ebf65f5d773f21b4647027b041a563c382c88aa
+- `context_brief_md_sha256`: 8228e1e31aa6de48e5c80f7bb0268759f1caee1478d044d03917c6a33558de2d
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: eb2a8a288c7ed6f08036542ff4c1d513c1f4dbcea31af3b3f68fdee6104a0e78
+- `dispatch_log_md_sha256`: 1b3369a377bd4b247729dcfb49bad389fa6da06a17495067bedfbfc9e4fab481
+- `nodes_tsv_sha256`: 21057e46866f90641efd7719dc7317b3c90211b7d2a9ab8d683704f65bbbd438

@@ -24,6 +24,8 @@ STUDY_ROOT = SCRIPT.parents[1]
 REPO_ROOT = SCRIPT.parents[4]
 VSRC_ROOT = REPO_ROOT / "npc" / "rv64" / "vsrc"
 DEFAULT_HTML = STUDY_ROOT / "index.html"
+CSS_PATH = STUDY_ROOT / "tools" / "interactive_datasheet.css"
+JS_PATH = STUDY_ROOT / "tools" / "interactive_datasheet.js"
 
 DATA_RE = re.compile(
     r'<script\s+id="rv64-data"\s+type="application/json">(.*?)</script>',
@@ -70,6 +72,7 @@ REQUIRED_DOM_IDS = {
     "globalSearch",
     "searchResults",
     "menuButton",
+    "fontScaleButton",
     "sidebar",
     "navTabs",
     "sidebarBody",
@@ -494,8 +497,86 @@ def audit_payload(payload: dict[str, Any]) -> list[str]:
     elaboration_hash = str(meta.get("elaborationSha256", ""))
     if not re.fullmatch(r"[0-9a-f]{64}", elaboration_hash):
         errors.append("elaborationSha256 不是 sha256")
-    if meta.get("revision") != "Rev. C":
-        errors.append(f"源码更新版本不是 Rev. C：{meta.get('revision')}")
+    if meta.get("revision") != "Rev. D":
+        errors.append(f"可读性优化版本不是 Rev. D：{meta.get('revision')}")
+    return errors
+
+
+def audit_css_readability(css_text: str) -> list[str]:
+    """Audit the minimum local readability contract without touching files."""
+
+    errors: list[str] = []
+    css_definitions = set(
+        re.findall(r"(?m)^\s*(--[a-z0-9-]+)\s*:", css_text)
+    )
+    css_references = set(re.findall(r"var\(\s*(--[a-z0-9-]+)", css_text))
+    missing_variables = sorted(css_references.difference(css_definitions))
+    if missing_variables:
+        errors.append(
+            "CSS 引用了未定义变量：" + ", ".join(missing_variables)
+        )
+
+    tiny_font_sizes = [
+        match.group(0)
+        for match in re.finditer(
+            r"font-size\s*:\s*(?:[0-9](?:\.[0-9]+)?|10(?:\.0+)?)px",
+            css_text,
+        )
+    ]
+    if tiny_font_sizes:
+        errors.append(
+            "CSS 仍含小于 11px 的显式字号："
+            + ", ".join(tiny_font_sizes[:8])
+        )
+    if re.search(
+        r"\.font-scale-button\s*\{[^}]*\bdisplay\s*:\s*none\b",
+        css_text,
+        re.DOTALL,
+    ):
+        errors.append("CSS 在窄屏隐藏了唯一字号切换按钮")
+
+    readability_markers = {
+        "--text-body: 16px;",
+        "--text-caption: 12px;",
+        "body[data-font-scale=\"xlarge\"]",
+        ".flow-data-cell dd {",
+        "font-size: var(--text-body);",
+        ".wave-host svg text {",
+        ".source-description {",
+        ".license-text {",
+    }
+    for marker in sorted(readability_markers):
+        if marker not in css_text:
+            errors.append(f"CSS 缺少可读性合同 marker：{marker}")
+    return errors
+
+
+def audit_readability_self_test() -> list[str]:
+    """Prove that the readability audit rejects the two observed regressions."""
+
+    errors: list[str] = []
+    css_text = CSS_PATH.read_text(encoding="utf-8")
+    baseline_errors = audit_css_readability(css_text)
+    if baseline_errors:
+        errors.append(
+            "当前 CSS 未通过 readability baseline："
+            + "；".join(baseline_errors)
+        )
+
+    injected_errors = audit_css_readability(
+        css_text
+        + "\n.audit-negative {"
+        + "font-size: 9px;"
+        + "color: var(--missing-reader-token);"
+        + "}\n"
+        + ".font-scale-button {display: none;}\n"
+    )
+    if not any("小于 11px" in item for item in injected_errors):
+        errors.append("负向样例中的 9px 字号未被审计拦截")
+    if not any("--missing-reader-token" in item for item in injected_errors):
+        errors.append("负向样例中的未定义 CSS 变量未被审计拦截")
+    if not any("隐藏了唯一字号" in item for item in injected_errors):
+        errors.append("负向样例中的移动端隐藏字号按钮未被审计拦截")
     return errors
 
 
@@ -537,14 +618,19 @@ def audit_html_structure(text: str) -> list[str]:
         "function selfCheckItems(",
         "function renderSelfCheck(",
         "function runSearch(",
+        "function applyFontScale(",
+        "function cycleFontScale(",
         "window.WaveDrom.RenderWaveForm",
         "window.addEventListener(\"hashchange\"",
         "data-copy-link",
+        "data-font-scale-control",
+        "data-font-scale=\"large\"",
         "TOP-TO-BOTTOM MODULE / DATA FLOW",
         "NO MODULE-SPECIFIC TIMING",
         "flow-step-transfer",
         "flow-data-grid",
         "flow-side-path",
+        "flow-reading-key",
         "PARALLEL OWNER-LIFETIME BRANCH",
         "只携带 {kind, token, epoch}",
         "flow-connector",
@@ -587,13 +673,42 @@ def audit_html_structure(text: str) -> list[str]:
     for marker, message in forbidden_markers.items():
         if marker in text:
             errors.append(message)
+
+    css_text = CSS_PATH.read_text(encoding="utf-8")
+    js_text = JS_PATH.read_text(encoding="utf-8")
+    if css_text not in text:
+        errors.append("index.html 内嵌 CSS 与工具源不一致")
+    if js_text not in text:
+        errors.append("index.html 内嵌 JavaScript 与工具源不一致")
+
+    errors.extend(audit_css_readability(css_text))
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("html", nargs="?", type=Path, default=DEFAULT_HTML)
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="运行不落盘的可读性审计正/负向自检",
+    )
     args = parser.parse_args()
+    if args.self_test:
+        self_test_errors = audit_readability_self_test()
+        for error in self_test_errors:
+            print(f"[interactive-audit-self-test][BAD] {error}")
+        if self_test_errors:
+            print("[interactive-audit-self-test] FAIL")
+            return 1
+        print(
+            "[interactive-audit-self-test] "
+            "baseline=PASS negative-9px=REJECTED "
+            "negative-undefined-variable=REJECTED "
+            "negative-hidden-control=REJECTED"
+        )
+        print("[interactive-audit-self-test] PASS")
+        return 0
     html_path = args.html.resolve()
 
     if not html_path.is_file():
@@ -653,6 +768,19 @@ def main() -> int:
     print(
         "[interactive-audit] external_resources="
         f"{len(structure_parser.external_resources)}"
+    )
+    css_text = CSS_PATH.read_text(encoding="utf-8")
+    css_definitions = set(
+        re.findall(r"(?m)^\s*(--[a-z0-9-]+)\s*:", css_text)
+    )
+    css_references = set(re.findall(r"var\(\s*(--[a-z0-9-]+)", css_text))
+    print(
+        "[interactive-audit] typography="
+        "default-large/body-16px/caption-12px/scales-3"
+    )
+    print(
+        "[interactive-audit] undefined_css_variables="
+        f"{len(css_references.difference(css_definitions))}"
     )
     for error in errors:
         print(f"[interactive-audit][BAD] {error}")

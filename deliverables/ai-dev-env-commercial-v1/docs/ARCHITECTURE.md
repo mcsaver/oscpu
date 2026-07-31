@@ -22,6 +22,7 @@ Database -> Skill -> Agent -> Evidence -> Delivery
 - Agent docs: `.github/agents/*.agent.md`
 - Profile graph: `.github/e2e/profiles/*.tsv`
 - Maintenance gates: `scripts/agent-maintain.sh`
+- Lightweight task controller: `scripts/agent-flow.c` via `scripts/agent-flow.sh`
 - Report chain: task-report、dispatch-log、run-manifest、evidence-index
 
 ## Delivery

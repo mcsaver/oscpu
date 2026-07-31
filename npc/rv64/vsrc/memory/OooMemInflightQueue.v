@@ -354,11 +354,19 @@ module OooMemInflightQueue #(
   // 防止压缩循环再次把已消费的 retired-store owner 复活成 ghost。
   reg flush_count_check_q;
   reg [ENTRY_W:0] flush_expected_count_q;
+  reg owner_tuple_stable_check_q;
+  reg [1:0] owner_tuple_stable_kind_q;
+  reg [OWNER_TOKEN_W-1:0] owner_tuple_stable_token_q;
+  reg [MMU_EPOCH_W-1:0] owner_tuple_stable_epoch_q;
   integer owner_assert_i;
   always @(posedge clk) begin
     if (rst) begin
       flush_count_check_q <= 1'b0;
       flush_expected_count_q <= {(ENTRY_W+1){1'b0}};
+      owner_tuple_stable_check_q <= 1'b0;
+      owner_tuple_stable_kind_q <= 2'b00;
+      owner_tuple_stable_token_q <= {OWNER_TOKEN_W{1'b0}};
+      owner_tuple_stable_epoch_q <= {MMU_EPOCH_W{1'b0}};
     end else begin
       if (flush_count_check_q && (count_q !== flush_expected_count_q))
         $error("[MIQ-FLUSH-POP-COUNT] flush keep count=%0d expected=%0d @%0t",
@@ -367,6 +375,20 @@ module OooMemInflightQueue #(
       if (flush_i)
         flush_expected_count_q <= flush_keep_count_r -
             {{ENTRY_W{1'b0}}, flush_pop_drain_w};
+      if (push_fire_w &&
+          (^{push_owner_kind_i, push_owner_token_i, push_mmu_epoch_i}
+           === 1'bx)) begin
+        $display("[V11K-MIQ-PUSH-TUPLE-KNOWN] accepted push has unknown owner tuple @%0t",
+                 $time);
+        $fatal;
+      end
+      if (pop_valid_i && head_valid_o &&
+          (^{pop_owner_kind_i, pop_owner_token_i, pop_mmu_epoch_i}
+           === 1'bx)) begin
+        $display("[V11K-MIQ-POP-TUPLE-KNOWN] response has unknown owner tuple @%0t",
+                 $time);
+        $fatal;
+      end
       if (pop_valid_i && head_valid_o && !pop_owner_match_o) begin
         $display("[MIQ-OWNER-MISMATCH] rsp owner does not match FIFO head @%0t", $time);
         $fatal;
@@ -402,12 +424,27 @@ module OooMemInflightQueue #(
       for (owner_assert_i = 0; owner_assert_i < ENTRY_N;
            owner_assert_i = owner_assert_i + 1) begin
         if (valid_q[owner_assert_i] &&
-            (^owner_token_q[owner_assert_i] === 1'bx)) begin
-          $display("[V8L-MIQ-TOKEN-KNOWN] valid entry=%0d has unknown owner token @%0t",
+            (^{owner_kind_q[owner_assert_i],
+               owner_token_q[owner_assert_i],
+               mmu_epoch_q[owner_assert_i]} === 1'bx)) begin
+          $display("[V11K-MIQ-OWNER-TUPLE-KNOWN] valid entry=%0d has unknown owner tuple @%0t",
                    owner_assert_i, $time);
           $fatal;
         end
       end
+      if (owner_tuple_stable_check_q && head_valid_o &&
+          ({head_owner_kind_o, head_owner_token_o, head_mmu_epoch_o} !==
+           {owner_tuple_stable_kind_q, owner_tuple_stable_token_q,
+            owner_tuple_stable_epoch_q})) begin
+        $display("[V11K-MIQ-OWNER-TUPLE-STABLE] head owner tuple drifted without queue event @%0t",
+                 $time);
+        $fatal;
+      end
+      owner_tuple_stable_check_q <= head_valid_o && !push_fire_w &&
+          !pop_fire_w && !flush_i && !kill_valid_i;
+      owner_tuple_stable_kind_q <= head_owner_kind_o;
+      owner_tuple_stable_token_q <= head_owner_token_o;
+      owner_tuple_stable_epoch_q <= head_mmu_epoch_o;
     end
   end
 `endif

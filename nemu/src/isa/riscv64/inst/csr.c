@@ -64,9 +64,6 @@ static inline bool csr_is_counter(uint32_t csr) {
     case CSR_CYCLE:
     case CSR_TIME:
     case CSR_INSTRET:
-    case CSR_CYCLEH:
-    case CSR_TIMEH:
-    case CSR_INSTRETH:
       return true;
     default:
       return false;
@@ -75,12 +72,9 @@ static inline bool csr_is_counter(uint32_t csr) {
 
 static inline word_t csr_counter_bit(uint32_t csr) {
   switch (csr) {
-    case CSR_CYCLE:
-    case CSR_CYCLEH: return COUNTEREN_CY;
-    case CSR_TIME:
-    case CSR_TIMEH: return COUNTEREN_TM;
-    case CSR_INSTRET:
-    case CSR_INSTRETH: return COUNTEREN_IR;
+    case CSR_CYCLE: return COUNTEREN_CY;
+    case CSR_TIME: return COUNTEREN_TM;
+    case CSR_INSTRET: return COUNTEREN_IR;
     default: return 0;
   }
 }
@@ -105,6 +99,22 @@ static inline word_t csr_mstatus_read_value(void) {
 
 static inline word_t csr_sstatus_read_value(void) {
   return (csr_mstatus_read_value() & SSTATUS_MASK) | csr_status_sd_bit();
+}
+
+static inline word_t csr_sanitize_mstatus(word_t value) {
+  word_t next = (value & MSTATUS_WRITABLE_MASK) | MSTATUS_SXL_UXL;
+#ifndef CONFIG_RISCV_EXT_F
+  next &= ~MSTATUS_FS_MASK;
+#endif
+  // MPP=2 是保留编码。NEMU 支持 U/S/M，非法 WARL 写统一折叠到最低特权 U。
+  if ((next & MSTATUS_MPP_MASK) == ((word_t)2 << 11)) {
+    next &= ~MSTATUS_MPP_MASK;
+  }
+  return next;
+}
+
+static inline word_t csr_supervisor_interrupt_mask(void) {
+  return cpu.csr.mideleg & MIDELEG_WRITABLE_MASK;
 }
 
 static inline void csr_profile_sstatus_write_delta(word_t old_status,
@@ -148,13 +158,13 @@ static inline void csr_profile_sstatus_write_delta(word_t old_status,
   if (delta & MSTATUS_MXR) {
     nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_MXR, 1);
   }
-  if (delta & MSTATUS_SXL_UXL) {
+  if (delta & MSTATUS_UXL) {
     nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SXL_UXL, 1);
   }
 
   word_t known = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP |
                  MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR |
-                 MSTATUS_SXL_UXL;
+                 MSTATUS_UXL;
   if (delta & ~known) {
     nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_OTHER, 1);
   }
@@ -265,18 +275,29 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_MVENDORID: *value = 0x79737978u; return true;
     case CSR_MARCHID:   *value = 26010035u; return true;
     case CSR_MIMPID:    *value = 0; return true;
-    case CSR_FFLAGS:    *value = cpu.csr.fflags; return true;
-    case CSR_FRM:       *value = cpu.csr.frm; return true;
-    case CSR_FCSR:      *value = ((word_t)cpu.csr.frm << 5) | cpu.csr.fflags; return true;
+#ifdef CONFIG_RISCV_EXT_F
+    case CSR_FFLAGS:
+      if (!fp_state_enabled()) return false;
+      *value = cpu.csr.fflags;
+      return true;
+    case CSR_FRM:
+      if (!fp_state_enabled()) return false;
+      *value = cpu.csr.frm;
+      return true;
+    case CSR_FCSR:
+      if (!fp_state_enabled()) return false;
+      *value = ((word_t)cpu.csr.frm << 5) | cpu.csr.fflags;
+      return true;
+#endif
     case CSR_SSTATUS:  *value = csr_sstatus_read_value(); return true;
-    case CSR_SIE:      *value = cpu.csr.mie & MIP_SUPERVISOR_MASK; return true;
+    case CSR_SIE:      *value = cpu.csr.mie & csr_supervisor_interrupt_mask(); return true;
     case CSR_STVEC:    *value = cpu.csr.stvec; return true;
     case CSR_SCOUNTEREN: *value = cpu.csr.scounteren; return true;
     case CSR_SSCRATCH: *value = cpu.csr.sscratch; return true;
     case CSR_SEPC:     *value = cpu.csr.sepc; return true;
     case CSR_SCAUSE:   *value = cpu.csr.scause; return true;
     case CSR_STVAL:    *value = cpu.csr.stval; return true;
-    case CSR_SIP:      *value = isa_riscv64_mip_value() & MIP_SUPERVISOR_MASK; return true;
+    case CSR_SIP:      *value = isa_riscv64_mip_value() & csr_supervisor_interrupt_mask(); return true;
     case CSR_SATP:     *value = cpu.csr.satp; return true;
     case CSR_MSTATUS:  *value = csr_mstatus_read_value(); return true;
     case CSR_MEDELEG:  *value = cpu.csr.medeleg; return true;
@@ -292,16 +313,11 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_MTVAL:    *value = cpu.csr.mtval; return true;
     case CSR_MIP:      *value = isa_riscv64_mip_value(); return true;
     case CSR_MCYCLE:   *value = (word_t)cpu.csr.mcycle; return true;
-    case CSR_MCYCLEH:  *value = (word_t)(cpu.csr.mcycle >> 32); return true;
     case CSR_MINSTRET: *value = (word_t)cpu.csr.minstret; return true;
-    case CSR_MINSTRETH:*value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_CYCLE:    *value = (word_t)cpu.csr.mcycle; return true;
-    case CSR_CYCLEH:   *value = (word_t)(cpu.csr.mcycle >> 32); return true;
-    // time/timeh 暴露平台 CLINT mtime，避免 guest 时间源和 mcycle 统计混在一起。
+    // time 暴露平台 CLINT mtime，避免 guest 时间源和 mcycle 统计混在一起。
     case CSR_TIME:     *value = (word_t)isa_riscv64_mtime_value(); return true;
-    case CSR_TIMEH:    *value = (word_t)(isa_riscv64_mtime_value() >> 32); return true;
     case CSR_INSTRET:  *value = (word_t)cpu.csr.minstret; return true;
-    case CSR_INSTRETH: *value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_MISA:     *value = csr_misa_value(); return true;
     case CSR_MHARTID:  *value = 0; return true;
     // debug trigger 最小 no-op(对齐 NPC): tselect 读回 NO_TRIGGER(1)、tdata1/2/tcontrol 恒 0。
@@ -326,23 +342,40 @@ static inline bool csr_write(uint32_t csr, word_t value) {
   }
 
   switch (csr) {
-    case CSR_FFLAGS:   cpu.csr.fflags = value & 0x1f; return true;
-    case CSR_FRM:      cpu.csr.frm = value & 0x7; return true;
+#ifdef CONFIG_RISCV_EXT_F
+    case CSR_FFLAGS:
+      if (!fp_state_enabled()) return false;
+      cpu.csr.fflags = value & 0x1f;
+      fp_mark_dirty();
+      return true;
+    case CSR_FRM:
+      if (!fp_state_enabled()) return false;
+      cpu.csr.frm = value & 0x7;
+      fp_mark_dirty();
+      return true;
     case CSR_FCSR:
+      if (!fp_state_enabled()) return false;
       cpu.csr.fflags = value & 0x1f;
       cpu.csr.frm = (value >> 5) & 0x7;
+      fp_mark_dirty();
       return true;
+#endif
     case CSR_SSTATUS: {
+      word_t writable_mask = SSTATUS_WRITABLE_MASK;
+#ifndef CONFIG_RISCV_EXT_F
+      writable_mask &= ~MSTATUS_FS_MASK;
+#endif
       word_t old_status = cpu.csr.mstatus & SSTATUS_MASK;
-      word_t new_status = (value & SSTATUS_MASK) | MSTATUS_SXL_UXL;
+      word_t new_status = (value & writable_mask) | MSTATUS_UXL;
       csr_profile_sstatus_write_delta(old_status, new_status);
       cpu.csr.mstatus = (cpu.csr.mstatus & ~SSTATUS_MASK) | new_status;
       return true;
     }
-    case CSR_SIE:
-      cpu.csr.mie = (cpu.csr.mie & ~MIP_SUPERVISOR_MASK) |
-                    (value & MIP_SUPERVISOR_MASK);
+    case CSR_SIE: {
+      word_t mask = csr_supervisor_interrupt_mask();
+      cpu.csr.mie = (cpu.csr.mie & ~mask) | (value & mask);
       return true;
+    }
     case CSR_STVEC:
       cpu.csr.stvec = value & ~(word_t)0x3;
       CSR_DEBUG_LOG("CSR write stvec=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
@@ -354,9 +387,11 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     case CSR_SCAUSE:   cpu.csr.scause = value; return true;
     case CSR_STVAL:    cpu.csr.stval = value; return true;
     case CSR_SIP: {
+      word_t writable_mask =
+          csr_supervisor_interrupt_mask() & SIP_WRITABLE_MASK;
       word_t old_mip = cpu.csr.mip;
-      cpu.csr.mip = (cpu.csr.mip & ~SIP_WRITABLE_MASK) |
-                    (value & SIP_WRITABLE_MASK);
+      cpu.csr.mip = (cpu.csr.mip & ~writable_mask) |
+                    (value & writable_mask);
       (void)old_mip;
       CSR_INTR_DEBUG_LOG("CSR write sip old_mip=" FMT_WORD " raw=" FMT_WORD
           " new_mip=" FMT_WORD " pc=" FMT_WORD " priv=%u",
@@ -377,9 +412,9 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     // 关键是 csrw misa 本身是合法指令, 不能落到 default 当 illegal——否则 riscv-dv 等在 mtvec 设置前
     // 写 misa 的 boot code 会 trap 到 mtvec=0 而跑飞。(rv64dv 压测发现)
     case CSR_MISA:     return true;
-    case CSR_MSTATUS:  cpu.csr.mstatus = (value & MSTATUS_WRITABLE_MASK) | MSTATUS_SXL_UXL; return true;
-    case CSR_MEDELEG:  cpu.csr.medeleg = value; return true;
-    case CSR_MIDELEG:  cpu.csr.mideleg = value; return true;
+    case CSR_MSTATUS:  cpu.csr.mstatus = csr_sanitize_mstatus(value); return true;
+    case CSR_MEDELEG:  cpu.csr.medeleg = value & MEDELEG_WRITABLE_MASK; return true;
+    case CSR_MIDELEG:  cpu.csr.mideleg = value & MIDELEG_WRITABLE_MASK; return true;
     case CSR_MIE:      isa_riscv64_write_mie(value); return true;
     case CSR_MTVEC:    cpu.csr.mtvec = value & ~(word_t)0x3; return true;
     case CSR_MCOUNTEREN: cpu.csr.mcounteren = value & COUNTEREN_MASK; return true;
@@ -398,10 +433,8 @@ static inline bool csr_write(uint32_t csr, word_t value) {
           old_mip, value, cpu.csr.mip, cpu.pc, cpu.priv);
       return true;
     }
-    case CSR_MCYCLE:   isa_riscv64_write_mcycle_lo(value); return true;
-    case CSR_MCYCLEH:  isa_riscv64_write_mcycle_hi(value); return true;
-    case CSR_MINSTRET: cpu.csr.minstret = (cpu.csr.minstret & 0xffffffff00000000ull) | (uint32_t)value; return true;
-    case CSR_MINSTRETH: cpu.csr.minstret = ((uint64_t)(uint32_t)value << 32) | (uint32_t)cpu.csr.minstret; return true;
+    case CSR_MCYCLE:   isa_riscv64_write_mcycle(value); return true;
+    case CSR_MINSTRET: isa_riscv64_write_minstret(value); return true;
     // debug trigger 最小 no-op(对齐 NPC): 写忽略(WARL), 不 illegal。
     case CSR_TSELECT:
     case CSR_TDATA1:
@@ -413,7 +446,8 @@ static inline bool csr_write(uint32_t csr, word_t value) {
 
 static inline bool csr_write_masked(uint32_t csr, word_t value, word_t write_mask) {
   if (csr == CSR_SIP) {
-    word_t writable_mask = write_mask & SIP_WRITABLE_MASK;
+    word_t writable_mask =
+        write_mask & SIP_WRITABLE_MASK & csr_supervisor_interrupt_mask();
     word_t old_mip = cpu.csr.mip;
     cpu.csr.mip = (cpu.csr.mip & ~writable_mask) | (value & writable_mask);
     if ((old_mip | value | write_mask | cpu.csr.mip) & MIP_SEIP) {

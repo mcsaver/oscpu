@@ -59,7 +59,10 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - ISA 目标: 默认历史主线是 RISC-V 32 位 (RV32)；`npc/rv64` 是 RV64 Linux/Ubuntu 22.04 bring-up 主线，必须单独按 RV64/OpenSBI/Linux/Ubuntu gate 判断。
 
 ## AI 驱动硬件开发环境
-- 工作区 agent 处理复杂任务时，先把任务建模为“图任务”，而不是只列线性 TODO。节点表示子任务，边表示执行依赖或知识依赖。
+- 先按 `.github/instructions/agent-lightweight-workflow.instructions.md` 分类。只读 review/analysis
+  直接审阅相关源码/spec，不运行 DB brief、profile、task-run 或 guard；有落盘修改才启动
+  `scripts/agent-flow.sh`。
+- 只有真正的跨模块、长链或多节点依赖任务才建模为图任务；普通单模块开发使用最小技术闭环。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`software-dev-loop`、`software-bugfix-loop`、`software-refactor-loop`、`hardware-aware-software-loop`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`。只有模板不足时才动态扩图。
 - NEMU、Linux tools、guest check、host C++ harness、QMP/GDB 和设备模型属于“软件实现硬件/系统语义”的任务，默认走 `hardware-aware-software-loop`：先由 `software-flow` 收敛软件需求、契约、实现和测试，再叠加 `nemu-ubuntu`、`hardware-flow`、`rv64-linux`、`difftest` 或 target gate。
@@ -67,9 +70,13 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 只有在以下情况才动态扩图：现有模板缺少定位节点、节点连续失败需要插入 `reproduce/collect-log/localize/fix/rerun` 链、出现新的跨模块边界、或当前产物缺少可验证证据。
 - 图质量必须满足：没有 `evidence` 的节点不能作为下游硬依赖；没有两份可比较产物时不得创建 `compare/difftest` 节点；未来节点不能反向变成当前主闭环的硬前置。
 - 若同类动态图在多轮任务中反复以相同输入输出和成功标准复用，应把它提升为新的静态图模板，而不是长期靠临时扩图维持。
-- 对跨模块或多节点图任务，应在 `.github/task-runs/<日期-任务名>/` 下维护 `task-report.md` 与 `dispatch-log.md`；模板入口固定为 `.github/task-runs/templates/task-report.template.md` 与 `.github/task-runs/templates/dispatch-log.template.md`。`agent-e2e.sh` 生成的 task-run Markdown 会在报告层收口时归档/同步进开发记忆数据库，但工作区保留可直接读取的原文件；原始 `.log/.cmd/.tsv/.txt` evidence 保留在文件系统，但会登记到 `evidence_assets` 并生成/归档 `evidence-index.md`；读取报告内容优先用 `load --source auto --path <task-report.md>`，查询原始 evidence 摘要用 `evidence --run-id <run_id>`。
-- `.github/memory/` 只沉淀稳定结论、长期经验和设计决策；单次图执行的节点明细、阶段状态、证据链和派发历史优先写入 `.github/task-runs/`，不要把长日志整段塞进记忆文件；长日志只做路径/hash/marker/摘要登记。
-- 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包，再用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，软件流程入口用 `--profile software-flow`，`.github` 检索索引入口用 `--profile github-index`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
+- task-run 是目标轮次结束后的结果档案：开发/环境/清理默认 compact，长跑/release 默认 durable，
+  review/analysis/docs/无改动验证默认 none。只保留修改目录、验证指针、工程决策轨迹、门禁结果和
+  bounded 日志；完整 e2e profile 才保留原有 report/dispatch/manifest publication。
+- `.github/memory/` 只沉淀稳定跨会话结论；单次 PASS、review 意见和临时定位不强制写回。
+- AI 环境修改用 `agent-flow record` 登记路径，目标末尾由 C 选择固定 gate pointer。只有 profile
+  本身变化、release 或明确需要完整 e2e 时才运行 profile；不能用环境 profile 代替 target、
+  Linux/Ubuntu 或 PPA 正确性。
 - 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
 - 大任务允许并发调用多个无 shell 只读子 agent 做 RECALL、资料复核和日志整理；需要 shell 的只读探索由主 agent 按 single-flight 把当前唯一 ownership 交给一个契约节点，涉及实现、验证、记录的节点仍按依赖顺序串行推进。派发本地 RV64 RTL 子任务前必须读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，用 `.github/skills/prepare-rtl-task-contract/` 生成并校验 RTL/spec/TB/evidence 输入、输出路径、结构化 `command/mode/purpose`、最小上下文、产物和成功条件；`render` 提示固定使用 `rv64-hardware-professional` 硬件措辞，协调状态不进入子 agent 提示，且该措辞层不得改变既有工具或推理能力。主 agent 的用户可见进度与终审摘要同样先落到本地 RV64 module/signal/transaction、仿真/综合/STA 动作和证据产物，协调状态单独留在 task-run，不反复混入 RTL 技术正文。需要发现源码遗漏时默认使用限定路径的 `workspace-files`，no-tools 仅用于冻结材料复核。只读任务只消费合同内本地材料并使用不落盘命令，同时必须允许未知项、替代假设、反例、置信依据和范围扩展请求。
 - 子 agent 的 `render` 文本保持精简：只放具体 RV64 module/signal/本地证据路径、周期/配置、TB/EDA 观测、合同绑定和工程动作；派发管线、父任务历史、协调状态与措辞策略留在 JSON/dispatch log。Python/JSON 证据工具复核也以对应 CPU 债务项、RTL 证据路径、字段、定向单测和返回码为主语，不用通用流程描述替代硬件事实。
@@ -117,7 +124,8 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 ## Agent RTL 生成约束
 - 生成或修改任何 Verilog/SystemVerilog RTL（新模块、改接口、改时序、改状态机、改控制信号、改数据通路）前，**必须** 按 `需求 → 协议规则 + 状态机 + 不变量 + 数据通路约束 → RTL` 的四段式顺序推导，且每段都要在回复或落盘记录中显式给出，禁止跳过任何一段直接写代码。
 - 详细执行规范见 `.github/instructions/rtl-generation-workflow.instructions.md`；该规则对所有 `*.v / *.sv / *.vh / *.svh` 自动生效，与 `.github/instructions/npc-study.instructions.md` 串联使用：先按 study 流程读资料，再按 RTL 工作流推导，最后才落 RTL。
-- 落盘 RTL 改动需在 `.github/task-runs/<日期-任务名>/task-report.md` 追加“RTL 推导摘要”一节（需求要点、协议、状态机、不变量、数据通路骨架）；模块级稳定结论回写到 `.github/memory/modules/npc.md` 或对应模块笔记。
+- 落盘 RTL 改动用 `agent-flow decision/evidence` 记录需求、协议/状态机/不变量、数据通路骨架与
+  testbench/EDA 结果，PASS 后进入 compact task-run；只有稳定模块结论才回写 module memory。
 - 只读类问题（仅解释代码、做 RECALL）不强制走完整四段；但若结论会被用于后续 RTL 改动，那一步必须补齐。
 
 ## Agent NPC 性能优化约束
@@ -147,13 +155,15 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 本项目使用 `.github/memory/` 目录存储跨会话的项目状态和知识：
 - 开发记忆系统实现目录为 `scripts/dev_memory/`，其中 `core.py` 负责 schema/index/chunk 基础能力，`queries.py` 负责 query/summary/load，`api.py` 负责外部 AI JSON/JSONL 只读协议，`maintenance.py` 负责 promote/migrate/backup/restore/audit，`cli.py` 负责命令行装配，`__main__.py` 提供 `PYTHONPATH=scripts python3 -m dev_memory ...` 包入口；`scripts/github_index_db.py` 只是兼容 wrapper。
 - 可用 `scripts/github_index_db.py rebuild/stat/ls/tree/query/search/summary/compact/load/show/brief/profiles/resolve-profile/runs/evidence/usage/api/refresh/add/remove/promote/update-stored/backup/migrate/archive-markdown/index-evidence/snapshot-stored/rehydrate/materialize/restore/audit-db-first/audit-markdown-coverage/doctor` 为 `.github/**` 和根目录/多 AI 入口 shim 建本地 SQLite 检索索引和目录式资料库；默认数据库在 `.github/cache/github-index.sqlite`，默认额外索引 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`CONVENTIONS.md`、`.windsurfrules`、`.cursor/rules/agents.mdc`，保存索引、元数据、哈希、状态、查询文本、派生 chunk/summary、CLI/API access_log、raw evidence asset 摘要，以及 retained memory/log stored documents。agent、instruction、e2e profile/module、contract 和说明文档直接保留在原文件，数据库只作为索引读取它们。`brief <terms> --profile <profile>` 会组合核心规则、项目状态、known issues、live/indexed e2e profile/module 和关键词命中 chunk，为外部 agent 生成 bounded startup context；`profiles <terms>` 会从 live/indexed e2e profiles 解析 include、节点数、模块、owner 和运行命令，作为 profile 选择目录；`resolve-profile <profile>` 会按 TSV 行顺序递归展开 `@include`，输出 include 边、profile_order、展开节点、source_profile、模块和 owner，贴近 `agent-e2e.sh` 的真实调度视图；`runs --profile <profile>` 会从 retained task-report 汇总历史 run 状态、时间、final_result，并链接 report/dispatch/context brief/profile resolve/evidence index 及 evidence asset 数量；`index-evidence <task-run>` 只登记原始 evidence 文件的路径、大小、sha256、mtime、行数、marker 和 bounded 摘要，不把完整 log 放进 DB；`evidence --run-id <run_id>` 查询这些摘要；`usage` 会从 `access_log` 汇总最近一次数据库使用时间、CLI/API 来源、op、target 和 result_count；`api` 提供外部 AI 可调用的只读 JSON/JSONL 协议，支持 `stat/search/summary/load/show/brief/profiles/resolve-profile/runs/evidence/usage/schema`。普通文档读取用 `load --source auto` 或直接读文件；修改 memory/log retained documents 用 `update-stored --from-file/--content/--stdin` 写回数据库并同步 live 文件；`archive-markdown` 只用于 memory/log Markdown；`.github/cache` 可被清理，所以重要 DB 更新后用 `snapshot-stored --backup-dir .github/db-backup/stored-snapshot --yes` 生成当前 retained 快照，缓存 DB 丢失时用 `rehydrate --backup-dir .github/db-backup/stored-snapshot --yes` 从 manifest 重建 memory/log stored documents；`materialize --prune-non-retained` 可把 stored 内容写回原文件并移除非 memory/log DB ownership；`audit-db-first` 实时读取 live 文件，严格要求 `memory`/`memory-module` 与 stored 一致，并把历史 task-run/report/evidence stored-only 或 live drift 作为非阻塞归档分类；`audit-markdown-coverage --fail-on-live-evidence` 用来证明 Markdown ownership 边界；删除真实文件必须显式 `remove --delete-file --yes`。
-- 非平凡任务开工优先用 `scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 获取 live/indexed context；未确定 e2e profile 时只省略 `--profile`，仍保留 non-history focus，输出会包含 `Profile Suggestions`，根据 live/indexed profile/module 文档给出候选 profile、匹配词和推荐 `scripts/agent-e2e.sh --profile <profile>` 命令。历史 task-run/evidence 回查使用 `runs --profile <profile>` 与 `evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+- 只有需要历史事实、跨模块上下文或真实 e2e dispatch 时才运行 bounded brief；普通 review 和
+  单模块开发直接读取相关源码/spec。历史 task-run/evidence 回查仍使用 `runs` 与 `evidence`。
 - `project-status.md` — 项目进度总览
 - `decisions.md` — 设计决策记录
 - `known-issues.md` — 已知问题与调试历史
 - `modules/*.md` — 各模块专属笔记（含 `agent-system.md`）
 
-**所有 agent 在工作前必须读取相关记忆文件，完成后必须更新记忆。** 详见 `.github/instructions/memory-protocol.instructions.md`。
+只有任务需要历史事实或跨模块上下文时才读取相关记忆；只有稳定、跨会话复用的结论才更新记忆。
+普通 review、临时定位和单次验证不强制读写 memory。详见 `.github/instructions/memory-protocol.instructions.md`。
 
 ## 调度机制
 复杂任务通过 `ysyx-coordinator` 总调度 agent 处理，它先选择静态图或动态图，再执行六步调度循环：
@@ -161,7 +171,12 @@ RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VE
 
 ## Agent 完成判定钩子
 - 在声明“完成”、关闭 goal 或写入“已完成”记录前，必须回看用户原始请求和已读文档的完整 checklist/路线图，逐项核对实际证据。
-- 收尾时必须显式执行“实现者 / 审查者”双角色复核：实现者说明交付证据和边界，审查者优先寻找反例、覆盖洞、假绿、未跑 profile、未读上下文和越级结论；最终答复必须写清复核结论，分歧未解决时只能交付子任务状态和剩余风险。
-- 在收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 会按本轮工作树触碰路径推导推荐 profile，并检查 `.github/task-runs/` evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若缺证据或 DB 召回产物，先补跑建议 profile，或在回复和 memory/task-run 中写明豁免理由与风险。
+- 有落盘实现、跨模块结论或高风险交付时，在候选交付已经形成后执行一次“实现者 / 审查者”复核；
+  候选由 `scripts/agent-flow.sh finish --task <id> --candidate` 形成且尚不归档最终 PASS；纯只读
+  review 不再追加同构审查。审查者优先寻找反例、覆盖洞、假绿和越级结论，审查无修改后再正式
+  `finish`。
+- 一轮目标确定性交付时运行 `scripts/agent-flow.sh finish --task <id>`；约 40% 流程占用是非阻断复盘
+  目标，不设置精确时间门禁。strict e2e guard 只用于 release/迁移并显式消费 paths-file/path，
+  不扫描 Git 工作树。
 - 若只完成路线图中的一个子项，只能表述为“本子项/本切片完成”，并列出未完成项；不得把长期目标、多阶段任务或完整 Ubuntu/完整 VM 路线越级标为整体完成。
 - 对 RV64 Linux/Ubuntu、图任务、长链调试和 agent 工作流任务，最终答复必须同时写清已闭合 gate、未闭合 gate 和下一步候选。

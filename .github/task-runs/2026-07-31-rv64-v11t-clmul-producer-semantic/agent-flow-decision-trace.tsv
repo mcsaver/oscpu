@@ -1,0 +1,2 @@
+2026-07-31T12:52:18Z	decision	Promote only clmul-producer to unit-level PASS; preserve eight-younger/global no-live-reuse, whole-architecture and PPA gaps.	.github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/review-result.md
+2026-07-31T12:52:23Z	counterexample	Combined response backpressure, flush and same-index reissue plus eight-younger/global wrap-reuse pressure are not closed by V11T.	.github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/review-result.md

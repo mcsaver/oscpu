@@ -1,0 +1,247 @@
+{
+  "schema": "npc-rv64-development-round-state-v1",
+  "run_id": "2026-07-30-rv64-v11m-memory-reservation-holder-semantic",
+  "status": "APPROVED_NOT_PROMOTION_ELIGIBLE_RECORD_CLOSED",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "module": "OooIntBackend",
+    "instances": [
+      "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
+    ],
+    "semantic_units": [
+      "memory-reservation-producer",
+      "memory-reservation-token",
+      "memory-reservation1-producer",
+      "memory-reservation1-token"
+    ]
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "worktree": "mixed-dirty-preserved",
+    "staged_by_v11m": false,
+    "single_flight_lane": "AVAILABLE",
+    "final_review_shell_returned": true
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "elaborated_rtl_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "simulation_top_id": "tb_ooo_int_backend:V11M_MEMORY_RESERVATION_HOLDER_FOCUSED",
+    "device_model_id": "UNCHANGED_NOT_IN_FOCUSED_SCOPE",
+    "host_harness_id": "npc-rv64-v11m-memory-reservation-holder-semantic-evidence-v2",
+    "simulator_semantics_id": "BOUND_IN_FOCUSED_SUMMARY",
+    "checker_oracle_id_old": "v11m-focused-current-generation0-token0-3",
+    "checker_oracle_id_new": "sha256:5c01b094e09e3006305f20078fd8bfa1ad824c2777f3ec49f4280ba0602c8d89",
+    "guest_payload_id": "A3_UNCHANGED",
+    "boot_artifact_id": "A3_UNCHANGED",
+    "test_input_log_id": "sha256:8a956b35d369e1b69ecbb8ad967fb9ab9f27024e4d836d37a32fc42f5ff7639d",
+    "run_configuration_id": "generation1-token28-31-hold3-assert-and-release",
+    "raw_artifact_bundle_id": "focused-fullwidth-current",
+    "production_rtl_changed_by_v11m": false
+  },
+  "evidence_state": {
+    "published_gate_state": "BOUNDED_PASS",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE_FOR_FOCUSED_PROFILES",
+    "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "VALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO_FOR_V11M_LOCAL_CLAIM",
+    "launch_authorization_state": "NOT_REQUIRED_FOR_V11M_LOCAL_CLAIM",
+    "rerun_reason": "V11M production RTL and active execution semantics are unchanged",
+    "evidence_scope": [
+      "two reservation ProducerId holders",
+      "two reservation owner-token holders",
+      "assertions-on/off focused RTL",
+      "37 compile-success negative RTL variants",
+      "three ordinary regressions"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "VERIFICATION_AND_EVIDENCE_ONLY",
+    "changed_files": [
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/run_v11m_memory_reservation_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11m_memory_reservation_holder_semantic.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py"
+    ],
+    "changed_modules": [
+      "tb_ooo_int_backend"
+    ],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "V11M code is macro-isolated testbench/evidence logic; mutation files exist only under result directories and production OooIntBackend.v remains hash-identical."
+  },
+  "evidence": {
+    "focused_summary": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/focused-fullwidth-current/summary.json",
+    "python_unit_receipt": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/python-unit-current/receipt.json",
+    "v11j_current_rebind": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/v11j-bridge-rebind-fullwidth-a1/summary.json",
+    "v11k_current_rebind": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/v11k-miq-rebind-fullwidth-a1/summary.json",
+    "v11l_current_rebind": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/v11l-memory-retry-rebind-fullwidth-a1/summary.json",
+    "v11h_checker_replay": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/v11h-checker-replay-current-receipt.json",
+    "instance_graph": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/current-instance-graph/holder-instance-graph.json",
+    "semantic_ledger": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json"
+  },
+  "implementation": {
+    "production_rtl": "UNCHANGED",
+    "testbench": "MACRO_ISOLATED_STIMULUS_OWNED_DUAL_RESERVATION_ORACLE",
+    "full_width_identity": "ProducerId generation=1; owner tokens 28,29,30,31",
+    "profiles": "39/39 PASS",
+    "mutations": "37/37 compile-success release variants rejected",
+    "ordinary_regressions": "3/3 PASS",
+    "runner_unit_tests": "7/7 PASS",
+    "semantic_evaluator_unit_tests": "51/51 PASS",
+    "v11j_rebind": "PASS",
+    "v11k_rebind": "PASS",
+    "v11l_rebind": "PASS",
+    "v11h_replay": "PASS",
+    "instance_graph": "PASS 15 holder modules 17 holder instances 2 duplicate modules"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "before": {
+      "units_pass": 21,
+      "units_gap": 23
+    },
+    "after": {
+      "units_pass": 25,
+      "units_gap": 19
+    },
+    "changed_units": [
+      "memory-reservation-producer",
+      "memory-reservation-token",
+      "memory-reservation1-producer",
+      "memory-reservation1-token"
+    ]
+  },
+  "a3_frozen_system_evidence": {
+    "source_run": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3",
+    "published_gate_state": "FAIL",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID_OLD_CHECKER",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO_FOR_ORACLE_REPAIR_AT_A3_DESIGN",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "commits": 1223536213,
+    "cycles": 5071521696,
+    "simulator_sha256": "dc8a175a53bf45f1f1bd9b2228bf9bdf4f6981eb9e01f66ae86bb500cf91f218",
+    "replay_run": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2",
+    "replay_result": "PASS",
+    "original_fail_preserved": true
+  },
+  "replay": {
+    "source_run_id": "rootfs-c1b531-systemd-strict-6b-a3",
+    "source_raw_log_sha": "BOUND_IN_V10F_REPLAY_EVIDENCE",
+    "source_input_sha": "BOUND_IN_V10F_SOURCE_INPUT_SHA256",
+    "replay_command": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/run-v10f-a3-checker-replay-v2.sh",
+    "replay_result": "PASS",
+    "proven_scope": [
+      "printk: debug is accepted",
+      "real BUG token is rejected",
+      "A3 terminal chain and frozen binding remain valid"
+    ],
+    "unproven_scope": [
+      "new production RTL system behavior",
+      "whole-architecture closure",
+      "PPA qualification"
+    ],
+    "limitations": [
+      "A3 original strict FAIL remains immutable",
+      "replay does not reexecute DUT"
+    ]
+  },
+  "cost": {
+    "expected_wallclock": "focused evidence only; no system rerun",
+    "historical_runtime_reference": "A3 approximately 19 hours",
+    "runtime_estimate_confidence": "HIGH",
+    "single_flight_resource": "Windows-to-WSL engineering lane",
+    "expected_occupancy": "LOW",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "frozen-input checker replay",
+      "focused RTL TB",
+      "compile-success mutation"
+    ],
+    "stop_condition": "bounded semantic PASS or production RTL counterexample"
+  },
+  "review": {
+    "contract": ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/subagent-contracts/v11m-memory-reservation-holder-final-review-v3.json",
+    "contract_sha256": "39bfb5c440838eb45121dd6ebaffa11f8b2c3426ac89c339aaeec70e5a9779e4",
+    "reviewer_conclusion": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "blocking_findings": 0,
+    "confidence": 0.93,
+    "scope_extension_request": "none",
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED"
+  },
+  "promotion": {
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "eligible": false,
+    "full_system_run": "NOT_TRIGGERED",
+    "current_design_system_recertification": "REQUIRED_BEFORE_SYSTEM_PROMOTION_DUE_TO_V11H_PRODUCTION_RTL_DELTA",
+    "current_design_system_launch_authorization": "NOT_AUTHORIZED_IN_V11M"
+  },
+  "environment_closeout": {
+    "memory_updated": true,
+    "memory_binding": {
+      "project_status_sha256": "3a8feb4d8a833a40c1977d3737efaeb43579aff2b4a75528b9df17510b104952",
+      "project_status_bytes": 104584,
+      "npc_module_sha256": "1e551f239c9f269488133182094337d85d37c36ae80027358c88fe33cd12c77f",
+      "npc_module_bytes": 107499
+    },
+    "evidence_indexed": true,
+    "evidence_assets": 3087,
+    "task_markdown_archive": {
+      "technical_documents": 13,
+      "record_staging_documents": 2,
+      "stored_documents_total": 15,
+      "compatibility_shims_total": 15,
+      "live_files": 0
+    },
+    "task_specific_e2e": {
+      "profile": "npc-dev",
+      "run": ".github/task-runs/2026-07-30-OooIntBackend-memory-reservation-holder-revtag-v11m",
+      "status": "COMPLETED_5_OF_5"
+    },
+    "strict_guard": {
+      "status": "PASS",
+      "mode": "strict",
+      "changed_paths": 13,
+      "required_profiles": [
+        "npc-dev"
+      ]
+    },
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS_LIVE_EVIDENCE_0",
+    "artifact_audit": "PASS_TRACKED_HEAVY_FILES_0",
+    "full_worktree_guard": "NOT_RUN_MIXED_ORIGIN_SCOPE"
+  },
+  "next_action": {
+    "target": "memory-buffer-token, memory-pending-producer-cache, memory-pending-token",
+    "classification": "verification-first",
+    "stop_condition": "production RTL counterexample, binding drift, bounded PASS, or explicit residual GAP"
+  }
+}

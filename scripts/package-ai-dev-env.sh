@@ -75,8 +75,12 @@ copy_file scripts/github_index_db.py scripts/github_index_db.py
 copy_file scripts/README.md scripts/README.md
 copy_file scripts/agent-env.sh scripts/agent-env.sh
 copy_file scripts/agent-run.sh scripts/agent-run.sh
+copy_file scripts/agent-flow.c scripts/agent-flow.c
+copy_file scripts/agent-flow.sh scripts/agent-flow.sh
 copy_file scripts/agent-e2e.sh scripts/agent-e2e.sh
 copy_file scripts/agent-maintain.sh scripts/agent-maintain.sh
+copy_file scripts/task-run-status.sh scripts/task-run-status.sh
+copy_dir scripts/tests scripts/tests
 copy_dir scripts/dev_memory scripts/dev_memory
 copy_dir scripts/e2e scripts/e2e
 
@@ -99,7 +103,7 @@ Run from the source workspace before shipping:
 
 \`\`\`bash
 python3 scripts/github_index_db.py delivery-audit
-scripts/agent-maintain.sh --mode check
+scripts/agent-maintain.sh --mode release
 \`\`\`
 EOF
 

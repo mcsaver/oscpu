@@ -27,11 +27,27 @@
 - **历史证据回查**：需要回看已归档 e2e 证据时，运行 `python3 scripts/github_index_db.py runs --profile <profile>`；它从 stored task-report 汇总 run 状态、时间、final_result，并链接 report、dispatch、context brief、profile resolve、evidence index 和 evidence asset 数量。需要查原始 log 是否被登记时，用 `python3 scripts/github_index_db.py evidence --run-id <run_id>`；不要默认把完整 log 加载进上下文。
 - **语言约定**：所有注释、文档和记录默认使用中文。
 
+### 轻量任务入口（优先于旧的全量闭环）
+
+- 所有任务先读取 `.github/instructions/agent-lightweight-workflow.instructions.md` 并分类为
+  `review/analysis/docs/development/verification/environment/longrun/cleanup/release`。
+- `review`、`analysis` 是只读任务：直接读取相关源码/spec 并交付结论，不强制 DB brief、memory、
+  task-run、profile、strict guard 或实现者/审查者二次套娃。
+- 有落盘修改的任务用 `scripts/agent-flow.sh begin/record/evidence/decision/finish` 记录本轮明确拥有的
+  路径；禁止为了推导本轮修改目录而扫描整个 Git 工作树。
+- AI 环境门禁只在一轮目标达到确定性交付点时执行一次，C 调度器按显式路径选择固定 gate pointer。
+  流程占用约不高于开发时间 40% 是非阻断的设计目标和复盘指标；通过分类、缓存与低频触发压缩，
+  不因精确比例阻断交付，也不削弱业务测试或 RTL 断言。
+- task-run 只保留结果、修改目录、验证指针、结构化工程决策轨迹和 bounded 日志；档位由
+  `none/compact/durable` 决定，不再默认保存完整上下文和重复调度材料。
+
 ---
 
 ## 1. 必读链
 
-任何非平凡任务开工前，先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包；还不确定 profile 时只省略 `--profile`，仍保留 `--focus-scope non-history`，再根据 `Profile Suggestions` 选择。随后按顺序读取并核对：
+只读 review/analysis 只读取当前问题直接相关的源码、spec 和必要调用链。开发、长跑、环境修改、
+跨模块任务或需要历史事实时，再按作用域读取下列材料；只有需要历史召回或 profile 上下文时才运行
+`python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history`：
 
 1. 本文件 `.github/AGENTS.md`
 2. `.github/copilot-instructions.md`
@@ -44,7 +60,9 @@
    - 若向子 agent/并行 reviewer 派发 `npc/rv64` RTL、验证或 PPA 子任务，**必读** `.github/instructions/rtl-agent-task-contract.instructions.md`，并在派发前用 `.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小充分工程任务契约
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
-9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`software-flow`、`github-index`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
+9. 若任务涉及 AI 开发环境，补读 `AI_ENVIRONMENT.md`、layer contract 和与本次修改直接相关的 e2e 文件；
+   用 `agent-flow` 记录路径并在目标末尾运行选中 gate。只有修改 profile 本身、release 或明确需要完整
+   e2e 证据时才生成 profile task-run
 10. 若任务涉及 `npc/rv64`、OpenSBI/Linux/Ubuntu 22.04、rootfs、framebuffer/VGA、RV64GC/lp64d 或 Verilator 性能仿真，补读 `.github/agents/rv64-linux.agent.md`、`.github/agents/linux-device.agent.md`、`.github/agents/display-vga.agent.md`、`.github/agents/verilator-tapeout.agent.md` 以及相关 `.github/instructions/*.instructions.md`
 
 禁止只看当前打开的单个文件就开始修改；任何“我以为”都必须先用搜索、阅读或运行结果验证。
@@ -53,16 +71,17 @@
 
 ## 2. 六步调度循环
 
-所有非平凡任务默认遵循：
+有落盘开发和高成本验证任务遵循下列技术闭环；只读 review/analysis 压缩为
+`READ -> REVIEW -> REPORT`，不追加环境治理步骤：
 
 | 步骤 | 必须产出 | 说明 |
 | --- | --- | --- |
-| **RECALL** | DB brief 命令/结果 + 已读记忆文件清单 + 相关约束摘要 | 先用 `brief` 获取 bounded 上下文，再消化 `.github/memory/**` 与本地 study 资料；若跳过 DB recall，必须写明原因 |
+| **RECALL** | 直接相关源码/spec；需要历史时才生成 DB brief | 不把历史召回作为所有任务的固定前置 |
 | **PLAN** | 任务图或最小可执行步骤 | 复杂任务优先选静态图模板 |
 | **DISPATCH** | 当前节点的具体动作 | 可并发做只读调研，但实现与验证按依赖推进 |
 | **VERIFY** | 客观证据 | 日志、构建结果、测试结果、trace、对比输出 |
 | **ADAPT** | 失败后的根因假设与下一步实验 | 禁止盲目重复同一命令 |
-| **RECORD** | 改动清单、原因、验证与结果 | 稳定结论写 memory，任务过程写 task-runs |
+| **RECORD** | 显式修改路径、验证和工程决策轨迹 | 稳定结论写 memory；确定性结果按 compact/durable task-run 留存 |
 
 平凡任务可压缩为 `PLAN -> DISPATCH -> VERIFY`，但不能跳过验证。
 
@@ -114,19 +133,29 @@
 ## 7. 记录与交付
 
 - **完成判定钩子**：在声明“完成”、关闭目标、更新 goal 状态、或把任务写入“已完成”前，必须重新展开用户原始请求和已读文档中的 checklist/路线图，逐项核对：
-  - 必须显式完成“实现者 / 审查者”双角色复核：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。最终回复和 task-run/memory 应写清复核结论：哪些质疑已由证据关闭，哪些只能作为剩余风险或下一步，分歧未解决时不得声明整体完成。
+  - 有落盘实现、跨模块结论、长跑或高风险交付时完成“实现者 / 审查者”双角色复核：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿和越级完成声明。纯代码 review/analysis 不再追加同构的二次审查。
   - 若用户请求是路线图、长期目标或包含多阶段建议，只能把已验证的最小闭环称为“子任务/本切片完成”，不得把整个目标标为完成。
   - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
   - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
   - RV64 Linux/Ubuntu、图任务和长链调试尤其要按 gate 分层收口，禁止用低层 gate 或单个设备子项越级声明完整 Ubuntu、完整 VM、完整性能路线或完整图目标。
   - （rv64 核 RTL）若本次改动触碰握手/stall/flush/序/恢复或跨模块边界，声明“完成”前必须核对：六类契约已冻结、受影响模块 SPEC-TEMPLATE §2/§3 已填满、能编码的契约已转成非真空立即断言且 `make -C npc/rv64 check-contract` 通过；任一缺失只能称“子任务完成”，并在回复中显式列出未冻结的契约格子作为未闭合项。
-- 稳定结论、长期经验和设计决策写入 `.github/memory/`。
-- 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
+- 只有稳定、跨会话复用的结论、经验和设计决策才写入 `.github/memory/`；普通 review、临时定位和
+  单次 PASS 不强制更新 memory。
+- task-run 是确定性结果档案，不是默认过程转储。`development/environment/cleanup` 默认 compact，
+  `longrun/release` 默认 durable，`review/analysis/docs/verification` 默认 none；具体内容和覆盖规则见
+  `.github/instructions/agent-lightweight-workflow.instructions.md`。
 - 长时间 RV64 仿真、综合、STA 或系统回放 runner 必须用显式 evidence-complete 位授权最终 `PASS`；不得在
   `EXIT` trap 中仅按 `$?=0` 推断完成。`HUP/INT/TERM`、证据检查未到末端或配置恢复失败都必须写
   `FAIL`，并保留 stage/signal/cleanup 返回码。默认复用 `scripts/task-run-status.sh`，用
   `scripts/tests/test-task-run-status.sh` 覆盖正常完成与中断反例。
-- 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`，让工具按本轮工作树触碰路径推导推荐 profile，并检查 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若 guard 报缺少证据或 DB 召回产物，必须先补跑建议 profile，或在最终回复和 memory/task-run 中明确豁免理由与风险，不能用 difftest/TB PASS 替代 workflow 证据契约。
+- 日常收尾只在一轮目标达到确定性交付点时运行
+  `scripts/agent-flow.sh finish --task <task-id>`。C 调度器按明确登记的路径运行相关门禁；约 40%
+  流程占用只在 `summary.txt` 中观测而不构成时间门禁，AI 失败时再读对应单个日志。
+- 需要实现者/审查者复核的任务先运行 `finish --candidate` 生成 `CANDIDATE_PASS` 并缓存同一
+  generation 的门禁结果；审查无修改后正式 `finish` 复用缓存并归档，审查触发修改时重新
+  `record` 使旧缓存失效。
+- `scripts/agent-e2e.sh --guard --guard-mode strict` 只保留给 release、迁移兼容或用户明确要求的完整
+  workflow evidence 审查，并且必须显式传入 `--paths-file`/`--path`，不得扫描 Git 工作树。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。
 - **文档生命周期义务**：文档不是只增不减的沉积层。声明任务"完成"前，按
   `.github/instructions/doc-lifecycle.instructions.md` §4 核对本次改动是否触发文档状态迁移

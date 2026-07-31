@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v11t-clmul-frozen-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对冻结的本地 RV64 OooIntBackend.u_clmul_unit CLMUL/CLMULH ProducerId 生命周期证据做第二遍逻辑复核，判断单元级 PASS、compact cleanup 与整核 GAP/PPA UNPROMOTED 边界是否自洽。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-integer-longop-producer-lease.md",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/summary.json",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/cleanup-selection.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/subagent-contracts/rv64-v11t-clmul-frozen-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 RV64 RTL design_id 为 sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4；V11T source_before/source_after 对 OooIntBackend.v、OooClmulUnit.v、define.v 与三个 testbench 输入均匹配，production_rtl_change=false。",
+      "V11T 使用 stimulus-owned ProducerId={generation=1,index=2}，期望值不从 DUT holder 或 ROB 读取；CLMUL 与 CLMULH 均经 OooIntBackend.u_clmul_unit 实际 product path。",
+      "定向 TB 观测 request capture、RUN/RESP owner/live mask、same-index wrong-generation exact-open 拒绝、WB0 ProducerId/data、exactly-once retirement、accepted-terminal edge-old release 与 full_flush death。",
+      "attempt-2 共有 22/22 profile PASS：4 个 production baseline 加 9 个 compile-success RTL mutation 在 generation-width 1/4 release 配置下各 2 个；4/4 ordinary regression PASS。",
+      "9 个 RTL mutation 分别破坏 request valid、request generation、request index、owner live-mask generation、completion query generation、exact-open authorization、response ready、WB0 generation 与 flush cut；检查器要求每个在声明的流水阶段出现预期失败 marker。",
+      "artifact-cleanup.json 与 summary 共同记录并校验 36 个已删除二级产物：22 个 focused .vvp、4 个 regression .vvp、9 个 generated-negative OooIntBackend.v、1 个 generated focused TB；每项保留 path/sha256/size/kind，且当前路径必须不存在。",
+      "producer_holder_semantic_coverage.py 对 V11T 重构 focused overlay、核对 22 个 compile manifest/log marker、4 个 regression manifest/log、9 个 mutation receipt 与 36 个删除记录；六个 V11T fail-closed 负向用例和完整 95 项套件均 PASS。",
+      "current holder instance graph 在同一 design_id 下为 PASS，含 17 个 holder instance 与 194 个 reachable module instance；CLMUL product instance 为 NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_clmul_unit。",
+      "当前 canonical semantic ledger 为 44 个 unit、17 个 holder instance、50 个 binding、36 PASS/8 GAP；CLMUL producer 单元 PASS，剩余 GAP 为 pending-system producer 与 7 个 floating-point producer path。",
+      "V11T 明确 eight_younger_pressure=NOT_RUN_IN_V11T、global_no_live_reuse=NOT_PROVEN、whole_architecture=RED、ppa=UNPROMOTED；A3 原始 FAIL 保留并仅解释为系统事务完成且旧 dmesg oracle 对 printk: debug: 误判，本轮未做系统重跑、综合、STA 或 PPA。"
+    ]
+  },
+  "deliverables": [
+    "第一行按 RV64 RTL 结论格式给出限定材料的 PASS/GAP/inconclusive；随后列出任何逻辑反例、未知项、替代解释和置信基础，明确哪些结论可成立、哪些不能外推。"
+  ],
+  "success_criteria": [
+    "只有当 stimulus-owned identity、wrong-generation rejection、mutation sensitivity、compact cleanup 不可伪造性、current-design instance binding 与 36/8 scope 边界在随附事实中无矛盾时，才批准 CLMUL producer 单元级 PASS；不得批准 8-younger pressure、global no-live-reuse、整核 GREEN 或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,149 @@
+{
+  "schema": "rv64-round-start-v1",
+  "run_id": "2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "mechanism": "integer-lane1-completion-packet",
+    "rtl_modules": [
+      "OooIntBackend",
+      "PipeStageReg"
+    ],
+    "signals": [
+      "issue1_exec_fire_w",
+      "mem_issue1_res_local_complete_w",
+      "ex1_up_from_mem_w",
+      "ex1_up_producer_id_w",
+      "ex1_up_payload_w",
+      "ex1_down_payload_w",
+      "ex1_producer_id_q",
+      "ex1_pre_auth_valid_w",
+      "ex1_producer_open_w",
+      "ex1_same_edge_claimed_w",
+      "ex1_wb_valid_w"
+    ],
+    "semantic_units": [
+      "integer-ex1-packed-alias",
+      "integer-ex1-packet"
+    ],
+    "source_paths_exercised": [
+      "dual-dispatch lane1 fixed-latency ALU completion",
+      "dual-memory lane1 misaligned-load local completion"
+    ],
+    "excluded_this_round": [
+      "integer-ex0-packed-alias",
+      "integer-ex0-packet",
+      "branch-resolve-packet",
+      "remote memory response completion",
+      "floating-point completion paths",
+      "production RTL modification",
+      "full-system rerun",
+      "formal PPA"
+    ]
+  },
+  "repository": {
+    "branch": "ai",
+    "head_sha": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "staged_path_count": 0,
+    "worktree_state": "MIXED_DIRTY_PRESERVE",
+    "production_rtl": {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a"
+    },
+    "pipe_stage_rtl": {
+      "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+      "sha256": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775"
+    },
+    "define_rtl": {
+      "path": "npc/rv64/vsrc/include/define.v",
+      "sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+    },
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043"
+  },
+  "original_evidence": {
+    "candidate_id": "v8l-current-global-subset",
+    "binding_state": "HISTORICAL_FULL_RTL_BOUND",
+    "scope": "PARTIAL",
+    "open_classifications": [
+      "RAW_IDENTITY_NEGATIVE_COVERAGE_GAP",
+      "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
+      "SEMANTIC_LIFECYCLE_NOT_CLOSED",
+      "UNIT_LIFECYCLE_COVERAGE_GAP"
+    ],
+    "related_current_evidence": [
+      "v11m-memory-reservation-holder",
+      "v11q-int-lane0-completion-resolve-packet"
+    ],
+    "related_evidence_limit": "Neither related receipt directly observes the current EX1 raw packet and packed alias for both lane1 source alternatives."
+  },
+  "debt": {
+    "ids": [
+      "integer-ex1-packed-alias",
+      "integer-ex1-packet"
+    ],
+    "architecture_state": "RED",
+    "promotion_state": "NOT_ELIGIBLE",
+    "ppa_state": "UNPROMOTED"
+  },
+  "hypotheses": {
+    "primary": "Current lane1 fixed-latency ALU and local-memory completion inputs preserve one full ProducerId and semantic payload through the common EX1 registered packet, exact alias extraction, ROB-open authorization, same-edge claim fence, and fail-closed death edges.",
+    "competing": [
+      "The common EX1 packet preserves lane1 ALU identity but truncates or selects the wrong identity for the local-memory input.",
+      "A generation or raw-index field is truncated or mis-sliced while historical low-index observations still pass.",
+      "The packed alias is correct only because it feeds back from a corrupted field boundary rather than independently matching a stimulus-owned ProducerId.",
+      "EX1 same-edge arbitration compares only ROB index and incorrectly suppresses a generation-separated producer.",
+      "A flush masks the registered holder on the following cycle but leaves same-cycle completion authority live."
+    ]
+  },
+  "experiment": {
+    "highest_information_gain": "Compile current selected RTL and one focused TB for PRODUCER_GEN_W=1 and 4; derive generation=1 lane0/lane1 ProducerIds from the stimulus schedule; observe the ALU and lane1 local-memory EX1 input selection, raw registered packet, packed alias, result/destination/exception payload, exact authorization, same-index wrong-generation arbitration, one-cycle death, and flush cut; then require compile-success release-mode semantic variants to fail at one declared oracle stage.",
+    "observations": [
+      "dual-dispatch lane0/lane1 ProducerIds",
+      "EX1 ALU up/down valid and full ProducerId",
+      "EX1 local-memory up/down valid and full ProducerId",
+      "EX1 result, destination, exception, cause and tval fields",
+      "packed EX1 ProducerId alias",
+      "ROB exact-open authorization",
+      "generation-separated same-edge claim behavior",
+      "same-cycle flush suppression and next-cycle stage death"
+    ],
+    "controls": [
+      "release and OOO_ASSERT baselines",
+      "two ProducerId generation widths",
+      "four-state exact comparisons",
+      "stimulus-owned ProducerId schedule",
+      "source pre/post SHA manifests",
+      "independent product-instance graph binding",
+      "ordinary integer-backend regressions"
+    ],
+    "expected_difference": "Production baselines pass. Each semantic variant compiles successfully and is rejected only by its declared focused oracle stage.",
+    "stop_condition": "Stop before any production RTL edit if current baselines and all variants close the two verification units; reclassify to production RTL fix immediately if a current baseline exposes a real RTL mismatch."
+  },
+  "cost": {
+    "expected_wallclock": "10-30 minutes",
+    "runtime_estimate_confidence": "MEDIUM",
+    "single_flight_resource": "Windows-to-WSL engineering command lane",
+    "single_flight_state": "UNOCCUPIED_AT_ROUND_START",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "Reuse V8F/V11M/V11Q receipts without a current EX1 packet test; rejected because those receipts do not prove common-packet field boundaries and mutation sensitivity for both lane1 source alternatives."
+    ]
+  },
+  "system_evidence": {
+    "a3_published_gate_state": "FAIL_PRESERVED",
+    "a3_execution_state": "COMPLETE",
+    "a3_dut_terminal_state": "COMPLETE",
+    "a3_binding_state": "NO_DRIFT",
+    "a3_rtl_assertion_state": "CLEAN",
+    "a3_oracle_state": "OLD_ORACLE_INVALID",
+    "a3_checker_replay_state": "PASS_INDEPENDENT_EVIDENCE",
+    "a3_interpretation": "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+    "full_system_rerun_required_for_this_round": false,
+    "launch_authorization_state": "NOT_REQUIRED"
+  }
+}

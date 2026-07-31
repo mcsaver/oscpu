@@ -18,9 +18,12 @@ module tb_ooo_pending_system_lease_probe;
   reg dispatch_fire;
   reg producer_death;
   reg capture_head0;
+  reg capture_head0_csr;
+  reg capture_head0_ecall;
   wire valid;
   wire dispatched;
   wire csr;
+  wire ecall;
   wire producer_valid;
   wire [PRODUCER_ID_W-1:0] producer_id;
 
@@ -42,8 +45,8 @@ module tb_ooo_pending_system_lease_probe;
     .capture_irq_pc_i({`XLEN{1'b0}}),
     .capture_irq_cause_i({`TRAP_CAUSE_W{1'b0}}),
     .capture_head0_i(capture_head0),
-    .capture_head0_csr_i(1'b1),
-    .capture_head0_ecall_i(1'b0),
+    .capture_head0_csr_i(capture_head0_csr),
+    .capture_head0_ecall_i(capture_head0_ecall),
     .capture_head0_mret_i(1'b0),
     .capture_head0_wfi_i(1'b0),
     .capture_head0_sfence_i(1'b0),
@@ -66,11 +69,12 @@ module tb_ooo_pending_system_lease_probe;
     .valid_o(valid),
     .dispatched_o(dispatched),
     .csr_o(csr),
-    .ecall_o(),
+    .ecall_o(ecall),
     .mret_o(),
     .wfi_o(),
     .sfence_o(),
     .fencei_o(),
+    .fence_o(),
     .irq_o(),
     .pc_o(),
     .inst_o(),
@@ -99,6 +103,8 @@ module tb_ooo_pending_system_lease_probe;
       dispatch_fire = 1'b0;
       producer_death = 1'b0;
       capture_head0 = 1'b0;
+      capture_head0_csr = 1'b1;
+      capture_head0_ecall = 1'b0;
       repeat (2) tick();
       rst = 1'b0;
       capture_head0 = 1'b1;
@@ -114,13 +120,50 @@ module tb_ooo_pending_system_lease_probe;
     end
   endtask
 
+  task automatic establish_noncsr_pending;
+    begin
+      rst = 1'b1;
+      clear = 1'b0;
+      clear_dispatched = 1'b0;
+      dispatch_fire = 1'b0;
+      producer_death = 1'b0;
+      capture_head0 = 1'b0;
+      capture_head0_csr = 1'b0;
+      capture_head0_ecall = 1'b1;
+      repeat (2) tick();
+      rst = 1'b0;
+      capture_head0 = 1'b1;
+      tick();
+      capture_head0 = 1'b0;
+      if (!valid || dispatched || csr || !ecall || producer_valid) begin
+        $fatal(1, "[V11U-PROBE-NONCSR-SETUP] failed to establish pre-ROB ECALL");
+      end
+    end
+  endtask
+
   initial begin
+`ifdef V11U_PROBE_NONCSR_DISPATCH
+    establish_noncsr_pending();
+    dispatch_fire = 1'b1;
+    tick();
+    if (!valid || dispatched || csr || !ecall || producer_valid)
+      $fatal(1, "[V11U-PROBE-NONCSR-DISPATCH] non-CSR pending entry birthed a lease");
+    $display("[V11U-PROBE-NONCSR-DISPATCH] PASS");
+    $display("PASS tb_ooo_pending_system_lease_probe");
+    $finish;
+`elsif V11U_ASSERT_NONCSR_DISPATCH
+    establish_noncsr_pending();
+    dispatch_fire = 1'b1;
+    tick();
+    $fatal(1, "[V11U-ASSERT-NONCSR-DISPATCH] expected assertion did not fire");
+`else
     establish_live_lease();
 `ifdef V8K_PROBE_PARTIAL_METADATA
     force dut.valid_q = 1'b0;
     #1;
     if (!producer_valid || (producer_id != PID))
       $fatal(1, "[V8K-PROBE-PARTIAL-METADATA] raw lease output was metadata-gated");
+    $display("[V11U-RAW-LEASE-PARTIAL-METADATA][PASS]");
     $display("PASS tb_ooo_pending_system_lease_probe");
     $finish;
 `elsif V8K_PROBE_LIVE_CLEAR
@@ -128,6 +171,7 @@ module tb_ooo_pending_system_lease_probe;
     tick();
     if (!producer_valid || (producer_id != PID))
       $fatal(1, "[V8K-PROBE-LIVE-CLEAR] ordinary clear killed live lease");
+    $display("[V11U-RAW-LEASE-ORDINARY-CLEAR-HOLD][PASS]");
     $display("PASS tb_ooo_pending_system_lease_probe");
     $finish;
 `elsif V8K_PROBE_LIVE_CLEAR_DISPATCHED
@@ -135,10 +179,14 @@ module tb_ooo_pending_system_lease_probe;
     tick();
     if (!producer_valid || !dispatched || (producer_id != PID))
       $fatal(1, "[V8K-PROBE-LIVE-CDISP] clear-dispatched killed live lease");
+    $display("[V11U-RAW-LEASE-CDISP-HOLD][PASS]");
     $display("PASS tb_ooo_pending_system_lease_probe");
     $finish;
 `elsif V8K_ASSERT_PARTIAL_METADATA
-    force dut.valid_q = 1'b0;
+    // Keep valid/kind coherent so this probe reaches the lease-shape
+    // assertion added by V8K instead of being consumed first by the later
+    // V9W valid/kind assertion.
+    force dut.dispatched_q = 1'b0;
     tick();
     $fatal(1, "[V8K-ASSERT-PARTIAL-METADATA] expected assertion did not fire");
 `elsif V8K_ASSERT_LIVE_CLEAR
@@ -147,6 +195,7 @@ module tb_ooo_pending_system_lease_probe;
     $fatal(1, "[V8K-ASSERT-LIVE-CLEAR] expected assertion did not fire");
 `else
     $fatal(1, "[V8K-PROBE] select one focused probe macro");
+`endif
 `endif
   end
 endmodule

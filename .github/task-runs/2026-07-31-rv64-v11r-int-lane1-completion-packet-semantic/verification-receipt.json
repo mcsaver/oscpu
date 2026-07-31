@@ -1,0 +1,108 @@
+{
+  "schema": "rv64-v11r-verification-receipt-v1",
+  "run_id": "2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic",
+  "generated_at_utc": "2026-07-30T23:43:16Z",
+  "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "design": {
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "production_rtl_modified": false,
+    "ooo_int_backend_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "pipe_stage_reg_sha256": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+    "define_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694"
+  },
+  "focused": {
+    "summary": "evidence/focused-attempt-1/summary.json",
+    "summary_sha256": "90264425dd6704f087c73d8bc11ac03d49474e6df5261f180efa939bc992cb97",
+    "profiles_pass": 32,
+    "profiles_total": 32,
+    "baseline_pass": 4,
+    "baseline_total": 4,
+    "compile_success_mutation_profiles_rejected": 28,
+    "compile_success_mutation_profiles_total": 28,
+    "ordinary_regressions_pass": 3,
+    "ordinary_regressions_total": 3,
+    "source_pre_post_match": true,
+    "runner_unit_pass": 7,
+    "runner_unit_total": 7
+  },
+  "aggregate": {
+    "semantic_unit_pass": 79,
+    "semantic_unit_total": 79,
+    "combined_checker_pass": 85,
+    "combined_checker_total": 85,
+    "combined_gate_rc": 0,
+    "combined_gate_stdout_sha256": "47e5ab21384bce8cca122c783bd6a2e4e97615f5c55e67b9ca849bbebd6226f5",
+    "final_static_gate_rc": 0,
+    "final_static_stdout_sha256": "4c747182bc5939f05bbd3efb4ffa2ea3056bf6cacd10691a8355183df8bda245"
+  },
+  "graph_and_ledger": {
+    "holder_graph_sha256": "bd807ee9fa4898485e652a4910a8f459316585326c5911e0a441d05627757053",
+    "holder_modules": 15,
+    "holder_instances": 17,
+    "duplicate_modules": 2,
+    "ledger": "evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "ledger_sha256": "53999f711c91f076ce3f2e6014a383970d308c5958853db379bc4e46c124cec7",
+    "semantic_units": 44,
+    "bindings": 50,
+    "pass": 34,
+    "gap": 10,
+    "promoted_units": [
+      "integer-ex1-packed-alias",
+      "integer-ex1-packet"
+    ],
+    "remaining_gaps": [
+      "clmul-producer",
+      "fp-arith-stage-producers",
+      "fp-done-fifo-producers",
+      "fp-exec1-packed-alias",
+      "fp-exec1-packet",
+      "fp-iq-producers",
+      "fp-issue-packet",
+      "fp-long-producer",
+      "muldiv-producer",
+      "pending-system-producer"
+    ],
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED"
+  },
+  "review": {
+    "state": "PASS_BOUNDED",
+    "contract": "subagent-contracts/v11r-int-lane1-packet-final-review.json",
+    "contract_sha256": "74d26bb9a244e4745cf208e54d9297e71c1b83eafc0236b9dcfd059def83eddd",
+    "blockers": 0,
+    "evidence_process_gap": "EARLY_DIAGNOSTIC_ARTIFACTS_NOT_IMMUTABLE"
+  },
+  "a3": {
+    "original_fail_preserved": true,
+    "strict_pass": 16,
+    "strict_total": 17,
+    "checker_replay_status": "PASS",
+    "checker_replay_sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+    "interpretation": "A3_SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
+    "full_system_rerun_required": false
+  },
+  "environment": {
+    "brief_pre_memory": "failed",
+    "brief_pre_memory_sha256": "686dc435aa63769bfeb2ca7c64e7444f7ef0fb8bab12363da81081589dea75a2",
+    "brief_post_memory": "complete",
+    "brief_post_memory_sha256": "9b82903aea70b842e169d8ee6122bdf8afcf23c7062baffe8500c712777e8419",
+    "e2e_run_id": "2026-07-31-OooIntBackend-integer-EX1-packet-lane1-V11R",
+    "e2e_profile": "npc-dev",
+    "e2e_nodes_pass": 5,
+    "e2e_nodes_total": 5,
+    "scoped_strict_guard_rc": 0,
+    "scoped_strict_guard_sha256": "a16fd4cc2d691c82b26dea07755e0f3bb5da5167fe87ece0cbf65023153c5f69",
+    "full_worktree_guard_rc": 1,
+    "full_worktree_gap": "nemu/src/isa/riscv64/inst/amo.c requires out-of-scope nemu-dev evidence",
+    "full_worktree_guard_sha256": "6077d3f4c6a846ff49767cf0e5ad7a6d4a8a5e68069d02ca69d74be4cf05d077",
+    "raw_evidence_retention": "INDEX_ONLY",
+    "raw_evidence_asset_count": 2452,
+    "raw_evidence_total_size_bytes": 2740579918,
+    "db_audit_attempt_1": "FAIL_MEMORY_BACKUP_MANIFEST_HASH_STALE",
+    "db_audit_attempt_2": "PASS",
+    "db_audit_attempt_3": "PASS_POST_FINAL_MEMORY_SNAPSHOT",
+    "db_first_attempt_2_sha256": "c94470fa6a4a49a2884c036af144bbcdab0f70605248138dbd0eb91a20c38cba",
+    "markdown_coverage_attempt_2_sha256": "e3839db3ce6a64a3dcd6422d69004153e7204febdceef33ff3a91e824d4ef310",
+    "artifact_audit_attempt_2_sha256": "fbfb73d5d4062bacd97cb0743d87c523875e4dea9f60e6a8cb0e3f272446e9e7"
+  }
+}

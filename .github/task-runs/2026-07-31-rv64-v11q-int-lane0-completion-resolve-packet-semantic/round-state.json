@@ -1,0 +1,29 @@
+{
+  "schema": "rv64-round-state-v1",
+  "run_id": "2026-07-31-rv64-v11q-int-lane0-completion-resolve-packet-semantic",
+  "mechanism": "integer-lane0-completion-resolve-paired-packet",
+  "state": "RECORD_CLOSED",
+  "verdict": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+  "blocking_findings": 0,
+  "production_rtl_changed": false,
+  "semantic_units_closed": [
+    "integer-ex0-packed-alias",
+    "integer-ex0-packet",
+    "branch-resolve-packet"
+  ],
+  "semantic_pass": 32,
+  "semantic_gap": 12,
+  "architecture": "RED",
+  "ppa": "UNPROMOTED",
+  "full_system_rerun_started": false,
+  "a3_original_fail_preserved": true,
+  "a3_checker_replay": "PASS",
+  "fresh_isolated_reviewer": "NOT_RUN_HISTORICAL_AGENT_SLOTS_OCCUPIED",
+  "npc_dev_e2e": "COMPLETED_5_OF_5",
+  "scoped_strict_guard": "PASS",
+  "full_worktree_strict_guard": "GAP_OUT_OF_SCOPE_NEMU_DEV",
+  "evidence_assets": 3016,
+  "db_first_audit": "PASS",
+  "markdown_coverage_audit": "PASS",
+  "artifact_audit": "GLOBAL_PASS_HAND_AUTHORED_TASK_RUN"
+}

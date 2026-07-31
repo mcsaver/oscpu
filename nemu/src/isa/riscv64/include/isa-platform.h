@@ -84,6 +84,8 @@ word_t isa_riscv64_mip_value(void);
 bool isa_riscv64_intr_pending_fast(void);
 void isa_riscv64_write_mie(word_t value);
 void isa_riscv64_write_mip(word_t value);
+void isa_riscv64_write_mcycle(word_t value);
+void isa_riscv64_write_minstret(word_t value);
 void isa_riscv64_write_mcycle_lo(word_t value);
 void isa_riscv64_write_mcycle_hi(word_t value);
 void isa_riscv64_raise_timer_intr(void);

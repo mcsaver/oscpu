@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-OooIntBackend-memory-reservation-holder-revtag-v11m
+- `trace_id`: e2e:2026-07-30-OooIntBackend-memory-reservation-holder-revtag-v11m
+- `task_slug`: OooIntBackend-memory-reservation-holder-revtag-v11m
+- `profile`: npc-dev
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: 44ae137348999a6796f2b4e34753b1a0fc381b1de70adbdcecef91563da5a061
+- `task_report_md_sha256`: 4b9a832fdf15541d8783afedfc70228661b83f71f71142a56f0bd9738d981adf
+- `run_manifest_json_sha256`: 7657d3b022aa80ec06edcaa339928856ffcfbacd9f899c54666c52e2c9fca934
+- `context_brief_md_sha256`: 7e2dbd8721f5af3f3c37d70c5019a9f780d35bc5bc3c78d957dc84d16dbfb3d6
+- `profile_resolve_md_sha256`: a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54
+- `evidence_index_md_sha256`: 2ecd3e4c27f8003feb8ec3174098c4966bce5ba2c1f87738d5b23263a2748634
+- `dispatch_log_md_sha256`: 7ff82afd0d1de7b216fcffc057ef32cbfc02c6f22f46cd819888bcabdf2354c2
+- `nodes_tsv_sha256`: 14b4567c89d9ffd310813281553c5346cccfc9b40d3818eca4664ea9671fde69

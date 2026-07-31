@@ -145,23 +145,22 @@ e2e_agent_system_discovery() {
      grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/e2e/README.md" &&
      grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/scripts/README.md" &&
      grep -Fq -- 'context-brief.md' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md" &&
-     grep -Fq -- 'evidence-index.md' "$E2E_ROOT_DIR/.github/e2e/README.md" &&
-     grep -Fq -- '`nodes.tsv`' "$E2E_ROOT_DIR/.github/e2e/README.md"; then
+     grep -Fq -- '不再扫描' "$E2E_ROOT_DIR/.github/e2e/README.md" &&
+     grep -Fq -- '普通任务不要求' "$E2E_ROOT_DIR/.github/e2e/README.md"; then
     printf 'PASS e2e evidence guard is wired into runner and docs\n'
   else
     printf 'FAIL e2e evidence guard runner or docs missing\n'
     evidence_guard_ok=0
   fi
   if (
-    git() { return 42; }
     E2E_GUARD_PATHS_FILE=
     E2E_GUARD_PATH_ARGS=()
     e2e_guard_collect_paths
   ) >/dev/null 2>&1; then
-    printf 'FAIL e2e evidence guard treated Git enumeration failure as no changes\n'
+    printf 'FAIL e2e evidence guard accepted missing explicit path ownership\n'
     evidence_guard_ok=0
   else
-    printf 'PASS e2e evidence guard propagates Git enumeration failure\n'
+    printf 'PASS e2e evidence guard requires explicit paths and does not scan Git\n'
   fi
   if (
     find() { return 42; }
@@ -2446,10 +2445,14 @@ e2e_agent_system_three_layer_contract() {
   local delivery_doc=".github/ai-env/contracts/agent-env-delivery.json"
   local rtl_task_doc=".github/ai-env/contracts/agent-env-rtl-task-contract.json"
   local state_doc=".github/instructions/agent-env-state-machine.instructions.md"
+  local light_workflow_doc=".github/instructions/agent-lightweight-workflow.instructions.md"
   local skill_doc=".github/skills/agent-env-maintenance/SKILL.md"
   local rtl_task_skill=".github/skills/prepare-rtl-task-contract/SKILL.md"
   local workflow_yml=".github/workflows/agent-maintain.yml"
   local maintain_sh="scripts/agent-maintain.sh"
+  local flow_c="scripts/agent-flow.c"
+  local flow_sh="scripts/agent-flow.sh"
+  local flow_test="scripts/tests/test-agent-flow.sh"
 
   e2e_print_required_files \
     "$nav_doc" \
@@ -2465,18 +2468,37 @@ e2e_agent_system_three_layer_contract() {
     "$delivery_doc" \
     "$rtl_task_doc" \
     "$state_doc" \
+    "$light_workflow_doc" \
     "$skill_doc" \
     "$rtl_task_skill" \
     "$workflow_yml" \
-    "$maintain_sh" || rc=1
+    "$maintain_sh" \
+    "$flow_c" \
+    "$flow_sh" \
+    "$flow_test" || rc=1
 
   if e2e_file_contains "$layer_doc" 'Database = 长期记忆层' &&
      e2e_file_contains "$layer_doc" 'Skill = 标准化处理规则层' &&
      e2e_file_contains "$layer_doc" 'Agent = 自动维护流程层' &&
-     e2e_file_contains "$layer_doc" 'scripts/agent-maintain.sh --mode check'; then
+     e2e_file_contains "$layer_doc" 'scripts/agent-flow.sh begin'; then
     printf 'PASS layer contract documents Database/Skill/Agent boundaries\n'
   else
     printf 'FAIL layer contract missing Database/Skill/Agent boundaries\n'
+    rc=1
+  fi
+
+  if e2e_file_contains "$light_workflow_doc" 'review/analysis' &&
+     e2e_file_contains "$light_workflow_doc" '40%' &&
+     e2e_file_contains "$light_workflow_doc" 'none/compact/durable' &&
+     e2e_file_contains "$policy_doc" '"overhead_target_percent_approx": 40' &&
+     e2e_file_contains "$policy_doc" '"overhead_target_blocks_delivery": false' &&
+     e2e_file_contains "$policy_doc" '"git_worktree_enumeration": false' &&
+     e2e_file_contains "$policy_doc" '"read_only_review_runs_guard": false' &&
+     grep -Fq 'static const GateDef GATES' "$E2E_ROOT_DIR/$flow_c" &&
+     grep -Fq 'scripts/tests/test-agent-flow.sh' "$E2E_ROOT_DIR/$maintain_sh"; then
+    printf 'PASS lightweight C workflow, task classes, explicit paths, and 40%% budget are wired\n'
+  else
+    printf 'FAIL lightweight C workflow contract or executable wiring missing\n'
     rc=1
   fi
 
@@ -2651,6 +2673,10 @@ e2e_agent_system_three_layer_contract() {
   fi
 
   if grep -Fq 'report-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'run_quick' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'run_final' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'run_release' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'test-agent-flow.sh' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'schema-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'artifact-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'package-ai-dev-env.sh' "$E2E_ROOT_DIR/$maintain_sh" &&
@@ -2666,21 +2692,20 @@ e2e_agent_system_three_layer_contract() {
      grep -Fq 'audit-db-first' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'audit-markdown-coverage --fail-on-live-evidence' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq -- '--validate-all-profiles' "$E2E_ROOT_DIR/$maintain_sh"; then
-    printf 'PASS agent-maintain check covers policy, DB, Skill, markdown, and Agent profile gates\n'
+    printf 'PASS agent-maintain layers quick, final, release, and full gates\n'
   else
-    printf 'FAIL agent-maintain check missing required gates\n'
+    printf 'FAIL agent-maintain layered modes or required gates missing\n'
     rc=1
   fi
 
   if grep -Fq 'rehydrate --backup-dir .github/db-backup/stored-snapshot --yes' "$E2E_ROOT_DIR/$workflow_yml" &&
      grep -Fq 'rehydrate --backup-dir .github/db-backup/task-runs --yes' "$E2E_ROOT_DIR/$workflow_yml" &&
-     grep -Fq 'scripts/agent-maintain.sh --mode check' "$E2E_ROOT_DIR/$workflow_yml" &&
-     grep -Fq 'scripts/agent-e2e.sh --validate-all-profiles' "$E2E_ROOT_DIR/$workflow_yml" &&
-     grep -Fq 'python3 scripts/github_index_db.py delivery-audit' "$E2E_ROOT_DIR/$workflow_yml" &&
+     grep -Fq 'scripts/agent-maintain.sh --mode final' "$E2E_ROOT_DIR/$workflow_yml" &&
+     grep -Fq 'scripts/agent-maintain.sh --mode release' "$E2E_ROOT_DIR/$workflow_yml" &&
      grep -Fq 'schedule:' "$E2E_ROOT_DIR/$workflow_yml"; then
-    printf 'PASS agent-maintain workflow rehydrates DB memory and runs nightly gate\n'
+    printf 'PASS agent-maintain workflow separates PR final and nightly release gates\n'
   else
-    printf 'FAIL agent-maintain workflow missing DB rehydrate or nightly gate\n'
+    printf 'FAIL agent-maintain workflow missing DB rehydrate or layered final/release gate\n'
     rc=1
   fi
 

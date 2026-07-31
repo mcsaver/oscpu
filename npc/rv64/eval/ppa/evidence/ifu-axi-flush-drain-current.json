@@ -8,12 +8,12 @@
     {
       "kind": "ifu_axi_bridge_xbar_focused_log",
       "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_ooo_fetch_axi_bridge_xbar.log",
-      "sha256": "1f2fbfd26f8cbe7a371a847c52181d398149bb14850436ef011c62b801717c83"
+      "sha256": "f16c653fa334e197752b71c4f7567b099939b8b3a0c5ba059643b2d041db2f94"
     },
     {
       "kind": "axi_xbar_backpressure_log",
       "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/focused/logs/tb_axi_xbar.log",
-      "sha256": "65a9db9e24db5be042bc8a4a1f901d92dad04243b27d463a8501fcba135a3dd1"
+      "sha256": "d49b3dd10ab0e54a93682012878ee50982d0792bd8a46c2616d976816c4c8d5a"
     },
     {
       "kind": "module_aggregate_summary",
@@ -23,7 +23,7 @@
     {
       "kind": "rtl_variant_summary",
       "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/summary.json",
-      "sha256": "fcf4c2999e6a89cf617389f35095c6075826e69f9cf76dce4ba5cc6cb093bbe4"
+      "sha256": "d55851072ad2d5f0ea9eb78749dbd9fdb14f528c56483c08c44940f1feab565a"
     }
   ],
   "canonical_command": "make -C npc/rv64 check-ifu-axi-flush-drain",
@@ -34,18 +34,18 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
   "focused_tests": {
     "bridge": {
       "log_sha256": "cf759346c8417ebbb1faff992e900dcc52c91b171e7db581dfda3a9c050c4a63",
       "status": "PASS"
     },
     "bridge_xbar": {
-      "log_sha256": "1f2fbfd26f8cbe7a371a847c52181d398149bb14850436ef011c62b801717c83",
+      "log_sha256": "f16c653fa334e197752b71c4f7567b099939b8b3a0c5ba059643b2d041db2f94",
       "status": "PASS"
     },
     "xbar_backpressure": {
-      "log_sha256": "65a9db9e24db5be042bc8a4a1f901d92dad04243b27d463a8501fcba135a3dd1",
+      "log_sha256": "d49b3dd10ab0e54a93682012878ee50982d0792bd8a46c2616d976816c4c8d5a",
       "status": "PASS"
     }
   },
@@ -108,7 +108,7 @@
       },
       "tb_axi_exec_firewall": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_axi_exec_firewall.log",
-        "sha256": "2af2e2439564fc4fb4f24557bd9495770850e16dc221e21a0180c3434dc7eb99"
+        "sha256": "8e74e0d757b9957fe5efced8b8dc294e9556e8190c0284afed0ce4fe310be53a"
       },
       "tb_axi_plic": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_axi_plic.log",
@@ -124,7 +124,7 @@
       },
       "tb_axi_xbar": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_axi_xbar.log",
-        "sha256": "2a34748ab64a0d0339ff34960440becfebaab51f02f33b93e5c98c5e6b1c02b6"
+        "sha256": "c050939fed74a54d4a71f8666c669f31163a336e6e185b5bf00330495d60abec"
       },
       "tb_compare": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_compare.log",
@@ -164,11 +164,11 @@
       },
       "tb_ooo_alu_core_slice": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_alu_core_slice.log",
-        "sha256": "963aa48a18e656c3663b2b07a9f59732c132e96886d4c9dad820acd43f58cd29"
+        "sha256": "7e71e0bb0682f6a9c72cc063467266592bfffc041ad11eff7ece0893415d0ade"
       },
       "tb_ooo_alu_decode_backend": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_alu_decode_backend.log",
-        "sha256": "b75c121f3068765f7ab43f1214d7322685790f8d785b4a489ac29ca9145a46d0"
+        "sha256": "ee0c26d0a27131d1abf4fba49573879c69f121431401046121bbcc3d775c7d87"
       },
       "tb_ooo_amo_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_amo_gate.log",
@@ -228,7 +228,7 @@
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_core_top_glue.log",
-        "sha256": "9e987db834204b3729bc8d371b6ac99309d473d34f69c47ead32ee86f762ece7"
+        "sha256": "f0c33421a7dfa074a7cf2232a35ae43ac5910054894231dba49a277cecc67ef8"
       },
       "tb_ooo_csr_access_request_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_csr_access_request_mux.log",
@@ -260,7 +260,7 @@
       },
       "tb_ooo_dual_memory_sustained_issue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_dual_memory_sustained_issue.log",
-        "sha256": "f8e1308085005d3a3bc1b9fdee005760ad790c0e85ee7b4f3ad5066142b7b5a0"
+        "sha256": "99daa2224ad8b4e51ae846a25b64f01daa60b66c4ee13a865121b5d455f3ccff"
       },
       "tb_ooo_fetch_access_footprint": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_access_footprint.log",
@@ -276,7 +276,7 @@
       },
       "tb_ooo_fetch_axi_bridge_xbar": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge_xbar.log",
-        "sha256": "de4e00b69ae732cdcf0b1faeaae03dd1899571303f7c6f2f2b490c0b047c5461"
+        "sha256": "fcbd0d943d7f12062d305aa57652f023418f9bacddb565525fc92aefe51ff785"
       },
       "tb_ooo_fetch_branch_target": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_branch_target.log",
@@ -332,7 +332,7 @@
       },
       "tb_ooo_fetch_trap_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_trap_gate.log",
-        "sha256": "42428567ebcc762847c15248397a8d88680f03907a205ca681d2eb6c69d991fe"
+        "sha256": "b2e8e7a5588e3bc75dc4fdd9801b44be254f005170b12a3bb860b7060b21034d"
       },
       "tb_ooo_fp_arith_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fp_arith_gate.log",
@@ -408,7 +408,7 @@
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_int_backend.log",
-        "sha256": "e2b2937ce66af9f3f14ec75f7b6e669c5f9e878b91aaa1afedc3893ee0010b50"
+        "sha256": "8ee65cee543b9d9a995948d5e8ae36d49b506cc872b56ba3200e6514b9c44bb4"
       },
       "tb_ooo_int_issue_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_int_issue_queue.log",
@@ -416,7 +416,7 @@
       },
       "tb_ooo_load_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_load_queue.log",
-        "sha256": "4df8fc6def4e4b328fe4dccf517e7e00b6f92490727b067fa47ae28afc204814"
+        "sha256": "85cc436c16a6b84a20e9729f5d2b72ca3b536d2971ad6e444259f5e475b727b4"
       },
       "tb_ooo_lsu_axi_lane_adapter": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_lsu_axi_lane_adapter.log",
@@ -432,11 +432,11 @@
       },
       "tb_ooo_mem_owner_terminal_collector": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_terminal_collector.log",
-        "sha256": "287e6e3055910362da6ce5619fbb3d69a90315afca22cb437139f6a0c5bc0dbd"
+        "sha256": "a2efae99f6f0e3aaf91f12072d29adb7d1d403a203505f2477cedfb209cf7e93"
       },
       "tb_ooo_mem_owner_tracker": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_tracker.log",
-        "sha256": "5faf49ca1f6e79bd33abf25aeb84830c1b4f3aee5c8548d3d76689d736637123"
+        "sha256": "9c28b70a884c2c7ab5b9700b05c10e9f9751499b1fac0307d1b2b73ab7633d45"
       },
       "tb_ooo_memory_request_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_memory_request_gate.log",
@@ -488,7 +488,7 @@
       },
       "tb_ooo_priv_system": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
-        "sha256": "28dd53f12a42da6e78b3b6e656319667da8d3c51e2da5d6ea7c1705c7f46203f"
+        "sha256": "3dbb1a7538caf065b78ccaa0ed9b40b222cb9fff444e26c238fa2cb67f999304"
       },
       "tb_ooo_ras_update_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_ras_update_gate.log",
@@ -520,7 +520,7 @@
       },
       "tb_ooo_sv39_boot": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_sv39_boot.log",
-        "sha256": "7517c5b8250cda302eb80ca8104efec34ae6e7b9c3590c1d5e96df33a1d26fc0"
+        "sha256": "8901af0a4ef077f7c174aa876bbb830ad1c2ed5702fc2b84e5398a69ed73b7f9"
       },
       "tb_ooo_trap_exit_event_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_trap_exit_event_mux.log",
@@ -555,12 +555,12 @@
   "provenance": {
     "files": {
       "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
       "npc/rv64/vsrc/bus/AxiDefaultSlave.v": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e",
       "npc/rv64/vsrc/bus/AxiPlic.v": "3141814d0a81d52556d193ef8c23facb7926a88dbd804cb9f312538b5897fa92",
       "npc/rv64/vsrc/bus/AxiResetSyscon.v": "0d9a7c52814ab6d848f558d578db416820cb2f92ed5fa18b4f4c92484f939a95",
       "npc/rv64/vsrc/bus/AxiToUart.v": "f2688a3f5e0d090de679619381ce234f870eba195ec7c718350fe242eaa3bf33",
-      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
-      "npc/rv64/vsrc/bus/NpcAxiBus.v": "e131fc07ec3b0a099aa9d8983f72e38e5a92652796e224f82d8245dc6b0f6612",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v": "5cb2045af20d6a8412081ff02e0cfeda098b7fc35f85d7a043a39b59729f00fe",
       "npc/rv64/vsrc/bus/Uart.v": "51c13d4a53f543b3dd53b075b123d1980b671ff5ddd6a56c5913609ec283d161",
       "npc/rv64/vsrc/cache/OooDataWordCache.v": "7f3f0cddae8c44442c9357caa7da8212570c20f909aedc59af02f8b4bb05f898",
       "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
@@ -624,7 +624,7 @@
       "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
       "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
-      "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
+      "npc/rv64/vsrc/filelist.mk": "6529498bf0538122f5f22034e11166cec014306ac0e67966ccd512bf04f4067b",
       "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
       "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v": "d6aa4a2399326d9d33697c047fe98748000ac5a65beac1dc242d714cecfb8e52",
       "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": "0b5fbda1c3bfa9b359ba741cca1c8f12c21761033d2caec7357fe67578b6d5e6",
@@ -661,11 +661,11 @@
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
       "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
       "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "a421641abcfbd45a10f28fc0e44c7f2d1b28a1936c5500f0f046e7456590f5c9",
-      "npc/rv64/vsrc/memory/OooLoadQueue.v": "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
-      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
-      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
-      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
       "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
       "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
@@ -691,7 +691,7 @@
       "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
       "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
       "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
-      "npc/rv64/vsrc/sim/NpcSimTop.sv": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "5320af1ffb8b042c54b508e076aed66a8745f3f61ad2de78543a7a633b56b664",
       "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
       "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
       "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -701,30 +701,30 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "rtl_sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+    "rtl_sha256": "82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
     "source_bindings": {
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/contract.md": "38dffb47baf76ecfe60702448bbb3371c24dcbc084bcab531ef4e6d29b713754",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/rtl-derivation.md": "4fc3cc2949312b70a904539bf43a1d46b8cc005269b3a792b9581a54d476619a",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-focused.sh": "5e95a9f90c3a089c5cd4a9d571278e63cbe7bf5d6776c801355e21874000bb26",
-      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-ifu-axi-variants.py": "9621e569b8a6c236f397244926e6cdc02763465430f32eedb2f4c60c849c313c",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-ifu-axi-variants.py": "0499a794ef7cd01d777313a6d574b377384ae4b6aafa4d1b1d7a19c804b6a3bf",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/subagent-contracts/v9g-ifu-axi-coverage-review-v1.json": "0e476c47a4a3d6d12a3c8f44584f08a490e95111a5e979933a49e6bede81adef",
-      "npc/rv64/Makefile": "e062f72d6ec79e44568dea09595c1cfda27db1380c72982cbffab30395f2dfe9",
+      "npc/rv64/Makefile": "b666f99074c977700bd9702f8ed68f1c5314eacbaf5a838537a61742336cd275",
       "npc/rv64/design/specs/ooo-fetch-axi-bridge.md": "e7ec053322de2af126c43e8f45c78fca3b126fe121e0ae1a0917ead29ea49a87",
       "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py": "1317e3c6a6537ab588ce801da5db137ce838593c948f35b54d17d0a7595fb082",
-      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "f005650ee9e8e11a7225ee32eaa6bb35fac4a7a6ca081c8a8c92df84c6e54724",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "982864679fa3deeaf65dbe8bdf61f719f087ae7db57fc2882c41e4a05dde6879",
       "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "eab0370ddf0b0580693e9bd1939a4887dd7c1391dac7f946b0524ff8beed1aa3",
-      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py": "e8437235c473ac07ac79cab1970d7de74ae738ce4bd8bafc5bd54e4644688476",
-      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py": "328ddefaa862d6702fd4e0989d4a7aefcbbd1f88e7467c5ec6f021354acb5479",
+      "npc/rv64/testbench/Makefile": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
-      "npc/rv64/testbench/tests/tb_axi_xbar.sv": "12ec9fd91939f050c65b7f9ef99c0304e00915617f354d52ddf23fc736c6f1f3",
+      "npc/rv64/testbench/tests/tb_axi_xbar.sv": "953a29d09ac11ba615dfdfc362b6e4994e2291aa47e4b09af7ca0708567ec079",
       "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "bab9479a2007900879bd8469ca992f9095dc6da2d597bf63ae3fb9b145338bd7",
-      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv": "92b6d0b087a4bc8d47349ba3cfff296efff9201e87a7f70579472792ca89d2ff",
-      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv": "81d60c8cdf9c17ff921941b704259946252cb2ce95ecd2e70d1a224f1e9831dc",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
       "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "90cb706b64ff549378e4ff693c00e19eb5860c663e2cb9e359a78636d05fb8cd"
     }
   },
   "schema": "npc-rv64-ifu-axi-flush-drain-evidence-v1",
-  "scope": "local RV64 instruction-fetch PTE A-update AW/W/B lifecycle through OooFetchAxiBridge and AxiXbar",
+  "scope": "local RV64 instruction-fetch PTE A-update AW/W/B lifecycle through OooFetchAxiBridge and AxiCrossbar",
   "static_audit": {
     "bridge_aw_w_valid_are_independent_done_gated": true,
     "bridge_bready_spans_complete_write_owner": true,
@@ -744,7 +744,7 @@
   "suite_run_id": "2026-07-22-rv64-v9g-ifu-axi-current-design",
   "variant_audit": {
     "by_source": {
-      "npc/rv64/vsrc/bus/AxiXbar.v": {
+      "npc/rv64/vsrc/bus/AxiCrossbar.v": {
         "compile_success": 4,
         "dynamic_rejected": 4,
         "required": 4
@@ -766,7 +766,7 @@
         "expected_marker": "repeated flush keeps AWADDR",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/awaddr_uses_live_candidate_during_flush.log",
-          "sha256": "9e6eb8f99b082c82feff16cdb327d88fac273a2fad4fe4ab55927cb78c096e23"
+          "sha256": "bbf5b14e0bfe84b57cbf2bc189ee190c5e334997f44dcae0df1f27318d2dbdcc"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -785,7 +785,7 @@
         "expected_marker": "flush+last AW records fire got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/awvalid_withdraws_on_flush.log",
-          "sha256": "b068524028df8752a35937fad3d75f39979b614d9170912b6748a7d8617e3683"
+          "sha256": "161739c09a86075a46b2459644954f5b050c7ad01f669498cd867f20a3eb5675"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -804,7 +804,7 @@
         "expected_marker": "repeated flush keeps BREADY got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/bready_withdraws_on_flush.log",
-          "sha256": "e776c39a1cf6dc4d1fb0ce0218e00db9d6ced495116c02a75dcab95ef3c78081"
+          "sha256": "82b913923664a1164d912d9d4fe11af76f34e78637b8cec3bb0002c7b2de7d75"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -823,7 +823,7 @@
         "expected_marker": "both-done flush+B-error drains to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/bresp_error_precedes_drop.log",
-          "sha256": "75de0ea5c294d9cb0e2f10846945e8ba0de58289c5ad970d137eece48ff5ff8f"
+          "sha256": "96d62e13f59432605192141225452a08bc0610981dbe0a61420333cf9307220a"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -842,7 +842,7 @@
         "expected_marker": "flush+AW+W+B completes to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/completion_requires_old_done_bits.log",
-          "sha256": "97aa1f809ccbec071c3b2fd24e4a00364d02f2773d479cee8352cf79582ffa95"
+          "sha256": "9e09ed467b1ec25149d92692bb02c2acda35127f556a074dfc9284b48bad6be3"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -861,7 +861,7 @@
         "expected_marker": "flush+first AW records fire got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/flush_aw_fire_not_recorded.log",
-          "sha256": "d242571e94e0e0c1c4c31c075bb42bc6e7ff44cb2972ecc1e35a4e1354af83c8"
+          "sha256": "b23adb3699c76994dd88d12758a212db12578ab30839c5fb69b2f9f51ced309b"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -880,7 +880,7 @@
         "expected_marker": "AW-first flush drains to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/flush_drop_not_sticky.log",
-          "sha256": "3e5a4cd68dc72a6754b157915ec8f55d52cb6c7630b9454ac165eb331cc3ff7b"
+          "sha256": "55393e377c4255715d905f6f9af23450cd2c907f4b48d914d10d4931f15c0859"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -899,7 +899,7 @@
         "expected_marker": "flush keeps A-update write owner got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/flush_releases_write_owner.log",
-          "sha256": "84d890d432b01b365c10fa08d168ea90591ecb184f96dda4a09fc66098e43fd4"
+          "sha256": "7836b43f67ed6428ed0f553f87ff153383120b8341d746859e4b3510d514e302"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -918,7 +918,7 @@
         "expected_marker": "flush+first W records fire got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/flush_w_fire_not_recorded.log",
-          "sha256": "fbcf24bfbf68217ab6d82bbb1b1beb4933e5d9b12645e692c9bcdb835e4b0d3f"
+          "sha256": "61be020dd4455b97b7a2f5bd659d7502f71a6183a487f100f6ff48515d5efe3c"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -937,7 +937,7 @@
         "expected_marker": "flush+last-AW+B completes to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/last_aw_fire_not_counted.log",
-          "sha256": "26d44b3fd78d9de0d1ff7b4d039da301570cc680f5eaba8d509c83a7b361d30f"
+          "sha256": "a1f925318b98203cfed9b3a64a258a4985848f2a75ec7fd08cbe93ed35dad90f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -956,7 +956,7 @@
         "expected_marker": "flush+last-W+B completes to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/last_w_fire_not_counted.log",
-          "sha256": "c6fa8026de43bb21c9cedd2ca2666bf237edaebeda30f2c168c074c900ee832f"
+          "sha256": "dcf558add8698935f68e3f98646b76ea52d99bc95c3e4ffc64fa7dd6dbb0c399"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -975,7 +975,7 @@
         "expected_marker": "flush+last-AW+B completes to IDLE got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/same_cycle_flush_not_effective_drop.log",
-          "sha256": "b705e89dff351bf807e3e5f830d31ae391be8862bb43ebd34ed5c36c6155d3d2"
+          "sha256": "8a932ce635e09221527e7bae02d465c20ad1c34f50c7c5b28054cc6ba86f964f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -994,7 +994,7 @@
         "expected_marker": "repeated flush keeps WDATA",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/wdata_uses_live_candidate_during_flush.log",
-          "sha256": "11559ad59aa081088b748b440b2f1816f6dbccb6ee71944313150c9d4a506770"
+          "sha256": "5d31a64650ec88f6faf8ff1611ab47b3a475e9ffb9d0a1c7bbbd6494079276c6"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1013,7 +1013,7 @@
         "expected_marker": "repeated flush keeps W valid got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/wvalid_withdraws_on_flush.log",
-          "sha256": "8cdee576ac9fd796f17d1ae1dbc4c9969e102db41358b8b58b0eb5702985537f"
+          "sha256": "26c14a007431f59b905b960e8e1570044ed3accd9a2830177608dcc137a19de1"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1032,17 +1032,17 @@
         "expected_marker": "split write slave awvalid got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/xbar_aw_capture_requires_same_cycle_wvalid.log",
-          "sha256": "bb5627d5332cdb932bab0d50711939246ccc921dc3eb2837dc6df69db25f2ad4"
+          "sha256": "d76e87bc42a0e276fe11e0931154c4163543a739172235cde06d4c07fb3ede3d"
         },
         "make_returncode": 2,
         "make_variable": "RTL_AXI_XBAR",
         "marker_observed": true,
         "name": "xbar_aw_capture_requires_same_cycle_wvalid",
-        "original_sha256": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
+        "original_sha256": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
         "purpose": "Require WVALID in the same cycle as an accepted AW channel, breaking legal AW-first master presentation.",
-        "source": "npc/rv64/vsrc/bus/AxiXbar.v",
+        "source": "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "test_name": "tb_axi_xbar",
-        "variant_sha256": "705479258e2db32a930025bf65806fe72bef8c5621e2d953f21ad2f13074ddec"
+        "variant_sha256": "ffb08f50849ac97ae5d82d82479d6b4cadb77f2d9d4e02e480f16603be5bce02"
       },
       {
         "compile_success": true,
@@ -1051,17 +1051,17 @@
         "expected_marker": "xbar releases IFU write owner got=1 expected=0",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/xbar_b_fire_does_not_release_owner.log",
-          "sha256": "6b5c76a5b2cbeaed2090cd5e4d4d2df582df21f6c70a0435ae8d92af355f37a1"
+          "sha256": "66861bcd82dca1f68386514257b2d67582b7379e42016259f8c18893d8376c74"
         },
         "make_returncode": 2,
         "make_variable": "RTL_AXI_XBAR",
         "marker_observed": true,
         "name": "xbar_b_fire_does_not_release_owner",
-        "original_sha256": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
-        "purpose": "Prevent the exact slave B handshake from releasing the AxiXbar write owner and its master-busy state.",
-        "source": "npc/rv64/vsrc/bus/AxiXbar.v",
+        "original_sha256": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
+        "purpose": "Prevent the exact slave B handshake from releasing the AxiCrossbar write owner and its master-busy state.",
+        "source": "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "test_name": "tb_ooo_fetch_axi_bridge_xbar",
-        "variant_sha256": "353ee43c7957d4ef5d82a6c89b21774cc66ce759181f97bcb83415490b317b7c"
+        "variant_sha256": "17731c5c632c8a7040287cf183813bdff9addfd16c53ef863fa96e640cdf5c50"
       },
       {
         "compile_success": true,
@@ -1070,17 +1070,17 @@
         "expected_marker": "split write owner remains active under B backpressure got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/xbar_releases_owner_on_bvalid.log",
-          "sha256": "d3fcc858d511d7325eb3f7c996b692392938a8c6235e805f0a10e605fe80003b"
+          "sha256": "02b4e32962b6d6c9f9441a61fa884bb3fe0452c8ec6649389345197a57df1e09"
         },
         "make_returncode": 2,
         "make_variable": "RTL_AXI_XBAR",
         "marker_observed": true,
         "name": "xbar_releases_owner_on_bvalid",
-        "original_sha256": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
-        "purpose": "Release the AxiXbar write owner on slave BVALID without the master BREADY handshake.",
-        "source": "npc/rv64/vsrc/bus/AxiXbar.v",
+        "original_sha256": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
+        "purpose": "Release the AxiCrossbar write owner on slave BVALID without the master BREADY handshake.",
+        "source": "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "test_name": "tb_axi_xbar",
-        "variant_sha256": "3533f26f4b0896db6acd06913404935ad82cafc246750ef976cf6ec95d8a6edc"
+        "variant_sha256": "6eef0d63712bbc50dda7956446d7a17b9ed552a74b7f1ec42899d3a85729a4a6"
       },
       {
         "compile_success": true,
@@ -1089,17 +1089,17 @@
         "expected_marker": "w-first write slave awvalid got=0 expected=1",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/mutations/logs/xbar_w_capture_requires_same_cycle_awvalid.log",
-          "sha256": "bb5627d5332cdb932bab0d50711939246ccc921dc3eb2837dc6df69db25f2ad4"
+          "sha256": "d76e87bc42a0e276fe11e0931154c4163543a739172235cde06d4c07fb3ede3d"
         },
         "make_returncode": 2,
         "make_variable": "RTL_AXI_XBAR",
         "marker_observed": true,
         "name": "xbar_w_capture_requires_same_cycle_awvalid",
-        "original_sha256": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
+        "original_sha256": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
         "purpose": "Require AWVALID in the same cycle as an accepted W channel, breaking legal W-first master presentation.",
-        "source": "npc/rv64/vsrc/bus/AxiXbar.v",
+        "source": "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "test_name": "tb_axi_xbar",
-        "variant_sha256": "52e184bb2c7f173e6d20b3418c7c3ad862d43343fd891d6a4684ecbdf185c936"
+        "variant_sha256": "568db9ae23bd18639cc1afac5cd0b9f2e90b63206ddfbbf5ba638d687979e090"
       }
     ],
     "schema": "npc-rv64-ifu-axi-flush-drain-rtl-variants-v1",

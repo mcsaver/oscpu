@@ -80,7 +80,7 @@ module tb_axi_xbar;
   wire [S_COUNT-1:0] s_bready;
   reg [S_COUNT*2-1:0] s_bresp;
 
-  AxiXbar #(
+  AxiCrossbar #(
     .ADDR_W(ADDR_W),
     .DATA_W(DATA_W),
     .STRB_W(STRB_W),
@@ -322,7 +322,7 @@ module tb_axi_xbar;
     tb_check1("buffered read consumed", m_rvalid[0], 1'b0);
 
     // 【AXI4 化 S2】abort 边带已删——丢弃责任移交 master 桥自吞(桥 TB drain 用例)。
-    // xbar 视角: 被 flush 作废的读也是一个正常完成的读(master rready 收下丢弃)。
+    // crossbar 视角: 被 flush 作废的读也是一个正常完成的读(master rready 收下丢弃)。
     drive_read(1, 32'h1000_0040, PROT_DATA);
     s_arready[1] = 1'b1;
     #1;

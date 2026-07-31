@@ -1,7 +1,7 @@
 `include "define.v"
 
 // NPC 总线壳：把当前 IFU/LSU 两个 single-beat AXI-like master
-// 打包后交给通用 crossbar。后续加设备只扩展 slave 侧地址表和端口，
+// 打包后交给通用 AXI crossbar。后续加设备只扩展 slave 侧地址表和端口，
 // 不再把设备译码塞回 NpcCore 或 NpcSimTop。
 module NpcAxiBus #(
   parameter S_COUNT = 1,
@@ -25,7 +25,7 @@ module NpcAxiBus #(
   input ifu_axi_rready_i,
   output [`XLEN-1:0] ifu_axi_rdata_o,
   output [1:0] ifu_axi_rresp_o,
-  // HW-managed A 更新：取指桥写通道(写回 PTE 置 A 位), 接 xbar 现成 M_IFU 写 master 口。
+  // HW-managed A 更新：取指桥写通道(写回 PTE 置 A 位), 接 crossbar 的 M_IFU 写 master 口。
   input ifu_axi_awvalid_i,
   output ifu_axi_awready_o,
   input [`XLEN-1:0] ifu_axi_awaddr_i,
@@ -109,7 +109,7 @@ module NpcAxiBus #(
   wire [M_COUNT-1:0] m_rready_w;
   wire [M_COUNT*`XLEN-1:0] m_rdata_w;
   wire [M_COUNT*2-1:0] m_rresp_w;
-  // RID/RLAST/BID 由 xbar 按 owner 记账回环; 桥侧单 outstanding 恒定 ID,
+  // RID/RLAST/BID 由 crossbar 按 owner 记账回环; 桥侧单 outstanding 恒定 ID,
   // 暂无消费者——线到位, 汇 unused(SoC 对接刀再接)。
   wire [M_COUNT*4-1:0] m_rid_w;
   wire [M_COUNT-1:0] m_rlast_w;
@@ -191,7 +191,7 @@ module NpcAxiBus #(
   assign lsu_axi_bvalid_o = m_bvalid_w[M_LSU];
   assign lsu_axi_bresp_o = m_bresp_w[M_LSU*2 +: 2];
 
-  AxiXbar #(
+  AxiCrossbar #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W),
@@ -201,7 +201,7 @@ module NpcAxiBus #(
     .SLAVE_BASE(SLAVE_BASE),
     .SLAVE_MASK(SLAVE_MASK),
     .SLAVE_EXEC_MASK(SLAVE_EXEC_MASK)
-  ) u_xbar (
+  ) u_crossbar (
     .clk(clk),
     .rst(rst),
     .m_arvalid_i(m_arvalid_w),

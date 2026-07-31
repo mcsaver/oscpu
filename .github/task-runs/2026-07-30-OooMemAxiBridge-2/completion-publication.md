@@ -1,0 +1,18 @@
+# Task Run Publication
+
+## 基本信息
+
+- `task_id`: 2026-07-30-OooMemAxiBridge-2
+- `trace_id`: e2e:2026-07-30-OooMemAxiBridge-2
+- `task_slug`: OooMemAxiBridge
+- `profile`: agent-system
+- `status`: completed
+- `publication_contract`: db-marker-v1
+- `marker_sha256`: e0f022be6153cb4bb54643e4d6db2abc220cb39cebdd85fab792d42bee723cfc
+- `task_report_md_sha256`: 0ae964545bdddb158e0152161f6e875b9849d00d8ef9e6ebfc638fb47e9be461
+- `run_manifest_json_sha256`: 711fa07c151c3fb47af71720eeb41c6d32057bdf53e5225a01b8f01b94247710
+- `context_brief_md_sha256`: 87c78dc72031b512742a3372cc6b42f39bf5eddf37635e09f2829de8a316715f
+- `profile_resolve_md_sha256`: 2f8cbc6ee00a218348f7c227e3a487f10096a0054172cf17fd1591384c4a9a73
+- `evidence_index_md_sha256`: cc8975197eda901bb2541fde50746633a493a63eedf6ba00a301af7a516bc9b5
+- `dispatch_log_md_sha256`: b1cdb55398fc36ba5febab78c7a9754f569b61f46c6e18dfe26a0985a3724147
+- `nodes_tsv_sha256`: 32f5fb80417082f0ef08ea1645d80d8f7a813acdba501241aeedef455ffd5847

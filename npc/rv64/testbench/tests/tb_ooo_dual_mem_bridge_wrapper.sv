@@ -26,10 +26,20 @@ module tb_ooo_dual_mem_bridge_wrapper;
   reg lane0_req_attr_valid_i;
   reg [1:0] lane0_req_class_i;
   reg lane0_req_cacheable_i;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  reg [1:0] lane0_req_owner_kind_v11j_i;
+  reg [1:0] lane0_req_mmu_epoch_v11j_i;
+  wire [1:0] lane0_req_owner_kind_i = lane0_req_owner_kind_v11j_i;
+`else
   wire [1:0] lane0_req_owner_kind_i =
       lane0_req_write_i ? 2'b01 : 2'b00;
+`endif
   reg [4:0] lane0_req_owner_token_i;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  wire [1:0] lane0_req_mmu_epoch_i = lane0_req_mmu_epoch_v11j_i;
+`else
   wire [1:0] lane0_req_mmu_epoch_i = 2'b01;
+`endif
   wire [`XLEN-1:0] lane0_req_fault_tval_i = lane0_req_addr_i;
   reg lane0_expected_effective_killed_i;
   reg lane0_device_release_i;
@@ -71,10 +81,22 @@ module tb_ooo_dual_mem_bridge_wrapper;
   wire lane0_sq_query_attr_valid_o;
   wire [1:0] lane0_sq_query_class_o;
   wire [`STRB_W-1:0] lane0_sq_query_wstrb_o;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  reg lane0_sq_query_allow_v11j_i;
+  reg lane0_sq_query_forward_v11j_i;
+  reg lane0_sq_query_replay_v11j_i;
+  reg lane0_sq_query_retry_ready_v11j_i;
+  wire lane0_sq_query_allow_i = lane0_sq_query_allow_v11j_i;
+  wire lane0_sq_query_forward_i = lane0_sq_query_forward_v11j_i;
+  wire lane0_sq_query_replay_i = lane0_sq_query_replay_v11j_i;
+  wire lane0_sq_query_retry_ready_i =
+      lane0_sq_query_retry_ready_v11j_i;
+`else
   wire lane0_sq_query_allow_i = lane0_sq_query_valid_o;
   wire lane0_sq_query_forward_i = 1'b0;
   wire lane0_sq_query_replay_i = 1'b0;
   wire lane0_sq_query_retry_ready_i = 1'b0;
+`endif
   wire [`XLEN-1:0] lane0_sq_query_forward_data_i = {`XLEN{1'b0}};
   wire [31:0] lane0_owner_residency_mask_o;
   wire lane0_idle_o;
@@ -89,10 +111,20 @@ module tb_ooo_dual_mem_bridge_wrapper;
   reg lane1_req_attr_valid_i;
   reg [1:0] lane1_req_class_i;
   reg lane1_req_cacheable_i;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  reg [1:0] lane1_req_owner_kind_v11j_i;
+  reg [1:0] lane1_req_mmu_epoch_v11j_i;
+  wire [1:0] lane1_req_owner_kind_i = lane1_req_owner_kind_v11j_i;
+`else
   wire [1:0] lane1_req_owner_kind_i =
       lane1_req_write_i ? 2'b01 : 2'b00;
+`endif
   reg [4:0] lane1_req_owner_token_i;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  wire [1:0] lane1_req_mmu_epoch_i = lane1_req_mmu_epoch_v11j_i;
+`else
   wire [1:0] lane1_req_mmu_epoch_i = 2'b01;
+`endif
   wire [`XLEN-1:0] lane1_req_fault_tval_i = lane1_req_addr_i;
   reg lane1_expected_effective_killed_i;
   reg lane1_device_release_i;
@@ -134,10 +166,22 @@ module tb_ooo_dual_mem_bridge_wrapper;
   wire lane1_sq_query_attr_valid_o;
   wire [1:0] lane1_sq_query_class_o;
   wire [`STRB_W-1:0] lane1_sq_query_wstrb_o;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  reg lane1_sq_query_allow_v11j_i;
+  reg lane1_sq_query_forward_v11j_i;
+  reg lane1_sq_query_replay_v11j_i;
+  reg lane1_sq_query_retry_ready_v11j_i;
+  wire lane1_sq_query_allow_i = lane1_sq_query_allow_v11j_i;
+  wire lane1_sq_query_forward_i = lane1_sq_query_forward_v11j_i;
+  wire lane1_sq_query_replay_i = lane1_sq_query_replay_v11j_i;
+  wire lane1_sq_query_retry_ready_i =
+      lane1_sq_query_retry_ready_v11j_i;
+`else
   wire lane1_sq_query_allow_i = lane1_sq_query_valid_o;
   wire lane1_sq_query_forward_i = 1'b0;
   wire lane1_sq_query_replay_i = 1'b0;
   wire lane1_sq_query_retry_ready_i = 1'b0;
+`endif
   wire [`XLEN-1:0] lane1_sq_query_forward_data_i = {`XLEN{1'b0}};
   wire [31:0] lane1_owner_residency_mask_o;
   wire lane1_idle_o;
@@ -359,6 +403,14 @@ module tb_ooo_dual_mem_bridge_wrapper;
       lane0_req_attr_valid_i = 1'b0;
       lane0_req_class_i = `OOO_MEM_CLASS_RSVD;
       lane0_req_cacheable_i = 1'b0;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+      lane0_req_owner_kind_v11j_i = 2'b00;
+      lane0_req_mmu_epoch_v11j_i = 2'b01;
+      lane0_sq_query_allow_v11j_i = 1'b0;
+      lane0_sq_query_forward_v11j_i = 1'b0;
+      lane0_sq_query_replay_v11j_i = 1'b0;
+      lane0_sq_query_retry_ready_v11j_i = 1'b0;
+`endif
       lane0_expected_effective_killed_i = 1'b0;
       lane0_device_release_i = 1'b0;
       lane0_device_cancel_i = 1'b0;
@@ -375,6 +427,14 @@ module tb_ooo_dual_mem_bridge_wrapper;
       lane1_req_attr_valid_i = 1'b0;
       lane1_req_class_i = `OOO_MEM_CLASS_RSVD;
       lane1_req_cacheable_i = 1'b0;
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+      lane1_req_owner_kind_v11j_i = 2'b00;
+      lane1_req_mmu_epoch_v11j_i = 2'b01;
+      lane1_sq_query_allow_v11j_i = 1'b0;
+      lane1_sq_query_forward_v11j_i = 1'b0;
+      lane1_sq_query_replay_v11j_i = 1'b0;
+      lane1_sq_query_retry_ready_v11j_i = 1'b0;
+`endif
       lane1_expected_effective_killed_i = 1'b0;
       lane1_device_release_i = 1'b0;
       lane1_device_cancel_i = 1'b0;
@@ -1522,6 +1582,536 @@ module tb_ooo_dual_mem_bridge_wrapper;
     end
   endtask
 
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+  function automatic [31:0] v11j_owner_bit;
+    input [4:0] token;
+    begin
+      v11j_owner_bit = 32'b1 << token;
+    end
+  endfunction
+
+  task automatic v11j_holder_oracle;
+    input integer lane;
+    input [1023:0] phase;
+    input exp_stage_valid;
+    input [8:0] exp_stage_tuple;
+    input exp_active_valid;
+    input [8:0] exp_active_tuple;
+    input exp_rsp_valid;
+    input [8:0] exp_rsp_tuple;
+    input exp_verified_valid;
+    input [8:0] exp_verified_tuple;
+    input [31:0] exp_residency_mask;
+    reg got_stage_valid;
+    reg [8:0] got_stage_tuple;
+    reg got_active_valid;
+    reg [8:0] got_active_tuple;
+    reg got_rsp_valid;
+    reg [8:0] got_rsp_tuple;
+    reg got_verified_valid;
+    reg [8:0] got_verified_tuple;
+    reg [31:0] got_residency_mask;
+    begin
+      if (lane == 0) begin
+        got_stage_valid = dut.u_bridge0.stg_valid_q;
+        got_stage_tuple = {dut.u_bridge0.stg_owner_kind_q,
+                           dut.u_bridge0.stg_owner_token_q,
+                           dut.u_bridge0.stg_mmu_epoch_q};
+        got_active_valid = (dut.u_bridge0.state_q != 4'd0);
+        got_active_tuple = {dut.u_bridge0.active_owner_kind_q,
+                            dut.u_bridge0.active_owner_token_q,
+                            dut.u_bridge0.active_mmu_epoch_q};
+        got_rsp_valid = (dut.u_bridge0.state_q == 4'd7);
+        got_rsp_tuple = {dut.u_bridge0.rsp_owner_kind_q,
+                         dut.u_bridge0.rsp_owner_token_q,
+                         dut.u_bridge0.rsp_mmu_epoch_q};
+        got_verified_valid = (dut.u_bridge0.state_q != 4'd0) &&
+                             dut.u_bridge0.active_owner_verified_q;
+        got_verified_tuple = {dut.u_bridge0.verified_owner_kind_q,
+                              dut.u_bridge0.verified_owner_token_q,
+                              dut.u_bridge0.verified_mmu_epoch_q};
+        got_residency_mask = lane0_owner_residency_mask_o;
+      end else begin
+        got_stage_valid = dut.u_bridge1.stg_valid_q;
+        got_stage_tuple = {dut.u_bridge1.stg_owner_kind_q,
+                           dut.u_bridge1.stg_owner_token_q,
+                           dut.u_bridge1.stg_mmu_epoch_q};
+        got_active_valid = (dut.u_bridge1.state_q != 4'd0);
+        got_active_tuple = {dut.u_bridge1.active_owner_kind_q,
+                            dut.u_bridge1.active_owner_token_q,
+                            dut.u_bridge1.active_mmu_epoch_q};
+        got_rsp_valid = (dut.u_bridge1.state_q == 4'd7);
+        got_rsp_tuple = {dut.u_bridge1.rsp_owner_kind_q,
+                         dut.u_bridge1.rsp_owner_token_q,
+                         dut.u_bridge1.rsp_mmu_epoch_q};
+        got_verified_valid = (dut.u_bridge1.state_q != 4'd0) &&
+                             dut.u_bridge1.active_owner_verified_q;
+        got_verified_tuple = {dut.u_bridge1.verified_owner_kind_q,
+                              dut.u_bridge1.verified_owner_token_q,
+                              dut.u_bridge1.verified_mmu_epoch_q};
+        got_residency_mask = lane1_owner_residency_mask_o;
+      end
+
+      if (got_stage_valid !== exp_stage_valid) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=stage-valid phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_stage_valid, exp_stage_valid, $time);
+        $fatal;
+      end
+      if (exp_stage_valid && (got_stage_tuple !== exp_stage_tuple)) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=stage-tuple phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_stage_tuple, exp_stage_tuple, $time);
+        $fatal;
+      end
+      if (got_active_valid !== exp_active_valid) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=active-valid phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_active_valid, exp_active_valid, $time);
+        $fatal;
+      end
+      if (exp_active_valid && (got_active_tuple !== exp_active_tuple)) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=active-tuple phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_active_tuple, exp_active_tuple, $time);
+        $fatal;
+      end
+      if (got_rsp_valid !== exp_rsp_valid) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=response-valid phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_rsp_valid, exp_rsp_valid, $time);
+        $fatal;
+      end
+      if (exp_rsp_valid && (got_rsp_tuple !== exp_rsp_tuple)) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=response-tuple phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_rsp_tuple, exp_rsp_tuple, $time);
+        $fatal;
+      end
+      if (got_verified_valid !== exp_verified_valid) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=verified-valid phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_verified_valid, exp_verified_valid, $time);
+        $fatal;
+      end
+      if (exp_verified_valid &&
+          (got_verified_tuple !== exp_verified_tuple)) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=verified-tuple phase=%0s got=%b expected=%b cycle=%0t",
+                 lane, phase, got_verified_tuple, exp_verified_tuple, $time);
+        $fatal;
+      end
+      if (got_residency_mask !== exp_residency_mask) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=%0d unit=residency-set phase=%0s got=%08x expected=%08x cycle=%0t",
+                 lane, phase, got_residency_mask, exp_residency_mask, $time);
+        $fatal;
+      end
+      $display("[V11J-BRIDGE-HOLDER-ORACLE][PASS] lane=%0d phase=%0s mask=%08x cycle=%0t",
+               lane, phase, got_residency_mask, $time);
+    end
+  endtask
+
+  task automatic v11j_drive_request;
+    input integer lane;
+    input [1:0] owner_kind;
+    input [4:0] owner_token;
+    input [1:0] mmu_epoch;
+    input write_req;
+    input probe_req;
+    input nokill_req;
+    input [`XLEN-1:0] addr;
+    begin
+      if (lane == 0) begin
+        lane0_req_owner_kind_v11j_i = owner_kind;
+        lane0_req_owner_token_i = owner_token;
+        lane0_req_mmu_epoch_v11j_i = mmu_epoch;
+        lane0_req_write_i = write_req;
+        lane0_req_probe_i = probe_req;
+        lane0_req_pretrans_i = 1'b1;
+        lane0_req_nokill_i = nokill_req;
+        lane0_req_attr_valid_i = 1'b1;
+        lane0_req_class_i = `OOO_MEM_CLASS_CACHED;
+        lane0_req_cacheable_i = 1'b1;
+        lane0_req_addr_i = addr;
+        lane0_req_wdata_i = 64'h0123_4567_89ab_cdef;
+        lane0_req_wstrb_i = 8'hff;
+        lane0_req_valid_i = 1'b1;
+      end else begin
+        lane1_req_owner_kind_v11j_i = owner_kind;
+        lane1_req_owner_token_i = owner_token;
+        lane1_req_mmu_epoch_v11j_i = mmu_epoch;
+        lane1_req_write_i = write_req;
+        lane1_req_probe_i = probe_req;
+        lane1_req_pretrans_i = 1'b1;
+        lane1_req_nokill_i = nokill_req;
+        lane1_req_attr_valid_i = 1'b1;
+        lane1_req_class_i = `OOO_MEM_CLASS_CACHED;
+        lane1_req_cacheable_i = 1'b1;
+        lane1_req_addr_i = addr;
+        lane1_req_wdata_i = 64'hfedc_ba98_7654_3210;
+        lane1_req_wstrb_i = 8'hff;
+        lane1_req_valid_i = 1'b1;
+      end
+    end
+  endtask
+
+  task automatic v11j_tuple_x_negative;
+    begin
+`ifdef V11J_KIND_X_NEGATIVE
+      v11j_drive_request(0, 2'b0x, 5'd3, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+`else
+      v11j_drive_request(0, 2'b00, 5'd3, 2'b0x,
+                         1'b0, 1'b0, 1'b0, A0);
+`endif
+      #1;
+      if (!lane0_req_ready_o) begin
+        $display("[V11J-TUPLE-NEGATIVE-SETUP][FAIL] request did not reach station");
+        $fatal;
+      end
+      tick();
+      lane0_req_valid_i = 1'b0;
+      #1;
+`ifdef OOO_ASSERT
+      // The station is live now; the next sampled edge must stop at the
+      // production full-tuple marker before stage-to-active transfer.
+      tick();
+`else
+      // Release builds retain the independent four-state testbench oracle.
+      v11j_holder_oracle(0, "tuple-x-negative",
+                         1'b1, {2'b00, 5'd3, 2'b01},
+                         1'b0, 9'b0,
+                         1'b0, 9'b0,
+                         1'b0, 9'b0,
+                         v11j_owner_bit(5'd3));
+`endif
+      $display("[V11J-TUPLE-NEGATIVE-ESCAPED][FAIL] unknown owner tuple was accepted");
+      $fatal;
+    end
+  endtask
+
+  task automatic v11j_holder_x_marker_probe;
+    begin
+`ifdef V11J_STAGE_X_MARKER_PROBE
+      v11j_drive_request(0, 2'b00, 5'd3, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      // The edge-old station is now live and must trip the stage marker.
+      tick();
+`elsif V11J_ACTIVE_X_MARKER_PROBE
+      v11j_drive_request(0, 2'b00, 5'd3, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      lane0_sq_query_replay_v11j_i = 1'b1;
+      tick();
+      // The transfer above created the X-bearing active holder.
+      tick();
+`elsif V11J_RSP_X_MARKER_PROBE
+      v11j_drive_request(0, 2'b01, 5'd3, 2'b01,
+                         1'b1, 1'b1, 1'b1, A0);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      tick();
+      // The probe response is held with READY low.
+      tick();
+`else
+      v11j_drive_request(0, 2'b00, 5'd3, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      lane0_sq_query_replay_v11j_i = 1'b1;
+      tick();
+      // The transfer above created the X-bearing verified alias.
+      tick();
+`endif
+      $display("[V11J-TUPLE-NEGATIVE-ESCAPED][FAIL] X-bearing holder escaped its production marker");
+      $fatal;
+    end
+  endtask
+
+  task automatic v11j_holder_semantic_matrix;
+    reg [31:0] mask0;
+    reg [31:0] mask1;
+    begin
+      v11j_holder_oracle(0, "reset-idle",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+      v11j_holder_oracle(1, "reset-idle",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+
+      // Birth: independent lane tuples 3/21 enter the two product stations.
+      v11j_drive_request(0, 2'b00, 5'd3, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      v11j_drive_request(1, 2'b01, 5'd21, 2'b10,
+                         1'b1, 1'b1, 1'b1, A1);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      lane1_req_valid_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "dual-birth",
+                         1'b1, {2'b00, 5'd3, 2'b01},
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         v11j_owner_bit(5'd3));
+      v11j_holder_oracle(1, "dual-birth",
+                         1'b1, {2'b01, 5'd21, 2'b10},
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         v11j_owner_bit(5'd21));
+
+      // Same-edge transfer/refill: old station becomes active while 4/22
+      // refill the station. Lane1 enters a held probe response.
+      v11j_drive_request(0, 2'b00, 5'd4, 2'b01,
+                         1'b0, 1'b0, 1'b0, A2);
+      v11j_drive_request(1, 2'b01, 5'd22, 2'b10,
+                         1'b1, 1'b1, 1'b1, A3);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      lane1_req_valid_i = 1'b0;
+      #1;
+      mask0 = v11j_owner_bit(5'd3) | v11j_owner_bit(5'd4);
+      mask1 = v11j_owner_bit(5'd21) | v11j_owner_bit(5'd22);
+      v11j_holder_oracle(0, "transfer-refill",
+                         1'b1, {2'b00, 5'd4, 2'b01},
+                         1'b1, {2'b00, 5'd3, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd3, 2'b01}, mask0);
+      v11j_holder_oracle(1, "transfer-refill",
+                         1'b1, {2'b01, 5'd22, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10}, mask1);
+
+      lane0_sq_query_replay_v11j_i = 1'b1;
+      lane0_sq_query_retry_ready_v11j_i = 1'b0;
+      lane1_rsp_ready_i = 1'b0;
+      tick();
+      #1;
+      v11j_holder_oracle(0, "asymmetric-sq-hold",
+                         1'b1, {2'b00, 5'd4, 2'b01},
+                         1'b1, {2'b00, 5'd3, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd3, 2'b01}, mask0);
+      v11j_holder_oracle(1, "asymmetric-rsp-hold",
+                         1'b1, {2'b01, 5'd22, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10},
+                         1'b1, {2'b01, 5'd21, 2'b10}, mask1);
+
+      // Global flush drops lane0 active+station. The nokill lane1 consumes its
+      // old response and atomically promotes station token 22.
+      flush_i = 1'b1;
+      lane1_rsp_ready_i = 1'b1;
+      #1;
+      if (!lane0_drop0_valid_o || !lane0_drop1_valid_o ||
+          lane0_drop0_owner_token_o !== 5'd3 ||
+          lane0_drop1_owner_token_o !== 5'd4) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=0 unit=dual-drop phase=flush-atomic-replace cycle=%0t",
+                 $time);
+        $fatal;
+      end
+      tick();
+      flush_i = 1'b0;
+      lane1_rsp_ready_i = 1'b0;
+      lane0_sq_query_replay_v11j_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "flush-dual-terminal",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+      v11j_holder_oracle(1, "response-atomic-replace",
+                         1'b0, 9'b0,
+                         1'b1, {2'b01, 5'd22, 2'b10},
+                         1'b1, {2'b01, 5'd22, 2'b10},
+                         1'b1, {2'b01, 5'd22, 2'b10},
+                         v11j_owner_bit(5'd22));
+      lane1_rsp_ready_i = 1'b1;
+      tick();
+      lane1_rsp_ready_i = 1'b0;
+      #1;
+      v11j_holder_oracle(1, "response-terminal",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+
+      // Lane-local selective recovery must remove only token 5 while lane1
+      // holds an unrelated response owner 23.
+      v11j_drive_request(0, 2'b00, 5'd5, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      v11j_drive_request(1, 2'b01, 5'd23, 2'b10,
+                         1'b1, 1'b1, 1'b1, A1);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      lane1_req_valid_i = 1'b0;
+      tick();
+      lane0_sq_query_replay_v11j_i = 1'b1;
+      #1;
+      v11j_holder_oracle(0, "selective-before-kill",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd5, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd5, 2'b01},
+                         v11j_owner_bit(5'd5));
+      v11j_holder_oracle(1, "peer-response-before-kill",
+                         1'b0, 9'b0,
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         v11j_owner_bit(5'd23));
+      lane0_expected_effective_killed_i = 1'b1;
+      tick();
+      lane0_expected_effective_killed_i = 1'b0;
+      lane0_sq_query_replay_v11j_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "selective-preaxi-terminal",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+      v11j_holder_oracle(1, "selective-peer-survives",
+                         1'b0, 9'b0,
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         1'b1, {2'b01, 5'd23, 2'b10},
+                         v11j_owner_bit(5'd23));
+      lane1_rsp_ready_i = 1'b1;
+      tick();
+      lane1_rsp_ready_i = 1'b0;
+
+      // A post-AR selective recovery retains active token 6 and its exact
+      // residency bit until the real delayed R terminal is consumed.
+      v11j_drive_request(0, 2'b00, 5'd6, 2'b01,
+                         1'b0, 1'b0, 1'b0, A2);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      tick();
+      lane0_sq_query_allow_v11j_i = 1'b1;
+      tick();
+      lane0_sq_query_allow_v11j_i = 1'b0;
+      tick();
+      accept_read_address(A2);
+      v11j_holder_oracle(0, "post-ar-owner-live",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         v11j_owner_bit(5'd6));
+      lane0_expected_effective_killed_i = 1'b1;
+      tick();
+      lane0_expected_effective_killed_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "delayed-r-drain-hold",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         v11j_owner_bit(5'd6));
+      tick();
+      #1;
+      v11j_holder_oracle(0, "delayed-r-drain-stable",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd6, 2'b01},
+                         v11j_owner_bit(5'd6));
+      d_axi_rdata_i = 64'h1122_3344_5566_7788;
+      d_axi_rresp_i = 2'b00;
+      d_axi_rvalid_i = 1'b1;
+      #1;
+      if (!d_axi_rready_o || !lane0_drop0_valid_o ||
+          lane0_drop0_owner_token_o !== 5'd6) begin
+        $display("[V11J-BRIDGE-HOLDER-ORACLE][FAIL] lane=0 unit=delayed-r-terminal phase=late-r cycle=%0t",
+                 $time);
+        $fatal;
+      end
+      tick();
+      d_axi_rvalid_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "delayed-r-terminal",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+
+      // Retry is a non-response terminal. C0 blocks the handoff and must not
+      // alter the holder; clearing C0 permits exactly one release.
+      v11j_drive_request(0, 2'b00, 5'd7, 2'b01,
+                         1'b0, 1'b0, 1'b0, A3);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      tick();
+      lane0_sq_query_replay_v11j_i = 1'b1;
+      lane0_sq_query_retry_ready_v11j_i = 1'b0;
+      tick();
+      #1;
+      v11j_holder_oracle(0, "retry-uncredited-hold",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd7, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd7, 2'b01},
+                         v11j_owner_bit(5'd7));
+      control_full_flush_barrier_i = 1'b1;
+      lane0_sq_query_retry_ready_v11j_i = 1'b1;
+      tick();
+      #1;
+      v11j_holder_oracle(0, "retry-c0-hold",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd7, 2'b01},
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd7, 2'b01},
+                         v11j_owner_bit(5'd7));
+      control_full_flush_barrier_i = 1'b0;
+      tick();
+      lane0_sq_query_replay_v11j_i = 1'b0;
+      lane0_sq_query_retry_ready_v11j_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "retry-handoff-terminal",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+
+`ifndef OOO_ASSERT
+      // The release configuration exposes the fail-closed owner-hold state.
+      // Assertion builds intentionally terminate on the mismatched advance.
+      v11j_drive_request(0, 2'b00, 5'd8, 2'b01,
+                         1'b0, 1'b0, 1'b0, A0);
+      tick();
+      lane0_req_valid_i = 1'b0;
+      force dut.u_bridge0.mem0_station_expected_owner_token_i = 5'd9;
+      tick();
+      release dut.u_bridge0.mem0_station_expected_owner_token_i;
+      #1;
+      v11j_holder_oracle(0, "owner-hold-quarantine",
+                         1'b0, 9'b0,
+                         1'b1, {2'b00, 5'd8, 2'b01},
+                         1'b0, 9'b0,
+                         1'b0, 9'b0,
+                         v11j_owner_bit(5'd8));
+      flush_i = 1'b1;
+      tick();
+      flush_i = 1'b0;
+      #1;
+      v11j_holder_oracle(0, "owner-hold-recovery",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+`endif
+
+      // Reset clears a held response and both exact residency sets.
+      v11j_drive_request(1, 2'b01, 5'd24, 2'b10,
+                         1'b1, 1'b1, 1'b1, A1);
+      tick();
+      lane1_req_valid_i = 1'b0;
+      tick();
+      #1;
+      v11j_holder_oracle(1, "held-response-before-reset",
+                         1'b0, 9'b0,
+                         1'b1, {2'b01, 5'd24, 2'b10},
+                         1'b1, {2'b01, 5'd24, 2'b10},
+                         1'b1, {2'b01, 5'd24, 2'b10},
+                         v11j_owner_bit(5'd24));
+      rst = 1'b1;
+      tick();
+      rst = 1'b0;
+      tick();
+      #1;
+      v11j_holder_oracle(0, "held-response-reset",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+      v11j_holder_oracle(1, "held-response-reset",
+                         1'b0, 9'b0, 1'b0, 9'b0, 1'b0, 9'b0,
+                         1'b0, 9'b0, 32'b0);
+      $display("[V11J-BRIDGE-HOLDER-MATRIX][PASS] dual-instance holder lifecycle complete");
+      tb_finish("tb_ooo_dual_mem_bridge_holder_semantic");
+    end
+  endtask
+`endif
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -1538,6 +2128,23 @@ module tb_ooo_dual_mem_bridge_wrapper;
     tb_check1("cold reset lane0 idle", lane0_idle_o, 1'b1);
     tb_check1("cold reset lane1 idle", lane1_idle_o, 1'b1);
 
+`ifdef V11J_BRIDGE_HOLDER_FOCUSED
+`ifdef V11J_STAGE_X_MARKER_PROBE
+    v11j_holder_x_marker_probe();
+`elsif V11J_ACTIVE_X_MARKER_PROBE
+    v11j_holder_x_marker_probe();
+`elsif V11J_RSP_X_MARKER_PROBE
+    v11j_holder_x_marker_probe();
+`elsif V11J_VERIFIED_X_MARKER_PROBE
+    v11j_holder_x_marker_probe();
+`elsif V11J_KIND_X_NEGATIVE
+    v11j_tuple_x_negative();
+`elsif V11J_EPOCH_X_NEGATIVE
+    v11j_tuple_x_negative();
+`else
+    v11j_holder_semantic_matrix();
+`endif
+`else
     if (mutation_case != 0) begin
       case (mutation_case)
         1: begin
@@ -1607,6 +2214,7 @@ module tb_ooo_dual_mem_bridge_wrapper;
       tb_finish("tb_ooo_dual_mem_bridge_wrapper");
 `endif
     end
+`endif
   end
 
   initial begin

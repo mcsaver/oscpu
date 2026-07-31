@@ -99,7 +99,7 @@ module tb_axi_exec_firewall;
   wire uart_access_valid;
   wire uart_access_write;
 
-  AxiXbar #(
+  AxiCrossbar #(
     .ADDR_W(ADDR_W),
     .DATA_W(DATA_W),
     .STRB_W(STRB_W),
@@ -288,7 +288,7 @@ module tb_axi_exec_firewall;
     input [1:0] exp_resp;
     integer waits;
     begin
-      // slave 可能刚在调用前拉高 RVALID，先等待 xbar 组合回传收敛。
+      // slave 可能刚在调用前拉高 RVALID，先等待 crossbar 组合回传收敛。
       #1;
       waits = 0;
       while ((m_rvalid[mid] !== 1'b1) && (waits < 8)) begin
@@ -329,7 +329,7 @@ module tb_axi_exec_firewall;
     tb_errors = 0;
     reset_dut();
 
-    // 已被 xbar 接收的请求必须完全由内部寄存器驱动；slave 背压期间，
+    // 已被 crossbar 接收的请求必须完全由内部寄存器驱动；slave 背压期间，
     // master 端撤销 VALID 后可以改写 payload，不能污染尚未完成的 AR。
     start_read("stalled executable AR", M_IFU,
                MEM_BASE + 64'h12, 3'd1, 3'b100);

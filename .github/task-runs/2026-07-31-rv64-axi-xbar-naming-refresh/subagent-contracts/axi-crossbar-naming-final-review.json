@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "axi-crossbar-naming-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently review the local RV64 Verilog/SystemVerilog AxiCrossbar module, source-file and hierarchy identifier migration and its AXI4 owner/handshake evidence. Identify production AxiXbar or u_xbar residue, file/module mismatch, over-broad naming rejection, hierarchy/filelist breakage, or a false PASS while checking that ports, parameters, owner state, data path and cycle behavior remain unchanged.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_axi_xbar.sv",
+      "npc/rv64/testbench/tests/tb_axi_exec_firewall.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
+      "npc/rv64/eval/check-rtl-style.sh",
+      "npc/rv64/eval/ppa/tools/ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/specs/axi4-bus.md",
+      ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-ifu-axi-variants.py",
+      ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/run-ifu-access-variants.py",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence",
+      ".github/runtime-artifacts/agent-flow/rv64-axi-xbar-naming-refresh/rtl-focused",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/subagent-contracts/axi-crossbar-naming-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/axi4-bus.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "Report severity-ordered RTL findings with exact module, signal, source, testbench or evidence paths and state the bounded PASS, GAP or inconclusive range.",
+    "List unknowns, explicit assumptions, counterexamples, alternative hypotheses, any scope_extension_request, and confidence_and_basis."
+  ],
+  "success_criteria": [
+    "Every accepted naming and equivalence claim is bound to current AxiCrossbar sources, focused AXI testbench markers and current Yosys evidence, while historical marker and RTL_AXI_XBAR compatibility keys are distinguished from production residue.",
+    "The review reports any naming omission, AXI4 transaction-semantics drift, evidence false-green or guard over-constraint without writing workspace files."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

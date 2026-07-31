@@ -11,7 +11,7 @@
 
 | tier | scope | acceptance |
 | --- | --- | --- |
-| Starter | 规则发现、DB memory、Skill、基础 agent-system gate | `delivery-audit` + `agent-maintain --mode check` |
+| Starter | C 任务分类、DB memory、Skill、基础 agent-system gate | `agent-maintain --mode release` |
 | Professional | 加入客户模块 profile、review routing、branch dashboard | Starter + 客户 profile smoke |
 | Enterprise | 加入远端 object store、CI/nightly、审计报表和培训材料 | Professional + CI/nightly 绿灯 |
 
@@ -19,8 +19,8 @@
 
 1. 运行 `scripts/package-ai-dev-env.sh` 生成交付包。
 2. 在交付包中阅读 `README.md`、`PACKAGING_MANIFEST.md`、`docs/OPERATIONS.md`。
-3. 客户侧先跑 `scripts/agent-maintain.sh --mode check`，再按目标工程接入 domain-specific profile。
-4. 所有客制化变更必须新增 task-run 证据并写入 memory。
+3. 客户侧日常使用 `agent-flow`，发布前跑 `scripts/agent-maintain.sh --mode release`。
+4. 客制化变更按 none/compact/durable 生成结果；只有稳定结论写入 memory。
 
 ## Non-Goals
 

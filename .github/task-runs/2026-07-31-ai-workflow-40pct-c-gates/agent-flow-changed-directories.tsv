@@ -1,0 +1,15 @@
+scripts
+scripts/tests
+docs
+.github/instructions
+.
+.github
+.github/skills/agent-env-maintenance
+.github/ai-env
+.cursor/rules
+scripts/e2e/modules
+.github/e2e
+.github/ai-env/contracts
+.github/workflows
+deliverables/ai-dev-env-commercial-v1
+deliverables/ai-dev-env-commercial-v1/docs

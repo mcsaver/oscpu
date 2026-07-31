@@ -551,6 +551,18 @@ bool paddr_is_accessible(paddr_t addr, int len) {
   return false;
 }
 
+bool paddr_supports_atomic(paddr_t addr, int len) {
+  if (len <= 0) return false;
+  paddr_t last = addr + (paddr_t)len - 1;
+  if (last < addr) return false;
+  /*
+   * NEMU 的 PMEM 由单一 CPU 执行线程顺序访问，可提供完整 AMOArithmetic 与
+   * RsrvEventual 基线；CLINT/PLIC/SoC/MMIO 暂未声明设备级原子事务能力，
+   * 必须抬 access-fault，不能用一次 read 加一次 write 冒充原子 MMIO。
+   */
+  return in_pmem(addr) && in_pmem(last);
+}
+
 //对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write
 //否则触发out_of_bound(panic)
 word_t paddr_read(paddr_t addr, int len) {

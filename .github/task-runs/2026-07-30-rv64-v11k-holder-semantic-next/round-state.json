@@ -1,0 +1,181 @@
+{
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "module": "OooMemInflightQueue",
+    "instances": [
+      "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem_inflight_queue",
+      "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_mem1_inflight_queue"
+    ],
+    "semantic_units": [
+      "miq-owner-tokens"
+    ]
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "staged_entries": 0,
+    "single_flight_lane": "AVAILABLE",
+    "pre_review_shell_returned": true,
+    "final_review_shell_returned": true
+  },
+  "identity": {
+    "production_source_sha256": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "elaborated_logic_sha256": "c49ad65d6aad707f525fe37fabaa2c7187ade0c1c5880ad22b05e5d164d15e5b",
+    "simulation_top": "tb_ooo_dual_mem_inflight_queue_semantic",
+    "simulation_top_source_sha256": "aa1f331c9f054482c6fa21c1420b53b8ae50374e3ce7618c08379c735cd1e56c",
+    "device_model_id": "NOT_APPLICABLE_FOCUSED_MIQ_TB",
+    "host_harness_id": "c06ca7fbedc9314c151cf4c6f74213abbaae598dcc012106ad64e4915cec7e34",
+    "simulator_semantics_id": {
+      "iverilog_sha256": "a6071e4b4a68feafca0c8ee0e6aa275eee9a43a108c62801cfd1eca6eab6d8a3",
+      "vvp_sha256": "a10bd7d4a0850308ac8c2c98115b6a3084f9be978307610f2a521190c28f4023"
+    },
+    "checker_oracle_id": "sha256:7270bb30bab149970a938951cfee58a2d3f8ee5c47e0be5e7b90cec5f06cbbf4",
+    "guest_payload_id": "NOT_APPLICABLE",
+    "boot_artifact_id": "NOT_APPLICABLE",
+    "test_input_log_id": "sha256:8bc4463369c4741c8b52745f84861a46c3fdd442215057f8bd9377c8cf3aa9c8"
+  },
+  "evidence": {
+    "focused_summary": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/miq-holder-attempt-3/summary.json",
+    "semantic_ledger": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "current_instance_graph": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/current-instance-graph/holder-instance-graph.json",
+    "current_census_audit": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/current-census/producer-holder-census.json",
+    "v11h_checker_replay": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/v11h-attempt4-checker-replay-current/receipt.json",
+    "elaborated_logic_identity": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/elaborated-logic-identity.json"
+  },
+  "implementation_scope": {
+    "production_rtl": "OOO_ASSERT_ONLY_OWNER_TUPLE_KNOWN_AND_HEAD_STABLE",
+    "testbench": "DUAL_INSTANCE_STIMULUS_OWNED_HOLDER_ORACLE",
+    "negative_evidence": "ASSERT_AND_RELEASE_COMPILE_SUCCESS_VARIANTS",
+    "status": "IMPLEMENTED_AND_LAYERED_PASS",
+    "profiles": "34/34 PASS",
+    "mutations": "12 cases / 24 simulations rejected",
+    "interface_probes": "4 cases / 8 assert-release profiles PASS",
+    "ordinary_regressions": "3/3 PASS"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "units_pass": 17,
+    "units_gap": 27,
+    "target_units_pass": 1,
+    "holder_instances": 17,
+    "unit_instance_bindings": 50
+  },
+  "promotion": {
+    "global_no_live_reuse": "NOT_PROVEN",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "full_system_run": "NOT_TRIGGERED_BY_V11K_ASSERTION_ONLY_DELTA"
+  },
+  "evidence_state": {
+    "published_gate_state": "PASS",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "VALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "evidence_scope": [
+      "MIQ_OWNER_TOKENS_TWO_PRODUCT_INSTANCES",
+      "FOCUSED_ASSERT_AND_RELEASE_PROFILES",
+      "THREE_BOUND_ORDINARY_REGRESSIONS"
+    ],
+    "assertion_negative_profiles": "EXPECTED_FATAL_ORACLE_REJECTION",
+    "claim_boundary": "PASS applies only to the listed MIQ semantic unit and instances"
+  },
+  "semantic_delta": {
+    "classification": "mixed",
+    "changed_modules": [
+      "OooMemInflightQueue"
+    ],
+    "active_configuration": "focused assertions-on/off MIQ testbench plus frozen product elaboration",
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": true,
+    "randomization_impact": false,
+    "justification": "Synthesizable two-state product logic is identical; OOO_ASSERT additions intentionally terminate assertions-on simulation for unknown or unstable owner tuples, so this is not classified as pure checker-oracle-only."
+  },
+  "workflow": {
+    "npc_dev_task_run": ".github/task-runs/2026-07-30-OooMemInflightQueue",
+    "npc_dev_nodes": "5/5 PASS",
+    "agent_system_task_run": ".github/task-runs/2026-07-30-rtl-task-contract",
+    "agent_system_nodes": "11/11 PASS",
+    "strict_guard": "PASS_SCOPED_11_PATHS",
+    "db_first_audit": "PASS",
+    "markdown_coverage_audit": "PASS",
+    "raw_evidence_assets_indexed": 1571,
+    "warnings": [
+      "OPTIONAL_QEMU_SYSTEM_RISCV64_MISSING"
+    ],
+    "timeouts": [
+      "AGENT_SYSTEM_FOREGROUND_CALLER_TIMEOUT_CANONICAL_PUBLICATION_COMPLETED",
+      "UNIFIED_GATE_60S_CALLER_TIMEOUT_RERUN_120S_RC0"
+    ]
+  },
+  "cost": {
+    "run_class": "FOCUSED_LOCAL_RTL_VERIFICATION",
+    "high_cost_run": false,
+    "single_flight_resource": "WINDOWS_TO_WSL_ENGINEERING_LANE",
+    "opportunity_cost_level": "LOW",
+    "lower_cost_alternatives_used": [
+      "DIRECTED_TB",
+      "COMPILE_SUCCESS_MUTATION",
+      "FROZEN_EVIDENCE_REPLAY",
+      "TWO_STATE_ELABORATION_IDENTITY"
+    ],
+    "full_system_run": "NOT_RUN"
+  },
+  "final_review": {
+    "status": "PASS",
+    "reviewer_conclusion": "APPROVED_FOR_CURRENT_SCOPE",
+    "reviewer_conclusion_path": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/final-review-enum-followup.md",
+    "attempt_1": {
+      "contract": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/subagent-contracts/v11k-miq-holder-semantic-final-review.json",
+      "contract_sha256": "559c2a312b6f17cf09979a837505a9f120fd492f5eb7bc7b9d919023c5c89c06",
+      "result": "GAP",
+      "blockers": [
+        "PUSH_POP_TUPLE_ASSERTION_SENSITIVITY_NOT_DIRECTLY_PROVEN",
+        "ORDINARY_REGRESSION_SOURCE_VVP_POST_HASH_NOT_BOUND"
+      ]
+    },
+    "remediation": {
+      "status": "PASS",
+      "profiles": "34/34",
+      "regression_binding": "3/3_SOURCE_VVP_POST_HASH_BOUND",
+      "unified_gate": "PASS"
+    },
+    "attempt_2": {
+      "contract": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/subagent-contracts/v11k-miq-holder-semantic-final-review-v2.json",
+      "contract_sha256": "d0f7816e66e3de3826e0aafd06bf421deab048f55088b1da996feeeca1d526cb",
+      "result": "PASS",
+      "scope": "MIQ_OWNER_TOKENS_TWO_PRODUCT_INSTANCES",
+      "scope_extension_request": "NONE"
+    }
+  },
+  "next_action": {
+    "classification": "verification",
+    "target_module": "OooIntBackend",
+    "semantic_units": [
+      "memory-retry0-producer-cache",
+      "memory-retry0-token",
+      "memory-retry1-producer-cache",
+      "memory-retry1-token"
+    ],
+    "highest_information_gain_experiment": "Rebind V9R retry evidence to current OooIntBackend, distinguish both memory lanes, and add raw ProducerId/token knownness plus birth-hold-transfer-death mutation sensitivity before any production RTL change.",
+    "priority_rationale": "A prior mem_owner_terminalized review was bound to an older OooIntBackend identity. Current SHA 49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a keeps the production predicate outside OOO_ASSERT and uses collector-accepted ingress for terminal transfer, so that old blocker is not current. The retry quartet is the highest-leverage current owner/holder GAP.",
+    "reclassification_rule": "If the focused retry experiment exposes a production contract violation, stop verification-only work and reclassify as architecture or production RTL fix before editing functional logic.",
+    "full_system_run": "NOT_AUTHORIZED_OR_REQUIRED_FOR_THIS_NEXT_DIAGNOSTIC_START"
+  }
+}

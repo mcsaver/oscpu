@@ -4,11 +4,14 @@
 
 ## 日常开工（最短路径）
 
-1. 从 `AGENTS.md` 进入通用规则；本文件只导航，不复制完整规则。
-2. 运行 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 获取 bounded 上下文。
-3. 读取相关 `instructions/*.instructions.md`、module memory 和模块 README/spec。
-4. 按目标选择 domain profile；AI 环境改动用 `agent-system`，RV64 PPA 同时考虑 `npc`、
-   `verilator-tapeout`、`yosys-sta`，不能用环境 profile 代替业务 gate。
+1. 从 `AGENTS.md` 和 `.github/instructions/agent-lightweight-workflow.instructions.md` 分类任务。
+   `review/analysis` 直接读取相关代码/spec，不运行 guard。
+2. 有落盘修改时运行 `scripts/agent-flow.sh begin --task <id> --class <class>`；每批修改用
+   `record --path` 登记，不扫描 Git。
+3. 只读取相关 `instructions/*.instructions.md`、module memory 和模块 README/spec。只有需要历史事实
+   或跨模块 profile 上下文时才运行 bounded `brief`。
+4. 业务开发选择 domain test/仿真/综合/STA 作为开发验证，并用 `agent-flow evidence` 登记结果；
+   AI 环境 profile 不能代替业务 gate。
 5. 派发本地 RV64 RTL 子 agent 时，用 `.github/skills/prepare-rtl-task-contract/` 的 canonical
     `create → validate → render` 生成并原样派发最小充分工程契约；validate 失败或手改边界的结果只记
    `candidate-only`，范围扩展另建 versioned JSON。主 agent 使用 `rv64-hardware-professional` 术语描述任务，
@@ -23,7 +26,17 @@
    `render` 只保留上述硬件事实、合同绑定、输入/输出和工程命令；派发管线、父任务历史、协调状态与
    措辞策略不进入子 agent 技术提示。证据工具复核也必须以具体 CPU 债务项、RTL 证据文件、字段、
    测试名和返回码组织。长期 goal 只引用该措辞剖面，不重复展开协调场景。
-6. 实施、验证、记录后运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。
+6. 一轮目标达到确定性交付点后，需要独立审查的任务先运行
+   `scripts/agent-flow.sh finish --task <id> --candidate`，审查无改动后再正式 `finish`；小型任务可
+   直接正式收尾。C 调度器只调用路径对应的固定 gate pointer；流程占用约 40% 是非阻断复盘目标，
+   不设置精确时间门禁。strict e2e guard 仅用于 release/迁移，且必须显式传入 paths-file/path。
+
+task-run 按 `none/compact/durable` 留存：review/analysis 默认不建，落盘开发和环境修改保存 compact
+结果，长仿真/综合/STA/系统回放及 release 保存 durable 结果。只归档修改目录、验证指针、结构化工程
+决策轨迹、门禁结果和 bounded 日志，不复制完整上下文或重型 payload。
+
+以下 bounded brief、publication、manifest 与 DB 精确集合说明只适用于真实
+`agent-e2e.sh --profile ...` dispatch，不是普通任务的默认步骤。
 
 `brief` 只有在 Markdown/JSON 明确给出 `recall_status=complete` 时才算召回成功；显式 profile、
 canonical 规则或独立关键词 focus 缺失，以及任何必需 chunk 装不进 `max_tokens`，都会非零退出并
@@ -103,31 +116,30 @@ AI 环境不是一次性整理项目，而是业务开发中的反馈控制面�
  -> 归类（导航、规则、机器合同、执行器、证据或长期事实）
  -> 在唯一真源修复
  -> 用反例、mutation 或失败样本证明门禁能抓到问题
- -> 跑 domain profile，并补跑 agent-system / strict guard
- -> 在 task-run 留证，在 memory 只沉淀稳定结论
+ -> 跑真实 domain validation，并用 agent-flow evidence 登记
+ -> 目标末尾运行路径对应 gate，生成 compact/durable 结果；memory 只沉淀稳定结论
 ```
 
 “写了规则但未接入发现与 gate”不算闭环；“命令为 0 但设计点或证据不完整”也不算成功。
 
 ## 维护 Gate
 
-常规自检：
+日常轻量自检（不调用 Python/DB/profile）：
 
 ```bash
-scripts/agent-maintain.sh --mode check
+scripts/agent-maintain.sh --mode quick
 ```
 
-profile 校验：
+AI 环境目标轮次结束：
 
 ```bash
-scripts/agent-e2e.sh --validate-all-profiles
+scripts/agent-maintain.sh --mode final
 ```
 
-商业包生成：
+CI/nightly/商业包：
 
 ```bash
-scripts/package-ai-dev-env.sh
-python3 scripts/github_index_db.py delivery-audit
+scripts/agent-maintain.sh --mode release
 ```
 
 生成包输出到 `dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/`，不写回 `deliverables/`。

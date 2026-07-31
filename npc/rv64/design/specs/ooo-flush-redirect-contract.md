@@ -259,7 +259,7 @@ fetch 侧关闭；但全控制面仍没有统一 event 类型。后端靠扁平 
   补齐缺失 AW/W 并持续 `BREADY`。完整消费 B 后，有 drop 则回 IDLE 且忽略 BRESP，无 drop
   才允许 re-walk/产生 B-error access fault。`rst > flush/drop > completion outcome > normal`
   是同拍全序；flush 与最后 channel/B 同拍时 fire 有效而 drop 后继胜出，重复 flush 幂等。
-- **xbar 验收已通过**：bridge 排水消费 B 后，`AxiXbar` 释放 owner；预先排队的后一 master
+- **crossbar 验收已通过**：bridge 排水消费 B 后，`AxiCrossbar` 释放 owner；预先排队的后一 master
   以精确 AWADDR/WDATA 到达 slave 并收到 B。bridge 22 RED、bridge+xbar 3 RED 均在同一
   用例转 GREEN；12 个独立 shadow 条件逐条负探针非真空，contract ratchet 50/50。
 - AMO/LR/SC 的 nokill 分类仍应由 memory-path spec 独立冻结，不能由本节直通线推定。

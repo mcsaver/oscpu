@@ -1,11 +1,11 @@
 {
   "schema": "npc-rv64-architecture-debt-ledger-v2",
-  "revision": "v10g-20260728",
+  "revision": "v10h-20260731-axi-crossbar-naming",
   "scope": "full-core single-hart RV64 dual-issue OoO architecture-stable cohort",
   "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
   "roadmap": {
     "path": "npc/rv64/design/arch/ROADMAP.md",
-    "sha256": "2b53ed9ce000cb82060d18a4b7c8021be9a3b1a028ba787476039fce088381b0"
+    "sha256": "a64cd26bae7f81416cbf6aae91d9ca59a355480db3bc7249eb1d66162194fa5b"
   },
   "entries": [
     {
@@ -117,15 +117,15 @@
       "id": "IFU-AXI-G1",
       "priority": "P0",
       "title": "A-update AW/W/B transport drains across frontend flush",
-      "status": "CLOSED",
+      "status": "STALE_EVIDENCE",
       "owner_paths": [
         "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-        "npc/rv64/vsrc/bus/AxiXbar.v"
+        "npc/rv64/vsrc/bus/AxiCrossbar.v"
       ],
       "closure_requirements": [
         "Bind the AW/W/B backpressure and flush-drain matrix plus source mutation to the current design_id."
       ],
-      "current_design_bound": true,
+      "current_design_bound": false,
       "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-axi-flush-drain",
       "coverage": {
@@ -137,7 +137,7 @@
         {
           "kind": "ifu_axi_flush_drain_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
-          "sha256": "3e93930326457d05cd607d8c91909bd02b501f18295a5388827333bb635b7ea4"
+          "sha256": "7342e853840d1aa31ca48ac4a2b148ba2001d06259b704d4e08d39d5a5e6e309"
         },
         {
           "kind": "raw_log",
@@ -183,11 +183,11 @@
       "id": "IFU-ACCESS-G1",
       "priority": "P0",
       "title": "exact halfword execute footprint, PMP/RRESP and lane1 owner",
-      "status": "CLOSED",
+      "status": "STALE_EVIDENCE",
       "owner_paths": [
         "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
         "npc/rv64/vsrc/memory/PmpChecker.v",
-        "npc/rv64/vsrc/bus/AxiXbar.v",
+        "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
         "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
         "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
@@ -201,7 +201,7 @@
       "closure_requirements": [
         "Bind F=0/2/4/6, exact 2B EXEC PMP, RRESP owner, PMEM tail bounds and lane1 owner counterexamples to the current design_id."
       ],
-      "current_design_bound": true,
+      "current_design_bound": false,
       "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
       "canonical_command": "make -C npc/rv64 check-ifu-access",
       "coverage": {
@@ -213,7 +213,7 @@
         {
           "kind": "ifu_access_result",
           "path": "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
-          "sha256": "bec7995f521a6c1487d11be252703d0b4f0cccfee8ed3e9742346e482f0f3a17"
+          "sha256": "d22ef192cbe0e304066bdf49ae5363724fbc134fce330a74029646576394e19a"
         },
         {
           "kind": "raw_log",

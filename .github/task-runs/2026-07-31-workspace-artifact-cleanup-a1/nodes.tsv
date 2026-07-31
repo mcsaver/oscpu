@@ -1,0 +1,6 @@
+node_id	function	inputs	outputs	owner_agent	status	evidence
+inventory	inventory_rv64_eda_artifacts	workspace allocated size + Git worktrees + retained roots	bounded candidate and preserve sets	root	PASS	task-report.md
+reference-closure	build_retained_reference_closure	Git index + evidence DB + task-run root retained sources	125256 normalized references	root	PASS	evidence/cleanup-plan.json
+independent-review	review_artifact_retention	final frozen plan + executors	APPROVE with residual risk	eda_artifact_retention_review	PASS	review.md
+quarantine-purge	execute_anchored_cleanup	7094 SHA-bound targets	7094 purged; 0 remaining	root	PASS	evidence/execution-result.json
+postflight	audit_cleanup_result	status + journal + artifact audit + strict guard	PASS with documented task-external strict-guard exemption	root	PASS	evidence/postflight-audit.txt

@@ -3419,7 +3419,7 @@ IFU_AXI_COMMAND = "make -C npc/rv64 check-ifu-axi-flush-drain"
 IFU_AXI_RUN_ID = "2026-07-22-rv64-v9g-ifu-axi-current-design"
 IFU_AXI_SOURCE_BINDINGS = {
     "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/bus/AxiXbar.v",
+    "npc/rv64/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
@@ -3582,7 +3582,7 @@ def validate_ifu_axi_debt(
         and result.get("canonical_command") == IFU_AXI_COMMAND
         and result.get("scope") == (
             "local RV64 instruction-fetch PTE A-update AW/W/B lifecycle "
-            "through OooFetchAxiBridge and AxiXbar"
+            "through OooFetchAxiBridge and AxiCrossbar"
         )
         and result.get("metrics") == IFU_AXI_METRICS
         and result.get("invariants") == IFU_AXI_INVARIANTS
@@ -3713,7 +3713,7 @@ def validate_ifu_axi_debt(
         "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
             "required": 14, "compile_success": 14, "dynamic_rejected": 14,
         },
-        "npc/rv64/vsrc/bus/AxiXbar.v": {
+        "npc/rv64/vsrc/bus/AxiCrossbar.v": {
             "required": 4, "compile_success": 4, "dynamic_rejected": 4,
         },
     }
@@ -4122,7 +4122,7 @@ IFU_ACCESS_RUN_ID = "2026-07-22-rv64-v9i-ifu-access-current-design"
 IFU_ACCESS_COMMAND = "make -C npc/rv64 check-ifu-access"
 IFU_ACCESS_SCOPE = (
     "local RV64 instruction-fetch exact halfword access, execute PMP, "
-    "AXI ARSIZE/ARPROT, AxiXbar ARPROT[2] default-slave selection, "
+    "AXI ARSIZE/ARPROT, AxiCrossbar ARPROT[2] default-slave selection, "
     "bounded PMEM DPI reads and precise lane fault owner"
 )
 IFU_ACCESS_ARTIFACT_PATHS = {
@@ -4164,7 +4164,7 @@ IFU_ACCESS_SOURCE_BINDINGS = {
     "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
     "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
     "npc/rv64/vsrc/memory/PmpChecker.v",
-    "npc/rv64/vsrc/bus/AxiXbar.v",
+    "npc/rv64/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
     "npc/rv64/csrc/dpi.c",
     "npc/rv64/csrc/memory/paddr.c",
@@ -4406,7 +4406,7 @@ def validate_ifu_access_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_by_source = {
-        "npc/rv64/vsrc/bus/AxiXbar.v": {
+        "npc/rv64/vsrc/bus/AxiCrossbar.v": {
             "required": 3, "compile_success": 3, "dynamic_rejected": 3},
         "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},

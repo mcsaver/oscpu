@@ -398,7 +398,7 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     paths = {
         "bridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
         "pmp": "npc/rv64/vsrc/memory/PmpChecker.v",
-        "xbar": "npc/rv64/vsrc/bus/AxiXbar.v",
+        "xbar": "npc/rv64/vsrc/bus/AxiCrossbar.v",
         "dpi": "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
         "pair": "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
         "dispatch": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
@@ -467,7 +467,7 @@ SOURCE_BINDING_PATHS = (
     "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
     "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
     "npc/rv64/vsrc/memory/PmpChecker.v",
-    "npc/rv64/vsrc/bus/AxiXbar.v",
+    "npc/rv64/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
     "npc/rv64/csrc/dpi.c",
     "npc/rv64/csrc/memory/paddr.c",
@@ -528,7 +528,7 @@ def build(
         "canonical_command": CANONICAL_COMMAND,
         "scope": (
             "local RV64 instruction-fetch exact halfword access, execute PMP, "
-            "AXI ARSIZE/ARPROT, AxiXbar ARPROT[2] default-slave selection, "
+            "AXI ARSIZE/ARPROT, AxiCrossbar ARPROT[2] default-slave selection, "
             "bounded PMEM DPI reads and precise lane fault owner"
         ),
         "metrics": metrics,

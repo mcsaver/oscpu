@@ -26,7 +26,12 @@ shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` �
 新派发的渲染提示必须原样使用；validate 失败或手工改写边界后的 reviewer 结果只能是
 `candidate-only`。范围扩展必须创建 versioned JSON、重跑 validate/render 并绑定新 SHA，不能沿用旧合同。
 
-- 开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile> --focus-scope non-history` 生成 bounded 上下文包；未确定 profile 时只省略 `--profile`，仍保留 non-history focus，再看 `Profile Suggestions`。普通规则文件修改后，手工再次调用 brief 前先用 `python3 scripts/github_index_db.py refresh <路径...>` 更新 live 索引；`agent-e2e.sh` 正式派发则会在 context brief 前自动 `rebuild` live 索引，通过目录级剪枝排除 DB-first 的 `.github/{memory,task-runs}/**` 与历史 `.github/{archive,shujuku_aireview}/**`，只刷新 active rules/profile/root shims，并把结果保存在 `evidence/context-live-index-refresh.log`。scoped rebuild 的 missing 更新只作用于本次扫描范围内且未被排除的旧行，任何 explicit/built-in exclude 都必须保持原索引状态。刷新失败必须使本轮非零且不得继续生成看似 complete 的旧 brief。只有 `recall_status=complete` 才可继续派发；canonical/profile/独立 focus 缺失或必需 chunk 超出硬 token budget 时，CLI 必须非零、API 必须 `ok=false`，runner 不得降级为 WARN 假绿。回查历史 task-run/evidence 时使用 `runs --profile <profile>` 和 `evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志或直接加载 `.github/task-runs/**` 原始 evidence。
+- 本节仅适用于真实 e2e profile dispatch，不适用于普通 review/analysis 或一般 RTL/软件开发。
+  profile dispatch 开工用 bounded brief；普通任务由
+  `.github/instructions/agent-lightweight-workflow.instructions.md` 分类，只有需要历史召回时才调用
+  brief。正式 `agent-e2e.sh` 仍在 context brief 前刷新 active live 索引，排除
+  `.github/{memory,task-runs,archive,shujuku_aireview}/**`；刷新或 recall 失败必须非零。
+  历史 task-run/evidence 回查使用 `runs --profile` 和 `evidence --run-id`。
 - CLI/API 与 e2e runner 的 bounded brief 默认预算统一为 2400 tokens，runner 可用 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 显式覆盖；覆盖只改硬预算，不改必需 focus 的 fail-closed 契约。
 - e2e runner 把 `task_slug` 作为审计身份并从中提取 focus：按字母/数字/CJK 边界拆出最多 8 个去重语义词，过滤日期、序号及 `agent/e2e/run/rerun/final/test/fix` 等生命周期噪声。版本/迭代身份只能用受控相邻片段 `revtag-v<数字><可选字母>` 显式声明，runner 只删除这一对；未声明的裸 `v8`、`v2ray`、内部 `v8a` 等必须作为真实领域词保留，畸形或重复 `revtag` 必须 fail closed。profile 只通过 `--profile` 绑定，不得重复成为 AND focus term。默认 slug `agent-e2e-<profile>` 会退化为 profile 的非泛化语义词（例如 `agent-e2e-npc-dev` → `npc dev`），只作为 profile smoke 兼容入口，不等同于任务特异 focus；真实任务应显式给出可辨识 slug。若过滤后为空则 recall fail closed。runner 固定使用 `--focus-scope non-history`，所以旧 task-run/report/evidence 即使含同 slug 也不能充当独立 primary focus；历史回查仍走默认 `brief` 或更明确的 `runs`/`evidence`。
 - 收尾阶段的 task-specific e2e slug 必须使用已经存在于当前 non-history source/rule 或 DB-owned stored memory 的领域词。若本轮稳定结论本身就是独立 focus，先用 `update-stored` 发布 project/module memory，再运行同词 slug；不得用旧 task-run 自证，也不得放宽 recall gate。`no independent primary focus match` 的 blocked run 只作为顺序反例和诊断证据，不能计入完成证据。
@@ -40,7 +45,38 @@ shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` �
 
 ## 完成判定
 
-收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。guard 会读取当前工作树触碰路径（或 `--paths-file` / `--path` 指定路径），推导推荐 profile，并要求候选 evidence 的语义完成时间不早于触发文件；触发文件按微秒上取整，tracked deletion 使用父目录/Git index 时间，无法枚举 Git 或无法给不存在路径建立可信基线时 fail closed。每个候选都校验 canonical task-report 基本信息和普通 `run-manifest.json`：JSON 必须无重复键、无 NaN/Infinity，completed 必须全节点 PASS，run/report/manifest/index/dispatch 的 task/trace/slug 必须一致，report/manifest 的 started/updated 必须逐字一致且顺序合法；report mtime、touch、复制或格式化不能刷新证据。缺字段、重复/冲突字段、非对象 manifest、profile/status 冲突、无时区/未来时间、symlink evidence root/run dir/artifact（含 dangling）均 fail closed；多个合格候选按 UTC 微秒时间选择最新者。`context-brief.md` 还必须证明 canonical+profile+独立 focus chunks 在硬预算内且每个 chunk 有完整 metadata/非空正文，`profile-resolve.md` 必须带连续编号、唯一 ID 的非空 Nodes 闭包；resolve、manifest、report、dispatch 和 `nodes.tsv` 必须绑定 `node_id/source_profile/module/owner/function/status/inputs/outputs/evidence` 全元组，并由 validator 现场递归解析 live profile include closure，逐节点复核前八项。dispatch 的 startup 与节点事件必须保持 canonical 全局顺序，11 个 payload 字段逐项相等；每个节点首要 evidence 必须是 canonical `evidence/<node_id>.log`，全部辅助指针也必须属于 actual indexed ordinary evidence。`evidence-index.md` 必须逐项重算 ordinary evidence 的路径、尺寸与 SHA-256。runner 对 recall、resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都保留非零/blocked；completed 先用 `archive-markdown --sync-task-run` 精确同步 staged Markdown，再生成绑定七份 artifact 的 `complete.marker` 与严格 EOF 的 `completion-publication.md`，最后由 `publish-task-run` 在单个 SQLite 事务内复核 marker/artifact/staged DB 并提交完成记录。普通 archive/promote/migrate/backup/rehydrate 不得制造或撤销 publication，`runs` 只承认 canonical `db-marker-v1` completed report；失败会撤销本次 live marker/publication并重渲染 blocked，既有已提交 publication 不会被通用 sync 误删。strict guard 同时重算 marker、publication 与 DB/live 精确集合。若缺证据，必须补跑建议的 `scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail`，或在 task-run/memory/最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替 agent/e2e workflow 证据契约。
+普通任务在一轮目标结束时运行 `scripts/agent-flow.sh finish`，不进入本节的完整 publication guard。
+只有 `release`、e2e 迁移兼容或用户明确要求完整 workflow evidence 时才运行下述 strict guard，并且
+必须传入 C 生成的 `paths.log` 或显式 `--path`。因此下段历史措辞中的“收尾前运行”仅指这些
+release/迁移场景；guard 不再扫描 Git 工作树，删除项以显式 paths-file 的 mtime 作为任务基线。
+
+仅在 release、迁移兼容或用户明确要求时运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。
+guard 必须显式消费 `--paths-file` / `--path`，不枚举 Git 工作树；存在路径使用文件时间，不存在或
+已删除路径使用 paths-file 时间作为基线，无法建立可信基线时 fail closed。每个候选都校验 canonical
+task-report 基本信息和普通 `run-manifest.json`：JSON 必须无重复键、无 NaN/Infinity，completed 必须
+全节点 PASS，run/report/manifest/index/dispatch 的 task/trace/slug 必须一致，report/manifest 的
+started/updated 必须逐字一致且顺序合法；report mtime、touch、复制或格式化不能刷新证据。缺字段、
+重复/冲突字段、非对象 manifest、profile/status 冲突、无时区/未来时间、symlink evidence
+root/run dir/artifact（含 dangling）均 fail closed；多个合格候选按 UTC 微秒时间选择最新者。
+`context-brief.md` 还必须证明 canonical+profile+独立 focus chunks 在硬预算内且每个 chunk 有完整
+metadata/非空正文，`profile-resolve.md` 必须带连续编号、唯一 ID 的非空 Nodes 闭包；resolve、
+manifest、report、dispatch 和 `nodes.tsv` 必须绑定
+`node_id/source_profile/module/owner/function/status/inputs/outputs/evidence` 全元组，并由 validator
+现场递归解析 live profile include closure，逐节点复核前八项。dispatch 的 startup 与节点事件必须
+保持 canonical 全局顺序，11 个 payload 字段逐项相等；每个节点首要 evidence 必须是 canonical
+`evidence/<node_id>.log`，全部辅助指针也必须属于 actual indexed ordinary evidence。
+`evidence-index.md` 必须逐项重算 ordinary evidence 的路径、尺寸与 SHA-256。runner 对 recall、
+resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都保留
+非零/blocked；completed 先用 `archive-markdown --sync-task-run` 精确同步 staged Markdown，再生成
+绑定七份 artifact 的 `complete.marker` 与严格 EOF 的 `completion-publication.md`，最后由
+`publish-task-run` 在单个 SQLite 事务内复核 marker/artifact/staged DB 并提交完成记录。普通
+archive/promote/migrate/backup/rehydrate 不得制造或撤销 publication，`runs` 只承认 canonical
+`db-marker-v1` completed report；失败会撤销本次 live marker/publication 并重渲染 blocked，既有
+已提交 publication 不会被通用 sync 误删。strict guard 同时重算 marker、publication 与 DB/live
+精确集合。若缺证据，必须补跑建议的
+`scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail>`，或在 task-run/memory/
+最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替
+agent/e2e workflow 证据契约。
 
 RV64 systemd checker 合同的精确脚本、parser、三份定向单测与冻结
 `v9s-rerun4-incomplete.console` 由 strict guard 路由到更贴合的

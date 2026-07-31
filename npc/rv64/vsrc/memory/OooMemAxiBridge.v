@@ -1974,6 +1974,39 @@ module OooMemAxiBridge #(
                $time);
         $fatal;
       end
+      // V11J raw holder contract: identity is the full
+      // {owner_kind, owner_token, mmu_epoch} tuple.  Token-only checks above
+      // remain intact for their historical marker contract; these additional
+      // checks reject an X-bearing kind/epoch before the station can transfer
+      // it into an authorization or transport cone.
+      if ((state_q != S_IDLE) &&
+          (^{active_owner_kind_q, active_owner_token_q,
+             active_mmu_epoch_q} === 1'bx)) begin
+        $error("[V11J-BRIDGE-ACTIVE-TUPLE-KNOWN] active owner tuple is unknown @%0t",
+               $time);
+        $fatal;
+      end
+      if (stg_valid_q &&
+          (^{stg_owner_kind_q, stg_owner_token_q,
+             stg_mmu_epoch_q} === 1'bx)) begin
+        $error("[V11J-BRIDGE-STAGE-TUPLE-KNOWN] station owner tuple is unknown @%0t",
+               $time);
+        $fatal;
+      end
+      if ((state_q == S_RESP) &&
+          (^{rsp_owner_kind_q, rsp_owner_token_q,
+             rsp_mmu_epoch_q} === 1'bx)) begin
+        $error("[V11J-BRIDGE-RSP-TUPLE-KNOWN] response owner tuple is unknown @%0t",
+               $time);
+        $fatal;
+      end
+      if ((state_q != S_IDLE) && active_owner_verified_q &&
+          (^{verified_owner_kind_q, verified_owner_token_q,
+             verified_mmu_epoch_q} === 1'bx)) begin
+        $error("[V11J-BRIDGE-VERIFIED-TUPLE-KNOWN] verified owner tuple is unknown @%0t",
+               $time);
+        $fatal;
+      end
       if (mem0_idle_o &&
           ((state_q != S_IDLE) || stg_valid_q || drop_rsp_q ||
            nokill_busy_w || aw_done_q || w_done_q || dcache_rmw_busy_w ||

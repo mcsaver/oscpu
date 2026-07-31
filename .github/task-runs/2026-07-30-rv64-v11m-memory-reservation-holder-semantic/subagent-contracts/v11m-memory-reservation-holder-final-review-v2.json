@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11m-memory-reservation-holder-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooIntBackend 双 memory reservation lane0/lane1 的 full ProducerId 与 owner token 在双出生、READY 保持、request transfer、collector lane6/lane7 local terminal、selective/global recovery、pair turnover 周期中的 holder 合同，并核对当前定向仿真、33 个编译成功负向 RTL 变体、三项普通回归及 17-instance elaboration 证据是否足以将四个 reservation 单元限定为 PASS。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/run_v11m_memory_reservation_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11m_memory_reservation_holder_semantic.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/Makefile",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/pre-review-result.md",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/task-report.md",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/subagent-contracts/v11m-memory-reservation-holder-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/pre-review-result.md",
+      ".github/task-runs/2026-07-30-rv64-v11m-memory-reservation-holder-semantic/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、周期/配置、TB/EDA 观测、PASS/GAP 范围给出独立 reviewer 结论；优先寻找 owner tuple 交叉、同沿旧新身份混淆、oracle 读取 DUT 期望值、mutation 编译失败假绿、assertion-off 缺口、receipt 漂移与局部结论外推，并列出每个可操作反例或未知项。"
+  ],
+  "success_criteria": [
+    "明确给出 APPROVED_FOR_CURRENT_SCOPE、APPROVED_NOT_PROMOTION_ELIGIBLE 或 REJECTED_*；逐路径核对 production RTL 无变化、assert/release baseline、33 个 compile-success mutation 的 exact-stage 非零退出、三项回归、A3 frozen evidence unchanged 与 no-system-rerun 边界；不得将四单元 PASS 外推为整核 GREEN 或 PPA 资格。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -246,8 +246,9 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
             R(2) = R(2) + imm;
           } else { // c.lui
             word_t imm = c_imm_6(inst);
-            if (rd == 0 || imm == 0) BAD_DECODE();
-            R(rd) = imm << 12;
+            if (imm == 0) BAD_DECODE();
+            // rd=x0,nzimm!=0 是标准 HINT，按 no-op 执行而不是抛非法指令。
+            if (rd != 0) R(rd) = imm << 12;
           }
           return true;
         case 0x4: {
@@ -302,7 +303,8 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
           R(rd) = R(rd) << c_shamt(inst);
           return true;
         case 0x1: // c.fldsp
-          if (rd == 0 || !ISDEF(CONFIG_RISCV_EXT_D) ||
+          // rd 编码的是浮点寄存器；f0 是普通可写 FPR，不能套用 C.LDSP 的 x0 限制。
+          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
               !exec_rvf_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
             BAD_DECODE();
           }

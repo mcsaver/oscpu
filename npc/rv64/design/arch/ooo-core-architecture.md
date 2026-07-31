@@ -167,7 +167,7 @@ architecture freeze 与 PPA 不在该裁决范围。
 
 ```text
 NpcSimTop (仿真壳 + DPI 设备/事件)
-└── NpcTop (可综合 SoC: NpcAxiBus/AxiXbar 2M×16S + UART/CLINT/PLIC)
+└── NpcTop (可综合 SoC: NpcAxiBus/AxiCrossbar 2M×16S + UART/CLINT/PLIC)
     └── NpcCoreTop (u_core)
         ├── OooFetchAxiBridge   取指桥：ITLB+硬件 PTW+取指包 cache(4096)+PMP×5   core/NpcCoreTop.v:163
         ├── OooMemAxiBridge     数据桥：DTLB+硬件 PTW+dcache(32KB)+PMP×3+单-outstanding FSM  :192

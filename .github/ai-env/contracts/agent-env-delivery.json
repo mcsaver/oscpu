@@ -38,12 +38,13 @@
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/prepare-rtl-task-contract/SKILL.md",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/README.md",
+    "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-flow.c",
+    "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-flow.sh",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-maintain.sh",
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/github_index_db.py"
   ],
   "quality_gates": [
-    "python3 scripts/github_index_db.py delivery-audit",
-    "scripts/agent-maintain.sh --mode check",
+    "scripts/agent-maintain.sh --mode release",
     "scripts/agent-e2e.sh --profile agent-system"
   ],
   "commercial_boundaries": {

@@ -1,10 +1,8 @@
 # OoO 全局 ProducerId 持有者与有限代际不复用合同
 
-> 状态：v11f current-production-top 审计合同。字段 census 与
-> `NpcTop` product elaboration instance graph 已闭合；44 个语义单元中 terminal
-> collector 的 3 个单元、memory tracker map/live-set 的 2 个单元、tracker
-> cursor 的 1 个单元、ROB slot generation 的 1 个单元及 integer IQ
-> ProducerId holder 的 1 个单元具有当前 source-bound 正/负向证据，余下 36 个保持 GAP。
+> 状态：V11N current-production-top 审计合同。字段 census 与
+> `NpcTop` product elaboration instance graph 已闭合；44 个语义单元中 27 个
+> 具有当前或明确限定的 source-bound 正/负向语义证据，余下 17 个保持 GAP。
 > 因而全局 no-live-reuse、完整双 memory、系统级验证、全核 architecture promotion
 > 和 PPA 仍按 `../arch/rv64-architecture-ppa-contract.md` 保持 RED/unpromoted。
 
@@ -127,12 +125,13 @@ runner，并要求 mutation 先成功生成 vvp 后才允许以预期运行后�
 
 ## 5. 声明边界
 
-静态 census PASS 只表示当前 source-tree 的字段级清单闭合。V11H 以当前 product
+静态 census PASS 只表示当前 source-tree 的字段级清单闭合。V11J 以当前 product
 配置重新 elaboration，证明 15 个 holder module 仍对应 17 个实例和 194 个可达实例，且两个
 `OooMemInflightQueue` 与两个 `OooMemAxiBridge` 实例保持独立可审计；因此
 `instance_graph_complete=true`。
 
-V11B/V11C/V11D/V11E/V11F/V11G/V11H 语义账本将 44 个 census 单元展开成 50 条
+V11B/V11C/V11D/V11E/V11F/V11G/V11H/V11J/V11K/V11L/V11M/V11N
+语义账本将 44 个 census 单元展开成 50 条
 unit×instance 绑定。当前
 `terminal-output0-token`、`terminal-output1-token` 和 `terminal-pending-set`
 通过 12 路 ingress lane、2 路 tracker-free lane、accepted-only transfer authority、
@@ -185,25 +184,82 @@ production RTL 还必须以 `[V11H-LQ-PID-KNOWN]` 直接断言
 `valid_q => full producer_id_q known`；GEN_W=4 unknown-generation probe
 必须失败，而四个合法 profile 与 ordinary LQ/parent 回归不得误触发。
 
-局部证据重放必须区分绑定强度。V11B–V11G 的旧 full-design snapshot 不得改写
+`bridge-active-token`、`bridge-response-token`、`bridge-stage-token`、
+`bridge-verified-token-alias` 与 `bridge-residency-set` 由 V11J 的
+stimulus-owned 双实例 tuple/residency oracle 闭合。32 个 profile 包含
+assert/release production、kind/epoch X 注入和 13 个 compile-success RTL
+反例的 assert/release 双配置；26 次负向仿真必须全部被拒绝。oracle 每拍分别核对
+`u_bridge0/u_bridge1` 的 stage、active、response、verified
+`{kind,token,epoch}` 与完整 32-bit residency set，不从 DUT query 或 raw holder
+反推 expected。三个 ordinary bridge regression 也必须同时 PASS。
+production `OooMemAxiBridge.v` 的唯一改动是 `OOO_ASSERT` 下新增
+`[V11J-BRIDGE-*-TUPLE-KNOWN]`，不改变 release FSM、holder 或 datapath。
+
+V11K 对两个产品 `OooMemInflightQueue` 实例使用 stimulus-owned 固定
+owner-tuple schedule，覆盖 capture/hold、cross-instance reject、flush/kill、
+exact consume 与 32-bit occupancy exact-set。canonical attempt-3 包含
+2 个 production baseline、12×2 个 compile-success RTL 变体和
+4×2 个 accepted-push/valid-head-pop X/Z interface probe；三个普通回归
+分别绑定 7/7/43 个执行输入及 `.vvp`/post-hash。生产差异仍只位于
+`OOO_ASSERT`；V11J/V11K 完整两态 Yosys JSON 均为 130 modules、
+176087 cells，canonical logic SHA-256 相同。
+
+V11L 对 `OooIntBackend` 的两路 memory retry producer/token holder 使用
+stimulus-owned edge model。GEN_W=1/4、assert/release 共 34 个 profile、
+32 个 compile-success release mutation 和 3 个 ordinary regression 均闭合；
+四个 `memory-retry{0,1}-{producer-cache,token}` 单元在当前产品实例上晋级
+PASS。production `OooIntBackend.v` 未修改。
+
+V11M 对两路 memory reservation producer/token holder 使用 generation=1、
+owner token 28/29→30/31 的完整位宽 identity，逐沿覆盖 pair birth、READY=00
+hold、READY=10/01 lane isolation、request→MIQ exact transfer、local terminal、
+selective/global recovery、pair turnover 与 tracker death。assert/release
+baseline、37 个 compile-success release mutation 和 3 个 ordinary regression
+形成 39/39、37/37、3/3 的 current-bound 证据；其中两路 ProducerId generation
+truncate 与两路 token high-bit truncate 均成功编译并由 lane-exact oracle
+拒绝。四个 `memory-reservation{,1}-{producer,token}` 单元晋级 PASS。
+token 28 的 testbench cursor 注入只证明 holder 位宽，不外推 allocator 自然
+可达性；production `OooIntBackend.v` 未修改。
+
+V11N 对 `OooIntBackend` 的 singleton memory-pending ProducerId cache/token
+使用 stimulus-owned generation=1、owner token=28，覆盖 AMO birth、read
+pending hold、read→write phase、write-grant stall、write fire 后 hold、
+lane0 final、lane9 interphase cancel、read fault no-lane9-duplicate 与 tracker
+death。dispatch lane1 的 AMO 只验证为调度到 execution terminal0；
+`issue1_is_amo_w=1'b0`，不得把它误写成 terminal1 AMO。GEN_W=1/4、
+assert/release 四个 baseline 与 13 类 compile-success release mutation 的
+26 次仿真全部闭合，三个 ordinary regression PASS。expected PID/token 不读取
+DUT pending holder，full-width capture/read/write/lane9 截断与错误相位 mutation
+均由 exact-stage oracle 拒绝。`memory-pending-producer-cache` 与
+`memory-pending-token` 晋级 PASS；production `OooIntBackend.v` 未修改。
+
+`memory-buffer-token` 不由 V11N 代替。当前 product `ENABLE_DUAL_MEM=1` 下 legacy
+buffer path 为参数静态关闭，但在建立 product-inactive exemption 或配置专属动态
+证据前，该单元继续保持独立 GAP。
+
+局部证据重放必须区分绑定强度。V11B–V11H 的旧 full-design snapshot 不得改写
 design-id；仅当 policy 中逐项列出的 RTL、include/filelist 与 testbench SHA-256
 全部仍匹配当前工作区时，台账才可标记
 `CURRENT_SELECTED_SOURCE_AND_TB_BOUND`。V8L 的旧 full snapshot 因 LoadQueue
 变化只能标记 `HISTORICAL_FULL_RTL_BOUND`。V11H focused attempt-4 原始
 `FAIL@semantic-ledger-unit` 永久保留；独立 checker replay 只消费冻结的 4 个
 正向配置、1 个 raw-Q assertion probe、31×2 负向仿真及 pre/post 输入，
-生成新 PASS receipt，且明确 `rtl_simulation_reexecuted=false`。系统边界
+生成新 PASS receipt，且明确历史 full-RTL snapshot 不是当前设计，只允许以
+未漂移的 LoadQueue RTL 与两份 TB 作 selected binding，
+`rtl_simulation_reexecuted=false`。系统边界
 必须用 exact object 记录 local closure 不要求重跑、system promotion 要求重跑、
 当前未运行；字段删除或弱化必须 fail closed。
 
-其余 33 个单元继续记录具体覆盖缺口，所以
+其余 17 个单元继续记录具体覆盖缺口，所以
 `semantic_complete=false`，global no-live-reuse 仍为 RED。
 
-不得把字段 census、实例图或 11/44 局部语义 PASS 单独外推为完整架构 GREEN、
+不得把字段 census、实例图或 27/44 局部语义 PASS 单独外推为完整架构 GREEN、
 系统级 GREEN、200 MHz、Power 或 PPA promotion。只有所有 44 个单元在各自
 product instance 上具备当前 source-bound 正向、反例与语义 oracle，且全局门重新验证，
 才允许晋级 global no-live-reuse。
 
 V11H 修改了 production core RTL 语义，因此旧 A3 系统 evidence 不再是当前设计绑定。
 新的完整系统运行是未来 system-level promotion 的前置条件；本地 focused closure 不自动
-启动该高成本运行，也不能用旧 A3 checker replay 代替当前设计的系统验证。
+启动该高成本运行，也不能用旧 A3 checker replay 代替当前设计的系统验证。V11J
+断言增量以及 V11K/V11L/V11M/V11N 的 verification-only 增量本身不增加新的完整系统
+重跑触发条件。

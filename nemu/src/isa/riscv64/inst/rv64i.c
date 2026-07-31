@@ -37,6 +37,11 @@ static inline bool exec_rv64i_op_imm(uint32_t inst, int rd, word_t src1) {
 }
 
 static inline bool exec_rv64i_load(uint32_t funct3, int rd, word_t addr) {
+  /*
+   * funct3 是译码合法性，不是地址语义。必须在 MMU/对齐检查前拒绝保留编码，
+   * 否则一个非法 LOAD 可能因“看起来像 8-byte 访存”而被错误改判成地址异常。
+   */
+  if (funct3 > 0x6) return false;
   // NPC 硬件语义(OooIntBackend.v:1057-1066): 普通 load 页内 misaligned 由 LSUDataPath 连续字节硬件
   // 支持(不 fault); 仅"地址翻译激活(isa_mmu_check==TRANSLATE) 且 跨 4KB 页(EA[11:0]+len>0x1000)"
   // misaligned 才抛 LOAD_MISALIGN(交软件 trap-emulate)。AMO/LR/SC 对齐约束在 amo.c 自查,不走此路。
@@ -88,6 +93,8 @@ static inline bool exec_rv64i_load(uint32_t funct3, int rd, word_t addr) {
 }
 
 static inline bool exec_rv64i_store(uint32_t funct3, word_t addr, word_t data) {
+  // RV64 STORE 只定义 SB/SH/SW/SD；保留编码不能触发任何地址检查或访存副作用。
+  if (funct3 > 0x3) return false;
   // 对齐 NPC 硬件语义(见 exec_rv64i_load): 普通 store 页内 misaligned 硬件支持,仅翻译激活且跨 4KB 页 fault。
   int len = 1 << (funct3 & 0x3);
   if ((addr & (word_t)(len - 1)) &&
@@ -108,15 +115,21 @@ static inline bool exec_rv64i_store(uint32_t funct3, word_t addr, word_t data) {
 }
 
 static inline bool exec_rv64i_branch(Decode *s, uint32_t funct3, word_t src1, word_t src2, word_t imm) {
+  bool taken = false;
   switch (funct3) {
-    case 0x0: if (src1 == src2) s->dnpc = s->pc + imm; return true;                 // beq
-    case 0x1: if (src1 != src2) s->dnpc = s->pc + imm; return true;                 // bne
-    case 0x4: if ((sword_t)src1 < (sword_t)src2) s->dnpc = s->pc + imm; return true; // blt
-    case 0x5: if ((sword_t)src1 >= (sword_t)src2) s->dnpc = s->pc + imm; return true;// bge
-    case 0x6: if (src1 < src2) s->dnpc = s->pc + imm; return true;                  // bltu
-    case 0x7: if (src1 >= src2) s->dnpc = s->pc + imm; return true;                 // bgeu
+    case 0x0: taken = src1 == src2; break;                  // beq
+    case 0x1: taken = src1 != src2; break;                  // bne
+    case 0x4: taken = (sword_t)src1 < (sword_t)src2; break; // blt
+    case 0x5: taken = (sword_t)src1 >= (sword_t)src2; break;// bge
+    case 0x6: taken = src1 < src2; break;                   // bltu
+    case 0x7: taken = src1 >= src2; break;                  // bgeu
     default: return false;
   }
+  if (taken) {
+    word_t target = s->pc + imm;
+    if (rv_instruction_target_valid(target)) s->dnpc = target;
+  }
+  return true;
 }
 
 static inline bool exec_rv64i_op(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
@@ -214,6 +227,8 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       return true;
     default:
       if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
+        // SFENCE.VMA 是 S/M 级特权指令；U-mode 必须产生 illegal instruction。
+        if (cpu.priv < PRIV_S) return false;
         // TVM: S 态且 mstatus.TVM=1 时 SFENCE.VMA 触发 illegal instruction; M 态不受影响。
         if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
         isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0);

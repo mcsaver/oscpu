@@ -1,0 +1,7 @@
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+npc/rv64/testbench/Makefile
+npc/rv64/testbench/scripts/run_v11l_memory_retry_holder_semantic.py
+npc/rv64/testbench/scripts/test_run_v11l_memory_retry_holder_semantic.py
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv

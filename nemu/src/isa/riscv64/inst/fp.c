@@ -7,14 +7,6 @@
  *  (NX/UF/OF/DZ/NV) 完全相同(均按 RISC-V 设计), 故 glue 极简: 直接或入。 */
 #include "softfloat.h"
 
-static inline bool fp_state_enabled(void) {
-  return (cpu.csr.mstatus & MSTATUS_FS_MASK) != 0;
-}
-
-static inline void fp_mark_dirty(void) {
-  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_FS_MASK) | MSTATUS_FS_DIRTY;
-}
-
 static inline void fp_raise_invalid(void) {
   cpu.csr.fflags |= FFLAGS_NV;
   fp_mark_dirty();

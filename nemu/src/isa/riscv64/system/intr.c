@@ -46,6 +46,7 @@ static bool clint_host_time_initialized = false;
 #endif
 static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
+static bool minstret_written_this_inst = false;
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int trap_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
@@ -295,10 +296,12 @@ void isa_riscv64_post_exec(void) {
   if (!mcycle_written_this_inst && (cpu.csr.mcountinhibit & MCOUNTINHIBIT_CY) == 0) {
     cpu.csr.mcycle++;
   }
-  if ((cpu.csr.mcountinhibit & MCOUNTINHIBIT_IR) == 0) {
+  if (!minstret_written_this_inst &&
+      (cpu.csr.mcountinhibit & MCOUNTINHIBIT_IR) == 0) {
     cpu.csr.minstret++;
   }
   mcycle_written_this_inst = false;
+  minstret_written_this_inst = false;
   clint_post_exec_tick();
 }
 
@@ -310,6 +313,7 @@ void isa_riscv64_reset(void) {
   clint_rebase_host_time(0);
   host_timer_irq_pending = false;
   mcycle_written_this_inst = false;
+  minstret_written_this_inst = false;
   isa_riscv64_plic_reset();
 }
 
@@ -374,6 +378,16 @@ void isa_riscv64_write_mip(word_t value) {
   // M 级硬件 pending 位来自 CLINT/外部控制器；M-mode 可通过 mip 注入 S 级软件 pending。
   // sip 的 S-mode 视图只允许 SSIP 写入，不能伪造 STIP/SEIP。
   cpu.csr.mip = value & MIP_SUPERVISOR_MASK;
+}
+
+void isa_riscv64_write_mcycle(word_t value) {
+  cpu.csr.mcycle = value;
+  mcycle_written_this_inst = true;
+}
+
+void isa_riscv64_write_minstret(word_t value) {
+  cpu.csr.minstret = value;
+  minstret_written_this_inst = true;
 }
 
 void isa_riscv64_write_mcycle_lo(word_t value) {

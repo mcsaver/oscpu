@@ -70,6 +70,39 @@ static inline bool rv_runtime_env_enabled_default_true(const char *name) {
 #endif
 }
 
+/*
+ * FS=Off 时，任何读写浮点寄存器或 fcsr/frm/fflags 的指令都必须非法。
+ * 这两个 helper 放在 csr.c 与 fp.c 之前的公共层，确保显式 CSR 访问和
+ * 浮点指令走完全相同的状态门控与 Dirty 更新。
+ */
+static inline bool fp_state_enabled(void) {
+#ifdef CONFIG_RISCV_EXT_F
+  return (cpu.csr.mstatus & MSTATUS_FS_MASK) != 0;
+#else
+  return false;
+#endif
+}
+
+static inline void fp_mark_dirty(void) {
+  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_FS_MASK) | MSTATUS_FS_DIRTY;
+}
+
+/*
+ * 未实现 C 扩展时 IALIGN=32，taken branch/JAL/JALR 的目标必须 4-byte
+ * 对齐。先挂起异常、再由 decode.c 的统一 fault 收口投递，避免跳转指令
+ * 在异常前错误提交 link register 或 dnpc。
+ */
+static inline bool rv_instruction_target_valid(word_t target) {
+#ifdef CONFIG_RISCV_EXT_C
+  (void)target;
+  return true;
+#else
+  if ((target & (word_t)0x3) == 0) return true;
+  vaddr_set_fault(CAUSE_INST_MISALIGNED, target);
+  return false;
+#endif
+}
+
 #ifdef CONFIG_INTERPRETER_DECODE_CACHE
 bool isa_riscv64_decode_cache_is_enabled = true;
 bool isa_riscv64_decode_cache_rvc_fast_is_enabled = true;

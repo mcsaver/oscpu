@@ -11,6 +11,13 @@
   const files = new Map(DATA.files.map((item) => [item.path, item]));
   const transactions = new Map(DATA.transactions.map((item) => [item.id, item]));
   const timings = new Map(DATA.timings.map((item) => [item.id, item]));
+  const FONT_SCALE_STORAGE_KEY = "rv64core-font-scale-v1";
+  const FONT_SCALE_OPTIONS = ["standard", "large", "xlarge"];
+  const FONT_SCALE_LABELS = {
+    standard: "标准",
+    large: "大",
+    xlarge: "特大",
+  };
 
   const state = {
     sidebarTab: "hierarchy",
@@ -23,6 +30,7 @@
     searchResults: [],
     searchCursor: -1,
     waveCounter: 0,
+    fontScale: "large",
     lastRouteKey: null,
     preserveViewOnce: false,
   };
@@ -33,6 +41,7 @@
     main: document.getElementById("mainContent"),
     search: document.getElementById("globalSearch"),
     searchResults: document.getElementById("searchResults"),
+    fontScaleButton: document.getElementById("fontScaleButton"),
     toast: document.getElementById("toast"),
     live: document.getElementById("liveStatus"),
   };
@@ -212,10 +221,55 @@
     }, 2200);
   }
 
+  function preferredFontScale() {
+    try {
+      const stored = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+      if (FONT_SCALE_OPTIONS.includes(stored)) {
+        return stored;
+      }
+    } catch (_error) {
+      // file:// 或隐私模式可能禁用 storage；此时保留 HTML 的默认大字号。
+    }
+    const initial = elements.body.dataset.fontScale;
+    return FONT_SCALE_OPTIONS.includes(initial) ? initial : "large";
+  }
+
+  function applyFontScale(scale, options = {}) {
+    const next = FONT_SCALE_OPTIONS.includes(scale) ? scale : "large";
+    state.fontScale = next;
+    elements.body.dataset.fontScale = next;
+    if (elements.fontScaleButton) {
+      const label = FONT_SCALE_LABELS[next];
+      elements.fontScaleButton.textContent = `字号 ${label}`;
+      elements.fontScaleButton.setAttribute(
+        "aria-label",
+        `当前字号：${label}；点击切换字号`,
+      );
+      elements.fontScaleButton.title = `当前字号：${label}；点击切换`;
+    }
+    if (options.persist) {
+      try {
+        window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, next);
+      } catch (_error) {
+        // 字号已经在当前页面生效，storage 失败不应阻断阅读。
+      }
+    }
+    if (options.notify) {
+      showToast(`已切换为${FONT_SCALE_LABELS[next]}字号`);
+      announce(`字号已切换为${FONT_SCALE_LABELS[next]}`);
+    }
+  }
+
+  function cycleFontScale() {
+    const currentIndex = FONT_SCALE_OPTIONS.indexOf(state.fontScale);
+    const next = FONT_SCALE_OPTIONS[(currentIndex + 1) % FONT_SCALE_OPTIONS.length];
+    applyFontScale(next, { persist: true, notify: true });
+  }
+
   function openSidebar() {
     elements.body.classList.add("sidebar-open");
     document.getElementById("menuButton")?.setAttribute("aria-expanded", "true");
-    if (window.matchMedia("(max-width: 1040px)").matches) {
+    if (window.matchMedia("(max-width: 1100px)").matches) {
       window.setTimeout(() => {
         document.getElementById(`navTab-${state.sidebarTab}`)?.focus();
       }, 0);
@@ -653,6 +707,7 @@
   }
 
   function transactionFlow(tx) {
+    const sidePathCount = tx.phases.filter((phase) => phase.sidePath).length;
     return `
       <div class="callout callout--note">
         <span class="callout-label">TOP-TO-BOTTOM MODULE / DATA FLOW</span>
@@ -660,6 +715,11 @@
         离开的数据和准入条件；阶段之间的向下箭头只表示主路径 payload/identity 的 handoff。
         若卡片内出现“并行分支”，它会独立闭合 owner 生命周期，不应误读为下一阶段的数据源。
         模块名按钮打开源码定义和完整实例清单，再由实例路径选择 lane0、lane1 或其他上下文。
+      </div>
+      <div class="flow-reading-key" aria-label="事务图阅读图例">
+        <span><strong>${tx.phases.length}</strong> 个主路径阶段</span>
+        <span><strong>4</strong> 个字段 / 阶段：输入、状态、输出、门控</span>
+        <span><strong>${sidePathCount}</strong> 条并行 owner 分支；向下箭头只表示主路径</span>
       </div>
       <div class="transaction-flow-wrap">
         <ol class="transaction-flow" aria-label="${attr(tx.title)} transaction 阶段">
@@ -683,7 +743,7 @@
                   <article class="flow-step-card ${isTerminal ? "is-terminal" : ""}">
                     <header class="flow-step-header">
                       <div>
-                        <span class="flow-step-index">PHASE ${String(index + 1).padStart(2, "0")} · MODULE TYPE</span>
+                        <span class="flow-step-index">PHASE ${String(index + 1).padStart(2, "0")} / ${String(tx.phases.length).padStart(2, "0")} · MODULE</span>
                         ${
                           source
                             ? `
@@ -778,7 +838,10 @@
                       ? ""
                       : `
                         <div class="flow-connector" aria-hidden="true">
-                          <span>HANDOFF · ${escapeHtml(dataOut)}</span>
+                          <span>
+                            <strong>HANDOFF → ${escapeHtml(tx.phases[index + 1].module)}</strong>
+                            <small>${escapeHtml(dataOut)}</small>
+                          </span>
                         </div>
                       `
                   }
@@ -1468,7 +1531,7 @@
         <div>
           <span class="callout-label">DEFINITION FILE · ${escapeHtml(statusLabel(moduleInfo.status))}</span>
           <div class="source-path">${escapeHtml(moduleInfo.source)}</div>
-          <p style="margin:7px 0 0;color:var(--muted);font-size:11px">${inlineCode(moduleInfo.description)}</p>
+          <p class="source-description">${inlineCode(moduleInfo.description)}</p>
         </div>
         <a class="source-link" href="${attr(sourceHref(moduleInfo.source))}">打开源文件</a>
       </div>
@@ -1489,6 +1552,12 @@
             <tr>
               <td>${escapeHtml(DATA.meta.revision)}</td>
               <td>${escapeHtml(DATA.meta.snapshotDate)}</td>
+              <td>建立标准/大/特大三级阅读字号并默认使用大字号；统一放大 transaction 字段、导航、表格、Self-check 与 WaveDrom 标签，同时修复未定义的强调色变量。</td>
+              <td>当前源码静态 elaboration、离线资源与可读性结构审计；未执行浏览器截图对比、RTL TB、综合、STA 或 PPA。</td>
+            </tr>
+            <tr>
+              <td>Rev. C</td>
+              <td>2026-07-29</td>
               <td>跟随当前产品默认 <code>OOO_CSR_QUEUE_HEAD=1</code>：新增 head0 CSR 队头事务、C0/C1/C2 时序和产品配置证据；层次 XML 改为从当前 filelist 重新生成并做新鲜度门禁。</td>
               <td>当前 NpcTop 静态 elaboration、源码/讲义/离线结构审计；未在本次文档更新中重跑 RTL TB、系统仿真、综合、STA 或 PPA。</td>
             </tr>
@@ -1768,7 +1837,7 @@
         <header class="datasheet-header">
           <div>
             <p class="part-kicker">${escapeHtml(statusLabel(file.status))} · SOURCE FILE</p>
-            <h1 class="part-title" style="font-size:clamp(20px,3vw,34px)">${escapeHtml(path.split("/").pop())}</h1>
+            <h1 class="part-title" style="font-size:clamp(24px,3vw,38px)">${escapeHtml(path.split("/").pop())}</h1>
             <p class="part-subtitle">${inlineCode(file.description)}</p>
             <div class="badge-row">
               <span class="badge badge--fact">ATLAS FACT</span>
@@ -2065,7 +2134,7 @@
           ${section(
             "1.0",
             "WAVEDROM LICENSE",
-            `<pre style="white-space:pre-wrap;line-height:1.55;font-size:11px">${escapeHtml(license)}</pre>`,
+            `<pre class="license-text">${escapeHtml(license)}</pre>`,
           )}
           <p><button type="button" class="table-action" data-history-back>返回</button></p>
         </div>
@@ -2179,6 +2248,10 @@
     }
     if (target.closest("[data-print]")) {
       window.print();
+      return;
+    }
+    if (target.closest("[data-font-scale-control]")) {
+      cycleFontScale();
       return;
     }
     if (target.closest("[data-menu-open]")) {
@@ -2332,6 +2405,7 @@
 
   state.expanded.add(DATA.coreRoot);
   expandAncestors(DATA.coreRoot);
+  applyFontScale(preferredFontScale());
   if (!window.location.hash) {
     history.replaceState(null, "", routeHash("module", DATA.coreRoot));
   }

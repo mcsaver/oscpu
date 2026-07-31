@@ -1,0 +1,128 @@
+{
+  "artifacts": {
+    "cleanup_executor": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/cleanup_first_phase.py",
+    "context_brief": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/evidence",
+    "evidence_index": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/profile-resolve.md",
+    "review": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/review.md",
+    "run_dir": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1",
+    "run_manifest": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/run-manifest.json",
+    "status_wrapper": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/execute_cleanup.sh",
+    "task_report": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 9,
+    "by_kind": {
+      "json": 4,
+      "jsonl": 1,
+      "text": 3,
+      "tsv": 1
+    },
+    "total_size_bytes": 8878384
+  },
+  "final_result": "7,094 个未跟踪 RV64 EDA 编译/展开目标完成 SHA-bound quarantine/purge；实增可用空间 7,585,472,512 B；RTL、TB、task-run evidence 与三个 dirty worktree 保持不变。",
+  "git": {
+    "branch": "ai",
+    "head": "04a35d411",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 5
+    },
+    "total": 5
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/task-report.md",
+      "function": "inventory_rv64_eda_artifacts",
+      "inputs": "workspace allocated size + Git worktrees + retained roots",
+      "module": "agent-system",
+      "node_id": "inventory",
+      "outputs": "bounded candidate and preserve sets",
+      "owner_agent": "root",
+      "source_profile": "workspace-artifact-retention",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/evidence/cleanup-plan.json",
+      "function": "build_retained_reference_closure",
+      "inputs": "Git index + evidence DB + task-run root retained sources",
+      "module": "agent-system",
+      "node_id": "reference-closure",
+      "outputs": "125256 normalized references",
+      "owner_agent": "root",
+      "source_profile": "workspace-artifact-retention",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/review.md",
+      "function": "review_artifact_retention",
+      "inputs": "final frozen plan + executors",
+      "module": "agent-system",
+      "node_id": "independent-review",
+      "outputs": "APPROVE with residual risk",
+      "owner_agent": "eda_artifact_retention_review",
+      "source_profile": "workspace-artifact-retention",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/evidence/execution-result.json",
+      "function": "execute_anchored_cleanup",
+      "inputs": "7094 SHA-bound targets",
+      "module": "agent-system",
+      "node_id": "quarantine-purge",
+      "outputs": "7094 purged; 0 remaining",
+      "owner_agent": "root",
+      "source_profile": "workspace-artifact-retention",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/evidence/postflight-audit.txt",
+      "function": "audit_cleanup_result",
+      "inputs": "status + journal + artifact audit + strict guard",
+      "module": "agent-system",
+      "node_id": "postflight",
+      "outputs": "cleanup PASS; task-external strict-guard exemption documented",
+      "owner_agent": "root",
+      "source_profile": "workspace-artifact-retention",
+      "status": "PASS"
+    }
+  ],
+  "profile": "workspace-artifact-retention",
+  "publication_contract": "db-marker-v1",
+  "run_id": "2026-07-31-workspace-artifact-cleanup-a1",
+  "schema_version": 1,
+  "started_at": "2026-07-31 11:40:00 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + review + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "workspace-artifact-cleanup-a1",
+  "trace_id": "e2e:2026-07-31-workspace-artifact-cleanup-a1",
+  "updated_at": "2026-07-31 12:30:00 +0800"
+}

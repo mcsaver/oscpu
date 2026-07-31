@@ -1,0 +1,112 @@
+{
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "module": "OooMemAxiBridge",
+    "instances": [
+      "NpcTop.u_core.u_ooo_dual_mem_bridge.u_bridge0",
+      "NpcTop.u_core.u_ooo_dual_mem_bridge.u_bridge1"
+    ],
+    "semantic_units": [
+      "bridge-active-token",
+      "bridge-response-token",
+      "bridge-stage-token",
+      "bridge-verified-token-alias",
+      "bridge-residency-set"
+    ]
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "worktree_entries": 65,
+    "staged_entries": 0,
+    "single_flight_lane": "AVAILABLE",
+    "pre_review_shell_returned": true,
+    "final_review_shell_returned": true
+  },
+  "identity": {
+    "production_source_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+    "design_id": "sha256:39533a9ac89f7d91b3bd630e928842e22a4f1dc1ab283d542800f176d0759fcf"
+  },
+  "evidence": {
+    "semantic_ledger": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json",
+    "existing_partial_candidate": ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff",
+    "original_failure": "semantic coverage GAP; no legal binary-state production failure found",
+    "focused_summary": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/bridge-holder-attempt-5-make/summary.json",
+    "current_instance_graph": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/current-instance-graph/holder-instance-graph.json",
+    "current_census_audit": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/current-census/producer-holder-census.json",
+    "v11h_checker_replay": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/evidence/v11h-attempt4-checker-replay-current/receipt.json"
+  },
+  "experiment": {
+    "current_hypothesis": "confirmed: legal binary-state bridge holder semantics are correct; four-state tuple-knownness and dual-instance evidence were incomplete",
+    "competing_hypotheses": [
+      "one or more bridge holder fields violate the declared token lifecycle",
+      "module-only evidence cannot prove product-instance distinguishability"
+    ],
+    "highest_information_action": "publish the independently reviewed local result and retain the 28-unit/system/PPA boundary",
+    "expected_wallclock": "<15 minutes",
+    "focused_followup_budget": "<30 minutes",
+    "stop_condition": "review approval, concrete counterexample, binding drift, or explicit residual gap",
+    "pre_review_result": "GAP",
+    "binary_state_counterexample": "NOT_FOUND",
+    "four_state_counterexample": "RAW_OWNER_TUPLE_KNOWN_INCOMPLETE"
+  },
+  "promotion": {
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "full_system_run": "NOT_AUTHORIZED"
+  },
+  "implementation_scope": {
+    "production_rtl": "ASSERTION_ONLY_FULL_OWNER_TUPLE_KNOWN",
+    "testbench": "DUAL_INSTANCE_STIMULUS_OWNED_HOLDER_ORACLE",
+    "negative_evidence": "ASSERT_AND_RELEASE_COMPILE_SUCCESS_VARIANTS",
+    "focused_runtime_budget": "<30 minutes",
+    "status": "IMPLEMENTED_AND_LAYERED_PASS",
+    "profiles": "32/32 PASS",
+    "mutations": "13 cases / 26 simulations rejected",
+    "ordinary_regressions": "3/3 PASS"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "units_pass": 16,
+    "units_gap": 28,
+    "target_units_pass": 5,
+    "holder_instances": 17,
+    "unit_instance_bindings": 50
+  },
+  "final_review": {
+    "contract": ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/subagent-contracts/v11j-bridge-holder-semantic-final-review.json",
+    "contract_sha256": "dc039ff6b5d67fa9d3bc262eeec068cdfba628fb39e51b5d3eea8d2ba4c254cc",
+    "result": "PASS",
+    "scope": "FIVE_BRIDGE_SEMANTIC_UNITS_ACROSS_TWO_PRODUCT_INSTANCES",
+    "binary_state_counterexample": "NOT_FOUND",
+    "false_green_blocker": "NOT_FOUND",
+    "non_blocking_deviation": "standalone tb_ooo_dual_mem_bridge_holder_semantic.sv is absent; V11J_BRIDGE_HOLDER_FOCUSED is implemented and bound in tb_ooo_dual_mem_bridge_wrapper.sv",
+    "global_scope": "GAP_28_UNITS_SYSTEM_AND_PPA_UNPROMOTED"
+  },
+  "environment_closeout": {
+    "bounded_brief": "PASS_OooMemAxiBridge_npc-dev_non-history",
+    "initial_npc_dev_run": ".github/task-runs/2026-07-30-2026-07-30-v11j",
+    "initial_npc_dev_status": "BLOCKED_CONTEXT_FOCUS_ONLY_ALL_5_NODES_PASS",
+    "corrected_npc_dev_run": ".github/task-runs/2026-07-30-OooMemAxiBridge",
+    "corrected_npc_dev_status": "PASS_5_OF_5",
+    "initial_agent_system_run": ".github/task-runs/2026-07-30-OooMemAxiBridge-agent-system-prepublish",
+    "initial_agent_system_status": "BLOCKED_CONTEXT_FOCUS",
+    "corrected_agent_system_run": ".github/task-runs/2026-07-30-OooMemAxiBridge-2",
+    "corrected_agent_system_status": "PASS_11_OF_11",
+    "scoped_strict_guard": "PASS_15_V11J_PATHS",
+    "full_worktree_strict_guard": "GAP_UNRELATED_NEMU_DEV",
+    "raw_evidence_assets_indexed": 1757,
+    "task_run_markdown_stored": 8,
+    "db_first_audit": "PASS",
+    "markdown_coverage": "PASS_LIVE_EVIDENCE_0",
+    "global_runtime_artifact_audit": "PASS",
+    "run_id_runtime_artifact_audit": "GAP_NO_E2E_RUN_MANIFEST_FOR_TECHNICAL_TASK_RUN"
+  }
+}

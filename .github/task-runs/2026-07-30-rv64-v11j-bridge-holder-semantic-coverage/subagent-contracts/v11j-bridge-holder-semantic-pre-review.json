@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11j-bridge-holder-semantic-pre-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooMemAxiBridge 两个产品实例的 stg_owner_token_q、active_owner_token_q、rsp_owner_token_q、verified_owner_token_q 与 owner_residency_mask_r 周期合同，判断现有 testbench 和冻结证据能否用编译成功的负向 RTL 变体闭合五个 holder semantic GAP，并优先报告任何 production RTL 反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/contract.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/round-state.json",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4-checker-replay/semantic-ledger.json",
+      ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/current-instance-graph-v2/holder-instance-graph.json",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/contract.md",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/task-report.md",
+      ".github/task-runs/2026-07-24-rv64-v9r-sq-retry-c0-handoff/evidence/summary.json",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/subagent-contracts/v11j-bridge-holder-semantic-pre-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-30-rv64-v11j-bridge-holder-semantic-coverage/contract.md",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出两个 OooMemAxiBridge 产品实例的 holder birth/transfer/residency/terminal/recovery 周期表，逐项核对五个 semantic unit 的现有证据、独立 oracle、正负向敏感性和剩余 GAP。",
+    "列出 production RTL 反例或证明计划、最小 directed testbench 增量、编译成功的负向 RTL 变体、现有测试 test_disposition，以及 unknowns、替代假设和 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "结论绑定当前 OooMemAxiBridge 源 SHA、双实例路径、V11H semantic ledger 与 V9R partial evidence，并明确 PASS/GAP/inconclusive 范围。",
+    "若未发现 production RTL 反例，提出能够区分 bridge0/bridge1 且不读取 DUT raw state 构造 expected state 的最小验证矩阵；若发现反例，给出首个错误 cycle、signal/transaction owner 与竞争假设。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

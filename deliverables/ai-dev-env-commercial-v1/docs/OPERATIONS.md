@@ -3,15 +3,13 @@
 ## Daily Check
 
 ```bash
-scripts/agent-maintain.sh --mode check
+scripts/agent-maintain.sh --mode quick
 ```
 
 ## Before Delivery
 
 ```bash
-python3 scripts/github_index_db.py delivery-audit
-scripts/package-ai-dev-env.sh
-python3 scripts/github_index_db.py delivery-audit
+scripts/agent-maintain.sh --mode release
 scripts/agent-e2e.sh --profile agent-system --task-slug commercial-delivery-smoke
 ```
 
@@ -19,7 +17,7 @@ scripts/agent-e2e.sh --profile agent-system --task-slug commercial-delivery-smok
 
 - 新的长期事实写入 `.github/memory/project-status.md` 和相关 module memory。
 - DB-backed 文档必须通过 `update-stored --refresh-shim` 写回。
-- 跨层任务必须生成 `.github/task-runs/<run_id>/` 证据包。
+- task-run 按 none/compact/durable 保存确定性结果；只有 durable/release 需要完整 evidence 包。
 
 ## Archive Rule
 

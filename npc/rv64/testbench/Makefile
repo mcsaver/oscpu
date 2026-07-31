@@ -18,6 +18,24 @@ VECTORED_TRAP_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/vectored-trap-mutations
 VECTORED_TRAP_MUTATION_RUNNER := scripts/run_csr_vectored_trap_mutations.py
 V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(RESULT_DIR)/v11i-terminal-lifecycle)
 V11I_TERMINAL_LIFECYCLE_RUNNER := scripts/run_v11i_terminal_lifecycle.py
+V11J_BRIDGE_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11j-bridge-holder-semantic)
+V11J_BRIDGE_HOLDER_RUNNER := scripts/run_v11j_bridge_holder_semantic.py
+V11K_MIQ_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11k-miq-holder-semantic)
+V11K_MIQ_HOLDER_RUNNER := scripts/run_v11k_miq_holder_semantic.py
+V11L_MEMORY_RETRY_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11l-memory-retry-holder-semantic)
+V11L_MEMORY_RETRY_HOLDER_RUNNER := scripts/run_v11l_memory_retry_holder_semantic.py
+V11M_MEMORY_RESERVATION_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11m-memory-reservation-holder-semantic)
+V11M_MEMORY_RESERVATION_HOLDER_RUNNER := scripts/run_v11m_memory_reservation_holder_semantic.py
+V11N_MEMORY_PENDING_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11n-memory-pending-holder-semantic)
+V11N_MEMORY_PENDING_HOLDER_RUNNER := scripts/run_v11n_memory_pending_holder_semantic.py
+V11O_MEMORY_BUFFER_TOKEN_RESULT ?= $(abspath $(RESULT_DIR)/v11o-memory-buffer-token-semantic)
+V11O_MEMORY_BUFFER_TOKEN_RUNNER := scripts/run_v11o_memory_buffer_token_semantic.py
+V11P_CHECKPOINT_IRREVOCABLE_WRITE_RESULT ?= $(abspath $(RESULT_DIR)/v11p-checkpoint-irrevocable-write-semantic)
+V11P_CHECKPOINT_IRREVOCABLE_WRITE_RUNNER := scripts/run_v11p_checkpoint_irrevocable_write_semantic.py
+V11Q_INT_LANE0_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11q-int-lane0-packet-semantic)
+V11Q_INT_LANE0_PACKET_RUNNER := scripts/run_v11q_int_lane0_packet_semantic.py
+V11R_INT_LANE1_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11r-int-lane1-packet-semantic)
+V11R_INT_LANE1_PACKET_RUNNER := scripts/run_v11r_int_lane1_packet_semantic.py
 # iverilog 与 vvp 必须同源同版本：14.0 编译产物喂 12.0 runtime 会拒跑
 # ("VVP input file 14.0 can not be run with run time version 12.0")。
 # 取实际命中 iverilog 的同目录 vvp，找不到才退回 PATH。
@@ -147,8 +165,17 @@ FOCUSED_TESTS := \
   tb_v9n_amo_owner_residency \
   tb_ooo_int_backend_hist_ser_qh_younger_store \
   tb_ooo_int_backend_v11i_terminal_lifecycle \
+  tb_ooo_int_backend_v11l_memory_retry_holder \
+  tb_ooo_int_backend_v11m_memory_reservation_holder \
+  tb_ooo_int_backend_v11n_memory_pending_holder \
+  tb_ooo_int_backend_v11o_memory_buffer_token \
+  tb_ooo_int_backend_v11p_checkpoint_irrevocable_write \
+  tb_ooo_int_backend_v11q_int_lane0_packet \
+  tb_ooo_int_backend_v11r_int_lane1_packet \
   tb_ooo_int_backend_v9r_sq_retry_c0 \
   tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 \
+  tb_ooo_dual_mem_bridge_holder_semantic \
+  tb_ooo_dual_mem_inflight_queue_semantic \
   tb_ooo_core_top_glue_v9o_csr_qh \
   tb_ooo_core_top_glue_hist_ser_qh_stop_hold \
   tb_ooo_core_top_glue_v9a_width_continuity \
@@ -174,8 +201,8 @@ TB_SRCS_tb_axi_to_uart := tests/tb_axi_to_uart.sv $(RTL_UART) $(RTL_AXI_TO_UART)
 TB_SRCS_tb_axi_reset_syscon := tests/tb_axi_reset_syscon.sv $(RTL_AXI_RESET_SYSCON)
 TB_SRCS_tb_axi_clint := tests/tb_axi_clint.sv $(RTL_AXI_CLINT)
 TB_SRCS_tb_axi_plic := tests/tb_axi_plic.sv $(RTL_AXI_PLIC)
-TB_SRCS_tb_axi_xbar := tests/tb_axi_xbar.sv $(RTL_AXI_XBAR)
-TB_SRCS_tb_axi_exec_firewall := tests/tb_axi_exec_firewall.sv $(RTL_AXI_XBAR) $(RTL_AXI_DEFAULT_SLAVE) $(RTL_UART) $(RTL_AXI_TO_UART)
+TB_SRCS_tb_axi_xbar := tests/tb_axi_xbar.sv $(RTL_AXI_CROSSBAR)
+TB_SRCS_tb_axi_exec_firewall := tests/tb_axi_exec_firewall.sv $(RTL_AXI_CROSSBAR) $(RTL_AXI_DEFAULT_SLAVE) $(RTL_UART) $(RTL_AXI_TO_UART)
 TB_SRCS_tb_csr_file := tests/tb_csr_file.sv $(RTL_CSR_FILE)
 TB_SRCS_tb_csr_file_vectored_trap := tests/tb_csr_file_vectored_trap.sv $(RTL_CSR_FILE)
 TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
@@ -187,9 +214,13 @@ TB_SRCS_tb_ooo_store_queue := tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
 V9N_OWNER_RESIDENCY_DIR := $(abspath ../../../.github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency)
 TB_SRCS_tb_v9n_sq_owner_residency := $(V9N_OWNER_RESIDENCY_DIR)/tb_v9n_sq_owner_residency.sv tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
 TB_TOP_tb_v9n_sq_owner_residency := tb_v9n_sq_owner_residency
-TB_SRCS_tb_ooo_mem_owner_tracker := tests/tb_ooo_mem_owner_tracker.sv $(RTL_OOO_MEM_OWNER_TRACKER)
+TB_SRCS_tb_ooo_mem_owner_tracker := \
+  tests/tb_ooo_mem_owner_tracker.sv \
+  tests/tb_ooo_mem_owner_tracker_semantic_checker.sv \
+  $(RTL_OOO_MEM_OWNER_TRACKER)
 TB_SRCS_tb_ooo_mem_owner_terminal_collector := tests/tb_ooo_mem_owner_terminal_collector.sv $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR)
 TB_SRCS_tb_ooo_mem_inflight_queue := tests/tb_ooo_mem_inflight_queue.sv $(RTL_OOO_MEM_INFLIGHT_QUEUE)
+TB_SRCS_tb_ooo_dual_mem_inflight_queue_semantic := tests/tb_ooo_dual_mem_inflight_queue_semantic.sv $(RTL_OOO_MEM_INFLIGHT_QUEUE)
 TB_SRCS_tb_ooo_mmu_epoch_owner := tests/tb_ooo_mmu_epoch_owner.sv $(RTL_OOO_MMU_EPOCH_OWNER)
 TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG_FILE)
@@ -210,6 +241,27 @@ TB_IVFLAGS_tb_ooo_int_backend_hist_ser_qh_younger_store := -DOOO_CSR_QUEUE_HEAD=
 TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v11i_terminal_lifecycle := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v11i_terminal_lifecycle := -DOOO_ASSERT -DV11I_TERMINAL_LIFECYCLE_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11l_memory_retry_holder := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11l_memory_retry_holder := -DOOO_ASSERT -DV11L_MEMORY_RETRY_HOLDER_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11m_memory_reservation_holder := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11m_memory_reservation_holder := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11m_memory_reservation_holder := -DOOO_ASSERT -DV11M_MEMORY_RESERVATION_HOLDER_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11n_memory_pending_holder := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11n_memory_pending_holder := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11n_memory_pending_holder := -DOOO_ASSERT -DV11N_MEMORY_PENDING_HOLDER_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11o_memory_buffer_token := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11o_memory_buffer_token := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11o_memory_buffer_token := -DOOO_ASSERT -DV11O_MEMORY_BUFFER_TOKEN_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11p_checkpoint_irrevocable_write := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11p_checkpoint_irrevocable_write := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11p_checkpoint_irrevocable_write := -DOOO_ASSERT -DV11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11q_int_lane0_packet := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11q_int_lane0_packet := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11q_int_lane0_packet := -DOOO_ASSERT -DV11Q_INT_LANE0_PACKET_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v11r_int_lane1_packet := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v11r_int_lane1_packet := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v11r_int_lane1_packet := -DOOO_ASSERT -DV11R_INT_LANE1_PACKET_FOCUSED
 TB_SRCS_tb_ooo_int_backend_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v9r_sq_retry_c0 := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
@@ -310,7 +362,7 @@ TB_SRCS_tb_ooo_fetch_axi_access_attrs := tests/tb_ooo_fetch_axi_access_attrs.sv 
 TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
-TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_XBAR)
+TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_CROSSBAR)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
@@ -321,12 +373,36 @@ TB_SRCS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_mem_axi_bridge
 TB_TOP_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := tb_ooo_mem_axi_bridge
 TB_IVFLAGS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
 TB_SRCS_tb_ooo_dual_mem_bridge_wrapper := tests/tb_ooo_dual_mem_bridge_wrapper.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE) $(RTL_OOO_DUAL_MEM_AXI_ARBITER) $(RTL_OOO_DUAL_MEM_BRIDGE_WRAPPER)
+TB_SRCS_tb_ooo_dual_mem_bridge_holder_semantic := $(TB_SRCS_tb_ooo_dual_mem_bridge_wrapper)
+TB_TOP_tb_ooo_dual_mem_bridge_holder_semantic := tb_ooo_dual_mem_bridge_wrapper
+TB_IVFLAGS_tb_ooo_dual_mem_bridge_holder_semantic := -DV11J_BRIDGE_HOLDER_FOCUSED
 .DEFAULT_GOAL := run
 
 .PHONY: axi-dpi-sized ifu-access-assert-negative ifu-icache-coherence-contract \
         arch-gates arch-gates-self-test print-tests vectored-trap \
         vectored-trap-mutations print-v11i-terminal-lifecycle-context \
-        v11i-terminal-lifecycle
+        v11i-terminal-lifecycle-self-test v11i-terminal-lifecycle \
+        print-v11j-bridge-holder-context \
+        v11j-bridge-holder-self-test v11j-bridge-holder-semantic \
+        print-v11k-miq-holder-context \
+        print-v11k-miq-holder-regression-context \
+        v11k-miq-holder-self-test v11k-miq-holder-semantic \
+        print-v11l-memory-retry-holder-context \
+        print-v11l-memory-retry-holder-regression-context \
+        v11l-memory-retry-holder-self-test \
+        v11l-memory-retry-holder-semantic \
+        print-v11m-memory-reservation-holder-context \
+        print-v11m-memory-reservation-holder-regression-context \
+        v11m-memory-reservation-holder-self-test \
+        v11m-memory-reservation-holder-semantic \
+        print-v11q-int-lane0-packet-context \
+        print-v11q-int-lane0-packet-regression-context \
+        v11q-int-lane0-packet-self-test \
+        v11q-int-lane0-packet-semantic \
+        print-v11r-int-lane1-packet-context \
+        print-v11r-int-lane1-packet-regression-context \
+        v11r-int-lane1-packet-self-test \
+        v11r-int-lane1-packet-semantic
 print-tests:
 	@printf '%s\n' $(TESTS)
 
@@ -341,9 +417,159 @@ print-v11i-terminal-lifecycle-context:
 	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
 	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
 
-v11i-terminal-lifecycle:
+v11i-terminal-lifecycle-self-test:
+	@$(PYTHON) scripts/test_run_v11i_terminal_lifecycle.py -q
+
+v11i-terminal-lifecycle: v11i-terminal-lifecycle-self-test
 	@$(PYTHON) $(V11I_TERMINAL_LIFECYCLE_RUNNER) \
 	  --result-dir "$(V11I_TERMINAL_LIFECYCLE_RESULT)"
+
+print-v11j-bridge-holder-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_dual_mem_bridge_holder_semantic))))
+
+v11j-bridge-holder-self-test:
+	@$(PYTHON) scripts/test_run_v11j_bridge_holder_semantic.py -q
+
+v11j-bridge-holder-semantic: v11j-bridge-holder-self-test
+	@$(PYTHON) $(V11J_BRIDGE_HOLDER_RUNNER) \
+	  --result-dir "$(V11J_BRIDGE_HOLDER_RESULT)"
+
+print-v11k-miq-holder-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_dual_mem_inflight_queue_semantic))))
+
+print-v11k-miq-holder-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_mem_inflight_queue=,$(abspath $(sort $(TB_SRCS_tb_ooo_mem_inflight_queue))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_dual_mem_inflight_queue_semantic=,$(abspath $(sort $(TB_SRCS_tb_ooo_dual_mem_inflight_queue_semantic))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11k-miq-holder-self-test:
+	@$(PYTHON) scripts/test_run_v11k_miq_holder_semantic.py -q
+
+v11k-miq-holder-semantic: v11k-miq-holder-self-test
+	@$(PYTHON) $(V11K_MIQ_HOLDER_RUNNER) \
+	  --result-dir "$(V11K_MIQ_HOLDER_RESULT)"
+
+print-v11l-memory-retry-holder-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+
+print-v11l-memory-retry-holder-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v9r_sq_retry_c0=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v9r_sq_retry_c0))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11l-memory-retry-holder-self-test:
+	@$(PYTHON) scripts/test_run_v11l_memory_retry_holder_semantic.py -q
+
+v11l-memory-retry-holder-semantic: v11l-memory-retry-holder-self-test
+	@$(PYTHON) $(V11L_MEMORY_RETRY_HOLDER_RUNNER) \
+	  --result-dir "$(V11L_MEMORY_RETRY_HOLDER_RESULT)"
+
+print-v11m-memory-reservation-holder-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11m_memory_reservation_holder))))
+
+print-v11m-memory-reservation-holder-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11m-memory-reservation-holder-self-test:
+	@$(PYTHON) scripts/test_run_v11m_memory_reservation_holder_semantic.py -q
+
+v11m-memory-reservation-holder-semantic: v11m-memory-reservation-holder-self-test
+	@$(PYTHON) $(V11M_MEMORY_RESERVATION_HOLDER_RUNNER) \
+	  --result-dir "$(V11M_MEMORY_RESERVATION_HOLDER_RESULT)"
+
+print-v11n-memory-pending-holder-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11n_memory_pending_holder))))
+
+print-v11n-memory-pending-holder-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11n-memory-pending-holder-self-test:
+	@$(PYTHON) scripts/test_run_v11n_memory_pending_holder_semantic.py -q
+
+v11n-memory-pending-holder-semantic: v11n-memory-pending-holder-self-test
+	@$(PYTHON) $(V11N_MEMORY_PENDING_HOLDER_RUNNER) \
+	  --result-dir "$(V11N_MEMORY_PENDING_HOLDER_RESULT)"
+
+print-v11o-memory-buffer-token-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11o_memory_buffer_token))))
+
+print-v11o-memory-buffer-token-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11o-memory-buffer-token-self-test:
+	@$(PYTHON) scripts/test_run_v11o_memory_buffer_token_semantic.py -q
+
+v11o-memory-buffer-token-semantic: v11o-memory-buffer-token-self-test
+	@$(PYTHON) $(V11O_MEMORY_BUFFER_TOKEN_RUNNER) \
+	  --result-dir "$(V11O_MEMORY_BUFFER_TOKEN_RESULT)"
+
+print-v11p-checkpoint-irrevocable-write-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11p_checkpoint_irrevocable_write))))
+
+print-v11p-checkpoint-irrevocable-write-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11p-checkpoint-irrevocable-write-self-test:
+	@$(PYTHON) scripts/test_run_v11p_checkpoint_irrevocable_write_semantic.py -q
+
+v11p-checkpoint-irrevocable-write-semantic: v11p-checkpoint-irrevocable-write-self-test
+	@$(PYTHON) $(V11P_CHECKPOINT_IRREVOCABLE_WRITE_RUNNER) \
+	  --result-dir "$(V11P_CHECKPOINT_IRREVOCABLE_WRITE_RESULT)"
+
+print-v11q-int-lane0-packet-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11q_int_lane0_packet))))
+
+print-v11q-int-lane0-packet-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11q-int-lane0-packet-self-test:
+	@$(PYTHON) scripts/test_run_v11q_int_lane0_packet_semantic.py -q
+
+v11q-int-lane0-packet-semantic: v11q-int-lane0-packet-self-test
+	@$(PYTHON) $(V11Q_INT_LANE0_PACKET_RUNNER) \
+	  --result-dir "$(V11Q_INT_LANE0_PACKET_RESULT)"
+
+print-v11r-int-lane1-packet-context:
+	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
+	@printf '%s\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11r_int_lane1_packet))))
+
+print-v11r-int-lane1-packet-regression-context:
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11l_memory_retry_holder=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11l_memory_retry_holder))))
+	@printf '%s\n' $(addprefix REGRESSION_SOURCE_tb_ooo_int_backend_v11i_terminal_lifecycle=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend_v11i_terminal_lifecycle))))
+	@printf '%s\n' $(addprefix REGRESSION_COMMON=,$(abspath common/tb_common.svh common/rv32_encode.svh $(TB_RESULT_CHECKER) Makefile $(RTL_INCLUDE_DIR)/define.v))
+
+v11r-int-lane1-packet-self-test:
+	@$(PYTHON) scripts/test_run_v11r_int_lane1_packet_semantic.py -q
+
+v11r-int-lane1-packet-semantic: v11r-int-lane1-packet-self-test
+	@$(PYTHON) $(V11R_INT_LANE1_PACKET_RUNNER) \
+	  --result-dir "$(V11R_INT_LANE1_PACKET_RESULT)"
 
 axi-dpi-sized:
 	@AXI_DPI_SIZED_BUILD_DIR="$(abspath $(BUILD_DIR)/axi-dpi-sized)" \
@@ -409,6 +635,21 @@ $(foreach t,$(TESTS) $(EXTRA_TESTS),$(eval $(call RUN_TEST,$(t))))
 
 v8x-backend-bridge-recovery: $(LOG_DIR)/tb_ooo_int_backend_v8x_backend_bridge_recovery.log
 	@grep -E '\[V8X-|\[PASS\]|\[RESULT\]' $<
+
+v11n-memory-pending-holder-focused: $(LOG_DIR)/tb_ooo_int_backend_v11n_memory_pending_holder.log
+	@grep -E '\[V11N-|\[PASS\]|\[RESULT\]' $<
+
+v11o-memory-buffer-token-focused: $(LOG_DIR)/tb_ooo_int_backend_v11o_memory_buffer_token.log
+	@grep -E '\[V11O-|\[PASS\]|\[RESULT\]' $<
+
+v11p-checkpoint-irrevocable-write-focused: $(LOG_DIR)/tb_ooo_int_backend_v11p_checkpoint_irrevocable_write.log
+	@grep -E '\[V11P-|\[PASS\]|\[RESULT\]' $<
+
+v11q-int-lane0-packet-focused: $(LOG_DIR)/tb_ooo_int_backend_v11q_int_lane0_packet.log
+	@grep -E '\[V11Q-|\[PASS\]|\[RESULT\]' $<
+
+v11r-int-lane1-packet-focused: $(LOG_DIR)/tb_ooo_int_backend_v11r_int_lane1_packet.log
+	@grep -E '\[V11R-|\[PASS\]|\[RESULT\]' $<
 
 v9r-sq-retry-c0-handoff: \
   $(LOG_DIR)/tb_ooo_int_backend_v9r_sq_retry_c0.log \

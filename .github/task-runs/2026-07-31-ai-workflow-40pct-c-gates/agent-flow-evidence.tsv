@@ -1,0 +1,5 @@
+2026-07-31T06:37:06Z	lightweight-self-test	PASS	scripts/tests/test-agent-flow.sh
+2026-07-31T06:37:22Z	explicit-path-guard-contract	PASS	scripts/agent-e2e.sh
+2026-07-31T06:55:13Z	lightweight-self-test-advisory-overhead	PASS	scripts/tests/test-agent-flow.sh
+2026-07-31T07:01:31Z	reviewer-counterexample-regression	PASS	scripts/tests/test-agent-flow.sh
+2026-07-31T07:03:08Z	independent-review	PASS	.github/runtime-artifacts/agent-flow/ai-workflow-40pct-c-gates/summary.txt

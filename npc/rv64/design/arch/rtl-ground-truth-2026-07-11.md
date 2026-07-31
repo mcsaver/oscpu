@@ -55,7 +55,7 @@ NpcSimTop                         仿真 shell
     │   │   ├── OooControlPlane
     │   │   └── OooWriteback
     │   └── CsrFile
-    └── NpcAxiBus / AxiXbar      UART / CLINT / PLIC / memory / MMIO
+    └── NpcAxiBus / AxiCrossbar  UART / CLINT / PLIC / memory / MMIO
 ```
 
 这不是固定线性“八级流水”。更准确的模型是 packet 前端、rename/ROB、整数/FP IQ、多个

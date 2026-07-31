@@ -64,14 +64,14 @@
 #define CSR_MIP      0x344
 #define CSR_MCYCLE   0xb00
 #define CSR_MINSTRET 0xb02
-#define CSR_MCYCLEH  0xb80
-#define CSR_MINSTRETH 0xb82
+#define CSR_MCYCLEH  0xb80  // RV32-only high-half CSR; RV64 译码必须视为保留地址
+#define CSR_MINSTRETH 0xb82 // RV32-only high-half CSR; RV64 译码必须视为保留地址
 #define CSR_CYCLE    0xc00
 #define CSR_TIME     0xc01
 #define CSR_INSTRET  0xc02
-#define CSR_CYCLEH   0xc80
-#define CSR_TIMEH    0xc81
-#define CSR_INSTRETH 0xc82
+#define CSR_CYCLEH   0xc80  // RV32-only high-half CSR
+#define CSR_TIMEH    0xc81  // RV32-only high-half CSR
+#define CSR_INSTRETH 0xc82  // RV32-only high-half CSR
 #define CSR_MVENDORID 0xf11
 #define CSR_MARCHID  0xf12
 #define CSR_MIMPID   0xf13
@@ -120,12 +120,17 @@
 #define MSTATUS_TVM        ((word_t)1 << 20)  // Trap Virtual Memory: S 态且置位时 satp/SFENCE.VMA 非法
 #define MSTATUS_TW         ((word_t)1 << 21)  // Timeout Wait: priv<M 且置位时 WFI 非法
 #define MSTATUS_TSR        ((word_t)1 << 22)  // Trap SRET: S 态且置位时 SRET 非法
-#define MSTATUS_SXL_UXL    MUXDEF(CONFIG_ISA64, ((word_t)0xa << 32), 0)
+#define MSTATUS_UXL        MUXDEF(CONFIG_ISA64, ((word_t)2 << 32), 0)
+#define MSTATUS_SXL        MUXDEF(CONFIG_ISA64, ((word_t)2 << 34), 0)
+#define MSTATUS_SXL_UXL    (MSTATUS_SXL | MSTATUS_UXL)
 #define MSTATUS_SD         MUXDEF(CONFIG_ISA64, ((word_t)1 << 63), ((word_t)1 << 31))
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
                             MSTATUS_VS_MASK | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
-                            MSTATUS_SXL_UXL)
+                            MSTATUS_UXL)
+#define SSTATUS_WRITABLE_MASK \
+    (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | MSTATUS_VS_MASK | \
+     MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR)
 #define MSTATUS_WRITABLE_MASK \
     (MSTATUS_SIE | MSTATUS_MIE | MSTATUS_SPIE | MSTATUS_MPIE | \
      MSTATUS_SPP | MSTATUS_VS_MASK | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | \
@@ -142,6 +147,12 @@
 #define MIP_MACHINE_MASK    (MIP_MSIP | MIP_MTIP | MIP_MEIP)
 #define MIP_IRQ_MASK        (MIP_SUPERVISOR_MASK | MIP_MACHINE_MASK)
 #define SIP_WRITABLE_MASK   MIP_SSIP
+
+// NEMU 实现的可委托同步异常与 S 级中断。M-mode ECALL(bit 11)不可委托；
+// 保留/未实现的异常和中断位按 WARL 规则读回 0。
+#define MEDELEG_WRITABLE_MASK \
+    (((word_t)0x3ff) | ((word_t)1 << 12) | ((word_t)1 << 13) | ((word_t)1 << 15))
+#define MIDELEG_WRITABLE_MASK MIP_SUPERVISOR_MASK
 
 #define IRQ_CAUSE_SSI 1u
 #define IRQ_CAUSE_MSI 3u

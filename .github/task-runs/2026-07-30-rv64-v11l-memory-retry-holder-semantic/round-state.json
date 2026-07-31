@@ -1,0 +1,134 @@
+{
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "architecture-documentation",
+      "tooling/workflow"
+    ]
+  },
+  "scope": {
+    "module": "OooIntBackend",
+    "instances": [
+      "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
+    ],
+    "semantic_units": [
+      "memory-retry0-producer-cache",
+      "memory-retry0-token",
+      "memory-retry1-producer-cache",
+      "memory-retry1-token"
+    ]
+  },
+  "workspace": {
+    "branch": "ai",
+    "head": "04a35d411b06e3db852b93a3e548efa7dc986bd7",
+    "worktree": "mixed-dirty-preserved",
+    "staged_by_v11l": false,
+    "single_flight_lane": "AVAILABLE",
+    "final_review_shell_returned": true
+  },
+  "identity": {
+    "production_source_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+    "production_rtl_changed_by_v11l": false
+  },
+  "evidence": {
+    "focused_summary": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/focused-current/summary.json",
+    "v11j_current_rebind": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11j-bridge-rebind-current/summary.json",
+    "v11k_current_rebind": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11k-miq-rebind-current/summary.json",
+    "v11h_checker_replay": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/v11h-attempt4-checker-replay-current/receipt.json",
+    "semantic_ledger": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/evidence/semantic-ledger-current/producer-holder-semantic-coverage.json"
+  },
+  "implementation": {
+    "production_rtl": "UNCHANGED",
+    "testbench": "MACRO_ISOLATED_STIMULUS_OWNED_DUAL_RETRY_ORACLE",
+    "runner": "ASSERT_RELEASE_BASELINE_AND_RELEASE_MUTATIONS",
+    "profiles": "34/34 PASS",
+    "mutations": "32/32 compile-success variants rejected",
+    "ordinary_regressions": "3/3 PASS",
+    "v11j_rebind": "32/32 PASS",
+    "v11k_rebind": "34/34 PASS",
+    "v11h_replay": "PASS"
+  },
+  "semantic_ledger": {
+    "status": "GAP",
+    "before": {
+      "units_pass": 17,
+      "units_gap": 27
+    },
+    "after": {
+      "units_pass": 21,
+      "units_gap": 23
+    },
+    "changed_units": [
+      "memory-retry0-producer-cache",
+      "memory-retry0-token",
+      "memory-retry1-producer-cache",
+      "memory-retry1-token"
+    ]
+  },
+  "final_review": {
+    "contract": ".github/task-runs/2026-07-30-rv64-v11l-memory-retry-holder-semantic/subagent-contracts/v11l-retry-holder-final-review-v2.json",
+    "contract_sha256": "d4270d827f806bc6c12c5cb4529c0304915eeb13319854bd2ecdb296a127e27e",
+    "verdict": "APPROVED_FOR_CURRENT_SCOPE",
+    "blockers": 0,
+    "scope_extension_request": "none"
+  },
+  "promotion": {
+    "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+    "whole_architecture": "RED",
+    "ppa": "UNPROMOTED",
+    "full_system_run": "NOT_TRIGGERED"
+  },
+  "system_rerun": {
+    "production_core_rtl_semantics_changed": false,
+    "current_elaborated_rtl_changed": false,
+    "device_or_simulator_semantics_changed": false,
+    "a3_raw_terminal_posthash_missing": false,
+    "run": false
+  },
+  "environment_closeout": {
+    "bounded_brief": "PASS_OooIntBackend_npc-dev_and_agent-system_non-history",
+    "npc_dev": {
+      "run": ".github/task-runs/2026-07-30-OooIntBackend-memory-retry-v11l",
+      "status": "COMPLETED_5_OF_5"
+    },
+    "agent_system_initial": {
+      "run": ".github/task-runs/2026-07-30-rtl-task-contract-v11l",
+      "status": "BLOCKED_RECALL_FOCUS_ONLY_11_OF_11_NODES_PASS"
+    },
+    "agent_system_corrected": {
+      "run": ".github/task-runs/2026-07-30-OooIntBackend",
+      "status": "COMPLETED_11_OF_11"
+    },
+    "strict_guard": {
+      "status": "PASS",
+      "mode": "strict",
+      "changed_paths": 7,
+      "required_profiles": [
+        "npc-dev"
+      ],
+      "evidence": ".github/task-runs/2026-07-30-OooIntBackend-memory-retry-v11l",
+      "evidence_status": "COMPLETED_5_OF_5"
+    },
+    "db_publication": {
+      "raw_evidence_index": "PASS",
+      "asset_count": 1045,
+      "total_size_bytes": 540983867,
+      "db_first_audit": "PASS",
+      "markdown_coverage_audit": "PASS",
+      "artifact_audit": "PASS",
+      "task_run_markdown_archive": {
+        "status": "PASS",
+        "stored_documents": 8,
+        "compatibility_shims": 8,
+        "live_markdown_files": 0,
+        "pruned_stale": 0
+      }
+    }
+  },
+  "next_action": {
+    "target": "memory-reservation0/1 producer/token holders",
+    "classification": "verification-first",
+    "stop_condition": "production RTL counterexample, binding drift, bounded PASS, or explicit residual GAP"
+  }
+}

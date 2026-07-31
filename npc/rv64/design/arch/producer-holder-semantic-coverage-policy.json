@@ -292,10 +292,6 @@
           "role": "rtl"
         },
         {
-          "path": "npc/rv64/vsrc/filelist.mk",
-          "role": "rtl"
-        },
-        {
           "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
           "role": "testbench"
         }
@@ -325,10 +321,6 @@
           "role": "rtl"
         },
         {
-          "path": "npc/rv64/vsrc/filelist.mk",
-          "role": "rtl"
-        },
-        {
           "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
           "role": "testbench"
         }
@@ -354,10 +346,6 @@
           "role": "rtl"
         },
         {
-          "path": "npc/rv64/vsrc/filelist.mk",
-          "role": "rtl"
-        },
-        {
           "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
           "role": "testbench"
         }
@@ -373,10 +361,513 @@
       "binding_kind": "v11h_load_queue_producer",
       "scope": "COMPLETE",
       "summary": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4/summary.json",
-      "checker_replay_receipt": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4-checker-replay/receipt.json",
+      "checker_replay_receipt": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/v11h-checker-replay-current.json",
       "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_load_queue_producer_semantic.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+          "role": "testbench"
+        }
+      ],
       "unit_ids": [
         "load-queue-producers"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11j-bridge-holder-current-closure",
+      "binding_kind": "v11j_bridge_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11j-bridge-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "bridge-active-token",
+        "bridge-response-token",
+        "bridge-stage-token",
+        "bridge-verified-token-alias",
+        "bridge-residency-set"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11k-miq-holder-current-closure",
+      "binding_kind": "v11k_miq_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11k-miq-rebind-current/summary.json",
+      "elaborated_logic_identity": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/elaborated-logic-identity.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "miq-owner-tokens"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11l-memory-retry-holder-current-closure",
+      "binding_kind": "v11l_memory_retry_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11l-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "memory-retry0-producer-cache",
+        "memory-retry0-token",
+        "memory-retry1-producer-cache",
+        "memory-retry1-token"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11m-memory-reservation-holder-current-closure",
+      "binding_kind": "v11m_memory_reservation_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11m-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "memory-reservation-producer",
+        "memory-reservation-token",
+        "memory-reservation1-producer",
+        "memory-reservation1-token"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11n-memory-pending-holder-current-closure",
+      "binding_kind": "v11n_memory_pending_holder",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11n-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "memory-pending-producer-cache",
+        "memory-pending-token"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11o-memory-buffer-token-current-closure",
+      "binding_kind": "v11o_memory_buffer_token",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "memory-buffer-token"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11p-checkpoint-irrevocable-write-current-closure",
+      "binding_kind": "v11p_checkpoint_irrevocable_write",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11p-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "checkpoint-irrevocable-write-producer"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11q-int-lane0-packet-current-closure",
+      "binding_kind": "v11q_int_lane0_packet",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11q-rebind-current/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "integer-ex0-packed-alias",
+        "integer-ex0-packet",
+        "branch-resolve-packet"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11r-int-lane1-packet-current-closure",
+      "binding_kind": "v11r_int_lane1_packet",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/focused-attempt-1/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "integer-ex1-packed-alias",
+        "integer-ex1-packet"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11s-muldiv-producer-current-closure",
+      "binding_kind": "v11s_muldiv_producer",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/summary.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "muldiv-producer"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11t-clmul-producer-current-closure",
+      "binding_kind": "v11t_clmul_producer",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/summary.json",
+      "artifact_cleanup": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/artifact-cleanup.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/include/define.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "clmul-producer"
+      ],
+      "gap_classifications": []
+    },
+    {
+      "id": "v11u-pending-system-producer-current-closure",
+      "binding_kind": "v11u_pending_system_producer",
+      "scope": "COMPLETE",
+      "summary": ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/attempt-2/summary.json",
+      "artifact_cleanup": ".github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/attempt-2/artifact-cleanup.json",
+      "semantic_closure": true,
+      "current_selected_bindings": [
+        {
+          "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "role": "rtl"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+          "role": "testbench"
+        },
+        {
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "role": "testbench"
+        }
+      ],
+      "unit_ids": [
+        "pending-system-producer"
       ],
       "gap_classifications": []
     }

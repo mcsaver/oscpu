@@ -1,0 +1,130 @@
+{
+  "schema": "rv64-v11q-attempt-ledger-v1",
+  "run_id": "2026-07-31-rv64-v11q-int-lane0-completion-resolve-packet-semantic",
+  "mechanism": "integer-lane0-completion-resolve-paired-packet",
+  "attempts": [
+    {
+      "id": "smoke-compile",
+      "status": "FAIL_THEN_CORRECTED",
+      "classification": "testbench-reference",
+      "observation": "dispatch0_pdest was not a visible DUT symbol",
+      "correction": "use dut.dispatch0_pdest_w",
+      "production_rtl_changed": false
+    },
+    {
+      "id": "focused-fullwidth-current",
+      "status": "FAIL",
+      "profiles_passed": 18,
+      "profiles_total": 28,
+      "summary_sha256": "190cec83694162111b87e54d4b3941b95ccf37bef6d178b5670bbf1c46721cd9",
+      "observation": "EX0-dependent priming caused ten variants to fail before their declared target",
+      "preserved": true
+    },
+    {
+      "id": "focused-fullwidth-current-attempt-2",
+      "status": "FAIL",
+      "profiles_passed": 26,
+      "profiles_total": 28,
+      "summary_sha256": "1b2134a78bb38e4e779d430f7b742b43eb45932a910c688af6246a17c4156e93",
+      "observation": "ex0-capture-suppressed first differed at alu-up-packet rather than the later declared stage",
+      "preserved": true
+    },
+    {
+      "id": "focused-fullwidth-current-attempt-3",
+      "status": "PASS",
+      "profiles_passed": 28,
+      "profiles_total": 28,
+      "regressions_passed": 3,
+      "regressions_total": 3,
+      "summary_sha256": "c4ce58074c9602978f51940973a6b38737ba464bedc60af15f46f0084ea58d9f",
+      "canonical": true
+    },
+    {
+      "id": "v11o-memory-buffer-rebind-current-attempt-2",
+      "status": "FAIL",
+      "profiles_passed": 20,
+      "profiles_total": 20,
+      "regressions_passed": 3,
+      "regressions_total": 3,
+      "observation": "product graph rejected stale npc/rv64/Makefile configuration hash",
+      "preserved": true
+    },
+    {
+      "id": "v11o-memory-buffer-rebind-current-attempt-3",
+      "status": "PASS",
+      "profiles_passed": 20,
+      "profiles_total": 20,
+      "regressions_passed": 3,
+      "regressions_total": 3,
+      "product_static_negatives_passed": 8,
+      "product_static_negatives_total": 8,
+      "summary_sha256": "4ba5128b4cf03fc9082969d64f48d3f3d15dcc737e27595d3b1d06a17d564ca2",
+      "canonical": true
+    },
+    {
+      "id": "combined-semantic-gate",
+      "status": "FAIL",
+      "return_code": 2,
+      "observation": "currentness gate rejected pre-final configuration binding",
+      "preserved": true
+    },
+    {
+      "id": "combined-semantic-gate-attempt-2",
+      "status": "PASS",
+      "return_code": 0,
+      "log_sha256": "189cd229294d346a4d7f2c6bbbb9d5a63659ae9e959dacc9f11294b292cb948d",
+      "canonical": true
+    },
+    {
+      "id": "npc-dev-e2e-lowercase-v11q",
+      "status": "BLOCKED",
+      "nodes_passed": 5,
+      "nodes_total": 5,
+      "observation": "context brief could not find one chunk containing the module phrase and V11Q",
+      "preserved": true
+    },
+    {
+      "id": "npc-dev-e2e-uppercase-v11q",
+      "status": "COMPLETED_NONCANONICAL_AFTER_POST_PUBLICATION_REINDEX",
+      "nodes_passed": 5,
+      "nodes_total": 5,
+      "observation": "a manual post-publication evidence reindex changed the marker binding and the existing publication record rejected replacement",
+      "preserved": true
+    },
+    {
+      "id": "npc-dev-e2e-canonical",
+      "status": "PASS",
+      "nodes_passed": 5,
+      "nodes_total": 5,
+      "run_id": "2026-07-31-OooIntBackend-Lane0-completion-resolve-paired-packet-V11Q",
+      "run_manifest_sha256": "737bf572c2cb14e8d166155b20f9ba70dc95ae48efbc06724ee31a5b98e6fd98",
+      "complete_marker_sha256": "ff00222667a62e07a51acc537c41de2e921c693653d91977a5cc430c3869a2dc",
+      "publication_sha256": "bb07e4b140370c4768d03be04f6046f24c1ddda5d97b329be8ea5cbb955647f8",
+      "canonical": true
+    },
+    {
+      "id": "scoped-strict-guard",
+      "status": "FAIL",
+      "observation": "referenced the intermediate noncanonical e2e publication",
+      "log_sha256": "9417ede19e244bea3f702635136787c7d9032011cd892aaaaceb7a88a0892fe8",
+      "preserved": true
+    },
+    {
+      "id": "scoped-strict-guard-attempt-2",
+      "status": "PASS",
+      "paths": 12,
+      "required_profile": "npc-dev",
+      "log_sha256": "634d73ff767be2833ea87aa936da2d801ebcfce2c6309e3e337cd5d1fb44e61d",
+      "canonical": true
+    },
+    {
+      "id": "full-worktree-strict-guard",
+      "status": "FAIL_OUT_OF_SCOPE",
+      "changed_paths": 452,
+      "npc_dev": "PASS",
+      "gap": "nemu/src/isa/riscv64/inst/amo.c -> nemu-dev",
+      "log_sha256": "7fea12c7bc586d1b102a6bbf2596a27191a96c20173e88ebaa0f09e0b55ad312",
+      "preserved": true
+    }
+  ]
+}

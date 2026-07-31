@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "axi-crossbar-naming-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "Independently recheck the local RV64 AxiCrossbar naming candidate after reviewer findings: the static gate must reject only exact AxiXbar while accepting L2XbarAdapter, the former IFU PASS payloads must be retained under task-run history while both active current JSON paths report GAP and STALE_EVIDENCE, and the reversible source hash plus three focused AXI testbench logs must be hash-bound without changing AXI4 ports, owner state, data path or cycle behavior.",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/check-rtl-style.sh",
+      "npc/rv64/eval/tests/test-check-rtl-style.sh",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/specs/axi4-bus.md",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/run-naming-migration-replay.sh",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/subagent-contracts/axi-crossbar-naming-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/axi4-bus.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "Report whether each prior finding is resolved, with exact current RTL, gate, tombstone, ledger, replay and testbench evidence paths; list any remaining blocker or GAP.",
+    "List unknowns, assumptions, counterexamples, alternative hypotheses, scope_extension_request and confidence_and_basis."
+  ],
+  "success_criteria": [
+    "The exact retired AxiXbar identifier is rejected, a legal L2XbarAdapter counterexample is accepted, and no broad Xbar substring ban remains.",
+    "Both active IFU current evidence files are honest GAP records whose historical PASS bytes and SHA-256 values remain retained, and the architecture debt ledger marks IFU-AXI-G1 and IFU-ACCESS-G1 STALE_EVIDENCE.",
+    "The reversible old/new source hash and all three focused AXI testbench logs are hash-bound and current production hierarchy has no AxiXbar or u_xbar residue."
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

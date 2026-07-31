@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v11t-clmul-producer-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend.u_clmul_unit 的 CLMUL/CLMULH ProducerId 生命周期，从 request capture、RUN/RESP owner mask、exact-open completion、WB0 identity、retire/release/full flush 到 22 个 profile、9 个 compile-success mutation、4 个 regression 的证据闭环，并审查 compact cleanup 与 36 PASS/8 GAP ledger 是否存在假绿或越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooClmulUnit.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-integer-longop-producer-lease.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+      "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+      "npc/rv64/testbench/scripts/run_v11t_clmul_producer_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11t_clmul_producer_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/memory_buffer_product_reachability.py",
+      "npc/rv64/eval/ppa/tests/test_memory_buffer_product_reachability.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/rtl-derivation.md",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/subagent-contracts/rv64-v11t-clmul-producer-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-integer-longop-producer-lease.md",
+      ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/rtl-derivation.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 结论格式给出对象、周期/配置、TB/EDA 观测与 PASS/GAP 范围；逐项列出可操作反例、未知项、证据 marker、真实文件名，并判断 CLMUL producer 单元闭合、compact cleanup、selected-source 复用和整核/PPA 边界是否成立。"
+  ],
+  "success_criteria": [
+    "确认 stimulus-owned ProducerId 不取自 DUT、wrong-generation probe 不改变 holder/ROB、9 个定向变异均由预期阶段检出、36 个派生产物删除记录不能伪造 PASS、仅忽略非语义 orchestration 漂移、8-younger pressure 未被声称、整核 RED 与 PPA UNPROMOTED 保持；发现任一反例则明确 GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}
