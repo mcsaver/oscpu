@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13b-load-queue-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooLoadQueue 双 lane lookup reduction、edge-old 双分配 priority encoder 与四态仿真契约，核对模块级综合/STA和 NpcTop coarse 证据是否支持 development checkpoint，并寻找生命周期、未知态、同拍优先级或 PPA 归因反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue_producer_semantic.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/coarse-candidate/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/subagent-contracts/v13b-load-queue-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、配置、testbench/EDA 观测与 PASS/GAP 范围组织独立结论，逐项核对 lookup/allocation 等价边界、正负向 oracle、设计哈希、局部与全核绝对差值，并报告反例、未知项、替代解释及必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "候选只有在端口/状态/lifecycle/断言未弱化、四态与同拍 credit 反例被现有 oracle 覆盖、所有 retained marker 和统计相互一致且结论不越过 full-core mapped/STA/system GAP 时才可判为 development checkpoint PASS；否则给出具体 RTL 信号、周期、日志或报告路径和 GAP/inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

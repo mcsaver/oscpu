@@ -19,6 +19,9 @@ typedef unsigned long u64;
 #define MSTATUS_SXL_MASK (3ul << 34)
 #define MSTATUS_SXL_64 (2ul << 34)
 
+#define MCOUNTINHIBIT_CY (1ul << 0)
+#define MCOUNTINHIBIT_IR (1ul << 2)
+
 #define MIP_SSIP (1ul << 1)
 #define MIP_STIP (1ul << 5)
 #define MIP_SEIP (1ul << 9)
@@ -427,7 +430,7 @@ static u64 check_counter_width(void) {
   u64 value;
 
   CSR_READ(mcountinhibit, old_inhibit);
-  CSR_WRITE(mcountinhibit, 5);
+  CSR_WRITE(mcountinhibit, MCOUNTINHIBIT_CY | MCOUNTINHIBIT_IR);
   CSR_WRITE(mcycle, cycle_pattern);
   CSR_READ(mcycle, value);
   if (value != cycle_pattern) fail |= FAIL_COUNTER_WRITE_WIDTH;
@@ -436,9 +439,19 @@ static u64 check_counter_width(void) {
   CSR_READ(minstret, value);
   if (value != instret_pattern) fail |= FAIL_COUNTER_WRITE_WIDTH;
 
+  // A later mcycle read on a real OoO core legitimately observes the physical
+  // cycles elapsed since the write.  Hold CY while checking the 64-bit CSR
+  // write/read value; same-edge write priority is checked in tb_csr_file.
+  CSR_WRITE(mcountinhibit, MCOUNTINHIBIT_CY);
+  if (audit_mcycle_write_read(cycle_pattern) != cycle_pattern) {
+    fail |= FAIL_COUNTER_WRITE_RETIRE;
+  }
+
+  // Keep IR enabled here: the minstret CSR write must win over the retirement
+  // increment of that same instruction, and the following read sees the value
+  // before its own retirement increment.
   CSR_WRITE(mcountinhibit, 0);
-  if (audit_mcycle_write_read(cycle_pattern) != cycle_pattern ||
-      audit_minstret_write_read(instret_pattern) != instret_pattern) {
+  if (audit_minstret_write_read(instret_pattern) != instret_pattern) {
     fail |= FAIL_COUNTER_WRITE_RETIRE;
   }
   CSR_WRITE(mcountinhibit, old_inhibit);

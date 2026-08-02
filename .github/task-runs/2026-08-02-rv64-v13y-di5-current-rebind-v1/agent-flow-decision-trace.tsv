@@ -1,0 +1,4 @@
+2026-08-02T02:57:26Z	decision	DI5_CURRENT_SCOPE_APPROVED	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/pre-delivery-review.md
+2026-08-02T02:57:26Z	decision	CANONICAL_ARCHITECTURE_NOT_PROMOTED	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/architecture-current.json
+2026-08-02T02:57:27Z	counterexample	HISTORICAL_V8U_RAW_BYTES_UNRECOVERABLE	.github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/INCIDENT-2026-08-02.md
+2026-08-02T02:57:27Z	note	NEXT_DI1_FRONTEND_II1_THEN_DI2_WIDTH_CONTINUITY	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/task-report.md

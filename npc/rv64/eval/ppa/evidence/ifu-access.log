@@ -1,6 +1,6 @@
 schema=npc-rv64-ifu-access-evidence-v1
-design_id=sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4
-canonical_command=make -C npc/rv64 check-ifu-access
+design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b
+canonical_command=/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS -u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 -f eval/ppa/ifu-evidence.mk check-ifu-access
 footprint_rows=4
 alignment_rows=16
 rresp_rows=36

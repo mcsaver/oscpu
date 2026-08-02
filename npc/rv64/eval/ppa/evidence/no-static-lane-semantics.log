@@ -1,9 +1,9 @@
 DI-4 no-static-lane-semantics directed evidence
 run_id=2026-07-20-rv64-v8o-no-static-lane-semantics
-generated_at_utc=2026-07-29T12:54:20.098502+00:00
-design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
+generated_at_utc=2026-07-31T22:29:24.432222+00:00
+design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b
 rtl_file_count=146
-provenance_sha256=6d5ca1282add564428fc04b86b0d366865ab4c2d0fee687a66b1447cba2d7126
+provenance_sha256=38458865e2abc822f7eba6677217942758552ec956b1a61a17cc0bb92306247e
 task_contract_json_sha256=5cec136cf10d731263c42ab963c2852b16ea23fd03196ddbf655bbe1176ed5b7
 task_contract_hash_scope=json-only-not-rtl-or-design-contract
 profiles=release,assert independently complete
@@ -14,8 +14,8 @@ exact_full_pid_matches=24
 accepted_transactions=24
 fired_transactions=24
 mutation_count=6
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/baseline-assert/logs/tb_ooo_int_issue_queue.log 1f66173e268ce5af5b065ab11923d80e820647ceae1e4d203a05c9c0f7bc91ba
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/baseline-release/logs/tb_ooo_int_issue_queue.log 0ecca201fbcb709de981d896fa9e034de0cff554ab937cf00da73644c0f5c1f0
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/mutation-summary.log 8ad1320be8fa83e57f8e66c2e757b479cfb07e96716723432bff7fe25cd7e5e4
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/sources.pre.sha256 be87a3cab0871993c7d09a64eb5761ed386c9e0dca39559b0b4becf8ff347e3f
-[ARCH-GATE] no_static_lane_semantics PASS run_id=2026-07-20-rv64-v8o-no-static-lane-semantics design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897 provenance_sha256=6d5ca1282add564428fc04b86b0d366865ab4c2d0fee687a66b1447cba2d7126
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/baseline-assert/logs/tb_ooo_int_issue_queue.log 31f5006e4fb809e6467f0a2f4d7a7bf9c2171edb9c056dffb6b64b3d5ec8c451
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/baseline-release/logs/tb_ooo_int_issue_queue.log c8c1ec47d34ac8603eb3f8e63792200c25424b5e06c1afdabbba035ad614cf10
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/mutation-summary.log 3d912e34b7e77676432bccb5f64d401b60921ce989136350bb850af6cffd1eeb
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/evidence/focused/sources.pre.sha256 92d883c6f481789fdbf6da75841ccca5b30592c1b23b3da3f90c09b6cd508550
+[ARCH-GATE] no_static_lane_semantics PASS run_id=2026-07-20-rv64-v8o-no-static-lane-semantics design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b provenance_sha256=38458865e2abc822f7eba6677217942758552ec956b1a61a17cc0bb92306247e

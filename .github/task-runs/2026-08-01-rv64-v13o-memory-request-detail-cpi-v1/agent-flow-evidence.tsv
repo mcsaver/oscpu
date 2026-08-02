@@ -1,0 +1,6 @@
+2026-08-01T16:36:48Z	coremark-request-detail-smoke	PASS	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/counter-check-result.json
+2026-08-01T16:36:56Z	current-closure-replay	PASS	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/checker-replay-current-closure/replay-result.json
+2026-08-01T16:37:02Z	focused-policy-tests	PASS	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/focused-policy-tests.log
+2026-08-01T16:37:06Z	full-ppa-suite-historical-bindings	GAP	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/reviewer-result.md
+2026-08-01T16:37:14Z	independent-review-scope	GAP	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/reviewer-result.md
+2026-08-01T16:41:06Z	assertion-executable-binding	GAP	.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/checker-replay-current-closure/replay-result.json

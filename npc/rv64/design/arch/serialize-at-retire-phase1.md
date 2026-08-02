@@ -259,3 +259,17 @@ root-cause 同族（方法级）：
   `APPROVED_FOR_CURRENT_SCOPE`，因此 `SERIALIZE-G1=CLOSED`。该裁决只支持
   Phase1 split-domain；Phase2–5、architecture freeze、historical-defect backfill
   与 PPA 仍保持 GAP/UNQUALIFIED。
+
+### 10.9 V13H 当前设计快速重绑定（2026-08-01）
+
+- 当前 design-id 为 `sha256:364b1e601773c22ab0594950170674ea6b228bf6b4c9b2c26b0bdcc9a4374d44`。
+  queue-head assertions-on/off 为 2/2 PASS，总计 6 条 committed 与 4 条 selective-kill。
+- 三个可编译 queue-head 负向 profile 均被动态拒绝；精确分类为 typed-apply 与 ROB
+  queue-head selection 两个 production RTL mutation，以及一个 verification-only
+  `CsrFile` TB-wiring mutation。不得把三项全部称为 production RTL mutation。
+- pending-SYSTEM 为 3/3 baseline 与 15/15 production RTL mutation 动态拒绝；完整功能
+  队列为 module 113/113、official 177/177、AM 61/61、DiffTest mismatch=0，CoreMark
+  CRC=`0xfcaf`，Dhrystone 10000 完成。
+- A3 原始 FAIL 与 checker replay 仍只绑定旧 `sha256:c1b531...`。当前 `364b1e...` 没有
+  完整 Linux/systemd terminal transaction，因此本节只支持 fast gates PASS；机器账本必须保持
+  `SERIALIZE-G1=STALE_EVIDENCE`、architecture freeze=`GAP`、PPA=`UNPROMOTED`。

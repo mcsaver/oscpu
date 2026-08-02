@@ -1,5 +1,0 @@
-[TEST] tb_ooo_muldiv_unit
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_muldiv_unit -o build-t3z-request-mux-v1/tb_ooo_muldiv_unit.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v tests/tb_ooo_muldiv_unit.sv
-[PASS] tb_ooo_muldiv_unit
-common/tb_common.svh:32: $finish called at 797163 (1s)
-[RESULT] PASS

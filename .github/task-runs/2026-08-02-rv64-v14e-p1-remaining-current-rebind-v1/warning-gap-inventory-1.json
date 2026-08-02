@@ -1,0 +1,1007 @@
+{
+  "already_classified": 9294,
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "lines": [
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooPmaChecker.v:7: warning: timescale for OooPmaChecker inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v:9: warning: timescale for OooPostTranslateMemoryClass inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooStoreQueue.v:15: warning: timescale for OooStoreQueue inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooSv39Tlb.v:3: warning: timescale for OooSv39Tlb inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v:6: warning: timescale for OooTypedMemoryClassifier inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/OooTypedPmaChecker.v:5: warning: timescale for OooTypedPmaChecker inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/memory/PmpChecker.v:3: warning: timescale for PmpChecker inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/pipeline/PipeStageReg.v:11: warning: timescale for PipeStageReg inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v:10: warning: timescale for OooFpPhysRegFile inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v:6: warning: timescale for OooFpRegFile inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v:4: warning: timescale for OooPendingOperandReadGate inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:7: warning: timescale for OooPhysRegFile inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/rename_allocate/OooBusyTable.v:5: warning: timescale for OooBusyTable inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:8: warning: timescale for OooDispatchBackend inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/rename_allocate/OooFreeList.v:5: warning: timescale for OooFreeList inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/rename_allocate/OooRenameMap.v:5: warning: timescale for OooRenameMap inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:12: warning: timescale for OooFpIssueQueue inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:10: warning: timescale for OooIntIssueQueue inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v:6: warning: timescale for OooIntIssueSelect8 inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/sram/Sram4096x113.v:8: warning: timescale for Sram4096x113 inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/sram/Sram4096x199.v:6: warning: timescale for Sram4096x199 inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/OooArchRegFile.v:5: warning: timescale for OooArchRegFile inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/OooCommitOutputMux.v:3: warning: timescale for OooCommitOutputMux inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v:3: warning: timescale for OooControlCommitSequencer inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/OooRob.v:5: warning: timescale for OooRob inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/OooWriteback.v:6: warning: timescale for OooWriteback inherited from another file."
+    },
+    {
+      "count": 2,
+      "line": "<REPO>/npc/rv64/vsrc/writeback/WBU.v:3: warning: timescale for WBU inherited from another file."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 104 (mem_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 105 (mem_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 106 (mem_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 107 (mem_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 108 (mem_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 109 (mem_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 110 (mem_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 111 (mem_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 112 (mem_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 113 (mem_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 114 (mem_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 116 (mem1_req_ready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 13 (serial_write_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 133 (mem1_rsp_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 135 (mem1_rsp_rdata_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 136 (mem1_rsp_error_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 137 (mem1_rsp_page_fault_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 138 (mem1_rsp_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 139 (mem1_rsp_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 14 (serial_write_arch_rd_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 140 (mem1_rsp_cacheable_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 141 (mem1_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 142 (mem1_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 143 (mem1_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 144 (mem1_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 15 (serial_write_data_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 152 (mem1_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 153 (mem1_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 158 (mem1_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 159 (mem1_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 164 (mem1_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 165 (mem1_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 166 (mem1_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 167 (mem1_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 168 (mem1_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 169 (mem1_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 170 (mem1_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 171 (mem1_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 177 (mem1_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 178 (mem1_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 179 (mem1_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 180 (mem1_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 181 (mem1_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 182 (mem1_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 183 (mem1_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 184 (mem1_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 185 (mem1_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 186 (mem1_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 187 (mem1_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 188 (mem1_translate_active_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 189 (mem_translate_active_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 190 (frm_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 22 (dispatch0_bht_idx_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 23 (dispatch0_pred_taken_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 25 (dispatch0_csr_rdata_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 34 (dispatch1_bht_idx_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 35 (dispatch1_pred_taken_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 37 (dispatch1_csr_rdata_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 68 (mem_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 69 (mem_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 70 (mem_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 71 (mem_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 79 (mem_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 80 (mem_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 85 (mem_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 86 (mem_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 91 (mem_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 92 (mem_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 93 (mem_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 94 (mem_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 95 (mem_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 96 (mem_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 97 (mem_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Instantiating module OooAluCoreSlice with dangling input port 98 (mem_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_core_slice.sv:77: warning: Port 59 (mem_req_wstrb_o) of OooAluCoreSlice expects 8 bits, got 4."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 100 (mem_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 101 (mem_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 102 (mem_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 103 (mem_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 104 (mem_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 105 (mem_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 106 (mem_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 107 (mem_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 108 (mem_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 109 (mem_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 110 (mem_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 112 (mem1_req_ready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 129 (mem1_rsp_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 131 (mem1_rsp_rdata_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 132 (mem1_rsp_error_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 133 (mem1_rsp_page_fault_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 134 (mem1_rsp_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 135 (mem1_rsp_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 136 (mem1_rsp_cacheable_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 137 (mem1_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 138 (mem1_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 139 (mem1_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 140 (mem1_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 148 (mem1_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 149 (mem1_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 154 (mem1_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 155 (mem1_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 160 (mem1_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 161 (mem1_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 162 (mem1_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 163 (mem1_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 164 (mem1_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 165 (mem1_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 166 (mem1_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 167 (mem1_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 173 (mem1_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 174 (mem1_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 175 (mem1_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 176 (mem1_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 177 (mem1_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 178 (mem1_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 179 (mem1_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 180 (mem1_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 181 (mem1_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 182 (mem1_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 183 (mem1_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 184 (mem1_translate_active_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 185 (mem_translate_active_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 64 (mem_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 65 (mem_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 66 (mem_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 67 (mem_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 75 (mem_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 76 (mem_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 81 (mem_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 82 (mem_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 87 (mem_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 88 (mem_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 89 (mem_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 90 (mem_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 91 (mem_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 92 (mem_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 93 (mem_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Instantiating module OooAluDecodeBackend with dangling input port 94 (mem_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_alu_decode_backend.sv:75: warning: Port 55 (mem_req_wstrb_o) of OooAluDecodeBackend expects 8 bits, got 4."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_busy_table.sv:28: warning: Instantiating module OooBusyTable with dangling input port 20 (query_raw_preg_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_dual_memory_sustained_issue.sv:101: warning: Instantiating module NpcCoreTop with dangling input port 17 (ifu_axi_awready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_dual_memory_sustained_issue.sv:101: warning: Instantiating module NpcCoreTop with dangling input port 24 (ifu_axi_wready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_dual_memory_sustained_issue.sv:101: warning: Instantiating module NpcCoreTop with dangling input port 28 (ifu_axi_bvalid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_dual_memory_sustained_issue.sv:101: warning: Instantiating module NpcCoreTop with dangling input port 30 (ifu_axi_bresp_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_dual_memory_sustained_issue.sv:9: warning: timescale for tb_ooo_dual_memory_sustained_issue inherited from another file."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 109 (mem1_rsp_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 111 (mem1_rsp_rdata_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 112 (mem1_rsp_error_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 113 (mem1_rsp_page_fault_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 114 (mem1_rsp_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 115 (mem1_rsp_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 116 (mem1_rsp_cacheable_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 117 (mem1_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 118 (mem1_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 119 (mem1_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 120 (mem1_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 128 (mem1_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 129 (mem1_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 134 (mem1_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 135 (mem1_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 140 (mem1_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 141 (mem1_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 142 (mem1_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 143 (mem1_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 144 (mem1_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 145 (mem1_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 146 (mem1_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 147 (mem1_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 153 (mem1_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 154 (mem1_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 155 (mem1_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 156 (mem1_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 157 (mem1_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 158 (mem1_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 159 (mem1_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 160 (mem1_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 161 (mem1_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 162 (mem1_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 163 (mem1_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 164 (mem1_translate_active_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 208 (csr_frm_w) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 40 (mem_rsp_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 41 (mem_rsp_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 43 (mem_rsp_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 44 (mem_rsp_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 45 (mem_rsp_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 46 (mem_rsp_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 54 (mem_owner_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 55 (mem_owner_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 60 (mem_station_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 61 (mem_station_query_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 66 (mem_sq_query_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 67 (mem_sq_query_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 68 (mem_sq_query_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 69 (mem_sq_query_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 70 (mem_sq_query_paddr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 71 (mem_sq_query_attr_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 72 (mem_sq_query_class_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 73 (mem_sq_query_wstrb_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 79 (mem_drop0_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 80 (mem_drop0_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 81 (mem_drop0_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 82 (mem_drop0_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 83 (mem_drop0_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 84 (mem_drop1_valid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 85 (mem_drop1_owner_kind_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 86 (mem_drop1_owner_token_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 87 (mem_drop1_mmu_epoch_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 88 (mem_drop1_fault_tval_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 89 (mem_bridge_owner_residency_mask_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_fetch_trap_gate.sv:64: warning: Instantiating module OooCoreTopGlue with dangling input port 92 (mem1_req_ready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_frontend_dispatch_gate.sv:50: warning: Instantiating module OooFrontendDispatchGate with dangling input port 12 (dispatch0_return_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_frontend_dispatch_gate.sv:50: warning: Instantiating module OooFrontendDispatchGate with dangling input port 5 (dispatch0_csr_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_memory_request_gate.sv:36: warning: Instantiating module OooMemoryRequestGate with dangling input port 12 (core_mem_req_probe_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_memory_request_gate.sv:36: warning: Instantiating module OooMemoryRequestGate with dangling input port 13 (core_mem_req_pretrans_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_memory_request_gate.sv:36: warning: Instantiating module OooMemoryRequestGate with dangling input port 14 (core_mem_req_nokill_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_sv39_boot.sv:122: warning: Instantiating module NpcCoreTop with dangling input port 17 (ifu_axi_awready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_sv39_boot.sv:122: warning: Instantiating module NpcCoreTop with dangling input port 24 (ifu_axi_wready_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_sv39_boot.sv:122: warning: Instantiating module NpcCoreTop with dangling input port 28 (ifu_axi_bvalid_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_sv39_boot.sv:122: warning: Instantiating module NpcCoreTop with dangling input port 30 (ifu_axi_bresp_i) floating."
+    },
+    {
+      "count": 1,
+      "line": "tests/tb_ooo_sv39_boot.sv:5: warning: timescale for tb_ooo_sv39_boot inherited from another file."
+    }
+  ],
+  "schema": "rv64-v14e-f0-warning-gap-inventory-v1",
+  "timeunit_blocks": 23,
+  "total_warning_lines": 9570,
+  "unclassified": 276,
+  "unique_unclassified": 249
+}

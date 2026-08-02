@@ -1,9 +1,0 @@
-[TEST] tb_ooo_pending_system_sequencer
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_pending_system_sequencer -o build-t3z-request-mux-v1/tb_ooo_pending_system_sequencer.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v tests/tb_ooo_pending_system_sequencer.sv
-warning: Some design elements have no explicit time unit and/or
-       : time precision. This may cause confusing timing results.
-       : Affected design elements are:
-       :   -- module OooPendingSystemSequencer declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v:3
-PASS tb_ooo_pending_system_sequencer
-tests/tb_ooo_pending_system_sequencer.sv:319: $finish called at 126000 (1ps)
-[RESULT] PASS

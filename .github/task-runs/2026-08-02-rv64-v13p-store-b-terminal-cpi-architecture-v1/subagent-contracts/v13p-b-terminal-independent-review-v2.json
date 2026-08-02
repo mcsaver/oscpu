@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13p-b-terminal-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooMemAxiBridge 聚合 B direct response 新增的真实 OooIntBackend/OooStoreQueue/OooRob 定向生命周期 testbench、三项 compile-success RTL source mutation、桥模块 Yosys 结构诊断与 DRAIN 绕过 OooMemOwnerTerminalCollector 的合同修正；确认每项 PASS/GAP 是否与保存 marker、source SHA、周期边界和 NOT_ELIGIBLE_PPA_PENDING 一致。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/driver/run-v13p-b-fusion-independent-mutations.sh",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/driver/run-v13p-bridge-yosys-structural.sh",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/driver/coremark-b-fusion-ab.sh",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/backend-bridge-directed/logs/tb_ooo_int_backend_v13p_store_b_fusion.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/mutation-duplicate-s-resp",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/mutation-drop-fallback-error-snapshot",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/mutation-expose-killed-b",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/yosys-bridge-structural",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/comparison.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/subagent-contracts/v13p-b-terminal-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出新增 full-backend direct 生命周期 marker、三个独立 mutation、Yosys generic cell/B-to-response cone 与修正文档的反例复核；区分 bridge-local correctness、跨模块 direct PASS、未覆盖 backpressure GAP、方向性 CoreMark observation 与 mapped area/STA/promotion GAP，并列明 unknowns、替代假设、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "新增证据的每个结论均引用允许路径中的具体 signal、周期、日志 marker 或 JSON 字段；确认 DRAIN collector 描述已修正，检查测试是否存在强制内部信号造成假绿、mutation 是否 compile-success 且 source-sensitive、Yosys 结果是否被准确限定为 generic structural diagnostic，信息不足时保持 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13q-store-b-error-backpressure-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 aggregate-B store-error/backpressure 的真实 backend 周期合同、testbench 敏感性与证据边界；优先寻找假绿、部分终端、错误 cause/tval、重复事件及越级 promotion 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "以 C_B=BVALID&&BREADY、C_F=目标 DRAIN response fire、C_C=同一 ROB store exception commit 定义周期；direct C_F=C_B，fallback C_F>C_B，commit 不早于 C_F+1。",
+      "V13Q 只改 testbench/Makefile/driver，production RTL 必须保持 SHA 绑定且只读；一周期 fallback 之外的 multi-cycle、非对称 SQ credit、commit-ready delay 为已声明 GAP。",
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1/subagent-contracts/v13q-store-b-error-backpressure-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "以 C_B=BVALID&&BREADY、C_F=目标 DRAIN response fire、C_C=同一 ROB store exception commit 定义周期；direct C_F=C_B，fallback C_F>C_B，commit 不早于 C_F+1。",
+      "V13Q 只改 testbench/Makefile/driver，production RTL 必须保持 SHA 绑定且只读；一周期 fallback 之外的 multi-cycle、非对称 SQ credit、commit-ready delay 为已声明 GAP。"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件 -> 周期/编译配置 -> TB/EDA 观测 -> PASS/GAP 范围给出独立结论、反例、未知项和真实 marker。"
+  ],
+  "success_criteria": [
+    "逐项核验真实 B handshake、S_RESP snapshot、formal-WB/SQ terminal/MIQ pop/ROB commit/owner release 的事件偏序与 exactly-once oracle。",
+    "核验 VA!=PA、cause7、WB-credit 三项 compile-success mutation 的 source SHA、runtime marker 与 fail-closed 结果，判断是否存在假绿。",
+    "明确区分闭合的 direct SLVERR/DECERR 与单周期 fallback 范围、仍有的矩阵 GAP，以及对 V13P/PPA promotion 无授权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "rv64-task-run-summary-v1",
+  "task_id": "rv64-v13f-int-iq-hotspot-baseline",
+  "status": "PASS_DIAGNOSTIC_BASELINE",
+  "design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+  "rtl_changed": false,
+  "configuration": {
+    "top": "OooIntIssueQueue",
+    "clock_mhz": 200,
+    "flatten": 1,
+    "share": 0,
+    "sta_period_ns": 5.0,
+    "sta_io_delay_ns": 0.0
+  },
+  "coarse": {
+    "wires": 4530,
+    "wire_bits": 68764,
+    "cells": 4430,
+    "mux": 1614,
+    "pmux": 1481,
+    "sdffe": 176,
+    "check_problems": 0
+  },
+  "mapped": {
+    "cells": 34468,
+    "area": 75205.48,
+    "sequential_area": 19293.12,
+    "check_problems": 0
+  },
+  "sta": {
+    "worst_startpoint": "valid_q[0]",
+    "worst_endpoint": "imm_q[0][24]",
+    "worst_slack_ns": 2.233862638,
+    "tns_ns": 0.0,
+    "wns_ns": 0.0,
+    "top40_family": "entry0 packed-compaction wide-payload D"
+  },
+  "next_hypothesis": "replace binary-index comparisons in packed compaction with fire-qualified selector onehot pop mask",
+  "scope_gaps": [
+    "functional regression not run because no RTL changed",
+    "parent integration not run",
+    "full-core timing and power not run",
+    "system transaction not run"
+  ]
+}

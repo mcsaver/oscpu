@@ -1,0 +1,4 @@
+2026-08-01T09:57:32Z	serialize-qh-current	PASS	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/qh-current/summary.json
+2026-08-01T09:57:32Z	serialize-system-current	PASS	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/system-current/summary.json
+2026-08-01T09:57:32Z	full-functional-current	PASS	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/functional-current/run-result.json
+2026-08-01T09:57:32Z	current-system-transaction	GAP	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json

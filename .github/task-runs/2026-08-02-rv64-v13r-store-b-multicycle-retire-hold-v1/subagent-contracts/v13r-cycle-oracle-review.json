@@ -1,0 +1,58 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13r-cycle-oracle-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 lane0 store aggregate-B 两周期 formal-WB 回压与三周期退休保持的定向 testbench 周期判据，优先寻找假绿、错拍和未绑定观测",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/subagent-contracts/v13r-cycle-oracle-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "冻结配置：production RTL 只读；单个 lane0 store 使用真实 Sv39 VA 到 PA 映射，aggregate B 返回 DECERR；testbench 另排入两个连续 dual-ALU WB 波，每波同时占用两个 formal-WB slot。",
+      "冻结周期：C_B 为外部 d_axi_bvalid 与 d_axi_bready 同拍；WB 波0在 C_B 占满两槽，bridge 接受 B 并进入 S_RESP，DRAIN/formal-WB/SQ-terminal/MIQ-pop/commit 均为零。WB 波1在 C_B+1 占满两槽；此时外部 BVALID 已撤销、BRESP 已改 OKAY，S_RESP 必须保持原 DECERR、exact token 与 original VA，目标终端事件仍全零。credit 在 C_B+2 返回，故 C_F=C_B+2，恰好一次 DRAIN/formal-WB/SQ-terminal/DRAIN-qualified MIQ pop，cause=7、tval=original VA，且同拍无 commit/release。",
+      "冻结退休：C_F 前把 commit_ready_i 置零；C_F 后连续三个完整周期不得 commit/release，也不得重放 response/formal-WB/SQ-terminal/MIQ-pop；SQ entry count 保持1且 STORE owner live。commit_ready_i 恢复后，下一允许退休沿恰好一次 exception commit，cause=7、tval=original VA、C0 trap barrier 与 exact SQ release；owner 只在该沿之后清除。",
+      "实现调度候选：先 dispatch dual-ALU pair0 并推进一拍；当 pair0 已排队或发射时，同拍 dispatch pair1；下一拍 pair0 形成两路 WB 且 pair1 发射，此拍驱动 B 得到 C_B；再下一拍 pair1 形成两路 WB，构成 C_B+1。审查必须判断该调度是否真正使两个波分别落在 C_B 与 C_B+1，并指出需要观测的 dispatch-ready/issue/WB 证据。",
+      "敏感性计划：三个 compile-success 负向 RTL 版本分别让 S_RESP 在一次 stalled cycle 后自动离开、让 DECERR fallback 被锁存为 OKAY、让 ROB head retirement 忽略 commit_ready_i；每个版本必须由对应周期判据得到明确 RESULT FAIL，编译失败或缺 marker 不计检出。",
+      "已知边界：仅覆盖孤立 lane0 store、两周期 fallback、DECERR snapshot、三周期 commit hold；不宣称任意时长、非对称 SQ credit、lane1 并发 owner、系统 workload 或 PPA。"
+    ]
+  },
+  "deliverables": [
+    "给出按周期排序的 PASS/GAP 审查结论，明确调度可行性、必须绑定的信号/计数器、至少一个可能假绿反例以及最小修正建议。"
+  ],
+  "success_criteria": [
+    "结论明确判断 C_B、C_B+1、C_F、三拍 hold 与 C_C 的边界是否自洽，并确认三项负向版本分别被独立判据覆盖。",
+    "不得执行命令、读取仓库、修改文件或扩大为 production RTL/PPA 结论；未知项必须保留为 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

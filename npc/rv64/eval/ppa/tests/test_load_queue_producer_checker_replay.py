@@ -30,7 +30,7 @@ class LoadQueueProducerCheckerReplayTests(unittest.TestCase):
     def test_frozen_attempt_builds_pass_receipt(self) -> None:
         self.assertEqual(
             self.receipt["schema"],
-            "rv64-v11h-load-queue-attempt4-checker-replay-v2",
+            "rv64-v11h-load-queue-attempt4-checker-replay-v3",
         )
         self.assertEqual(self.receipt["status"], "PASS")
         self.assertEqual(self.receipt["original_attempt"], 4)
@@ -50,19 +50,18 @@ class LoadQueueProducerCheckerReplayTests(unittest.TestCase):
             ],
             1,
         )
-        self.assertFalse(self.receipt["original_design_is_current"])
-        self.assertNotEqual(
-            self.receipt["design_id"],
-            self.receipt["current_design_id_at_replay"],
-        )
-        selected = self.receipt["current_selected_binding"]
+        selected = self.receipt["historical_selected_binding"]
         self.assertEqual(
             selected["binding_state"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "HISTORICAL_FROZEN_SELECTED_BINDING",
         )
         self.assertEqual(len(selected["records"]), 3)
         self.assertTrue(
-            all(record["matches_live"] for record in selected["records"])
+            all(len(record["evidence_sha256"]) == 64
+                for record in selected["records"])
+        )
+        self.assertFalse(
+            self.receipt["replay_contract"]["current_rtl_binding_claimed"]
         )
 
     def test_original_pass_status_is_rejected(self) -> None:
@@ -99,8 +98,8 @@ class LoadQueueProducerCheckerReplayTests(unittest.TestCase):
 
     def test_selected_binding_hash_edit_is_rejected(self) -> None:
         mutated = copy.deepcopy(self.receipt)
-        mutated["current_selected_binding"]["records"][0][
-            "live_sha256"
+        mutated["historical_selected_binding"]["records"][0][
+            "evidence_sha256"
         ] = "0" * 64
         with self.assertRaisesRegex(
             REPLAY.ReplayError, "differs from frozen inputs"

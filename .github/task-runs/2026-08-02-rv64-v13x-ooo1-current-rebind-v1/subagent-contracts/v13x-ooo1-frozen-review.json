@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13x-ooo1-frozen-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend、OooMulDivUnit 与 OooRob 的 current-design OOO-1 证据：load miss、MUL、DIV owner 在更年轻双发射与完成期间保持 full ProducerId，ROB 仅按队头有序退休；检查 scoped hard-gate 是否只支持 OOO-1 PASS 并识别任何假绿反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/tools/true_ooo_long_latency_evidence.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/subagent-contracts/v13x-ooo1-frozen-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "current complete RTL design-id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，rtl_file_count=146；本轮未修改 npc/rv64/vsrc/**。",
+      "release 与 OOO_ASSERT 两个 profile 均观测 load_miss=8、mul=8、div=8、各 4 个 dual_issue cycle、各 8 个 owner-live younger completion、rob_peak=9、rob_valid_peak=9、retire_order_violations=0，并各有唯一 [RESULT] PASS。",
+      "7 个 compile-success RTL 反例 serial_issue1、miq_issue1_freeze、muldiv_issue1_freeze、retire_before_head_done、load_owner_pid_truncate、muldiv_owner_pid_truncate、muldiv_resp_pid_truncate 均有 source/mutant/image SHA，均由对应 activation 与 [CHECK-FAIL] marker 检出并形成唯一 [RESULT] FAIL。",
+      "scoped manifest 仅含 true_ooo_long_latency；record status=PASS、proof mode=task-run-v1、固定 proof role 数=20、proof_sha256=766f496af7e8d3885cfe775bd97d4f7cd4d832c1b6f8d334e073f032b706e754。",
+      "architecture checker 的 OOO-1 contract、design binding、command、log、source inventory、proof inventory、proof file/hash/log binding、proof digest 与全部 15 个 metric check 均为 GREEN；scoped aggregate overall_status=RED、exit_code=1。",
+      "checker 与 manifest 单测 36/36 PASS，包含 proof 文件内容漂移及缺少 proof role 的拒绝用例；越界 scoped evidence path 在任何仿真前以 rc=1 拒绝。",
+      "canonical npc/rv64/eval/ppa/evidence/architecture-current.json SHA-256 保持 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1；本轮 scoped manifest SHA-256=0e0f3e148ac3dceeb5d2731fe30404e04bddccd91800b571da2e23345eaddb95。",
+      "首轮 builder 将负向 testbench 的预期  误判为不洁净拒绝并 fail-closed；规则修正为必须唯一 [RESULT] FAIL、禁止 [RESULT] PASS、必须命中目标 activation/[CHECK-FAIL]，随后完整 suite 重跑 PASS。",
+      "task-run 约 608 KiB；未保留 .vvp，/tmp/v8n-true-ooo.* 已清空；full-system、DI-1/2/5、OOO-2/3/4 aggregate、CPI、综合、STA、area、power 均不在本轮 PASS 范围。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 结论首行格式给出 APPROVED_FOR_CURRENT_SCOPE、GAP 或 REJECT；随后列出证据充分项、可操作反例、未知项、替代解释与范围边界。"
+  ],
+  "success_criteria": [
+    "优先尝试证明 scoped OOO-1 为假绿：核对 full-ProducerId owner/双发射/ROB 指标、7 个定向反例、20 个 proof role、current design-id 与 overall RED 边界；只有未发现阻断反例时才批准限定范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,11 @@
+npc/rv64/vsrc/memory
+npc/rv64/vsrc/execute
+npc/rv64/vsrc/backend
+npc/rv64/design/specs
+.github/task-runs
+npc/rv64/testbench/tests
+npc/rv64/testbench
+npc/rv64/vsrc/writeback
+.github/memory
+.github/memory/modules
+.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1

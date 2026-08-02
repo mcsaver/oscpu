@@ -407,15 +407,20 @@ module OooStoreQueue #(
   reg [`XLEN-1:0] query0_forward_data_r;
   always @(*) begin : query0_phys_byte_cam_blk
     integer entry_i;
-    integer load_byte_i;
-    integer store_byte_i;
     reg [ENTRY_COUNT_W-1:0] entry_idx_r;
     reg entry_older_r;
     reg poison_r;
     reg overlap_r;
     reg [`STRB_W-1:0] covered_r;
-    reg [`XLEN-1:0] load_byte_addr_r;
-    reg [`XLEN-1:0] store_byte_addr_r;
+    reg [`XLEN-1:0] store_after_delta_r;
+    reg [`XLEN-1:0] store_before_delta_r;
+    reg [`STRB_W-1:0] aligned_store_strb_r;
+    reg [`XLEN-1:0] aligned_store_data_r;
+    reg [`STRB_W-1:0] overlap_mask_r;
+    reg [`XLEN-1:0] overlap_data_mask_r;
+`ifndef SYNTHESIS
+    reg entry_participate_r;
+`endif
     query0_allow_r = 1'b0;
     query0_forward_r = 1'b0;
     query0_replay_r = 1'b0;
@@ -425,8 +430,38 @@ module OooStoreQueue #(
     covered_r = {`STRB_W{1'b0}};
     entry_idx_r = {ENTRY_COUNT_W{1'b0}};
     entry_older_r = 1'b0;
-    load_byte_addr_r = {`XLEN{1'b0}};
-    store_byte_addr_r = {`XLEN{1'b0}};
+    store_after_delta_r = {`XLEN{1'b0}};
+    store_before_delta_r = {`XLEN{1'b0}};
+    aligned_store_strb_r = {`STRB_W{1'b0}};
+    aligned_store_data_r = {`XLEN{1'b0}};
+    overlap_mask_r = {`STRB_W{1'b0}};
+    overlap_data_mask_r = {`XLEN{1'b0}};
+`ifndef SYNTHESIS
+    entry_participate_r = 1'b0;
+    case (^head_q)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query0_producer_id_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query0_paddr_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query0_strb_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+`endif
+    // The entry loop expands into four parallel age/offset checks followed by
+    // a head-to-tail byte merge.  Each entry computes the base delta once;
+    // the old 8x8 byte-address add/compare matrix is deliberately absent.
     for (entry_i = 0; entry_i < ENTRY_COUNT; entry_i = entry_i + 1) begin
       entry_idx_r = head_q + entry_i[ENTRY_COUNT_W-1:0];
       entry_older_r = request_sent_q[entry_idx_r] ||
@@ -434,6 +469,70 @@ module OooStoreQueue #(
            (rob_dist(rob_idx_q[entry_idx_r], rob_head_idx_i) <
             rob_dist(query0_producer_id_i[ROB_INDEX_W-1:0],
                      rob_head_idx_i)));
+      store_after_delta_r = paddr_q[entry_idx_r] - query0_paddr_i;
+      store_before_delta_r = query0_paddr_i - paddr_q[entry_idx_r];
+      aligned_store_strb_r = {`STRB_W{1'b0}};
+      aligned_store_data_r = {`XLEN{1'b0}};
+      overlap_mask_r = {`STRB_W{1'b0}};
+      overlap_data_mask_r = {`XLEN{1'b0}};
+
+`ifndef SYNTHESIS
+      // Four-state simulation overlay: a known invalid, younger, or terminal
+      // entry is irrelevant; every entry that can still participate must have
+      // a fully known age, fill/type, physical address, and byte strobe.
+      entry_participate_r = 1'b0;
+      case (valid_q[entry_idx_r])
+        1'b0: begin end
+        1'b1: begin
+          if ((entry_older_r === 1'b0) ||
+              (terminal_q[entry_idx_r] === 1'b1)) begin
+          end else if ((entry_older_r === 1'b1) &&
+                       (terminal_q[entry_idx_r] === 1'b0)) begin
+            entry_participate_r = 1'b1;
+          end else begin
+            poison_r = 1'b1;
+          end
+        end
+        default: poison_r = 1'b1;
+      endcase
+      if (entry_participate_r) begin
+        case ({filled_q[entry_idx_r],
+               typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                   class_q[entry_idx_r]),
+               (strb_q[entry_idx_r] == {`STRB_W{1'b0}})})
+          3'b110: begin
+            case ({(query0_class_i == `OOO_MEM_CLASS_IO),
+                   (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)})
+              2'b00: begin
+                case (^paddr_q[entry_idx_r])
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+                case (^query0_paddr_i)
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+                case (^strb_q[entry_idx_r])
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+              end
+              2'b01,
+              2'b10,
+              2'b11: begin end
+              default: poison_r = 1'b1;
+            endcase
+          end
+          default: poison_r = 1'b1;
+        endcase
+      end
+`endif
+
+      // This is the binary hardware network.  The simulation-only checks above
+      // can only raise poison and are removed when Yosys defines SYNTHESIS.
       if (valid_q[entry_idx_r] && entry_older_r &&
           !terminal_q[entry_idx_r]) begin
         if (!filled_q[entry_idx_r] ||
@@ -443,30 +542,82 @@ module OooStoreQueue #(
           poison_r = 1'b1;
         end else if ((query0_class_i == `OOO_MEM_CLASS_IO) ||
                      (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)) begin
+          // IO ordering is deliberately stronger than byte overlap.
           poison_r = 1'b1;
         end else begin
-          for (load_byte_i = 0; load_byte_i < `STRB_W;
-               load_byte_i = load_byte_i + 1) begin
-            for (store_byte_i = 0; store_byte_i < `STRB_W;
-                 store_byte_i = store_byte_i + 1) begin
-              load_byte_addr_r = query0_paddr_i + load_byte_i;
-              store_byte_addr_r = paddr_q[entry_idx_r] + store_byte_i;
-              if (query0_strb_i[load_byte_i] &&
-                  strb_q[entry_idx_r][store_byte_i] &&
-                  (load_byte_addr_r == store_byte_addr_r)) begin
-                overlap_r = 1'b1;
-                if (class_q[entry_idx_r] != query0_class_i) begin
-                  poison_r = 1'b1;
-                end else begin
-                  covered_r[load_byte_i] = 1'b1;
-                  query0_forward_data_r[load_byte_i*8 +: 8] =
-                      data_q[entry_idx_r][store_byte_i*8 +: 8];
-                end
-              end
+          if (store_after_delta_r < `STRB_W) begin
+            aligned_store_strb_r = strb_q[entry_idx_r] <<
+                                   store_after_delta_r[2:0];
+            aligned_store_data_r = data_q[entry_idx_r] <<
+                                   {store_after_delta_r[2:0], 3'b000};
+          end else if (store_before_delta_r < `STRB_W) begin
+            aligned_store_strb_r = strb_q[entry_idx_r] >>
+                                   store_before_delta_r[2:0];
+            aligned_store_data_r = data_q[entry_idx_r] >>
+                                   {store_before_delta_r[2:0], 3'b000};
+          end
+          overlap_mask_r = query0_strb_i & aligned_store_strb_r;
+          overlap_data_mask_r = {
+              {8{overlap_mask_r[7]}}, {8{overlap_mask_r[6]}},
+              {8{overlap_mask_r[5]}}, {8{overlap_mask_r[4]}},
+              {8{overlap_mask_r[3]}}, {8{overlap_mask_r[2]}},
+              {8{overlap_mask_r[1]}}, {8{overlap_mask_r[0]}}
+          };
+          if (|overlap_mask_r) begin
+            overlap_r = 1'b1;
+            if (class_q[entry_idx_r] != query0_class_i) begin
+              poison_r = 1'b1;
+            end else begin
+              covered_r = covered_r | overlap_mask_r;
+              query0_forward_data_r =
+                  (query0_forward_data_r & ~overlap_data_mask_r) |
+                  (aligned_store_data_r & overlap_data_mask_r);
             end
           end
         end
       end
+
+`ifndef SYNTHESIS
+      // Only bytes selected by a same-class forwarding overlap must be known;
+      // X in unrelated payload bytes cannot create a false replay.
+      if (entry_participate_r) begin
+        case ({filled_q[entry_idx_r],
+               typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                   class_q[entry_idx_r]),
+               (strb_q[entry_idx_r] == {`STRB_W{1'b0}})})
+          3'b110: begin
+            case ({(query0_class_i == `OOO_MEM_CLASS_IO),
+                   (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)})
+              2'b00: begin
+                case (|overlap_mask_r)
+                  1'b0: begin end
+                  1'b1: begin
+                    case (class_q[entry_idx_r] == query0_class_i)
+                      1'b0: begin end
+                      1'b1: begin
+                        case (^(aligned_store_data_r &
+                                overlap_data_mask_r))
+                          1'b0,
+                          1'b1: begin end
+                          default: poison_r = 1'b1;
+                        endcase
+                      end
+                      default: poison_r = 1'b1;
+                    endcase
+                  end
+                  default: poison_r = 1'b1;
+                endcase
+              end
+              2'b01,
+              2'b10,
+              2'b11: begin end
+              default: poison_r = 1'b1;
+            endcase
+          end
+          default: begin end
+        endcase
+      end
+`endif
     end
     // Plain case/default is intentionally four-state fail-closed in
     // simulation: any unknown validity, age basis, poison, overlap or
@@ -505,15 +656,20 @@ module OooStoreQueue #(
   reg [`XLEN-1:0] query1_forward_data_r;
   always @(*) begin : query1_phys_byte_cam_blk
     integer entry_i;
-    integer load_byte_i;
-    integer store_byte_i;
     reg [ENTRY_COUNT_W-1:0] entry_idx_r;
     reg entry_older_r;
     reg poison_r;
     reg overlap_r;
     reg [`STRB_W-1:0] covered_r;
-    reg [`XLEN-1:0] load_byte_addr_r;
-    reg [`XLEN-1:0] store_byte_addr_r;
+    reg [`XLEN-1:0] store_after_delta_r;
+    reg [`XLEN-1:0] store_before_delta_r;
+    reg [`STRB_W-1:0] aligned_store_strb_r;
+    reg [`XLEN-1:0] aligned_store_data_r;
+    reg [`STRB_W-1:0] overlap_mask_r;
+    reg [`XLEN-1:0] overlap_data_mask_r;
+`ifndef SYNTHESIS
+    reg entry_participate_r;
+`endif
     query1_allow_r = 1'b0;
     query1_forward_r = 1'b0;
     query1_replay_r = 1'b0;
@@ -523,8 +679,36 @@ module OooStoreQueue #(
     covered_r = {`STRB_W{1'b0}};
     entry_idx_r = {ENTRY_COUNT_W{1'b0}};
     entry_older_r = 1'b0;
-    load_byte_addr_r = {`XLEN{1'b0}};
-    store_byte_addr_r = {`XLEN{1'b0}};
+    store_after_delta_r = {`XLEN{1'b0}};
+    store_before_delta_r = {`XLEN{1'b0}};
+    aligned_store_strb_r = {`STRB_W{1'b0}};
+    aligned_store_data_r = {`XLEN{1'b0}};
+    overlap_mask_r = {`STRB_W{1'b0}};
+    overlap_data_mask_r = {`XLEN{1'b0}};
+`ifndef SYNTHESIS
+    entry_participate_r = 1'b0;
+    case (^head_q)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query1_producer_id_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query1_paddr_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+    case (^query1_strb_i)
+      1'b0,
+      1'b1: begin end
+      default: poison_r = 1'b1;
+    endcase
+`endif
+    // Independent bank1 copy of the same bounded offset-and-mask network.
     for (entry_i = 0; entry_i < ENTRY_COUNT; entry_i = entry_i + 1) begin
       entry_idx_r = head_q + entry_i[ENTRY_COUNT_W-1:0];
       entry_older_r = request_sent_q[entry_idx_r] ||
@@ -532,6 +716,65 @@ module OooStoreQueue #(
            (rob_dist(rob_idx_q[entry_idx_r], rob_head_idx_i) <
             rob_dist(query1_producer_id_i[ROB_INDEX_W-1:0],
                      rob_head_idx_i)));
+      store_after_delta_r = paddr_q[entry_idx_r] - query1_paddr_i;
+      store_before_delta_r = query1_paddr_i - paddr_q[entry_idx_r];
+      aligned_store_strb_r = {`STRB_W{1'b0}};
+      aligned_store_data_r = {`XLEN{1'b0}};
+      overlap_mask_r = {`STRB_W{1'b0}};
+      overlap_data_mask_r = {`XLEN{1'b0}};
+
+`ifndef SYNTHESIS
+      entry_participate_r = 1'b0;
+      case (valid_q[entry_idx_r])
+        1'b0: begin end
+        1'b1: begin
+          if ((entry_older_r === 1'b0) ||
+              (terminal_q[entry_idx_r] === 1'b1)) begin
+          end else if ((entry_older_r === 1'b1) &&
+                       (terminal_q[entry_idx_r] === 1'b0)) begin
+            entry_participate_r = 1'b1;
+          end else begin
+            poison_r = 1'b1;
+          end
+        end
+        default: poison_r = 1'b1;
+      endcase
+      if (entry_participate_r) begin
+        case ({filled_q[entry_idx_r],
+               typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                   class_q[entry_idx_r]),
+               (strb_q[entry_idx_r] == {`STRB_W{1'b0}})})
+          3'b110: begin
+            case ({(query1_class_i == `OOO_MEM_CLASS_IO),
+                   (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)})
+              2'b00: begin
+                case (^paddr_q[entry_idx_r])
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+                case (^query1_paddr_i)
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+                case (^strb_q[entry_idx_r])
+                  1'b0,
+                  1'b1: begin end
+                  default: poison_r = 1'b1;
+                endcase
+              end
+              2'b01,
+              2'b10,
+              2'b11: begin end
+              default: poison_r = 1'b1;
+            endcase
+          end
+          default: poison_r = 1'b1;
+        endcase
+      end
+`endif
+
       if (valid_q[entry_idx_r] && entry_older_r &&
           !terminal_q[entry_idx_r]) begin
         if (!filled_q[entry_idx_r] ||
@@ -543,28 +786,77 @@ module OooStoreQueue #(
                      (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)) begin
           poison_r = 1'b1;
         end else begin
-          for (load_byte_i = 0; load_byte_i < `STRB_W;
-               load_byte_i = load_byte_i + 1) begin
-            for (store_byte_i = 0; store_byte_i < `STRB_W;
-                 store_byte_i = store_byte_i + 1) begin
-              load_byte_addr_r = query1_paddr_i + load_byte_i;
-              store_byte_addr_r = paddr_q[entry_idx_r] + store_byte_i;
-              if (query1_strb_i[load_byte_i] &&
-                  strb_q[entry_idx_r][store_byte_i] &&
-                  (load_byte_addr_r == store_byte_addr_r)) begin
-                overlap_r = 1'b1;
-                if (class_q[entry_idx_r] != query1_class_i) begin
-                  poison_r = 1'b1;
-                end else begin
-                  covered_r[load_byte_i] = 1'b1;
-                  query1_forward_data_r[load_byte_i*8 +: 8] =
-                      data_q[entry_idx_r][store_byte_i*8 +: 8];
-                end
-              end
+          if (store_after_delta_r < `STRB_W) begin
+            aligned_store_strb_r = strb_q[entry_idx_r] <<
+                                   store_after_delta_r[2:0];
+            aligned_store_data_r = data_q[entry_idx_r] <<
+                                   {store_after_delta_r[2:0], 3'b000};
+          end else if (store_before_delta_r < `STRB_W) begin
+            aligned_store_strb_r = strb_q[entry_idx_r] >>
+                                   store_before_delta_r[2:0];
+            aligned_store_data_r = data_q[entry_idx_r] >>
+                                   {store_before_delta_r[2:0], 3'b000};
+          end
+          overlap_mask_r = query1_strb_i & aligned_store_strb_r;
+          overlap_data_mask_r = {
+              {8{overlap_mask_r[7]}}, {8{overlap_mask_r[6]}},
+              {8{overlap_mask_r[5]}}, {8{overlap_mask_r[4]}},
+              {8{overlap_mask_r[3]}}, {8{overlap_mask_r[2]}},
+              {8{overlap_mask_r[1]}}, {8{overlap_mask_r[0]}}
+          };
+          if (|overlap_mask_r) begin
+            overlap_r = 1'b1;
+            if (class_q[entry_idx_r] != query1_class_i) begin
+              poison_r = 1'b1;
+            end else begin
+              covered_r = covered_r | overlap_mask_r;
+              query1_forward_data_r =
+                  (query1_forward_data_r & ~overlap_data_mask_r) |
+                  (aligned_store_data_r & overlap_data_mask_r);
             end
           end
         end
       end
+
+`ifndef SYNTHESIS
+      if (entry_participate_r) begin
+        case ({filled_q[entry_idx_r],
+               typed_attr_admitted(attr_valid_q[entry_idx_r],
+                                   class_q[entry_idx_r]),
+               (strb_q[entry_idx_r] == {`STRB_W{1'b0}})})
+          3'b110: begin
+            case ({(query1_class_i == `OOO_MEM_CLASS_IO),
+                   (class_q[entry_idx_r] == `OOO_MEM_CLASS_IO)})
+              2'b00: begin
+                case (|overlap_mask_r)
+                  1'b0: begin end
+                  1'b1: begin
+                    case (class_q[entry_idx_r] == query1_class_i)
+                      1'b0: begin end
+                      1'b1: begin
+                        case (^(aligned_store_data_r &
+                                overlap_data_mask_r))
+                          1'b0,
+                          1'b1: begin end
+                          default: poison_r = 1'b1;
+                        endcase
+                      end
+                      default: poison_r = 1'b1;
+                    endcase
+                  end
+                  default: poison_r = 1'b1;
+                endcase
+              end
+              2'b01,
+              2'b10,
+              2'b11: begin end
+              default: poison_r = 1'b1;
+            endcase
+          end
+          default: begin end
+        endcase
+      end
+`endif
     end
     case (query1_valid_i)
       1'b1: begin

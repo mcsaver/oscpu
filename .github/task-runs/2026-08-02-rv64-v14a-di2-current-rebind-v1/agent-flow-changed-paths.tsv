@@ -1,0 +1,7 @@
+.github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh
+.github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py
+npc/rv64/eval/ppa/tools/width_continuity_evidence.py
+npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py
+npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py
+.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1

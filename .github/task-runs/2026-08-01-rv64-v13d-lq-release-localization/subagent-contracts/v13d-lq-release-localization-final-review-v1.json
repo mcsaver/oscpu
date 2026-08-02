@@ -1,0 +1,60 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13d-lq-release-localization-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 OooLoadQueue V13D per-entry release local-fire 负候选的功能反例、局部 Yosys/OpenSTA A/B、早停决策、live RTL 回退和证据留存做独立终审，判断是否存在假绿、超等级 PPA 声明或未恢复 production 语义。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/cleanup-summary.md",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/source",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/logs",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/ppa",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/subagent-contracts/v13d-lq-release-localization-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/summary.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Parent/current live design-id=29c0afe8…f483；回退后 OooLoadQueue.v/TB/spec SHA-256 分别为 5dc60f2f…c92f、1779aa1a…a74、e2d5f60d…6a6，与 V13B parent 身份一致；candidate OooLoadQueue.v SHA-256=b51b23fc…d13f，快照独立保留。",
+      "冻结 parent RTL 与 candidate-only raw-state TB 编译成功后得到 3 个预期 check failure：lane0/1 incomplete duplicate 被 global fire 跨清，随后 completion bypass 因 entry 已丢失失败；candidate 同一 TB PASS，覆盖 lane 隔离、同拍 completion bypass、unknown-only、1|X 与 commit=X 外部可见性。",
+      "candidate 默认 OOO_ASSERT focused PASS；producer semantic GEN_W=1/4×assert on/off 四档 PASS；真实 tb_ooo_int_backend PASS；DI-5 64 周期、IPC 2.000、completion=64/64 PASS；回退后默认断言 focused 再次 PASS。没有削弱或删除 assertion。",
+      "同配置 coarse A/B 均为 4568 cells、1790 mux、41922 wire bits；mapped 由 18979 cells/44073.68 area 变为 19272/44773.12，sequential area 均 9264.64；5ns ideal-clock OpenSTA worst slack 由 +3.475173950ns 变为 +3.469281435ns，candidate area 与 timing 同时被 baseline 支配。",
+      "因局部 mapped/STA 已给出 DOMINATED，未运行 NpcTop coarse、full-core mapped/STA、style、31x2 mutation、power 或 system；这属于信息增益早停，不把 NOT_RUN 解释为 PASS。candidate-specific invalid duplicate-PID TB 处置为 OBSOLETE_WITH_EVIDENCE，源码快照和正负日志保留，未进入当前 aggregate。",
+      "已删除精确 runtime-artifacts 目录中的 260235414 bytes/38 个可再生网表与中间文件；task-run 保留 16 个 PPA statistic/check/STA/log 文件以及功能日志和源码快照。原始 A3/A4 状态未触碰；candidate 已回退，full_system_rerun_required=NO、launch_authorization_state=NOT_REQUIRED。"
+    ]
+  },
+  "deliverables": [
+    "独立检查任务分类、反例敏感性、四态边界、mapped/STA 数值、早停合理性、回退身份、OBSOLETE_WITH_EVIDENCE 处置、断言完整性、清理留存与系统重跑判定；列出反例、未知项和证据范围，最终给出 APPROVED_NOT_PROMOTION_ELIGIBLE、REJECTED_FAKE_GREEN_RISK、REJECTED_EVIDENCE_MISMATCH 或 GAP。"
+  ],
+  "success_criteria": [
+    "只有在负候选未被包装成 PPA 改善、所有未运行 gate 明确 NOT_RUN、live production 三个哈希真实恢复、候选快照与负向日志保留、断言未削弱、早停没有遮蔽可能改变 rollback 决策的低成本证据，且系统结论仅限回退后无需为该候选重跑时才批准。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

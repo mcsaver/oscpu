@@ -75,6 +75,8 @@ module CsrFile (
       `MIE_SSIE | `MIE_STIE | `MIE_SEIE;
   localparam [`XLEN-1:0] MACHINE_INT_MASK =
       `MIE_MSIE | `MIE_MTIE | `MIE_MEIE;
+  localparam [`XLEN-1:0] MEDELEG_IMPLEMENTED_MASK =
+      64'h0000_0000_0000_b3ff;
   // MXL=64 + U/S/M/I/A/C(base 0x141105) | D(bit3) | F(bit5) | B(bit1)。★2026-07-07: 补 misa.B
   // ——本核实现 Zba+Zbb+Zbs(= 2023 ratified B 扩展; core-regress rv64uzba/uzbb/uzbs 全绿, 另含 Zbc),
   // 按 spec 实现 B 就应报 misa.B=1; 原缺此位与金标 RV64 NEMU(misa.B=1)分歧(全状态 difftest 暴露)。
@@ -143,6 +145,21 @@ module CsrFile (
         `PRIV_M: encode_mpp = `MSTATUS_MPP_M;
         default: encode_mpp = {`XLEN{1'b0}};
       endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] sanitize_mstatus_write;
+    input [`XLEN-1:0] value;
+    begin
+      // U/S/M are implemented.  The remaining MPP=2 encoding is reserved and
+      // is canonicalized to U instead of being retained in architectural state.
+      if ((value & `MSTATUS_MPP_MASK) == 64'h0000_0000_0000_1000)
+        sanitize_mstatus_write =
+            (value & MSTATUS_WRITABLE_MASK & ~`MSTATUS_MPP_MASK) |
+            `MSTATUS_SXL_UXL;
+      else
+        sanitize_mstatus_write =
+            (value & MSTATUS_WRITABLE_MASK) | `MSTATUS_SXL_UXL;
     end
   endfunction
 
@@ -442,6 +459,7 @@ module CsrFile (
     reg csr_counter_s_allowed;
     reg csr_counter_allowed;
     reg csr_satp_tvm_illegal;
+    reg csr_fp_state_off_illegal;
     begin
       csr_counter_m_allowed =
           (csr_mcounteren & csr_counter_bit(csr_addr)) != {`XLEN{1'b0}};
@@ -456,10 +474,16 @@ module CsrFile (
       csr_satp_tvm_illegal =
           (csr_addr == `CSR_SATP) && (priv_mode == `PRIV_S) &&
           ((csr_mstatus & `MSTATUS_TVM) != {`XLEN{1'b0}});
+      csr_fp_state_off_illegal =
+          ((csr_addr == `CSR_FFLAGS) ||
+           (csr_addr == `CSR_FRM) ||
+           (csr_addr == `CSR_FCSR)) &&
+          ((csr_mstatus & `MSTATUS_FS_MASK) == {`XLEN{1'b0}});
       csr_access_illegal_raw =
           !csr_addr_known(csr_addr) ||
           !(priv_mode >= csr_addr[9:8]) ||
           csr_satp_tvm_illegal ||
+          csr_fp_state_off_illegal ||
           !csr_counter_allowed ||
           (csr_write_intent(csr_funct3, csr_rs1_idx) &&
            !csr_addr_writable(csr_addr));
@@ -678,13 +702,13 @@ module CsrFile (
       (csr_addr_i == `CSR_FRM)      ? {{(`XLEN-3){1'b0}}, csr_frm_q} :
       (csr_addr_i == `CSR_FCSR)     ? {{(`XLEN-8){1'b0}}, csr_frm_q, csr_fflags_q} :
       (csr_addr_i == `CSR_SSTATUS)  ? csr_sstatus_visible_w :
-      (csr_addr_i == `CSR_SIE)      ? (csr_mie_q & SUPERVISOR_INT_MASK) :
+      (csr_addr_i == `CSR_SIE)      ? (csr_mie_q & delegated_s_irq_mask_w) :
       (csr_addr_i == `CSR_STVEC)    ? csr_stvec_q :
       (csr_addr_i == `CSR_SSCRATCH) ? csr_sscratch_q :
       (csr_addr_i == `CSR_SEPC)     ? csr_sepc_q :
       (csr_addr_i == `CSR_SCAUSE)   ? csr_scause_q :
       (csr_addr_i == `CSR_STVAL)    ? csr_stval_q :
-      (csr_addr_i == `CSR_SIP)      ? (csr_mip_visible_w & SUPERVISOR_INT_MASK) :
+      (csr_addr_i == `CSR_SIP)      ? (csr_mip_visible_w & delegated_s_irq_mask_w) :
       (csr_addr_i == `CSR_SCOUNTEREN) ? csr_scounteren_q :
       (csr_addr_i == `CSR_SATP)     ? csr_satp_q :
       (csr_addr_i == `CSR_MSTATUS)  ? csr_mstatus_visible_w :
@@ -985,19 +1009,29 @@ module CsrFile (
               csr_pmpaddr_q[csr_pmpaddr_idx_w] <= csr_pmpaddr_write_value_w;
           end else begin
             case (csr_addr_i)
-            `CSR_FFLAGS:   csr_fflags_q <= csr_new_value_w[4:0];
-            `CSR_FRM:      csr_frm_q <= csr_new_value_w[2:0];
+            `CSR_FFLAGS: begin
+              csr_fflags_q <= csr_new_value_w[4:0];
+              csr_mstatus_q <=
+                  (csr_mstatus_q & ~`MSTATUS_FS_MASK) | `MSTATUS_FS_DIRTY;
+            end
+            `CSR_FRM: begin
+              csr_frm_q <= csr_new_value_w[2:0];
+              csr_mstatus_q <=
+                  (csr_mstatus_q & ~`MSTATUS_FS_MASK) | `MSTATUS_FS_DIRTY;
+            end
             `CSR_FCSR: begin
               csr_fflags_q <= csr_new_value_w[4:0];
               csr_frm_q <= csr_new_value_w[7:5];
+              csr_mstatus_q <=
+                  (csr_mstatus_q & ~`MSTATUS_FS_MASK) | `MSTATUS_FS_DIRTY;
             end
             `CSR_SSTATUS:  csr_mstatus_q <=
                 ((csr_mstatus_q & ~SSTATUS_WRITABLE_MASK) |
                  (csr_new_value_w & SSTATUS_WRITABLE_MASK) |
                  `MSTATUS_SXL_UXL);
             `CSR_SIE:      csr_mie_q <=
-                (csr_mie_q & ~SUPERVISOR_INT_MASK) |
-                (csr_new_value_w & SUPERVISOR_INT_MASK);
+                (csr_mie_q & ~delegated_s_irq_mask_w) |
+                (csr_new_value_w & delegated_s_irq_mask_w);
             `CSR_STVEC:    csr_stvec_q <= tvec_warl_value(csr_new_value_w);
             `CSR_SSCRATCH: csr_sscratch_q <= csr_new_value_w;
             `CSR_SEPC:     csr_sepc_q <= epc_warl_value(csr_new_value_w);
@@ -1007,14 +1041,16 @@ module CsrFile (
             // 只读（由 M 态/硬件控制）。旧实现用 SUPERVISOR_INT_MASK 放行了 STIP/SEIP 写
             // → S 态可伪造 S 级 timer/external 中断（WARL 违规）。收紧为仅 SSIP 可写。
             `CSR_SIP:      csr_mip_q <=
-                (csr_mip_q & ~`MIP_SSIP) |
-                (csr_new_value_w & `MIP_SSIP);
+                (csr_mip_q & ~(delegated_s_irq_mask_w & `MIP_SSIP)) |
+                (csr_new_value_w & delegated_s_irq_mask_w & `MIP_SSIP);
             `CSR_SCOUNTEREN: csr_scounteren_q <= csr_new_value_w & `COUNTEREN_MASK;
             `CSR_SATP:     csr_satp_q <= sanitize_satp(csr_new_value_w);
             `CSR_MSTATUS:  csr_mstatus_q <=
-                (csr_new_value_w & MSTATUS_WRITABLE_MASK) | `MSTATUS_SXL_UXL;
-            `CSR_MEDELEG:  csr_medeleg_q <= csr_new_value_w;
-            `CSR_MIDELEG:  csr_mideleg_q <= csr_new_value_w;
+                sanitize_mstatus_write(csr_new_value_w);
+            `CSR_MEDELEG:  csr_medeleg_q <=
+                csr_new_value_w & MEDELEG_IMPLEMENTED_MASK;
+            `CSR_MIDELEG:  csr_mideleg_q <=
+                csr_new_value_w & SUPERVISOR_INT_MASK;
             `CSR_MIE:      csr_mie_q <= csr_new_value_w &
                 (MACHINE_INT_MASK | SUPERVISOR_INT_MASK);
             `CSR_MTVEC:    csr_mtvec_q <= tvec_warl_value(csr_new_value_w);

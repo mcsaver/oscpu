@@ -43,7 +43,7 @@ def write_json(root: pathlib.Path, relative: str, value: object) -> pathlib.Path
 
 
 class FunctionalFixture:
-    def __init__(self) -> None:
+    def __init__(self, *, am_count: int = 59) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="rv64-functional-v2-")
         self.root = pathlib.Path(self.temp.name)
         self.design_id = "sha256:" + "a" * 64
@@ -111,7 +111,8 @@ class FunctionalFixture:
                 "raw_log": raw.relative_to(self.root).as_posix(),
             })
         official = self._suite_records("official", 177, "Difftest: OFF\nTOHOST PASS\n")
-        am = self._suite_records("am", 59, "Difftest: ON\nHIT GOOD TRAP\n")
+        am = self._suite_records(
+            "am", am_count, "Difftest: ON\nHIT GOOD TRAP\n")
         coremark_image = write_bytes(
             self.root, "evidence/images/coremark.bin", b"coremark-image")
         dhrystone_image = write_bytes(
@@ -286,6 +287,51 @@ class FunctionalAggregateTests(unittest.TestCase):
                 functional.build_aggregate(
                     fixture.root, fixture.descriptor_value,
                     fixture.root / "evidence/off-wrapped")
+        finally:
+            fixture.close()
+
+    def test_am_inventory_count_is_dynamic_but_internally_exact(self) -> None:
+        fixture = FunctionalFixture(am_count=3)
+        try:
+            result = fixture.assemble()
+            self.assertEqual(result["counts"]["am_required"], 3)
+            self.assertEqual(result["counts"]["am_passed"], 3)
+
+            paths = {
+                "functional_aggregate_result": (
+                    fixture.root / functional.freeze.F0_RESULT_PATH),
+                "functional_aggregate": (
+                    fixture.root / functional.freeze.F0_AGGREGATE_PATH),
+                "raw_log": fixture.root / functional.freeze.F0_RAW_PATH,
+                "mutation_summary": fixture.root / "evidence/mutations.json",
+            }
+            entry = {
+                "canonical_command": functional.CANONICAL_COMMAND,
+                "evidence": [
+                    {
+                        "kind": kind,
+                        "path": path.relative_to(fixture.root).as_posix(),
+                        "sha256": functional.sha256_file(path),
+                    }
+                    for kind, path in paths.items()
+                ],
+            }
+            self.assertEqual(
+                functional.freeze.validate_f0_debt(
+                    fixture.root, entry, fixture.design_id),
+                [],
+            )
+
+            aggregate = json.loads(
+                (fixture.root / functional.freeze.F0_AGGREGATE_PATH).read_text(
+                    encoding="utf-8"))
+            aggregate["am"]["passed"] = 2
+            _checks, blockers, _observed = functional.validate_aggregate(
+                fixture.root, aggregate, ["tb_a", "tb_b"])
+            self.assertTrue(
+                any("functional.am" in blocker for blocker in blockers),
+                blockers,
+            )
         finally:
             fixture.close()
 

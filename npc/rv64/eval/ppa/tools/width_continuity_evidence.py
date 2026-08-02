@@ -98,6 +98,35 @@ def require_once(text: str, marker: str, label: str) -> None:
         raise ValueError(f"{label}: expected unique marker {marker}")
 
 
+def validate_predecessor_receipt(text: str, design_id: str) -> str:
+    fresh_marker = "[V8Z-DI1-RUNNER][PASS]"
+    reuse_prefix = "[ARCH-CURRENT-PREDECESSORS][PASS]"
+    reuse_matches = re.findall(
+        r"^\[ARCH-CURRENT-PREDECESSORS\]\[PASS\] "
+        r"design_id=(sha256:[0-9a-f]{64}) green=8 red=1 next=DI-2$",
+        text,
+        flags=re.MULTILINE,
+    )
+    fresh_count = text.count(fresh_marker)
+    if fresh_count > 1 or text.count(reuse_prefix) != len(reuse_matches):
+        raise ValueError("same-design predecessor receipt is ambiguous or malformed")
+    if (
+        "[V8Z-DI1-RUNNER][FAIL]" in text
+        or "[ARCH-CURRENT-PREDECESSORS][FAIL]" in text
+    ):
+        raise ValueError("same-design predecessor refresh emitted a failure marker")
+    modes = []
+    if fresh_count == 1:
+        modes.append("fresh_replay")
+    if len(reuse_matches) == 1:
+        if reuse_matches[0] != design_id:
+            raise ValueError("reused predecessor receipt has a stale RTL design id")
+        modes.append("current_hard_gate_reuse")
+    if len(modes) != 1:
+        raise ValueError("expected exactly one valid same-design predecessor receipt")
+    return modes[0]
+
+
 def parse_key_value_line(
     line: str, prefix: str, expected_keys: tuple[str, ...], label: str,
 ) -> dict[str, str]:
@@ -272,7 +301,10 @@ def reconstruct_mutant_hashes(root: pathlib.Path, spec: Any) -> dict[str, str]:
 
 
 def read_mutations(
-    root: pathlib.Path, path: pathlib.Path, suite_run_id: str,
+    root: pathlib.Path,
+    path: pathlib.Path,
+    suite_run_id: str,
+    mutation_rel: pathlib.Path,
 ) -> tuple[dict[str, Any], dict[str, list[str]]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     results = payload.get("results")
@@ -314,8 +346,7 @@ def read_mutations(
     for item in results:
         name = item["name"]
         spec = specs[name]
-        expected_rel = pathlib.Path(
-            f".github/task-runs/{RUN_ID}/evidence/mutations/{name}.log")
+        expected_rel = mutation_rel / f"{name}.log"
         reconstructed = reconstruct_mutant_hashes(root, spec)
         original = {
             rel: arch.digest(arch.safe_artifact(root, rel))
@@ -328,6 +359,9 @@ def read_mutations(
             or item.get("targets") != sorted(reconstructed)
             or item.get("original_sha256") != original
             or item.get("mutant_sha256") != reconstructed
+            or not arch.is_sha256(item.get("image_sha256"))
+            or item.get("edit_anchor_count") != len(spec.edits)
+            or item.get("activated") is not True
             or item.get("mutant_nonidentical") is not True
             or item.get("compile_success") is not True
             or item.get("compile_rc") != 0
@@ -339,10 +373,17 @@ def read_mutations(
             raise ValueError(f"{name}: compile-success mutation did not reject")
         log = arch.safe_artifact(root, expected_rel.as_posix())
         text = log.read_text(encoding="utf-8")
+        result_fail = text.count("[RESULT] FAIL") == 1
+        fatal_fail = (
+            text.count(f"[FAIL] {mutation_model.TEST} errors=") == 1
+            and text.count("FATAL:") == 1
+        )
         if (
             text.count("[COMPILE] ") != 1
             or text.count("[RUN] ") != 1
             or item["witness"] not in text
+            or int(result_fail) + int(fatal_fail) != 1
+            or "[RESULT] PASS" in text
             or f"[PASS] {mutation_model.TEST}" in text
         ):
             raise ValueError(f"{name}: mutation log is incomplete")
@@ -370,6 +411,83 @@ def resolve_exact_input(
     return actual
 
 
+def task_run_evidence_rel(task_run_id: str, suffix: str) -> pathlib.Path:
+    if not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9._-]*",
+        task_run_id,
+    ):
+        raise ValueError("malformed local RV64 DI-2 task-run id")
+    if suffix not in {"di2-current", "di2-mutations"}:
+        raise ValueError("unsupported local RV64 DI-2 evidence suffix")
+    return pathlib.Path(".github/task-runs") / task_run_id / "evidence" / suffix
+
+
+def validate_scope_receipt(
+    path: pathlib.Path,
+    task_run_id: str,
+    evidence_root_rel: pathlib.Path,
+) -> dict[str, str]:
+    expected = [
+        "schema=rv64-di2-scoped-run-v1",
+        "mode=scoped",
+        f"task_run_id={task_run_id}",
+        f"evidence_root={evidence_root_rel.as_posix()}",
+        "canonical_manifest_write=0",
+        "historical_evidence_write=0",
+    ]
+    if path.read_text(encoding="utf-8").splitlines() != expected:
+        raise ValueError("DI-2 scoped-run receipt is malformed")
+    return {
+        "schema": "rv64-di2-scoped-run-v1",
+        "mode": "scoped",
+        "task_run_id": task_run_id,
+        "evidence_root": evidence_root_rel.as_posix(),
+        "canonical_manifest_write": "0",
+        "historical_evidence_write": "0",
+    }
+
+
+def validate_simulator_config(path: pathlib.Path) -> dict[str, str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    expected_prefix = [
+        "schema=rv64-di2-simulator-config-v1",
+        "target=v9a-width-continuity",
+        "assert_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon -DOOO_ASSERT",
+        "release_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon",
+        "stall_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon",
+        "mutation_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon "
+        "-DV9A_WIDTH_CONTINUITY_FOCUSED",
+    ]
+    if len(lines) != 8 or lines[:6] != expected_prefix:
+        raise ValueError("DI-2 simulator/config receipt is malformed")
+    result = {
+        "schema": "rv64-di2-simulator-config-v1",
+        "target": "v9a-width-continuity",
+        "assert_ivflags": expected_prefix[2].split("=", 1)[1],
+        "release_ivflags": expected_prefix[3].split("=", 1)[1],
+        "stall_ivflags": expected_prefix[4].split("=", 1)[1],
+        "mutation_ivflags": expected_prefix[5].split("=", 1)[1],
+    }
+    for expected_role, line in zip(("iverilog", "vvp"), lines[6:]):
+        fields = line.split(maxsplit=2)
+        if (
+            len(fields) != 3
+            or fields[0] != expected_role
+            or not arch.is_sha256(fields[1])
+        ):
+            raise ValueError(f"DI-2 {expected_role} receipt is malformed")
+        binary = pathlib.Path(fields[2]).resolve(strict=True)
+        if not binary.is_file() or arch.digest(binary) != fields[1]:
+            raise ValueError(f"DI-2 {expected_role} binary digest is stale")
+        result[f"{expected_role}_path"] = binary.as_posix()
+        result[f"{expected_role}_sha256"] = fields[1]
+    return result
+
+
 def workspace_output(root: pathlib.Path, value: pathlib.Path) -> pathlib.Path:
     path = value if value.is_absolute() else root / value
     path = path.resolve()
@@ -384,14 +502,17 @@ def workspace_output(root: pathlib.Path, value: pathlib.Path) -> pathlib.Path:
 def read_suite_run_id(path: pathlib.Path) -> str:
     lines = path.read_text(encoding="utf-8").splitlines()
     if len(lines) != 1 or not re.fullmatch(
-        r"v9a-di2-[0-9]{8}T[0-9]{6}Z-[0-9]+", lines[0]
+        r"v[0-9]+[a-z0-9]*-di2-[0-9]{8}T[0-9]{6}Z-[0-9]+", lines[0]
     ):
         raise ValueError("V9A suite run id is malformed")
     return lines[0]
 
 
-def snapshot_sources(root: pathlib.Path, output: pathlib.Path) -> None:
-    paths = arch.WIDTH_CONTINUITY_SOURCE_PATHS
+def snapshot_sources(
+    root: pathlib.Path,
+    output: pathlib.Path,
+    paths: tuple[str, ...],
+) -> None:
     if len(set(paths)) != len(paths):
         raise ValueError("DI-2 source inventory contains duplicate paths")
     lines = [
@@ -443,32 +564,99 @@ def validate_same_design_predecessors(
 
 def build(args: argparse.Namespace) -> None:
     root = args.repo_root.resolve(strict=True)
+    task_run_mode = args.proof_mode == "task-run-v1"
+    task_run_id = args.task_run_id if task_run_mode else RUN_ID
+    if task_run_mode:
+        evidence_rel = task_run_evidence_rel(task_run_id, "di2-current")
+        evidence_root_rel = evidence_rel.parent
+        mutation_rel = task_run_evidence_rel(task_run_id, "di2-mutations")
+        suite_run_id_rel = evidence_rel / "suite-run-id.txt"
+        source_pre_rel = evidence_rel / "sources.pre.sha256"
+        source_post_rel = evidence_rel / "sources.post.sha256"
+        width_log_rels = {
+            profile: evidence_rel / f"focused/{profile}/logs/"
+                                    "tb_ooo_core_top_glue_v9a_width_continuity.log"
+            for profile in ("assert", "release")
+        }
+        stall_log_rel = evidence_rel / (
+            "stall-probe/logs/"
+            "tb_ooo_core_top_glue_v9a_width_stall_probe.log")
+        regression_rels = {
+            name: evidence_rel / f"regressions/logs/{name}.log"
+            for name in REGRESSION_NAMES
+        }
+        mutation_summary_rel = mutation_rel / "summary.json"
+        predecessor_rel = None
+        scope_receipt_rel = evidence_rel / "static/scoped-run.txt"
+        simulator_config_rel = evidence_rel / "static/simulator-config.txt"
+        architecture_unit_rel = evidence_rel / "static/architecture-unit.log"
+        source_paths = arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS
+    else:
+        evidence_rel = BASE
+        evidence_root_rel = BASE.parent
+        mutation_rel = MUTATION_SUMMARY_REL.parent
+        suite_run_id_rel = SUITE_RUN_ID_REL
+        source_pre_rel = SOURCE_PRE_REL
+        source_post_rel = SOURCE_POST_REL
+        width_log_rels = WIDTH_LOG_RELS
+        stall_log_rel = STALL_LOG_REL
+        regression_rels = REGRESSION_RELS
+        mutation_summary_rel = MUTATION_SUMMARY_REL
+        predecessor_rel = PREDECESSOR_LOG_REL
+        scope_receipt_rel = None
+        simulator_config_rel = None
+        architecture_unit_rel = BASE / "static/architecture-unit.log"
+        source_paths = arch.WIDTH_CONTINUITY_SOURCE_PATHS
+
     suite_path = resolve_exact_input(
-        root, args.suite_run_id_file, SUITE_RUN_ID_REL)
-    sources_pre = resolve_exact_input(root, args.sources_pre, SOURCE_PRE_REL)
-    sources_post = resolve_exact_input(root, args.sources_post, SOURCE_POST_REL)
+        root, args.suite_run_id_file, suite_run_id_rel)
+    sources_pre = resolve_exact_input(root, args.sources_pre, source_pre_rel)
+    sources_post = resolve_exact_input(root, args.sources_post, source_post_rel)
     mutation_path = resolve_exact_input(
-        root, args.mutation_summary, MUTATION_SUMMARY_REL)
-    predecessor_log = arch.safe_artifact(root, PREDECESSOR_LOG_REL.as_posix())
+        root, args.mutation_summary, mutation_summary_rel)
+    predecessor_log = (
+        arch.safe_artifact(root, predecessor_rel.as_posix())
+        if predecessor_rel is not None else None
+    )
+    architecture_unit_log = arch.safe_artifact(
+        root, architecture_unit_rel.as_posix())
+    scope_receipt_path: pathlib.Path | None = None
+    simulator_config_path: pathlib.Path | None = None
+    scope_receipt: dict[str, str] | None = None
+    simulator_config: dict[str, str] | None = None
+    if task_run_mode:
+        if args.scope_receipt is None or args.simulator_config is None:
+            raise ValueError("scoped DI-2 build requires scope and simulator receipts")
+        assert scope_receipt_rel is not None
+        assert simulator_config_rel is not None
+        scope_receipt_path = resolve_exact_input(
+            root, args.scope_receipt, scope_receipt_rel)
+        simulator_config_path = resolve_exact_input(
+            root, args.simulator_config, simulator_config_rel)
+        scope_receipt = validate_scope_receipt(
+            scope_receipt_path, task_run_id, evidence_root_rel)
+        simulator_config = validate_simulator_config(simulator_config_path)
+    elif args.scope_receipt is not None or args.simulator_config is not None:
+        raise ValueError("canonical DI-2 build does not accept scoped receipts")
     width_logs = {
-        profile: resolve_exact_input(root, value, WIDTH_LOG_RELS[profile])
+        profile: resolve_exact_input(root, value, width_log_rels[profile])
         for profile, value in (
             ("assert", args.width_assert_log),
             ("release", args.width_release_log),
         )
     }
-    stall_log = resolve_exact_input(root, args.stall_log, STALL_LOG_REL)
+    stall_log = resolve_exact_input(root, args.stall_log, stall_log_rel)
     regression_logs = {
-        name: resolve_exact_input(root, value, REGRESSION_RELS[name])
+        name: resolve_exact_input(root, value, regression_rels[name])
         for name, value in zip(REGRESSION_NAMES, args.regression_log)
     }
 
     pre_sources = arch.validate_source_manifest(
-        root, sources_pre, arch.WIDTH_CONTINUITY_SOURCE_PATHS)
+        root, sources_pre, source_paths)
     post_sources = arch.validate_source_manifest(
-        root, sources_post, arch.WIDTH_CONTINUITY_SOURCE_PATHS)
+        root, sources_post, source_paths)
     if pre_sources != post_sources or sources_pre.read_bytes() != sources_post.read_bytes():
-        raise ValueError("canonical DI-2 proof sources changed during execution")
+        raise ValueError("DI-2 proof sources changed during execution")
 
     suite_run_id = read_suite_run_id(suite_path)
     observations = {
@@ -483,18 +671,26 @@ def build(args: argparse.Namespace) -> None:
         stall_log.read_text(encoding="utf-8"))
     for name, path in regression_logs.items():
         clean_regression_text(path.read_text(encoding="utf-8"), name)
-    predecessor_text = predecessor_log.read_text(encoding="utf-8")
-    require_once(
-        predecessor_text, "[V8Z-DI1-RUNNER][PASS]", "same-design predecessors")
-    if "[V8Z-DI1-RUNNER][FAIL]" in predecessor_text:
-        raise ValueError("same-design predecessor refresh emitted failure")
     mutation_payload, mutation_coverage = read_mutations(
-        root, mutation_path, suite_run_id)
+        root, mutation_path, suite_run_id, mutation_rel)
 
     source_sha, rtl_files = arch.rtl_binding(root)
     design_id = f"sha256:{source_sha}"
     manifest = workspace_output(root, args.manifest)
-    before_manifest = validate_same_design_predecessors(manifest, design_id)
+    if task_run_mode:
+        if manifest.exists():
+            raise ValueError("scoped DI-2 manifest must start absent")
+        predecessor_mode = "scoped_current_no_sibling_promotion"
+        before_manifest: dict[str, Any] = {"tests": {}}
+    else:
+        if predecessor_log is None:
+            raise ValueError("same-design predecessor receipt is missing")
+        predecessor_text = predecessor_log.read_text(encoding="utf-8")
+        predecessor_mode = validate_predecessor_receipt(
+            predecessor_text, design_id)
+        if not manifest.is_file():
+            raise ValueError("same-design architecture evidence manifest is missing")
+        before_manifest = validate_same_design_predecessors(manifest, design_id)
     metrics = {
         "trace_cycles": 64,
         "independent_alu_ipc": 2.0,
@@ -514,27 +710,67 @@ def build(args: argparse.Namespace) -> None:
     if failures:
         raise ValueError(f"DI-2 metric mapping rejected: {failures}")
 
+    provenance_paths = (
+        arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS
+        if task_run_mode else arch.WIDTH_CONTINUITY_PROVENANCE_PATHS
+    )
     provenance_files = {
         rel: arch.digest(arch.safe_artifact(root, rel))
-        for rel in arch.WIDTH_CONTINUITY_PROVENANCE_PATHS
+        for rel in provenance_paths
     }
     provenance_sha = arch.canonical_digest(provenance_files)
-    proof_paths = (
-        suite_path, sources_pre, sources_post, mutation_path, predecessor_log,
-        stall_log, *width_logs.values(), *regression_logs.values(),
-        *(arch.safe_artifact(
-            root, f".github/task-runs/{RUN_ID}/evidence/mutations/{name}.log",
-        ) for name in arch.WIDTH_CONTINUITY_MUTATION_NAMES),
-    )
+    proof_paths: dict[str, pathlib.Path] = {
+        "width_assert": width_logs["assert"],
+        "width_release": width_logs["release"],
+        "stall_probe": stall_log,
+        **{
+            f"regression_{name}": path
+            for name, path in regression_logs.items()
+        },
+        "mutation_summary": mutation_path,
+        **{
+            f"mutation_{name}": arch.safe_artifact(
+                root, (mutation_rel / f"{name}.log").as_posix())
+            for name in arch.WIDTH_CONTINUITY_MUTATION_NAMES
+        },
+        "sources_pre": sources_pre,
+        "sources_post": sources_post,
+        "architecture_unit": architecture_unit_log,
+    }
+    if task_run_mode:
+        assert scope_receipt_path is not None
+        assert simulator_config_path is not None
+        proof_paths.update({
+            "scope_receipt": scope_receipt_path,
+            "simulator_config": simulator_config_path,
+        })
+        if set(proof_paths) != set(
+            arch.WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES
+        ):
+            raise ValueError("scoped DI-2 proof role inventory mismatch")
+    elif predecessor_log is not None:
+        proof_paths["predecessor_receipt"] = predecessor_log
+    artifact_paths = {"suite_run_id": suite_path, **proof_paths}
     artifacts = {
         path.relative_to(root).as_posix(): arch.digest(path)
-        for path in proof_paths
+        for path in artifact_paths.values()
+    }
+    proof_files = {
+        role: {
+            "path": path.relative_to(root).as_posix(),
+            "sha256": arch.digest(path),
+        }
+        for role, path in proof_paths.items()
+    }
+    proof_digest_map = {
+        role: f"{item['path']}:{item['sha256']}"
+        for role, item in proof_files.items()
     }
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     gate_log = workspace_output(root, args.gate_log)
     gate_lines = [
         "DI-2 local RV64 seven-boundary width-continuity evidence",
-        f"task_run_id={RUN_ID}",
+        f"task_run_id={task_run_id}",
         f"suite_run_id={suite_run_id}",
         f"generated_at_utc={generated_at}",
         f"design_id={design_id}",
@@ -546,6 +782,7 @@ def build(args: argparse.Namespace) -> None:
         f"compile_success_rtl_mutations={len(mutation_model.MUTATIONS)}",
         f"adjacent_regressions={len(regression_logs)}",
         "fixed_window_stall_probe=dynamic_reject",
+        f"proof_mode={args.proof_mode}",
     ]
     gate_lines.extend(
         f"boundary {boundary} total=128 peak=2 dual_cycles=64"
@@ -596,8 +833,18 @@ def build(args: argparse.Namespace) -> None:
             "production_sources_unchanged": True,
             "reconstructed_non_noop": len(mutation_model.MUTATIONS),
         },
-        "predecessor_tests": sorted(before_manifest["tests"]),
+        **({"scope_receipt": scope_receipt} if scope_receipt is not None else {}),
+        **({"simulator_config": simulator_config}
+           if simulator_config is not None else {}),
+        "predecessor_tests": sorted(
+            set(before_manifest["tests"]) - {"width_continuity"}),
+        "predecessor_evidence_mode": predecessor_mode,
         "provenance": {
+            **({
+                "mode": "task-run-v1",
+                "proof_files": proof_files,
+                "proof_sha256": arch.canonical_digest(proof_digest_map),
+            } if task_run_mode else {}),
             "files": provenance_files,
             "rtl_file_count": len(rtl_files),
             "rtl_sha256": source_sha,
@@ -616,6 +863,7 @@ def build(args: argparse.Namespace) -> None:
         },
         "status": "PASS",
         "suite_run_id": suite_run_id,
+        "task_run_id": task_run_id,
         "trace_sha256": observations["assert"]["trace_sha256"],
         "stall_probe": {
             "trace_cycles": stall_metrics["trace_cycles"],
@@ -634,7 +882,8 @@ def build(args: argparse.Namespace) -> None:
     print(
         "[V9A-DI2-EVIDENCE][PASS] width_continuity "
         f"suite_run_id={suite_run_id} design_id={design_id} "
-        f"boundaries=7 mutations={len(mutation_model.MUTATIONS)}"
+        f"boundaries=7 mutations={len(mutation_model.MUTATIONS)} "
+        f"proof_mode={args.proof_mode}"
     )
 
 
@@ -644,6 +893,10 @@ def parser() -> argparse.ArgumentParser:
     snapshot = subparsers.add_parser("snapshot")
     snapshot.add_argument("--repo-root", required=True, type=pathlib.Path)
     snapshot.add_argument("--output", required=True, type=pathlib.Path)
+    snapshot.add_argument(
+        "--proof-mode", choices=("canonical-v9a", "task-run-v1"),
+        default="canonical-v9a")
+    snapshot.add_argument("--task-run-id", default=RUN_ID)
     reset = subparsers.add_parser("reset-record")
     reset.add_argument("--manifest", required=True, type=pathlib.Path)
     builder = subparsers.add_parser("build")
@@ -660,6 +913,12 @@ def parser() -> argparse.ArgumentParser:
     builder.add_argument("--sources-post", required=True, type=pathlib.Path)
     builder.add_argument("--gate-log", required=True, type=pathlib.Path)
     builder.add_argument("--manifest", required=True, type=pathlib.Path)
+    builder.add_argument("--scope-receipt", type=pathlib.Path)
+    builder.add_argument("--simulator-config", type=pathlib.Path)
+    builder.add_argument(
+        "--proof-mode", choices=("canonical-v9a", "task-run-v1"),
+        default="canonical-v9a")
+    builder.add_argument("--task-run-id", default=RUN_ID)
     return value
 
 
@@ -671,7 +930,25 @@ def main() -> int:
     else:
         root = args.repo_root.resolve(strict=True)
         if args.action == "snapshot":
-            snapshot_sources(root, args.output)
+            task_run_mode = args.proof_mode == "task-run-v1"
+            source_paths = (
+                arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS
+                if task_run_mode else arch.WIDTH_CONTINUITY_SOURCE_PATHS
+            )
+            if task_run_mode:
+                evidence_rel = task_run_evidence_rel(
+                    args.task_run_id, "di2-current")
+                allowed = {
+                    (root / evidence_rel / "sources.pre.sha256").resolve(),
+                    (root / evidence_rel / "sources.post.sha256").resolve(),
+                }
+                output = (
+                    args.output if args.output.is_absolute()
+                    else root / args.output
+                ).resolve()
+                if output not in allowed:
+                    raise ValueError("scoped DI-2 snapshot path is outside its run")
+            snapshot_sources(root, args.output, source_paths)
             print(f"[V9A-DI2-SNAPSHOT][PASS] output={args.output}")
         else:
             if len(args.regression_log) != len(REGRESSION_NAMES):

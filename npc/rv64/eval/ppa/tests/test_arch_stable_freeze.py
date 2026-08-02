@@ -1245,19 +1245,17 @@ class PureFunctionTests(unittest.TestCase):
         self.assertEqual(checks[0]["status"], "GAP")
         self.assertTrue(blockers)
 
-    def test_v9r_semantic_sources_exclude_census_hash_envelope(self) -> None:
-        self.assertNotIn(
-            "npc/rv64/design/arch/producer-holder-census.json",
-            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
+    def test_v9r_current_evidence_uses_compact_result_pointer(self) -> None:
+        self.assertEqual(
+            freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH,
+            "npc/rv64/eval/ppa/evidence/"
+            "control-event-sq-retry-current.json",
         )
-        self.assertIn(
-            "npc/rv64/eval/ppa/tools/producer_holder_census.py",
-            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
+        self.assertNotEqual(
+            freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH,
+            freeze.V9R_SQ_RETRY_SUMMARY_PATH,
         )
-        self.assertIn(
-            "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
-            freeze.V9R_SQ_RETRY_SOURCE_PATHS,
-        )
+        self.assertNotIn(".vvp", freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH)
 
 
 class EndToEndFixtureTests(unittest.TestCase):
@@ -1750,37 +1748,37 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
 
     @staticmethod
+    def control_event_current_payload() -> dict:
+        root = freeze.find_repo_root(TOOL)
+        return freeze.load_json(root / freeze.CONTROL_EVENT_CURRENT_RESULT_PATH)
+
+    @staticmethod
     def v9r_sq_retry_payload() -> dict:
         root = freeze.find_repo_root(TOOL)
-        return freeze.load_json(root / freeze.V9R_SQ_RETRY_SUMMARY_PATH)
+        return freeze.load_json(root / freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH)
 
     def test_control_event_debt_evidence_is_current(self) -> None:
         root = freeze.find_repo_root(TOOL)
-        index, _ = self.control_event_payloads()
+        current = self.control_event_current_payload()
         entry = {
-            "canonical_command": freeze.CONTROL_EVENT_COMMAND,
-            "design_id": index["design_id"],
+            "canonical_command": freeze.CONTROL_EVENT_CURRENT_COMMAND,
+            "design_id": current["design_id"],
             "evidence": [
                 artifact(
                     root,
-                    root / freeze.CONTROL_EVENT_INDEX_PATH,
-                    "control_event_evidence_index",
+                    root / freeze.CONTROL_EVENT_CURRENT_RESULT_PATH,
+                    "control_event_current_evidence",
                 ),
                 artifact(
                     root,
-                    root / freeze.CONTROL_EVENT_MUTATION_PATH,
-                    "control_event_rtl_mutations",
-                ),
-                artifact(
-                    root,
-                    root / freeze.V9R_SQ_RETRY_SUMMARY_PATH,
+                    root / freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH,
                     "v9r_sq_retry_c0_evidence",
                 ),
             ],
         }
         self.assertEqual(
             freeze.validate_control_event_debt(
-                root, entry, "sha256:" + "0" * 64),
+                root, entry, current["design_id"]),
             [],
         )
 

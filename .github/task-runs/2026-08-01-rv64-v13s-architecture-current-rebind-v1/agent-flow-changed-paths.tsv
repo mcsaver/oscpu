@@ -1,0 +1,11 @@
+npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py
+npc/rv64/eval/ppa/tools/no_static_lane_semantics_evidence.py
+npc/rv64/eval/ppa/tools/pair_matrix_evidence.py
+.github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/mutate-v8o-no-static-lane.py
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/task-report.md
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/dispatch-log.md
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/pre-delivery-review.md

@@ -1,0 +1,105 @@
+{
+  "schema": "npc-rv64-performance-counter-schema-v1",
+  "performance_counter_schema_id": "npc-rv64-pcs-v1-retire-observation-20260801",
+  "marker_schema": "npc-rv64-performance-counter-v1",
+  "contract_state": "PARTIAL_CONSERVING_RETIREMENT_OBSERVATION_V1",
+  "scope": "committed-PC bounded region on the single configured RV64 hart",
+  "instrumentation_boundary": {
+    "rtl_observer": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+    "host_accumulator": "npc/rv64/csrc/cpu/cpu-exec.cpp",
+    "dut_feedback": false,
+    "synthesis_scope": "simulation-only; excluded from production core synthesis and STA"
+  },
+  "retire_width": 2,
+  "reason_encoding": [
+    {
+      "code": 0,
+      "name": "retired",
+      "meaning": "one non-exception architectural instruction retired on this physical lane"
+    },
+    {
+      "code": 1,
+      "name": "rob_empty",
+      "meaning": "the corresponding oldest ROB entry does not exist"
+    },
+    {
+      "code": 2,
+      "name": "head_not_complete",
+      "meaning": "the corresponding oldest ROB entry exists but its edge-old done bit is clear"
+    },
+    {
+      "code": 3,
+      "name": "exception_redirect",
+      "meaning": "precise exception, flush, branch recovery, or checkpoint restore prevents architectural retirement"
+    },
+    {
+      "code": 4,
+      "name": "memory_commit",
+      "meaning": "LQ release permission or CSR memory-quiet retirement permission is closed"
+    },
+    {
+      "code": 5,
+      "name": "serialization",
+      "meaning": "context, fence.i, control-plane commit, CSR single-retire, or lane1 serialization permission is closed"
+    },
+    {
+      "code": 6,
+      "name": "unknown",
+      "meaning": "no earlier versioned retirement-observation predicate explains the unused slot"
+    }
+  ],
+  "priority_version": "retire-observation-priority-v1",
+  "lane0_priority": [
+    "retired",
+    "exception_redirect",
+    "rob_empty",
+    "head_not_complete",
+    "exception_redirect_at_head",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "lane1_priority": [
+    "inherit_lane0_when_lane0_did_not_retire",
+    "retired",
+    "rob_empty",
+    "head_not_complete",
+    "exception_redirect",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "cycle_partition": {
+    "rule": "a cycle is useful when at least one architectural instruction retires; otherwise it takes lane0's exclusive reason",
+    "conservation": "cycle_useful + cycle_rob_empty + cycle_head_not_complete + cycle_exception_redirect + cycle_memory_commit + cycle_serialization + cycle_unknown == cycles"
+  },
+  "retire_slot_partition": {
+    "capacity": "2 * cycles + end_lane - start_lane",
+    "marker_interval": "[before start committed lane, before end committed lane)",
+    "conservation": "retired_slots + slot_rob_empty + slot_head_not_complete + slot_exception_redirect + slot_memory_commit + slot_serialization + slot_unknown == slot_capacity",
+    "retired_binding": "retired_slots == end_retired_before - start_retired_before"
+  },
+  "boundary_sampling": {
+    "cycle_delta": "inclusive cumulative counter at end minus inclusive cumulative counter at start, covering full cycles S+1..E",
+    "slot_endpoint_correction": "add start-cycle lanes start_lane..1 and subtract end-cycle lanes end_lane..1",
+    "same_cycle_lane0_to_lane1": "one slot of capacity and one retired instruction when lane0 is the start marker and lane1 is the end marker"
+  },
+  "qualification": {
+    "baseline_requires_phase_aligned_boundaries": true,
+    "phase_aligned_definition": "start_lane == end_lane",
+    "phase_aligned_capacity": "2 * cycles",
+    "unknown_or_unclassified_cycle_ratio_max": 0.01,
+    "requires_complete": true,
+    "requires_available": true,
+    "requires_zero_overflow": true,
+    "requires_zero_invalid_events": true,
+    "requires_conservation": true
+  },
+  "known_gaps": [
+    "head_not_complete is not yet split into frontend, dependency, execution, and memory causal latency",
+    "the two integer issue terminals and independent FP issue terminal are not yet reconciled to one global issue-slot ledger",
+    "region-bound ROB, IQ, LQ, SQ, MSHR, and memory-station occupancy histograms are not yet emitted",
+    "an instrumentation-on versus instrumentation-off cycle-equivalence cohort is not yet archived",
+    "this schema is a conserving retirement-observation stack, not the final causal CPI stack"
+  ]
+}

@@ -1,0 +1,180 @@
+{
+  "classification": {
+    "primary": "architecture",
+    "secondary": [
+      "current-directed-nine-gate-replay",
+      "section13-freeze-audit",
+      "p0-direct-active-cone-rebind",
+      "task-local-verification-script-development"
+    ],
+    "agent_flow_initial": "BLOCKED_ANALYSIS_CLASS_AFTER_SCOPE_EVOLVED_TO_SCRIPT_DEVELOPMENT",
+    "agent_flow_delivery": "PASS_DEVELOPMENT_CLASS_ARCHIVE_NONE"
+  },
+  "evidence_state": {
+    "published_gate_state": "CANONICAL_FROZEN_OLD_DESIGN_ID_NOT_WRITTEN",
+    "execution_state": "V14B_CURRENT_SCOPE_COMPLETE",
+    "dut_terminal_state": "FOCUSED_4_OF_4_AND_MODULE_AGGREGATE_113_OF_113_PASS",
+    "binding_state": "DIRECTED_9_GREEN_REPLAY_P0_2_CURRENT_DYNAMIC_PASS_SECTION13_RED",
+    "raw_artifact_state": "SOURCE_FAIL_AND_CHECKER_REPLAY_PASS_BOTH_RETAINED",
+    "rtl_assertion_state": "POSITIVE_LOGS_HAVE_NO_FAILURE_MARKER_ASSERTION_COVERAGE_NOT_FORMAL",
+    "oracle_state": "DIRECTED_NEGATIVE_4_OF_4_AND_P0_RECEIPT_NEGATIVE_4_OF_4_REJECTED",
+    "evidence_replayable": "YES_WITHIN_DECLARED_SCOPE",
+    "full_system_rerun_required": "NO_FOR_THIS_SCOPED_REBIND",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "TWO_P0_OWNER_PATHS_DIRECTLY_INTERSECT_CURRENT_RTL_DELTA",
+    "evidence_scope": [
+      "DI-1",
+      "DI-2",
+      "DI-3",
+      "DI-4",
+      "DI-5",
+      "OOO-1",
+      "OOO-2",
+      "OOO-3",
+      "OOO-4",
+      "MEM-ISSUE-G1",
+      "PTW-PMP-G1"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "FIVE_FILE_PRODUCTION_RTL_DELTA_WITH_TWO_DIRECT_P0_OWNER_INTERSECTIONS",
+    "changed_files": [
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv"
+    ],
+    "changed_modules": [
+      "OooLoadQueue",
+      "OooMemAxiBridge",
+      "OooStoreQueue",
+      "OooIntIssueQueue",
+      "NpcSimTop"
+    ],
+    "active_functional_cone_impact": true,
+    "dut_input_impact": false,
+    "dut_timing_impact": true,
+    "dut_state_impact": true,
+    "termination_impact": true,
+    "randomization_impact": false,
+    "justification": "OooMemAxiBridge store-B response fusion, StoreQueue forwarding, LoadQueue open-hit network and IntIssueQueue compaction alter active RTL timing/state; NpcSimTop adds observation-only retire classification. MEM-ISSUE-G1 and PTW-PMP-G1 directly name changed owner paths and were dynamically rerun."
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+    "elaborated_rtl_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+    "simulation_top_id": "BOUND_IN_146_FILE_SOURCE_MAP",
+    "device_model_id": "FOCUSED_ICARUS_TESTBENCH_MODELS",
+    "host_harness_id": "TASK_LOCAL_FOCUSED_AND_MODULE_AGGREGATE_LOGS",
+    "simulator_semantics_id": "ICARUS_VERILOG_12_0_STABLE",
+    "checker_oracle_id_old": "LEGACY_CANONICAL_UNIT_TEST_FIXED_PATHS",
+    "checker_oracle_id_new": "sha256:785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467",
+    "guest_payload_id": "NOT_APPLICABLE",
+    "boot_artifact_id": "NOT_APPLICABLE",
+    "test_input_log_id": "P0_DIRECT_REBIND_1_HASHED_RESULTS_AND_LOGS",
+    "run_configuration_id": "V9F_AND_V9K_FOCUSED_FLAGS_PLUS_SHARED_113_TEST_MODULE_AGGREGATE",
+    "raw_artifact_bundle_id": "V14B_AUDIT_REPLAY_SECTION13_P0_REBIND"
+  },
+  "replay": {
+    "source_run_id": "P0_DIRECT_REBIND_1",
+    "source_raw_log_sha": "BOUND_BY_TASK_LOCAL_RESULT_JSON",
+    "source_input_sha": "FULL_146_FILE_SOURCE_MAP_BOUND",
+    "replay_command": "bash .github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/run-p0-direct-rebind-checker-replay.sh",
+    "replay_result": "PASS",
+    "source_run_status": "FAIL_RC_1_LEGACY_CANONICAL_UNIT_TEST_SCOPE_MISMATCH_RETAINED",
+    "proven_scope": [
+      "current checker accepts all nine current-design directed records",
+      "MEM-ISSUE-G1 current dynamic evidence and 11/11 RTL counterexamples",
+      "PTW-PMP-G1 current dynamic evidence and 28/28 RTL counterexamples",
+      "production RTL source map unchanged across execution",
+      "canonical architecture/debt/historical artifacts unchanged"
+    ],
+    "unproven_scope": [
+      "remaining seven P0 current bindings",
+      "seven in-cohort P1 current bindings",
+      "historical defect backfill current binding",
+      "producer-holder semantic GREEN",
+      "current functional aggregate",
+      "Section 13 freeze inventory and arch-stable",
+      "workload CPI and PPA qualification"
+    ],
+    "limitations": [
+      "mutation ID/content hash/target-to-observation mapping is not in the frozen reviewer summary",
+      "formal coverage, token/epoch wrap, reset and all concurrent timing combinations remain unproven"
+    ]
+  },
+  "performance": {
+    "secondary_intent": "",
+    "performance_debt_id": "NOT_APPLICABLE",
+    "performance_candidate_id": "NOT_APPLICABLE",
+    "performance_gate_state": "BLOCKED_BY_ARCHITECTURE",
+    "performance_measurement_contract_id": "NOT_RUN",
+    "performance_counter_schema_id": "NOT_RUN",
+    "performance_baseline_id": "NOT_QUALIFIED",
+    "workload_suite_id": "NOT_RUN",
+    "workload_binary_id": "NOT_RUN",
+    "workload_input_id": "NOT_RUN",
+    "measurement_window_id": "NOT_RUN",
+    "memory_latency_profile_id": "NOT_RUN",
+    "target_workloads": [],
+    "guardrail_workloads": [],
+    "bottleneck_hypotheses": [],
+    "selected_bottleneck": "",
+    "single_mechanism": "",
+    "baseline": {
+      "cycles": 0,
+      "retired_instructions": 0,
+      "cpi": 0.0,
+      "ipc": 0.0,
+      "qualified_frequency": 0.0,
+      "completion_time": 0.0
+    },
+    "candidate": {
+      "cycles": 0,
+      "retired_instructions": 0,
+      "cpi": 0.0,
+      "ipc": 0.0,
+      "qualified_frequency": 0.0,
+      "completion_time": 0.0
+    },
+    "instruction_count_delta": 0,
+    "cycle_speedup": 0.0,
+    "effective_speedup": 0.0,
+    "run_to_run_variance": 0.0,
+    "confidence_interval": "NOT_APPLICABLE",
+    "cpi_stack": {},
+    "lost_slot_decomposition": {},
+    "occupancy_summary": {},
+    "critical_regressions": [],
+    "ppa_tradeoff": {
+      "timing": "NOT_RUN",
+      "area": "NOT_RUN",
+      "power": "NOT_RUN",
+      "performance_per_watt": "NOT_RUN",
+      "performance_per_area": "NOT_RUN"
+    },
+    "declaration_level": "NOT_APPLICABLE",
+    "promotion_status": "BLOCKED_BY_ARCHITECTURE"
+  },
+  "cost": {
+    "actual_execution": "about 79 seconds for focused/module/mutation RTL plus sub-second checker replay",
+    "single_flight_resource": "Windows-to-WSL engineering lane",
+    "compiled_products_retained": 0,
+    "task_run_files": 222,
+    "task_run_bytes": 7127963,
+    "archive_policy": "results_and_logs_only_no_vvp_object_archive",
+    "stop_condition": "two direct P0 gates current-bound and independently reviewed"
+  },
+  "review": {
+    "contract_sha256": "cdbe48a1ed916dac37f948c742d1ee89e5375f6fc37daea79a9be8f053c5eb87",
+    "reviewer_conclusion": "APPROVED_CURRENT_SCOPE",
+    "approved_scope": [
+      "MEM-ISSUE-G1",
+      "PTW-PMP-G1"
+    ],
+    "aggregate_architecture_approved": false,
+    "ppa_approved": false,
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED"
+  }
+}

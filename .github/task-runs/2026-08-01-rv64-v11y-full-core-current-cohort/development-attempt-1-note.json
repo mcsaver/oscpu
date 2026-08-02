@@ -1,0 +1,10 @@
+{
+  "schema": "npc-rv64-development-attempt-note-v1",
+  "status": "FAIL_BEFORE_RTL_COMPILE",
+  "stage": "output-path-validation",
+  "command_scope": "full_core_current_evidence.py module",
+  "detail": "The validator required the immediate output parent to exist, so the first invocation stopped before input capture, make, iverilog, or simulation.",
+  "rtl_process_started": false,
+  "durable_module_attempt_created": false,
+  "correction": "Resolve a missing descendant with strict=false, prove its nearest existing ancestor remains below .github/task-runs, and retain the no-overwrite rule."
+}

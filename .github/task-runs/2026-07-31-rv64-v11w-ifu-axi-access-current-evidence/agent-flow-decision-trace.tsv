@@ -1,0 +1,4 @@
+2026-07-31T17:48:22Z	hypothesis	Whole Makefile byte drift, not DUT semantic drift, caused the two stale current-evidence results.	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/task-run.json
+2026-07-31T17:48:22Z	counterexample	V2 found Make parse-time execution and dry-run versus normal-run recipe divergence; literal-only dispatch and marker tests close both paths.	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/review-result.md
+2026-07-31T17:48:22Z	decision	Keep the architecture debt ledger unchanged until one current design cohort can be rebuilt; do not publish a mixed cohort.	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence/arch-stable-boundary-final.json
+2026-07-31T17:48:22Z	decision	No full-system, synthesis, STA, power or PPA rerun because production and elaborated RTL semantics did not change and frozen inputs are complete.	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/task-report.md

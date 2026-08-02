@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13c-a3-layered-evidence-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 NpcSimTop system-reset 终端事务的 A3 冻结证据、c1b531 到 5f9dd068 elaborated RTL 身份和当前 29c0afe8 production RTL 绑定做限定材料独立反例复核，判定历史 oracle replay 与当前系统重认证边界是否被正确分层。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/a3-oracle-currentness-audit.json",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/review-v1.md",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/evidence/final/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/subagent-contracts/v13c-a3-layered-evidence-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/a3-oracle-currentness-audit.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "A3 原始 status 保持 FAIL rc=1、strict 16/17，唯一失败为 dmesg-no-critical；5,071,521,696 cycles、1,223,536,213 commits、六类 terminal marker 各 1 次、RTL assertion failure 文件为空，九个冻结输入哈希复核 9/9 PASS。",
+      "A3 内嵌 strict checker SHA-256 为 83b6a538…053f9a，等于 launch binding；旧未定界 BUG: 正则只命中两条 printk: debug:，当前定界正则在同一 console 上命中 0 条。",
+      "当前 checker 定向单测 fresh 3/3 PASS：四个 benign boundary fixture 接受，九个真实 critical marker fixture 拒绝，恢复未定界 BUG: 的 source mutation 会重现 A3 false red。",
+      "V10F canonical asset 9/9 哈希一致；fresh replay 与 canonical replay 在移除输出位置字段后语义字段逐项相同，结论为 A3_SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE。",
+      "c1b531 到 5f9dd068 比较为 generated 51 文件中 50 exact match、仅一个 generated C++ 文件 exact 差异且 normalized difference 为空；八个 device model object 无变化，仅 host cpu-exec diagnostic observation object 变化。",
+      "A4 原始 status 保持 FAIL rc=143、evidence_complete=0、signal=TERM，不能作为 system PASS，也不能改写；A3 oracle 修正字段为 full_system_rerun_required=NO 和 launch_authorization_state=NOT_REQUIRED。",
+      "当前 production design-id 为 29c0afe8…f483；V13B OooLoadQueue 在 NpcTop coarse 中使 cells 51386→51129、mux 15720→15471，局部差值精确传播，证明当前活跃 elaborated RTL 已不同于 A3；当前 system promotion 因此另需新 attempt、fast-gate rebind 和长跑授权。"
+    ]
+  },
+  "deliverables": [
+    "按 A3 历史事务、c1b531→5f9dd068 语义层、当前 29c0afe8 系统绑定三层给出 APPROVE、GAP 或 inconclusive，并列出可操作反例、未知项、替代假设、范围扩展请求与置信依据。"
+  ],
+  "success_criteria": [
+    "只有在不改写 A3/A4 原始状态、不用终端事件去重、不削弱 RTL 断言，且明确区分 A3 oracle replay 无需重跑与当前 production system recert 仍需授权时才可 APPROVE；任何证据越级、输入缺失或身份层混淆必须判为 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

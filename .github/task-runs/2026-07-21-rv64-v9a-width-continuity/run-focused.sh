@@ -7,20 +7,66 @@ set -euo pipefail
 # window behavior and natural holder drain with repository-local EDA tools.
 
 RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(git -C "$RUN_DIR" rev-parse --show-toplevel)
+REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
 NPC_HOME="$REPO_ROOT/npc/rv64"
 TB_HOME="$NPC_HOME/testbench"
 ARCH_BUILDER="$NPC_HOME/eval/ppa/tools/width_continuity_evidence.py"
-ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
-ARCH_LOG="$NPC_HOME/eval/ppa/evidence/width-continuity.log"
-EVIDENCE_DIR="$RUN_DIR/evidence/final-run"
-MUTATION_DIR="$RUN_DIR/evidence/mutations"
-TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/v9a-di2-focused.XXXXXX")
-SUITE_RUN_ID="v9a-di2-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 IVFLAGS_BASE="-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon"
+REUSE_CURRENT_PREDECESSORS="${RV64_ARCH_REUSE_CURRENT_PREDECESSORS:-0}"
+PROOF_MODE="canonical-v9a"
+TASK_RUN_ID="2026-07-21-rv64-v9a-width-continuity"
+SCOPED_TASK_RUN_ID=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scoped-task-run-id)
+      [[ $# -ge 2 ]] || {
+        printf '[V9A-DI2-RUNNER][FAIL] missing scoped task-run id\n' >&2
+        exit 1
+      }
+      SCOPED_TASK_RUN_ID=$2
+      shift 2
+      ;;
+    *)
+      printf '[V9A-DI2-RUNNER][FAIL] unknown argument: %s\n' "$1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -n "$SCOPED_TASK_RUN_ID" ]]; then
+  [[ "$SCOPED_TASK_RUN_ID" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9._-]*$ ]] || {
+    printf '[V9A-DI2-RUNNER][FAIL] malformed scoped task-run id\n' >&2
+    exit 1
+  }
+  TASK_RUN_ID="$SCOPED_TASK_RUN_ID"
+  PROOF_MODE="task-run-v1"
+  TASK_RUN_DIR="$REPO_ROOT/.github/task-runs/$TASK_RUN_ID"
+  [[ -d "$TASK_RUN_DIR" ]] || {
+    printf '[V9A-DI2-RUNNER][FAIL] scoped task-run directory is absent\n' >&2
+    exit 1
+  }
+  EVIDENCE_DIR="$TASK_RUN_DIR/evidence/di2-current"
+  MUTATION_DIR="$TASK_RUN_DIR/evidence/di2-mutations"
+  ARCH_MANIFEST="$TASK_RUN_DIR/evidence/architecture-current.json"
+  ARCH_LOG="$TASK_RUN_DIR/evidence/width-continuity.log"
+  SUITE_TAG=${TASK_RUN_ID#*-rv64-}
+  SUITE_TAG=${SUITE_TAG%%-*}
+else
+  TASK_RUN_DIR="$RUN_DIR"
+  EVIDENCE_DIR="$RUN_DIR/evidence/final-run"
+  MUTATION_DIR="$RUN_DIR/evidence/mutations"
+  ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
+  ARCH_LOG="$NPC_HOME/eval/ppa/evidence/width-continuity.log"
+  SUITE_TAG="v9a"
+fi
+
+TEMP_PREFIX="${TMPDIR:-/tmp}/${SUITE_TAG}-di2-focused."
+TEMP_DIR=$(mktemp -d "${TEMP_PREFIX}XXXXXX")
+SUITE_RUN_ID="${SUITE_TAG}-di2-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
 cleanup() {
-  if [[ -d "$TEMP_DIR" && "$TEMP_DIR" == "${TMPDIR:-/tmp}"/v9a-di2-focused.* ]]; then
+  if [[ -d "$TEMP_DIR" && "$TEMP_DIR" == "$TEMP_PREFIX"* ]]; then
     rm -rf -- "$TEMP_DIR"
   fi
 }
@@ -31,14 +77,36 @@ fail() {
   exit 1
 }
 
-case "$EVIDENCE_DIR" in
-  "$RUN_DIR/evidence/final-run") rm -rf -- "$EVIDENCE_DIR" ;;
-  *) fail "unsafe final evidence path: $EVIDENCE_DIR" ;;
+case "$REUSE_CURRENT_PREDECESSORS" in
+  0|1) ;;
+  *) fail "RV64_ARCH_REUSE_CURRENT_PREDECESSORS must be 0 or 1" ;;
 esac
-case "$MUTATION_DIR" in
-  "$RUN_DIR/evidence/mutations") rm -rf -- "$MUTATION_DIR" ;;
-  *) fail "unsafe mutation evidence path: $MUTATION_DIR" ;;
-esac
+
+if [[ "$PROOF_MODE" == "task-run-v1" ]]; then
+  case "$EVIDENCE_DIR" in
+    "$TASK_RUN_DIR/evidence/di2-current") rm -rf -- "$EVIDENCE_DIR" ;;
+    *) fail "unsafe scoped DI-2 evidence path: $EVIDENCE_DIR" ;;
+  esac
+  case "$MUTATION_DIR" in
+    "$TASK_RUN_DIR/evidence/di2-mutations") rm -rf -- "$MUTATION_DIR" ;;
+    *) fail "unsafe scoped mutation evidence path: $MUTATION_DIR" ;;
+  esac
+  case "$ARCH_MANIFEST:$ARCH_LOG" in
+    "$TASK_RUN_DIR/evidence/architecture-current.json:$TASK_RUN_DIR/evidence/width-continuity.log")
+      rm -f -- "$ARCH_MANIFEST" "$ARCH_LOG"
+      ;;
+    *) fail "unsafe scoped DI-2 manifest/log path" ;;
+  esac
+else
+  case "$EVIDENCE_DIR" in
+    "$RUN_DIR/evidence/final-run") rm -rf -- "$EVIDENCE_DIR" ;;
+    *) fail "unsafe final evidence path: $EVIDENCE_DIR" ;;
+  esac
+  case "$MUTATION_DIR" in
+    "$RUN_DIR/evidence/mutations") rm -rf -- "$MUTATION_DIR" ;;
+    *) fail "unsafe mutation evidence path: $MUTATION_DIR" ;;
+  esac
+fi
 mkdir -p \
   "$EVIDENCE_DIR/focused/assert" \
   "$EVIDENCE_DIR/focused/release" \
@@ -46,6 +114,29 @@ mkdir -p \
   "$EVIDENCE_DIR/regressions" \
   "$EVIDENCE_DIR/static"
 printf '%s\n' "$SUITE_RUN_ID" > "$EVIDENCE_DIR/suite-run-id.txt"
+
+if [[ "$PROOF_MODE" == "task-run-v1" ]]; then
+  printf '%s\n' \
+    'schema=rv64-di2-scoped-run-v1' \
+    'mode=scoped' \
+    "task_run_id=$TASK_RUN_ID" \
+    "evidence_root=.github/task-runs/$TASK_RUN_ID/evidence" \
+    'canonical_manifest_write=0' \
+    'historical_evidence_write=0' \
+    > "$EVIDENCE_DIR/static/scoped-run.txt"
+  IVERILOG_PATH=$(readlink -f -- "$(command -v iverilog)")
+  VVP_PATH=$(readlink -f -- "$(command -v vvp)")
+  printf '%s\n' \
+    'schema=rv64-di2-simulator-config-v1' \
+    'target=v9a-width-continuity' \
+    "assert_ivflags=$IVFLAGS_BASE -DOOO_ASSERT" \
+    "release_ivflags=$IVFLAGS_BASE" \
+    "stall_ivflags=$IVFLAGS_BASE" \
+    "mutation_ivflags=$IVFLAGS_BASE -DV9A_WIDTH_CONTINUITY_FOCUSED" \
+    "iverilog $(sha256sum "$IVERILOG_PATH" | cut -d' ' -f1) $IVERILOG_PATH" \
+    "vvp $(sha256sum "$VVP_PATH" | cut -d' ' -f1) $VVP_PATH" \
+    > "$EVIDENCE_DIR/static/simulator-config.txt"
+fi
 
 require_marker() {
   local marker=$1
@@ -62,20 +153,71 @@ require_clean_pass() {
   fi
 }
 
-# Remove only the DI-2 record, then rebuild the other eight architecture
-# records against the current complete RTL design and current proof tooling.
-python3 "$ARCH_BUILDER" reset-record --manifest "$ARCH_MANIFEST" \
-  > "$EVIDENCE_DIR/static/reset-record.log" 2>&1 ||
-  fail "failed to remove the prior DI-2 record"
-make -C "$NPC_HOME" check-frontend-ii1 \
-  > "$EVIDENCE_DIR/static/same-design-predecessors.log" 2>&1 ||
-  fail "same-design architecture predecessor refresh failed"
-require_marker '[V8Z-DI1-RUNNER][PASS]' \
-  "$EVIDENCE_DIR/static/same-design-predecessors.log"
+verify_current_predecessors() {
+  local result="$EVIDENCE_DIR/static/reused-predecessor-architecture.json"
+  local log="$EVIDENCE_DIR/static/same-design-predecessors.log"
+  local rc
+  set +e
+  make -C "$TB_HOME" \
+    "ARCH_GATE_EVIDENCE=$ARCH_MANIFEST" \
+    "ARCH_GATE_RESULT=$result" arch-gates > "$log" 2>&1
+  rc=$?
+  set -e
+  [[ "$rc" -eq 2 ]] ||
+    fail "reused predecessor make returned rc=$rc instead of partial RED"
+  python3 -B - "$result" <<'PY' | tee -a "$log"
+import json
+import pathlib
+import sys
 
-python3 "$ARCH_BUILDER" snapshot \
+value = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected_green = {
+    "DI-1", "DI-3", "DI-4", "DI-5",
+    "OOO-1", "OOO-2", "OOO-3", "OOO-4",
+}
+expected_red = {"DI-2"}
+gates = value.get("gates", {})
+green = {name for name, item in gates.items() if item.get("status") == "GREEN"}
+red = {name for name, item in gates.items() if item.get("status") == "RED"}
+if green != expected_green or red != expected_red:
+    raise SystemExit(
+        f"reused predecessor inventory mismatch: green={sorted(green)} red={sorted(red)}"
+    )
+if value.get("overall_status") != "RED" or value.get("exit_code") != 1:
+    raise SystemExit("reused predecessor aggregate is not the expected partial RED")
+design_id = value.get("rtl_source_set", {}).get("design_id")
+if not isinstance(design_id, str) or not design_id.startswith("sha256:"):
+    raise SystemExit("reused predecessor result lacks a complete RTL design id")
+print(
+    "[ARCH-CURRENT-PREDECESSORS][PASS] "
+    f"design_id={design_id} green=8 red=1 next=DI-2"
+)
+PY
+}
+
+# Canonical V9A publication rebuilds the eight sibling records.  A scoped
+# current-design rebind starts from an absent task-local manifest and publishes
+# only DI-2, so it cannot promote or rewrite sibling evidence.
+if [[ "$PROOF_MODE" == "canonical-v9a" ]]; then
+  python3 -B "$ARCH_BUILDER" reset-record --manifest "$ARCH_MANIFEST" \
+    > "$EVIDENCE_DIR/static/reset-record.log" 2>&1 ||
+    fail "failed to remove the prior DI-2 record"
+  if [[ "$REUSE_CURRENT_PREDECESSORS" -eq 1 ]]; then
+    verify_current_predecessors
+  else
+    make -C "$NPC_HOME" check-frontend-ii1 \
+      > "$EVIDENCE_DIR/static/same-design-predecessors.log" 2>&1 ||
+      fail "same-design architecture predecessor refresh failed"
+    require_marker '[V8Z-DI1-RUNNER][PASS]' \
+      "$EVIDENCE_DIR/static/same-design-predecessors.log"
+  fi
+fi
+
+python3 -B "$ARCH_BUILDER" snapshot \
   --repo-root "$REPO_ROOT" \
   --output "$EVIDENCE_DIR/sources.pre.sha256" \
+  --proof-mode "$PROOF_MODE" \
+  --task-run-id "$TASK_RUN_ID" \
   > "$EVIDENCE_DIR/static/source-snapshot-pre.log" 2>&1 ||
   fail "pre-run DI-2 source snapshot failed"
 
@@ -124,8 +266,10 @@ if grep -Fq 'compile returned nonzero' "$STALL_LOG"; then
   fail "fixed-window stall probe failed to compile"
 fi
 
-python3 "$RUN_DIR/run-v9a-mutations.py" \
+python3 -B "$RUN_DIR/run-v9a-mutations.py" \
   --suite-run-id "$SUITE_RUN_ID" \
+  --work-dir "$TEMP_DIR/mutations" \
+  --evidence-dir "$MUTATION_DIR" \
   > "$EVIDENCE_DIR/static/mutations.log" 2>&1 ||
   fail "compile-success local RV64 RTL mutations failed"
 require_marker \
@@ -157,41 +301,52 @@ for log in "${regression_targets[@]}"; do
   require_clean_pass "$log"
 done
 
-(cd "$REPO_ROOT" && python3 -m unittest -v \
-  npc.rv64.eval.ppa.tests.test_architecture_hard_gates \
-  npc.rv64.eval.ppa.tests.test_directed_evidence_manifest \
-  npc.rv64.eval.ppa.tests.test_frontend_ii1_evidence \
-  npc.rv64.eval.ppa.tests.test_width_continuity_evidence) \
+unit_modules=(
+  npc.rv64.eval.ppa.tests.test_architecture_hard_gates
+  npc.rv64.eval.ppa.tests.test_directed_evidence_manifest
+  npc.rv64.eval.ppa.tests.test_width_continuity_evidence
+)
+if [[ "$PROOF_MODE" == "canonical-v9a" ]]; then
+  unit_modules+=(npc.rv64.eval.ppa.tests.test_frontend_ii1_evidence)
+fi
+(cd "$REPO_ROOT" && python3 -B -m unittest -v "${unit_modules[@]}") \
   > "$EVIDENCE_DIR/static/architecture-unit.log" 2>&1 ||
   fail "architecture evidence unit suite failed"
 
-make -C "$NPC_HOME" check-contract \
-  > "$EVIDENCE_DIR/static/check-contract.log" 2>&1 ||
-  fail "local RV64 RTL contract gate failed"
-require_marker 'check-contract: PASS' "$EVIDENCE_DIR/static/check-contract.log"
+if [[ "$PROOF_MODE" == "canonical-v9a" ]]; then
+  make -C "$NPC_HOME" check-contract \
+    > "$EVIDENCE_DIR/static/check-contract.log" 2>&1 ||
+    fail "local RV64 RTL contract gate failed"
+  require_marker 'check-contract: PASS' \
+    "$EVIDENCE_DIR/static/check-contract.log"
 
-git -C "$REPO_ROOT" diff --check -- \
-  npc/rv64/Makefile \
-  npc/rv64/eval/ppa/tools/architecture_hard_gates.py \
-  npc/rv64/eval/ppa/tools/width_continuity_evidence.py \
-  npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py \
-  npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py \
-  npc/rv64/testbench/Makefile \
-  npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv \
-  .github/task-runs/2026-07-21-rv64-v9a-width-continuity \
-  > "$EVIDENCE_DIR/static/diff-check.log" 2>&1 ||
-  fail "scoped diff check failed"
+  git -C "$REPO_ROOT" diff --check -- \
+    npc/rv64/Makefile \
+    npc/rv64/eval/ppa/tools/architecture_hard_gates.py \
+    npc/rv64/eval/ppa/tools/width_continuity_evidence.py \
+    npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py \
+    npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py \
+    npc/rv64/testbench/Makefile \
+    npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv \
+    .github/task-runs/2026-07-21-rv64-v9a-width-continuity \
+    > "$EVIDENCE_DIR/static/diff-check.log" 2>&1 ||
+    fail "scoped diff check failed"
+fi
 
-python3 "$ARCH_BUILDER" snapshot \
+python3 -B "$ARCH_BUILDER" snapshot \
   --repo-root "$REPO_ROOT" \
   --output "$EVIDENCE_DIR/sources.post.sha256" \
+  --proof-mode "$PROOF_MODE" \
+  --task-run-id "$TASK_RUN_ID" \
   > "$EVIDENCE_DIR/static/source-snapshot-post.log" 2>&1 ||
   fail "post-run DI-2 source snapshot failed"
 cmp -s "$EVIDENCE_DIR/sources.pre.sha256" \
   "$EVIDENCE_DIR/sources.post.sha256" ||
   fail "canonical DI-2 proof sources changed during execution"
 
-cp -- "$ARCH_MANIFEST" "$EVIDENCE_DIR/static/manifest-before-di2.json"
+if [[ "$PROOF_MODE" == "canonical-v9a" ]]; then
+  cp -- "$ARCH_MANIFEST" "$EVIDENCE_DIR/static/manifest-before-di2.json"
+fi
 builder_args=(
   --repo-root "$REPO_ROOT"
   --suite-run-id-file "$EVIDENCE_DIR/suite-run-id.txt"
@@ -208,15 +363,24 @@ builder_args+=(
   --sources-post "$EVIDENCE_DIR/sources.post.sha256"
   --gate-log "$ARCH_LOG"
   --manifest "$ARCH_MANIFEST"
+  --proof-mode "$PROOF_MODE"
+  --task-run-id "$TASK_RUN_ID"
 )
-python3 "$ARCH_BUILDER" build "${builder_args[@]}" \
+if [[ "$PROOF_MODE" == "task-run-v1" ]]; then
+  builder_args+=(
+    --scope-receipt "$EVIDENCE_DIR/static/scoped-run.txt"
+    --simulator-config "$EVIDENCE_DIR/static/simulator-config.txt"
+  )
+fi
+python3 -B "$ARCH_BUILDER" build "${builder_args[@]}" \
   > "$EVIDENCE_DIR/static/evidence-builder.log" 2>&1 ||
   fail "DI-2 evidence publication failed"
 require_marker '[V9A-DI2-EVIDENCE][PASS]' \
   "$EVIDENCE_DIR/static/evidence-builder.log"
 
-python3 - "$EVIDENCE_DIR/static/manifest-before-di2.json" \
-  "$ARCH_MANIFEST" <<'PY'
+if [[ "$PROOF_MODE" == "canonical-v9a" ]]; then
+  python3 -B - "$EVIDENCE_DIR/static/manifest-before-di2.json" \
+    "$ARCH_MANIFEST" <<'PY'
 import json
 import pathlib
 import sys
@@ -240,55 +404,77 @@ for name in siblings:
     if after_tests.get(name) != before_tests[name]:
         raise SystemExit(f"DI-2 publication changed sibling evidence: {name}")
 PY
+fi
 
+set +e
 make -C "$TB_HOME" \
   "ARCH_GATE_EVIDENCE=$ARCH_MANIFEST" \
   "ARCH_GATE_RESULT=$EVIDENCE_DIR/static/architecture-result.json" \
-  arch-gates > "$EVIDENCE_DIR/static/architecture-gates.log" 2>&1 ||
-  fail "nine-gate architecture aggregate remained RED"
-for marker in \
-  'DI-1: GREEN (0 red checks)' \
-  'DI-2: GREEN (0 red checks)' \
-  'DI-3: GREEN (0 red checks)' \
-  'DI-4: GREEN (0 red checks)' \
-  'DI-5: GREEN (0 red checks)' \
-  'OOO-1: GREEN (0 red checks)' \
-  'OOO-2: GREEN (0 red checks)' \
-  'OOO-3: GREEN (0 red checks)' \
-  'OOO-4: GREEN (0 red checks)' \
-  'OVERALL: GREEN'; do
-  require_marker "$marker" "$EVIDENCE_DIR/static/architecture-gates.log"
-done
+  arch-gates > "$EVIDENCE_DIR/static/architecture-gates.log" 2>&1
+architecture_rc=$?
+set -e
+if [[ "$PROOF_MODE" == "task-run-v1" ]]; then
+  [[ "$architecture_rc" -eq 2 ]] ||
+    fail "scoped DI-2 aggregate returned rc=$architecture_rc instead of partial RED"
+  require_marker 'DI-2: GREEN (0 red checks)' \
+    "$EVIDENCE_DIR/static/architecture-gates.log"
+  require_marker 'OVERALL: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
+else
+  [[ "$architecture_rc" -eq 0 ]] ||
+    fail "nine-gate architecture aggregate remained RED"
+  for marker in \
+    'DI-1: GREEN (0 red checks)' \
+    'DI-2: GREEN (0 red checks)' \
+    'DI-3: GREEN (0 red checks)' \
+    'DI-4: GREEN (0 red checks)' \
+    'DI-5: GREEN (0 red checks)' \
+    'OOO-1: GREEN (0 red checks)' \
+    'OOO-2: GREEN (0 red checks)' \
+    'OOO-3: GREEN (0 red checks)' \
+    'OOO-4: GREEN (0 red checks)' \
+    'OVERALL: GREEN'; do
+    require_marker "$marker" "$EVIDENCE_DIR/static/architecture-gates.log"
+  done
+fi
 
-python3 - "$EVIDENCE_DIR/static/architecture-result.json" \
-  "$EVIDENCE_DIR/result.json" "$SUITE_RUN_ID" <<'PY'
+python3 -B - "$EVIDENCE_DIR/static/architecture-result.json" \
+  "$EVIDENCE_DIR/result.json" "$SUITE_RUN_ID" "$PROOF_MODE" \
+  "$TASK_RUN_ID" <<'PY'
 import datetime
 import json
 import pathlib
 import sys
 
-architecture_path, output_path, suite_run_id = sys.argv[1:]
+architecture_path, output_path, suite_run_id, proof_mode, task_run_id = sys.argv[1:]
 architecture = json.loads(pathlib.Path(architecture_path).read_text(encoding="utf-8"))
 green = {
     gate for gate, value in architecture["gates"].items()
     if value["status"] == "GREEN"
 }
-expected = {
+task_run_mode = proof_mode == "task-run-v1"
+expected = ({"DI-2"} if task_run_mode else {
     "DI-1", "DI-2", "DI-3", "DI-4", "DI-5",
     "OOO-1", "OOO-2", "OOO-3", "OOO-4",
-}
+})
+expected_overall = "RED" if task_run_mode else "GREEN"
+expected_exit = 1 if task_run_mode else 0
 if (
-    green != expected or architecture["overall_status"] != "GREEN"
-    or architecture["exit_code"] != 0
+    green != expected or architecture["overall_status"] != expected_overall
+    or architecture["exit_code"] != expected_exit
 ):
     raise SystemExit(
         f"unexpected architecture result: green={sorted(green)} "
         f"overall={architecture['overall_status']}"
     )
 payload = {
-    "schema": "v9a-width-continuity-evidence/v1",
+    "schema": (
+        "rv64-di2-current-rebind-evidence/v1" if task_run_mode
+        else "v9a-width-continuity-evidence/v1"
+    ),
     "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "suite_run_id": suite_run_id,
+    "task_run_id": task_run_id,
+    "proof_mode": proof_mode,
     "status": "PASS",
     "claim": "di2_width_continuity",
     "design_id": architecture["rtl_source_set"]["design_id"],
@@ -298,7 +484,7 @@ payload = {
                 "independent_alu_ipc": 2.0},
     "mutations": {"required": 11, "compile_success": 11, "detected": 11},
     "regressions": {"required": 8, "passed": 8},
-    "architecture": {"green": sorted(green), "overall": "GREEN"},
+    "architecture": {"green": sorted(green), "overall": expected_overall},
     "ppa": "UNQUALIFIED",
     "promotion_eligible": False,
 }
@@ -308,5 +494,7 @@ pathlib.Path(output_path).write_text(
 )
 PY
 
-printf '[V9A-DI2-RUNNER][PASS] suite_run_id=%s focused=2 stall=1 mutations=11/11 regressions=8/8 DI-2=GREEN architecture=GREEN ppa=UNQUALIFIED\n' \
-  "$SUITE_RUN_ID" | tee "$EVIDENCE_DIR/final.log"
+printf '[V9A-DI2-RUNNER][PASS] task_run_id=%s suite_run_id=%s proof_mode=%s focused=2 stall=1 mutations=11/11 regressions=8/8 DI-2=GREEN architecture=%s ppa=UNQUALIFIED\n' \
+  "$TASK_RUN_ID" "$SUITE_RUN_ID" "$PROOF_MODE" \
+  "$([[ "$PROOF_MODE" == "task-run-v1" ]] && printf RED || printf GREEN)" \
+  | tee "$EVIDENCE_DIR/final.log"

@@ -1,0 +1,12 @@
+npc/rv64/csrc/cpu/cpu-exec.cpp
+npc/rv64/eval/ppa/tools/check.py
+npc/rv64/eval/ppa/tests/test_policy_tools.py
+npc/rv64/eval/ppa/tests/fixtures/coremark-valid.log
+npc/rv64/eval/ppa/tests/fixtures/dhrystone-valid.log
+npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json
+npc/rv64/eval/ppa/README.md
+npc/rv64/design/arch/performance-measurement-contract-v1.json
+npc/rv64/design/arch/performance-measurement-contract.md
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-08-01-rv64-v13k-performance-region-final

@@ -1,0 +1,76 @@
+{
+  "schema": "npc-rv64-v13e-lq-onehot-write-v1",
+  "status": "NEGATIVE_CANDIDATE_ROLLED_BACK",
+  "classification": {
+    "workflow_class": "development",
+    "technical_class": "ppa_candidate",
+    "evidence_class": "diagnostic",
+    "promotion_eligible": false
+  },
+  "identity": {
+    "parent_design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+    "parent_load_queue_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+    "candidate_load_queue_sha256": "a29819b565ea954840149170ac41260aa67a27e7279c81250fbe91e13247bfd8",
+    "candidate_spec_sha256": "866e0d349a4840e213a298a878b86b16908c541422f8f96217766c6e4eec3209",
+    "restored_spec_sha256": "e2d5f60dac01588bc2b8da1367142ebea67ae1afbbf10a3e04c0b3a2e5f86a6d"
+  },
+  "semantic_delta": {
+    "candidate": "consume edge-old allocation onehot grants directly at each entry write; remove binary index encode and dynamic array decode",
+    "ports_changed": false,
+    "parameters_changed": false,
+    "registered_state_changed": false,
+    "pipeline_changed": false,
+    "assertions_weakened": false,
+    "final_live_production_delta": false
+  },
+  "functional": {
+    "candidate_focused_assert": "PASS",
+    "candidate_raw_q_profiles": "4/4 PASS",
+    "rollback_focused_assert": "PASS",
+    "parent_integration": "NOT_RUN_MAPPED_EARLY_STOP",
+    "di5": "NOT_RUN_MAPPED_EARLY_STOP",
+    "rtl_style": "NOT_RUN_MAPPED_EARLY_STOP",
+    "historical_31x2_mutation": "NOT_RUN_MAPPED_EARLY_STOP"
+  },
+  "ppa": {
+    "configuration": "OooLoadQueue; 200 MHz; flatten=1; share=0; Yosys 0.66+197; icsprout55; OpenSTA 3.1.0; 5 ns ideal clock; zero IO delay",
+    "baseline_source": ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/ppa/local-baseline",
+    "coarse": {
+      "baseline": {"cells": 4568, "mux_cells": 1790, "wire_bits": 41922},
+      "candidate": {"cells": 3189, "mux_cells": 528, "wire_bits": 28557},
+      "delta": {"cells": -1379, "mux_cells": -1262, "wire_bits": -13365}
+    },
+    "mapped": {
+      "baseline": {"cells": 18979, "area": 44073.68, "sequential_area": 9264.64},
+      "candidate": {"cells": 19888, "area": 45097.92, "sequential_area": 9264.64},
+      "delta": {"cells": 909, "area": 1024.24, "sequential_area": 0.0}
+    },
+    "opensta": {
+      "baseline_worst_slack_ns": 3.475173950,
+      "candidate_worst_slack_ns": 3.370205879,
+      "delta_ns": -0.104968071,
+      "candidate_tns_ns": 0.0,
+      "candidate_wns_ns": 0.0,
+      "timing_qualified": false
+    },
+    "verdict": "DOMINATED_ROLLBACK",
+    "full_core_coarse": "NOT_RUN_LOCAL_EARLY_STOP",
+    "full_core_mapped_sta": "NOT_RUN",
+    "power": "NOT_RUN"
+  },
+  "cleanup": {
+    "regenerable_runtime_removed": true,
+    "removed_bytes": 113782010,
+    "removed_files": 15
+  },
+  "system": {
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "reason": "candidate rolled back; current production RTL identity restored"
+  },
+  "review": {
+    "final": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "equivalence_scope": "known onehot0 grants, mutually exclusive lanes, unchanged edge-old and prefix gating",
+    "scope": "negative-candidate early stop, compact evidence retention, and V13B production rollback"
+  }
+}

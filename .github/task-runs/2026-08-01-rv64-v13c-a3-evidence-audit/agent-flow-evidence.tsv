@@ -1,0 +1,4 @@
+2026-08-01T06:56:16Z	a3-fresh-checker-replay	PASS	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/fresh-replay.log
+2026-08-01T06:56:16Z	checker-positive-negative-boundary-mutation	PASS	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/checker-unit.log
+2026-08-01T06:56:16Z	frozen-input-and-canonical-asset-hashes	PASS	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/canonical-assets-check.log
+2026-08-01T06:56:16Z	current-system-binding	GAP	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/currentness-stale-rejection.log

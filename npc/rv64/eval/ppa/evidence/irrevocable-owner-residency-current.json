@@ -1,10 +1,10 @@
 {
   "artifacts": {
-    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log": "7eab0613c454b0f1871ef9ec7d579459c953b0f726fb702c8585060ec6d98650",
-    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log": "455423064e94387e7df28c35d120c70d4f203fecc85e14d744a1832cb14c89cc",
-    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/amo_clear_kind_on_write_fire.log": "61a8cdcf38465964bc1457c80db2d51251db2b8449086237c2cb5f3668f0820c",
-    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/sq_clear_owner_valid_on_request_fire.log": "0fece38a81b7e0a1c087a7f70bda5306783439a7f94eae7889ee1ee683c2bbb6",
-    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json": "73c0970315fbefb9cf867b821e7d59144c58b12cb0a1992db2f08c513f3b9741"
+    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log": "a322a50c2ead92ff945b69936d5d05dcbe52cd564f425923e50930da47628b70",
+    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log": "ab49ba95bf967b5a8f20355ff39af63c4776652243e856e2580757ab5b992699",
+    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/amo_clear_kind_on_write_fire.log": "30b3b97e7737cb2bba3f1e30c1fd2f0447c501b99dbf05ed87ce00aaaa042a31",
+    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/logs/sq_clear_owner_valid_on_request_fire.log": "e1a62d85c5db4f2358079f92401d01c09909e67c935b21ad288e54a45b536f3b",
+    ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json": "20afed81815ffc570666a02313093d9afb566a047ffb34b9333eb039bc21317a"
   },
   "canonical_command": "make -C npc/rv64 check-memory-ordering",
   "claim": {
@@ -13,12 +13,12 @@
     "canonical_top_global_flush_static_low": true,
     "store_next_edge_owner_residency": true
   },
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "focused": {
     "amo": {
       "log": {
         "path": ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_amo_owner_residency.log",
-        "sha256": "7eab0613c454b0f1871ef9ec7d579459c953b0f726fb702c8585060ec6d98650"
+        "sha256": "a322a50c2ead92ff945b69936d5d05dcbe52cd564f425923e50930da47628b70"
       },
       "marker": "[V9N-AMO-NEXT-EDGE-OWNER] launch=1 preserved=1 exact_terminal=1 PASS",
       "test": "tb_v9n_amo_owner_residency"
@@ -26,13 +26,13 @@
     "store": {
       "log": {
         "path": ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/focused/logs/tb_v9n_sq_owner_residency.log",
-        "sha256": "455423064e94387e7df28c35d120c70d4f203fecc85e14d744a1832cb14c89cc"
+        "sha256": "ab49ba95bf967b5a8f20355ff39af63c4776652243e856e2580757ab5b992699"
       },
       "marker": "[V9N-SQ-NEXT-EDGE-OWNER] launch=1 preserved=1 exact_terminal=1 PASS",
       "test": "tb_v9n_sq_owner_residency"
     }
   },
-  "generated_at_utc": "2026-07-29T12:44:18.287544+00:00",
+  "generated_at_utc": "2026-07-31T22:24:51.220324+00:00",
   "mutation_audit": {
     "compile_success": 2,
     "dynamic_rejected": 2,
@@ -44,7 +44,7 @@
     "required": 2,
     "summary": {
       "path": ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/evidence/rtl-variants/summary.json",
-      "sha256": "73c0970315fbefb9cf867b821e7d59144c58b12cb0a1992db2f08c513f3b9741"
+      "sha256": "20afed81815ffc570666a02313093d9afb566a047ffb34b9333eb039bc21317a"
     }
   },
   "ppa": "UNQUALIFIED",
@@ -60,16 +60,16 @@
       ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/subagent-contracts/owner-residency-review-v1.json": "591ea7e3b13a46e1d142d4223752b0b67f41c89ec0b8cca0afe5fbaa60d28e51",
       ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/tb_v9n_amo_owner_residency.sv": "bd08e6ce6ac0402404e85681b047eef2e854ec09ea9b2bcc340cdd8b1d3e230f",
       ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/tb_v9n_sq_owner_residency.sv": "cbf65a14d6eb8c346ebc9cb5b96a316f1bc84115e60ccbcd13b679dcff5b26e4",
-      "npc/rv64/Makefile": "e062f72d6ec79e44568dea09595c1cfda27db1380c72982cbffab30395f2dfe9",
-      "npc/rv64/design/specs/ooo-memory-producer-lease.md": "59d35c5e8b4d471d124fd878581c7743389adf7ba9abaa079f6193f6a51e1698",
+      "npc/rv64/Makefile": "834d3afbfec1c0e91278e4feaa63464433df3665160b1313df517bcfcce044f8",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md": "a3b4282f0899207a2ff8da7b9d33822d51620b0745f3245551f04042b4df25d4",
       "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md": "97f0cf157f978d07aa3105a8b62f4f94804abffc56b7dc4496a33c64bcfe37cf",
       "npc/rv64/eval/ppa/tests/test_irrevocable_owner_residency_evidence.py": "b489e576ec6a8b086e356d6539d5c6ff5e9d60c349557b21fddfcc4a58899ae8",
       "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "eab0370ddf0b0580693e9bd1939a4887dd7c1391dac7f946b0524ff8beed1aa3",
       "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py": "9dc27f788a39db3d7ffc324e659ad7e98abad98889e274b97a778de96408d004",
-      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
+      "npc/rv64/testbench/Makefile": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
-      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "d46ca7723fa89f120e24efa8ba25ac7f4344e87cde767d42e502f16d01303a8b",
-      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv": "beff7d14c2cdac9a7a9acbb4955bf82ff72a433394932d75ca002df7d428cd70",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv": "86ea1b71c03071c965fc09af1068475d0c0bca314b73b6b4338bb23ab1516fb0",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
@@ -77,8 +77,8 @@
       "npc/rv64/vsrc/writeback/OooRob.v": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561"
     },
     "rtl_file_count": 146,
-    "rtl_sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
-    "sha256": "08f3757600e821527a6578fed7f8ad263df850388d892e56263d37e05f505ab5"
+    "rtl_sha256": "882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
+    "sha256": "d81bc592ae00e3b0116d05c68655a5e2b53d57c0e5c182ef4833aab5aadd15a2"
   },
   "run_id": "2026-07-23-rv64-v9n-irrevocable-write-owner-residency",
   "schema": "npc-rv64-irrevocable-owner-residency-evidence-v1",

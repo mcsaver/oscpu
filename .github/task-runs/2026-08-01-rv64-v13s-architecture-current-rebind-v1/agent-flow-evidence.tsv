@@ -1,0 +1,6 @@
+2026-08-01T21:33:31Z	checker-unit-33	PASS	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/checker-unit.log
+2026-08-01T21:33:31Z	di4-current-release-assert-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/gates/no-static-lane-semantics.log
+2026-08-01T21:33:31Z	di3-current-release-assert-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/gates/pair-matrix.log
+2026-08-01T21:33:31Z	architecture-di34-current	PASS	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/architecture-di34-current-result.json
+2026-08-01T21:33:31Z	remaining-seven-architecture-gates	GAP	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/architecture-di34-current-result.json
+2026-08-01T21:35:59Z	pre-delivery-review	PASS	.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/pre-delivery-review.md

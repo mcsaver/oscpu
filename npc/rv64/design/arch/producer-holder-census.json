@@ -103,28 +103,28 @@
     "evidence": {
       "result": {
         "kind": "holder_instance_graph_result",
-        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/holder-instance-graph.json",
-        "sha256": "819a15d84375341cad18ba50e5e7ce660925c41550626bd65e1710dc3ef38bf3"
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/holder-instance-graph.json",
+        "sha256": "8e3ff1996e5e94b60b02f86fd1070174a2e58e2d39e8f152f5ad7a66c97dd2f6"
       },
       "receipt": {
         "kind": "holder_instance_graph_receipt",
-        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-        "sha256": "24f63cca669b88c92e014b634c85f6c3aea6f9bc5967644351caf1b2e422dee0"
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+        "sha256": "155c57d3f9a9a4133c7ac1d93110a042fc54e46dbb3cf730008d7cd2b258a2ad"
       },
       "full": {
         "kind": "holder_instance_graph_yosys_canonical_full_json_gzip",
-        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-        "sha256": "1fbb781acb509e30fa919c57f318f2a85df3ceac28ede21312400243c1dc4d89"
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+        "sha256": "483309c8f665a46eb78a0657200fd06ba6990e94324da2865eee48947828d9d2"
       },
       "script": {
         "kind": "holder_instance_graph_yosys_script",
-        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
         "sha256": "ba7cd306a1bed385f3d5f76c15aa9ac5de661d7165040641600fa19c117ea601"
       },
       "log": {
         "kind": "holder_instance_graph_yosys_log",
-        "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/yosys-instance-graph.log",
-        "sha256": "5f610f717d956c20c9ffdf26c8a1a52fb4e3450dac44a3f96db0912be8cd483b"
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.log",
+        "sha256": "4eefb58656749c93f6249ff8f9404978521174845c07d858f160a9902d86cfee"
       }
     }
   },
@@ -317,8 +317,8 @@
       "module": "OooIntIssueQueue",
       "symbol": "producer_id_next_r",
       "classification": "COMBINATIONAL_NEXT_EXEMPT",
-      "coverage_anchor": "producer_id_next_r\\[write_i\\]\\s*=\\s*producer_id_q\\[compact_i\\]",
-      "notes": "Combinational compaction next-state only; it is explicitly forbidden from the edge-old lease mask. Any additional exact-width reg/logic must be classified rather than escaping through a non-_q name."
+      "coverage_anchor": "assign\\s+compact_source_state_w\\[compact_g\\]\\s*=\\s*\\{.*?producer_id_q\\[compact_g\\].*?producer_id_next_r\\[compact_i\\].*?\\}\\s*=\\s*compact_next_state_w\\[compact_i\\]",
+      "notes": "Combinational packed compaction next-state only: resident producer_id_q enters compact_source_state_w and producer_id_next_r is unpacked from compact_next_state_w. It is explicitly forbidden from the edge-old lease mask. Any additional exact-width reg/logic must be classified rather than escaping through a non-_q name."
     }
   ],
   "generation_authorities": [
@@ -701,18 +701,18 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {
       "kind": "holder_lifecycle_log",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
-      "sha256": "489f4ee8ed8f42f18f24697bf18d8c7e701d47698ad3781b1227295029bed9c6"
+      "sha256": "c86c3ecfbad923ed3a9a8198c0481be90ef1f8f81c4b4e1b3bffca066122270f"
     },
     "mutation_summary": {
       "kind": "mutation_summary",
       "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
-      "sha256": "a5391b844dbf570661ff9402eabbbb7329b22356ed2fc74d581c408068920c60"
+      "sha256": "d142f039cb9c2fc3c239b9920074e6a04e85e1493fd1706e00bdeb7630f66cdc"
     }
   }
 }

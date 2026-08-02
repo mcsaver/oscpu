@@ -1,0 +1,51 @@
+PASS RTL task contract config, policy, discovery, profile and packaging wiring
+PASS positive read-only contract and rendered boundary
+PASS legitimate CPU architecture and RTL identifiers remain available
+PASS legitimate processor NoC terminology remains available
+PASS context-qualified hardware vocabulary is not filtered lexically
+PASS historical language policy remains validate-compatible
+PASS positive self-contained no-tools contract and rendered material
+PASS positive implementation contract preserves scoped write capability
+PASS positive verification contract preserves scoped execution capability
+PASS legacy context remains readable but is not a new-dispatch template
+PASS mutation rejected: unexpected-v2-scope-field
+PASS mutation rejected: legacy-nonfalse-scope-flag
+PASS mutation rejected: read-only-write
+PASS mutation rejected: path-traversal
+PASS mutation rejected: write-outside-allowlist
+PASS mutation rejected: parent-goal-propagation
+PASS mutation rejected: missing-deliverable
+PASS mutation rejected: missing-canonical-context
+PASS mutation rejected: context-outside-allowlist
+PASS mutation rejected: read-only-sed-inplace
+PASS mutation rejected: read-only-write-command
+PASS mutation rejected: read-only-purpose-free-text
+PASS mutation rejected: read-only-purpose-cross-command
+PASS mutation rejected: workspace-empty-commands
+PASS mutation rejected: no-tools-with-command
+PASS mutation rejected: no-tools-missing-material
+PASS mutation rejected: no-tools-multiline-material
+PASS mutation rejected: no-tools-implementation
+PASS mutation rejected: fixed-finding-cap
+PASS self-test checks=28
+PASS CLI create positive
+PASS CLI create emitted canonical v2 path/command scope
+PASS CLI create declared its JSON self-path
+PASS CLI validate positive
+PASS CLI render bound the exact JSON path and SHA-256
+PASS CLI create/validate/render self-contained no-tools contract
+PASS CLI create rejected no-tools contract without supplied material
+PASS CLI create rejected multiline no-tools supplied material
+PASS CLI create rejected commands in no-tools mode
+PASS CLI create rejected fixed finding count cap
+PASS CLI create preserved legitimate CPU architecture vocabulary
+PASS CLI validate kept legacy JSON compatibility
+PASS CLI render bound legacy JSON identity
+PASS CLI validate rejected unexpected v2 scope field
+PASS CLI validate rejected read-only write-command mutation
+PASS CLI validate rejected free-text purpose mutation
+PASS CLI validate rejected cross-command purpose mutation
+PASS CLI validate rejected outside-repository input
+PASS CLI validate rejected rebound repository root
+PASS CLI render rejected rebound repository root
+PASS CLI self-test cases=20

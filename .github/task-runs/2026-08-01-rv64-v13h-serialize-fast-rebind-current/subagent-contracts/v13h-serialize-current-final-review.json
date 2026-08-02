@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13h-serialize-current-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 RV64 OooRob queue-head CSR C0/C1/C2 与 OooPendingSystemSequencer pending-SYSTEM C0/C1/C2 事务证据，确认近期 StoreQueue、LoadQueue、IntIssueQueue RTL 后同一 design-id 的定向负向版本、113/177/61 功能队列、直接执行 schema 与 A3 历史系统事务边界是否支持仅限当前快速范围的 PASS，并寻找假绿、身份漂移、断言削弱或越级 PPA 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/task-runs/2026-08-01-rv64-v11y-full-core-current-cohort/evidence/functional-attempt-3-checker-replay-final/replay-result.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/serialize-at-retire.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/testbench/scripts/run_v12c_serialize_qh_current.py",
+      "npc/rv64/testbench/scripts/run_v12c_serialize_system_current.py",
+      "npc/rv64/testbench/scripts/check_serialize_current_evidence.py",
+      "npc/rv64/testbench/scripts/test_check_serialize_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json",
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/subagent-contracts/v13h-serialize-current-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按指定首行格式给出独立裁决，随后列出已核对的 module/signal 周期合同、testbench/EDA marker、证据哈希与 schema 反例；明确 unknowns、替代假设、confidence_and_basis，并在需要更多本地路径时给出 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "复核 design-id 364b1e、queue-head 2/2 加 3/3、pending-SYSTEM 3/3 加 15/15、功能队列 113/177/61 与 mismatch=0、CoreMark CRC 0xfcaf、Dhrystone 10000、pre/post RTL 身份不漂移以及直接执行 checker 的失败闭合；裁决必须保持 SERIALIZE-G1=STALE_EVIDENCE、architecture freeze=GAP、PPA=UNPROMOTED，除非指出可复现的证据不一致。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

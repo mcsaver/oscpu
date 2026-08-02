@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -30,17 +31,19 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
             self.repo / "npc/rv64/design/arch/producer-holder-census.json"
         )
         self.yosys_json = self.repo / "evidence/yosys.json"
+        self.run_id = "2026-01-01-rv64-holder-instance-graph-fixture"
+        self.evidence_paths = graph.evidence_paths_for_run(self.run_id)
         self.result_path = (
-            self.repo / graph.CANONICAL_EVIDENCE_PATHS["result"]
+            self.repo / self.evidence_paths["result"]
         )
         self.receipt_path = (
-            self.repo / graph.CANONICAL_EVIDENCE_PATHS["receipt"]
+            self.repo / self.evidence_paths["receipt"]
         )
-        self.full_path = self.repo / graph.CANONICAL_EVIDENCE_PATHS["full"]
+        self.full_path = self.repo / self.evidence_paths["full"]
         self.script_path = (
-            self.repo / graph.CANONICAL_EVIDENCE_PATHS["script"]
+            self.repo / self.evidence_paths["script"]
         )
-        self.log_path = self.repo / graph.CANONICAL_EVIDENCE_PATHS["log"]
+        self.log_path = self.repo / self.evidence_paths["log"]
         self._write(
             "npc/rv64/vsrc/core/NpcTop.v",
             "module NpcTop; Core u_core(); endmodule\n",
@@ -113,27 +116,27 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
                 "evidence": {
                     "result": {
                         "kind": graph.EVIDENCE_KINDS["result"],
-                        "path": graph.CANONICAL_EVIDENCE_PATHS["result"],
+                        "path": self.evidence_paths["result"],
                         "sha256": "0" * 64,
                     },
                     "receipt": {
                         "kind": graph.EVIDENCE_KINDS["receipt"],
-                        "path": graph.CANONICAL_EVIDENCE_PATHS["receipt"],
+                        "path": self.evidence_paths["receipt"],
                         "sha256": "0" * 64,
                     },
                     "full": {
                         "kind": graph.EVIDENCE_KINDS["full"],
-                        "path": graph.CANONICAL_EVIDENCE_PATHS["full"],
+                        "path": self.evidence_paths["full"],
                         "sha256": "0" * 64,
                     },
                     "script": {
                         "kind": graph.EVIDENCE_KINDS["script"],
-                        "path": graph.CANONICAL_EVIDENCE_PATHS["script"],
+                        "path": self.evidence_paths["script"],
                         "sha256": "0" * 64,
                     },
                     "log": {
                         "kind": graph.EVIDENCE_KINDS["log"],
-                        "path": graph.CANONICAL_EVIDENCE_PATHS["log"],
+                        "path": self.evidence_paths["log"],
                         "sha256": "0" * 64,
                     },
                 },
@@ -578,9 +581,48 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
         frozen = graph.audit_frozen(self.repo, self.manifest)
         self.assertEqual(frozen["status"], "FAIL")
         self.assertTrue(any(
-            "evidence.result.path must equal" in error
+            "evidence.result.path must match" in error
             for error in frozen["errors"]
         ))
+
+    def test_complete_bundle_can_rebind_to_a_new_task_run(self) -> None:
+        self.freeze_baseline()
+        rebound_paths = graph.evidence_paths_for_run(
+            "2026-01-02-rv64-holder-instance-graph-rebind"
+        )
+        evidence = self.manifest_value["elaborated_instance_graph"]["evidence"]
+        for role, relative in rebound_paths.items():
+            source = self.repo / self.evidence_paths[role]
+            target = self.repo / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            evidence[role]["path"] = relative
+            evidence[role]["sha256"] = graph.sha256_file(target)
+        self._write_json(self.manifest, self.manifest_value)
+
+        frozen = graph.audit_frozen(self.repo, self.manifest)
+        self.assertEqual(frozen["status"], "PASS", frozen["errors"])
+
+    def test_cross_task_run_role_splice_fails_closed(self) -> None:
+        self.freeze_baseline()
+        rebound_paths = graph.evidence_paths_for_run(
+            "2026-01-02-rv64-holder-instance-graph-rebind"
+        )
+        target = self.repo / rebound_paths["receipt"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(self.receipt_path, target)
+        evidence = self.manifest_value["elaborated_instance_graph"]["evidence"]
+        evidence["receipt"]["path"] = rebound_paths["receipt"]
+        evidence["receipt"]["sha256"] = graph.sha256_file(target)
+        self._write_json(self.manifest, self.manifest_value)
+
+        frozen = graph.audit_frozen(self.repo, self.manifest)
+        self.assertEqual(frozen["status"], "FAIL")
+        self.assertIn(
+            "instance graph evidence roles must share one task-run "
+            "evidence directory",
+            frozen["errors"],
+        )
 
     def test_synchronized_script_hash_edit_still_fails_canonical_rebuild(
         self,

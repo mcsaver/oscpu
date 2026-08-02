@@ -194,6 +194,7 @@ def main() -> int:
     parser.add_argument("--sources-post", required=True, type=pathlib.Path)
     parser.add_argument("--gate-log", required=True, type=pathlib.Path)
     parser.add_argument("--manifest", required=True, type=pathlib.Path)
+    parser.add_argument("--run-id", default=RUN_ID)
     args = parser.parse_args()
 
     root = args.repo_root.resolve(strict=True)
@@ -272,7 +273,7 @@ def main() -> int:
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     gate_lines = [
         "DI-3 dual-memory terminal-owner pair-matrix evidence",
-        f"run_id={RUN_ID}",
+        f"run_id={args.run_id}",
         f"generated_at_utc={generated_at}",
         f"design_id=sha256:{source_sha}",
         f"rtl_file_count={len(rtl_files)}",
@@ -292,7 +293,7 @@ def main() -> int:
     )
     gate_lines.append(
         "[ARCH-GATE] pair_matrix PASS "
-        f"run_id={RUN_ID} design_id=sha256:{source_sha} "
+        f"run_id={args.run_id} design_id=sha256:{source_sha} "
         f"provenance_sha256={provenance_sha}"
     )
     gate_log.write_text("\n".join(gate_lines) + "\n", encoding="utf-8")

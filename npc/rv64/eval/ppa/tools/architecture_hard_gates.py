@@ -145,6 +145,69 @@ FRONTEND_II1_PROVENANCE_PATHS = FRONTEND_II1_SOURCE_PATHS + (
     ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/"
     "evidence/final-run/sources.post.sha256",
 )
+FRONTEND_II1_TASK_RUN_SOURCE_PATHS = (
+    ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/contract.md",
+    ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/rtl-derivation.md",
+    ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-focused.sh",
+    ".github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/"
+    "run-v8z-mutations.py",
+    "npc/rv64/Makefile",
+    "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+    "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py",
+    "npc/rv64/eval/ppa/tests/test_frontend_ii1_evidence.py",
+    "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py",
+    "npc/rv64/eval/ppa/tools/frontend_ii1_evidence.py",
+    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/common/tb_common.svh",
+    "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+    "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+    "npc/rv64/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+    "npc/rv64/vsrc/frontend/OooFetchFlowControl.v",
+    "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+    "npc/rv64/vsrc/frontend/OooFetchRequestMux.v",
+    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
+    "npc/rv64/vsrc/frontend/OooFrontendActionGate.v",
+)
+FRONTEND_II1_MUTATION_NAMES = (
+    "bridge_h1_ready_cut",
+    "bridge_h1_state_turnover_cut",
+    "bridge_semantic_lookup_cut",
+    "flow_outstanding_turnover_cut",
+    "flow_enqueue_credit_cut",
+    "sequencer_replacement_clear",
+    "sink_dequeue_cut",
+    "successor_pc_old_owner",
+    "blocked_response_tail_ghost",
+)
+FRONTEND_II1_REGRESSION_NAMES = (
+    "tb_ooo_core_top_glue",
+    "tb_ooo_fetch_flow_control",
+    "tb_ooo_fetch_pc_outstanding_sequencer",
+    "tb_ooo_fetch_packet_fifo",
+    "tb_ooo_fetch_request_mux",
+    "tb_ooo_frontend_action_gate",
+)
+FRONTEND_II1_TASK_RUN_PROOF_ROLES = (
+    "scope_receipt",
+    "simulator_config",
+    "frontend_assert",
+    "frontend_release",
+    "bridge_assert",
+    "bridge_release",
+    *tuple(f"regression_{name}" for name in FRONTEND_II1_REGRESSION_NAMES),
+    "mutation_summary",
+    *tuple(f"mutation_{name}" for name in FRONTEND_II1_MUTATION_NAMES),
+    "sources_pre",
+    "sources_post",
+    "architecture_unit",
+)
 WIDTH_CONTINUITY_SOURCE_PATHS = (
     ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
     ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/"
@@ -217,6 +280,65 @@ WIDTH_CONTINUITY_REGRESSION_NAMES = (
     "tb_ooo_int_backend",
     "tb_ooo_rob",
     "tb_pipe_stage_reg",
+)
+WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS = (
+    ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/contract.md",
+    ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/rtl-derivation.md",
+    ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/"
+    "holder-census-delta.md",
+    ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh",
+    ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/"
+    "run-v9a-mutations.py",
+    "npc/rv64/Makefile",
+    "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+    "npc/rv64/design/arch/ooo-core-architecture.md",
+    "npc/rv64/design/arch/pipeline-stage-boundary.md",
+    "npc/rv64/design/specs/ooo-int-issue-queue.md",
+    "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py",
+    "npc/rv64/eval/ppa/tests/test_width_continuity_evidence.py",
+    "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tools/directed_evidence_manifest.py",
+    "npc/rv64/eval/ppa/tools/width_continuity_evidence.py",
+    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/common/tb_common.svh",
+    "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+    "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
+    "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv",
+    "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv",
+    "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+    "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+    "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+    "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv",
+    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
+    "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+    "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+    "npc/rv64/vsrc/decode/DecodeStage.v",
+    "npc/rv64/vsrc/decode/ImmGen.v",
+    "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+    "npc/rv64/vsrc/rename_allocate/OooRenameMap.v",
+    "npc/rv64/vsrc/rename_allocate/OooFreeList.v",
+    "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+    "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+    "npc/rv64/vsrc/writeback/OooRob.v",
+)
+WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES = (
+    "scope_receipt",
+    "simulator_config",
+    "width_assert",
+    "width_release",
+    "stall_probe",
+    *tuple(
+        f"regression_{name}" for name in WIDTH_CONTINUITY_REGRESSION_NAMES),
+    "mutation_summary",
+    *tuple(f"mutation_{name}" for name in WIDTH_CONTINUITY_MUTATION_NAMES),
+    "sources_pre",
+    "sources_post",
+    "architecture_unit",
 )
 WIDTH_CONTINUITY_PROVENANCE_PATHS = WIDTH_CONTINUITY_SOURCE_PATHS + (
     ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/"
@@ -312,6 +434,30 @@ LONG_LATENCY_PROVENANCE_PATHS = (
     "npc/rv64/testbench/Makefile",
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
 )
+LONG_LATENCY_SOURCE_PATHS = LONG_LATENCY_PROVENANCE_PATHS + (
+    "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+    "npc/rv64/vsrc/writeback/OooRob.v",
+)
+LONG_LATENCY_MUTATION_NAMES = (
+    "serial_issue1",
+    "miq_issue1_freeze",
+    "muldiv_issue1_freeze",
+    "retire_before_head_done",
+    "load_owner_pid_truncate",
+    "muldiv_owner_pid_truncate",
+    "muldiv_resp_pid_truncate",
+)
+LONG_LATENCY_TASK_RUN_PROOF_ROLES = (
+    "baseline_release",
+    "baseline_assert",
+    "mutation_summary",
+    "sources_pre",
+    "sources_post",
+    "simulator_config",
+    *tuple(f"mutator_{name}" for name in LONG_LATENCY_MUTATION_NAMES),
+    *tuple(f"simulation_{name}" for name in LONG_LATENCY_MUTATION_NAMES),
+)
 NO_STATIC_LANE_PROVENANCE_PATHS = (
     ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/"
     "contract.md",
@@ -355,6 +501,59 @@ DUAL_MEMORY_PROVENANCE_PATHS = (
     "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
     "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv",
+)
+DUAL_MEMORY_SOURCE_PATHS = DUAL_MEMORY_PROVENANCE_PATHS + (
+    "npc/rv64/eval/ppa/tests/test_dual_memory_issue_evidence.py",
+    "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py",
+    "npc/rv64/testbench/common/tb_common.svh",
+    "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+    "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+    "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+    "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+    "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+)
+DUAL_MEMORY_MUTATION_NAMES = (
+    "backend_next_requires_response_fire",
+    "backend_turnover_accepts_partial",
+    "backend_peek_dequeue_without_capture",
+    "bridge_station_query_requires_ready",
+    "bridge_station_lookup_ignores_ready",
+    "iq_pair_pop_only_entry0",
+    "iq_pair_exposes_regular_issue1",
+)
+DUAL_MEMORY_TASK_RUN_PROOF_ROLES = (
+    "system",
+    "miq",
+    "iq",
+    "bridge",
+    "backend",
+    "backend_partial",
+    "mutation_result",
+    "mutation_summary",
+    "baseline_cone_result",
+    "baseline_verilator_log",
+    "feedback_verilator_log",
+    "sources_pre",
+    "sources_post",
+    "simulator_config",
+    "f2_replay_origin",
+    "f2_source_architecture_manifest",
+    "f1_current_result",
+    "f1_current_sources_pre",
+    "f1_current_sources_post",
+    "f1_current_mutation_summary",
+    "f1_current_profile_summary",
+    "f1_current_final",
+    "f2_result",
+    "f2_sources_pre",
+    "f2_sources_post",
+    "f2_mutation_summary",
+    *tuple(f"activation_{name}" for name in DUAL_MEMORY_MUTATION_NAMES),
+    *tuple(f"receipt_{name}" for name in DUAL_MEMORY_MUTATION_NAMES),
+    *tuple(f"mutator_{name}" for name in DUAL_MEMORY_MUTATION_NAMES),
+    *tuple(f"simulation_{name}" for name in DUAL_MEMORY_MUTATION_NAMES),
 )
 MEMORY_ORDERING_SOURCE_PATHS = (
     ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/contract.md",
@@ -438,6 +637,20 @@ MEMORY_ORDERING_PROVENANCE_PATHS = MEMORY_ORDERING_SOURCE_PATHS + (
     "evidence/final-run/sources.pre.sha256",
     ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/"
     "evidence/final-run/sources.post.sha256",
+)
+MEMORY_ORDERING_TASK_RUN_PROOF_ROLES = (
+    "lq_log",
+    "sq_log",
+    "backend_log",
+    "backend_dual_log",
+    "glue_log",
+    "sustained_log",
+    "lq_mutations",
+    "sources_pre",
+    "sources_post",
+    "f2_result",
+    "f2_mutation_summary",
+    "f2_control_gate_log",
 )
 SPECULATION_RECOVERY_SOURCE_PATHS = (
     ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract.md",
@@ -527,6 +740,30 @@ SPECULATION_RECOVERY_PROVENANCE_PATHS = (
         "evidence/final-run/sources.post.sha256",
     )
 )
+SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES = (
+    "focused_assert",
+    "focused_release",
+    "mutation_summary",
+    "suite_run_id",
+    "sources_pre",
+    "sources_post",
+    "simulator_config",
+    "regression_int_backend",
+    "regression_core_top_glue",
+    "regression_redirect_arbiter",
+    "regression_branch_bpu_update_gate",
+    "regression_mem_axi_bridge",
+    "regression_dual_mem_bridge_wrapper",
+    "mutation_control_admit_b",
+    "mutation_youngest_control_select",
+    "mutation_resolve_issue_close_bypass",
+    "mutation_rob_tail_boundary_off_by_one",
+    "mutation_completion_replay_one_cycle",
+    "mutation_retire1_owner_remap",
+    "mutation_iq_kill_holder_bypass",
+    "mutation_mask_active_recovery_while_station_valid",
+    "mutation_block_killed_station_promotion",
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -598,6 +835,170 @@ def assignment_expression(text: str, signal: str) -> str:
         flags=re.DOTALL | re.MULTILINE,
     )
     return found.group(1) if found else ""
+
+
+def assignment_expressions(text: str, signal: str) -> list[str]:
+    return re.findall(
+        rf"\bassign\s+{re.escape(signal)}\s*=\s*((?:(?!;).)*)\s*;",
+        text,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+
+
+def concat_items(expression: str) -> list[str]:
+    """Split one outer Verilog concatenation without splitting nested calls."""
+    clean = expression.strip()
+    if len(clean) < 2 or clean[0] != "{" or clean[-1] != "}":
+        return []
+    items: list[str] = []
+    start = 1
+    paren_depth = 0
+    bracket_depth = 0
+    brace_depth = 0
+    for index in range(1, len(clean) - 1):
+        char = clean[index]
+        if char == "(":
+            paren_depth += 1
+        elif char == ")":
+            paren_depth -= 1
+        elif char == "[":
+            bracket_depth += 1
+        elif char == "]":
+            bracket_depth -= 1
+        elif char == "{":
+            brace_depth += 1
+        elif char == "}":
+            brace_depth -= 1
+        elif (
+            char == "," and paren_depth == 0 and bracket_depth == 0
+            and brace_depth == 0
+        ):
+            items.append(clean[start:index].strip())
+            start = index + 1
+    items.append(clean[start:-1].strip())
+    if (
+        paren_depth != 0 or bracket_depth != 0 or brace_depth != 0
+        or any(not item for item in items)
+    ):
+        return []
+    return items
+
+
+def concat_lhs_items(text: str, rhs_pattern: str) -> list[str]:
+    found = re.search(
+        rf"(?P<lhs>\{{[^;]*\}})\s*=\s*{rhs_pattern}\s*;",
+        text,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    return concat_items(found.group("lhs")) if found else []
+
+
+def compact_ws(value: str) -> str:
+    return re.sub(r"\s+", "", value)
+
+
+def tokens_in_order(value: str, tokens: tuple[str, ...]) -> bool:
+    cursor = 0
+    for token in tokens:
+        position = value.find(token, cursor)
+        if position < 0:
+            return False
+        cursor = position + len(token)
+    return True
+
+
+def packed_entry_field_facts(
+    iq: str,
+    q_field: str,
+    next_field: str,
+    dispatch0_value: str,
+    dispatch1_value: str,
+) -> dict[str, bool]:
+    """Prove one field traverses the V13I packed IQ state path fail-closed."""
+    resident = concat_items(assignment_expression(
+        iq, "compact_source_state_w[compact_g]"))
+    dispatch0 = concat_items(assignment_expression(iq, "dispatch0_state_w"))
+    dispatch1 = concat_items(assignment_expression(iq, "dispatch1_state_w"))
+    unpack = concat_lhs_items(
+        iq, r"compact_next_state_w\[compact_i\]")
+    bundles = (resident, dispatch0, dispatch1, unpack)
+    normalized = tuple(
+        [compact_ws(item) for item in bundle] for bundle in bundles)
+    resident_n, dispatch0_n, dispatch1_n, unpack_n = normalized
+    q_field_n = compact_ws(q_field)
+    next_field_n = compact_ws(next_field)
+    same_shape = (
+        all(bundle for bundle in bundles)
+        and len({len(bundle) for bundle in bundles}) == 1
+    )
+    resident_positions = [
+        index for index, item in enumerate(resident_n) if item == q_field_n]
+    unpack_positions = [
+        index for index, item in enumerate(unpack_n) if item == next_field_n]
+    field_aligned = (
+        same_shape
+        and len(resident_positions) == 1
+        and len(unpack_positions) == 1
+        and resident_positions[0] == unpack_positions[0]
+    )
+    field_index = resident_positions[0] if field_aligned else -1
+    dispatch_capture = (
+        field_aligned
+        and dispatch0_n[field_index] == compact_ws(dispatch0_value)
+        and dispatch1_n[field_index] == compact_ws(dispatch1_value)
+    )
+
+    survivor = [compact_ws(item) for item in assignment_expressions(
+        iq, "compact_survivor_state_w[compact_g]")]
+    survivor_route = (
+        len(survivor) == 3
+        and tokens_in_order(survivor[0], (
+            "compact_source0_sel_w[compact_g]",
+            "compact_source_state_w[compact_g]",
+            "compact_source1_sel_w[compact_g]",
+            "compact_source_state_w[compact_g+1]",
+            "compact_source2_sel_w[compact_g]",
+            "compact_source_state_w[compact_g+2]",
+        ))
+        and tokens_in_order(survivor[1], (
+            "compact_source0_sel_w[compact_g]",
+            "compact_source_state_w[compact_g]",
+            "compact_source1_sel_w[compact_g]",
+            "compact_source_state_w[compact_g+1]",
+        ))
+        and "compact_source2_sel_w[compact_g]" not in survivor[1]
+        and tokens_in_order(survivor[2], (
+            "compact_source0_sel_w[compact_g]",
+            "compact_source_state_w[compact_g]",
+        ))
+        and "compact_source1_sel_w[compact_g]" not in survivor[2]
+        and "compact_source2_sel_w[compact_g]" not in survivor[2]
+    )
+    next_mux = compact_ws(assignment_expression(
+        iq, "compact_next_state_w[compact_next_g]"))
+    next_route = tokens_in_order(next_mux, (
+        "compact_survivor_valid_w[compact_next_g]",
+        "compact_survivor_state_w[compact_next_g]",
+        "compact_dispatch0_slot_w[compact_next_g]",
+        "dispatch0_state_w",
+        "compact_dispatch1_slot_w[compact_next_g]",
+        "dispatch1_state_w",
+    ))
+    q_commit = match(
+        iq,
+        rf"{re.escape(q_field.replace('[compact_g]', '[reset_i]'))}\s*"
+        rf"<=\s*{re.escape(next_field.replace('[compact_i]', '[reset_i]'))}"
+        rf"\s*;",
+    )
+    return {
+        "bundle_shape": same_shape,
+        "resident_field": len(resident_positions) == 1,
+        "dispatch_capture": dispatch_capture,
+        "survivor_route": survivor_route,
+        "next_route": next_route,
+        "unpack_field": len(unpack_positions) == 1 and field_aligned,
+        "q_commit": q_commit,
+    }
 
 
 def named_instance_body(text: str, module: str, instance: str) -> str:
@@ -693,6 +1094,15 @@ def di4_checks(src: dict[str, str]) -> list[Check]:
     def count(pattern: str, text: str) -> int:
         return len(re.findall(pattern, text, flags=re.DOTALL | re.MULTILINE))
 
+    packed_alu = packed_entry_field_facts(
+        iq,
+        "alu_terminal_capable_q[compact_g]",
+        "alu_terminal_capable_next_r[compact_i]",
+        "ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) && "
+        "!dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i",
+        "ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) && "
+        "!dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i",
+    )
     actual_counts = {
         "predicate_ref": count(r"\bctrl_is_alu_terminal_capable\b", iq),
         "predicate_def": count(
@@ -728,14 +1138,22 @@ def di4_checks(src: dict[str, str]) -> list[Check]:
         "swap_iq_binding": count(
             r"\.issue_pair_swapped_o\(issue_pair_swapped_w\)", iq),
     }
+    actual_counts.update({
+        f"packed_{name}": int(passed)
+        for name, passed in packed_alu.items()
+    })
     actual_path_present = any(actual_counts.values())
     if actual_path_present:
+        legacy_entry_path = (
+            actual_counts["dispatch_capture"] == 2
+            and actual_counts["compaction_copy"] == 1
+        )
+        packed_entry_path = all(packed_alu.values())
         entry_capability = (
             actual_counts["predicate_def"] == 1
             and actual_counts["predicate_ref"] >= 3
             and actual_counts["metadata_decl"] == 1
-            and actual_counts["dispatch_capture"] == 2
-            and actual_counts["compaction_copy"] == 1
+            and (legacy_entry_path or packed_entry_path)
             and actual_counts["selector_projection"] == 1
             and actual_counts["selector_input"] == 1
         )
@@ -788,7 +1206,7 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
         "`CTRL_VALID_BIT", "`CTRL_NEED_MEM_BIT", "`CTRL_LOAD_BIT",
         "`CTRL_STORE_BIT", "!ctrl[`CTRL_AMO_BIT]",
     ))
-    capture_ok = all(match(
+    legacy_capture_ok = all(match(
         iq,
         rf"plain_memory_terminal_capable_next_r\[write_i\]\s*=\s*"
         rf"ctrl_is_plain_memory_terminal_capable\(dispatch{lane}_ctrl_i\)"
@@ -796,9 +1214,9 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
         rf"!dispatch{lane}_fp_pdest_i\s*&&\s*"
         rf"!dispatch{lane}_fp_st_src_en_i\s*;",
     ) for lane in (0, 1))
-    capability = all((
+    legacy_capability = all((
         plain_predicate,
-        capture_ok,
+        legacy_capture_ok,
         match(iq, r"plain_memory_terminal_capable_next_r\[write_i\]\s*=\s*"
                   r"plain_memory_terminal_capable_q\[compact_i\]\s*;"),
         match(iq, r"assign\s+select_plain_memory_capable_w\[select_g\]\s*=\s*"
@@ -806,6 +1224,26 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
         match(iq, r"\.plain_memory_capable_i\s*\(\s*"
                   r"select_plain_memory_capable_w\s*\)"),
     ))
+    packed_plain = packed_entry_field_facts(
+        iq,
+        "plain_memory_terminal_capable_q[compact_g]",
+        "plain_memory_terminal_capable_next_r[compact_i]",
+        "ctrl_is_plain_memory_terminal_capable(dispatch0_ctrl_i) && "
+        "!dispatch0_is_fp_i && !dispatch0_fp_pdest_i && "
+        "!dispatch0_fp_st_src_en_i",
+        "ctrl_is_plain_memory_terminal_capable(dispatch1_ctrl_i) && "
+        "!dispatch1_is_fp_i && !dispatch1_fp_pdest_i && "
+        "!dispatch1_fp_st_src_en_i",
+    )
+    packed_capability = all((
+        plain_predicate,
+        all(packed_plain.values()),
+        match(iq, r"assign\s+select_plain_memory_capable_w\[select_g\]\s*=\s*"
+                  r"plain_memory_terminal_capable_q\[select_g\]\s*;"),
+        match(iq, r"\.plain_memory_capable_i\s*\(\s*"
+                  r"select_plain_memory_capable_w\s*\)"),
+    ))
+    capability = legacy_capability or packed_capability
 
     selector_pair = all((
         match(selector, r"\bwire\s+memory_pair_w\s*=\s*"
@@ -1768,12 +2206,14 @@ def evidence_checks(
               command_ok, command_detail),
     ]
     log_ok = False
+    log_text = ""
     detail = "log/hash/marker is missing"
     log = record.get("log")
     if isinstance(log, dict) and is_sha256(log.get("sha256")):
         try:
             path = safe_artifact(root, log.get("path"))
             text = path.read_text(encoding="utf-8")
+            log_text = text
             pass_marker = f"[ARCH-GATE] {test_id} PASS"
             fail_marker = f"[ARCH-GATE] {test_id} FAIL"
             log_ok = (
@@ -1804,6 +2244,29 @@ def evidence_checks(
             "memory_ordering": MEMORY_ORDERING_PROVENANCE_PATHS,
             "speculation_recovery": SPECULATION_RECOVERY_PROVENANCE_PATHS,
         }[test_id]
+        task_run_source_paths = {
+            "frontend_ii1": FRONTEND_II1_TASK_RUN_SOURCE_PATHS,
+            "width_continuity": WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS,
+            "dual_memory_issue": DUAL_MEMORY_SOURCE_PATHS,
+            "true_ooo_long_latency": LONG_LATENCY_SOURCE_PATHS,
+            "memory_ordering": MEMORY_ORDERING_SOURCE_PATHS,
+            "speculation_recovery": SPECULATION_RECOVERY_SOURCE_PATHS,
+        }
+        task_run_proof_roles = {
+            "frontend_ii1": FRONTEND_II1_TASK_RUN_PROOF_ROLES,
+            "width_continuity": WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES,
+            "dual_memory_issue": DUAL_MEMORY_TASK_RUN_PROOF_ROLES,
+            "true_ooo_long_latency": LONG_LATENCY_TASK_RUN_PROOF_ROLES,
+            "memory_ordering": MEMORY_ORDERING_TASK_RUN_PROOF_ROLES,
+            "speculation_recovery": SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES,
+        }
+        task_run_proof_mode = (
+            test_id in task_run_source_paths
+            and isinstance(provenance, dict)
+            and provenance.get("mode") == "task-run-v1"
+        )
+        if task_run_proof_mode:
+            required_paths = task_run_source_paths[test_id]
         expected_paths = set(required_paths)
         inventory_ok = (
             isinstance(files, dict) and set(files) == expected_paths
@@ -1839,6 +2302,81 @@ def evidence_checks(
                 "the provenance aggregate digest matches its file map",
             ),
         ])
+        if task_run_proof_mode:
+            proof_files = provenance.get("proof_files")
+            proof_role_order = task_run_proof_roles[test_id]
+            proof_roles = set(proof_role_order)
+            proof_inventory_ok = (
+                isinstance(proof_files, dict)
+                and set(proof_files) == proof_roles
+                and all(
+                    isinstance(item, dict)
+                    and isinstance(item.get("path"), str)
+                    and item["path"].startswith(".github/task-runs/")
+                    and "/evidence/" in item["path"]
+                    and is_sha256(item.get("sha256"))
+                    for item in proof_files.values()
+                )
+            )
+            proof_content_ok = proof_inventory_ok
+            proof_log_ok = proof_inventory_ok and log_ok
+            proof_detail = "task-run proof roles, hashes and gate-log bindings match"
+            if proof_inventory_ok:
+                try:
+                    for role in proof_role_order:
+                        item = proof_files[role]
+                        artifact = safe_artifact(root, item["path"])
+                        if digest(artifact) != item["sha256"]:
+                            proof_content_ok = False
+                            proof_detail = f"proof hash mismatch: {role}"
+                            break
+                        marker = (
+                            f"artifact_sha256 {item['path']} "
+                            f"{item['sha256']}"
+                        )
+                        if log_text.count(marker) != 1:
+                            proof_log_ok = False
+                            proof_detail = (
+                                f"proof gate-log binding mismatch: {role}")
+                            break
+                except (OSError, ValueError) as exc:
+                    proof_content_ok = False
+                    proof_log_ok = False
+                    proof_detail = f"invalid task-run proof artifact: {exc}"
+            proof_digest_map = (
+                {
+                    role: (
+                        f"{proof_files[role]['path']}:"
+                        f"{proof_files[role]['sha256']}"
+                    )
+                    for role in proof_role_order
+                }
+                if proof_inventory_ok else {}
+            )
+            checks.extend([
+                Check(
+                    f"evidence.{test_id}.proof_inventory",
+                    proof_inventory_ok,
+                    "the exact task-run proof role inventory is bound",
+                ),
+                Check(
+                    f"evidence.{test_id}.proof_files",
+                    proof_content_ok,
+                    proof_detail,
+                ),
+                Check(
+                    f"evidence.{test_id}.proof_log_binding",
+                    proof_content_ok and proof_log_ok,
+                    "every proof path and hash appears exactly once in the gate log",
+                ),
+                Check(
+                    f"evidence.{test_id}.proof_digest",
+                    proof_content_ok
+                    and provenance.get("proof_sha256")
+                    == canonical_digest(proof_digest_map),
+                    "the task-run proof aggregate digest matches its role map",
+                ),
+            ])
     metrics = record.get("metrics")
     checks.append(Check(
         f"evidence.{test_id}.metrics", isinstance(metrics, dict),

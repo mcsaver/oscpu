@@ -1,0 +1,534 @@
+{
+  "baseline": {
+    "passed": 3,
+    "required": 3,
+    "status": {
+      "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/baseline/status",
+      "sha256": "55bd3d52ec3a8d472f7948dad5893943aba78a21942d3139eda871f97ff91c7c",
+      "size_bytes": 33
+    },
+    "tests": {
+      "tb_ooo_int_backend_v11l_memory_retry_holder": {
+        "log": {
+          "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/baseline/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+          "sha256": "3da74a89e6f972e626e410a747ed56ab6f2052114e449eb972502ab3651813d7",
+          "size_bytes": 22732
+        }
+      },
+      "tb_ooo_int_backend_v9r_sq_retry_c0": {
+        "log": {
+          "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/baseline/logs/tb_ooo_int_backend_v9r_sq_retry_c0.log",
+          "sha256": "bd44641bfa4354de5e62deb53e7151fdedd761e93b3d9f816472ee094a872e30",
+          "size_bytes": 22073
+        }
+      },
+      "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0": {
+        "log": {
+          "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/baseline/logs/tb_ooo_mem_axi_bridge_v9r_sq_retry_c0.log",
+          "sha256": "f2366bf9d1c33b41e3cbf8f6bfb4c1cc75a32907091b97d51acea6f13b473dd6",
+          "size_bytes": 69909
+        }
+      }
+    }
+  },
+  "canonical_command": "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS -u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 -f eval/ppa/control-event-evidence.mk check-control-event-sq-retry",
+  "compile_success_rtl_variants": [
+    {
+      "assertion_marker": "[V9R-SQ-RETRY-C0-HANDOFF] retry holder transfer exposed during full-flush barrier",
+      "compiled_source": "<CONTROL_EVENT_V11X_TEMP>/mutations/backend-bank0-ready-open/OooIntBackend.v",
+      "id": "backend-bank0-ready-open",
+      "log": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank0-ready-open/logs/tb_ooo_int_backend_v9r_sq_retry_c0.log",
+        "sha256": "dc3b2ede296e47574bb3b20e4e263ff5c257deadedbe56e242779dee33eeeb65",
+        "size_bytes": 22214
+      },
+      "make_returncode": 2,
+      "mutation_patch": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/patches/backend-bank0-ready-open.patch",
+        "sha256": "a7a43da2bfd6ec5beb1d113dc222483e3d50b34867a73ecb09c21738d1d68263",
+        "size_bytes": 525
+      },
+      "mutation_receipt": {
+        "anchor_count": 1,
+        "old_anchor_sha256": "a611150f8780f5f37aa20c9a301fee07b15cf9cb8048dfba57b404032254dc6c",
+        "production_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+        "replacement_sha256": "4112147c931c95be3452301997935e60bdbcbbe111dff87f592c8a2de896f317",
+        "variant_sha256": "627fdfe47ff3be9f4bb5987ecc670154aa58e65be2a5141e502149f8055d27c2"
+      },
+      "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "result": "REJECTED",
+      "status": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank0-ready-open/status",
+        "sha256": "2974de2f6dcae56c48804a9d0ce1759eba2d6881ab9fe851b4f050d1a580bfeb",
+        "size_bytes": 145
+      },
+      "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0"
+    },
+    {
+      "assertion_marker": "[V9R-SQ-RETRY-C0-HANDOFF] retry holder transfer exposed during full-flush barrier",
+      "compiled_source": "<CONTROL_EVENT_V11X_TEMP>/mutations/backend-bank1-ready-open/OooIntBackend.v",
+      "id": "backend-bank1-ready-open",
+      "log": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank1-ready-open/logs/tb_ooo_int_backend_v9r_sq_retry_c0.log",
+        "sha256": "147e33d5a5d0452ec9ac94ff5b36e4968a203482b5943951c8f4e86d3a9ada2e",
+        "size_bytes": 22214
+      },
+      "make_returncode": 2,
+      "mutation_patch": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/patches/backend-bank1-ready-open.patch",
+        "sha256": "c7c40e692502039fb3af7db07d105edf08164a74311f460e3033f49340d8520a",
+        "size_bytes": 544
+      },
+      "mutation_receipt": {
+        "anchor_count": 1,
+        "old_anchor_sha256": "355ba4a6bf054b58d49cb3e4effd5048c2e4835892fe61e2aaeefb5138ceb74a",
+        "production_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+        "replacement_sha256": "8de4b88cee36e97a7bddd5a9fcfef396276cfe71ec2daea18bd83b45c921ba15",
+        "variant_sha256": "33d64b529b84ba5458f1e030edefe73bb814fd78369528f7ab4fa2c6165039b7"
+      },
+      "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "result": "REJECTED",
+      "status": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank1-ready-open/status",
+        "sha256": "1ad5a9b3affe5e04650b9f6b3529fe62c6c339a6ce6824c14c14f6067e07e1e3",
+        "size_bytes": 145
+      },
+      "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0"
+    },
+    {
+      "assertion_marker": "[V9R-MEM-SQ-RETRY-C0-HANDOFF] bridge released SQ-query owner during full-flush barrier",
+      "compiled_source": "<CONTROL_EVENT_V11X_TEMP>/mutations/bridge-retry-fire-open/OooMemAxiBridge.v",
+      "id": "bridge-retry-fire-open",
+      "log": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/bridge-retry-fire-open/logs/tb_ooo_mem_axi_bridge_v9r_sq_retry_c0.log",
+        "sha256": "a1ed589a5438281efcfb21f708daf04e3bd852e09279a20ac6db76055d23a9df",
+        "size_bytes": 70130
+      },
+      "make_returncode": 2,
+      "mutation_patch": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/patches/bridge-retry-fire-open.patch",
+        "sha256": "55f6393bb9a3aab58fadfb908ea885a04ef96ffa92fde6fa8ab72c4f95e87ae0",
+        "size_bytes": 515
+      },
+      "mutation_receipt": {
+        "anchor_count": 1,
+        "old_anchor_sha256": "2481d3c6307602e4195b3c06e6374cffbc4b4eebf0600b20fba6ef76e3115b7f",
+        "production_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+        "replacement_sha256": "16a140221223a48df0acfee6161021bac0186f9d9be316e0855e499411f6804f",
+        "variant_sha256": "c2c1a2f9af937aa06c63fcd3ed581dd8f541e9dc559c54892a8eb4d4849e2390"
+      },
+      "production_source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "result": "REJECTED",
+      "status": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/bridge-retry-fire-open/status",
+        "sha256": "5a60890cfff9331724118aa18f3577ec8adbfcab8d76aa2c8d4149823ff55426",
+        "size_bytes": 145
+      },
+      "test_name": "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0"
+    },
+    {
+      "assertion_marker": "[V11L-RETRY-HOLDER-ORACLE][FAIL] stage=c0-filled-holder-pause",
+      "compiled_source": "<CONTROL_EVENT_V11X_TEMP>/mutations/backend-bank0-resident-fire-open/OooIntBackend.v",
+      "id": "backend-bank0-resident-fire-open",
+      "log": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank0-resident-fire-open/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+        "sha256": "cac99359fc3b7bb3a0f3c4d8c9efbe7782050e1b3fefba4be6b7df21974a4231",
+        "size_bytes": 22287
+      },
+      "make_returncode": 2,
+      "mutation_patch": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/patches/backend-bank0-resident-fire-open.patch",
+        "sha256": "ecd3d6023a4b54a254abfe623ac505b6384d40c473787b35f90540ca2b95e506",
+        "size_bytes": 628
+      },
+      "mutation_receipt": {
+        "anchor_count": 1,
+        "old_anchor_sha256": "59e00328a0f092bb32e9b1d427f636cf0d460c8e26e7098936712493ef592f44",
+        "production_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+        "replacement_sha256": "fb4265910aa45e5a41c89b11a53d10d72724bce9c10ccd3c390a21b6c9347bab",
+        "variant_sha256": "f69ea5f490f9bb55c702a46147f7c03bce10a13e3986557aae27f3de4cba2091"
+      },
+      "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "result": "REJECTED",
+      "status": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank0-resident-fire-open/status",
+        "sha256": "86c5794551f3c4dbc1a8f0d8804de9247b0939b240f1d055936634e48d21b941",
+        "size_bytes": 145
+      },
+      "test_name": "tb_ooo_int_backend_v11l_memory_retry_holder"
+    },
+    {
+      "assertion_marker": "[V11L-RETRY-HOLDER-ORACLE][FAIL] stage=c0-filled-holder-pause",
+      "compiled_source": "<CONTROL_EVENT_V11X_TEMP>/mutations/backend-bank1-resident-fire-open/OooIntBackend.v",
+      "id": "backend-bank1-resident-fire-open",
+      "log": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank1-resident-fire-open/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+        "sha256": "0fd22966daf5d267765e3f687f7a78bd3d58d48ce4c86e3a887eba64596785b2",
+        "size_bytes": 22287
+      },
+      "make_returncode": 2,
+      "mutation_patch": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/patches/backend-bank1-resident-fire-open.patch",
+        "sha256": "d81312aeb58cdf1ec9d19a2767cd9880434af79d4bf614eea4143cd4ae9b5ac7",
+        "size_bytes": 483
+      },
+      "mutation_receipt": {
+        "anchor_count": 1,
+        "old_anchor_sha256": "4b607292c69cef29f1106695854464fd3bf65871e7cb7972e1b4f8273ad68647",
+        "production_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+        "replacement_sha256": "0a490149f5935fd102bf5cef171585ed51b09014b10ad2abed47f9fd04c7caba",
+        "variant_sha256": "6087c3e26119db94e657e3e01a63acf4bdafb122453020550a26434a9274b8d2"
+      },
+      "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "result": "REJECTED",
+      "status": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/backend-bank1-resident-fire-open/status",
+        "sha256": "2a8b376b6ef176f13f581b2062801127ae9798da791ddac58edeaac680cdf082",
+        "size_bytes": 145
+      },
+      "test_name": "tb_ooo_int_backend_v11l_memory_retry_holder"
+    }
+  ],
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
+  "positive": {
+    "backend_banks": 2,
+    "barrier_release_cases": 1,
+    "bridge_query_hold_cases": 1,
+    "forced_barrier_cases": 2,
+    "natural_trap_head_cases": 1,
+    "resident_holder_banks": 2,
+    "resident_holder_barrier_cycles": 2
+  },
+  "ppa_status": "diagnostic_unqualified",
+  "promotion_eligible": false,
+  "result": "PASS",
+  "retention": {
+    "build_root": "TRANSIENT_TMP",
+    "compiled_images_retained": 0,
+    "negative_rtl_patches_retained": 5,
+    "normalized_logs_retained": 8
+  },
+  "schema": "npc-rv64-control-event-sq-retry-current-evidence-v2",
+  "source_after": {
+    "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/source-after.json",
+    "sha256": "522c90486fd0c2585c900944196a2506aacbb4534c5a93d0bb7db319075e057a",
+    "size_bytes": 17298
+  },
+  "source_before": {
+    "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/source-before.json",
+    "sha256": "522c90486fd0c2585c900944196a2506aacbb4534c5a93d0bb7db319075e057a",
+    "size_bytes": 17298
+  },
+  "source_binding": {
+    "file_count": 61,
+    "files": {
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md",
+        "sha256": "a24bc192fc4525cbaa44420d77c6579ceecc3caaac43bd4557788d11a8b735aa",
+        "size_bytes": 1003
+      },
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/run-focused.sh": {
+        "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/run-focused.sh",
+        "sha256": "43fa9912567f0c78b6dbdac53b08acab5cf0a861f6ca6e3428f561617a4aac45",
+        "size_bytes": 4423
+      },
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md": {
+        "path": "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+        "sha256": "d2061f5202c27abdb9cfe82e29e235f56282430948a31ec8e45e948c10fb8216",
+        "size_bytes": 37250
+      },
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md": {
+        "path": "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+        "sha256": "ab078711bf0115aaa626f35fdfc23a093a59a68426d68ca4b3a1a93fb33cb726",
+        "size_bytes": 33696
+      },
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md": {
+        "path": "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+        "sha256": "a3b4282f0899207a2ff8da7b9d33822d51620b0745f3245551f04042b4df25d4",
+        "size_bytes": 25978
+      },
+      "npc/rv64/eval/ppa/control-event-evidence.mk": {
+        "path": "npc/rv64/eval/ppa/control-event-evidence.mk",
+        "sha256": "8a5645d419c6ffe0253a81d451ce65f2c416f5867dfe2d9b034fbf72c7238b88",
+        "size_bytes": 480
+      },
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": {
+        "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+        "sha256": "eab0370ddf0b0580693e9bd1939a4887dd7c1391dac7f946b0524ff8beed1aa3",
+        "size_bytes": 103354
+      },
+      "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py": {
+        "path": "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py",
+        "sha256": "a58ddf20f9c646ff77f4a28a9dd4b14cb12be044f26e0797be7dfa79ebf819d2",
+        "size_bytes": 32490
+      },
+      "npc/rv64/testbench/Makefile": {
+        "path": "npc/rv64/testbench/Makefile",
+        "sha256": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
+        "size_bytes": 46701
+      },
+      "npc/rv64/testbench/common/rv32_encode.svh": {
+        "path": "npc/rv64/testbench/common/rv32_encode.svh",
+        "sha256": "4f304dc71e654a523bdaa5f511afc2b7a28769f04c9bd0043fd5164cbb6f6d01",
+        "size_bytes": 1146
+      },
+      "npc/rv64/testbench/common/tb_common.svh": {
+        "path": "npc/rv64/testbench/common/tb_common.svh",
+        "sha256": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+        "size_bytes": 855
+      },
+      "npc/rv64/testbench/scripts/check_tb_result.py": {
+        "path": "npc/rv64/testbench/scripts/check_tb_result.py",
+        "sha256": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
+        "size_bytes": 5706
+      },
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+        "size_bytes": 863108
+      },
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv": {
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+        "sha256": "fc6d14ad406c8758dbd87238b05f2e962fabd52ef28a61bc204c4df1ccdac7b2",
+        "size_bytes": 198989
+      },
+      "npc/rv64/vsrc/cache/OooDataWordCache.v": {
+        "path": "npc/rv64/vsrc/cache/OooDataWordCache.v",
+        "sha256": "7f3f0cddae8c44442c9357caa7da8212570c20f909aedc59af02f8b4bb05f898",
+        "size_bytes": 19865
+      },
+      "npc/rv64/vsrc/execute/ALU.v": {
+        "path": "npc/rv64/vsrc/execute/ALU.v",
+        "sha256": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
+        "size_bytes": 1171
+      },
+      "npc/rv64/vsrc/execute/CompareUnit.v": {
+        "path": "npc/rv64/vsrc/execute/CompareUnit.v",
+        "sha256": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
+        "size_bytes": 758
+      },
+      "npc/rv64/vsrc/execute/OooAmoGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooAmoGate.v",
+        "sha256": "6a1f7818864646f390bd3d69b21d8aa97252abfabcb3ec4cdf8f02a60229eebb",
+        "size_bytes": 3307
+      },
+      "npc/rv64/vsrc/execute/OooBitmanipGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooBitmanipGate.v",
+        "sha256": "441a38dc7e70ac2768d613fdb5558be6d946faa3118b6bc601e7a6b2f6c47e19",
+        "size_bytes": 13404
+      },
+      "npc/rv64/vsrc/execute/OooClmulUnit.v": {
+        "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "sha256": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+        "size_bytes": 6788
+      },
+      "npc/rv64/vsrc/execute/OooFpArithGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+        "size_bytes": 75009
+      },
+      "npc/rv64/vsrc/execute/OooFpBackend.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+        "size_bytes": 58399
+      },
+      "npc/rv64/vsrc/execute/OooFpClassifyGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpClassifyGate.v",
+        "sha256": "a9c9ae843b0455ac9b9f13effcc3f28aa60277131f58612511caa3728f5ef015",
+        "size_bytes": 2532
+      },
+      "npc/rv64/vsrc/execute/OooFpCompareGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpCompareGate.v",
+        "sha256": "fb4fa579a599351254a678bf6ef01dd771687198ac6f16199ab688dc2765a415",
+        "size_bytes": 7970
+      },
+      "npc/rv64/vsrc/execute/OooFpConvertGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpConvertGate.v",
+        "sha256": "ae4054063ff55a459025fee6b4f4a126d165b4474d6e9add0b824717ecee1130",
+        "size_bytes": 31028
+      },
+      "npc/rv64/vsrc/execute/OooFpDivIter.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpDivIter.v",
+        "sha256": "5c587092c26723e9274bcb2bd68ba095df64a08ec012e938e80fea3b1a35f7fd",
+        "size_bytes": 2759
+      },
+      "npc/rv64/vsrc/execute/OooFpLongOpGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpLongOpGate.v",
+        "sha256": "d6fe771a370eda94530a1a1c80606d6438fa3551d3c04f3db6b0e560d9b6f36e",
+        "size_bytes": 30429
+      },
+      "npc/rv64/vsrc/execute/OooFpSgnjGate.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpSgnjGate.v",
+        "sha256": "8557cc364a19060f6cc09d413c24ef71d153b2bb20237b5bc34fb901b822451a",
+        "size_bytes": 2372
+      },
+      "npc/rv64/vsrc/execute/OooFpSqrtIter.v": {
+        "path": "npc/rv64/vsrc/execute/OooFpSqrtIter.v",
+        "sha256": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
+        "size_bytes": 2604
+      },
+      "npc/rv64/vsrc/execute/OooIntBackend.v": {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+        "size_bytes": 390541
+      },
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v": {
+        "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "sha256": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+        "size_bytes": 23354
+      },
+      "npc/rv64/vsrc/include/define.v": {
+        "path": "npc/rv64/vsrc/include/define.v",
+        "sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+        "size_bytes": 32073
+      },
+      "npc/rv64/vsrc/memory/LSU.v": {
+        "path": "npc/rv64/vsrc/memory/LSU.v",
+        "sha256": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
+        "size_bytes": 1087
+      },
+      "npc/rv64/vsrc/memory/LSUControl.v": {
+        "path": "npc/rv64/vsrc/memory/LSUControl.v",
+        "sha256": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
+        "size_bytes": 1119
+      },
+      "npc/rv64/vsrc/memory/LSUDataPath.v": {
+        "path": "npc/rv64/vsrc/memory/LSUDataPath.v",
+        "sha256": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
+        "size_bytes": 1650
+      },
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+        "size_bytes": 24568
+      },
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": {
+        "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+        "size_bytes": 117426
+      },
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "sha256": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+        "size_bytes": 19588
+      },
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "sha256": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
+        "size_bytes": 18596
+      },
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "sha256": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
+        "size_bytes": 19510
+      },
+      "npc/rv64/vsrc/memory/OooPmaChecker.v": {
+        "path": "npc/rv64/vsrc/memory/OooPmaChecker.v",
+        "sha256": "e197b137bfe1126f9191eaf3b2cfce779d26bdce0ead4a94d831552fe5732c2b",
+        "size_bytes": 2801
+      },
+      "npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v": {
+        "path": "npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v",
+        "sha256": "717edd10049be5a00edb8f100fff59a1577704eb81564619bea4f262837553b9",
+        "size_bytes": 1636
+      },
+      "npc/rv64/vsrc/memory/OooStoreQueue.v": {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+        "size_bytes": 47415
+      },
+      "npc/rv64/vsrc/memory/OooSv39Tlb.v": {
+        "path": "npc/rv64/vsrc/memory/OooSv39Tlb.v",
+        "sha256": "6e1b4e2b0a817db3c4d42da20b429b93a7803dc92e72b6e08efeda6ee8b3b850",
+        "size_bytes": 3326
+      },
+      "npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v": {
+        "path": "npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v",
+        "sha256": "aa573507b2ec3b76053470784a9d303b63eee5c9716807daada3f9a51c742649",
+        "size_bytes": 4161
+      },
+      "npc/rv64/vsrc/memory/OooTypedPmaChecker.v": {
+        "path": "npc/rv64/vsrc/memory/OooTypedPmaChecker.v",
+        "sha256": "ce644709dd4bfa8d2710fc4e32dea24b660ab24f55d745552ab5aebd09263de0",
+        "size_bytes": 3641
+      },
+      "npc/rv64/vsrc/memory/PmpChecker.v": {
+        "path": "npc/rv64/vsrc/memory/PmpChecker.v",
+        "sha256": "f4600c320b03f0ffd3bcdff9336bcea2a17580fa7b8752da18d7db35956da4c2",
+        "size_bytes": 6192
+      },
+      "npc/rv64/vsrc/pipeline/PipeStageReg.v": {
+        "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+        "sha256": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+        "size_bytes": 3237
+      },
+      "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v": {
+        "path": "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v",
+        "sha256": "7237911b33f9b0992d9fc32529505be27ac246f527f57d3b8d656baaf87275f0",
+        "size_bytes": 2760
+      },
+      "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v": {
+        "path": "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v",
+        "sha256": "9975f068f1d455c61b586966390ec2fa2126cc8127e5a964e8ff9c4041f65cfa",
+        "size_bytes": 1807
+      },
+      "npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v": {
+        "path": "npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v",
+        "sha256": "0eba2c376365d13b2843092835ad76d0d74695aeb95be4cd4417d678d0a5a082",
+        "size_bytes": 4188
+      },
+      "npc/rv64/vsrc/rename_allocate/OooBusyTable.v": {
+        "path": "npc/rv64/vsrc/rename_allocate/OooBusyTable.v",
+        "sha256": "44dc6289103ee615b9d3e6f61acbfb9404a0329a649fd9a6f0f89829ace0fc12",
+        "size_bytes": 4876
+      },
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v": {
+        "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "sha256": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+        "size_bytes": 46102
+      },
+      "npc/rv64/vsrc/rename_allocate/OooFreeList.v": {
+        "path": "npc/rv64/vsrc/rename_allocate/OooFreeList.v",
+        "sha256": "4946e8070db1c5243c412610790cbcddbaee08c3402847e509d02fe1237b9c58",
+        "size_bytes": 4198
+      },
+      "npc/rv64/vsrc/rename_allocate/OooRenameMap.v": {
+        "path": "npc/rv64/vsrc/rename_allocate/OooRenameMap.v",
+        "sha256": "1a2d2abd94ea4dee8fb4d850820e853aa50041408b8c0d847a25eb029b794789",
+        "size_bytes": 5430
+      },
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v": {
+        "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+        "size_bytes": 18098
+      },
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v": {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "sha256": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+        "size_bytes": 49851
+      },
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+        "sha256": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+        "size_bytes": 8718
+      },
+      "npc/rv64/vsrc/sram/Sram4096x113.v": {
+        "path": "npc/rv64/vsrc/sram/Sram4096x113.v",
+        "sha256": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
+        "size_bytes": 1114
+      },
+      "npc/rv64/vsrc/writeback/OooRob.v": {
+        "path": "npc/rv64/vsrc/writeback/OooRob.v",
+        "sha256": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561",
+        "size_bytes": 53548
+      },
+      "npc/rv64/vsrc/writeback/WBU.v": {
+        "path": "npc/rv64/vsrc/writeback/WBU.v",
+        "sha256": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0",
+        "size_bytes": 819
+      }
+    },
+    "sha256": "5f572a9a581c0527e6c7f53ea435502791acabef18cf56714700140e315f3f25"
+  },
+  "source_unchanged": true
+}

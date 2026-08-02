@@ -1,0 +1,5 @@
+2026-08-02T01:04:23Z	cleanup-preview	PASS	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/semantic-vvp-retirement.json
+2026-08-02T01:05:15Z	cleanup-result	PASS	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/compile-image-retirement-receipt.json
+2026-08-02T01:08:53Z	yosys-full-graph-dedupe	PASS	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/yosys-full-graph-hardlink-dedupe.json
+2026-08-02T01:26:00Z	semantic-aggregate	PASS	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/producer-holder-semantic-coverage-post-cleanup.json
+2026-08-02T01:26:00Z	reviewer-counterexample-closure	PASS	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/reviewer-counterexample-closure.json

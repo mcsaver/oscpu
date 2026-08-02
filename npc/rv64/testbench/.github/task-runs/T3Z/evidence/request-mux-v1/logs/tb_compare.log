@@ -1,5 +1,0 @@
-[TEST] tb_compare
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_compare -o build-t3z-request-mux-v1/tb_compare.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v tests/tb_compare.sv
-[PASS] tb_compare
-common/tb_common.svh:32: $finish called at 8 (1s)
-[RESULT] PASS

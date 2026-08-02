@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13t-ooo2-frozen-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "只根据冻结的本地 RV64 RTL 与 Icarus 证据摘录，反例优先复核 current-design OOO-2 selective scheduling 的 scoped 结论与未晋级边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/subagent-contracts/v13t-ooo2-frozen-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "OOO-2 合同：registered Universal owner 驻留时，仅屏蔽 Universal terminal；sole ready ALU-capable resident 必须经独立 terminal 前进，依赖项和同资源 memory 项保持驻留。",
+      "当前 RTL 摘录：OooIntBackend 向 Dispatch 传 universal_owner_present_i=(mem_issue_res_valid_q || mem_issue1_res_valid_q)；Dispatch 原样传入 OooIntIssueQueue；IQ issue0_valid_o 显式含 !universal_owner_present_i，issue1_valid_o 不含该条件；OooIntIssueSelect8 在 owner present 时令 issue1_onehot_w=first_alu_onehot_w、issue1_found_o=(!owner_memory_pair_peek_w && first_alu_valid_w)；backend 非 plain-memory issue1_ready_w 仅含 !mem_issue1_res_valid_q、flush/recovery/issue/WB gates，不引用 mem_issue_res_valid_q。",
+      "当前设计 design-id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488。release/assert 的 tb_ooo_int_backend 与 tb_ooo_int_issue_queue 共 4/4 PASS；backend marker blocked_dependents_only=1 younger_independent_issued=1 different_resource_issued=1 global_freeze_cycles=0 target_pid=3；leaf marker [R3P1-REGISTERED-OWNER-SOLE-ALU] PASS。",
+      "五个 compile-success mutation 均被语义拒绝：backend_owner_binding、dispatch_owner_forwarding、selector_owner_to_alu、iq_issue1_owner_mask、backend_issue1_ready_mask。architecture_hard_gates 与 manifest 单测 33/33 PASS；sources.pre.sha256 与 sources.post.sha256 byte-identical。",
+      "task-run scoped manifest 仅含 selective_scheduling=PASS；scoped architecture-result 精确为 OOO-2 GREEN、其它八门 RED、overall RED。runner 首次 refresh summary 曾硬编码 OOO-1=GREEN；已改为从 architecture-result JSON 读取，重跑输出 OOO-1=RED OOO-2=GREEN overall=RED。canonical npc/rv64/eval/ppa/evidence/architecture-current.json SHA-256 保持 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1，未作为输出目标。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL 链路、release/assert 周期观测、mutation 敏感性、design binding、runner 状态边界给出 PASS/GAP/FAIL；优先指出矛盾、假绿或范围越级。"
+  ],
+  "success_criteria": [
+    "明确 scoped OOO-2 是否成立；不得把 OOO-1、其它门、整体 architecture、CPI 或 PPA 提升为 PASS；列出反例、未知项、confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

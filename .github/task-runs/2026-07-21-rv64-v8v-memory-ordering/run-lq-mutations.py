@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -26,6 +29,23 @@ REPO_ROOT = RUN_DIR.parents[2]
 SOURCE = REPO_ROOT / "npc/rv64/vsrc/memory/OooLoadQueue.v"
 TB_DIR = REPO_ROOT / "npc/rv64/testbench"
 
+
+def output_dir() -> Path:
+    raw = os.environ.get("V8V_MUTATION_OUTPUT_DIR")
+    if not raw:
+        return RUN_DIR
+    path = Path(raw)
+    path = (path if path.is_absolute() else REPO_ROOT / path).resolve()
+    task_runs = (REPO_ROOT / ".github/task-runs").resolve()
+    if (
+        not path.is_relative_to(task_runs)
+        or path.name != "lq-mutations"
+        or path.parent.name != "evidence"
+    ):
+        raise RuntimeError(f"unsafe mutation output directory: {path}")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 MUTATIONS = (
     Mutation(
         "pid_index_only",
@@ -38,18 +58,23 @@ MUTATIONS = (
     Mutation(
         "issue_killed_bypass",
         "if (issue0_hit_w[lookup_i] && !killed_q[lookup_i] &&\n"
+        "          !terminal_seen_q[lookup_i] &&\n"
         "          !completed_q[lookup_i])",
-        "if (issue0_hit_w[lookup_i] && !completed_q[lookup_i])",
+        "if (issue0_hit_w[lookup_i] &&\n"
+        "          !terminal_seen_q[lookup_i] &&\n"
+        "          !completed_q[lookup_i])",
         "launched younger load remains issue-closed tombstone",
         "A selectively killed launched load cannot issue again.",
     ),
     Mutation(
         "query_metadata_bypass",
         "if (query1_hit_w[lookup_i] && launched_q[lookup_i] &&\n"
-        "          !killed_q[lookup_i] && !completed_q[lookup_i] &&\n"
+        "          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&\n"
+        "          !completed_q[lookup_i] &&\n"
         "          query1_meta_match_w[lookup_i] && !query_pair_same_pid_w)",
         "if (query1_hit_w[lookup_i] && launched_q[lookup_i] &&\n"
-        "          !killed_q[lookup_i] && !completed_q[lookup_i] &&\n"
+        "          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&\n"
+        "          !completed_q[lookup_i] &&\n"
         "          !query_pair_same_pid_w)",
         "retry with changed final PA fails closed",
         "A repeated physical query preserves PA, class, attribute and mask.",
@@ -72,10 +97,12 @@ MUTATIONS = (
         "flush_drops_launched",
         "if (((launched_q[i] || launch0_hit_w[i] || launch1_hit_w[i]) &&\n"
         "               !completed_q[i] && !completion0_hit_w[i] &&\n"
-        "               !completion1_hit_w[i]) &&",
+        "               !completion1_hit_w[i] && !terminal_seen_q[i]) &&\n"
+        "              !(terminal0_hit_w[i] || terminal1_hit_w[i])) begin",
         "if (((1'b0 || launch0_hit_w[i] || launch1_hit_w[i]) &&\n"
         "               !completed_q[i] && !completion0_hit_w[i] &&\n"
-        "               !completion1_hit_w[i]) &&",
+        "               !completion1_hit_w[i] && !terminal_seen_q[i]) &&\n"
+        "              !(terminal0_hit_w[i] || terminal1_hit_w[i])) begin",
         "selective recovery clears unlaunched younger load only",
         "Recovery retains a launched incomplete load as a killed tombstone.",
     ),
@@ -106,6 +133,49 @@ MUTATIONS = (
 )
 
 
+# The LQ CAM/open-hit implementation was changed from a procedural scan to a
+# generated bit-vector network without changing the queue contract.  Keep the
+# original anchor as the historical representation and list the current
+# representation explicitly.  A mutation is accepted only when exactly one
+# representation has exactly one anchor in the selected source; this avoids a
+# permissive substring fallback that could cut the wrong RTL cone.
+CURRENT_MUTATION_ALTERNATIVES: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "issue_killed_bypass": ((
+        "generated-open-hit",
+        "assign issue0_open_hit_w[g] = issue0_hit_w[g] &&\n"
+        "          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g];",
+        "assign issue0_open_hit_w[g] = issue0_hit_w[g] &&\n"
+        "          !terminal_seen_q[g] && !completed_q[g];",
+    ),),
+    "query_metadata_bypass": ((
+        "generated-open-hit",
+        "assign query1_open_hit_w[g] = query1_hit_w[g] && launched_q[g] &&\n"
+        "          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g] &&\n"
+        "          query1_meta_match_w[g] && !query_pair_same_pid_w;",
+        "assign query1_open_hit_w[g] = query1_hit_w[g] && launched_q[g] &&\n"
+        "          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g] &&\n"
+        "          !query_pair_same_pid_w;",
+    ),),
+    "response_order_bypass": ((
+        "generated-open-hit",
+        "(ordered_q[g] || response1_fault_i);",
+        "(1'b1 || response1_fault_i);",
+    ),),
+    "release_before_completion": ((
+        "generated-release-ready",
+        "assign release0_ready_hit_w[g] = release0_match_w[g] &&\n"
+        "          (completed_q[g] || completion0_hit_w[g] || completion1_hit_w[g]);",
+        "assign release0_ready_hit_w[g] = release0_match_w[g];",
+    ),),
+    "dual_alloc_same_slot": ((
+        "onehot-allocation",
+        "assign alloc1_onehot_w = alloc1_free_w &\n"
+        "      (~alloc1_free_w + {{(ENTRY_N-1){1'b0}}, 1'b1});",
+        "assign alloc1_onehot_w = alloc0_onehot_w;",
+    ),),
+}
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -114,15 +184,30 @@ def main() -> int:
     source_bytes = SOURCE.read_bytes()
     source_text = source_bytes.decode("utf-8")
     scratch = Path(tempfile.mkdtemp(prefix="codex-v8v-lq-mutations-"))
+    atexit.register(shutil.rmtree, scratch, ignore_errors=True)
     results: list[dict[str, object]] = []
 
     for mutation in MUTATIONS:
-        occurrences = source_text.count(mutation.old)
-        if occurrences != 1:
-            raise RuntimeError(
-                f"mutation {mutation.name}: expected one anchor, found {occurrences}"
+        candidates = [
+            ("historical-procedural", mutation.old, mutation.new),
+            *CURRENT_MUTATION_ALTERNATIVES.get(mutation.name, ()),
+        ]
+        candidate_counts = [
+            (representation, old, new, source_text.count(old))
+            for representation, old, new in candidates
+        ]
+        matches = [candidate for candidate in candidate_counts if candidate[3] == 1]
+        if len(matches) != 1:
+            counts = ", ".join(
+                f"{representation}={occurrences}"
+                for representation, _old, _new, occurrences in candidate_counts
             )
-        mutant_text = source_text.replace(mutation.old, mutation.new, 1)
+            raise RuntimeError(
+                f"mutation {mutation.name}: expected exactly one representation "
+                f"with one anchor, found {len(matches)} ({counts})"
+            )
+        representation, anchor_old, anchor_new, _occurrences = matches[0]
+        mutant_text = source_text.replace(anchor_old, anchor_new, 1)
         mutant_dir = scratch / mutation.name
         mutant_dir.mkdir(parents=True)
         mutant_path = mutant_dir / "OooLoadQueue.v"
@@ -160,6 +245,8 @@ def main() -> int:
                 "name": mutation.name,
                 "contract": mutation.contract,
                 "oracle": mutation.oracle,
+                "anchor_representation": representation,
+                "anchor_sha256": sha256_bytes(anchor_old.encode("utf-8")),
                 "compile_success": compile_success,
                 "oracle_seen": oracle_seen,
                 "dynamic_rejected": dynamic_rejected,
@@ -187,7 +274,8 @@ def main() -> int:
         "all_passed": all(bool(r["passed"]) for r in results),
         "results": results,
     }
-    json_path = RUN_DIR / "mutation-results.json"
+    result_dir = output_dir()
+    json_path = result_dir / "mutation-results.json"
     json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     rows = [
@@ -197,25 +285,29 @@ def main() -> int:
         f"- mutations: `{payload['passed_count']}/{payload['mutation_count']}` rejected by dynamic hardware oracles",
         f"- all passed: `{str(payload['all_passed']).lower()}`",
         "",
-        "| Mutation | Compile | Dynamic reject | Exact oracle | Result |",
-        "| --- | --- | --- | --- | --- |",
+        "| Mutation | RTL representation | Compile | Dynamic reject | Exact oracle | Result |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for result in results:
         rows.append(
-            "| {name} | {compile} | {reject} | `{oracle}` | {passed} |".format(
+            "| {name} | `{representation}` | {compile} | {reject} | `{oracle}` | {passed} |".format(
                 name=result["name"],
+                representation=result["anchor_representation"],
                 compile="PASS" if result["compile_success"] else "FAIL",
                 reject="PASS" if result["dynamic_rejected"] else "FAIL",
                 oracle=result["oracle"],
                 passed="PASS" if result["passed"] else "FAIL",
             )
         )
-    (RUN_DIR / "mutation-results.md").write_text(
+    (result_dir / "mutation-results.md").write_text(
         "\n".join(rows) + "\n", encoding="utf-8"
     )
 
+    scratch_path = str(scratch)
+    shutil.rmtree(scratch)
     print(json.dumps({
-        "scratch": str(scratch),
+        "scratch": scratch_path,
+        "scratch_deleted": not scratch.exists(),
         "all_passed": payload["all_passed"],
         "passed": payload["passed_count"],
         "total": payload["mutation_count"],

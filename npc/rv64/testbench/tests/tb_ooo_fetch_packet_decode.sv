@@ -125,6 +125,15 @@ module tb_ooo_fetch_packet_decode;
     check_xlen("c+c packet next", packet_next_pc, 64'h0000_0000_0000_2004);
     check_xlen("c+c raw packet next", packet_raw_next_pc, 64'h0000_0000_0000_2004);
 
+    // C.LUI with rd=x0 and a nonzero immediate is a HINT, not an illegal
+    // instruction.  Preserve its no-op semantics through decompression.
+    drive(64'h0000_0000_0000_2100, {16'h0001, 16'h6005}, 2'b00,
+          32'h0000_0013, 2'b00);
+    tb_check32("c.lui x0 hint decompresses to nop",
+               dec0_inst, 32'h0000_0013);
+    tb_check1("c.lui x0 hint does not stop control flow",
+              dec0_control_stop, 1'b0);
+
     drive(64'h0000_0000_0000_3000, 32'h0093_0001, 2'b00,
           32'hbabe_0010, 2'b10);
     check_xlen("c+u32 dec0 next", dec0_next_pc, 64'h0000_0000_0000_3002);

@@ -3,13 +3,19 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 task_run_dir="${repo_root}/.github/task-runs/2026-07-23-rv64-v9p-serialize-current-design"
-result_dir="${task_run_dir}/terminal-duplicate-focused/diagnostic-mutation"
+# 显式绝对目录用于新设计重放，避免覆盖 V9P 历史诊断记录。
+result_dir="${RV64_TERMINAL_DIAGNOSTIC_RESULT_DIR:-${task_run_dir}/terminal-duplicate-focused/diagnostic-mutation}"
 testbench_dir="${repo_root}/npc/rv64/testbench"
 backend="${repo_root}/npc/rv64/vsrc/execute/OooIntBackend.v"
 bridge="${repo_root}/npc/rv64/vsrc/memory/OooMemAxiBridge.v"
 mutator="${repo_root}/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py"
 holder_mutator="${task_run_dir}/mutate-terminal-holder-identity.py"
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/v9p-terminal-duplicate.XXXXXX")"
+
+if [[ "${result_dir}" != /* ]]; then
+  printf '%s\n' "[V9P-TERMINAL-DIAGNOSTIC][FAIL] result directory must be absolute" >&2
+  exit 2
+fi
 
 cleanup() {
   case "${temp_dir}" in

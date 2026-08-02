@@ -128,6 +128,24 @@ class ProducerHolderCensusTests(unittest.TestCase):
             result["instance_graph"]["counts"]["holder_instances"], 17
         )
 
+    def test_integer_iq_packed_compaction_anchor_is_sensitive(self) -> None:
+        path = self.source / "scheduling/OooIntIssueQueue.v"
+        text = path.read_text(encoding="utf-8")
+        anchor = "producer_id_q[compact_g],"
+        self.assertEqual(text.count(anchor), 1)
+        path.write_text(
+            text.replace(anchor, "{PRODUCER_ID_W{1'b0}},", 1),
+            encoding="utf-8",
+        )
+
+        result = self.audit()
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn(
+            "combinational_full_p_regs[0] coverage anchor missing: "
+            "integer-iq-next-producer",
+            result["errors"],
+        )
+
     def test_checker_loads_by_file_path_without_external_pythonpath(
         self,
     ) -> None:

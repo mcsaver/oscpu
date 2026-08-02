@@ -43,6 +43,11 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 PERFORMANCE_EVIDENCE_SCHEMAS = {
     "npc-rv64-performance-evidence-v2",
     "npc-rv64-performance-evidence-v3",
+    "npc-rv64-performance-evidence-v4",
+    "npc-rv64-performance-evidence-v5",
+    "npc-rv64-performance-evidence-v6",
+    "npc-rv64-performance-evidence-v7",
+    "npc-rv64-performance-evidence-v8",
 }
 PERFORMANCE_COUNTER_SCOPES_BY_SCHEMA = {
     "npc-rv64-performance-evidence-v2": {
@@ -50,6 +55,26 @@ PERFORMANCE_COUNTER_SCOPES_BY_SCHEMA = {
         "dhrystone_10000": "pc_bounded_region_v1",
     },
     "npc-rv64-performance-evidence-v3": {
+        "coremark": "pc_bounded_region_v1",
+        "dhrystone_10000": "pc_bounded_region_v1",
+    },
+    "npc-rv64-performance-evidence-v4": {
+        "coremark": "pc_bounded_region_v1",
+        "dhrystone_10000": "pc_bounded_region_v1",
+    },
+    "npc-rv64-performance-evidence-v5": {
+        "coremark": "pc_bounded_region_v1",
+        "dhrystone_10000": "pc_bounded_region_v1",
+    },
+    "npc-rv64-performance-evidence-v6": {
+        "coremark": "pc_bounded_region_v1",
+        "dhrystone_10000": "pc_bounded_region_v1",
+    },
+    "npc-rv64-performance-evidence-v7": {
+        "coremark": "pc_bounded_region_v1",
+        "dhrystone_10000": "pc_bounded_region_v1",
+    },
+    "npc-rv64-performance-evidence-v8": {
         "coremark": "pc_bounded_region_v1",
         "dhrystone_10000": "pc_bounded_region_v1",
     },
@@ -230,7 +255,7 @@ def _hex_uint64(value: Any, field: str, label: str) -> int:
 
 
 def policy_region_contract_errors(
-    benchmark: str, contract: dict[str, Any]
+    benchmark: str, contract: dict[str, Any], evidence_schema: str
 ) -> list[str]:
     """Validate the promotion-selected fixed-PC contract for one benchmark."""
     expected = FIXED_REGION_CONTRACTS[benchmark]
@@ -252,6 +277,15 @@ def policy_region_contract_errors(
             errors.append(f"policy {display} region PCs are invalid")
     if region.get("start_marker_semantics") != "first_committed_hit":
         errors.append(f"policy {display} start semantics are invalid")
+    if (evidence_schema in {
+            "npc-rv64-performance-evidence-v4",
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8"}
+            and region.get("final_marker_semantics") !=
+            "termination_time_total_hits"):
+        errors.append(f"policy {display} final semantics are invalid")
     start_hits = region.get("start_hits")
     stop_hits = region.get("stop_hits")
     if (not strict_positive_int(start_hits)
@@ -267,6 +301,8 @@ def parse_raw_benchmark_log(
     benchmark: str,
     counter_scope: str | None = None,
     scope_contract: dict[str, Any] | None = None,
+    evidence_schema: str | None = None,
+    performance_counter_contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Parse one simulator benchmark log using unique authoritative markers."""
     label = f"{benchmark} raw log"
@@ -275,6 +311,12 @@ def parse_raw_benchmark_log(
         raise ValueError(f"unsupported raw benchmark log: {benchmark}")
     if counter_scope is None:
         counter_scope = PERFORMANCE_V2_COUNTER_SCOPES[benchmark]
+    if evidence_schema is None:
+        evidence_schema = "npc-rv64-performance-evidence-v3"
+    if evidence_schema not in PERFORMANCE_EVIDENCE_SCHEMAS:
+        raise ValueError(
+            f"{label}: unsupported performance evidence schema "
+            f"{evidence_schema!r}")
     if counter_scope not in supported_scopes:
         raise ValueError(
             f"{label}: unsupported counter scope {counter_scope!r}")
@@ -282,6 +324,60 @@ def parse_raw_benchmark_log(
         scope_contract = {}
     if not isinstance(scope_contract, dict):
         raise ValueError(f"{label}: scope contract must be an object")
+    counter_unknown_ratio_max: float | None = None
+    if evidence_schema in {
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8"}:
+        if not isinstance(performance_counter_contract, dict):
+            raise ValueError(
+                f"{label}: performance counter contract is missing")
+        counter_contract_versions = {
+            "npc-rv64-performance-evidence-v5": (
+                "npc-rv64-performance-counter-schema-v1",
+                "npc-rv64-performance-counter-v1"),
+            "npc-rv64-performance-evidence-v6": (
+                "npc-rv64-performance-counter-schema-v2",
+                "npc-rv64-performance-counter-v2"),
+            "npc-rv64-performance-evidence-v7": (
+                "npc-rv64-performance-counter-schema-v3",
+                "npc-rv64-performance-counter-v3"),
+            "npc-rv64-performance-evidence-v8": (
+                "npc-rv64-performance-counter-schema-v4",
+                "npc-rv64-performance-counter-v4"),
+        }
+        (expected_counter_contract_schema,
+         expected_counter_marker_schema) = counter_contract_versions[
+             evidence_schema]
+        if (performance_counter_contract.get("schema") !=
+                expected_counter_contract_schema):
+            raise ValueError(
+                f"{label}: unsupported performance counter contract schema")
+        if (performance_counter_contract.get("marker_schema") !=
+                expected_counter_marker_schema):
+            raise ValueError(
+                f"{label}: performance counter marker schema mismatch")
+        if performance_counter_contract.get("retire_width") != 2:
+            raise ValueError(
+                f"{label}: performance counter retire width mismatch")
+        counter_qualification = performance_counter_contract.get(
+            "qualification")
+        if not isinstance(counter_qualification, dict):
+            raise ValueError(
+                f"{label}: performance counter qualification is missing")
+        counter_unknown_ratio_max = counter_qualification.get(
+            "unknown_or_unclassified_cycle_ratio_max")
+        if (not finite_number(counter_unknown_ratio_max)
+                or counter_unknown_ratio_max < 0
+                or counter_unknown_ratio_max > 1):
+            raise ValueError(
+                f"{label}: performance counter unknown ratio limit is invalid")
+        if (counter_qualification.get(
+                "baseline_requires_phase_aligned_boundaries") is not True):
+            raise ValueError(
+                f"{label}: performance counters require phase-aligned "
+                "boundary qualification")
     try:
         size = path.stat().st_size
         if size <= 0 or size > MAX_RAW_LOG_BYTES:
@@ -426,27 +522,254 @@ def parse_raw_benchmark_log(
         f"{benchmark_display} stop boundary marker",
         label,
     )
-    region_match = _unique_raw_line(
-        lines,
-        re.compile(r"\bregion_probe\].*\bRESULT\b"),
-        re.compile(
-            r"\[[^]\r\n]*\bregion_probe\]\s+RESULT\s+"
-            r"start_hits=([0-9]+)\s+end_hits=([0-9]+)\s+"
-            r"start_cycle=([0-9]+)\s+end_cycle=([0-9]+)\s+"
-            r"cycles=([0-9]+)\s+start_retired=([0-9]+)\s+"
-            r"end_retired=([0-9]+)\s+retired=([0-9]+)\s*"),
-        f"{benchmark_display} region result marker",
-        label,
-    )
+    require_final = evidence_schema in {
+        "npc-rv64-performance-evidence-v4",
+        "npc-rv64-performance-evidence-v5",
+        "npc-rv64-performance-evidence-v6",
+        "npc-rv64-performance-evidence-v7",
+        "npc-rv64-performance-evidence-v8",
+    }
+    if require_final:
+        region_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bFINAL\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+FINAL\s+"
+                r"schema=([a-zA-Z0-9_-]+)\s+"
+                r"counter_scope=([a-zA-Z0-9_-]+)\s+"
+                r"complete=([01])\s+termination_rc=(-?[0-9]+)\s+"
+                r"start_seen=([01])\s+end_seen=([01])\s+"
+                r"start_hits=([0-9]+)\s+end_hits=([0-9]+)\s+"
+                r"start_cycle=([0-9]+)\s+end_cycle=([0-9]+)\s+"
+                r"cycles=([0-9]+)\s+start_retired=([0-9]+)\s+"
+                r"end_retired=([0-9]+)\s+retired=([0-9]+)\s*"),
+            f"{benchmark_display} region FINAL marker",
+            label,
+        )
+    else:
+        region_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bRESULT\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+RESULT\s+"
+                r"start_hits=([0-9]+)\s+end_hits=([0-9]+)\s+"
+                r"start_cycle=([0-9]+)\s+end_cycle=([0-9]+)\s+"
+                r"cycles=([0-9]+)\s+start_retired=([0-9]+)\s+"
+                r"end_retired=([0-9]+)\s+retired=([0-9]+)\s*"),
+            f"{benchmark_display} region result marker",
+            label,
+        )
+
+    counter_match: re.Match[str] | None = None
+    if evidence_schema == "npc-rv64-performance-evidence-v5":
+        counter_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bCOUNTERS_FINAL\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+COUNTERS_FINAL\s+"
+                r"schema=([a-zA-Z0-9_-]+)\s+"
+                r"complete=([01])\s+available=([01])\s+"
+                r"overflow=([01])\s+invalid_events=([0-9]+)\s+"
+                r"start_lane=([0-9]+)\s+end_lane=([0-9]+)\s+"
+                r"phase_aligned=([01])\s+cycles=([0-9]+)\s+"
+                r"cycle_useful=([0-9]+)\s+cycle_rob_empty=([0-9]+)\s+"
+                r"cycle_head_not_complete=([0-9]+)\s+"
+                r"cycle_exception_redirect=([0-9]+)\s+"
+                r"cycle_memory_commit=([0-9]+)\s+"
+                r"cycle_serialization=([0-9]+)\s+"
+                r"cycle_unknown=([0-9]+)\s+"
+                r"slot_capacity=([0-9]+)\s+retired_slots=([0-9]+)\s+"
+                r"unused_slots=([0-9]+)\s+"
+                r"slot_rob_empty=([0-9]+)\s+"
+                r"slot_head_not_complete=([0-9]+)\s+"
+                r"slot_exception_redirect=([0-9]+)\s+"
+                r"slot_memory_commit=([0-9]+)\s+"
+                r"slot_serialization=([0-9]+)\s+"
+                r"slot_unknown=([0-9]+)\s+conservation=([01])\s*"),
+            f"{benchmark_display} performance COUNTERS_FINAL marker",
+            label,
+        )
+    elif evidence_schema == "npc-rv64-performance-evidence-v6":
+        counter_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bCOUNTERS_FINAL\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+COUNTERS_FINAL\s+"
+                r"schema=([a-zA-Z0-9_-]+)\s+"
+                r"complete=([01])\s+available=([01])\s+"
+                r"overflow=([01])\s+invalid_events=([0-9]+)\s+"
+                r"start_lane=([0-9]+)\s+end_lane=([0-9]+)\s+"
+                r"phase_aligned=([01])\s+cycles=([0-9]+)\s+"
+                r"cycle_useful=([0-9]+)\s+cycle_rob_empty=([0-9]+)\s+"
+                r"cycle_head_not_complete=([0-9]+)\s+"
+                r"cycle_dependency=([0-9]+)\s+"
+                r"cycle_issue_terminal=([0-9]+)\s+"
+                r"cycle_execution_latency=([0-9]+)\s+"
+                r"cycle_memory_latency=([0-9]+)\s+"
+                r"cycle_head_lifecycle_unknown=([0-9]+)\s+"
+                r"cycle_exception_redirect=([0-9]+)\s+"
+                r"cycle_memory_commit=([0-9]+)\s+"
+                r"cycle_serialization=([0-9]+)\s+"
+                r"cycle_unknown=([0-9]+)\s+"
+                r"slot_capacity=([0-9]+)\s+retired_slots=([0-9]+)\s+"
+                r"unused_slots=([0-9]+)\s+"
+                r"slot_rob_empty=([0-9]+)\s+"
+                r"slot_head_not_complete=([0-9]+)\s+"
+                r"slot_dependency=([0-9]+)\s+"
+                r"slot_issue_terminal=([0-9]+)\s+"
+                r"slot_execution_latency=([0-9]+)\s+"
+                r"slot_memory_latency=([0-9]+)\s+"
+                r"slot_head_lifecycle_unknown=([0-9]+)\s+"
+                r"slot_exception_redirect=([0-9]+)\s+"
+                r"slot_memory_commit=([0-9]+)\s+"
+                r"slot_serialization=([0-9]+)\s+"
+                r"slot_unknown=([0-9]+)\s+conservation=([01])\s*"),
+            f"{benchmark_display} performance COUNTERS_FINAL marker",
+            label,
+        )
+    elif evidence_schema == "npc-rv64-performance-evidence-v7":
+        counter_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bCOUNTERS_FINAL\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+COUNTERS_FINAL\s+"
+                r"schema=([a-zA-Z0-9_-]+)\s+"
+                r"complete=([01])\s+available=([01])\s+"
+                r"overflow=([01])\s+invalid_events=([0-9]+)\s+"
+                r"start_lane=([0-9]+)\s+end_lane=([0-9]+)\s+"
+                r"phase_aligned=([01])\s+cycles=([0-9]+)\s+"
+                r"cycle_useful=([0-9]+)\s+cycle_rob_empty=([0-9]+)\s+"
+                r"cycle_head_not_complete=([0-9]+)\s+"
+                r"cycle_dependency=([0-9]+)\s+"
+                r"cycle_issue_terminal=([0-9]+)\s+"
+                r"cycle_execution_latency=([0-9]+)\s+"
+                r"cycle_memory_latency=([0-9]+)\s+"
+                r"cycle_memory_reservation_queue=([0-9]+)\s+"
+                r"cycle_memory_translation_order=([0-9]+)\s+"
+                r"cycle_memory_request_outstanding=([0-9]+)\s+"
+                r"cycle_memory_response_terminal=([0-9]+)\s+"
+                r"cycle_memory_retry=([0-9]+)\s+"
+                r"cycle_memory_lifecycle_unknown=([0-9]+)\s+"
+                r"cycle_head_lifecycle_unknown=([0-9]+)\s+"
+                r"cycle_exception_redirect=([0-9]+)\s+"
+                r"cycle_memory_commit=([0-9]+)\s+"
+                r"cycle_serialization=([0-9]+)\s+"
+                r"cycle_unknown=([0-9]+)\s+"
+                r"slot_capacity=([0-9]+)\s+retired_slots=([0-9]+)\s+"
+                r"unused_slots=([0-9]+)\s+"
+                r"slot_rob_empty=([0-9]+)\s+"
+                r"slot_head_not_complete=([0-9]+)\s+"
+                r"slot_dependency=([0-9]+)\s+"
+                r"slot_issue_terminal=([0-9]+)\s+"
+                r"slot_execution_latency=([0-9]+)\s+"
+                r"slot_memory_latency=([0-9]+)\s+"
+                r"slot_memory_reservation_queue=([0-9]+)\s+"
+                r"slot_memory_translation_order=([0-9]+)\s+"
+                r"slot_memory_request_outstanding=([0-9]+)\s+"
+                r"slot_memory_response_terminal=([0-9]+)\s+"
+                r"slot_memory_retry=([0-9]+)\s+"
+                r"slot_memory_lifecycle_unknown=([0-9]+)\s+"
+                r"slot_head_lifecycle_unknown=([0-9]+)\s+"
+                r"slot_exception_redirect=([0-9]+)\s+"
+                r"slot_memory_commit=([0-9]+)\s+"
+                r"slot_serialization=([0-9]+)\s+"
+                r"slot_unknown=([0-9]+)\s+conservation=([01])\s*"),
+            f"{benchmark_display} performance COUNTERS_FINAL marker",
+            label,
+        )
+    elif evidence_schema == "npc-rv64-performance-evidence-v8":
+        counter_match = _unique_raw_line(
+            lines,
+            re.compile(r"\bregion_probe\].*\bCOUNTERS_FINAL\b"),
+            re.compile(
+                r"\[[^]\r\n]*\bregion_probe\]\s+COUNTERS_FINAL\s+"
+                r"schema=([a-zA-Z0-9_-]+)\s+"
+                r"complete=([01])\s+available=([01])\s+"
+                r"overflow=([01])\s+invalid_events=([0-9]+)\s+"
+                r"start_lane=([0-9]+)\s+end_lane=([0-9]+)\s+"
+                r"phase_aligned=([01])\s+cycles=([0-9]+)\s+"
+                r"cycle_useful=([0-9]+)\s+cycle_rob_empty=([0-9]+)\s+"
+                r"cycle_head_not_complete=([0-9]+)\s+"
+                r"cycle_dependency=([0-9]+)\s+"
+                r"cycle_issue_terminal=([0-9]+)\s+"
+                r"cycle_execution_latency=([0-9]+)\s+"
+                r"cycle_memory_latency=([0-9]+)\s+"
+                r"cycle_memory_reservation_queue=([0-9]+)\s+"
+                r"cycle_memory_translation_order=([0-9]+)\s+"
+                r"cycle_memory_request_outstanding=([0-9]+)\s+"
+                r"cycle_memory_request_cache_lookup=([0-9]+)\s+"
+                r"cycle_memory_request_device_wait=([0-9]+)\s+"
+                r"cycle_memory_request_axi_read_address=([0-9]+)\s+"
+                r"cycle_memory_request_axi_read_data=([0-9]+)\s+"
+                r"cycle_memory_request_axi_write_request=([0-9]+)\s+"
+                r"cycle_memory_request_axi_write_response=([0-9]+)\s+"
+                r"cycle_memory_request_detail_unknown=([0-9]+)\s+"
+                r"cycle_memory_response_terminal=([0-9]+)\s+"
+                r"cycle_memory_retry=([0-9]+)\s+"
+                r"cycle_memory_lifecycle_unknown=([0-9]+)\s+"
+                r"cycle_head_lifecycle_unknown=([0-9]+)\s+"
+                r"cycle_exception_redirect=([0-9]+)\s+"
+                r"cycle_memory_commit=([0-9]+)\s+"
+                r"cycle_serialization=([0-9]+)\s+"
+                r"cycle_unknown=([0-9]+)\s+"
+                r"slot_capacity=([0-9]+)\s+retired_slots=([0-9]+)\s+"
+                r"unused_slots=([0-9]+)\s+"
+                r"slot_rob_empty=([0-9]+)\s+"
+                r"slot_head_not_complete=([0-9]+)\s+"
+                r"slot_dependency=([0-9]+)\s+"
+                r"slot_issue_terminal=([0-9]+)\s+"
+                r"slot_execution_latency=([0-9]+)\s+"
+                r"slot_memory_latency=([0-9]+)\s+"
+                r"slot_memory_reservation_queue=([0-9]+)\s+"
+                r"slot_memory_translation_order=([0-9]+)\s+"
+                r"slot_memory_request_outstanding=([0-9]+)\s+"
+                r"slot_memory_request_cache_lookup=([0-9]+)\s+"
+                r"slot_memory_request_device_wait=([0-9]+)\s+"
+                r"slot_memory_request_axi_read_address=([0-9]+)\s+"
+                r"slot_memory_request_axi_read_data=([0-9]+)\s+"
+                r"slot_memory_request_axi_write_request=([0-9]+)\s+"
+                r"slot_memory_request_axi_write_response=([0-9]+)\s+"
+                r"slot_memory_request_detail_unknown=([0-9]+)\s+"
+                r"slot_memory_response_terminal=([0-9]+)\s+"
+                r"slot_memory_retry=([0-9]+)\s+"
+                r"slot_memory_lifecycle_unknown=([0-9]+)\s+"
+                r"slot_head_lifecycle_unknown=([0-9]+)\s+"
+                r"slot_exception_redirect=([0-9]+)\s+"
+                r"slot_memory_commit=([0-9]+)\s+"
+                r"slot_serialization=([0-9]+)\s+"
+                r"slot_unknown=([0-9]+)\s+conservation=([01])\s*"),
+            f"{benchmark_display} performance COUNTERS_FINAL marker",
+            label,
+        )
 
     (start_pc_text, start_cycle_text, start_retired_text,
      start_lane_text, start_cycle_retire_text) = start_match.groups()
     (stop_pc_text, stop_cycle_text, stop_retired_text,
      stop_lane_text, stop_cycle_retire_text) = stop_match.groups()
-    (start_hits_text, stop_hits_text, result_start_cycle_text,
-     result_stop_cycle_text, region_cycles_text,
-     result_start_retired_text, result_stop_retired_text,
-     region_retired_text) = region_match.groups()
+    if require_final:
+        (final_schema, final_scope, complete_text, termination_rc_text,
+         start_seen_text, end_seen_text, start_hits_text, stop_hits_text,
+         result_start_cycle_text, result_stop_cycle_text, region_cycles_text,
+         result_start_retired_text, result_stop_retired_text,
+         region_retired_text) = region_match.groups()
+        if final_schema != "npc-rv64-region-final-v1":
+            raise ValueError(f"{label}: region FINAL schema mismatch")
+        if final_scope != counter_scope:
+            raise ValueError(f"{label}: region FINAL counter scope mismatch")
+        if complete_text != "1" or start_seen_text != "1" or end_seen_text != "1":
+            raise ValueError(f"{label}: region FINAL is incomplete")
+        if len(termination_rc_text.lstrip("-")) > 10:
+            raise ValueError(f"{label}: region FINAL termination_rc is outside int32 range")
+        termination_rc = int(termination_rc_text, 10)
+        if not -(1 << 31) <= termination_rc < (1 << 31):
+            raise ValueError(f"{label}: region FINAL termination_rc is outside int32 range")
+        if termination_rc != 0:
+            raise ValueError(f"{label}: region FINAL termination_rc is nonzero")
+    else:
+        (start_hits_text, stop_hits_text, result_start_cycle_text,
+         result_stop_cycle_text, region_cycles_text,
+         result_start_retired_text, result_stop_retired_text,
+         region_retired_text) = region_match.groups()
 
     start_pc = _hex_uint64(start_pc_text, "start marker pc", label)
     stop_pc = _hex_uint64(stop_pc_text, "stop marker pc", label)
@@ -472,8 +795,12 @@ def parse_raw_benchmark_log(
         result_start_cycle_text, "result start_cycle", label)
     result_stop_cycle = _bounded_nonnegative_counter(
         result_stop_cycle_text, "result end_cycle", label)
-    region_cycles = _bounded_counter(
-        region_cycles_text, "region cycles", label)
+    region_cycles = (
+        _bounded_nonnegative_counter(
+            region_cycles_text, "region cycles", label)
+        if require_final
+        else _bounded_counter(region_cycles_text, "region cycles", label)
+    )
     result_start_retired = _bounded_nonnegative_counter(
         result_start_retired_text, "result start_retired", label)
     result_stop_retired = _bounded_nonnegative_counter(
@@ -494,11 +821,13 @@ def parse_raw_benchmark_log(
             or start_retired != result_start_retired
             or stop_retired != result_stop_retired):
         raise ValueError(f"{label}: boundary/result marker mismatch")
-    if (stop_cycle <= start_cycle
+    if (stop_cycle < start_cycle
             or stop_retired <= start_retired
             or stop_cycle - start_cycle != region_cycles
             or stop_retired - start_retired != region_retired):
         raise ValueError(f"{label}: region counter arithmetic mismatch")
+    if region_cycles == 0:
+        raise ValueError(f"{label}: region cycle count must be positive")
     if stop_cycle > whole_cycles or stop_retired > whole_retired:
         raise ValueError(f"{label}: region escapes whole-program counters")
 
@@ -518,9 +847,548 @@ def parse_raw_benchmark_log(
         "stop_cycle": stop_cycle,
         "start_retired": start_retired,
         "stop_retired": stop_retired,
+        "start_lane": start_lane,
+        "stop_lane": stop_lane,
         "cycles": region_cycles,
         "retired_instructions": region_retired,
     }
+    if require_final:
+        result["region"]["final_schema"] = "npc-rv64-region-final-v1"
+        result["region"]["final_total_hits"] = True
+
+    if counter_match is not None:
+        lifecycle_counter_text: dict[str, str] = {}
+        if evidence_schema == "npc-rv64-performance-evidence-v8":
+            (counter_marker_schema, counter_complete_text,
+             counter_available_text, counter_overflow_text,
+             counter_invalid_events_text, counter_start_lane_text,
+             counter_stop_lane_text, counter_phase_aligned_text,
+             counter_cycles_text, cycle_useful_text, cycle_rob_empty_text,
+             cycle_head_not_complete_text, cycle_dependency_text,
+             cycle_issue_terminal_text, cycle_execution_latency_text,
+             cycle_memory_latency_text,
+             cycle_memory_reservation_queue_text,
+             cycle_memory_translation_order_text,
+             cycle_memory_request_outstanding_text,
+             cycle_memory_request_cache_lookup_text,
+             cycle_memory_request_device_wait_text,
+             cycle_memory_request_axi_read_address_text,
+             cycle_memory_request_axi_read_data_text,
+             cycle_memory_request_axi_write_request_text,
+             cycle_memory_request_axi_write_response_text,
+             cycle_memory_request_detail_unknown_text,
+             cycle_memory_response_terminal_text,
+             cycle_memory_retry_text,
+             cycle_memory_lifecycle_unknown_text,
+             cycle_head_lifecycle_unknown_text,
+             cycle_exception_redirect_text, cycle_memory_commit_text,
+             cycle_serialization_text, cycle_unknown_text,
+             slot_capacity_text, retired_slots_text, unused_slots_text,
+             slot_rob_empty_text, slot_head_not_complete_text,
+             slot_dependency_text, slot_issue_terminal_text,
+             slot_execution_latency_text, slot_memory_latency_text,
+             slot_memory_reservation_queue_text,
+             slot_memory_translation_order_text,
+             slot_memory_request_outstanding_text,
+             slot_memory_request_cache_lookup_text,
+             slot_memory_request_device_wait_text,
+             slot_memory_request_axi_read_address_text,
+             slot_memory_request_axi_read_data_text,
+             slot_memory_request_axi_write_request_text,
+             slot_memory_request_axi_write_response_text,
+             slot_memory_request_detail_unknown_text,
+             slot_memory_response_terminal_text,
+             slot_memory_retry_text,
+             slot_memory_lifecycle_unknown_text,
+             slot_head_lifecycle_unknown_text,
+             slot_exception_redirect_text, slot_memory_commit_text,
+             slot_serialization_text, slot_unknown_text,
+             conservation_text) = counter_match.groups()
+            expected_counter_marker_schema = (
+                "npc-rv64-performance-counter-v4")
+            lifecycle_counter_text = {
+                "cycle_dependency": cycle_dependency_text,
+                "cycle_issue_terminal": cycle_issue_terminal_text,
+                "cycle_execution_latency": cycle_execution_latency_text,
+                "cycle_memory_latency": cycle_memory_latency_text,
+                "cycle_memory_reservation_queue":
+                    cycle_memory_reservation_queue_text,
+                "cycle_memory_translation_order":
+                    cycle_memory_translation_order_text,
+                "cycle_memory_request_outstanding":
+                    cycle_memory_request_outstanding_text,
+                "cycle_memory_request_cache_lookup":
+                    cycle_memory_request_cache_lookup_text,
+                "cycle_memory_request_device_wait":
+                    cycle_memory_request_device_wait_text,
+                "cycle_memory_request_axi_read_address":
+                    cycle_memory_request_axi_read_address_text,
+                "cycle_memory_request_axi_read_data":
+                    cycle_memory_request_axi_read_data_text,
+                "cycle_memory_request_axi_write_request":
+                    cycle_memory_request_axi_write_request_text,
+                "cycle_memory_request_axi_write_response":
+                    cycle_memory_request_axi_write_response_text,
+                "cycle_memory_request_detail_unknown":
+                    cycle_memory_request_detail_unknown_text,
+                "cycle_memory_response_terminal":
+                    cycle_memory_response_terminal_text,
+                "cycle_memory_retry": cycle_memory_retry_text,
+                "cycle_memory_lifecycle_unknown":
+                    cycle_memory_lifecycle_unknown_text,
+                "cycle_head_lifecycle_unknown":
+                    cycle_head_lifecycle_unknown_text,
+                "slot_dependency": slot_dependency_text,
+                "slot_issue_terminal": slot_issue_terminal_text,
+                "slot_execution_latency": slot_execution_latency_text,
+                "slot_memory_latency": slot_memory_latency_text,
+                "slot_memory_reservation_queue":
+                    slot_memory_reservation_queue_text,
+                "slot_memory_translation_order":
+                    slot_memory_translation_order_text,
+                "slot_memory_request_outstanding":
+                    slot_memory_request_outstanding_text,
+                "slot_memory_request_cache_lookup":
+                    slot_memory_request_cache_lookup_text,
+                "slot_memory_request_device_wait":
+                    slot_memory_request_device_wait_text,
+                "slot_memory_request_axi_read_address":
+                    slot_memory_request_axi_read_address_text,
+                "slot_memory_request_axi_read_data":
+                    slot_memory_request_axi_read_data_text,
+                "slot_memory_request_axi_write_request":
+                    slot_memory_request_axi_write_request_text,
+                "slot_memory_request_axi_write_response":
+                    slot_memory_request_axi_write_response_text,
+                "slot_memory_request_detail_unknown":
+                    slot_memory_request_detail_unknown_text,
+                "slot_memory_response_terminal":
+                    slot_memory_response_terminal_text,
+                "slot_memory_retry": slot_memory_retry_text,
+                "slot_memory_lifecycle_unknown":
+                    slot_memory_lifecycle_unknown_text,
+                "slot_head_lifecycle_unknown":
+                    slot_head_lifecycle_unknown_text,
+            }
+            cycle_fields = (
+                "cycle_useful", "cycle_rob_empty", "cycle_dependency",
+                "cycle_issue_terminal", "cycle_execution_latency",
+                "cycle_memory_latency", "cycle_head_lifecycle_unknown",
+                "cycle_exception_redirect", "cycle_memory_commit",
+                "cycle_serialization", "cycle_unknown",
+            )
+            slot_reason_fields = (
+                "slot_rob_empty", "slot_dependency", "slot_issue_terminal",
+                "slot_execution_latency", "slot_memory_latency",
+                "slot_head_lifecycle_unknown", "slot_exception_redirect",
+                "slot_memory_commit", "slot_serialization", "slot_unknown",
+            )
+        elif evidence_schema == "npc-rv64-performance-evidence-v7":
+            (counter_marker_schema, counter_complete_text,
+             counter_available_text, counter_overflow_text,
+             counter_invalid_events_text, counter_start_lane_text,
+             counter_stop_lane_text, counter_phase_aligned_text,
+             counter_cycles_text, cycle_useful_text, cycle_rob_empty_text,
+             cycle_head_not_complete_text, cycle_dependency_text,
+             cycle_issue_terminal_text, cycle_execution_latency_text,
+             cycle_memory_latency_text,
+             cycle_memory_reservation_queue_text,
+             cycle_memory_translation_order_text,
+             cycle_memory_request_outstanding_text,
+             cycle_memory_response_terminal_text,
+             cycle_memory_retry_text,
+             cycle_memory_lifecycle_unknown_text,
+             cycle_head_lifecycle_unknown_text,
+             cycle_exception_redirect_text, cycle_memory_commit_text,
+             cycle_serialization_text, cycle_unknown_text,
+             slot_capacity_text, retired_slots_text, unused_slots_text,
+             slot_rob_empty_text, slot_head_not_complete_text,
+             slot_dependency_text, slot_issue_terminal_text,
+             slot_execution_latency_text, slot_memory_latency_text,
+             slot_memory_reservation_queue_text,
+             slot_memory_translation_order_text,
+             slot_memory_request_outstanding_text,
+             slot_memory_response_terminal_text,
+             slot_memory_retry_text,
+             slot_memory_lifecycle_unknown_text,
+             slot_head_lifecycle_unknown_text,
+             slot_exception_redirect_text, slot_memory_commit_text,
+             slot_serialization_text, slot_unknown_text,
+             conservation_text) = counter_match.groups()
+            expected_counter_marker_schema = (
+                "npc-rv64-performance-counter-v3")
+            lifecycle_counter_text = {
+                "cycle_dependency": cycle_dependency_text,
+                "cycle_issue_terminal": cycle_issue_terminal_text,
+                "cycle_execution_latency": cycle_execution_latency_text,
+                "cycle_memory_latency": cycle_memory_latency_text,
+                "cycle_memory_reservation_queue":
+                    cycle_memory_reservation_queue_text,
+                "cycle_memory_translation_order":
+                    cycle_memory_translation_order_text,
+                "cycle_memory_request_outstanding":
+                    cycle_memory_request_outstanding_text,
+                "cycle_memory_response_terminal":
+                    cycle_memory_response_terminal_text,
+                "cycle_memory_retry": cycle_memory_retry_text,
+                "cycle_memory_lifecycle_unknown":
+                    cycle_memory_lifecycle_unknown_text,
+                "cycle_head_lifecycle_unknown":
+                    cycle_head_lifecycle_unknown_text,
+                "slot_dependency": slot_dependency_text,
+                "slot_issue_terminal": slot_issue_terminal_text,
+                "slot_execution_latency": slot_execution_latency_text,
+                "slot_memory_latency": slot_memory_latency_text,
+                "slot_memory_reservation_queue":
+                    slot_memory_reservation_queue_text,
+                "slot_memory_translation_order":
+                    slot_memory_translation_order_text,
+                "slot_memory_request_outstanding":
+                    slot_memory_request_outstanding_text,
+                "slot_memory_response_terminal":
+                    slot_memory_response_terminal_text,
+                "slot_memory_retry": slot_memory_retry_text,
+                "slot_memory_lifecycle_unknown":
+                    slot_memory_lifecycle_unknown_text,
+                "slot_head_lifecycle_unknown":
+                    slot_head_lifecycle_unknown_text,
+            }
+            cycle_fields = (
+                "cycle_useful", "cycle_rob_empty", "cycle_dependency",
+                "cycle_issue_terminal", "cycle_execution_latency",
+                "cycle_memory_latency", "cycle_head_lifecycle_unknown",
+                "cycle_exception_redirect", "cycle_memory_commit",
+                "cycle_serialization", "cycle_unknown",
+            )
+            slot_reason_fields = (
+                "slot_rob_empty", "slot_dependency", "slot_issue_terminal",
+                "slot_execution_latency", "slot_memory_latency",
+                "slot_head_lifecycle_unknown", "slot_exception_redirect",
+                "slot_memory_commit", "slot_serialization", "slot_unknown",
+            )
+        elif evidence_schema == "npc-rv64-performance-evidence-v6":
+            (counter_marker_schema, counter_complete_text,
+             counter_available_text, counter_overflow_text,
+             counter_invalid_events_text, counter_start_lane_text,
+             counter_stop_lane_text, counter_phase_aligned_text,
+             counter_cycles_text, cycle_useful_text, cycle_rob_empty_text,
+             cycle_head_not_complete_text, cycle_dependency_text,
+             cycle_issue_terminal_text, cycle_execution_latency_text,
+             cycle_memory_latency_text, cycle_head_lifecycle_unknown_text,
+             cycle_exception_redirect_text, cycle_memory_commit_text,
+             cycle_serialization_text, cycle_unknown_text,
+             slot_capacity_text, retired_slots_text, unused_slots_text,
+             slot_rob_empty_text, slot_head_not_complete_text,
+             slot_dependency_text, slot_issue_terminal_text,
+             slot_execution_latency_text, slot_memory_latency_text,
+             slot_head_lifecycle_unknown_text,
+             slot_exception_redirect_text, slot_memory_commit_text,
+             slot_serialization_text, slot_unknown_text,
+             conservation_text) = counter_match.groups()
+            expected_counter_marker_schema = (
+                "npc-rv64-performance-counter-v2")
+            lifecycle_counter_text = {
+                "cycle_dependency": cycle_dependency_text,
+                "cycle_issue_terminal": cycle_issue_terminal_text,
+                "cycle_execution_latency": cycle_execution_latency_text,
+                "cycle_memory_latency": cycle_memory_latency_text,
+                "cycle_head_lifecycle_unknown":
+                    cycle_head_lifecycle_unknown_text,
+                "slot_dependency": slot_dependency_text,
+                "slot_issue_terminal": slot_issue_terminal_text,
+                "slot_execution_latency": slot_execution_latency_text,
+                "slot_memory_latency": slot_memory_latency_text,
+                "slot_head_lifecycle_unknown":
+                    slot_head_lifecycle_unknown_text,
+            }
+            cycle_fields = (
+                "cycle_useful", "cycle_rob_empty", "cycle_dependency",
+                "cycle_issue_terminal", "cycle_execution_latency",
+                "cycle_memory_latency", "cycle_head_lifecycle_unknown",
+                "cycle_exception_redirect", "cycle_memory_commit",
+                "cycle_serialization", "cycle_unknown",
+            )
+            slot_reason_fields = (
+                "slot_rob_empty", "slot_dependency", "slot_issue_terminal",
+                "slot_execution_latency", "slot_memory_latency",
+                "slot_head_lifecycle_unknown", "slot_exception_redirect",
+                "slot_memory_commit", "slot_serialization", "slot_unknown",
+            )
+        else:
+            (counter_marker_schema, counter_complete_text,
+             counter_available_text, counter_overflow_text,
+             counter_invalid_events_text, counter_start_lane_text,
+             counter_stop_lane_text, counter_phase_aligned_text,
+             counter_cycles_text, cycle_useful_text, cycle_rob_empty_text,
+             cycle_head_not_complete_text, cycle_exception_redirect_text,
+             cycle_memory_commit_text, cycle_serialization_text,
+             cycle_unknown_text, slot_capacity_text, retired_slots_text,
+             unused_slots_text, slot_rob_empty_text,
+             slot_head_not_complete_text, slot_exception_redirect_text,
+             slot_memory_commit_text, slot_serialization_text,
+             slot_unknown_text, conservation_text) = counter_match.groups()
+            expected_counter_marker_schema = (
+                "npc-rv64-performance-counter-v1")
+            cycle_fields = (
+                "cycle_useful", "cycle_rob_empty",
+                "cycle_head_not_complete", "cycle_exception_redirect",
+                "cycle_memory_commit", "cycle_serialization",
+                "cycle_unknown",
+            )
+            slot_reason_fields = (
+                "slot_rob_empty", "slot_head_not_complete",
+                "slot_exception_redirect", "slot_memory_commit",
+                "slot_serialization", "slot_unknown",
+            )
+
+        if counter_marker_schema != expected_counter_marker_schema:
+            raise ValueError(
+                f"{label}: performance COUNTERS_FINAL schema mismatch")
+        if counter_complete_text != "1" or counter_available_text != "1":
+            raise ValueError(
+                f"{label}: performance COUNTERS_FINAL is incomplete")
+        if counter_overflow_text != "0":
+            raise ValueError(
+                f"{label}: performance counter overflow is nonzero")
+        if counter_phase_aligned_text != "1" or start_lane != stop_lane:
+            raise ValueError(
+                f"{label}: performance counter boundary phase is not aligned")
+        if conservation_text != "1":
+            raise ValueError(
+                f"{label}: performance counter conservation marker failed")
+
+        counter_values = {
+            "invalid_events": _bounded_nonnegative_counter(
+                counter_invalid_events_text, "counter invalid_events", label),
+            "start_lane": _bounded_nonnegative_counter(
+                counter_start_lane_text, "counter start_lane", label),
+            "stop_lane": _bounded_nonnegative_counter(
+                counter_stop_lane_text, "counter end_lane", label),
+            "cycles": _bounded_nonnegative_counter(
+                counter_cycles_text, "counter cycles", label),
+            "cycle_useful": _bounded_nonnegative_counter(
+                cycle_useful_text, "counter cycle_useful", label),
+            "cycle_rob_empty": _bounded_nonnegative_counter(
+                cycle_rob_empty_text, "counter cycle_rob_empty", label),
+            "cycle_head_not_complete": _bounded_nonnegative_counter(
+                cycle_head_not_complete_text,
+                "counter cycle_head_not_complete", label),
+            "cycle_exception_redirect": _bounded_nonnegative_counter(
+                cycle_exception_redirect_text,
+                "counter cycle_exception_redirect", label),
+            "cycle_memory_commit": _bounded_nonnegative_counter(
+                cycle_memory_commit_text, "counter cycle_memory_commit", label),
+            "cycle_serialization": _bounded_nonnegative_counter(
+                cycle_serialization_text,
+                "counter cycle_serialization", label),
+            "cycle_unknown": _bounded_nonnegative_counter(
+                cycle_unknown_text, "counter cycle_unknown", label),
+            "slot_capacity": _bounded_nonnegative_counter(
+                slot_capacity_text, "counter slot_capacity", label),
+            "retired_slots": _bounded_nonnegative_counter(
+                retired_slots_text, "counter retired_slots", label),
+            "unused_slots": _bounded_nonnegative_counter(
+                unused_slots_text, "counter unused_slots", label),
+            "slot_rob_empty": _bounded_nonnegative_counter(
+                slot_rob_empty_text, "counter slot_rob_empty", label),
+            "slot_head_not_complete": _bounded_nonnegative_counter(
+                slot_head_not_complete_text,
+                "counter slot_head_not_complete", label),
+            "slot_exception_redirect": _bounded_nonnegative_counter(
+                slot_exception_redirect_text,
+                "counter slot_exception_redirect", label),
+            "slot_memory_commit": _bounded_nonnegative_counter(
+                slot_memory_commit_text, "counter slot_memory_commit", label),
+            "slot_serialization": _bounded_nonnegative_counter(
+                slot_serialization_text,
+                "counter slot_serialization", label),
+            "slot_unknown": _bounded_nonnegative_counter(
+                slot_unknown_text, "counter slot_unknown", label),
+        }
+        for counter_name, counter_text in lifecycle_counter_text.items():
+            counter_values[counter_name] = _bounded_nonnegative_counter(
+                counter_text, f"counter {counter_name}", label)
+
+        if counter_values["invalid_events"] != 0:
+            raise ValueError(
+                f"{label}: performance counter invalid_events is nonzero")
+        if (counter_values["start_lane"] != start_lane
+                or counter_values["stop_lane"] != stop_lane):
+            raise ValueError(
+                f"{label}: performance counter boundary lane mismatch")
+        if counter_values["cycles"] != region_cycles:
+            raise ValueError(
+                f"{label}: performance counter cycle binding mismatch")
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v6",
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            cycle_head_parts = (
+                "cycle_dependency", "cycle_issue_terminal",
+                "cycle_execution_latency", "cycle_memory_latency",
+                "cycle_head_lifecycle_unknown",
+            )
+            slot_head_parts = (
+                "slot_dependency", "slot_issue_terminal",
+                "slot_execution_latency", "slot_memory_latency",
+                "slot_head_lifecycle_unknown",
+            )
+            if (counter_values["cycle_head_not_complete"] !=
+                    sum(counter_values[field] for field in cycle_head_parts)
+                    or counter_values["slot_head_not_complete"] !=
+                    sum(counter_values[field] for field in slot_head_parts)):
+                raise ValueError(
+                    f"{label}: performance counter head lifecycle "
+                    "aggregate mismatch")
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            cycle_memory_parts = (
+                "cycle_memory_reservation_queue",
+                "cycle_memory_translation_order",
+                "cycle_memory_request_outstanding",
+                "cycle_memory_response_terminal",
+                "cycle_memory_retry",
+                "cycle_memory_lifecycle_unknown",
+            )
+            slot_memory_parts = (
+                "slot_memory_reservation_queue",
+                "slot_memory_translation_order",
+                "slot_memory_request_outstanding",
+                "slot_memory_response_terminal",
+                "slot_memory_retry",
+                "slot_memory_lifecycle_unknown",
+            )
+            if (counter_values["cycle_memory_latency"] !=
+                    sum(counter_values[field] for field in cycle_memory_parts)
+                    or counter_values["slot_memory_latency"] !=
+                    sum(counter_values[field] for field in slot_memory_parts)):
+                raise ValueError(
+                    f"{label}: performance counter memory lifecycle "
+                    "aggregate mismatch")
+        if evidence_schema == "npc-rv64-performance-evidence-v8":
+            cycle_request_parts = (
+                "cycle_memory_request_cache_lookup",
+                "cycle_memory_request_device_wait",
+                "cycle_memory_request_axi_read_address",
+                "cycle_memory_request_axi_read_data",
+                "cycle_memory_request_axi_write_request",
+                "cycle_memory_request_axi_write_response",
+                "cycle_memory_request_detail_unknown",
+            )
+            slot_request_parts = (
+                "slot_memory_request_cache_lookup",
+                "slot_memory_request_device_wait",
+                "slot_memory_request_axi_read_address",
+                "slot_memory_request_axi_read_data",
+                "slot_memory_request_axi_write_request",
+                "slot_memory_request_axi_write_response",
+                "slot_memory_request_detail_unknown",
+            )
+            if (counter_values["cycle_memory_request_outstanding"] !=
+                    sum(counter_values[field] for field in cycle_request_parts)
+                    or counter_values["slot_memory_request_outstanding"] !=
+                    sum(counter_values[field] for field in slot_request_parts)):
+                raise ValueError(
+                    f"{label}: performance counter memory request detail "
+                    "aggregate mismatch")
+        cycle_sum = sum(counter_values[field] for field in cycle_fields)
+        if cycle_sum != region_cycles:
+            raise ValueError(
+                f"{label}: performance counter cycle conservation mismatch")
+        if region_cycles > MAX_COUNTER // 2:
+            raise ValueError(
+                f"{label}: performance counter slot capacity overflow")
+        expected_slot_capacity = (
+            2 * region_cycles + stop_lane - start_lane)
+        if (counter_values["slot_capacity"] != expected_slot_capacity
+                or counter_values["slot_capacity"] != 2 * region_cycles):
+            raise ValueError(
+                f"{label}: performance counter slot capacity mismatch")
+        if counter_values["retired_slots"] != region_retired:
+            raise ValueError(
+                f"{label}: performance counter retired-slot binding mismatch")
+        unused_reason_sum = sum(
+            counter_values[field] for field in slot_reason_fields)
+        if (counter_values["unused_slots"] != unused_reason_sum
+                or counter_values["retired_slots"] + unused_reason_sum
+                != counter_values["slot_capacity"]):
+            raise ValueError(
+                f"{label}: performance counter retire-slot conservation mismatch")
+        assert counter_unknown_ratio_max is not None
+        unknown_cycles = counter_values["cycle_unknown"]
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v6",
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            unknown_cycles += counter_values["cycle_head_lifecycle_unknown"]
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            unknown_cycles += counter_values[
+                "cycle_memory_lifecycle_unknown"]
+        if evidence_schema == "npc-rv64-performance-evidence-v8":
+            unknown_cycles += counter_values[
+                "cycle_memory_request_detail_unknown"]
+        unknown_cycle_ratio = unknown_cycles / region_cycles
+        if unknown_cycle_ratio > counter_unknown_ratio_max:
+            raise ValueError(
+                f"{label}: performance counter unknown cycle ratio exceeds limit")
+        result["performance_counter_schema"] = counter_marker_schema
+        result["cpi_stack"] = {
+            field.removeprefix("cycle_"): counter_values[field]
+            for field in cycle_fields
+        }
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v6",
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            result["cpi_stack"]["head_not_complete_aggregate"] = (
+                counter_values["cycle_head_not_complete"])
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            result["cpi_stack"]["memory_lifecycle"] = {
+                field.removeprefix("cycle_memory_"):
+                    counter_values[field]
+                for field in cycle_memory_parts
+            }
+        if evidence_schema == "npc-rv64-performance-evidence-v8":
+            result["cpi_stack"]["memory_request_detail"] = {
+                field.removeprefix("cycle_memory_request_"):
+                    counter_values[field]
+                for field in cycle_request_parts
+            }
+        result["cpi_stack"]["unknown_ratio"] = unknown_cycle_ratio
+        result["retire_slots"] = {
+            "capacity": counter_values["slot_capacity"],
+            "retired": counter_values["retired_slots"],
+            "unused": counter_values["unused_slots"],
+            **{
+                field.removeprefix("slot_"): counter_values[field]
+                for field in slot_reason_fields
+            },
+        }
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v6",
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            result["retire_slots"]["head_not_complete_aggregate"] = (
+                counter_values["slot_head_not_complete"])
+        if evidence_schema in {
+                "npc-rv64-performance-evidence-v7",
+                "npc-rv64-performance-evidence-v8"}:
+            result["retire_slots"]["memory_lifecycle"] = {
+                field.removeprefix("slot_memory_"):
+                    counter_values[field]
+                for field in slot_memory_parts
+            }
+        if evidence_schema == "npc-rv64-performance-evidence-v8":
+            result["retire_slots"]["memory_request_detail"] = {
+                field.removeprefix("slot_memory_request_"):
+                    counter_values[field]
+                for field in slot_request_parts
+            }
     return result
 
 
@@ -587,6 +1455,119 @@ def main() -> int:
     else:
         expected_counter_scopes = PERFORMANCE_COUNTER_SCOPES_BY_SCHEMA[
             expected_performance_schema]
+    measurement_contract_id: str | None = None
+    performance_counter_schema_id: str | None = None
+    performance_counter_contract: dict[str, Any] = {}
+    if expected_performance_schema in (
+            "npc-rv64-performance-evidence-v4",
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8"):
+        measurement_binding = performance_evidence_policy.get(
+            "measurement_contract")
+        if not isinstance(measurement_binding, dict):
+            errors.append("policy performance measurement contract is missing")
+        else:
+            measurement_path_value = measurement_binding.get("path")
+            measurement_id_value = measurement_binding.get("id")
+            measurement_sha_value = measurement_binding.get("sha256")
+            if (not isinstance(measurement_id_value, str)
+                    or not measurement_id_value):
+                errors.append("policy performance measurement contract id is invalid")
+            else:
+                measurement_contract_id = measurement_id_value
+            if not is_sha256(measurement_sha_value):
+                errors.append(
+                    "policy performance measurement contract digest is invalid")
+            try:
+                measurement_path = workspace_file(
+                    root, measurement_path_value,
+                    "performance measurement contract")
+                measurement_contract = read_json(measurement_path)
+            except (OSError, ValueError, json.JSONDecodeError,
+                    FileNotFoundError) as exc:
+                errors.append(
+                    f"cannot read performance measurement contract: {exc}")
+                measurement_contract = {}
+            if measurement_contract:
+                if digest(measurement_path) != measurement_sha_value:
+                    errors.append(
+                        "performance measurement contract digest mismatch")
+                if (measurement_contract.get("schema") !=
+                        "npc-rv64-performance-measurement-contract-v1"):
+                    errors.append(
+                        "unsupported performance measurement contract schema")
+                if (measurement_contract.get(
+                        "performance_measurement_contract_id") !=
+                        measurement_contract_id):
+                    errors.append(
+                        "performance measurement contract id mismatch")
+                baseline_eligible = measurement_contract.get(
+                    "performance_baseline_eligible")
+                if not isinstance(baseline_eligible, bool):
+                    errors.append(
+                        "performance baseline eligibility must be boolean")
+                elif not baseline_eligible:
+                    blockers.append(
+                        "performance measurement contract is not baseline eligible")
+    if expected_performance_schema in (
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8"):
+        counter_binding = performance_evidence_policy.get("counter_schema")
+        if not isinstance(counter_binding, dict):
+            errors.append("policy performance counter schema is missing")
+        else:
+            counter_path_value = counter_binding.get("path")
+            counter_id_value = counter_binding.get("id")
+            counter_sha_value = counter_binding.get("sha256")
+            if not isinstance(counter_id_value, str) or not counter_id_value:
+                errors.append("policy performance counter schema id is invalid")
+            else:
+                performance_counter_schema_id = counter_id_value
+            if not is_sha256(counter_sha_value):
+                errors.append("policy performance counter schema digest is invalid")
+            try:
+                counter_path = workspace_file(
+                    root, counter_path_value, "performance counter schema")
+                performance_counter_contract = read_json(counter_path)
+            except (OSError, ValueError, json.JSONDecodeError,
+                    FileNotFoundError) as exc:
+                errors.append(f"cannot read performance counter schema: {exc}")
+                performance_counter_contract = {}
+            if performance_counter_contract:
+                counter_contract_versions = {
+                    "npc-rv64-performance-evidence-v5": (
+                        "npc-rv64-performance-counter-schema-v1",
+                        "PARTIAL_CONSERVING_RETIREMENT_OBSERVATION_V1"),
+                    "npc-rv64-performance-evidence-v6": (
+                        "npc-rv64-performance-counter-schema-v2",
+                        "PARTIAL_CONSERVING_HEAD_LIFECYCLE_V2"),
+                    "npc-rv64-performance-evidence-v7": (
+                        "npc-rv64-performance-counter-schema-v3",
+                        "PARTIAL_CONSERVING_MEMORY_LIFECYCLE_V3"),
+                    "npc-rv64-performance-evidence-v8": (
+                        "npc-rv64-performance-counter-schema-v4",
+                        "PARTIAL_CONSERVING_MEMORY_REQUEST_DETAIL_V4"),
+                }
+                (expected_counter_contract_schema,
+                 expected_counter_contract_state) = (
+                    counter_contract_versions[expected_performance_schema])
+                if digest(counter_path) != counter_sha_value:
+                    errors.append("performance counter schema digest mismatch")
+                if (performance_counter_contract.get("schema") !=
+                        expected_counter_contract_schema):
+                    errors.append(
+                        "unsupported performance counter schema contract")
+                if (performance_counter_contract.get(
+                        "performance_counter_schema_id") !=
+                        performance_counter_schema_id):
+                    errors.append("performance counter schema id mismatch")
+                if (performance_counter_contract.get("contract_state") !=
+                        expected_counter_contract_state):
+                    errors.append("performance counter contract state mismatch")
     minimum_repetitions_value = performance_evidence_policy.get(
         "minimum_repetitions")
     if (not strict_positive_int(minimum_repetitions_value)
@@ -643,7 +1624,8 @@ def main() -> int:
             continue
         contract = benchmark_contracts_value.get(benchmark)
         if isinstance(contract, dict):
-            errors.extend(policy_region_contract_errors(benchmark, contract))
+            errors.extend(policy_region_contract_errors(
+                benchmark, contract, expected_performance_schema))
 
     promotion_policy = policy.get("promotion", {})
     if not isinstance(promotion_policy, dict):
@@ -988,6 +1970,23 @@ def main() -> int:
     if not isinstance(performance, dict):
         errors.append("performance must be an object")
         performance = {}
+    if (expected_performance_schema in (
+            "npc-rv64-performance-evidence-v4",
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8")
+            and performance.get("performance_measurement_contract_id") !=
+            measurement_contract_id):
+        errors.append("performance measurement contract binding mismatch")
+    if (expected_performance_schema in (
+            "npc-rv64-performance-evidence-v5",
+            "npc-rv64-performance-evidence-v6",
+            "npc-rv64-performance-evidence-v7",
+            "npc-rv64-performance-evidence-v8")
+            and performance.get("performance_counter_schema_id") !=
+            performance_counter_schema_id):
+        errors.append("performance counter schema binding mismatch")
     mhz = performance.get("qualified_mhz")
     if performance.get("evidence_schema") != expected_performance_schema:
         blockers.append("performance evidence schema is missing or drifted")
@@ -1073,6 +2072,7 @@ def main() -> int:
         if not isinstance(repetitions, list):
             blockers.append(f"performance repetitions are missing: {name}")
         else:
+            reference_counter_evidence: dict[str, Any] | None = None
             if len(repetitions) < minimum_repetitions:
                 blockers.append(
                     f"performance repetition count is insufficient: {name}")
@@ -1145,7 +2145,9 @@ def main() -> int:
                         f"{repetition_label}")
                 try:
                     parsed = parse_raw_benchmark_log(
-                        record["resolved"], name, expected_scope, contract)
+                        record["resolved"], name, expected_scope, contract,
+                        expected_performance_schema,
+                        performance_counter_contract)
                 except ValueError as exc:
                     errors.append(
                         f"{repetition_label}: {exc}")
@@ -1169,6 +2171,22 @@ def main() -> int:
                     errors.append(
                         f"raw benchmark counters mismatch summary: "
                         f"{repetition_label}")
+                if expected_performance_schema in (
+                        "npc-rv64-performance-evidence-v5",
+                        "npc-rv64-performance-evidence-v6",
+                        "npc-rv64-performance-evidence-v7",
+                        "npc-rv64-performance-evidence-v8"):
+                    counter_evidence = {
+                        "cpi_stack": parsed.get("cpi_stack"),
+                        "retire_slots": parsed.get("retire_slots"),
+                    }
+                    if reference_counter_evidence is None:
+                        reference_counter_evidence = counter_evidence
+                    elif (require_bit_exact_repetitions
+                          and counter_evidence != reference_counter_evidence):
+                        errors.append(
+                            "performance counter stack is not bit-exact: "
+                            f"{repetition_label}")
             if used_raw_kinds != expected_raw_kind_set:
                 blockers.append(
                     f"performance raw-log artifact references are incomplete: "

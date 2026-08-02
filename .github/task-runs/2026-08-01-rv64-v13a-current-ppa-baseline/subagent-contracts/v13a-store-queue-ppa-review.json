@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13a-store-queue-ppa-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooStoreQueue 两路最终物理地址查询组合锥在基址差值、byte lane 对齐、ROB 年龄、typed/IO poison、partial coverage、terminal 排除和 youngest-older merge 上是否与规格等价，并审查局部映射、模块 STA 与完整核 coarse 证据是否支持限定的 PPA 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/README.md",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-candidate",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/coarse-current",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/coarse-candidate",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/mutation-shift-direction",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/full-mapping-candidate-time-bounded",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/contract-check",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/subagent-contracts/v13a-store-queue-ppa-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出按 RTL 对象、周期或综合配置、testbench/EDA 观测和 PASS/GAP 范围组织的独立 verdict，并引用真实文件与 marker。",
+    "穷举影响结论的功能反例、四态或地址环绕风险、双 lane 覆盖洞、综合/STA 假绿与 PPA 越级结论；区分必须修复项、剩余风险和可接受限制。",
+    "报告 unknowns、assumptions、alternative_hypotheses、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "逐项验证 offset-and-mask 网络与历史 byte-address equality 语义等价，或给出可转成定向 testbench、编译成功负向 RTL 变体或静态审计的精确反例。",
+    "核对 parent/candidate 配置可比性、统计差值、网表和日志哈希、Yosys check、OpenSTA 约束以及 TIME_BOUNDED 边界，不把模块级结果外推为 full-core timing 或 promotion。",
+    "只读使用合同允许路径和命令，不写工作区；信息不足时明确 inconclusive 或提出 scope_extension_request。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

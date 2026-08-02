@@ -173,6 +173,11 @@ FOCUSED_TESTS := \
   tb_ooo_int_backend_v11q_int_lane0_packet \
   tb_ooo_int_backend_v11r_int_lane1_packet \
   tb_ooo_int_backend_v9r_sq_retry_c0 \
+  tb_ooo_mem_axi_bridge_v13p_store_b_fusion \
+  tb_ooo_int_backend_v13p_store_b_fusion \
+  tb_ooo_int_backend_v13q_store_b_error_backpressure \
+  tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold \
+  tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold \
   tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 \
   tb_ooo_dual_mem_bridge_holder_semantic \
   tb_ooo_dual_mem_inflight_queue_semantic \
@@ -271,6 +276,18 @@ TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery := tests/tb_ooo_int_backe
 TB_DEPS_tb_ooo_int_backend_v8x_backend_bridge_recovery := tests/tb_ooo_int_backend_v8x_bridge.svh
 TB_TOP_tb_ooo_int_backend_v8x_backend_bridge_recovery := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v8x_backend_bridge_recovery := -DV8X_BACKEND_BRIDGE_RECOVERY_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v13p_store_b_fusion := $(TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery)
+TB_DEPS_tb_ooo_int_backend_v13p_store_b_fusion := tests/tb_ooo_int_backend_v8x_bridge.svh
+TB_TOP_tb_ooo_int_backend_v13p_store_b_fusion := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v13p_store_b_fusion := -DOOO_ASSERT -DV8X_BACKEND_BRIDGE_RECOVERY_FOCUSED -DV13P_BACKEND_BRIDGE_STORE_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v13q_store_b_error_backpressure := $(TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery)
+TB_DEPS_tb_ooo_int_backend_v13q_store_b_error_backpressure := tests/tb_ooo_int_backend_v8x_bridge.svh
+TB_TOP_tb_ooo_int_backend_v13q_store_b_error_backpressure := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v13q_store_b_error_backpressure := -DOOO_ASSERT -DV8X_BACKEND_BRIDGE_RECOVERY_FOCUSED -DV13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold := $(TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery)
+TB_DEPS_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold := tests/tb_ooo_int_backend_v8x_bridge.svh
+TB_TOP_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold := -DOOO_ASSERT -DV8X_BACKEND_BRIDGE_RECOVERY_FOCUSED -DV13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED -DV13R_BACKEND_BRIDGE_STORE_ERROR_HOLD_FOCUSED
 TB_SRCS_tb_ooo_int_backend_v8y_speculation_recovery := $(TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery)
 TB_DEPS_tb_ooo_int_backend_v8y_speculation_recovery := tests/tb_ooo_int_backend_v8x_bridge.svh
 TB_TOP_tb_ooo_int_backend_v8y_speculation_recovery := tb_ooo_int_backend
@@ -369,6 +386,12 @@ TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_dual_memory_sustained_issue := tests/tb_ooo_dual_memory_sustained_issue.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_lsu_axi_lane_adapter := tests/tb_ooo_lsu_axi_lane_adapter.sv $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
+TB_SRCS_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := $(TB_SRCS_tb_ooo_mem_axi_bridge)
+TB_TOP_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := tb_ooo_mem_axi_bridge
+TB_IVFLAGS_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := -DOOO_ASSERT -DV13P_STORE_B_FUSION_FOCUSED
+TB_SRCS_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold := $(TB_SRCS_tb_ooo_mem_axi_bridge)
+TB_TOP_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold := tb_ooo_mem_axi_bridge
+TB_IVFLAGS_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold := -DOOO_ASSERT -DV13R_STORE_B_MULTICYCLE_HOLD_FOCUSED
 TB_SRCS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_mem_axi_bridge)
 TB_TOP_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := tb_ooo_mem_axi_bridge
 TB_IVFLAGS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
@@ -398,7 +421,9 @@ TB_IVFLAGS_tb_ooo_dual_mem_bridge_holder_semantic := -DV11J_BRIDGE_HOLDER_FOCUSE
         print-v11q-int-lane0-packet-context \
         print-v11q-int-lane0-packet-regression-context \
         v11q-int-lane0-packet-self-test \
-        v11q-int-lane0-packet-semantic \
+        v11q-int-lane0-packet-semantic v13p-store-b-fusion-focused \
+        v13q-store-b-error-backpressure-focused \
+        v13r-store-b-multicycle-retire-hold-focused \
         print-v11r-int-lane1-packet-context \
         print-v11r-int-lane1-packet-regression-context \
         v11r-int-lane1-packet-self-test \
@@ -655,6 +680,33 @@ v9r-sq-retry-c0-handoff: \
   $(LOG_DIR)/tb_ooo_int_backend_v9r_sq_retry_c0.log \
   $(LOG_DIR)/tb_ooo_mem_axi_bridge_v9r_sq_retry_c0.log
 	@grep -E '\[V9R-|\[PASS\]|\[RESULT\]' $^
+
+v13p-store-b-fusion-focused: \
+  $(LOG_DIR)/tb_ooo_mem_axi_bridge_v13p_store_b_fusion.log \
+  $(LOG_DIR)/tb_ooo_int_backend_v13p_store_b_fusion.log
+	@grep -E '\[V13P-B-FUSION-|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V13P-BACKEND-B-FUSION|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+v13q-store-b-error-backpressure-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_v13q_store_b_error_backpressure.log
+	@grep -E '\[V13Q-BACKEND-B-|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: print-v13r-store-b-source-closure
+print-v13r-store-b-source-closure:
+	@printf '%s\n' $(sort \
+	  $(TB_SRCS_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold) \
+	  $(TB_DEPS_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold) \
+	  $(TB_SRCS_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold) \
+	  $(TB_DEPS_tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold) \
+	  $(RTL_DEFINE) \
+	  common/tb_common.svh common/rv32_encode.svh \
+	  $(TB_RESULT_CHECKER) Makefile)
+
+v13r-store-b-multicycle-retire-hold-focused: \
+  $(LOG_DIR)/tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold.log \
+  $(LOG_DIR)/tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold.log
+	@grep -E '\[V13R-B-FUSION-MULTICYCLE|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V13R-BACKEND-|\[V13Q-BACKEND-B-CASE|\[PASS\]|\[RESULT\]' $(word 2,$^)
 
 v8y-speculation-recovery: $(LOG_DIR)/tb_ooo_int_backend_v8y_speculation_recovery.log
 	@grep -E '\[V8Y-|\[V8D-|\[V8X-|\[PASS\]|\[RESULT\]' $<

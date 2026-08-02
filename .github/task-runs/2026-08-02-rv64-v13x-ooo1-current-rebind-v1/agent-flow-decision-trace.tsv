@@ -1,0 +1,5 @@
+2026-08-02T01:58:10Z	hypothesis	current OOO-1 RED 源于旧 evidence/design binding，而不是 OooIntBackend、OooMulDivUnit 或 OooRob 语义回归	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/task-report.md
+2026-08-02T01:58:10Z	evidence	release/assert 与 7 个 compile-success RTL 反例在 design-id 093c2380 下闭合 OOO-1，scoped aggregate 仍为 RED	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/ooo1-current/static/architecture-result.json
+2026-08-02T01:58:11Z	counterexample	后续优先覆盖 ROB index wrap/reuse 后迟到 response、flush/replay 与退休 liveness，不把这些未测状态写成 PASS	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/pre-delivery-review.md
+2026-08-02T01:58:11Z	decision	下一 architecture 切片为 current-design DI-5 dual_memory_issue；canonical 全架构与 PPA 继续保持未提升	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/task-report.md
+2026-08-02T02:02:56Z	evidence	candidate 后 scoped manifest、gate log、architecture result 与 canonical manifest 哈希均无漂移；v3 reviewer 结论仍适用	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/pre-delivery-review.md

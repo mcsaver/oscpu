@@ -5,6 +5,8 @@ The input descriptor names only local simulator, configuration, program-image
 and raw simulation artifacts.  This tool preserves each raw log inside a
 provenance wrapper, assembles the v2 aggregate, validates it with the
 architecture-freeze checker, and exercises schema-valid evidence mutations.
+The AM inventory is an exact set supplied by the current source-derived runner;
+its size is intentionally not a historical fixed constant.
 """
 
 from __future__ import annotations
@@ -496,7 +498,11 @@ def build_aggregate(
         return value
 
     official_value = build_suite("official", 177, False)
-    am_value = build_suite("am", 59, True)
+    am_descriptor = descriptor.get("am")
+    am_records = am_descriptor.get("tests") if isinstance(am_descriptor, dict) else None
+    if not isinstance(am_records, list) or not am_records:
+        raise ValueError("am: current exact test inventory is empty")
+    am_value = build_suite("am", len(am_records), True)
 
     diff_command = descriptor["difftest"]["command"]
     diff_log_path = wrapper_dir / "difftest.log"
@@ -835,7 +841,8 @@ def main() -> int:
     print(
         f"[F0-G1-GATE] PASS design_id={result['design_id']} "
         f"module={result['counts']['module_passed']}/"
-        f"{result['counts']['module_required']} official=177/177 am=59/59")
+        f"{result['counts']['module_required']} official=177/177 "
+        f"am={result['counts']['am_passed']}/{result['counts']['am_required']}")
     return 0
 
 

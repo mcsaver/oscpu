@@ -1,0 +1,3 @@
+2026-08-01T09:58:43Z	checker-positive-negative	PASS	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/checker-tests.log
+2026-08-01T09:58:43Z	serialize-currentness	PASS	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json
+2026-08-01T09:58:43Z	current-system-transaction	GAP	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json

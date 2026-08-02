@@ -3136,6 +3136,15 @@ module tb_ooo_int_backend;
   reg [1:0] v8x_owner_b_epoch_q;
   reg [`XLEN-1:0] v8x_owner_b_tval_q;
 `endif
+`ifdef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+  // V13Q counts accepted backend lifecycle edges, not response-valid
+  // residency cycles, so a held S_RESP cannot masquerade as duplication.
+  integer v13q_drain_fire_count_q;
+  integer v13q_mem_wb_count_q;
+  integer v13q_sq_terminal_count_q;
+  integer v13q_miq_pop_count_q;
+  integer v13q_exception_commit_count_q;
+`endif
 
   reg clk;
   reg rst;
@@ -3804,6 +3813,8 @@ module tb_ooo_int_backend;
           v8x_lane1_drop1_valid)
         v8x_lane1_event_count_q <= v8x_lane1_event_count_q + 1;
 
+`ifndef V13P_BACKEND_BRIDGE_STORE_FOCUSED
+`ifndef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
       if (dut.miq_queue_pop_valid_w) begin
         v8x_miq_pop_count_q <= v8x_miq_pop_count_q + 1;
         if (!v8x_lane0_drop0_valid) begin
@@ -3878,6 +3889,34 @@ module tb_ooo_int_backend;
         end
         v8x_ledger_step_q <= v8x_ledger_step_q + 1;
       end
+`endif
+`endif
+    end
+  end
+`endif
+
+`ifdef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+  // Count real edge-qualified events across bridge -> backend -> SQ/ROB.
+  // reset_dut() gives every matrix row an independent exactly-once ledger.
+  always @(posedge clk) begin
+    if (rst) begin
+      v13q_drain_fire_count_q <= 0;
+      v13q_mem_wb_count_q <= 0;
+      v13q_sq_terminal_count_q <= 0;
+      v13q_miq_pop_count_q <= 0;
+      v13q_exception_commit_count_q <= 0;
+    end else begin
+      if (dut.miq_drain_rsp_fire_w)
+        v13q_drain_fire_count_q <= v13q_drain_fire_count_q + 1;
+      if (dut.mem_wb_fire_w)
+        v13q_mem_wb_count_q <= v13q_mem_wb_count_q + 1;
+      if (dut.sq_response_terminal_w)
+        v13q_sq_terminal_count_q <= v13q_sq_terminal_count_q + 1;
+      if (dut.miq_queue_pop_valid_w && dut.miq_head_drain_w)
+        v13q_miq_pop_count_q <= v13q_miq_pop_count_q + 1;
+      if (commit0_valid && commit0_exception)
+        v13q_exception_commit_count_q <=
+            v13q_exception_commit_count_q + 1;
     end
   end
 `endif
@@ -5139,6 +5178,10 @@ module tb_ooo_int_backend;
           v8x_d_axi_wready = 1'b0;
           v8x_d_axi_bvalid = 1'b0;
           v8x_d_axi_bresp = 2'b00;
+`endif
+`ifdef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+          v13q_priv_mode = `PRIV_M;
+          v13q_satp = {`XLEN{1'b0}};
 `endif
 	      clear_dispatch();
       `TB_TICK(clk);
@@ -11560,6 +11603,633 @@ module tb_ooo_int_backend;
       reset_dut();
     end
   endtask
+
+`ifdef V13P_BACKEND_BRIDGE_STORE_FOCUSED
+  // V13P cross-module discriminator.  The real bridge accepts a plain-store
+  // probe, the backend fills SQ, and the resulting nokill physical DRAIN is
+  // driven through shared AW/W/B.  The aggregate-B edge must perform exactly
+  // one formal WB and one SQ terminal without entering the terminal collector;
+  // ROB commit and STORE-token release remain registered later events.
+  task automatic run_v13p_backend_bridge_store_contract;
+    localparam [`XLEN-1:0] STORE_PC = 64'h0000_0000_8001_6100;
+    localparam [`XLEN-1:0] STORE_ADDR = 64'h0000_0000_a000_0800;
+    reg [4:0] store_token;
+    integer wait_cycles;
+    integer quiet_cycles;
+    begin
+      reset_dut();
+      commit_ready = 1'b1;
+
+      set_dispatch0(STORE_PC, make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, STORE_ADDR);
+      #1;
+      tb_check1("V13P real-bridge store dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+
+      wait_cycles = 0;
+      while (!dut.sq_fill_probe_w && (wait_cycles < 48)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("V13P probe response fills SQ", dut.sq_fill_probe_w,
+                1'b1);
+      tb_check1("V13P probe response uses real bridge",
+                v8x_lane0_rsp_valid && mem_rsp_ready, 1'b1);
+      tb_check1("V13P successful probe has no formal WB",
+                dut.mem_wb_fire_w, 1'b0);
+      tb_check1("V13P successful probe has no commit",
+                commit0_valid, 1'b0);
+      store_token = dut.miq_head_owner_token_w;
+      `TB_TICK(clk);
+      #1;
+
+      wait_cycles = 0;
+      while ((!v8x_d_axi_awvalid || !v8x_d_axi_wvalid) &&
+             (wait_cycles < 48)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("V13P physical DRAIN presents AW",
+                v8x_d_axi_awvalid, 1'b1);
+      tb_check1("V13P physical DRAIN presents W",
+                v8x_d_axi_wvalid, 1'b1);
+      tb_check64("V13P physical DRAIN address",
+                 v8x_d_axi_awaddr, STORE_ADDR);
+      tb_check1("V13P no commit before AW/W/B", commit0_valid, 1'b0);
+
+      v8x_d_axi_awready = 1'b1;
+      v8x_d_axi_wready = 1'b1;
+      #1;
+      tb_check1("V13P AW handshake",
+                v8x_d_axi_awvalid && v8x_d_axi_awready, 1'b1);
+      tb_check1("V13P W handshake",
+                v8x_d_axi_wvalid && v8x_d_axi_wready, 1'b1);
+      `TB_TICK(clk);
+      v8x_d_axi_awready = 1'b0;
+      v8x_d_axi_wready = 1'b0;
+      #1;
+
+      tb_check1("V13P bridge waits in physical B state",
+                v8x_bridge.u_bridge0.state_q ==
+                    v8x_bridge.u_bridge0.S_WRITE_RESP,
+                1'b1);
+      tb_check1("V13P BREADY remains transport-owned",
+                v8x_d_axi_bready, 1'b1);
+      tb_check1("V13P no response before aggregate B",
+                v8x_lane0_rsp_valid, 1'b0);
+      tb_check1("V13P no commit before aggregate B",
+                commit0_valid, 1'b0);
+
+      v8x_d_axi_bvalid = 1'b1;
+      v8x_d_axi_bresp = 2'b00;
+      #1;
+      tb_check1("V13P aggregate B direct predicate",
+                v8x_bridge.u_bridge0.data_store_b_response_fusion_w,
+                1'b1);
+      tb_check1("V13P aggregate B response visible",
+                v8x_lane0_rsp_valid, 1'b1);
+      tb_check1("V13P backend accepts direct response",
+                mem_rsp_ready, 1'b1);
+      tb_check1("V13P B edge pops exact DRAIN",
+                dut.miq_drain_rsp_fire_w, 1'b1);
+      tb_check1("V13P B edge owns one formal WB",
+                dut.miq_drain_wb_fire_w, 1'b1);
+      tb_check1("V13P B edge writes one SQ terminal",
+                dut.sq_response_terminal_w, 1'b1);
+      tb_check1("V13P DRAIN bypasses terminal collector",
+                |dut.mem_terminal_ingress_valid_w, 1'b0);
+      tb_check1("V13P B/formal-WB edge cannot commit",
+                commit0_valid, 1'b0);
+      `TB_TICK(clk);
+      v8x_d_axi_bvalid = 1'b0;
+      v8x_d_axi_bresp = 2'b00;
+      #1;
+
+      tb_check1("V13P direct path leaves no S_RESP duplicate",
+                v8x_lane0_rsp_valid, 1'b0);
+      tb_check1("V13P ROB commits from registered done",
+                commit0_valid && (commit0_pc == STORE_PC) &&
+                !commit0_exception, 1'b1);
+      tb_check1("V13P commit releases SQ head",
+                dut.sq_release_fire_w, 1'b1);
+      tb_check1("V13P commit exposes exact STORE release mask",
+                dut.sq_owner_release_effective_mask_w[store_token],
+                1'b1);
+      tb_check1("V13P STORE token remains live until commit edge",
+                dut.mem_owner_live_mask_w[store_token], 1'b1);
+      `TB_TICK(clk);
+      #1;
+
+      tb_check1("V13P store commits exactly once", commit0_valid, 1'b0);
+      tb_check32("V13P ROB drains", {27'b0, rob_count}, 32'd0);
+      tb_check32("V13P SQ drains", {29'b0, dut.sq_count_w}, 32'd0);
+      tb_check1("V13P STORE token clears after SQ release",
+                dut.mem_owner_live_mask_w[store_token], 1'b0);
+      tb_check32("V13P terminal collector remains empty",
+                 {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
+
+      for (quiet_cycles = 0; quiet_cycles < 3;
+           quiet_cycles = quiet_cycles + 1) begin
+        tb_check1("V13P quiet window has no duplicate response",
+                  v8x_lane0_rsp_valid, 1'b0);
+        tb_check1("V13P quiet window has no duplicate WB",
+                  dut.mem_wb_fire_w, 1'b0);
+        tb_check1("V13P quiet window has no duplicate SQ terminal",
+                  dut.sq_response_terminal_w, 1'b0);
+        `TB_TICK(clk);
+        #1;
+      end
+      $display("[V13P-BACKEND-B-FUSION] probe=1 aw=1 w=1 b=1 wb=1 sq_terminal=1 collector=0 registered_commit=1 sq_release=1 quiet=3 PASS");
+      reset_dut();
+    end
+  endtask
+`endif
+
+`ifdef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+  // V13Q closes the real-backend error/backpressure matrix left by V13P.
+  // SLVERR/DECERR must retain the original store VA, while a B beat arriving
+  // with both integer WB slots occupied is accepted only into bridge S_RESP;
+  // backend WB/SQ terminal/MIQ pop wait for the following credit-bearing edge.
+  task automatic run_v13q_backend_bridge_store_error_case;
+    input [1023:0] label;
+    input [1:0] bresp;
+    input integer younger_alu_waves;
+    input integer commit_stall_cycles;
+    input [`XLEN-1:0] store_pc;
+    input [`XLEN-1:0] store_va;
+    input [`XLEN-1:0] store_pa;
+    localparam [`XLEN-1:0] ROOT_PTE_ADDR = 64'h0000_0000_0000_1008;
+    localparam [`XLEN-1:0] ROOT_LEAF_PTE = 64'h0000_0000_2000_00c7;
+    reg [4:0] store_token;
+    reg [PRODUCER_ID_W-1:0] store_producer_id;
+    integer wait_cycles;
+    integer quiet_cycles;
+    integer hold_cycle;
+    begin
+      reset_dut();
+      commit_ready = 1'b1;
+      v13q_priv_mode = `PRIV_S;
+      v13q_satp = 64'h8000_0000_0000_0001;
+      $display("[V13Q-BACKEND-B-CASE] label=%s bresp=%b younger_alu_waves=%0d commit_stall_cycles=%0d BEGIN",
+               label, bresp, younger_alu_waves,
+               commit_stall_cycles);
+
+      set_dispatch0(store_pc, make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, store_va);
+      #1;
+      tb_check1("V13Q store dispatch ready", dispatch0_ready, 1'b1);
+      store_producer_id = dispatch0_producer_id;
+      `TB_TICK(clk);
+      clear_dispatch();
+
+      // Sv39 root-level leaf maps VA 0x4000_0000... to PA 0x8000_0000...
+      // through a real AXI page-table read before the store probe response.
+      wait_cycles = 0;
+      while (!v8x_d_axi_arvalid && (wait_cycles < 48)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("V13Q Sv39 walk presents AR", v8x_d_axi_arvalid, 1'b1);
+      tb_check64("V13Q Sv39 root PTE address",
+                 v8x_d_axi_araddr, ROOT_PTE_ADDR);
+      v8x_d_axi_arready = 1'b1;
+      #1;
+      tb_check1("V13Q Sv39 AR handshake",
+                v8x_d_axi_arvalid && v8x_d_axi_arready, 1'b1);
+      `TB_TICK(clk);
+      v8x_d_axi_arready = 1'b0;
+      v8x_d_axi_rvalid = 1'b1;
+      v8x_d_axi_rdata = ROOT_LEAF_PTE;
+      v8x_d_axi_rresp = 2'b00;
+      #1;
+      tb_check1("V13Q Sv39 R handshake",
+                v8x_d_axi_rvalid && v8x_d_axi_rready, 1'b1);
+      `TB_TICK(clk);
+      v8x_d_axi_rvalid = 1'b0;
+      v8x_d_axi_rdata = {`XLEN{1'b0}};
+      #1;
+
+      wait_cycles = 0;
+      while (!dut.sq_fill_probe_w && (wait_cycles < 48)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("V13Q probe response fills SQ", dut.sq_fill_probe_w,
+                1'b1);
+      tb_check1("V13Q probe response uses real bridge",
+                v8x_lane0_rsp_valid && mem_rsp_ready, 1'b1);
+      tb_check64("V13Q probe returns translated PA",
+                 v8x_lane0_rsp_rdata, store_pa);
+      tb_check1("V13Q successful probe has no formal WB",
+                dut.mem_wb_fire_w, 1'b0);
+      store_token = dut.miq_head_owner_token_w;
+      `TB_TICK(clk);
+      #1;
+
+      wait_cycles = 0;
+      while ((!v8x_d_axi_awvalid || !v8x_d_axi_wvalid) &&
+             (wait_cycles < 48)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1("V13Q physical DRAIN presents AW",
+                v8x_d_axi_awvalid, 1'b1);
+      tb_check1("V13Q physical DRAIN presents W",
+                v8x_d_axi_wvalid, 1'b1);
+      tb_check64("V13Q physical DRAIN keeps final address",
+                 v8x_d_axi_awaddr, store_pa);
+      tb_check1("V13Q no commit before AW/W/B", commit0_valid, 1'b0);
+
+      v8x_d_axi_awready = 1'b1;
+      v8x_d_axi_wready = 1'b1;
+      #1;
+      tb_check1("V13Q AW handshake",
+                v8x_d_axi_awvalid && v8x_d_axi_awready, 1'b1);
+      tb_check1("V13Q W handshake",
+                v8x_d_axi_wvalid && v8x_d_axi_wready, 1'b1);
+      `TB_TICK(clk);
+      v8x_d_axi_awready = 1'b0;
+      v8x_d_axi_wready = 1'b0;
+      #1;
+
+      tb_check1("V13Q bridge waits for aggregate B",
+                v8x_bridge.u_bridge0.state_q ==
+                    v8x_bridge.u_bridge0.S_WRITE_RESP,
+                1'b1);
+      tb_check1("V13Q no response before aggregate B",
+                v8x_lane0_rsp_valid, 1'b0);
+
+      if (younger_alu_waves > 0) begin
+        // Each younger independent ALU pair supplies one real two-slot WB
+        // wave while the older store remains the incomplete ROB head.
+        set_dispatch0(store_pc + 64'h10,
+                      make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                    `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                      5'd0, 5'd0, 5'd13, 64'd21);
+        set_dispatch1(store_pc + 64'h14,
+                      make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                    `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                      5'd0, 5'd0, 5'd14, 64'd22);
+        #1;
+        tb_check1("V13Q dual ALU dispatch lane0 ready",
+                  dispatch0_ready, 1'b1);
+        tb_check1("V13Q dual ALU dispatch lane1 ready",
+                  dispatch1_ready, 1'b1);
+        `TB_TICK(clk);
+        clear_dispatch();
+        #1;
+        tb_check32("V13Q dual ALU wave0 queued",
+                   {28'b0, issue_count}, 32'd2);
+
+        if (younger_alu_waves > 1) begin
+          // Dispatch wave1 while wave0 is resident.  The following edge
+          // simultaneously issues wave0 and enqueues wave1, so their WB
+          // pulses are consecutive rather than an idle-cycle approximation.
+          set_dispatch0(store_pc + 64'h18,
+                        make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                      `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                        5'd0, 5'd0, 5'd15, 64'd23);
+          set_dispatch1(store_pc + 64'h1c,
+                        make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                      `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                        5'd0, 5'd0, 5'd16, 64'd24);
+          #1;
+          tb_check1("V13R dual ALU wave1 dispatch lane0 ready",
+                    dispatch0_ready, 1'b1);
+          tb_check1("V13R dual ALU wave1 dispatch lane1 ready",
+                    dispatch1_ready, 1'b1);
+        end
+        `TB_TICK(clk);
+        clear_dispatch();
+        #1;
+        tb_check1("V13Q WB wave0 occupies slot0",
+                  execute0_valid, 1'b1);
+        tb_check1("V13Q WB wave0 occupies slot1",
+                  execute1_valid, 1'b1);
+        if (younger_alu_waves > 1)
+          tb_check32("V13R dual ALU wave1 is genuinely queued",
+                     {28'b0, issue_count}, 32'd2);
+      end
+
+      v8x_d_axi_bvalid = 1'b1;
+      v8x_d_axi_bresp = bresp;
+      #1;
+      tb_check1("V13Q BREADY remains bridge-transport owned",
+                v8x_d_axi_bready, 1'b1);
+      tb_check1("V13Q aggregate B really handshakes",
+                v8x_d_axi_bvalid && v8x_d_axi_bready, 1'b1);
+      tb_check1("V13Q B response uses direct presentation",
+                v8x_bridge.u_bridge0.data_store_b_response_fusion_w,
+                1'b1);
+      tb_check1("V13Q B response visible", v8x_lane0_rsp_valid, 1'b1);
+      tb_check1("V13Q B response carries error",
+                v8x_lane0_rsp_error, 1'b1);
+      tb_check32("V13Q B response exact owner token",
+                 {27'b0, v8x_lane0_rsp_owner_token},
+                 {27'b0, store_token});
+      tb_check64("V13Q B response preserves original VA",
+                 v8x_lane0_rsp_fault_tval, store_va);
+
+      if (younger_alu_waves > 0) begin
+        tb_check1("V13Q full WB slots backpressure backend response",
+                  mem_rsp_ready, 1'b0);
+        if (younger_alu_waves > 1) begin
+          tb_check1("V13R pending response owns WB starvation gate",
+                    dut.mem_rsp_waiting_for_wb_w, 1'b1);
+          tb_check1("V13R next lane0 ALU remains issueable",
+                    dut.issue0_valid_w && dut.issue0_ready_w, 1'b1);
+          tb_check1("V13R pending response blocks lane1 refill",
+                    dut.issue1_valid_w && !dut.issue1_ready_w, 1'b1);
+        end
+        tb_check1("V13Q stalled B cannot pop DRAIN",
+                  dut.miq_drain_rsp_fire_w, 1'b0);
+        tb_check1("V13Q stalled B cannot produce memory WB",
+                  dut.mem_wb_fire_w, 1'b0);
+        tb_check1("V13Q stalled B cannot write SQ terminal",
+                  dut.sq_response_terminal_w, 1'b0);
+        tb_check1("V13Q stalled B cannot advance MIQ",
+                  dut.miq_queue_pop_valid_w, 1'b0);
+        tb_check1("V13Q stalled B cannot commit", commit0_valid, 1'b0);
+
+        `TB_TICK(clk);
+        v8x_d_axi_bvalid = 1'b0;
+        v8x_d_axi_bresp = 2'b00;
+        #1;
+        tb_check32("V13Q B accept edge has no DRAIN fire",
+                   v13q_drain_fire_count_q, 32'd0);
+        tb_check32("V13Q B accept edge has no memory WB",
+                   v13q_mem_wb_count_q, 32'd0);
+        tb_check32("V13Q B accept edge has no SQ terminal",
+                   v13q_sq_terminal_count_q, 32'd0);
+        tb_check32("V13Q B accept edge has no MIQ pop",
+                   v13q_miq_pop_count_q, 32'd0);
+        tb_check1("V13Q stalled B captured into S_RESP",
+                  v8x_bridge.u_bridge0.state_q ==
+                      v8x_bridge.u_bridge0.S_RESP,
+                  1'b1);
+        tb_check1("V13Q fallback no longer uses direct predicate",
+                  v8x_bridge.u_bridge0.data_store_b_response_fusion_w,
+                  1'b0);
+        tb_check1("V13Q fallback response remains visible",
+                  v8x_lane0_rsp_valid, 1'b1);
+        tb_check1("V13Q fallback keeps error",
+                  v8x_lane0_rsp_error, 1'b1);
+        tb_check32("V13Q fallback keeps owner token",
+                   {27'b0, v8x_lane0_rsp_owner_token},
+                   {27'b0, store_token});
+        tb_check64("V13Q fallback keeps original VA",
+                   v8x_lane0_rsp_fault_tval, store_va);
+
+        if (younger_alu_waves > 1) begin
+          // The backend intentionally prevents the second lane from
+          // refilling while a memory response waits for formal WB.  One
+          // younger ALU therefore occupies slot0 and the retained response
+          // takes slot1 at C_B+1; a second all-ALU full stall is unreachable
+          // through this simple-ALU schedule.
+          tb_check1("V13R wave1 lane0 occupies formal WB slot0",
+                    dut.ex0_wb_slot_occupied_w, 1'b1);
+          tb_check1("V13R anti-starvation leaves slot1 for response",
+                    dut.ex1_wb_slot_occupied_w, 1'b0);
+          tb_check32("V13R one wave1 ALU remains in IQ",
+                     {28'b0, issue_count}, 32'd1);
+          tb_check1("V13R retained response receives free WB slot",
+                    mem_rsp_ready, 1'b1);
+          $display("[V13R-BACKEND-FAIRNESS] first_wave_full=1 lane1_refill_blocked=1 second_wave_partial=1 response_bound=C_B+1 PASS");
+        end
+        tb_check1("V13Q fallback accepts after WB credit returns",
+                  mem_rsp_ready, 1'b1);
+      end else begin
+        tb_check1("V13Q direct error response accepted",
+                  mem_rsp_ready, 1'b1);
+      end
+
+      if (commit_stall_cycles > 0) begin
+        commit_ready = 1'b0;
+        #1;
+      end
+
+      tb_check1("V13Q accepting edge pops exact DRAIN",
+                dut.miq_drain_rsp_fire_w, 1'b1);
+      tb_check1("V13Q accepting edge owns formal WB",
+                dut.mem_wb_fire_w, 1'b1);
+      tb_check1("V13Q accepting edge writes SQ terminal",
+                dut.sq_response_terminal_w, 1'b1);
+      tb_check1("V13Q accepting edge advances MIQ once",
+                dut.miq_queue_pop_valid_w, 1'b1);
+      tb_check1("V13Q DRAIN bypasses terminal collector",
+                |dut.mem_terminal_ingress_valid_w, 1'b0);
+      tb_check1("V13R formal WB uses exactly one memory route",
+                dut.mem_rsp_to_wb0_w ^ dut.mem_rsp_to_wb1_w, 1'b1);
+      tb_check1("V13Q formal WB is exceptional",
+                (dut.mem_rsp_to_wb0_w && dut.wb0_valid_w &&
+                 dut.wb0_exception_w) ||
+                (dut.mem_rsp_to_wb1_w && dut.wb1_valid_w &&
+                 dut.wb1_exception_w),
+                1'b1);
+      tb_check1("V13R formal WB names exact store producer",
+                (dut.mem_rsp_to_wb0_w &&
+                 (dut.wb0_producer_id_w == store_producer_id)) ||
+                (dut.mem_rsp_to_wb1_w &&
+                 (dut.wb1_producer_id_w == store_producer_id)),
+                1'b1);
+      tb_check32("V13Q formal WB cause is store access fault",
+                 {{(32-`TRAP_CAUSE_W){1'b0}},
+                  (dut.mem_rsp_to_wb0_w ? dut.wb0_cause_w :
+                                           dut.wb1_cause_w)},
+                 {{(32-`TRAP_CAUSE_W){1'b0}},
+                  `EXC_STORE_ACCESS_FAULT});
+      tb_check64("V13Q formal WB tval is original VA",
+                 dut.mem_rsp_to_wb0_w ? dut.wb0_tval_w :
+                                        dut.wb1_tval_w,
+                 store_va);
+      tb_check1("V13Q formal-WB edge cannot commit",
+                commit0_valid, 1'b0);
+
+      `TB_TICK(clk);
+      v8x_d_axi_bvalid = 1'b0;
+      v8x_d_axi_bresp = 2'b00;
+      #1;
+      tb_check1("V13Q response consumed without duplicate",
+                v8x_lane0_rsp_valid, 1'b0);
+      tb_check32("V13Q one DRAIN response fire",
+                 v13q_drain_fire_count_q, 32'd1);
+      tb_check32("V13Q one memory WB",
+                 v13q_mem_wb_count_q, 32'd1);
+      tb_check32("V13Q one SQ terminal",
+                 v13q_sq_terminal_count_q, 32'd1);
+      tb_check32("V13Q one MIQ pop",
+                 v13q_miq_pop_count_q, 32'd1);
+
+      if (commit_stall_cycles > 0) begin
+        tb_check1("V13R commit_ready hold blocks target commit",
+                  commit0_valid, 1'b0);
+        tb_check1("V13R commit_ready hold blocks SQ release",
+                  dut.sq_release_fire_w, 1'b0);
+        tb_check32("V13R SQ entry remains retirement-resident",
+                   {29'b0, dut.sq_count_w}, 32'd1);
+        tb_check1("V13R STORE owner remains live after formal WB",
+                  dut.mem_owner_live_mask_w[store_token], 1'b1);
+        tb_check1("V13R exact store is ROB head during hold",
+                  commit0_producer_id == store_producer_id, 1'b1);
+        tb_check1("V13R held ROB head is done",
+                  dut.u_dispatch_backend.u_rob.head_done_w, 1'b1);
+        tb_check1("V13R held ROB head carries exception",
+                  dut.u_dispatch_backend.u_rob.head_exception_w, 1'b1);
+        tb_check1("V13R recovery does not mask ready sensitivity",
+                  dut.u_dispatch_backend.u_rob.recovering_w, 1'b0);
+        tb_check1("V13R CSR memory hold does not mask ready sensitivity",
+                  dut.u_dispatch_backend.u_rob.head0_csr_mem_hold_w, 1'b0);
+        tb_check1("V13R context permit is open during hold",
+                  dut.u_dispatch_backend.u_rob.head0_context_permit_i, 1'b1);
+        tb_check1("V13R fencei permit is open during hold",
+                  dut.u_dispatch_backend.u_rob.fencei_retire_permit_i, 1'b1);
+
+        for (hold_cycle = 0; hold_cycle < commit_stall_cycles;
+             hold_cycle = hold_cycle + 1) begin
+          tb_check1("V13R retirement hold has no response replay",
+                    v8x_lane0_rsp_valid, 1'b0);
+          tb_check1("V13R retirement hold has no memory WB replay",
+                    dut.mem_wb_fire_w, 1'b0);
+          tb_check1("V13R retirement hold has no SQ terminal replay",
+                    dut.sq_response_terminal_w, 1'b0);
+          tb_check1("V13R retirement hold has no MIQ pop replay",
+                    dut.miq_drain_rsp_fire_w ||
+                    (dut.miq_queue_pop_valid_w && dut.miq_head_drain_w),
+                    1'b0);
+          tb_check1("V13R retirement hold has no target commit",
+                    commit0_valid, 1'b0);
+          tb_check1("V13R retirement hold has no SQ release",
+                    dut.sq_release_fire_w, 1'b0);
+          tb_check32("V13R retirement hold keeps SQ count one",
+                     {29'b0, dut.sq_count_w}, 32'd1);
+          tb_check1("V13R retirement hold keeps STORE owner live",
+                    dut.mem_owner_live_mask_w[store_token], 1'b1);
+          `TB_TICK(clk);
+          #1;
+          tb_check32("V13R hold keeps one DRAIN response fire",
+                     v13q_drain_fire_count_q, 32'd1);
+          tb_check32("V13R hold keeps one memory WB",
+                     v13q_mem_wb_count_q, 32'd1);
+          tb_check32("V13R hold keeps one SQ terminal",
+                     v13q_sq_terminal_count_q, 32'd1);
+          tb_check32("V13R hold keeps one MIQ pop",
+                     v13q_miq_pop_count_q, 32'd1);
+          tb_check32("V13R hold keeps zero exception commits",
+                     v13q_exception_commit_count_q, 32'd0);
+        end
+        commit_ready = 1'b1;
+        #1;
+      end
+
+      tb_check1("V13Q ROB commits registered exception",
+                commit0_valid && (commit0_pc == store_pc) &&
+                commit0_exception &&
+                (commit0_producer_id == store_producer_id), 1'b1);
+      tb_check32("V13Q committed cause is store access fault",
+                 {{(32-`TRAP_CAUSE_W){1'b0}}, commit0_cause},
+                 {{(32-`TRAP_CAUSE_W){1'b0}},
+                  `EXC_STORE_ACCESS_FAULT});
+      tb_check64("V13Q committed tval is original VA",
+                 commit0_tval, store_va);
+      tb_check1("V13Q exception commit raises C0 barrier",
+                control_full_flush_barrier, 1'b1);
+      tb_check32("V13Q C0 barrier reason is TRAP",
+                 {{(32-`REDIR_REASON_W){1'b0}},
+                  control_full_flush_reason},
+                 {{(32-`REDIR_REASON_W){1'b0}}, `REDIR_REASON_TRAP});
+      tb_check1("V13Q exception commit releases SQ head",
+                dut.sq_release_fire_w, 1'b1);
+      tb_check1("V13Q release names exact store token",
+                dut.sq_owner_release_effective_mask_w[store_token], 1'b1);
+      tb_check1("V13Q owner remains live until commit edge",
+                dut.mem_owner_live_mask_w[store_token], 1'b1);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32("V13Q one exception commit",
+                 v13q_exception_commit_count_q, 32'd1);
+      tb_check32("V13Q SQ drains", {29'b0, dut.sq_count_w}, 32'd0);
+      tb_check1("V13Q store owner clears after SQ release",
+                dut.mem_owner_live_mask_w[store_token], 1'b0);
+      if (younger_alu_waves > 0) begin
+        tb_check32("V13Q younger ALUs remain before external C1 flush",
+                   {27'b0, rob_count}, younger_alu_waves * 2);
+        flush = 1'b1;
+        `TB_TICK(clk);
+        flush = 1'b0;
+        #1;
+        tb_check32("V13Q external C1 flush removes younger ALUs",
+                   {27'b0, rob_count}, 32'd0);
+      end else begin
+        tb_check32("V13Q ROB drains", {27'b0, rob_count}, 32'd0);
+      end
+
+      for (quiet_cycles = 0; quiet_cycles < 3;
+           quiet_cycles = quiet_cycles + 1) begin
+        tb_check1("V13Q quiet window has no response",
+                  v8x_lane0_rsp_valid, 1'b0);
+        tb_check1("V13Q quiet window has no memory WB",
+                  dut.mem_wb_fire_w, 1'b0);
+        tb_check1("V13Q quiet window has no SQ terminal",
+                  dut.sq_response_terminal_w, 1'b0);
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("V13Q quiet keeps one DRAIN fire",
+                 v13q_drain_fire_count_q, 32'd1);
+      tb_check32("V13Q quiet keeps one memory WB",
+                 v13q_mem_wb_count_q, 32'd1);
+      tb_check32("V13Q quiet keeps one SQ terminal",
+                 v13q_sq_terminal_count_q, 32'd1);
+      tb_check32("V13Q quiet keeps one MIQ pop",
+                 v13q_miq_pop_count_q, 32'd1);
+      tb_check32("V13Q quiet keeps one exception commit",
+                 v13q_exception_commit_count_q, 32'd1);
+      $display("[V13Q-BACKEND-B-CASE] label=%s bresp=%b younger_alu_waves=%0d commit_stall_cycles=%0d cause=7 tval=0x%016h drain=1 wb=1 sq_terminal=1 pop=1 commit=1 quiet=3 PASS",
+               label, bresp, younger_alu_waves,
+               commit_stall_cycles, store_va);
+    end
+  endtask
+
+  task automatic run_v13q_backend_bridge_store_error_backpressure_contract;
+    begin
+      run_v13q_backend_bridge_store_error_case(
+          "SLVERR-direct", 2'b10, 0, 0,
+          64'h0000_0000_8001_6200,
+          64'h0000_0000_4000_0900, 64'h0000_0000_8000_0900);
+      run_v13q_backend_bridge_store_error_case(
+          "DECERR-direct", 2'b11, 0, 0,
+          64'h0000_0000_8001_6240,
+          64'h0000_0000_4000_0940, 64'h0000_0000_8000_0940);
+      run_v13q_backend_bridge_store_error_case(
+          "SLVERR-fallback", 2'b10, 1, 0,
+          64'h0000_0000_8001_6280,
+          64'h0000_0000_4000_0980, 64'h0000_0000_8000_0980);
+      $display("[V13Q-BACKEND-B-ERROR-BP] slverr_direct=1 decerr_direct=1 slverr_fallback=1 cause7=3 original_tval=3 exact_terminal=3 quiet=9 PASS");
+      reset_dut();
+    end
+  endtask
+
+`ifdef V13R_BACKEND_BRIDGE_STORE_ERROR_HOLD_FOCUSED
+  task automatic run_v13r_backend_bridge_store_error_hold_contract;
+    begin
+      run_v13q_backend_bridge_store_error_case(
+          "DECERR-two-cycle-retire-hold", 2'b11, 2, 3,
+          64'h0000_0000_8001_62c0,
+          64'h0000_0000_4000_09c0, 64'h0000_0000_8000_09c0);
+      $display("[V13R-BACKEND-B-HOLD] decerr_fallback=1 requested_alu_waves=2 anti_starvation_bound=1 commit_stall_cycles=3 cause7=1 original_tval=1 exact_terminal=1 owner_hold=1 quiet=3 PASS");
+      reset_dut();
+    end
+  endtask
+`endif
+`endif
 `endif
 
   task automatic seed_s2_g1_amo_read;
@@ -18548,6 +19218,12 @@ module tb_ooo_int_backend;
     run_v8d_int_ex_kill_age_matrix();
     run_v8x_backend_bridge_recovery_contract();
     $display("[V8Y-SPECULATION-RECOVERY] multi_control=1 oldest_branch=1 selective_ex=1 axi_drain=1 complete_violations=0 retire_violations=0 ghosts=0 PASS");
+`elsif V13R_BACKEND_BRIDGE_STORE_ERROR_HOLD_FOCUSED
+    run_v13r_backend_bridge_store_error_hold_contract();
+`elsif V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+    run_v13q_backend_bridge_store_error_backpressure_contract();
+`elsif V13P_BACKEND_BRIDGE_STORE_FOCUSED
+    run_v13p_backend_bridge_store_contract();
 `elsif V8X_BACKEND_BRIDGE_RECOVERY_FOCUSED
     run_v8x_backend_bridge_recovery_contract();
 `elsif V8P_PAIR_MATRIX_FOCUSED
@@ -19950,6 +20626,12 @@ module tb_ooo_int_backend;
         tb_finish("tb_ooo_int_backend_v11i_terminal_lifecycle");
 `elsif V8Y_SPECULATION_RECOVERY_FOCUSED
         tb_finish("tb_ooo_int_backend_v8y_speculation_recovery");
+`elsif V13R_BACKEND_BRIDGE_STORE_ERROR_HOLD_FOCUSED
+        tb_finish("tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold");
+`elsif V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+        tb_finish("tb_ooo_int_backend_v13q_store_b_error_backpressure");
+`elsif V13P_BACKEND_BRIDGE_STORE_FOCUSED
+        tb_finish("tb_ooo_int_backend_v13p_store_b_fusion");
 `elsif V8X_BACKEND_BRIDGE_RECOVERY_FOCUSED
         tb_finish("tb_ooo_int_backend_v8x_backend_bridge_recovery");
 `elsif V8W_MAKE_TARGET

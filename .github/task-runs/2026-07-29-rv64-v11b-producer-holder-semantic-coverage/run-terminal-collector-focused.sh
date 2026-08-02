@@ -11,6 +11,7 @@ mutator="$run_dir/mutate-terminal-collector.py"
 builder="$run_dir/build-terminal-collector-evidence.py"
 attempt="${V11B_TCOLL_ATTEMPT:-1}"
 evidence_dir="${V11B_TCOLL_EVIDENCE_DIR_OVERRIDE:-$run_dir/evidence/terminal-collector-attempt-$attempt}"
+compact_images="${V11B_TCOLL_COMPACT_IMAGES:-0}"
 base_flags="-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon"
 
 fail() {
@@ -20,6 +21,9 @@ fail() {
 
 if [[ ! "$attempt" =~ ^[1-9][0-9]*$ ]]; then
   fail "V11B_TCOLL_ATTEMPT must be a positive integer"
+fi
+if [[ "$compact_images" != "0" && "$compact_images" != "1" ]]; then
+  fail "V11B_TCOLL_COMPACT_IMAGES must be 0 or 1"
 fi
 if [[ -e "$evidence_dir" ]]; then
   fail "evidence directory already exists: ${evidence_dir#$repo_root/}"
@@ -135,9 +139,27 @@ cmp -s "$evidence_dir/rtl-source-binding.pre.json" \
   "$evidence_dir/rtl-source-binding.post.json" ||
   fail "full RTL source set changed during execution"
 
-python3 "$builder" \
-  --root "$repo_root" \
-  --evidence-dir "$evidence_dir" \
+builder_args=(
+  --root "$repo_root"
+  --evidence-dir "$evidence_dir"
   --output "$evidence_dir/summary.json"
+)
+if [[ "$compact_images" == "1" ]]; then
+  builder_args+=(--compact-images)
+fi
+python3 "$builder" "${builder_args[@]}"
+
+if [[ "$compact_images" == "1" ]]; then
+  rm -rf -- \
+    "$evidence_dir/assert/build" \
+    "$evidence_dir/release/build" \
+    "$evidence_dir/unknown-negative/build"
+  for case in "${mutation_cases[@]}"; do
+    rm -rf -- "$evidence_dir/mutations/$case/build"
+  done
+  if find "$evidence_dir" -type f -name '*.vvp' -print -quit | grep -q .; then
+    fail "compact evidence retained a compiled image"
+  fi
+fi
 printf '%s\n' \
-  "[V11B-TCOLL-RUNNER][PASS] attempt=$attempt ingress=12 free=2 profiles=2 mutations=3/3"
+  "[V11B-TCOLL-RUNNER][PASS] attempt=$attempt ingress=12 free=2 profiles=2 mutations=3/3 retained_vvp=$((compact_images == 1 ? 0 : 6))"

@@ -1,5 +1,0 @@
-[TEST] tb_ooo_csr_trap_request_mux
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_csr_trap_request_mux -o build-t3z-request-mux-v1/tb_ooo_csr_trap_request_mux.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrTrapRequestMux.v tests/tb_ooo_csr_trap_request_mux.sv
-PASS tb_ooo_csr_trap_request_mux
-tests/tb_ooo_csr_trap_request_mux.sv:289: $finish called at 15 (1s)
-[RESULT] PASS

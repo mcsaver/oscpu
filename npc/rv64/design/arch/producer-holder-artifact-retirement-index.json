@@ -1,0 +1,16 @@
+{
+  "schema_version": "rv64-producer-holder-artifact-retirement-index-v1",
+  "claim_boundary": "This index records hash-bound retirement manifests for reproducible task-run compile images only; RTL/TB sources, logs, JSON results, source bindings and transaction markers remain retained.",
+  "manifests": [
+    {
+      "path": ".github/task-runs/2026-07-31-task-run-artifact-compaction/semantic-vvp-retirement.json",
+      "sha256": "9ea8d5e13e03f186c70656d445ddefe107ec142dda1f551a609342e0f3adc73b",
+      "size_bytes": 199807
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/semantic-vvp-retirement.json",
+      "sha256": "27cf19d0af4c08d2710df7bf2c1a0c2c045e19b294964980e3c074d1b8e207b8",
+      "size_bytes": 156295
+    }
+  ]
+}

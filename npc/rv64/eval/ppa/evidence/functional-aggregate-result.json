@@ -1,8 +1,8 @@
 {
   "aggregate": {
     "kind": "functional_aggregate",
-    "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
-    "sha256": "895c83be5e8ccff222e86392598bfc5e3b831db8df567a01ea66e632afb7c187"
+    "path": ".github/task-runs/2026-08-01-rv64-v11y-full-core-current-cohort/evidence/functional-attempt-3-checker-replay-final/functional-aggregate.json",
+    "sha256": "579d29ddbd13355d201e8225f0afd064432b7447ccfef65cce63f5b1a3708aba"
   },
   "canonical_command": "make -C npc/rv64 check-functional-aggregate",
   "checks": [
@@ -43,7 +43,7 @@
     },
     {
       "check_id": "functional.am",
-      "detail": "AM suite has exact 59/59 raw-log coverage with DiffTest enabled",
+      "detail": "AM suite has exact 61/61 raw-log coverage with DiffTest enabled",
       "status": "PASS"
     },
     {
@@ -59,8 +59,8 @@
   ],
   "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
   "counts": {
-    "am_passed": 59,
-    "am_required": 59,
+    "am_passed": 61,
+    "am_required": 61,
     "difftest_mismatches": 0,
     "evidence_mutations_compiled": 11,
     "evidence_mutations_rejected": 11,
@@ -69,17 +69,17 @@
     "official_passed": 177,
     "official_required": 177
   },
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "exit_code": 0,
   "mutation_summary": {
     "kind": "mutation_summary",
-    "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/evidence/mutations/summary.json",
-    "sha256": "35013a5d702953774525a999ad0a1a886d0546bdb2ca28207c977cac4e534080"
+    "path": ".github/task-runs/2026-08-01-rv64-v11y-full-core-current-cohort/evidence/functional-attempt-3-checker-replay-final/mutations/summary.json",
+    "sha256": "91dc94ff9c9061f79bd946c809e20275a6e1a5f249be56b997d3b5041e50ac01"
   },
   "raw_log": {
     "kind": "raw_log",
-    "path": "npc/rv64/eval/ppa/evidence/functional-aggregate.log",
-    "sha256": "8b64621b661d7f09899df4c46fc5d2b31524780305d7739b88db7b72211d908b"
+    "path": ".github/task-runs/2026-08-01-rv64-v11y-full-core-current-cohort/evidence/functional-attempt-3-checker-replay-final/functional-aggregate.log",
+    "sha256": "374b92fc9941a1af7c3b64a7647288ae86da51589640e9df117485d6b3758eb6"
   },
   "schema": "npc-rv64-functional-aggregate-result-v1",
   "status": "PASS"

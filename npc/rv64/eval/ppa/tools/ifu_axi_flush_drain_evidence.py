@@ -7,8 +7,10 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import re
+import subprocess
 import sys
 from typing import Any, Sequence
 
@@ -16,7 +18,20 @@ from typing import Any, Sequence
 SCHEMA = "npc-rv64-ifu-axi-flush-drain-evidence-v1"
 MUTATION_SCHEMA = "npc-rv64-ifu-axi-flush-drain-rtl-variants-v1"
 RUN_ID = "2026-07-22-rv64-v9g-ifu-axi-current-design"
-CANONICAL_COMMAND = "make -C npc/rv64 check-ifu-axi-flush-drain"
+CANONICAL_COMMAND = (
+    "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+    "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+    "-f eval/ppa/ifu-evidence.mk check-ifu-axi-flush-drain"
+)
+CANONICAL_TARGET = "check-ifu-axi-flush-drain"
+CANONICAL_DISPATCH_FILE = "npc/rv64/eval/ppa/ifu-evidence.mk"
+CANONICAL_RUNNER = f".github/task-runs/{RUN_ID}/run-focused.sh"
+CANONICAL_DISPATCH_BLOCK = (
+    ".PHONY: check-ifu-axi-flush-drain\n"
+    "check-ifu-axi-flush-drain:\n"
+    "\t@bash ../../.github/task-runs/"
+    f"{RUN_ID}/run-focused.sh"
+)
 REPO = pathlib.Path(__file__).resolve().parents[5]
 
 ARCH_TOOL = pathlib.Path(__file__).with_name("architecture_hard_gates.py")
@@ -354,6 +369,80 @@ def validate_variants(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
     }
 
 
+def validate_canonical_make_dispatch(makefile_text: str) -> None:
+    """Validate a literal-only dispatch file before asking Make to parse it."""
+
+    safe_target = r"[A-Za-z0-9_.-]+"
+    safe_recipe = re.compile(r"^\t@?[A-Za-z0-9_./ -]+$")
+    for line_number, line in enumerate(makefile_text.splitlines(), start=1):
+        if not line or line.startswith("#"):
+            continue
+        if safe_recipe.fullmatch(line):
+            continue
+        if re.fullmatch(rf"\.PHONY:(?: {safe_target})+", line):
+            continue
+        if re.fullmatch(rf"{safe_target}:", line):
+            continue
+        raise ValueError(
+            "IFU AXI restricted Make dispatch contains dynamic syntax at "
+            f"line {line_number}"
+        )
+
+    target_rules = re.findall(
+        rf"(?m)^{re.escape(CANONICAL_TARGET)}\s*::?.*$", makefile_text)
+    phony_rules = [
+        line for line in makefile_text.splitlines()
+        if line.startswith(".PHONY:")
+        and CANONICAL_TARGET in line.split()[1:]
+    ]
+    if (
+        makefile_text.count(CANONICAL_DISPATCH_BLOCK) != 1
+        or target_rules != [f"{CANONICAL_TARGET}:"]
+        or phony_rules != [f".PHONY: {CANONICAL_TARGET}"]
+    ):
+        raise ValueError("IFU AXI canonical Make dispatch drifted")
+
+
+def validate_effective_make_dispatch(
+    make_dir: pathlib.Path,
+    dispatch_file: pathlib.Path,
+    target: str,
+    expected_command: str,
+) -> None:
+    """Resolve a prevalidated literal recipe in a sanitized Make process."""
+
+    dispatch_path = safe_file(make_dir, make_dir / dispatch_file)
+    validate_canonical_make_dispatch(dispatch_path.read_text(encoding="utf-8"))
+
+    env = os.environ.copy()
+    for name in (
+        "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "GNUMAKEFLAGS", "MAKEFILES",
+    ):
+        env.pop(name, None)
+    env["LC_ALL"] = "C"
+    try:
+        completed = subprocess.run(
+            [
+                "/usr/bin/make", "-rR", "--no-print-directory", "-n",
+                "-C", str(make_dir), "-f", dispatch_file.as_posix(),
+                "SHELL=/bin/false", target,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f"cannot resolve IFU AXI Make dispatch: {exc}") from exc
+    if (
+        completed.returncode != 0
+        or completed.stdout.splitlines() != [expected_command]
+        or completed.stderr.strip()
+    ):
+        raise ValueError("IFU AXI effective Make recipe drifted")
+
+
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     bridge = safe_file(
         root, root / "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
@@ -371,6 +460,16 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     generic_xbar_tb = safe_file(
         root, root / "npc/rv64/testbench/tests/tb_axi_xbar.sv"
     ).read_text(encoding="utf-8")
+    makefile = safe_file(
+        root, root / CANONICAL_DISPATCH_FILE
+    ).read_text(encoding="utf-8")
+    validate_canonical_make_dispatch(makefile)
+    validate_effective_make_dispatch(
+        root / "npc/rv64",
+        pathlib.Path("eval/ppa/ifu-evidence.mk"),
+        CANONICAL_TARGET,
+        f"bash ../../{CANONICAL_RUNNER}",
+    )
 
     bridge_anchors = (
         "  assign ifu_axi_awvalid_o = (state_q == S_AD_UPDATE) && !aw_done_q;",
@@ -463,6 +562,10 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
         "xbar_generic_oracle_has_two_cycle_b_backpressure": True,
         "xbar_generic_oracle_has_aw_first_and_w_first": True,
         "xbar_integration_oracle_has_later_master_progress": True,
+        "canonical_make_dispatch_is_exact": True,
+        "canonical_make_dispatch_file_is_restricted": True,
+        "canonical_make_environment_is_sanitized": True,
+        "canonical_make_effective_recipe_is_exact": True,
     }
 
 
@@ -475,7 +578,7 @@ SOURCE_BINDING_PATHS = (
     "npc/rv64/testbench/tests/tb_axi_xbar.sv",
     "npc/rv64/testbench/Makefile",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    CANONICAL_DISPATCH_FILE,
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/run-focused.sh",

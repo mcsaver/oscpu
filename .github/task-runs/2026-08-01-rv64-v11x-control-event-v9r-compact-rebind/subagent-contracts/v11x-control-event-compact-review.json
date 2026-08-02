@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11x-control-event-compact-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 RV64 OooControlEventApplySequencer、OooRob、OooIntBackend 与 OooMemAxiBridge 的 C0/C1 控制事务及 SQ-query retry owner/holder 证据绑定，检查两个 current JSON、组合 Make 入口、compile-success RTL 负向变体、transient vvp 保留策略和 architecture cohort 边界是否存在假绿或错误归属。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench",
+      "npc/rv64/design/specs",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/control-event-evidence.mk",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/control_event_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_control_event_current_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/evidence/control-event-current.json",
+      "npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind",
+      ".github/task-runs/2026-07-23-rv64-v9o-control-event-current-design",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/subagent-contracts/v11x-control-event-compact-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/tools/control_event_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、周期或配置、TB/EDA 观测、PASS/GAP 范围给出独立结论，并列出反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "核对 design_id、artifact sha256、13 项 V9O 正向配置、11 项 V9O compile-success RTL 变体、2 项 V9R 正向用例、3 项 V9R compile-success RTL 变体及 retained_vvp=0；明确 current RTL 局部语义证据与 stale full-core candidate cohort 的边界，任何不一致必须给出真实路径、字段或 marker。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,5 @@
+2026-08-01T07:39:24Z	baseline-discriminator	PASS	.github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/logs/baseline-release-locality-negative.log
+2026-08-01T07:39:24Z	candidate-functional	PASS	.github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/logs/candidate-release-locality.log
+2026-08-01T07:39:24Z	local-ppa	FAIL	.github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/ppa/local-candidate/mapped-synth-stat.txt
+2026-08-01T07:39:24Z	live-rtl-rollback	PASS	.github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/evidence/source/baseline/parent-live-restored.sha256
+2026-08-01T07:41:34Z	independent-final-review	PASS	.github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/review-result.md

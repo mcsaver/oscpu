@@ -1,0 +1,4 @@
+2026-07-31T19:10:28Z	control-event-current	PASS	npc/rv64/eval/ppa/evidence/control-event-current.json
+2026-07-31T19:10:29Z	control-event-sq-retry-current	PASS	npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json
+2026-07-31T19:10:29Z	independent-review	PASS	.github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/task-report.md
+2026-07-31T19:10:30Z	full-core-closed-binding	GAP	.github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/arch-stable-boundary.json

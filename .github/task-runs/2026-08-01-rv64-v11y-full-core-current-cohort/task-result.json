@@ -1,0 +1,121 @@
+{
+  "schema": "npc-rv64-v11y-task-result-v1",
+  "classification": {
+    "primary": "production RTL fix",
+    "secondary": [
+      "verification",
+      "checker-oracle-only",
+      "tooling/workflow"
+    ]
+  },
+  "evidence_state": {
+    "published_gate_state": "PASS",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "VALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "YES",
+    "launch_authorization_state": "PENDING_FAST_GATES",
+    "rerun_reason": "SYSTEM_RECERTIFICATION_REQUIRED",
+    "evidence_scope": [
+      "current-design module cohort",
+      "current-design official and AM functional cohort",
+      "frozen functional-attempt-3 checker replay",
+      "not Linux/system recertification",
+      "not PPA promotion"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "mixed",
+    "changed_files": [
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v",
+      "npc/rv64/vsrc/core/CsrFile.v",
+      "am-kernels/tests/cpu-tests/tests/rv64-inst-audit.c",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_replay.py"
+    ],
+    "changed_modules": [
+      "OooRvcDecompressor",
+      "CsrFile",
+      "rv64-inst-audit",
+      "full-core functional evidence collector"
+    ],
+    "active_functional_cone_impact": true,
+    "dut_input_impact": true,
+    "dut_timing_impact": true,
+    "dut_state_impact": true,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "RVC hint and CSR legality/WARL/dirty behavior change production semantics; the final replay-only delta changes only offline evidence classification."
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
+    "elaborated_rtl_id": "BOUND_BY_CURRENT_DESIGN_ID_NO_SEPARATE_EMITTED_ID",
+    "simulation_top_id": "sha256:b282fea682c67abd6938d41082a62683d3d2c67c8c0e2a5a492c86fe84c023e3",
+    "device_model_id": "BOUND_IN_INPUT_MANIFEST_NO_SEPARATE_EMITTED_ID",
+    "host_harness_id": "BOUND_IN_INPUT_MANIFEST_NO_SEPARATE_EMITTED_ID",
+    "simulator_semantics_id": "sha256:b282fea682c67abd6938d41082a62683d3d2c67c8c0e2a5a492c86fe84c023e3",
+    "checker_oracle_id_old": "NOT_FROZEN_SEPARATELY_ORIGINAL_STATUS_SHA256:bc1d3d9252bb28688e5a5b48fcd52dc043f5c244f3b1a78d89cbf7c51242d41c",
+    "checker_oracle_id_new": "sha256:0f553cb74703e7f3736ed90a4a68e1cd9230b8b53d050dd5a2f48094fe06d2ef",
+    "guest_payload_id": "official:c4fb5835b4d126894e222cad4d2554e57fcf3a3fbbd6217182b82f3717966ca8;am:886b8088b6d7d65dda553b903cddf6f2f9a4407e4c96955aeada7eb09f04889a",
+    "boot_artifact_id": "NOT_APPLICABLE",
+    "test_input_log_id": "sha256:c3cf8d883a882f1ef2ca060a0b45b4f0dc9650d0bffc385f62d1b0d7abc74ad7",
+    "run_configuration_id": "sha256:63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "raw_artifact_bundle_id": "sha256:579d29ddbd13355d201e8225f0afd064432b7447ccfef65cce63f5b1a3708aba"
+  },
+  "replay": {
+    "source_run_id": "functional-attempt-3",
+    "source_raw_log_sha": "BOUND_PER_LOG_IN_FUNCTIONAL_AGGREGATE",
+    "source_input_sha": "pre:34ac7aac0f012974ffc0bcd937b88c513904203e3842705b55abe73ccfb2e13a;post:e6fe22a4a211d43ac10fa6ea33a3c5cd1fca89eb867665cbf148111e6675b5b3",
+    "replay_command": "full_core_functional_replay.py --attempt-dir functional-attempt-3 --module-result module-attempt-3/result.json --output-dir functional-attempt-3-checker-replay-final --publish-current",
+    "replay_result": "PASS",
+    "proven_scope": [
+      "new oracle classification of the completed frozen functional execution",
+      "exact 113/177/61 cohort inventories and terminal logs",
+      "zero DiffTest mismatches and 11/11 evidence mutation rejection"
+    ],
+    "unproven_scope": [
+      "byte-exact historical .config",
+      "new RTL execution beyond the frozen cohort",
+      "Linux/system recertification",
+      "PPA promotion"
+    ],
+    "limitations": [
+      "the configuration copy is reconstructed from three recorded derived bindings",
+      "canonical files publish independently and are verified after publication"
+    ]
+  },
+  "cost": {
+    "expected_wallclock": "seconds",
+    "historical_runtime_reference": "functional-attempt-3 approximately 570 seconds; replay approximately 5 seconds",
+    "runtime_estimate_confidence": "HIGH",
+    "single_flight_resource": "Windows-to-WSL engineering lane",
+    "expected_occupancy": "LOW",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "none below deterministic frozen-log replay"
+    ],
+    "stop_condition": "any manifest, hash, inventory, terminal, mutation, or current-design mismatch"
+  },
+  "review": {
+    "reviewer_conclusion": "REPLAY_APPROVED",
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED"
+  },
+  "strict_guard": {
+    "state": "SCOPED_EXEMPTION",
+    "initial_invocation": "FAIL_EXPLICIT_PATH_REQUIRED",
+    "scoped_invocation": "FAIL_MISSING_GENERIC_PROFILE_EVIDENCE",
+    "missing_profiles": [
+      "abstract-machine",
+      "am-kernels",
+      "npc-dev"
+    ],
+    "exemption_reason": "The deterministic delivery already contains stronger path-specific execution evidence: 113/113 RTL modules, 177/177 official tests, 61/61 AM with DiffTest, 13 checker unit tests, and 11/11 rejected evidence mutations. Re-running generic profiles would duplicate completed execution without changing a technical decision."
+  }
+}

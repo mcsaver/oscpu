@@ -1,0 +1,68 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13y-di5-frozen-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 NpcCoreTop DI-5 ordinary cached-load 双 bank 从 IQ pair、AGU、translation、physical LSQ query、cache admission 到 completion 的 current-design 冻结证据，寻找假绿、哈希错绑、前置证据越级与范围外架构结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_dual_memory_issue_evidence.py",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/run-mutations.sh",
+      ".github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/mutate-v8u-f4.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/architecture-current.json",
+      ".github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/subagent-contracts/v13y-di5-frozen-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/architecture-current.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 live RTL 与 scoped manifest 的 design_id 均为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，rtl_file_count=146；本轮未修改 npc/rv64/vsrc/**。",
+      "scoped manifest 只含 dual_memory_issue；54 个 proof role 的 path/hash 全部复算匹配；canonical npc/rv64/eval/ppa/evidence/architecture-current.json 保持 sha256:a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1。",
+      "tb_ooo_dual_memory_sustained_issue 在 64 个稳态周期逐周期观测 agu=11、translation=11、query=11、cache=11、completion=11，memory_issue_ipc=2.000，dual_issue_cycles=64，两个 face 的五级计数均为 64,64，且只有一个 [RESULT] PASS。",
+      "MIQ、IQ、OooIntBackend、OooMemAxiBridge、backend partial 与 sustained system 共 6 个 OOO_ASSERT profile 均 clean PASS，并绑定 V8U-MIQ-NEXT-HEAD、V8U-IQ-PAIR-PEEK、V8U-F4-BRIDGE-STREAM、V8U-F4-PARTIAL-CONSUME、V8U-F4-BACKEND-NEXT 和 V8U-DI5-METRIC marker。",
+      "7 个 compile-success RTL 版本 backend_next_requires_response_fire、backend_turnover_accepts_partial、backend_peek_dequeue_without_capture、bridge_station_query_requires_ready、bridge_station_lookup_ignores_ready、iq_pair_pop_only_entry0、iq_pair_exposes_regular_issue1 均有单锚点 activation、source/mutant/image SHA、非零仿真返回码、指定 RTL oracle 与唯一 [RESULT] FAIL；无 [RESULT] PASS。",
+      "iq_pair_pop_only_entry0 已按当前 OooIntIssueQueue compact_remove_w 表达改为把 memory_pair_peek_fire_w mask 从 8b0000_0011 缩成 8b0000_0001；单测确认全部 7 个变体锚点对当前 RTL 恰好命中一次。",
+      "full-core NpcCoreTop baseline Verilator OOO_ASSERT lint 无 UNOPTFLAT；backend_next_requires_response_fire 版本明确重建 UNOPTFLAT；两份日志和 verilator 可执行文件 SHA 均为 proof role。",
+      "F2 冻结输入来自 2026-08-02-rv64-v13u-ooo3-current-rebind-v1：source architecture design_id 同当前，F2 result PASS、18/18 compile-success 版本、source pre/post 相同、selected RTL 与两个 TB 哈希当前；允许漂移仅为 Makefile 的无关 census 入口、producer-holder census JSON/单测、architecture checker 以及被后述 current F1 结果替代的旧 F1 result 路径。",
+      "一次 PowerShell 环境变量未透传使 V8U runner 误入 canonical 分支：F0/F1 执行后 F2 因 source closure 漂移 fail-closed，旧 V8U final-run 与 mutations-final 可再生日志被清除，旧 task-report 保留；该次未发布 DI-5。它生成的 current F1 证据被显式复制绑定，含 10/10 变体、8/8 profile、source pre/post、bridge/dcache/wrapper RTL SHA 与唯一 V8R-F1 PASS marker。",
+      "最终 scoped runner 返回 V8U-F4-RUNNER PASS，architecture 聚合仅 DI-5 GREEN、OVERALL RED、PPA UNQUALIFIED；44 个 checker/manifest/DI-5 定向单测 PASS；task-run 78 files、约 1.4 MiB、无 vvp/pyc/o/a/build/tmp。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL 对象、周期或配置、TB/EDA 观测与 PASS/GAP 范围给出 APPROVED_FOR_CURRENT_SCOPE、GAP 或 REJECTED；列出任何可操作反例、未知项、替代假设、证据复用边界和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有在同 design_id、双 face 逐周期观测、7 个负向 RTL 版本敏感性、F1/F2 前置绑定、scoped-only 发布与 overall/PPA 未越级均相互一致时才批准 DI-5 current scope；历史 V8U 原始日志损失必须单独评价其对 current DI-5 与历史审计的影响。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

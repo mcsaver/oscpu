@@ -1,0 +1,1 @@
+2026-08-02T07:21:32Z	counterexample	control/store attempt-1/2 的 RTL 运行结果保留，失败归因分别是旧 lint/warning/FATAL oracle；checker replay 只修正精确分类并以负向 fixture 拒绝过宽 matcher，不改写历史 status。	.github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/final-audit-1/audit.json

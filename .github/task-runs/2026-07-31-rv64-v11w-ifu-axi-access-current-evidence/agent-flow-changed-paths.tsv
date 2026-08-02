@@ -1,0 +1,13 @@
+npc/rv64/eval/ppa/ifu-evidence.mk
+npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py
+npc/rv64/eval/ppa/tools/ifu_access_evidence.py
+npc/rv64/eval/ppa/tools/arch_stable_freeze.py
+npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py
+npc/rv64/eval/ppa/tests/test_ifu_access_evidence.py
+npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json
+npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log
+npc/rv64/eval/ppa/evidence/ifu-access-current.json
+npc/rv64/eval/ppa/evidence/ifu-access.log
+.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind
+.github/memory/project-status.md
+.github/memory/modules/npc.md

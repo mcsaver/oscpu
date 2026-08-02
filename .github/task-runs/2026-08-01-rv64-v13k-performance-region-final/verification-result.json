@@ -1,0 +1,84 @@
+{
+  "schema": "npc-rv64-performance-region-final-verification-v1",
+  "task_id": "rv64-v13k-performance-region-final",
+  "status": "PASS",
+  "claim_scope": "termination-time region FINAL, v4 fail-closed parser and measurement-contract binding only",
+  "performance_baseline_eligible": false,
+  "production_rtl_modified": false,
+  "checks": {
+    "termination_time_final": "PASS",
+    "unique_final_consumer": "PASS",
+    "total_hit_count_consumer": "PASS",
+    "termination_rc_consumer": "PASS",
+    "same_cycle_lane_order_representation": "PASS",
+    "zero_cycle_performance_qualification": "REJECTED_AS_REQUIRED",
+    "measurement_contract_binding": "PASS",
+    "strict_baseline_acceptance": "BLOCKED_BY_FALSE_ELIGIBILITY_AS_REQUIRED",
+    "fresh_three_repetition_cohort": "GAP",
+    "typed_identity_manifest": "GAP",
+    "conserving_cpi_stack": "GAP",
+    "independent_reviewer_receipt": "GAP",
+    "changed_path_strict_guard": "GAP_NPC_DEV_PROFILE_BLOCKED_BY_CONTEXT_BRIEF_WARN"
+  },
+  "tests": {
+    "focused_policy_tools": {
+      "status": "PASS",
+      "tests": 49,
+      "failures": 0,
+      "errors": 0,
+      "latest_elapsed_seconds": 1.982
+    },
+    "full_ppa_discovery": {
+      "status": "GAP_OUTSIDE_V13K_CLAIM_SCOPE",
+      "tests": 540,
+      "failures": 143,
+      "errors": 20,
+      "elapsed_seconds": 85.1,
+      "note": "stale source and mutation bindings spanning prior RTL rounds; not promoted or hidden"
+    }
+  },
+  "eda": {
+    "current_config_verilator_compile": "PASS",
+    "compile_elapsed_seconds": 88.6,
+    "compiled_simulator_sha256": "9ee3f23c781b02e3d628a6263e9da01ae8480a85b9d1a70fbe01a65588ae9849",
+    "compiled_artifact_retained": false,
+    "cleaned_build_bytes": 227078944,
+    "coremark_current_single_run": "PASS_GOOD_TRAP",
+    "full_system": "NOT_RUN",
+    "synthesis": "NOT_RUN",
+    "sta": "NOT_RUN"
+  },
+  "delivery_guard": {
+    "required_profile": "npc-dev",
+    "profile_run_id": "2026-08-01-rv64-v13k-performance-region-final-guard",
+    "contract_nodes_passed": 5,
+    "contract_nodes_total": 5,
+    "profile_status": "blocked",
+    "blocking_stage": "context-brief",
+    "blocking_status": "WARN",
+    "strict_guard_status": "GAP",
+    "rerun": false
+  },
+  "observations": {
+    "coremark_region_cycles": 5395310,
+    "coremark_region_retired": 3183617,
+    "coremark_whole_cycles": 5485583,
+    "coremark_whole_commits": 3218532,
+    "timeout_termination_rc": 2,
+    "same_cycle_boundary_cycle": 173,
+    "same_cycle_region_retired": 1
+  },
+  "sha256": {
+    "cpu_exec_cpp": "c01ae93167b743bf511dcfeca7ba765a75c404c35153ff001348960afc033545",
+    "check_py": "9b9958af9f0c0f61ed00efffa1b9c7e0bf4f25a787e892a93699de2cba1e72ee",
+    "test_policy_tools_py": "21e76df4dd73c51b13275a976429cfb8054ee0e2a538c54d733d0e7f8674969e",
+    "proxy_200mhz_policy": "6254efa1449ff785c4a9430d0ec58200118628e5d5cc46e68613872db36c47d5",
+    "measurement_contract_json": "c0aa14437c57bd3e911ead6fb1b29386c289a3394d1b4abc967ecd377dfb88c4",
+    "measurement_contract_md": "af72a4ffbe123a7f2ce2f1abd6f9bcfd89ead1c0b22912220beba0575345854b",
+    "coremark_current_raw_log": "2bc4aeb092f0b8f129c687fd106d7ad6519a691f80349d1b3a7dd9051ed4e425",
+    "coremark_timeout_negative_log": "46aa003ff04a156b8c46b868ffb136a0fe364b06362849cceefea5de6794afbb",
+    "dummy_same_cycle_raw_log": "d9789e47d6680b0819ec3354bc6786758555ec0aea1cc5b97738d24ea4f0063f",
+    "review_contract": "516ce0eb46f52098f1d90b0dac6b5031dfa55ebb8753296f95e0720bc9ab4f39"
+  }
+}
+

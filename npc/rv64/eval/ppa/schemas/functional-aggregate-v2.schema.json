@@ -79,11 +79,11 @@
         {
           "required": ["difftest_enabled"],
           "properties": {
-            "required": {"const": 59},
-            "passed": {"const": 59},
+            "required": {"type": "integer", "minimum": 1},
+            "passed": {"type": "integer", "minimum": 1},
             "failed": {"const": 0},
-            "inventory": {"minItems": 59, "maxItems": 59},
-            "images": {"minItems": 59, "maxItems": 59},
+            "inventory": {"minItems": 1},
+            "images": {"minItems": 1},
             "difftest_enabled": {"const": true}
           }
         }

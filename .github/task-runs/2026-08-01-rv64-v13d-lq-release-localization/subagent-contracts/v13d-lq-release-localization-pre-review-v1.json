@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13d-lq-release-localization-pre-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 OooLoadQueue release0/release1 退休握手从全局 ready 归约回扇到逐 entry 清除的当前方程与候选逐 entry fire-hit 方程做独立反例复核，判断唯一 ProducerId 正常状态逐周期等价、非法重复 ProducerId fail-closed 行为和四态 X 边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/task-report.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13d-lq-release-localization/subagent-contracts/v13d-lq-release-localization-pre-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前每 entry 方程：releaseN_match[g]=releaseN_valid_i && valid_q[g] && producer_id_q[g]==releaseN_producer_id_i；releaseN_ready_hit[g]=releaseN_match[g] && (completed_q[g] || completion0_hit[g] || completion1_hit[g])；releaseN_ready_o 是 ready_hit bitmap 的 OR，非 SYNTHESIS 下以 ===1 开放；releaseN_fire_o=releaseN_valid_i && releaseN_ready_o && releaseN_commit_i。",
+      "当前 entry 清除方程：clear[g]=(release0_fire_o && release0_match[g]) || (release1_fire_o && release1_match[g]) || killed terminal；因此任一完成 entry 的 ready 归约可经 global fire 回扇至所有同 ProducerId match entry。",
+      "候选方程：releaseN_fire_hit[g]=releaseN_ready_hit[g] && releaseN_commit_i；entry clear 直接消费 release0_fire_hit[g] || release1_fire_hit[g]；外部 releaseN_fire_o 是 fire_hit bitmap 的 OR，并在非 SYNTHESIS 下以 ===1 开放。端口、寄存状态、流水级和 allocation/recovery/terminal 优先级不变。",
+      "正常架构不变量：所有 live OooLoadQueue entry 的完整 ProducerId 必须唯一；release lane 输入带完整 ProducerId；current-cycle completion bypass 使同一 exact entry 可在 completion 与 commit 同拍释放；q-only ready 不含该 bypass。",
+      "非法状态反例：entry A 与 entry B live 且 ProducerId 相同，A completed=1、B completed=0，无当拍 completion；当前方程 release ready/fire 为 1 且 A/B 都被清除，候选只清 A。断言启用时 duplicate PID 应被现有唯一性断言检出；断言关闭定向 TB 用于证明生产逻辑不会交叉清 B。",
+      "四态边界：unknown-only ready_hit OR 为 X，非 SYNTHESIS 外部 ready/fire 必须为 0，procedural if(X) 不清；一个 exact-1 hit 与无关 X 并存时 OR 为 1，外部 fire 为 1，但候选只能清 exact local fire-hit，X entry 的 procedural if(X) 不清。SYNTHESIS 仅讨论二态网络。",
+      "V13B local mapped OpenSTA 最差路径从 producer_id_q[12] 经 PID compare/reduction、release1_q_ready_o、release1_commit_i 和 state mux 到 paddr_q[6]，arrival 1.479175925 ns、slack +3.475173950 ns；本候选意图切断 global release fire 回扇，不据此宣称 full-core timing。"
+    ]
+  },
+  "deliverables": [
+    "按 release0/release1、已完成 Q 命中、同拍 completion bypass、commit=0、非法 duplicate PID、unknown-only、exact-1 加无关 X 七类场景逐项给出等价或反例；检查外部 fire 语义、entry 清除资格、优先级和是否引入新 owner/source-of-truth；最终给出 APPROVED_FOR_IMPLEMENTATION、GAP 或 REJECTED。"
+  ],
+  "success_criteria": [
+    "只有在正常唯一 ProducerId 二态状态逐周期等价、同拍 completion-to-retire 不丢失、commit=0 不清除、unknown-only 不产生清除、非法重复 PID 不交叉清除且 release 双 lane 不互相借用资格时才批准；不得用断言存在替代生产组合逻辑反例审查，也不得将局部诊断外推为 promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

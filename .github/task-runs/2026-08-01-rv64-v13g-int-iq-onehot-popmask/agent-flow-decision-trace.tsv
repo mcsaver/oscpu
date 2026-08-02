@@ -1,0 +1,2 @@
+2026-08-01T08:34:35Z	decision	Keep V13G as current RTL development checkpoint: known-onehot pop mask passes functional/integration, improves local mapped area and slack, and propagates exact coarse delta to NpcTop; full-core mapped/STA/power/system remain GAP.	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/task-report.md
+2026-08-01T08:55:42Z	decision	APPROVED_DEVELOPMENT_CHECKPOINT; known exact-onehot/Q-only pair scope; signoff stages remain GAP	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/review-result.md

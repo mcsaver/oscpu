@@ -1,0 +1,5 @@
+2026-08-01T07:55:57Z	candidate-functional	PASS	.github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/functional/focused/logs/tb_ooo_load_queue.log
+2026-08-01T07:55:57Z	candidate-raw-q	PASS	.github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/functional/raw-q/assert-g4.log
+2026-08-01T07:55:57Z	local-mapped-sta	FAIL	.github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/ppa/local-candidate/opensta-top40.rpt
+2026-08-01T07:55:57Z	live-rtl-rollback	PASS	.github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/source/baseline/parent-live-restored.sha256
+2026-08-01T07:59:30Z	independent-final-review	PASS	.github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/review-result.md

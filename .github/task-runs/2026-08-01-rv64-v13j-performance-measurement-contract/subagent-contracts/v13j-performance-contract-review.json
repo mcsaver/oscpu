@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13j-performance-contract-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核的 performance measurement contract：核对 committed-PC start/end 周期边界、V13I production/elaborated/simulation/harness/workload 身份、integer/FP physical issue terminal 宽度，以及重叠 OoO 周期桶不得作为守恒 CPI stack 的范围；优先寻找会造成 CPI 假绿或越级 baseline 声明的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/arch/performance-measurement-contract.md",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "npc/rv64/eval/ppa/README.md",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.pre.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/cpi-neutral.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13j-performance-measurement-contract/subagent-contracts/v13j-performance-contract-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/arch/performance-measurement-contract.md",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 对象、周期/配置、仿真观测与 PASS/GAP 范围给出独立复核；列出不一致字段、反例、替代口径、unknowns、confidence_and_basis 与必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认 boundary PC 与 policy/当前 workload artifact 一致，所有身份有可审计 basis，物理 issue terminal 不能被误写为全局 issue_width=2，并且 performance_baseline_eligible=false 足以阻止现有 overlap buckets 被包装为 qualified CPI stack；任一不满足项必须明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

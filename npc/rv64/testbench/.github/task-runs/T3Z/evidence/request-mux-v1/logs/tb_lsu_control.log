@@ -1,5 +1,0 @@
-[TEST] tb_lsu_control
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_lsu_control -o build-t3z-request-mux-v1/tb_lsu_control.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v tests/tb_lsu_control.sv
-[PASS] tb_lsu_control
-common/tb_common.svh:32: $finish called at 5 (1s)
-[RESULT] PASS

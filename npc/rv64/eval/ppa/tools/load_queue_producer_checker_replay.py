@@ -11,7 +11,7 @@ import sys
 from typing import Any
 
 
-SCHEMA = "rv64-v11h-load-queue-attempt4-checker-replay-v2"
+SCHEMA = "rv64-v11h-load-queue-attempt4-checker-replay-v3"
 RUN_ID = "2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage"
 RUN_ROOT = pathlib.Path(".github/task-runs") / RUN_ID
 ATTEMPT_ROOT = RUN_ROOT / "evidence/load-queue-producer-attempt-4"
@@ -60,24 +60,6 @@ CURRENT_FILES = {
         pathlib.Path(
             "npc/rv64/design/arch/producer-holder-census.json"
         ),
-    "current_instance_graph_result": pathlib.Path(
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "holder-instance-graph.json"
-    ),
-    "current_instance_graph_receipt": pathlib.Path(
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "yosys-instance-graph-receipt.json"
-    ),
-    "current_instance_graph_audit": pathlib.Path(
-        ".github/task-runs/2026-07-31-rv64-v11t-"
-        "clmul-producer-semantic/evidence/"
-        "current-instance-graph-audit/"
-        "instance-graph-frozen-audit.json"
-    ),
     "producer_holder_instance_graph_tool": pathlib.Path(
         "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py"
     ),
@@ -113,11 +95,11 @@ SELECTED_BINDINGS = {
 CLAIM_BOUNDARY = (
     "This receipt proves that the frozen V11H positive/mutation inputs were "
     "complete before attempt 4 stopped at semantic-ledger-unit, and binds the "
-    "corrected checker, unchanged LoadQueue RTL/testbench subset, exact "
-    "system-rerun scope, and current instance graph. It does not rewrite the "
-    "original FAIL, claim that the historical full-RTL snapshot is current, "
-    "rerun RTL simulation, promote whole-architecture GREEN, satisfy the "
-    "required full-system rerun, or authorize PPA."
+    "corrected checker to the historical LoadQueue RTL/testbench hashes and "
+    "exact system-rerun scope. It does not rewrite the original FAIL, claim "
+    "that the historical RTL or testbench is current, rerun RTL simulation, "
+    "promote whole-architecture GREEN, satisfy the required full-system "
+    "rerun, or authorize PPA."
 )
 
 
@@ -189,13 +171,11 @@ def parse_sha_manifest(path: pathlib.Path) -> dict[str, str]:
     return records
 
 
-def current_selected_binding(
-    root: pathlib.Path,
+def frozen_selected_binding(
     manifest_path: pathlib.Path,
     evidence_design_id: str,
-    live_design_id: str,
 ) -> dict[str, Any]:
-    manifest = parse_sha_manifest(repo_path(root, manifest_path))
+    manifest = parse_sha_manifest(manifest_path)
     records: list[dict[str, Any]] = []
     for relative, role in sorted(
         SELECTED_BINDINGS, key=lambda item: item[0].as_posix()
@@ -207,43 +187,18 @@ def current_selected_binding(
                 "frozen focused manifest lacks selected LoadQueue binding: "
                 f"{relative_value}"
             )
-        live_path = repo_path(root, relative)
-        live_sha = sha256_file(live_path)
-        if live_sha != evidence_sha:
-            raise ReplayError(
-                "selected LoadQueue RTL/testbench binding is stale: "
-                f"{relative_value}"
-            )
         records.append(
             {
                 "path": relative_value,
                 "role": role,
                 "evidence_sha256": evidence_sha,
-                "live_sha256": live_sha,
-                "matches_live": True,
             }
         )
     return {
-        "binding_state": (
-            "CURRENT_FULL_RTL_BOUND"
-            if evidence_design_id == live_design_id
-            else "CURRENT_SELECTED_SOURCE_AND_TB_BOUND"
-        ),
+        "binding_state": "HISTORICAL_FROZEN_SELECTED_BINDING",
         "evidence_design_id": evidence_design_id,
-        "current_design_id": live_design_id,
         "records": records,
     }
-
-
-def current_design_id(root: pathlib.Path) -> str:
-    tools_dir = root / "npc/rv64/eval/ppa/tools"
-    sys.path.insert(0, str(tools_dir))
-    try:
-        import architecture_hard_gates as architecture
-    finally:
-        sys.path.pop(0)
-    digest, _ = architecture.rtl_binding(root)
-    return f"sha256:{digest}"
 
 
 def valid_design_id(value: Any) -> bool:
@@ -258,7 +213,7 @@ def valid_design_id(value: Any) -> bool:
 def validate_original_status_line(value: str) -> None:
     if value.strip() != EXPECTED_STATUS:
         raise ReplayError(
-            "original attempt-3 status is not the frozen "
+            "original attempt-4 status is not the frozen "
             "semantic-ledger-unit FAIL"
         )
 
@@ -283,7 +238,6 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             if isinstance(item, dict) and isinstance(item.get("runs"), dict):
                 mutation_simulations += len(item["runs"])
     attempt_design_id = summary.get("design_id")
-    live_design_id = current_design_id(root)
     if (
         summary.get("schema")
         != "rv64-v11h-load-queue-producer-semantic-evidence-v2"
@@ -333,23 +287,21 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         repo_path(root, sources_pre).read_bytes()
         != repo_path(root, sources_post).read_bytes()
     ):
-        raise ReplayError("attempt-3 focused source pre/post bindings differ")
+        raise ReplayError("attempt-4 focused source pre/post bindings differ")
     if (
         repo_path(root, rtl_pre).read_bytes()
         != repo_path(root, rtl_post).read_bytes()
     ):
-        raise ReplayError("attempt-3 full RTL pre/post bindings differ")
+        raise ReplayError("attempt-4 full RTL pre/post bindings differ")
     rtl_snapshot = load_json(repo_path(root, rtl_pre))
     if (
         rtl_snapshot.get("design_id") != attempt_design_id
         or len(rtl_snapshot.get("rtl_files", {})) != 146
     ):
         raise ReplayError("attempt-4 full RTL snapshot is incomplete")
-    selected_binding = current_selected_binding(
-        root,
-        sources_pre,
+    selected_binding = frozen_selected_binding(
+        repo_path(root, sources_pre),
         attempt_design_id,
-        live_design_id,
     )
 
     evidence_unit_relative = ATTEMPT_ROOT / "evidence-tool-unit.log"
@@ -380,9 +332,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         "schema": SCHEMA,
         "status": "PASS",
         "design_id": attempt_design_id,
-        "current_design_id_at_replay": live_design_id,
-        "original_design_is_current": attempt_design_id == live_design_id,
-        "current_selected_binding": selected_binding,
+        "historical_selected_binding": selected_binding,
         "original_attempt": 4,
         "original_failure": {
             "stage": "semantic-ledger-unit",
@@ -415,9 +365,9 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             "rtl_simulation_reexecuted": False,
             "full_rtl_pre_post_identical": True,
             "focused_sources_pre_post_identical": True,
-            "historical_full_rtl_snapshot_is_current":
-                attempt_design_id == live_design_id,
-            "current_selected_source_and_tb_bound": True,
+            "historical_full_rtl_snapshot_is_current": False,
+            "historical_selected_source_and_tb_bound": True,
+            "current_rtl_binding_claimed": False,
             "system_rerun_required_before_system_promotion": True,
             "system_rerun_executed": False,
             "replacement_checker_must_run_positive_and_negative_units": True,

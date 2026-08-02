@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import re
 import subprocess
 import sys
 from typing import Any
@@ -45,6 +46,26 @@ gate = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = gate
 SPEC.loader.exec_module(gate)
 
+FREEZE_TOOL = ROOT / "npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
+FREEZE_SPEC = importlib.util.spec_from_file_location(
+    "v9l_debt_binding_freeze", FREEZE_TOOL
+)
+assert FREEZE_SPEC is not None and FREEZE_SPEC.loader is not None
+freeze = importlib.util.module_from_spec(FREEZE_SPEC)
+sys.modules[FREEZE_SPEC.name] = freeze
+FREEZE_SPEC.loader.exec_module(freeze)
+
+CURRENT_EVIDENCE_CLOSURES = {
+    "IFU-AXI-G1": {
+        "canonical_command": freeze.IFU_AXI_COMMAND,
+        "validator": freeze.validate_ifu_axi_debt,
+    },
+    "IFU-ACCESS-G1": {
+        "canonical_command": freeze.IFU_ACCESS_COMMAND,
+        "validator": freeze.validate_ifu_access_debt,
+    },
+}
+
 
 def sha256(path: pathlib.Path) -> str:
     digest = hashlib.sha256()
@@ -82,7 +103,7 @@ def require_current_json(path: pathlib.Path, design_id: str) -> None:
         raise RuntimeError(f"structured evidence is not PASS: {relative(path)}")
 
 
-def verify_serialize_entry(entry: dict[str, Any]) -> None:
+def verify_serialize_entry(entry: dict[str, Any]) -> str:
     if entry.get("canonical_command") != SERIALIZE_COMMAND:
         raise RuntimeError(
             "SERIALIZE-G1 canonical verifier command is not exact"
@@ -115,7 +136,56 @@ def verify_serialize_entry(entry: dict[str, Any]) -> None:
         raise RuntimeError(
             "SERIALIZE-G1 canonical verifier lacks the exact PASS marker"
         )
+    design_ids = re.findall(
+        r"\bdesign_id=(sha256:[0-9a-f]{64})\b", completed.stdout
+    )
+    if len(design_ids) != 1:
+        raise RuntimeError(
+            "SERIALIZE-G1 canonical verifier lacks one exact RTL design id"
+        )
     print(completed.stdout.rstrip())
+    return design_ids[0]
+
+
+def refresh_serialize_entry(
+    entry: dict[str, Any], current_design_id: str,
+) -> str:
+    if entry.get("status") not in {"STALE_EVIDENCE", "CLOSED"}:
+        raise RuntimeError("SERIALIZE-G1 is not in a refreshable state")
+    evidence_design_id = verify_serialize_entry(entry)
+    if evidence_design_id == current_design_id:
+        entry.update({
+            "status": "CLOSED",
+            "current_design_bound": True,
+            "design_id": current_design_id,
+        })
+        return "CLOSED"
+    entry.update({
+        "status": "STALE_EVIDENCE",
+        "current_design_bound": False,
+        "design_id": evidence_design_id,
+    })
+    return "STALE_EVIDENCE"
+
+
+def bind_current_evidence_closures(
+    by_id: dict[str, dict[str, Any]], design_id: str,
+) -> list[str]:
+    bound: list[str] = []
+    for debt_id, contract in CURRENT_EVIDENCE_CLOSURES.items():
+        entry = by_id.get(debt_id)
+        if not isinstance(entry, dict) or entry.get("status") not in {
+            "STALE_EVIDENCE", "CLOSED",
+        }:
+            raise RuntimeError(f"{debt_id} is not in a current-evidence state")
+        entry.update({
+            "status": "CLOSED",
+            "current_design_bound": True,
+            "design_id": design_id,
+            "canonical_command": contract["canonical_command"],
+        })
+        bound.append(debt_id)
+    return bound
 
 
 def main() -> int:
@@ -170,6 +240,12 @@ def main() -> int:
         ],
     })
 
+    serialize = by_id.get("SERIALIZE-G1")
+    if not isinstance(serialize, dict):
+        raise RuntimeError("SERIALIZE-G1 entry is missing")
+    serialize_status = refresh_serialize_entry(serialize, design_id)
+    current_evidence_bound = bind_current_evidence_closures(by_id, design_id)
+
     ledger["design_id"] = design_id
     roadmap = ledger.get("roadmap")
     if not isinstance(roadmap, dict) or not isinstance(roadmap.get("path"), str):
@@ -181,13 +257,6 @@ def main() -> int:
         if not isinstance(entry, dict) or entry.get("status") != "CLOSED":
             continue
         serialize_entry = entry.get("id") == "SERIALIZE-G1"
-        if serialize_entry:
-            # SERIALIZE-G1 intentionally binds a pre-review candidate JSON,
-            # the read-only reviewer contract and the final reviewer report.
-            # Their individual top-level status fields are not generic PASS
-            # records.  The canonical verifier validates the complete tuple
-            # and the current design before the publisher refreshes hashes.
-            verify_serialize_entry(entry)
         entry["current_design_bound"] = True
         entry["design_id"] = design_id
         evidence = entry.get("evidence")
@@ -204,6 +273,16 @@ def main() -> int:
             }:
                 require_current_json(path, design_id)
 
+    for debt_id in current_evidence_bound:
+        errors = CURRENT_EVIDENCE_CLOSURES[debt_id]["validator"](
+            ROOT, by_id[debt_id], design_id
+        )
+        if errors:
+            raise RuntimeError(
+                f"{debt_id} current evidence is not closure-eligible: "
+                + "; ".join(errors[:4])
+            )
+
     LEDGER.write_text(
         json.dumps(ledger, allow_nan=False, ensure_ascii=False,
                    indent=2) + "\n",
@@ -212,7 +291,8 @@ def main() -> int:
     print(
         f"[V9L-DEBT-LEDGER][PASS] design_id={design_id} "
         f"closed={sum(e.get('status') == 'CLOSED' for e in entries)} "
-        "F0-G1=CLOSED"
+        f"F0-G1=CLOSED IFU-current={len(current_evidence_bound)}/2 "
+        f"SERIALIZE-G1={serialize_status}"
     )
     return 0
 

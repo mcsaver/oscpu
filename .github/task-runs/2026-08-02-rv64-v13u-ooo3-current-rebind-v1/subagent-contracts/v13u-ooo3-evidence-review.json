@@ -1,0 +1,84 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13u-ooo3-evidence-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 OooLoadQueue 与 OooStoreQueue 访存事务生命周期证据：确认六个 OOO_ASSERT testbench 配置、九个 compile-success 负向 RTL 版本、F2 父证据、十二个 proof role、当前 design_id 与 OOO-3 hard gate 的绑定是否排除假绿、陈旧证据和越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-lq-mutations.py",
+      ".github/task-runs/2026-07-21-rv64-v8v-memory-ordering/run-focused.sh",
+      ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/subagent-contracts/v13u-ooo3-evidence-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/eval/ppa/tools/memory_ordering_evidence.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、编译配置、testbench/EDA 观测和 PASS/GAP 范围给出 reviewer 结论；列出反例、替代假设、未知项、证据复用边界与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "核对 architecture-current.json 的 OOO-3 record、十二个 proof role 及 SHA、memory-ordering.log、六个正向日志、九个 mutation 结果和 architecture-result.json；明确 APPROVED_FOR_CURRENT_SCOPE 或具体 REJECTED/GAP，不把 OOO-3 局部 GREEN 外推为 overall architecture 或 PPA promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

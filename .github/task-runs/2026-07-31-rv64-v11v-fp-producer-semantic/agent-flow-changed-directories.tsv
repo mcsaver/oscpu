@@ -1,0 +1,9 @@
+npc/rv64/testbench/tests
+npc/rv64/testbench/scripts
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/design/arch
+npc/rv64
+.github/task-runs
+.github/memory
+.github/memory/modules

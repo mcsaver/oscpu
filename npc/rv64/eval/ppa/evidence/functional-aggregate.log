@@ -1,11 +1,11 @@
 schema=npc-rv64-functional-aggregate-result-v1
 aggregate_schema=npc-rv64-functional-aggregate-v2
-design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
+design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b
 cohort_id=full-core-single-hart-rv64-dual-issue-ooo-v1
 canonical_command=make -C npc/rv64 check-functional-aggregate
 module_aggregate=113/113
 official_aggregate=177/177
-am_aggregate=59/59
+am_aggregate=61/61
 difftest_mismatches=0
 compile_success_evidence_mutations=11
 rejected_evidence_mutations=11

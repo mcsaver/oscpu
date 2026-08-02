@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14a-di2-frozen-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前本地 RV64 OoO 核在七级双 lane transaction 边界上的 DI-2 width_continuity 证据，判断 scoped DI-2 GREEN 是否由当前 design-id、固定周期观测、ProducerId/payload 生命周期和可编译负向 RTL 变体共同支持，并明确整体架构与 PPA 的 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/architecture-current.json",
+      ".github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current/result.json",
+      ".github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current",
+      ".github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-mutations",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-focused.sh",
+      ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/run-v9a-mutations.py",
+      "npc/rv64/eval/ppa/tools/width_continuity_evidence.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/subagent-contracts/v14a-di2-frozen-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整 RTL source-set 含 146 个 Verilog/SystemVerilog 文件，design-id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；历史 V9A design-id 不同，因此本轮重新绑定而非复用旧 PASS。",
+      "assert 与 release 两个 current profile 均在首次 fetch request fire 后预热 24 周期，再观测固定 64 周期；fetch/decode/rename/dispatch/issue/execute/retire 七个边界各 total=128、peak=2、dual_cycles=64，independent_alu_ipc=2.000。",
+      "两个 profile 的 64-cycle canonical trace 字节相同；full ProducerId/payload 账本各边界计数均为 178，active_pid=0、payload_mismatch=0、lifecycle_error=0；自然 drain 的 request/response/enqueue 均为 89，FIFO/ROB/IQ/EX holder 均为 0。",
+      "固定窗口停顿反例只在 measurement cycle 17 阻断 testbench request admission；编译成功且仿真非零结束，唯一 [RESULT] FAIL status=1，并出现 [V9A-WIDTH][FAIL] cycle=17 boundary=0 width=0 expected=2，证明窗口未随停顿平移。",
+      "11 个 production RTL source mutation 均由当前源码唯一 anchor 生成、编译成功、mutant image SHA 已记录且与原始 RTL 非同一语义字节；11/11 被对应 fetch/decode/rename/ROB/IQ/issue/EX/WB/retire/payload/ProducerId oracle 动态拒绝，变异前后 production source SHA 相同。",
+      "8 个邻接 testbench：tb_ooo_core_top_glue、tb_ooo_fetch_packet_fifo、tb_ooo_alu_decode_backend、tb_ooo_dispatch_backend、tb_ooo_int_issue_queue、tb_ooo_int_backend、tb_ooo_rob、tb_pipe_stage_reg 均在 OOO_ASSERT 配置下 PASS。",
+      "task-run-v1 scoped manifest 只含 width_continuity，source manifest 精确 41 个文件、proof_files 精确 28 个 role 且每个 path/SHA 与 gate log 绑定；architecture checker 得到 DI-2 GREEN、其余八门 RED、overall RED、exit_code=1。",
+      "canonical npc/rv64/eval/ppa/evidence/architecture-current.json 在执行前后 SHA-256 均为 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1；本轮未修改 production RTL，也未晋级 sibling gate。",
+      "本轮未运行综合、STA 或 workload CPI，因此 PPA=UNQUALIFIED、promotion_eligible=false；DI-2 scoped PASS 不足以证明九门 aggregate GREEN，也不证明任意 workload 的持续 IPC=2。",
+      "compact task-run 为 1.7 MiB，仅保留结果、日志、哈希与证据 JSON；目录内无 .vvp、.o、.a、.pyc 或临时 JSON，旧 V9A 的单个 Python bytecode 已从已跟踪产物中精确移除并通过 python3 -B 防止再生。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 结论首行格式给出独立限定材料复核，随后列出支持 DI-2 GREEN 的证据链、任何反例或假绿风险、整体架构/PPA GAP、unknowns 与 confidence_and_basis；若材料不足必须返回 inconclusive 或 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "结论必须分别判断 current design-id 绑定、七边界固定窗口、ProducerId/payload 生命周期、停顿反例、11 个 RTL 变异、8 个邻接回归、scoped/canonical 写边界；不得把 DI-2 推广为 aggregate、CPI 或 PPA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

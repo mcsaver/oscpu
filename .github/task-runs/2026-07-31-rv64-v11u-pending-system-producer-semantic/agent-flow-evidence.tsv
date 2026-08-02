@@ -1,0 +1,3 @@
+2026-07-31T15:41:37Z	v11u-attempt5-profile-matrix	PASS	.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/attempt-5/summary.json
+2026-07-31T15:41:37Z	producer-holder-semantic-delivery-gate	PASS	.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/ledger-attempt-10/producer-holder-semantic-coverage.json
+2026-07-31T15:41:37Z	independent-v2-rtl-review	PASS	.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/review-result.md

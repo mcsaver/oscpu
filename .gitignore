@@ -42,13 +42,12 @@ npc/rv64/.config
 npc/rv64/.config.old
 npc/rv64/.linux-defconfig.stamp
 npc/rv64/.linux-trace-defconfig.stamp
-npc/rv64/build/
-npc/rv64/build-csrqh/
+npc/rv64/build*/
 npc/rv64/gmon.out
 npc/rv64/include/config/
 npc/rv64/include/generated/
 npc/rv64/perf/results/
-npc/rv64/testbench/build/
+npc/rv64/testbench/build*/
 npc/rv64/testsuites/core-tests/**
 !npc/rv64/testsuites/core-tests/
 !npc/rv64/testsuites/core-tests/.gitkeep
@@ -158,3 +157,6 @@ Linux/tools/initramfs/
 deliverables/**/package/**
 dist/**
 build/**
+
+# Testbench 从子目录启动时产生的误置 task-run；正式证据统一写到仓库根 .github/task-runs/。
+npc/rv64/testbench/.github/

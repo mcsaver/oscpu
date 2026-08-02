@@ -1,0 +1,69 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11v-fp-producer-bounded-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对冻结的本地 RV64 FP producer/holder 证据做限定材料反例复核，判断七个单元的局部 PASS、attempt-1/attempt-2 历史、44/44 账本及 whole-architecture/PPA 边界是否自洽。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+      "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-1",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-2",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/ledger-attempt-1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/subagent-contracts/v11v-fp-producer-bounded-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 design id 为 sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4；本轮未修改 OooFpIssueQueue.v、OooFpBackend.v 或 OooFpArithGate.v 的 production RTL。",
+      "七个局部语义单元为 fp-iq-producers、fp-issue-packet、fp-arith-stage-producers、fp-exec1-packet、fp-exec1-packed-alias、fp-long-producer、fp-done-fifo-producers。",
+      "attempt-2 runner.status 为 PASS；32/32 focused profiles PASS，包括 generation width 1/4 的 assert/release 四个 baseline，以及 14 个编译成功负向 RTL 变体各在 width 1/4 release 下被指定 oracle stage 检出；4/4 ordinary regressions PASS。",
+      "正向 testbench 用非零 generation 的 FADD 覆盖 IQ、issue、五级 arith、done，FSGNJ 覆盖 IQ、issue、exec1 packet/packed alias、done，FDIV 覆盖 IQ、issue、long iterative、done，并检查错误 generation 拒绝、精确一次退休与 full flush death。",
+      "14 个变体覆盖 IQ X/generation/live union、issue X/live、arith X/live、exec1 packet/alias X/live、long X/live、done FIFO X/pending mask/terminal release；28 个 mutation simulation 均非零退出且仅出现一个预期 oracle failure stage，不出现 matrix PASS 或 testbench PASS。",
+      "attempt-2 source-before 与 source-after 字节相同，manifest SHA-256 为 a3ceed6fd9a88438b7414e48f4b02dcdf92f42e53f0b98f6ce8a9eb29dbc739b，并与当前选定 RTL/TB/support 文件绑定。",
+      "attempt-2 cleanup 为 PASS，记录并删除 51 个可再生产物：32 个 focused vvp、4 个 regression vvp、14 个 generated negative RTL、1 个 generated focused testbench；记录含 path、SHA-256、size、kind，目标文件均不存在。",
+      "attempt-1 原始 FAIL 保留为 30/32 focused 与 4/4 regression；两个失败来自 arith-live-mask-omitted 变体的无敏感输入常量组合过程造成非目标 X 传播，修订后仅清零目标 live-mask；其 51 个二级产物按哈希回执删除 381903289 字节，summary/status/log/manifests 保留。",
+      "语义 checker 单测 110/110 PASS；Make 交付门返回 0，组合输出包含 census 44 units、17 instances、50 bindings，V11H replay PASS 和 producer-holder ledger semantic_pass=44。",
+      "冻结 ledger 中 44/44 局部语义单元 PASS，但 ledger status 保持 GAP，whole_architecture=RED，ppa=UNPROMOTED；V11V 不包含完整系统、综合、STA、功耗或 Pareto 运行。",
+      "A3 原始 FAIL 不改写；系统事务完成与旧 dmesg oracle 误判边界保留，本轮没有 production/elaborated RTL 或 simulator 语义变化，因此未触发完整系统重跑。",
+      "前端 IFU-AXI-G1 与 IFU-ACCESS-G1 的 P0 STALE_EVIDENCE 仍在，V11V 局部闭合不得用于宣称完整架构稳定。"
+    ]
+  },
+  "deliverables": [
+    "输出冻结材料内的 PASS/GAP 或 inconclusive，优先指出能导致假绿的反例、覆盖洞、未知项、替代解释及需要 workspace 复核的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "只有七个 FP 单元的局部生命周期、负向变体检出、证据压缩和账本边界彼此自洽时才允许限定材料 PASS；任何整核 GREEN、系统重认证或 PPA 晋级结论必须拒绝。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

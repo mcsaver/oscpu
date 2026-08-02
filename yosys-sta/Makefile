@@ -1,6 +1,10 @@
 PROJ_PATH = $(shell pwd)
 SHELL := /bin/bash
 
+YOSYS ?= yosys
+YOSYS_ARGS ?= -g
+YOSYS_LOG_ARGS ?= -l $(@D)/yosys.log
+
 O ?= $(PROJ_PATH)/result
 DESIGN ?= gcd
 SDC_FILE ?= $(PROJ_PATH)/scripts/default.sdc
@@ -42,7 +46,7 @@ init:
 syn: $(NETLIST_SYN_V)
 $(NETLIST_SYN_V): $(RTL_FILES) $(SCRIPT_DIR)/yosys.tcl
 	mkdir -p $(@D)
-	echo tcl $(SCRIPT_DIR)/yosys.tcl $(DESIGN) $(PDK) \"$(RTL_FILES)\" $@ \"$(VERILOG_INCLUDE_DIRS)\" \"$(VERILOG_DEFINES)\" | yosys -g -l $(@D)/yosys.log -s -
+	echo tcl $(SCRIPT_DIR)/yosys.tcl $(DESIGN) $(PDK) \"$(RTL_FILES)\" $@ \"$(VERILOG_INCLUDE_DIRS)\" \"$(VERILOG_DEFINES)\" | $(YOSYS) $(YOSYS_ARGS) $(YOSYS_LOG_ARGS) -s -
 
 sta: $(TIMING_RPT)
 $(TIMING_RPT): $(SCRIPT_DIR)/sta.tcl $(SDC_FILE) $(NETLIST_SYN_V)

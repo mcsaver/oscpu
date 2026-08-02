@@ -1,0 +1,7 @@
+2026-08-01T15:42:04Z	policy-tools-56	PASS	.github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/focused/test-policy-tools.log
+2026-08-01T15:42:04Z	verilator-lint	PASS	.github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/focused/verilator-lint.log
+2026-08-01T15:42:04Z	current-config-coremark-v7-a2	PASS	.github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current-a2/post-run-binding.json
+2026-08-01T15:42:04Z	synthesis-observer-boundary	PASS	.github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/focused/synthesis-scope-check.txt
+2026-08-01T15:42:04Z	exact-simulator-executable-digest	PASS	.github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current-a2/pre-run-identity.json
+2026-08-01T15:42:04Z	full-causal-cpi-stack	GAP	npc/rv64/design/arch/performance-counter-schema-v3.json
+2026-08-01T15:42:04Z	typed-production-elaboration-identity	GAP	npc/rv64/design/arch/performance-measurement-contract-v1.json

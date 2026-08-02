@@ -168,8 +168,12 @@ class NegativeTests(unittest.TestCase):
         self.assertEqual(len(arch.PAIR_MATRIX_PROVENANCE_PATHS), 16)
         self.assertEqual(len(arch.FRONTEND_II1_SOURCE_PATHS), 29)
         self.assertEqual(len(arch.FRONTEND_II1_PROVENANCE_PATHS), 56)
+        self.assertEqual(len(arch.FRONTEND_II1_TASK_RUN_SOURCE_PATHS), 27)
+        self.assertEqual(len(arch.FRONTEND_II1_TASK_RUN_PROOF_ROLES), 25)
         self.assertEqual(len(arch.WIDTH_CONTINUITY_SOURCE_PATHS), 43)
         self.assertEqual(len(arch.WIDTH_CONTINUITY_PROVENANCE_PATHS), 73)
+        self.assertEqual(len(arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS), 41)
+        self.assertEqual(len(arch.WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES), 28)
         self.assertEqual(len(arch.SELECTIVE_PROVENANCE_PATHS), 13)
         self.assertEqual(len(arch.LONG_LATENCY_PROVENANCE_PATHS), 13)
         self.assertEqual(len(arch.NO_STATIC_LANE_PROVENANCE_PATHS), 13)
@@ -178,6 +182,8 @@ class NegativeTests(unittest.TestCase):
         self.assertEqual(len(arch.MEMORY_ORDERING_PROVENANCE_PATHS), 61)
         self.assertEqual(len(arch.SPECULATION_RECOVERY_SOURCE_PATHS), 27)
         self.assertEqual(len(arch.SPECULATION_RECOVERY_PROVENANCE_PATHS), 52)
+        self.assertEqual(
+            len(arch.SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES), 22)
 
     def test_comment_cannot_hide_or_invent_static_lane_role(self) -> None:
         sources = dual_sources()
@@ -222,10 +228,35 @@ class NegativeTests(unittest.TestCase):
                 "assign select_alu_capable_w[select_g] = (select_g == 0);",
                 "source.capability_predicate_has_entry_metadata",
             ),
+            "slot0_capture_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "ctrl_is_alu_terminal_capable(dispatch0_ctrl_i)",
+                "1'b1",
+                "source.capability_predicate_has_entry_metadata",
+            ),
             "slot1_capture_missing": (
                 "scheduling/OooIntIssueQueue.v",
                 "ctrl_is_alu_terminal_capable(dispatch1_ctrl_i)",
                 "1'b1",
+                "source.capability_predicate_has_entry_metadata",
+            ),
+            "resident_capability_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "alu_terminal_capable_q[compact_g],",
+                "1'b0,",
+                "source.capability_predicate_has_entry_metadata",
+            ),
+            "next_unpack_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "alu_terminal_capable_next_r[compact_i],",
+                "fixed_gpr_producer_next_r[compact_i],",
+                "source.capability_predicate_has_entry_metadata",
+            ),
+            "q_commit_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "alu_terminal_capable_q[reset_i] <=\n"
+                "            alu_terminal_capable_next_r[reset_i];",
+                "alu_terminal_capable_q[reset_i] <= 1'b0;",
                 "source.capability_predicate_has_entry_metadata",
             ),
             "dynamic_swap_missing": (
@@ -267,6 +298,43 @@ class NegativeTests(unittest.TestCase):
         baseline = arch.live_sources(root)
         self.assertTrue(all(item.passed for item in arch.di3_checks(baseline)))
         mutations = {
+            "plain_slot0_capture_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "ctrl_is_plain_memory_terminal_capable(dispatch0_ctrl_i)",
+                "1'b0",
+                "source.plain_memory_capability_resident",
+            ),
+            "plain_slot1_capture_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "ctrl_is_plain_memory_terminal_capable(dispatch1_ctrl_i)",
+                "1'b0",
+                "source.plain_memory_capability_resident",
+            ),
+            "plain_fp_exclusion_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "!dispatch0_is_fp_i && !dispatch0_fp_pdest_i &&",
+                "!dispatch0_fp_pdest_i &&",
+                "source.plain_memory_capability_resident",
+            ),
+            "plain_resident_capability_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "plain_memory_terminal_capable_q[compact_g],",
+                "1'b0,",
+                "source.plain_memory_capability_resident",
+            ),
+            "plain_next_unpack_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "plain_memory_terminal_capable_next_r[compact_i],",
+                "fixed_gpr_producer_next_r[compact_i],",
+                "source.plain_memory_capability_resident",
+            ),
+            "plain_q_commit_missing": (
+                "scheduling/OooIntIssueQueue.v",
+                "plain_memory_terminal_capable_q[reset_i] <=\n"
+                "            plain_memory_terminal_capable_next_r[reset_i];",
+                "plain_memory_terminal_capable_q[reset_i] <= 1'b0;",
+                "source.plain_memory_capability_resident",
+            ),
             "selector_serialized": (
                 "scheduling/OooIntIssueSelect8.v",
                 "wire memory_pair_w = !universal_owner_present_i &&",
@@ -350,6 +418,142 @@ class NegativeTests(unittest.TestCase):
         failures = [item.check_id for item in arch.metric_checks(
             "frontend_ii1", metrics) if not item.passed]
         self.assertEqual(failures, ["metric.frontend.accept_every_cycle"])
+
+    def test_frontend_task_run_proofs_are_role_hash_and_log_bound(self) -> None:
+        original_source_paths = arch.FRONTEND_II1_TASK_RUN_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.FRONTEND_II1_TASK_RUN_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = ["[ARCH-GATE] frontend_ii1 PASS"]
+                for role in arch.FRONTEND_II1_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "frontend-ii1.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.FRONTEND_II1_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "frontend-ii1.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("a" * 64),
+                    "tests": {"frontend_ii1": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "a" * 64, "frontend_ii1")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.FRONTEND_II1_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "a" * 64, "frontend_ii1")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.frontend_ii1.proof_files"].passed)
+
+                first_path.write_text(f"{first_role}\n", encoding="utf-8")
+                proof_files.pop(first_role)
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "a" * 64, "frontend_ii1")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.frontend_ii1.proof_inventory"].passed)
+        finally:
+            arch.FRONTEND_II1_TASK_RUN_SOURCE_PATHS = original_source_paths
+
+    def test_width_task_run_proofs_are_role_hash_and_log_bound(self) -> None:
+        original_source_paths = arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = ["[ARCH-GATE] width_continuity PASS"]
+                for role in arch.WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "width-continuity.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.WIDTH_CONTINUITY_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "width-continuity.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("b" * 64),
+                    "tests": {"width_continuity": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "b" * 64, "width_continuity")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "b" * 64, "width_continuity")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.width_continuity.proof_files"].passed)
+        finally:
+            arch.WIDTH_CONTINUITY_TASK_RUN_SOURCE_PATHS = original_source_paths
 
     def test_width_one_at_any_boundary_is_red(self) -> None:
         metrics = width_metrics()
@@ -658,6 +862,150 @@ class NegativeTests(unittest.TestCase):
                     "evidence.memory_ordering.provenance_inventory"].passed)
         finally:
             arch.MEMORY_ORDERING_PROVENANCE_PATHS = original_paths
+
+    def test_ooo3_task_run_proofs_are_role_and_log_bound(self) -> None:
+        original_source_paths = arch.MEMORY_ORDERING_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.MEMORY_ORDERING_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = ["[ARCH-GATE] memory_ordering PASS"]
+                for role in arch.MEMORY_ORDERING_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "memory-ordering.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.MEMORY_ORDERING_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "memory-ordering.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("d" * 64),
+                    "tests": {"memory_ordering": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "memory_ordering")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.MEMORY_ORDERING_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "memory_ordering")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.memory_ordering.proof_files"].passed)
+
+                first_path.write_text(f"{first_role}\n", encoding="utf-8")
+                proof_files.pop(first_role)
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "memory_ordering")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.memory_ordering.proof_inventory"].passed)
+        finally:
+            arch.MEMORY_ORDERING_SOURCE_PATHS = original_source_paths
+
+    def test_ooo4_task_run_proofs_are_role_and_log_bound(self) -> None:
+        original_source_paths = arch.SPECULATION_RECOVERY_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.SPECULATION_RECOVERY_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = ["[ARCH-GATE] speculation_recovery PASS"]
+                for role in arch.SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "speculation-recovery.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.SPECULATION_RECOVERY_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "speculation-recovery.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("d" * 64),
+                    "tests": {"speculation_recovery": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "speculation_recovery")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "speculation_recovery")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.speculation_recovery.proof_files"].passed)
+
+                first_path.write_text(f"{first_role}\n", encoding="utf-8")
+                proof_files.pop(first_role)
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "speculation_recovery")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.speculation_recovery.proof_inventory"].passed)
+        finally:
+            arch.SPECULATION_RECOVERY_SOURCE_PATHS = original_source_paths
 
     def test_ooo3_source_manifest_rejects_stale_or_missing_rtl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1036,6 +1384,78 @@ class NegativeTests(unittest.TestCase):
         finally:
             arch.DUAL_MEMORY_PROVENANCE_PATHS = original_paths
 
+    def test_di5_task_run_proofs_are_role_and_log_bound(self) -> None:
+        original_source_paths = arch.DUAL_MEMORY_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.DUAL_MEMORY_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = ["[ARCH-GATE] dual_memory_issue PASS"]
+                for role in arch.DUAL_MEMORY_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "dual-memory.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.DUAL_MEMORY_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "dual-memory.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("e" * 64),
+                    "tests": {"dual_memory_issue": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "e" * 64, "dual_memory_issue")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.DUAL_MEMORY_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "e" * 64, "dual_memory_issue")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.dual_memory_issue.proof_files"].passed)
+
+                first_path.write_text(f"{first_role}\n", encoding="utf-8")
+                proof_files.pop(first_role)
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "e" * 64, "dual_memory_issue")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.dual_memory_issue.proof_inventory"].passed)
+        finally:
+            arch.DUAL_MEMORY_SOURCE_PATHS = original_source_paths
+
     def test_long_latency_requires_old_plus_eight_younger_in_rob(self) -> None:
         metrics = {
             "younger_completed_before_old": {
@@ -1122,6 +1542,136 @@ class NegativeTests(unittest.TestCase):
                     "evidence.true_ooo_long_latency.provenance_files"].passed)
         finally:
             arch.LONG_LATENCY_PROVENANCE_PATHS = original_paths
+
+    def test_ooo1_task_run_proofs_are_role_and_log_bound(self) -> None:
+        original_source_paths = arch.LONG_LATENCY_SOURCE_PATHS
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                source = root / "source.txt"
+                source.write_text("source\n", encoding="utf-8")
+                arch.LONG_LATENCY_SOURCE_PATHS = ("source.txt",)
+
+                proof_dir = root / ".github/task-runs/test/evidence/proofs"
+                proof_dir.mkdir(parents=True)
+                proof_files = {}
+                log_lines = [
+                    "[ARCH-GATE] true_ooo_long_latency PASS",
+                ]
+                for role in arch.LONG_LATENCY_TASK_RUN_PROOF_ROLES:
+                    path = proof_dir / f"{role}.txt"
+                    path.write_text(f"{role}\n", encoding="utf-8")
+                    rel = path.relative_to(root).as_posix()
+                    sha = arch.digest(path)
+                    proof_files[role] = {"path": rel, "sha256": sha}
+                    log_lines.append(f"artifact_sha256 {rel} {sha}")
+                log = root / "true-ooo-long-latency.log"
+                log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+                files = {"source.txt": arch.digest(source)}
+                proof_digest_map = {
+                    role: f"{item['path']}:{item['sha256']}"
+                    for role, item in proof_files.items()
+                }
+                record = {
+                    "command": arch.LONG_LATENCY_EVIDENCE_COMMAND,
+                    "log": {
+                        "path": "true-ooo-long-latency.log",
+                        "sha256": arch.digest(log),
+                    },
+                    "metrics": {},
+                    "provenance": {
+                        "mode": "task-run-v1",
+                        "files": files,
+                        "proof_files": proof_files,
+                        "proof_sha256": arch.canonical_digest(
+                            proof_digest_map),
+                        "sha256": arch.canonical_digest(files),
+                    },
+                    "status": "PASS",
+                }
+                evidence = {
+                    "schema": arch.EVIDENCE_SCHEMA,
+                    "design_id": "sha256:" + ("d" * 64),
+                    "tests": {"true_ooo_long_latency": record},
+                }
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "true_ooo_long_latency")
+                self.assertTrue(all(item.passed for item in checks), checks)
+
+                first_role = arch.LONG_LATENCY_TASK_RUN_PROOF_ROLES[0]
+                first_path = root / proof_files[first_role]["path"]
+                first_path.write_text("stale\n", encoding="utf-8")
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "true_ooo_long_latency")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.true_ooo_long_latency.proof_files"].passed)
+
+                first_path.write_text(f"{first_role}\n", encoding="utf-8")
+                proof_files.pop(first_role)
+                checks, _ = arch.evidence_checks(
+                    root, evidence, "d" * 64, "true_ooo_long_latency")
+                by_id = {item.check_id: item for item in checks}
+                self.assertFalse(by_id[
+                    "evidence.true_ooo_long_latency.proof_inventory"].passed)
+        finally:
+            arch.LONG_LATENCY_SOURCE_PATHS = original_source_paths
+
+    def test_ooo1_negative_fatal_is_expected_but_pass_or_drift_is_rejected(
+            self) -> None:
+        tool_dir = TOOL.parent
+        builder_path = tool_dir / "true_ooo_long_latency_evidence.py"
+        module_name = "true_ooo_long_latency_evidence_test"
+        sys.path.insert(0, tool_dir.as_posix())
+        try:
+            spec = importlib.util.spec_from_file_location(
+                module_name, builder_path)
+            assert spec is not None and spec.loader is not None
+            builder = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = builder
+            spec.loader.exec_module(builder)
+        finally:
+            sys.path.remove(tool_dir.as_posix())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            source = root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+            source.parent.mkdir(parents=True)
+            source.write_text("module OooIntBackend; endmodule\n", encoding="utf-8")
+            source_sha = builder.arch.digest(source)
+            mutator_log = root / "mutator.log"
+            mutator_log.write_text(
+                "[V8N-MUTATION-HASH] name=serial_issue1 "
+                f"source_sha256={source_sha} mutant_sha256={'1' * 64} "
+                f"image_sha256={'2' * 64}\n",
+                encoding="utf-8",
+            )
+            simulation_log = root / "simulation.log"
+            simulation_text = (
+                "[V8N-ACTIVATION] scenario=load_miss owner_pid=16\n"
+                "[CHECK-FAIL] v8n load four dual-issue accept cycles\n"
+                "FATAL: common/tb_common.svh:35\n"
+                "[RESULT] FAIL status=1\n"
+            )
+            simulation_log.write_text(simulation_text, encoding="utf-8")
+
+            builder.validate_mutation_proof(
+                root, "serial_issue1", mutator_log, simulation_log)
+
+            simulation_log.write_text(
+                simulation_text.replace(
+                    "[RESULT] FAIL status=1", "[RESULT] PASS"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "clean rejection"):
+                builder.validate_mutation_proof(
+                    root, "serial_issue1", mutator_log, simulation_log)
+
+            simulation_log.write_text(simulation_text, encoding="utf-8")
+            source.write_text("module changed; endmodule\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source/hash binding"):
+                builder.validate_mutation_proof(
+                    root, "serial_issue1", mutator_log, simulation_log)
 
     def test_missing_evidence_is_red(self) -> None:
         checks, metrics = arch.evidence_checks(

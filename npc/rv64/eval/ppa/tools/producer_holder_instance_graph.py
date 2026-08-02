@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 
@@ -40,42 +40,21 @@ EVIDENCE_KINDS = {
     "script": "holder_instance_graph_yosys_script",
     "log": "holder_instance_graph_yosys_log",
 }
-CANONICAL_EVIDENCE_PATHS = {
-    "result": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "holder-instance-graph.json"
-    ),
-    "receipt": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "yosys-instance-graph-receipt.json"
-    ),
-    "full": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "yosys-instance-graph.full.json.gz"
-    ),
-    "script": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "yosys-instance-graph.ys"
-    ),
-    "log": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
-        "current-holder-instance-graph/"
-        "yosys-instance-graph.log"
-    ),
+EVIDENCE_BASENAMES = {
+    "result": "holder-instance-graph.json",
+    "receipt": "yosys-instance-graph-receipt.json",
+    "full": "yosys-instance-graph.full.json.gz",
+    "script": "yosys-instance-graph.ys",
+    "log": "yosys-instance-graph.log",
 }
+EVIDENCE_DIRECTORY = "current-holder-instance-graph"
 # Compatibility name for callers that only need the primary result kind.
 EVIDENCE_KIND = EVIDENCE_KINDS["result"]
 YOSYS_JSON_PLACEHOLDER = "__RV64_HOLDER_INSTANCE_GRAPH_JSON_OUT__"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+TASK_RUN_ID_RE = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9-]*$"
+)
 YOSYS_EPHEMERAL_KEY_RE = re.compile(
     r"(?<=\$)0x[0-9a-fA-F]+(?=:)"
 )
@@ -149,6 +128,19 @@ EXPECTED_CONFIG_DEFINES = {
     "OOO_TERMINAL_HOLDER_ASSERT": "1",
 }
 RTL_SUFFIXES = {".v", ".sv", ".vh", ".svh", ".mk"}
+
+
+def evidence_paths_for_run(run_id: str) -> dict[str, str]:
+    """Return the exact five-role path set for one RV64 task-run."""
+    if TASK_RUN_ID_RE.fullmatch(run_id) is None:
+        raise ValueError(f"invalid RV64 task-run id: {run_id!r}")
+    root = (
+        f".github/task-runs/{run_id}/evidence/{EVIDENCE_DIRECTORY}"
+    )
+    return {
+        role: f"{root}/{basename}"
+        for role, basename in EVIDENCE_BASENAMES.items()
+    }
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -770,6 +762,28 @@ def _safe_evidence_path(repo_root: Path, relative: Any) -> Path | None:
     return candidate
 
 
+def _evidence_role_root(relative: Any, role: str) -> tuple[str | None, str | None]:
+    if not isinstance(relative, str) or not relative:
+        return None, "is empty"
+    path = PurePosixPath(relative)
+    parts = path.parts
+    if path.is_absolute() or path.as_posix() != relative or any(
+        part in {"", ".", ".."} for part in parts
+    ):
+        return None, "is not a canonical repository-relative path"
+    if len(parts) != 6 or parts[:2] != (".github", "task-runs") or \
+            parts[3:5] != ("evidence", EVIDENCE_DIRECTORY):
+        return None, (
+            "must match .github/task-runs/<rv64-run>/evidence/"
+            f"{EVIDENCE_DIRECTORY}/<role-file>"
+        )
+    if TASK_RUN_ID_RE.fullmatch(parts[2]) is None:
+        return None, "contains an invalid RV64 task-run id"
+    if parts[5] != EVIDENCE_BASENAMES[role]:
+        return None, f"must end with {EVIDENCE_BASENAMES[role]}"
+    return "/".join(parts[:5]), None
+
+
 def _load_evidence_bundle(
     repo_root: Path,
     evidence: Any,
@@ -780,10 +794,11 @@ def _load_evidence_bundle(
     if not isinstance(evidence, dict) or set(evidence) != set(EVIDENCE_KINDS):
         errors.append(
             "instance graph evidence must contain exact "
-            "result/receipt/script/log roles"
+            "result/receipt/full/script/log roles"
         )
         return entries, paths
     seen_paths: set[str] = set()
+    bundle_root: str | None = None
     for role, expected_kind in EVIDENCE_KINDS.items():
         entry = evidence.get(role)
         if not isinstance(entry, dict) or set(entry) != {
@@ -805,12 +820,22 @@ def _load_evidence_bundle(
             )
         else:
             seen_paths.add(relative)
-        if relative != CANONICAL_EVIDENCE_PATHS[role]:
+        role_root, role_error = _evidence_role_root(relative, role)
+        if role_error is not None:
             errors.append(
-                f"instance graph evidence.{role}.path must equal "
-                f"{CANONICAL_EVIDENCE_PATHS[role]}"
+                f"instance graph evidence.{role}.path {role_error}"
             )
-        path = _safe_evidence_path(repo_root, relative)
+        elif bundle_root is None:
+            bundle_root = role_root
+        elif role_root != bundle_root:
+            errors.append(
+                "instance graph evidence roles must share one task-run "
+                "evidence directory"
+            )
+        path = (
+            _safe_evidence_path(repo_root, relative)
+            if role_error is None else None
+        )
         if path is None:
             errors.append(
                 f"instance graph evidence.{role}.path is missing or unsafe"

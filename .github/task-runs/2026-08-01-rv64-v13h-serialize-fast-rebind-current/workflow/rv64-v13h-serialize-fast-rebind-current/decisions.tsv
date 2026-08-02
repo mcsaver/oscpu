@@ -1,0 +1,2 @@
+2026-08-01T09:57:32Z	counterexample	queue-head 三个 compile-success negative 必须分类为两个 production RTL mutation 与一个 verification-only CsrFile TB-wiring mutation	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/reviewer-result.md
+2026-08-01T09:57:32Z	decision	当前 design-id 快速门与 113/177/61 功能队列 PASS；SERIALIZE-G1 保持 STALE_EVIDENCE，architecture freeze GAP，PPA UNPROMOTED	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json

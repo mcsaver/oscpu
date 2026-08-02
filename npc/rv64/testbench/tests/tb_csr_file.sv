@@ -39,6 +39,11 @@ module tb_csr_file;
   wire [`PMP_ADDR_BUS_W-1:0] pmpaddr;
 
   localparam [`XLEN-1:0] PMPADDR_MASK_TB = `PMP_ADDR_MASK;
+  localparam [`XLEN-1:0] MSTATUS_UXL_RV64_TB = 64'h0000_0002_0000_0000;
+  localparam [`XLEN-1:0] MSTATUS_SXL_UXL_RV64_TB = 64'h0000_000a_0000_0000;
+  localparam [`XLEN-1:0] MEDELEG_IMPLEMENTED_MASK_TB = 64'h0000_0000_0000_b3ff;
+  localparam [`XLEN-1:0] SUPERVISOR_INT_MASK_TB =
+      `MIP_SSIP | `MIP_STIP | `MIP_SEIP;
   reg [`XLEN-1:0] mstatus_snapshot;
 
   task automatic tb_check64;
@@ -181,6 +186,42 @@ module tb_csr_file;
     `TB_TICK(clk);
     rst = 1'b0;
 
+    // RV64 privileged CSR view: mstatus reports both SXL and UXL, while the
+    // sstatus subset exposes UXL but must not leak the machine-only SXL field.
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mstatus reset exposes RV64 SXL and UXL",
+               csr_rdata & MSTATUS_SXL_UXL_RV64_TB,
+               MSTATUS_SXL_UXL_RV64_TB);
+    drive_csr(`CSR_SSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("sstatus exposes UXL without SXL",
+               csr_rdata & MSTATUS_SXL_UXL_RV64_TB,
+               MSTATUS_UXL_RV64_TB);
+
+    // Floating-point CSR state is unavailable while mstatus.FS=Off.  Main
+    // execution and the current-head probe must report the same illegal CSR
+    // access so the CSR instruction traps before producing a destination.
+    drive_csr(`CSR_FCSR, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check_mirrored_legality("FS=Off makes fcsr read illegal", 1'b1);
+
+    // MPP=2 is a reserved encoding.  This implementation supports U/S/M and
+    // canonicalizes the reserved write to U, matching the architectural WARL
+    // behavior used by the reference model.
+    drive_csr(`CSR_MSTATUS, 3'b001, 5'd1, 64'h0000_0000_0000_1000, 1'b1);
+    #1;
+    tb_check_mirrored_legality("reserved MPP write remains legal", 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("reserved MPP canonicalizes to U",
+               csr_rdata & `MSTATUS_MPP_MASK, {`XLEN{1'b0}});
+
     // INSTRET-G1 owner contract: CsrFile consumes exactly the supplied unique
     // ISA-retirement count, supports dual retirement, obeys IR inhibit, and an
     // explicit minstret write wins over the automatic increment on that edge.
@@ -188,6 +229,17 @@ module tb_csr_file;
               {`XLEN{1'b0}}, 1'b0);
     #1;
     tb_check64("minstret reset value", csr_rdata, 64'd0);
+
+    // The explicit mcycle write and the free-running increment occur on the
+    // same edge; architectural CSR write data must win that arbitration.
+    cycle_count_enable = 1'b1;
+    drive_csr(`CSR_MCYCLE, 3'b001, 5'd1, 64'd9, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MCYCLE, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("explicit mcycle write suppresses same-edge increment",
+               csr_rdata, 64'd9);
 
     cycle_count_enable = 1'b1;
     instret_inc = 2'd1;
@@ -508,6 +560,31 @@ module tb_csr_file;
     #1;
     tb_check64("FS preset to Clean (non-Dirty)", csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_CLEAN);
     tb_check64("SD clear when FS not Dirty", csr_rdata & `MSTATUS_SD, {`XLEN{1'b0}});
+
+    // A committed CSR write is itself a write to FP state and therefore must
+    // mark FS Dirty; this path is distinct from the FP datapath dirty pulse.
+    drive_csr(`CSR_FFLAGS, 3'b001, 5'd1, 64'h1, 1'b1);
+    #1;
+    tb_check_mirrored_legality("fflags write with FS=Clean is legal", 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("fflags CSR write sets mstatus.FS=Dirty",
+               csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_DIRTY);
+    tb_check64("fflags CSR write raises mstatus.SD",
+               csr_rdata & `MSTATUS_SD, `MSTATUS_SD);
+
+    // Restore FS=Clean so the following check isolates the independent
+    // fp_dirty_i commit path.
+    drive_csr(`CSR_MSTATUS, 3'b011, 5'd1, `MSTATUS_FS_MASK, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, 5'd1, `MSTATUS_FS_CLEAN, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("FS restored to Clean before fp_dirty pulse",
+               csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_CLEAN);
     fp_dirty = 1'b1;
     `TB_TICK(clk);
     fp_dirty = 1'b0;
@@ -564,15 +641,73 @@ module tb_csr_file;
     #1;
     tb_check64("mip STIP writable from M-mode", csr_rdata & `MIP_STIP, `MIP_STIP);
 
-    // ===== F11：sip 视图仅 SSIP 可写；经 sip 写 STIP 被忽略 =====
-    drive_csr(`CSR_MIP, 3'b011, 5'd1, `MIP_STIP | `MIP_SSIP, 1'b1);  // CSRRC：清 STIP/SSIP
+    // Delegation CSRs are WARL, and sie/sip expose only the interrupt bits
+    // currently delegated to S-mode.
+    drive_csr(`CSR_MEDELEG, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     `TB_TICK(clk);
-    drive_csr(`CSR_SIP, 3'b010, 5'd1, `MIP_STIP | `MIP_SSIP, 1'b1);  // 经 sip CSRRS 写
+    drive_csr(`CSR_MEDELEG, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("medeleg retains only implemented exceptions",
+               csr_rdata, MEDELEG_IMPLEMENTED_MASK_TB);
+
+    drive_csr(`CSR_MIDELEG, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIDELEG, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mideleg retains only supervisor interrupt causes",
+               csr_rdata, SUPERVISOR_INT_MASK_TB);
+
+    drive_csr(`CSR_MIDELEG, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIE, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SIE, 3'b001, 5'd1, SUPERVISOR_INT_MASK_TB, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIE, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("undelegated sie write leaves mie supervisor bits clear",
+               csr_rdata & SUPERVISOR_INT_MASK_TB, {`XLEN{1'b0}});
+    drive_csr(`CSR_SIE, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("undelegated sie view reads zero", csr_rdata, {`XLEN{1'b0}});
+
+    drive_csr(`CSR_MIP, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SIP, 3'b001, 5'd1, `MIP_SSIP, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("undelegated sip write leaves mip.SSIP clear",
+               csr_rdata & `MIP_SSIP, {`XLEN{1'b0}});
+
+    drive_csr(`CSR_MIDELEG, 3'b001, 5'd1, SUPERVISOR_INT_MASK_TB, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SIE, 3'b001, 5'd1, SUPERVISOR_INT_MASK_TB, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SIE, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("delegated sie view exposes supervisor interrupt bits",
+               csr_rdata, SUPERVISOR_INT_MASK_TB);
+
+    // sip may write delegated SSIP, while delegated STIP/SEIP remain read-only.
+    drive_csr(`CSR_SIP, 3'b010, 5'd1, `MIP_STIP | `MIP_SSIP, 1'b1);
     `TB_TICK(clk);
     drive_csr(`CSR_MIP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
     tb_check64("sip write of STIP ignored (read-only via sip)", csr_rdata & `MIP_STIP, {`XLEN{1'b0}});
     tb_check64("sip write of SSIP takes effect", csr_rdata & `MIP_SSIP, `MIP_SSIP);
+
+    // Restore interrupt/delegation state before the remaining CSR checks.
+    drive_csr(`CSR_MIP, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIE, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIDELEG, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MEDELEG, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
 
     // ===== F7：RV64 下 *h 计数器 CSR 非法 =====
     drive_csr(`CSR_CYCLEH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);

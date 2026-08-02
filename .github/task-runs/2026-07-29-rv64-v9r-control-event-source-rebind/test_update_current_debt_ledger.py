@@ -29,6 +29,7 @@ class SerializeVerifierDispatchTests(unittest.TestCase):
     def exact_entry(self) -> dict[str, object]:
         return {
             "id": "SERIALIZE-G1",
+            "status": "CLOSED",
             "canonical_command": MODULE.SERIALIZE_COMMAND,
             "evidence": [
                 dict(item) for item in MODULE.SERIALIZE_EXPECTED_EVIDENCE
@@ -48,7 +49,10 @@ class SerializeVerifierDispatchTests(unittest.TestCase):
             ),
             stderr="",
         )
-        MODULE.verify_serialize_entry(self.exact_entry())
+        self.assertEqual(
+            MODULE.verify_serialize_entry(self.exact_entry()),
+            "sha256:" + "0" * 64,
+        )
         run.assert_called_once_with(
             ["python3", str(MODULE.SERIALIZE_VERIFY)],
             cwd=MODULE.ROOT,
@@ -88,6 +92,16 @@ class SerializeVerifierDispatchTests(unittest.TestCase):
             MODULE.verify_serialize_entry(self.exact_entry())
 
     @mock.patch.object(MODULE.subprocess, "run")
+    def test_rejects_missing_exact_design_id(self, run: mock.Mock) -> None:
+        run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout="[SERIALIZE-G1-VERIFY] review=APPROVED PASS\n",
+            stderr="",
+        )
+        with self.assertRaisesRegex(RuntimeError, "one exact RTL design id"):
+            MODULE.verify_serialize_entry(self.exact_entry())
+
+    @mock.patch.object(MODULE.subprocess, "run")
     def test_rejects_missing_tuple_member(self, run: mock.Mock) -> None:
         entry = self.exact_entry()
         entry["evidence"] = entry["evidence"][:-1]
@@ -113,6 +127,36 @@ class SerializeVerifierDispatchTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "tuple is not exact"):
             MODULE.verify_serialize_entry(entry)
         run.assert_not_called()
+
+    @mock.patch.object(MODULE, "verify_serialize_entry")
+    def test_refresh_marks_old_design_evidence_stale(
+        self, verify: mock.Mock
+    ) -> None:
+        evidence_design = "sha256:" + "1" * 64
+        current_design = "sha256:" + "2" * 64
+        verify.return_value = evidence_design
+        entry = self.exact_entry()
+        self.assertEqual(
+            MODULE.refresh_serialize_entry(entry, current_design),
+            "STALE_EVIDENCE",
+        )
+        self.assertEqual(entry["status"], "STALE_EVIDENCE")
+        self.assertFalse(entry["current_design_bound"])
+        self.assertEqual(entry["design_id"], evidence_design)
+
+    @mock.patch.object(MODULE, "verify_serialize_entry")
+    def test_refresh_closes_only_matching_design_evidence(
+        self, verify: mock.Mock
+    ) -> None:
+        current_design = "sha256:" + "3" * 64
+        verify.return_value = current_design
+        entry = self.exact_entry()
+        entry["status"] = "STALE_EVIDENCE"
+        self.assertEqual(
+            MODULE.refresh_serialize_entry(entry, current_design), "CLOSED"
+        )
+        self.assertTrue(entry["current_design_bound"])
+        self.assertEqual(entry["design_id"], current_design)
 
 
 if __name__ == "__main__":

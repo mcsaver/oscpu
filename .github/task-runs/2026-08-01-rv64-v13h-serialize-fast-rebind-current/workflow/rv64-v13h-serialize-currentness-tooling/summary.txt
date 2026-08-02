@@ -1,0 +1,22 @@
+AGENT_FLOW_V1
+RESULT=PASS
+REASON=all selected gates passed
+TASK_ID=rv64-v13h-serialize-currentness-tooling
+TASK_CLASS=development
+ARCHIVE_MODE=none
+GENERATION=2
+WORK_MS=3168047
+GATE_MS=0
+OVERHEAD_PERCENT=0.00
+OVERHEAD_TARGET_PERCENT=40
+PATH_COUNT=9
+DIRECTORY_COUNT=4
+GATE_COUNT=0
+DIRECTORY_0=npc/rv64/testbench/scripts
+DIRECTORY_1=npc/rv64/design/arch
+DIRECTORY_2=.github/memory
+DIRECTORY_3=.github/task-runs
+PATH_LOG=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/agent-flow/rv64-v13h-serialize-currentness-tooling/paths.log
+DIRECTORY_LOG=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/agent-flow/rv64-v13h-serialize-currentness-tooling/directories.log
+EVENT_LOG=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/agent-flow/rv64-v13h-serialize-currentness-tooling/events.log
+TASK_RUN=none

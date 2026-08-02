@@ -1,0 +1,37 @@
+{
+  "schema": "rv64-runtime-cleanup-v1",
+  "status": "PASS",
+  "deleted_target": "/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-v13i-int-iq-survivor-map",
+  "deleted_file_count": 49,
+  "deleted_bytes": 288836652,
+  "target_absent_after_cleanup": true,
+  "retained_task_run": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map",
+  "retained_task_run_bytes_before_this_manifest": 15137472,
+  "retained": [
+    "focused survivor matrix result and simulation log",
+    "source-select negative sensitivity log",
+    "three backend integration results and logs",
+    "current source snapshot and SHA-256 manifest",
+    "parent/current coarse and mapped synthesis stat/check reports",
+    "parent/current OpenSTA configuration, setup check and top-40 report",
+    "current-design module 113/113 result cohort",
+    "official 177/177, AM 61/61, DiffTest mismatch=0 and benchmark result cohort",
+    "V13H/V13I CPI-neutral design-id and benchmark log SHA-256 bindings",
+    "subagent contract, rendered prompt, independent review and agent-flow decision trace"
+  ],
+  "removed": [
+    "focused and integration .vvp executables",
+    "debug and superseded integration build directories",
+    "coarse and mapped Verilog netlists",
+    "simulation netlist",
+    "RTLIL .il and structural .json intermediates",
+    "raw Yosys logs and duplicate synthesis console logs",
+    "runtime OpenSTA copies after compact reports were migrated"
+  ],
+  "artifact_relocation": {
+    ".github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/focused": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/focused",
+    ".github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/integration-final": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/integration",
+    ".github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/ppa": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i"
+  },
+  "removed_payload_recovery": "Removed build intermediates are not retained individually; they are reproducible from the frozen source snapshot, tool/liberty hashes, synthesis statistics and OpenSTA configuration."
+}

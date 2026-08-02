@@ -1,0 +1,36 @@
+{
+  "schema": "npc-rv64-performance-contract-verification-v1",
+  "task_id": "rv64-v13j-performance-measurement-contract",
+  "status": "PASS",
+  "claim_scope": "contract syntax, explicit GAP encoding, R3.4 current-source binding and durable reviewer receipt only",
+  "performance_baseline_eligible": false,
+  "production_rtl_modified": false,
+  "eda_runs": {
+    "simulation": "NOT_RUN",
+    "synthesis": "NOT_RUN",
+    "sta": "NOT_RUN",
+    "full_system": "NOT_RUN"
+  },
+  "checks": {
+    "json_parse": "PASS",
+    "contract_state": "FROZEN_MEASUREMENT_INTENT_WITH_QUALIFICATION_GAPS",
+    "typed_production_identity": "GAP",
+    "typed_elaborated_identity": "GAP",
+    "termination_time_marker_total": "GAP",
+    "fail_closed_consumer": "GAP",
+    "cpi_stack": "GAP_EXISTING_BUCKETS_OVERLAP",
+    "global_issue_slot_ledger": "GAP"
+  },
+  "sha256": {
+    "performance_measurement_contract_v1_json": "fde487ed18026f7f0ab65f2d3be2f763c2645dfbe6a622233b8602fa433b4857",
+    "performance_measurement_contract_md": "a915787df1a5685d26a28084c4c360e403ee0fc4423f1c3843414ec012f5b8a8",
+    "ooo_int_issue_queue_spec": "2b4981ae739adf015de3bdf102381994a438669c9807d83b0c0ca94bab8727ee",
+    "ooo_int_backend_v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+    "ooo_int_issue_queue_v": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70",
+    "npc_sim_top_sv": "5320af1ffb8b042c54b508e076aed66a8745f3f61ad2de78543a7a633b56b664",
+    "cpu_exec_cpp": "e11cec44b6bab8b7282d90c9283c4ab5281912a30cf1b9ea0dccaa4973a2c29f",
+    "proxy_200mhz_v1_policy": "3d45d18c3158c5015b5d83843cd35d1e3fca815a3ad54a103e395c443875573c",
+    "reviewer_result": "6f05188d96ab1b2268aed9a17e506b637ee349f0f72b32d3153fa0a6344a7a1b",
+    "review_contract": "47bb67fff09376ccadb73573e5bfe02a24d34c965f811854a9e22bb851aa7386"
+  }
+}

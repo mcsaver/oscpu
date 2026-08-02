@@ -1,0 +1,1 @@
+2026-07-31T14:33:26Z	decision	保留全部日志、结构化结果、哈希、marker、实例图和冻结输入；仅退役可由 RTL/TB/runner 重建的编译镜像与可写 overlay。	.github/runtime-artifacts/agent-flow/task-run-artifact-compaction/result.txt

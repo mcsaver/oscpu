@@ -1334,6 +1334,16 @@ module tb_ooo_store_queue;
 
   task automatic final_pa_query_matrix;
     begin
+      // Start the final-PA matrix from a deterministic physical SQ ring
+      // position so hierarchical four-state injections target entry 0.
+      query_ports_idle();
+      rst = 1'b1;
+      `TB_TICK(clk);
+      rst = 1'b0;
+      #1;
+      tb_check32("F3 query fixture reset is empty", {28'b0, count}, 32'd0);
+      tb_check32("F3 query fixture reset head is zero",
+                 {30'b0, snoop_head}, 32'd0);
       rob_head_valid = 1'b1;
       rob_head_idx = 4'd0;
       rob_head_producer_id = producer_id_for_rob(4'd0);
@@ -1384,6 +1394,193 @@ module tb_ooo_store_queue;
                  {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
       check64("F3 shifted forward byte placement", query0_forward_data,
               64'h0000_0000_6655_4433);
+      clear_speculative_sq();
+
+      // Exercise the opposite alignment direction: the store begins after
+      // the load base, so its low bytes land in higher load byte lanes.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_0102,
+                     64'h0000_0000_0000_bbaa, 8'h03, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9000_0100, 8'h0c);
+      tb_check32("F3 forward-start offset is onehot forward",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd2);
+      check64("F3 forward-start byte placement", query0_forward_data,
+              64'h0000_0000_bbaa_0000);
+      clear_speculative_sq();
+
+      // The independently implemented bank1 cone must apply the same
+      // store-after-load alignment, not merely inherit bank0 coverage.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_0182,
+                     64'h0000_0000_0000_ddcc, 8'h03, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd4);
+      query1_paddr = 64'h0000_0000_9000_0180;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'h0c;
+      #1;
+      tb_check32("F3 bank1 forward-start offset is onehot forward",
+                 {29'b0, query1_replay, query1_forward, query1_allow}, 32'd2);
+      check64("F3 bank1 forward-start byte placement", query1_forward_data,
+              64'h0000_0000_ddcc_0000);
+      clear_speculative_sq();
+
+      // Bank1 also owns an independent store-before-query right-shift cone.
+      // A full-cover placement oracle prevents a symmetric-direction typo
+      // from surviving behind the bank0 checks.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_01c0,
+                     64'h8877_6655_4433_2211, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd4);
+      query1_paddr = 64'h0000_0000_9000_01c2;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'h0f;
+      #1;
+      tb_check32("F3 bank1 backward offset is onehot forward",
+                 {29'b0, query1_replay, query1_forward, query1_allow}, 32'd2);
+      check64("F3 bank1 backward byte placement", query1_forward_data,
+              64'h0000_0000_6655_4433);
+      clear_speculative_sq();
+
+      // Exactly one byte-window apart is non-overlapping; the offset network
+      // must not turn an adjacent store into a false partial-overlap replay.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_0208,
+                     64'h8877_6655_4433_2211, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9000_0200, 8'hff);
+      tb_check32("F3 adjacent byte window is onehot allow",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd1);
+      clear_speculative_sq();
+
+      // Internal SQ state participates in a conservative ordering decision.
+      // Any four-state uncertainty that could denote an older, non-terminal
+      // overlapping store must select replay instead of optimistic allow or
+      // forwarding.  No clock edge occurs while a field is deposited with X;
+      // each hierarchical testbench assignment is restored immediately.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9000_0300,
+                     64'h8877_6655_4433_2211, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      drive_query0(4'd4, 64'h0000_0000_9000_0300, 8'hff);
+      query1_valid = 1'b1;
+      query1_producer_id = producer_id_for_rob(4'd5);
+      query1_paddr = 64'h0000_0000_9000_0300;
+      query1_attr_valid = 1'b1;
+      query1_class = `OOO_MEM_CLASS_CACHED;
+      query1_strb = 8'hff;
+      #1;
+      tb_check32("F3 both queries forward before X injection",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h12);
+
+      dut.valid_q[0] = 1'bx;
+      #1;
+      tb_check32("F3 unknown entry valid replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.valid_q[0] = 1'b1;
+      #1;
+
+      dut.terminal_q[0] = 1'bx;
+      #1;
+      tb_check32("F3 unknown entry terminal state replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.terminal_q[0] = 1'b0;
+      #1;
+
+      dut.rob_idx_q[0] = {ROB_INDEX_W{1'bx}};
+      #1;
+      tb_check32("F3 unknown entry age basis replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.rob_idx_q[0] = 4'd1;
+      #1;
+
+      dut.filled_q[0] = 1'bx;
+      #1;
+      tb_check32("F3 unknown entry fill state replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.filled_q[0] = 1'b1;
+      #1;
+
+      dut.paddr_q[0] = {`XLEN{1'bx}};
+      #1;
+      tb_check32("F3 unknown entry physical address replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.paddr_q[0] = 64'h0000_0000_9000_0300;
+      #1;
+
+      dut.strb_q[0] = {`STRB_W{1'bx}};
+      #1;
+      tb_check32("F3 unknown entry byte mask replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.strb_q[0] = 8'hff;
+      #1;
+
+      dut.data_q[0] = {`XLEN{1'bx}};
+      #1;
+      tb_check32("F3 unknown overlapping store data replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.data_q[0] = 64'h8877_6655_4433_2211;
+      #1;
+
+      dut.head_q = {ENTRY_COUNT_W{1'bx}};
+      #1;
+      tb_check32("F3 unknown physical SQ head replays both queries",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h24);
+      dut.head_q = {ENTRY_COUNT_W{1'b0}};
+      #1;
+
+      // Fail-closed must not become over-conservative: once an entry is
+      // provably terminal or younger, its unrelated payload may be unknown.
+      dut.terminal_q[0] = 1'b1;
+      dut.rob_idx_q[0] = {ROB_INDEX_W{1'bx}};
+      dut.paddr_q[0] = {`XLEN{1'bx}};
+      dut.data_q[0] = {`XLEN{1'bx}};
+      #1;
+      tb_check32("F3 terminal entry ignores unknown payload",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h09);
+      dut.terminal_q[0] = 1'b0;
+      dut.rob_idx_q[0] = 4'd6;
+      #1;
+      tb_check32("F3 known younger entry ignores unknown payload",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h09);
+      dut.valid_q[0] = 1'b0;
+      dut.terminal_q[0] = 1'bx;
+      dut.rob_idx_q[0] = {ROB_INDEX_W{1'bx}};
+      dut.filled_q[0] = 1'bx;
+      dut.attr_valid_q[0] = 1'bx;
+      dut.class_q[0] = 2'bxx;
+      dut.strb_q[0] = {`STRB_W{1'bx}};
+      #1;
+      tb_check32("F3 known invalid entry ignores unknown payload",
+                 {26'b0, query1_replay, query1_forward, query1_allow,
+                  query0_replay, query0_forward, query0_allow}, 32'h09);
+      dut.valid_q[0] = 1'b1;
+      dut.terminal_q[0] = 1'b0;
+      dut.rob_idx_q[0] = 4'd1;
+      dut.filled_q[0] = 1'b1;
+      dut.paddr_q[0] = 64'h0000_0000_9000_0300;
+      dut.attr_valid_q[0] = 1'b1;
+      dut.class_q[0] = `OOO_MEM_CLASS_CACHED;
+      dut.data_q[0] = 64'h8877_6655_4433_2211;
+      dut.strb_q[0] = 8'hff;
+      #1;
       clear_speculative_sq();
 
       // Full ProducerId age is circular around the edge-old ROB head.  A
@@ -1481,6 +1678,32 @@ module tb_ooo_store_queue;
                  {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
       clear_speculative_sq();
 
+      // Typed memory class is part of the forwarding identity.  NC/CACHED
+      // overlap cannot borrow bytes across classes, and an IO query serializes
+      // against an older ordinary store even without address overlap.
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9300_5000,
+                     64'h4444_4444_4444_4444, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_NC);
+      drive_query0(4'd4, 64'h0000_0000_9300_5000, 8'hff);
+      tb_check32("F3 NC/CACHED overlap replays",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      clear_speculative_sq();
+      alloc_one(4'd1);
+      fill_one_typed(4'd1, 64'h0000_0000_9300_6000,
+                     64'h5555_5555_5555_5555, 8'hff, 1'b1,
+                     `OOO_MEM_CLASS_CACHED);
+      query0_valid = 1'b1;
+      query0_producer_id = producer_id_for_rob(4'd4);
+      query0_paddr = 64'h0000_0000_9300_7000;
+      query0_attr_valid = 1'b1;
+      query0_class = `OOO_MEM_CLASS_IO;
+      query0_strb = 8'hff;
+      #1;
+      tb_check32("F3 IO query serializes against older cached store",
+                 {29'b0, query0_replay, query0_forward, query0_allow}, 32'd4);
+      clear_speculative_sq();
+
       // A terminal store is no longer an ordering/forwarding source.
       alloc_one(4'd1);
       fill_one_typed(4'd1, 64'h0000_0000_9400_0000,
@@ -1558,7 +1781,7 @@ module tb_ooo_store_queue;
       tb_check32("F3 dual retry bank1 onehot",
                  {29'b0, query1_replay, query1_forward, query1_allow}, 32'd4);
       clear_speculative_sq();
-      $display("[V8T-F3-SQ-QUERY] allow/forward/merge/youngest/partial/poison/terminal/dual PASS");
+      $display("[V8T-F3-SQ-QUERY] allow/dual-offset/typed/merge/youngest/partial/x-poison/x-ignore3/terminal/dual PASS");
     end
   endtask
 

@@ -1,0 +1,15 @@
+npc/rv64/vsrc/memory/OooStoreQueue.v
+npc/rv64/testbench/tests/tb_ooo_store_queue.sv
+npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md
+yosys-sta/Makefile
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/task-report.md
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/dispatch-log.md
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/summary.json
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/review-result.md
+.gitignore
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/cleanup-summary.md
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/cleanup-checksums.sha256
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial/summary.txt
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial/logs/tb_ooo_fetch_branch_target.log
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial/logs/tb_ooo_fetch_packet_decode.log
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial/logs/tb_ooo_priv_system.log

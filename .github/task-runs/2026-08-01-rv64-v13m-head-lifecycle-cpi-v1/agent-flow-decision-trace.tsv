@@ -1,0 +1,1 @@
+2026-08-01T14:52:12Z	counterexample	CoreMark dependency=0 is a legal ROB-head lifecycle observation; the original nonzero-per-bucket oracle was invalid and its FAIL remains preserved.	.github/task-runs/2026-08-01-rv64-v13m-head-lifecycle-cpi-v1/coremark-head-lifecycle-smoke.status

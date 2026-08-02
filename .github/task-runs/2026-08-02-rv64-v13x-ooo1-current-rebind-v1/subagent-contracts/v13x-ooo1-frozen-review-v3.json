@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13x-ooo1-frozen-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 OooIntBackend、OooMulDivUnit 与 OooRob 的最终 current-design OOO-1 证据：load miss、MUL、DIV owner 在更年轻双发射与完成期间保持 full ProducerId，ROB 仅按队头有序退休；检查 scoped hard-gate 是否只支持 OOO-1 PASS 并识别任何假绿反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/tools/true_ooo_long_latency_evidence.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      ".github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/subagent-contracts/v13x-ooo1-frozen-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "最终 current complete RTL design-id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，rtl_file_count=146；本轮未修改 npc/rv64/vsrc/**。",
+      "最终 release 与 OOO_ASSERT 两个 profile 均观测 load_miss=8、mul=8、div=8、各 4 个 dual_issue cycle、各 8 个 owner-live younger completion、rob_peak=9、rob_valid_peak=9、retire_order_violations=0，并各有唯一 [RESULT] PASS。",
+      "最终 7 个 compile-success RTL 反例 serial_issue1、miq_issue1_freeze、muldiv_issue1_freeze、retire_before_head_done、load_owner_pid_truncate、muldiv_owner_pid_truncate、muldiv_resp_pid_truncate 均有 source/mutant/image SHA，均由对应 activation 与 [CHECK-FAIL] marker 检出并形成唯一 [RESULT] FAIL。",
+      "最终 scoped manifest 仅含 true_ooo_long_latency；record status=PASS、proof mode=task-run-v1、固定 proof role 数=20、proof_sha256=03d53b56a4c3b628dc5a217b13fe1c0fd40204c2d593b6cebe2ca42074f788a9。",
+      "最终 architecture checker 的 OOO-1 contract、design binding、command、log、source inventory、proof inventory、proof file/hash/log binding、proof digest 与全部 15 个 metric check 均为 GREEN；scoped aggregate overall_status=RED、exit_code=1。",
+      "最终 checker 与 manifest 单测 37/37 PASS；新增 test_ooo1_negative_fatal_is_expected_but_pass_or_drift_is_rejected 证明负向 SystemVerilog $fatal 可作为预期结束，但 [RESULT] PASS 或 live source hash 漂移必须拒绝；既有用例还拒绝 proof 内容漂移与缺少 proof role。",
+      "越界 scoped evidence path 在任何仿真前以 rc=1 拒绝；canonical npc/rv64/eval/ppa/evidence/architecture-current.json SHA-256 仍为 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1。",
+      "最终 scoped manifest SHA-256=ed757ec21d717f74be9b857deba2d37edc8c91f9308d153766d92d2f113c5689，gate log SHA-256=6a7635c930f7e7dab097451c146939fd85ee05276463e401ff007281a3c87434，architecture result SHA-256=fb9e3f7c2ab3e86d645f0bc889adc0e42c13bf71f97dbb182978c6643dcd789d。",
+      "runner 已清理所有 .vvp、mutant RTL 与 /tmp/v8n-true-ooo.*；full-system、DI-1/2/5、OOO-2/3/4 aggregate、CPI、综合、STA、area、power 均不在本轮 PASS 范围。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 结论首行格式给出 APPROVED_FOR_CURRENT_SCOPE、GAP 或 REJECT；随后列出证据充分项、可操作反例、未知项、替代解释与范围边界。"
+  ],
+  "success_criteria": [
+    "优先尝试证明最终 scoped OOO-1 为假绿：核对 full-ProducerId owner/双发射/ROB 指标、7 个定向反例、20 个 proof role、最终 current design-id/hash 与 overall RED 边界；只有未发现阻断反例时才批准限定范围。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

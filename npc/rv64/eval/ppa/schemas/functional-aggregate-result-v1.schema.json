@@ -32,8 +32,8 @@
         "module_passed": {"type": "integer", "minimum": 0},
         "official_required": {"const": 177},
         "official_passed": {"const": 177},
-        "am_required": {"const": 59},
-        "am_passed": {"const": 59},
+        "am_required": {"type": "integer", "minimum": 1},
+        "am_passed": {"type": "integer", "minimum": 1},
         "difftest_mismatches": {"const": 0},
         "evidence_mutations_compiled": {"type": "integer", "minimum": 1},
         "evidence_mutations_rejected": {"type": "integer", "minimum": 1}

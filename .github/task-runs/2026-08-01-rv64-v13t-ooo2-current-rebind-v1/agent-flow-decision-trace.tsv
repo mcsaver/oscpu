@@ -1,0 +1,3 @@
+2026-08-01T22:04:59Z	hypothesis	H1 confirmed: current V13I packed IQ retains OOO-2 selective scheduling; H2 global-freeze regression rejected by release/assert observations and five source mutations.	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/task-report.md
+2026-08-01T22:05:00Z	counterexample	First refresh summary hard-coded sibling OOO-1 GREEN despite JSON RED; corrected to derive JSON status and fully rerun.	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/runner-summary-correction.md
+2026-08-01T22:05:00Z	decision	Keep canonical architecture manifest unchanged; V13T promotes only task-run-scoped OOO-2 and leaves all sibling gates RED.	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/pre-delivery-review.md

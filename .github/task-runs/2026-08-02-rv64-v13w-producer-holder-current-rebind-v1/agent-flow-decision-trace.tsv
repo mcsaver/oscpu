@@ -1,0 +1,1 @@
+2026-08-02T01:05:15Z	decision	Retire only reproducible V13W .vvp images after hash preview; retain RTL/TB, mutation sources, logs, JSON, source bindings and result markers.	.github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/semantic-vvp-retirement.json

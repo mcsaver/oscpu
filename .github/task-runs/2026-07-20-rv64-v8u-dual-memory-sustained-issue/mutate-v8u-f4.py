@@ -54,9 +54,8 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "iq_pair_pop_only_entry0": Mutation(
         "OooIntIssueQueue.v",
-        "!(memory_pair_peek_fire_w &&\n"
-        "            ((compact_i == 0) || (compact_i == 1))) &&",
-        "!(memory_pair_peek_fire_w && (compact_i == 0)) &&",
+        "({8{memory_pair_peek_fire_w}} & 8'b0000_0011);",
+        "({8{memory_pair_peek_fire_w}} & 8'b0000_0001);",
     ),
     "iq_pair_exposes_regular_issue1": Mutation(
         "OooIntIssueQueue.v",

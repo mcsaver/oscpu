@@ -1,0 +1,102 @@
+{
+  "schema": "npc-rv64-v13h-task-result-v1",
+  "status": "PASS",
+  "classification": "verification",
+  "branch": "ai",
+  "head": "dc027b3988777cba9fdb2200d721d24bba6368fc",
+  "production_rtl_changed": false,
+  "design_id": "sha256:364b1e601773c22ab0594950170674ea6b228bf6b4c9b2c26b0bdcc9a4374d44",
+  "identity": {
+    "files": 146,
+    "pre_post_unchanged": true
+  },
+  "focused_gates": {
+    "queue_head": {
+      "status": "PASS",
+      "positive_profiles": "2/2",
+      "compile_success_mutations": "3/3",
+      "production_rtl_mutations": "2/2",
+      "verification_only_tb_wiring_mutations": "1/1",
+      "committed_transactions": 6,
+      "selectively_killed_transactions": 4,
+      "temporary_artifacts_retained": 0,
+      "elapsed_seconds": 21.22,
+      "max_rss_kb": 80996
+    },
+    "pending_system": {
+      "status": "PASS",
+      "baseline_profiles": "3/3",
+      "compile_success_mutations": "15/15",
+      "dynamically_rejected_mutations": "15/15",
+      "temporary_artifacts_retained": 0,
+      "elapsed_seconds": 55.57,
+      "max_rss_kb": 83356
+    }
+  },
+  "functional": {
+    "status": "PASS",
+    "module": "113/113",
+    "official": "177/177",
+    "am": "61/61",
+    "difftest_mismatches": 0,
+    "evidence_mutations": "11/11",
+    "coremark": {
+      "iterations": 10,
+      "crc": "0xfcaf",
+      "good_traps": 1
+    },
+    "dhrystone": {
+      "runs": 10000,
+      "good_traps": 1
+    },
+    "inputs_unchanged": true,
+    "compiled_intermediates_retained": 0,
+    "published_current": false,
+    "module_elapsed": "0:27.18",
+    "functional_elapsed": "8:48.71",
+    "functional_max_rss_kb": 650700
+  },
+  "checker": {
+    "status": "PASS",
+    "tests": "14/14",
+    "direct_execution_schema_supported": true,
+    "legacy_replay_schema_preserved": true,
+    "negative_checks": [
+      "functional input hash drift",
+      "functional aggregate hash drift",
+      "compiled intermediate retention",
+      "missing pending-SYSTEM mutation",
+      "focused cleanup receipt drift",
+      "retained focused-log hash drift",
+      "mutation dependency rebind",
+      "queue-head mutation class drift"
+    ]
+  },
+  "architecture_boundary": {
+    "debt_id": "SERIALIZE-G1",
+    "ledger_status": "STALE_EVIDENCE",
+    "fast_gates_current_design_bound": true,
+    "current_design_system_transaction_present": false,
+    "full_system_recertification": "PENDING_USER_AUTHORIZATION",
+    "architecture_freeze": "GAP",
+    "ppa": "UNPROMOTED",
+    "promotion_eligible": false,
+    "a3_original_fail_preserved": true,
+    "a3_checker_replay_preserved": true,
+    "rtl_assertions_weakened": false,
+    "terminal_event_deduplication_added": false
+  },
+  "cost": {
+    "high_cost_threshold_crossed": false,
+    "long_system_run_started": false,
+    "single_flight_preserved": true,
+    "engineering_command_failures": 0,
+    "evidence_command_quoting_retries": 3,
+    "evidence_command_quoting_retry_changed_engineering_state": false,
+    "initial_agent_flow_class": "verification",
+    "initial_agent_flow_finish": "BLOCKED_CLASS_MISMATCH",
+    "final_agent_flow_class": "development",
+    "final_agent_flow_finish": "PASS",
+    "agent_flow_gate_overhead_percent": 0.0
+  }
+}

@@ -1,0 +1,4 @@
+2026-08-02T04:03:16Z	di2-current-focused-and-negative	PASS	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current/result.json
+2026-08-02T04:03:17Z	architecture-nine-gate-aggregate	GAP	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current/static/architecture-result.json
+2026-08-02T04:03:17Z	ppa-synthesis-sta	GAP	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current/result.json
+2026-08-02T04:05:11Z	independent-frozen-review	PASS	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/review-result.md

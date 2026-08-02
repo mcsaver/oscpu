@@ -1,8 +1,8 @@
 {
   "schema_version": "rv64-lq-mutation-evidence-v1",
-  "generated_at_utc": "2026-07-29T12:55:26.817817+00:00",
+  "generated_at_utc": "2026-07-31T22:30:35.412409+00:00",
   "source": "npc/rv64/vsrc/memory/OooLoadQueue.v",
-  "source_sha256": "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e",
+  "source_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
   "testbench": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
   "mutation_count": 9,
   "compile_success_count": 9,
@@ -19,7 +19,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "647e378521d79d7e7154c3d392195807d2d477def6df6021f0d2b1f8a62f0852",
+      "mutant_sha256": "5b4dad7d2f46ebfb7011a620ae88f9a8e291a0ca6737d769308371cb06f6756f",
       "diagnostic_lines": [
         "[CHECK-FAIL] same ROB index with stale generation is issue-closed got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -34,7 +34,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "ab421f1e30309fdbb8573d7b63e652404613bce568cfaed1dc8fa537455496bb",
+      "mutant_sha256": "38d316f098f945877fe183cf67c224687e5eb929d59f82848baa987afbc00555",
       "diagnostic_lines": [
         "[CHECK-FAIL] launched younger load remains issue-closed tombstone got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -49,7 +49,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "2c9f3c932342ad444233e6ef7b97c6e1a027748bae89f44415407b42921bc0a1",
+      "mutant_sha256": "87c290510847839d9848315e922f2ed54518492fec380c5dd5f3d39d36023e7d",
       "diagnostic_lines": [
         "[CHECK-FAIL] retry with changed final PA fails closed got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -64,7 +64,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "fb9a3e6c4e08f90467338fb38eabf79cd183dbb0429cde7063ca1d7c1182155b",
+      "mutant_sha256": "3eb27efc76fc194fb9a983c6fdacc64e7b1d7d624d42f29143e399270dd786d2",
       "diagnostic_lines": [
         "[CHECK-FAIL] allow opens response while replay stays ordered-closed got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -79,7 +79,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "e3b4c52c5e32997101e8178ca2ac1fbfaa2c40d3c6c26c97dd8783366906688b",
+      "mutant_sha256": "c64e14bb6818ac610b89f0fd51ed967a2ba71c321e1ac8d1c2589772a83769b5",
       "diagnostic_lines": [
         "[CHECK-FAIL] normal transport terminal retains retire-resident entries got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -94,7 +94,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "6527b6fe08fd1415822bce74caaeee082bd3960d076e5b6430e661d91605aaa1",
+      "mutant_sha256": "86124fa222ad634f59c966674dad847cff05683ea2f64b491d65c3ee820c973d",
       "diagnostic_lines": [
         "[CHECK-FAIL] selective recovery clears unlaunched younger load only got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -109,7 +109,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "7a03a0a1c69ce780846e48e3eea77af63c078c4ce1d7aea015f10240b0274a50",
+      "mutant_sha256": "6b4a9250864715d321938ea11bbea60993c15ffed4b3d02698d1de1b426411f3",
       "diagnostic_lines": [
         "[CHECK-FAIL] retirement before formal completion is backpressured got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -124,7 +124,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "9d89dfef563a3a4388b71fa4d994413cddc059f84cad803e84dfd0541c4c38b3",
+      "mutant_sha256": "dcfb148d84b0fef8650bfbe912135103f82f985eec1fb502420ec9167e49727e",
       "diagnostic_lines": [
         "[CHECK-FAIL] dual dispatch must create two LQ residents got=0 expected=1",
         "[RESULT] FAIL status=1"
@@ -139,7 +139,7 @@
       "dynamic_rejected": true,
       "passed": true,
       "make_returncode": 2,
-      "mutant_sha256": "e4fbfe7a5e5e254b46ea84cd520cb4f44e2228cd1687b5a2f7ede2b55c34d55e",
+      "mutant_sha256": "595bbadc1a44296b08f87a8c8e215cfe2a90a3b5960d59047b764972859064e7",
       "diagnostic_lines": [
         "[CHECK-FAIL] same-PID dual query fails closed on both ports got=0 expected=1",
         "[RESULT] FAIL status=1"

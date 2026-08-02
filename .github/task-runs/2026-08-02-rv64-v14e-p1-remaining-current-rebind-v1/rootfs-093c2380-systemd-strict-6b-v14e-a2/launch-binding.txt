@@ -1,0 +1,14 @@
+schema=rv64-v14e-system-current-launch-v1
+run_label=rootfs-093c2380-systemd-strict-6b-v14e-a2
+runner=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/run-system-current.sh
+runtime_dir=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-systemd-strict/rootfs-093c2380-systemd-strict-6b-v14e-a2
+lock_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-engineering-single-flight.lock
+expected_design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488
+expected_file_count=146
+max_cycles=6000000000
+host_timeout_seconds=100000
+commit_gap_limit_cycles=1000000
+progress_interval=5000000
+session_mode=setsid-no-tty
+stdin=dev-null
+prelaunch_contract=PASS

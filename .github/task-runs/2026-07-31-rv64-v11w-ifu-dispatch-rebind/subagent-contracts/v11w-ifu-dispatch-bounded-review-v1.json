@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11w-ifu-dispatch-bounded-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 IFU-AXI-G1 与 IFU-ACCESS-G1 当前设计证据：顶层 npc/rv64/Makefile 从整文件 SHA 绑定收敛为对应 target 到 run-focused.sh 的精确三行 dispatch 静态合同后，是否仍能拒绝错误 runner、保持 RTL/TB/编译成功负向 RTL 变体与 design_id 的 fail-closed 绑定，并避免无关 Make target 新增导致假失效。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tools/ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/subagent-contracts/v11w-ifu-dispatch-bounded-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "实现差异：两份 evidence builder 与 arch_stable_freeze 的 IFU source_bindings 不再包含整个 npc/rv64/Makefile；两份 validate_static_contract 仍读取该文件，并要求对应 .PHONY、target 和指向冻结 run-focused.sh 的 recipe 三行恰好出现一次。",
+      "定向反例：两份单测均证明追加 unrelated-target 后 dispatch 合同仍接受，而把 run-focused.sh 改成 wrong-runner.sh 时抛出 canonical Make dispatch ValueError。",
+      "冻结重建：IFU-AXI focused 3/3、113/113 module、18/18 compile-success negative RTL variants；IFU-ACCESS focused 5/5、113/113 module、19/19 variants；合计 20 个证据单测 PASS。",
+      "身份边界：两份 current JSON 的 design_id 均为 sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4；12 个冻结输入的 before/after SHA manifest 完全相同；原始行为 raw log SHA 未变。",
+      "发布边界：architecture audit 为 GAP、PPA UNQUALIFIED、promotion_eligible=false、53 blockers；architecture-debt-ledger 仍保留 IFU-AXI-G1 与 IFU-ACCESS-G1 的 STALE_EVIDENCE，未形成混合 design cohort。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 证据对象、编译配置、TB/EDA 观测和 PASS/GAP 范围给出限定材料复核；明确反例、未知项、替代假设、是否存在假绿或范围扩展请求。"
+  ],
+  "success_criteria": [
+    "只有当 target 级 dispatch 对错误 runner fail-closed、无关 target 不触发语义漂移、现有 RTL/TB/variant/design_id 绑定未被删减且全核 GAP 边界保留时，才可判定 scoped PASS；否则指出具体证据字段与反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

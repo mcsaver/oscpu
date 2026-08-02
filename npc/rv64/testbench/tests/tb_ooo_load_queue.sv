@@ -356,12 +356,56 @@ module tb_ooo_load_queue;
               !issue0_open, 1'b1);
     clear_events();
 
+    issue0_valid = 1'b1;
+    issue0_pid = p0;
+    issue0_pid[PRODUCER_ID_W-1] = 1'bx;
+    issue1_valid = 1'b1;
+    issue1_pid = p1;
+    issue1_pid[PRODUCER_ID_W-1] = 1'bx;
+    release0_valid = 1'b1;
+    release0_pid = p0;
+    release0_pid[PRODUCER_ID_W-1] = 1'bx;
+    release1_valid = 1'b1;
+    release1_pid = p1;
+    release1_pid[PRODUCER_ID_W-1] = 1'bx;
+    #1;
+    tb_check1("unknown ProducerId closes both issue lookups",
+              !issue0_open && !issue1_open, 1'b1);
+    tb_check1("unknown ProducerId closes Q-only and bypass release lookups",
+              !release0_q_ready && !release1_q_ready &&
+              !release0_ready && !release1_ready, 1'b1);
+    clear_events();
+
     launch0_valid = 1'b1;
     launch0_pid = p0;
     launch1_valid = 1'b1;
     launch1_pid = p1;
     `TB_TICK(clk);
     clear_events();
+
+    query0_valid = 1'b1;
+    query0_pid = p0;
+    query0_pid[PRODUCER_ID_W-1] = 1'bx;
+    query0_paddr = 64'h0000_0000_8000_1000;
+    query1_valid = 1'b1;
+    query1_pid = p1;
+    query1_pid[PRODUCER_ID_W-1] = 1'bx;
+    query1_paddr = 64'h0000_0000_8000_2000;
+    response0_valid = 1'b1;
+    response0_pid = p0;
+    response0_pid[PRODUCER_ID_W-1] = 1'bx;
+    response0_fault = 1'b1;
+    response1_valid = 1'b1;
+    response1_pid = p1;
+    response1_pid[PRODUCER_ID_W-1] = 1'bx;
+    response1_fault = 1'b1;
+    #1;
+    tb_check1("unknown ProducerId closes both final-PA query lookups",
+              !query0_open && !query1_open, 1'b1);
+    tb_check1("fault bypass cannot open an unknown response owner",
+              !response0_open && !response1_open, 1'b1);
+    clear_events();
+    $display("[V13B-LQ-LOOKUP-REDUCTION-X] issue/query/response/release closed PASS");
 
     query0_valid = 1'b1;
     query0_pid = p0;
@@ -468,6 +512,16 @@ module tb_ooo_load_queue;
     alloc_pair(p2, p3);
     tb_check1("four residents exert real LQ capacity backpressure",
               count == ENTRY_N && !alloc0_ready && !alloc1_ready, 1'b1);
+
+    dut.valid_q[0] = 1'bx;
+    #1;
+    tb_check1("unknown valid state cannot create speculative allocation credit",
+              !alloc0_ready && !alloc1_ready, 1'b1);
+    dut.valid_q[0] = 1'b1;
+    #1;
+    tb_check1("known full state restores exact capacity observation",
+              count == ENTRY_N && !alloc0_ready && !alloc1_ready, 1'b1);
+    $display("[V13B-LQ-ALLOC-REDUCTION-X] unknown-valid-is-occupied PASS");
 
     launch0_valid = 1'b1;
     launch0_pid = p2;

@@ -1,0 +1,14 @@
+.github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-focused.sh
+.github/task-runs/2026-07-21-rv64-v8z-frontend-ii1/run-v8z-mutations.py
+npc/rv64/eval/ppa/tools/frontend_ii1_evidence.py
+npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+npc/rv64/eval/ppa/tests/test_frontend_ii1_evidence.py
+npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/task-report.md
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/implementer-result.md
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/dispatch-log.md
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/reviewer-result.md
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/guard-result.md
+.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/subagent-contracts/v13z-di1-frozen-review-v1.json
+.github/memory/project-status.md
+.github/memory/modules/npc.md

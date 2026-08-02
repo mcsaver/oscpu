@@ -17,8 +17,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 VSRCDIR = REPO / "npc/rv64/vsrc"
 TBDIR = REPO / "npc/rv64/testbench"
-WORK = Path("/tmp/rv64-v8z-frontend-ii1-mutations")
-EVIDENCE = HERE / "evidence/mutations"
+DEFAULT_WORK = Path("/tmp/rv64-v8z-frontend-ii1-mutations")
+DEFAULT_EVIDENCE = HERE / "evidence/mutations"
 
 BRIDGE = VSRCDIR / "frontend/OooFetchAxiBridge.v"
 FLOW = VSRCDIR / "frontend/OooFetchFlowControl.v"
@@ -262,8 +262,10 @@ def run_mutation(
     iverilog: str,
     vvp: str,
     suite_run_id: str,
+    work: Path,
+    evidence: Path,
 ) -> dict[str, object]:
-    case_dir = WORK / mutation.name
+    case_dir = work / mutation.name
     case_dir.mkdir(parents=True, exist_ok=True)
     replacements = build_mutants(mutation, case_dir)
     source_set = {path.resolve() for path in sources}
@@ -297,12 +299,20 @@ def run_mutation(
     witness = next(
         (item for item in mutation.witnesses if item in sim_text), "")
     clean_pass = f"[PASS] {mutation.test}" in sim_text
+    result_fail = sim_text.count("[RESULT] FAIL") == 1
+    fatal_fail = (
+        sim_text.count(f"[FAIL] {mutation.test} errors=") == 1
+        and sim_text.count("FATAL:") == 1
+    )
+    failure_termination = int(result_fail) + int(fatal_fail) == 1
     rejected = (
         compiled.returncode == 0 and sim_rc not in (None, 0)
         and bool(witness) and not clean_pass
+        and failure_termination
+        and "[RESULT] PASS" not in sim_text
     )
-    EVIDENCE.mkdir(parents=True, exist_ok=True)
-    log = EVIDENCE / f"{mutation.name}.log"
+    evidence.mkdir(parents=True, exist_ok=True)
+    log = evidence / f"{mutation.name}.log"
     log.write_text(
         "[COMPILE] " + " ".join(command) + "\n" +
         compiled.stdout + compiled.stderr +
@@ -310,6 +320,10 @@ def run_mutation(
         encoding="utf-8",
     )
     targets = sorted({edit.target for edit in mutation.edits})
+    source_hashes = {
+        target.relative_to(REPO).as_posix(): sha256(target.read_bytes())
+        for target in targets
+    }
     mutant_hashes = {
         target.relative_to(REPO).as_posix():
             sha256(replacements[target.resolve()].read_bytes())
@@ -321,7 +335,14 @@ def run_mutation(
         "test": mutation.test,
         "dimensions": list(mutation.dimensions),
         "targets": sorted(mutant_hashes),
+        "source_sha256": source_hashes,
         "mutant_sha256": mutant_hashes,
+        "image_sha256": sha256(image.read_bytes()) if image.is_file() else None,
+        "edit_anchor_count": len(mutation.edits),
+        "activated": all(
+            source_hashes[path] != mutant_hashes[path]
+            for path in mutant_hashes
+        ),
         "compile_success": compiled.returncode == 0,
         "compile_rc": compiled.returncode,
         "sim_rc": sim_rc,
@@ -340,18 +361,43 @@ def run_mutation(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--suite-run-id", required=True)
+    parser.add_argument("--work-dir", type=Path, default=DEFAULT_WORK)
+    parser.add_argument("--evidence-dir", type=Path, default=DEFAULT_EVIDENCE)
     args = parser.parse_args()
     if not re.fullmatch(
-        r"v8z-di1-[0-9]{8}T[0-9]{6}Z-[0-9]+", args.suite_run_id
+        r"v[0-9]+[a-z0-9]*-di1-[0-9]{8}T[0-9]{6}Z-[0-9]+",
+        args.suite_run_id,
     ):
         raise ValueError("malformed local RV64 V8Z suite run id")
 
-    if WORK.exists():
-        shutil.rmtree(WORK)
-    WORK.mkdir(parents=True)
-    if EVIDENCE.exists():
-        shutil.rmtree(EVIDENCE)
-    EVIDENCE.mkdir(parents=True)
+    work = args.work_dir.resolve()
+    tmp_root = Path("/tmp").resolve(strict=True)
+    if work == tmp_root or not work.is_relative_to(tmp_root):
+        raise ValueError("mutation work directory must be a bounded /tmp child")
+    evidence = args.evidence_dir.resolve()
+    canonical_evidence = DEFAULT_EVIDENCE.resolve()
+    if evidence != canonical_evidence:
+        try:
+            parts = evidence.relative_to(REPO).parts
+        except ValueError as exc:
+            raise ValueError("mutation evidence escapes repository") from exc
+        if (
+            len(parts) != 5
+            or parts[0:2] != (".github", "task-runs")
+            or not re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9._-]*",
+                parts[2],
+            )
+            or parts[3:] != ("evidence", "di1-mutations")
+        ):
+            raise ValueError("mutation evidence is outside the DI-1 task-run root")
+
+    if work.exists():
+        shutil.rmtree(work)
+    work.mkdir(parents=True)
+    if evidence.exists():
+        shutil.rmtree(evidence)
+    evidence.mkdir(parents=True)
 
     iverilog, vvp = paired_tools()
     source_cache = {
@@ -368,7 +414,7 @@ def main() -> int:
     results = [
         run_mutation(
             mutation, source_cache[mutation.test], iverilog, vvp,
-            args.suite_run_id,
+            args.suite_run_id, work, evidence,
         )
         for mutation in MUTATIONS
     ]
@@ -391,7 +437,7 @@ def main() -> int:
         "frontend_testbench_sha256": sha256(FRONTEND_TB.read_bytes()),
         "results": results,
     }
-    (EVIDENCE / "summary.json").write_text(
+    (evidence / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )

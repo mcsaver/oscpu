@@ -1,0 +1,6 @@
+2026-08-01T18:06:22Z	bridge-local-contract	PASS	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/module-testbench-focused/logs/tb_ooo_mem_axi_bridge_v13p_store_b_fusion.log
+2026-08-01T18:06:22Z	backend-direct-lifecycle	PASS	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/backend-bridge-directed/logs/tb_ooo_int_backend_v13p_store_b_fusion.log
+2026-08-01T18:06:22Z	mutation-suite	PASS	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/verification-result.md
+2026-08-01T18:06:22Z	coremark-directional-ab	GAP	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/comparison.json
+2026-08-01T18:06:22Z	yosys-generic-structure	GAP	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/yosys-bridge-structural/comparison.json
+2026-08-01T18:13:45Z	independent-review-development-scope	PASS	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/reviewer-result.md

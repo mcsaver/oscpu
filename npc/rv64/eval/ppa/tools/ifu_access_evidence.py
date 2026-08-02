@@ -7,8 +7,10 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import re
+import subprocess
 import sys
 from typing import Any, Sequence
 
@@ -16,7 +18,20 @@ from typing import Any, Sequence
 SCHEMA = "npc-rv64-ifu-access-evidence-v1"
 VARIANT_SCHEMA = "npc-rv64-ifu-access-rtl-variants-v1"
 RUN_ID = "2026-07-22-rv64-v9i-ifu-access-current-design"
-CANONICAL_COMMAND = "make -C npc/rv64 check-ifu-access"
+CANONICAL_COMMAND = (
+    "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+    "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+    "-f eval/ppa/ifu-evidence.mk check-ifu-access"
+)
+CANONICAL_TARGET = "check-ifu-access"
+CANONICAL_DISPATCH_FILE = "npc/rv64/eval/ppa/ifu-evidence.mk"
+CANONICAL_RUNNER = f".github/task-runs/{RUN_ID}/run-focused.sh"
+CANONICAL_DISPATCH_BLOCK = (
+    ".PHONY: check-ifu-access\n"
+    "check-ifu-access:\n"
+    "\t@bash ../../.github/task-runs/"
+    f"{RUN_ID}/run-focused.sh"
+)
 REPO = pathlib.Path(__file__).resolve().parents[5]
 
 ARCH_TOOL = pathlib.Path(__file__).with_name("architecture_hard_gates.py")
@@ -394,6 +409,80 @@ def validate_variants(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
     }
 
 
+def validate_canonical_make_dispatch(makefile_text: str) -> None:
+    """Validate a literal-only dispatch file before asking Make to parse it."""
+
+    safe_target = r"[A-Za-z0-9_.-]+"
+    safe_recipe = re.compile(r"^\t@?[A-Za-z0-9_./ -]+$")
+    for line_number, line in enumerate(makefile_text.splitlines(), start=1):
+        if not line or line.startswith("#"):
+            continue
+        if safe_recipe.fullmatch(line):
+            continue
+        if re.fullmatch(rf"\.PHONY:(?: {safe_target})+", line):
+            continue
+        if re.fullmatch(rf"{safe_target}:", line):
+            continue
+        raise ValueError(
+            "IFU access restricted Make dispatch contains dynamic syntax at "
+            f"line {line_number}"
+        )
+
+    target_rules = re.findall(
+        rf"(?m)^{re.escape(CANONICAL_TARGET)}\s*::?.*$", makefile_text)
+    phony_rules = [
+        line for line in makefile_text.splitlines()
+        if line.startswith(".PHONY:")
+        and CANONICAL_TARGET in line.split()[1:]
+    ]
+    if (
+        makefile_text.count(CANONICAL_DISPATCH_BLOCK) != 1
+        or target_rules != [f"{CANONICAL_TARGET}:"]
+        or phony_rules != [f".PHONY: {CANONICAL_TARGET}"]
+    ):
+        raise ValueError("IFU access canonical Make dispatch drifted")
+
+
+def validate_effective_make_dispatch(
+    make_dir: pathlib.Path,
+    dispatch_file: pathlib.Path,
+    target: str,
+    expected_command: str,
+) -> None:
+    """Resolve a prevalidated literal recipe in a sanitized Make process."""
+
+    dispatch_path = safe_file(make_dir, make_dir / dispatch_file)
+    validate_canonical_make_dispatch(dispatch_path.read_text(encoding="utf-8"))
+
+    env = os.environ.copy()
+    for name in (
+        "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "GNUMAKEFLAGS", "MAKEFILES",
+    ):
+        env.pop(name, None)
+    env["LC_ALL"] = "C"
+    try:
+        completed = subprocess.run(
+            [
+                "/usr/bin/make", "-rR", "--no-print-directory", "-n",
+                "-C", str(make_dir), "-f", dispatch_file.as_posix(),
+                "SHELL=/bin/false", target,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f"cannot resolve IFU access Make dispatch: {exc}") from exc
+    if (
+        completed.returncode != 0
+        or completed.stdout.splitlines() != [expected_command]
+        or completed.stderr.strip()
+    ):
+        raise ValueError("IFU access effective Make recipe drifted")
+
+
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     paths = {
         "bridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
@@ -412,6 +501,16 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
         name: safe_file(root, root / relative).read_text(encoding="utf-8")
         for name, relative in paths.items()
     }
+    makefile = safe_file(
+        root, root / CANONICAL_DISPATCH_FILE
+    ).read_text(encoding="utf-8")
+    validate_canonical_make_dispatch(makefile)
+    validate_effective_make_dispatch(
+        root / "npc/rv64",
+        pathlib.Path("eval/ppa/ifu-evidence.mk"),
+        CANONICAL_TARGET,
+        f"bash ../../{CANONICAL_RUNNER}",
+    )
     anchors = {
         "bridge_exact_instruction_size": (
             "bridge", "ifu_axi_walk_ar_owner_w ? 3'd3 : 3'd1"),
@@ -453,7 +552,13 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     for name, (source, anchor) in anchors.items():
         if texts[source].count(anchor) < 1:
             raise ValueError(f"static contract anchor drifted: {name}")
-    return {name: True for name in anchors}
+    return {
+        **{name: True for name in anchors},
+        "canonical_make_dispatch_is_exact": True,
+        "canonical_make_dispatch_file_is_restricted": True,
+        "canonical_make_environment_is_sanitized": True,
+        "canonical_make_effective_recipe_is_exact": True,
+    }
 
 
 SOURCE_BINDING_PATHS = (
@@ -480,7 +585,7 @@ SOURCE_BINDING_PATHS = (
     "npc/rv64/testbench/Makefile",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    CANONICAL_DISPATCH_FILE,
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/review-summary.md",

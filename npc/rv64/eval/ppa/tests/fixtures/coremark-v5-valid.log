@@ -1,0 +1,10 @@
+Running CoreMark for 10 iterations
+Iterations       : 10
+[0]crcfinal      : 0xfcaf
+CoreMark PASS       4 Marks
+[cpu-exec.cpp:824 region_probe] BOUNDARY kind=start pc=0x00000000800017a8 cycle=10 retired_before=20 lane=0 cycle_retire=1
+[cpu-exec.cpp:842 region_probe] BOUNDARY kind=end pc=0x00000000800017b0 cycle=110 retired_before=120 lane=0 cycle_retire=1
+[cpu-exec.cpp:930 region_probe] FINAL schema=npc-rv64-region-final-v1 counter_scope=pc_bounded_region_v1 complete=1 termination_rc=0 start_seen=1 end_seen=1 start_hits=1 end_hits=1 start_cycle=10 end_cycle=110 cycles=100 start_retired=20 end_retired=120 retired=100
+[cpu-exec.cpp:1020 region_probe] COUNTERS_FINAL schema=npc-rv64-performance-counter-v1 complete=1 available=1 overflow=0 invalid_events=0 start_lane=0 end_lane=0 phase_aligned=1 cycles=100 cycle_useful=60 cycle_rob_empty=10 cycle_head_not_complete=20 cycle_exception_redirect=3 cycle_memory_commit=5 cycle_serialization=2 cycle_unknown=0 slot_capacity=200 retired_slots=100 unused_slots=100 slot_rob_empty=20 slot_head_not_complete=50 slot_exception_redirect=8 slot_memory_commit=15 slot_serialization=7 slot_unknown=0 conservation=1
+[cpu-exec.cpp:2006 cpu_exec] npc: HIT GOOD TRAP at pc = 0x0000000080002010
+[cpu-exec.cpp:2020 report_run_result] exit via ebreak, code=0, cycles=150, commits=141

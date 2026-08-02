@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11x-control-event-resident-holder-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 RV64 OooIntBackend bank0/bank1 retry holder 在 control_full_flush_barrier_w 有效的两个周期内保持 resident 且不产生 mem_retry0_req_fire_w 或 mem_retry1_req_fire_w，并核对 compact V9R JSON 已将该正向轨迹与两个 compile-success resident-fire-open RTL 变体绑定。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      "npc/rv64/eval/ppa/control-event-evidence.mk",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/control_event_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/evidence/control-event-current.json",
+      "npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/subagent-contracts/v11x-control-event-resident-holder-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/contract.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py",
+      "npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 OooIntBackend holder/请求 fire 信号、C0 周期、TB marker、PASS/GAP 范围给出独立复核，并保留反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "确认 V11L positive log 在两个 barrier 周期同时观察两 bank resident holder 且无 request fire/MIQ push，bank0 与 bank1 resident-fire-open 变体均编译成功并由 stage=c0-filled-holder-pause oracle 拒绝，V9R 总计 3/3 baseline、5/5 RTL 变体且 retained_vvp=0；确认局部 semantic PASS 不改变 04c545 full-core candidate 对 82febf 条目的 closed_binding GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

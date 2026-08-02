@@ -147,12 +147,23 @@ def reconstruct_mutation_sha256(
     return hashlib.sha256(mutant_text.encode("utf-8")).hexdigest()
 
 
-def read_f2_parent_mutations(root: pathlib.Path) -> dict[str, Any]:
-    result_path = arch.safe_artifact(root, F2_RESULT.as_posix())
-    summary_path = arch.safe_artifact(root, F2_MUTATION_SUMMARY.as_posix())
-    mutator_path = arch.safe_artifact(root, F2_MUTATOR.as_posix())
-    control_gate_log_path = arch.safe_artifact(
-        root, F2_CONTROL_GATE_MUTATION_LOG.as_posix())
+def workspace_input(root: pathlib.Path, value: pathlib.Path) -> pathlib.Path:
+    path = value if value.is_absolute() else root / value
+    path = path.resolve(strict=True)
+    if not path.is_relative_to(root):
+        raise ValueError(f"input escapes repository: {value}")
+    if path.is_symlink():
+        raise ValueError(f"input traverses symlink: {value}")
+    return path
+
+
+def read_f2_parent_mutations(
+    root: pathlib.Path,
+    result_path: pathlib.Path,
+    summary_path: pathlib.Path,
+    mutator_path: pathlib.Path,
+    control_gate_log_path: pathlib.Path,
+) -> dict[str, Any]:
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     expected_count = len(F2_REQUIRED_MUTATIONS)
     mutations = payload.get("mutations")
@@ -277,6 +288,15 @@ def main() -> int:
     parser.add_argument("--sources-post", required=True, type=pathlib.Path)
     parser.add_argument("--gate-log", required=True, type=pathlib.Path)
     parser.add_argument("--manifest", required=True, type=pathlib.Path)
+    parser.add_argument("--f2-result", type=pathlib.Path, default=F2_RESULT)
+    parser.add_argument(
+        "--f2-mutation-summary", type=pathlib.Path,
+        default=F2_MUTATION_SUMMARY)
+    parser.add_argument("--f2-mutator", type=pathlib.Path, default=F2_MUTATOR)
+    parser.add_argument(
+        "--f2-control-gate-log", type=pathlib.Path,
+        default=F2_CONTROL_GATE_MUTATION_LOG)
+    parser.add_argument("--run-id", default=RUN_ID)
     args = parser.parse_args()
 
     root = args.repo_root.resolve(strict=True)
@@ -294,7 +314,17 @@ def main() -> int:
         root, sources_post, arch.MEMORY_ORDERING_SOURCE_PATHS)
     if pre_sources != post_sources or sources_pre.read_bytes() != sources_post.read_bytes():
         raise ValueError("canonical OOO-3 proof sources changed during execution")
-    f2_mutation_payload = read_f2_parent_mutations(root)
+    f2_result = workspace_input(root, args.f2_result)
+    f2_mutation_summary = workspace_input(root, args.f2_mutation_summary)
+    f2_mutator = workspace_input(root, args.f2_mutator)
+    f2_control_gate_log = workspace_input(root, args.f2_control_gate_log)
+    f2_mutation_payload = read_f2_parent_mutations(
+        root,
+        f2_result,
+        f2_mutation_summary,
+        f2_mutator,
+        f2_control_gate_log,
+    )
 
     lq_text = clean_simulation(lq_log)
     sq_text = clean_simulation(sq_log)
@@ -326,7 +356,8 @@ def main() -> int:
     for key, marker in (
         ("sq_final_pa_disposition",
          "[V8T-F3-SQ-QUERY] "
-         "allow/forward/merge/youngest/partial/poison/terminal/dual PASS"),
+         "allow/dual-offset/typed/merge/youngest/partial/"
+         "x-poison/x-ignore3/terminal/dual PASS"),
         ("sq_post_launch_owner",
          "[V8G-SQ-POST-LAUNCH] request_sent retains live nonterminal "
          "full-PID owner until exact B PASS"),
@@ -472,35 +503,47 @@ def main() -> int:
     gate_log = workspace_output(root, args.gate_log)
     manifest = workspace_output(root, args.manifest)
     source_sha, rtl_files = arch.rtl_binding(root)
-    proof_paths = (
-        lq_log,
-        sq_log,
-        backend_log,
-        backend_dual_log,
-        glue_log,
-        sustained_log,
-        mutation_results,
-        sources_pre,
-        sources_post,
-        arch.safe_artifact(root, F2_RESULT.as_posix()),
-        arch.safe_artifact(root, F2_MUTATION_SUMMARY.as_posix()),
-        arch.safe_artifact(root, F2_CONTROL_GATE_MUTATION_LOG.as_posix()),
-    )
+    proof_paths = {
+        "lq_log": lq_log,
+        "sq_log": sq_log,
+        "backend_log": backend_log,
+        "backend_dual_log": backend_dual_log,
+        "glue_log": glue_log,
+        "sustained_log": sustained_log,
+        "lq_mutations": mutation_results,
+        "sources_pre": sources_pre,
+        "sources_post": sources_post,
+        "f2_result": f2_result,
+        "f2_mutation_summary": f2_mutation_summary,
+        "f2_control_gate_log": f2_control_gate_log,
+    }
     artifacts = {
         path.relative_to(root).as_posix(): arch.digest(path)
-        for path in proof_paths
+        for path in proof_paths.values()
         if path.is_relative_to(root)
     }
     provenance_files = {
         rel: arch.digest(arch.safe_artifact(root, rel))
-        for rel in arch.MEMORY_ORDERING_PROVENANCE_PATHS
+        for rel in arch.MEMORY_ORDERING_SOURCE_PATHS
     }
     provenance_sha = arch.canonical_digest(provenance_files)
+    proof_files = {
+        role: {
+            "path": path.relative_to(root).as_posix(),
+            "sha256": arch.digest(path),
+        }
+        for role, path in proof_paths.items()
+    }
+    proof_digest_map = {
+        role: f"{item['path']}:{item['sha256']}"
+        for role, item in proof_files.items()
+    }
+    proof_sha = arch.canonical_digest(proof_digest_map)
 
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     gate_lines = [
         "OOO-3 memory ordering evidence",
-        f"run_id={RUN_ID}",
+        f"run_id={args.run_id}",
         f"generated_at_utc={generated_at}",
         f"design_id=sha256:{source_sha}",
         f"rtl_file_count={len(rtl_files)}",
@@ -527,7 +570,7 @@ def main() -> int:
     )
     gate_lines.append(
         "[ARCH-GATE] memory_ordering PASS "
-        f"run_id={RUN_ID} design_id=sha256:{source_sha} "
+        f"run_id={args.run_id} design_id=sha256:{source_sha} "
         f"mutations={mutation_payload['passed_count']}"
     )
     gate_log.write_text("\n".join(gate_lines) + "\n", encoding="utf-8")
@@ -549,7 +592,10 @@ def main() -> int:
             "f2_non_noop": len(F2_REQUIRED_MUTATIONS),
         },
         "provenance": {
+            "mode": "task-run-v1",
             "files": provenance_files,
+            "proof_files": proof_files,
+            "proof_sha256": proof_sha,
             "rtl_file_count": len(rtl_files),
             "rtl_sha256": source_sha,
             "sha256": provenance_sha,

@@ -1,0 +1,8 @@
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+.github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics
+.github/task-runs
+.github/memory
+.github/memory/modules
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1
+.github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence

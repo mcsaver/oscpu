@@ -1,0 +1,80 @@
+{
+  "schema": "rv64-task-result/v1",
+  "run_id": "2026-08-02-rv64-v13u-ooo3-current-rebind-v1",
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow"
+    ]
+  },
+  "status": "PASS_WITH_DECLARED_GAPS",
+  "claim": "current-design OOO-3 memory ordering only",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "production_rtl_changed": false,
+  "hypotheses": {
+    "H1_current_semantics_hold_stale_evidence": "SUPPORTED",
+    "H2_equivalent_lq_refactor_drifted_mutation_and_marker_anchors": "SUPPORTED",
+    "H3_release_recovery_or_terminal_rtl_regression": "NOT_SUPPORTED_IN_OOO3_SCOPE"
+  },
+  "verification": {
+    "positive_profiles": {
+      "required": 6,
+      "passed": 6,
+      "assertions": "OOO_ASSERT"
+    },
+    "ooo3_metrics": {
+      "required": 11,
+      "passed": 11
+    },
+    "lq_compile_success_mutations": {
+      "required": 9,
+      "compiled": 9,
+      "oracle_seen": 9,
+      "dynamically_rejected": 9
+    },
+    "f2_parent_compile_success_mutations": {
+      "required": 18,
+      "dynamically_rejected": 18
+    },
+    "evidence_unit_tests": {
+      "required": 38,
+      "passed": 38
+    },
+    "hard_gate_counterexample_tests": {
+      "required": 31,
+      "passed": 31
+    },
+    "proof_roles": 12,
+    "source_manifest_pre_post_equal": true
+  },
+  "architecture": {
+    "OOO-3": "GREEN",
+    "overall": "RED",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "evidence": {
+    "manifest_sha256": "90e4421f343f7b5027c99e23e4631d70a19e8f6ea01b58bb029e8aea9fdff500",
+    "gate_log_sha256": "46b279af663e1280b19f5eacd51412e63ff1a0cdc0fb812615ef73f8485fd32c",
+    "runner_result_sha256": "2505409d65ab1c8a4d1cf5917ebc72b215c9c3c9bcefe81ae0577334a45b2153",
+    "architecture_result_sha256": "c9c4813923841df6adab63fc9f2a8c1a8421796ab38ecfc12e7a8d836d2817f7",
+    "lq_mutation_result_sha256": "4d16da0d41fd24ecfbb89830880afc0a0419d43798354bb921612620f364222c",
+    "source_manifest_sha256": "a12535809777d3abcc2d67e95d5f89398ed8bd974a59dad334c321b06c1907dd",
+    "canonical_manifest_sha256_unchanged": "a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1"
+  },
+  "review": {
+    "workspace_reviewer": "GAP_AFTER_FINDING_SPEC_NUMBERING_DRIFT",
+    "workspace_reviewer_contract_sha256": "646450caa9579032aff9239ecbdb1b516c15977d165da9e8338a7b3eefa20d52",
+    "frozen_material_reviewer": "APPROVED_FOR_CURRENT_SCOPE",
+    "frozen_material_reviewer_contract_sha256": "b3bff0d64badcb826445248f17d29d32f63a68c9cee3035ded0ecab137b32761",
+    "review_scope": "frozen OOO-3 evidence only; not a complete independent source review"
+  },
+  "declared_gaps": [
+    "DI-1, DI-2, DI-3, DI-4, DI-5, OOO-1, OOO-2 and OOO-4 were not composed into this scoped manifest",
+    "the scoped F2 refresh retains a producer-holder/global-census contract GAP outside the OOO-3 proof-role set",
+    "full-system, CPI, synthesis, STA, area and power were not run",
+    "the no-tools final reviewer did not independently reread RTL, TB or raw logs",
+    "global db-first audit is RED because six unrelated 2026-08-01 historical task-run Markdown files are missing stored copies; all four retained V13U Markdown files compare byte-identical to stored content"
+  ],
+  "next_action": "continue the highest-information-gain open architecture gate; do not promote CPI or PPA"
+}

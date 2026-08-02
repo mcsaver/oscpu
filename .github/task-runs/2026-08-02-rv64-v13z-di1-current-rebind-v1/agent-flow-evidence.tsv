@@ -1,0 +1,5 @@
+2026-08-02T03:33:20Z	focused-simulation	PASS	.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/di1-current/result.json
+2026-08-02T03:33:20Z	compile-success-rtl-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/di1-mutations/summary.json
+2026-08-02T03:33:20Z	scoped-architecture	PASS	.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/architecture-current.json
+2026-08-02T03:38:57Z	independent-frozen-review	PASS	.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/reviewer-result.md
+2026-08-02T03:38:57Z	strict-agent-e2e-guard	GAP	.github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/guard-result.md

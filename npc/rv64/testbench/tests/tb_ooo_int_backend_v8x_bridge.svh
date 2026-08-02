@@ -11,6 +11,18 @@
   localparam [`PMP_ADDR_BUS_W-1:0] V8X_PMP_ALLOW_ALL_ADDR =
       {`PMP_ADDR_BUS_W{1'b1}};
 
+`ifdef V13Q_BACKEND_BRIDGE_STORE_ERROR_BP_FOCUSED
+  // V13Q drives one real Sv39 root-leaf translation so the store's original
+  // VA and final AXI PA differ; this makes the cause/tval oracle source-sensitive.
+  reg [1:0] v13q_priv_mode;
+  reg [`XLEN-1:0] v13q_satp;
+  wire [1:0] v8x_priv_mode_cfg = v13q_priv_mode;
+  wire [`XLEN-1:0] v8x_satp_cfg = v13q_satp;
+`else
+  wire [1:0] v8x_priv_mode_cfg = `PRIV_M;
+  wire [`XLEN-1:0] v8x_satp_cfg = {`XLEN{1'b0}};
+`endif
+
   wire v8x_lane0_req_ready;
   wire v8x_lane0_rsp_valid;
   wire [`XLEN-1:0] v8x_lane0_rsp_rdata;
@@ -122,9 +134,9 @@
     .control_full_flush_barrier_i(1'b0),
     .mmu_flush_i(1'b0),
     .dcache_dma_invalidate_all_i(1'b0),
-    .priv_mode_i(`PRIV_M),
+    .priv_mode_i(v8x_priv_mode_cfg),
     .mstatus_i({`XLEN{1'b0}}),
-    .satp_i({`XLEN{1'b0}}),
+    .satp_i(v8x_satp_cfg),
     .svpbmt_en_i(1'b0),
     .pmpcfg_i(V8X_PMP_ALLOW_ALL_CFG),
     .pmpaddr_i(V8X_PMP_ALLOW_ALL_ADDR),

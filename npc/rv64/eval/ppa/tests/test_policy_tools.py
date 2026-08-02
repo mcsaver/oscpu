@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -279,6 +280,24 @@ class PolicyGateTests(unittest.TestCase):
         for artifact in artifacts:
             with self.subTest(artifact=artifact["kind"]):
                 path = workspace_root / artifact["path"]
+                self.assertTrue(check.is_sha256(artifact["sha256"]))
+                if artifact["kind"] == "normative_architecture_ppa_contract_v2":
+                    # This is an intentionally live normative pointer.  The
+                    # checkpoint keeps its historical digest, while later
+                    # contract revisions must not rewrite the old record.
+                    self.assertTrue(path.is_file(), artifact["path"])
+                    continue
+                if artifact["path"].startswith("tmp/"):
+                    # Reproducible simulator/synthesis intermediates may be
+                    # removed by retention.  If present, they must still match
+                    # the frozen digest; their absence cannot promote this
+                    # explicitly nonpromotable checkpoint.
+                    if path.is_file():
+                        self.assertEqual(
+                            hashlib.sha256(path.read_bytes()).hexdigest(),
+                            artifact["sha256"],
+                        )
+                    continue
                 self.assertTrue(path.is_file(), artifact["path"])
                 self.assertEqual(
                     hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -648,13 +667,36 @@ class ArchitectureFeasibleSeedTests(unittest.TestCase):
 
 
 class RawBenchmarkParserTests(unittest.TestCase):
-    def test_promotion_policy_selects_v3_fixed_regions(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.counter_contract = json.loads(
+            (PPA_DIR.parents[1]
+             / "design/arch/performance-counter-schema-v4.json").read_text(
+                 encoding="utf-8"))
+        cls.v7_counter_contract = json.loads(
+            (PPA_DIR.parents[1]
+             / "design/arch/performance-counter-schema-v3.json").read_text(
+                 encoding="utf-8"))
+        cls.v6_counter_contract = json.loads(
+            (PPA_DIR.parents[1]
+             / "design/arch/performance-counter-schema-v2.json").read_text(
+                 encoding="utf-8"))
+        cls.v5_counter_contract = json.loads(
+            (PPA_DIR.parents[1]
+             / "design/arch/performance-counter-schema-v1.json").read_text(
+                 encoding="utf-8"))
+
+    def test_promotion_policy_selects_v8_fixed_regions(self) -> None:
         policy = json.loads(
             (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
                 encoding="utf-8"))
         evidence = policy["performance_evidence"]
         self.assertEqual(
-            evidence["schema"], "npc-rv64-performance-evidence-v3")
+            evidence["schema"], "npc-rv64-performance-evidence-v8")
+        self.assertEqual(
+            evidence["counter_schema"]["id"],
+            "npc-rv64-pcs-v4-request-detail-20260801",
+        )
         contracts = evidence["benchmark_contracts"]
         self.assertEqual(
             contracts["coremark"],
@@ -669,6 +711,7 @@ class RawBenchmarkParserTests(unittest.TestCase):
                     "start_pc": "0x00000000800017a8",
                     "stop_pc": "0x00000000800017b0",
                     "start_marker_semantics": "first_committed_hit",
+                    "final_marker_semantics": "termination_time_total_hits",
                     "start_hits": 1,
                     "stop_hits": 1,
                 },
@@ -680,27 +723,111 @@ class RawBenchmarkParserTests(unittest.TestCase):
                 "start_pc": "0x0000000080000334",
                 "stop_pc": "0x000000008000047c",
                 "start_marker_semantics": "first_committed_hit",
+                "final_marker_semantics": "termination_time_total_hits",
                 "start_hits": 10000,
                 "stop_hits": 1,
             },
         )
+        readme = (PPA_DIR / "README.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "`design/arch/performance-counter-schema-v4.json`",
+            readme,
+        )
+        self.assertIn(
+            "`PARTIAL_CONSERVING_MEMORY_REQUEST_DETAIL_V4`",
+            readme,
+        )
+        self.assertNotIn(
+            "`design/arch/performance-counter-schema-v3.json` by canonical",
+            readme,
+        )
+
+    def test_v8_reason_detail_and_bridge_encodings_match_rtl_and_host(
+            self) -> None:
+        rv64_dir = PPA_DIR.parents[1]
+        schema = self.counter_contract
+        sim_top = (rv64_dir / "vsrc/sim/NpcSimTop.sv").read_text(
+            encoding="utf-8")
+        cpu_exec = (rv64_dir / "csrc/cpu/cpu-exec.cpp").read_text(
+            encoding="utf-8")
+        reasons = schema["reason_encoding"]
+        self.assertEqual(
+            [item["code"] for item in reasons], list(range(16)))
+        for item in reasons:
+            symbol = item["name"].upper()
+            self.assertRegex(
+                sim_top,
+                rf"SIM_RETIRE_REASON_{symbol}\s*=\s*4'd{item['code']};",
+            )
+            self.assertRegex(
+                cpu_exec,
+                rf"RETIRE_REASON_{symbol}\s*=\s*{item['code']},",
+            )
+        self.assertRegex(cpu_exec, r"RETIRE_REASON_COUNT\s*=\s*16,")
+
+        details = schema["request_detail_encoding"]
+        self.assertEqual(
+            [item["code"] for item in details], list(range(8)))
+        for item in details:
+            symbol = item["name"].upper()
+            self.assertRegex(
+                sim_top,
+                rf"SIM_MEM_REQUEST_DETAIL_{symbol}\s*=\s*3'd{item['code']};",
+            )
+            self.assertRegex(
+                cpu_exec,
+                rf"MEMORY_REQUEST_DETAIL_{symbol}\s*=\s*{item['code']},",
+            )
+        self.assertRegex(
+            cpu_exec, r"MEMORY_REQUEST_DETAIL_COUNT\s*=\s*8,")
+
+        bridge = (rv64_dir / "vsrc/memory/OooMemAxiBridge.v").read_text(
+            encoding="utf-8")
+        bridge_states = {
+            "IDLE": 0,
+            "WALK_AR": 1,
+            "WALK_R": 2,
+            "READ_ADDR": 3,
+            "READ_DATA": 4,
+            "WRITE_REQ": 5,
+            "WRITE_RESP": 6,
+            "RESP": 7,
+            "AD_UPDATE": 8,
+            "LOOKUP": 9,
+            "DEVICE_WAIT": 10,
+            "SQ_QUERY": 12,
+        }
+        for symbol, code in bridge_states.items():
+            self.assertRegex(
+                bridge,
+                rf"S_{symbol}\s*=\s*4'd{code};",
+            )
+            self.assertRegex(
+                sim_top,
+                rf"SIM_MEM_BRIDGE_{symbol}\s*=\s*4'd{code};",
+            )
 
     def test_valid_logs_parse_authoritative_fields(self) -> None:
         policy = json.loads(
             (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
                 encoding="utf-8"))
         contracts = policy["performance_evidence"]["benchmark_contracts"]
+        evidence_schema = policy["performance_evidence"]["schema"]
         coremark = check.parse_raw_benchmark_log(
             FIXTURE_DIR / "coremark-valid.log",
             "coremark",
             "pc_bounded_region_v1",
             contracts["coremark"],
+            evidence_schema,
+            self.counter_contract,
         )
         dhrystone = check.parse_raw_benchmark_log(
             FIXTURE_DIR / "dhrystone-valid.log",
             "dhrystone_10000",
             "pc_bounded_region_v1",
             contracts["dhrystone_10000"],
+            evidence_schema,
+            self.counter_contract,
         )
         self.assertTrue(coremark["pass"])
         self.assertEqual(coremark["good_trap_count"], 1)
@@ -721,6 +848,73 @@ class RawBenchmarkParserTests(unittest.TestCase):
         )
         self.assertEqual(coremark["region"]["start_hits"], 1)
         self.assertEqual(coremark["region"]["stop_hits"], 1)
+        self.assertEqual(coremark["cpi_stack"]["useful"], 60)
+        self.assertEqual(coremark["cpi_stack"]["dependency"], 8)
+        self.assertEqual(coremark["cpi_stack"]["issue_terminal"], 4)
+        self.assertEqual(coremark["cpi_stack"]["execution_latency"], 3)
+        self.assertEqual(coremark["cpi_stack"]["memory_latency"], 5)
+        self.assertEqual(
+            coremark["cpi_stack"]["memory_lifecycle"],
+            {
+                "reservation_queue": 1,
+                "translation_order": 1,
+                "request_outstanding": 2,
+                "response_terminal": 1,
+                "retry": 0,
+                "lifecycle_unknown": 0,
+            },
+        )
+        self.assertEqual(
+            coremark["cpi_stack"]["memory_request_detail"],
+            {
+                "cache_lookup": 1,
+                "device_wait": 0,
+                "axi_read_address": 0,
+                "axi_read_data": 1,
+                "axi_write_request": 0,
+                "axi_write_response": 0,
+                "detail_unknown": 0,
+            },
+        )
+        self.assertEqual(
+            coremark["cpi_stack"]["head_not_complete_aggregate"], 20)
+        self.assertEqual(coremark["cpi_stack"]["unknown_ratio"], 0.0)
+        self.assertEqual(
+            coremark["retire_slots"],
+            {
+                "capacity": 200,
+                "retired": 100,
+                "unused": 100,
+                "rob_empty": 20,
+                "dependency": 18,
+                "issue_terminal": 10,
+                "execution_latency": 8,
+                "memory_latency": 14,
+                "head_lifecycle_unknown": 0,
+                "exception_redirect": 8,
+                "memory_commit": 15,
+                "serialization": 7,
+                "unknown": 0,
+                "head_not_complete_aggregate": 50,
+                "memory_lifecycle": {
+                    "reservation_queue": 4,
+                    "translation_order": 3,
+                    "request_outstanding": 5,
+                    "response_terminal": 2,
+                    "retry": 0,
+                    "lifecycle_unknown": 0,
+                },
+                "memory_request_detail": {
+                    "cache_lookup": 2,
+                    "device_wait": 0,
+                    "axi_read_address": 1,
+                    "axi_read_data": 2,
+                    "axi_write_request": 0,
+                    "axi_write_response": 0,
+                    "detail_unknown": 0,
+                },
+            },
+        )
         self.assertEqual(dhrystone["runs"], 10000)
         self.assertEqual(dhrystone["counter_scope"], "pc_bounded_region_v1")
         self.assertEqual(dhrystone["cycles"], 100)
@@ -736,6 +930,202 @@ class RawBenchmarkParserTests(unittest.TestCase):
             {"cycles": 40, "retired_instructions": 21},
         )
 
+    def test_v4_parser_remains_explicitly_compatible(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        parsed = check.parse_raw_benchmark_log(
+            FIXTURE_DIR / "coremark-valid.log",
+            "coremark",
+            "pc_bounded_region_v1",
+            policy["performance_evidence"]["benchmark_contracts"]["coremark"],
+            "npc-rv64-performance-evidence-v4",
+        )
+        self.assertEqual(parsed["cycles"], 100)
+        self.assertNotIn("cpi_stack", parsed)
+
+    def test_v8_zero_dependency_is_a_valid_observation(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        text = (FIXTURE_DIR / "coremark-valid.log").read_text(
+            encoding="utf-8")
+        text = (text
+                .replace(" cycle_dependency=8", " cycle_dependency=0")
+                .replace(
+                    " cycle_issue_terminal=4", " cycle_issue_terminal=12")
+                .replace(" slot_dependency=18", " slot_dependency=0")
+                .replace(
+                    " slot_issue_terminal=10", " slot_issue_terminal=28"))
+        with tempfile.TemporaryDirectory() as temp:
+            path = pathlib.Path(temp) / "coremark-zero-dependency.log"
+            path.write_text(text, encoding="utf-8")
+            parsed = check.parse_raw_benchmark_log(
+                path,
+                "coremark",
+                "pc_bounded_region_v1",
+                policy["performance_evidence"]["benchmark_contracts"][
+                    "coremark"],
+                "npc-rv64-performance-evidence-v8",
+                self.counter_contract,
+            )
+        self.assertEqual(parsed["cpi_stack"]["dependency"], 0)
+        self.assertEqual(parsed["cpi_stack"]["issue_terminal"], 12)
+        self.assertEqual(
+            parsed["cpi_stack"]["head_not_complete_aggregate"], 20)
+
+    def test_v8_counter_marker_fail_closed_mutations(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        contract = policy["performance_evidence"]["benchmark_contracts"][
+            "coremark"]
+        original = (FIXTURE_DIR / "coremark-valid.log").read_text(
+            encoding="utf-8")
+        counter_line = next(
+            line for line in original.splitlines()
+            if "COUNTERS_FINAL" in line)
+        cases = {
+            "missing": (
+                original.replace(counter_line + "\n", ""),
+                "expected exactly one CoreMark performance COUNTERS_FINAL"),
+            "duplicate": (
+                original + counter_line + "\n",
+                "expected exactly one CoreMark performance COUNTERS_FINAL"),
+            "phase": (
+                original.replace("phase_aligned=1", "phase_aligned=0"),
+                "boundary phase is not aligned"),
+            "cycle_sum": (
+                original.replace("cycle_useful=60", "cycle_useful=61"),
+                "cycle conservation mismatch"),
+            "slot_sum": (
+                original.replace("slot_rob_empty=20", "slot_rob_empty=21"),
+                "retire-slot conservation mismatch"),
+            "cycle_head_aggregate": (
+                original.replace(
+                    "cycle_head_not_complete=20",
+                    "cycle_head_not_complete=21"),
+                "head lifecycle aggregate mismatch"),
+            "slot_head_aggregate": (
+                original.replace(
+                    "slot_head_not_complete=50",
+                    "slot_head_not_complete=51"),
+                "head lifecycle aggregate mismatch"),
+            "cycle_memory_aggregate": (
+                original.replace(
+                    "cycle_memory_reservation_queue=1",
+                    "cycle_memory_reservation_queue=2"),
+                "memory lifecycle aggregate mismatch"),
+            "slot_memory_aggregate": (
+                original.replace(
+                    "slot_memory_reservation_queue=4",
+                    "slot_memory_reservation_queue=5"),
+                "memory lifecycle aggregate mismatch"),
+            "cycle_request_detail_aggregate": (
+                original.replace(
+                    "cycle_memory_request_cache_lookup=1",
+                    "cycle_memory_request_cache_lookup=2"),
+                "memory request detail aggregate mismatch"),
+            "slot_request_detail_aggregate": (
+                original.replace(
+                    "slot_memory_request_cache_lookup=2",
+                    "slot_memory_request_cache_lookup=3"),
+                "memory request detail aggregate mismatch"),
+            "retired": (
+                original.replace("retired_slots=100", "retired_slots=99"),
+                "retired-slot binding mismatch"),
+            "overflow": (
+                original.replace("overflow=0", "overflow=1"),
+                "counter overflow is nonzero"),
+            "invalid": (
+                original.replace("invalid_events=0", "invalid_events=1"),
+                "counter invalid_events is nonzero"),
+            "unknown_ratio": (
+                original.replace("cycle_useful=60", "cycle_useful=58")
+                        .replace(" cycle_unknown=0", " cycle_unknown=2"),
+                "unknown cycle ratio exceeds limit"),
+            "request_detail_unknown_ratio": (
+                original.replace(
+                    "cycle_memory_request_cache_lookup=1",
+                    "cycle_memory_request_cache_lookup=0")
+                        .replace(
+                            "cycle_memory_request_axi_read_data=1",
+                            "cycle_memory_request_axi_read_data=0")
+                        .replace(
+                            "cycle_memory_request_detail_unknown=0",
+                            "cycle_memory_request_detail_unknown=2"),
+                "unknown cycle ratio exceeds limit"),
+        }
+        for name, (text, expected) in cases.items():
+            with self.subTest(case=name), tempfile.TemporaryDirectory() as temp:
+                path = pathlib.Path(temp) / "coremark.log"
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, expected):
+                    check.parse_raw_benchmark_log(
+                        path,
+                        "coremark",
+                        "pc_bounded_region_v1",
+                        contract,
+                        "npc-rv64-performance-evidence-v8",
+                        self.counter_contract,
+                    )
+
+    def test_v7_counter_parser_remains_explicitly_compatible(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        parsed = check.parse_raw_benchmark_log(
+            FIXTURE_DIR / "coremark-v7-valid.log",
+            "coremark",
+            "pc_bounded_region_v1",
+            policy["performance_evidence"]["benchmark_contracts"]["coremark"],
+            "npc-rv64-performance-evidence-v7",
+            self.v7_counter_contract,
+        )
+        self.assertEqual(parsed["cycles"], 100)
+        self.assertEqual(
+            parsed["performance_counter_schema"],
+            "npc-rv64-performance-counter-v3")
+        self.assertEqual(
+            parsed["cpi_stack"]["memory_lifecycle"]["request_outstanding"],
+            2)
+
+    def test_v6_counter_parser_remains_explicitly_compatible(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        parsed = check.parse_raw_benchmark_log(
+            FIXTURE_DIR / "coremark-v6-valid.log",
+            "coremark",
+            "pc_bounded_region_v1",
+            policy["performance_evidence"]["benchmark_contracts"]["coremark"],
+            "npc-rv64-performance-evidence-v6",
+            self.v6_counter_contract,
+        )
+        self.assertEqual(parsed["cycles"], 100)
+        self.assertEqual(
+            parsed["performance_counter_schema"],
+            "npc-rv64-performance-counter-v2")
+        self.assertEqual(parsed["cpi_stack"]["memory_latency"], 5)
+
+    def test_v5_counter_parser_remains_explicitly_compatible(self) -> None:
+        policy = json.loads(
+            (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
+                encoding="utf-8"))
+        parsed = check.parse_raw_benchmark_log(
+            FIXTURE_DIR / "coremark-v5-valid.log",
+            "coremark",
+            "pc_bounded_region_v1",
+            policy["performance_evidence"]["benchmark_contracts"]["coremark"],
+            "npc-rv64-performance-evidence-v5",
+            self.v5_counter_contract,
+        )
+        self.assertEqual(parsed["cycles"], 100)
+        self.assertEqual(
+            parsed["performance_counter_schema"],
+            "npc-rv64-performance-counter-v1")
+        self.assertEqual(parsed["cpi_stack"]["head_not_complete"], 20)
+
     def test_coremark_parser_remains_v2_whole_program_compatible(
             self) -> None:
         parsed = check.parse_raw_benchmark_log(
@@ -750,7 +1140,7 @@ class RawBenchmarkParserTests(unittest.TestCase):
         self.assertNotIn("region", parsed)
         self.assertNotIn("post_region", parsed)
 
-    def test_r3p2_interleaved_abc_logs_parse_as_v3_regions(self) -> None:
+    def test_r3p2_interleaved_abc_logs_remain_v3_compatible(self) -> None:
         policy = json.loads(
             (PPA_DIR / "policies" / "proxy-200mhz-v1.json").read_text(
                 encoding="utf-8"))
@@ -788,6 +1178,7 @@ class RawBenchmarkParserTests(unittest.TestCase):
                     benchmark,
                     "pc_bounded_region_v1",
                     contracts[benchmark],
+                    "npc-rv64-performance-evidence-v3",
                 )
                 design = path.parent.name.rsplit("-", 1)[1]
                 observed[design].append((
@@ -860,6 +1251,26 @@ class CheckerCliTests(unittest.TestCase):
         (root / ".git").mkdir()
         policy = copy.deepcopy(self.policy)
         performance_policy = policy["performance_evidence"]
+        contract_source = (
+            PPA_DIR.parents[1]
+            / "design/arch/performance-measurement-contract-v1.json"
+        )
+        contract_destination = root / "performance-measurement-contract.json"
+        contract_destination.write_bytes(contract_source.read_bytes())
+        measurement_binding = performance_policy["measurement_contract"]
+        measurement_binding["path"] = contract_destination.name
+        measurement_binding["sha256"] = hashlib.sha256(
+            contract_destination.read_bytes()).hexdigest()
+        counter_source = (
+            PPA_DIR.parents[1]
+            / "design/arch/performance-counter-schema-v4.json"
+        )
+        counter_destination = root / "performance-counter-schema.json"
+        counter_destination.write_bytes(counter_source.read_bytes())
+        counter_binding = performance_policy["counter_schema"]
+        counter_binding["path"] = counter_destination.name
+        counter_binding["sha256"] = hashlib.sha256(
+            counter_destination.read_bytes()).hexdigest()
         benchmark_contracts = performance_policy["benchmark_contracts"]
         raw_kind_set = {
             kind
@@ -898,6 +1309,10 @@ class CheckerCliTests(unittest.TestCase):
             benchmark_entries.append(item)
 
         performance = {
+            "performance_measurement_contract_id":
+                performance_policy["measurement_contract"]["id"],
+            "performance_counter_schema_id":
+                performance_policy["counter_schema"]["id"],
             "qualified_mhz": 200.0,
             "benchmarks": benchmark_entries,
             "weighted_throughput_mips": 200.0,
@@ -1344,6 +1759,242 @@ class CheckerCliTests(unittest.TestCase):
                         manifest, "--report-only")
                 self.assertEqual(report.returncode, 1)
                 self.assertIn(expected, report.stdout)
+
+    def test_v4_final_marker_is_fail_closed(self) -> None:
+        def rewrite_final(text: str, mode: str) -> str:
+            lines = text.splitlines(keepends=True)
+            final_index = next(
+                index for index, line in enumerate(lines)
+                if "region_probe] FINAL" in line)
+            final_line = lines[final_index]
+            if mode == "missing":
+                del lines[final_index]
+            elif mode == "duplicate":
+                lines.insert(final_index, final_line)
+            elif mode == "early_result_only":
+                lines[final_index] = (
+                    "[cpu-exec.cpp:900 region_probe] RESULT "
+                    "start_hits=1 end_hits=1 start_cycle=10 end_cycle=110 "
+                    "cycles=100 start_retired=20 end_retired=120 retired=100\n"
+                )
+            elif mode == "post_end_start_hit":
+                lines[final_index] = final_line.replace(
+                    "start_hits=1 end_hits=1",
+                    "start_hits=2 end_hits=1",
+                )
+            elif mode == "incomplete":
+                lines[final_index] = final_line.replace(
+                    "complete=1", "complete=0")
+            elif mode == "nonzero_termination":
+                lines[final_index] = final_line.replace(
+                    "termination_rc=0", "termination_rc=1")
+            elif mode == "zero_cycle_region":
+                lines = [
+                    line.replace(
+                        "cycle=110 retired_before=120",
+                        "cycle=10 retired_before=120",
+                    ) if "BOUNDARY kind=end" in line else line
+                    for line in lines
+                ]
+                lines[final_index] = lines[final_index].replace(
+                    "end_cycle=110 cycles=100",
+                    "end_cycle=10 cycles=0",
+                )
+            else:
+                self.fail(f"unknown FINAL mutation mode: {mode}")
+            return "".join(lines)
+
+        cases = (
+            ("missing", "expected exactly one CoreMark region FINAL marker"),
+            ("duplicate", "expected exactly one CoreMark region FINAL marker"),
+            ("early_result_only", "expected exactly one CoreMark region FINAL marker"),
+            ("post_end_start_hit", "region hit count mismatch"),
+            ("incomplete", "region FINAL is incomplete"),
+            ("nonzero_termination", "region FINAL termination_rc is nonzero"),
+            ("zero_cycle_region", "region cycle count must be positive"),
+        )
+        for mode, expected in cases:
+            with self.subTest(mode=mode):
+                with tempfile.TemporaryDirectory() as temp:
+                    manifest = self.make_fixture(
+                        pathlib.Path(temp), raw_logs=True)
+                    self.mutate_artifact(
+                        manifest,
+                        "coremark_raw_log_rep2",
+                        lambda text, selected=mode: rewrite_final(
+                            text, selected),
+                    )
+                    report = self.run_checker(manifest, "--report-only")
+                self.assertEqual(report.returncode, 1)
+                self.assertIn(expected, report.stdout)
+
+    def test_v6_measurement_contract_false_eligibility_blocks_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = self.make_fixture(pathlib.Path(temp), raw_logs=True)
+            strict = self.run_checker(manifest)
+            report = self.run_checker(manifest, "--report-only")
+        self.assertEqual(strict.returncode, 1)
+        self.assertIn(
+            "performance measurement contract is not baseline eligible",
+            strict.stdout,
+        )
+        self.assertEqual(report.returncode, 0)
+        self.assertIn("STRUCTURAL PASS", report.stdout)
+
+    def test_v6_measurement_contract_binding_mutations_fail_closed(self) -> None:
+        cases = ("missing_manifest_id", "flipped_manifest_id",
+                 "flipped_contract_without_policy_rebind",
+                 "missing_policy_binding", "missing_eligibility")
+        for case_name in cases:
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as temp:
+                    root = pathlib.Path(temp)
+                    manifest = self.make_fixture(root, raw_logs=True)
+                    manifest_value = json.loads(
+                        manifest.read_text(encoding="utf-8"))
+                    policy_path = root / "policy.json"
+                    policy_value = json.loads(
+                        policy_path.read_text(encoding="utf-8"))
+                    binding = policy_value["performance_evidence"][
+                        "measurement_contract"]
+                    contract_path = root / binding["path"]
+
+                    if case_name == "missing_manifest_id":
+                        manifest_value["performance"].pop(
+                            "performance_measurement_contract_id")
+                        manifest.write_text(
+                            json.dumps(manifest_value), encoding="utf-8")
+                    elif case_name == "flipped_manifest_id":
+                        manifest_value["performance"][
+                            "performance_measurement_contract_id"] = "wrong"
+                        manifest.write_text(
+                            json.dumps(manifest_value), encoding="utf-8")
+                    elif case_name == "flipped_contract_without_policy_rebind":
+                        contract_value = json.loads(
+                            contract_path.read_text(encoding="utf-8"))
+                        contract_value["performance_baseline_eligible"] = True
+                        contract_path.write_text(
+                            json.dumps(contract_value), encoding="utf-8")
+                    elif case_name == "missing_policy_binding":
+                        policy_value["performance_evidence"].pop(
+                            "measurement_contract")
+                        policy_path.write_text(
+                            json.dumps(policy_value), encoding="utf-8")
+                    elif case_name == "missing_eligibility":
+                        contract_value = json.loads(
+                            contract_path.read_text(encoding="utf-8"))
+                        contract_value.pop("performance_baseline_eligible")
+                        contract_path.write_text(
+                            json.dumps(contract_value), encoding="utf-8")
+                        binding["sha256"] = hashlib.sha256(
+                            contract_path.read_bytes()).hexdigest()
+                        policy_path.write_text(
+                            json.dumps(policy_value), encoding="utf-8")
+
+                    report = self.run_checker(manifest, "--report-only")
+                self.assertEqual(report.returncode, 1)
+                if case_name in ("missing_manifest_id", "flipped_manifest_id"):
+                    self.assertIn(
+                        "performance measurement contract binding mismatch",
+                        report.stdout,
+                    )
+                elif case_name == "flipped_contract_without_policy_rebind":
+                    self.assertIn(
+                        "performance measurement contract digest mismatch",
+                        report.stdout,
+                    )
+                elif case_name == "missing_policy_binding":
+                    self.assertIn(
+                        "policy performance measurement contract is missing",
+                        report.stdout,
+                    )
+                else:
+                    self.assertIn(
+                        "performance baseline eligibility must be boolean",
+                        report.stdout,
+                    )
+
+    def test_v6_counter_schema_binding_mutations_fail_closed(self) -> None:
+        cases = (
+            "missing_manifest_id",
+            "flipped_manifest_id",
+            "flipped_contract_without_policy_rebind",
+            "missing_policy_binding",
+            "flipped_contract_id_with_digest_rebind",
+        )
+        for case_name in cases:
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as temp:
+                    root = pathlib.Path(temp)
+                    manifest = self.make_fixture(root, raw_logs=True)
+                    manifest_value = json.loads(
+                        manifest.read_text(encoding="utf-8"))
+                    policy_path = root / "policy.json"
+                    policy_value = json.loads(
+                        policy_path.read_text(encoding="utf-8"))
+                    binding = policy_value["performance_evidence"][
+                        "counter_schema"]
+                    contract_path = root / binding["path"]
+
+                    if case_name == "missing_manifest_id":
+                        manifest_value["performance"].pop(
+                            "performance_counter_schema_id")
+                        manifest.write_text(
+                            json.dumps(manifest_value), encoding="utf-8")
+                    elif case_name == "flipped_manifest_id":
+                        manifest_value["performance"][
+                            "performance_counter_schema_id"] = "wrong"
+                        manifest.write_text(
+                            json.dumps(manifest_value), encoding="utf-8")
+                    elif case_name == \
+                            "flipped_contract_without_policy_rebind":
+                        contract_value = json.loads(
+                            contract_path.read_text(encoding="utf-8"))
+                        contract_value["retire_width"] = 1
+                        contract_path.write_text(
+                            json.dumps(contract_value), encoding="utf-8")
+                    elif case_name == "missing_policy_binding":
+                        policy_value["performance_evidence"].pop(
+                            "counter_schema")
+                        policy_path.write_text(
+                            json.dumps(policy_value), encoding="utf-8")
+                    elif case_name == \
+                            "flipped_contract_id_with_digest_rebind":
+                        contract_value = json.loads(
+                            contract_path.read_text(encoding="utf-8"))
+                        contract_value[
+                            "performance_counter_schema_id"] = "wrong"
+                        contract_path.write_text(
+                            json.dumps(contract_value), encoding="utf-8")
+                        binding["sha256"] = hashlib.sha256(
+                            contract_path.read_bytes()).hexdigest()
+                        policy_path.write_text(
+                            json.dumps(policy_value), encoding="utf-8")
+
+                    report = self.run_checker(manifest, "--report-only")
+                self.assertEqual(report.returncode, 1)
+                if case_name in (
+                        "missing_manifest_id", "flipped_manifest_id"):
+                    self.assertIn(
+                        "performance counter schema binding mismatch",
+                        report.stdout,
+                    )
+                elif case_name == \
+                        "flipped_contract_without_policy_rebind":
+                    self.assertIn(
+                        "performance counter schema digest mismatch",
+                        report.stdout,
+                    )
+                elif case_name == "missing_policy_binding":
+                    self.assertIn(
+                        "policy performance counter schema is missing",
+                        report.stdout,
+                    )
+                else:
+                    self.assertIn(
+                        "performance counter schema id mismatch",
+                        report.stdout,
+                    )
 
     def test_whole_program_region_scope_mix_is_structural_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

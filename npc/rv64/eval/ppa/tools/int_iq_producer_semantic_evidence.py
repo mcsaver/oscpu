@@ -25,13 +25,13 @@ RTL_PATH = "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
 SELECTOR_PATH = "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v"
 TB_PATH = "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv"
 EXPECTED_RTL_SHA256 = (
-    "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b"
+    "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70"
 )
 EXPECTED_SELECTOR_SHA256 = (
     "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879"
 )
 EXPECTED_TB_SHA256 = (
-    "cb8e875f772157de0651c0582184c78b4820627ab8b1a2dce56cc604c77e9d2c"
+    "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319"
 )
 UNIT_IDS = frozenset({"integer-iq-producers"})
 POSITIVE_PROFILES = {
@@ -162,40 +162,39 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 def mutate_source(text: str, case: str) -> str:
     compact_pid = (
-        "        producer_id_next_r[write_i] = "
-        "producer_id_q[compact_i];\n"
+        "        producer_id_q[compact_g],\n"
     )
     if case == "dispatch0-generation-zero":
         return replace_once(
             text,
-            "      producer_id_next_r[write_i] = dispatch0_producer_id_i;\n",
-            "      producer_id_next_r[write_i] = "
+            "    dispatch0_producer_id_i,\n",
+            "    "
             "{{(PRODUCER_ID_W-ROB_INDEX_W){1'b0}}, "
-            "dispatch0_producer_id_i[ROB_INDEX_W-1:0]};\n",
+            "dispatch0_producer_id_i[ROB_INDEX_W-1:0]},\n",
             case,
         )
     if case == "dispatch1-uses-lane0-pid":
         return replace_once(
             text,
-            "      producer_id_next_r[write_i] = dispatch1_producer_id_i;\n",
-            "      producer_id_next_r[write_i] = dispatch0_producer_id_i;\n",
+            "    dispatch1_producer_id_i,\n",
+            "    dispatch0_producer_id_i,\n",
             case,
         )
     if case == "compaction-uses-write-index-pid":
         return replace_once(
             text,
             compact_pid,
-            "        producer_id_next_r[write_i] = "
-            "producer_id_q[write_i];\n",
+            "        producer_id_q[compact_g - "
+            "compact_remove_prefix_count_w[compact_g]],\n",
             case,
         )
     if case == "compaction-generation-zero":
         return replace_once(
             text,
             compact_pid,
-            "        producer_id_next_r[write_i] = "
+            "        "
             "{{(PRODUCER_ID_W-ROB_INDEX_W){1'b0}}, "
-            "producer_id_q[compact_i][ROB_INDEX_W-1:0]};\n",
+            "producer_id_q[compact_g][ROB_INDEX_W-1:0]},\n",
             case,
         )
     if case == "issue0-generation-zero":
@@ -237,26 +236,22 @@ def mutate_source(text: str, case: str) -> str:
     if case == "issue0-fire-not-removed":
         return replace_once(
             text,
-            "          !(issue0_fire_w &&\n"
-            "            (compact_i[ENTRY_INDEX_W-1:0] == issue0_idx_w)) &&\n",
-            "          !(1'b0 && issue0_fire_w &&\n"
-            "            (compact_i[ENTRY_INDEX_W-1:0] == issue0_idx_w)) &&\n",
+            "      ({8{issue0_fire_w}} & issue0_onehot_w) |\n",
+            "      ({8{1'b0 && issue0_fire_w}} & issue0_onehot_w) |\n",
             case,
         )
     if case == "issue1-fire-not-removed":
         return replace_once(
             text,
-            "          !(issue1_fire_w &&\n"
-            "            (compact_i[ENTRY_INDEX_W-1:0] == issue1_idx_w))) begin\n",
-            "          !(1'b0 && issue1_fire_w &&\n"
-            "            (compact_i[ENTRY_INDEX_W-1:0] == issue1_idx_w))) begin\n",
+            "      ({8{issue1_fire_w}} & issue1_onehot_w) |\n",
+            "      ({8{1'b0 && issue1_fire_w}} & issue1_onehot_w) |\n",
             case,
         )
     if case == "pair-pop-only-entry0":
         return replace_once(
             text,
-            "            ((compact_i == 0) || (compact_i == 1))) &&\n",
-            "            (compact_i == 0)) &&\n",
+            "      ({8{memory_pair_peek_fire_w}} & 8'b0000_0011);\n",
+            "      ({8{memory_pair_peek_fire_w}} & 8'b0000_0001);\n",
             case,
         )
     if case == "kill-boundary-inclusive":
@@ -332,25 +327,22 @@ def mutate_source(text: str, case: str) -> str:
     if case == "dispatch0-pid-x":
         return replace_once(
             text,
-            "      producer_id_next_r[write_i] = dispatch0_producer_id_i;\n",
-            "      producer_id_next_r[write_i] = "
-            "{PRODUCER_ID_W{1'bx}};\n",
+            "    dispatch0_producer_id_i,\n",
+            "    {PRODUCER_ID_W{1'bx}},\n",
             case,
         )
     if case == "dispatch1-pid-x":
         return replace_once(
             text,
-            "      producer_id_next_r[write_i] = dispatch1_producer_id_i;\n",
-            "      producer_id_next_r[write_i] = "
-            "{PRODUCER_ID_W{1'bx}};\n",
+            "    dispatch1_producer_id_i,\n",
+            "    {PRODUCER_ID_W{1'bx}},\n",
             case,
         )
     if case == "compaction-pid-x":
         return replace_once(
             text,
             compact_pid,
-            "        producer_id_next_r[write_i] = "
-            "{PRODUCER_ID_W{1'bx}};\n",
+            "        {PRODUCER_ID_W{1'bx}},\n",
             case,
         )
     raise EvidenceError(f"unsupported mutation case: {case}")

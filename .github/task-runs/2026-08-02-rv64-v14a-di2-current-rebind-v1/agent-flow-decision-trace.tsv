@@ -1,0 +1,3 @@
+2026-08-02T04:03:18Z	hypothesis	Current OooIntIssueQueue packed-state/compaction 演进应保持独立 ADDI 双 lane width/payload/ProducerId 连续性；若 current focused 失败才扩大 production RTL 写范围。	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/task-report.md
+2026-08-02T04:03:18Z	evidence	Current suite v14a-di2-20260802T035719Z-335896 得到 focused 2/2、stall reject 1/1、compile-success RTL mutation 11/11、adjacent regression 8/8，支持 H1 且未发现 production RTL 断点。	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/evidence/di2-current/final.log
+2026-08-02T04:05:12Z	decision	实现者与独立审查者一致：current scoped DI-2 width_continuity 可闭环为 GREEN；aggregate、内部压力场景、workload CPI 与 PPA 保持 GAP，不修改 canonical sibling 状态。	.github/task-runs/2026-08-02-rv64-v14a-di2-current-rebind-v1/review-result.md

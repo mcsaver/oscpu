@@ -1,0 +1,10 @@
+npc/rv64/vsrc/memory
+npc/rv64/testbench/tests
+npc/rv64/design/specs
+yosys-sta
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final
+.
+.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial
+.github/task-runs/2026-07-13-rv64-t3l-branch-target-split/evidence/focused-initial/logs

@@ -1,0 +1,4 @@
+.github/task-runs
+tmp
+.github/runtime-artifacts/agent-flow/task-run-artifact-compaction/preview.txt
+.github/runtime-artifacts/agent-flow/task-run-artifact-compaction/result.txt

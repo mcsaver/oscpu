@@ -1,0 +1,6 @@
+2026-08-01T23:40:28Z	ooo4-current-suite	PASS	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/result.json
+2026-08-01T23:40:28Z	ooo4-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-mutations/summary.json
+2026-08-01T23:40:28Z	ooo4-scoped-hard-gate	PASS	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/architecture-current.json
+2026-08-01T23:40:28Z	simulator-config-binding	PASS	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/static/simulator-config.txt
+2026-08-01T23:40:28Z	independent-review-v2	PASS	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/pre-delivery-review.md
+2026-08-01T23:40:28Z	whole-core-holder-graph	GAP	.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/contract-aggregate-gap.log

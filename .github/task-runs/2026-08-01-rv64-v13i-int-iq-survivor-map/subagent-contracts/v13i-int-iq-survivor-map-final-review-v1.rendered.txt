@@ -1,0 +1,85 @@
+# 本地 RV64 CPU RTL/验证子任务 `v13i-int-iq-survivor-map-final-review-v1`
+
+- RV64 RTL/证据对象：独立复核 OooIntIssueQueue normal compaction 的 packed 八槽 survivor/source 固定 d/d+1/d+2 映射，确认 resident sticky wake payload、dispatch0/1 顺序 append、count 守恒以及 rst/flush/kill 优先级与 V13G 周期语义等价；同时核对定向 testbench、独立 scan reference、同配置局部 mapped/OpenSTA 与冻结 benchmark CPI-neutral 证据的边界。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/subagent-contracts/v13i-int-iq-survivor-map-final-review-v1.json`
+- 合同 JSON SHA-256：`45454002f2b3e0f280d1ebc4db2f22be36ae0ffcc3830ede1cb36494ec1374e9`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/specs/ooo-int-issue-queue.md
+- npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+- npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v
+- npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+- npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv
+- .github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/source/candidate/OooIntIssueQueue.v
+- .github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/focused
+- .github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/integration-final
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/result.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/inputs.pre.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/inputs.post.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/functional-aggregate-result.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.pre.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.post.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/cpi-neutral.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i/summary.json
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/subagent-contracts/v13i-int-iq-survivor-map-final-review-v1.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/specs/ooo-int-issue-queue.md
+- npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+- npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+- .github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i/summary.json
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按 RV64 RTL 对象、周期/配置、TB/EDA 观测与 PASS/GAP 范围给出独立终审；列出 survivor 映射等价性、完整 payload 与 ProducerId 原子同行、负向 selector 扰动灵敏度、综合/STA 身份绑定、CPI-neutral 口径，以及所有反例、未知项、替代假设、范围扩展请求和置信依据。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：明确判定 V13I 是否可作为 APPROVED_DEVELOPMENT_CHECKPOINT；任何 PASS 必须同时说明 37 个 remove mask、5 个 append、独立 scan reference、3 个 backend 集成 TB、当前设计功能闭包、同配置局部 PPA 与 benchmark 周期计数证据，并保持 full-core mapped/STA、qualified power、新完整系统事务和 promotion_eligible 为 GAP/false；发现可操作 RTL 反例时给出具体 signal/cycle/TB 观测。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

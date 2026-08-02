@@ -34,7 +34,7 @@ exact-membership 一致。检查器会调用当前架构 hard-gate 与 producer-
 重算 source closure，不接受仅填写 GREEN/PASS 的摘要。
 
 同源 functional aggregate 必须逐项绑定模块测试的 compile/simulation rc 与唯一 PASS 原始日志；
-official 177/177、AM 59/59、DiffTest mismatch=0、CoreMark 10 次且 CRC `0xfcaf`、
+official 177/177、当前 AM CPU-test 源目录的动态 exact inventory 全部 PASS、DiffTest mismatch=0、CoreMark 10 次且 CRC `0xfcaf`、
 Dhrystone 10000 次及 GOOD TRAP 均需绑定冻结 config/simulator/image 和原始日志。测试清单比较采用
 无重复的 exact set，不把合法的清单排序差异误判为功能变化。每个语义 marker 必须作为完整行
 恰好出现一次；空日志、重复 marker、非 canonical 路径，以及通过 symlink、hardlink 或等价
@@ -97,13 +97,22 @@ errors.
 ## Performance evidence schema
 
 A promotable manifest must declare
-`performance.evidence_schema = npc-rv64-performance-evidence-v3`. The
+`performance.evidence_schema = npc-rv64-performance-evidence-v8`. The
 promotion policy selects a fixed committed-PC region for both benchmarks. It
 has no global `performance.cpi_scope`: each benchmark summary and repetition
 declares its own `counter_scope`, and mixing whole-program and region counters
 is a structural error. The parser retains explicit v2 compatibility for old
 CoreMark whole-program evidence, but v2 is not selectable by this promotion
 policy.
+
+The policy binds both
+`design/arch/performance-measurement-contract-v1.json` and
+`design/arch/performance-counter-schema-v4.json` by canonical workspace path,
+ID, and SHA-256.  The latter is intentionally named
+`PARTIAL_CONSERVING_MEMORY_REQUEST_DETAIL_V4`: it is a mutually-exclusive cycle
+and two-lane retirement-slot ledger with a full-`ProducerId` ROB-head split, an
+exact-token memory holder split, and a conserving request-phase subledger; it
+is not yet the final frontend and global issue-terminal causal CPI stack.
 
 Every benchmark has at least three repetitions. Each repetition contains
 positive integer `cycles` and `retired_instructions`, and binds one raw log
@@ -117,29 +126,64 @@ as required by the existing exact-membership binding check.
 
 Every raw log is parsed independently as bounded UTF-8 evidence with exactly
 one benchmark PASS marker, one GOOD TRAP, one authoritative
-`report_run_result`, and a zero exit code. Both benchmarks use
+`report_run_result`, one termination-time region `FINAL`, one termination-time
+`COUNTERS_FINAL`, and a zero exit code. Both benchmarks use
 `counter_scope = pc_bounded_region_v1`:
 
 - CoreMark starts at `0x00000000800017a8` and stops at
   `0x00000000800017b0`. The captured start is the first committed hit, and the
-  result must report `start_hits=1` and `end_hits=1`. `Iterations=10` and
+  termination-time `FINAL` must report `start_hits=1` and `end_hits=1`.
+  `Iterations=10` and
   `crcfinal=0xfcaf` must match the functional summary in all three logs.
 - Dhrystone starts at `0x0000000080000334` and stops at
   `0x000000008000047c`. The captured start is the first committed hit, and the
-  result must report `start_hits=10000` and `end_hits=1`. The run count must be
+  termination-time `FINAL` must report `start_hits=10000` and `end_hits=1`.
+  The run count must be
   10000 in all three logs.
 
 For each log, the unique start boundary, unique `kind=end` stop boundary, and
-unique region `RESULT` must agree. Selected cycles and retired instructions are
-exactly `stop-start`; they must match the repetition and benchmark summary, and
-the three selected counter pairs must be bit-exact.
+unique region `FINAL` must agree. `FINAL` is emitted only when the simulator
+run terminates, carries the final marker-hit totals, requires
+`schema=npc-rv64-region-final-v1`,
+`counter_scope=pc_bounded_region_v1`, `complete=1`, and
+`termination_rc=0`. An early legacy `RESULT` cannot substitute for `FINAL`.
+Selected cycles and retired instructions are exactly `stop-start`; they must
+match the repetition and benchmark summary, and the three selected counter
+pairs must be bit-exact.
+
+`COUNTERS_FINAL` requires
+`schema=npc-rv64-performance-counter-v4`, `complete=1`, `available=1`,
+`overflow=0`, `invalid_events=0`, and `conservation=1`. Cycle reasons are
+mutually exclusive and sum to region cycles. The compatibility aggregate
+`head_not_complete` must equal dependency + issue-terminal + execution-latency
++ memory-latency + head-lifecycle-unknown for both cycle and retirement-slot
+ledgers. `memory_latency` must independently equal reservation-queue +
+translation-order + request-outstanding + response-terminal + retry +
+memory-lifecycle-unknown. Any individual bucket, including dependency or
+retry, may legally be zero.
+Request-outstanding must independently equal cache-lookup + device-wait +
+AXI-read-address + AXI-read-data + AXI-write-request + AXI-write-response +
+request-detail-unknown for both ledgers. A nonzero request-detail-unknown count
+also contributes to the fail-closed unknown ratio.
+Retirement capacity is exactly
+`2 * cycles + end_lane - start_lane`; current baseline qualification also
+requires `start_lane == end_lane`, so capacity is `2 * cycles`. Retired slots
+must equal selected region retired instructions, all unused-slot reasons must
+sum to the remaining capacity, and
+`(cycle_memory_lifecycle_unknown + cycle_head_lifecycle_unknown +
+cycle_unknown) / cycles` may not exceed 1%.
+Counter stacks and lost-slot ledgers must be bit-exact across the three
+deterministic repetitions. Missing or duplicated counter markers cannot be
+replaced by legacy overlap buckets.
 
 Whole-program exit counters remain mandatory only for semantic and termination
 validation: PASS, exactly one GOOD TRAP, zero exit, CoreMark CRC/iteration
 checks, Dhrystone run-count checks, and a nonnegative dynamic-tail diagnostic.
 Post-region tail cycles or retired instructions may differ between designs.
 Whole-program counters never feed CPI, IPC, throughput, repetition equality, or
-selected retired-instruction equality under v3.
+selected retired-instruction equality under v8. Historical v3/v4/v5/v6/v7 parsing
+remains available only when a caller explicitly selects the older evidence
+schema.
 
 Missing raw logs remain explicit promotion blockers. Malformed, duplicate,
 missing, or ambiguous markers, nonzero exits, semantic/counter/scope mismatches,

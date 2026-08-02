@@ -1,0 +1,2 @@
+2026-08-01T06:56:16Z	evidence	Independent review: A3 historical transaction APPROVE; c1b531-to-5f9dd068 bounded generated-set semantic identity APPROVE; current design 29c0afe8 system binding GAP.	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/review-result.md
+2026-08-01T06:56:16Z	decision	Preserve A3 FAIL and A4 TERM/FAIL. No rerun for A3 oracle correction. Current production system recertification remains a separate future authorized attempt.	.github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/a3-oracle-currentness-audit.json

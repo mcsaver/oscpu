@@ -1,0 +1,5 @@
+2026-08-02T02:57:13Z	di5-current-sustained	PASS	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/di5-current/result.json
+2026-08-02T02:57:13Z	proof-bindings-and-focused-tests	PASS	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/dual-memory-issue.log
+2026-08-02T02:57:14Z	frozen-independent-review	PASS	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/pre-delivery-review.md
+2026-08-02T02:57:14Z	historical-v8u-raw-audit	GAP	.github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence/INCIDENT-2026-08-02.md
+2026-08-02T02:57:15Z	overall-architecture-and-ppa	GAP	.github/task-runs/2026-08-02-rv64-v13y-di5-current-rebind-v1/evidence/architecture-current.json

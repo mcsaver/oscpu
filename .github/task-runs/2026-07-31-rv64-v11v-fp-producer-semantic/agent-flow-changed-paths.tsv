@@ -1,0 +1,10 @@
+npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh
+npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py
+npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/Makefile
+.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic
+.github/memory/project-status.md
+.github/memory/modules/npc.md

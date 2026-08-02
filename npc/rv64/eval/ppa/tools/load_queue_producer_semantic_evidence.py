@@ -30,7 +30,7 @@ EXPECTED_PRE_FIX_RTL_SHA256 = (
     "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e"
 )
 EXPECTED_RTL_SHA256 = (
-    "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427"
+    "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f"
 )
 EXPECTED_TB_SHA256 = (
     "fba6eade2179bd1c9fe350b437a951efd0522bf6980f814761c0bf7d7e87a780"
@@ -185,24 +185,6 @@ def replace_cam_pair(text: str, family: str, signal: str) -> str:
             "(producer_id_q[g][ROB_INDEX_W-1:0] == "
             f"{signal}{lane}_producer_id_i[ROB_INDEX_W-1:0])"
         )
-        mutated = replace_once(
-            mutated, old, new, f"{family}/lane{lane}"
-        )
-    return mutated
-
-
-def remove_terminal_gate_pair(
-    text: str,
-    family: str,
-    first_line: str,
-) -> str:
-    mutated = text
-    for lane in (0, 1):
-        old = (
-            first_line.format(lane=lane)
-            + "\n          !terminal_seen_q[lookup_i] &&"
-        )
-        new = first_line.format(lane=lane)
         mutated = replace_once(
             mutated, old, new, f"{family}/lane{lane}"
         )
@@ -389,8 +371,8 @@ def mutate_source(text: str, case: str) -> str:
     if case == "dual-alloc-same-slot":
         return replace_once(
             text,
-            "        alloc1_idx_r = alloc_i[ENTRY_INDEX_W-1:0];\n",
-            "        alloc1_idx_r = alloc0_idx_r;\n",
+            "  assign alloc1_free_w = alloc_free_w & ~alloc0_onehot_w;\n",
+            "  assign alloc1_free_w = alloc_free_w;\n",
             case,
         )
     if case == "dual-query-same-pid-bypass":
@@ -403,24 +385,32 @@ def mutate_source(text: str, case: str) -> str:
             case,
         )
     if case == "issue-terminal-gate-removed":
-        return remove_terminal_gate_pair(
-            text,
-            case,
-            "      if (issue{lane}_hit_w[lookup_i] && "
-            "!killed_q[lookup_i] &&",
-        )
+        mutated = text
+        for lane in (0, 1):
+            mutated = replace_once(
+                mutated,
+                f"      assign issue{lane}_open_hit_w[g] = "
+                f"issue{lane}_hit_w[g] &&\n"
+                "          !killed_q[g] && !terminal_seen_q[g] && "
+                "!completed_q[g];\n",
+                f"      assign issue{lane}_open_hit_w[g] = "
+                f"issue{lane}_hit_w[g] &&\n"
+                "          !killed_q[g] && !completed_q[g];\n",
+                f"{case}/lane{lane}",
+            )
+        return mutated
     if case == "query-terminal-gate-removed":
         mutated = text
         for lane in (0, 1):
             mutated = replace_once(
                 mutated,
-                f"      if (query{lane}_hit_w[lookup_i] && "
-                "launched_q[lookup_i] &&\n"
-                "          !killed_q[lookup_i] && "
-                "!terminal_seen_q[lookup_i] &&\n",
-                f"      if (query{lane}_hit_w[lookup_i] && "
-                "launched_q[lookup_i] &&\n"
-                "          !killed_q[lookup_i] &&\n",
+                f"      assign query{lane}_open_hit_w[g] = "
+                f"query{lane}_hit_w[g] && launched_q[g] &&\n"
+                "          !killed_q[g] && !terminal_seen_q[g] && "
+                "!completed_q[g] &&\n",
+                f"      assign query{lane}_open_hit_w[g] = "
+                f"query{lane}_hit_w[g] && launched_q[g] &&\n"
+                "          !killed_q[g] && !completed_q[g] &&\n",
                 f"{case}/lane{lane}",
             )
         return mutated
@@ -429,13 +419,13 @@ def mutate_source(text: str, case: str) -> str:
         for lane in (0, 1):
             mutated = replace_once(
                 mutated,
-                f"      if (response{lane}_hit_w[lookup_i] && "
-                "launched_q[lookup_i] &&\n"
-                "          !killed_q[lookup_i] && "
-                "!terminal_seen_q[lookup_i] &&\n",
-                f"      if (response{lane}_hit_w[lookup_i] && "
-                "launched_q[lookup_i] &&\n"
-                "          !killed_q[lookup_i] &&\n",
+                f"      assign response{lane}_open_hit_w[g] = "
+                f"response{lane}_hit_w[g] &&\n"
+                "          launched_q[g] && !killed_q[g] && "
+                "!terminal_seen_q[g] &&\n",
+                f"      assign response{lane}_open_hit_w[g] = "
+                f"response{lane}_hit_w[g] &&\n"
+                "          launched_q[g] && !killed_q[g] &&\n",
                 f"{case}/lane{lane}",
             )
         return mutated
@@ -443,15 +433,14 @@ def mutate_source(text: str, case: str) -> str:
         mutated = text
         for lane in (0, 1):
             old = (
-                f"      if (release{lane}_match_w[lookup_i] &&\n"
-                "          (completed_q[lookup_i] || "
-                "completion0_hit_w[lookup_i] ||\n"
-                "           completion1_hit_w[lookup_i]))\n"
-                f"        release{lane}_ready_r = 1'b1;\n"
+                f"      assign release{lane}_ready_hit_w[g] = "
+                f"release{lane}_match_w[g] &&\n"
+                "          (completed_q[g] || completion0_hit_w[g] || "
+                "completion1_hit_w[g]);\n"
             )
             new = (
-                f"      if (release{lane}_match_w[lookup_i])\n"
-                f"        release{lane}_ready_r = 1'b1;\n"
+                f"      assign release{lane}_ready_hit_w[g] = "
+                f"release{lane}_match_w[g];\n"
             )
             mutated = replace_once(
                 mutated, old, new, f"{case}/lane{lane}"
@@ -460,8 +449,9 @@ def mutate_source(text: str, case: str) -> str:
     if case == "alloc-borrows-same-edge-release":
         return replace_once(
             text,
-            "  assign alloc0_ready_o = alloc0_found_r;\n",
-            "  assign alloc0_ready_o = alloc0_found_r || release0_fire_o;\n",
+            "  assign alloc0_ready_o = |alloc0_onehot_w;\n",
+            "  assign alloc0_ready_o = |alloc0_onehot_w || "
+            "release0_fire_o;\n",
             case,
         )
     raise EvidenceError(f"unsupported mutation case: {case}")

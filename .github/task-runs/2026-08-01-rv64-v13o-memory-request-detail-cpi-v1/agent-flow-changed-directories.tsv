@@ -1,0 +1,15 @@
+npc/rv64/vsrc/sim
+npc/rv64/csrc/cpu
+npc/rv64/design/arch
+npc/rv64/eval/ppa/policies
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa/tests/fixtures
+.github/task-runs
+.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/driver
+.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1
+.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence
+.github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/checker-replay-current-closure
+.github/memory
+.github/memory/modules

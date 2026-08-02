@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13v-ooo4-frozen-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据随附的本地 RV64 OOO-4 冻结证据，独立复核分支误预测恢复、严格年轻流水事务取消、ProducerId 完成退休账本、已发 AXI 事务排水，以及 task-run-v1 路径和哈希绑定是否足以授权当前 design-id 的 scoped OOO-4 GREEN；优先寻找可导致假绿的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/architecture-current.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/speculation-recovery.log",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-mutations/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/sources.pre.sha256",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/sources.post.sha256",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/subagent-contracts/v13v-ooo4-frozen-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整可综合 RTL design_id 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，suite_run_id 为 v8y-ooo4-20260801T232147Z-240214。",
+      "同一 suite 的 OOO_ASSERT 与 release focused 仿真各有唯一 RESULT PASS；linear D0/A1/B2 与 wrap D14/A15/B0 均只允许最老分支 A 解析，年轻 B 的 issue、resolve、complete、retire 均为零，survivor D 与 boundary A 各完成和退休一次。",
+      "同一 focused 二进制报告 EX 严格年轻清除矩阵 checks=8192 failures=0，以及 AXI 恢复轨迹 A=0 B=1 ar=1 drop=2 pop=2 terminal=2 wb=0 commit=0 fill=0 lane1=0 quiet=6 PASS。",
+      "九个 compile-success RTL source mutation 全部编译成功并由指定 testbench witness 动态检出，名称为 control_admit_b、youngest_control_select、resolve_issue_close_bypass、rob_tail_boundary_off_by_one、completion_replay_one_cycle、retire1_owner_remap、iq_kill_holder_bypass、mask_active_recovery_while_station_valid、block_killed_station_promotion；builder 又从当前 RTL 唯一 edit anchor 重构并核对 9 个 mutant SHA-256。",
+      "六项 OOO_ASSERT 邻接回归 tb_ooo_int_backend、tb_ooo_core_top_glue、tb_ooo_redirect_arbiter、tb_ooo_branch_bpu_update_gate、tb_ooo_mem_axi_bridge、tb_ooo_dual_mem_bridge_wrapper 全部 PASS。",
+      "architecture-current.json 仅含 speculation_recovery 记录；七项 metric 全通过：multiple_controls_inflight、oldest_mispredict_wins、wrong_path_selective_squash、fired_axi_drained 为 true，exactly_once_complete_violations、exactly_once_retire_violations、ghost_after_recovery 为零；OOO-4 GREEN，其余 gate 与 overall RED，PPA UNQUALIFIED。",
+      "task-run-v1 provenance 精确包含 27 个 source 文件和 21 个 proof role；21 个 proof path 与 SHA-256 各在 speculation-recovery.log 中恰好出现一次，manifest 同时保存 proof_sha256；定向单测验证缺 role、proof 内容漂移和 gate-log 绑定漂移都会使 OOO-4 evidence check 变 RED。",
+      "sources.pre.sha256 与 sources.post.sha256 字节相等且 SHA-256 都为 5fb13cfdc10f8ba22bebc6206e440473e620fc59f2105887314d9270e23b37a5；本轮未修改 production RTL。",
+      "证据单元与负向审计 40 项全部 PASS；scoped runner 使用合同断言脚本本体核对 OOO_ASSERT 编译开关和 RTL 立即断言计数。全核 producer-holder frozen instance graph 仍绑定旧 design-id 882111fb...，属于本轮未声称闭合的独立全核冻结图 GAP，不得被解释为 OOO-4 或 overall GREEN。",
+      "result.json SHA-256 为 a7fb91541af69676161e6fb2a851bfa5f8adb9ba61c4cb7cab0b00d22b5d5446；architecture-current.json 为 497df9f56796e21b32891ee657a0d8f46783107c71a22d9c0abff33790e546e2；speculation-recovery.log 为 ea553cb93d66bb7479333329d6e71bd57e41095d31e5fa97680dc726977ec88c；mutation summary 为 f3a19c3d0a8440ff89e918e705259f1dffba7ac123cc6ed1545eebd092c2ec46。"
+    ]
+  },
+  "deliverables": [
+    "按 OOO-4 RTL 对象、suite 配置、testbench 观测、PASS 或 GAP 范围给出独立结论；列出任何可操作反例、未知项、替代假设、证据复用边界与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "明确判断这些冻结证据能否仅授权 design-id 093c... 的 scoped OOO-4 GREEN，且不外推 DI-1 至 OOO-3、overall architecture、全核 holder graph 或 PPA；若不能，指出具体 schema 字段、marker、RTL 生命周期或缺失反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

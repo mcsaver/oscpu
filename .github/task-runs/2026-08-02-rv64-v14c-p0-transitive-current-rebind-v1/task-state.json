@@ -1,0 +1,42 @@
+{
+  "schema": "rv64-task-state-v1",
+  "task_id": "rv64-v14c-p0-transitive-current-rebind-v1",
+  "primary_classification": "architecture",
+  "status": "PASS_TASK_LOCAL",
+  "parent_goal_status": "active",
+  "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "production_rtl_file_count": 146,
+  "production_rtl_modified": false,
+  "p0": {
+    "current_dynamic_gates": 9,
+    "required_gates": 9,
+    "negative_observations": 121,
+    "rtl_mutation_executions": 118,
+    "oracle_probe_executions": 3,
+    "unique_rtl_variant_fingerprints": 114,
+    "cross_gate_variant_alias_pairs": 4,
+    "replay_dependency_for_delivery": false
+  },
+  "adjacent_p1": {
+    "debt_id": "MIQ-FLUSH-G1",
+    "negative_observations": 3,
+    "counted_in_p0": false,
+    "classification": "PARTIAL_ONLY"
+  },
+  "review": "APPROVED_CURRENT_SCOPE",
+  "architecture_gate_state": "RED",
+  "arch_stable": false,
+  "ppa_state": "BLOCKED_BY_ARCHITECTURE",
+  "promotion_eligible": false,
+  "historical_status_rewritten": false,
+  "authoritative_receipt": "evidence/p0-final-2/receipt.json",
+  "final_audit": "evidence/final-audit-1/audit.json",
+  "next_action": {
+    "action_id": "P1-DIRECT-ACTIVE-CONE-REBIND",
+    "debt_ids": [
+      "CONTROL-EVENT-G1",
+      "MIQ-FLUSH-G1",
+      "STORE-BRESP-G1"
+    ]
+  }
+}

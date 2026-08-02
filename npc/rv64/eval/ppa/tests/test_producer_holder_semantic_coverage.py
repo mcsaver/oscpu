@@ -20,13 +20,7 @@ sys.modules[SPEC.name] = COVERAGE
 SPEC.loader.exec_module(COVERAGE)
 
 CENSUS = ROOT / "npc/rv64/design/arch/producer-holder-census.json"
-GRAPH = (
-    ROOT
-    / ".github/task-runs/2026-07-31-rv64-"
-    "axi-xbar-naming-refresh/evidence/"
-    "current-holder-instance-graph/"
-    "holder-instance-graph.json"
-)
+GRAPH = COVERAGE.manifest_instance_graph_path(ROOT, CENSUS)
 POLICY = (
     ROOT
     / "npc/rv64/design/arch/"
@@ -44,8 +38,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(counts["semantic_units"], 44)
         self.assertEqual(counts["holder_instances"], 17)
         self.assertEqual(counts["unit_instance_bindings"], 50)
-        self.assertEqual(counts["units_semantic_pass"], 37)
-        self.assertEqual(counts["units_semantic_gap"], 7)
+        self.assertEqual(counts["units_semantic_pass"], 44)
+        self.assertEqual(counts["units_semantic_gap"], 0)
         self.assertEqual(counts["ledger_only_units"], 0)
 
     def test_every_census_unit_and_instance_is_auditable(self) -> None:
@@ -132,70 +126,44 @@ class CurrentWorkspaceTests(unittest.TestCase):
             states["v11d-memory-tracker-cursor-current-closure"],
             "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
         )
-        self.assertEqual(
-            states["v11e-rob-slot-generation-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11f-int-iq-producer-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11g-store-queue-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11h-load-queue-producer-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11j-bridge-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11k-miq-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11l-memory-retry-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11m-memory-reservation-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11n-memory-pending-holder-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11o-memory-buffer-token-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11p-checkpoint-irrevocable-write-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11q-int-lane0-packet-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11r-int-lane1-packet-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11s-muldiv-producer-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11t-clmul-producer-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
-        self.assertEqual(
-            states["v11u-pending-system-producer-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        )
+        expected_current_states = {
+            "v11e-rob-slot-generation-current-closure":
+                "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+            "v11f-int-iq-producer-current-closure":
+                "CURRENT_FULL_RTL_BOUND",
+            "v11g-store-queue-holder-current-closure":
+                "CURRENT_FULL_RTL_BOUND",
+            "v11h-load-queue-producer-current-closure":
+                "CURRENT_FULL_RTL_BOUND",
+            "v11j-bridge-holder-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11k-miq-holder-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11l-memory-retry-holder-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11m-memory-reservation-holder-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11n-memory-pending-holder-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11o-memory-buffer-token-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11p-checkpoint-irrevocable-write-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11q-int-lane0-packet-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11r-int-lane1-packet-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11s-muldiv-producer-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11t-clmul-producer-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11u-pending-system-producer-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "v11v-fp-producer-current-closure":
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+        }
+        for evidence_id, expected_state in expected_current_states.items():
+            self.assertEqual(states[evidence_id], expected_state)
 
     def test_selected_replay_binds_old_and_current_designs_explicitly(
         self,
@@ -207,17 +175,40 @@ class CurrentWorkspaceTests(unittest.TestCase):
             and item["id"]
             != "v11h-load-queue-producer-current-closure"
         ]
-        self.assertEqual(len(selected), 18)
+        self.assertEqual(len(selected), 19)
+        projection_ids = {"v11e-rob-slot-generation-current-closure"}
+        full_current_ids = {
+            "v11f-int-iq-producer-current-closure",
+            "v11g-store-queue-holder-current-closure",
+        }
+        direct_current_ids = full_current_ids | {
+            "v11j-bridge-holder-current-closure",
+            "v11k-miq-holder-current-closure",
+            "v11l-memory-retry-holder-current-closure",
+            "v11m-memory-reservation-holder-current-closure",
+            "v11n-memory-pending-holder-current-closure",
+            "v11o-memory-buffer-token-current-closure",
+            "v11p-checkpoint-irrevocable-write-current-closure",
+            "v11q-int-lane0-packet-current-closure",
+            "v11r-int-lane1-packet-current-closure",
+            "v11s-muldiv-producer-current-closure",
+            "v11t-clmul-producer-current-closure",
+            "v11u-pending-system-producer-current-closure",
+            "v11v-fp-producer-current-closure",
+        }
         for item in selected:
-            self.assertEqual(
-                item["binding_state"],
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            expected_state = (
+                "CURRENT_FULL_RTL_BOUND"
+                if item["id"] in full_current_ids
+                else (
+                    "CURRENT_SELECTED_MACRO_PROJECTION_BOUND"
+                    if item["id"] in projection_ids
+                    else "CURRENT_SELECTED_SOURCE_AND_TB_BOUND"
+                )
             )
+            self.assertEqual(item["binding_state"], expected_state)
             detail = item["detail"]
-            if item["id"] in {
-                "v11t-clmul-producer-current-closure",
-                "v11u-pending-system-producer-current-closure",
-            }:
+            if item["id"] in direct_current_ids:
                 self.assertEqual(
                     detail["evidence_design_id"],
                     detail["current_design_id"],
@@ -228,10 +219,76 @@ class CurrentWorkspaceTests(unittest.TestCase):
                     detail["current_design_id"],
                 )
             self.assertTrue(detail["selected_bindings"])
+            if item["id"] in projection_ids:
+                self.assertIn(
+                    "selected_binding_compatibility_receipt", detail
+                )
+
+    def test_define_projection_is_narrow_and_auditable(self) -> None:
+        projected = [
+            item
+            for item in self.ledger["evidence_sets"]
+            if item["binding_state"]
+            == "CURRENT_SELECTED_MACRO_PROJECTION_BOUND"
+        ]
+        self.assertEqual(len(projected), 1)
+        receipt_paths = {
+            item["detail"]["selected_binding_compatibility_receipt"][
+                "path"
+            ]
+            for item in projected
+        }
+        self.assertEqual(
+            receipt_paths,
+            {
+                ".github/task-runs/2026-08-02-rv64-"
+                "v13w-producer-holder-current-rebind-v1/evidence/"
+                "define-projection-current/receipt.json"
+            },
+        )
+        receipt = json.loads(
+            (ROOT / next(iter(receipt_paths))).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            {item["name"] for item in receipt["macro_delta"]},
+            {"MSTATUS_UXL", "SSTATUS_MASK"},
+        )
+        self.assertEqual(
+            receipt["lexical_dependency"]["selected_reference_hits"],
+            [],
+        )
+        self.assertTrue(receipt["negative_probe"]["detected"])
+        self.assertEqual(
+            len(receipt["negative_probe"]["mismatches"]), 58
+        )
+        self.assertTrue(
+            all(
+                record["equivalent"]
+                for profile in receipt["profiles"]
+                for record in profile["records"]
+            )
+        )
+        for item in projected:
+            define_records = [
+                record
+                for record in item["detail"]["selected_bindings"]
+                if record["path"]
+                == "npc/rv64/vsrc/include/define.v"
+            ]
+            self.assertEqual(len(define_records), 1)
+            self.assertFalse(define_records[0]["matches_live"])
+            self.assertTrue(
+                define_records[0]["semantic_projection_match"]
+            )
+            self.assertIn(
+                "compatibility_receipt", define_records[0]
+            )
             self.assertTrue(
                 all(
                     binding["matches_live"]
-                    for binding in detail["selected_bindings"]
+                    for binding in item["detail"]["selected_bindings"]
+                    if binding["path"]
+                    != "npc/rv64/vsrc/include/define.v"
                 )
             )
 
@@ -280,30 +337,29 @@ class CurrentWorkspaceTests(unittest.TestCase):
             },
         )
         replay = detail["checker_replay"]
-        self.assertEqual(replay["original_attempt"], 4)
-        self.assertTrue(replay["original_fail_preserved"])
-        self.assertFalse(replay["rtl_simulation_reexecuted"])
+        self.assertEqual(
+            replay["mode"], "DIRECT_CURRENT_RTL_EXECUTION"
+        )
+        self.assertFalse(replay["historical_checker_replay_required"])
+        self.assertTrue(replay["rtl_simulation_reexecuted"])
         self.assertEqual(
             replay["binding_state"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_FULL_RTL_BOUND",
         )
         self.assertEqual(len(replay["selected_bindings"]), 3)
-        self.assertNotEqual(
+        self.assertEqual(
             replay["evidence_design_id"],
             replay["current_design_id"],
         )
-        self.assertEqual(replay["frozen_positive_profiles"], 4)
-        self.assertEqual(
-            replay["frozen_raw_q_knownness_assertion_probes"],
-            1,
-        )
-        self.assertEqual(replay["frozen_mutation_simulations"], 62)
+        self.assertEqual(replay["positive_profiles"], 4)
+        self.assertEqual(replay["raw_q_knownness_assertion_probes"], 1)
+        self.assertEqual(replay["mutation_simulations"], 62)
         self.assertTrue(
             replay["system_rerun_required_before_system_promotion"]
         )
         self.assertFalse(replay["system_rerun_executed"])
 
-    def test_only_bounded_v11b_through_v11u_units_are_closed(self) -> None:
+    def test_only_bounded_v11b_through_v11v_units_are_closed(self) -> None:
         passed = {
             unit["id"]
             for unit in self.ledger["units"]
@@ -349,6 +405,13 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 "muldiv-producer",
                 "clmul-producer",
                 "pending-system-producer",
+                "fp-arith-stage-producers",
+                "fp-done-fifo-producers",
+                "fp-exec1-packed-alias",
+                "fp-exec1-packet",
+                "fp-iq-producers",
+                "fp-issue-packet",
+                "fp-long-producer",
             },
         )
 
@@ -463,7 +526,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(detail["c0_empty_and_resident_barriers_closed"])
         self.assertTrue(detail["flush_cancel_over_fire_priority_closed"])
         self.assertTrue(detail["lane10_lane11_cancel_terminal_closed"])
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11l"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -505,7 +568,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(
             detail["selective_and_global_recovery_closed"]
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertTrue(detail["a3_frozen_evidence_unchanged"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11m"])
         self.assertFalse(detail["system_rerun"]["run"])
@@ -545,7 +608,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11n"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -583,7 +646,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11o"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -621,7 +684,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11p"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -663,7 +726,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11q"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -715,7 +778,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
             detail["a3_interpretation"],
             "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11r"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -777,7 +840,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(
             detail["leaf_kill_and_functional_regression_closed"]
         )
-        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(detail["production_design_id_current"])
         unit = next(
             item
             for item in self.ledger["units"]
@@ -845,12 +908,21 @@ class CurrentWorkspaceTests(unittest.TestCase):
             "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
         )
         self.assertEqual(evidence["unit_ids"], ["pending-system-producer"])
-        self.assertEqual(detail["positive_profiles"], 9)
+        self.assertEqual(detail["positive_profiles"], 13)
         self.assertEqual(detail["assertion_negative_profiles_rejected"], 3)
         self.assertEqual(
-            detail["compile_success_mutation_cases_rejected"], 10
+            detail["compile_success_mutation_cases_rejected"], 21
         )
-        self.assertEqual(detail["mutation_simulations_rejected"], 12)
+        self.assertEqual(detail["mutation_simulations_rejected"], 24)
+        self.assertEqual(detail["release_mode_mutation_cases_rejected"], 10)
+        self.assertEqual(
+            detail["assertion_mode_mutation_cases_rejected"], 11
+        )
+        self.assertTrue(
+            detail[
+                "legacy_release_mutation_label_interpreted_as_mixed_mode"
+            ]
+        )
         self.assertEqual(detail["ordinary_regressions_passed"], 4)
         self.assertTrue(detail["pre_rob_has_no_lease_closed"])
         self.assertTrue(detail["csr_only_exact_birth_closed"])
@@ -861,7 +933,29 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(detail["exact_commit_and_flush_death_closed"])
         self.assertTrue(detail["full_pid_and_pc_authorization_closed"])
         self.assertTrue(detail["global_live_mask_reuse_fence_closed"])
-        self.assertEqual(detail["retired_compile_artifacts_validated"], 42)
+        self.assertTrue(
+            detail["production_rob_birth_and_exact_death_closed"]
+        )
+        self.assertTrue(
+            detail["production_core_local_flush_death_closed"]
+        )
+        self.assertTrue(detail["production_wrapper_chain_closed"])
+        self.assertTrue(detail["actual_compiler_input_closure_closed"])
+        self.assertEqual(detail["compiler_input_profiles_validated"], 41)
+        self.assertEqual(
+            detail["compiler_input_compilations_validated"], 48
+        )
+        self.assertEqual(
+            set(detail["compiler_input_required_claim_rtl"]),
+            {
+                "npc/rv64/vsrc/writeback/OooRob.v",
+                "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+                "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+                "npc/rv64/vsrc/control/"
+                "OooPendingSystemAdmissionCancelGate.v",
+            },
+        )
+        self.assertEqual(detail["retired_compile_artifacts_validated"], 169)
         self.assertTrue(detail["production_design_id_current"])
         unit = next(
             item
@@ -870,6 +964,67 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(unit["semantic_status"], "PASS")
         self.assertFalse(unit["gap_classifications"])
+
+    def test_v11v_fp_producers_are_current_compact_and_closed(self) -> None:
+        evidence = next(
+            item
+            for item in self.ledger["evidence_sets"]
+            if item["binding_kind"] == "v11v_fp_producer"
+        )
+        detail = evidence["detail"]
+        expected_units = {
+            "fp-arith-stage-producers",
+            "fp-done-fifo-producers",
+            "fp-exec1-packed-alias",
+            "fp-exec1-packet",
+            "fp-iq-producers",
+            "fp-issue-packet",
+            "fp-long-producer",
+        }
+        self.assertEqual(evidence["scope"], "COMPLETE")
+        self.assertTrue(evidence["semantic_closure"])
+        self.assertEqual(
+            evidence["binding_state"],
+            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+        )
+        self.assertEqual(set(evidence["unit_ids"]), expected_units)
+        self.assertEqual(detail["positive_profiles"], 4)
+        self.assertEqual(
+            detail["compile_success_mutation_cases_rejected"], 14
+        )
+        self.assertEqual(detail["mutation_simulations_rejected"], 28)
+        self.assertEqual(
+            detail["raw_producer_identity_knownness_mutations_rejected"],
+            6,
+        )
+        self.assertEqual(detail["ordinary_regressions_passed"], 4)
+        for key in (
+            "iq_birth_and_residency_closed",
+            "issue_packet_capture_and_residency_closed",
+            "arith_five_stage_residency_closed",
+            "exec1_packet_and_packed_alias_closed",
+            "long_iterative_residency_closed",
+            "done_fifo_pending_and_terminal_release_closed",
+            "wrong_generation_and_ordered_retirement_closed",
+            "full_flush_death_closed",
+            "focused_testbench_overlay_reconstructed",
+        ):
+            self.assertTrue(detail[key], key)
+        self.assertEqual(detail["retired_compile_artifacts_validated"], 51)
+        self.assertTrue(detail["production_design_id_current"])
+        units = {
+            item["id"]: item
+            for item in self.ledger["units"]
+            if item["id"] in expected_units
+        }
+        self.assertEqual(set(units), expected_units)
+        self.assertTrue(
+            all(
+                unit["semantic_status"] == "PASS"
+                and not unit["gap_classifications"]
+                for unit in units.values()
+            )
+        )
 
 
 class NegativeContractTests(unittest.TestCase):
@@ -920,6 +1075,108 @@ class NegativeContractTests(unittest.TestCase):
         )
         path.relative_to(expected_root)
         self.assertNotEqual(path.parent, ROOT)
+
+    def test_define_projection_negative_probe_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item.get("binding_kind") == "v11e_rob_slot_generation"
+        )
+        receipt = json.loads(
+            (ROOT / closure["selected_binding_compatibility_receipt"])
+            .read_text(encoding="utf-8")
+        )
+        receipt["negative_probe"]["detected"] = False
+        receipt_path = self.write_policy(receipt)
+        closure["selected_binding_compatibility_receipt"] = (
+            receipt_path.relative_to(ROOT).as_posix()
+        )
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "negative probe",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_define_projection_cannot_mask_consumer_drift(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item.get("binding_kind") == "v11e_rob_slot_generation"
+        )
+        receipt = json.loads(
+            (ROOT / closure["selected_binding_compatibility_receipt"])
+            .read_text(encoding="utf-8")
+        )
+        target = receipt["target"]
+        records = [
+            {
+                "path": target["path"],
+                "role": "rtl",
+                "evidence_sha256": target["baseline_sha256"],
+                "live_sha256": target["current_sha256"],
+                "matches_live": False,
+            },
+            {
+                "path": "npc/rv64/vsrc/writeback/OooRob.v",
+                "role": "rtl",
+                "evidence_sha256": "0" * 64,
+                "live_sha256": COVERAGE.sha256_file(
+                    ROOT / "npc/rv64/vsrc/writeback/OooRob.v"
+                ),
+                "matches_live": False,
+            },
+        ]
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "cannot cover non-define selected-source drift",
+        ):
+            COVERAGE.validate_selected_binding_projection(
+                ROOT,
+                closure,
+                records,
+                receipt["current_design_id"],
+            )
+
+    def test_internal_manifest_projection_requires_exact_sha_pair(
+        self,
+    ) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item.get("binding_kind") == "v11e_rob_slot_generation"
+        )
+        receipt = json.loads(
+            (ROOT / closure["selected_binding_compatibility_receipt"])
+            .read_text(encoding="utf-8")
+        )
+        target = receipt["target"]
+        compatibility = {
+            target["path"]: {
+                "evidence_sha256": target["baseline_sha256"],
+                "live_sha256": target["current_sha256"],
+            }
+        }
+        self.assertEqual(
+            COVERAGE.stale_manifest_paths(
+                ROOT,
+                {target["path"]: target["baseline_sha256"]},
+                compatible_records=compatibility,
+            ),
+            [],
+        )
+        self.assertEqual(
+            COVERAGE.stale_manifest_paths(
+                ROOT,
+                {target["path"]: "0" * 64},
+                compatible_records=compatibility,
+            ),
+            [target["path"]],
+        )
 
     def test_sha256_cache_invalidates_after_file_change(self) -> None:
         temporary = tempfile.NamedTemporaryFile(
@@ -1099,6 +1356,28 @@ class NegativeContractTests(unittest.TestCase):
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
+    def test_v11b_compact_image_receipt_cannot_claim_retention(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11b_terminal_collector"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["compile_success_mutations"][0]["compiled_image"][
+            "retained"
+        ] = True
+        summary_path = self.write_policy(summary)
+        closure["summary"] = summary_path.relative_to(ROOT).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError, "compact image receipt is invalid"
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
     def test_v11h_load_queue_closure_cannot_be_rebound_to_store(self) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
         closure = next(
@@ -1181,7 +1460,7 @@ class NegativeContractTests(unittest.TestCase):
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
-    def test_v11h_attempt3_historical_replay_cannot_close_current_design(
+    def test_v11h_current_execution_rejects_historical_replay_receipt(
         self,
     ) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
@@ -1197,23 +1476,28 @@ class NegativeContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
-            "checker-replay receipt is incomplete",
+            "direct execution cannot carry a historical",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
-    def test_v11h_current_closure_cannot_omit_attempt4_replay(self) -> None:
+    def test_v11h_historical_closure_cannot_omit_attempt4_replay(self) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
         closure = next(
             item
             for item in policy["evidence_sets"]
             if item["binding_kind"] == "v11h_load_queue_producer"
         )
-        del closure["checker_replay_receipt"]
+        closure["summary"] = (
+            ".github/task-runs/2026-07-30-rv64-v11h-"
+            "load-queue-producer-semantic-coverage/evidence/"
+            "load-queue-producer-attempt-4/summary.json"
+        )
+        closure.pop("checker_replay_receipt", None)
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
-            "requires the attempt-4 checker replay",
+            "historical V11H closure requires the attempt-4 checker replay",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
@@ -2758,6 +3042,28 @@ class NegativeContractTests(unittest.TestCase):
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
+    def test_v11u_mutation_mode_metadata_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11u_pending_system_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["configuration"]["parent_mutations_assertion_mode"] = False
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11U pending-system producer summary is not complete",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
     def test_v11u_compact_cleanup_is_fail_closed(self) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
         closure = next(
@@ -2768,13 +3074,37 @@ class NegativeContractTests(unittest.TestCase):
         summary = json.loads(
             (ROOT / closure["summary"]).read_text(encoding="utf-8")
         )
-        summary["artifact_cleanup"]["removed_count"] = 41
+        summary["artifact_cleanup"]["removed_count"] = 65
         closure["summary"] = self.write_policy(summary).relative_to(
             ROOT
         ).as_posix()
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
             "V11U compact artifact cleanup is incomplete",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11u_generated_overlay_receipt_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11u_pending_system_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["production"]["generated_testbench_overlays"][0][
+            "receipts"
+        ][0]["anchor_count"] = 2
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11U generated testbench overlay is invalid",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
@@ -2842,6 +3172,156 @@ class NegativeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
             "cleanup binding is invalid",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11u_compiler_closure_cannot_drop_rob(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11u_pending_system_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        rob_path = "npc/rv64/vsrc/writeback/OooRob.v"
+        target = next(
+            compile_input
+            for profile in summary["profiles"]
+            for compile_input in profile["compile_inputs"].values()
+            if any(
+                dependency["path"] == rob_path
+                for dependency in compile_input["dependencies"]
+            )
+        )
+        target["dependencies"] = [
+            dependency
+            for dependency in target["dependencies"]
+            if dependency["path"] != rob_path
+        ]
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11U module dependency closure failed",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11u_makefile_selection_digest_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11u_pending_system_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["compile_input_closure"]["build_controls"][
+            "npc/rv64/testbench/Makefile"
+        ] = "0" * 64
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11U compiler input closure header is invalid",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11u_actual_compiler_argv_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11u_pending_system_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        first_compile_input = next(
+            iter(summary["profiles"][0]["compile_inputs"].values())
+        )
+        first_compile_input.pop("compiler_argv_file")
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11U compiler argv binding failed",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11v_mutation_unit_binding_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11v_fp_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["variants"][0]["unit_ids"] = ["fp-long-producer"]
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11V mutation receipt is invalid",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11v_compact_cleanup_is_fail_closed(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11v_fp_producer"
+        )
+        summary = json.loads(
+            (ROOT / closure["summary"]).read_text(encoding="utf-8")
+        )
+        summary["artifact_cleanup"]["removed_count"] = 50
+        closure["summary"] = self.write_policy(summary).relative_to(
+            ROOT
+        ).as_posix()
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "V11V compact artifact cleanup is incomplete",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_v11v_selected_source_set_is_exact(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11v_fp_producer"
+        )
+        closure["current_selected_bindings"] = [
+            binding
+            for binding in closure["current_selected_bindings"]
+            if binding["path"]
+            != "npc/rv64/vsrc/execute/OooFpArithGate.v"
+        ]
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "selected RTL/TB binding set is incomplete",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)

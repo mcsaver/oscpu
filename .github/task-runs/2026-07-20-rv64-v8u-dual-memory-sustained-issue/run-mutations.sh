@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RUN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(git -C "$RUN_DIR" rev-parse --show-toplevel)"
-EVIDENCE_DIR="$RUN_DIR/evidence/mutations-final"
+RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
+DEFAULT_EVIDENCE_DIR="$RUN_DIR/evidence/mutations-final"
+EVIDENCE_DIR=$(realpath -m -- "${V8U_MUTATION_DIR:-$DEFAULT_EVIDENCE_DIR}")
+SCOPED_REFRESH_MODE=${V8U_SCOPED_REFRESH_MODE:-0}
 TB_HOME="$REPO_ROOT/npc/rv64/testbench"
 VSRC="$REPO_ROOT/npc/rv64/vsrc"
 BACKEND="$VSRC/execute/OooIntBackend.v"
@@ -13,6 +15,25 @@ SELECTOR="$VSRC/scheduling/OooIntIssueSelect8.v"
 MUTATOR="$RUN_DIR/mutate-v8u-f4.py"
 V8U_F4_TMP="$(mktemp -d -t v8u-f4-mutations.XXXXXX)"
 trap 'rm -rf -- "$V8U_F4_TMP"' EXIT
+
+fail() {
+  printf '[V8U-F4-MUTATION][FAIL] %s\n' "$*" >&2
+  exit 1
+}
+
+case "$SCOPED_REFRESH_MODE" in
+  0)
+    [[ "$EVIDENCE_DIR" == "$DEFAULT_EVIDENCE_DIR" ]] ||
+      fail "canonical mutation output path mismatch"
+    ;;
+  1)
+    case "$EVIDENCE_DIR" in
+      "$REPO_ROOT"/.github/task-runs/*/evidence/di5-mutations) ;;
+      *) fail "unsafe scoped DI-5 mutation path: $EVIDENCE_DIR" ;;
+    esac
+    ;;
+  *) fail "V8U_SCOPED_REFRESH_MODE must be 0 or 1" ;;
+esac
 
 mkdir -p "$EVIDENCE_DIR/baseline"
 
@@ -108,10 +129,26 @@ for row in "${rows[@]}"; do
     lint_status='unoptflat_recreated'
   fi
 
+  source_sha=$(sha256sum "$source" | awk '{print $1}')
+  mutant_sha=$(sha256sum "$mutant" | awk '{print $1}')
+  image_sha=$(sha256sum "$build_dir/$test.vvp" | awk '{print $1}')
+  {
+    printf 'schema=rv64-di5-mutation-receipt-v1\n'
+    printf 'name=%s\n' "$name"
+    printf 'role=%s\n' "$role"
+    printf 'test=%s\n' "$test"
+    printf 'source_sha256=%s\n' "$source_sha"
+    printf 'mutant_sha256=%s\n' "$mutant_sha"
+    printf 'image_sha256=%s\n' "$image_sha"
+    printf 'compile_success=1\n'
+    printf 'elaborated=1\n'
+    printf 'dynamic_rc=%s\n' "$dynamic_rc"
+    printf 'oracle=%s\n' "$oracle"
+    printf 'cone=%s\n' "$lint_status"
+  } > "$mutation_dir/compile-receipt.txt"
+
   printf '%s|%s|compile_success|target_rejected|%s|%s|%s|%s\n' \
-    "$name" "$role" "$lint_status" \
-    "$(sha256sum "$mutant" | awk '{print $1}')" \
-    "$(sha256sum "$build_dir/$test.vvp" | awk '{print $1}')" \
+    "$name" "$role" "$lint_status" "$source_sha" "$image_sha" \
     "$dynamic_rc" >> "$EVIDENCE_DIR/mutation-summary.tsv"
 done
 

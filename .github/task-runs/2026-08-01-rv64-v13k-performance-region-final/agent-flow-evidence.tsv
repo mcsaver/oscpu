@@ -1,0 +1,5 @@
+2026-08-01T13:11:27Z	focused-policy-tools-49	PASS	.github/task-runs/2026-08-01-rv64-v13k-performance-region-final/verification-result.json
+2026-08-01T13:11:27Z	current-coremark-v4	PASS	.github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/coremark-v4-current.raw.log
+2026-08-01T13:11:27Z	timeout-negative	PASS	.github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/coremark-v4-timeout-negative.log
+2026-08-01T13:11:27Z	same-cycle-lane-order	PASS	.github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/dummy-v4-same-cycle.raw.log
+2026-08-01T13:11:27Z	independent-review-receipt	GAP	.github/task-runs/2026-08-01-rv64-v13k-performance-region-final/reviewer-result.md

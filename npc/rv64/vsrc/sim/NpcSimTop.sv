@@ -133,7 +133,11 @@ import "DPI-C" function void npc_ooo_cycle_event(
   input int unsigned branch_flush,
   input int unsigned exception_busy,
   input longint unsigned pending_branch_pc,
-  input longint unsigned pending_jump_pc
+  input longint unsigned pending_jump_pc,
+  input int unsigned retire_slot0_reason,
+  input int unsigned retire_slot1_reason,
+  input int unsigned retire_slot0_request_detail,
+  input int unsigned retire_slot1_request_detail
 );
 `endif
 
@@ -1005,6 +1009,807 @@ module NpcSimTop (
       u_top.u_core.u_ooo_core.csr_trap_mem_valid_w ||
       u_top.u_core.u_ooo_core.csr_trap_ex_valid_w ||
       u_top.u_core.u_ooo_core.csr_trap_irq_valid_w;
+
+  // V13O conserving ROB-head lifecycle stack.  Every predicate below is an
+  // edge-old full-ProducerId or exact memory-owner-token fact already
+  // maintained by the DUT.  The IQ source-ready view, holder masks, and dual
+  // memory-bridge FSM states are sampled only here; none of these observations
+  // feed a DUT ready/valid, payload, flush, or state input.
+  localparam logic [3:0] SIM_RETIRE_REASON_RETIRED                  = 4'd0;
+  localparam logic [3:0] SIM_RETIRE_REASON_ROB_EMPTY                = 4'd1;
+  localparam logic [3:0] SIM_RETIRE_REASON_DEPENDENCY               = 4'd2;
+  localparam logic [3:0] SIM_RETIRE_REASON_ISSUE_TERMINAL            = 4'd3;
+  localparam logic [3:0] SIM_RETIRE_REASON_EXECUTION_LATENCY         = 4'd4;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_RESERVATION_QUEUE  = 4'd5;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_TRANSLATION_ORDER  = 4'd6;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING = 4'd7;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_RESPONSE_TERMINAL  = 4'd8;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_RETRY              = 4'd9;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN = 4'd10;
+  localparam logic [3:0] SIM_RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN   = 4'd11;
+  localparam logic [3:0] SIM_RETIRE_REASON_EXCEPTION_REDIRECT       = 4'd12;
+  localparam logic [3:0] SIM_RETIRE_REASON_MEMORY_COMMIT            = 4'd13;
+  localparam logic [3:0] SIM_RETIRE_REASON_SERIALIZATION            = 4'd14;
+  localparam logic [3:0] SIM_RETIRE_REASON_UNKNOWN                  = 4'd15;
+
+  // Nested detail is valid only when the primary reason is
+  // MEMORY_REQUEST_OUTSTANDING.  Keeping it separate preserves the verified
+  // four-bit primary partition while exposing the exact bridge phase.
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_NONE               = 3'd0;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_CACHE_LOOKUP       = 3'd1;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_DEVICE_WAIT        = 3'd2;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_AXI_READ_ADDRESS   = 3'd3;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_AXI_READ_DATA      = 3'd4;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_AXI_WRITE_REQUEST  = 3'd5;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_AXI_WRITE_RESPONSE = 3'd6;
+  localparam logic [2:0] SIM_MEM_REQUEST_DETAIL_UNKNOWN            = 3'd7;
+
+  wire sim_retire0_w = core_commit0_valid_w &&
+                       !core_commit0_exception_w;
+  wire sim_retire1_w = core_commit1_valid_w &&
+                       !core_commit1_exception_w;
+  wire [`OOO_PRODUCER_ID_W-1:0] sim_rob_head0_producer_id_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_producer_id_w;
+  wire [`OOO_PRODUCER_ID_W-1:0] sim_rob_head1_producer_id_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_commit1_producer_id_w;
+  wire sim_rob_empty_w =
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.count_q == 0) ||
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.valid_q[
+              u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head_q];
+  wire sim_rob_head1_empty_w =
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.count_q <= 1) ||
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.valid_q[
+              u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head1_w];
+  wire sim_rob_recovery_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.recovering_w ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.flush_i;
+  wire sim_retire0_memory_block_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head0_csr_mem_hold_w ||
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.lq_retire0_permit_w;
+  wire sim_retire1_memory_block_w =
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.lq_retire1_permit_w;
+  wire sim_retire0_serial_block_w =
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.commit_ready_i ||
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head0_context_permit_i ||
+      !u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.fencei_retire_permit_i;
+  wire sim_retire1_serial_block_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.commit1_block_i ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.csr_commit1_block_w;
+
+  wire sim_head0_int_iq_present_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend
+          .int_iq_producer_live_mask_w[sim_rob_head0_producer_id_w];
+  wire sim_head1_int_iq_present_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_dispatch_backend
+          .int_iq_producer_live_mask_w[sim_rob_head1_producer_id_w];
+  wire sim_head0_fp_iq_present_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_fp_backend
+          .fp_iq_producer_live_mask_w[sim_rob_head0_producer_id_w];
+  wire sim_head1_fp_iq_present_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_fp_backend
+          .fp_iq_producer_live_mask_w[sim_rob_head1_producer_id_w];
+
+  logic sim_head0_int_iq_ready_r;
+  logic sim_head1_int_iq_ready_r;
+  logic sim_head0_fp_iq_ready_r;
+  logic sim_head1_fp_iq_ready_r;
+  always_comb begin : sim_head_iq_ready_view
+    integer sim_iq_i;
+    sim_head0_int_iq_ready_r = 1'b0;
+    sim_head1_int_iq_ready_r = 1'b0;
+    sim_head0_fp_iq_ready_r = 1'b0;
+    sim_head1_fp_iq_ready_r = 1'b0;
+    for (sim_iq_i = 0; sim_iq_i < 8; sim_iq_i = sim_iq_i + 1) begin
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+              .valid_q[sim_iq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+               .producer_id_q[sim_iq_i] == sim_rob_head0_producer_id_w)) begin
+        sim_head0_int_iq_ready_r =
+            u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                .src1_ready_q[sim_iq_i] &&
+            u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                .src2_ready_q[sim_iq_i] &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                  .fp_st_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                 .fp_st_ready_q[sim_iq_i]);
+      end
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+              .valid_q[sim_iq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+               .producer_id_q[sim_iq_i] == sim_rob_head1_producer_id_w)) begin
+        sim_head1_int_iq_ready_r =
+            u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                .src1_ready_q[sim_iq_i] &&
+            u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                .src2_ready_q[sim_iq_i] &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                  .fp_st_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_dispatch_backend.u_issue_queue
+                 .fp_st_ready_q[sim_iq_i]);
+      end
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+              .valid_q[sim_iq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+               .producer_id_q[sim_iq_i] == sim_rob_head0_producer_id_w)) begin
+        sim_head0_fp_iq_ready_r =
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs1_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs1_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs2_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs2_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs3_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs3_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .gpr_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .gpr_ready_q[sim_iq_i]);
+      end
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+              .valid_q[sim_iq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+               .producer_id_q[sim_iq_i] == sim_rob_head1_producer_id_w)) begin
+        sim_head1_fp_iq_ready_r =
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs1_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs1_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs2_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs2_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .fs3_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .fs3_ready_q[sim_iq_i]) &&
+            (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                  .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                  .gpr_en_q[sim_iq_i] ||
+             u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                 .u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue
+                 .gpr_ready_q[sim_iq_i]);
+      end
+    end
+  end
+
+  wire sim_head0_iq_present_w =
+      sim_head0_int_iq_present_w || sim_head0_fp_iq_present_w;
+  wire sim_head1_iq_present_w =
+      sim_head1_int_iq_present_w || sim_head1_fp_iq_present_w;
+  wire sim_head0_iq_ready_w =
+      (sim_head0_int_iq_present_w && sim_head0_int_iq_ready_r) ||
+      (sim_head0_fp_iq_present_w && sim_head0_fp_iq_ready_r);
+  wire sim_head1_iq_ready_w =
+      (sim_head1_int_iq_present_w && sim_head1_int_iq_ready_r) ||
+      (sim_head1_fp_iq_present_w && sim_head1_fp_iq_ready_r);
+
+  wire [31:0] sim_mem_owner_live_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_owner_live_mask_w;
+  wire [32*`OOO_PRODUCER_ID_W-1:0] sim_mem_owner_producer_id_table_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_owner_producer_id_table_w;
+  wire [(1 << `OOO_PRODUCER_ID_W)-1:0]
+      sim_mem_owner_producer_live_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_owner_producer_live_mask_w;
+  wire [(1 << `OOO_PRODUCER_ID_W)-1:0]
+      sim_mem_res_producer_live_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_res_producer_live_mask_w;
+  wire [(1 << `OOO_PRODUCER_ID_W)-1:0] sim_lq_producer_live_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.lq_producer_live_mask_w;
+
+  wire [31:0] sim_mem_terminal_pending_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_terminal_pending_mask_w;
+  wire [31:0] sim_mem_terminal_accept_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_terminal_accept_mask_w;
+  wire [31:0] sim_mem_terminal_state_token_mask_w =
+      sim_mem_terminal_pending_mask_w | sim_mem_terminal_accept_mask_w;
+  wire [31:0] sim_mem_reservation_token_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem_res_token_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem1_res_token_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem_buffer_token_mask_w;
+  wire [31:0] sim_mem_inflight_queue_token_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.miq_occupancy_token_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.miq1_occupancy_token_mask_w;
+  wire [31:0] sim_mem_retry_token_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem_retry0_token_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem_retry1_token_mask_w;
+  wire [31:0] sim_mem_other_registered_holder_token_mask_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_mem_pending_token_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v8l_sq_owner_token_mask_r |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_req_fire_owner_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem1_req_fire_owner_mask_w |
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.v9y_mem_birth_token_mask_w;
+  wire [31:0] sim_mem_reservation_queue_token_mask_w =
+      sim_mem_reservation_token_mask_w |
+      sim_mem_inflight_queue_token_mask_w |
+      sim_mem_other_registered_holder_token_mask_w;
+
+  logic [5:0] sim_head0_mem_token_hits_r;
+  logic [5:0] sim_head1_mem_token_hits_r;
+  logic [4:0] sim_head0_mem_token_r;
+  logic [4:0] sim_head1_mem_token_r;
+  integer sim_mem_token_i;
+  always_comb begin
+    sim_head0_mem_token_hits_r = 6'd0;
+    sim_head1_mem_token_hits_r = 6'd0;
+    sim_head0_mem_token_r = 5'd0;
+    sim_head1_mem_token_r = 5'd0;
+    for (sim_mem_token_i = 0; sim_mem_token_i < 32;
+         sim_mem_token_i = sim_mem_token_i + 1) begin
+      if (sim_mem_owner_live_mask_w[sim_mem_token_i] &&
+          (sim_mem_owner_producer_id_table_w[
+               sim_mem_token_i*`OOO_PRODUCER_ID_W +:
+               `OOO_PRODUCER_ID_W] == sim_rob_head0_producer_id_w)) begin
+        sim_head0_mem_token_hits_r = sim_head0_mem_token_hits_r + 6'd1;
+        sim_head0_mem_token_r = sim_mem_token_i[4:0];
+      end
+      if (sim_mem_owner_live_mask_w[sim_mem_token_i] &&
+          (sim_mem_owner_producer_id_table_w[
+               sim_mem_token_i*`OOO_PRODUCER_ID_W +:
+               `OOO_PRODUCER_ID_W] == sim_rob_head1_producer_id_w)) begin
+        sim_head1_mem_token_hits_r = sim_head1_mem_token_hits_r + 6'd1;
+        sim_head1_mem_token_r = sim_mem_token_i[4:0];
+      end
+    end
+  end
+  wire sim_head0_mem_token_live_w =
+      (sim_head0_mem_token_hits_r == 6'd1);
+  wire sim_head1_mem_token_live_w =
+      (sim_head1_mem_token_hits_r == 6'd1);
+
+  localparam integer SIM_LQ_ENTRY_N = (1 << `OOO_ROB_INDEX_W);
+  logic sim_head0_lq_terminal_seen_r;
+  logic sim_head1_lq_terminal_seen_r;
+  integer sim_lq_i;
+  always_comb begin
+    sim_head0_lq_terminal_seen_r = 1'b0;
+    sim_head1_lq_terminal_seen_r = 1'b0;
+    for (sim_lq_i = 0; sim_lq_i < SIM_LQ_ENTRY_N;
+         sim_lq_i = sim_lq_i + 1) begin
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_load_queue.valid_q[sim_lq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_load_queue
+               .producer_id_q[sim_lq_i] == sim_rob_head0_producer_id_w) &&
+          u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_load_queue
+              .terminal_seen_q[sim_lq_i])
+        sim_head0_lq_terminal_seen_r = 1'b1;
+      if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_load_queue.valid_q[sim_lq_i] &&
+          (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+               .u_decode_backend.u_int_backend.u_load_queue
+               .producer_id_q[sim_lq_i] == sim_rob_head1_producer_id_w) &&
+          u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+              .u_decode_backend.u_int_backend.u_load_queue
+              .terminal_seen_q[sim_lq_i])
+        sim_head1_lq_terminal_seen_r = 1'b1;
+    end
+  end
+
+  wire sim_head0_memory_resident_w =
+      sim_mem_owner_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      sim_mem_res_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      sim_lq_producer_live_mask_w[sim_rob_head0_producer_id_w];
+  wire sim_head1_memory_resident_w =
+      sim_mem_owner_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      sim_mem_res_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      sim_lq_producer_live_mask_w[sim_rob_head1_producer_id_w];
+
+  localparam logic [3:0] SIM_MEM_BRIDGE_IDLE       = 4'd0;
+  localparam logic [3:0] SIM_MEM_BRIDGE_WALK_AR    = 4'd1;
+  localparam logic [3:0] SIM_MEM_BRIDGE_WALK_R     = 4'd2;
+  localparam logic [3:0] SIM_MEM_BRIDGE_READ_ADDR  = 4'd3;
+  localparam logic [3:0] SIM_MEM_BRIDGE_READ_DATA  = 4'd4;
+  localparam logic [3:0] SIM_MEM_BRIDGE_WRITE_REQ  = 4'd5;
+  localparam logic [3:0] SIM_MEM_BRIDGE_WRITE_RESP = 4'd6;
+  localparam logic [3:0] SIM_MEM_BRIDGE_RESP        = 4'd7;
+  localparam logic [3:0] SIM_MEM_BRIDGE_AD_UPDATE   = 4'd8;
+  localparam logic [3:0] SIM_MEM_BRIDGE_LOOKUP      = 4'd9;
+  localparam logic [3:0] SIM_MEM_BRIDGE_DEVICE_WAIT = 4'd10;
+  localparam logic [3:0] SIM_MEM_BRIDGE_SQ_QUERY    = 4'd12;
+
+  wire [3:0] sim_mem_bridge0_state_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.state_q;
+  wire [3:0] sim_mem_bridge1_state_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.state_q;
+  wire [4:0] sim_mem_bridge0_active_token_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.active_owner_token_q;
+  wire [4:0] sim_mem_bridge1_active_token_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.active_owner_token_q;
+
+  wire sim_head0_bridge0_active_w = sim_head0_mem_token_live_w &&
+      (sim_mem_bridge0_state_w != SIM_MEM_BRIDGE_IDLE) &&
+      (sim_mem_bridge0_active_token_w == sim_head0_mem_token_r);
+  wire sim_head0_bridge1_active_w = sim_head0_mem_token_live_w &&
+      (sim_mem_bridge1_state_w != SIM_MEM_BRIDGE_IDLE) &&
+      (sim_mem_bridge1_active_token_w == sim_head0_mem_token_r);
+  wire sim_head1_bridge0_active_w = sim_head1_mem_token_live_w &&
+      (sim_mem_bridge0_state_w != SIM_MEM_BRIDGE_IDLE) &&
+      (sim_mem_bridge0_active_token_w == sim_head1_mem_token_r);
+  wire sim_head1_bridge1_active_w = sim_head1_mem_token_live_w &&
+      (sim_mem_bridge1_state_w != SIM_MEM_BRIDGE_IDLE) &&
+      (sim_mem_bridge1_active_token_w == sim_head1_mem_token_r);
+
+  function automatic logic sim_mem_bridge_translation_order_state;
+    input logic [3:0] state;
+    begin
+      sim_mem_bridge_translation_order_state =
+          (state == SIM_MEM_BRIDGE_WALK_AR) ||
+          (state == SIM_MEM_BRIDGE_WALK_R) ||
+          (state == SIM_MEM_BRIDGE_AD_UPDATE) ||
+          (state == SIM_MEM_BRIDGE_SQ_QUERY);
+    end
+  endfunction
+
+  function automatic logic sim_mem_bridge_request_outstanding_state;
+    input logic [3:0] state;
+    begin
+      sim_mem_bridge_request_outstanding_state =
+          (state == SIM_MEM_BRIDGE_READ_ADDR) ||
+          (state == SIM_MEM_BRIDGE_READ_DATA) ||
+          (state == SIM_MEM_BRIDGE_WRITE_REQ) ||
+          (state == SIM_MEM_BRIDGE_WRITE_RESP) ||
+          (state == SIM_MEM_BRIDGE_LOOKUP) ||
+          (state == SIM_MEM_BRIDGE_DEVICE_WAIT);
+    end
+  endfunction
+
+  function automatic logic [2:0] sim_memory_request_detail;
+    input logic bridge0_active;
+    input logic [3:0] bridge0_state;
+    input logic bridge1_active;
+    input logic [3:0] bridge1_state;
+    logic [3:0] active_state;
+    begin
+      active_state = bridge0_active ? bridge0_state : bridge1_state;
+      if (bridge0_active == bridge1_active) begin
+        sim_memory_request_detail = SIM_MEM_REQUEST_DETAIL_UNKNOWN;
+      end else begin
+        case (active_state)
+          SIM_MEM_BRIDGE_LOOKUP:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_CACHE_LOOKUP;
+          SIM_MEM_BRIDGE_DEVICE_WAIT:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_DEVICE_WAIT;
+          SIM_MEM_BRIDGE_READ_ADDR:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_AXI_READ_ADDRESS;
+          SIM_MEM_BRIDGE_READ_DATA:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_AXI_READ_DATA;
+          SIM_MEM_BRIDGE_WRITE_REQ:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_AXI_WRITE_REQUEST;
+          SIM_MEM_BRIDGE_WRITE_RESP:
+            sim_memory_request_detail =
+                SIM_MEM_REQUEST_DETAIL_AXI_WRITE_RESPONSE;
+          default:
+            sim_memory_request_detail = SIM_MEM_REQUEST_DETAIL_UNKNOWN;
+        endcase
+      end
+    end
+  endfunction
+
+  wire sim_head0_mem_translation_order_w =
+      (sim_head0_bridge0_active_w &&
+       sim_mem_bridge_translation_order_state(sim_mem_bridge0_state_w)) ||
+      (sim_head0_bridge1_active_w &&
+       sim_mem_bridge_translation_order_state(sim_mem_bridge1_state_w));
+  wire sim_head1_mem_translation_order_w =
+      (sim_head1_bridge0_active_w &&
+       sim_mem_bridge_translation_order_state(sim_mem_bridge0_state_w)) ||
+      (sim_head1_bridge1_active_w &&
+       sim_mem_bridge_translation_order_state(sim_mem_bridge1_state_w));
+  wire sim_head0_mem_request_outstanding_w =
+      (sim_head0_bridge0_active_w &&
+       sim_mem_bridge_request_outstanding_state(sim_mem_bridge0_state_w)) ||
+      (sim_head0_bridge1_active_w &&
+       sim_mem_bridge_request_outstanding_state(sim_mem_bridge1_state_w));
+  wire sim_head1_mem_request_outstanding_w =
+      (sim_head1_bridge0_active_w &&
+       sim_mem_bridge_request_outstanding_state(sim_mem_bridge0_state_w)) ||
+      (sim_head1_bridge1_active_w &&
+       sim_mem_bridge_request_outstanding_state(sim_mem_bridge1_state_w));
+  wire [2:0] sim_head0_mem_request_detail_w = sim_memory_request_detail(
+      sim_head0_bridge0_active_w, sim_mem_bridge0_state_w,
+      sim_head0_bridge1_active_w, sim_mem_bridge1_state_w);
+  wire [2:0] sim_head1_mem_request_detail_w = sim_memory_request_detail(
+      sim_head1_bridge0_active_w, sim_mem_bridge0_state_w,
+      sim_head1_bridge1_active_w, sim_mem_bridge1_state_w);
+  wire sim_head0_mem_bridge_response_w =
+      (sim_head0_bridge0_active_w &&
+       (sim_mem_bridge0_state_w == SIM_MEM_BRIDGE_RESP)) ||
+      (sim_head0_bridge1_active_w &&
+       (sim_mem_bridge1_state_w == SIM_MEM_BRIDGE_RESP));
+  wire sim_head1_mem_bridge_response_w =
+      (sim_head1_bridge0_active_w &&
+       (sim_mem_bridge0_state_w == SIM_MEM_BRIDGE_RESP)) ||
+      (sim_head1_bridge1_active_w &&
+       (sim_mem_bridge1_state_w == SIM_MEM_BRIDGE_RESP));
+  wire sim_head0_mem_bridge_unclassified_w =
+      (sim_head0_bridge0_active_w || sim_head0_bridge1_active_w) &&
+      !sim_head0_mem_translation_order_w &&
+      !sim_head0_mem_request_outstanding_w &&
+      !sim_head0_mem_bridge_response_w;
+  wire sim_head1_mem_bridge_unclassified_w =
+      (sim_head1_bridge0_active_w || sim_head1_bridge1_active_w) &&
+      !sim_head1_mem_translation_order_w &&
+      !sim_head1_mem_request_outstanding_w &&
+      !sim_head1_mem_bridge_response_w;
+
+  wire sim_head0_mem_terminal_w = sim_head0_lq_terminal_seen_r ||
+      sim_head0_mem_bridge_response_w ||
+      (sim_head0_mem_token_live_w &&
+       sim_mem_terminal_state_token_mask_w[sim_head0_mem_token_r]);
+  wire sim_head1_mem_terminal_w = sim_head1_lq_terminal_seen_r ||
+      sim_head1_mem_bridge_response_w ||
+      (sim_head1_mem_token_live_w &&
+       sim_mem_terminal_state_token_mask_w[sim_head1_mem_token_r]);
+  wire sim_head0_mem_retry_w = sim_head0_mem_token_live_w &&
+      sim_mem_retry_token_mask_w[sim_head0_mem_token_r];
+  wire sim_head1_mem_retry_w = sim_head1_mem_token_live_w &&
+      sim_mem_retry_token_mask_w[sim_head1_mem_token_r];
+
+  wire sim_head0_mem_bridge_station_w = sim_head0_mem_token_live_w &&
+      ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_valid_q &&
+        (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_owner_token_q ==
+         sim_head0_mem_token_r)) ||
+       (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_valid_q &&
+        (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_owner_token_q ==
+         sim_head0_mem_token_r)));
+  wire sim_head1_mem_bridge_station_w = sim_head1_mem_token_live_w &&
+      ((u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_valid_q &&
+        (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0.stg_owner_token_q ==
+         sim_head1_mem_token_r)) ||
+       (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_valid_q &&
+        (u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1.stg_owner_token_q ==
+         sim_head1_mem_token_r)));
+  wire sim_head0_mem_reservation_queue_w =
+      (!sim_head0_mem_token_live_w &&
+       (sim_mem_res_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+        sim_lq_producer_live_mask_w[sim_rob_head0_producer_id_w])) ||
+      (sim_head0_mem_token_live_w &&
+       sim_mem_reservation_queue_token_mask_w[sim_head0_mem_token_r]) ||
+      sim_head0_mem_bridge_station_w;
+  wire sim_head1_mem_reservation_queue_w =
+      (!sim_head1_mem_token_live_w &&
+       (sim_mem_res_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+        sim_lq_producer_live_mask_w[sim_rob_head1_producer_id_w])) ||
+      (sim_head1_mem_token_live_w &&
+       sim_mem_reservation_queue_token_mask_w[sim_head1_mem_token_r]) ||
+      sim_head1_mem_bridge_station_w;
+
+  wire sim_head0_execution_resident_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .ex0_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .ex1_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .branch_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .muldiv_owner_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .clmul_owner_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .fp_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .pending_system_producer_live_mask_w[sim_rob_head0_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .checkpoint_irrevocable_write_live_mask_w[
+              sim_rob_head0_producer_id_w];
+  wire sim_head1_execution_resident_w =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .ex0_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .ex1_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .branch_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .muldiv_owner_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .clmul_owner_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .fp_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .pending_system_producer_live_mask_w[sim_rob_head1_producer_id_w] ||
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend
+          .checkpoint_irrevocable_write_live_mask_w[
+              sim_rob_head1_producer_id_w];
+
+  function automatic logic [3:0] sim_memory_lifecycle_reason;
+    input logic terminal;
+    input logic translation_order;
+    input logic request_outstanding;
+    input logic bridge_unclassified;
+    input logic retry_holder;
+    input logic reservation_queue;
+    begin
+      if (terminal)
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_RESPONSE_TERMINAL;
+      else if (translation_order)
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_TRANSLATION_ORDER;
+      else if (request_outstanding)
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING;
+      else if (bridge_unclassified)
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN;
+      else if (retry_holder)
+        sim_memory_lifecycle_reason = SIM_RETIRE_REASON_MEMORY_RETRY;
+      else if (reservation_queue)
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_RESERVATION_QUEUE;
+      else
+        sim_memory_lifecycle_reason =
+            SIM_RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN;
+    end
+  endfunction
+
+  wire [3:0] sim_head0_memory_reason_w = sim_memory_lifecycle_reason(
+      sim_head0_mem_terminal_w,
+      sim_head0_mem_translation_order_w,
+      sim_head0_mem_request_outstanding_w,
+      sim_head0_mem_bridge_unclassified_w,
+      sim_head0_mem_retry_w,
+      sim_head0_mem_reservation_queue_w);
+  wire [3:0] sim_head1_memory_reason_w = sim_memory_lifecycle_reason(
+      sim_head1_mem_terminal_w,
+      sim_head1_mem_translation_order_w,
+      sim_head1_mem_request_outstanding_w,
+      sim_head1_mem_bridge_unclassified_w,
+      sim_head1_mem_retry_w,
+      sim_head1_mem_reservation_queue_w);
+
+  function automatic logic [3:0] sim_head_lifecycle_reason;
+    input logic iq_present;
+    input logic iq_ready;
+    input logic memory_resident;
+    input logic [3:0] memory_reason;
+    input logic execution_resident;
+    begin
+      if (iq_present && !iq_ready)
+        sim_head_lifecycle_reason = SIM_RETIRE_REASON_DEPENDENCY;
+      else if (iq_present)
+        sim_head_lifecycle_reason = SIM_RETIRE_REASON_ISSUE_TERMINAL;
+      else if (memory_resident)
+        sim_head_lifecycle_reason = memory_reason;
+      else if (execution_resident)
+        sim_head_lifecycle_reason = SIM_RETIRE_REASON_EXECUTION_LATENCY;
+      else
+        sim_head_lifecycle_reason = SIM_RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN;
+    end
+  endfunction
+
+  logic [3:0] sim_retire_slot0_reason_w;
+  logic [3:0] sim_retire_slot1_reason_w;
+  logic [2:0] sim_retire_slot0_request_detail_w;
+  logic [2:0] sim_retire_slot1_request_detail_w;
+  always_comb begin
+    sim_retire_slot0_reason_w = SIM_RETIRE_REASON_UNKNOWN;
+    sim_retire_slot0_request_detail_w = SIM_MEM_REQUEST_DETAIL_NONE;
+    if (sim_retire0_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_RETIRED;
+    end else if (sim_rob_recovery_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_EXCEPTION_REDIRECT;
+    end else if (sim_rob_empty_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_ROB_EMPTY;
+    end else if (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                     .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head_done_w) begin
+      sim_retire_slot0_reason_w = sim_head_lifecycle_reason(
+          sim_head0_iq_present_w, sim_head0_iq_ready_w,
+          sim_head0_memory_resident_w, sim_head0_memory_reason_w,
+          sim_head0_execution_resident_w);
+    end else if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                     .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head_exception_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_EXCEPTION_REDIRECT;
+    end else if (sim_retire0_memory_block_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_MEMORY_COMMIT;
+    end else if (sim_retire0_serial_block_w) begin
+      sim_retire_slot0_reason_w = SIM_RETIRE_REASON_SERIALIZATION;
+    end
+    if (sim_retire_slot0_reason_w ==
+        SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING)
+      sim_retire_slot0_request_detail_w = sim_head0_mem_request_detail_w;
+
+    // Lane1 cannot retire independently.  When lane0 is blocked, lane1 inherits
+    // the oldest blocking reason; after lane0 retires it classifies the second
+    // physical ROB entry and its independent commit1 permits.
+    sim_retire_slot1_reason_w = sim_retire_slot0_reason_w;
+    sim_retire_slot1_request_detail_w = sim_retire_slot0_request_detail_w;
+    if (sim_retire_slot0_reason_w == SIM_RETIRE_REASON_RETIRED) begin
+      sim_retire_slot1_reason_w = SIM_RETIRE_REASON_UNKNOWN;
+      sim_retire_slot1_request_detail_w = SIM_MEM_REQUEST_DETAIL_NONE;
+      if (sim_retire1_w) begin
+        sim_retire_slot1_reason_w = SIM_RETIRE_REASON_RETIRED;
+      end else if (sim_rob_head1_empty_w) begin
+        sim_retire_slot1_reason_w = SIM_RETIRE_REASON_ROB_EMPTY;
+      end else if (!u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                       .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head1_done_w) begin
+        sim_retire_slot1_reason_w = sim_head_lifecycle_reason(
+            sim_head1_iq_present_w, sim_head1_iq_ready_w,
+            sim_head1_memory_resident_w, sim_head1_memory_reason_w,
+            sim_head1_execution_resident_w);
+      end else if (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                       .u_decode_backend.u_int_backend.u_dispatch_backend.u_rob.head1_exception_w ||
+                   u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+                       .u_decode_backend.u_int_backend.checkpoint_restore_hold_w) begin
+        sim_retire_slot1_reason_w = SIM_RETIRE_REASON_EXCEPTION_REDIRECT;
+      end else if (sim_retire1_memory_block_w) begin
+        sim_retire_slot1_reason_w = SIM_RETIRE_REASON_MEMORY_COMMIT;
+      end else if (sim_retire1_serial_block_w) begin
+        sim_retire_slot1_reason_w = SIM_RETIRE_REASON_SERIALIZATION;
+      end
+      if (sim_retire_slot1_reason_w ==
+          SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING)
+        sim_retire_slot1_request_detail_w = sim_head1_mem_request_detail_w;
+    end
+  end
+
+  wire [1:0] sim_retire_reason_count_w =
+      {1'b0, (sim_retire_slot0_reason_w == SIM_RETIRE_REASON_RETIRED)} +
+      {1'b0, (sim_retire_slot1_reason_w == SIM_RETIRE_REASON_RETIRED)};
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst) begin
+      if ($isunknown({sim_retire_slot0_reason_w,
+                      sim_retire_slot1_reason_w,
+                      sim_retire_slot0_request_detail_w,
+                      sim_retire_slot1_request_detail_w})) begin
+        $error("[V13O-RETIRE-REASON-X] reason0=%0d reason1=%0d @%0t",
+               sim_retire_slot0_reason_w, sim_retire_slot1_reason_w, $time);
+        $fatal;
+      end
+      if (((sim_retire_slot0_reason_w ==
+            SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) !=
+           (sim_retire_slot0_request_detail_w !=
+            SIM_MEM_REQUEST_DETAIL_NONE)) ||
+          ((sim_retire_slot1_reason_w ==
+            SIM_RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) !=
+           (sim_retire_slot1_request_detail_w !=
+            SIM_MEM_REQUEST_DETAIL_NONE))) begin
+        $error("[V13O-RETIRE-REQUEST-DETAIL-BIND] reason=%0d/%0d detail=%0d/%0d @%0t",
+               sim_retire_slot0_reason_w, sim_retire_slot1_reason_w,
+               sim_retire_slot0_request_detail_w,
+               sim_retire_slot1_request_detail_w, $time);
+        $fatal;
+      end
+      if (sim_retire_reason_count_w !== core_retire_count_w) begin
+        $error("[V13N-RETIRE-REASON-COUNT] reasons=%0d rtl_retire=%0d @%0t",
+               sim_retire_reason_count_w, core_retire_count_w, $time);
+        $fatal;
+      end
+      if ((sim_retire_slot1_reason_w == SIM_RETIRE_REASON_RETIRED) &&
+          (sim_retire_slot0_reason_w != SIM_RETIRE_REASON_RETIRED)) begin
+        $error("[V13N-RETIRE-LANE-ORDER] lane1 retired without lane0 @%0t",
+               $time);
+        $fatal;
+      end
+      if ((sim_head0_int_iq_present_w && sim_head0_fp_iq_present_w) ||
+          (sim_head1_int_iq_present_w && sim_head1_fp_iq_present_w)) begin
+        $error("[V13N-HEAD-IQ-IDENTITY] one ROB-head ProducerId resides in both IQ domains @%0t",
+               $time);
+        $fatal;
+      end
+      if ((sim_head0_mem_token_hits_r > 6'd1) ||
+          (sim_head1_mem_token_hits_r > 6'd1)) begin
+        $error("[V13N-HEAD-MEM-TOKEN-ONEHOT] head token hits=%0d/%0d @%0t",
+               sim_head0_mem_token_hits_r, sim_head1_mem_token_hits_r, $time);
+        $fatal;
+      end
+      if ((!sim_rob_empty_w &&
+           sim_mem_owner_producer_live_mask_w[sim_rob_head0_producer_id_w] &&
+           !sim_head0_mem_token_live_w) ||
+          (!sim_rob_head1_empty_w &&
+           sim_mem_owner_producer_live_mask_w[sim_rob_head1_producer_id_w] &&
+           !sim_head1_mem_token_live_w)) begin
+        $error("[V13N-HEAD-MEM-TOKEN-BIND] producer-live head lacked one exact token @%0t",
+               $time);
+        $fatal;
+      end
+      if ((sim_head0_bridge0_active_w && sim_head0_bridge1_active_w) ||
+          (sim_head1_bridge0_active_w && sim_head1_bridge1_active_w)) begin
+        $error("[V13N-HEAD-MEM-BRIDGE-ONEHOT] one head token active in both memory bridges @%0t",
+               $time);
+        $fatal;
+      end
+    end
+  end
+`endif
   wire unused_ooo_sim_stat_w =
       sim_icache_access_w | sim_icache_hit_w | sim_icache_miss_w |
       sim_dcache_access_w | sim_dcache_hit_w | sim_dcache_miss_w |
@@ -1284,7 +2089,11 @@ module NpcSimTop (
         sim_ooo_branch_flush_w ? 32'd1 : 32'd0,
         sim_ooo_exception_busy_w ? 32'd1 : 32'd0,
         u_top.u_core.u_ooo_core.pending_branch_pc_q,
-        u_top.u_core.u_ooo_core.pending_jump_pc_q
+        u_top.u_core.u_ooo_core.pending_jump_pc_q,
+        {28'd0, sim_retire_slot0_reason_w},
+        {28'd0, sim_retire_slot1_reason_w},
+        {29'd0, sim_retire_slot0_request_detail_w},
+        {29'd0, sim_retire_slot1_request_detail_w}
       );
 `endif
 

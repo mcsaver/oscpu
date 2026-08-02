@@ -31,6 +31,11 @@ module tb_ooo_mem_owner_terminal_collector;
   integer seen_count;
   integer lane_i;
   integer drain_i;
+  integer pair_lo_i;
+  integer pair_hi_i;
+  integer duplicate_pair_count;
+  integer distinct_pair_count;
+  reg [INGRESS_N-1:0] pair_mask;
   reg [8:0] held0_tuple;
   reg [8:0] held1_tuple;
   reg [8:0] held1_turnover_tuple;
@@ -120,6 +125,9 @@ module tb_ooo_mem_owner_terminal_collector;
     expected_mask = 32'b0;
     seen_mask = 32'b0;
     seen_count = 0;
+    pair_mask = {INGRESS_N{1'b0}};
+    duplicate_pair_count = 0;
+    distinct_pair_count = 0;
 
     repeat (2) @(posedge clk);
     @(negedge clk);
@@ -153,18 +161,60 @@ module tb_ooo_mem_owner_terminal_collector;
     live_kind_table = 64'b0;
     live_epoch_table = 64'b0;
 
-    configure_lane(0, 5'd2, 2'b00, 2'b01);
-    configure_lane(1, 5'd2, 2'b00, 2'b01);
-    ingress_valid[1:0] = 2'b11;
-    #1;
-    if (ingress_accept[1:0] != 2'b00)
-      fail("same-token duplicate raw ingress was marked accepted");
+    // Exhaust every unordered pair in the twelve production ingress lanes.
+    // Delta-cycle settling keeps deliberately duplicated raw samples away
+    // from a clock edge, so OOO_ASSERT remains fail-loud in normal operation.
+    for (pair_lo_i = 0; pair_lo_i < INGRESS_N;
+         pair_lo_i = pair_lo_i + 1) begin
+      for (pair_hi_i = pair_lo_i + 1; pair_hi_i < INGRESS_N;
+           pair_hi_i = pair_hi_i + 1) begin
+        ingress_valid = {INGRESS_N{1'b0}};
+        ingress_kind = {(INGRESS_N*2){1'b0}};
+        ingress_token = {(INGRESS_N*5){1'b0}};
+        ingress_epoch = {(INGRESS_N*2){1'b0}};
+        expected_mask = 32'b0;
+        live_mask = 32'b0;
+        live_kind_table = 64'b0;
+        live_epoch_table = 64'b0;
+        pair_mask = {INGRESS_N{1'b0}};
+        pair_mask[pair_lo_i] = 1'b1;
+        pair_mask[pair_hi_i] = 1'b1;
+
+        configure_lane(pair_lo_i, 5'd2, 2'b00, 2'b01);
+        configure_lane(pair_hi_i, 5'd2, 2'b00, 2'b01);
+        ingress_valid = pair_mask;
+        #0;
+        if (ingress_accept !== {INGRESS_N{1'b0}})
+          fail("same-token lane pair was marked accepted");
+        duplicate_pair_count = duplicate_pair_count + 1;
+
+        ingress_valid = {INGRESS_N{1'b0}};
+        ingress_kind = {(INGRESS_N*2){1'b0}};
+        ingress_token = {(INGRESS_N*5){1'b0}};
+        ingress_epoch = {(INGRESS_N*2){1'b0}};
+        expected_mask = 32'b0;
+        live_mask = 32'b0;
+        live_kind_table = 64'b0;
+        live_epoch_table = 64'b0;
+        configure_lane(pair_lo_i, 5'd2, 2'b00, 2'b01);
+        configure_lane(pair_hi_i, 5'd3, 2'b01, 2'b10);
+        ingress_valid = pair_mask;
+        #0;
+        if (ingress_accept !== pair_mask)
+          fail("distinct exact lane pair was not accepted alone");
+        distinct_pair_count = distinct_pair_count + 1;
+      end
+    end
+    if ((duplicate_pair_count != 66) || (distinct_pair_count != 66))
+      fail("twelve-ingress lane-pair matrix was incomplete");
     ingress_valid = {INGRESS_N{1'b0}};
     expected_mask = 32'b0;
     live_mask = 32'b0;
     live_kind_table = 64'b0;
     live_epoch_table = 64'b0;
+    #0;
     $display("[V9Y-TCOLL-ACCEPT-NEGATIVE] tuple=0 duplicate=0 PASS");
+    $display("[V12A-TCOLL-LANE-PAIR-MATRIX] duplicate=66 distinct=66 PASS");
 
     // All twelve production terminal sources arrive on one edge while both
     // registered dequeue lanes are stalled.  Sparse token numbers prevent a

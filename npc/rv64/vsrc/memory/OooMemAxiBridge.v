@@ -516,6 +516,8 @@ module OooMemAxiBridge #(
   // domain without relying on a net-declaration forward reference.
   wire cpu_kill_w;
   wire lookup_hit_fusion_w;
+  wire data_store_b_response_fusion_w;
+  wire visible_rsp_uses_active_w;
   wire active_sq_query_valid_w;
   wire station_sq_lookahead_query_w;
   wire active_sq_query_read_lookup_fire_w;
@@ -547,9 +549,11 @@ module OooMemAxiBridge #(
       (rsp_mmu_epoch_q == mem0_expected_mmu_epoch_i);
   wire rsp_expected_tval_echo_match_w =
       (rsp_fault_tval_q == mem0_expected_fault_tval_i);
-  wire visible_rsp_expected_identity_match_w = lookup_hit_fusion_w ?
+  assign visible_rsp_uses_active_w = lookup_hit_fusion_w ||
+                                     data_store_b_response_fusion_w;
+  wire visible_rsp_expected_identity_match_w = visible_rsp_uses_active_w ?
       active_expected_identity_match_w : rsp_expected_identity_match_w;
-  wire visible_rsp_expected_tval_echo_match_w = lookup_hit_fusion_w ?
+  wire visible_rsp_expected_tval_echo_match_w = visible_rsp_uses_active_w ?
       active_expected_tval_echo_match_w : rsp_expected_tval_echo_match_w;
   wire station_expected_identity_match_w = mem0_station_expected_valid_i &&
       (stg_owner_kind_q == mem0_station_expected_owner_kind_i) &&
@@ -768,6 +772,13 @@ module OooMemAxiBridge #(
   // while only an all-OK data-store terminal may write-update cache data.
   wire data_store_b_terminal_w =
       (state_q == S_WRITE_RESP) && lsu_axi_bvalid_i;
+  // V13P: aggregate B remains the sole physical-store terminal.  A normal or
+  // nokill owner may present that terminal directly on the existing backend
+  // response channel; killed escaped writes stay on the exact drop path.
+  // Response READY never qualifies VALID and only selects direct fire versus
+  // the registered S_RESP fallback in the sequential FSM.
+  assign data_store_b_response_fusion_w =
+      data_store_b_terminal_w && fsm_normal_w;
   wire data_store_b_ok_w =
       data_store_b_terminal_w && (lsu_axi_bresp_i == 2'b00);
   wire ad_update_b_terminal_w =
@@ -1085,30 +1096,35 @@ module OooMemAxiBridge #(
                             !control_full_flush_barrier_i &&
                             (!stg_valid_q || stage_advance_w);
 
-  // 刀D 融合拍: hit 拍组合交付 rsp(payload 与现行锁存表达式同源); 反压/kill 拍
-  // 融合关闭走落寄存 S_RESP 路径(天然 skid)。
+  // 刀D/V13P 融合拍: lookup hit 或 aggregate B 到达拍组合交付 rsp；反压
+  // 统一落入既有 S_RESP skid。B 融合不进入 stage_advance，因此不会在 B 拍
+  // 接收/推进下一事务。
   assign mem0_rsp_valid_o =
       ((state_q == S_RESP) && (!cpu_kill_w || nokill_busy_w)) ||
-      lookup_hit_fusion_w;
+      lookup_hit_fusion_w || data_store_b_response_fusion_w;
   assign mem0_rsp_rdata_o = lookup_hit_fusion_w ?
-      (dcache_lookup_line_w >> {paddr_q[2:0], 3'b000}) : rsp_rdata_q;
-  assign mem0_rsp_error_o = lookup_hit_fusion_w ? 1'b0 : rsp_error_q;
-  assign mem0_rsp_page_fault_o = lookup_hit_fusion_w ? 1'b0 : rsp_page_fault_q;
+      (dcache_lookup_line_w >> {paddr_q[2:0], 3'b000}) :
+      (data_store_b_response_fusion_w ? {`XLEN{1'b0}} : rsp_rdata_q);
+  assign mem0_rsp_error_o = lookup_hit_fusion_w ? 1'b0 :
+      (data_store_b_response_fusion_w ? (lsu_axi_bresp_i != 2'b00) :
+       rsp_error_q);
+  assign mem0_rsp_page_fault_o = visible_rsp_uses_active_w ? 1'b0 :
+                                  rsp_page_fault_q;
   assign mem0_rsp_attr_valid_o = access_attr_valid_q;
   assign mem0_rsp_class_o = access_attr_valid_q ? access_class_q :
                             `OOO_MEM_CLASS_RSVD;
   assign mem0_rsp_cacheable_o = mem0_rsp_attr_valid_o &&
                                 (mem0_rsp_class_o == `OOO_MEM_CLASS_CACHED);
-  // A fused lookup response belongs to the active transaction; a held S_RESP
-  // belongs to its distinct response snapshot.  Neither path reconstructs from
-  // the current request bus or ROB tag.
-  assign mem0_rsp_owner_kind_o = lookup_hit_fusion_w ?
+  // A fused lookup/B response belongs to the active transaction; a held
+  // S_RESP belongs to its distinct response snapshot.  Neither path
+  // reconstructs from the current request bus or ROB tag.
+  assign mem0_rsp_owner_kind_o = visible_rsp_uses_active_w ?
       active_owner_kind_q : rsp_owner_kind_q;
-  assign mem0_rsp_owner_token_o = lookup_hit_fusion_w ?
+  assign mem0_rsp_owner_token_o = visible_rsp_uses_active_w ?
       active_owner_token_q : rsp_owner_token_q;
-  assign mem0_rsp_mmu_epoch_o = lookup_hit_fusion_w ?
+  assign mem0_rsp_mmu_epoch_o = visible_rsp_uses_active_w ?
       active_mmu_epoch_q : rsp_mmu_epoch_q;
-  assign mem0_rsp_fault_tval_o = lookup_hit_fusion_w ?
+  assign mem0_rsp_fault_tval_o = visible_rsp_uses_active_w ?
       active_fault_tval_q : rsp_fault_tval_q;
   reg [31:0] owner_residency_mask_r;
   always @(*) begin
@@ -1755,7 +1771,15 @@ module OooMemAxiBridge #(
             rsp_rdata_q <= {`XLEN{1'b0}};
             rsp_error_q <= (lsu_axi_bresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
-            state_q <= S_RESP;
+            // V13P direct fire consumes the same aggregate-B terminal on this
+            // edge.  When backend credit is absent, the unconditional payload
+            // capture above preserves the exact legacy S_RESP fallback.
+            state_q <= (data_store_b_response_fusion_w && rsp_ready_w) ?
+                       S_IDLE : S_RESP;
+            if (data_store_b_response_fusion_w && rsp_ready_w) begin
+              aw_done_q <= 1'b0;
+              w_done_q <= 1'b0;
+            end
           end
         end
 
@@ -2135,6 +2159,10 @@ module OooMemAxiBridge #(
   reg [72:0] assert_stg_owner_r;
   reg assert_rsp_stalled_r;
   reg [72:0] assert_rsp_owner_r;
+  reg assert_b_fusion_fire_r;
+  reg assert_b_fusion_stall_r;
+  reg assert_b_fusion_error_r;
+  reg [72:0] assert_b_fusion_owner_r;
   reg assert_sq_query_replay_r;
   reg assert_sq_query_forward_r;
   reg assert_sq_query_retry_fire_r;
@@ -2163,6 +2191,10 @@ module OooMemAxiBridge #(
       assert_walk_pma_deny_r <= 1'b0;
       assert_ar_stalled_r <= 1'b0;
       assert_rsp_stalled_r <= 1'b0;
+      assert_b_fusion_fire_r <= 1'b0;
+      assert_b_fusion_stall_r <= 1'b0;
+      assert_b_fusion_error_r <= 1'b0;
+      assert_b_fusion_owner_r <= 73'b0;
       assert_sq_query_replay_r <= 1'b0;
       assert_sq_query_forward_r <= 1'b0;
       assert_sq_query_retry_fire_r <= 1'b0;
@@ -2178,6 +2210,51 @@ module OooMemAxiBridge #(
       if (mem0_req_fire_w && flush_i) begin
         $error("[BRG-NOFIRE-FLUSH] flush 拍出现 mem0_req fire @%0t", $time);
         $fatal;
+      end
+      // V13P aggregate-B fusion is a response timing optimization only.  The
+      // visible terminal must be the exact active owner and current BRESP;
+      // direct fire may not reappear from S_RESP on the following cycle.
+      if (data_store_b_response_fusion_w &&
+          (!mem0_rsp_valid_o || (state_q != S_WRITE_RESP) ||
+           !lsu_axi_bvalid_i ||
+           (mem0_rsp_rdata_o !== {`XLEN{1'b0}}) ||
+           (mem0_rsp_error_o !== (lsu_axi_bresp_i != 2'b00)) ||
+           mem0_rsp_page_fault_o ||
+           ({mem0_rsp_owner_kind_o, mem0_rsp_owner_token_o,
+             mem0_rsp_mmu_epoch_o, mem0_rsp_fault_tval_o} !==
+            {active_owner_kind_q, active_owner_token_q,
+             active_mmu_epoch_q, active_fault_tval_q}))) begin
+        $display("[V13P-B-FUSION-PAYLOAD] aggregate B did not expose the exact active response @%0t",
+                 $time);
+        $fatal;
+      end
+      if (assert_b_fusion_fire_r &&
+          ((state_q == S_RESP) || mem0_rsp_valid_o)) begin
+        $display("[V13P-B-FUSION-NO-DUP] direct B response reappeared after fire @%0t",
+                 $time);
+        $fatal;
+      end
+      if (assert_b_fusion_stall_r) begin
+        if (fsm_normal_w) begin
+          if ((state_q != S_RESP) || !mem0_rsp_valid_o ||
+              (mem0_rsp_rdata_o !== {`XLEN{1'b0}}) ||
+              (mem0_rsp_error_o !== assert_b_fusion_error_r) ||
+              mem0_rsp_page_fault_o ||
+              ({mem0_rsp_owner_kind_o, mem0_rsp_owner_token_o,
+                mem0_rsp_mmu_epoch_o, mem0_rsp_fault_tval_o} !==
+               assert_b_fusion_owner_r)) begin
+            $display("[V13P-B-FUSION-FALLBACK] stalled B response was not captured exactly @%0t",
+                     $time);
+            $fatal;
+          end
+        end else if (!mem0_drop0_valid_o ||
+                     ({mem0_drop0_owner_kind_o, mem0_drop0_owner_token_o,
+                       mem0_drop0_mmu_epoch_o, mem0_drop0_fault_tval_o} !==
+                      assert_b_fusion_owner_r)) begin
+          $display("[V13P-B-FUSION-DROP] killed fallback lacked the exact drop terminal @%0t",
+                   $time);
+          $fatal;
+        end
       end
       if (control_full_flush_barrier_i && sq_query_retry_fire_w) begin
         $display("[V9R-MEM-SQ-RETRY-C0-HANDOFF] bridge released SQ-query owner during full-flush barrier @%0t",
@@ -2597,6 +2674,14 @@ module OooMemAxiBridge #(
       assert_pretrans_class_r <= req_effective_class_w;
       assert_ar_stalled_r <= lsu_axi_arvalid_o && !lsu_axi_arready_i;
       assert_rsp_stalled_r <= mem0_rsp_valid_o && !mem0_rsp_ready_i;
+      assert_b_fusion_fire_r <= data_store_b_response_fusion_w &&
+                                rsp_ready_w;
+      assert_b_fusion_stall_r <= data_store_b_response_fusion_w &&
+                                 !rsp_ready_w;
+      assert_b_fusion_error_r <= (lsu_axi_bresp_i != 2'b00);
+      assert_b_fusion_owner_r <=
+          {active_owner_kind_q, active_owner_token_q, active_mmu_epoch_q,
+           active_fault_tval_q};
       assert_sq_query_replay_r <= active_sq_query_valid_w &&
                                   sq_query_decision_onehot_w &&
                                   mem0_sq_query_replay_i &&

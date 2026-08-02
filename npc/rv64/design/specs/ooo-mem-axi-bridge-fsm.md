@@ -38,7 +38,7 @@ DMA 边界只覆盖当前仿真 `AxiVirtioBlk`：queue-notify 的 DPI task 同�
 | S_WALK_AR/S_WALK_R | Sv39 页表遍历 发 AR / 收 PTE；`S_WALK_R` 同时是 leaf-derived lookup 地址的固定角色 owner，RVALID/PTE/PMP/A-D 只决定是否抬 lookup enable |
 | S_READ_ADDR/S_READ_DATA | load: 发读地址 / 收读数据 |
 | S_WRITE_REQ | store: 发 AW+W |
-| S_WRITE_RESP | store: 等 B |
+| S_WRITE_RESP | store: 等聚合 B；V13P 允许 B 到达拍向既有 response channel 组合呈现，backend 无 credit 时仍捕获到 S_RESP |
 | S_RESP | 向后端拉 `mem*_rsp_valid`，等 `rsp_ready` 后回 S_IDLE |
 
 寄存站进出与 ready（`stage_advance_w` = FSM 收下寄存站项的时机 = 原 accept 语义时点）：
@@ -84,7 +84,9 @@ mem0_req_ready_o = !flush_i && !control_full_flush_barrier_i &&
  S_LOOKUP --(miss/跨线)----------------------------> S_READ_ADDR -> S_READ_DATA -(rvalid)-> S_RESP
                                                     (判决拍当拍发 AR;arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA)
  (寄存站) --advance(store,probe,PMP/PMA allow)-----> S_RESP(不写内存,PA 经 rsp_rdata 回传)
- (寄存站) --advance(store,no-trans)----------------> S_WRITE_REQ -(aw&w)-> S_WRITE_RESP -(bvalid)-> S_RESP
+ (寄存站) --advance(store,no-trans)----------------> S_WRITE_REQ -(aw&w)-> S_WRITE_RESP
+ S_WRITE_RESP --(bvalid && visible owner && rsp_ready)-> direct response fire -> S_IDLE
+ S_WRITE_RESP --(bvalid && visible owner && !rsp_ready)-> capture -> S_RESP
  (寄存站) --advance(need-trans,tlb-miss)-----------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_LOOKUP | S_WRITE_REQ | 下一级 S_WALK_AR}
  S_WALK_R --(leaf-ok,read,PMEM)--------------------> S_LOOKUP(当拍发 dcache 读,addr=walk_leaf_paddr_w；addr owner 由 state 固定，fire 只作 enable)
  S_WALK_R --(leaf-ok,read,device)------------------> S_DEVICE_WAIT
@@ -100,6 +102,14 @@ mem0_req_ready_o = !flush_i && !control_full_flush_barrier_i &&
   PMEM/MMIO/uncacheable store 均进 `S_WRITE_RESP`，以聚合 B 作唯一完成点，
   `rsp_error` 统一来自 `bresp`。这保证 split write 不被后续 read 越过，并让
   adapter 粘滞错误可见。
+- **V13P aggregate-B response fusion（RTL 已实现，开发级验证完成）**：只在真实
+  `S_WRITE_RESP && BVALID` 到达拍，把 active registered owner、当前 BRESP 与零 data
+  组合呈现到既有 backend response channel。`valid` 不得依赖 `rsp_ready`；ready 足够时
+  本拍完成 formal WB 与 SQ terminal handoff 并直接回 `S_IDLE`，ready 不足时仍把
+  相同 payload/owner 捕获进原 `S_RESP`，按既有 hold 协议等待。该候选不允许 B 前响应、
+  不允许同拍 ROB retirement、不允许 B 拍 station advance，也不改变 killed-write drop、
+  cache maintenance 或 HW A/D continuation。完整推导见
+  `.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md`。
 - **事务三属性（LSQ·SQ 切换新增，T4H 收紧）**：`probe`=write 探测（翻译+PMP+PMA
   走完不写内存，PA 经 rsp_rdata 回传）；`pretrans`=地址已是此前 probe 授权的 PA（SQ drain
   落存），功能路径跳过翻译/PMP/PMA，`MEM-PMA-PRETRANS` 断言复核其静态地址图 provenance；

@@ -1,0 +1,50 @@
+{
+  "schema": "npc-rv64-control-event-compact-task-run-index-v1",
+  "run_id": "2026-08-01-rv64-v11x-control-event-v9r-compact-rebind",
+  "result": "SCOPED_PASS",
+  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+  "production_rtl_changed": false,
+  "artifacts": [
+    {
+      "kind": "control_event_current_result",
+      "path": "npc/rv64/eval/ppa/evidence/control-event-current.json",
+      "sha256": "df21178d52acd0366f5f43811229c9a7407a278dc8b30585ea8445520f6731f0",
+      "size_bytes": 49485
+    },
+    {
+      "kind": "control_event_sq_retry_current_result",
+      "path": "npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json",
+      "sha256": "2436c65624627b3e40e2462b6b5e77a236962611ce87efc4afedd56be1ee318d",
+      "size_bytes": 26368
+    },
+    {
+      "kind": "architecture_boundary_result",
+      "path": ".github/task-runs/2026-08-01-rv64-v11x-control-event-v9r-compact-rebind/evidence/arch-stable-boundary.json",
+      "sha256": "d8bde58fe743898e9716c7bd176d92e1d21b57570e7111c02e6c8f938d561e7c",
+      "size_bytes": 429405
+    }
+  ],
+  "coverage": {
+    "v9o_focused_passed": 10,
+    "v9o_csr_queue_head_config_passed": 3,
+    "v9o_compile_success_rtl_variants_rejected": 11,
+    "v9r_baseline_passed": 3,
+    "v9r_compile_success_rtl_variants_rejected": 5,
+    "v9r_resident_holder_banks": 2,
+    "v9r_resident_holder_barrier_cycles": 2
+  },
+  "retention": {
+    "compiled_images_retained": 0,
+    "full_mutated_rtl_files_retained": 0,
+    "v9r_negative_rtl_patches_retained": 5,
+    "task_run_size_mib_rounded": 2.4
+  },
+  "claim_boundary": {
+    "control_event_semantic_evidence": "PASS",
+    "full_core_closed_binding": "GAP",
+    "architecture_freeze": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "full_core_candidate_design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897"
+  }
+}

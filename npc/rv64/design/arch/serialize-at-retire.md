@@ -3,10 +3,13 @@
 > 状态：**Phase1 产品默认启用，余下阶段仍为专项计划（2026-07-28）**。宪法 §8.4 step 4。
 > `serialize-at-retire-phase1.md` 已实现 head0-CSR 队头化的 `OOO_CSR_QUEUE_HEAD` 编译期开关，
 > 当前规范产品配置为 1；合法 non-FP head0 CSR 走 queue-head，lane1/FP CSR 与其余
-> system/trap 保留 pending/full-drain。2026-07-28 已补齐完整系统事务证据、current-design
-> 26-stage 回放、assert/release 原始周期计数与编译成功负向 RTL 版本；V10G 第二次
-> 独立审查已批准当前设计上的 `SERIALIZE-G1=CLOSED`。该裁决不代表本计划 Phase2–5、
-> architecture freeze 或 PPA 已完成。
+> system/trap 保留 pending/full-drain。2026-07-28 的 V10G 在
+> `design_id=sha256:04c5458...` 上补齐完整系统事务、26-stage 回放、assert/release 原始周期
+> 与负向版本，并历史性批准该设计上的 `SERIALIZE-G1=CLOSED`。2026-08-01 的 V13H 已把
+> 快速 C0/C1/C2 门和 113/177/61 功能队列重绑定到
+> `design_id=sha256:364b1e...`，但当前身份仍缺完整 Linux/systemd 事务；机器账本因此为
+> `SERIALIZE-G1=STALE_EVIDENCE`、architecture freeze=`GAP`、PPA=`UNPROMOTED`。
+> 历史 V10G 裁决不能越级解释为当前设计已完成系统重认证。
 > 定位：把 system/trap 指令从"全局 stop_pending + 全后端 drain"改为"ROB 队头执行 + 退休刷 younger"，
 > **架构语义不变**（cycle 会变，故 cycle-exact 中性不适用），之后物理删除
 > `OooStopPendingSequencer`/`OooPendingDrainResolveGate`/`OooPendingDispatchArbiter` 等机制。

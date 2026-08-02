@@ -149,29 +149,46 @@ module OooLoadQueue #(
     end
   endfunction
 
-  reg alloc0_found_r;
-  reg alloc1_found_r;
+  wire [ENTRY_N-1:0] alloc_free_w;
+  wire [ENTRY_N-1:0] alloc0_onehot_w;
+  wire [ENTRY_N-1:0] alloc1_free_w;
+  wire [ENTRY_N-1:0] alloc1_onehot_w;
   reg [ENTRY_INDEX_W-1:0] alloc0_idx_r;
   reg [ENTRY_INDEX_W-1:0] alloc1_idx_r;
+  genvar alloc_g;
+  generate
+    for (alloc_g = 0; alloc_g < ENTRY_N; alloc_g = alloc_g + 1) begin : gen_lq_alloc_free
+`ifdef SYNTHESIS
+      assign alloc_free_w[alloc_g] = !valid_q[alloc_g];
+`else
+      // The old procedural scan treated an unknown valid bit as occupied.
+      assign alloc_free_w[alloc_g] = (valid_q[alloc_g] === 1'b0);
+`endif
+    end
+  endgenerate
+
+  assign alloc0_onehot_w = alloc_free_w &
+      (~alloc_free_w + {{(ENTRY_N-1){1'b0}}, 1'b1});
+  assign alloc1_free_w = alloc_free_w & ~alloc0_onehot_w;
+  assign alloc1_onehot_w = alloc1_free_w &
+      (~alloc1_free_w + {{(ENTRY_N-1){1'b0}}, 1'b1});
+
   integer alloc_i;
   always @(*) begin
-    alloc0_found_r = 1'b0;
-    alloc1_found_r = 1'b0;
     alloc0_idx_r = {ENTRY_INDEX_W{1'b0}};
     alloc1_idx_r = {ENTRY_INDEX_W{1'b0}};
     for (alloc_i = 0; alloc_i < ENTRY_N; alloc_i = alloc_i + 1) begin
-      if (!valid_q[alloc_i] && !alloc0_found_r) begin
-        alloc0_found_r = 1'b1;
-        alloc0_idx_r = alloc_i[ENTRY_INDEX_W-1:0];
-      end else if (!valid_q[alloc_i] && !alloc1_found_r) begin
-        alloc1_found_r = 1'b1;
-        alloc1_idx_r = alloc_i[ENTRY_INDEX_W-1:0];
-      end
+      alloc0_idx_r = alloc0_idx_r |
+          ({ENTRY_INDEX_W{alloc0_onehot_w[alloc_i]}} &
+           alloc_i[ENTRY_INDEX_W-1:0]);
+      alloc1_idx_r = alloc1_idx_r |
+          ({ENTRY_INDEX_W{alloc1_onehot_w[alloc_i]}} &
+           alloc_i[ENTRY_INDEX_W-1:0]);
     end
   end
 
-  assign alloc0_ready_o = alloc0_found_r;
-  assign alloc1_ready_o = alloc1_found_r;
+  assign alloc0_ready_o = |alloc0_onehot_w;
+  assign alloc1_ready_o = |alloc1_onehot_w;
   wire alloc0_fire_w = alloc0_valid_i && alloc0_ready_o && !flush_valid_i;
   wire alloc1_fire_w = alloc1_valid_i && alloc1_ready_o && alloc0_fire_w;
 
@@ -192,6 +209,16 @@ module OooLoadQueue #(
   wire [ENTRY_N-1:0] query0_meta_match_w;
   wire [ENTRY_N-1:0] query1_meta_match_w;
   wire [ENTRY_N-1:0] flush_target_w;
+  wire [ENTRY_N-1:0] issue0_open_hit_w;
+  wire [ENTRY_N-1:0] issue1_open_hit_w;
+  wire [ENTRY_N-1:0] query0_open_hit_w;
+  wire [ENTRY_N-1:0] query1_open_hit_w;
+  wire [ENTRY_N-1:0] response0_open_hit_w;
+  wire [ENTRY_N-1:0] response1_open_hit_w;
+  wire [ENTRY_N-1:0] release0_q_ready_hit_w;
+  wire [ENTRY_N-1:0] release1_q_ready_hit_w;
+  wire [ENTRY_N-1:0] release0_ready_hit_w;
+  wire [ENTRY_N-1:0] release1_ready_hit_w;
   wire query_pair_same_pid_w = query0_valid_i && query1_valid_i &&
       (query0_producer_id_i == query1_producer_id_i);
 
@@ -240,33 +267,37 @@ module OooLoadQueue #(
           (flush_all_i ||
            (rob_dist(rob_idx_q[g], flush_rob_head_i) >
             rob_dist(flush_boundary_rob_i, flush_rob_head_i)));
+      assign issue0_open_hit_w[g] = issue0_hit_w[g] &&
+          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g];
+      assign issue1_open_hit_w[g] = issue1_hit_w[g] &&
+          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g];
+      assign query0_open_hit_w[g] = query0_hit_w[g] && launched_q[g] &&
+          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g] &&
+          query0_meta_match_w[g] && !query_pair_same_pid_w;
+      assign query1_open_hit_w[g] = query1_hit_w[g] && launched_q[g] &&
+          !killed_q[g] && !terminal_seen_q[g] && !completed_q[g] &&
+          query1_meta_match_w[g] && !query_pair_same_pid_w;
+      assign response0_open_hit_w[g] = response0_hit_w[g] &&
+          launched_q[g] && !killed_q[g] && !terminal_seen_q[g] &&
+          !completed_q[g] && (ordered_q[g] || response0_fault_i);
+      assign response1_open_hit_w[g] = response1_hit_w[g] &&
+          launched_q[g] && !killed_q[g] && !terminal_seen_q[g] &&
+          !completed_q[g] && (ordered_q[g] || response1_fault_i);
+      assign release0_q_ready_hit_w[g] = release0_match_w[g] &&
+          completed_q[g];
+      assign release1_q_ready_hit_w[g] = release1_match_w[g] &&
+          completed_q[g];
+      assign release0_ready_hit_w[g] = release0_match_w[g] &&
+          (completed_q[g] || completion0_hit_w[g] || completion1_hit_w[g]);
+      assign release1_ready_hit_w[g] = release1_match_w[g] &&
+          (completed_q[g] || completion0_hit_w[g] || completion1_hit_w[g]);
     end
   endgenerate
 
-  reg issue0_open_r;
-  reg issue1_open_r;
-  reg query0_open_r;
-  reg query1_open_r;
-  reg response0_open_r;
-  reg response1_open_r;
-  reg release0_q_ready_r;
-  reg release1_q_ready_r;
-  reg release0_ready_r;
-  reg release1_ready_r;
   reg [(1 << PRODUCER_ID_W)-1:0] producer_live_mask_r;
   reg [ENTRY_COUNT_W-1:0] count_r;
   integer lookup_i;
   always @(*) begin
-    issue0_open_r = 1'b0;
-    issue1_open_r = 1'b0;
-    query0_open_r = 1'b0;
-    query1_open_r = 1'b0;
-    response0_open_r = 1'b0;
-    response1_open_r = 1'b0;
-    release0_q_ready_r = 1'b0;
-    release1_q_ready_r = 1'b0;
-    release0_ready_r = 1'b0;
-    release1_ready_r = 1'b0;
     producer_live_mask_r = {(1 << PRODUCER_ID_W){1'b0}};
     count_r = {ENTRY_COUNT_W{1'b0}};
     for (lookup_i = 0; lookup_i < ENTRY_N; lookup_i = lookup_i + 1) begin
@@ -274,59 +305,46 @@ module OooLoadQueue #(
         count_r = count_r + {{(ENTRY_COUNT_W-1){1'b0}}, 1'b1};
         producer_live_mask_r[producer_id_q[lookup_i]] = 1'b1;
       end
-      if (issue0_hit_w[lookup_i] && !killed_q[lookup_i] &&
-          !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i])
-        issue0_open_r = 1'b1;
-      if (issue1_hit_w[lookup_i] && !killed_q[lookup_i] &&
-          !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i])
-        issue1_open_r = 1'b1;
-      if (query0_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i] &&
-          query0_meta_match_w[lookup_i] && !query_pair_same_pid_w)
-        query0_open_r = 1'b1;
-      if (query1_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i] &&
-          query1_meta_match_w[lookup_i] && !query_pair_same_pid_w)
-        query1_open_r = 1'b1;
-      if (response0_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i] &&
-          (ordered_q[lookup_i] || response0_fault_i))
-        response0_open_r = 1'b1;
-      if (response1_hit_w[lookup_i] && launched_q[lookup_i] &&
-          !killed_q[lookup_i] && !terminal_seen_q[lookup_i] &&
-          !completed_q[lookup_i] &&
-          (ordered_q[lookup_i] || response1_fault_i))
-        response1_open_r = 1'b1;
-      if (release0_match_w[lookup_i] && completed_q[lookup_i])
-        release0_q_ready_r = 1'b1;
-      if (release1_match_w[lookup_i] && completed_q[lookup_i])
-        release1_q_ready_r = 1'b1;
-      if (release0_match_w[lookup_i] &&
-          (completed_q[lookup_i] || completion0_hit_w[lookup_i] ||
-           completion1_hit_w[lookup_i]))
-        release0_ready_r = 1'b1;
-      if (release1_match_w[lookup_i] &&
-          (completed_q[lookup_i] || completion0_hit_w[lookup_i] ||
-           completion1_hit_w[lookup_i]))
-        release1_ready_r = 1'b1;
     end
   end
 
-  assign issue0_open_o = issue0_open_r;
-  assign issue1_open_o = issue1_open_r;
-  assign query0_open_o = query0_open_r;
-  assign query1_open_o = query1_open_r;
-  assign response0_open_o = response0_open_r;
-  assign response1_open_o = response1_open_r;
-  assign release0_q_ready_o = release0_q_ready_r;
-  assign release1_q_ready_o = release1_q_ready_r;
-  assign release0_ready_o = release0_ready_r;
-  assign release1_ready_o = release1_ready_r;
+  wire issue0_open_binary_w = |issue0_open_hit_w;
+  wire issue1_open_binary_w = |issue1_open_hit_w;
+  wire query0_open_binary_w = |query0_open_hit_w;
+  wire query1_open_binary_w = |query1_open_hit_w;
+  wire response0_open_binary_w = |response0_open_hit_w;
+  wire response1_open_binary_w = |response1_open_hit_w;
+  wire release0_q_ready_binary_w = |release0_q_ready_hit_w;
+  wire release1_q_ready_binary_w = |release1_q_ready_hit_w;
+  wire release0_ready_binary_w = |release0_ready_hit_w;
+  wire release1_ready_binary_w = |release1_ready_hit_w;
+
+`ifdef SYNTHESIS
+  assign issue0_open_o = issue0_open_binary_w;
+  assign issue1_open_o = issue1_open_binary_w;
+  assign query0_open_o = query0_open_binary_w;
+  assign query1_open_o = query1_open_binary_w;
+  assign response0_open_o = response0_open_binary_w;
+  assign response1_open_o = response1_open_binary_w;
+  assign release0_q_ready_o = release0_q_ready_binary_w;
+  assign release1_q_ready_o = release1_q_ready_binary_w;
+  assign release0_ready_o = release0_ready_binary_w;
+  assign release1_ready_o = release1_ready_binary_w;
+`else
+  // A procedural `if` opens a port only for an exact 1.  Preserve that
+  // four-state simulation contract while the synthesized binary network uses
+  // a balanced reduction tree instead of ten loop-carried priority chains.
+  assign issue0_open_o = (issue0_open_binary_w === 1'b1);
+  assign issue1_open_o = (issue1_open_binary_w === 1'b1);
+  assign query0_open_o = (query0_open_binary_w === 1'b1);
+  assign query1_open_o = (query1_open_binary_w === 1'b1);
+  assign response0_open_o = (response0_open_binary_w === 1'b1);
+  assign response1_open_o = (response1_open_binary_w === 1'b1);
+  assign release0_q_ready_o = (release0_q_ready_binary_w === 1'b1);
+  assign release1_q_ready_o = (release1_q_ready_binary_w === 1'b1);
+  assign release0_ready_o = (release0_ready_binary_w === 1'b1);
+  assign release1_ready_o = (release1_ready_binary_w === 1'b1);
+`endif
   assign release0_fire_o = release0_valid_i && release0_ready_o &&
       release0_commit_i;
   assign release1_fire_o = release1_valid_i && release1_ready_o &&

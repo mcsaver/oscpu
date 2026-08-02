@@ -1,0 +1,60 @@
+{
+  "schema": "rv64-task-run-summary-v1",
+  "task_id": "rv64-v13g-int-iq-onehot-popmask",
+  "status": "DEVELOPMENT_CHECKPOINT_PASS",
+  "parent_design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+  "candidate_design_id": "sha256:364b1e601773c22ab0594950170674ea6b228bf6b4c9b2c26b0bdcc9a4374d44",
+  "mechanism": "fire-qualified selector onehot compact remove mask",
+  "functional": {
+    "v11f_g1": "PASS",
+    "v11f_g4": "PASS",
+    "full_iq_g4": "PASS",
+    "integration": "3/3 PASS",
+    "rtl_style": "PASS",
+    "g1_full_tb": "CONFIG_GAP_PARENT_AND_CANDIDATE_SAME_12_V8O_MISMATCHES"
+  },
+  "local": {
+    "parent_coarse_cells": 4430,
+    "candidate_coarse_cells": 4385,
+    "parent_mapped_cells": 34468,
+    "candidate_mapped_cells": 33284,
+    "parent_mapped_area": 75205.48,
+    "candidate_mapped_area": 74917.64,
+    "sequential_area_delta": 0.0,
+    "parent_worst_slack_ns": 2.233862638,
+    "candidate_worst_slack_ns": 2.406632185,
+    "tns_wns": "0/0"
+  },
+  "full_core_coarse": {
+    "status": "PASS",
+    "parent_cells": 51129,
+    "candidate_cells": 51084,
+    "parent_wire_bits": 1690602,
+    "candidate_wire_bits": 1690585,
+    "synth_check_problems": 0,
+    "elapsed_seconds": 235.22,
+    "design_identity_pre_post": "identical"
+  },
+  "independent_review": {
+    "verdict": "APPROVED_DEVELOPMENT_CHECKPOINT",
+    "contract_sha256": "f3cf111f9f4cf8a64f432a745059e4ff8d2d404b4d41022a9b07fa1da434d7f5",
+    "scope": "known_01_exact_onehot_mutually_exclusive_owners_q_only_pair_atomic_pop2",
+    "shell_ownership_returned": true
+  },
+  "cleanup": {
+    "bytes_removed": 458184579,
+    "files_removed": 26,
+    "recoverability": "regenerable_not_directly_recoverable",
+    "post_archive_workflow_bytes_removed": 21158,
+    "post_archive_workflow_files_removed": 18
+  },
+  "scope_gaps": [
+    "selector X/Z knownness and four-state equivalence not proven",
+    "ordinary dual-memory-lane downstream READY atomicity not reviewed",
+    "generic GEN_W=1 full TB retains the same 12 parent/candidate V8O oracle mismatches",
+    "full-core mapped synthesis and STA not run",
+    "qualified power not run",
+    "full architecture cohort not replayed",
+    "new system transaction not run"
+  ]
+}

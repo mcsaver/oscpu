@@ -1,0 +1,2 @@
+2026-08-01T09:58:43Z	counterexample	verification-only CsrFile TB-wiring negative 不能归类为 production RTL mutation	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/reviewer-result.md
+2026-08-01T09:58:43Z	decision	direct execution schema 与 legacy replay schema 均 fail-closed；当前系统事务仍缺，PPA 不晋级	.github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/currentness-decision.json

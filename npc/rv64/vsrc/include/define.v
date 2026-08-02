@@ -547,12 +547,13 @@
 `define MSTATUS_TVM        64'h0000_0000_0010_0000
 `define MSTATUS_TW         64'h0000_0000_0020_0000
 `define MSTATUS_TSR        64'h0000_0000_0040_0000
+`define MSTATUS_UXL        64'h0000_0002_0000_0000
 `define MSTATUS_SXL_UXL    64'h0000_000a_0000_0000
 `define MSTATUS_SD         64'h8000_0000_0000_0000
 `define MENVCFG_PBMTE      64'h4000_0000_0000_0000
 `define SSTATUS_MASK       (`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | \
                             `MSTATUS_VS_MASK | `MSTATUS_FS_MASK | \
-                            `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL | \
+                            `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_UXL | \
                             `MSTATUS_SD)
 `define SV39_PTE_N         64'h8000_0000_0000_0000
 `define SV39_PTE_RESERVED_MASK 64'he7c0_0000_0000_0000

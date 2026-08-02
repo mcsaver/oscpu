@@ -1,0 +1,8 @@
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+.github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue
+.github/task-runs/2026-07-20-rv64-v8u-dual-memory-sustained-issue/evidence
+.github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/evidence
+.github/task-runs
+.github/memory
+.github/memory/modules

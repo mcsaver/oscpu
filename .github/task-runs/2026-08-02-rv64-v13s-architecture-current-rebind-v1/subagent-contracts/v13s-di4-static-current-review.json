@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13s-di4-static-current-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前本地 RV64 双发射 OoO 核 DI-4 的 per-entry capability metadata 静态红项，沿 OooDispatchBackend 到 OooIntIssueQueue 的 dispatch capture、resident compaction copy、selector projection 与 swap/promotion 信号链，判定 checker 报告 compaction_copy=0、dispatch_capture=0 是源码锚点漂移还是 program-lane capability 回归。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/diagnostic/architecture-current-pre.json",
+      "npc/rv64/eval/ppa/evidence/architecture-current.json",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/rename_allocate",
+      "npc/rv64/vsrc/scheduling",
+      "npc/rv64/vsrc/execute",
+      "npc/rv64/vsrc/core",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/subagent-contracts/v13s-di4-static-current-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      ".github/task-runs/2026-08-02-rv64-v13s-architecture-current-rebind-v1/evidence/diagnostic/architecture-current-pre.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 DI-4 capability metadata 从 dispatch capture、IQ resident state、compaction/hold 到 selector/swap issue 的逐级 RTL 映射，说明当前静态 checker 条件为何通过或失败，并提出保持动态 lane permutation 合同强度的最小修正或 RTL 修复方向。"
+  ],
+  "success_criteria": [
+    "明确 PASS、GAP 或 inconclusive，引用真实 signal/assignment，验证 metadata 在 stall、compaction 与 dispatch insert 时不会丢失；区分 checker source-pattern、design-id provenance 与真实 lane semantics，并保留反例、unknowns、confidence_and_basis、scope_extension_request。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

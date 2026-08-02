@@ -1,0 +1,233 @@
+{
+  "schema": "npc-rv64-performance-measurement-contract-v1",
+  "performance_measurement_contract_id": "npc-rv64-pmc-v1-v13o-request-detail-20260801",
+  "contract_state": "FROZEN_MEASUREMENT_INTENT_WITH_QUALIFICATION_GAPS",
+  "performance_baseline_eligible": false,
+  "measurement_scope": "two deterministic bare-metal committed-PC bounded regions; base CPI/IPC, retirement conservation, partial ROB-head lifecycle attribution, exact-token memory holder lifecycle attribution, and nested memory request-phase attribution",
+  "target_hart": 0,
+  "core_configuration": {
+    "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+    "config_path": "npc/rv64/.config",
+    "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "isa": "rv64imafd_zicsr_zifencei_zba_zbb_zbc_zbs",
+    "mode": "single-hart"
+  },
+  "physical_issue_terminals": {
+    "integer_terminals": 2,
+    "fp_terminals": 1,
+    "global_issue_slot_contract": "GAP_PHYSICAL_TERMINALS_ARE_NOT_YET_RECONCILED_TO_ONE_GLOBAL_SLOT_LEDGER",
+    "policy_issue_width_2_scope": "ARCHITECTURAL_DUAL_ISSUE_TARGET_ONLY_NOT_A_GLOBAL_PHYSICAL_TERMINAL_CAPACITY"
+  },
+  "retire_width": 2,
+  "identity_binding": {
+    "configured_mixed_rtl_source_closure": {
+      "id": "sha256:7f7c40035ee74fdea555f79074216bc0ffb6608ad05bc2c4bfd86af88d75e6d2",
+      "basis": "V13I inputs.pre.json groups.rtl; 146 vsrc members including production and simulation-only sources",
+      "qualification": "HISTORICAL_V13I_MIXED_SOURCE_CLOSURE_STALE_AFTER_V13O_SIM_OBSERVER_CHANGE"
+    },
+    "production_core_rtl": {
+      "id": null,
+      "qualification": "GAP_TYPED_PRODUCTION_ONLY_CLOSURE_NOT_EMITTED"
+    },
+    "elaborated_rtl": {
+      "id": null,
+      "qualification": "GAP_ORDERED_FILELIST_DEFINES_PARAMETERS_TOP_TOOL_AND_ELABORATED_MODEL_NOT_BOUND"
+    },
+    "simulation_top_source": {
+      "id": "sha256:aecea1c008424738aabcfafe4bf719a19778834b64d61747100266d10d5fc2b0",
+      "qualification": "V13O_SOURCE_FILE_ONLY_SIMULATION_OBSERVER"
+    },
+    "device_model_source": {
+      "id": "sha256:5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
+      "qualification": "SOURCE_FILE_ONLY"
+    },
+    "host_harness_source_group_claim": {
+      "id": null,
+      "qualification": "GAP_CANONICAL_HOST_SOURCE_GROUP_NOT_EMITTED_AFTER_V13O_COUNTER_CHANGE; source sha256:a2c706a60bce55cb756c7dfb97bcc13e821467a11449558e18b752aba61a15eb"
+    },
+    "simulator_executable": {
+      "id": "sha256:ee11d088c5492328927766daa38efa82b4e8948d4e3aa33ec7b84122d78c01a7",
+      "qualification": "V13O_CURRENT_CONFIG_COREMARK_PRE_RUN_EXECUTABLE_BOUND; NOT_A_TYPED_ELABORATED_MODEL_OR_3X_COHORT_IDENTITY"
+    },
+    "guest_source_group_claim": {
+      "id": "sha256:218cd68b52095e51afe29b188924de8be0e7ac6a8e9a73c5af2170f49dc960ea",
+      "qualification": "GAP_CANONICALIZATION_ALGORITHM_NOT_VERSIONED"
+    }
+  },
+  "boot_artifact_id": "none:bare-metal-direct-load",
+  "workload_suite_id": "npc-rv64-coremark10-dhrystone10000-v1",
+  "workload_id": {
+    "coremark": "coremark-10-iterations-crc-fcaf",
+    "dhrystone_10000": "dhrystone-2.2-10000-runs"
+  },
+  "workload_binary_id": {
+    "coremark": "sha256:a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+    "dhrystone_10000": "sha256:56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41"
+  },
+  "workload_input_id": {
+    "coremark": "ITERATIONS=10",
+    "dhrystone_10000": "mainargs=10000"
+  },
+  "compiler_id": "sha256:0c2a199ea3ae14d39b008fd4080d4b18d675b07daa17976c7d9755e8ea67310b",
+  "compiler_path": "/usr/bin/riscv64-linux-gnu-gcc-13",
+  "compiler_flags": [
+    "-O2",
+    "-fno-pic",
+    "-mcmodel=medany",
+    "-mstrict-align",
+    "-ffreestanding",
+    "-march=rv64imafd_zicsr_zifencei_zba_zbb_zbc_zbs",
+    "-mabi=lp64",
+    "-static",
+    "-fdata-sections",
+    "-ffunction-sections",
+    "-fno-asynchronous-unwind-tables",
+    "-fno-builtin",
+    "-fno-stack-protector",
+    "-fvisibility=hidden"
+  ],
+  "linker_flags": [
+    "-melf64lriscv",
+    "-z noexecstack",
+    "--defsym=_pmem_start=0x80000000",
+    "--defsym=_entry_offset=0x0",
+    "--gc-sections",
+    "-e _start",
+    "-T abstract-machine/scripts/linker.ld"
+  ],
+  "start_marker": {
+    "coremark": {
+      "pc": "0x00000000800017a8",
+      "semantics": "first committed hit",
+      "required_total_hits": 1,
+      "current_enforcement": "IMPLEMENTED_BY_V8_REGION_AND_COUNTERS_FINAL; V13O_CURRENT_CONFIG_COREMARK_1X_PASS; FRESH_3X_LOGS_PENDING"
+    },
+    "dhrystone_10000": {
+      "pc": "0x0000000080000334",
+      "semantics": "first committed hit; loop header subsequently repeats",
+      "required_total_hits": 10000,
+      "current_enforcement": "IMPLEMENTED_BY_V8_REGION_AND_COUNTERS_FINAL; FRESH_DHRYSTONE_3X_LOGS_PENDING"
+    }
+  },
+  "end_marker": {
+    "coremark": {
+      "pc": "0x00000000800017b0",
+      "semantics": "first committed hit after start",
+      "required_total_hits": 1,
+      "current_enforcement": "IMPLEMENTED_BY_V8_REGION_AND_COUNTERS_FINAL; V13O_CURRENT_CONFIG_COREMARK_1X_PASS; FRESH_3X_LOGS_PENDING"
+    },
+    "dhrystone_10000": {
+      "pc": "0x000000008000047c",
+      "semantics": "first committed hit after the final loop iteration",
+      "required_total_hits": 1,
+      "current_enforcement": "IMPLEMENTED_BY_V8_REGION_AND_COUNTERS_FINAL; FRESH_DHRYSTONE_3X_LOGS_PENDING"
+    }
+  },
+  "warmup_policy": "execute from reset and exclude all cycles/instructions before the first committed start marker",
+  "minimum_retired_instructions": {
+    "coremark": 1000000,
+    "dhrystone_10000": 1000000
+  },
+  "cache_initial_state": "cold reset-invalid I-cache and D-cache state",
+  "TLB_initial_state": "cold reset-invalid translation state",
+  "predictor_initial_state": "reset state from the bound production RTL and configuration",
+  "privilege_mode": "M-mode bare-metal workload",
+  "MMU_state": "bare",
+  "interrupt_policy": "no asynchronous external interrupt injection during the measurement region",
+  "memory_latency_profile_id": "npc-rv64-axi-dpi-default-deterministic-v1",
+  "device_latency_profile_id": "npc-rv64-device-default-deterministic-v1",
+  "random_seed": "none:no active randomized latency source",
+  "repetition_count": 3,
+  "outlier_policy": "no outlier removal; any non-bit-exact counter pair invalidates deterministic qualification",
+  "statistical_method": "three independent executions; require bit-exact cycles and retired-instruction counts",
+  "workload_weight": {
+    "coremark": 0.5,
+    "dhrystone_10000": 0.5
+  },
+  "aggregation_method": "weighted geometric mean of qualified-frequency throughput_mips",
+  "counter_schema_id": "npc-rv64-pcs-v4-request-detail-20260801",
+  "counter_schema_binding": {
+    "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+    "state": "PARTIAL_CONSERVING_MEMORY_REQUEST_DETAIL_V4"
+  },
+  "counter_read_semantics": {
+    "cycles": "end_cycle - start_cycle from committed-PC boundary records; v8 requires unique termination-time FINAL and COUNTERS_FINAL markers",
+    "retired_instructions": "end_retired_before - start_retired_before from ordered commit events; v8 binds the final totals, termination_rc, and retired-slot ledger",
+    "same_cycle_lane_order": "lane0 before lane1; retired_before includes older same-cycle commit lanes only",
+    "retire_slot_capacity": "2 * cycles + end_lane - start_lane; baseline qualification requires start_lane == end_lane",
+    "retire_slot_endpoint_correction": "add start-cycle lanes start_lane..1 and subtract end-cycle lanes end_lane..1 from inclusive cumulative deltas",
+    "whole_program_counters": "termination diagnostics only; never selected for region CPI/IPC",
+    "ooo_overlap_buckets": "diagnostic only and not a qualified CPI stack"
+  },
+  "frequency_source": "fresh same-design exact-5ns OpenSTA result for timing-normalized claims; simulator cycle counts alone do not qualify frequency",
+  "regression_threshold": {
+    "critical_workload_minimum_throughput_ratio": 0.995,
+    "instruction_count": "bit-exact",
+    "architectural_signature": "bit-exact"
+  },
+  "promotion_threshold": {
+    "weighted_effective_performance_ratio": 1.002,
+    "per_workload_throughput_ratio": 0.995,
+    "requires_joint_ppa_qualification": true
+  },
+  "guardrail_threshold": {
+    "unknown_or_unclassified_cycle_ratio_max": 0.01,
+    "counter_conservation_mismatches": 0,
+    "timeout_or_infrastructure_errors": 0
+  },
+  "counter_qualification": {
+    "region_cycles_and_retirement": "V8_FINAL_COUNTERS_FINAL_AND_FAIL_CLOSED_PARSER_IMPLEMENTED; V13O_CURRENT_CONFIG_COREMARK_1X_PASS_5395310_CYCLES_3183617_RETIRED; FRESH_3X_COHORT_PENDING",
+    "cpi_stack": "PARTIAL_CONSERVING_MEMORY_REQUEST_DETAIL_V4; ROB_HEAD_DEPENDENCY_ISSUE_EXECUTION_MEMORY_EXACT_TOKEN_MEMORY_HOLDER_AND_REQUEST_PHASE_SPLITS_IMPLEMENTED",
+    "issue_slot_accounting": "GAP_GLOBAL_INTEGER_FP_SLOT_CONTRACT_NOT_FROZEN",
+    "retire_slot_accounting": "V4_MUTUALLY_EXCLUSIVE_PRIMARY_REASON_PARTITION_WITH_REQUEST_MEMORY_AND_HEAD_AGGREGATE_BINDINGS_IMPLEMENTED_WITH_PHASE_ALIGNED_BASELINE_REQUIREMENT",
+    "occupancy_histograms": "GAP_NOT_BOUND_TO_REGION",
+    "overflow_tests": "HOST_SATURATING_ACCUMULATOR_AND_V8_FAIL_CLOSED_MARKER_CHECK_IMPLEMENTED; V13O_CURRENT_RESULT_OVERFLOW_0_INVALID_EVENTS_0_CONSERVATION_1",
+    "instrumentation_non_interference": "V13O_CYCLES_RETIRED_HEAD_NOT_COMPLETE_MEMORY_LATENCY_AND_MEMORY_REQUEST_OUTSTANDING_MATCH_V13N_A2_BIT_EXACT; GAP_TYPED_PRODUCTION_CLOSURE_AND_EXPLICIT_INSTRUMENTATION_OFF_COHORT",
+    "consumer_fail_closed_enforcement": "V8_POLICY_BINDS_MEASUREMENT_AND_COUNTER_CONTRACT_IDS_DIGESTS; CURRENT_FALSE_ELIGIBILITY_BLOCKS_STRICT_CHECK",
+    "legacy_cpi_neutral_scope": "INTERMEDIATE_WHOLE_PROGRAM_CHECKPOINT_ONLY_NOT_A_REGION_BASELINE",
+    "baseline_declaration": "NOT_QUALIFIED"
+  },
+  "known_limitations": [
+    "The workload matrix currently contains only two mixed integer bare-metal benchmarks.",
+    "Current OoO fetch/memory/hazard/redirect/exception buckets overlap and cannot be summed into CPI.",
+    "Integer issue has two terminals while FP issue has one independent terminal; a single global issue-slot width is not yet justified.",
+    "The V13O current-config CoreMark run exercised v8 FINAL plus v4 COUNTERS_FINAL and exactly matched V13N cycles, retired, head-not-complete, memory-latency, and memory-request-outstanding aggregates. A fresh three-repetition CoreMark plus Dhrystone cohort remains open.",
+    "The V13I design_id is a mixed configured RTL source closure, not a typed production-only or elaborated-model identity.",
+    "The v8 policy/checker binds this measurement contract and the counter schema by path, ID, SHA-256; current false eligibility deliberately blocks strict baseline acceptance.",
+    "A region-bound retirement lost-slot ledger, partial ROB-head lifecycle split, and exact-token memory holder split now exist, but global issue-slot, occupancy and instrumentation non-interference evidence remain open.",
+    "V13O persisted simulator executable SHA-256 ee11d088c5492328927766daa38efa82b4e8948d4e3aa33ec7b84122d78c01a7 before CoreMark and deleted 230228532 build bytes after evidence completion; this is one current-config run, not the required 3x deterministic cohort.",
+    "V13O request-phase residency is dominated by AXI write response at 690056 of 1111757 request-outstanding cycles, followed by AXI write request at 300929; this locates the next audit but does not by itself prove an exclusive causal latency or authorize early store retirement before precise aggregate B.",
+    "SERIALIZE-G1 current-design full-system evidence is stale, so this contract cannot grant full-core arch-stable or system-performance status.",
+    "Qualified workload-activity power is unavailable."
+  ],
+  "binding_evidence": {
+    "inputs": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.pre.json",
+    "functional_result": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/run-result.json",
+    "legacy_cpi_neutral": ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/cpi-neutral.json",
+    "counter_schema": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "counter_schema_doc": "npc/rv64/design/arch/performance-counter-schema.md",
+    "v13l_current_coremark_result": ".github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/evidence/coremark-current/counter-check-result.json",
+    "v13l_current_coremark_raw_log": ".github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/evidence/coremark-current/coremark-v5.raw.log",
+    "v13l_full_build_result": ".github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/evidence/compile/full-build-result.json",
+    "v13m_original_status": ".github/task-runs/2026-08-01-rv64-v13m-head-lifecycle-cpi-v1/coremark-head-lifecycle-smoke.status",
+    "v13m_current_coremark_raw_log": ".github/task-runs/2026-08-01-rv64-v13m-head-lifecycle-cpi-v1/evidence/coremark-current/coremark-v6.raw.log",
+    "v13m_checker_replay": ".github/task-runs/2026-08-01-rv64-v13m-head-lifecycle-cpi-v1/evidence/coremark-current/checker-replay-result.json",
+    "v13n_a1_fail": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current/attempt-result.json",
+    "v13n_a2_status": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/coremark-memory-lifecycle-smoke-a2.status",
+    "v13n_a2_pre_run_identity": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current-a2/pre-run-identity.json",
+    "v13n_a2_current_coremark_raw_log": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current-a2/coremark-v7.raw.log",
+    "v13n_a2_current_coremark_result": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence/coremark-current-a2/counter-check-result.json",
+    "policy": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+    "v13o_status": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/coremark-request-detail-smoke.status",
+    "v13o_pre_run_identity": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/pre-run-identity.json",
+    "v13o_current_coremark_raw_log": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/coremark-v8.raw.log",
+    "v13o_current_coremark_result": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/counter-check-result.json",
+    "v13o_command_status": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/command-status.txt",
+    "v13o_post_run_binding": ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/post-run-binding.json",
+    "policy_performance_schema": "npc-rv64-performance-evidence-v8",
+    "v8_parser": "npc/rv64/eval/ppa/tools/check.py",
+    "v8_parser_tests": "npc/rv64/eval/ppa/tests/test_policy_tools.py"
+  },
+  "reviewer_conclusion": "V13O_CURRENT_CONFIG_REQUEST_PHASE_SUBLEDGER_PASS_WITH_5395310_CYCLES_3183617_RETIRED_ZERO_UNKNOWN_AND_V13N_AGGREGATE_EQUIVALENCE; AXI_WRITE_RESPONSE_IS_THE_DOMINANT_RESIDENCY_BUT_PRECISE_LATE_B_AND_OWNER_LEASE_CONTRACTS_FORBID_EARLY_RETIREMENT; GAP_FRESH_3X_RUNS_PRODUCTION_RTL_SELECTION_FRONTEND_AND_ISSUE_TERMINAL_SPLITS_TYPED_IDENTITIES_FULL_CAUSAL_CPI_STACK_AND_NONINTERFERENCE_REQUIRED"
+}

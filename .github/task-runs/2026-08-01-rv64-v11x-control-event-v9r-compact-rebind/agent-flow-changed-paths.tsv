@@ -1,0 +1,12 @@
+npc/rv64/design/arch/architecture-debt-ledger.json
+npc/rv64/eval/ppa/control-event-evidence.mk
+npc/rv64/eval/ppa/tools/arch_stable_freeze.py
+npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py
+npc/rv64/eval/ppa/tools/control_event_current_evidence.py
+npc/rv64/eval/ppa/tests/test_control_event_current_evidence.py
+npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py
+npc/rv64/eval/ppa/tests/test_control_event_sq_retry_evidence.py
+npc/rv64/eval/ppa/evidence/control-event-current.json
+npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json
+.github/memory/project-status.md
+.github/memory/modules/npc.md

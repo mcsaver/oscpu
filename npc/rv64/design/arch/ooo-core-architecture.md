@@ -11,7 +11,8 @@
 > 目录与 owner。但这些 owner 之间的关系主要是**历史演化**出来的，而不是先有一张架构图、再让代码服从它。
 > 本文件就是那张图。下一步重构应**反过来用本文件约束实现**。
 >
-> **版本**：v0.7（2026-07-28，冻结 queue-head CSR 产品配置与 split-domain 合同；
+> **版本**：v0.8（2026-08-01，把 queue-head CSR 快速门重绑定到 364b1e 当前设计并明确
+> 系统事务证据仍 stale）；v0.7 于 2026-07-28 冻结 queue-head CSR 产品配置与 split-domain 合同；
 > v0.6 于 2026-07-26 冻结 full-core single-hart capability cohort；
 > v0.5 于 2026-07-16 冻结 R4-S1.0 typed memory ABI；v0.4 为
 > 2026-07-15 不可用 PPA 交换的双发射/真 OoO 能力底线，v0.3 为 2026-07-11 current
@@ -74,9 +75,11 @@
 上述四项通过 design/cohort-bound 的 `EXCLUDED_BY_COHORT` 合同解析的是未实现的可选
 能力，不会删除现有 WFI/SFENCE/Svinval 指令路径、降低 legality 检查或削弱 testbench。
 `SERIALIZE-G1` 不在排除集内。2026-07-28 起 queue-head 路径是产品默认配置；
-其关闭由 current-design 原始周期计数、负向 RTL 版本和 V10G 第二次独立审查共同裁决，
-不能由默认值本身替代。当前设计上的裁决为 `SERIALIZE-G1=CLOSED`；Phase2–5、
-architecture freeze 与 PPA 不在该裁决范围。
+其关闭曾由 04c5458 设计上的原始周期计数、负向版本和 V10G 第二次独立审查共同裁决，
+不能由默认值本身替代。V13H 在 364b1e 当前设计上重新通过 queue-head/pending-SYSTEM
+快速门和 113/177/61 功能队列，但尚无同身份完整 Linux/systemd 事务；因此机器账本当前为
+`SERIALIZE-G1=STALE_EVIDENCE`，而不是把历史 `CLOSED` 自动继承到当前 design-id。
+Phase2–5、architecture freeze 与 PPA 也不在快速重绑定范围。
 
 ### 0.3 queue-head CSR 产品合同（2026-07-28）
 

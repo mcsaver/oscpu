@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11w-ifu-dispatch-bounded-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 IFU-AXI-G1 与 IFU-ACCESS-G1 当前设计证据：专用 literal-only dispatch Makefile、隔离的 GNU Make 配置及定向 marker 反例，是否关闭 V2 指出的解析期 runner 假执行与 dry-run/normal-run recipe 分叉缺口，同时保持 RTL/TB/负向 RTL 变体/design_id 绑定及整体系结构 GAP 边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/ifu-evidence.mk",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tools/ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/subagent-contracts/v11w-ifu-dispatch-bounded-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "V2 反例已接纳：完整 npc/rv64/Makefile 含配置探测和 include，不再作为 IFU evidence dry-run 入口，也不再进入两项 IFU source_bindings；日常 Make 目标保留但不是 canonical evidence 命令。",
+      "新增 npc/rv64/eval/ppa/ifu-evidence.mk，仅含两组字面 .PHONY、target 与 bash 相对路径 recipe。两份 builder 先逐行拒绝除注释、空行、简单 .PHONY、无依赖字面 target、受限字面 recipe 以外的语法，再要求本 gate canonical block、target rule 与 phony 声明各且仅有一次。include、变量赋值、$(shell)、$(eval)、$(file)、条件块、重复 target 与行内 recipe 均无法通过该语法。",
+      "canonical command 固定 /usr/bin/env 与 /usr/bin/make，清除 MAKEFLAGS、MFLAGS、MAKELEVEL、GNUMAKEFLAGS、MAKEFILES，使用 -rR、--no-print-directory、-C npc/rv64、-f eval/ppa/ifu-evidence.mk；builder 的 -n 复核额外传入 SHELL=/bin/false，stdout 必须恰为唯一 literal runner 行、stderr 为空且 rc=0。",
+      "定向反例：direct wrong-runner、重复同名 target、include override、$(shell) marker、$(eval)、基于 MAKEFLAGS 的条件块均 fail-closed；MAKEFILES/GNUMAKEFLAGS/MAKEFLAGS/MFLAGS/MAKELEVEL 注入测试通过且 marker 不存在。两组完整证据单测合计 26/26 PASS。",
+      "冻结硬件证据未重跑：IFU-AXI focused 3/3、module 113/113、compile-success negative RTL variants 18/18；IFU-ACCESS focused 5/5、module 113/113、variants 19/19；12 个冻结输入 SHA 前后完全相同。两份 current JSON design_id 均为 sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4。",
+      "发布边界：最终 architecture audit 与 verify 均返回 0，但结果保持 GAP、PPA UNQUALIFIED、promotion_eligible=false、53 blockers；ledger 两项仍为 STALE_EVIDENCE，未把两个局部 current evidence 混入旧的全债务 cohort。生产 RTL 未修改。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 证据对象、GNU Make 配置、TB/EDA 观测和 PASS/GAP 范围给出最终限定材料复核；优先验证 V2 两个反例是否已由专用字面 dispatch、环境隔离和 marker 单测关闭，并列出仍存在的真实未知项或范围扩展请求。"
+  ],
+  "success_criteria": [
+    "只有当专用 dispatch 对动态 Make 构造和环境注入 fail-closed、-n 不启动 runner marker、RTL/TB/variant/design_id 证据未削弱且全核 GAP 边界保留时才可给 scoped PASS；否则精确指出字段或反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

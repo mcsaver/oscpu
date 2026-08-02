@@ -25,10 +25,10 @@ TEST = "tb_ooo_store_queue"
 RTL_PATH = "npc/rv64/vsrc/memory/OooStoreQueue.v"
 TB_PATH = "npc/rv64/testbench/tests/tb_ooo_store_queue.sv"
 EXPECTED_RTL_SHA256 = (
-    "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+    "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f"
 )
 EXPECTED_TB_SHA256 = (
-    "86ea1b71c03071c965fc09af1068475d0c0bca314b73b6b4338bb23ab1516fb0"
+    "6968ad0699be59e7166064bcf62033d655185c688cb52aa4cf80d8536cb67823"
 )
 UNIT_IDS = frozenset(
     {

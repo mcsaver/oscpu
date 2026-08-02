@@ -1,5 +1,0 @@
-[TEST] tb_ooo_fetch_packet_decode
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fetch_packet_decode -o .github/task-runs/T3L/evidence/focused-initial/build/tb_ooo_fetch_packet_decode.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooRvcDecompressor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v tests/tb_ooo_fetch_packet_decode.sv
-[PASS] tb_ooo_fetch_packet_decode
-common/tb_common.svh:32: $finish called at 8 (1s)
-[RESULT] PASS

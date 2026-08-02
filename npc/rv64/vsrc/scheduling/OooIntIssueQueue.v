@@ -156,6 +156,12 @@ module OooIntIssueQueue #(
   input recover_active_i
 );
 
+  // V13I：normal compaction 将完整 entry 作为一个组合 payload 搬运。该打包宽度
+  // 只描述既有 Q 字段，不增加寄存状态，也不改变任何端口或周期边界。
+  localparam ENTRY_STATE_W =
+      (4 * `XLEN) + `BPU_BHT_INDEX_W + `INST_W + `CTRL_BUS_W +
+      PRODUCER_ID_W + (4 * PHY_REG_ADDR_W) + 9;
+
   reg valid_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_q [0:ENTRY_COUNT-1];
@@ -216,6 +222,23 @@ module OooIntIssueQueue #(
   reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
   integer kc_i;
 
+  // V13I static survivor map：每个目的槽只允许读取自身及后续两个候选源。
+  // 这样较年轻 remove 条件不会通过动态 write pointer 回灌较老目的槽。
+  wire [3:0] compact_remove_prefix_count_w [0:7];
+  wire [7:0] compact_source0_sel_w;
+  wire [7:0] compact_source1_sel_w;
+  wire [7:0] compact_source2_sel_w;
+  wire [ENTRY_STATE_W-1:0] compact_source_state_w [0:7];
+  wire [ENTRY_STATE_W-1:0] compact_survivor_state_w [0:7];
+  wire [ENTRY_STATE_W-1:0] compact_next_state_w [0:7];
+  wire [ENTRY_STATE_W-1:0] dispatch0_state_w;
+  wire [ENTRY_STATE_W-1:0] dispatch1_state_w;
+  wire [7:0] compact_survivor_valid_w;
+  wire [7:0] compact_first_free_w;
+  wire [7:0] compact_dispatch0_slot_w;
+  wire [7:0] compact_dispatch1_slot_w;
+  wire [7:0] compact_next_valid_w;
+
   // R3.3：选择器只消费寄存阵列投影。8 路资格比较并行展开，oldest-two 与
   // first-ALU 由三层平衡前缀树产生，不再用 loop-carried found/older 状态。
   wire [7:0] select_valid_w;
@@ -236,9 +259,10 @@ module OooIntIssueQueue #(
   // R3.6 timing cut: the balanced selector already produces a onehot owner.
   // Feed only the two issue0 PRF addresses from that onehot instead of
   // encoding it to issue0_idx_w and decoding it again through an indexed 8:1
-  // mux on the selector->PRF->Universal-terminal critical path.  All other
-  // payload, age, pop and compaction decisions retain issue0_idx_w as their
-  // single owner identity.
+  // mux on the selector->PRF->Universal-terminal critical path.  Other payload
+  // and observability reads retain issue0_idx_w as their owner identity;
+  // V13G compaction consumes the same selector onehot directly, qualified by
+  // fire, so it does not encode and then decode the pop owner.
   wire [PHY_REG_ADDR_W-1:0] issue0_src1_preg_01_w =
       ({PHY_REG_ADDR_W{issue0_onehot_w[0]}} & src1_preg_q[0]) |
       ({PHY_REG_ADDR_W{issue0_onehot_w[1]}} & src1_preg_q[1]);
@@ -281,13 +305,54 @@ module OooIntIssueQueue #(
   wire issue1_fire_w = issue1_valid_o && issue1_ready_i;
   wire memory_pair_peek_fire_w =
       memory_pair_peek_valid_o && memory_pair_peek_ready_i;
+  // V13G: selector 已经给出唯一 owner onehot；compaction 直接消费 fire-qualified
+  // entry bit，避免 onehot 编码成 binary index 后再对 8 项逐项比较。memory-pair
+  // peek 固定原子移除 packed-age 队首两项。该 mask 只改变 owner 表示，不改变
+  // fire、年龄、双 pop 或 payload copy 语义。
+  wire [7:0] compact_remove_w =
+      ({8{issue0_fire_w}} & issue0_onehot_w) |
+      ({8{issue1_fire_w}} & issue1_onehot_w) |
+      ({8{memory_pair_peek_fire_w}} & 8'b0000_0011);
+  // 8 个 1-bit remove 先按 2/4 项平衡求和，再形成局部前缀计数。对目的槽 d，
+  // source select 最多消费 prefix[d+1]；高于 d+2 的 remove 位没有物理扇入。
+  wire [3:0] compact_remove_count_01_w;
+  wire [3:0] compact_remove_count_23_w;
+  wire [3:0] compact_remove_count_45_w;
+  wire [3:0] compact_remove_count_67_w;
+  wire [3:0] compact_remove_count_03_w;
+  wire [3:0] compact_remove_count_47_w;
+  assign compact_remove_count_01_w =
+      {3'b000, compact_remove_w[0]} + {3'b000, compact_remove_w[1]};
+  assign compact_remove_count_23_w =
+      {3'b000, compact_remove_w[2]} + {3'b000, compact_remove_w[3]};
+  assign compact_remove_count_45_w =
+      {3'b000, compact_remove_w[4]} + {3'b000, compact_remove_w[5]};
+  assign compact_remove_count_67_w =
+      {3'b000, compact_remove_w[6]} + {3'b000, compact_remove_w[7]};
+  assign compact_remove_count_03_w =
+      compact_remove_count_01_w + compact_remove_count_23_w;
+  assign compact_remove_count_47_w =
+      compact_remove_count_45_w + compact_remove_count_67_w;
+  assign compact_remove_prefix_count_w[0] = {3'b000, compact_remove_w[0]};
+  assign compact_remove_prefix_count_w[1] = compact_remove_count_01_w;
+  assign compact_remove_prefix_count_w[2] =
+      compact_remove_count_01_w + {3'b000, compact_remove_w[2]};
+  assign compact_remove_prefix_count_w[3] = compact_remove_count_03_w;
+  assign compact_remove_prefix_count_w[4] =
+      compact_remove_count_03_w + {3'b000, compact_remove_w[4]};
+  assign compact_remove_prefix_count_w[5] =
+      compact_remove_count_03_w + compact_remove_count_45_w;
+  assign compact_remove_prefix_count_w[6] =
+      compact_remove_count_03_w + compact_remove_count_45_w +
+      {3'b000, compact_remove_w[6]};
+  assign compact_remove_prefix_count_w[7] =
+      compact_remove_count_03_w + compact_remove_count_47_w;
   wire [ENTRY_COUNT_W-1:0] free_slots_w =
       ENTRY_COUNT[ENTRY_COUNT_W-1:0] - count_q;
   wire dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
   wire dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
 
   integer compact_i;
-  integer write_i;
   integer reset_i;
 
   function wakeup_match;
@@ -419,6 +484,213 @@ module OooIntIssueQueue #(
     end
   endfunction
 
+  // V13I：把既有 entry 字段视为一条并行搬运总线。resident payload 在进入
+  // survivor mux 前吸收本拍 sticky wake；dispatch payload 保持原写入臂的全部判定。
+  genvar compact_g;
+  generate
+    for (compact_g = 0; compact_g < 8; compact_g = compact_g + 1) begin : gen_compact_source
+      assign compact_source_state_w[compact_g] = {
+        pc_q[compact_g],
+        next_pc_q[compact_g],
+        pred_npc_q[compact_g],
+        bht_idx_q[compact_g],
+        pred_taken_q[compact_g],
+        inst_q[compact_g],
+        ctrl_q[compact_g],
+        producer_id_q[compact_g],
+        src1_preg_q[compact_g],
+        src1_ready_q[compact_g] ||
+            wakeup_match(src1_preg_q[compact_g],
+                         wakeup0_valid_i, wakeup0_pdest_i,
+                         wakeup1_valid_i, wakeup1_pdest_i,
+                         early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                         early_wakeup1_valid_i, early_wakeup1_pdest_i),
+        src2_preg_q[compact_g],
+        src2_ready_q[compact_g] ||
+            wakeup_match(src2_preg_q[compact_g],
+                         wakeup0_valid_i, wakeup0_pdest_i,
+                         wakeup1_valid_i, wakeup1_pdest_i,
+                         early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                         early_wakeup1_valid_i, early_wakeup1_pdest_i),
+        pdest_q[compact_g],
+        fp_pdest_q[compact_g],
+        fp_st_en_q[compact_g],
+        fp_st_preg_q[compact_g],
+        fp_st_ready_q[compact_g] ||
+            (fp_wake0_valid_i &&
+             (fp_wake0_preg_i == fp_st_preg_q[compact_g])) ||
+            (fp_wake1_valid_i &&
+             (fp_wake1_preg_i == fp_st_preg_q[compact_g])),
+        imm_q[compact_g],
+        alu_terminal_capable_q[compact_g],
+        plain_memory_terminal_capable_q[compact_g],
+        fixed_gpr_producer_q[compact_g]
+      };
+
+      // packed queue 每拍最多删除两项，因此目的槽 d 只可能来自 d/d+1/d+2。
+      assign compact_source0_sel_w[compact_g] =
+          (compact_remove_prefix_count_w[compact_g] == 4'd0);
+      if (compact_g < 6) begin : gen_three_source
+        assign compact_source1_sel_w[compact_g] =
+            (compact_remove_prefix_count_w[compact_g] == 4'd1) &&
+            !compact_remove_w[compact_g+1];
+        assign compact_source2_sel_w[compact_g] =
+            (compact_remove_prefix_count_w[compact_g+1] == 4'd2) &&
+            !compact_remove_w[compact_g+2];
+        assign compact_survivor_valid_w[compact_g] =
+            (compact_source0_sel_w[compact_g] && valid_q[compact_g]) ||
+            (compact_source1_sel_w[compact_g] && valid_q[compact_g+1]) ||
+            (compact_source2_sel_w[compact_g] && valid_q[compact_g+2]);
+        assign compact_survivor_state_w[compact_g] =
+            ({ENTRY_STATE_W{compact_source0_sel_w[compact_g]}} &
+             compact_source_state_w[compact_g]) |
+            ({ENTRY_STATE_W{compact_source1_sel_w[compact_g]}} &
+             compact_source_state_w[compact_g+1]) |
+            ({ENTRY_STATE_W{compact_source2_sel_w[compact_g]}} &
+             compact_source_state_w[compact_g+2]);
+      end else if (compact_g == 6) begin : gen_two_source
+        assign compact_source1_sel_w[compact_g] =
+            (compact_remove_prefix_count_w[compact_g] == 4'd1) &&
+            !compact_remove_w[compact_g+1];
+        assign compact_source2_sel_w[compact_g] = 1'b0;
+        assign compact_survivor_valid_w[compact_g] =
+            (compact_source0_sel_w[compact_g] && valid_q[compact_g]) ||
+            (compact_source1_sel_w[compact_g] && valid_q[compact_g+1]);
+        assign compact_survivor_state_w[compact_g] =
+            ({ENTRY_STATE_W{compact_source0_sel_w[compact_g]}} &
+             compact_source_state_w[compact_g]) |
+            ({ENTRY_STATE_W{compact_source1_sel_w[compact_g]}} &
+             compact_source_state_w[compact_g+1]);
+      end else begin : gen_one_source
+        assign compact_source1_sel_w[compact_g] = 1'b0;
+        assign compact_source2_sel_w[compact_g] = 1'b0;
+        assign compact_survivor_valid_w[compact_g] =
+            compact_source0_sel_w[compact_g] && valid_q[compact_g];
+        assign compact_survivor_state_w[compact_g] =
+            {ENTRY_STATE_W{compact_source0_sel_w[compact_g]}} &
+            compact_source_state_w[compact_g];
+      end
+
+      if (compact_g == 0) begin : gen_first_free_head
+        assign compact_first_free_w[compact_g] =
+            !compact_survivor_valid_w[compact_g];
+      end else begin : gen_first_free_tail
+        assign compact_first_free_w[compact_g] =
+            compact_survivor_valid_w[compact_g-1] &&
+            !compact_survivor_valid_w[compact_g];
+      end
+    end
+  endgenerate
+
+  assign dispatch0_state_w = {
+    dispatch0_pc_i,
+    dispatch0_next_pc_i,
+    dispatch0_pred_npc_i,
+    dispatch0_bht_idx_i,
+    dispatch0_pred_taken_i,
+    dispatch0_inst_i,
+    dispatch0_ctrl_i,
+    dispatch0_producer_id_i,
+    dispatch0_src1_preg_i,
+    dispatch0_src1_ready_i ||
+        wakeup_match(dispatch0_src1_preg_i,
+                     wakeup0_valid_i, wakeup0_pdest_i,
+                     wakeup1_valid_i, wakeup1_pdest_i,
+                     early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                     early_wakeup1_valid_i, early_wakeup1_pdest_i),
+    dispatch0_src2_preg_i,
+    dispatch0_src2_ready_i ||
+        wakeup_match(dispatch0_src2_preg_i,
+                     wakeup0_valid_i, wakeup0_pdest_i,
+                     wakeup1_valid_i, wakeup1_pdest_i,
+                     early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                     early_wakeup1_valid_i, early_wakeup1_pdest_i),
+    dispatch0_pdest_i,
+    dispatch0_fp_pdest_i,
+    dispatch0_fp_st_src_en_i,
+    dispatch0_fp_st_src_preg_i,
+    dispatch0_fp_st_src_ready_i ||
+        fp_wakeup_match(dispatch0_fp_st_src_preg_i,
+                        fp_wake0_valid_i, fp_wake0_preg_i,
+                        fp_wake1_valid_i, fp_wake1_preg_i),
+    dispatch0_imm_i,
+    ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) &&
+        !dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i,
+    ctrl_is_plain_memory_terminal_capable(dispatch0_ctrl_i) &&
+        !dispatch0_is_fp_i && !dispatch0_fp_pdest_i &&
+        !dispatch0_fp_st_src_en_i,
+    ctrl_is_fixed_gpr_producer(
+        dispatch0_ctrl_i, dispatch0_inst_i, dispatch0_is_fp_i,
+        dispatch0_fp_pdest_i, dispatch0_fp_st_src_en_i,
+        dispatch0_pdest_i)
+  };
+
+  assign dispatch1_state_w = {
+    dispatch1_pc_i,
+    dispatch1_next_pc_i,
+    dispatch1_pred_npc_i,
+    dispatch1_bht_idx_i,
+    dispatch1_pred_taken_i,
+    dispatch1_inst_i,
+    dispatch1_ctrl_i,
+    dispatch1_producer_id_i,
+    dispatch1_src1_preg_i,
+    dispatch1_src1_ready_i ||
+        wakeup_match(dispatch1_src1_preg_i,
+                     wakeup0_valid_i, wakeup0_pdest_i,
+                     wakeup1_valid_i, wakeup1_pdest_i,
+                     early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                     early_wakeup1_valid_i, early_wakeup1_pdest_i),
+    dispatch1_src2_preg_i,
+    dispatch1_src2_ready_i ||
+        wakeup_match(dispatch1_src2_preg_i,
+                     wakeup0_valid_i, wakeup0_pdest_i,
+                     wakeup1_valid_i, wakeup1_pdest_i,
+                     early_wakeup0_valid_i, early_wakeup0_pdest_i,
+                     early_wakeup1_valid_i, early_wakeup1_pdest_i),
+    dispatch1_pdest_i,
+    dispatch1_fp_pdest_i,
+    dispatch1_fp_st_src_en_i,
+    dispatch1_fp_st_src_preg_i,
+    dispatch1_fp_st_src_ready_i ||
+        fp_wakeup_match(dispatch1_fp_st_src_preg_i,
+                        fp_wake0_valid_i, fp_wake0_preg_i,
+                        fp_wake1_valid_i, fp_wake1_preg_i),
+    dispatch1_imm_i,
+    ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&
+        !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i,
+    ctrl_is_plain_memory_terminal_capable(dispatch1_ctrl_i) &&
+        !dispatch1_is_fp_i && !dispatch1_fp_pdest_i &&
+        !dispatch1_fp_st_src_en_i,
+    ctrl_is_fixed_gpr_producer(
+        dispatch1_ctrl_i, dispatch1_inst_i, dispatch1_is_fp_i,
+        dispatch1_fp_pdest_i, dispatch1_fp_st_src_en_i,
+        dispatch1_pdest_i)
+  };
+
+  // survivor valid 仍是前缀；first_free 是第一个空槽的一位码。dispatch1 在
+  // dispatch0 同拍写入时只把该一位码左移一槽，保持 lane0→lane1 append 顺序。
+  assign compact_dispatch0_slot_w =
+      {8{dispatch0_fire_w}} & compact_first_free_w;
+  assign compact_dispatch1_slot_w = {8{dispatch1_fire_w}} &
+      (dispatch0_fire_w ? (compact_first_free_w << 1) :
+                          compact_first_free_w);
+  assign compact_next_valid_w = compact_survivor_valid_w |
+      compact_dispatch0_slot_w | compact_dispatch1_slot_w;
+
+  genvar compact_next_g;
+  generate
+    for (compact_next_g = 0; compact_next_g < 8;
+         compact_next_g = compact_next_g + 1) begin : gen_compact_next
+      assign compact_next_state_w[compact_next_g] =
+          compact_survivor_valid_w[compact_next_g] ?
+              compact_survivor_state_w[compact_next_g] :
+          compact_dispatch0_slot_w[compact_next_g] ? dispatch0_state_w :
+          compact_dispatch1_slot_w[compact_next_g] ? dispatch1_state_w :
+              {ENTRY_STATE_W{1'b0}};
+    end
+  endgenerate
+
   // 【P5 刀 B】dispatch 活值继续完全退出 select 锥。下面的 generate loop 只把
   // 8 个寄存 entry 投影成并行资格位，综合为 8 份比较/AND，不含跨迭代依赖。
   genvar select_g;
@@ -537,188 +809,37 @@ module OooIntIssueQueue #(
   // 【P5 刀 B】issue fire 恒为寄存项 fire(dispatch 活值当拍被发射的情形不复存在),
   // 压缩逻辑直接消费 issue*_fire_w;dispatch fire 无条件写阵列。
   always @(*) begin
-    write_i = 0;
-    count_next_r = {ENTRY_COUNT_W{1'b0}};
     for (compact_i = 0; compact_i < ENTRY_COUNT; compact_i = compact_i + 1) begin
-      valid_next_r[compact_i] = 1'b0;
-      pc_next_r[compact_i] = {`XLEN{1'b0}};
-      next_pc_next_r[compact_i] = {`XLEN{1'b0}};
-      pred_npc_next_r[compact_i] = {`XLEN{1'b0}};
-      bht_idx_next_r[compact_i] = {`BPU_BHT_INDEX_W{1'b0}};
-      pred_taken_next_r[compact_i] = 1'b0;
-      inst_next_r[compact_i] = {`INST_W{1'b0}};
-      ctrl_next_r[compact_i] = {`CTRL_BUS_W{1'b0}};
-      producer_id_next_r[compact_i] = {PRODUCER_ID_W{1'b0}};
-      src1_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
-      fp_pdest_next_r[compact_i] = 1'b0;
-      fp_st_en_next_r[compact_i] = 1'b0;
-      fp_st_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
-      fp_st_ready_next_r[compact_i] = 1'b0;
-      src1_ready_next_r[compact_i] = 1'b0;
-      src2_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
-      src2_ready_next_r[compact_i] = 1'b0;
-      pdest_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
-      imm_next_r[compact_i] = {`XLEN{1'b0}};
-      alu_terminal_capable_next_r[compact_i] = 1'b0;
-      plain_memory_terminal_capable_next_r[compact_i] = 1'b0;
-      fixed_gpr_producer_next_r[compact_i] = 1'b0;
+      valid_next_r[compact_i] = compact_next_valid_w[compact_i];
+      {
+        pc_next_r[compact_i],
+        next_pc_next_r[compact_i],
+        pred_npc_next_r[compact_i],
+        bht_idx_next_r[compact_i],
+        pred_taken_next_r[compact_i],
+        inst_next_r[compact_i],
+        ctrl_next_r[compact_i],
+        producer_id_next_r[compact_i],
+        src1_preg_next_r[compact_i],
+        src1_ready_next_r[compact_i],
+        src2_preg_next_r[compact_i],
+        src2_ready_next_r[compact_i],
+        pdest_next_r[compact_i],
+        fp_pdest_next_r[compact_i],
+        fp_st_en_next_r[compact_i],
+        fp_st_preg_next_r[compact_i],
+        fp_st_ready_next_r[compact_i],
+        imm_next_r[compact_i],
+        alu_terminal_capable_next_r[compact_i],
+        plain_memory_terminal_capable_next_r[compact_i],
+        fixed_gpr_producer_next_r[compact_i]
+      } = compact_next_state_w[compact_i];
     end
 
-    for (compact_i = 0; compact_i < ENTRY_COUNT; compact_i = compact_i + 1) begin
-      if (valid_q[compact_i] &&
-          !(memory_pair_peek_fire_w &&
-            ((compact_i == 0) || (compact_i == 1))) &&
-          !(issue0_fire_w &&
-            (compact_i[ENTRY_INDEX_W-1:0] == issue0_idx_w)) &&
-          !(issue1_fire_w &&
-            (compact_i[ENTRY_INDEX_W-1:0] == issue1_idx_w))) begin
-        valid_next_r[write_i] = 1'b1;
-        pc_next_r[write_i] = pc_q[compact_i];
-        next_pc_next_r[write_i] = next_pc_q[compact_i];
-        pred_npc_next_r[write_i] = pred_npc_q[compact_i];
-        bht_idx_next_r[write_i] = bht_idx_q[compact_i];
-        pred_taken_next_r[write_i] = pred_taken_q[compact_i];
-        inst_next_r[write_i] = inst_q[compact_i];
-        ctrl_next_r[write_i] = ctrl_q[compact_i];
-        producer_id_next_r[write_i] = producer_id_q[compact_i];
-        src1_preg_next_r[write_i] = src1_preg_q[compact_i];
-        src1_ready_next_r[write_i] =
-            src1_ready_q[compact_i] ||
-            wakeup_match(src1_preg_q[compact_i],
-                         wakeup0_valid_i, wakeup0_pdest_i,
-                         wakeup1_valid_i, wakeup1_pdest_i,
-                         early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                         early_wakeup1_valid_i, early_wakeup1_pdest_i);
-        src2_preg_next_r[write_i] = src2_preg_q[compact_i];
-        src2_ready_next_r[write_i] =
-            src2_ready_q[compact_i] ||
-            wakeup_match(src2_preg_q[compact_i],
-                         wakeup0_valid_i, wakeup0_pdest_i,
-                         wakeup1_valid_i, wakeup1_pdest_i,
-                         early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                         early_wakeup1_valid_i, early_wakeup1_pdest_i);
-        pdest_next_r[write_i] = pdest_q[compact_i];
-        fp_pdest_next_r[write_i] = fp_pdest_q[compact_i];
-        fp_st_en_next_r[write_i] = fp_st_en_q[compact_i];
-        fp_st_preg_next_r[write_i] = fp_st_preg_q[compact_i];
-        fp_st_ready_next_r[write_i] =
-            fp_st_ready_q[compact_i] ||
-            (fp_wake0_valid_i && (fp_wake0_preg_i == fp_st_preg_q[compact_i])) ||
-            (fp_wake1_valid_i && (fp_wake1_preg_i == fp_st_preg_q[compact_i]));
-        imm_next_r[write_i] = imm_q[compact_i];
-        alu_terminal_capable_next_r[write_i] =
-            alu_terminal_capable_q[compact_i];
-        plain_memory_terminal_capable_next_r[write_i] =
-            plain_memory_terminal_capable_q[compact_i];
-        fixed_gpr_producer_next_r[write_i] =
-            fixed_gpr_producer_q[compact_i];
-        write_i = write_i + 1;
-      end
-    end
-
-    if (dispatch0_fire_w) begin
-      valid_next_r[write_i] = 1'b1;
-      pc_next_r[write_i] = dispatch0_pc_i;
-      next_pc_next_r[write_i] = dispatch0_next_pc_i;
-      pred_npc_next_r[write_i] = dispatch0_pred_npc_i;
-      bht_idx_next_r[write_i] = dispatch0_bht_idx_i;
-      pred_taken_next_r[write_i] = dispatch0_pred_taken_i;
-      inst_next_r[write_i] = dispatch0_inst_i;
-      ctrl_next_r[write_i] = dispatch0_ctrl_i;
-      producer_id_next_r[write_i] = dispatch0_producer_id_i;
-      src1_preg_next_r[write_i] = dispatch0_src1_preg_i;
-      src1_ready_next_r[write_i] =
-          dispatch0_src1_ready_i ||
-          wakeup_match(dispatch0_src1_preg_i,
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i,
-                       early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                       early_wakeup1_valid_i, early_wakeup1_pdest_i);
-      src2_preg_next_r[write_i] = dispatch0_src2_preg_i;
-      src2_ready_next_r[write_i] =
-          dispatch0_src2_ready_i ||
-          wakeup_match(dispatch0_src2_preg_i,
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i,
-                       early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                       early_wakeup1_valid_i, early_wakeup1_pdest_i);
-      pdest_next_r[write_i] = dispatch0_pdest_i;
-      fp_pdest_next_r[write_i] = dispatch0_fp_pdest_i;
-      fp_st_en_next_r[write_i] = dispatch0_fp_st_src_en_i;
-      fp_st_preg_next_r[write_i] = dispatch0_fp_st_src_preg_i;
-      // 队列自身吸收 dispatch 与唯一 FP wake pulse 的碰撞，不把正确性
-      // 隐式绑定到上游 fpst query 是否仍保留同拍前视。
-      fp_st_ready_next_r[write_i] = dispatch0_fp_st_src_ready_i ||
-          fp_wakeup_match(dispatch0_fp_st_src_preg_i,
-                          fp_wake0_valid_i, fp_wake0_preg_i,
-                          fp_wake1_valid_i, fp_wake1_preg_i);
-      imm_next_r[write_i] = dispatch0_imm_i;
-      alu_terminal_capable_next_r[write_i] =
-          ctrl_is_alu_terminal_capable(dispatch0_ctrl_i) &&
-          !dispatch0_fp_pdest_i && !dispatch0_fp_st_src_en_i;
-      plain_memory_terminal_capable_next_r[write_i] =
-          ctrl_is_plain_memory_terminal_capable(dispatch0_ctrl_i) &&
-          !dispatch0_is_fp_i && !dispatch0_fp_pdest_i &&
-          !dispatch0_fp_st_src_en_i;
-      fixed_gpr_producer_next_r[write_i] =
-          ctrl_is_fixed_gpr_producer(
-              dispatch0_ctrl_i, dispatch0_inst_i, dispatch0_is_fp_i,
-              dispatch0_fp_pdest_i, dispatch0_fp_st_src_en_i,
-              dispatch0_pdest_i);
-      write_i = write_i + 1;
-    end
-
-    if (dispatch1_fire_w) begin
-      valid_next_r[write_i] = 1'b1;
-      pc_next_r[write_i] = dispatch1_pc_i;
-      next_pc_next_r[write_i] = dispatch1_next_pc_i;
-      pred_npc_next_r[write_i] = dispatch1_pred_npc_i;
-      bht_idx_next_r[write_i] = dispatch1_bht_idx_i;
-      pred_taken_next_r[write_i] = dispatch1_pred_taken_i;
-      inst_next_r[write_i] = dispatch1_inst_i;
-      ctrl_next_r[write_i] = dispatch1_ctrl_i;
-      producer_id_next_r[write_i] = dispatch1_producer_id_i;
-      src1_preg_next_r[write_i] = dispatch1_src1_preg_i;
-      src1_ready_next_r[write_i] =
-          dispatch1_src1_ready_i ||
-          wakeup_match(dispatch1_src1_preg_i,
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i,
-                       early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                       early_wakeup1_valid_i, early_wakeup1_pdest_i);
-      src2_preg_next_r[write_i] = dispatch1_src2_preg_i;
-      src2_ready_next_r[write_i] =
-          dispatch1_src2_ready_i ||
-          wakeup_match(dispatch1_src2_preg_i,
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i,
-                       early_wakeup0_valid_i, early_wakeup0_pdest_i,
-                       early_wakeup1_valid_i, early_wakeup1_pdest_i);
-      pdest_next_r[write_i] = dispatch1_pdest_i;
-      fp_pdest_next_r[write_i] = dispatch1_fp_pdest_i;
-      fp_st_en_next_r[write_i] = dispatch1_fp_st_src_en_i;
-      fp_st_preg_next_r[write_i] = dispatch1_fp_st_src_preg_i;
-      fp_st_ready_next_r[write_i] = dispatch1_fp_st_src_ready_i ||
-          fp_wakeup_match(dispatch1_fp_st_src_preg_i,
-                          fp_wake0_valid_i, fp_wake0_preg_i,
-                          fp_wake1_valid_i, fp_wake1_preg_i);
-      imm_next_r[write_i] = dispatch1_imm_i;
-      alu_terminal_capable_next_r[write_i] =
-          ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&
-          !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i;
-      plain_memory_terminal_capable_next_r[write_i] =
-          ctrl_is_plain_memory_terminal_capable(dispatch1_ctrl_i) &&
-          !dispatch1_is_fp_i && !dispatch1_fp_pdest_i &&
-          !dispatch1_fp_st_src_en_i;
-      fixed_gpr_producer_next_r[write_i] =
-          ctrl_is_fixed_gpr_producer(
-              dispatch1_ctrl_i, dispatch1_inst_i, dispatch1_is_fp_i,
-              dispatch1_fp_pdest_i, dispatch1_fp_st_src_en_i,
-              dispatch1_pdest_i);
-      write_i = write_i + 1;
-    end
-
-    count_next_r = write_i[ENTRY_COUNT_W-1:0];
+    count_next_r = count_q -
+        compact_remove_prefix_count_w[7][ENTRY_COUNT_W-1:0] +
+        {{(ENTRY_COUNT_W-1){1'b0}}, dispatch0_fire_w} +
+        {{(ENTRY_COUNT_W-1){1'b0}}, dispatch1_fire_w};
   end
 
   // B2 ROB-walk squash 后存活计数（组合）：valid 且 age 不大于 kill 的 entry 数。
@@ -832,6 +953,46 @@ module OooIntIssueQueue #(
   // 寄存，上游 OooDispatchBackend 直接用同一个 q valid 生成 dispatch_freeze。
   // 该互斥是"当拍 dispatch 写入+同拍 kill"窗口结构性不存在的承重契约:本模块 kill 分支
   // 不消费 valid_next_r 写入计划,若互斥被破坏,kill 拍的新写项会被静默丢弃而非入队。
+  // V13I reference 只存在于 assertion build：它保留旧式 source-order scan，
+  // 以独立算法逐槽复核静态 survivor/source 网络，不进入 production mapped netlist。
+  reg [7:0] compact_reference_valid_r;
+  reg [ENTRY_STATE_W-1:0] compact_reference_state_r [0:7];
+  reg [ENTRY_COUNT_W-1:0] compact_reference_count_r;
+  integer compact_reference_i;
+  integer compact_reference_write_i;
+  always @(*) begin
+    compact_reference_valid_r = 8'b0;
+    compact_reference_count_r = {ENTRY_COUNT_W{1'b0}};
+    compact_reference_write_i = 0;
+    for (compact_reference_i = 0; compact_reference_i < 8;
+         compact_reference_i = compact_reference_i + 1) begin
+      compact_reference_state_r[compact_reference_i] =
+          {ENTRY_STATE_W{1'b0}};
+    end
+    for (compact_reference_i = 0; compact_reference_i < 8;
+         compact_reference_i = compact_reference_i + 1) begin
+      if (valid_q[compact_reference_i] &&
+          !compact_remove_w[compact_reference_i]) begin
+        compact_reference_valid_r[compact_reference_write_i] = 1'b1;
+        compact_reference_state_r[compact_reference_write_i] =
+            compact_source_state_w[compact_reference_i];
+        compact_reference_write_i = compact_reference_write_i + 1;
+      end
+    end
+    if (dispatch0_fire_w && (compact_reference_write_i < 8)) begin
+      compact_reference_valid_r[compact_reference_write_i] = 1'b1;
+      compact_reference_state_r[compact_reference_write_i] = dispatch0_state_w;
+      compact_reference_write_i = compact_reference_write_i + 1;
+    end
+    if (dispatch1_fire_w && (compact_reference_write_i < 8)) begin
+      compact_reference_valid_r[compact_reference_write_i] = 1'b1;
+      compact_reference_state_r[compact_reference_write_i] = dispatch1_state_w;
+      compact_reference_write_i = compact_reference_write_i + 1;
+    end
+    compact_reference_count_r =
+        compact_reference_write_i[ENTRY_COUNT_W-1:0];
+  end
+
   integer pack_assert_i;
   always @(posedge clk) begin
     if (!rst) begin
@@ -845,6 +1006,34 @@ module OooIntIssueQueue #(
         if (valid_q[pack_assert_i] && !valid_q[pack_assert_i-1])
           $error("[IQ-R3P3-PACKED-AGE] valid hole before idx=%0d @%0t",
                  pack_assert_i, $time);
+      end
+      if (!flush_i && !kill_valid_i) begin
+        if (^compact_remove_w === 1'bx)
+          $error("[IQ-V13I-REMOVE-KNOWN] compact remove mask contains X/Z @%0t",
+                 $time);
+        if ((compact_remove_w & ~select_valid_w) !== 8'b0)
+          $error("[IQ-V13I-REMOVE-VALID] remove mask selected a non-resident entry mask=%h valid=%h @%0t",
+                 compact_remove_w, select_valid_w, $time);
+        if (compact_remove_prefix_count_w[7] > 4'd2)
+          $error("[IQ-V13I-REMOVE-COUNT] normal compaction removes more than two entries count=%0d @%0t",
+                 compact_remove_prefix_count_w[7], $time);
+        if (compact_next_valid_w !== compact_reference_valid_r)
+          $error("[IQ-V13I-SURVIVOR-VALID] static map disagrees with scan reference got=%h ref=%h @%0t",
+                 compact_next_valid_w, compact_reference_valid_r, $time);
+        if (count_next_r !== compact_reference_count_r)
+          $error("[IQ-V13I-SURVIVOR-COUNT] static count=%0d ref=%0d @%0t",
+                 count_next_r, compact_reference_count_r, $time);
+        for (pack_assert_i = 0; pack_assert_i < 8;
+             pack_assert_i = pack_assert_i + 1) begin
+          if (compact_next_state_w[pack_assert_i] !==
+              compact_reference_state_r[pack_assert_i])
+            $error("[IQ-V13I-SURVIVOR-PAYLOAD] destination=%0d remove=%h valid=%h sel={%h,%h,%h} static=%h reference=%h @%0t",
+                   pack_assert_i, compact_remove_w, select_valid_w,
+                   compact_source2_sel_w, compact_source1_sel_w,
+                   compact_source0_sel_w,
+                   compact_next_state_w[pack_assert_i],
+                   compact_reference_state_r[pack_assert_i], $time);
+        end
       end
       if ((issue0_onehot_w & (issue0_onehot_w - 8'b1)) != 8'b0)
         $error("[IQ-R3P3-ISSUE0-ONEHOT] issue0 owner is not onehot @%0t",

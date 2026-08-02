@@ -1,0 +1,58 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13q-b-response-cycle-oracle-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooMemAxiBridge aggregate-B 到 OooIntBackend formal-WB、OooStoreQueue terminal 和 OooRob registered commit 的 direct-error 与 backpressure-fallback 周期 oracle，指出错误假设、遗漏观测和可证伪反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1/subagent-contracts/v13q-b-response-cycle-oracle-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "V13P RTL 仅在 S_WRITE_RESP、BVALID、fsm_normal 时组合呈现 active store response；backend ready=1 时回 IDLE，ready=0 时把同一 owner、error、tval 捕获到既有 S_RESP。",
+      "OooIntBackend 对 open DRAIN response 只有在 SQ terminal sink 与 formal-WB slot 同时有 credit 时拉高 mem_rsp_ready_o；两路 EX writeback 同拍占满时 mem_rsp_ready_o 必须为 0。",
+      "plain-store DRAIN 只在 miq_drain_rsp_fire_w 后写 sq_response_terminal_w，不进入 OooMemOwnerTerminalCollector；ROB 只从下一拍已寄存 done 退休，SQ 在 commit 后释放 owner。",
+      "SLVERR 与 DECERR 都必须形成唯一 EXC_STORE_ACCESS_FAULT cause 7，tval 保留 original VA；aggregate B 可以先由 bridge 接收并在无 backend credit 时进入 S_RESP。",
+      "计划定向矩阵包含 SLVERR direct-ready、DECERR direct-ready、SLVERR 加双 ALU WB 占用的 stalled-B fallback，并检查 B 拍无 commit、fallback payload 保持、exactly-once WB/SQ terminal/MIQ pop、registered exception commit 与 quiet window。"
+    ]
+  },
+  "deliverables": [
+    "给出 direct 与 fallback 的逐周期预期表，列出每项必须观测的真实信号、可能假绿点、替代假设、未知项和需要追加的定向反例。"
+  ],
+  "success_criteria": [
+    "结论明确区分已由随附合同推出的 PASS 条件与仍需 testbench 实测的 GAP，不把限定材料复核冒充完整源码审查，并保留 scope_extension_request 与置信依据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

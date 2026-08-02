@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14c-p0-current-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 RV64 design-id 下九个 P0 架构债务门的 task-local 绑定，重点检查有效锥分类、动态 testbench 观测、冻结执行重放、驱动状态失真隔离以及 Section13 保持 RED 的结论边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/active-cone-2/active-cone-audit.json",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/current-bind-checker-replay-2/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/section13-current-1/section13-current-audit.json",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/subagent-contracts/v14c-p0-current-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/active-cone-2/active-cone-audit.json",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/current-bind-checker-replay-2/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/section13-current-1/section13-current-audit.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 RTL source-set 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488、146 个文件；相对旧 P0 cohort 仅 OooLoadQueue.v、OooMemAxiBridge.v、OooStoreQueue.v、OooIntIssueQueue.v、NpcSimTop.sv 五个文件漂移。",
+      "active-cone-2 逐 testbench 展开 TB_SRCS 与 RTL 反例 test_name：FDG-G1、XRET-G1、IFU-ACCESS-G1、IFU-TVAL-G1、INSTRET-G1 需动态重跑；IFU-AXI-G1、IFU-FETCH-G2 的 elaborated 源逐文件哈希未漂移，可冻结执行重放。",
+      "动态正向套件为 18/18，V14B 当前 module aggregate 为 113/113；IFU sized-DPI 的 AXI_DPI_SIZED_PASS、SIZED_DPI_GUARD_PASS、AXI_DPI_SIZED_SUITE_PASS 均存在。",
+      "七门 task-local 结果均为 PASS 且 design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；主 RTL 反例 82/82、FDG/XRET oracle probe 3/3 被指定 testbench 检出，mutation source_unchanged=true。",
+      "current-bind-1.status 原样为 PASS，但 normalize 两阶段实际异常且旧 run_logged 丢失返回码，因此该状态不作为交付证据；current-bind-checker-replay-1.status 原样为 FAIL，原因仅为 normalized-positive 与 dynamic/positive 布局合同不一致。",
+      "修正后的 driver-lib 由 test-driver-lib.sh 验证负向 rc=17 原样传播、正向 rc=0；current-bind-checker-replay-2.status=PASS，收据明确 source_run.accepted_as_delivery=false、failure_classification=DRIVER_STAGE_RETURN_CODE_LOST、historical_status_rewritten=false。",
+      "V14B 的 MEM-ISSUE-G1 与 PTW-PMP-G1 两门 current dynamic receipt 加上 V14C 七门，恰好覆盖 P0 9/9；生产 RTL pre/post 146 文件映射相同，canonical architecture、debt ledger、historical ledger 均未写入。",
+      "section13-current-1 仅将 P0 current binding 标为 GREEN_TASK_LOCAL；P1 stale=7，历史缺陷回填非当前绑定，producer-holder semantic status=GAP，functional aggregate 非当前绑定，freeze empty groups=12，因此 architecture=RED、arch_stable=false、PPA=BLOCKED。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件、design-id 与编译配置、testbench/EDA 观测、PASS/GAP 范围给出独立结论；优先寻找冻结重放不成立、状态假绿未被隔离、反例计数不闭合或越级宣称 architecture/PPA 的反例，并列出 unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有九个 P0 范围互斥完备、五个动态门和两个冻结重放门的证据方法与有效锥一致、85 个反例闭合、源状态失真未被当作交付 PASS、生产 RTL 与 canonical 写边界未漂移且 Section13/PPA 继续 fail-closed 时，才可给出 APPROVED_CURRENT_SCOPE；任何未决反例必须给出具体 gate、schema 字段或文件路径并判 GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

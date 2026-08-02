@@ -98,6 +98,69 @@ static constexpr uint32_t kMaxCommitEventsPerCycle = 2;
 static constexpr uint32_t kRecentCommitRingSize = 32;
 static constexpr uint32_t kRecentDebugRingSize = 32;
 static constexpr uint32_t kTopBranchWaitPcCount = 8;
+
+enum RetireObservationReason : uint32_t {
+  RETIRE_REASON_RETIRED = 0,
+  RETIRE_REASON_ROB_EMPTY = 1,
+  RETIRE_REASON_DEPENDENCY = 2,
+  RETIRE_REASON_ISSUE_TERMINAL = 3,
+  RETIRE_REASON_EXECUTION_LATENCY = 4,
+  RETIRE_REASON_MEMORY_RESERVATION_QUEUE = 5,
+  RETIRE_REASON_MEMORY_TRANSLATION_ORDER = 6,
+  RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING = 7,
+  RETIRE_REASON_MEMORY_RESPONSE_TERMINAL = 8,
+  RETIRE_REASON_MEMORY_RETRY = 9,
+  RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN = 10,
+  RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN = 11,
+  RETIRE_REASON_EXCEPTION_REDIRECT = 12,
+  RETIRE_REASON_MEMORY_COMMIT = 13,
+  RETIRE_REASON_SERIALIZATION = 14,
+  RETIRE_REASON_UNKNOWN = 15,
+  RETIRE_REASON_COUNT = 16,
+};
+
+enum MemoryRequestDetail : uint32_t {
+  MEMORY_REQUEST_DETAIL_NONE = 0,
+  MEMORY_REQUEST_DETAIL_CACHE_LOOKUP = 1,
+  MEMORY_REQUEST_DETAIL_DEVICE_WAIT = 2,
+  MEMORY_REQUEST_DETAIL_AXI_READ_ADDRESS = 3,
+  MEMORY_REQUEST_DETAIL_AXI_READ_DATA = 4,
+  MEMORY_REQUEST_DETAIL_AXI_WRITE_REQUEST = 5,
+  MEMORY_REQUEST_DETAIL_AXI_WRITE_RESPONSE = 6,
+  MEMORY_REQUEST_DETAIL_UNKNOWN = 7,
+  MEMORY_REQUEST_DETAIL_COUNT = 8,
+};
+
+struct RetireObservationStats {
+  uint64_t cycle_reason[RETIRE_REASON_COUNT];
+  uint64_t slot_reason[RETIRE_REASON_COUNT];
+  uint64_t cycle_request_detail[MEMORY_REQUEST_DETAIL_COUNT];
+  uint64_t slot_request_detail[MEMORY_REQUEST_DETAIL_COUNT];
+  uint32_t current_slot_reason[2];
+  uint32_t current_slot_request_detail[2];
+  uint64_t current_cycle;
+  uint64_t invalid_events;
+  bool current_valid;
+  bool current_invalid;
+  bool current_overflow;
+  bool overflow;
+};
+
+struct RetireObservationSnapshot {
+  uint64_t cycle_reason[RETIRE_REASON_COUNT];
+  uint64_t slot_reason[RETIRE_REASON_COUNT];
+  uint64_t cycle_request_detail[MEMORY_REQUEST_DETAIL_COUNT];
+  uint64_t slot_request_detail[MEMORY_REQUEST_DETAIL_COUNT];
+  uint32_t current_slot_reason[2];
+  uint32_t current_slot_request_detail[2];
+  uint64_t event_cycle;
+  uint64_t invalid_events;
+  bool available;
+  bool current_invalid;
+  bool current_overflow;
+  bool overflow;
+};
+
 static CommitEvent g_commit_events[kMaxCommitEventsPerCycle] = {};
 static uint32_t    g_commit_event_count = 0;
 static CommitEvent g_recent_commits[kRecentCommitRingSize] = {};
@@ -111,6 +174,7 @@ struct RegionProbeState {
   bool enabled;
   bool start_seen;
   bool end_seen;
+  bool final_emitted;
   npc_word_t start_pc;
   npc_word_t end_pc;
   uint64_t start_pc_hits;
@@ -121,8 +185,11 @@ struct RegionProbeState {
   uint64_t end_retired;
   uint32_t start_lane;
   uint32_t end_lane;
+  RetireObservationSnapshot start_counter;
+  RetireObservationSnapshot end_counter;
 };
 static RegionProbeState g_region_probe = {};
+static RetireObservationStats g_retire_observation = {};
 static npc_word_t  g_shadow_gpr[32] = {};
 static uint64_t    g_shadow_fpr[32] = {};   // 阶段2 FPR shadow: 逐提交精确 FP arch 值(对称 GPR)
 // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
@@ -279,6 +346,47 @@ struct ProgressReporter {
 static uint64_t simulation_frequency(void) {
   if (npc_stats()->host_time_us == 0) return 0;
   return (npc_stats()->commits * 1000000ull) / npc_stats()->host_time_us;
+}
+
+static bool add_u64_checked(uint64_t *value, uint64_t increment) {
+  if (value == nullptr || UINT64_MAX - *value < increment) return false;
+  *value += increment;
+  return true;
+}
+
+static bool sub_u64_checked(uint64_t *value, uint64_t decrement) {
+  if (value == nullptr || *value < decrement) return false;
+  *value -= decrement;
+  return true;
+}
+
+static void capture_retire_observation_snapshot(
+    RetireObservationSnapshot *snapshot) {
+  if (snapshot == nullptr) return;
+  memset(snapshot, 0, sizeof(*snapshot));
+  memcpy(snapshot->cycle_reason, g_retire_observation.cycle_reason,
+         sizeof(snapshot->cycle_reason));
+  memcpy(snapshot->slot_reason, g_retire_observation.slot_reason,
+         sizeof(snapshot->slot_reason));
+  memcpy(snapshot->cycle_request_detail,
+         g_retire_observation.cycle_request_detail,
+         sizeof(snapshot->cycle_request_detail));
+  memcpy(snapshot->slot_request_detail,
+         g_retire_observation.slot_request_detail,
+         sizeof(snapshot->slot_request_detail));
+  memcpy(snapshot->current_slot_reason,
+         g_retire_observation.current_slot_reason,
+         sizeof(snapshot->current_slot_reason));
+  memcpy(snapshot->current_slot_request_detail,
+         g_retire_observation.current_slot_request_detail,
+         sizeof(snapshot->current_slot_request_detail));
+  snapshot->event_cycle = g_retire_observation.current_cycle;
+  snapshot->invalid_events = g_retire_observation.invalid_events;
+  snapshot->available = g_retire_observation.current_valid &&
+                        snapshot->event_cycle == npc_stats()->cycles;
+  snapshot->current_invalid = g_retire_observation.current_invalid;
+  snapshot->current_overflow = g_retire_observation.current_overflow;
+  snapshot->overflow = g_retire_observation.overflow;
 }
 
 static double ratio_percent(uint64_t part, uint64_t total) {
@@ -857,6 +965,7 @@ static void observe_region_boundary(const CommitEvent &event,
       g_region_probe.start_cycle = npc_stats()->cycles;
       g_region_probe.start_retired = retired_before;
       g_region_probe.start_lane = commit_lane;
+      capture_retire_observation_snapshot(&g_region_probe.start_counter);
       LogBothTag("region_probe",
                  "BOUNDARY kind=start pc=0x%016" NPC_PRIxWORD
                  " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
@@ -875,6 +984,7 @@ static void observe_region_boundary(const CommitEvent &event,
       g_region_probe.end_cycle = npc_stats()->cycles;
       g_region_probe.end_retired = retired_before;
       g_region_probe.end_lane = commit_lane;
+      capture_retire_observation_snapshot(&g_region_probe.end_counter);
       LogBothTag("region_probe",
                  "BOUNDARY kind=end pc=0x%016" NPC_PRIxWORD
                  " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
@@ -883,26 +993,388 @@ static void observe_region_boundary(const CommitEvent &event,
                  (unsigned long long)g_region_probe.end_retired,
                  g_region_probe.end_lane,
                  (unsigned long long)cycle_retire);
-      if (g_region_probe.start_seen) {
-        LogBothTag("region_probe",
-                   "RESULT start_hits=%llu end_hits=%llu start_cycle=%llu"
-                   " end_cycle=%llu cycles=%llu start_retired=%llu"
-                   " end_retired=%llu retired=%llu",
-                   (unsigned long long)g_region_probe.start_pc_hits,
-                   (unsigned long long)g_region_probe.end_pc_hits,
-                   (unsigned long long)g_region_probe.start_cycle,
-                   (unsigned long long)g_region_probe.end_cycle,
-                   (unsigned long long)(g_region_probe.end_cycle -
-                                        g_region_probe.start_cycle),
-                   (unsigned long long)g_region_probe.start_retired,
-                   (unsigned long long)g_region_probe.end_retired,
-                   (unsigned long long)(g_region_probe.end_retired -
-                                        g_region_probe.start_retired));
-      } else {
+      if (!g_region_probe.start_seen) {
         LogBothTag("region_probe", "ERROR end boundary observed before start");
       }
     }
   }
+}
+
+static void report_region_probe_final(int termination_rc) {
+  if (!g_region_probe.enabled || g_region_probe.final_emitted) return;
+  g_region_probe.final_emitted = true;
+
+  const bool complete =
+      g_region_probe.start_seen && g_region_probe.end_seen &&
+      g_region_probe.end_cycle >= g_region_probe.start_cycle &&
+      g_region_probe.end_retired > g_region_probe.start_retired;
+  const uint64_t region_cycles = complete
+      ? g_region_probe.end_cycle - g_region_probe.start_cycle
+      : 0;
+  const uint64_t region_retired = complete
+      ? g_region_probe.end_retired - g_region_probe.start_retired
+      : 0;
+  LogBothTag("region_probe",
+             "FINAL schema=npc-rv64-region-final-v1"
+             " counter_scope=pc_bounded_region_v1"
+             " complete=%u termination_rc=%d start_seen=%u end_seen=%u"
+             " start_hits=%llu end_hits=%llu start_cycle=%llu"
+             " end_cycle=%llu cycles=%llu start_retired=%llu"
+             " end_retired=%llu retired=%llu",
+             complete ? 1u : 0u,
+             termination_rc,
+             g_region_probe.start_seen ? 1u : 0u,
+             g_region_probe.end_seen ? 1u : 0u,
+             (unsigned long long)g_region_probe.start_pc_hits,
+             (unsigned long long)g_region_probe.end_pc_hits,
+             (unsigned long long)g_region_probe.start_cycle,
+             (unsigned long long)g_region_probe.end_cycle,
+             (unsigned long long)region_cycles,
+             (unsigned long long)g_region_probe.start_retired,
+             (unsigned long long)g_region_probe.end_retired,
+             (unsigned long long)region_retired);
+
+  uint64_t cycle_reason[RETIRE_REASON_COUNT] = {};
+  uint64_t slot_reason[RETIRE_REASON_COUNT] = {};
+  uint64_t cycle_request_detail[MEMORY_REQUEST_DETAIL_COUNT] = {};
+  uint64_t slot_request_detail[MEMORY_REQUEST_DETAIL_COUNT] = {};
+  const bool counter_available =
+      g_region_probe.start_counter.available &&
+      g_region_probe.end_counter.available;
+  bool counter_arithmetic_ok = complete && counter_available;
+  bool counter_overflow =
+      g_region_probe.start_counter.overflow ||
+      g_region_probe.end_counter.overflow ||
+      g_region_probe.start_counter.current_overflow ||
+      g_region_probe.end_counter.current_overflow;
+
+  if (counter_arithmetic_ok) {
+    for (uint32_t reason = 0; reason < RETIRE_REASON_COUNT; ++reason) {
+      if (g_region_probe.end_counter.cycle_reason[reason] <
+              g_region_probe.start_counter.cycle_reason[reason] ||
+          g_region_probe.end_counter.slot_reason[reason] <
+              g_region_probe.start_counter.slot_reason[reason]) {
+        counter_arithmetic_ok = false;
+        break;
+      }
+      cycle_reason[reason] =
+          g_region_probe.end_counter.cycle_reason[reason] -
+          g_region_probe.start_counter.cycle_reason[reason];
+      slot_reason[reason] =
+          g_region_probe.end_counter.slot_reason[reason] -
+          g_region_probe.start_counter.slot_reason[reason];
+    }
+  }
+  if (counter_arithmetic_ok) {
+    for (uint32_t detail = 0; detail < MEMORY_REQUEST_DETAIL_COUNT;
+         ++detail) {
+      if (g_region_probe.end_counter.cycle_request_detail[detail] <
+              g_region_probe.start_counter.cycle_request_detail[detail] ||
+          g_region_probe.end_counter.slot_request_detail[detail] <
+              g_region_probe.start_counter.slot_request_detail[detail]) {
+        counter_arithmetic_ok = false;
+        break;
+      }
+      cycle_request_detail[detail] =
+          g_region_probe.end_counter.cycle_request_detail[detail] -
+          g_region_probe.start_counter.cycle_request_detail[detail];
+      slot_request_detail[detail] =
+          g_region_probe.end_counter.slot_request_detail[detail] -
+          g_region_probe.start_counter.slot_request_detail[detail];
+    }
+  }
+
+  // Full-cycle deltas cover S+1..E.  Convert the slot ledger to the exact
+  // committed-marker interval [before(start,lane), before(end,lane)) by adding
+  // the suffix of S and removing the suffix of E.  Add first so the same-cycle
+  // lane0->lane1 interval remains a one-slot positive case.
+  if (counter_arithmetic_ok &&
+      g_region_probe.start_lane < kMaxCommitEventsPerCycle &&
+      g_region_probe.end_lane < kMaxCommitEventsPerCycle) {
+    for (uint32_t lane = g_region_probe.start_lane;
+         lane < kMaxCommitEventsPerCycle; ++lane) {
+      const uint32_t reason =
+          g_region_probe.start_counter.current_slot_reason[lane];
+      if (reason >= RETIRE_REASON_COUNT ||
+          !add_u64_checked(&slot_reason[reason], 1)) {
+        counter_arithmetic_ok = false;
+        counter_overflow = true;
+        break;
+      }
+      if (reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+        const uint32_t detail =
+            g_region_probe.start_counter.current_slot_request_detail[lane];
+        if (detail == MEMORY_REQUEST_DETAIL_NONE ||
+            detail >= MEMORY_REQUEST_DETAIL_COUNT ||
+            !add_u64_checked(&slot_request_detail[detail], 1)) {
+          counter_arithmetic_ok = false;
+          counter_overflow = true;
+          break;
+        }
+      }
+    }
+    for (uint32_t lane = g_region_probe.end_lane;
+         counter_arithmetic_ok && lane < kMaxCommitEventsPerCycle; ++lane) {
+      const uint32_t reason =
+          g_region_probe.end_counter.current_slot_reason[lane];
+      if (reason >= RETIRE_REASON_COUNT ||
+          !sub_u64_checked(&slot_reason[reason], 1)) {
+        counter_arithmetic_ok = false;
+        break;
+      }
+      if (reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+        const uint32_t detail =
+            g_region_probe.end_counter.current_slot_request_detail[lane];
+        if (detail == MEMORY_REQUEST_DETAIL_NONE ||
+            detail >= MEMORY_REQUEST_DETAIL_COUNT ||
+            !sub_u64_checked(&slot_request_detail[detail], 1)) {
+          counter_arithmetic_ok = false;
+          break;
+        }
+      }
+    }
+  } else if (counter_arithmetic_ok) {
+    counter_arithmetic_ok = false;
+  }
+
+  uint64_t invalid_events = 0;
+  if (counter_available &&
+      g_region_probe.end_counter.invalid_events >=
+          g_region_probe.start_counter.invalid_events) {
+    invalid_events = g_region_probe.end_counter.invalid_events -
+                     g_region_probe.start_counter.invalid_events;
+    if (g_region_probe.start_counter.current_invalid &&
+        !add_u64_checked(&invalid_events, 1)) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    }
+  } else if (counter_available) {
+    counter_arithmetic_ok = false;
+  }
+
+  uint64_t slot_capacity = 0;
+  if (counter_arithmetic_ok) {
+    if (region_cycles > UINT64_MAX / kMaxCommitEventsPerCycle) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    } else {
+      slot_capacity = region_cycles * kMaxCommitEventsPerCycle;
+      if (g_region_probe.end_lane >= g_region_probe.start_lane) {
+        if (!add_u64_checked(
+                &slot_capacity,
+                g_region_probe.end_lane - g_region_probe.start_lane)) {
+          counter_arithmetic_ok = false;
+          counter_overflow = true;
+        }
+      } else if (!sub_u64_checked(
+                     &slot_capacity,
+                     g_region_probe.start_lane - g_region_probe.end_lane)) {
+        counter_arithmetic_ok = false;
+      }
+    }
+  }
+
+  uint64_t cycle_sum = 0;
+  uint64_t unused_slots = 0;
+  uint64_t slot_sum = 0;
+  for (uint32_t reason = 0;
+       counter_arithmetic_ok && reason < RETIRE_REASON_COUNT; ++reason) {
+    if (!add_u64_checked(&cycle_sum, cycle_reason[reason]) ||
+        !add_u64_checked(&slot_sum, slot_reason[reason]) ||
+        (reason != RETIRE_REASON_RETIRED &&
+         !add_u64_checked(&unused_slots, slot_reason[reason]))) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    }
+  }
+
+  const bool phase_aligned =
+      g_region_probe.start_seen && g_region_probe.end_seen &&
+      g_region_probe.start_lane == g_region_probe.end_lane;
+  const uint64_t retired_slots = slot_reason[RETIRE_REASON_RETIRED];
+  uint64_t cycle_head_not_complete = 0;
+  uint64_t slot_head_not_complete = 0;
+  uint64_t cycle_memory_latency = 0;
+  uint64_t slot_memory_latency = 0;
+  uint64_t cycle_memory_request_detail_sum = 0;
+  uint64_t slot_memory_request_detail_sum = 0;
+  for (uint32_t reason = RETIRE_REASON_DEPENDENCY;
+       counter_arithmetic_ok &&
+       reason <= RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN; ++reason) {
+    if (!add_u64_checked(&cycle_head_not_complete, cycle_reason[reason]) ||
+        !add_u64_checked(&slot_head_not_complete, slot_reason[reason])) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    }
+  }
+  for (uint32_t reason = RETIRE_REASON_MEMORY_RESERVATION_QUEUE;
+       counter_arithmetic_ok &&
+       reason <= RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN; ++reason) {
+    if (!add_u64_checked(&cycle_memory_latency, cycle_reason[reason]) ||
+        !add_u64_checked(&slot_memory_latency, slot_reason[reason])) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    }
+  }
+  for (uint32_t detail = MEMORY_REQUEST_DETAIL_CACHE_LOOKUP;
+       counter_arithmetic_ok && detail < MEMORY_REQUEST_DETAIL_COUNT;
+       ++detail) {
+    if (!add_u64_checked(&cycle_memory_request_detail_sum,
+                         cycle_request_detail[detail]) ||
+        !add_u64_checked(&slot_memory_request_detail_sum,
+                         slot_request_detail[detail])) {
+      counter_arithmetic_ok = false;
+      counter_overflow = true;
+    }
+  }
+  const bool request_detail_conservation = counter_arithmetic_ok &&
+      cycle_request_detail[MEMORY_REQUEST_DETAIL_NONE] == 0 &&
+      slot_request_detail[MEMORY_REQUEST_DETAIL_NONE] == 0 &&
+      cycle_memory_request_detail_sum ==
+          cycle_reason[RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING] &&
+      slot_memory_request_detail_sum ==
+          slot_reason[RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING];
+  const bool conservation = counter_arithmetic_ok &&
+      cycle_sum == region_cycles &&
+      slot_sum == slot_capacity &&
+      retired_slots == region_retired &&
+      retired_slots <= slot_capacity &&
+      unused_slots == slot_capacity - retired_slots &&
+      request_detail_conservation;
+  const bool counter_complete = complete && counter_available &&
+                                counter_arithmetic_ok;
+
+  LogBothTag("region_probe",
+             "COUNTERS_FINAL schema=npc-rv64-performance-counter-v4"
+             " complete=%u available=%u overflow=%u invalid_events=%llu"
+             " start_lane=%u end_lane=%u phase_aligned=%u cycles=%llu"
+             " cycle_useful=%llu cycle_rob_empty=%llu"
+             " cycle_head_not_complete=%llu"
+             " cycle_dependency=%llu cycle_issue_terminal=%llu"
+             " cycle_execution_latency=%llu cycle_memory_latency=%llu"
+             " cycle_memory_reservation_queue=%llu"
+             " cycle_memory_translation_order=%llu"
+             " cycle_memory_request_outstanding=%llu"
+             " cycle_memory_request_cache_lookup=%llu"
+             " cycle_memory_request_device_wait=%llu"
+             " cycle_memory_request_axi_read_address=%llu"
+             " cycle_memory_request_axi_read_data=%llu"
+             " cycle_memory_request_axi_write_request=%llu"
+             " cycle_memory_request_axi_write_response=%llu"
+             " cycle_memory_request_detail_unknown=%llu"
+             " cycle_memory_response_terminal=%llu"
+             " cycle_memory_retry=%llu"
+             " cycle_memory_lifecycle_unknown=%llu"
+             " cycle_head_lifecycle_unknown=%llu"
+             " cycle_exception_redirect=%llu cycle_memory_commit=%llu"
+             " cycle_serialization=%llu cycle_unknown=%llu"
+             " slot_capacity=%llu retired_slots=%llu unused_slots=%llu"
+             " slot_rob_empty=%llu slot_head_not_complete=%llu"
+             " slot_dependency=%llu slot_issue_terminal=%llu"
+             " slot_execution_latency=%llu slot_memory_latency=%llu"
+             " slot_memory_reservation_queue=%llu"
+             " slot_memory_translation_order=%llu"
+             " slot_memory_request_outstanding=%llu"
+             " slot_memory_request_cache_lookup=%llu"
+             " slot_memory_request_device_wait=%llu"
+             " slot_memory_request_axi_read_address=%llu"
+             " slot_memory_request_axi_read_data=%llu"
+             " slot_memory_request_axi_write_request=%llu"
+             " slot_memory_request_axi_write_response=%llu"
+             " slot_memory_request_detail_unknown=%llu"
+             " slot_memory_response_terminal=%llu"
+             " slot_memory_retry=%llu"
+             " slot_memory_lifecycle_unknown=%llu"
+             " slot_head_lifecycle_unknown=%llu"
+             " slot_exception_redirect=%llu slot_memory_commit=%llu"
+             " slot_serialization=%llu slot_unknown=%llu conservation=%u",
+             counter_complete ? 1u : 0u,
+             counter_available ? 1u : 0u,
+             counter_overflow ? 1u : 0u,
+             (unsigned long long)invalid_events,
+             g_region_probe.start_lane,
+             g_region_probe.end_lane,
+             phase_aligned ? 1u : 0u,
+             (unsigned long long)region_cycles,
+             (unsigned long long)cycle_reason[RETIRE_REASON_RETIRED],
+             (unsigned long long)cycle_reason[RETIRE_REASON_ROB_EMPTY],
+             (unsigned long long)cycle_head_not_complete,
+             (unsigned long long)cycle_reason[RETIRE_REASON_DEPENDENCY],
+             (unsigned long long)cycle_reason[RETIRE_REASON_ISSUE_TERMINAL],
+             (unsigned long long)cycle_reason[RETIRE_REASON_EXECUTION_LATENCY],
+             (unsigned long long)cycle_memory_latency,
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_MEMORY_RESERVATION_QUEUE],
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_MEMORY_TRANSLATION_ORDER],
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_CACHE_LOOKUP],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_DEVICE_WAIT],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_AXI_READ_ADDRESS],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_AXI_READ_DATA],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_AXI_WRITE_REQUEST],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_AXI_WRITE_RESPONSE],
+             (unsigned long long)
+                 cycle_request_detail[MEMORY_REQUEST_DETAIL_UNKNOWN],
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_MEMORY_RESPONSE_TERMINAL],
+             (unsigned long long)cycle_reason[RETIRE_REASON_MEMORY_RETRY],
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN],
+             (unsigned long long)
+                 cycle_reason[RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN],
+             (unsigned long long)cycle_reason[RETIRE_REASON_EXCEPTION_REDIRECT],
+             (unsigned long long)cycle_reason[RETIRE_REASON_MEMORY_COMMIT],
+             (unsigned long long)cycle_reason[RETIRE_REASON_SERIALIZATION],
+             (unsigned long long)cycle_reason[RETIRE_REASON_UNKNOWN],
+             (unsigned long long)slot_capacity,
+             (unsigned long long)retired_slots,
+             (unsigned long long)unused_slots,
+             (unsigned long long)slot_reason[RETIRE_REASON_ROB_EMPTY],
+             (unsigned long long)slot_head_not_complete,
+             (unsigned long long)slot_reason[RETIRE_REASON_DEPENDENCY],
+             (unsigned long long)slot_reason[RETIRE_REASON_ISSUE_TERMINAL],
+             (unsigned long long)slot_reason[RETIRE_REASON_EXECUTION_LATENCY],
+             (unsigned long long)slot_memory_latency,
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_MEMORY_RESERVATION_QUEUE],
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_MEMORY_TRANSLATION_ORDER],
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_CACHE_LOOKUP],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_DEVICE_WAIT],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_AXI_READ_ADDRESS],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_AXI_READ_DATA],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_AXI_WRITE_REQUEST],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_AXI_WRITE_RESPONSE],
+             (unsigned long long)
+                 slot_request_detail[MEMORY_REQUEST_DETAIL_UNKNOWN],
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_MEMORY_RESPONSE_TERMINAL],
+             (unsigned long long)slot_reason[RETIRE_REASON_MEMORY_RETRY],
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_MEMORY_LIFECYCLE_UNKNOWN],
+             (unsigned long long)
+                 slot_reason[RETIRE_REASON_HEAD_LIFECYCLE_UNKNOWN],
+             (unsigned long long)slot_reason[RETIRE_REASON_EXCEPTION_REDIRECT],
+             (unsigned long long)slot_reason[RETIRE_REASON_MEMORY_COMMIT],
+             (unsigned long long)slot_reason[RETIRE_REASON_SERIALIZATION],
+             (unsigned long long)slot_reason[RETIRE_REASON_UNKNOWN],
+             conservation ? 1u : 0u);
 }
 
 static void clear_cycle_events(void) {
@@ -924,6 +1396,7 @@ static void reset_event_state(void) {
   memset(g_recent_debug, 0, sizeof(g_recent_debug));
   g_recent_debug_count = 0;
   memset(&g_sim_perf, 0, sizeof(g_sim_perf));
+  memset(&g_retire_observation, 0, sizeof(g_retire_observation));
   memset(&g_bpu_stats, 0, sizeof(g_bpu_stats));
   memset(g_branch_miss_pc_stats, 0, sizeof(g_branch_miss_pc_stats));
   g_last_ooo_branch_prefetch_hit = false;
@@ -1503,6 +1976,120 @@ static void bump_ooo_window(uint32_t retire_count, uint32_t execute_count,
   }
 }
 
+static void bump_retire_observation_counter(uint64_t *counter,
+                                            bool *event_overflow) {
+  if (add_u64_checked(counter, 1)) return;
+  if (counter != nullptr) *counter = UINT64_MAX;
+  if (event_overflow != nullptr) *event_overflow = true;
+}
+
+static void record_retire_observation_event(uint32_t retire_count,
+                                            uint32_t slot0_reason,
+                                            uint32_t slot1_reason,
+                                            uint32_t slot0_request_detail,
+                                            uint32_t slot1_request_detail) {
+  bool event_invalid = false;
+  bool event_overflow = false;
+
+  uint64_t event_cycle = npc_stats()->cycles;
+  if (!add_u64_checked(&event_cycle, 1)) {
+    event_overflow = true;
+  }
+  if (g_retire_observation.current_valid) {
+    uint64_t expected_cycle = g_retire_observation.current_cycle;
+    if (!add_u64_checked(&expected_cycle, 1)) {
+      event_overflow = true;
+    } else if (event_cycle != expected_cycle) {
+      event_invalid = true;
+    }
+  }
+
+  if (slot0_reason >= RETIRE_REASON_COUNT) {
+    slot0_reason = RETIRE_REASON_UNKNOWN;
+    event_invalid = true;
+  }
+  if (slot1_reason >= RETIRE_REASON_COUNT) {
+    slot1_reason = RETIRE_REASON_UNKNOWN;
+    event_invalid = true;
+  }
+  if (slot0_request_detail >= MEMORY_REQUEST_DETAIL_COUNT) {
+    slot0_request_detail = MEMORY_REQUEST_DETAIL_UNKNOWN;
+    event_invalid = true;
+  }
+  if (slot1_request_detail >= MEMORY_REQUEST_DETAIL_COUNT) {
+    slot1_request_detail = MEMORY_REQUEST_DETAIL_UNKNOWN;
+    event_invalid = true;
+  }
+  if (slot0_reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+    if (slot0_request_detail == MEMORY_REQUEST_DETAIL_NONE) {
+      slot0_request_detail = MEMORY_REQUEST_DETAIL_UNKNOWN;
+      event_invalid = true;
+    }
+  } else if (slot0_request_detail != MEMORY_REQUEST_DETAIL_NONE) {
+    slot0_request_detail = MEMORY_REQUEST_DETAIL_NONE;
+    event_invalid = true;
+  }
+  if (slot1_reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+    if (slot1_request_detail == MEMORY_REQUEST_DETAIL_NONE) {
+      slot1_request_detail = MEMORY_REQUEST_DETAIL_UNKNOWN;
+      event_invalid = true;
+    }
+  } else if (slot1_request_detail != MEMORY_REQUEST_DETAIL_NONE) {
+    slot1_request_detail = MEMORY_REQUEST_DETAIL_NONE;
+    event_invalid = true;
+  }
+  if (retire_count > kMaxCommitEventsPerCycle) event_invalid = true;
+  const uint32_t encoded_retire_count =
+      (slot0_reason == RETIRE_REASON_RETIRED ? 1u : 0u) +
+      (slot1_reason == RETIRE_REASON_RETIRED ? 1u : 0u);
+  if (encoded_retire_count != retire_count ||
+      (slot1_reason == RETIRE_REASON_RETIRED &&
+       slot0_reason != RETIRE_REASON_RETIRED)) {
+    event_invalid = true;
+  }
+
+  const uint32_t cycle_reason = retire_count != 0
+      ? RETIRE_REASON_RETIRED : slot0_reason;
+  bump_retire_observation_counter(
+      &g_retire_observation.cycle_reason[cycle_reason], &event_overflow);
+  bump_retire_observation_counter(
+      &g_retire_observation.slot_reason[slot0_reason], &event_overflow);
+  bump_retire_observation_counter(
+      &g_retire_observation.slot_reason[slot1_reason], &event_overflow);
+  if (cycle_reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+    bump_retire_observation_counter(
+        &g_retire_observation.cycle_request_detail[slot0_request_detail],
+        &event_overflow);
+  }
+  if (slot0_reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+    bump_retire_observation_counter(
+        &g_retire_observation.slot_request_detail[slot0_request_detail],
+        &event_overflow);
+  }
+  if (slot1_reason == RETIRE_REASON_MEMORY_REQUEST_OUTSTANDING) {
+    bump_retire_observation_counter(
+        &g_retire_observation.slot_request_detail[slot1_request_detail],
+        &event_overflow);
+  }
+  if (event_invalid) {
+    bump_retire_observation_counter(
+        &g_retire_observation.invalid_events, &event_overflow);
+  }
+
+  g_retire_observation.current_slot_reason[0] = slot0_reason;
+  g_retire_observation.current_slot_reason[1] = slot1_reason;
+  g_retire_observation.current_slot_request_detail[0] =
+      slot0_request_detail;
+  g_retire_observation.current_slot_request_detail[1] =
+      slot1_request_detail;
+  g_retire_observation.current_cycle = event_cycle;
+  g_retire_observation.current_valid = true;
+  g_retire_observation.current_invalid = event_invalid;
+  g_retire_observation.current_overflow = event_overflow;
+  g_retire_observation.overflow =
+      g_retire_observation.overflow || event_overflow;
+}
+
 extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t execute_count,
                                     uint32_t dispatch_count,
@@ -1530,7 +2117,15 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t branch_flush,
                                     uint32_t exception_busy,
                                     npc_word_t pending_branch_pc,
-                                    npc_word_t pending_jump_pc) {
+                                    npc_word_t pending_jump_pc,
+                                    uint32_t retire_slot0_reason,
+                                    uint32_t retire_slot1_reason,
+                                    uint32_t retire_slot0_request_detail,
+                                    uint32_t retire_slot1_request_detail) {
+  record_retire_observation_event(retire_count, retire_slot0_reason,
+                                  retire_slot1_reason,
+                                  retire_slot0_request_detail,
+                                  retire_slot1_request_detail);
   g_sim_perf.ooo_cycles++;
   bump_ooo_hist(g_sim_perf.ooo_retire_hist, retire_count);
   bump_ooo_hist(g_sim_perf.ooo_execute_hist, execute_count);
@@ -2388,7 +2983,10 @@ static int reg_index_from_name(const char *name) {
 /* finish_exec 替代原来的 lambda：收尾统计 + 有条件输出报告 */
 static int finish_exec(uint64_t start_us, int ret, bool report_summary) {
   accumulate_host_time(start_us);
-  if (report_summary) report_run_result();
+  if (report_summary) {
+    report_region_probe_final(ret);
+    report_run_result();
+  }
   return ret;
 }
 

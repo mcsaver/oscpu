@@ -1767,9 +1767,178 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
+  // V13I static survivor/source map: build a packed resident queue through the
+  // public dispatch face, make exactly the requested entries ready through the
+  // registered wakeup face, and then compare every post-edge resident payload.
+  // This keeps the stimulus architectural while the OOO_ASSERT scan reference
+  // independently checks the complete packed entry state.
+  task automatic run_v13i_survivor_case;
+    input integer resident_count;
+    input [7:0] remove_mask;
+    input [1:0] append_mask;
+    integer fill_i;
+    integer scan_i;
+    integer dest_i;
+    integer wake_slot;
+    integer expected_count;
+    reg [31:0] expected_pc;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+
+      for (fill_i = 0; fill_i < resident_count; fill_i = fill_i + 2) begin
+        set_dispatch0(32'h8d00_0000 + (fill_i * 4), fill_i[3:0],
+                      6'd8 + fill_i, 1'b0, 6'd0, 1'b1,
+                      6'd32 + fill_i);
+        if ((fill_i + 1) < resident_count)
+          set_dispatch1(32'h8d00_0000 + ((fill_i + 1) * 4),
+                        (fill_i + 1), 6'd8 + fill_i + 1, 1'b0,
+                        6'd0, 1'b1, 6'd32 + fill_i + 1);
+        `TB_TICK(clk);
+        clear_inputs();
+      end
+      #1;
+      tb_check32("[V13I] packed setup count", {28'b0, count},
+                 resident_count);
+
+      // At most two entries can leave in one normal cycle.  Wake the selected
+      // source operands one edge earlier so selection consumes only Q state.
+      wake_slot = 0;
+      for (scan_i = 0; scan_i < resident_count; scan_i = scan_i + 1) begin
+        if (remove_mask[scan_i]) begin
+          if (wake_slot == 0) begin
+            wakeup0_valid = 1'b1;
+            wakeup0_pdest = 6'd8 + scan_i;
+          end else begin
+            wakeup1_valid = 1'b1;
+            wakeup1_pdest = 6'd8 + scan_i;
+          end
+          wake_slot = wake_slot + 1;
+        end
+      end
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+
+      issue0_ready = (remove_mask != 8'b0);
+      issue1_ready = (remove_mask != 8'b0);
+      if (append_mask[0])
+        set_dispatch0(32'h8d00_0100, 4'd12,
+                      6'd1, 1'b0, 6'd0, 1'b1, 6'd60);
+      if (append_mask[1])
+        set_dispatch1(32'h8d00_0104, 4'd13,
+                      6'd2, 1'b0, 6'd0, 1'b1, 6'd61);
+      #1;
+      tb_check32("[V13I] selected remove mask",
+                 {24'b0, dut.compact_remove_w}, {24'b0, remove_mask});
+      if (append_mask[0])
+        tb_check1("[V13I] dispatch0 accepted", dispatch0_ready, 1'b1);
+      if (append_mask[1])
+        tb_check1("[V13I] dispatch1 accepted", dispatch1_ready, 1'b1);
+
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      #1;
+
+      expected_count = resident_count - wake_slot + append_mask[0] +
+                       append_mask[1];
+      tb_check32("[V13I] post-compaction count", {28'b0, count},
+                 expected_count);
+      dest_i = 0;
+      for (scan_i = 0; scan_i < resident_count; scan_i = scan_i + 1) begin
+        if (!remove_mask[scan_i]) begin
+          expected_pc = 32'h8d00_0000 + (scan_i * 4);
+          tb_check1("[V13I] survivor destination valid",
+                    dut.valid_q[dest_i], 1'b1);
+          tb_check32("[V13I] survivor source order",
+                     dut.pc_q[dest_i][31:0], expected_pc);
+          dest_i = dest_i + 1;
+        end
+      end
+      if (append_mask[0]) begin
+        tb_check32("[V13I] dispatch0 append order",
+                   dut.pc_q[dest_i][31:0], 32'h8d00_0100);
+        dest_i = dest_i + 1;
+      end
+      if (append_mask[1]) begin
+        tb_check32("[V13I] dispatch1 append order",
+                   dut.pc_q[dest_i][31:0], 32'h8d00_0104);
+        dest_i = dest_i + 1;
+      end
+      for (scan_i = 0; scan_i < 8; scan_i = scan_i + 1)
+        tb_check1("[V13I] packed valid prefix", dut.valid_q[scan_i],
+                  (scan_i < expected_count));
+    end
+  endtask
+
+  task automatic run_v13i_survivor_matrix;
+    integer mask_i;
+    integer bit_i;
+    integer pop_i;
+    integer case_count;
+    begin
+      case_count = 0;
+      for (mask_i = 0; mask_i < 256; mask_i = mask_i + 1) begin
+        pop_i = 0;
+        for (bit_i = 0; bit_i < 8; bit_i = bit_i + 1)
+          pop_i = pop_i + ((mask_i >> bit_i) & 1);
+        if (pop_i <= 2) begin
+          run_v13i_survivor_case(8, mask_i[7:0], 2'b00);
+          case_count = case_count + 1;
+        end
+      end
+
+      // Append placement is orthogonal to the 37 complete remove patterns.
+      run_v13i_survivor_case(6, 8'b0000_0000, 2'b11);
+      run_v13i_survivor_case(6, 8'b0001_0000, 2'b11);
+      run_v13i_survivor_case(6, 8'b0010_0010, 2'b11);
+      run_v13i_survivor_case(6, 8'b0000_0100, 2'b01);
+      run_v13i_survivor_case(6, 8'b0000_1000, 2'b10);
+      $display("[V13I-SURVIVOR-MATRIX] remove_cases=%0d append_cases=5 payload/order/prefix PASS",
+               case_count);
+    end
+  endtask
+
+  task automatic run_v13i_survivor_negative;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8d10_0000, 4'd0,
+                    6'd1, 1'b1, 6'd0, 1'b1, 6'd40);
+      set_dispatch1(32'h8d10_0004, 4'd1,
+                    6'd9, 1'b0, 6'd0, 1'b1, 6'd41);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      #1;
+      tb_check32("[V13I-NEGATIVE] remove entry0",
+                 {24'b0, dut.compact_remove_w}, 32'h0000_0001);
+      // With entry0 removed, destination0 must select source1.  Breaking this
+      // one local select must be caught by the independent scan reference.
+      force dut.compact_source1_sel_w[0] = 1'b0;
+      #1;
+      `TB_TICK(clk);
+      $display("[V13I-SURVIVOR-NEGATIVE-DONE] source1 select forced low");
+      $finish_and_return(1);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
+
+    if ($test$plusargs("V13I_SURVIVOR_MAP_NEGATIVE"))
+      run_v13i_survivor_negative();
+
+    if ($test$plusargs("V13I_SURVIVOR_MAP_ONLY")) begin
+      run_v13i_survivor_matrix();
+      tb_finish("tb_ooo_int_issue_queue_v13i_survivor_map");
+    end
 
     if ($test$plusargs("V11F_INT_IQ_PRODUCER_ONLY")) begin
       run_v11f_int_iq_producer_lifecycle();
@@ -2628,6 +2797,7 @@ module tb_ooo_int_issue_queue;
     run_r3p1_swapped_ready_case(2'b11);
     run_r3p1_registered_owner_sole_alu;
     run_v8f_producer_id_carrier;
+    run_v13i_survivor_matrix();
 
 `ifdef R3P3_PACKED_HOLE_NEGATIVE
     // Reachable design state must never contain a hole.  This negative probe

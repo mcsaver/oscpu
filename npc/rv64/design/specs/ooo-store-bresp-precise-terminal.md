@@ -46,6 +46,17 @@ probe fault                         | physical SQ head == ROB head
 
 成功 probe 不产生 formal WB；因此 store 在实际 B 前绝不具备提交资格。
 
+V13P 允许的唯一时序缩短发生在 aggregate B 已经真实到达之后：若 backend 的
+formal-WB 与 SQ terminal sink 同拍均有 credit，bridge 可以在 B 拍
+直接呈现 response；若任一 sink 无 credit，必须捕获进既有 `S_RESP` 并保持。两条路径都以
+同一个 aggregate B 为 terminal，且 ROB 仍只从下一拍 registered done 退休。该规则不是
+AW/W early complete，也不允许 B 拍 station advance 或同拍 ROB commit。
+
+这里的 plain-store DRAIN 不进入 `OooMemOwnerTerminalCollector`：DRAIN 在 B 拍经
+`sq_response_terminal_w` 写 SQ terminal，STORE owner 继续保留到 registered ROB commit
+之后，再由 `sq_owner_release_mask_w` 释放。collector 仍服务普通 response/drop 等既有
+终端来源，但不是本条 DRAIN direct/fallback 握手的第三个 credit sink。
+
 ## 3. 地址与异常所有权
 
 - SQ 同时保存 original VA 与 probe 返回 PA；前递/歧义查询面使用 VA，真实写只使用 PA。
@@ -54,6 +65,43 @@ probe fault                         | physical SQ head == ROB head
   `tval` 必须是 original VA，而不是 PA/MIQ request address。
 - `OKAY` 同样形成一次无异常 store WB，使 ROB done；三种 B outcome 都只 pop 一次 MIQ。
 - `mem_rsp_ready` 对 B 必须读取 formal-WB credit；credit 不足时 bridge response 原地保持。
+- aggregate B 可先由 bridge 无条件接收；所谓“原地保持”包括把当前 B 的 error 与 exact
+  active owner 原子捕获到 `S_RESP`。只有 `response_valid && response_ready` 才形成 backend
+  formal WB；ready 足够的 B 拍 direct fire 与随后 `S_RESP` fire 必须严格互斥。
+
+### 3.1 final-PA 双查询组合契约
+
+`query[01]` 是无状态、无反压的当拍组合接口。每路输入携带 load 的完整
+`ProducerId`、final PA、typed class 与低位连续 byte mask；输出必须且只能是
+`allow/forward/replay` 之一。该接口不读取同拍 SQ release 形成 credit，也不反向参与
+dispatch/issue ready，因此不能产生 response→request 或 release→allocation 组合环。
+
+每个 older、valid、non-terminal SQ entry 的字节关系按以下等价硬件定义：
+
+```text
+delta = store_base_pa - load_base_pa
+aligned_store_mask/data = shift(store_mask/data, delta), |delta| < STRB_W
+overlap = load_mask & aligned_store_mask
+```
+
+store 起点在 load 之后时左移，store 起点在 load 之前时右移；距离大于等于
+`STRB_W` 时 overlap 为零。只有 overlap 字节可以更新 coverage/forward data。entry
+按 physical SQ head→tail 遍历，因此后遇到的、程序序更年轻但仍 older-than-load 的 store
+必须覆盖先前同字节数据。多个 store 可以合并为完整 coverage；存在 overlap 但 coverage
+不完整时 replay，禁止 memory-read 后再拼接。未 fill、typed attr 非法、零 store mask 或
+class mismatch 均 fail closed 为 replay；terminal store 不再参与 ordering。IO 采用强顺序：
+只要存在任意 valid、older、non-terminal SQ entry，IO query 不得越过它；任意 older IO store
+也不得被更年轻的 query 越过，因此该两类情况不以地址 overlap 为前提，均 replay。
+
+四态仿真同样属于该组合契约。若 SQ physical head，或潜在参与 entry 的 valid、程序序年龄、
+terminal、fill、PA、typed class、byte mask、被 overlap 选中的 data 任一事实未知，必须把该
+entry 视为 ordering poison 并 replay；不得依赖 Verilog 普通 `if` 把 X 当作 false 而乐观
+allow/forward。已知 invalid、younger 或 terminal entry 的其它 payload 不参与判决。
+
+该查询锥不得推断 latch、组合环或任何跨拍状态。RTL 可以把历史的
+`ENTRY_COUNT × STRB_W × STRB_W` 全字节地址比较阵列等价改写为每 entry 的有界
+offset、mask 对齐和 `STRB_W` 路 byte-enable mux，但不得改变上述字节级结果或双 query
+独立性。
 
 ## 4. 请求仲裁与顺序
 

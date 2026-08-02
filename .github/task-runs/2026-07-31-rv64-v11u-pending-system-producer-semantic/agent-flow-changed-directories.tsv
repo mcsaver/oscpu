@@ -1,0 +1,14 @@
+npc/rv64/vsrc/control
+npc/rv64/vsrc/execute
+npc/rv64/testbench/tests
+npc/rv64/testbench/scripts
+npc/rv64
+npc/rv64/design/arch
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic
+.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/subagent-contracts
+.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence
+.github/task-runs/2026-07-31-rv64-v11u-pending-system-producer-semantic/evidence/ledger-attempt-10
+.github/memory
+.github/memory/modules

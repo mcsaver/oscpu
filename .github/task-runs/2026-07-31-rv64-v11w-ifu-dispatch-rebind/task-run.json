@@ -1,0 +1,202 @@
+{
+  "schema": "npc-rv64-task-run-v1",
+  "task_id": "rv64-v11w-ifu-dispatch-rebind",
+  "status": "PASS_SCOPED_GLOBAL_GAP",
+  "workspace": {
+    "branch": "ai",
+    "head": "dc027b3988777cba9fdb2200d721d24bba6368fc",
+    "state": "DIRTY_SHARED_WORKTREE_PRESERVED",
+    "git_actions": "NO_STAGE_NO_COMMIT_NO_SWITCH_NO_RESET_NO_CLEAN"
+  },
+  "classification": {
+    "primary": "verification",
+    "secondary": [
+      "tooling/workflow",
+      "architecture-ledger"
+    ]
+  },
+  "causal_audit": {
+    "hypothesis": "The two IFU current-evidence failures were caused only by unrelated npc/rv64/Makefile byte drift; frozen DUT/TB behavior and the production design ID did not drift.",
+    "competing_hypothesis": "Narrowing the binding could hide a changed or parse-time-executed runner and create a false current-evidence PASS.",
+    "discriminating_experiment": [
+      "Archive the pre-rebind evidence and compare all 12 frozen V9G/V9I input hashes before and after reconstruction.",
+      "Move canonical evidence dispatch to a restricted literal-only Makefile and reject direct, duplicate, include, dynamic-expression, conditional and inherited-environment variants.",
+      "Rebuild JSON/raw summaries from frozen logs, run both focused evidence unit modules, audit the whole architecture boundary and obtain independent V3 review."
+    ],
+    "result": "HYPOTHESIS_RETAINED_AND_COMPETING_FALSE_GREEN_PATHS_REJECTED_WITHIN_SCOPED_EVIDENCE"
+  },
+  "evidence_state": {
+    "published_gate_state": "IFU_CURRENT_EVIDENCE_PASS_WHOLE_ARCHITECTURE_GAP",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "FROZEN_FOCUSED_TB_COMPLETE_NOT_RERUN",
+    "binding_state": "NO_DUT_OR_FROZEN_INPUT_DRIFT",
+    "raw_artifact_state": "VALID_COMPACT",
+    "rtl_assertion_state": "CLEAN_IN_FROZEN_EVIDENCE_NOT_RERUN",
+    "oracle_state": "VALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "evidence_scope": [
+      "IFU-AXI-G1 current-design AW/W/B owner and flush-drain evidence binding",
+      "IFU-ACCESS-G1 current-design exact halfword, execute-PMP, RRESP, PMEM-tail and lane-owner evidence binding",
+      "literal-only GNU Make dispatch and negative environment-injection sensitivity"
+    ]
+  },
+  "semantic_delta": {
+    "classification": "VERIFICATION_CHECKER_AND_DISPATCH_ONLY",
+    "changed_files": [
+      "npc/rv64/eval/ppa/ifu-evidence.mk",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tools/ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_ifu_access_evidence.py",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log",
+      "npc/rv64/eval/ppa/evidence/ifu-access-current.json",
+      "npc/rv64/eval/ppa/evidence/ifu-access.log"
+    ],
+    "changed_modules": [],
+    "observed_modules": [
+      "OooFetchAxiBridge",
+      "AxiCrossbar",
+      "OooFetchPacketDecode",
+      "OooFrontendDispatchGate",
+      "PmpChecker"
+    ],
+    "active_functional_cone_impact": false,
+    "dut_input_impact": false,
+    "dut_timing_impact": false,
+    "dut_state_impact": false,
+    "termination_impact": false,
+    "randomization_impact": false,
+    "justification": "Production RTL, frozen RTL/TB inputs and design ID are unchanged; only evidence-dispatch/checker identity and generated summaries changed."
+  },
+  "identity": {
+    "production_core_rtl_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+    "elaborated_rtl_id": "FROZEN_CURRENT_SOURCE_SCOPED_EVIDENCE_NOT_REELABORATED_THIS_ROUND",
+    "simulation_top_id": "BOUND_IN_FROZEN_V9G_V9I_ARTIFACTS",
+    "device_model_id": "BOUND_IN_IFU_ACCESS_FROZEN_SOURCE_BINDINGS",
+    "host_harness_id": "BOUND_IN_V9G_V9I_FROZEN_SOURCE_BINDINGS",
+    "simulator_semantics_id": "Icarus-Verilog-12.0-stable_FROM_SOURCE_RUNS",
+    "checker_oracle_id_old": {
+      "ifu_axi": "sha256:328ddefaa862d6702fd4e0989d4a7aefcbbd1f88e7467c5ec6f021354acb5479",
+      "ifu_access": "sha256:6f14f383abf207f26ec369a142e8f27cc765852112abdf6393836b18f81089bd",
+      "arch_stable": "sha256:982864679fa3deeaf65dbe8bdf61f719f087ae7db57fc2882c41e4a05dde6879"
+    },
+    "checker_oracle_id_new": {
+      "ifu_axi": "sha256:3de48b3684769f402c6aa470367d282f0f87d22d29bada78da0f9ba20f9fec3d",
+      "ifu_access": "sha256:1a559a73b375160edc0e5621232b5e809eeb81477da5a424220544232d481974",
+      "arch_stable": "sha256:6eba18d271bcde4c5b42ea167136898a5dcbda3a71f18eaf20aa3f8950cb48da",
+      "dispatch": "sha256:181db87e690429acc42e7fdbd01c13b029cd9f7f9adf893076cab554a65856da"
+    },
+    "guest_payload_id": "NOT_APPLICABLE",
+    "boot_artifact_id": "NOT_APPLICABLE",
+    "test_input_log_id": "sha256:32d0093dff461c3ef377c5c44b56ab1b45fb11134224ad77038750f148c650dd",
+    "run_configuration_id": "frozen-v9g-v9i-evidence-reconstruction+literal-dispatch-v1",
+    "raw_artifact_bundle_id": "sha256:32d0093dff461c3ef377c5c44b56ab1b45fb11134224ad77038750f148c650dd"
+  },
+  "replay": {
+    "source_run_id": "2026-07-22-rv64-v9g-ifu-axi-current-design+2026-07-22-rv64-v9i-ifu-access-current-design",
+    "source_raw_log_sha": "SEE_FROZEN_INPUTS_MANIFEST_FOR_12_EXACT_ARTIFACTS",
+    "source_input_sha": "sha256:32d0093dff461c3ef377c5c44b56ab1b45fb11134224ad77038750f148c650dd",
+    "replay_command": "bash .github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/run-frozen-rebind.sh",
+    "replay_result": "PASS",
+    "proven_scope": [
+      "IFU-AXI and IFU-ACCESS frozen evidence reconstruction against current checker/source bindings",
+      "Canonical literal dispatch mapping and named Make mutation sensitivity",
+      "Current production RTL design ID consistency"
+    ],
+    "unproven_scope": [
+      "Whole-core single-design architecture cohort",
+      "Fresh RTL simulation, AM, DiffTest or Linux system qualification",
+      "Synthesis, STA, power or PPA promotion"
+    ],
+    "limitations": [
+      "No RTL/TB waveform or compilation was newly produced in V11W.",
+      "Trusted single-flight workspace excludes dispatch-file TOCTOU; host tool binary integrity is outside this RTL evidence contract.",
+      "Architecture ledger remains bound to its older single-design cohort."
+    ]
+  },
+  "runs": [
+    {
+      "command": "run-frozen-rebind.sh",
+      "return_code": 0,
+      "result": "PASS",
+      "observed": "26/26 unit tests; 12/12 frozen inputs unchanged"
+    },
+    {
+      "command": "arch_stable_freeze.py audit + verify",
+      "return_code": 0,
+      "result": "EXPECTED_GAP",
+      "observed": "architecture GAP; PPA UNQUALIFIED; promotion false; 53 blockers"
+    }
+  ],
+  "test_disposition": [
+    {
+      "test_path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-focused.sh",
+      "test_disposition": "REBIND",
+      "reason": "Frozen hardware behavior and 18/18 negative RTL variants are unchanged; only evidence dispatch/checker identity changed."
+    },
+    {
+      "test_path": ".github/task-runs/2026-07-22-rv64-v9i-ifu-access-current-design/run-focused.sh",
+      "test_disposition": "REBIND",
+      "reason": "Frozen hardware behavior and 19/19 negative RTL variants are unchanged; only evidence dispatch/checker identity changed."
+    }
+  ],
+  "ledger_publication": {
+    "current_evidence_claims": {
+      "IFU-AXI-G1": "CLOSED_ELIGIBLE_SCOPED",
+      "IFU-ACCESS-G1": "CLOSED_ELIGIBLE_SCOPED"
+    },
+    "architecture_debt_ledger_state": "NO_CHANGE_STALE_EVIDENCE_RETAINED_PENDING_SINGLE_DESIGN_COHORT_REBUILD",
+    "reason": "Publishing only two current design IDs into the older whole-ledger cohort would create mixed-design false closure.",
+    "whole_architecture": "GAP",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "cost": {
+    "expected_wallclock": "under one minute for ordinary frozen reconstruction and bounded checks",
+    "historical_runtime_reference": "source dynamic gates previously measured 55.5s plus 68.2s",
+    "runtime_estimate_confidence": "MEASURED",
+    "single_flight_resource": "Windows-to-WSL RV64 engineering shell",
+    "expected_occupancy": "about one second for frozen reconstruction; about 35 seconds for whole boundary audit",
+    "opportunity_cost_level": "LOW",
+    "blocked_higher_priority_work": [],
+    "lower_cost_alternatives": [
+      "Target-block text matching alone was rejected by V2 because it did not close GNU Make parse-time execution."
+    ],
+    "stop_condition": "Stop on frozen input drift, builder failure, marker creation, unit-test failure or architecture publication boundary change."
+  },
+  "closure_bookkeeping": {
+    "architecture_debt_ledger": "NO_CHANGE_INTENTIONAL_SINGLE_DESIGN_COHORT_REQUIRED",
+    "historical_defect_backfill_ledger": "NOT_APPLICABLE_NO_HISTORICAL_PRODUCTION_DEFECT_CLOSED",
+    "baseline_manifest": "NOT_APPLICABLE_NO_PPA_BASELINE_OR_CANDIDATE",
+    "e2e_profile": "NOT_RUN_LIGHTWEIGHT_DEVELOPMENT_CLASS",
+    "strict_guard": "NOT_RUN_LIGHTWEIGHT_DEVELOPMENT_CLASS_NO_RELEASE_OR_MIGRATION",
+    "git_commit": "NOT_RUN_SHARED_DIRTY_WORKTREE"
+  },
+  "review": {
+    "reviewer_conclusion": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "contract_path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/subagent-contracts/v11w-ifu-dispatch-bounded-review-v3.json",
+    "contract_sha256": "c8dde3fa8db685486de757959d54a1e4a79a17854eba2f15bc07ddb02cc843b5",
+    "review_scope": "Literal IFU evidence dispatch, Make environment isolation, frozen evidence binding and honest architecture GAP boundary",
+    "known_limits": [
+      "No fresh RTL/TB execution in V11W.",
+      "No host-tool integrity or concurrent dispatch-file replacement proof.",
+      "No whole-architecture or PPA promotion."
+    ],
+    "confidence": "HIGH_FOR_DISPATCH_MEDIUM_HIGH_FOR_FROZEN_HARDWARE_INHERITANCE",
+    "user_authorization_required": false,
+    "user_authorization_state": "NOT_REQUIRED"
+  },
+  "artifacts": {
+    "ifu_axi_current": "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json@sha256:fd6c6007018817709d697f8d54335ee7364be5c94a6abab907ffff8ec5427a3b",
+    "ifu_access_current": "npc/rv64/eval/ppa/evidence/ifu-access-current.json@sha256:91e3c7cd69d5afc91dd6ca278a8814bed922389b866ff4c5835265a033b7df4a",
+    "focused_tests": "evidence/logs/focused-evidence-unit-tests.log@sha256:474c2faddca420f48f4ca9c02faf1a2307432f2e8a82f72ffaa3f55adb04bbab",
+    "frozen_inputs": "evidence/frozen-inputs.before.sha256@sha256:32d0093dff461c3ef377c5c44b56ab1b45fb11134224ad77038750f148c650dd",
+    "architecture_boundary": "evidence/arch-stable-boundary-final.json@sha256:52a815268949fa367776d66454463ffeaafc21396f040c2df5ea883bb98de964",
+    "review": "review-result.md"
+  }
+}

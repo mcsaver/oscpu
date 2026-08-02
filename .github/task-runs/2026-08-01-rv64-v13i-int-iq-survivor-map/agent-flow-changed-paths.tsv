@@ -1,0 +1,4 @@
+npc/rv64/design/specs/ooo-int-issue-queue.md
+npc/rv64/vsrc/scheduling/OooIntIssueQueue.v
+npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv
+npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv

@@ -1,0 +1,7 @@
+npc/rv64/design/arch
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa/evidence
+.github/memory
+.github/memory/modules

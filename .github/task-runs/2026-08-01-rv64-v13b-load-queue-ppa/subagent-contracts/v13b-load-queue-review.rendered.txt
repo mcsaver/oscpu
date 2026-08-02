@@ -1,0 +1,80 @@
+# 本地 RV64 CPU RTL/验证子任务 `v13b-load-queue-review`
+
+- RV64 RTL/证据对象：独立复核本地 RV64 OooLoadQueue 双 lane lookup reduction、edge-old 双分配 priority encoder 与四态仿真契约，核对模块级综合/STA和 NpcTop coarse 证据是否支持 development checkpoint，并寻找生命周期、未知态、同拍优先级或 PPA 归因反例。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/subagent-contracts/v13b-load-queue-review.json`
+- 合同 JSON SHA-256：`262aa4e044740a20ee2496d89ebb56ba8f1f4b1c40456f487a8f71c981525dbe`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc/memory/OooLoadQueue.v
+- npc/rv64/vsrc/execute/OooIntBackend.v
+- npc/rv64/vsrc/include/define.v
+- npc/rv64/testbench/tests/tb_ooo_load_queue.sv
+- npc/rv64/testbench/tests/tb_ooo_load_queue_producer_semantic.sv
+- npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+- npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv
+- npc/rv64/design/specs/ooo-load-queue.md
+- .github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa
+- .github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/task-report.md
+- .github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/coarse-candidate/summary.json
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/task-report.md
+- .github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/subagent-contracts/v13b-load-queue-review.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=git diff; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- git diff: purpose=inspect-scoped-diff; label=只读查看限定差异
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/specs/ooo-load-queue.md
+- .github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/task-report.md
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：按 RTL 对象、配置、testbench/EDA 观测与 PASS/GAP 范围组织独立结论，逐项核对 lookup/allocation 等价边界、正负向 oracle、设计哈希、局部与全核绝对差值，并报告反例、未知项、替代解释及必要的 scope_extension_request。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：候选只有在端口/状态/lifecycle/断言未弱化、四态与同拍 credit 反例被现有 oracle 覆盖、所有 retained marker 和统计相互一致且结论不越过 full-core mapped/STA/system GAP 时才可判为 development checkpoint PASS；否则给出具体 RTL 信号、周期、日志或报告路径和 GAP/inconclusive。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

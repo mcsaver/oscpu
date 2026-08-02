@@ -15,11 +15,17 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
         cls.repo_root = Path(__file__).resolve().parents[4]
         cls.sources = {
             path: (cls.repo_root / path).read_text(encoding="utf-8")
-            for path in (runner.SEQUENCER, runner.CSR_MUX, runner.INT_BACKEND)
+            for path in (
+                runner.SEQUENCER,
+                runner.CSR_MUX,
+                runner.INT_BACKEND,
+                *runner.PARENT_RTL,
+                *runner.COMPILE_CLAIM_RTL,
+            )
         }
 
     def test_all_mutation_anchors_are_unique_and_change_source(self) -> None:
-        self.assertEqual(len(runner.MUTATIONS), 10)
+        self.assertEqual(len(runner.MUTATIONS), 21)
         for mutation in runner.MUTATIONS:
             source = self.sources[mutation.source]
             mutated, receipts = runner.apply_mutation(
@@ -34,13 +40,14 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
 
     def test_profile_inventory_is_small_and_two_width_aware(self) -> None:
         profiles = runner.build_profiles()
-        self.assertEqual(len(runner.positive_profiles()), 9)
+        self.assertEqual(len(runner.positive_profiles()), 13)
         self.assertEqual(len(runner.assertion_profiles()), 3)
-        self.assertEqual(len(runner.mutation_profiles()), 12)
-        self.assertEqual(len(profiles), 24)
+        self.assertEqual(len(runner.mutation_profiles()), 24)
+        self.assertEqual(len(profiles), 40)
         self.assertEqual({item.gen_width for item in profiles}, {1, 4})
-        self.assertTrue(
-            all(not item.assertions for item in runner.mutation_profiles())
+        self.assertEqual(
+            sum(item.assertions for item in runner.mutation_profiles()),
+            11,
         )
 
     def test_positive_profile_requires_exact_result_and_marker(self) -> None:
@@ -134,8 +141,22 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
             self.assertEqual(by_name[name].widths, runner.GEN_WIDTHS)
         self.assertEqual(
             by_name["pending-live-mask-removed"].widths,
-            (4,),
+            runner.GEN_WIDTHS,
         )
+
+    def test_parent_profiles_bind_real_path_and_keep_assertions(self) -> None:
+        profiles = {item.name: item for item in runner.positive_profiles()}
+        for width in runner.GEN_WIDTHS:
+            integration = profiles[f"priv-integration-g{width}-assert"]
+            self.assertEqual(integration.tests, (runner.TEST_PRIV_SYSTEM,))
+            self.assertTrue(integration.assertions)
+        self.assertTrue(profiles["priv-flush-g4-assert"].assertions)
+
+        parent_mutations = [
+            item for item in runner.MUTATIONS if item.source in runner.PARENT_RTL
+        ]
+        self.assertEqual(len(parent_mutations), 8)
+        self.assertTrue(all(item.assertions for item in parent_mutations))
 
     def test_noncsr_probe_is_present_in_the_bound_testbench(self) -> None:
         source = (self.repo_root / runner.TB_LEASE_PROBE).read_text(
@@ -145,6 +166,33 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
         self.assertIn("V11U_ASSERT_NONCSR_DISPATCH", source)
         self.assertIn(".fence_o()", source)
 
+    def test_focused_parent_and_backend_overlays_are_reconstructible(self) -> None:
+        backend = (self.repo_root / runner.TB_INT_BACKEND).read_text(
+            encoding="utf-8"
+        )
+        parent = (self.repo_root / runner.TB_PRIV_SYSTEM).read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("V11U_PENDING_CSR_LEASE_FOCUSED", backend)
+        self.assertNotIn("V11U_PENDING_SYSTEM_INTEGRATION_FOCUSED", parent)
+
+        backend_overlay, backend_receipts = (
+            runner.render_int_backend_overlay(backend)
+        )
+        parent_overlay, parent_receipts = (
+            runner.render_priv_system_overlay(parent)
+        )
+        self.assertEqual(len(backend_receipts), 2)
+        self.assertEqual(len(parent_receipts), 4)
+        self.assertIn("V11U_PENDING_CSR_LEASE_FOCUSED", backend_overlay)
+        self.assertIn("[V11U-BACKEND-PENDING-LEASE]", backend_overlay)
+        self.assertIn(
+            "V11U_PENDING_SYSTEM_INTEGRATION_FOCUSED", parent_overlay
+        )
+        self.assertIn("V11U_PENDING_SYSTEM_FLUSH_FOCUSED", parent_overlay)
+        self.assertIn("[V11U-PRIV-INTEGRATION]", parent_overlay)
+        self.assertIn("[V11U-PRIV-FLUSH]", parent_overlay)
+
     def test_scope_is_exactly_pending_system_producer(self) -> None:
         self.assertEqual(runner.UNIT_IDS, ("pending-system-producer",))
         self.assertTrue(
@@ -152,8 +200,33 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
         )
         self.assertEqual(
             {item.source for item in runner.MUTATIONS},
-            {runner.SEQUENCER, runner.CSR_MUX, runner.INT_BACKEND},
+            {
+                runner.SEQUENCER,
+                runner.CSR_MUX,
+                runner.INT_BACKEND,
+                runner.CONTROL_PLANE,
+                runner.CORE_TOP_GLUE,
+                runner.EXECUTE_BACKEND,
+                runner.ALU_CORE_SLICE,
+                runner.ALU_DECODE_BACKEND,
+                runner.ROB,
+                runner.PENDING_DRAIN_RESOLVE_GATE,
+            },
         )
+
+    def test_compile_claim_rtl_covers_reviewer_counterexample(self) -> None:
+        self.assertEqual(
+            set(runner.COMPILE_CLAIM_RTL),
+            {
+                runner.ROB,
+                runner.PENDING_DISPATCH_ARBITER,
+                runner.PENDING_DRAIN_RESOLVE_GATE,
+                runner.PENDING_SYSTEM_ADMISSION_CANCEL_GATE,
+            },
+        )
+        mutation_targets = {item.source for item in runner.MUTATIONS}
+        self.assertIn(runner.ROB, mutation_targets)
+        self.assertIn(runner.PENDING_DRAIN_RESOLVE_GATE, mutation_targets)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+2026-07-31T17:48:22Z	frozen-rebind	PASS	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/runner.status
+2026-07-31T17:48:22Z	dispatch-and-builder-tests-26-of-26	PASS	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence/logs/focused-evidence-unit-tests.log
+2026-07-31T17:48:22Z	frozen-inputs-no-drift	PASS	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence/frozen-inputs.after.sha256
+2026-07-31T17:48:22Z	architecture-boundary	GAP	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence/arch-stable-boundary-final.json
+2026-07-31T17:48:22Z	architecture-unit-suite-known-global-gap	GAP	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence/logs/arch-stable-unit-tests.log
+2026-07-31T17:48:22Z	independent-review-v3	PASS	.github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/review-result.md

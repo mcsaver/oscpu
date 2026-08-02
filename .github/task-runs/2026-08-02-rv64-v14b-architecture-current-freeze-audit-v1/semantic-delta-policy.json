@@ -1,0 +1,123 @@
+{
+  "schema": "rv64-v14b-architecture-replay-semantic-delta-policy-v1",
+  "classification": "NON_DUT_EVIDENCE_PROVENANCE_ONLY",
+  "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "active_functional_cone_impact": false,
+  "dut_input_impact": false,
+  "dut_timing_impact": false,
+  "dut_state_impact": false,
+  "termination_impact": false,
+  "randomization_impact": false,
+  "allowed_paths": {
+    "npc/rv64/Makefile": {
+      "sha256": "3e7d5b5dfe945c6609db8c3893d74da986770f2c2bf61eb1813b61aef3046ef1",
+      "role": "build-entry-metadata",
+      "justification": "The explicit current Git diff changes only check-producer-holder semantic-ledger wiring. Source records invoke check-pair-matrix, check-no-static-lane-semantics, check-selective-scheduling, check-memory-ordering or check-speculation-recovery; their frozen compile/run logs and artifacts are unchanged."
+    },
+    "npc/rv64/design/arch/producer-holder-census.json": {
+      "sha256": "8fa3d702768cc3ee1278e8812e122b0f5a7c66697190c339e123e0a54b6959fe",
+      "role": "static-holder-evidence",
+      "justification": "Static holder census evidence is not production RTL, testbench stimulus, simulator control or a frozen dynamic log. Current structural checks remain GREEN."
+    },
+    "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py": {
+      "sha256": "f9d479a3cd5ab38576fcd88b57ba3e2e9862925c4d5047aaa3552e040d9f820c",
+      "role": "checker-negative-tests",
+      "justification": "Current checker test evolution adds fail-closed evidence-role and mutation sensitivity. It does not drive RTL stimulus or simulation termination."
+    },
+    "npc/rv64/eval/ppa/tests/test_producer_holder_census.py": {
+      "sha256": "1ee6b0f6c7278c4b5e0d8dfeb221a07c0bed93ab1bf74d8b2b0ccf86acaeb605",
+      "role": "static-census-unit-test",
+      "justification": "The unit test checks static census publication and is outside the frozen OOO-3 RTL execution cone."
+    },
+    "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": {
+      "sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467",
+      "role": "current-checker-oracle",
+      "justification": "The current checker re-evaluates every frozen record. Before provenance rebinding every target metric, command, log, proof and design-binding check is GREEN; only provenance_files and provenance_digest are RED."
+    },
+    "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py": {
+      "sha256": "ebc6554b43aedb0e22e7c0c45f17b34dfae06f8e8909c17561138edc7c9bec54",
+      "role": "other-gate-evidence-builder",
+      "justification": "The DI-5 evidence builder is not used by the frozen OOO-3 simulation command or its retained proof logs; its later current-design binding changes do not alter OOO-3 DUT execution."
+    }
+  },
+  "expected_provenance_drift_by_test": {
+    "dual_memory_issue": [
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "frontend_ii1": [
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "memory_ordering": [
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py"
+    ],
+    "no_static_lane_semantics": [
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "pair_matrix": [
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "selective_scheduling": [
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "speculation_recovery": [
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "true_ooo_long_latency": [
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "width_continuity": []
+  },
+  "expected_source_manifest_drift_by_test": {
+    "dual_memory_issue": [],
+    "frontend_ii1": [
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "memory_ordering": [
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/dual_memory_issue_evidence.py"
+    ],
+    "no_static_lane_semantics": [],
+    "pair_matrix": [],
+    "selective_scheduling": [],
+    "speculation_recovery": [
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+    ],
+    "true_ooo_long_latency": [],
+    "width_continuity": []
+  },
+  "replay_boundary": {
+    "frozen_execution_artifacts_modified": false,
+    "source_task_run_manifests_modified": false,
+    "canonical_manifest_modified": false,
+    "production_rtl_modified": false,
+    "proof_files_rebound": false,
+    "gate_logs_rebound": false,
+    "claim": "Re-evaluate the nine current-design directed records with the current fail-closed checker while preserving original execution, proof and log bytes. This does not establish the broader Section 13 arch-stable freeze."
+  }
+}
+

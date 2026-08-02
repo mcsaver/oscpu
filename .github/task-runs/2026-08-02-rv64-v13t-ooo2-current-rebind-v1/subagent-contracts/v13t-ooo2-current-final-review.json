@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13t-ooo2-current-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 OooIntBackend registered Universal owner、OooDispatchBackend/OooIntIssueQueue owner forwarding、OooIntIssueSelect8 terminal1 selective scheduling 及 current-design OOO-2 证据；核对 runner scoped 输出修正、真实 JSON 状态和未晋级边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/selective_scheduling_evidence.py",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/mutate-v8m-selective-scheduling.py",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/run-focused.sh",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/subagent-contracts/v13t-ooo2-current-final-review.json",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/current-architecture-manifest.json",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/focused/static/architecture-result.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/current-architecture-manifest.json",
+      ".github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/focused/static/architecture-result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、本地证据文件、release/assert 配置、testbench marker 与 mutation 观测组织终审；优先寻找全局 issue freeze、owner forwarding cut、terminal1 mask、假 mutation、design-id/provenance 借用、runner summary 越级和 canonical 覆盖。"
+  ],
+  "success_criteria": [
+    "给出 PASS、GAP 或 FAIL；逐项核对 OOO-2 RTL 链、4/4 baseline、5/5 compile-success mutation、33 项 checker unit、完整 RTL design-id、OOO-1 RED/OOO-2 GREEN/overall RED、canonical 未作为输出目标；保留反例、未知项、confidence_and_basis 与 scope_extension_request。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

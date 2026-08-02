@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13i-int-iq-survivor-map-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooIntIssueQueue normal compaction 的 packed 八槽 survivor/source 固定 d/d+1/d+2 映射，确认 resident sticky wake payload、dispatch0/1 顺序 append、count 守恒以及 rst/flush/kill 优先级与 V13G 周期语义等价；同时核对定向 testbench、独立 scan reference、同配置局部 mapped/OpenSTA 与冻结 benchmark CPI-neutral 证据的边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/source/candidate/OooIntIssueQueue.v",
+      ".github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/focused",
+      ".github/runtime-artifacts/rv64-v13i-int-iq-survivor-map/integration-final",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/result.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/inputs.pre.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-module-attempt1/inputs.post.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/functional-aggregate-result.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.pre.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/full-core-functional-attempt1/inputs.post.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/functional/cpi-neutral.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/subagent-contracts/v13i-int-iq-survivor-map-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      ".github/task-runs/2026-08-01-rv64-v13i-int-iq-survivor-map/evidence/ppa/local-v13i/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象、周期/配置、TB/EDA 观测与 PASS/GAP 范围给出独立终审；列出 survivor 映射等价性、完整 payload 与 ProducerId 原子同行、负向 selector 扰动灵敏度、综合/STA 身份绑定、CPI-neutral 口径，以及所有反例、未知项、替代假设、范围扩展请求和置信依据。"
+  ],
+  "success_criteria": [
+    "明确判定 V13I 是否可作为 APPROVED_DEVELOPMENT_CHECKPOINT；任何 PASS 必须同时说明 37 个 remove mask、5 个 append、独立 scan reference、3 个 backend 集成 TB、当前设计功能闭包、同配置局部 PPA 与 benchmark 周期计数证据，并保持 full-core mapped/STA、qualified power、新完整系统事务和 promotion_eligible 为 GAP/false；发现可操作 RTL 反例时给出具体 signal/cycle/TB 观测。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

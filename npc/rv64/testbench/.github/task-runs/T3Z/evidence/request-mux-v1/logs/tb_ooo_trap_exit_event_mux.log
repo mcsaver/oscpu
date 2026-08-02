@@ -1,5 +1,0 @@
-[TEST] tb_ooo_trap_exit_event_mux
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_trap_exit_event_mux -o build-t3z-request-mux-v1/tb_ooo_trap_exit_event_mux.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitEventMux.v tests/tb_ooo_trap_exit_event_mux.sv
-PASS tb_ooo_trap_exit_event_mux
-tests/tb_ooo_trap_exit_event_mux.sv:241: $finish called at 10 (1s)
-[RESULT] PASS

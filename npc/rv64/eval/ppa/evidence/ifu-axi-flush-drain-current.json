@@ -26,7 +26,7 @@
       "sha256": "d55851072ad2d5f0ea9eb78749dbd9fdb14f528c56483c08c44940f1feab565a"
     }
   ],
-  "canonical_command": "make -C npc/rv64 check-ifu-axi-flush-drain",
+  "canonical_command": "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS -u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 -f eval/ppa/ifu-evidence.mk check-ifu-axi-flush-drain",
   "claim": {
     "architecture_debts": {
       "IFU-AXI-G1": "CLOSED_ELIGIBLE"
@@ -34,7 +34,7 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "focused_tests": {
     "bridge": {
       "log_sha256": "cf759346c8417ebbb1faff992e900dcc52c91b171e7db581dfda3a9c050c4a63",
@@ -132,7 +132,7 @@
       },
       "tb_csr_file": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_csr_file.log",
-        "sha256": "40eab0fb599c464e6b4a68a8d78fefa26d038e2681085e2917072519b54448a8"
+        "sha256": "0b993e0ad442abb97c5a81981d9501094254cf930ac823e542272ac068bca066"
       },
       "tb_csr_file_vectored_trap": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_csr_file_vectored_trap.log",
@@ -300,7 +300,7 @@
       },
       "tb_ooo_fetch_packet_decode": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_decode.log",
-        "sha256": "7ea0836a5fe89ec0a381affb7ec0ebd774c2a177714a68da0a511c937f1174db"
+        "sha256": "b0e328520affe35c5d231001b653f78a6a92c40ac1762d89cde533f5d81a9c74"
       },
       "tb_ooo_fetch_packet_fifo": {
         "path": ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_fifo.log",
@@ -588,7 +588,7 @@
       "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
       "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
       "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
-      "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+      "npc/rv64/vsrc/core/CsrFile.v": "73d9647879753a4d67a270e74701f6eab16bfe36a1be137c3f7a821ab669c966",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
       "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
@@ -603,7 +603,7 @@
       "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
       "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
       "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
-      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "fcfb803ce4c7d6a05c49c906d461a213946ebba79d6864d73d96abd0da556f0e",
       "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
       "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
       "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
@@ -655,7 +655,7 @@
       "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
       "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
       "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
-      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+      "npc/rv64/vsrc/include/define.v": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
       "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
       "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
@@ -701,19 +701,19 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "rtl_sha256": "82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+    "rtl_sha256": "882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
     "source_bindings": {
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/contract.md": "38dffb47baf76ecfe60702448bbb3371c24dcbc084bcab531ef4e6d29b713754",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/rtl-derivation.md": "4fc3cc2949312b70a904539bf43a1d46b8cc005269b3a792b9581a54d476619a",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-focused.sh": "5e95a9f90c3a089c5cd4a9d571278e63cbe7bf5d6776c801355e21874000bb26",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/run-ifu-axi-variants.py": "0499a794ef7cd01d777313a6d574b377384ae4b6aafa4d1b1d7a19c804b6a3bf",
       ".github/task-runs/2026-07-22-rv64-v9g-ifu-axi-current-design/subagent-contracts/v9g-ifu-axi-coverage-review-v1.json": "0e476c47a4a3d6d12a3c8f44584f08a490e95111a5e979933a49e6bede81adef",
-      "npc/rv64/Makefile": "b666f99074c977700bd9702f8ed68f1c5314eacbaf5a838537a61742336cd275",
       "npc/rv64/design/specs/ooo-fetch-axi-bridge.md": "e7ec053322de2af126c43e8f45c78fca3b126fe121e0ae1a0917ead29ea49a87",
-      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py": "1317e3c6a6537ab588ce801da5db137ce838593c948f35b54d17d0a7595fb082",
-      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "982864679fa3deeaf65dbe8bdf61f719f087ae7db57fc2882c41e4a05dde6879",
+      "npc/rv64/eval/ppa/ifu-evidence.mk": "181db87e690429acc42e7fdbd01c13b029cd9f7f9adf893076cab554a65856da",
+      "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py": "d2938eef094a000bda3557090eed59f6638f9d4b69047858d166b5f16e3db1d1",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "4a406b97104199b25ede8a46da97c3d068ecaa0fbc02183acb47cc8c404dbbfb",
       "npc/rv64/eval/ppa/tools/architecture_hard_gates.py": "eab0370ddf0b0580693e9bd1939a4887dd7c1391dac7f946b0524ff8beed1aa3",
-      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py": "328ddefaa862d6702fd4e0989d4a7aefcbbd1f88e7467c5ec6f021354acb5479",
+      "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py": "3de48b3684769f402c6aa470367d282f0f87d22d29bada78da0f9ba20f9fec3d",
       "npc/rv64/testbench/Makefile": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
       "npc/rv64/testbench/tests/tb_axi_xbar.sv": "953a29d09ac11ba615dfdfc362b6e4994e2291aa47e4b09af7ca0708567ec079",
@@ -734,6 +734,10 @@
     "bridge_focused_matrix_has_first_last_all_and_both_done_cases": true,
     "bridge_port_shadow_is_present": true,
     "bridge_write_owner_excludes_ordinary_flush_clear": true,
+    "canonical_make_dispatch_file_is_restricted": true,
+    "canonical_make_dispatch_is_exact": true,
+    "canonical_make_effective_recipe_is_exact": true,
+    "canonical_make_environment_is_sanitized": true,
     "xbar_b_route_uses_recorded_owner": true,
     "xbar_generic_oracle_has_aw_first_and_w_first": true,
     "xbar_generic_oracle_has_two_cycle_b_backpressure": true,

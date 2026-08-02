@@ -1,0 +1,7 @@
+npc/rv64/vsrc/memory/OooLoadQueue.v
+npc/rv64/testbench/tests/tb_ooo_load_queue.sv
+npc/rv64/design/specs/ooo-load-queue.md
+.github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/evidence/final/cleanup-summary.md

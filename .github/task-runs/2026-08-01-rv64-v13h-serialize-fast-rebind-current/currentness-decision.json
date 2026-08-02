@@ -1,0 +1,69 @@
+{
+  "architecture_boundary": {
+    "architecture_freeze": "GAP",
+    "deduplication_mask": false,
+    "ppa": "UNPROMOTED",
+    "promotion_eligible": false,
+    "raw_terminal_events_counted": true,
+    "rtl_assertions_weakened": false,
+    "serialize_g1_current_design_bound": false
+  },
+  "current_design_id": "sha256:364b1e601773c22ab0594950170674ea6b228bf6b4c9b2c26b0bdcc9a4374d44",
+  "debt_id": "SERIALIZE-G1",
+  "evidence": {
+    "a3_binding": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/binding.txt",
+      "sha256": "6f96d1f4b45846d1db03ea21ba25fec5f0234389e74b6cf7ea6dc48d0538efad",
+      "size_bytes": 4574
+    },
+    "a3_checker_replay": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      "sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+      "size_bytes": 13461
+    },
+    "a3_original_status": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      "sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8",
+      "size_bytes": 70
+    },
+    "a3_raw_transaction": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+      "sha256": "6875930ad696a0b75773c1facefbfe5eee22fb2436a9db4d1944f2155e46358c",
+      "size_bytes": 4663
+    },
+    "functional_current": {
+      "path": ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/functional-current/run-result.json",
+      "sha256": "07e8e5218d718daa0b451d55f7e779f5883d45f6dbb352c3c82ad6bd068d2eba",
+      "size_bytes": 3579
+    },
+    "pending_system_current": {
+      "path": ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/system-current/summary.json",
+      "sha256": "9b3192be50d64de5a50294fe0a7809cc5f7bb0784724190b669359b77b2447b4",
+      "size_bytes": 700186
+    },
+    "queue_head_current": {
+      "path": ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence/qh-current/summary.json",
+      "sha256": "4cf76dc4e40ee5cd8a32c76968d3ea1209608cc5c7b238ac453c9c77b11e0317",
+      "size_bytes": 252101
+    }
+  },
+  "fast_gates": {
+    "current_design_bound": true,
+    "functional": "module 113/113; official 177/177; AM 61/61; mismatch=0",
+    "pending_system": "3/3 baseline + 15/15 compile-success negatives",
+    "queue_head": "2/2 positive + 2/2 production RTL negatives + 1/1 verification-only TB-wiring negative",
+    "status": "PASS"
+  },
+  "full_system_recertification": {
+    "a3_execution_complete": true,
+    "a3_legacy_oracle_false_positive": true,
+    "a3_original_fail_preserved": true,
+    "current_design_system_transaction_present": false,
+    "reason": "production RTL design binding changed since A3",
+    "required": true
+  },
+  "ledger_status": "STALE_EVIDENCE",
+  "previous_full_system_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+  "schema": "npc-rv64-serialize-currentness-decision-v1",
+  "status": "PASS"
+}

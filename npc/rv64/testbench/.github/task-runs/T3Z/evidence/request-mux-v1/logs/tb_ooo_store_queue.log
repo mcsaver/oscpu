@@ -1,9 +1,0 @@
-[TEST] tb_ooo_store_queue
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_store_queue -o build-t3z-request-mux-v1/tb_ooo_store_queue.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v tests/tb_ooo_store_queue.sv
-/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:147: warning: @* is sensitive to all 4 words in array 'valid_q'.
-/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:148: warning: @* is sensitive to all 4 words in array 'committed_q'.
-/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:150: warning: @* is sensitive to all 4 words in array 'rob_idx_q'.
-/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:152: warning: @* is sensitive to all 4 words in array 'survive_r'.
-[PASS] tb_ooo_store_queue
-common/tb_common.svh:32: $finish called at 46 (1s)
-[RESULT] PASS

@@ -18,7 +18,7 @@
     {
       "kind": "rtl_variant_summary",
       "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/summary.json",
-      "sha256": "ba08a77f307dda1dc624739d6107e5d3129555cd34ee7fd44c884951d0b5c2eb"
+      "sha256": "ab8e8210171bd55bea63d39cc826a30a1864d7c3aff39dcd42566fbee08f634e"
     }
   ],
   "canonical_command": "make -C npc/rv64 check-ptw-pmp",
@@ -29,7 +29,7 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "focused_tests": {
     "ifu_bridge": {
       "log_sha256": "b2417467167bfd29ff92b6d3454831cf8c9689da42a7207369bd52f77ad0dfb0",
@@ -378,7 +378,7 @@
       },
       "tb_axi_exec_firewall": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_axi_exec_firewall.log",
-        "sha256": "1eb34f7fa7a38d9e6bbbdb2ba51febd90cdabc81872855be8530203d07bfe28f"
+        "sha256": "3dc761999316763e3f0bf6dadf40089d2f57264e8428c20e68bae97dc105d414"
       },
       "tb_axi_plic": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_axi_plic.log",
@@ -394,7 +394,7 @@
       },
       "tb_axi_xbar": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_axi_xbar.log",
-        "sha256": "977b8f6ce0cfd59fcc59b80f34b3bb5e20730461e5d45af37bb6dbc51d463677"
+        "sha256": "f272565ee553ccc7083c9cf3b57c0ef7bf07f2106e631b78d229ca47069163e2"
       },
       "tb_compare": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_compare.log",
@@ -402,7 +402,7 @@
       },
       "tb_csr_file": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_csr_file.log",
-        "sha256": "34de8345826ee31e54904620ac7af2c8449d6520d625da278050170b0e9cd08c"
+        "sha256": "c1492bd374c13fcfe737f7bb17eef7db8e775285e5695d4c99aa846cecffc05b"
       },
       "tb_csr_file_vectored_trap": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_csr_file_vectored_trap.log",
@@ -434,11 +434,11 @@
       },
       "tb_ooo_alu_core_slice": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_alu_core_slice.log",
-        "sha256": "e756561641bfae87895879323c199b0e7f66e5d23b4c3b2e17111aa0d7233224"
+        "sha256": "58a953b2c9b6a3db2c221a1d000910146c5b2319e2fd58df4e121342cb4bef2e"
       },
       "tb_ooo_alu_decode_backend": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_alu_decode_backend.log",
-        "sha256": "0063c655625c651211febfaec79e553b01a2adadc1cacf0dd922437dd4c8a38e"
+        "sha256": "b579ad64cc87aa650c39eaad8eb230f5b16abf90a6996cb19f2fe67f02f7d3ac"
       },
       "tb_ooo_amo_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_amo_gate.log",
@@ -498,7 +498,7 @@
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_core_top_glue.log",
-        "sha256": "e452a9b039afadd7952ede9da85bfd06e96c0aaedd598b82e6c9f4cfb1e33572"
+        "sha256": "f8f076a07846077f4fe8d988179ad7500ecd62cb832a2deca90ad739ca72c06b"
       },
       "tb_ooo_csr_access_request_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_csr_access_request_mux.log",
@@ -530,7 +530,7 @@
       },
       "tb_ooo_dual_memory_sustained_issue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_dual_memory_sustained_issue.log",
-        "sha256": "5d9ff724c8def76413d905d9feffa51250ae106cb15394e9c18c2e73f6419bd8"
+        "sha256": "d6d42b2fd4629dec0f18590374f727564e6e3ba1673502ecd87980877720872b"
       },
       "tb_ooo_fetch_access_footprint": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_access_footprint.log",
@@ -546,7 +546,7 @@
       },
       "tb_ooo_fetch_axi_bridge_xbar": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge_xbar.log",
-        "sha256": "aa40bfcf3171536875105837419494508dbed5be257344cb87719f17d03c4f88"
+        "sha256": "16b00d7b5760a8e26c2735324025399b449a2c8b6bc5ccf172c61360fd37a2af"
       },
       "tb_ooo_fetch_branch_target": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_branch_target.log",
@@ -570,7 +570,7 @@
       },
       "tb_ooo_fetch_packet_decode": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_decode.log",
-        "sha256": "f1df998ce7c0cb10c0877b2d5694b242a130984fd44372d118d5026a0ebf84c6"
+        "sha256": "885e8e368bce0b411bef4a9f1a9b8ec416204881eb20140416db397810d44112"
       },
       "tb_ooo_fetch_packet_fifo": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_packet_fifo.log",
@@ -602,7 +602,7 @@
       },
       "tb_ooo_fetch_trap_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fetch_trap_gate.log",
-        "sha256": "f672f31f9ea33e2c663b1766315353a98bddce6ec27a4b43a653162c617fc88b"
+        "sha256": "ac4e8d94f94f18ec6413ad0505d3926e805ac6ea7c31d21358efd49313c0cba6"
       },
       "tb_ooo_fp_arith_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_fp_arith_gate.log",
@@ -678,7 +678,7 @@
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_int_backend.log",
-        "sha256": "76d367ad55fff161f1289efa662f05a1f245137d101a5181eaab8d71d5ba3c4a"
+        "sha256": "379b99273608c46b7c27a667485cc78cfcd996e6f4fb9062c33bfbbde39823b8"
       },
       "tb_ooo_int_issue_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_int_issue_queue.log",
@@ -686,7 +686,7 @@
       },
       "tb_ooo_load_queue": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_load_queue.log",
-        "sha256": "ab405e28d565ae9d129dd8fd3c61aa2ce766c8892ec682cf097a972ed4b8f1bb"
+        "sha256": "77d53196f444da11071a470ff6cc1c64df6c5ea8b2ed447f2795483604746e2e"
       },
       "tb_ooo_lsu_axi_lane_adapter": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_lsu_axi_lane_adapter.log",
@@ -702,11 +702,11 @@
       },
       "tb_ooo_mem_owner_terminal_collector": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_terminal_collector.log",
-        "sha256": "95920cf46e1c641c16f3c7bec25439f50be9d0b1cd7ffee326285d126e581e1f"
+        "sha256": "709616ffc9499b327045410a4719039e2e76c4aa5d3fcce55044047c40a5fc47"
       },
       "tb_ooo_mem_owner_tracker": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_mem_owner_tracker.log",
-        "sha256": "d9e89deabc1380a377db5fff3315464b352ef031bbaf89136ec40db9552c4dc9"
+        "sha256": "1647b229a57b3dd6f85e5f080ca552eb92008a86c0e310c37a0782c019d9bcbb"
       },
       "tb_ooo_memory_request_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_memory_request_gate.log",
@@ -758,7 +758,7 @@
       },
       "tb_ooo_priv_system": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
-        "sha256": "10a9918cc6b60db4c93ec694e2ad268beecfba618197c50795ab1549301d6222"
+        "sha256": "97184c6d20cbb4359ae6b709baddbce879a31672c11c9d01acb03c2efed3f25d"
       },
       "tb_ooo_ras_update_gate": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_ras_update_gate.log",
@@ -790,7 +790,7 @@
       },
       "tb_ooo_sv39_boot": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_sv39_boot.log",
-        "sha256": "f0aa5c5942c190f605d0a2a6ace6fe91466786f3c2281ab55eb9d19b2f3acaa0"
+        "sha256": "60f58b45e27057d7e0c020020f5ef0439b35d663eaf972421cf6c91a1064b74b"
       },
       "tb_ooo_trap_exit_event_mux": {
         "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/module-aggregate/logs/tb_ooo_trap_exit_event_mux.log",
@@ -825,12 +825,12 @@
   "provenance": {
     "files": {
       "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
       "npc/rv64/vsrc/bus/AxiDefaultSlave.v": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e",
       "npc/rv64/vsrc/bus/AxiPlic.v": "3141814d0a81d52556d193ef8c23facb7926a88dbd804cb9f312538b5897fa92",
       "npc/rv64/vsrc/bus/AxiResetSyscon.v": "0d9a7c52814ab6d848f558d578db416820cb2f92ed5fa18b4f4c92484f939a95",
       "npc/rv64/vsrc/bus/AxiToUart.v": "f2688a3f5e0d090de679619381ce234f870eba195ec7c718350fe242eaa3bf33",
-      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
-      "npc/rv64/vsrc/bus/NpcAxiBus.v": "e131fc07ec3b0a099aa9d8983f72e38e5a92652796e224f82d8245dc6b0f6612",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v": "5cb2045af20d6a8412081ff02e0cfeda098b7fc35f85d7a043a39b59729f00fe",
       "npc/rv64/vsrc/bus/Uart.v": "51c13d4a53f543b3dd53b075b123d1980b671ff5ddd6a56c5913609ec283d161",
       "npc/rv64/vsrc/cache/OooDataWordCache.v": "7f3f0cddae8c44442c9357caa7da8212570c20f909aedc59af02f8b4bb05f898",
       "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
@@ -858,7 +858,7 @@
       "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
       "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
       "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
-      "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+      "npc/rv64/vsrc/core/CsrFile.v": "73d9647879753a4d67a270e74701f6eab16bfe36a1be137c3f7a821ab669c966",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
       "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
@@ -873,7 +873,7 @@
       "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
       "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
       "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
-      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "fcfb803ce4c7d6a05c49c906d461a213946ebba79d6864d73d96abd0da556f0e",
       "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
       "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
       "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
@@ -894,7 +894,7 @@
       "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
       "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
-      "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
+      "npc/rv64/vsrc/filelist.mk": "6529498bf0538122f5f22034e11166cec014306ac0e67966ccd512bf04f4067b",
       "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
       "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v": "d6aa4a2399326d9d33697c047fe98748000ac5a65beac1dc242d714cecfb8e52",
       "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": "0b5fbda1c3bfa9b359ba741cca1c8f12c21761033d2caec7357fe67578b6d5e6",
@@ -925,17 +925,17 @@
       "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
       "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
       "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
-      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+      "npc/rv64/vsrc/include/define.v": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
       "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
       "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
       "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
       "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "a421641abcfbd45a10f28fc0e44c7f2d1b28a1936c5500f0f046e7456590f5c9",
-      "npc/rv64/vsrc/memory/OooLoadQueue.v": "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
-      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
-      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
-      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
       "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
       "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
@@ -961,7 +961,7 @@
       "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
       "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
       "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
-      "npc/rv64/vsrc/sim/NpcSimTop.sv": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "5320af1ffb8b042c54b508e076aed66a8745f3f61ad2de78543a7a633b56b664",
       "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
       "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
       "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -971,23 +971,23 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "rtl_sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+    "rtl_sha256": "882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
     "source_bindings": {
       ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/contract.md": "7098549dbdf08d583e81d7405fafaea9589ec90c9fb089f94fa00e8e918e3fb5",
       ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/rtl-derivation.md": "fd7eab1fbbdde1e388cbf218a1b0f96e318d97eccbb97d2a1cf553f831e42a55",
       ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/run-focused.sh": "553adb77c02f6b32443af74ae4b8594545dc7d246ac7fc578c96abc3751f7853",
       ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/run-ptw-pmp-variants.py": "e628ca1ea52c872f581448245ff670113a75a14dc82405ec7d540ec4c673ea60",
-      "npc/rv64/Makefile": "e062f72d6ec79e44568dea09595c1cfda27db1380c72982cbffab30395f2dfe9",
+      "npc/rv64/Makefile": "834d3afbfec1c0e91278e4feaa63464433df3665160b1313df517bcfcce044f8",
       "npc/rv64/eval/ppa/tests/test_ptw_pmp_evidence.py": "dfd702af9dfa38af206b623102b1a53026aeb7c1c15873b0af480322754a3c10",
-      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "f005650ee9e8e11a7225ee32eaa6bb35fac4a7a6ca081c8a8c92df84c6e54724",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "4a406b97104199b25ede8a46da97c3d068ecaa0fbc02183acb47cc8c404dbbfb",
       "npc/rv64/eval/ppa/tools/ptw_pmp_evidence.py": "d163e148e48f2e5867794121d9619f7369f93fe2ca4887966b0efe2cf839dce8",
-      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
+      "npc/rv64/testbench/Makefile": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
       "npc/rv64/testbench/common/tb_common.svh": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
       "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv": "bab9479a2007900879bd8469ca992f9095dc6da2d597bf63ae3fb9b145338bd7",
       "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv": "fc6d14ad406c8758dbd87238b05f2e962fabd52ef28a61bc204c4df1ccdac7b2",
       "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": "90cb706b64ff549378e4ff693c00e19eb5860c663e2cb9e359a78636d05fb8cd",
-      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
       "npc/rv64/vsrc/memory/PmpChecker.v": "f4600c320b03f0ffd3bcdff9336bcea2a17580fa7b8752da18d7db35956da4c2"
     }
   },
@@ -1054,7 +1054,7 @@
         "expected_marker": "T4F IFU deny returns response",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_bypass_write_deny_branch.log",
-          "sha256": "9644ade128de4d045f1130107dfb3a13665bf51fcfb037ce3e465cc639f8db7d"
+          "sha256": "7c0d328bb2ddf0282d73d2860f3f3d951961616f3e461a3b78e8bccca7443b7f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1073,7 +1073,7 @@
         "expected_marker": "T4F IFU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_disable_write_request.log",
-          "sha256": "c2b5b96d2266579f113376e97c66c2ae88b693f78fe9959dadaa658661796481"
+          "sha256": "79bb102f25851e720dc5bcb0e9781df4332e589308431767b1b97fa6003ad054"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1092,7 +1092,7 @@
         "expected_marker": "T4F IFU denied PTE emits no AW",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_expose_aw_on_deny.log",
-          "sha256": "d152fc17fe5d8c59c08fd9c659d45b58800e06ff5c6caf7de12a610de50bdf6c"
+          "sha256": "4442907d3cc3b0aa7ec32522951c57d6c70312bfa10286f3556c2e206237f54b"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1111,7 +1111,7 @@
         "expected_marker": "T4F IFU denied PTE emits no W",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_expose_w_on_deny.log",
-          "sha256": "80fe9e2cd19fe53f8ddcaa4b0003e4dacbb04a8a6c6d6b3a8c4490ae5677fae1"
+          "sha256": "0b672504e440474a50187c0aa7d0f3905ef6c2d43ef41bd93d46267cba8fe15d"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1130,7 +1130,7 @@
         "expected_marker": "V9K IFU allow enters A-update",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_force_deny_granted_write.log",
-          "sha256": "b5c17c313b54bfc8e847a8207fe00fcfe163c27cb3661d5bb2699495ec9a10a7"
+          "sha256": "63b68525ceae0ae76bbba74a64ac428e5b1e5537131f64f46b71138a50bf280d"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1149,7 +1149,7 @@
         "expected_marker": "V9K IFU allow AWADDR equals checked PTE address",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_offset_ad_update_awaddr.log",
-          "sha256": "13e2663729aeba6e60536e33d9f63587c4abe358324482075e871081f8a041b5"
+          "sha256": "2a85e2b93751f04bbe23ed2c20aaa4151f9c571735e62d0248458125aef82607"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1168,7 +1168,7 @@
         "expected_marker": "T4F IFU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_query_final_exec_pa.log",
-          "sha256": "45087437c1e97149a88ce9d984afadfe97e4ebc9580139902be0944320d5fe26"
+          "sha256": "f2f191a6726fe1504472554e574cacc627df61aaa0ace35cee3e99d58899e523"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1187,7 +1187,7 @@
         "expected_marker": "T4F IFU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_query_machine_privilege.log",
-          "sha256": "45087437c1e97149a88ce9d984afadfe97e4ebc9580139902be0944320d5fe26"
+          "sha256": "f2f191a6726fe1504472554e574cacc627df61aaa0ace35cee3e99d58899e523"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1206,7 +1206,7 @@
         "expected_marker": "T4F IFU deny returns access fault",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_report_page_fault_for_write_deny.log",
-          "sha256": "936add1bf89668cf7ea2dada11e2ae37cc9d29a7810bd9ac3600f76c1886223b"
+          "sha256": "67aa6868c30a32b208f4f8d7f8c8ad255fd5d306daa0da5fc9b77d6e3828ce6a"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1225,7 +1225,7 @@
         "expected_marker": "V9K IFU 8B partial-cover PTE WRITE denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_shrink_pte_write_to_4b.log",
-          "sha256": "b47156df2a2ab913f5c8feaf7524d94efc60e5e757d09380fe7961c299443024"
+          "sha256": "8a4b25ad2dac8f32032db5152e01dd494334abb093d8181bebb26502210e88f0"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1244,7 +1244,7 @@
         "expected_marker": "pending AW was withdrawn before fire",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_withdraw_aw_after_w_handshake.log",
-          "sha256": "b8913ea3430855f8f6350a60998c6fabe5fd70a575703c0d1a202aec1e49adcb"
+          "sha256": "35c3a97675514796f0c4ede1eb2e3a8cbf8e98a722a7cfb93d9676319b23b3dd"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1263,7 +1263,7 @@
         "expected_marker": "V9K IFU AW-first keeps W pending",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/ifu_withdraw_w_after_aw_handshake.log",
-          "sha256": "427895f4ec128bbb2aacb244ee30e2957f683fa7f13b5a64794e28cbce5fb6bf"
+          "sha256": "9db42cc7d8907dfc3a1134339f0901b9d2d3255b87bd585a9a3b5ca945e01f01"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_FETCH_AXI_BRIDGE",
@@ -1282,17 +1282,17 @@
         "expected_marker": "T4F LSU deny returns response",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_bypass_write_deny_branch.log",
-          "sha256": "102f84ca789e416bb1e01b32e5d359c16cacccc7522352ca07a35e5838b5b895"
+          "sha256": "611005c075275eeda98f61b4e4466a455f54839f832056777b296e2695e6dea3"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_bypass_write_deny_branch",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Ignore a qualified LSU PTE WRITE deny and enter the A/D update path.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "423206f61d51cfc4c05edc4564968705480370d58e7754f480d0a874d582c16b"
+        "variant_sha256": "e1b2f466bedfb2a713c9c9d77e1d84880a3d9718a59913c43d0d507a7d2f1f90"
       },
       {
         "compile_success": true,
@@ -1301,17 +1301,17 @@
         "expected_marker": "T4F LSU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_disable_write_request.log",
-          "sha256": "b9c197ef5b4c696f64226b8a58e862c6dce775d83e3d37c24a267152d99cc977"
+          "sha256": "2e31e417b7800ab6f8840ec71d556e3be9f7ad33e48c11173009e659607a9a51"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_disable_write_request",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Remove the WRITE bit from the LSU PTE update PMP query.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "e4d1d270037dc3590ee9f25594825a4424b875bb3d1d28062f8e96c830c0d71b"
+        "variant_sha256": "ed3b999e40ce9da708d62003be3f5df335aecbffc7fcf7b44f7d767a5451f438"
       },
       {
         "compile_success": true,
@@ -1320,17 +1320,17 @@
         "expected_marker": "T4F LSU denied PTE emits no AW",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_expose_aw_on_deny.log",
-          "sha256": "01a035d620ab2f16edef723055040b42c9875ec30e87451ba1ed939f544945d6"
+          "sha256": "6170b5f77eb4fd27a4d1970a7f572d6d7ae559980b17208616cb8b847b103f65"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_expose_aw_on_deny",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Incorrectly expose AXI AWVALID in the LSU PTE WRITE deny decision cycle.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "f7030f3717c73e24b9b56e59fd17b5a35a57db1584b716c1f6d4dcce3c52f4fb"
+        "variant_sha256": "82ab63c7a687811409a7a80f36d72e1bf549fbf8859003dd89527a8a121ea9d4"
       },
       {
         "compile_success": true,
@@ -1339,17 +1339,17 @@
         "expected_marker": "T4F LSU denied PTE emits no W",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_expose_w_on_deny.log",
-          "sha256": "4ad00585d414093ae452b78812fddce7fd669f093414e664162a3d9ef68281e6"
+          "sha256": "64324c937405552660ea535185c7e8e05d89903fd85be46b05be9e03715be617"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_expose_w_on_deny",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Incorrectly expose AXI WVALID in the LSU PTE WRITE deny decision cycle.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "48b9d2fda56a4ece257e14791f360048d83e1af711b106a266dfe0b2e9cc166d"
+        "variant_sha256": "caa36dc53f6acb700f513c724d768cd1942592cad57243ec766d8ef305c8654b"
       },
       {
         "compile_success": true,
@@ -1358,17 +1358,17 @@
         "expected_marker": "sv39 A/D update issues AW",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_force_deny_granted_write.log",
-          "sha256": "96ca89a51bfe0722c2140312ce3e439bb30002327ed15f4c94ffd1046527dd95"
+          "sha256": "dd19b5a86bcb0692a69799cdfc7f22bf90626bead5ae9851aa75efd528280b49"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_force_deny_granted_write",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Treat every LSU A/D update as denied even when the WRITE checker grants.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "0d60dfac4cad55566f7bb15d237a576771dbcc34d492bbc72d539449daaeb0ec"
+        "variant_sha256": "7fc88eb0822cacc496cc64cb8921ddad118e8b58a715ea07663ec5c78a31ebbc"
       },
       {
         "compile_success": true,
@@ -1377,17 +1377,17 @@
         "expected_marker": "[V9K-LSU-PTW-PMP-DENY-QUIET]",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_late_aw_on_third_denied_response_stall.log",
-          "sha256": "c4c6d73935078d57805f2f3e43043ceac593bf5995e8e8dd05e0544b839d2a97"
+          "sha256": "5e468dba390875461d1ceb3bb62b16cff6bf56c575fa88cc44377f5dac38b023"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_late_aw_on_third_denied_response_stall",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Pulse LSU PTE AWVALID on the third stalled access-fault response cycle after the WRITE checker denied the update.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "69a5129e061d246d7ed89af756d1d61717c3e96ecf6348ac166e8d70d1aeabde"
+        "variant_sha256": "1f35ed7249fa1227930fa3e05fa113854b4a4ad1096dcde957f023ac112172b5"
       },
       {
         "compile_success": true,
@@ -1396,17 +1396,17 @@
         "expected_marker": "[V9K-LSU-PTW-PMP-DENY-QUIET]",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_late_aw_w_on_third_denied_response_stall.log",
-          "sha256": "5330a3a0f689d90b8c33195dd77a78919c487bbfa96a4f748c783f5d550837a1"
+          "sha256": "dd214b3f1b6e40b9eb1708fa9693dc911554238d00885fffbb83e8ab97df8898"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_late_aw_w_on_third_denied_response_stall",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Pulse both LSU PTE AWVALID and WVALID on the third stalled access-fault response cycle after the WRITE checker denied the update.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "377595d80a25efb5c32a91133eb7b860b73762cf79fc7c2a2dbbb38e96e7ab9f"
+        "variant_sha256": "186c3d18e0c0b5efecd275882e950bb05bf41b5fa186eb5d55d6f8fb728402c6"
       },
       {
         "compile_success": true,
@@ -1415,17 +1415,17 @@
         "expected_marker": "[V9K-LSU-PTW-PMP-DENY-QUIET]",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_late_w_on_third_denied_response_stall.log",
-          "sha256": "78c4544203cba04f2e2936e88ce386c2c80696eed516b36fb674893947e28b4c"
+          "sha256": "c5ca05562ad0ad4522a7131522d3d42682f552a3abcdf78518f6f75d697918dd"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_late_w_on_third_denied_response_stall",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Pulse LSU PTE WVALID on the third stalled access-fault response cycle after the WRITE checker denied the update.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "de654d3e2dd05a4bca65b69cc1b7f0e2160311a172ab5eeea2371b7062e5160a"
+        "variant_sha256": "5427f05d2ced8d94b8b8f518bacbb293297296b4e01b988f28376562ea34fe39"
       },
       {
         "compile_success": true,
@@ -1434,17 +1434,17 @@
         "expected_marker": "V9K LSU allow AWADDR equals checked PTE address",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_offset_ad_update_awaddr.log",
-          "sha256": "388b20b499b6e2d591bf0d872490963d0c85d12ac75c79a7f32b4e390e55e2ec"
+          "sha256": "7dd147a2047f86157a2f61eeeb8fcefb969aae9170ce3052544c198b9a4fb781"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_offset_ad_update_awaddr",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Drive the LSU A/D update AWADDR one PTE beyond the physical address checked by PMP.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "c28f3b6a643286137b5d315db8ad483e5523268e2847229310e514d9b9ec5b10"
+        "variant_sha256": "43ae0371ee18ebc460e5fb5e66e1c97855ef17cfee2d45fcb2e890a018aa52ad"
       },
       {
         "compile_success": true,
@@ -1453,17 +1453,17 @@
         "expected_marker": "T4F LSU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_query_final_data_pa.log",
-          "sha256": "0681ca48d5fdbaccaba0ba35e1e9abd22aa6f479c1647a6cbca180d843bd70b3"
+          "sha256": "67b0194dd80f8f1c890ab1beb08271cbd78b4a85c33675825a03cea92cdd1e40"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_query_final_data_pa",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Query the translated data PA instead of the leaf PTE address.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "339cc60722a0651503987cfaccccebac7f84a9e41c1f615643436b7c2df6b5bd"
+        "variant_sha256": "3ba7d61bc0b27cafbe8f7e844babc685019f0c90ac2dfb99368cc6995b371c76"
       },
       {
         "compile_success": true,
@@ -1472,17 +1472,17 @@
         "expected_marker": "T4F LSU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_query_machine_privilege.log",
-          "sha256": "0681ca48d5fdbaccaba0ba35e1e9abd22aa6f479c1647a6cbca180d843bd70b3"
+          "sha256": "67b0194dd80f8f1c890ab1beb08271cbd78b4a85c33675825a03cea92cdd1e40"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_query_machine_privilege",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Use M-mode instead of the S-mode implicit page-table access privilege.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "45cb301f5ece02da2ccf7cf07ef9718d5898f9ece3c21e03c3a9e42c076e9903"
+        "variant_sha256": "56b2062c18032f268fee98f35c84ffbf4972bdcacc6d53c410eda21b70388898"
       },
       {
         "compile_success": true,
@@ -1491,17 +1491,17 @@
         "expected_marker": "V9K LSU deny response owner token is stable",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_relabel_ptw_deny_response_token_from_live_input.log",
-          "sha256": "bfc1cd0170da177b421796bfa41003ef4f28c7bfd9a5437486fae4473511dae7"
+          "sha256": "131aab6fecd08941defc0eed3e549338772de5e3ecb366d05226f4f779a78d86"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_relabel_ptw_deny_response_token_from_live_input",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Overwrite the registered LSU PTW-deny response token with the live request token.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "1e2ca929c5eccd4a7f78274d21886306ff47a02afc74597ec553aa6cf33f928f"
+        "variant_sha256": "9986b5bafa8019c9f3dab1163cfc5e2d75f28c60d46c9edaefd6dab0fece1265"
       },
       {
         "compile_success": true,
@@ -1510,17 +1510,17 @@
         "expected_marker": "T4F LSU deny is not page fault",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_report_page_fault_for_write_deny.log",
-          "sha256": "4fb0fede3abedc030eeaf0ed2741b3ce6b1cd0d2f8a0cb38b9e1978dec45be41"
+          "sha256": "f64cff600dc658f37a96f0737de07725d7a13200d170fcbe39ddc6eb6a3e7ce0"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_report_page_fault_for_write_deny",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Return page fault instead of access fault for an LSU PTE WRITE deny.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "42c5685b55178ba814d4d59f40727ea1cf307cbf729b9c9cf9d382afcded60c0"
+        "variant_sha256": "5a1e976e4d888a0e8b3563c50dc995daf36c8804febf7de3b87a28c03a386f39"
       },
       {
         "compile_success": true,
@@ -1529,17 +1529,17 @@
         "expected_marker": "T4F LSU PTE WRITE PMP denies",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_shrink_pte_write_to_4b.log",
-          "sha256": "ea8c9da19fcc32460814410c2d910007b91a0dcf9eb93991e48ea8611d62623c"
+          "sha256": "176a56be9cdc1e8c220ce656e22093cc47f03cb876f498a61327447c19e4362f"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_shrink_pte_write_to_4b",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Check only 4B of the 8B LSU PTE write.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "24a7d2430244ab0793a0dfb8773eb039965f87da6197da674b53ebf81364254e"
+        "variant_sha256": "b9784894e5ce7472435e89f61a5dae986240d99cbb2d34131f61092f8e22dadd"
       },
       {
         "compile_success": true,
@@ -1548,17 +1548,17 @@
         "expected_marker": "V9K LSU W-first keeps PTE AW pending",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_withdraw_aw_after_w_handshake.log",
-          "sha256": "faff4eeb241f4043eb009c763855c9671f32718f01b90bfd193349ea1fa32d13"
+          "sha256": "9886c7d52f86d7b077a8dddf3e998d71fe5f6622d9df6ff96a0c74561976c646"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_withdraw_aw_after_w_handshake",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Withdraw the pending LSU PTE AW channel after the independent W handshake.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "6f139d401af3d236d72616ca0ba9e3e7969e12f9237f5cea939e2bccb43c323e"
+        "variant_sha256": "259003fb21bfec631e12359e394cea2d5d16003a665c286ea1e6c5705d6eb9cd"
       },
       {
         "compile_success": true,
@@ -1567,17 +1567,17 @@
         "expected_marker": "V9K LSU AW-first keeps PTE W pending",
         "log": {
           "path": ".github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/evidence/mutations/logs/lsu_withdraw_w_after_aw_handshake.log",
-          "sha256": "6282977a099c6cc93ec3a4f4ac0367efd2c8f37329273afba192a99295b2f51c"
+          "sha256": "988f019c75066f4b8c5724827ce7e25251641265462083c265fc6f4fac2164dd"
         },
         "make_returncode": 2,
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "marker_observed": true,
         "name": "lsu_withdraw_w_after_aw_handshake",
-        "original_sha256": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
+        "original_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
         "purpose": "Withdraw the pending LSU PTE W channel after the independent AW handshake.",
         "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
-        "variant_sha256": "04d17696653b72be7647ecb456bce0136a623537f31b40079d41a5494e872085"
+        "variant_sha256": "5686be184faccb5be36d9e3e574952d81bacb0b7f3fb24b989fc0b6963538522"
       }
     ],
     "schema": "npc-rv64-ptw-pmp-rtl-variants-v3",

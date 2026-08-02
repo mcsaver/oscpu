@@ -1,10 +1,10 @@
 OOO-3 memory ordering evidence
 run_id=2026-07-21-rv64-v8v-memory-ordering
-generated_at_utc=2026-07-29T12:55:26.916003+00:00
-design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897
+generated_at_utc=2026-07-31T22:30:35.513196+00:00
+design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b
 rtl_file_count=146
-provenance_sha256=10b1b1488f290520ccb7ffc51dede7f5d0ac904ea69747f38aa77e86735e2047
-source_manifest_sha256=254a49aca9068f445e91eb8f93e1c6a7db8f40c7bb22df459c30f0e65963eb29
+provenance_sha256=b41584e004991fb82a336c7572d74be553f46f71fbd2d665fc278f0cef77a4ef
+source_manifest_sha256=d4e3de9c079c8b87f962f9674bfbaf342bcf35e8be85a6868f03bcdea27370dd
 lq_entry_count=16
 lq_compile_success_mutations=9
 f2_compile_success_mutations=18
@@ -31,16 +31,16 @@ metric store_authorization_fire_violations 0
 metric store_b_terminal_violations 0
 metric store_retire_before_b_success 0
 metric store_side_effect_before_authorization 0
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log 63536c1cae20b300734f9ad20f49076217d9798050480da82976046474b2dac8
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutations/raw_checkpoint_local_flush_bypass.run.log 5592d12ebb5e6563d4dbb8a71668b53e7855ab63100eae0660959a835219e49d
-artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json 46d632252feae2d26e6658c17f64d6a2573866693916044c2d478dbe55f487b1
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend-dual/logs/tb_ooo_int_backend.log 5142ea4f0d83f81564340e7ebc0d88154b689f1a8f2dd9a18ab8a19fa3e83d7e
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend/logs/tb_ooo_int_backend.log f5fefce3114131a9c37809ad47fea92bcab335f724f5ef38ccf8f590bdd86a26
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/glue/logs/tb_ooo_core_top_glue.log d747e6c0ad3cb68a5022d7fbd1cfbf1bdf1b06fac7d580d770026420cea8a6dd
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/lq/logs/tb_ooo_load_queue.log 4c28013c2f17f96c3f20f860d59978e36c99002a122f8624d461d4302bb8339c
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.post.sha256 8fb156d5a0fc899a86dff06ac03509cb10aa78b22420e6b1797ea31ef0ca1b2f
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.pre.sha256 8fb156d5a0fc899a86dff06ac03509cb10aa78b22420e6b1797ea31ef0ca1b2f
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sq/logs/tb_ooo_store_queue.log ef7ec6d3dfeaeb5495f6a7916d33ff9b64d5e3560ab56129cd247808e5aa126b
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sustained/logs/tb_ooo_dual_memory_sustained_issue.log 033617565436decf4482be30fa52390e776b0be990052a8052f1846fea19c401
-artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/mutation-results.json 2c4109a70578eb30c0ac4125233dfedca089d945a1494248eb8b1544fa1120aa
-[ARCH-GATE] memory_ordering PASS run_id=2026-07-21-rv64-v8v-memory-ordering design_id=sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897 mutations=9
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutation-summary.log e62d911c095e9a2b2ec418999743698e8892c59cd4b8255501502d84aaabd89e
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/mutations/raw_checkpoint_local_flush_bypass.run.log a018cd549cc3c1b098787a9cb85b65be4f1e72a33b2dc9921fb8e7e5e23bb58d
+artifact_sha256 .github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/evidence/focused/result.json daa6ee81b3d180c28d684f21486b17efcef7fa4f53972cefe918237763af77d2
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend-dual/logs/tb_ooo_int_backend.log 94621d96e781702fbb97fd4b951ad85f93da4119fe754df116616294608264bf
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/backend/logs/tb_ooo_int_backend.log 8b97bf5331d4908853b05a0f53f1c07d0df402d2ff61355e4124aa1508157cf0
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/glue/logs/tb_ooo_core_top_glue.log bd4d7864fc7469a22951615495d9e33a5d8cb0d678be2be597132f5dff0751c3
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/lq/logs/tb_ooo_load_queue.log 9ccdef3d86d2709e56f630676824531778f41d5e5c77c642740d6ee2021701eb
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.post.sha256 9b52a0d42fe165c717f29c111ff6d1836d36f96a6ea42e6e0dbeae12283fe49f
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sources.pre.sha256 9b52a0d42fe165c717f29c111ff6d1836d36f96a6ea42e6e0dbeae12283fe49f
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sq/logs/tb_ooo_store_queue.log 0c35047b2af158612032d6a2c8e846a6cea666444c2a0a77da9829806505342a
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/evidence/final-run/sustained/logs/tb_ooo_dual_memory_sustained_issue.log 21a6fc285cd9853929e0c289d9bf975650486c1325e1b1230b24a6ba4bf34b2e
+artifact_sha256 .github/task-runs/2026-07-21-rv64-v8v-memory-ordering/mutation-results.json b8dca681838d1c373ae51ab5c4fd27493751f59d0041ec77966897b2a5324315
+[ARCH-GATE] memory_ordering PASS run_id=2026-07-21-rv64-v8v-memory-ordering design_id=sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b mutations=9

@@ -1,0 +1,5 @@
+2026-08-01T22:04:44Z	ooo2-current-design	PASS	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/focused/static/architecture-result.json
+2026-08-01T22:04:44Z	ooo2-five-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/focused/mutation-summary.log
+2026-08-01T22:04:45Z	reviewer-agent	GAP	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/dispatch-log.md
+2026-08-01T22:04:46Z	remaining-architecture-gates	GAP	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/remaining-gate-census.tsv
+2026-08-01T22:05:14Z	pre-delivery-review	PASS	.github/task-runs/2026-08-02-rv64-v13t-ooo2-current-rebind-v1/evidence/pre-delivery-review.md

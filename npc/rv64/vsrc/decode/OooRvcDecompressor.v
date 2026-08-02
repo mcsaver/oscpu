@@ -323,8 +323,12 @@ module OooRvcDecompressor (
                             `OPCODE_OP_IMM);
               end else begin
                 imm = rvc_imm_6(inst[12], inst[6:2]);
-                if ((rd != 5'd0) && (imm != {`XLEN{1'b0}}))
-                  inst_o = enc_u(imm[19:0], rd, `OPCODE_LUI);
+                if (imm != {`XLEN{1'b0}}) begin
+                  if (rd == 5'd0)
+                    inst_o = 32'h0000_0013;
+                  else
+                    inst_o = enc_u(imm[19:0], rd, `OPCODE_LUI);
+                end
               end
             end
             3'b100: begin

@@ -9,6 +9,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 TOOLS = pathlib.Path(__file__).resolve().parents[1] / "tools"
@@ -41,6 +42,7 @@ MODULE_SUMMARY = TASK / "evidence/module-aggregate/summary.txt"
 VARIANT_SUMMARY = TASK / "evidence/mutations/summary.json"
 RESULT = REPO / "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain-current.json"
 RAW_LOG = REPO / "npc/rv64/eval/ppa/evidence/ifu-axi-flush-drain.log"
+DISPATCH_FILE = REPO / evidence.CANONICAL_DISPATCH_FILE
 RUNNER = evidence.variant_model
 
 
@@ -170,6 +172,95 @@ class IfuAxiFlushDrainEvidenceTests(unittest.TestCase):
         audit = evidence.validate_static_contract(REPO)
         self.assertTrue(audit["bridge_completion_uses_both_accepted_next_values"])
         self.assertTrue(audit["xbar_release_requires_exact_b_fire"])
+
+    def test_canonical_make_dispatch_is_target_scoped(self) -> None:
+        text = DISPATCH_FILE.read_text(encoding="utf-8")
+        evidence.validate_canonical_make_dispatch(text)
+        evidence.validate_canonical_make_dispatch(
+            text + "\n.PHONY: unrelated-target\nunrelated-target:\n\t@true\n")
+        with self.assertRaisesRegex(ValueError, "canonical Make dispatch"):
+            evidence.validate_canonical_make_dispatch(
+                text.replace(
+                    evidence.CANONICAL_DISPATCH_BLOCK,
+                    evidence.CANONICAL_DISPATCH_BLOCK.replace(
+                        "run-focused.sh", "wrong-runner.sh"),
+                    1,
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "canonical Make dispatch"):
+            evidence.validate_canonical_make_dispatch(
+                text
+                + f"\n{evidence.CANONICAL_TARGET}:\n"
+                + "\t@bash wrong-runner.sh\n"
+            )
+
+    def test_effective_make_dispatch_rejects_included_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            temp = pathlib.Path(temp_name)
+            dispatch = pathlib.Path("ifu-evidence.mk")
+            expected = f"bash ../../{evidence.CANONICAL_RUNNER}"
+            (temp / dispatch).write_text(
+                evidence.CANONICAL_DISPATCH_BLOCK + "\n",
+                encoding="utf-8",
+            )
+            evidence.validate_effective_make_dispatch(
+                temp, dispatch, evidence.CANONICAL_TARGET, expected)
+            marker = temp / "runner-started.marker"
+            (temp / "override.mk").write_text(
+                f"$(file >{marker},unexpected)\n"
+                f"{evidence.CANONICAL_TARGET}:\n"
+                "\t@bash wrong-runner.sh\n",
+                encoding="utf-8",
+            )
+            with (temp / dispatch).open("a", encoding="utf-8") as stream:
+                stream.write("include override.mk\n")
+            with self.assertRaisesRegex(ValueError, "restricted Make dispatch"):
+                evidence.validate_effective_make_dispatch(
+                    temp, dispatch, evidence.CANONICAL_TARGET, expected)
+            self.assertFalse(marker.exists())
+
+    def test_parse_time_make_constructs_are_rejected_without_execution(self) -> None:
+        text = DISPATCH_FILE.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temp_name:
+            marker = pathlib.Path(temp_name) / "runner-started.marker"
+            mutations = (
+                text + f"\n$(shell touch {marker})\n",
+                text + "\n$(eval check-ifu-axi-flush-drain: ; @false)\n",
+                text
+                + "\nifeq ($(findstring n,$(MAKEFLAGS)),n)\n"
+                + "dry-run-only:\n\t@true\nendif\n",
+            )
+            for mutation in mutations:
+                with self.subTest(mutation=mutation.rsplit("\n", 2)[0][-48:]):
+                    with self.assertRaisesRegex(
+                        ValueError, "restricted Make dispatch",
+                    ):
+                        evidence.validate_canonical_make_dispatch(mutation)
+                    self.assertFalse(marker.exists())
+
+    def test_make_environment_injection_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            temp = pathlib.Path(temp_name)
+            dispatch = pathlib.Path("ifu-evidence.mk")
+            expected = f"bash ../../{evidence.CANONICAL_RUNNER}"
+            (temp / dispatch).write_text(
+                evidence.CANONICAL_DISPATCH_BLOCK + "\n",
+                encoding="utf-8",
+            )
+            marker = temp / "injected.marker"
+            injected = temp / "injected.mk"
+            injected.write_text(
+                f"$(file >{marker},unexpected)\n", encoding="utf-8")
+            with mock.patch.dict(evidence.os.environ, {
+                "MAKEFILES": str(injected),
+                "GNUMAKEFLAGS": f"-f {injected}",
+                "MAKEFLAGS": "--eval=forced:=1",
+                "MFLAGS": "-n",
+                "MAKELEVEL": "9",
+            }):
+                evidence.validate_effective_make_dispatch(
+                    temp, dispatch, evidence.CANONICAL_TARGET, expected)
+            self.assertFalse(marker.exists())
 
     def test_arch_stable_validator_accepts_live_evidence(self) -> None:
         entry, design_id = ledger_entry()

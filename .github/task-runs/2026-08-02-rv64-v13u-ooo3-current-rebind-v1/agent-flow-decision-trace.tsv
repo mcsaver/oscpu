@@ -1,0 +1,2 @@
+2026-08-01T22:58:20Z	hypothesis	generated LQ hit-vector and onehot allocation refactor drifted evidence anchors without changing OOO-3 lifecycle semantics	.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/task-report.md
+2026-08-01T22:58:20Z	decision	publish only current-design OOO-3 in a caller-owned scoped manifest and retain overall RED plus PPA UNQUALIFIED	.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/result.json

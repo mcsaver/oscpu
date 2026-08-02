@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14d-p1-direct-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 current design-id 下 OooMemInflightQueue flush survivor transaction、OooMemAxiBridge B-channel holder、OooStoreQueue/OooRob exact retirement 与 OooControlEventApplySequencer C0→C1 control-event transaction 的 V14D P1 current 证据；重算 21/21 正向、24/24 compile-success RTL 反例与 24 个唯一指纹，检查 warning 精确绑定、历史 FAIL 保留以及 Section13 仍为 RED、PPA BLOCKED。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-1",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-checker-replay-1",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/p0-direct-rebind-1.status",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/p0-direct-rebind-checker-replay-1.status",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/p1-direct-1/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/control-run-3/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/store-run-3/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/section13-current-1/section13-current-audit.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-1/memory-issue-lifecycle-current.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-1/mem/mutations/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-checker-replay-1/rebind-receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/subagent-contracts/v14d-p1-direct-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/p1-direct-1/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/control-run-3/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/store-run-3/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/section13-current-1/section13-current-audit.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-1/memory-issue-lifecycle-current.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-1/mem/mutations/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/p0-direct-rebind-checker-replay-1/rebind-receipt.json",
+      "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件 → 周期或编译配置 → testbench/EDA 观测 → PASS/GAP 范围组织独立终审；逐项寻找正向/反例计数重复或缺失、变体非当前源、warning matcher 过宽、历史 FAIL 被覆盖、Section13 或 PPA 越级放行的反例，并列出 unknowns、替代解释、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有 CONTROL-EVENT-G1、MIQ-FLUSH-G1、STORE-BRESP-G1 均绑定 design-id sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，21 个正向与 24 个 compile-success RTL 反例计数闭合、24 个 source/variant 指纹唯一、正向 assertion clean、warning 只命中精确源行/端口/信号集合、所有失败尝试原样保留，且 Section13 明确剩余 P1 stale=4、architecture=RED、PPA=BLOCKED 时才给 PASS；否则按具体 gate、文件、marker 或字段给 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

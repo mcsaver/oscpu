@@ -1,0 +1,45 @@
+{
+  "schema": "rv64-task-state-v1",
+  "task_id": "rv64-v14d-p1-direct-current-rebind-v1",
+  "primary_classification": "architecture",
+  "status": "PASS_TASK_LOCAL",
+  "parent_goal_status": "active",
+  "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "production_rtl_file_count": 146,
+  "production_rtl_modified": false,
+  "p1_direct": {
+    "current_dynamic_gates": 3,
+    "required_gates": 3,
+    "positive_rtl": 21,
+    "compile_success_rtl_counterexamples": 24,
+    "unique_rtl_variant_fingerprints": 24,
+    "variant_aliases": 0,
+    "scope_status": {
+      "CONTROL-EVENT-G1": "CURRENT_DYNAMIC_PASS",
+      "MIQ-FLUSH-G1": "CURRENT_DYNAMIC_PASS",
+      "STORE-BRESP-G1": "CURRENT_DYNAMIC_PASS"
+    }
+  },
+  "warning_audit": {
+    "classified_diagnostics": 4663,
+    "unexplained": 0,
+    "positive_assertion_failure_observed": false
+  },
+  "review": "PASS_TASK_LOCAL_CURRENT_SCOPE",
+  "architecture_gate_state": "RED",
+  "arch_stable": false,
+  "ppa_state": "BLOCKED_BY_ARCHITECTURE",
+  "promotion_eligible": false,
+  "historical_status_rewritten": false,
+  "authoritative_receipt": "evidence/p1-direct-1/receipt.json",
+  "final_audit": "evidence/final-audit-1/audit.json",
+  "next_action": {
+    "action_id": "P1-REMAINING-CURRENT-REBIND",
+    "debt_ids": [
+      "F0-G1",
+      "FENCE-G1",
+      "SERIALIZE-G1",
+      "VECTORED-TRAP-G1"
+    ]
+  }
+}

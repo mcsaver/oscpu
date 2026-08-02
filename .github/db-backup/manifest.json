@@ -1,10 +1,10 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-31T11:21:11+00:00",
+  "updated_at": "2026-08-01T23:46:32+00:00",
   "schema_version": "4",
   "backup_format": "dev-memory-cas-v2",
   "backup_layout": "content-addressed-v1",
-  "manifest_generation": 1785496872697520174,
+  "manifest_generation": 1785627997125675663,
   "authoritative_kinds": {
     "dispatch-log": 1785455791233745345,
     "memory": 1785455791233745345,
@@ -49,7 +49,12 @@
     ".github/task-runs/2026-07-31-rv64-v11p-checkpoint-irrevocable-write-producer-semantic": 1785442741569190341,
     ".github/task-runs/2026-07-31-rv64-v11q-int-lane0-completion-resolve-packet-semantic": 1785448740501623927,
     ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic": 1785455508144786340,
-    ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1": 1785472404426537097
+    ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic": 1785517127443778076,
+    ".github/task-runs/2026-07-31-rv64-v11w-ifu-axi-access-current-evidence": 1785520148295844318,
+    ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind": 1785520073253436315,
+    ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1": 1785472404426537097,
+    ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1": 1785625392926320684,
+    ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1": 1785627997125675663
   },
   "entries": [
     {
@@ -1183,14 +1188,14 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 16948,
-      "sha256": "2a3d809ba116e5cee0d1c7ae169afe93def6f82b911409cd0345e8e2d2308a23",
+      "size_bytes": 20059,
+      "sha256": "4ac6ceba490fcc49aa281c71a9ca1567de07fa67a6e9aec4bb5f161a29b70ff0",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/2a/2a3d809ba116e5cee0d1c7ae169afe93def6f82b911409cd0345e8e2d2308a23",
+      "backup_object": "objects/sha256/4a/4ac6ceba490fcc49aa281c71a9ca1567de07fa67a6e9aec4bb5f161a29b70ff0",
       "mode": 420,
-      "archived_at": "2026-07-30T23:56:28+00:00",
-      "generation": 1785455791233745345
+      "archived_at": "2026-08-01T10:08:22+00:00",
+      "generation": 1785578906791135788
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1267,14 +1272,14 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 129673,
-      "sha256": "6f0c2374caea2169c7acd9fea069d49d3626d311656d0e498d20731bf0bcfa03",
+      "size_bytes": 21827,
+      "sha256": "1645777138b699b0f1676f1dafd3f161fa5869136f825cead57b8afa5ef76cff",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/6f/6f0c2374caea2169c7acd9fea069d49d3626d311656d0e498d20731bf0bcfa03",
+      "backup_object": "objects/sha256/16/1645777138b699b0f1676f1dafd3f161fa5869136f825cead57b8afa5ef76cff",
       "mode": 420,
-      "archived_at": "2026-07-31T11:21:11+00:00",
-      "generation": 1785496872697520174
+      "archived_at": "2026-08-01T18:11:08+00:00",
+      "generation": 1785607869787663827
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1315,14 +1320,14 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 129454,
-      "sha256": "831d3ac17c89fc77adf36b580ad244179f3223bd1c6a949e5aa1433a9be66228",
+      "size_bytes": 24708,
+      "sha256": "8af161b67214dd882172621afe7312276a43a8524daa6c78628a1347097616f6",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/83/831d3ac17c89fc77adf36b580ad244179f3223bd1c6a949e5aa1433a9be66228",
+      "backup_object": "objects/sha256/8a/8af161b67214dd882172621afe7312276a43a8524daa6c78628a1347097616f6",
       "mode": 420,
-      "archived_at": "2026-07-31T11:21:05+00:00",
-      "generation": 1785496870323810586
+      "archived_at": "2026-08-01T18:11:04+00:00",
+      "generation": 1785607867383615469
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -95549,6 +95554,162 @@
       "generation": 1785455791233745345
     },
     {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 973,
+      "sha256": "aacca99e9c591e41ecc9a71d84d4f16990c49f43260dc9d0f89187be6e205738",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/aa/aacca99e9c591e41ecc9a71d84d4f16990c49f43260dc9d0f89187be6e205738",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/decision-trace.md",
+      "kind": "task-run",
+      "size_bytes": 1648,
+      "sha256": "b05e438f1dd2189ec6da005a7b43377a563e05f82c36052772b9cf7a88c6e805",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/b0/b05e438f1dd2189ec6da005a7b43377a563e05f82c36052772b9cf7a88c6e805",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1044,
+      "sha256": "fa65c173072016c1a90217859e0b12b6493845809921f00bae8a68bbfe73864b",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/fa/fa65c173072016c1a90217859e0b12b6493845809921f00bae8a68bbfe73864b",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 236613,
+      "sha256": "098c0090ae8e155a8f0a8e73d0196856c504b5009ea32642c691b329c3018a60",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/09/098c0090ae8e155a8f0a8e73d0196856c504b5009ea32642c691b329c3018a60",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/implementation-result.md",
+      "kind": "task-run",
+      "size_bytes": 2019,
+      "sha256": "48c93d55c84e2e0e0f2794853f711a7ee557b8d0132846474c57772f21114d0f",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/48/48c93d55c84e2e0e0f2794853f711a7ee557b8d0132846474c57772f21114d0f",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/review-result.md",
+      "kind": "task-run",
+      "size_bytes": 2690,
+      "sha256": "15530307dbdd97d1ed9b18bdac77f24303e8b114c4a81ee86f4fec414ac48209",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/15/15530307dbdd97d1ed9b18bdac77f24303e8b114c4a81ee86f4fec414ac48209",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/rtl-derivation.md",
+      "kind": "task-run",
+      "size_bytes": 2609,
+      "sha256": "4f4db2acf6d0113c6b1169a3f22e56c03c1fc87a46528ba18072792afd6d1047",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/4f/4f4db2acf6d0113c6b1169a3f22e56c03c1fc87a46528ba18072792afd6d1047",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2821,
+      "sha256": "61fd7ca5e1d8cf10f31de3bdf68dd417a85c6a55e74857cb2626920c84bae178",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/61/61fd7ca5e1d8cf10f31de3bdf68dd417a85c6a55e74857cb2626920c84bae178",
+      "mode": 420,
+      "archived_at": "2026-07-31T16:58:43+00:00",
+      "generation": 1785517127443778076
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-axi-access-current-evidence/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 939,
+      "sha256": "484ab88deb76e897523971d6bc785944cc742ac26fa2326a79d44f095df5d36a",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/48/484ab88deb76e897523971d6bc785944cc742ac26fa2326a79d44f095df5d36a",
+      "mode": 420,
+      "archived_at": "2026-07-31T17:49:07+00:00",
+      "generation": 1785520148295844318
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 860,
+      "sha256": "7f429f4fb9d90b34216ea62190d00460b7e1aa8c4aff72fce2b19a67be169001",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/7f/7f429f4fb9d90b34216ea62190d00460b7e1aa8c4aff72fce2b19a67be169001",
+      "mode": 420,
+      "archived_at": "2026-07-31T17:47:50+00:00",
+      "generation": 1785520073253436315
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9675,
+      "sha256": "4673e6a4e092489a05849a07bfcc0b9bbd174ea371dba2c4f504ee083baf5fba",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/46/4673e6a4e092489a05849a07bfcc0b9bbd174ea371dba2c4f504ee083baf5fba",
+      "mode": 420,
+      "archived_at": "2026-07-31T17:47:50+00:00",
+      "generation": 1785520073253436315
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/review-result.md",
+      "kind": "task-run",
+      "size_bytes": 1452,
+      "sha256": "491eb65a202288a59e18506f65cc7fc2cae62e29349ffcfbd27dc6d4ade66385",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/49/491eb65a202288a59e18506f65cc7fc2cae62e29349ffcfbd27dc6d4ade66385",
+      "mode": 420,
+      "archived_at": "2026-07-31T17:47:50+00:00",
+      "generation": 1785520073253436315
+    },
+    {
+      "path": ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2756,
+      "sha256": "436e48b80bf78bfcc781fae8574bc766637f22abdb43ac0890cfdfdfd672bafc",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/43/436e48b80bf78bfcc781fae8574bc766637f22abdb43ac0890cfdfdfd672bafc",
+      "mode": 420,
+      "archived_at": "2026-07-31T17:47:50+00:00",
+      "generation": 1785520073253436315
+    },
+    {
       "path": ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1/context-brief.md",
       "kind": "task-run",
       "size_bytes": 662,
@@ -95619,6 +95780,126 @@
       "mode": 420,
       "archived_at": "2026-07-31T04:33:20+00:00",
       "generation": 1785472404426537097
+    },
+    {
+      "path": ".github/task-runs/2026-08-01-rv64-v13h-serialize-fast-rebind-current/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 760448,
+      "sha256": "210b011ccd4c46eb0c841981b86d3d62cbed92694d6f1faec781191217446fc5",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/21/210b011ccd4c46eb0c841981b86d3d62cbed92694d6f1faec781191217446fc5",
+      "mode": 420,
+      "archived_at": "2026-08-01T09:57:06+00:00",
+      "generation": 1785578230944717172
+    },
+    {
+      "path": ".github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7450,
+      "sha256": "b34e891a157ecc0975584664d6df6993e7175ad81ad952c70a7e96de3ab13757",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/b3/b34e891a157ecc0975584664d6df6993e7175ad81ad952c70a7e96de3ab13757",
+      "mode": 420,
+      "archived_at": "2026-08-01T14:16:06+00:00",
+      "generation": 1785593770453879276
+    },
+    {
+      "path": ".github/task-runs/2026-08-01-rv64-v13n-memory-lifecycle-cpi-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 10364,
+      "sha256": "5c7f73277f135d1c9ca08114b28f3cd2095bf9e6570354885f4812895a2b5bdb",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/5c/5c7f73277f135d1c9ca08114b28f3cd2095bf9e6570354885f4812895a2b5bdb",
+      "mode": 420,
+      "archived_at": "2026-08-01T15:43:46+00:00",
+      "generation": 1785599031248265828
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 1236,
+      "sha256": "9fe49fe398d3bbbccedd6b72c07fcdf1a78382fad02c12caaf3b0be95bc5b36c",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/9f/9fe49fe398d3bbbccedd6b72c07fcdf1a78382fad02c12caaf3b0be95bc5b36c",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:03:08+00:00",
+      "generation": 1785625392926320684
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1122,
+      "sha256": "218bc02d6af3f14fe1f9fe1008bf4ad3bf4ed3c33f25d6c899fa0a87712c9ef5",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/21/218bc02d6af3f14fe1f9fe1008bf4ad3bf4ed3c33f25d6c899fa0a87712c9ef5",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:03:08+00:00",
+      "generation": 1785625392926320684
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 70687,
+      "sha256": "fda42d98d106312064ca5d388a3bd81b803761b9c77a79d900d15afd8b01ac3d",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/fd/fda42d98d106312064ca5d388a3bd81b803761b9c77a79d900d15afd8b01ac3d",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:03:08+00:00",
+      "generation": 1785625392926320684
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6020,
+      "sha256": "a38c5a622afa55ff3a707f600a2002dae5b9e96d8d6ca2a21d4b2860a2de0b8d",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/a3/a38c5a622afa55ff3a707f600a2002dae5b9e96d8d6ca2a21d4b2860a2de0b8d",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:03:08+00:00",
+      "generation": 1785625392926320684
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1673,
+      "sha256": "f93de175596539e21d19cccad6c6ec1b9ef9471b96ad67f0aa678275ceecbcc8",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/f9/f93de175596539e21d19cccad6c6ec1b9ef9471b96ad67f0aa678275ceecbcc8",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:46:32+00:00",
+      "generation": 1785627997125675663
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26633,
+      "sha256": "3074f34b1ce53f3931160653fa248d6153fc068f4b9a012804560645518bcd77",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/30/3074f34b1ce53f3931160653fa248d6153fc068f4b9a012804560645518bcd77",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:46:32+00:00",
+      "generation": 1785627997125675663
+    },
+    {
+      "path": ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 7006,
+      "sha256": "2237e8e6a297c4965ef7c7a8fcd0f014b03b21ae914d87dca1a9f97ea20efb2e",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/22/2237e8e6a297c4965ef7c7a8fcd0f014b03b21ae914d87dca1a9f97ea20efb2e",
+      "mode": 420,
+      "archived_at": "2026-08-01T23:46:32+00:00",
+      "generation": 1785627997125675663
     },
     {
       "path": ".github/task-runs/README.md",

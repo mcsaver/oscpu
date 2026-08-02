@@ -10,7 +10,6 @@ import re
 import shlex
 import shutil
 import subprocess
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,7 +18,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 VSRCDIR = REPO / "npc/rv64/vsrc"
 TBDIR = REPO / "npc/rv64/testbench"
-EVIDENCE = HERE / "evidence/mutations"
+DEFAULT_WORK = Path("/tmp/rv64-v9a-width-continuity-mutations")
+DEFAULT_EVIDENCE = HERE / "evidence/mutations"
 TEST = "tb_ooo_core_top_glue_v9a_width_continuity"
 TOP = "tb_ooo_core_top_glue"
 
@@ -240,6 +240,7 @@ def run_mutation(
     vvp: str,
     suite_run_id: str,
     work: Path,
+    evidence: Path,
 ) -> dict[str, object]:
     case_dir = work / mutation.name
     case_dir.mkdir(parents=True, exist_ok=True)
@@ -272,12 +273,18 @@ def run_mutation(
     witness = next(
         (item for item in mutation.witnesses if item in sim_text), "")
     clean_pass = f"[PASS] {TEST}" in sim_text or "[RESULT] PASS" in sim_text
+    result_fail = sim_text.count("[RESULT] FAIL") == 1
+    fatal_fail = (
+        sim_text.count(f"[FAIL] {TEST} errors=") == 1
+        and sim_text.count("FATAL:") == 1
+    )
     rejected = (
         compiled.returncode == 0 and sim_rc not in (None, 0)
         and bool(witness) and not clean_pass
+        and int(result_fail) + int(fatal_fail) == 1
     )
-    EVIDENCE.mkdir(parents=True, exist_ok=True)
-    log = EVIDENCE / f"{mutation.name}.log"
+    evidence.mkdir(parents=True, exist_ok=True)
+    log = evidence / f"{mutation.name}.log"
     log.write_text(
         f"[COMPILE] {shlex.join(command)}\n" +
         compiled.stdout + compiled.stderr +
@@ -302,6 +309,12 @@ def run_mutation(
         "targets": sorted(original_hashes),
         "original_sha256": original_hashes,
         "mutant_sha256": mutant_hashes,
+        "image_sha256": sha256(image.read_bytes()) if image.is_file() else None,
+        "edit_anchor_count": len(mutation.edits),
+        "activated": all(
+            original_hashes[path] != mutant_hashes[path]
+            for path in original_hashes
+        ),
         "mutant_nonidentical": all(
             original_hashes[path] != mutant_hashes[path]
             for path in original_hashes
@@ -324,20 +337,45 @@ def run_mutation(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--suite-run-id", required=True)
+    parser.add_argument("--work-dir", type=Path, default=DEFAULT_WORK)
+    parser.add_argument("--evidence-dir", type=Path, default=DEFAULT_EVIDENCE)
     args = parser.parse_args()
     if not re.fullmatch(
-        r"v9a-di2-[0-9]{8}T[0-9]{6}Z-[0-9]+", args.suite_run_id
+        r"v[0-9]+[a-z0-9]*-di2-[0-9]{8}T[0-9]{6}Z-[0-9]+",
+        args.suite_run_id,
     ):
         raise ValueError("malformed local RV64 V9A suite run id")
 
-    EVIDENCE.mkdir(parents=True, exist_ok=True)
-    for path in EVIDENCE.glob("*.log"):
-        path.unlink()
-    summary_path = EVIDENCE / "summary.json"
-    if summary_path.exists():
-        summary_path.unlink()
+    work = args.work_dir.resolve()
+    tmp_root = Path("/tmp").resolve(strict=True)
+    if work == tmp_root or not work.is_relative_to(tmp_root):
+        raise ValueError("mutation work directory must be a bounded /tmp child")
+    evidence = args.evidence_dir.resolve()
+    canonical_evidence = DEFAULT_EVIDENCE.resolve()
+    if evidence != canonical_evidence:
+        try:
+            parts = evidence.relative_to(REPO).parts
+        except ValueError as exc:
+            raise ValueError("mutation evidence escapes repository") from exc
+        if (
+            len(parts) != 5
+            or parts[0:2] != (".github", "task-runs")
+            or not re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9._-]*",
+                parts[2],
+            )
+            or parts[3:] != ("evidence", "di2-mutations")
+        ):
+            raise ValueError("mutation evidence is outside the DI-2 task-run root")
 
-    work = Path(tempfile.mkdtemp(prefix="rv64-v9a-width-mutations-"))
+    if work.exists():
+        shutil.rmtree(work)
+    work.mkdir(parents=True)
+    if evidence.exists():
+        shutil.rmtree(evidence)
+    evidence.mkdir(parents=True)
+    summary_path = evidence / "summary.json"
+
     try:
         iverilog, vvp = paired_tools()
         sources = discover_sources()
@@ -350,7 +388,8 @@ def main() -> int:
         }
         results = [
             run_mutation(
-                mutation, sources, iverilog, vvp, args.suite_run_id, work)
+                mutation, sources, iverilog, vvp, args.suite_run_id,
+                work, evidence)
             for mutation in MUTATIONS
         ]
         after = {
@@ -358,9 +397,7 @@ def main() -> int:
             for path in production_paths
         }
     finally:
-        if work.parent == Path(tempfile.gettempdir()) and work.name.startswith(
-            "rv64-v9a-width-mutations-"
-        ):
+        if work.is_relative_to(tmp_root) and work != tmp_root:
             shutil.rmtree(work)
 
     summary = {

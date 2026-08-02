@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13r-binding-gap-closure-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 V13R 最终审查所报 source-binding、regression generation 引用和 mutation 中断清理三个 GAP 是否已由同代证据闭合；不重复审查已通过的 RTL 周期语义",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/testbench/tests",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/scripts",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/driver",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/v13r-focused",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/mutation-suite-result.json",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/mutation-s-resp-auto-drop/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/mutation-decerr-captured-as-okay/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/mutation-rob-ignores-commit-ready/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/evidence/regressions/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13r-store-b-multicycle-retire-hold-v1/subagent-contracts/v13r-binding-gap-closure-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 delta-only PASS/GAP：核验 Make source-closure target 与 V13R 实际两个 TB 的 TB_SRCS/TB_DEPS/common include/define/checker 绑定，61 项 manifest 覆盖先前点名缺失项和三条 driver，三个最终 receipt 引用同一 manifest SHA，mutation runner 在首个版本前清除全部旧单项 receipt/log。"
+  ],
+  "success_criteria": [
+    "当前 manifest 每项哈希必须与工作区一致，manifest 自身 SHA 必须同时等于 focused、mutation-suite、regression receipt 的 critical_source_binding_sha256。",
+    "若先前 stale-evidence 或中断残留反例仍成立，则保持 GAP；若已闭合，明确允许 V13R 回到 VERIFICATION_PASS_WITH_DECLARED_GAPS，但不得扩大到系统、CPI 或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13z-di1-frozen-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 RV64 OooFetchAxiBridge 到 OooFrontendActionGate 的 cache-hit、无 redirect、下游 ready 周期中 request/response/outstanding/FIFO/sink 每拍接收与产生合同，以及 scoped DI-1 current-design 证据是否存在假绿、覆盖洞或越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/task-report.md",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/di1-current/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/architecture-current.json",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/frontend-ii1.log",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/di1-mutations/summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/subagent-contracts/v13z-di1-frozen-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13z-di1-current-rebind-v1/evidence/di1-current/result.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整 RTL source-set 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488、146 个 Verilog/SystemVerilog 文件；suite_run_id=v13z-di1-20260802T032848Z-328215。",
+      "DI-1 合同限定为 cache hit、无 redirect、下游 ready；预热后连续 64 个 packet 必须每周期 accept 和 produce，max_initiation_interval=1，并保持 successor PC、outstanding owner、FIFO credit 与 sink turnover。",
+      "assert 与 release 的完整 OooFrontend 链均观测 accepted=64、responses=64、enqueues=64、produced=64、max_ii=1、sequential=64、redirects=0、stalls=0；最终 requests=responses=enqueues=dequeues=83，outstanding/fifo/rob/issue/ghosts 均为 0。",
+      "assert 与 release 的 OooFetchAxiBridge 均观测 bare H1 64 次、paging-context 64 次和 elastic-skid backpressure 恢复；完整 frontend 另观测 run-gate held_cycles=4、resume_turnovers=16、payload_stable=1、owner_stable=1、duplicate_enqueue=0。",
+      "9 个 compile-success RTL source mutation 全部被定向 testbench 拒绝：bridge_h1_ready_cut、bridge_h1_state_turnover_cut、bridge_semantic_lookup_cut、flow_outstanding_turnover_cut、flow_enqueue_credit_cut、sequencer_replacement_clear、sink_dequeue_cut、successor_pc_old_owner、blocked_response_tail_ghost；每项绑定 live source SHA、非同值 mutant SHA、compiled image SHA、非零仿真返回码、定向 CHECK-FAIL 或 owner/PC 观测、唯一 TB-FAIL+FATAL 终态且无 PASS。",
+      "6 个相邻 testbench 在 OOO_ASSERT 配置下均 PASS：tb_ooo_core_top_glue、tb_ooo_fetch_flow_control、tb_ooo_fetch_pc_outstanding_sequencer、tb_ooo_fetch_packet_fifo、tb_ooo_fetch_request_mux、tb_ooo_frontend_action_gate；相关证据单测 45/45 PASS。",
+      "scoped manifest 仅发布 frontend_ii1，局部结果 DI-1 GREEN；DI-2、DI-3、DI-4、DI-5、OOO-1、OOO-2、OOO-3、OOO-4 均保持 RED，overall=RED，ppa=UNQUALIFIED，promotion_eligible=false。",
+      "25 个 proof role 的路径与 SHA 在 frontend-ii1.log 中逐项绑定，source pre/post 清单字节相同，iverilog/vvp 可执行文件 SHA 与 assert/release/mutation flags 已冻结；canonical architecture-current.json SHA-256 仍为 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1。",
+      "本轮未修改 production RTL；历史 V8Z 所列 frontend RTL 与两个定向 testbench 在 current workspace 中字节未漂移，但完整 source-set 已变化，因此只在 V13Z task-run 内重建 current-design DI-1 证据，不把历史或其它架构门提升为 GREEN。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL 对象、周期/编译配置、testbench/EDA 观测与 PASS/GAP 范围给出限定材料独立复核；优先寻找 DI-1 假绿、负向版本覆盖洞、证据身份漂移、canonical 越界写入或把局部 GREEN 错推为整体架构/PPA 晋级的反例，并列出 unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有在随附材料足以支持 current-design DI-1 局部 GREEN、9 个负向 RTL 版本确实覆盖合同各关键断点、局部清单未越级且所有剩余未知项明确保留时才判 PASS；否则给出可操作 GAP 及其应落成的定向 TB、compile-success RTL mutation 或 fail-closed 静态审计。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

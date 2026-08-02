@@ -1,0 +1,10 @@
+.github/task-runs/2026-07-21-rv64-v8v-memory-ordering
+.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/design/specs
+.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1
+.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence
+.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/subagent-contracts
+.github/memory
+.github/memory/modules

@@ -3,7 +3,17 @@
   "policy_id": "rv64-complete-ooo-dual-issue-proxy-200mhz-v1",
   "claim_tier": "rtl_proxy_partial_constraints",
   "performance_evidence": {
-    "schema": "npc-rv64-performance-evidence-v3",
+    "schema": "npc-rv64-performance-evidence-v8",
+    "measurement_contract": {
+      "path": "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "id": "npc-rv64-pmc-v1-v13o-request-detail-20260801",
+      "sha256": "61a227990663402e0909ec518980f5432a148b3a09106913e51aa5a9516cc0a4"
+    },
+    "counter_schema": {
+      "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "id": "npc-rv64-pcs-v4-request-detail-20260801",
+      "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128"
+    },
     "minimum_repetitions": 3,
     "require_bit_exact_repetition_counters": true,
     "benchmark_contracts": {
@@ -18,6 +28,7 @@
           "start_pc": "0x00000000800017a8",
           "stop_pc": "0x00000000800017b0",
           "start_marker_semantics": "first_committed_hit",
+          "final_marker_semantics": "termination_time_total_hits",
           "start_hits": 1,
           "stop_hits": 1
         }
@@ -33,6 +44,7 @@
           "start_pc": "0x0000000080000334",
           "stop_pc": "0x000000008000047c",
           "start_marker_semantics": "first_committed_hit",
+          "final_marker_semantics": "termination_time_total_hits",
           "start_hits": 10000,
           "stop_hits": 1
         }

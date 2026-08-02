@@ -16,8 +16,9 @@ F1_RUN_DIR="$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-
 F1_RUNNER="$F1_RUN_DIR/run-focused.sh"
 F1_RESULT="$F1_RUN_DIR/evidence/focused/result.json"
 ARCH_TOOL="$NPC_HOME/eval/ppa/tools/architecture_hard_gates.py"
-ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
-EVIDENCE_DIR="$RUN_DIR/evidence/focused"
+ARCH_MANIFEST=${V8S_ARCH_MANIFEST:-"$NPC_HOME/eval/ppa/evidence/architecture-current.json"}
+EVIDENCE_DIR=${V8S_EVIDENCE_DIR:-"$RUN_DIR/evidence/focused"}
+SCOPED_REFRESH_MODE=${V8S_SCOPED_REFRESH_MODE:-0}
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/v8s-dual-memory-core.XXXXXX")
 RUN_ID="v8s-f2-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 IVERILOG=${IVERILOG:-iverilog}
@@ -40,9 +41,19 @@ fail() {
   exit 1
 }
 
+EVIDENCE_DIR=$(realpath -m -- "$EVIDENCE_DIR")
+ARCH_MANIFEST=$(realpath -m -- "$ARCH_MANIFEST")
 case "$EVIDENCE_DIR" in
   "$RUN_DIR"/evidence/focused) rm -rf -- "$EVIDENCE_DIR" ;;
+  "$REPO_ROOT"/.github/task-runs/*/evidence/f2-current)
+    rm -rf -- "$EVIDENCE_DIR"
+    ;;
   *) fail "unsafe evidence path: $EVIDENCE_DIR" ;;
+esac
+case "$ARCH_MANIFEST" in
+  "$NPC_HOME"/eval/ppa/evidence/architecture-current.json) ;;
+  "$REPO_ROOT"/.github/task-runs/*/evidence/*.json) ;;
+  *) fail "unsafe architecture manifest path: $ARCH_MANIFEST" ;;
 esac
 mkdir -p "$EVIDENCE_DIR/static" "$EVIDENCE_DIR/profiles" \
   "$EVIDENCE_DIR/mutations"
@@ -128,6 +139,7 @@ source_paths=(
   "$RUN_DIR/subagent-contracts/v8s-f2-final-architecture-contract-review.json"
   "$F1_RUN_DIR/contract.md"
   "$F1_RUNNER"
+  "$F1_RESULT"
   "$F1_RUN_DIR/check-v8r-dual-mem-bridge.py"
   "$F1_RUN_DIR/test_check_v8r_dual_mem_bridge.py"
   "$F1_RUN_DIR/mutate-v8r-dual-mem-bridge.py"
@@ -147,9 +159,21 @@ python3 "$CHECKER" --repo-root "$REPO_ROOT" \
 make -C "$NPC_HOME" check-rtl-style \
   > "$EVIDENCE_DIR/static/rtl-style.log" 2>&1 ||
   fail "RTL style gate failed"
-make -C "$NPC_HOME" check-contract \
-  > "$EVIDENCE_DIR/static/contract.log" 2>&1 ||
-  fail "interface contract/holder census gate failed"
+if [[ "$SCOPED_REFRESH_MODE" == 1 ]]; then
+  set +e
+  (cd "$REPO_ROOT" && python3 -m unittest \
+    npc.rv64.eval.ppa.tests.test_producer_holder_census -v) \
+    > "$EVIDENCE_DIR/static/contract.log" 2>&1
+  census_rc=$?
+  set -e
+  printf '[V8S-SCOPED-GAP] global producer-holder census/instance graph rc=%d not selected for F2 semantic result\n' \
+    "$census_rc" \
+    >> "$EVIDENCE_DIR/static/contract.log"
+else
+  make -C "$NPC_HOME" check-contract \
+    > "$EVIDENCE_DIR/static/contract.log" 2>&1 ||
+    fail "interface contract/holder census gate failed"
+fi
 
 make -C "$NPC_HOME" SIM_TOP=NpcCoreTop \
   VERILATOR='verilator -Wno-fatal' RTL_VERILATOR_DEFINES='' lint \
@@ -283,9 +307,14 @@ done
 [[ "$(grep -c '^\[V8S-MUTATION\]\[PASS\]' "$EVIDENCE_DIR/mutation-summary.log")" -eq 18 ]] ||
   fail "mutation summary does not contain exactly eighteen detected mutants"
 
-make -C "$NPC_HOME" check-dual-memory-bridge-wrapper \
-  > "$EVIDENCE_DIR/static/f1-permanent-target.log" 2>&1 ||
-  fail "stage-aware F1 predecessor target regressed under canonical F2"
+if [[ "$SCOPED_REFRESH_MODE" == 1 ]]; then
+  printf '[V8S-F1-REPLAY] scoped refresh consumes frozen F1 result; no F1 runner invoked\n' \
+    > "$EVIDENCE_DIR/static/f1-permanent-target.log"
+else
+  make -C "$NPC_HOME" check-dual-memory-bridge-wrapper \
+    > "$EVIDENCE_DIR/static/f1-permanent-target.log" 2>&1 ||
+    fail "stage-aware F1 predecessor target regressed under canonical F2"
+fi
 python3 - "$F1_RESULT" "$EVIDENCE_DIR/static/f1-handoff.json" <<'PY'
 import json
 import pathlib
@@ -366,7 +395,7 @@ glue_tb_sha=$(sha256sum "$GLUE_TB" | awk '{print $1}')
 closure_sha=$(sha256sum "$EVIDENCE_DIR/sources.pre.sha256" | awk '{print $1}')
 python3 - "$EVIDENCE_DIR/result.json" "$RUN_ID" "$backend_sha" \
   "$core_sha" "$tb_sha" "$control_gate_sha" "$glue_tb_sha" \
-  "$closure_sha" \
+  "$closure_sha" "$SCOPED_REFRESH_MODE" \
   "$EVIDENCE_DIR/static/f1-handoff.json" \
   "$EVIDENCE_DIR/static/source-checks.json" <<'PY'
 import datetime
@@ -376,7 +405,7 @@ import sys
 
 (
     output, run_id, backend_sha, core_sha, tb_sha, control_gate_sha,
-    glue_tb_sha, closure_sha, f1_path, source_checks_path,
+    glue_tb_sha, closure_sha, scoped_refresh_mode, f1_path, source_checks_path,
 ) = sys.argv[1:]
 f1_handoff = json.loads(pathlib.Path(f1_path).read_text(encoding="utf-8"))
 source_checks = json.loads(
@@ -416,6 +445,9 @@ payload = {
     },
     "f1_permanent_target": {
         "status": "PASS",
+        "evidence_mode": (
+            "FROZEN_REPLAY" if scoped_refresh_mode == "1" else "FRESH_RUN"
+        ),
         "run_id": f1_handoff["run_id"],
         "claim": f1_handoff["claim"],
         "canonical_stage": f1_handoff["canonical_stage"],
@@ -436,6 +468,11 @@ pathlib.Path(output).write_text(
 )
 PY
 
-printf '[V8S-F2][PASS] run_id=%s claim=architecture_checkpoint profiles=6 mutations=18 predecessor=F1_PASS architecture=RED ppa=UNQUALIFIED promotion_eligible=false\n' \
-  "$RUN_ID" > "$EVIDENCE_DIR/final.log"
+if [[ "$SCOPED_REFRESH_MODE" == 1 ]]; then
+  predecessor_status=F1_FROZEN_REPLAY
+else
+  predecessor_status=F1_FRESH_PASS
+fi
+printf '[V8S-F2][PASS] run_id=%s claim=architecture_checkpoint profiles=6 mutations=18 predecessor=%s architecture=RED ppa=UNQUALIFIED promotion_eligible=false\n' \
+  "$RUN_ID" "$predecessor_status" > "$EVIDENCE_DIR/final.log"
 cat "$EVIDENCE_DIR/final.log"

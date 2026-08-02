@@ -14,6 +14,7 @@ from typing import Any
 TEST = "tb_ooo_mem_owner_terminal_collector"
 POSITIVE_MARKERS = (
     "[V9Y-TCOLL-ACCEPT-NEGATIVE] tuple=0 duplicate=0 PASS",
+    "[V12A-TCOLL-LANE-PAIR-MATRIX] duplicate=66 distinct=66 PASS",
     "[V8P-TCOLL-12INGRESS-CAPTURE]",
     "[V9Y-TCOLL-SAME-EDGE-REENQUEUE] accept=0 PASS",
     "[V11B-TCOLL-LANE1-TURNOVER] lane0_hold=1 pending=11 PASS",
@@ -55,6 +56,16 @@ def entry(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
     }
 
 
+def compiled_image_entry(
+    root: pathlib.Path, path: pathlib.Path, *, compact: bool
+) -> dict[str, Any]:
+    value = entry(root, path)
+    if compact:
+        value.pop("path")
+        value["retained"] = False
+    return value
+
+
 def require_once(text: str, marker: str, label: str) -> None:
     count = text.count(marker)
     if count != 1:
@@ -92,6 +103,11 @@ def main() -> int:
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--evidence-dir", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--compact-images",
+        action="store_true",
+        help="record compiled image digest/size, then permit runner cleanup",
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     evidence = args.evidence_dir.resolve()
@@ -178,7 +194,9 @@ def main() -> int:
                 "expected_marker": expected,
                 "receipt": entry(root, receipt_path),
                 "log": entry(root, log_path),
-                "compiled_image": entry(root, image_path),
+                "compiled_image": compiled_image_entry(
+                    root, image_path, compact=args.compact_images
+                ),
             }
         )
 
@@ -195,7 +213,11 @@ def main() -> int:
         raise EvidenceError("static lane-pair contract is not current PASS")
 
     output = {
-        "schema_version": "rv64-v11b-terminal-collector-evidence-v1",
+        "schema_version": (
+            "rv64-v11b-terminal-collector-evidence-v2"
+            if args.compact_images
+            else "rv64-v11b-terminal-collector-evidence-v1"
+        ),
         "result": "PASS",
         "design_id": design_id,
         "source_binding": {
@@ -219,9 +241,13 @@ def main() -> int:
         "compile_success_mutations": mutation_records,
         "mutation_count": len(mutation_records),
         "rejected_mutation_count": len(mutation_records),
+        "compiled_images_retained": (
+            0 if args.compact_images else len(mutation_records) + 3
+        ),
         "claim_boundary": (
             "Closes the terminal collector's twelve ingress tuple mapping, "
-            "two raw dequeue lanes, accepted-only handoff, valid-input "
+            "all 66 unordered ingress-lane pairs, two raw dequeue lanes, "
+            "accepted-only handoff, valid-input "
             "identity-known assertion and asymmetric lane turnover. It does "
             "not close the other producer/holder census units, whole "
             "architecture, Linux replay, synthesis/STA/power or PPA."

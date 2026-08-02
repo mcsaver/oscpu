@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-28。
+> **最近更新**：2026-08-01。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
 > `../../eval/ppa/evidence/architecture-current.json`、
@@ -68,12 +68,15 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   memory-owner terminal consumer，V9Z 已闭合 pending architectural-trap 的同一组合
   consumer 边界；当前同源功能聚合为 module 112/112、official 177/177、AM 59/59、
   DiffTest mismatch 0；current module 113/113、official 177/177、AM 59/59，
-  DiffTest mismatch 0。V10G 第二次独立审查已在当前设计上批准
+  DiffTest mismatch 0。V10G 第二次独立审查曾在 04c5458 设计上批准
   `SERIALIZE-G1=CLOSED`：product-default queue-head CSR 的 assert/release 原始周期
   计数覆盖 3 条 committed 与 2 条 selective-kill，typed-apply 生产 RTL 负向版本和
   CsrFile 生产绑定等价 verification wiring 均被 C2 raw scoreboard 拒绝，
-  pending-SYSTEM 为 3/3 baseline + 14/14 compile-success RTL 版本。至此 active
-  P0/P1 均为 `CLOSED` 或 `EXCLUDED_BY_COHORT`。architecture freeze 仍为 GAP：
+  pending-SYSTEM 为 3/3 baseline + 14/14 compile-success RTL 版本。V13H 已在 364b1e
+  当前设计上通过 queue-head 2/2 正向、两个 production RTL mutation、一个
+  verification-only `CsrFile` TB-wiring mutation、pending-SYSTEM 3/3+15/15 以及
+  113/177/61 功能队列；但同身份完整系统事务尚缺，当前机器状态为
+  `SERIALIZE-G1=STALE_EVIDENCE`。architecture freeze 仍为 GAP：
   `historical-defect-backfill-ledger.json` 必须清除 VD0/VD1 后才可申请冻结。
   初始机器账本为 5 项：VD1×2、VD3×1、VD4×2；自动选择
   `HIST-SER-QH-YOUNGER-STORE-CYCLE`。该项要求在 current design 上构造
@@ -155,9 +158,11 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   `design_id=sha256:04c5458…a73897` 下完成 queue-head raw C0/C1/C2、恢复路径、
   C2 apply/CsrFile 重复请求负向版本、pending-SYSTEM 3/3+14/14、26-stage current
   replay；A3 原始 FAIL 不改写，另以 `execution_state=COMPLETE/oracle_state=INVALID`
-  表达旧 checker 误判。V10G 第二次独立审查裁定
-  `APPROVED_FOR_CURRENT_SCOPE`，当前状态为 `CLOSED`；该裁定不包含 Phase2–5、
-  architecture freeze 或 PPA。
+  表达旧 checker 误判。V10G 第二次独立审查的
+  `APPROVED_FOR_CURRENT_SCOPE` 只绑定 04c5458 历史设计。V13H 在 364b1e 上完成
+  queue-head 2/2 正向、2 个 production RTL 加 1 个 verification-only TB-wiring 负向、
+  pending-SYSTEM 3/3+15/15 与 113/177/61 功能重绑定；由于缺同身份完整系统事务，
+  当前状态为 `STALE_EVIDENCE`，且不包含 Phase2–5、architecture freeze 或 PPA。
 - `VECTORED-TRAP-G1` 已声明为 full-core cohort required：mtvec/stvec Direct/Vectored
   WARL、`BASE+4×cause` 中断入口、同步 BASE 入口、未委派 supervisor interrupt
   进入 M 以及 `mem > ex > irq` 单记录合同由 V9U 当前设计门覆盖；局部关闭不产生

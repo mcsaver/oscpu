@@ -251,32 +251,28 @@ check-producer-holder-census: check-producer-holder-instance-graph
 	@python3 $(abspath eval/ppa/tools/producer_holder_census.py)
 
 # Current product NpcTop elaboration companion to the source-level census.
-# The canonical V11J bundle binds every holder-bearing module to every
-# reachable instance, including duplicated MIQ and memory-bridge instances.
-# The daily gate replays the fail-closed unit suite and frozen full-graph
-# receipt without rewriting task-run history.  Fresh Yosys elaboration remains
-# an explicit evidence-generation action.
+# The manifest-selected current task-run bundle binds every holder-bearing
+# module to every reachable instance, including duplicated MIQ and memory-
+# bridge instances.  The daily gate replays the fail-closed unit suite and
+# frozen full-graph receipt without rewriting task-run history.  Fresh Yosys
+# elaboration remains an explicit evidence-generation action.
 .PHONY: check-producer-holder-instance-graph
 check-producer-holder-instance-graph:
 	@python3 -m unittest -q eval/ppa/tests/test_producer_holder_instance_graph.py
 	@python3 $(abspath eval/ppa/tools/producer_holder_instance_graph.py) --check-frozen
 
-# Current partial semantic ledger.  GAP is an expected ledger status while any
-# holder unit remains open; this gate verifies that every granted local PASS is
-# still source/TB/instance bound and that the stored GAP ledger exactly matches
-# the current census, graph, policy, replay receipt and checker.
-PRODUCER_HOLDER_SEMANTIC_LEDGER := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/ledger-attempt-9/producer-holder-semantic-coverage.json)
-PRODUCER_HOLDER_SEMANTIC_INSTANCE_GRAPH := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/current-instance-graph-rebind-attempt-1/holder-instance-graph.json)
-V11H_CHECKER_REPLAY_RECEIPT := $(abspath ../../.github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/v11h-checker-replay-after-graph-attempt-9-receipt.json)
+# Current bounded semantic ledger.  All 44 inventoried units have local PASS,
+# while the global ledger remains GAP and whole-architecture/PPA promotion stays
+# blocked.  Byte-current inputs remain exact; define.v-only drift additionally
+# requires the fail-closed selected-consumer macro-projection receipt.
+PRODUCER_HOLDER_SEMANTIC_LEDGER := $(abspath design/arch/producer-holder-semantic-coverage.json)
 .PHONY: check-producer-holder-semantic-coverage
 check-producer-holder-semantic-coverage: check-producer-holder-census
 	@python3 -m unittest -q \
+	  eval/ppa/tests/test_compile_image_retirement.py \
 	  eval/ppa/tests/test_load_queue_producer_checker_replay.py \
 	  eval/ppa/tests/test_producer_holder_semantic_coverage.py
-	@python3 $(abspath eval/ppa/tools/load_queue_producer_checker_replay.py) \
-	  verify --input $(V11H_CHECKER_REPLAY_RECEIPT)
 	@python3 $(abspath eval/ppa/tools/producer_holder_semantic_coverage.py) \
-	  --instance-graph $(PRODUCER_HOLDER_SEMANTIC_INSTANCE_GRAPH) \
 	  verify --input $(PRODUCER_HOLDER_SEMANTIC_LEDGER)
 
 # Dynamic companion to the static census: assert/release baselines, real

@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13q-receipt-same-fs-delta-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 V13Q evidence receipt 的最后一个 same-filesystem staging 修正是否消除 review-v2 的跨 filesystem mv 原子性 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1/driver/run-v13q-backend-error-bp-focused.sh",
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1/driver/run-v13q-backend-error-bp-mutations.sh",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13q-store-b-error-backpressure-contract-v1/subagent-contracts/v13q-receipt-same-fs-delta-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "自 review-v2 后唯一 driver 语义改动：positive 临时目录现在直接创建在 evidence/backend-error-backpressure 结果目录内，其 binding/result final 也在该结果目录；mutation 临时目录现在直接创建在同一 task-run evidence 目录内，per-variant/suite final 也在该 evidence 树；两个 EXIT cleanup 均只递归删除各自的临时目录。",
+      "修改后 bash -n PASS；positive focused 重跑 rc=0、[RESULT] PASS；三 mutation suite 重跑总 rc=0 且三项均按预期 [RESULT] FAIL 后 suite PASS；限定 find 未发现 .focused-run.* 或 .mutation-run.*，目标 VVP 不存在。",
+      "review-v2 的其它项目已经 PASS；本节点不重新审查 RTL/TB，只判断 same-filesystem staging GAP 是否按构造闭合以及是否产生新的 evidence 风险。"
+    ]
+  },
+  "deliverables": [
+    "以本地 RV64 evidence driver 为对象，给出 same-filesystem receipt install 的 PASS/GAP、剩余假设和是否需要再扩展审查。"
+  ],
+  "success_criteria": [
+    "确认临时 receipt 与 final receipt 位于同一 filesystem 命名空间，mv 可作为同 filesystem rename，EXIT cleanup 不删除 final receipt。",
+    "不把重跑 PASS 扩展为 RTL/PPA promotion，只解决 review-v2 明确提出的 receipt 原子安装 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

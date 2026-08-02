@@ -157,9 +157,9 @@ allocation 只选择 edge-old free slot，因此第 4 项不会覆盖 1–3 项�
 9. **C0 pregrant 无环**：`release_q_ready` 只由 entry 的 registered `completed_q`
    产生，不读取当拍 completion/WB；普通 `release_ready` 的兼容 bypass 不得连接到
    `commit_pregrant_ready_i`。
-9. **birth fence 完整**：每个 live entry 的完整 PID 位必须出现在 `producer_live_mask_o`，count 与 valid popcount 相等。
-10. **集成边界闭合**：dispatch fire、reservation consume、MIQ LOAD launch 与 ROB load retirement 分别接受 LQ credit/open/live/complete 资格；retire lookup 对 ROB commit 形成 production 反压，模块内断言和 parent 断言相互独立。
-11. **post-clear terminal one-shot**：LQ entry 因 exact release/recovery 清除后，
+10. **birth fence 完整**：每个 live entry 的完整 PID 位必须出现在 `producer_live_mask_o`，count 与 valid popcount 相等。
+11. **集成边界闭合**：dispatch fire、reservation consume、MIQ LOAD launch 与 ROB load retirement 分别接受 LQ credit/open/live/complete 资格；retire lookup 对 ROB commit 形成 production 反压，模块内断言和 parent 断言相互独立。
+12. **post-clear terminal one-shot**：LQ entry 因 exact release/recovery 清除后，
     同一旧 physical owner 不得再次产生 terminal。collector pending 在 tracker free 前
     保持 token→PID 映射；free 同沿不能复用 token。token 未来环回复用时，旧 source 必须
     已无任何发射资格；否则同 `{kind,token,epoch}` 会错误绑定新 PID。该 source 违约必须
@@ -170,13 +170,24 @@ allocation 只选择 edge-old free slot，因此第 4 项不会覆盖 1–3 项�
 
 ## 5. 关键路径与 PPA 考量
 
-- dispatch 路径新增 16-entry free scan 与两个 credit，但不借用同拍 free，避免 ROB retirement 回环。
-- issue、query、response、release 各是 16-entry full-PID CAM/OR。query 还比较 64-bit PA、class 与 mask，
-  是本实现最需综合/STA 复核的新增组合锥。
+- dispatch 路径以 edge-old free bitmap、最低位 onehot 和移除首项后的第二个 onehot 生成两个
+  credit/slot index；它不借用同拍 free，避免 ROB retirement 回环。仿真态只把精确 `valid_q==0`
+  当作 free，因此未知 valid 位不会产生推测性 credit。
+- issue、query、response、release 各先形成 16-entry full-PID qualified-hit bitmap，再做 reduction OR；
+  production 二态综合得到归约树，不再形成 loop-carried priority mux 链。仿真输出只在归约结果
+  `===1'b1` 时开放，保持旧 procedural `if` 对未知 qualifier 的 fail-closed 四态语义。query 仍比较
+  64-bit PA、class 与 mask，资格、metadata 和 full-PID CAM 均未删除。这里的精确语义是：只有
+  未知 hit 时输出关闭；若另一 entry 已给出 exact hit，则 `1 | X` 仍开放，与旧 RTL 一致。
+  因而该实现依赖 registered state knownness 与 PID 唯一性断言，不宣称任意内部 X 污染时全局关闭。
 - `producer_live_mask` 是 Q-only 全展开位图，进入 global ProducerId birth fence；它不读取 request/response ready。
 - 两个 bank-local MIQ 保持原 2-entry transport 结构，未重写 scheduler 或跨 bank response arbiter。
-- 当前只有 RTL 与动态功能证据；没有同 design-id 的正式综合、STA、物理功耗，故 PPA 状态保持
-  `UNQUALIFIED`，不得从功能门绿推导 200 MHz 或功耗结论。
+- V13B 在同一 200 MHz/Yosys 配置下，局部 coarse 从 `4,825 cells/2,039 $mux`
+  降为 `4,568/1,790`，局部 mapped area 从 `44,828.56` 降为 `44,073.68`；5 ns ideal-clock、
+  zero-I/O 模块级 OpenSTA 最差 slack 从 `+3.438781738 ns` 改善到 `+3.475173950 ns`。
+  当前 `NpcTop` coarse 的 `-257 cells/-249 $mux/-115 wire bits` 与局部绝对差值完全一致，
+  证明结构收益传导到父层且未观察到层级外成本转移。
+- 上述仍是单次 development structural diagnostic。没有同 design-id 的 full-core mapped netlist、
+  full-core STA、重复综合或物理功耗，故不得据此宣称 200 MHz closure、功耗结论或 PPA promotion。
 
 ## 6. 验证计划与证据
 
@@ -276,3 +287,9 @@ PASS receipt，并明确不重跑 RTL。`scope.system_rerun` 必须精确区分
   `tb_ooo_load_queue` 和父级 `tb_ooo_int_backend` 在断言开启下通过。版本化
   独立终审给出 `load-queue-producers` bounded APPROVE，不外推全局
   architecture、系统或 PPA。
+- 2026-08-01：V13B 在不改变端口、entry 状态、容量、lifecycle、优先级或时钟边界的前提下，
+  将十路 lookup 输出从 loop-carried priority chain 改为 per-entry qualified-hit reduction，
+  将双分配 free scan 改为两个 lowest-onehot priority encoder；`SYNTHESIS` 二态网络与仿真
+  exact-1/known-free overlay 分离。普通 LQ、四配置 raw-Q producer semantic、真实 parent 和
+  双访存持续发射 testbench 均通过，局部 mapped/模块级 STA 与全核 coarse 均给出正向结构证据；
+  full-core mapped/STA 与系统级 promotion 仍保持 GAP。

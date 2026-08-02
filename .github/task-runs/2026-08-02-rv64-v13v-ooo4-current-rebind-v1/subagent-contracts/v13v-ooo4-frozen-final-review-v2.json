@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13v-ooo4-frozen-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据最终随附的本地 RV64 OOO-4 冻结证据，独立复核分支误预测恢复、严格年轻流水事务取消、ProducerId 完成退休账本、已发 AXI 事务排水，以及 design、simulator、编译配置和 task-run-v1 路径哈希绑定是否足以授权当前 design-id 的 scoped OOO-4 GREEN；优先寻找可导致假绿的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+      ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/contract.md",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/architecture-current.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/speculation-recovery.log",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-mutations/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/sources.pre.sha256",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/sources.post.sha256",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/ooo4-current/static/simulator-config.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/subagent-contracts/v13v-ooo4-frozen-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "最终完整可综合 RTL design_id 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，suite_run_id 为 v8y-ooo4-20260801T233216Z-243405。",
+      "同一 suite 的 OOO_ASSERT 与 release focused 仿真各有唯一 RESULT PASS；linear D0/A1/B2 与 wrap D14/A15/B0 均只允许最老分支 A 解析，年轻 B 的 issue、resolve、complete、retire 均为零，survivor D 与 boundary A 各完成和退休一次。",
+      "同一 focused 二进制报告 EX 严格年轻清除矩阵 checks=8192 failures=0，以及 AXI 恢复轨迹 A=0 B=1 ar=1 drop=2 pop=2 terminal=2 wb=0 commit=0 fill=0 lane1=0 quiet=6 PASS。",
+      "九个 compile-success RTL source mutation 全部编译成功并由指定 testbench witness 动态检出，builder 从当前 RTL 唯一 edit anchor 重构并核对九个 non-noop mutant SHA-256；六项 OOO_ASSERT 邻接回归全部 PASS。",
+      "architecture-current.json 仅含 speculation_recovery；七项 OOO-4 metric 全通过，OOO-4 GREEN，其余 gate 与 overall RED，PPA UNQUALIFIED。",
+      "task-run-v1 provenance 精确包含 27 个 source 文件和 22 个 proof role；每个 proof path 与 SHA-256 在 gate log 中恰好出现一次并参与 proof_sha256；缺 role、proof 漂移或 gate-log 绑定漂移均由定向单测转 RED。",
+      "simulator-config.txt 精确绑定 target=v8y-speculation-recovery，assert IVFLAGS 含 -DOOO_ASSERT，release IVFLAGS 不含该 define，mutation defines 包含 OOO_ASSERT、V8X bridge recovery 与 V8Y speculation recovery；iverilog SHA-256 为 a6071e4b4a68feafca0c8ee0e6aa275eee9a43a108c62801cfd1eca6eab6d8a3，vvp 为 a10bd7d4a0850308ac8c2c98115b6a3084f9be978307610f2a521190c28f4023，builder 重新读取本地二进制并核对摘要。",
+      "sources.pre.sha256 与 sources.post.sha256 字节相等且 SHA-256 都为 86bc7c87b98a79cb54d5c26f7e806864a477f57098e0d189555b9cdde220790c；本轮未修改 production RTL。",
+      "完整 runner 的证据与负向单元审计 41 项全部 PASS；scoped runner 使用合同断言脚本本体核对 OOO_ASSERT 编译开关和 RTL 立即断言计数。旧 producer-holder frozen instance graph 绑定 882111fb...，是未声称闭合的独立全核 GAP。",
+      "最终 result.json SHA-256 为 d684b7244e9fb480c8900f64fba64dc949e59b912a9489506f660b8b108141d7；architecture-current.json 为 f05747b55e698bc5687f90b9eddf86a11d423d32dd01e039582512fb7b397d3f；speculation-recovery.log 为 967fc314e2e6ff285982f9f826dca7104d867bf4c75dfd9d5ec863cd23d8ae05；mutation summary 为 87db0eb3308f2824a0cefad4e322aab5b822f821ecbc810bb3b20291304124a4；simulator-config.txt 为 2b779d5cdba7d347d1e5bc7176d81a304b5b32617e346e50baa341b7239af35f。"
+    ]
+  },
+  "deliverables": [
+    "按 OOO-4 RTL 对象、suite 配置、testbench 观测、PASS 或 GAP 范围给出独立结论；列出任何可操作反例、未知项、替代假设、证据复用边界与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "明确判断最终冻结证据能否仅授权 design-id 093c... 的 scoped OOO-4 GREEN，且不外推 DI-1 至 OOO-3、overall architecture、全核 holder graph 或 PPA；若不能，指出具体 schema 字段、marker、simulator/config 绑定、RTL 生命周期或缺失反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,7 @@
+npc/rv64/testbench/scripts
+npc/rv64/design/arch
+.github/task-runs
+.github/memory
+.github/memory/modules
+.github/db-backup
+.github/db-backup/stored-snapshot

@@ -1,0 +1,3 @@
+2026-08-01T22:58:20Z	ooo3-current-run	PASS	.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence/ooo3-current/result.json
+2026-08-01T22:58:20Z	compile-success-mutations	PASS	.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence/lq-mutations/mutation-results.json
+2026-08-01T22:58:20Z	independent-review	PASS	.github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence/pre-delivery-review.md

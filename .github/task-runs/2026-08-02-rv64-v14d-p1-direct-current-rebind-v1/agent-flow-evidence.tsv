@@ -1,0 +1,4 @@
+2026-08-02T07:21:08Z	p1-direct-current	PASS	.github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/p1-direct-1/receipt.json
+2026-08-02T07:21:15Z	independent-review	PASS	.github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/reviewer-result.md
+2026-08-02T07:21:19Z	section13-architecture	GAP	.github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/section13-current-1/section13-current-audit.json
+2026-08-02T07:21:25Z	final-audit	PASS	.github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/final-audit-1/audit.json

@@ -1,0 +1,14 @@
+.github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-focused.sh
+.github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/run-v8y-mutations.py
+npc/rv64/eval/ppa/tools/speculation_recovery_evidence.py
+npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py
+.github/memory/known-issues.md
+.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/subagent-contracts/v13v-ooo4-frozen-final-review.json
+npc/rv64/eval/ppa/tests/test_speculation_recovery_evidence.py
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/task-report.md
+.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/dispatch-log.md
+.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/evidence/pre-delivery-review.md
+.github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1/subagent-contracts/v13v-ooo4-frozen-final-review-v2.json

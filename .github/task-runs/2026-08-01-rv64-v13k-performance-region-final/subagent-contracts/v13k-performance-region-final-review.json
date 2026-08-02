@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13k-performance-region-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 仿真观测链的 termination-time region FINAL 与 performance-evidence-v4 parser/policy：重点寻找提前或重复 FINAL、post-end hit 漂移、同拍 lane0 到 lane1 边界、零周期性能区域、contract digest/id/eligibility 旁路、历史 v3 兼容破坏和越级 baseline 声明反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/eval/ppa/tools/check.py",
+      "npc/rv64/eval/ppa/tests/test_policy_tools.py",
+      "npc/rv64/eval/ppa/tests/fixtures/coremark-valid.log",
+      "npc/rv64/eval/ppa/tests/fixtures/dhrystone-valid.log",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "npc/rv64/eval/ppa/README.md",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/arch/performance-measurement-contract.md",
+      ".github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/coremark-v4-current.raw.log",
+      ".github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/coremark-v4-timeout-negative.log",
+      ".github/task-runs/2026-08-01-rv64-v13k-performance-region-final/evidence/dummy-v4-same-cycle.raw.log",
+      ".github/task-runs/2026-08-01-rv64-v13k-performance-region-final/subagent-contracts/v13k-performance-region-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/eval/ppa/tools/check.py",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 host simulator 对象、周期/配置、raw log/TB 观测和 PASS/GAP 范围给出独立终审；列出可操作反例、unknowns、confidence_and_basis 与必要 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认首次 end 不再输出权威 RESULT，FINAL 只在 report_summary 终止路径发出并携带最终 hit；同拍 lane0/lane1 有序边界可完整表示而性能 parser 拒绝零周期；v4 唯一 FINAL/termination/total-hit、policy contract path/id/SHA/eligibility 均 fail-closed；历史 v3 仅显式选择时兼容；不得把单次 CoreMark smoke 晋级为三次 qualified baseline。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

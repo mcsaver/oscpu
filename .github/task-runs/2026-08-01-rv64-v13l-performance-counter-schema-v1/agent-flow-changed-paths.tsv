@@ -1,0 +1,15 @@
+npc/rv64/vsrc/sim/NpcSimTop.sv
+npc/rv64/csrc/cpu/cpu-exec.cpp
+npc/rv64/design/arch/performance-counter-schema-v1.json
+npc/rv64/design/arch/performance-counter-schema.md
+npc/rv64/design/arch/performance-measurement-contract-v1.json
+npc/rv64/eval/ppa/tools/check.py
+npc/rv64/eval/ppa/tests/test_policy_tools.py
+npc/rv64/eval/ppa/tests/fixtures/coremark-valid.log
+npc/rv64/eval/ppa/tests/fixtures/dhrystone-valid.log
+npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json
+npc/rv64/eval/ppa/README.md
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/verification-result.json
+.github/task-runs/2026-08-01-rv64-v13l-performance-counter-schema-v1/reviewer-result.md

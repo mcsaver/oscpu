@@ -2,7 +2,9 @@
   "claim_boundary": "Candidate evidence is classified per census unit and elaborated product instance. No candidate evidence set is sufficient by itself to promote global no-live-reuse, whole-architecture GREEN, or PPA.",
   "counts": {
     "evidence_binding_states": {
-      "CURRENT_SELECTED_SOURCE_AND_TB_BOUND": 19,
+      "CURRENT_FULL_RTL_BOUND": 3,
+      "CURRENT_SELECTED_MACRO_PROJECTION_BOUND": 1,
+      "CURRENT_SELECTED_SOURCE_AND_TB_BOUND": 17,
       "HISTORICAL_FULL_RTL_BOUND": 1,
       "HISTORICAL_SELECTED_SOURCE_BOUND": 1,
       "STALE_RTL_SOURCE": 3
@@ -11,12 +13,12 @@
     "ledger_only_units": 0,
     "semantic_units": 44,
     "unit_instance_bindings": 50,
-    "units_semantic_gap": 8,
-    "units_semantic_pass": 36,
+    "units_semantic_gap": 0,
+    "units_semantic_pass": 44,
     "units_with_candidate_evidence": 44,
     "units_without_candidate_evidence": 0
   },
-  "design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
   "duplicate_instance_modules": [
     "OooMemAxiBridge",
     "OooMemInflightQueue"
@@ -25,18 +27,18 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/summary.json",
-          "sha256": "b41598a5ee849033080c1d870c4f3cac3dba83d171a6c4384758b3bf234b57e5",
-          "size_bytes": 7020
+          "path": ".github/task-runs/2026-08-01-rv64-v12a-holder-cohort-rebind/evidence/terminal-collector-current-attempt-3/summary.json",
+          "sha256": "a46b9b204bfb50b67c5d9eb356117722d6ead2548e311095dc8948759fa534e2",
+          "size_bytes": 6468
         },
         {
-          "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/sources.pre.sha256",
-          "sha256": "92db2e49c66aef5e95076542fffdd83379f96c9672c5c6550009f08fab23a306",
+          "path": ".github/task-runs/2026-08-01-rv64-v12a-holder-cohort-rebind/evidence/terminal-collector-current-attempt-3/sources.pre.sha256",
+          "sha256": "a5bb0a49ee80cbb93f8d14a2fa7dea6823614c6280491a928debf89a61344b3a",
           "size_bytes": 1332
         },
         {
-          "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/evidence/terminal-collector-attempt-3/sources.post.sha256",
-          "sha256": "92db2e49c66aef5e95076542fffdd83379f96c9672c5c6550009f08fab23a306",
+          "path": ".github/task-runs/2026-08-01-rv64-v12a-holder-cohort-rebind/evidence/terminal-collector-current-attempt-3/sources.post.sha256",
+          "sha256": "a5bb0a49ee80cbb93f8d14a2fa7dea6823614c6280491a928debf89a61344b3a",
           "size_bytes": 1332
         }
       ],
@@ -44,15 +46,16 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 3,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+        "compiled_images_retained": 0,
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "ingress_lanes": 12,
         "positive_profiles": 2,
         "rtl_file_count": 146,
         "selected_bindings": [
           {
-            "evidence_sha256": "e4dfea8eb5bf053a2a027e5225e0e1cfa44a21571643fe71707644ccc92a2108",
-            "live_sha256": "e4dfea8eb5bf053a2a027e5225e0e1cfa44a21571643fe71707644ccc92a2108",
+            "evidence_sha256": "283cc43b7dde240b3d12c9c61820afe8b9577d737468508b7a4a26a848710bd0",
+            "live_sha256": "283cc43b7dde240b3d12c9c61820afe8b9577d737468508b7a4a26a848710bd0",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
             "role": "testbench"
@@ -107,7 +110,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": false,
         "positive_profiles": 2,
@@ -169,7 +172,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": true,
         "positive_profiles": 4,
@@ -220,13 +223,18 @@
           "path": ".github/task-runs/2026-07-30-rv64-v11e-rob-slot-generation-semantic-coverage/evidence/slot-generation-attempt-3/sources.post.sha256",
           "sha256": "17c8664a0c6ba1979bfac8f9448205dd2efebefa87d0033de787bf398a6a1f1f",
           "size_bytes": 1888
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/define-projection-current/receipt.json",
+          "sha256": "ecf5fdcb100f4caf35af9a359f7888e985d439196656d1bc6c561323e7096fab",
+          "size_bytes": 67789
         }
       ],
       "binding_kind": "v11e_rob_slot_generation",
-      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "binding_state": "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 17,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "generation_widths": [
           1,
@@ -236,6 +244,11 @@
         "positive_profiles": 4,
         "rob_slot_generation_closed": true,
         "rtl_file_count": 146,
+        "selected_binding_compatibility_receipt": {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/define-projection-current/receipt.json",
+          "sha256": "ecf5fdcb100f4caf35af9a359f7888e985d439196656d1bc6c561323e7096fab",
+          "size_bytes": 67789
+        },
         "selected_bindings": [
           {
             "evidence_sha256": "6c5881089fc1437d40f15532279dde1e0c8b1359d4bd5c47ff03b4886a87f4f5",
@@ -252,11 +265,17 @@
             "role": "rtl"
           },
           {
+            "compatibility_receipt": {
+              "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/define-projection-current/receipt.json",
+              "sha256": "ecf5fdcb100f4caf35af9a359f7888e985d439196656d1bc6c561323e7096fab",
+              "size_bytes": 67789
+            },
             "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "matches_live": true,
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "matches_live": false,
             "path": "npc/rv64/vsrc/include/define.v",
-            "role": "rtl"
+            "role": "rtl",
+            "semantic_projection_match": true
           },
           {
             "evidence_sha256": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -286,27 +305,27 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/evidence/int-iq-producer-attempt-3/summary.json",
-          "sha256": "89eb9d8e126b81cf0441640320c1df9f47101c05cfd0e7754fb2deda886b41ce",
-          "size_bytes": 104280
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11f-int-iq-current/summary.json",
+          "sha256": "f131dfd9b729fddbe236d1586b054e228e52da54af22e0738965dbfaa11f75e5",
+          "size_bytes": 100368
         },
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/evidence/int-iq-producer-attempt-3/sources.pre.sha256",
-          "sha256": "a63a63c07fffde49be62ebcfeeb6f02d97fc5141d7b61c9e7bbdfbb2b47c7747",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11f-int-iq-current/sources.pre.sha256",
+          "sha256": "738a69c87f547dcd65fe4f8362522fa14993b6bbef6f20a28d51cbac3d284cbb",
           "size_bytes": 1900
         },
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11f-int-iq-producer-semantic-coverage/evidence/int-iq-producer-attempt-3/sources.post.sha256",
-          "sha256": "a63a63c07fffde49be62ebcfeeb6f02d97fc5141d7b61c9e7bbdfbb2b47c7747",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11f-int-iq-current/sources.post.sha256",
+          "sha256": "738a69c87f547dcd65fe4f8362522fa14993b6bbef6f20a28d51cbac3d284cbb",
           "size_bytes": 1900
         }
       ],
       "binding_kind": "v11f_int_iq_producer",
-      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "binding_state": "CURRENT_FULL_RTL_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 20,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
           4
@@ -318,22 +337,22 @@
         "rtl_file_count": 146,
         "selected_bindings": [
           {
-            "evidence_sha256": "cb8e875f772157de0651c0582184c78b4820627ab8b1a2dce56cc604c77e9d2c",
-            "live_sha256": "cb8e875f772157de0651c0582184c78b4820627ab8b1a2dce56cc604c77e9d2c",
+            "evidence_sha256": "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319",
+            "live_sha256": "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
             "role": "testbench"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
-            "live_sha256": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b",
+            "evidence_sha256": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70",
+            "live_sha256": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70",
             "matches_live": true,
             "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
             "role": "rtl"
@@ -359,27 +378,27 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/evidence/store-queue-holder-attempt-1/summary.json",
-          "sha256": "cb6d3d9061b008cc716024202886529ebde2e18babcfec5751767f0d80cf817d",
-          "size_bytes": 120214
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11g-store-queue-current/summary.json",
+          "sha256": "41765f86a238b5ad9eeb3327d5b770d0afa51f1e5cdafd3ca2c96e50a819f7f4",
+          "size_bytes": 115282
         },
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/evidence/store-queue-holder-attempt-1/sources.pre.sha256",
-          "sha256": "baa89689a63a464cbcad78a819ee021cf17e923687e1997d11537341bf3a9521",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11g-store-queue-current/sources.pre.sha256",
+          "sha256": "ae6ff78de97e47e731f0b08b8fabd8c493e47fa87f2aef6075fc4a0fb7921001",
           "size_bytes": 2003
         },
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11g-store-queue-holder-semantic-coverage/evidence/store-queue-holder-attempt-1/sources.post.sha256",
-          "sha256": "baa89689a63a464cbcad78a819ee021cf17e923687e1997d11537341bf3a9521",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11g-store-queue-current/sources.post.sha256",
+          "sha256": "ae6ff78de97e47e731f0b08b8fabd8c493e47fa87f2aef6075fc4a0fb7921001",
           "size_bytes": 2003
         }
       ],
       "binding_kind": "v11g_store_queue_holder",
-      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "binding_state": "CURRENT_FULL_RTL_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 24,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
           4
@@ -391,22 +410,22 @@
         "rtl_file_count": 146,
         "selected_bindings": [
           {
-            "evidence_sha256": "86ea1b71c03071c965fc09af1068475d0c0bca314b73b6b4338bb23ab1516fb0",
-            "live_sha256": "86ea1b71c03071c965fc09af1068475d0c0bca314b73b6b4338bb23ab1516fb0",
+            "evidence_sha256": "6968ad0699be59e7166064bcf62033d655185c688cb52aa4cf80d8536cb67823",
+            "live_sha256": "6968ad0699be59e7166064bcf62033d655185c688cb52aa4cf80d8536cb67823",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
             "role": "testbench"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -428,33 +447,28 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-30-rv64-v11h-load-queue-producer-semantic-coverage/evidence/load-queue-producer-attempt-4/summary.json",
-          "sha256": "951a2116e746f0feb7c38cfecc8b6412c9ba3f9e5f3bb0a5b6dcc3473c485759",
-          "size_bytes": 114253
-        },
-        {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/v11h-checker-replay-current.json",
-          "sha256": "cdaf143545ac8aed387a22d8b498ea2b2b41b990580444276a3a067f7c6bc218",
-          "size_bytes": 8996
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11h-load-queue-current/summary.json",
+          "sha256": "6252c35927fae3c3e95655716b1e89e2f83a521796e2b17f05d1295b2e3d8fc3",
+          "size_bytes": 111559
         }
       ],
       "binding_kind": "v11h_load_queue_producer",
-      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "binding_state": "CURRENT_FULL_RTL_BOUND",
       "detail": {
         "checker_replay": {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-          "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-          "evidence_design_id": "sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f",
-          "frozen_mutation_simulations": 62,
-          "frozen_positive_profiles": 4,
-          "frozen_raw_q_knownness_assertion_probes": 1,
-          "original_attempt": 4,
-          "original_fail_preserved": true,
-          "rtl_simulation_reexecuted": false,
+          "binding_state": "CURRENT_FULL_RTL_BOUND",
+          "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+          "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+          "historical_checker_replay_required": false,
+          "mode": "DIRECT_CURRENT_RTL_EXECUTION",
+          "mutation_simulations": 62,
+          "positive_profiles": 4,
+          "raw_q_knownness_assertion_probes": 1,
+          "rtl_simulation_reexecuted": true,
           "selected_bindings": [
             {
-              "evidence_sha256": "4db5d72e800682427c78b47029275eda9c0def2f416261ecb3ecc9a5a07ffbe3",
-              "live_sha256": "4db5d72e800682427c78b47029275eda9c0def2f416261ecb3ecc9a5a07ffbe3",
+              "evidence_sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74",
+              "live_sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74",
               "matches_live": true,
               "path": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
               "role": "testbench"
@@ -467,8 +481,8 @@
               "role": "testbench"
             },
             {
-              "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-              "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+              "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+              "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
               "matches_live": true,
               "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
               "role": "rtl"
@@ -479,8 +493,8 @@
           "system_rerun_required_before_system_promotion": true
         },
         "compile_success_mutation_cases_rejected": 31,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:78f154580593b5a3442ed6cf5ca2159ef18779a3903a70e816f34a7e1aff481f",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
           4
@@ -495,8 +509,8 @@
         "rtl_file_count": 146,
         "selected_bindings": [
           {
-            "evidence_sha256": "4db5d72e800682427c78b47029275eda9c0def2f416261ecb3ecc9a5a07ffbe3",
-            "live_sha256": "4db5d72e800682427c78b47029275eda9c0def2f416261ecb3ecc9a5a07ffbe3",
+            "evidence_sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74",
+            "live_sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
             "role": "testbench"
@@ -509,8 +523,8 @@
             "role": "testbench"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -535,32 +549,32 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11j-bridge-rebind-current/summary.json",
-          "sha256": "bd3814b0a16a06942e4f476bb0aede946cc17c126671254a1e451e118eb9de55",
-          "size_bytes": 114013
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11j-bridge-current/summary.json",
+          "sha256": "4b4cfb91ede6762c0cbebe0a2238947285c2a10ad948fa1749e6bcb7ae18791e",
+          "size_bytes": 112928
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11j-bridge-rebind-current/source-before.sha256",
-          "sha256": "462fa6ef3486470a335da12f9695b514a16de205a7a95ee43eae69b6b07173d8",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11j-bridge-current/source-before.sha256",
+          "sha256": "f2d7eb30bf7a7e33656ad1419ede3ee81282c845b3a772f2bd7ef81e35f95058",
           "size_bytes": 1877
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11j-bridge-rebind-current/source-after.sha256",
-          "sha256": "462fa6ef3486470a335da12f9695b514a16de205a7a95ee43eae69b6b07173d8",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11j-bridge-current/source-after.sha256",
+          "sha256": "f2d7eb30bf7a7e33656ad1419ede3ee81282c845b3a772f2bd7ef81e35f95058",
           "size_bytes": 1877
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11j-bridge-rebind-current/regressions/summary.json",
-          "sha256": "268471dc5b221fb5c31d089eb15f0740dfe5df472402efdb43a488e88d4125b6",
-          "size_bytes": 1322
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11j-bridge-current/regressions/summary.json",
+          "sha256": "560fa06d8758b572db9ae63204a65a961adaf912f228a15db464d5ea3e30272a",
+          "size_bytes": 1292
         }
       ],
       "binding_kind": "v11j_bridge_holder",
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 13,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_residency_set_membership_closed": true,
         "mutation_simulations_rejected": 26,
         "ordinary_regressions_passed": 3,
@@ -586,8 +600,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
-            "live_sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+            "evidence_sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348",
+            "live_sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
             "role": "rtl"
@@ -620,24 +634,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11k-miq-rebind-current/summary.json",
-          "sha256": "b9472d571901eeaaee03a3774bcac762427ba766de808177dca815a90fbacb4c",
-          "size_bytes": 96380
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11k-miq-current/summary.json",
+          "sha256": "bad69811a357093e82d18af5ca22f5cf219188a9bb3ec7f2d118de8b9fcbba82",
+          "size_bytes": 95253
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11k-miq-rebind-current/source-before.sha256",
-          "sha256": "459511f4605b5393d2d56b0841b6113cbc21f0b2aecc251e94bed6cf4649df2f",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11k-miq-current/source-before.sha256",
+          "sha256": "a8d64769e552ea2eb1254221079419911def0a6c1fa901e9edc6207f07255f39",
           "size_bytes": 5141
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11k-miq-rebind-current/source-after.sha256",
-          "sha256": "459511f4605b5393d2d56b0841b6113cbc21f0b2aecc251e94bed6cf4649df2f",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11k-miq-current/source-after.sha256",
+          "sha256": "a8d64769e552ea2eb1254221079419911def0a6c1fa901e9edc6207f07255f39",
           "size_bytes": 5141
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11k-miq-rebind-current/regressions/summary.json",
-          "sha256": "795c7faa38e95ce807c4cc6fc25bc5aeac4a488c188da7ec0484ec262c20ae6c",
-          "size_bytes": 16284
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11k-miq-current/regressions/summary.json",
+          "sha256": "139f6d2ff37d1a7e79f93fd80a4f5fa97afcb1c284c62a9f3c2e82ac0340c2e6",
+          "size_bytes": 16225
         },
         {
           "path": ".github/task-runs/2026-07-30-rv64-v11k-holder-semantic-next/evidence/elaborated-logic-identity.json",
@@ -650,8 +664,8 @@
       "detail": {
         "capture_hold_cross_reject_flush_kill_consume_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_occupancy_set_membership_closed": true,
         "interface_probe_simulations": 8,
         "interface_xz_probe_cases": 4,
@@ -682,8 +696,8 @@
             "role": "testbench"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
@@ -717,24 +731,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11l-rebind-current/summary.json",
-          "sha256": "0a879029725452a967db8779fb8ae27ec52e8e3b4373c91a9b8cbc9e09daa4c3",
-          "size_bytes": 417067
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11l-memory-retry-current/summary.json",
+          "sha256": "750902a3040fc9d37bf5a2875cf30040eb1ea5c4d8184df7e418fb0fe9086789",
+          "size_bytes": 417687
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11l-rebind-current/source-before.sha256",
-          "sha256": "823e1be78270602597f240ade9b7efc3d3b11f3e34eb11cfbdef3bfa220590a0",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11l-memory-retry-current/source-before.sha256",
+          "sha256": "16dc60ee36992f87b422e5da8d101268509f4d824e73ce16d4fc2af93484644f",
           "size_bytes": 4905
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11l-rebind-current/source-after.sha256",
-          "sha256": "823e1be78270602597f240ade9b7efc3d3b11f3e34eb11cfbdef3bfa220590a0",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11l-memory-retry-current/source-after.sha256",
+          "sha256": "16dc60ee36992f87b422e5da8d101268509f4d824e73ce16d4fc2af93484644f",
           "size_bytes": 4905
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11l-rebind-current/regressions/summary.json",
-          "sha256": "f1718393425d5a037b10fd704b4835b7b1fcffc60aca67f8b74e1e5f6af349c9",
-          "size_bytes": 34330
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11l-memory-retry-current/regressions/summary.json",
+          "sha256": "8ae8ac66a99da58b593dd5c5db69dadff89e73f6a37ee88397a80067772470bd",
+          "size_bytes": 34364
         }
       ],
       "binding_kind": "v11l_memory_retry_holder",
@@ -743,8 +757,8 @@
         "c0_empty_and_resident_barriers_closed": true,
         "capture_hold_transfer_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 32,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "flush_cancel_over_fire_priority_closed": true,
         "lane10_lane11_cancel_terminal_closed": true,
         "mutation_simulations_rejected": 32,
@@ -753,12 +767,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -771,15 +785,15 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -806,8 +820,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -837,24 +851,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11m-rebind-current/summary.json",
-          "sha256": "d6f5d43dbb697d0a0210214afe319fe5db97ffbaec033327fa3cf98d03e86870",
-          "size_bytes": 469750
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11m-memory-reservation-current/summary.json",
+          "sha256": "336ef60750ea2f5a2ae5ec3e30139ac73060ffca3d6b2fc5a9fe0b7b352aadc4",
+          "size_bytes": 471872
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11m-rebind-current/source-before.sha256",
-          "sha256": "a17aa6ec2ca1495c2ea386c1771ba57ebdad8251f498f5a73d2bbdb04f264ae0",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11m-memory-reservation-current/source-before.sha256",
+          "sha256": "5cbb354a4cfb1add310b71e03ee1640e49a626012190ce8e6f169caeda195b17",
           "size_bytes": 4825
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11m-rebind-current/source-after.sha256",
-          "sha256": "a17aa6ec2ca1495c2ea386c1771ba57ebdad8251f498f5a73d2bbdb04f264ae0",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11m-memory-reservation-current/source-after.sha256",
+          "sha256": "5cbb354a4cfb1add310b71e03ee1640e49a626012190ce8e6f169caeda195b17",
           "size_bytes": 4825
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11m-rebind-current/regressions/summary.json",
-          "sha256": "ce054308a956285a4ec1e2374feac8512e00a3c1f2be3c0743a9937eda6e83dd",
-          "size_bytes": 34366
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11m-memory-reservation-current/regressions/summary.json",
+          "sha256": "95d0e37b4f35e9976f924463dc9a478e5e3586df11968e0959b6068cca609054",
+          "size_bytes": 34466
         }
       ],
       "binding_kind": "v11m_memory_reservation_holder",
@@ -863,8 +877,8 @@
         "a3_frozen_evidence_unchanged": true,
         "capture_hold_request_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 37,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "lane6_lane7_accepted_terminal_closed": true,
         "mutation_simulations_rejected": 37,
         "ordinary_regressions_passed": 3,
@@ -873,12 +887,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -891,15 +905,15 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -926,8 +940,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -957,24 +971,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11n-rebind-current/summary.json",
-          "sha256": "d6d204ede700f5b0393c5fda25fa0b1cd259c235a8e72da487d0baee2d0ced4b",
-          "size_bytes": 353079
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11n-memory-pending-current/summary.json",
+          "sha256": "f172828d19e473a67a0b187ce6d91c982fe7e2ba0d17f8952aa488192832d3a3",
+          "size_bytes": 353886
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11n-rebind-current/source-before.sha256",
-          "sha256": "0869f2e5d2398cc1583889d05f6b0aedfae993361ec022fd7731ba8eedff7203",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11n-memory-pending-current/source-before.sha256",
+          "sha256": "db2a738a4092534914fad843d85584962580ebd716663a39445b2ca233211afa",
           "size_bytes": 4957
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11n-rebind-current/source-after.sha256",
-          "sha256": "0869f2e5d2398cc1583889d05f6b0aedfae993361ec022fd7731ba8eedff7203",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11n-memory-pending-current/source-after.sha256",
+          "sha256": "db2a738a4092534914fad843d85584962580ebd716663a39445b2ca233211afa",
           "size_bytes": 4957
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11n-rebind-current/regressions/summary.json",
-          "sha256": "a1b3bc41f1a61dd7013dc6364b1363a9b18189647c98e7f6c8678d99db14e7c1",
-          "size_bytes": 34366
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11n-memory-pending-current/regressions/summary.json",
+          "sha256": "2d68c388f57f53f65bccafd1d462dd6fbaa51097b2279c70cc032c01d63b793d",
+          "size_bytes": 34422
         }
       ],
       "binding_kind": "v11n_memory_pending_holder",
@@ -983,9 +997,9 @@
         "a3_checker_replay": "PASS_INDEPENDENT",
         "a3_original_status": "FAIL_RETAINED",
         "compile_success_mutation_cases_rejected": 13,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "dispatch_lane1_to_execution_terminal0_closed": true,
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "lane0_lane9_accepted_terminal_closed": true,
         "mutation_simulations_rejected": 26,
         "ordinary_regressions_passed": 3,
@@ -993,12 +1007,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "read_write_hold_and_terminal_death_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1011,15 +1025,15 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -1046,8 +1060,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -1075,39 +1089,39 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/summary.json",
-          "sha256": "740883600b3da7e1c4a0990259906058baf7ed72e40733b5b6900f4ddfff93d1",
-          "size_bytes": 250905
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/summary.json",
+          "sha256": "05fcfe1f3983deaa2f3705b031169b8ff3bf28bfd2047f7e1234c17b3cafdfbb",
+          "size_bytes": 251395
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/source-before.sha256",
-          "sha256": "aac56491fa8abb967ce0ba0b87ed4df69af491d039f89ea4e4a22676d5f01a3c",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/source-before.sha256",
+          "sha256": "1b524c142a7381fa304f03ce419d8b306236b73d5e4f22e0ca4df6e700e9b401",
           "size_bytes": 5861
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/source-after.sha256",
-          "sha256": "aac56491fa8abb967ce0ba0b87ed4df69af491d039f89ea4e4a22676d5f01a3c",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/source-after.sha256",
+          "sha256": "1b524c142a7381fa304f03ce419d8b306236b73d5e4f22e0ca4df6e700e9b401",
           "size_bytes": 5861
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/regressions/summary.json",
-          "sha256": "04e364c4094e171a1dcb7114b5b8bf8731a489931001de5e8ee02579c028f1c5",
-          "size_bytes": 34366
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/regressions/summary.json",
+          "sha256": "b7ab0a3b985d0ebada331f13ec7be340f84801148580cf767da99e4d34388217",
+          "size_bytes": 34411
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/product-reachability/receipt.json",
-          "sha256": "78ddcb62df5746715dda1785a3333f4d7f3fbecc37e297a0a6840d75c7102481",
-          "size_bytes": 3099
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/product-reachability/receipt.json",
+          "sha256": "c1ef732bcf9c431c0f24c0dc9499289728a2a279a04c323a7595c7fcd6773083",
+          "size_bytes": 3107
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/product-reachability/current-instance-graph/yosys-instance-graph-receipt.json",
-          "sha256": "14483d57b83ec12553ac151cf927ab537e6cce781e15fc596e01f93d193e38cc",
-          "size_bytes": 60071
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/product-reachability/current-instance-graph/yosys-instance-graph-receipt.json",
+          "sha256": "155c57d3f9a9a4133c7ac1d93110a042fc54e46dbb3cf730008d7cd2b258a2ad",
+          "size_bytes": 60087
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11o-rebind-current/product-reachability/current-instance-graph/yosys-instance-graph.full.json.gz",
-          "sha256": "cf5368af9457c82f5d86984eca371a588ab5a66e923b5a33281ee8a08d9286eb",
-          "size_bytes": 27776533
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11o-memory-buffer-current/product-reachability/current-instance-graph/yosys-instance-graph.full.json.gz",
+          "sha256": "483309c8f665a46eb78a0657200fd06ba6990e94324da2865eee48947828d9d2",
+          "size_bytes": 17327797
         }
       ],
       "binding_kind": "v11o_memory_buffer_token",
@@ -1116,8 +1130,8 @@
         "a3_checker_replay": "PASS_INDEPENDENT",
         "a3_original_status": "FAIL_RETAINED",
         "compile_success_mutation_cases_rejected": 8,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "legacy_hold_transfer_cancel_death_closed": true,
         "legacy_lane0_lane1_birth_closed": true,
         "mutation_simulations_rejected": 16,
@@ -1129,11 +1143,11 @@
         ],
         "product_parameter_chain_closed": true,
         "product_static_negative_tests": 8,
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1181,15 +1195,15 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -1216,8 +1230,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -1243,24 +1257,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11p-rebind-current/summary.json",
-          "sha256": "e0fadb42447be8ceca6591819d4a6b259708a1a5f4188ad9b11ecd22df6501bc",
-          "size_bytes": 284949
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11p-checkpoint-current/summary.json",
+          "sha256": "0ecb076831a83cd4605a2110f833d78d918f0cea09528cbef653af37a4c9baef",
+          "size_bytes": 285075
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11p-rebind-current/source-before.sha256",
-          "sha256": "50d1ab47e039eac95d6fd3bb2d977dd282baffb7fcf9854d34bad8485978415c",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11p-checkpoint-current/source-before.sha256",
+          "sha256": "6952b7ad06cb90091fc9f601499010043b25706d4b93b5db963abfa689f15947",
           "size_bytes": 5107
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11p-rebind-current/source-after.sha256",
-          "sha256": "50d1ab47e039eac95d6fd3bb2d977dd282baffb7fcf9854d34bad8485978415c",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11p-checkpoint-current/source-after.sha256",
+          "sha256": "6952b7ad06cb90091fc9f601499010043b25706d4b93b5db963abfa689f15947",
           "size_bytes": 5107
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11p-rebind-current/regressions/summary.json",
-          "sha256": "154b10760fb157dbd4f17ba1f3c85ac11bf1f9f4d585b56726d7f10b06f60427",
-          "size_bytes": 34366
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11p-checkpoint-current/regressions/summary.json",
+          "sha256": "02db31e1095ea28202a040c90ce327e74c16bc04e2f2bcc20d65f8b080e8a9cb",
+          "size_bytes": 34378
         }
       ],
       "binding_kind": "v11p_checkpoint_irrevocable_write",
@@ -1270,8 +1284,8 @@
         "a3_original_status": "FAIL_RETAINED",
         "amo_tracker_death_before_retire_closed": true,
         "compile_success_mutation_cases_rejected": 10,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "full_width_lane0_retire_guard_closed": true,
         "mutation_simulations_rejected": 20,
         "ordinary_regressions_passed": 3,
@@ -1280,12 +1294,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "restore_gate_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1298,15 +1312,15 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
           },
           {
-            "evidence_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
-            "live_sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
+            "evidence_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+            "live_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
             "role": "rtl"
@@ -1333,8 +1347,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
-            "live_sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241",
+            "evidence_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
+            "live_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
             "matches_live": true,
             "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
             "role": "rtl"
@@ -1361,24 +1375,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11q-rebind-current/summary.json",
-          "sha256": "b14b909d580dc91a28c007abf8689660cd7ad2ac9aaa8f15a95d6c448099b44b",
-          "size_bytes": 325534
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11q-int-lane0-current/summary.json",
+          "sha256": "68450bb46af217e5fdbea2ac7568471371c9fb89f584c227c869277d79c7dfcc",
+          "size_bytes": 325533
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11q-rebind-current/source-before.sha256",
-          "sha256": "ad5d7c2e5ca80eb1e89cf8ea3589747a8c63436bae6c45cf3c6ebdd6a26f3205",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11q-int-lane0-current/source-before.sha256",
+          "sha256": "b4482dfd1e8806c34100d5d28e77071a65532a2d53a323aa79a24bce17d4b603",
           "size_bytes": 5083
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11q-rebind-current/source-after.sha256",
-          "sha256": "ad5d7c2e5ca80eb1e89cf8ea3589747a8c63436bae6c45cf3c6ebdd6a26f3205",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11q-int-lane0-current/source-after.sha256",
+          "sha256": "b4482dfd1e8806c34100d5d28e77071a65532a2d53a323aa79a24bce17d4b603",
           "size_bytes": 5083
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/v11q-rebind-current/regressions/summary.json",
-          "sha256": "18ec6a7c4845589044c22cbbbc5f9d437a3d8d48c4ed7154610ed4f53861f84f",
-          "size_bytes": 34366
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11q-int-lane0-current/regressions/summary.json",
+          "sha256": "b80c73fafb7c9e92a6db2faa512426d7ff21e389428e203885cf24883ec6d42b",
+          "size_bytes": 34367
         }
       ],
       "binding_kind": "v11q_int_lane0_packet",
@@ -1388,8 +1402,8 @@
         "a3_original_status": "FAIL_RETAINED",
         "branch_resolve_packet_fields_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex0_packed_alias_closed": true,
         "ex0_raw_packet_fields_closed": true,
         "mutation_simulations_rejected": 24,
@@ -1398,13 +1412,13 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "raw_ex0_resolve_full_pid_coherence_closed": true,
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1417,8 +1431,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
@@ -1455,24 +1469,24 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/focused-attempt-1/summary.json",
-          "sha256": "90264425dd6704f087c73d8bc11ac03d49474e6df5261f180efa939bc992cb97",
-          "size_bytes": 369400
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11r-int-lane1-current/summary.json",
+          "sha256": "f0d2c0bbed56c45a77efd81a1a2ef06ac894b450262681ec177af8b05a95ac9f",
+          "size_bytes": 369747
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/focused-attempt-1/source-before.sha256",
-          "sha256": "4e92116fc9f00a2807c4365f6673c2c4c96eb512090a79f3ab7389e7402fddde",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11r-int-lane1-current/source-before.sha256",
+          "sha256": "5bf5b47949b481f73a79b20745a59bb587aa38a01afae2b661a29354092a0ae9",
           "size_bytes": 5083
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/focused-attempt-1/source-after.sha256",
-          "sha256": "4e92116fc9f00a2807c4365f6673c2c4c96eb512090a79f3ab7389e7402fddde",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11r-int-lane1-current/source-after.sha256",
+          "sha256": "5bf5b47949b481f73a79b20745a59bb587aa38a01afae2b661a29354092a0ae9",
           "size_bytes": 5083
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11r-int-lane1-completion-packet-semantic/evidence/focused-attempt-1/regressions/summary.json",
-          "sha256": "99ca1574e45010a3e66c5250e5e145046699948bc42211eaa89bfd1666683ddf",
-          "size_bytes": 34344
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11r-int-lane1-current/regressions/summary.json",
+          "sha256": "c68665c05f5a1c59a636094e2cbc6fd0a1b2a2fbfcd138c181051f3260c71bd2",
+          "size_bytes": 34367
         }
       ],
       "binding_kind": "v11r_int_lane1_packet",
@@ -1485,8 +1499,8 @@
         "a3_original_status": "FAIL_RETAINED",
         "a3_terminal_state": "COMPLETE",
         "compile_success_mutation_cases_rejected": 14,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex1_alu_source_closed": true,
         "ex1_local_memory_source_closed": true,
         "ex1_packed_alias_closed": true,
@@ -1498,12 +1512,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1516,8 +1530,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
@@ -1553,29 +1567,29 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/summary.json",
-          "sha256": "2eb4984961fe34bdac751ae2dfb455de7c9256dd03bab4c31e25de0948a8e93b",
-          "size_bytes": 274436
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11s-muldiv-current/summary.json",
+          "sha256": "de1cbee9b03f18dd8a2dc05b00e4d38b14e359eb445f791d93e967114efd123f",
+          "size_bytes": 276258
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/source-before.sha256",
-          "sha256": "e2835dbc1f7e49dce10f8d168eeb93694d0b46e2a6669b90297595fd14cedff1",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11s-muldiv-current/source-before.sha256",
+          "sha256": "7f0441d13e2ef1aabcafa9142c823d87271de09c2205306ca6ae4bbae282edd1",
           "size_bytes": 5329
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/source-after.sha256",
-          "sha256": "e2835dbc1f7e49dce10f8d168eeb93694d0b46e2a6669b90297595fd14cedff1",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11s-muldiv-current/source-after.sha256",
+          "sha256": "7f0441d13e2ef1aabcafa9142c823d87271de09c2205306ca6ae4bbae282edd1",
           "size_bytes": 5329
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/generated/tb_ooo_int_backend_v11s_muldiv_producer.sv",
-          "sha256": "604e9a3c7cd45dcb586ba17c97c37927065f88aacd6a822adc4ae6721f96188e",
-          "size_bytes": 873574
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11s-muldiv-current/generated/tb_ooo_int_backend_v11s_muldiv_producer.sv",
+          "sha256": "ef93f07ea618e476c36b27cd995fe697d9e0a10f113b8e7a8f2528ec0d90ff1a",
+          "size_bytes": 903471
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11s-muldiv-producer-semantic/evidence/focused-attempt-4/regressions/summary.json",
-          "sha256": "bc3efb251a9f59e8f15fe5594859431583e2bf7f5e5efbdf2ac40443c53d5c53",
-          "size_bytes": 36806
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11s-muldiv-current/regressions/summary.json",
+          "sha256": "50c23aa70f6385e71ebc46c52859e24d6e1300bcbc3a7662eac57e87ce9ef9cf",
+          "size_bytes": 36960
         }
       ],
       "binding_kind": "v11s_muldiv_producer",
@@ -1589,9 +1603,9 @@
         "a3_terminal_state": "COMPLETE",
         "authorized_wb_and_ordered_retirement_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "eight_younger_dual_issue_pressure_closed": true,
-        "evidence_design_id": "sha256:b0c794797242aba9bcd93079b269d843f4f27b85bc6b93623d4a6c4f2b0e1043",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
         "focused_testbench_overlay_reconstructed": true,
         "leaf_kill_and_functional_regression_closed": true,
@@ -1602,12 +1616,12 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_muldiv_unit"
         ],
-        "production_design_id_current": false,
+        "production_design_id_current": true,
         "request_capture_and_holder_residency_closed": true,
         "selected_bindings": [
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1641,8 +1655,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
@@ -1670,29 +1684,29 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/summary.json",
-          "sha256": "08fbe5360fe0514be54d9b44b08966bc5eb7475ad87d2e9232847ad034d8f163",
-          "size_bytes": 285021
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11t-clmul-current/summary.json",
+          "sha256": "4a5fdf3aa29c5231656cde0f071ebd5cf1dd3e9d758196381274c69cc3d891e0",
+          "size_bytes": 288856
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/source-before.sha256",
-          "sha256": "f5d62b4043e8623a7fad185c62388fda28b5de7dcdcc8c30759a2bb9294d1fbb",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11t-clmul-current/source-before.sha256",
+          "sha256": "1034ff8f27c66f0d2bb4f18cd63ecd551d934b3490fa13f952100cff7045f3b2",
           "size_bytes": 5455
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/source-after.sha256",
-          "sha256": "f5d62b4043e8623a7fad185c62388fda28b5de7dcdcc8c30759a2bb9294d1fbb",
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11t-clmul-current/source-after.sha256",
+          "sha256": "1034ff8f27c66f0d2bb4f18cd63ecd551d934b3490fa13f952100cff7045f3b2",
           "size_bytes": 5455
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/artifact-cleanup.json",
-          "sha256": "1493e7f09d04f52eb302c99bc299f53e5b2d67792a4409ad49e58b5eadaa9a00",
-          "size_bytes": 13337
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11t-clmul-current/artifact-cleanup.json",
+          "sha256": "481337af5824dc4dfe2fe6e3fed753a10880c4c608e4cd90fc1b0c19eff8c79f",
+          "size_bytes": 14021
         },
         {
-          "path": ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/evidence/attempt-2/regressions/summary.json",
-          "sha256": "43fd09a81fa47f6ba24f7cb0b7d763ad78dccab44beb48e85ba9a2ab036f5fc3",
-          "size_bytes": 36671
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11t-clmul-current/regressions/summary.json",
+          "sha256": "02395f7a168347dd1477298515584922f2a004a0b7367c24dd1d4a90a81bf545",
+          "size_bytes": 36938
         }
       ],
       "binding_kind": "v11t_clmul_producer",
@@ -1707,9 +1721,9 @@
         "authorized_wb_and_ordered_retirement_closed": true,
         "clmul_low_and_high_paths_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "eight_younger_pressure_closed": false,
-        "evidence_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
         "focused_testbench_overlay_reconstructed": true,
         "leaf_kill_and_functional_regression_closed": true,
@@ -1731,8 +1745,8 @@
             "role": "testbench"
           },
           {
-            "evidence_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": true,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -1759,8 +1773,8 @@
             "role": "rtl"
           },
           {
-            "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
-            "live_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
             "matches_live": true,
             "path": "npc/rv64/vsrc/include/define.v",
             "role": "rtl"
@@ -1783,6 +1797,339 @@
       "semantic_closure": true,
       "unit_ids": [
         "clmul-producer"
+      ]
+    },
+    {
+      "artifacts": [
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11u-pending-system-current/summary.json",
+          "sha256": "55121addcfeb6b944a8d2509bea352601ad7ac9a96695b6bf3871b05a8528715",
+          "size_bytes": 1106747
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11u-pending-system-current/source-before.sha256",
+          "sha256": "04d9bea4207b3ad306f913dd4240c75185b70df6cd77ae3488357ade04207520",
+          "size_bytes": 2933
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11u-pending-system-current/source-after.sha256",
+          "sha256": "04d9bea4207b3ad306f913dd4240c75185b70df6cd77ae3488357ade04207520",
+          "size_bytes": 2933
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11u-pending-system-current/artifact-cleanup.json",
+          "sha256": "b967eb11be91e3f50be6623a0a33e4194c1df27794f5a53d1f7ce734a60d0aba",
+          "size_bytes": 70227
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11u-pending-system-current/runner.status",
+          "sha256": "97933b97e548f9fc5305d7bec5c80db87b4f925169843bda4d94b13309537bf0",
+          "size_bytes": 58
+        }
+      ],
+      "binding_kind": "v11u_pending_system_producer",
+      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "detail": {
+        "a3_checker_replay": "PASS_INDEPENDENT",
+        "a3_execution_state": "COMPLETE",
+        "a3_oracle_state": "OLD_ORACLE_INVALID",
+        "a3_original_status": "FAIL_RETAINED",
+        "a3_terminal_state": "COMPLETE",
+        "actual_compiler_input_closure_closed": true,
+        "assertion_mode_mutation_cases_rejected": 11,
+        "assertion_negative_profiles_rejected": 3,
+        "compile_success_mutation_cases_rejected": 21,
+        "compiler_input_compilations_validated": 48,
+        "compiler_input_profiles_validated": 41,
+        "compiler_input_required_claim_rtl": [
+          "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+          "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+          "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+          "npc/rv64/vsrc/writeback/OooRob.v"
+        ],
+        "compiler_input_unique_paths_validated": 138,
+        "csr_only_exact_birth_closed": true,
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "exact_commit_and_flush_death_closed": true,
+        "full_pid_and_pc_authorization_closed": true,
+        "global_live_mask_reuse_fence_closed": true,
+        "legacy_release_mutation_label_interpreted_as_mixed_mode": true,
+        "mutation_simulations_rejected": 24,
+        "ordinary_clear_and_clear_dispatched_hold_closed": true,
+        "ordinary_regressions_passed": 4,
+        "positive_profiles": 13,
+        "pre_rob_has_no_lease_closed": true,
+        "product_instance_paths": [
+          "NpcTop.u_core.u_ooo_core.u_control_plane.u_pending_system_sequencer"
+        ],
+        "production_core_local_flush_death_closed": true,
+        "production_design_id_current": true,
+        "production_rob_birth_and_exact_death_closed": true,
+        "production_wrapper_chain_closed": true,
+        "raw_lease_metadata_independence_closed": true,
+        "release_mode_mutation_cases_rejected": 10,
+        "retired_compile_artifacts_validated": 169,
+        "selected_bindings": [
+          {
+            "evidence_sha256": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
+            "live_sha256": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
+            "live_sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
+            "live_sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",
+            "live_sha256": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
+            "live_sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+            "live_sha256": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+            "live_sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
+            "live_sha256": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
+            "live_sha256": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
+            "live_sha256": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
+            "live_sha256": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+            "live_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/include/define.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+            "live_sha256": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+            "role": "rtl"
+          }
+        ],
+        "system_rerun": {
+          "required_for_current_scope": false,
+          "run": false,
+          "triggered_by_v11u": false
+        }
+      },
+      "gap_classifications": [],
+      "id": "v11u-pending-system-producer-current-closure",
+      "instance_paths": [
+        "NpcTop.u_core.u_ooo_core.u_control_plane.u_pending_system_sequencer"
+      ],
+      "scope": "COMPLETE",
+      "semantic_closure": true,
+      "unit_ids": [
+        "pending-system-producer"
+      ]
+    },
+    {
+      "artifacts": [
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11v-fp-current/summary.json",
+          "sha256": "eb6c71ab4feb7e5220e0c127da5e241840191a327627f2743b92dc82be202742",
+          "size_bytes": 394291
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11v-fp-current/source-before.sha256",
+          "sha256": "c2d58e6b22eb29ef2cb2d91b0848ff0481150be2ef885c38814bce37733f8be7",
+          "size_bytes": 5565
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11v-fp-current/source-after.sha256",
+          "sha256": "c2d58e6b22eb29ef2cb2d91b0848ff0481150be2ef885c38814bce37733f8be7",
+          "size_bytes": 5565
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11v-fp-current/regressions/summary.json",
+          "sha256": "96bb060ea85a30b592fa02d8629100dbd5846a4e67d881d5a7440f70c084ba3b",
+          "size_bytes": 28307
+        },
+        {
+          "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/v11v-fp-current/artifact-cleanup.json",
+          "sha256": "0ca3e88dd2db21e76d13fd3fcede6b1bda871abee36300b8c5087f0399cbb203",
+          "size_bytes": 19364
+        }
+      ],
+      "binding_kind": "v11v_fp_producer",
+      "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+      "detail": {
+        "a3_checker_replay": "PASS_INDEPENDENT",
+        "a3_execution_state": "COMPLETE",
+        "a3_oracle_state": "OLD_ORACLE_INVALID",
+        "a3_original_status": "FAIL_RETAINED",
+        "a3_terminal_state": "COMPLETE",
+        "arith_five_stage_residency_closed": true,
+        "compile_success_mutation_cases_rejected": 14,
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "done_fifo_pending_and_terminal_release_closed": true,
+        "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "exec1_packet_and_packed_alias_closed": true,
+        "focused_testbench_overlay_reconstructed": true,
+        "full_flush_death_closed": true,
+        "iq_birth_and_residency_closed": true,
+        "issue_packet_capture_and_residency_closed": true,
+        "long_iterative_residency_closed": true,
+        "mutation_simulations_rejected": 28,
+        "ordinary_regressions_passed": 4,
+        "positive_profiles": 4,
+        "product_instance_paths": [
+          "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
+        ],
+        "production_design_id_current": true,
+        "raw_producer_identity_knownness_mutations_rejected": 6,
+        "retired_compile_artifacts_validated": 51,
+        "selected_bindings": [
+          {
+            "evidence_sha256": "52c953e42e82a42800cedfe464ab8d5c49e654135834a7de73c7d8205fcad643",
+            "live_sha256": "52c953e42e82a42800cedfe464ab8d5c49e654135834a7de73c7d8205fcad643",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "425ab9f3bde5d053ae0110eb927929875bbedc5398c0ee7570fb253fb5e7710e",
+            "live_sha256": "425ab9f3bde5d053ae0110eb927929875bbedc5398c0ee7570fb253fb5e7710e",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "6e04121271a2e7f31781054d0e874823c74c382adab1b22af16859b5f520d933",
+            "live_sha256": "6e04121271a2e7f31781054d0e874823c74c382adab1b22af16859b5f520d933",
+            "matches_live": true,
+            "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+            "role": "testbench"
+          },
+          {
+            "evidence_sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+            "live_sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+            "live_sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "live_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/include/define.v",
+            "role": "rtl"
+          },
+          {
+            "evidence_sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+            "live_sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+            "matches_live": true,
+            "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+            "role": "rtl"
+          }
+        ],
+        "system_rerun": {
+          "required_for_current_scope": false,
+          "run": false,
+          "triggered_by_v11v": false
+        },
+        "wrong_generation_and_ordered_retirement_closed": true
+      },
+      "gap_classifications": [],
+      "id": "v11v-fp-producer-current-closure",
+      "instance_paths": [
+        "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
+      ],
+      "scope": "COMPLETE",
+      "semantic_closure": true,
+      "unit_ids": [
+        "fp-arith-stage-producers",
+        "fp-done-fifo-producers",
+        "fp-exec1-packed-alias",
+        "fp-exec1-packet",
+        "fp-iq-producers",
+        "fp-issue-packet",
+        "fp-long-producer"
       ]
     },
     {
@@ -1950,8 +2297,8 @@
           },
           {
             "evidence_sha256": "acc97efdd7c736d78c491cb7515b943b8523afe9c275d9d74ed2ed7e2dfee2db",
-            "live_sha256": "acc97efdd7c736d78c491cb7515b943b8523afe9c275d9d74ed2ed7e2dfee2db",
-            "matches_live": true,
+            "live_sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
+            "matches_live": false,
             "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
             "role": "testbench"
           }
@@ -1973,22 +2320,22 @@
       "artifacts": [
         {
           "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/rtl-source-binding.pre.json",
-          "sha256": "665b19b3fddda5dad638d92867695e2a544c493c060ba483fe83c733b3e87cca",
-          "size_bytes": 17275
+          "sha256": "7ebf136a664f947eeffa0a5f871d10e91c8f392010d2004cc437eec3ccc65b94",
+          "size_bytes": 17279
         },
         {
           "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/rtl-source-binding.post.json",
-          "sha256": "665b19b3fddda5dad638d92867695e2a544c493c060ba483fe83c733b3e87cca",
-          "size_bytes": 17275
+          "sha256": "7ebf136a664f947eeffa0a5f871d10e91c8f392010d2004cc437eec3ccc65b94",
+          "size_bytes": 17279
         },
         {
           "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/holder-lifecycle.log",
-          "sha256": "489f4ee8ed8f42f18f24697bf18d8c7e701d47698ad3781b1227295029bed9c6",
+          "sha256": "c86c3ecfbad923ed3a9a8198c0481be90ef1f8f81c4b4e1b3bffca066122270f",
           "size_bytes": 2351
         },
         {
           "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
-          "sha256": "a5391b844dbf570661ff9402eabbbb7329b22356ed2fc74d581c408068920c60",
+          "sha256": "d142f039cb9c2fc3c239b9920074e6a04e85e1493fd1706e00bdeb7630f66cdc",
           "size_bytes": 10803
         }
       ],
@@ -1996,15 +2343,13 @@
       "binding_state": "HISTORICAL_FULL_RTL_BOUND",
       "detail": {
         "compile_success_mutations": 9,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
-        "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+        "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "live_rtl_mismatches": [
-          "npc/rv64/vsrc/bus/AxiXbar.v",
-          "npc/rv64/vsrc/bus/NpcAxiBus.v",
-          "npc/rv64/vsrc/filelist.mk",
           "npc/rv64/vsrc/memory/OooLoadQueue.v",
           "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-          "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
           "npc/rv64/vsrc/sim/NpcSimTop.sv"
         ],
         "marker_count": 5,
@@ -2046,13 +2391,15 @@
       "detail": {
         "baseline_passed": 2,
         "compile_success_variants_rejected": 3,
-        "current_design_id": "sha256:82febf4aa834d61be398197015257714cc53d81f9291a2ba998ba28644041ac4",
+        "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "live_source_mismatches": [
           "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
           "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+          "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
           "npc/rv64/testbench/Makefile",
           "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
           "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
         ],
         "source_file_count": 14
@@ -2106,7 +2453,7 @@
           },
           {
             "evidence_sha256": "6c86fbe71f7d686d86e97b30d53555bbf23a1288e3925b53e11c08f96acacf7b",
-            "live_sha256": "252c0df06384d2863c18265d843ad0434eafee163fd4b190ec59d1ed443090af",
+            "live_sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613",
             "matches_live": false,
             "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "role": "testbench"
@@ -2131,18 +2478,35 @@
   "inputs": {
     "census": {
       "path": "npc/rv64/design/arch/producer-holder-census.json",
-      "sha256": "daea71f1e8c009c6c934d35cb08939835ce15699c65669c74ad24037ecca1f2d",
-      "size_bytes": 31201
+      "sha256": "8fa3d702768cc3ee1278e8812e122b0f5a7c66697190c339e123e0a54b6959fe",
+      "size_bytes": 31506
     },
+    "compile_image_retirements": [
+      {
+        "path": "npc/rv64/design/arch/producer-holder-artifact-retirement-index.json",
+        "sha256": "7cac78f4ff55a0f54efeb8511d4e0dcc6ff47cc9400bfb6cf250ff284ed27bcf",
+        "size_bytes": 791
+      },
+      {
+        "path": ".github/task-runs/2026-07-31-task-run-artifact-compaction/semantic-vvp-retirement.json",
+        "sha256": "9ea8d5e13e03f186c70656d445ddefe107ec142dda1f551a609342e0f3adc73b",
+        "size_bytes": 199807
+      },
+      {
+        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/semantic-vvp-retirement.json",
+        "sha256": "27cf19d0af4c08d2710df7bf2c1a0c2c045e19b294964980e3c074d1b8e207b8",
+        "size_bytes": 156295
+      }
+    ],
     "instance_graph": {
-      "path": ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph/holder-instance-graph.json",
-      "sha256": "819a15d84375341cad18ba50e5e7ce660925c41550626bd65e1710dc3ef38bf3",
+      "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      "sha256": "8e3ff1996e5e94b60b02f86fd1070174a2e58e2d39e8f152f5ad7a66c97dd2f6",
       "size_bytes": 86444
     },
     "policy": {
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
-      "sha256": "874fd5ac4dd6c64ec7a60ebdf7c8a125f6819a791a9fb336687a3f70db54442b",
-      "size_bytes": 26536
+      "sha256": "a9104447620c5e6a9c2283a15c32a152275b0b766af9c8437e99c01b322e8061",
+      "size_bytes": 32843
     }
   },
   "promotion": {
@@ -2245,87 +2609,52 @@
       "unit_id": "clmul-producer"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_arith",
       "module": "OooFpArithGate",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-arith-stage-producers"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend",
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-done-fifo-producers"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend",
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-exec1-packed-alias"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend",
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-exec1-packet"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue",
       "module": "OooFpIssueQueue",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-iq-producers"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend",
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-issue-packet"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend",
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "fp-long-producer"
     },
     {
@@ -2483,15 +2812,10 @@
       "unit_id": "muldiv-producer"
     },
     {
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "instance_path": "NpcTop.u_core.u_ooo_core.u_control_plane.u_pending_system_sequencer",
       "module": "OooPendingSystemSequencer",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "unit_id": "pending-system-producer"
     },
     {
@@ -2601,7 +2925,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5"
+        "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348"
       },
       "stage_instance": null,
       "symbol": "active_owner_token_q"
@@ -2632,7 +2956,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5"
+        "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348"
       },
       "stage_instance": null,
       "symbol": null
@@ -2663,7 +2987,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5"
+        "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348"
       },
       "stage_instance": null,
       "symbol": "rsp_owner_token_q"
@@ -2694,7 +3018,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5"
+        "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348"
       },
       "stage_instance": null,
       "symbol": "stg_owner_token_q"
@@ -2725,7 +3049,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "sha256": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5"
+        "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348"
       },
       "stage_instance": null,
       "symbol": "verified_owner_token_q"
@@ -2788,6 +3112,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2795,19 +3124,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "DIRECT_HOLDER",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-arith-stage-producers",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_arith"
       ],
       "module": "OooFpArithGate",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
         "sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0"
@@ -2818,6 +3142,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2825,19 +3154,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "DIRECT_HOLDER",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-done-fifo-producers",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
       ],
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
         "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb"
@@ -2848,6 +3172,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2855,19 +3184,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "PACKED_ALIAS",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-exec1-packed-alias",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
       ],
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
         "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb"
@@ -2878,6 +3202,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2885,19 +3214,14 @@
       ],
       "category": "PACKED_STAGE",
       "classification": null,
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-exec1-packet",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
       ],
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
         "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb"
@@ -2908,6 +3232,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2915,19 +3244,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "DIRECT_HOLDER",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-iq-producers",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.u_fp_issue_queue"
       ],
       "module": "OooFpIssueQueue",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
         "sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60"
@@ -2938,6 +3262,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2945,19 +3274,14 @@
       ],
       "category": "PACKED_STAGE",
       "classification": null,
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-issue-packet",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
       ],
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
         "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb"
@@ -2968,6 +3292,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11v-fp-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8i-fp-stale-source",
           "scope": "HISTORICAL"
@@ -2975,19 +3304,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "DIRECT_HOLDER",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "fp-long-producer",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend"
       ],
       "module": "OooFpBackend",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
         "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb"
@@ -3118,7 +3442,7 @@
     {
       "candidate_evidence": [
         {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "binding_state": "CURRENT_FULL_RTL_BOUND",
           "id": "v11f-int-iq-producer-current-closure",
           "scope": "COMPLETE"
         },
@@ -3140,7 +3464,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
-        "sha256": "d8eb68b91fd971c3f8054280613c737f3cc951bf492888998e67ced94f9c218b"
+        "sha256": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70"
       },
       "stage_instance": null,
       "symbol": "producer_id_q"
@@ -3148,7 +3472,7 @@
     {
       "candidate_evidence": [
         {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "binding_state": "CURRENT_FULL_RTL_BOUND",
           "id": "v11h-load-queue-producer-current-closure",
           "scope": "COMPLETE"
         }
@@ -3165,7 +3489,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
-        "sha256": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427"
+        "sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f"
       },
       "stage_instance": null,
       "symbol": "producer_id_q"
@@ -3599,6 +3923,11 @@
     {
       "candidate_evidence": [
         {
+          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "id": "v11u-pending-system-producer-current-closure",
+          "scope": "COMPLETE"
+        },
+        {
           "binding_state": "STALE_RTL_SOURCE",
           "id": "v8k-pending-system-stale-source",
           "scope": "HISTORICAL"
@@ -3606,19 +3935,14 @@
       ],
       "category": "DIRECT_OR_ALIAS_FIELD",
       "classification": "DIRECT_HOLDER",
-      "gap_classifications": [
-        "CANDIDATE_RTL_SOURCE_DRIFT",
-        "CURRENT_DYNAMIC_REPLAY_GAP",
-        "RAW_PRODUCER_ID_KNOWN_NEGATIVE_COVERAGE_GAP",
-        "SEMANTIC_LIFECYCLE_NOT_CLOSED"
-      ],
+      "gap_classifications": [],
       "id": "pending-system-producer",
       "instance_count": 1,
       "instance_paths": [
         "NpcTop.u_core.u_ooo_core.u_control_plane.u_pending_system_sequencer"
       ],
       "module": "OooPendingSystemSequencer",
-      "semantic_status": "GAP",
+      "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
         "sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2"
@@ -3629,7 +3953,7 @@
     {
       "candidate_evidence": [
         {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "binding_state": "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
           "id": "v11e-rob-slot-generation-current-closure",
           "scope": "COMPLETE"
         },
@@ -3659,7 +3983,7 @@
     {
       "candidate_evidence": [
         {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "binding_state": "CURRENT_FULL_RTL_BOUND",
           "id": "v11g-store-queue-holder-current-closure",
           "scope": "COMPLETE"
         }
@@ -3676,7 +4000,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
-        "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+        "sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f"
       },
       "stage_instance": null,
       "symbol": "owner_token_q"
@@ -3684,7 +4008,7 @@
     {
       "candidate_evidence": [
         {
-          "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+          "binding_state": "CURRENT_FULL_RTL_BOUND",
           "id": "v11g-store-queue-holder-current-closure",
           "scope": "COMPLETE"
         }
@@ -3701,7 +4025,7 @@
       "semantic_status": "PASS",
       "source": {
         "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
-        "sha256": "5a5179a0cbfa01048510cb842615b4f63e106816d06c15afdcec02a6b8c68241"
+        "sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f"
       },
       "stage_instance": null,
       "symbol": "producer_id_q"

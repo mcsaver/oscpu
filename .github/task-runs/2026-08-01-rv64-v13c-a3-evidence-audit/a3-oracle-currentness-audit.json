@@ -1,0 +1,209 @@
+{
+  "schema": "npc-rv64-a3-oracle-currentness-audit-v1",
+  "status": "PASS_WITH_CURRENT_SYSTEM_GAP",
+  "classification": {
+    "task_class": "verification",
+    "scope": "A3 frozen system-transaction evidence, dmesg oracle replay, c1b531-to-5f9dd068 layered identity, and current-production binding separation",
+    "production_source_modified": false,
+    "long_system_run_launched": false
+  },
+  "a3_historical_transaction": {
+    "published_gate_state": "FAIL",
+    "published_status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+    "published_status_sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8",
+    "execution_state": "COMPLETE",
+    "dut_terminal_state": "COMPLETE",
+    "binding_state": "NO_DRIFT",
+    "raw_artifact_state": "VALID",
+    "rtl_assertion_state": "CLEAN",
+    "oracle_state": "INVALID",
+    "evidence_replayable": "YES",
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "rerun_reason": "NONE",
+    "next_action": "VERSIONED_ORACLE_REPLAY",
+    "design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "cycles": 5071521696,
+    "commits": 1223536213,
+    "strict_historical": {
+      "pass": 16,
+      "expected": 17,
+      "done_rc": 1,
+      "sole_fail": "dmesg-no-critical"
+    },
+    "terminal_event_counts": {
+      "strict_done": 1,
+      "poweroff_begin": 1,
+      "kernel_power_down": 1,
+      "syscon_poweroff": 1,
+      "good_trap": 1,
+      "system_reset_exit": 1
+    },
+    "rtl_assertion_failure_count": 0
+  },
+  "oracle_replay": {
+    "canonical_status": "PASS",
+    "fresh_status": "PASS",
+    "canonical_schema": "npc-rv64-a3-checker-replay/v2",
+    "canonical_evidence_sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+    "fresh_semantic_fields_equal_canonical": true,
+    "embedded_legacy_checker_sha256": "83b6a5384bc92a0b6c4977832a5e882c06684de554a8a09e0391a7acff053f9a",
+    "current_checker_sha256": "1cb1c6b9e9c7440447dd3fa3f0759938e9d5e4aede90d87357676f32c71fbbe6",
+    "legacy_regex": "kernel panic|oops|BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error",
+    "current_regex": "kernel panic|oops|(^|[^[:alnum:]_])BUG:|bad trap|illegal instruction|segfault|I/O error|Buffer I/O error|EXT4-fs error",
+    "a3_legacy_match_count": 2,
+    "a3_current_match_count": 0,
+    "legacy_matches_only": "printk: debug:",
+    "unit_test_methods": 3,
+    "benign_boundary_fixtures_accepted": 4,
+    "real_critical_fixtures_rejected": 9,
+    "legacy_unbounded_regex_mutation_detected": true,
+    "source_input_hashes": {
+      "checked": 9,
+      "mismatched": 0
+    },
+    "canonical_assets": {
+      "checked": 9,
+      "mismatched": 0
+    }
+  },
+  "semantic_delta_c1b531_to_5f9dd068": {
+    "from_design_id": "sha256:c1b5317212bfe47e507eac83a28dff405527f50493e3709e96ffbec2dc3bb594",
+    "to_design_id": "sha256:5f9dd06860a91dfc5461357c731fa2d4c34b91cb3b3cdedc754f0972f8bf4c5a",
+    "production_core_semantics_changed": false,
+    "actual_elaborated_rtl_logic_changed": false,
+    "generated_file_count": 51,
+    "generated_exact_match_count": 50,
+    "generated_exact_differences": [
+      "VNpcSimTop___024root__DepSet_h00145668__4.cpp"
+    ],
+    "generated_normalized_differences": [],
+    "host_diagnostic_observation_object_changed": true,
+    "host_cpu_exec_object_changed": true,
+    "device_model_objects_changed": [],
+    "identity_scope": "bounded elaborated generated-set semantics; not byte-identical simulator executable or toolchain identity",
+    "stable_configuration_and_boot_artifacts": [
+      "OOO_CSR_QUEUE_HEAD=1",
+      "OOO_ASSERT=1",
+      "OOO_TERMINAL_HOLDER_ASSERT=1",
+      "npc .config/auto.conf/autoconf.h",
+      "Linux Image",
+      "OpenSBI fw_jump.bin",
+      "run DTB"
+    ],
+    "historical_a4": {
+      "status": "FAIL rc=143 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=143 signal=TERM",
+      "status_sha256": "1283dc418d7661eb9cabf1f4e3d94aaa1439ee26c5d503756689013233d70943",
+      "disposition": "KEEP",
+      "system_pass_evidence": false
+    },
+    "decision": "A3 oracle correction does not require a full-system rerun; A4 remains an interrupted historical attempt and must not be relabeled"
+  },
+  "current_production_binding": {
+    "design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+    "a3_is_current_design_bound": false,
+    "active_elaborated_rtl_changed_since_a3": true,
+    "change_evidence": {
+      "module": "OooLoadQueue",
+      "baseline_design_id": "sha256:5a8333287115eb28f58e8a2712ab2e3836ebfe31e1b855fb15c6990f9acd9bd9",
+      "candidate_design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+      "full_core_coarse_cells": {
+        "baseline": 51386,
+        "candidate": 51129,
+        "delta": -257
+      },
+      "full_core_coarse_mux_cells": {
+        "baseline": 15720,
+        "candidate": 15471,
+        "delta": -249
+      },
+      "local_delta_exactly_propagated_to_NpcTop": true,
+      "source_pre_post_identical_during_synthesis": true
+    },
+    "system_recertification_required_for_current_promotion": true,
+    "current_system_transaction_present": false,
+    "launch_authorization_state": "REQUIRED_NOT_GRANTED",
+    "launch_performed": false,
+    "attempt_rule": "use a new attempt label; never overwrite A3 or A4",
+    "fast_gate_state": "STALE_REBIND_REQUIRED",
+    "promotion_eligible": false
+  },
+  "evidence_dispositions": [
+    {
+      "object": "A3 original status and raw terminal transaction",
+      "disposition": "KEEP",
+      "reason": "immutable historical publication plus complete DUT terminal evidence"
+    },
+    {
+      "object": "V10F checker replay v2",
+      "disposition": "KEEP",
+      "reason": "canonical assets and fresh semantic replay both pass"
+    },
+    {
+      "object": "current dmesg checker and focused unit tests",
+      "disposition": "KEEP",
+      "reason": "bounded BUG token accepts benign debug text and rejects real critical markers"
+    },
+    {
+      "object": "A4 interrupted status",
+      "disposition": "KEEP",
+      "reason": "TERM before evidence completion is a fail-closed historical result"
+    },
+    {
+      "object": "V12C current-design queue-head/system/functional summaries",
+      "disposition": "REBIND",
+      "reason": "current design-id is now 29c0afe8; the existing checker rejects the older design bindings"
+    },
+    {
+      "object": "V13B LoadQueue development checkpoint",
+      "disposition": "KEEP",
+      "reason": "proves active full-core elaboration changed but does not replace architecture/system promotion evidence"
+    }
+  ],
+  "invariants": {
+    "original_a3_status_modified": false,
+    "original_a4_status_modified": false,
+    "terminal_event_deduplication_used": false,
+    "rtl_assertions_weakened": false,
+    "checker_replay_claims_architecture_or_ppa_promotion": false
+  },
+  "review": {
+    "state": "COMPLETE",
+    "result": "GAP",
+    "a3_historical_transaction": "APPROVE",
+    "semantic_delta_c1b531_to_5f9dd068": "BOUNDED_APPROVE",
+    "current_production_binding": "GAP",
+    "contract_path": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/subagent-contracts/v13c-a3-layered-evidence-review-v1.json",
+    "contract_sha256": "4e086360e190fb66ac46bf909b98c2213666455c7dd43bca9178b5e4cab10e26",
+    "result_path": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/review-result.md",
+    "assertion_enablement_resolution": "A3 binding records OOO_ASSERT=1 and OOO_TERMINAL_HOLDER_ASSERT=1; empty failure file proves no recorded failure, not assertion coverage completeness",
+    "remaining_unknowns": [
+      "The focused regex fixture set does not prove completeness for every future console spelling",
+      "Terminal marker counts do not by themselves prove every post-reset microarchitectural state",
+      "c1b531-to-5f9dd068 normalization does not prove byte-identical linked simulator or toolchain",
+      "Current design 29c0afe8 lacks a bound full-system transaction"
+    ],
+    "required_questions": [
+      "Does any supplied evidence force a full-system rerun solely for the A3 oracle correction?",
+      "Is c1b531-to-5f9dd068 correctly limited to host diagnostic observation with normalized RTL equality?",
+      "Is current design-id 29c0afe8 correctly separated as a new system-recertification obligation?",
+      "Are any PASS claims promoted beyond their evidence scope?"
+    ]
+  },
+  "evidence": {
+    "a3_status": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+    "a3_transaction": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/systemd-transaction-evidence.json",
+    "a3_replay": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+    "a3_replay_review": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/review-v1.md",
+    "fresh_replay": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/fresh-checker-replay.json",
+    "fresh_base_replay": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/fresh-base-replay.json",
+    "fresh_embedded_checker": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/fresh-embedded-checker.sh",
+    "fresh_replay_log": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/fresh-replay.log",
+    "checker_unit_log": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/checker-unit.log",
+    "source_input_check": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/source-input-check.log",
+    "canonical_asset_check": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/canonical-assets-check.log",
+    "semantic_compare": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/semantic-compare.log",
+    "v12c_stale_rejection": ".github/task-runs/2026-08-01-rv64-v13c-a3-evidence-audit/evidence/currentness-stale-rejection.log",
+    "v13b_summary": ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/evidence/final/summary.json"
+  }
+}

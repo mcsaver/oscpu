@@ -1,0 +1,12 @@
+schema=1
+task_id=rv64-v13h-serialize-currentness-tooling
+task_class=development
+archive_mode=none
+status=PASS
+overhead_target_percent=40
+started_ms=1785578323541
+initial_work_ms=3168000
+gate_ms=0
+paused_ms=0
+pause_started_ms=0
+generation=2

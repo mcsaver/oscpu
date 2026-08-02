@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13g-int-iq-onehot-popmask-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooIntIssueQueue 的 compact_remove_w 是否在 known-onehot、双 lane owner 互斥与 memory-pair 原子 pop2 周期合同下保持 packed-age survivor、dispatch append、sticky wake 与 kill/flush/reset 语义，并核对功能、局部 mapped/OpenSTA、NpcTop coarse 与设计身份事实是否支持保留为开发检查点。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      ".github/task-runs/2026-08-01-rv64-v13f-int-iq-hotspot-baseline",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask",
+      ".github/task-runs/2026-08-01-rv64-v13b-load-queue-ppa/evidence/final/synth/full-core-candidate",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/subagent-contracts/v13g-int-iq-onehot-popmask-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "npc/rv64/design/specs/ooo-int-issue-queue.md",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 APPROVED_DEVELOPMENT_CHECKPOINT、CHANGES_REQUIRED 或 INCONCLUSIVE，并逐项列出 RTL 周期等价范围、四态反例边界、功能 oracle、local mapped/STA、NpcTop coarse、身份绑定、配置 GAP 与未运行层级。"
+  ],
+  "success_criteria": [
+    "结论必须由真实 RTL 行、testbench marker、stat/check/STA 数值和 design-id 文件交叉核对；不得把 GEN_W=1 通用 TB 配置 GAP改写为 RTL PASS，也不得把未运行的 full-core mapped/STA、power、architecture cohort 或 system 标为 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,6 @@
+2026-07-31T16:52:32Z	fp-producer-attempt-1-original	FAIL	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-1/summary.json
+2026-07-31T16:52:32Z	fp-producer-attempt-2	PASS	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-2/summary.json
+2026-07-31T16:52:32Z	producer-holder-ledger-44-of-44-local	PASS	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/ledger-attempt-1/producer-holder-semantic-coverage.json
+2026-07-31T16:52:32Z	semantic-make-gate	PASS	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/implementation-result.md
+2026-07-31T16:52:32Z	attempt-1-secondary-artifact-cleanup	PASS	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-1/failed-attempt-artifact-cleanup.json
+2026-07-31T16:52:32Z	bounded-independent-review	PASS	.github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/review-result.md

@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 import sys
+import tempfile
 import unittest
 
 
@@ -74,6 +75,85 @@ def stall_log() -> str:
 
 
 class WidthContinuityEvidenceTests(unittest.TestCase):
+    def test_task_run_paths_are_bounded_to_di2_evidence(self) -> None:
+        task_run_id = "2026-08-02-rv64-v14a-di2-current-rebind-v1"
+        self.assertEqual(
+            evidence.task_run_evidence_rel(task_run_id, "di2-current"),
+            pathlib.Path(".github/task-runs") / task_run_id
+            / "evidence/di2-current",
+        )
+        with self.assertRaisesRegex(ValueError, "malformed"):
+            evidence.task_run_evidence_rel("../outside", "di2-current")
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            evidence.task_run_evidence_rel(task_run_id, "../outside")
+
+    def test_scoped_receipt_binds_task_run_and_write_scope(self) -> None:
+        task_run_id = "2026-08-02-rv64-v14a-di2-current-rebind-v1"
+        evidence_root = (
+            pathlib.Path(".github/task-runs") / task_run_id / "evidence")
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = pathlib.Path(temporary) / "scoped-run.txt"
+            receipt.write_text("\n".join((
+                "schema=rv64-di2-scoped-run-v1",
+                "mode=scoped",
+                f"task_run_id={task_run_id}",
+                f"evidence_root={evidence_root.as_posix()}",
+                "canonical_manifest_write=0",
+                "historical_evidence_write=0",
+            )) + "\n", encoding="utf-8")
+            parsed = evidence.validate_scope_receipt(
+                receipt, task_run_id, evidence_root)
+            self.assertEqual(parsed["historical_evidence_write"], "0")
+            receipt.write_text(
+                receipt.read_text(encoding="utf-8").replace(
+                    "canonical_manifest_write=0",
+                    "canonical_manifest_write=1"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "malformed"):
+                evidence.validate_scope_receipt(
+                    receipt, task_run_id, evidence_root)
+
+    def test_simulator_receipt_rejects_stale_binary_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            iverilog = root / "iverilog"
+            vvp = root / "vvp"
+            iverilog.write_bytes(b"local iverilog\n")
+            vvp.write_bytes(b"local vvp\n")
+            receipt = root / "simulator-config.txt"
+            receipt.write_text("\n".join((
+                "schema=rv64-di2-simulator-config-v1",
+                "target=v9a-width-continuity",
+                "assert_ivflags=-g2012 -Wall -I../vsrc -I../vsrc/include "
+                "-Icommon -DOOO_ASSERT",
+                "release_ivflags=-g2012 -Wall -I../vsrc -I../vsrc/include "
+                "-Icommon",
+                "stall_ivflags=-g2012 -Wall -I../vsrc -I../vsrc/include "
+                "-Icommon",
+                "mutation_ivflags=-g2012 -Wall -I../vsrc -I../vsrc/include "
+                "-Icommon -DV9A_WIDTH_CONTINUITY_FOCUSED",
+                f"iverilog {evidence.arch.digest(iverilog)} {iverilog}",
+                f"vvp {evidence.arch.digest(vvp)} {vvp}",
+            )) + "\n", encoding="utf-8")
+            parsed = evidence.validate_simulator_config(receipt)
+            self.assertEqual(parsed["target"], "v9a-width-continuity")
+            vvp.write_bytes(b"changed local vvp\n")
+            with self.assertRaisesRegex(ValueError, "digest is stale"):
+                evidence.validate_simulator_config(receipt)
+
+    def test_live_mutation_anchors_are_unique_and_non_noop(self) -> None:
+        root = pathlib.Path(__file__).resolve().parents[5]
+        for spec in evidence.mutation_model.MUTATIONS:
+            reconstructed = evidence.reconstruct_mutant_hashes(root, spec)
+            self.assertTrue(reconstructed, spec.name)
+            for rel, digest in reconstructed.items():
+                self.assertNotEqual(
+                    digest,
+                    evidence.arch.digest(evidence.arch.safe_artifact(root, rel)),
+                    spec.name,
+                )
+
     def test_exact_dual_trace_is_accepted(self) -> None:
         parsed = evidence.parse_width_text(width_log(), "synthetic")
         self.assertEqual(parsed["metrics"]["retire_total"], 128)
@@ -106,6 +186,31 @@ class WidthContinuityEvidenceTests(unittest.TestCase):
         rows[-1]["dimensions"] = []
         with self.assertRaisesRegex(ValueError, "dimension mismatch"):
             evidence.validate_mutation_dimension_coverage(rows)
+
+    def test_predecessor_receipts_preserve_execution_mode(self) -> None:
+        design_id = "sha256:" + "e" * 64
+        self.assertEqual(
+            evidence.validate_predecessor_receipt(
+                "[V8Z-DI1-RUNNER][PASS] focused=2\n", design_id),
+            "fresh_replay",
+        )
+        self.assertEqual(
+            evidence.validate_predecessor_receipt(
+                "[ARCH-CURRENT-PREDECESSORS][PASS] "
+                f"design_id={design_id} green=8 red=1 next=DI-2\n",
+                design_id,
+            ),
+            "current_hard_gate_reuse",
+        )
+
+    def test_predecessor_receipt_rejects_malformed_inventory(self) -> None:
+        design_id = "sha256:" + "e" * 64
+        with self.assertRaisesRegex(ValueError, "ambiguous or malformed"):
+            evidence.validate_predecessor_receipt(
+                "[ARCH-CURRENT-PREDECESSORS][PASS] "
+                f"design_id={design_id} green=7 red=2 next=DI-2\n",
+                design_id,
+            )
 
 
 if __name__ == "__main__":

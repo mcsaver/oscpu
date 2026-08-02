@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13e-lq-onehot-write-final-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooLoadQueue edge-old allocation onehot 直接 entry 写入负候选的周期等价、四态边界、局部 Yosys/OpenSTA A/B、mapped 早停、production 回退和紧凑证据留存，判断是否存在假绿或超等级 PPA 声明。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/completion-definition.md",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/cleanup-summary.md",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/source",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/functional",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/evidence/ppa",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/subagent-contracts/v13e-lq-onehot-write-final-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13e-lq-onehot-write/summary.json"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "Parent/current live design-id=29c0afe8…f483；候选把 alloc0/1 lowest-onehot grant 直接作为同 index entry 写使能并删除 binary index encode/dynamic array decode；端口、参数、寄存状态、edge-old free policy、lane1 prefix、lifecycle 与断言均不变。",
+      "candidate OooLoadQueue.v SHA-256=a29819b5…bfd8；focused OOO_ASSERT PASS；stimulus-owned raw-Q GEN_W=1/4×assert on/off 四档 PASS；回退后 focused assertion 再次 PASS；未改 TB、未削弱 assertion。",
+      "同 parent source hash 的 V13D baseline coarse=4568 cells/1790 mux/41922 wire bits，candidate coarse=3189/528/28557；generic IR 显著缩小。",
+      "同配置 mapped baseline=18979 cells/44073.68 area，candidate=19888/45097.92，sequential area 均 9264.64；5ns ideal-clock worst slack 从+3.475173950ns 退化到+3.370205879ns，candidate area 与 timing 同时被 parent 支配。",
+      "因 mapped/STA 已为 DOMINATED，真实 tb_ooo_int_backend、DI-5、RTL style、31x2 mutation、NpcTop coarse、full-core mapped/STA、power 与 system 均为 NOT_RUN；这些未运行项不解释为 PASS。",
+      "live OooLoadQueue.v/spec 已恢复 SHA-256=5dc60f2f…c92f/e2d5f60d…6a6；candidate snapshot 与功能/PPA 日志保留；精确 runtime 目录 113782010 bytes/15 个可再生文件已删除且删除后不存在。"
+    ]
+  },
+  "deliverables": [
+    "给出 APPROVED_NOT_PROMOTION_ELIGIBLE、REJECTED_FAKE_GREEN_RISK、REJECTED_EVIDENCE_MISMATCH 或 GAP；逐项检查 onehot 蕴含与互斥、procedural priority、四态 known-free、coarse/mapped 反转、早停、回退身份、断言与清理，并列出反例、未知项、替代解释和证据范围。"
+  ],
+  "success_criteria": [
+    "只有在功能等价声明受 onehot/known-free 条件约束、coarse 改善未冒充 PPA 晋级、mapped/STA 退化准确记录、全部未运行项为 NOT_RUN、live production 哈希已恢复且候选/日志保留时，才批准负候选处置；不得批准 candidate promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

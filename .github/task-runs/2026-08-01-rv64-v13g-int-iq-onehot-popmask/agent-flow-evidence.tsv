@@ -1,0 +1,6 @@
+2026-08-01T08:34:35Z	int-iq-functional	PASS	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/functional/candidate-g4-full.log
+2026-08-01T08:34:35Z	int-iq-integration	PASS	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/functional/integration/summary.txt
+2026-08-01T08:34:35Z	local-mapped-sta	PASS	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/ppa/local-candidate/opensta-top40.rpt
+2026-08-01T08:34:35Z	full-core-coarse	PASS	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/ppa/full-core-candidate/synth_stat.txt
+2026-08-01T08:34:35Z	g1-full-config	GAP	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/evidence/functional/config-gap/README.md
+2026-08-01T08:55:42Z	final-review	PASS	.github/task-runs/2026-08-01-rv64-v13g-int-iq-onehot-popmask/review-result.md

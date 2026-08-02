@@ -12,9 +12,11 @@ import argparse
 import copy
 import functools
 import hashlib
+import importlib.util
 import json
 import pathlib
 import re
+import shlex
 import sys
 from collections import Counter, defaultdict
 from typing import Any, Iterable
@@ -22,6 +24,13 @@ from typing import Any, Iterable
 
 SCHEMA = "rv64-producer-holder-semantic-coverage-v1"
 POLICY_SCHEMA = "rv64-producer-holder-semantic-coverage-policy-v1"
+TASK_RUN_VVP_RETIREMENT_INDEX = (
+    "npc/rv64/design/arch/"
+    "producer-holder-artifact-retirement-index.json"
+)
+TASK_RUN_VVP_RETIREMENT_INDEX_SCHEMA = (
+    "rv64-producer-holder-artifact-retirement-index-v1"
+)
 V11B_TERMINAL_COLLECTOR_UNIT_IDS = frozenset(
     {
         "terminal-output0-token",
@@ -905,10 +914,6 @@ V11T_FOCUSED_FRAGMENT = (
     "npc/rv64/testbench/tests/"
     "tb_ooo_int_backend_v11t_clmul_producer.svh"
 )
-V11T_ARTIFACT_CLEANUP = (
-    ".github/task-runs/2026-07-31-rv64-v11t-clmul-producer-semantic/"
-    "evidence/attempt-2/artifact-cleanup.json"
-)
 V11T_TASK_INSERT_ANCHOR = V11S_TASK_INSERT_ANCHOR
 V11T_INITIAL_INSERT_ANCHOR = V11S_INITIAL_INSERT_ANCHOR
 V11T_FINISH_INSERT_ANCHOR = V11S_FINISH_INSERT_ANCHOR
@@ -916,7 +921,7 @@ V11U_PENDING_SYSTEM_PRODUCER_UNIT_IDS = frozenset(
     {"pending-system-producer"}
 )
 V11U_PENDING_SYSTEM_PRODUCER_SCHEMA = (
-    "npc-rv64-v11u-pending-system-producer-semantic-evidence-v1"
+    "npc-rv64-v11u-pending-system-producer-semantic-evidence-v2"
 )
 V11U_PRODUCT_INSTANCES = frozenset(
     {
@@ -926,11 +931,99 @@ V11U_PRODUCT_INSTANCES = frozenset(
         )
     }
 )
-V11U_ARTIFACT_CLEANUP = (
-    ".github/task-runs/2026-07-31-rv64-v11u-"
-    "pending-system-producer-semantic/evidence/attempt-2/"
-    "artifact-cleanup.json"
+V11V_FP_PRODUCER_UNIT_IDS = frozenset(
+    {
+        "fp-arith-stage-producers",
+        "fp-done-fifo-producers",
+        "fp-exec1-packed-alias",
+        "fp-exec1-packet",
+        "fp-iq-producers",
+        "fp-issue-packet",
+        "fp-long-producer",
+    }
 )
+V11V_FP_PRODUCER_SCHEMA = (
+    "npc-rv64-v11v-fp-producer-semantic-evidence-v1"
+)
+V11V_PRODUCT_INSTANCES = frozenset(
+    {
+        (
+            "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice."
+            "u_decode_backend.u_int_backend.u_fp_backend"
+        )
+    }
+)
+V11V_REGRESSIONS = frozenset(
+    {
+        "tb_ooo_fp_issue_queue",
+        "tb_ooo_fp_arith_gate",
+        "tb_ooo_int_backend",
+        "tb_ooo_int_backend_v11i_terminal_lifecycle",
+    }
+)
+V11V_MUTATION_EXPECTATIONS = {
+    "iq-dispatch-pid-x": "arith-iq-birth",
+    "iq-dispatch-generation-truncated": "arith-iq-birth",
+    "iq-live-union-omitted": "arith-iq-birth-live",
+    "issue-packet-pid-x": "arith-issue-stage",
+    "issue-live-mask-omitted": "arith-issue-stage-live",
+    "arith-launch-pid-x": "arith-stage1",
+    "arith-live-mask-omitted": "arith-stage1-live",
+    "exec1-packet-pid-x": "exec1-stage",
+    "exec1-live-mask-omitted": "exec1-stage-live",
+    "long-capture-pid-x": "long-birth",
+    "long-live-mask-omitted": "long-birth-live",
+    "done-fifo-pid-x": "arith-done-fifo",
+    "done-pending-mask-omitted": "arith-done-fifo-live",
+    "done-terminal-release-blocked": "arith-terminal-release",
+}
+V11V_MUTATION_UNIT_EXPECTATIONS = {
+    "iq-dispatch-pid-x": frozenset({"fp-iq-producers"}),
+    "iq-dispatch-generation-truncated": frozenset(
+        {"fp-iq-producers"}
+    ),
+    "iq-live-union-omitted": frozenset({"fp-iq-producers"}),
+    "issue-packet-pid-x": frozenset({"fp-issue-packet"}),
+    "issue-live-mask-omitted": frozenset({"fp-issue-packet"}),
+    "arith-launch-pid-x": frozenset({"fp-arith-stage-producers"}),
+    "arith-live-mask-omitted": frozenset(
+        {"fp-arith-stage-producers"}
+    ),
+    "exec1-packet-pid-x": frozenset(
+        {"fp-exec1-packed-alias", "fp-exec1-packet"}
+    ),
+    "exec1-live-mask-omitted": frozenset(
+        {"fp-exec1-packed-alias", "fp-exec1-packet"}
+    ),
+    "long-capture-pid-x": frozenset({"fp-long-producer"}),
+    "long-live-mask-omitted": frozenset({"fp-long-producer"}),
+    "done-fifo-pid-x": frozenset({"fp-done-fifo-producers"}),
+    "done-pending-mask-omitted": frozenset(
+        {"fp-done-fifo-producers"}
+    ),
+    "done-terminal-release-blocked": frozenset(
+        {"fp-done-fifo-producers"}
+    ),
+}
+V11V_BASELINE_MARKERS = {
+    "[V11V-FP-IQ][PASS]": 3,
+    "[V11V-FP-ISSUE][PASS]": 3,
+    "[V11V-FP-ARITH][PASS]": 1,
+    "[V11V-FP-EXEC1][PASS]": 1,
+    "[V11V-FP-LONG][PASS]": 1,
+    "[V11V-FP-DONE][PASS]": 3,
+    "[V11V-FP-WRONG-GEN][PASS]": 3,
+    "[V11V-FP-TERMINAL][PASS]": 3,
+    "[V11V-FP-FLUSH][PASS]": 1,
+}
+V11V_BASE_TESTBENCH = V11S_BASE_TESTBENCH
+V11V_FOCUSED_FRAGMENT = (
+    "npc/rv64/testbench/tests/"
+    "tb_ooo_int_backend_v11v_fp_producer.svh"
+)
+V11V_TASK_INSERT_ANCHOR = V11S_TASK_INSERT_ANCHOR
+V11V_INITIAL_INSERT_ANCHOR = V11S_INITIAL_INSERT_ANCHOR
+V11V_FINISH_INSERT_ANCHOR = V11S_FINISH_INSERT_ANCHOR
 V11U_REGRESSIONS = (
     "tb_ooo_pending_system_sequencer",
     "tb_ooo_csr_access_request_mux",
@@ -978,15 +1071,58 @@ V11U_POSITIVE_PROFILES = {
         "defines": ("-DOOO_PRODUCER_GEN_W=4", "-DOOO_ASSERT"),
         "markers": (("tb_ooo_pending_system_sequencer", "[V9W-SERIAL-KIND-MATRIX]", 1),),
     },
+    "int-live-mask-g1-release": {
+        "tests": ("tb_ooo_int_backend",),
+        "width": 1,
+        "assertions": False,
+        "defines": (
+            "-DOOO_PRODUCER_GEN_W=1",
+            "-DV11U_PENDING_CSR_LEASE_FOCUSED",
+        ),
+        "markers": (("tb_ooo_int_backend", "[V11U-BACKEND-PENDING-LEASE] width=1 PASS", 1),),
+    },
     "int-live-mask-g4-release": {
         "tests": ("tb_ooo_int_backend",),
         "width": 4,
         "assertions": False,
         "defines": (
             "-DOOO_PRODUCER_GEN_W=4",
-            "-DV8K_PENDING_CSR_LEASE_FOCUSED",
+            "-DV11U_PENDING_CSR_LEASE_FOCUSED",
         ),
-        "markers": (("tb_ooo_int_backend", "[V8K-PENDING-CSR-LEASE]", 1),),
+        "markers": (("tb_ooo_int_backend", "[V11U-BACKEND-PENDING-LEASE] width=4 PASS", 1),),
+    },
+    "priv-integration-g1-assert": {
+        "tests": ("tb_ooo_priv_system",),
+        "width": 1,
+        "assertions": True,
+        "defines": (
+            "-DOOO_PRODUCER_GEN_W=1",
+            "-DOOO_ASSERT",
+            "-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",
+        ),
+        "markers": (("tb_ooo_priv_system", "[V11U-PRIV-INTEGRATION] dispatch=1 birth=1 exact_commit=1 death=1 PASS", 1),),
+    },
+    "priv-integration-g4-assert": {
+        "tests": ("tb_ooo_priv_system",),
+        "width": 4,
+        "assertions": True,
+        "defines": (
+            "-DOOO_PRODUCER_GEN_W=4",
+            "-DOOO_ASSERT",
+            "-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",
+        ),
+        "markers": (("tb_ooo_priv_system", "[V11U-PRIV-INTEGRATION] dispatch=1 birth=1 exact_commit=1 death=1 PASS", 1),),
+    },
+    "priv-flush-g4-assert": {
+        "tests": ("tb_ooo_priv_system",),
+        "width": 4,
+        "assertions": True,
+        "defines": (
+            "-DOOO_PRODUCER_GEN_W=4",
+            "-DOOO_ASSERT",
+            "-DV11U_PENDING_SYSTEM_FLUSH_FOCUSED",
+        ),
+        "markers": (("tb_ooo_priv_system", "[V11U-PRIV-FLUSH] birth=1 raw_lease=1 backend_mask=1 flush_death=1 PASS", 1),),
     },
     "raw-lease-partial-metadata-g4-release": {
         "tests": ("tb_ooo_pending_system_lease_probe",),
@@ -1120,9 +1256,125 @@ V11U_MUTATIONS = {
         "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
         "override": "RTL_OOO_INT_BACKEND",
         "test": "tb_ooo_int_backend",
-        "widths": (4,),
+        "widths": (1, 4),
         "marker": "v8k pending lease reaches full holder census",
-        "defines": ("-DV8K_PENDING_CSR_LEASE_FOCUSED",),
+        "defines": ("-DV11U_PENDING_CSR_LEASE_FOCUSED",),
+    },
+    "rob-dispatch0-generation-dropped": {
+        "target": "npc/rv64/vsrc/writeback/OooRob.v",
+        "override": "RTL_OOO_ROB",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8E-PRODUCER-ID-DISPATCH0]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "rob-head0-generation-flipped": {
+        "target": "npc/rv64/vsrc/writeback/OooRob.v",
+        "override": "RTL_OOO_ROB",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8E-PRODUCER-ID-HEAD]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "pending-drain-system-csr-fire-disconnected": {
+        "target": (
+            "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
+        ),
+        "override": "RTL_OOO_PENDING_DRAIN_RESOLVE_GATE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": (
+            "[V11U-PRIV-INTEGRATION] dispatch=0 birth=0 "
+            "exact_commit=0 death=0 FAIL"
+        ),
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "control-plane-dispatch-fire-disconnected": {
+        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "override": "RTL_OOO_CONTROL_PLANE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PENDING-CSR-BIRTH-MISSING]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "control-plane-birth-pid-corrupted": {
+        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "override": "RTL_OOO_CONTROL_PLANE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PRIV-BIRTH]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "control-plane-exact-death-disconnected": {
+        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "override": "RTL_OOO_CONTROL_PLANE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PENDING-CSR-NO-RECAPTURE]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "control-plane-flush-reset-disconnected": {
+        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "override": "RTL_OOO_CONTROL_PLANE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V11U-PRIV-FLUSH]",
+        "defines": ("-DV11U_PENDING_SYSTEM_FLUSH_FOCUSED",),
+        "assertions": True,
+    },
+    "core-top-glue-pending-valid-disconnected": {
+        "target": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "override": "RTL_OOO_CORE_TOP_GLUE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PRIV-EXACT-COMMIT]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "execute-backend-pending-valid-disconnected": {
+        "target": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "override": "RTL_OOO_EXECUTE_BACKEND",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PRIV-EXACT-COMMIT]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "alu-core-slice-pending-valid-disconnected": {
+        "target": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "override": "RTL_OOO_ALU_CORE_SLICE",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PRIV-EXACT-COMMIT]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+    "alu-decode-backend-pending-valid-disconnected": {
+        "target": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "override": "RTL_OOO_ALU_DECODE_BACKEND",
+        "test": "tb_ooo_priv_system",
+        "widths": (4,),
+        "marker": "[V8K-PRIV-EXACT-COMMIT]",
+        "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
+        "assertions": True,
+    },
+}
+V11U_TESTBENCH_OVERLAY_EXPECTATIONS = {
+    "int-backend": {
+        "base": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "generated_name": "tb_ooo_int_backend_v11u.sv",
+        "renderer": "render_int_backend_overlay",
+    },
+    "priv-system": {
+        "base": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "generated_name": "tb_ooo_priv_system_v11u.sv",
+        "renderer": "render_priv_system_overlay",
     },
 }
 V11H_REPLAY_SCHEMA = "rv64-v11h-load-queue-attempt4-checker-replay-v2"
@@ -1142,7 +1394,21 @@ UNIT_COLLECTIONS = (
 CURRENT_BINDINGS = {
     "CURRENT_FULL_RTL_BOUND",
     "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+    "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
 }
+SELECTED_BINDING_PROJECTION_SCHEMA = (
+    "rv64-selected-binding-define-projection-v1"
+)
+SELECTED_BINDING_PROJECTION_TARGET = "npc/rv64/vsrc/include/define.v"
+SELECTED_BINDING_PROJECTION_PROFILES = {
+    "product": (),
+    "assertion": ("OOO_ASSERT",),
+}
+SELECTED_BINDING_PROJECTION_CLAIM = (
+    "Only the selected producer/holder RTL and testbench consumers listed "
+    "in this receipt are rebound. The receipt does not promote full-design, "
+    "whole-architecture, system, or PPA status."
+)
 NON_SEMANTIC_ORCHESTRATION_PATHS = frozenset(
     {"npc/rv64/testbench/Makefile"}
 )
@@ -1386,7 +1652,17 @@ V11_SELECTED_BINDINGS = {
             "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
             "rtl",
         ),
+        ("npc/rv64/vsrc/control/OooControlPlane.v", "rtl"),
+        ("npc/rv64/vsrc/core/OooCoreTopGlue.v", "rtl"),
+        ("npc/rv64/vsrc/execute/OooExecuteBackend.v", "rtl"),
+        ("npc/rv64/vsrc/execute/OooAluCoreSlice.v", "rtl"),
+        ("npc/rv64/vsrc/decode/OooAluDecodeBackend.v", "rtl"),
+        (
+            "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+            "rtl",
+        ),
         ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_pending_system_sequencer.sv",
@@ -1404,6 +1680,33 @@ V11_SELECTED_BINDINGS = {
         ),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "testbench",
+        ),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+            "testbench",
+        ),
+    },
+    "v11v_fp_producer": {
+        ("npc/rv64/vsrc/execute/OooFpBackend.v", "rtl"),
+        ("npc/rv64/vsrc/execute/OooFpArithGate.v", "rtl"),
+        ("npc/rv64/vsrc/scheduling/OooFpIssueQueue.v", "rtl"),
+        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "testbench",
+        ),
+        (
+            "npc/rv64/testbench/tests/"
+            "tb_ooo_int_backend_v11v_fp_producer.svh",
+            "testbench",
+        ),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+            "testbench",
+        ),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
             "testbench",
         ),
     },
@@ -1441,20 +1744,20 @@ V11H_REPLAY_CURRENT_FILES = {
         "npc/rv64/design/arch/producer-holder-census.json"
     ),
     "current_instance_graph_result": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
+        ".github/task-runs/2026-08-01-rv64-"
+        "v12a-holder-cohort-rebind/evidence/"
         "current-holder-instance-graph/"
         "holder-instance-graph.json"
     ),
     "current_instance_graph_receipt": (
-        ".github/task-runs/2026-07-31-rv64-"
-        "axi-xbar-naming-refresh/evidence/"
+        ".github/task-runs/2026-08-01-rv64-"
+        "v12a-holder-cohort-rebind/evidence/"
         "current-holder-instance-graph/"
         "yosys-instance-graph-receipt.json"
     ),
     "current_instance_graph_audit": (
-        ".github/task-runs/2026-07-31-rv64-v11t-"
-        "clmul-producer-semantic/evidence/"
+        ".github/task-runs/2026-08-01-rv64-"
+        "v12a-holder-cohort-rebind/evidence/"
         "current-instance-graph-audit/"
         "instance-graph-frozen-audit.json"
     ),
@@ -1555,23 +1858,68 @@ def resolve_repo_path(root: pathlib.Path, value: str) -> pathlib.Path:
     return pathlib.Path(_resolve_repo_path_cached(str(root), value))
 
 
+def manifest_instance_graph_path(
+    root: pathlib.Path,
+    census_path: pathlib.Path,
+) -> pathlib.Path:
+    """Resolve the current result role from the census evidence pointer."""
+    census = load_json(census_path)
+    declaration = census.get("elaborated_instance_graph")
+    evidence = (
+        declaration.get("evidence")
+        if isinstance(declaration, dict) else None
+    )
+    result = evidence.get("result") if isinstance(evidence, dict) else None
+    if not isinstance(result, dict) or set(result) != {
+        "kind", "path", "sha256",
+    } or result.get("kind") != "holder_instance_graph_result":
+        raise CoverageError(
+            "census current instance-graph result pointer is invalid"
+        )
+    path = resolve_repo_path(root, result.get("path"))
+    if not path.is_file() or path.is_symlink():
+        raise CoverageError(
+            "census current instance-graph result path is missing or unsafe"
+        )
+    if result.get("sha256") != sha256_file(path):
+        raise CoverageError(
+            "census current instance-graph result hash is stale"
+        )
+    return path
+
+
 def stale_manifest_paths(
     root: pathlib.Path,
     manifest: dict[str, str],
     candidates: Iterable[str] | None = None,
+    compatible_records: dict[str, dict[str, str]] | None = None,
+    skip_non_semantic_orchestration: bool = True,
 ) -> list[str]:
     selected = set(manifest) if candidates is None else set(candidates)
-    return sorted(
-        path_value
-        for path_value in selected
-        if path_value not in NON_SEMANTIC_ORCHESTRATION_PATHS
-        and path_value in manifest
-        and (
-            not resolve_repo_path(root, path_value).is_file()
-            or sha256_file(resolve_repo_path(root, path_value))
-            != manifest[path_value]
-        )
-    )
+    stale: list[str] = []
+    compatibility = compatible_records or {}
+    for path_value in selected:
+        if (
+            (
+                skip_non_semantic_orchestration
+                and path_value in NON_SEMANTIC_ORCHESTRATION_PATHS
+            )
+            or path_value not in manifest
+        ):
+            continue
+        live_path = resolve_repo_path(root, path_value)
+        live_sha = sha256_file(live_path) if live_path.is_file() else None
+        if live_sha == manifest[path_value]:
+            continue
+        compatible = compatibility.get(path_value)
+        if (
+            isinstance(compatible, dict)
+            and compatible.get("evidence_sha256") == manifest[path_value]
+            and compatible.get("live_sha256") == live_sha
+        ):
+            continue
+        stale.append(path_value)
+    return sorted(stale)
 
 
 def artifact(root: pathlib.Path, value: str) -> dict[str, Any]:
@@ -1898,13 +2246,151 @@ def verify_artifact_record(
         raise CoverageError(f"{label} artifact record is not an object")
     value = record.get("path")
     path = resolve_repo_path(root, value)
+    if path.is_file():
+        if (
+            sha256_file(path) != record.get("sha256")
+            or path.stat().st_size != record.get("size_bytes")
+        ):
+            raise CoverageError(f"{label} artifact hash/size mismatch")
+        return path
+    retired = task_run_vvp_retirement_records(root).get(str(value))
     if (
-        not path.is_file()
-        or sha256_file(path) != record.get("sha256")
-        or path.stat().st_size != record.get("size_bytes")
+        retired is None
+        or retired.get("sha256") != record.get("sha256")
+        or retired.get("size_bytes") != record.get("size_bytes")
     ):
         raise CoverageError(f"{label} artifact hash/size mismatch")
     return path
+
+
+@functools.lru_cache(maxsize=4)
+def task_run_vvp_retirement_records(
+    root: pathlib.Path,
+) -> dict[str, dict[str, Any]]:
+    index_path = resolve_repo_path(root, TASK_RUN_VVP_RETIREMENT_INDEX)
+    if not index_path.is_file() or index_path.is_symlink():
+        raise CoverageError("compile-image retirement index is missing")
+    index = load_json(index_path)
+    manifests = index.get("manifests")
+    if (
+        index.get("schema_version") != TASK_RUN_VVP_RETIREMENT_INDEX_SCHEMA
+        or not isinstance(index.get("claim_boundary"), str)
+        or not isinstance(manifests, list)
+        or not manifests
+        or set(index) != {"schema_version", "claim_boundary", "manifests"}
+    ):
+        raise CoverageError("compile-image retirement index is invalid")
+    records: dict[str, dict[str, Any]] = {}
+    task_runs = (root / ".github/task-runs").resolve()
+    manifest_paths: set[str] = set()
+    for manifest_record in manifests:
+        if (
+            not isinstance(manifest_record, dict)
+            or set(manifest_record) != {"path", "sha256", "size_bytes"}
+            or not isinstance(manifest_record.get("path"), str)
+            or manifest_record["path"] in manifest_paths
+            or re.fullmatch(
+                r"[0-9a-f]{64}", str(manifest_record.get("sha256"))
+            ) is None
+            or not isinstance(manifest_record.get("size_bytes"), int)
+            or manifest_record["size_bytes"] <= 0
+        ):
+            raise CoverageError("compile-image retirement pointer is invalid")
+        manifest_paths.add(manifest_record["path"])
+        manifest_path = resolve_repo_path(root, manifest_record["path"])
+        try:
+            manifest_path.relative_to(task_runs)
+        except ValueError as exc:
+            raise CoverageError(
+                "compile-image retirement manifest escapes task-runs"
+            ) from exc
+        if (
+            not manifest_path.is_file()
+            or manifest_path.is_symlink()
+            or sha256_file(manifest_path) != manifest_record["sha256"]
+            or manifest_path.stat().st_size != manifest_record["size_bytes"]
+        ):
+            raise CoverageError("compile-image retirement manifest drifted")
+        payload = load_json(manifest_path)
+        schema = payload.get("schema", payload.get("schema_version"))
+        entries = payload.get("entries")
+        if (
+            schema not in {
+                "rv64-task-run-compile-image-retirement-v1",
+                "rv64-task-run-compile-image-retirement-v2",
+            }
+            or payload.get("status") != "PASS"
+            or payload.get("retired_suffix") != ".vvp"
+            or not isinstance(entries, list)
+            or not entries
+            or payload.get("entry_count") != len(entries)
+        ):
+            raise CoverageError("compile-image retirement manifest is invalid")
+        scope = resolve_repo_path(root, payload.get("scope_root"))
+        try:
+            scope.relative_to(task_runs)
+        except ValueError as exc:
+            raise CoverageError(
+                "compile-image retirement scope escapes task-runs"
+            ) from exc
+        lines: list[str] = []
+        total_size = 0
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != {
+                "path", "sha256", "size_bytes"
+            }:
+                raise CoverageError("compile-image retirement entry is malformed")
+            path_value = entry.get("path")
+            digest = entry.get("sha256")
+            size = entry.get("size_bytes")
+            if (
+                not isinstance(path_value, str)
+                or path_value in records
+                or not path_value.endswith(".vvp")
+                or re.fullmatch(r"[0-9a-f]{64}", str(digest)) is None
+                or (size is not None and (not isinstance(size, int) or size <= 0))
+                or (schema.endswith("-v2") and size is None)
+            ):
+                raise CoverageError("compile-image retirement entry is invalid")
+            retired_path = resolve_repo_path(root, path_value)
+            try:
+                retired_path.relative_to(scope)
+            except ValueError as exc:
+                raise CoverageError(
+                    "retired compile image escapes its manifest scope"
+                ) from exc
+            if retired_path.exists():
+                raise CoverageError("retired compile image still exists")
+            records[path_value] = entry
+            size_text = str(size) if size is not None else "-"
+            lines.append(f"{digest}  {size_text}  {path_value}\n")
+            if size is not None:
+                total_size += size
+        if (
+            hashlib.sha256("".join(lines).encode()).hexdigest()
+            != payload.get("entry_path_sha256")
+            or (
+                schema.endswith("-v2")
+                and payload.get("total_size_bytes") != total_size
+            )
+        ):
+            raise CoverageError("compile-image retirement aggregate drifted")
+    return records
+
+
+def task_run_vvp_retirement_artifacts(
+    root: pathlib.Path,
+) -> list[dict[str, Any]]:
+    task_run_vvp_retirement_records(root)
+    index_path = resolve_repo_path(root, TASK_RUN_VVP_RETIREMENT_INDEX)
+    index = load_json(index_path)
+    return [
+        artifact(root, TASK_RUN_VVP_RETIREMENT_INDEX),
+        *[
+            artifact(root, item["path"])
+            for item in index["manifests"]
+        ],
+    ]
 
 
 def verify_path_sha(
@@ -1914,13 +2400,402 @@ def verify_path_sha(
     label: str,
 ) -> pathlib.Path:
     path = resolve_repo_path(root, path_value)
-    if (
-        not isinstance(expected_sha256, str)
-        or not path.is_file()
-        or sha256_file(path) != expected_sha256
-    ):
+    if not isinstance(expected_sha256, str):
+        raise CoverageError(f"{label} artifact hash mismatch")
+    if path.is_file():
+        if sha256_file(path) != expected_sha256:
+            raise CoverageError(f"{label} artifact hash mismatch")
+        return path
+    retired = task_run_vvp_retirement_records(root).get(str(path_value))
+    if retired is None or retired.get("sha256") != expected_sha256:
         raise CoverageError(f"{label} artifact hash mismatch")
     return path
+
+
+def is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+    )
+
+
+def validate_selected_binding_projection(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    records: list[dict[str, Any]],
+    current_design_id_value: str,
+) -> str | None:
+    """Validate a narrow define.v compatibility replay for stale records."""
+
+    mismatches = [record for record in records if not record["matches_live"]]
+    if not mismatches:
+        return None
+    receipt_value = spec.get("selected_binding_compatibility_receipt")
+    if not isinstance(receipt_value, str):
+        return None
+    if {record["path"] for record in mismatches} != {
+        SELECTED_BINDING_PROJECTION_TARGET
+    }:
+        raise CoverageError(
+            f"{spec.get('binding_kind')} compatibility replay cannot cover "
+            "non-define selected-source drift"
+        )
+
+    receipt_path = resolve_repo_path(root, receipt_value)
+    receipt = load_json(receipt_path)
+    expected_top_keys = {
+        "schema_version",
+        "status",
+        "current_design_id",
+        "target",
+        "macro_delta",
+        "affected_macros",
+        "bindings",
+        "evidence_ids",
+        "consumer_sources",
+        "lexical_dependency",
+        "profiles",
+        "negative_probe",
+        "tool",
+        "claim_boundary",
+    }
+    if (
+        set(receipt) != expected_top_keys
+        or receipt.get("schema_version")
+        != SELECTED_BINDING_PROJECTION_SCHEMA
+        or receipt.get("status") != "PASS"
+        or receipt.get("current_design_id") != current_design_id_value
+        or receipt.get("claim_boundary")
+        != SELECTED_BINDING_PROJECTION_CLAIM
+    ):
+        raise CoverageError(
+            "selected-binding define projection receipt is incomplete"
+        )
+
+    target = receipt.get("target")
+    target_keys = {
+        "path",
+        "baseline_sha256",
+        "current_sha256",
+        "baseline_git_ref",
+        "baseline_commit",
+        "baseline_blob",
+    }
+    mismatch = mismatches[0]
+    if (
+        not isinstance(target, dict)
+        or set(target) != target_keys
+        or target.get("path") != SELECTED_BINDING_PROJECTION_TARGET
+        or not is_sha256(target.get("baseline_sha256"))
+        or not is_sha256(target.get("current_sha256"))
+        or target["baseline_sha256"] == target["current_sha256"]
+        or target["baseline_sha256"] != mismatch["evidence_sha256"]
+        or target["current_sha256"] != mismatch["live_sha256"]
+        or not isinstance(target.get("baseline_git_ref"), str)
+        or not target["baseline_git_ref"]
+        or re.fullmatch(
+            r"[0-9a-f]{40}|[0-9a-f]{64}",
+            str(target.get("baseline_commit", "")),
+        )
+        is None
+        or re.fullmatch(
+            r"[0-9a-f]{40}|[0-9a-f]{64}",
+            str(target.get("baseline_blob", "")),
+        )
+        is None
+    ):
+        raise CoverageError(
+            "selected-binding define projection target binding failed"
+        )
+
+    macro_delta = receipt.get("macro_delta")
+    affected_macros = receipt.get("affected_macros")
+    changed_names: set[str] = set()
+    if not isinstance(macro_delta, list) or not macro_delta:
+        raise CoverageError("define projection macro delta is absent")
+    for item in macro_delta:
+        if (
+            not isinstance(item, dict)
+            or set(item)
+            != {
+                "name",
+                "baseline_present",
+                "baseline_body",
+                "current_present",
+                "current_body",
+            }
+            or not isinstance(item.get("name"), str)
+            or not item["name"]
+            or item["name"] in changed_names
+            or not isinstance(item.get("baseline_present"), bool)
+            or not isinstance(item.get("current_present"), bool)
+            or (
+                item.get("baseline_present")
+                and not isinstance(item.get("baseline_body"), str)
+            )
+            or (
+                item.get("current_present")
+                and not isinstance(item.get("current_body"), str)
+            )
+            or (
+                item.get("baseline_present")
+                == item.get("current_present")
+                and item.get("baseline_body") == item.get("current_body")
+            )
+        ):
+            raise CoverageError("define projection macro delta is invalid")
+        changed_names.add(item["name"])
+    if (
+        not isinstance(affected_macros, list)
+        or len(affected_macros) != len(set(affected_macros))
+        or not all(
+            isinstance(name, str) and name for name in affected_macros
+        )
+        or not changed_names <= set(affected_macros)
+    ):
+        raise CoverageError("define projection affected macro set is invalid")
+
+    bindings = receipt.get("bindings")
+    evidence_ids = receipt.get("evidence_ids")
+    define_bound_kinds = {
+        binding_kind
+        for binding_kind, selected in V11_SELECTED_BINDINGS.items()
+        if (SELECTED_BINDING_PROJECTION_TARGET, "rtl") in selected
+    }
+    if (
+        not isinstance(bindings, dict)
+        or set(bindings) != define_bound_kinds
+        or not isinstance(evidence_ids, dict)
+        or set(evidence_ids) != define_bound_kinds
+        or any(
+            not isinstance(value, str) or not value
+            for value in evidence_ids.values()
+        )
+    ):
+        raise CoverageError("define projection binding inventory is invalid")
+    for binding_kind in sorted(define_bound_kinds):
+        selected = bindings.get(binding_kind)
+        if not isinstance(selected, list):
+            raise CoverageError(
+                "define projection selected binding inventory is invalid"
+            )
+        normalized: set[tuple[str, str]] = set()
+        for item in selected:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"path", "role"}
+                or not isinstance(item.get("path"), str)
+                or item.get("role") not in {"rtl", "testbench"}
+            ):
+                raise CoverageError(
+                    "define projection selected binding record is invalid"
+                )
+            normalized.add((item["path"], item["role"]))
+        expected = V11_SELECTED_BINDINGS[binding_kind] - {
+            (SELECTED_BINDING_PROJECTION_TARGET, "rtl")
+        }
+        if len(normalized) != len(selected) or normalized != expected:
+            raise CoverageError(
+                f"define projection binding set differs for {binding_kind}"
+            )
+    kind = spec.get("binding_kind")
+    if evidence_ids.get(kind) != spec.get("id"):
+        raise CoverageError(
+            f"define projection evidence ID differs for {kind}"
+        )
+
+    consumer_sources = receipt.get("consumer_sources")
+    consumer_by_path: dict[str, dict[str, Any]] = {}
+    if not isinstance(consumer_sources, list) or not consumer_sources:
+        raise CoverageError("define projection consumer inventory is absent")
+    for item in consumer_sources:
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"path", "role", "sha256", "size_bytes"}
+            or not isinstance(item.get("path"), str)
+            or item.get("role") not in {"rtl", "testbench"}
+            or not is_sha256(item.get("sha256"))
+            or not isinstance(item.get("size_bytes"), int)
+            or item["size_bytes"] <= 0
+            or item["path"] in consumer_by_path
+        ):
+            raise CoverageError("define projection consumer record is invalid")
+        live_path = resolve_repo_path(root, item["path"])
+        if (
+            not live_path.is_file()
+            or sha256_file(live_path) != item["sha256"]
+            or live_path.stat().st_size != item["size_bytes"]
+        ):
+            raise CoverageError(
+                f"define projection consumer drift: {item['path']}"
+            )
+        consumer_by_path[item["path"]] = item
+    expected_consumers = {
+        path_value
+        for selected in bindings.values()
+        for path_value, _ in (
+            (item["path"], item["role"]) for item in selected
+        )
+    }
+    if set(consumer_by_path) != expected_consumers:
+        raise CoverageError("define projection consumer set is incomplete")
+
+    lexical = receipt.get("lexical_dependency")
+    if (
+        not isinstance(lexical, dict)
+        or set(lexical)
+        != {
+            "all_includes_resolved",
+            "include_closure",
+            "selected_reference_hits",
+        }
+        or lexical.get("all_includes_resolved") is not True
+        or lexical.get("selected_reference_hits") != []
+        or not isinstance(lexical.get("include_closure"), list)
+    ):
+        raise CoverageError("define projection lexical dependency is unsafe")
+    closure_paths: set[str] = set()
+    for item in lexical["include_closure"]:
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"path", "sha256", "size_bytes"}
+            or not isinstance(item.get("path"), str)
+            or item["path"] == SELECTED_BINDING_PROJECTION_TARGET
+            or item["path"] in closure_paths
+            or not is_sha256(item.get("sha256"))
+            or not isinstance(item.get("size_bytes"), int)
+            or item["size_bytes"] <= 0
+        ):
+            raise CoverageError("define projection include record is invalid")
+        live_path = resolve_repo_path(root, item["path"])
+        if (
+            not live_path.is_file()
+            or sha256_file(live_path) != item["sha256"]
+            or live_path.stat().st_size != item["size_bytes"]
+        ):
+            raise CoverageError(
+                f"define projection include-closure drift: {item['path']}"
+            )
+        closure_paths.add(item["path"])
+    if not set(consumer_by_path) <= closure_paths:
+        raise CoverageError("define projection include closure is incomplete")
+
+    profiles = receipt.get("profiles")
+    profile_names: set[str] = set()
+    if not isinstance(profiles, list):
+        raise CoverageError("define projection profiles are absent")
+    for profile in profiles:
+        if (
+            not isinstance(profile, dict)
+            or set(profile) != {"name", "defines", "records"}
+            or profile.get("name")
+            not in SELECTED_BINDING_PROJECTION_PROFILES
+            or profile["name"] in profile_names
+            or tuple(profile.get("defines", []))
+            != SELECTED_BINDING_PROJECTION_PROFILES[profile["name"]]
+            or not isinstance(profile.get("records"), list)
+        ):
+            raise CoverageError("define projection profile is invalid")
+        profile_names.add(profile["name"])
+        profile_paths: set[str] = set()
+        for item in profile["records"]:
+            if (
+                not isinstance(item, dict)
+                or set(item)
+                != {
+                    "path",
+                    "baseline_sha256",
+                    "current_sha256",
+                    "size_bytes",
+                    "equivalent",
+                }
+                or item.get("path") not in consumer_by_path
+                or item["path"] in profile_paths
+                or not is_sha256(item.get("baseline_sha256"))
+                or item.get("baseline_sha256")
+                != item.get("current_sha256")
+                or item.get("equivalent") is not True
+                or not isinstance(item.get("size_bytes"), int)
+                or item["size_bytes"] <= 0
+            ):
+                raise CoverageError(
+                    "define projection preprocessor record is invalid"
+                )
+            profile_paths.add(item["path"])
+        if profile_paths != set(consumer_by_path):
+            raise CoverageError(
+                "define projection preprocessor inventory is incomplete"
+            )
+    if profile_names != set(SELECTED_BINDING_PROJECTION_PROFILES):
+        raise CoverageError("define projection profile set is incomplete")
+
+    negative = receipt.get("negative_probe")
+    mismatched_projection_records = (
+        negative.get("mismatches") if isinstance(negative, dict) else None
+    )
+    if (
+        not isinstance(negative, dict)
+        or set(negative)
+        != {
+            "macro",
+            "current_body",
+            "mutated_body",
+            "detected",
+            "mismatches",
+        }
+        or not isinstance(negative.get("macro"), str)
+        or not negative["macro"]
+        or not isinstance(negative.get("current_body"), str)
+        or not isinstance(negative.get("mutated_body"), str)
+        or negative["current_body"] == negative["mutated_body"]
+        or negative.get("detected") is not True
+        or not isinstance(mismatched_projection_records, list)
+        or not mismatched_projection_records
+    ):
+        raise CoverageError("define projection negative probe is incomplete")
+    negative_keys: set[tuple[str, str]] = set()
+    for item in mismatched_projection_records:
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"profile", "path"}
+            or item.get("profile")
+            not in SELECTED_BINDING_PROJECTION_PROFILES
+            or item.get("path") not in consumer_by_path
+            or (item["profile"], item["path"]) in negative_keys
+        ):
+            raise CoverageError(
+                "define projection negative mismatch record is invalid"
+            )
+        negative_keys.add((item["profile"], item["path"]))
+    if {profile for profile, _ in negative_keys} != set(
+        SELECTED_BINDING_PROJECTION_PROFILES
+    ):
+        raise CoverageError(
+            "define projection negative probe misses a compile profile"
+        )
+
+    tool = receipt.get("tool")
+    if (
+        not isinstance(tool, dict)
+        or set(tool) != {"path", "sha256", "version"}
+        or not isinstance(tool.get("path"), str)
+        or not pathlib.Path(tool["path"]).is_absolute()
+        or not is_sha256(tool.get("sha256"))
+        or not isinstance(tool.get("version"), str)
+        or not tool["version"]
+    ):
+        raise CoverageError("define projection tool identity is invalid")
+
+    receipt_record = artifact(root, receipt_value)
+    mismatch["semantic_projection_match"] = True
+    mismatch["compatibility_receipt"] = receipt_record
+    spec["_validated_selected_binding_projection"] = {
+        SELECTED_BINDING_PROJECTION_TARGET: {
+            "evidence_sha256": target["baseline_sha256"],
+            "live_sha256": target["current_sha256"],
+        }
+    }
+    return "CURRENT_SELECTED_MACRO_PROJECTION_BOUND"
 
 
 def validate_current_manifest_selected_binding(
@@ -1928,6 +2803,7 @@ def validate_current_manifest_selected_binding(
     spec: dict[str, Any],
     manifest_pre_path: pathlib.Path,
     manifest_post_path: pathlib.Path,
+    current_design_id_value: str,
 ) -> tuple[str, list[dict[str, Any]], dict[str, str]]:
     kind = spec.get("binding_kind")
     expected = V11_SELECTED_BINDINGS.get(kind)
@@ -1986,6 +2862,15 @@ def validate_current_manifest_selected_binding(
         )
     state = classify_binding_records(records)
     if state != "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
+        projected_state = validate_selected_binding_projection(
+            root, spec, records, current_design_id_value
+        )
+        if projected_state is not None:
+            state = projected_state
+    if state not in {
+        "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+        "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+    }:
         raise CoverageError(
             f"{kind} selected RTL/TB source closure is stale: {state}"
         )
@@ -2088,6 +2973,15 @@ def validate_current_selected_binding(
             )
         return "CURRENT_FULL_RTL_BOUND", records
     if selected_state != "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
+        projected_state = validate_selected_binding_projection(
+            root, spec, records, current_design_id_value
+        )
+        if projected_state is not None:
+            selected_state = projected_state
+    if selected_state not in {
+        "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+        "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+    }:
         raise CoverageError(
             f"{kind} selected RTL/TB source closure is stale: "
             f"{selected_state}"
@@ -2326,8 +3220,14 @@ def evaluate_v11b_terminal_collector(
     source_binding = payload.get("source_binding")
     lane = payload.get("static_lane_contract")
     mutations = payload.get("compile_success_mutations")
+    schema = payload.get("schema_version")
+    compact_images = schema == "rv64-v11b-terminal-collector-evidence-v2"
     result_ok = (
-        payload.get("result") == "PASS"
+        schema in {
+            "rv64-v11b-terminal-collector-evidence-v1",
+            "rv64-v11b-terminal-collector-evidence-v2",
+        }
+        and payload.get("result") == "PASS"
         and valid_design_id(payload.get("design_id"))
         and payload.get("positive_profile_count") == 2
         and payload.get("mutation_count") == 3
@@ -2346,6 +3246,10 @@ def evaluate_v11b_terminal_collector(
             and item.get("dynamically_rejected") is True
             for item in mutations
             if isinstance(item, dict)
+        )
+        and (
+            not compact_images
+            or payload.get("compiled_images_retained") == 0
         )
     )
     if not result_ok:
@@ -2390,11 +3294,28 @@ def evaluate_v11b_terminal_collector(
         verify_artifact_record(
             root, item.get("log"), f"V11B {item.get('case')} log"
         )
-        verify_artifact_record(
-            root,
-            item.get("compiled_image"),
-            f"V11B {item.get('case')} image",
-        )
+        image_record = item.get("compiled_image")
+        if compact_images:
+            if (
+                not isinstance(image_record, dict)
+                or image_record.get("retained") is not False
+                or "path" in image_record
+                or not isinstance(image_record.get("size_bytes"), int)
+                or image_record["size_bytes"] <= 0
+                or re.fullmatch(
+                    r"[0-9a-f]{64}", str(image_record.get("sha256"))
+                )
+                is None
+            ):
+                raise CoverageError(
+                    f"V11B {item.get('case')} compact image receipt is invalid"
+                )
+        else:
+            verify_artifact_record(
+                root,
+                image_record,
+                f"V11B {item.get('case')} image",
+            )
     return (
         binding_state,
         [
@@ -2408,6 +3329,9 @@ def evaluate_v11b_terminal_collector(
             "tracker_free_lanes": 2,
             "positive_profiles": 2,
             "compile_success_mutations_rejected": 3,
+            "compiled_images_retained": (
+                0 if compact_images else payload.get("compiled_images_retained")
+            ),
             "evidence_design_id": payload["design_id"],
             "current_design_id": design_id,
             "selected_bindings": selected_records,
@@ -3452,8 +4376,10 @@ def evaluate_v11h_load_queue_producer(
         and isinstance(production, dict)
         and production.get("pre_fix_rtl_sha256")
         == "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e"
+        and isinstance(production.get("rtl"), dict)
+        and is_sha256(production.get("post_fix_rtl_sha256"))
         and production.get("post_fix_rtl_sha256")
-        == "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427"
+        == production["rtl"].get("sha256")
         and production.get("raw_q_producer_id_knownness_assertion") is True
         and production.get("raw_q_producer_id_knownness_marker")
         == "[V11H-LQ-PID-KNOWN]"
@@ -3493,13 +4419,24 @@ def evaluate_v11h_load_queue_producer(
         raise CoverageError(
             "V11H LoadQueue producer summary is not complete"
         )
-    if spec.get("checker_replay_receipt") is None:
-        raise CoverageError(
-            "current V11H closure requires the attempt-4 checker replay"
+    direct_current_execution = payload["design_id"] == design_id
+    replay_artifact: dict[str, Any] | None = None
+    replay_detail: dict[str, Any] | None = None
+    if direct_current_execution:
+        if spec.get("checker_replay_receipt") is not None:
+            raise CoverageError(
+                "current V11H direct execution cannot carry a historical "
+                "checker-replay receipt"
+            )
+    else:
+        if spec.get("checker_replay_receipt") is None:
+            raise CoverageError(
+                "historical V11H closure requires the attempt-4 "
+                "checker replay"
+            )
+        replay_artifact, replay_detail = validate_v11h_checker_replay(
+            root, spec, design_id
         )
-    replay_artifact, replay_detail = validate_v11h_checker_replay(
-        root, spec, design_id
-    )
 
     pre_path = verify_artifact_record(
         root, binding.get("pre"), "V11H RTL pre"
@@ -3543,6 +4480,22 @@ def evaluate_v11h_load_queue_producer(
         focused_pre_path,
         focused_post_path,
     )
+    if direct_current_execution:
+        replay_detail = {
+            "mode": "DIRECT_CURRENT_RTL_EXECUTION",
+            "status": "PASS",
+            "historical_checker_replay_required": False,
+            "rtl_simulation_reexecuted": True,
+            "positive_profiles": 4,
+            "raw_q_knownness_assertion_probes": 1,
+            "mutation_simulations": 62,
+            "evidence_design_id": payload["design_id"],
+            "current_design_id": design_id,
+            "binding_state": binding_state,
+            "selected_bindings": selected_records,
+            "system_rerun_required_before_system_promotion": True,
+            "system_rerun_executed": False,
+        }
     for profile, record in positives.items():
         verify_artifact_record(
             root, record.get("compile_log"),
@@ -3607,7 +4560,8 @@ def evaluate_v11h_load_queue_producer(
     }
     return (
         binding_state,
-        [artifact(root, spec["summary"]), replay_artifact],
+        [artifact(root, spec["summary"])]
+        + ([replay_artifact] if replay_artifact is not None else []),
         detail,
     )
 
@@ -3704,7 +4658,7 @@ def evaluate_v11j_bridge_holder(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -3716,7 +4670,12 @@ def evaluate_v11j_bridge_holder(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11J runner/checker binding drifted: "
@@ -4077,7 +5036,7 @@ def evaluate_v11k_miq_holder(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -4089,7 +5048,12 @@ def evaluate_v11k_miq_holder(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11K runner/checker binding drifted: "
@@ -4377,7 +5341,13 @@ def evaluate_v11k_miq_holder(
             raise CoverageError(
                 f"V11K regression binding is incomplete: {name}"
             )
-        stale_regression_inputs = stale_manifest_paths(root, source_pre)
+        stale_regression_inputs = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         if stale_regression_inputs:
             raise CoverageError(
                 "V11K regression source binding drifted: "
@@ -4568,7 +5538,7 @@ def evaluate_v11l_memory_retry_holder(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -4583,7 +5553,12 @@ def evaluate_v11l_memory_retry_holder(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11L runner/checker binding drifted: "
@@ -4729,7 +5704,13 @@ def evaluate_v11l_memory_retry_holder(
             raise CoverageError(
                 f"V11L compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         if name.startswith("production-"):
             expected_defines = [
                 "-DV11L_MEMORY_RETRY_HOLDER_FOCUSED"
@@ -4877,7 +5858,13 @@ def evaluate_v11l_memory_retry_holder(
             raise CoverageError(
                 f"V11L regression binding is incomplete: {name}"
             )
-        stale_regression_inputs = stale_manifest_paths(root, source_pre)
+        stale_regression_inputs = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -5068,7 +6055,7 @@ def evaluate_v11m_memory_reservation_holder(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -5083,7 +6070,12 @@ def evaluate_v11m_memory_reservation_holder(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11M runner/checker binding drifted: "
@@ -5225,7 +6217,13 @@ def evaluate_v11m_memory_reservation_holder(
             raise CoverageError(
                 f"V11M compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         if name.startswith("production-"):
             expected_defines = [
                 "-DV11M_MEMORY_RESERVATION_HOLDER_FOCUSED"
@@ -5368,7 +6366,13 @@ def evaluate_v11m_memory_reservation_holder(
             raise CoverageError(
                 f"V11M regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -5570,7 +6574,7 @@ def evaluate_v11n_memory_pending_holder(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -5589,7 +6593,12 @@ def evaluate_v11n_memory_pending_holder(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11N runner/checker binding drifted: "
@@ -5731,7 +6740,13 @@ def evaluate_v11n_memory_pending_holder(
             raise CoverageError(
                 f"V11N compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -5888,7 +6903,13 @@ def evaluate_v11n_memory_pending_holder(
             raise CoverageError(
                 f"V11N regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -6088,7 +7109,7 @@ def evaluate_v11o_memory_buffer_token(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -6115,7 +7136,12 @@ def evaluate_v11o_memory_buffer_token(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11O runner/checker binding drifted: "
@@ -6399,7 +7425,13 @@ def evaluate_v11o_memory_buffer_token(
             raise CoverageError(
                 f"V11O compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -6554,7 +7586,13 @@ def evaluate_v11o_memory_buffer_token(
             raise CoverageError(
                 f"V11O regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -6762,7 +7800,7 @@ def evaluate_v11p_checkpoint_irrevocable_write(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -6785,7 +7823,12 @@ def evaluate_v11p_checkpoint_irrevocable_write(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11P runner/checker binding drifted: "
@@ -6927,7 +7970,13 @@ def evaluate_v11p_checkpoint_irrevocable_write(
             raise CoverageError(
                 f"V11P compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -7080,7 +8129,13 @@ def evaluate_v11p_checkpoint_irrevocable_write(
             raise CoverageError(
                 f"V11P regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -7291,7 +8346,7 @@ def evaluate_v11q_int_lane0_packet(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -7314,7 +8369,12 @@ def evaluate_v11q_int_lane0_packet(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11Q runner/checker binding drifted: "
@@ -7459,7 +8519,13 @@ def evaluate_v11q_int_lane0_packet(
             raise CoverageError(
                 f"V11Q compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -7615,7 +8681,13 @@ def evaluate_v11q_int_lane0_packet(
             raise CoverageError(
                 f"V11Q regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -7843,7 +8915,7 @@ def evaluate_v11r_int_lane1_packet(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -7866,7 +8938,12 @@ def evaluate_v11r_int_lane1_packet(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11R runner/checker binding drifted: "
@@ -8011,7 +9088,13 @@ def evaluate_v11r_int_lane1_packet(
             raise CoverageError(
                 f"V11R compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -8167,7 +9250,13 @@ def evaluate_v11r_int_lane1_packet(
             raise CoverageError(
                 f"V11R regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -8490,7 +9579,7 @@ def evaluate_v11s_muldiv_producer(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -8513,7 +9602,12 @@ def evaluate_v11s_muldiv_producer(
         ),
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11S runner/checker binding drifted: "
@@ -8658,7 +9752,13 @@ def evaluate_v11s_muldiv_producer(
             raise CoverageError(
                 f"V11S compile source manifest is incomplete: {name}"
             )
-        stale_inputs = stale_manifest_paths(root, compile_manifest)
+        stale_inputs = stale_manifest_paths(
+            root,
+            compile_manifest,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
         )
@@ -8825,7 +9925,13 @@ def evaluate_v11s_muldiv_producer(
             raise CoverageError(
                 f"V11S regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(
             encoding="utf-8", errors="replace"
         )
@@ -8956,9 +10062,16 @@ def evaluate_v11t_clmul_producer(
     design_id: str,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     summary_path = resolve_repo_path(root, spec["summary"])
-    if spec.get("artifact_cleanup") != V11T_ARTIFACT_CLEANUP:
+    cleanup_value = spec.get("artifact_cleanup")
+    if (
+        not isinstance(cleanup_value, str)
+        or pathlib.PurePosixPath(cleanup_value).name
+        != "artifact-cleanup.json"
+    ):
         raise CoverageError("V11T cleanup artifact binding is invalid")
-    cleanup_path = resolve_repo_path(root, V11T_ARTIFACT_CLEANUP)
+    cleanup_path = resolve_repo_path(root, cleanup_value)
+    if not cleanup_path.is_file() or cleanup_path == summary_path:
+        raise CoverageError("V11T cleanup artifact binding is invalid")
     cleanup_root = cleanup_path.parent
     payload = load_json(summary_path)
     production = payload.get("production")
@@ -9058,7 +10171,7 @@ def evaluate_v11t_clmul_producer(
         payload.get("schema") != V11T_CLMUL_PRODUCER_SCHEMA
         or payload.get("status") != "PASS"
         or payload.get("classification") != "verification"
-        or payload.get("design_id") != design_id
+        or not valid_design_id(payload.get("design_id"))
         or set(payload.get("unit_ids", []))
         != V11T_CLMUL_PRODUCER_UNIT_IDS
         or configuration != expected_configuration
@@ -9228,7 +10341,7 @@ def evaluate_v11t_clmul_producer(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
@@ -9240,7 +10353,12 @@ def evaluate_v11t_clmul_producer(
         "npc/rv64/testbench/scripts/run_v11m_memory_reservation_holder_semantic.py",
     }
     missing_support = sorted(support_paths - set(manifest))
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
     if missing_support or stale_support:
         raise CoverageError(
             "V11T runner/checker binding drifted: "
@@ -9557,7 +10675,13 @@ def evaluate_v11t_clmul_producer(
             raise CoverageError(
                 f"V11T regression binding is incomplete: {name}"
             )
-        stale = stale_manifest_paths(root, source_pre)
+        stale = stale_manifest_paths(
+            root,
+            source_pre,
+            compatible_records=spec.get(
+                "_validated_selected_binding_projection"
+            ),
+        )
         log_text = log_path.read_text(encoding="utf-8", errors="replace")
         if (
             stale
@@ -9603,7 +10727,7 @@ def evaluate_v11t_clmul_producer(
             "eight_younger_pressure_closed": False,
             "focused_testbench_overlay_reconstructed": True,
             "retired_compile_artifacts_validated": 36,
-            "production_design_id_current": True,
+            "production_design_id_current": payload["design_id"] == design_id,
             "product_instance_paths": sorted(V11T_PRODUCT_INSTANCES),
             "selected_bindings": selected_records,
             "evidence_design_id": payload["design_id"],
@@ -9619,15 +10743,779 @@ def evaluate_v11t_clmul_producer(
     )
 
 
+def render_v11v_focused_testbench(
+    base_source: str,
+    focused_fragment: str,
+) -> tuple[str, list[dict[str, Any]]]:
+    replacements = (
+        (
+            "task-fragment",
+            V11V_TASK_INSERT_ANCHOR,
+            focused_fragment.rstrip() + "\n" + V11V_TASK_INSERT_ANCHOR,
+        ),
+        (
+            "initial-dispatch",
+            V11V_INITIAL_INSERT_ANCHOR,
+            (
+                "`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED\n"
+                "    run_hist_ser_qh_younger_store_cycle();\n"
+                "`elsif V11V_FP_PRODUCER_FOCUSED\n"
+                "    run_v11v_fp_producer_semantic();\n"
+                "`elsif V11R_INT_LANE1_PACKET_FOCUSED\n"
+            ),
+        ),
+        (
+            "finish-dispatch",
+            V11V_FINISH_INSERT_ANCHOR,
+            (
+                "`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED\n"
+                "        tb_finish("
+                '"tb_ooo_int_backend_hist_ser_qh_younger_store");\n'
+                "`elsif V11V_FP_PRODUCER_FOCUSED\n"
+                "        tb_finish("
+                '"tb_ooo_int_backend_v11v_fp_producer");\n'
+                "`elsif V11R_INT_LANE1_PACKET_FOCUSED\n"
+            ),
+        ),
+    )
+    rendered = base_source
+    receipts: list[dict[str, Any]] = []
+    for label, anchor, replacement_text in replacements:
+        count = rendered.count(anchor)
+        if count != 1:
+            raise CoverageError(
+                "V11V focused testbench anchor is not unique: "
+                f"{label} count={count}"
+            )
+        rendered = rendered.replace(anchor, replacement_text, 1)
+        receipts.append(
+            {
+                "label": label,
+                "anchor_count": count,
+                "anchor_sha256": hashlib.sha256(
+                    anchor.encode("utf-8")
+                ).hexdigest(),
+                "replacement_sha256": hashlib.sha256(
+                    replacement_text.encode("utf-8")
+                ).hexdigest(),
+            }
+        )
+    return rendered, receipts
+
+
+def evaluate_v11v_fp_producer(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    design_id: str,
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+    summary_path = resolve_repo_path(root, spec["summary"])
+    cleanup_value = spec.get("artifact_cleanup")
+    if (
+        not isinstance(cleanup_value, str)
+        or pathlib.PurePosixPath(cleanup_value).name
+        != "artifact-cleanup.json"
+    ):
+        raise CoverageError("V11V cleanup artifact binding is invalid")
+    cleanup_path = resolve_repo_path(root, cleanup_value)
+    if not cleanup_path.is_file() or cleanup_path == summary_path:
+        raise CoverageError("V11V cleanup artifact binding is invalid")
+    cleanup_root = cleanup_path.parent
+    payload = load_json(summary_path)
+    production = payload.get("production")
+    binding = payload.get("binding")
+    configuration = payload.get("configuration")
+    oracle = payload.get("independent_oracle")
+    counts = payload.get("counts")
+    profiles = payload.get("profiles")
+    variants = payload.get("variants")
+    regressions = payload.get("regressions")
+    scope = payload.get("scope")
+    promotion = payload.get("promotion")
+    tools = payload.get("tools")
+    cleanup = payload.get("artifact_cleanup")
+    mutation_cases = frozenset(V11V_MUTATION_EXPECTATIONS)
+    expected_profiles = {
+        f"production-g{width}-{mode}"
+        for width in (1, 4)
+        for mode in ("assert", "release")
+    } | {
+        f"{case}-g{width}-release"
+        for case in mutation_cases
+        for width in (1, 4)
+    }
+    expected_configuration = {
+        "top": "tb_ooo_int_backend",
+        "focused_define": "-DV11V_FP_PRODUCER_FOCUSED",
+        "producer_gen_widths": [1, 4],
+        "profile_count": 32,
+        "baseline_profile_count": 4,
+        "mutation_count": 14,
+        "mutation_profile_count": 28,
+        "regression_count": 4,
+        "baseline_assert_and_release": True,
+        "mutations_release_mode": True,
+        "full_system_run": False,
+    }
+    expected_oracle = {
+        "stimulus_owned_allocation_schedule": True,
+        "expected_pid_uses_fp_holder_state": False,
+        "four_state_exact_comparison": True,
+        "nonzero_generation_one_exercised": True,
+        "producer_gen_width_one_and_four": True,
+        "iq_birth_and_residency_checked": True,
+        "issue_packet_capture_and_residency_checked": True,
+        "arith_five_stage_residency_checked": True,
+        "exec1_packet_and_packed_alias_checked": True,
+        "long_iterative_residency_checked": True,
+        "done_fifo_pending_residency_checked": True,
+        "wrong_generation_authorization_rejected": True,
+        "ordered_retirement_exactly_once_checked": True,
+        "full_flush_death_checked": True,
+        "release_mode_mutation_rejection": True,
+        "raw_producer_identity_knownness_mutations": 6,
+    }
+    expected_scope = {
+        "mechanism": "fp-producer-holder-lifecycle",
+        "semantic_units": payload.get("unit_ids"),
+        "production_rtl_change": False,
+        "whole_architecture": "RED",
+        "ppa": "UNPROMOTED",
+        "a3_original_status": "FAIL_RETAINED",
+        "a3_execution_state": "COMPLETE",
+        "a3_terminal_state": "COMPLETE",
+        "a3_oracle_state": "OLD_ORACLE_INVALID",
+        "a3_checker_replay": "PASS_INDEPENDENT",
+        "system_rerun": {
+            "triggered_by_v11v": False,
+            "run": False,
+            "required_for_current_scope": False,
+        },
+    }
+    expected_promotion = {
+        "semantic_units": "ELIGIBLE_IF_LEDGER_REBIND_AND_REVIEW_PASS",
+        "whole_architecture": "RED",
+        "ppa": "UNPROMOTED",
+        "system_recertification": "NOT_RUN",
+    }
+    if (
+        payload.get("schema") != V11V_FP_PRODUCER_SCHEMA
+        or payload.get("status") != "PASS"
+        or payload.get("classification") != "architecture-verification"
+        or not valid_design_id(payload.get("design_id"))
+        or set(payload.get("unit_ids", [])) != V11V_FP_PRODUCER_UNIT_IDS
+        or configuration != expected_configuration
+        or oracle != expected_oracle
+        or not isinstance(production, dict)
+        or set(production.get("product_instances", []))
+        != V11V_PRODUCT_INSTANCES
+        or not isinstance(binding, dict)
+        or binding.get("pre_post_match") is not True
+        or not isinstance(counts, dict)
+        or counts.get("profiles_total") != 32
+        or counts.get("profiles_pass") != 32
+        or counts.get("profiles_fail") != 0
+        or counts.get("baseline_profiles_total") != 4
+        or counts.get("mutations_total") != 14
+        or counts.get("mutation_profiles_total") != 28
+        or counts.get("regressions_total") != 4
+        or counts.get("regressions_pass") != 4
+        or scope != expected_scope
+        or promotion != expected_promotion
+    ):
+        raise CoverageError("V11V FP producer summary is not complete")
+
+    expected_production_paths = {
+        "fp_backend_rtl": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "fp_iq_rtl": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "fp_arith_rtl": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "base_testbench": V11V_BASE_TESTBENCH,
+        "focused_testbench": V11V_FOCUSED_FRAGMENT,
+    }
+    for key, expected_path in expected_production_paths.items():
+        if (
+            production.get(key) != expected_path
+            or sha256_file(resolve_repo_path(root, expected_path))
+            != production.get(f"{key}_sha256")
+        ):
+            raise CoverageError(f"V11V production binding drifted: {key}")
+
+    cleanup_payload = load_json(cleanup_path)
+    removed = cleanup.get("removed") if isinstance(cleanup, dict) else None
+    if (
+        cleanup_payload != cleanup
+        or not isinstance(cleanup, dict)
+        or set(cleanup) != {"status", "policy", "removed_count", "removed"}
+        or cleanup.get("status") != "PASS"
+        or cleanup.get("policy")
+        != "retain-results-logs-and-hashes-only"
+        or cleanup.get("removed_count") != 51
+        or not isinstance(removed, list)
+        or len(removed) != 51
+    ):
+        raise CoverageError("V11V compact artifact cleanup is incomplete")
+    removed_by_path: dict[str, dict[str, Any]] = {}
+    for record in removed:
+        if (
+            not isinstance(record, dict)
+            or set(record)
+            != {
+                "path",
+                "sha256",
+                "size_bytes",
+                "kind",
+                "removed_after_validation",
+            }
+            or record.get("removed_after_validation") is not True
+            or re.fullmatch(r"[0-9a-f]{64}", str(record.get("sha256", "")))
+            is None
+            or not isinstance(record.get("size_bytes"), int)
+            or record["size_bytes"] <= 0
+            or record.get("path") in removed_by_path
+        ):
+            raise CoverageError("V11V retired artifact record is invalid")
+        retired_path = resolve_repo_path(root, record["path"])
+        try:
+            retired_path.relative_to(cleanup_root)
+        except ValueError as exc:
+            raise CoverageError(
+                "V11V retired artifact escapes the evidence attempt"
+            ) from exc
+        if retired_path.exists():
+            raise CoverageError("V11V retired artifact still exists")
+        removed_by_path[record["path"]] = record
+    kind_counts = {
+        kind: sum(item["kind"] == kind for item in removed)
+        for kind in {
+            "focused-compile-image",
+            "regression-compile-image",
+            "generated-negative-rtl",
+            "generated-focused-testbench",
+        }
+    }
+    if kind_counts != {
+        "focused-compile-image": 32,
+        "regression-compile-image": 4,
+        "generated-negative-rtl": 14,
+        "generated-focused-testbench": 1,
+    }:
+        raise CoverageError("V11V retired artifact inventory is incomplete")
+
+    def require_retired(
+        path_value: Any,
+        digest: Any,
+        kind: str,
+        size: Any = None,
+    ) -> dict[str, Any]:
+        record = removed_by_path.get(path_value)
+        if (
+            not isinstance(path_value, str)
+            or not isinstance(digest, str)
+            or record is None
+            or record.get("sha256") != digest
+            or record.get("kind") != kind
+            or (size is not None and record.get("size_bytes") != size)
+        ):
+            raise CoverageError(
+                f"V11V retired artifact binding is invalid: {path_value}"
+            )
+        return record
+
+    expected_generated, expected_overlay_receipts = (
+        render_v11v_focused_testbench(
+            resolve_repo_path(root, production["base_testbench"]).read_text(
+                encoding="utf-8"
+            ),
+            resolve_repo_path(root, production["focused_testbench"]).read_text(
+                encoding="utf-8"
+            ),
+        )
+    )
+    generated_record = production.get("generated_testbench")
+    generated_bytes = expected_generated.encode("utf-8")
+    generated_sha = hashlib.sha256(generated_bytes).hexdigest()
+    if (
+        not isinstance(generated_record, dict)
+        or set(generated_record) != {"path", "sha256", "size_bytes"}
+        or generated_record.get("sha256") != generated_sha
+        or generated_record.get("size_bytes") != len(generated_bytes)
+        or production.get("overlay_injection_receipts")
+        != expected_overlay_receipts
+    ):
+        raise CoverageError(
+            "V11V generated focused testbench overlay is invalid"
+        )
+    generated_relative = generated_record["path"]
+    require_retired(
+        generated_relative,
+        generated_sha,
+        "generated-focused-testbench",
+        len(generated_bytes),
+    )
+
+    if not isinstance(tools, dict):
+        raise CoverageError("V11V simulator identity is missing")
+    for name in ("iverilog", "vvp"):
+        path_value = tools.get(name)
+        digest = tools.get(f"{name}_sha256")
+        if not isinstance(path_value, str) or not isinstance(digest, str):
+            raise CoverageError(f"V11V {name} identity is incomplete")
+        tool_path = pathlib.Path(path_value)
+        if not tool_path.is_file() or sha256_file(tool_path) != digest:
+            raise CoverageError(f"V11V {name} identity drifted")
+
+    pre_path = verify_artifact_record(
+        root, binding.get("source_before"), "V11V focused source pre"
+    )
+    post_path = verify_artifact_record(
+        root, binding.get("source_after"), "V11V focused source post"
+    )
+    binding_state, selected_records, manifest = (
+        validate_current_manifest_selected_binding(
+            root, spec, pre_path, post_path, design_id
+        )
+    )
+    support_paths = {
+        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+        "npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py",
+        (
+            "npc/rv64/testbench/scripts/"
+            "run_v11n_memory_pending_holder_semantic.py"
+        ),
+        (
+            "npc/rv64/testbench/scripts/"
+            "run_v11m_memory_reservation_holder_semantic.py"
+        ),
+        (
+            "npc/rv64/testbench/scripts/"
+            "run_v11s_muldiv_producer_semantic.py"
+        ),
+    }
+    missing_support = sorted(support_paths - set(manifest))
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+    )
+    if missing_support or stale_support:
+        raise CoverageError(
+            "V11V runner/checker binding drifted: "
+            f"missing={missing_support} stale={stale_support}"
+        )
+
+    if (
+        not isinstance(variants, list)
+        or len(variants) != 14
+        or {
+            item.get("name")
+            for item in variants
+            if isinstance(item, dict)
+        }
+        != mutation_cases
+    ):
+        raise CoverageError("V11V mutation inventory is incomplete")
+    variant_paths: dict[str, str] = {}
+    integration_rtl = production["fp_backend_rtl"]
+    integration_sha = production["fp_backend_rtl_sha256"]
+    for record in variants:
+        if not isinstance(record, dict):
+            raise CoverageError("V11V mutation record is not an object")
+        name = record.get("name")
+        expected_stage = V11V_MUTATION_EXPECTATIONS.get(name)
+        expected_units = V11V_MUTATION_UNIT_EXPECTATIONS.get(name)
+        receipts = record.get("receipts")
+        if (
+            expected_stage is None
+            or expected_units is None
+            or record.get("target") != integration_rtl
+            or set(record.get("unit_ids", [])) != expected_units
+            or record.get("expected_stage") != expected_stage
+            or record.get("compile_success_required") is not True
+            or record.get("assertions") is not False
+            or record.get("production_sha256") != integration_sha
+            or record.get("variant_sha256") == integration_sha
+            or not isinstance(receipts, list)
+            or not receipts
+            or any(
+                not isinstance(receipt, dict)
+                or receipt.get("anchor_count") != 1
+                or re.fullmatch(
+                    r"[0-9a-f]{64}",
+                    str(receipt.get("anchor_sha256", "")),
+                )
+                is None
+                or re.fullmatch(
+                    r"[0-9a-f]{64}",
+                    str(receipt.get("replacement_sha256", "")),
+                )
+                is None
+                for receipt in receipts
+            )
+        ):
+            raise CoverageError(
+                f"V11V mutation receipt is invalid: {name}"
+            )
+        require_retired(
+            record.get("variant"),
+            record.get("variant_sha256"),
+            "generated-negative-rtl",
+        )
+        variant_paths[name] = record["variant"]
+
+    def verify_compile_manifest(
+        compile_manifest: Any,
+        label: str,
+    ) -> dict[str, str]:
+        if not isinstance(compile_manifest, dict) or not compile_manifest:
+            raise CoverageError(f"V11V compile manifest is absent: {label}")
+        for path_value, digest in compile_manifest.items():
+            if not isinstance(path_value, str) or not isinstance(digest, str):
+                raise CoverageError(
+                    f"V11V compile manifest is invalid: {label}"
+                )
+            retired = removed_by_path.get(path_value)
+            if retired is not None:
+                if retired.get("sha256") != digest:
+                    raise CoverageError(
+                        f"V11V retired compile input drifted: {label}"
+                    )
+                continue
+            source_path = resolve_repo_path(root, path_value)
+            live_sha = (
+                sha256_file(source_path) if source_path.is_file() else None
+            )
+            compatible = spec.get(
+                "_validated_selected_binding_projection", {}
+            ).get(path_value)
+            if live_sha != digest and not (
+                isinstance(compatible, dict)
+                and compatible.get("evidence_sha256") == digest
+                and compatible.get("live_sha256") == live_sha
+            ):
+                raise CoverageError(
+                    f"V11V live compile input drifted: {label} {path_value}"
+                )
+        return compile_manifest
+
+    if (
+        not isinstance(profiles, list)
+        or len(profiles) != 32
+        or {
+            item.get("profile")
+            for item in profiles
+            if isinstance(item, dict)
+        }
+        != expected_profiles
+    ):
+        raise CoverageError("V11V profile inventory is incomplete")
+    for record in profiles:
+        if not isinstance(record, dict):
+            raise CoverageError("V11V profile record is not an object")
+        name = record.get("profile")
+        compile_record = record.get("compile")
+        simulation = record.get("simulation")
+        markers = record.get("markers")
+        if (
+            not isinstance(name, str)
+            or record.get("status") != "PASS"
+            or not isinstance(compile_record, dict)
+            or compile_record.get("rc") != 0
+            or compile_record.get("timeout") is not False
+            or compile_record.get("artifact_exists") is not True
+            or not isinstance(simulation, dict)
+            or simulation.get("timeout") is not False
+            or not isinstance(markers, dict)
+        ):
+            raise CoverageError(f"V11V profile failed: {name}")
+        require_retired(
+            compile_record.get("artifact"),
+            compile_record.get("artifact_sha256"),
+            "focused-compile-image",
+        )
+        log_path = verify_path_sha(
+            root,
+            simulation.get("log"),
+            simulation.get("log_sha256"),
+            f"V11V profile {name} simulation log",
+        )
+        log_text = log_path.read_text(encoding="utf-8", errors="replace")
+        compile_manifest = verify_compile_manifest(
+            record.get("compile_source_manifest"), name
+        )
+        command = compile_record.get("command")
+        defines = compile_record.get("defines")
+        if (
+            not isinstance(command, list)
+            or not all(isinstance(item, str) for item in command)
+            or not isinstance(defines, list)
+            or not all(isinstance(item, str) for item in defines)
+            or not command
+            or command[0] != tools["iverilog"]
+            or "-s" not in command
+            or command[command.index("-s") + 1] != configuration["top"]
+            or any(command.count(define) != 1 for define in defines)
+        ):
+            raise CoverageError(
+                f"V11V compile command binding is invalid: {name}"
+            )
+        command_sources: set[str] = set()
+        for item in command:
+            path = pathlib.Path(item)
+            if not path.is_absolute() or path.suffix not in {".v", ".sv"}:
+                continue
+            try:
+                command_sources.add(relative(root, path))
+            except ValueError as exc:
+                raise CoverageError(
+                    f"V11V compile source escaped repository: {name}"
+                ) from exc
+        if command_sources != set(compile_manifest):
+            raise CoverageError(
+                f"V11V compile source manifest is incomplete: {name}"
+            )
+        for path_key, digest_key in (
+            (production["fp_iq_rtl"], "fp_iq_rtl_sha256"),
+            (production["fp_arith_rtl"], "fp_arith_rtl_sha256"),
+        ):
+            if compile_manifest.get(path_key) != production[digest_key]:
+                raise CoverageError(
+                    f"V11V FP leaf binding is incomplete: {name}"
+                )
+
+        baseline_match = re.fullmatch(
+            r"production-g([14])-(assert|release)", name
+        )
+        if baseline_match:
+            width = int(baseline_match.group(1))
+            mode = baseline_match.group(2)
+            expected_defines = [
+                "-DV11V_FP_PRODUCER_FOCUSED",
+                f"-DOOO_PRODUCER_GEN_W={width}",
+            ]
+            if mode == "assert":
+                expected_defines.append("-DOOO_ASSERT")
+            if (
+                record.get("producer_gen_width") != width
+                or record.get("kind") != "baseline"
+                or record.get("mutation") is not None
+                or record.get("expected_stage") is not None
+                or record.get("assertions") is not (mode == "assert")
+                or defines != expected_defines
+                or compile_manifest.get(integration_rtl) != integration_sha
+                or generated_relative not in compile_manifest
+                or compile_manifest.get(generated_relative) != generated_sha
+                or any("/variants/" in path for path in compile_manifest)
+                or simulation.get("rc") != 0
+                or markers.get("tb_pass") != 1
+                or markers.get("matrix_pass") != 1
+                or markers.get("oracle_fail") != 0
+                or log_text.count(
+                    "[PASS] tb_ooo_int_backend_v11v_fp_producer"
+                )
+                != 1
+                or log_text.count(
+                    "[V11V-FP-PRODUCER-MATRIX][PASS]"
+                )
+                != 1
+                or any(
+                    markers.get(marker_text) != expected_count
+                    or log_text.count(marker_text) != expected_count
+                    for marker_text, expected_count
+                    in V11V_BASELINE_MARKERS.items()
+                )
+            ):
+                raise CoverageError(
+                    f"V11V production profile is not clean: {name}"
+                )
+            continue
+
+        mutation_match = re.fullmatch(r"(.+)-g([14])-release", name)
+        if not mutation_match:
+            raise CoverageError(f"V11V profile name is invalid: {name}")
+        case = mutation_match.group(1)
+        width = int(mutation_match.group(2))
+        expected_stage = V11V_MUTATION_EXPECTATIONS.get(case)
+        variant_relative = variant_paths.get(case)
+        failure_stages = re.findall(
+            re.escape("[V11V-FP-PRODUCER-ORACLE][FAIL]")
+            + r" stage=([A-Za-z0-9_-]+)(?=[ \t\r\n@]|$)",
+            log_text,
+        )
+        if (
+            expected_stage is None
+            or record.get("producer_gen_width") != width
+            or record.get("kind") != "mutation"
+            or record.get("mutation") != case
+            or record.get("expected_stage") != expected_stage
+            or record.get("assertions") is not False
+            or defines
+            != [
+                "-DV11V_FP_PRODUCER_FOCUSED",
+                f"-DOOO_PRODUCER_GEN_W={width}",
+            ]
+            or integration_rtl in compile_manifest
+            or variant_relative not in compile_manifest
+            or compile_manifest.get(variant_relative)
+            != removed_by_path[variant_relative]["sha256"]
+            or generated_relative not in compile_manifest
+            or compile_manifest.get(generated_relative) != generated_sha
+            or {
+                path for path in compile_manifest if "/variants/" in path
+            }
+            != {variant_relative}
+            or not isinstance(simulation.get("rc"), int)
+            or simulation["rc"] == 0
+            or markers.get("oracle_fail") != 1
+            or markers.get("tb_pass") != 0
+            or markers.get("matrix_pass") != 0
+            or failure_stages != [expected_stage]
+            or "[V11V-FP-PRODUCER-MATRIX][PASS]" in log_text
+            or "[PASS] tb_ooo_int_backend_v11v_fp_producer" in log_text
+        ):
+            raise CoverageError(
+                f"V11V release mutation escaped or was misbound: {name}"
+            )
+
+    if (
+        not isinstance(regressions, list)
+        or len(regressions) != 4
+        or {
+            item.get("test")
+            for item in regressions
+            if isinstance(item, dict)
+        }
+        != V11V_REGRESSIONS
+    ):
+        raise CoverageError("V11V regression inventory is incomplete")
+    for record in regressions:
+        if not isinstance(record, dict):
+            raise CoverageError("V11V regression record is not an object")
+        name = record.get("test")
+        log_path = verify_artifact_record(
+            root, record.get("log"), f"V11V regression {name}"
+        )
+        compile_artifact = record.get("compile_artifact")
+        if not isinstance(compile_artifact, dict):
+            raise CoverageError(
+                f"V11V regression compile record is absent: {name}"
+            )
+        require_retired(
+            compile_artifact.get("path"),
+            compile_artifact.get("sha256"),
+            "regression-compile-image",
+            compile_artifact.get("size_bytes"),
+        )
+        source_pre = verify_compile_manifest(
+            record.get("compile_source_manifest"),
+            f"regression-{name}",
+        )
+        source_post = record.get("compile_source_post_manifest")
+        log_text = log_path.read_text(encoding="utf-8", errors="replace")
+        if (
+            record.get("status") != "PASS"
+            or record.get("source_pre_post_match") is not True
+            or source_pre != source_post
+            or any("/variants/" in path for path in source_pre)
+            or any("/generated/" in path for path in source_pre)
+            or log_text.count(f"[PASS] {name}") != 1
+            or log_text.count("[RESULT] PASS") != 1
+            or "[RESULT] FAIL" in log_text
+            or "[V11V-FP-PRODUCER-ORACLE][FAIL]" in log_text
+        ):
+            raise CoverageError(f"V11V regression failed: {name}")
+    regression_summary_path = summary_path.parent / "regressions/summary.json"
+    regression_summary = load_json(regression_summary_path)
+    if (
+        regression_summary.get("status") != "PASS"
+        or regression_summary.get("command_rc") != 0
+        or regression_summary.get("timeout") is not False
+        or regression_summary.get("all_source_pre_post_match") is not True
+        or regression_summary.get("tests") != regressions
+        or not isinstance(regression_summary.get("command"), list)
+    ):
+        raise CoverageError("V11V regression summary is not PASS")
+
+    return (
+        binding_state,
+        [
+            artifact(root, spec["summary"]),
+            artifact(root, relative(root, pre_path)),
+            artifact(root, relative(root, post_path)),
+            artifact(root, relative(root, regression_summary_path)),
+            artifact(root, cleanup_value),
+        ],
+        {
+            "positive_profiles": 4,
+            "compile_success_mutation_cases_rejected": 14,
+            "mutation_simulations_rejected": 28,
+            "raw_producer_identity_knownness_mutations_rejected": 6,
+            "ordinary_regressions_passed": 4,
+            "iq_birth_and_residency_closed": True,
+            "issue_packet_capture_and_residency_closed": True,
+            "arith_five_stage_residency_closed": True,
+            "exec1_packet_and_packed_alias_closed": True,
+            "long_iterative_residency_closed": True,
+            "done_fifo_pending_and_terminal_release_closed": True,
+            "wrong_generation_and_ordered_retirement_closed": True,
+            "full_flush_death_closed": True,
+            "focused_testbench_overlay_reconstructed": True,
+            "retired_compile_artifacts_validated": 51,
+            "production_design_id_current": payload["design_id"] == design_id,
+            "product_instance_paths": sorted(V11V_PRODUCT_INSTANCES),
+            "selected_bindings": selected_records,
+            "evidence_design_id": payload["design_id"],
+            "current_design_id": design_id,
+            "system_rerun": scope["system_rerun"],
+            "a3_original_status": scope["a3_original_status"],
+            "a3_execution_state": scope["a3_execution_state"],
+            "a3_terminal_state": scope["a3_terminal_state"],
+            "a3_oracle_state": scope["a3_oracle_state"],
+            "a3_checker_replay": scope["a3_checker_replay"],
+        },
+    )
+
+
+@functools.lru_cache(maxsize=2)
+def load_v11u_overlay_runner(root_text: str) -> Any:
+    path = (
+        pathlib.Path(root_text)
+        / "npc/rv64/testbench/scripts/"
+        "run_v11u_pending_system_producer_semantic.py"
+    )
+    module_name = "_rv64_v11u_pending_system_overlay_runner"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise CoverageError("V11U overlay runner cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise CoverageError(
+            f"V11U overlay runner cannot be loaded: {exc}"
+        ) from exc
+    finally:
+        sys.modules.pop(module_name, None)
+    return module
+
+
 def evaluate_v11u_pending_system_producer(
     root: pathlib.Path,
     spec: dict[str, Any],
     design_id: str,
 ) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     summary_path = resolve_repo_path(root, spec["summary"])
-    if spec.get("artifact_cleanup") != V11U_ARTIFACT_CLEANUP:
+    cleanup_value = spec.get("artifact_cleanup")
+    if (
+        not isinstance(cleanup_value, str)
+        or pathlib.PurePosixPath(cleanup_value).name
+        != "artifact-cleanup.json"
+    ):
         raise CoverageError("V11U cleanup artifact binding is invalid")
-    cleanup_path = resolve_repo_path(root, V11U_ARTIFACT_CLEANUP)
+    cleanup_path = resolve_repo_path(root, cleanup_value)
+    if not cleanup_path.is_file() or cleanup_path == summary_path:
+        raise CoverageError("V11U cleanup artifact binding is invalid")
     attempt_root = cleanup_path.parent
 
     payload = load_json(summary_path)
@@ -9643,16 +11531,18 @@ def evaluate_v11u_pending_system_producer(
     promotion = payload.get("promotion")
     tools = payload.get("tools")
     cleanup = payload.get("artifact_cleanup")
+    compile_input_closure = payload.get("compile_input_closure")
     expected_configuration = {
         "producer_gen_widths": [1, 4],
-        "positive_profile_count": 9,
+        "positive_profile_count": 13,
         "assertion_negative_profile_count": 3,
-        "mutation_count": 10,
-        "mutation_profile_count": 12,
-        "profile_count": 24,
+        "mutation_count": 21,
+        "mutation_profile_count": 24,
+        "profile_count": 40,
         "regression_count": 4,
         "assert_and_release_baseline": True,
-        "mutations_release_mode": True,
+        "mutations_release_mode": False,
+        "parent_mutations_assertion_mode": True,
         "full_system_run": False,
     }
     expected_oracle = {
@@ -9668,7 +11558,15 @@ def evaluate_v11u_pending_system_producer(
         "exact_commit_requires_full_pid_and_pc": True,
         "raw_or_logical_claim_seals_fallback": True,
         "int_backend_live_mask_and_reuse_fence": True,
+        "production_rob_birth_and_exact_death": True,
+        "production_core_local_flush_death": True,
+        "production_wrapper_chain": True,
+        "actual_compiler_input_closure": True,
         "assertion_negative_rejection": True,
+        # attempt-5 is immutable evidence and retained this legacy field name.
+        # The configuration contract above proves that eight parent-path
+        # mutations ran with OOO_ASSERT, so this field is interpreted only as
+        # compile-success mutation rejection, never as an all-release claim.
         "compile_success_release_mutation_rejection": True,
     }
     expected_scope = {
@@ -9680,6 +11578,7 @@ def evaluate_v11u_pending_system_producer(
             "raw-q-lease-hold",
             "exact-commit-and-flush-death",
             "global-live-mask-reuse-fence",
+            "production-wrapper-chain",
         ],
         "excluded_units": ["floating-point-producer-paths"],
         "global_no_live_reuse": "NOT_PROVEN",
@@ -9704,21 +11603,21 @@ def evaluate_v11u_pending_system_producer(
         "system_recertification": "NOT_RUN",
     }
     expected_counts = {
-        "profiles_total": 24,
-        "profiles_pass": 24,
-        "positive_profiles_total": 9,
+        "profiles_total": 40,
+        "profiles_pass": 40,
+        "positive_profiles_total": 13,
         "assertion_negative_profiles_total": 3,
-        "mutations_total": 10,
-        "mutation_profiles_total": 12,
+        "mutations_total": 21,
+        "mutation_profiles_total": 24,
         "regressions_total": 4,
         "regressions_pass": 4,
-        "retired_artifacts": 42,
+        "retired_artifacts": 169,
     }
     if (
         payload.get("schema") != V11U_PENDING_SYSTEM_PRODUCER_SCHEMA
         or payload.get("status") != "PASS"
         or payload.get("classification") != "verification"
-        or payload.get("design_id") != design_id
+        or not valid_design_id(payload.get("design_id"))
         or set(payload.get("unit_ids", []))
         != V11U_PENDING_SYSTEM_PRODUCER_UNIT_IDS
         or configuration != expected_configuration
@@ -9759,9 +11658,23 @@ def evaluate_v11u_pending_system_producer(
         "int_backend_testbench": (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         ),
+        "priv_system_testbench": (
+            "npc/rv64/testbench/tests/tb_ooo_priv_system.sv"
+        ),
+    }
+    expected_parent_rtl = {
+        "npc/rv64/vsrc/control/OooControlPlane.v",
+        "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
     }
     if set(production) != {
         "product_instances",
+        "parent_rtl",
+        "generated_testbench_overlays",
+        "generated_make_overlay",
         *expected_production_paths,
         *(f"{key}_sha256" for key in expected_production_paths),
     }:
@@ -9775,6 +11688,13 @@ def evaluate_v11u_pending_system_producer(
             != production.get(f"{key}_sha256")
         ):
             raise CoverageError(f"V11U production binding drifted: {key}")
+    parent_rtl = production.get("parent_rtl")
+    if not isinstance(parent_rtl, dict) or set(parent_rtl) != expected_parent_rtl:
+        raise CoverageError("V11U parent RTL binding inventory is invalid")
+    for path, digest in parent_rtl.items():
+        live_path = resolve_repo_path(root, path)
+        if not live_path.is_file() or sha256_file(live_path) != digest:
+            raise CoverageError(f"V11U parent RTL binding drifted: {path}")
 
     if not isinstance(tools, dict) or set(tools) != {
         "make",
@@ -9802,11 +11722,12 @@ def evaluate_v11u_pending_system_producer(
     )
     binding_state, selected_records, manifest = (
         validate_current_manifest_selected_binding(
-            root, spec, pre_path, post_path
+            root, spec, pre_path, post_path, design_id
         )
     )
     support_paths = {
         "npc/rv64/testbench/Makefile",
+        "npc/rv64/vsrc/filelist.mk",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11u_pending_system_producer_semantic.py"
@@ -9815,18 +11736,145 @@ def evaluate_v11u_pending_system_producer(
             "npc/rv64/testbench/scripts/"
             "test_run_v11u_pending_system_producer_semantic.py"
         ),
+        "npc/rv64/testbench/scripts/check_tb_result.py",
+        "npc/rv64/testbench/common/tb_common.svh",
+        "npc/rv64/testbench/common/rv32_encode.svh",
         "npc/rv64/vsrc/include/define.v",
     }
-    expected_manifest_paths = support_paths | {
+    compile_claim_rtl = {
+        "npc/rv64/vsrc/writeback/OooRob.v",
+        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        (
+            "npc/rv64/vsrc/control/"
+            "OooPendingSystemAdmissionCancelGate.v"
+        ),
+    }
+    expected_manifest_paths = support_paths | compile_claim_rtl | {
         item[0] for item in V11_SELECTED_BINDINGS[spec["binding_kind"]]
     }
-    stale_support = stale_manifest_paths(root, manifest, support_paths)
-    if set(manifest) != expected_manifest_paths or stale_support:
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        spec.get("_validated_selected_binding_projection"),
+        skip_non_semantic_orchestration=False,
+    )
+    stale_claim_rtl = stale_manifest_paths(
+        root,
+        manifest,
+        compile_claim_rtl,
+        skip_non_semantic_orchestration=False,
+    )
+    if (
+        set(manifest) != expected_manifest_paths
+        or stale_support
+        or stale_claim_rtl
+    ):
         raise CoverageError(
             "V11U runner/checker binding drifted: "
             f"inventory={sorted(set(manifest) ^ expected_manifest_paths)} "
-            f"stale={stale_support}"
+            f"stale={sorted(set(stale_support + stale_claim_rtl))}"
         )
+
+    expected_build_controls = support_paths - {
+        "npc/rv64/vsrc/include/define.v"
+    }
+    build_controls = (
+        compile_input_closure.get("build_controls")
+        if isinstance(compile_input_closure, dict)
+        else None
+    )
+    if (
+        not isinstance(compile_input_closure, dict)
+        or set(compile_input_closure)
+        != {
+            "status",
+            "dependency_mode",
+            "compiler_argv_bound",
+            "make_source_selection_bound",
+            "dependency_lists_retired",
+            "compiler_argv_lists_retired",
+            "compiler_wrapper",
+            "build_controls",
+            "required_claim_rtl",
+            "profile_records",
+            "compilations",
+            "unique_inputs",
+            "module_inputs",
+            "include_inputs",
+        }
+        or compile_input_closure.get("status") != "PASS"
+        or compile_input_closure.get("dependency_mode")
+        != "iverilog-wrapper-Mprefix"
+        or compile_input_closure.get("compiler_argv_bound") is not True
+        or compile_input_closure.get("make_source_selection_bound")
+        is not True
+        or compile_input_closure.get("dependency_lists_retired") is not True
+        or compile_input_closure.get("compiler_argv_lists_retired")
+        is not True
+        or not isinstance(build_controls, dict)
+        or set(build_controls) != expected_build_controls
+        or any(build_controls[path] != manifest[path]
+               for path in expected_build_controls)
+        or tuple(compile_input_closure.get("required_claim_rtl", []))
+        != tuple(sorted(compile_claim_rtl))
+        or compile_input_closure.get("profile_records") != 41
+        or compile_input_closure.get("compilations") != 48
+        or not isinstance(compile_input_closure.get("unique_inputs"), int)
+        or not isinstance(compile_input_closure.get("module_inputs"), int)
+        or not isinstance(compile_input_closure.get("include_inputs"), int)
+    ):
+        raise CoverageError("V11U compiler input closure header is invalid")
+
+    compiler_wrapper_path = (
+        attempt_root / "generated" / "iverilog-dependency-wrapper.sh"
+    )
+    expected_compiler_wrapper_text = (
+        "#!/bin/sh\n"
+        "set -eu\n"
+        f"real_iverilog={shlex.quote(str(pathlib.Path(tools['iverilog']).resolve()))}\n"
+        "output=\n"
+        "expect_output=0\n"
+        "for argument do\n"
+        "  if [ \"$expect_output\" -eq 1 ]; then\n"
+        "    output=$argument\n"
+        "    break\n"
+        "  fi\n"
+        "  if [ \"$argument\" = \"-o\" ]; then\n"
+        "    expect_output=1\n"
+        "  fi\n"
+        "done\n"
+        "if [ -z \"$output\" ]; then\n"
+        "  echo 'missing -o output for V11U compiler wrapper' >&2\n"
+        "  exit 2\n"
+        "fi\n"
+        "profile_dir=$(dirname \"$(dirname \"$output\")\")\n"
+        "dependency_dir=$profile_dir/dependencies\n"
+        "test_name=$(basename \"$output\" .vvp)\n"
+        "mkdir -p \"$dependency_dir\"\n"
+        "dependency_path=$dependency_dir/$test_name.deps\n"
+        "argv_path=$dependency_dir/$test_name.argv\n"
+        "printf '%s\\n' \"$real_iverilog\" "
+        "\"-Mprefix=$dependency_path\" \"$@\" > \"$argv_path\"\n"
+        "exec \"$real_iverilog\" "
+        "\"-Mprefix=$dependency_path\" \"$@\"\n"
+    )
+    expected_compiler_wrapper_bytes = expected_compiler_wrapper_text.encode(
+        "utf-8"
+    )
+    expected_compiler_wrapper = {
+        "path": relative(root, compiler_wrapper_path),
+        "sha256": hashlib.sha256(
+            expected_compiler_wrapper_bytes
+        ).hexdigest(),
+        "size_bytes": len(expected_compiler_wrapper_bytes),
+    }
+    if (
+        compile_input_closure.get("compiler_wrapper")
+        != expected_compiler_wrapper
+    ):
+        raise CoverageError("V11U compiler wrapper receipt is invalid")
 
     cleanup_payload = load_json(cleanup_path)
     removed = cleanup.get("removed") if isinstance(cleanup, dict) else None
@@ -9837,9 +11885,9 @@ def evaluate_v11u_pending_system_producer(
         or cleanup.get("status") != "PASS"
         or cleanup.get("policy")
         != "retain-results-logs-hashes-and-summary-only"
-        or cleanup.get("removed_count") != 42
+        or cleanup.get("removed_count") != 169
         or not isinstance(removed, list)
-        or len(removed) != 42
+        or len(removed) != 169
     ):
         raise CoverageError("V11U compact artifact cleanup is incomplete")
     removed_by_path: dict[str, dict[str, Any]] = {}
@@ -9879,13 +11927,23 @@ def evaluate_v11u_pending_system_producer(
         for kind in {
             "focused-compile-image",
             "regression-compile-image",
+            "compiler-dependency-list",
+            "compiler-argv-list",
             "generated-negative-rtl",
+            "generated-focused-testbench",
+            "generated-make-overlay",
+            "generated-compiler-wrapper",
         }
     }
     if kind_counts != {
-        "focused-compile-image": 28,
+        "focused-compile-image": 44,
         "regression-compile-image": 4,
-        "generated-negative-rtl": 10,
+        "compiler-dependency-list": 48,
+        "compiler-argv-list": 48,
+        "generated-negative-rtl": 21,
+        "generated-focused-testbench": 2,
+        "generated-make-overlay": 1,
+        "generated-compiler-wrapper": 1,
     }:
         raise CoverageError("V11U retired artifact inventory is incomplete")
 
@@ -9908,9 +11966,98 @@ def evaluate_v11u_pending_system_producer(
             raise CoverageError(f"V11U {label} cleanup binding is invalid")
         return retired
 
+    require_retired(
+        expected_compiler_wrapper,
+        "generated-compiler-wrapper",
+        "generated compiler wrapper",
+    )
+
+    overlay_records = production.get("generated_testbench_overlays")
+    if (
+        not isinstance(overlay_records, list)
+        or len(overlay_records) != len(V11U_TESTBENCH_OVERLAY_EXPECTATIONS)
+        or {
+            item.get("name")
+            for item in overlay_records
+            if isinstance(item, dict)
+        }
+        != set(V11U_TESTBENCH_OVERLAY_EXPECTATIONS)
+    ):
+        raise CoverageError("V11U generated testbench overlay inventory is invalid")
+    overlay_runner = load_v11u_overlay_runner(str(root.resolve()))
+    overlay_paths: dict[str, pathlib.Path] = {}
+    for record in overlay_records:
+        if not isinstance(record, dict):
+            raise CoverageError("V11U generated testbench overlay is invalid")
+        name = record.get("name")
+        expected = V11U_TESTBENCH_OVERLAY_EXPECTATIONS.get(name)
+        if expected is None:
+            raise CoverageError("V11U generated testbench overlay is invalid")
+        renderer = getattr(
+            overlay_runner, str(expected.get("renderer", "")), None
+        )
+        base_path = resolve_repo_path(root, expected["base"])
+        if renderer is None or not base_path.is_file():
+            raise CoverageError("V11U generated testbench overlay is invalid")
+        generated_text, expected_receipts = renderer(
+            base_path.read_text(encoding="utf-8")
+        )
+        generated_bytes = generated_text.encode("utf-8")
+        expected_generated = {
+            "path": relative(
+                root,
+                attempt_root / "generated" / expected["generated_name"],
+            ),
+            "sha256": hashlib.sha256(generated_bytes).hexdigest(),
+            "size_bytes": len(generated_bytes),
+        }
+        base_sha256 = sha256_file(base_path)
+        if (
+            set(record)
+            != {"name", "base", "base_sha256", "generated", "receipts"}
+            or record.get("base") != expected["base"]
+            or record.get("base_sha256") != base_sha256
+            or record.get("generated") != expected_generated
+            or record.get("receipts") != expected_receipts
+        ):
+            raise CoverageError("V11U generated testbench overlay is invalid")
+        require_retired(
+            expected_generated,
+            "generated-focused-testbench",
+            f"generated testbench overlay {name}",
+        )
+        overlay_paths[name] = resolve_repo_path(
+            root, expected_generated["path"]
+        )
+
+    make_overlay_path = attempt_root / "generated" / "v11u-source-overlay.mk"
+    expected_make_overlay_text = (
+        "V11U_BASE_INT_SRCS := $(TB_SRCS_tb_ooo_int_backend)\n"
+        "override TB_SRCS_tb_ooo_int_backend := "
+        "$(filter-out tests/tb_ooo_int_backend.sv,$(V11U_BASE_INT_SRCS)) "
+        f"{overlay_paths['int-backend']}\n"
+        "V11U_BASE_PRIV_SRCS := $(TB_SRCS_tb_ooo_priv_system)\n"
+        "override TB_SRCS_tb_ooo_priv_system := "
+        "$(filter-out tests/tb_ooo_priv_system.sv,$(V11U_BASE_PRIV_SRCS)) "
+        f"{overlay_paths['priv-system']}\n"
+    )
+    expected_make_overlay_bytes = expected_make_overlay_text.encode("utf-8")
+    expected_make_overlay = {
+        "path": relative(root, make_overlay_path),
+        "sha256": hashlib.sha256(expected_make_overlay_bytes).hexdigest(),
+        "size_bytes": len(expected_make_overlay_bytes),
+    }
+    if production.get("generated_make_overlay") != expected_make_overlay:
+        raise CoverageError("V11U generated make overlay is invalid")
+    require_retired(
+        expected_make_overlay,
+        "generated-make-overlay",
+        "generated make overlay",
+    )
+
     if (
         not isinstance(variants, list)
-        or len(variants) != 10
+        or len(variants) != 21
         or {
             item.get("name") for item in variants if isinstance(item, dict)
         }
@@ -9955,7 +12102,8 @@ def evaluate_v11u_pending_system_producer(
             != expected["defines"]
             or record.get("expected_marker") != expected["marker"]
             or record.get("compile_success_required") is not True
-            or record.get("assertions") is not False
+            or record.get("assertions")
+            is not bool(expected.get("assertions", False))
             or not isinstance(receipts, list)
             or not receipts
             or any(
@@ -10001,7 +12149,7 @@ def evaluate_v11u_pending_system_producer(
     )
     if (
         not isinstance(profiles, list)
-        or len(profiles) != 24
+        or len(profiles) != 40
         or {
             item.get("profile")
             for item in profiles
@@ -10012,6 +12160,10 @@ def evaluate_v11u_pending_system_producer(
         raise CoverageError("V11U profile inventory is incomplete")
 
     testbench_dir = root / "npc/rv64/testbench"
+    compiled_dependency_records: dict[
+        tuple[str, str], dict[str, Any]
+    ] = {}
+    compile_observations = 0
 
     def verify_profile_record(
         record: dict[str, Any],
@@ -10027,13 +12179,21 @@ def evaluate_v11u_pending_system_producer(
         expected_markers: tuple[tuple[str, str, int], ...] = (),
         cleanup_kind: str = "focused-compile-image",
     ) -> None:
+        nonlocal compile_observations
         name = record.get("profile")
         profile_root = attempt_root / bucket / str(name)
+        dependency_root = profile_root / "dependencies"
         expected_command = [
             "make",
             "-B",
             "-C",
             str(testbench_dir),
+            "-f",
+            "Makefile",
+            "-f",
+            str(make_overlay_path),
+            f"IVERILOG={compiler_wrapper_path}",
+            f"VVP={tools['vvp']}",
             f"TESTS={' '.join(expected_tests)}",
             f"BUILD_DIR={profile_root / 'build'}",
             f"RESULT_DIR={profile_root / 'results'}",
@@ -10058,6 +12218,7 @@ def evaluate_v11u_pending_system_producer(
         expected_command.append("run")
         logs = record.get("logs")
         images = record.get("compile_artifacts")
+        compile_inputs = record.get("compile_inputs")
         if (
             record.get("status") != "PASS"
             or record.get("kind") != expected_kind
@@ -10077,6 +12238,8 @@ def evaluate_v11u_pending_system_producer(
             or set(logs) != set(expected_tests)
             or not isinstance(images, list)
             or len(images) != len(expected_tests)
+            or not isinstance(compile_inputs, dict)
+            or set(compile_inputs) != set(expected_tests)
         ):
             raise CoverageError(f"V11U profile contract failed: {name}")
         image_by_path = {
@@ -10106,6 +12269,167 @@ def evaluate_v11u_pending_system_producer(
                 raise CoverageError(
                     f"V11U profile compile marker failed: {name}"
                 )
+            compile_lines = [
+                line.removeprefix("[COMPILE] ")
+                for line in log_text.splitlines()
+                if line.startswith("[COMPILE] ")
+            ]
+            compile_input = compile_inputs[test]
+            expected_dependency_path = (
+                dependency_root / f"{test}.deps"
+            )
+            expected_compiler_argv_path = (
+                dependency_root / f"{test}.argv"
+            )
+            expected_dependency_record_path = relative(
+                root, expected_dependency_path
+            )
+            expected_compiler_argv_record_path = relative(
+                root, expected_compiler_argv_path
+            )
+            expected_make_argv = shlex.split(compile_lines[0])
+            expected_compiler_argv = [
+                str(pathlib.Path(tools["iverilog"]).resolve()),
+                f"-Mprefix={expected_dependency_path}",
+                *expected_make_argv[1:],
+            ]
+            if (
+                len(compile_lines) != 1
+                or not isinstance(compile_input, dict)
+                or set(compile_input)
+                != {
+                    "make_compile_argv",
+                    "compiler_argv",
+                    "compiler_argv_file",
+                    "dependency_file",
+                    "dependencies",
+                }
+                or compile_input.get("make_compile_argv")
+                != expected_make_argv
+                or compile_input.get("compiler_argv")
+                != expected_compiler_argv
+                or not expected_make_argv
+                or pathlib.Path(expected_make_argv[0]).resolve()
+                != compiler_wrapper_path
+            ):
+                raise CoverageError(
+                    f"V11U compiler argv binding failed: {name}/{test}"
+                )
+            compiler_argv_file = compile_input.get("compiler_argv_file")
+            if (
+                not isinstance(compiler_argv_file, dict)
+                or compiler_argv_file.get("path")
+                != expected_compiler_argv_record_path
+            ):
+                raise CoverageError(
+                    f"V11U compiler argv artifact failed: {name}/{test}"
+                )
+            require_retired(
+                compiler_argv_file,
+                "compiler-argv-list",
+                f"profile {name} compiler argv list",
+            )
+            dependency_file = compile_input.get("dependency_file")
+            if (
+                not isinstance(dependency_file, dict)
+                or dependency_file.get("path")
+                != expected_dependency_record_path
+            ):
+                raise CoverageError(
+                    f"V11U dependency artifact failed: {name}/{test}"
+                )
+            require_retired(
+                dependency_file,
+                "compiler-dependency-list",
+                f"profile {name} dependency list",
+            )
+            dependencies = compile_input.get("dependencies")
+            if not isinstance(dependencies, list) or not dependencies:
+                raise CoverageError(
+                    f"V11U dependency closure is empty: {name}/{test}"
+                )
+            local_keys: set[tuple[str, str]] = set()
+            module_paths: set[str] = set()
+            for dependency in dependencies:
+                if (
+                    not isinstance(dependency, dict)
+                    or set(dependency)
+                    != {"path", "role", "sha256", "size_bytes"}
+                    or dependency.get("role") not in {"module", "include"}
+                    or not isinstance(dependency.get("path"), str)
+                    or not is_sha256(dependency.get("sha256"))
+                    or not isinstance(dependency.get("size_bytes"), int)
+                    or dependency["size_bytes"] <= 0
+                ):
+                    raise CoverageError(
+                        f"V11U dependency record failed: {name}/{test}"
+                    )
+                key = (dependency["role"], dependency["path"])
+                if key in local_keys:
+                    raise CoverageError(
+                        f"V11U duplicate dependency: {name}/{test}"
+                    )
+                local_keys.add(key)
+                dependency_path = resolve_repo_path(
+                    root, dependency["path"]
+                )
+                if dependency_path.is_file():
+                    if (
+                        sha256_file(dependency_path)
+                        != dependency["sha256"]
+                        or dependency_path.stat().st_size
+                        != dependency["size_bytes"]
+                    ):
+                        raise CoverageError(
+                            "V11U live compiler input drifted: "
+                            f"{dependency['path']}"
+                        )
+                else:
+                    retired = removed_by_path.get(dependency["path"])
+                    if (
+                        retired is None
+                        or retired.get("kind")
+                        not in {
+                            "generated-negative-rtl",
+                            "generated-focused-testbench",
+                        }
+                        or retired.get("sha256") != dependency["sha256"]
+                        or retired.get("size_bytes")
+                        != dependency["size_bytes"]
+                    ):
+                        raise CoverageError(
+                            "V11U missing compiler input is not retired: "
+                            f"{dependency['path']}"
+                        )
+                existing = compiled_dependency_records.get(key)
+                if existing is not None and existing != dependency:
+                    raise CoverageError(
+                        "V11U compiler input changed across profiles: "
+                        f"{dependency['path']}"
+                    )
+                compiled_dependency_records[key] = dependency
+                if dependency["role"] == "module":
+                    module_paths.add(dependency["path"])
+            command_source_paths: set[str] = set()
+            for token in compile_input["compiler_argv"]:
+                if pathlib.Path(token).suffix not in {".v", ".sv"}:
+                    continue
+                source_path = pathlib.Path(token)
+                if not source_path.is_absolute():
+                    source_path = testbench_dir / source_path
+                try:
+                    command_source_paths.add(relative(root, source_path))
+                except ValueError as exc:
+                    raise CoverageError(
+                        f"V11U compiler source escapes repository: {token}"
+                    ) from exc
+            if not command_source_paths or not command_source_paths.issubset(
+                module_paths
+            ):
+                raise CoverageError(
+                    f"V11U module dependency closure failed: {name}/{test}"
+                )
+            compile_observations += 1
             if expected_kind in {"positive", "regression"}:
                 if (
                     record.get("make_rc") != 0
@@ -10183,15 +12507,20 @@ def evaluate_v11u_pending_system_producer(
         mutation = V11U_MUTATIONS.get(mutation_name)
         if mutation is None or width not in mutation["widths"]:
             raise CoverageError(f"V11U profile name is invalid: {name}")
+        mutation_assertions = bool(mutation.get("assertions", False))
+        mutation_assertion_defines = (
+            ("-DOOO_ASSERT",) if mutation_assertions else ()
+        )
         verify_profile_record(
             record,
             bucket="profiles",
             expected_kind="mutation",
             expected_tests=(mutation["test"],),
             expected_width=width,
-            expected_assertions=False,
+            expected_assertions=mutation_assertions,
             expected_defines=(
                 f"-DOOO_PRODUCER_GEN_W={width}",
+                *mutation_assertion_defines,
                 *mutation["defines"],
             ),
             expected_marker=mutation["marker"],
@@ -10213,6 +12542,30 @@ def evaluate_v11u_pending_system_producer(
         cleanup_kind="regression-compile-image",
     )
 
+    module_dependency_paths = {
+        path
+        for (role, path) in compiled_dependency_records
+        if role == "module"
+    }
+    include_dependency_paths = {
+        path
+        for (role, path) in compiled_dependency_records
+        if role == "include"
+    }
+    if (
+        compile_observations != 48
+        or len(compiled_dependency_records)
+        != compile_input_closure["unique_inputs"]
+        or len(module_dependency_paths)
+        != compile_input_closure["module_inputs"]
+        or len(include_dependency_paths)
+        != compile_input_closure["include_inputs"]
+        or not compile_claim_rtl.issubset(module_dependency_paths)
+    ):
+        raise CoverageError(
+            "V11U actual compiler input closure is incomplete"
+        )
+
     runner_status_path = attempt_root / "runner.status"
     if (
         not runner_status_path.is_file()
@@ -10231,10 +12584,13 @@ def evaluate_v11u_pending_system_producer(
             artifact(root, relative(root, runner_status_path)),
         ],
         {
-            "positive_profiles": 9,
+            "positive_profiles": 13,
             "assertion_negative_profiles_rejected": 3,
-            "compile_success_mutation_cases_rejected": 10,
-            "mutation_simulations_rejected": 12,
+            "compile_success_mutation_cases_rejected": 21,
+            "mutation_simulations_rejected": 24,
+            "release_mode_mutation_cases_rejected": 10,
+            "assertion_mode_mutation_cases_rejected": 11,
+            "legacy_release_mutation_label_interpreted_as_mixed_mode": True,
             "ordinary_regressions_passed": 4,
             "pre_rob_has_no_lease_closed": True,
             "csr_only_exact_birth_closed": True,
@@ -10243,8 +12599,20 @@ def evaluate_v11u_pending_system_producer(
             "exact_commit_and_flush_death_closed": True,
             "full_pid_and_pc_authorization_closed": True,
             "global_live_mask_reuse_fence_closed": True,
-            "retired_compile_artifacts_validated": 42,
-            "production_design_id_current": True,
+            "production_rob_birth_and_exact_death_closed": True,
+            "production_core_local_flush_death_closed": True,
+            "production_wrapper_chain_closed": True,
+            "actual_compiler_input_closure_closed": True,
+            "compiler_input_profiles_validated": 41,
+            "compiler_input_compilations_validated": 48,
+            "compiler_input_unique_paths_validated": len(
+                compiled_dependency_records
+            ),
+            "compiler_input_required_claim_rtl": sorted(
+                compile_claim_rtl
+            ),
+            "retired_compile_artifacts_validated": 169,
+            "production_design_id_current": payload["design_id"] == design_id,
             "product_instance_paths": sorted(V11U_PRODUCT_INSTANCES),
             "selected_bindings": selected_records,
             "evidence_design_id": payload["design_id"],
@@ -10498,8 +12866,25 @@ def evaluate_evidence_set(
         state, artifacts, detail = evaluate_v11u_pending_system_producer(
             root, spec, design_id
         )
+    elif kind == "v11v_fp_producer":
+        if (
+            set(spec.get("unit_ids", []))
+            != V11V_FP_PRODUCER_UNIT_IDS
+        ):
+            raise CoverageError(
+                "V11V FP evidence must bind exactly the seven FP "
+                "producer-holder semantic units"
+            )
+        state, artifacts, detail = evaluate_v11v_fp_producer(
+            root, spec, design_id
+        )
     else:
         raise CoverageError(f"unsupported binding kind: {kind}")
+    if state == "CURRENT_SELECTED_MACRO_PROJECTION_BOUND":
+        receipt_value = spec.get("selected_binding_compatibility_receipt")
+        receipt_artifact = artifact(root, receipt_value)
+        artifacts.append(receipt_artifact)
+        detail["selected_binding_compatibility_receipt"] = receipt_artifact
     return {
         "id": spec["id"],
         "binding_kind": kind,
@@ -10565,7 +12950,10 @@ def gap_classes(
             gaps.add("CANDIDATE_RTL_SOURCE_DRIFT")
         elif state == "RTL_SOURCE_MATCH_TESTBENCH_DRIFT":
             gaps.add("CANDIDATE_TESTBENCH_SOURCE_DRIFT")
-        elif state == "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
+        elif state in {
+            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+        }:
             gaps.add("CURRENT_FULL_DESIGN_REPLAY_GAP")
     if instance_count > 1:
         gaps.add("PRODUCT_INSTANCE_DISTINGUISHABILITY_GAP")
@@ -10764,6 +13152,8 @@ def _build_ledger(
             "census": artifact(root, relative(root, census_path)),
             "instance_graph": artifact(root, relative(root, graph_path)),
             "policy": artifact(root, relative(root, policy_path)),
+            "compile_image_retirements":
+                task_run_vvp_retirement_artifacts(root),
         },
         "counts": {
             "semantic_units": len(output_units),
@@ -10831,11 +13221,10 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument(
         "--instance-graph",
-        default=(
-            ".github/task-runs/2026-07-31-rv64-"
-            "axi-xbar-naming-refresh/evidence/"
-            "current-holder-instance-graph/"
-            "holder-instance-graph.json"
+        default=None,
+        help=(
+            "explicit graph override; default follows the hash-bound result "
+            "role in the current producer-holder census"
         ),
     )
     result.add_argument(
@@ -10856,10 +13245,16 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     root = args.root.resolve()
+    census_path = resolve_repo_path(root, args.census)
+    graph_path = (
+        resolve_repo_path(root, args.instance_graph)
+        if args.instance_graph is not None
+        else manifest_instance_graph_path(root, census_path)
+    )
     expected = build_ledger(
         root,
-        resolve_repo_path(root, args.census),
-        resolve_repo_path(root, args.instance_graph),
+        census_path,
+        graph_path,
         resolve_repo_path(root, args.policy),
     )
     if args.command == "build":

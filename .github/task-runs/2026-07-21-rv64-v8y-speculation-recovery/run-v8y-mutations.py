@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,8 +21,32 @@ VSRCDIR = REPO / "npc/rv64/vsrc"
 TBDIR = REPO / "npc/rv64/testbench"
 TB = TBDIR / "tests/tb_ooo_int_backend.sv"
 ADAPTER = TBDIR / "tests/tb_ooo_int_backend_v8x_bridge.svh"
-WORK = Path("/tmp/rv64-v8y-speculation-recovery-mutations")
-EVIDENCE = HERE / "evidence/mutations"
+DEFAULT_EVIDENCE = HERE / "evidence/mutations"
+
+
+def evidence_output_dir() -> Path:
+    raw = os.environ.get("V8Y_MUTATION_OUTPUT_DIR")
+    if not raw:
+        return DEFAULT_EVIDENCE
+    path = Path(raw).resolve()
+    if path == DEFAULT_EVIDENCE.resolve():
+        return path
+    try:
+        rel = path.relative_to(REPO)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"mutation output escapes the local RV64 workspace: {path}") from exc
+    parts = rel.parts
+    if (
+        len(parts) != 5
+        or parts[0:2] != (".github", "task-runs")
+        or parts[3:] != ("evidence", "ooo4-mutations")
+    ):
+        raise RuntimeError(f"unsafe OOO-4 mutation output directory: {path}")
+    return path
+
+
+EVIDENCE = evidence_output_dir()
 
 BACKEND = VSRCDIR / "execute/OooIntBackend.v"
 DISPATCH = VSRCDIR / "rename_allocate/OooDispatchBackend.v"
@@ -250,8 +276,8 @@ def build_mutants(mutation: Mutation, case_dir: Path) -> dict[Path, Path]:
 
 def run_mutation(mutation: Mutation, sources: tuple[Path, ...],
                  iverilog: str, vvp: str,
-                 suite_run_id: str) -> dict[str, object]:
-    case_dir = WORK / mutation.name
+                 suite_run_id: str, work: Path) -> dict[str, object]:
+    case_dir = work / mutation.name
     case_dir.mkdir(parents=True, exist_ok=True)
     replacements = build_mutants(mutation, case_dir)
     image = case_dir / "tb_ooo_int_backend_v8y.vvp"
@@ -328,9 +354,16 @@ def main() -> int:
                                for edit in mutation.edits})
     before = {path.relative_to(REPO).as_posix(): sha256(path.read_bytes())
               for path in production_paths}
-    results = [run_mutation(
-        item, sources, iverilog, str(vvp), args.suite_run_id)
-               for item in MUTATIONS]
+    if EVIDENCE.exists():
+        shutil.rmtree(EVIDENCE)
+    EVIDENCE.mkdir(parents=True)
+    with tempfile.TemporaryDirectory(
+        prefix="rv64-v8y-speculation-recovery-mutations."
+    ) as temporary:
+        work = Path(temporary)
+        results = [run_mutation(
+            item, sources, iverilog, str(vvp), args.suite_run_id, work)
+                   for item in MUTATIONS]
     after = {path.relative_to(REPO).as_posix(): sha256(path.read_bytes())
              for path in production_paths}
     summary = {

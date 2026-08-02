@@ -1,0 +1,104 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v11v-fp-producer-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 浮点执行路径中 OooFpIssueQueue producer_id_q、OooFpBackend issue/exec1/long/done holder 与 OooFpArithGate 五级 producer metadata 的 birth、residency、完整 ProducerId 完成资格、错误 generation 拒绝、精确退休和 full-flush death；核对 OOO_PRODUCER_GEN_W=1/4 的 attempt-2、14 个编译成功负向 RTL 变体、4 个回归、51 项退役构建产物与 44/44 语义账本，寻找假绿、覆盖洞和越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/specs/ooo-fp-producer-lease.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/include/define.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+      "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/Makefile",
+      ".github/task-runs/2026-07-31-rv64-axi-xbar-naming-refresh/evidence/current-holder-instance-graph",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-1",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/fp-producer-attempt-2",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/ledger-attempt-1",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence/v11h-checker-replay-after-v11v-attempt-2-receipt.json",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/task-report.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/rtl-derivation.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/implementation-result.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/evidence-index.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/decision-trace.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-31-rv64-v11v-fp-producer-semantic/subagent-contracts/v11v-fp-producer-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-fp-producer-lease.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象、OOO_PRODUCER_GEN_W=1/4 编译配置、testbench/EDA marker 与 PASS/GAP 边界给出独立复核；列明反例、未知项、替代假设、真实证据路径、source pre/post 或 generated-overlay receipt 漂移，以及任何 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认或反驳七个 FP producer/holder 当前 closure：三条自然 FP 事务和 full flush 必须覆盖全部 holder，14 个负向变体的 stage/unit/source 绑定与 28 个非零返回仿真必须精确，4 个普通回归和 51 项 cleanup 必须可回指哈希；不得把 44/44 局部 PASS 升级为 whole-architecture GREEN 或 PPA 资格。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

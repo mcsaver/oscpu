@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13p-b-terminal-independent-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooMemAxiBridge 在 S_WRITE_RESP 聚合 B 到达拍向 formal-WB response channel 直接呈现的周期合同；追踪 OooIntBackend、OooStoreQueue、OooRob 与 OooMemOwnerTerminalCollector 的 exact owner、terminal、registered done/commit、flush/drop 和 backpressure，核对定向 TB、compile-success RTL source mutation 与同配置 CoreMark A/B 是否足以支持或否定该单机制候选，并明确组合路径与因果证据 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/driver/run-v13p-b-fusion-mutation.sh",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/driver/coremark-b-fusion-ab.sh",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/module-testbench-focused/logs/tb_ooo_mem_axi_bridge_v13p_store_b_fusion.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/module-testbench-full/logs/tb_ooo_mem_axi_bridge.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/mutation-disable-direct/result.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/mutation-disable-direct/logs/tb_ooo_mem_axi_bridge_v13p_store_b_fusion.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/integration/logs/tb_ooo_dual_mem_bridge_wrapper.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/integration/logs/tb_ooo_int_backend_v8x_backend_bridge_recovery.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/integration/logs/tb_ooo_sv39_boot.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/integration/logs/tb_ooo_dual_memory_sustained_issue.log",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/baseline-tieoff.diff",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/comparison.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/baseline/pre-run-identity.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/candidate/pre-run-identity.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/baseline/counter-result.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/candidate/counter-result.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/baseline/post-run-binding.json",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/evidence/coremark-b-fusion-ab/candidate/post-run-binding.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/subagent-contracts/v13p-b-terminal-independent-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 OooMemAxiBridge 聚合 B direct-fire/fallback/drop 的逐周期独立结论，列明跨模块 owner/holder/terminal/ROB commit 是否闭合、可操作反例、组合路径风险、CoreMark counter 因果边界、未知项、替代假设、scope_extension_request 与 confidence_and_basis，并按真实文件与 marker 引用证据。"
+  ],
+  "success_criteria": [
+    "结论必须区分 RTL correctness、focused mutation sensitivity、跨模块 integration、单次 CoreMark CPI observation 与 PPA/promotion 资格；任何 PASS 都需对应允许路径中的具体信号、周期条件和日志 marker，发现反例时给出可落成定向 TB、断言或静态审计的验证建议，信息不足允许 GAP/inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

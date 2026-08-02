@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13a-store-queue-ppa-rereview-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 OooStoreQueue final-PA query 的最终两项闭环：opensta-top40.rpt 最差路径余量必须与 summary/task-report 一致；tb_ooo_store_queue 必须以 valid_q[0]=0 且其它 entry payload 为 X 的定向 oracle 证明 known-invalid entry 不会导致过度 replay，同时保持 potentially participating X replay、current design-id marker 与 full-core mapped/STA promotion GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/task-report.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/dispatch-log.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/tests/tb_ooo_store_queue.log",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/synth/local-mapped/opensta-top40.rpt",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/subagent-contracts/v13a-store-queue-ppa-rereview-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/summary.json",
+      ".github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/tests/tb_ooo_store_queue.log"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 OpenSTA 最差路径字段、known-invalid X-ignore oracle、potentially-participating X-poison、日志 design-id/RESULT marker 与 checkpoint/promotion 边界的独立复核；保留 unknowns、反例、替代解释、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有 opensta-top40.rpt、summary、task-report 的最差 slack 精确一致，known-invalid X payload oracle 在 TB 源码与 PASS 日志中均可定位，current design-id/RESULT marker 精确存在，且 full-core mapped/STA/promotion 继续为 GAP 时，才可判定该 development checkpoint PASS；任何字段漂移、过度 replay、optimistic admission 或越级结论均判 GAP/inconclusive并指出文件与信号。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

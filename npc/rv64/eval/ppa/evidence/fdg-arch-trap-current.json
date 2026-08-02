@@ -8,7 +8,7 @@
     {
       "kind": "program_log",
       "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
-      "sha256": "600b201fe52ca4dd3551a8fe62b904acefdd6a2b69bccf1352a8e55163ffff7b"
+      "sha256": "06cb13a8fc2b3b11943bb143e5afc7706d6636a37db71c37d791af2f2ff62f95"
     },
     {
       "kind": "module_aggregate_summary",
@@ -18,7 +18,7 @@
     {
       "kind": "rtl_mutation_summary",
       "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/mutations/summary.json",
-      "sha256": "62ff9adaa9bd109ece18daae94574aca10906da545038ba87753a32f636d11b1"
+      "sha256": "44a82c008a6be83dc97f60074ba22b8d5d20fea5cc176fa667b0826d670a9437"
     }
   ],
   "canonical_command": "make -C npc/rv64 check-fdg-arch-trap",
@@ -27,14 +27,14 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "focused_tests": {
     "legality_dispatch": {
       "log_sha256": "a04421b43eea75f20a85c849786a14077e7b90663de1a94d1437bbae3583a27f",
       "status": "PASS"
     },
     "privileged_program": {
-      "log_sha256": "600b201fe52ca4dd3551a8fe62b904acefdd6a2b69bccf1352a8e55163ffff7b",
+      "log_sha256": "06cb13a8fc2b3b11943bb143e5afc7706d6636a37db71c37d791af2f2ff62f95",
       "status": "PASS"
     }
   },
@@ -88,7 +88,7 @@
       },
       "tb_axi_exec_firewall": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_axi_exec_firewall.log",
-        "sha256": "0a81070dbcce02b862fc927637a267dfc8a608031c2c164287773b9bcd454693"
+        "sha256": "0e03c02ed3b65dda981308c4d139daa49f590d851c14c3fcc29ad30ca4d7ea9c"
       },
       "tb_axi_plic": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_axi_plic.log",
@@ -104,7 +104,7 @@
       },
       "tb_axi_xbar": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_axi_xbar.log",
-        "sha256": "fa821fe315f2eb75ba4bd26f1f9b6b1b8425792c7646ff1014f252c857ea2d51"
+        "sha256": "afcb60186dc30236a8163f643d8d6d13ff38ca84752c90b0f9ccf58f16998484"
       },
       "tb_compare": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_compare.log",
@@ -112,7 +112,7 @@
       },
       "tb_csr_file": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_csr_file.log",
-        "sha256": "b96dccac267e6f9a6198dbcef2b81275dfeed45b46d169a563530fd96753967f"
+        "sha256": "4bf94a7ef57682101ea18a172aca60844d8b432e97d9ea075712ae37754d3079"
       },
       "tb_csr_file_vectored_trap": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_csr_file_vectored_trap.log",
@@ -144,11 +144,11 @@
       },
       "tb_ooo_alu_core_slice": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_alu_core_slice.log",
-        "sha256": "d30b1a9728f1ee977735f437b368901e0797fd21215ca0b6fa5f7f134d227ffc"
+        "sha256": "759e317a43ce4314e4799765e13428fb86c7ecb08a98a621fdf21906002ae7c0"
       },
       "tb_ooo_alu_decode_backend": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_alu_decode_backend.log",
-        "sha256": "befb07d3f7dbf47ccfc19ec6c6b9349e31197eb37e9722f04cbcb94aec7ad5e8"
+        "sha256": "868c0054d60c9ce2326cb981b38b7e39af39f09f43a5375280eebbeaa0c80925"
       },
       "tb_ooo_amo_gate": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_amo_gate.log",
@@ -208,7 +208,7 @@
       },
       "tb_ooo_core_top_glue": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_core_top_glue.log",
-        "sha256": "3d3ce98b6ceee3c36706c1c70110af543ace16802c022440812271a584bf285b"
+        "sha256": "a8a14e66fc280a6bb61aff0d6fa1fa3cd19e736e304ff522dc2d68ca8f02d2ce"
       },
       "tb_ooo_csr_access_request_mux": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_csr_access_request_mux.log",
@@ -240,7 +240,7 @@
       },
       "tb_ooo_dual_memory_sustained_issue": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_dual_memory_sustained_issue.log",
-        "sha256": "f0b47fc33ed7f485f86301769c199f613b87fa2457fe0c82266022b4cc31d23d"
+        "sha256": "e57a73cda68f9ba544cfea2e505fdf3841ffec7c75a731452ed2aa9dabeefbc3"
       },
       "tb_ooo_fetch_access_footprint": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_access_footprint.log",
@@ -256,7 +256,7 @@
       },
       "tb_ooo_fetch_axi_bridge_xbar": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_axi_bridge_xbar.log",
-        "sha256": "7c782576d76cf07837aa0b6f06c878fc30b3f57c4236983894b2f475cd5b7d10"
+        "sha256": "f5035765d98d55f3ae22bffc8423a28ee91a1d17dfdc5f75d57ffc3a31966421"
       },
       "tb_ooo_fetch_branch_target": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_branch_target.log",
@@ -280,7 +280,7 @@
       },
       "tb_ooo_fetch_packet_decode": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_packet_decode.log",
-        "sha256": "101571f051dcdf9c2858ad5ac31cb74d1f746ad80a3c9e5ea9e164afca6a598f"
+        "sha256": "cbd0aa162474c00f29b5793b513efb0651ebf5dee902a1d48296a33b7cb2ade5"
       },
       "tb_ooo_fetch_packet_fifo": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_packet_fifo.log",
@@ -312,7 +312,7 @@
       },
       "tb_ooo_fetch_trap_gate": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fetch_trap_gate.log",
-        "sha256": "a35817a8f75f4b560c2202929e0f7fa9a5879df50962503d8dd5e14bff97ff9e"
+        "sha256": "56e0085264cc59f0b7cf542334ac3deff19a1866ade990d559a396c2ff36a960"
       },
       "tb_ooo_fp_arith_gate": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_fp_arith_gate.log",
@@ -388,7 +388,7 @@
       },
       "tb_ooo_int_backend": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_int_backend.log",
-        "sha256": "e7f93be41eb39467728dbda111ec1b9d8da0e8e6c53467fb94b850fa039f6f45"
+        "sha256": "078f10d3a9b8c2ef8e596a1b1f6742305de367036946624cf04afc72f7906379"
       },
       "tb_ooo_int_issue_queue": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_int_issue_queue.log",
@@ -396,7 +396,7 @@
       },
       "tb_ooo_load_queue": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_load_queue.log",
-        "sha256": "9084e9789fab688dcdc56c0330c04495bd890385e78788d9d27826a8bfefeb09"
+        "sha256": "ff80fd0ff178827b2c8f9b576d9ad73b09a6c9e02d6604f7277db151bd905d75"
       },
       "tb_ooo_lsu_axi_lane_adapter": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_lsu_axi_lane_adapter.log",
@@ -412,11 +412,11 @@
       },
       "tb_ooo_mem_owner_terminal_collector": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_mem_owner_terminal_collector.log",
-        "sha256": "25bc9c92cbef57bfbe5a00e4a576a173a5baccfd941a40ac8ac7784fe5706696"
+        "sha256": "2076ca56a94a478992045d7cc7af14eded36f9386a2a1103b0ca5cd79b4d0f84"
       },
       "tb_ooo_mem_owner_tracker": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_mem_owner_tracker.log",
-        "sha256": "f06c6611efe4c5e007fb18661ec0feae4572bca340c37749500c6a9bdbe67fb1"
+        "sha256": "b04645ecdbb33c23356c8cad63e28959aedcaf62128dd869a01e91fc58fe4182"
       },
       "tb_ooo_memory_request_gate": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_memory_request_gate.log",
@@ -468,7 +468,7 @@
       },
       "tb_ooo_priv_system": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_priv_system.log",
-        "sha256": "600b201fe52ca4dd3551a8fe62b904acefdd6a2b69bccf1352a8e55163ffff7b"
+        "sha256": "06cb13a8fc2b3b11943bb143e5afc7706d6636a37db71c37d791af2f2ff62f95"
       },
       "tb_ooo_ras_update_gate": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_ras_update_gate.log",
@@ -500,7 +500,7 @@
       },
       "tb_ooo_sv39_boot": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_sv39_boot.log",
-        "sha256": "656e14edd4853da2a0691cff34f41ecebded1385757f01cd25eb8e1938f4c432"
+        "sha256": "7f9ca5c0779eee74efeaabfffe73f137382fc4dc0e50ea0110368f0bb8b3d969"
       },
       "tb_ooo_trap_exit_event_mux": {
         "path": ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/evidence/module-aggregate/logs/tb_ooo_trap_exit_event_mux.log",
@@ -538,7 +538,7 @@
     "oracle_probes": [
       {
         "ivflags": "-DFDG_COMMIT_ORACLE_SENSITIVITY",
-        "log_sha256": "ee62f1d8e20cc0816ad277914cadb85a58b10b870e537b26492559848c4ecfd7",
+        "log_sha256": "5b22f76ccb1491383b90e82890b3beb5e91081958b9c3e668238e99a85bf9848",
         "name": "commit_observer_known_transaction"
       }
     ],
@@ -549,37 +549,37 @@
     "source_unchanged": true,
     "variants": [
       {
-        "log_sha256": "b59bf3466990d65c61b506d1e39bcfa371362faca0074be1ab4f47e9884f1116",
+        "log_sha256": "b5d3b91bc3e1751d567f9eeecdd41453ca00c903223bc3b799a26a5e9250e30a",
         "mutant_sha256": "b85d49c3fc2f0224e680580fa542c4c29cdbb8bcc305aaadd240d96112d8562b",
         "name": "final_backend_arch_trap_leak",
         "source": "npc/rv64/vsrc/frontend/OooFrontend.v"
       },
       {
-        "log_sha256": "54ec44c78a4825d9e3bb6a7d70d3b7d4cb4db9652d1a40e2157d84af7ba86e3c",
+        "log_sha256": "d94078a3d354755260d5511e23273025a72ee7260fbfafce9538c9e71d0d7418",
         "mutant_sha256": "5d1232ccdf22bec14fb86c0cea1be94c7a6f767191de98a4c5cef339b267d6fc",
         "name": "lane1_arch_trap_exclusion_removed",
         "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
       },
       {
-        "log_sha256": "f44e64f92ad0b1fcf8f0a0b79f2861dec2b99fe23c2a147972d8fee36c081d68",
+        "log_sha256": "8c0fbe3fd59d3390fdf5eed4bfa0040c0aca8b6e759eec85cab2f80736227b68",
         "mutant_sha256": "5e9ec770b40d4163c0a1f1141dfce4dfcb8dfb484a40d3bb738100c73ec58eac",
         "name": "ordinary_admission_forced_closed",
         "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
       },
       {
-        "log_sha256": "d24916260724ddef28613a6c19ede54265e7b05d0671c8fa0dd6ad65d1cf8d04",
+        "log_sha256": "be8c95899c8231e3849625798cd8a6c33d091d2047376fbfc2f86c12ae9bf263",
         "mutant_sha256": "63255b3be2672fad345ea2872c38ea990ba6ba522e7d60ac0d6c690bbff90fb3",
         "name": "ordinary_arch_trap_exclusion_removed",
         "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
       },
       {
-        "log_sha256": "9b71e2fc9299e01ee6e4f39d47a8a08eba0eb73095381ab0a39c9d4aeb6428e4",
+        "log_sha256": "4f313673d8124dce8651b91ebc4d0d1eb4c7d861cb5b27b17e820dbe5bc0c832",
         "mutant_sha256": "be9d7be421f9f8594f6d302f6d3f97b313c98d8847bef8b9ae7f1a81ff5c498d",
         "name": "trap_ex_pc_corrupted",
         "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
       },
       {
-        "log_sha256": "acaa4e6ee386bfc41515bad8dcd12078efdc574c4c15c31f199b4bfa8975ff58",
+        "log_sha256": "99d0de7ef715669400e24f5748d655c22b89e671d4894f6411e880ed66e53cc5",
         "mutant_sha256": "deec2e3c1b88db6a5296ad424314d1536c830a478127139d9d265e19ae1fe46d",
         "name": "trap_ex_tval_forced_zero",
         "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v"
@@ -589,12 +589,12 @@
   "provenance": {
     "files": {
       "npc/rv64/vsrc/bus/AxiClint.v": "c88d091f0a4caba5daf9407cfb73d8a504feb5ba2669da0934d324cbf577de24",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v": "d86044c4a929e49d9d264aa3da1331d71b4ce302e1f28688f3fc704888a35103",
       "npc/rv64/vsrc/bus/AxiDefaultSlave.v": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e",
       "npc/rv64/vsrc/bus/AxiPlic.v": "3141814d0a81d52556d193ef8c23facb7926a88dbd804cb9f312538b5897fa92",
       "npc/rv64/vsrc/bus/AxiResetSyscon.v": "0d9a7c52814ab6d848f558d578db416820cb2f92ed5fa18b4f4c92484f939a95",
       "npc/rv64/vsrc/bus/AxiToUart.v": "f2688a3f5e0d090de679619381ce234f870eba195ec7c718350fe242eaa3bf33",
-      "npc/rv64/vsrc/bus/AxiXbar.v": "c910458481d80d76f90c8c766f19eb6c931e22971062a985f752839c52b75384",
-      "npc/rv64/vsrc/bus/NpcAxiBus.v": "e131fc07ec3b0a099aa9d8983f72e38e5a92652796e224f82d8245dc6b0f6612",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v": "5cb2045af20d6a8412081ff02e0cfeda098b7fc35f85d7a043a39b59729f00fe",
       "npc/rv64/vsrc/bus/Uart.v": "51c13d4a53f543b3dd53b075b123d1980b671ff5ddd6a56c5913609ec283d161",
       "npc/rv64/vsrc/cache/OooDataWordCache.v": "7f3f0cddae8c44442c9357caa7da8212570c20f909aedc59af02f8b4bb05f898",
       "npc/rv64/vsrc/cache/OooFetchPacketCache.v": "f7e513db041dbca178bcfb07d8de5b4c552090956a52f21727f0095a4398cac2",
@@ -622,7 +622,7 @@
       "npc/rv64/vsrc/control/OooStopPendingSequencer.v": "98bb230e4842f0255783ec3a13761e54fa73c25aa9d3ddf999ed2231a0de29d1",
       "npc/rv64/vsrc/control/OooTrapExitEventMux.v": "0292140f17fd7e718d7a0a92f08bf6afa2b0420b6f54e27de17b1e71470fdc73",
       "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v": "7c9fb8e57d122a14538ec1b70965f82ef81e2c865238bde556bdea200331eed5",
-      "npc/rv64/vsrc/core/CsrFile.v": "ae08291285470b5bba6c0155e02a9ab186a0937eb71864f2d8c8471220c205db",
+      "npc/rv64/vsrc/core/CsrFile.v": "73d9647879753a4d67a270e74701f6eab16bfe36a1be137c3f7a821ab669c966",
       "npc/rv64/vsrc/core/NpcCoreTop.v": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
       "npc/rv64/vsrc/core/NpcTop.v": "d242781a83974a4a63366dd46e44936ff639ce2137b4c195401c3f52cf22ef76",
       "npc/rv64/vsrc/core/OooCoreTopGlue.v": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
@@ -637,7 +637,7 @@
       "npc/rv64/vsrc/decode/ImmGen.v": "6760d9a76cf6b94fce28a7faf37576c174654a59f225e33e1733f8b8a7067abd",
       "npc/rv64/vsrc/decode/OooAluDecodeBackend.v": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
       "npc/rv64/vsrc/decode/OooFpDecode.v": "10141db51c6ce70eea1afcf0c38c9cda52f7f9d8d1c98001f64ed21e7b21a205",
-      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "9ea2b572ca3649ed79a378887613ecbd575d82d0bef6135a44430c4d5d79c7b4",
+      "npc/rv64/vsrc/decode/OooRvcDecompressor.v": "fcfb803ce4c7d6a05c49c906d461a213946ebba79d6864d73d96abd0da556f0e",
       "npc/rv64/vsrc/execute/ALU.v": "fe3bc959a56191d3fef4666c13a8fca2ea30d6f1028466be57ab3234363ece65",
       "npc/rv64/vsrc/execute/CompareUnit.v": "d1d31666788d8265963cc40403d69c180fd299d2e09cc20ce63efbe7a6c91844",
       "npc/rv64/vsrc/execute/OooAluCoreSlice.v": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
@@ -658,7 +658,7 @@
       "npc/rv64/vsrc/execute/OooFpSqrtIter.v": "dda7896df4b626d928dc2f464cf0d885bd177fab4bff77d0a71f39fc0bd8f378",
       "npc/rv64/vsrc/execute/OooIntBackend.v": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
       "npc/rv64/vsrc/execute/OooMulDivUnit.v": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
-      "npc/rv64/vsrc/filelist.mk": "b0f6554c176edbc8f3ad70b8404c073ab856aec5a8a39768baec34959f34594e",
+      "npc/rv64/vsrc/filelist.mk": "6529498bf0538122f5f22034e11166cec014306ac0e67966ccd512bf04f4067b",
       "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": "5b2db4eb935d20cea33b85d7713a66a3497e0eec97a0fb8d5ffa53cd74b3f819",
       "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v": "d6aa4a2399326d9d33697c047fe98748000ac5a65beac1dc242d714cecfb8e52",
       "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": "0b5fbda1c3bfa9b359ba741cca1c8f12c21761033d2caec7357fe67578b6d5e6",
@@ -689,17 +689,17 @@
       "npc/rv64/vsrc/frontend/OooFrontendUopSafety.v": "20a8489f65b1447092c2e75d9d7db6fee10e4c923b8475db58fadd6b36ec6cf3",
       "npc/rv64/vsrc/frontend/OooRasStack.v": "1873ac6a0cd04aec81c16dce8e3d6254ea6c0832e8a40a413959360ed9f17d89",
       "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": "f976fc52530ed30338abe4f3aa91fb26e5625faf9ac900ecc2523f023c629a4c",
-      "npc/rv64/vsrc/include/define.v": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+      "npc/rv64/vsrc/include/define.v": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
       "npc/rv64/vsrc/memory/LSU.v": "169f9d388691f307133851c630c6616bb72b19f6c53ea6b8b150c27533ed0888",
       "npc/rv64/vsrc/memory/LSUControl.v": "c331e07220d9dce8684e442b7f2e00082e985024d0a5fa3d32b8a3f88ae026ca",
       "npc/rv64/vsrc/memory/LSUDataPath.v": "7f0243e7d7898e44262cf1ee832ee655404935d958d7366c63e880bc7fad89c0",
       "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": "f4b810ed5ada6f68e920ab077a596daf18dee7fe485acae59102f0c2d575b3b7",
       "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": "a421641abcfbd45a10f28fc0e44c7f2d1b28a1936c5500f0f046e7456590f5c9",
-      "npc/rv64/vsrc/memory/OooLoadQueue.v": "82b22c8bf873b26863676823dd677fa8389ca96465e5611ac19e991d92a9752e",
+      "npc/rv64/vsrc/memory/OooLoadQueue.v": "4287aa7c746391d522bebcfceb481c01127d35f248da3cc025b5efdef15cf427",
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
-      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "2d6f33182e02e516e03864849e6d7299db44163a847b814f88ba8ea8d821a062",
-      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "7a9bf388210313dca93ec647d1c1cd6c2e64ed7b1a149f587abd1098b8878ad6",
-      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "9fe9715767ed3a3f6ac3b00ebec7a3450cfd76df4eef313e4c0293cc39d988ff",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "3e8ea5e11b09a5e0d04c7d3f02dc00c4c008106d73cc4dc82d4b44e8b9822ff5",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
       "npc/rv64/vsrc/memory/OooMemOwnerTracker.v": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
       "npc/rv64/vsrc/memory/OooMemoryAccess.v": "e14141a1677925fde5cca8e39a25ebc63e915c684cd7f68631b15522425da508",
       "npc/rv64/vsrc/memory/OooMemoryRequestGate.v": "1793f21ca9733a42a6869a58099626a5a96d84291c0f3a7262e7e3f093802ca9",
@@ -725,7 +725,7 @@
       "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
       "npc/rv64/vsrc/sim/AxiDpiSlave.sv": "5833cd345eec9e87ee455e7e4fdc9c7b2898570026da7b129248764de6a54b2b",
       "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": "adff913bcef054ac6d0e478271bb8403474489479c5330df8b8858bd48961e80",
-      "npc/rv64/vsrc/sim/NpcSimTop.sv": "bfae85312378265b3fff91dcb4ab74d3709655078520eaee33c6af4e0ed8b38e",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv": "5320af1ffb8b042c54b508e076aed66a8745f3f61ad2de78543a7a633b56b664",
       "npc/rv64/vsrc/sram/Sram4096x113.v": "cf3b7f4f920c6ce5383e1cf276b6528dd4233469c4236978b8c0660761997fad",
       "npc/rv64/vsrc/sram/Sram4096x199.v": "66cd5a95e9244bfce6228d031e2c6f759928f33f84b9dd2b86ca575699d8d703",
       "npc/rv64/vsrc/writeback/OooArchRegFile.v": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
@@ -735,17 +735,17 @@
       "npc/rv64/vsrc/writeback/OooWriteback.v": "e6d231119c6e38e87c129ca34bd5a5f01bb6754a5d24d60231b0a52d7539e2da",
       "npc/rv64/vsrc/writeback/WBU.v": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
     },
-    "rtl_sha256": "04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+    "rtl_sha256": "882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
     "source_bindings": {
       ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/contract.md": "ca7a8dd47e68ebe006e96d65524a18138e903fc2ba53891dbf8c4894eccce1ec",
       ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/rtl-derivation.md": "65e37a5ee8b8afc09c2d765e52974a857324386a16fe71cea4fef12763ed743b",
       ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/run-fdg-mutations.py": "945c8a3dc9cc3d183fb3ec969fe38261c6b45a1311cb11be0ec0d269a4ab28bb",
       ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/run-focused.sh": "6d5101a274664bcef08ce18a9fd72f65209197f5613bd38bee4b2352d2aad7ed",
-      "npc/rv64/Makefile": "e062f72d6ec79e44568dea09595c1cfda27db1380c72982cbffab30395f2dfe9",
+      "npc/rv64/Makefile": "834d3afbfec1c0e91278e4feaa63464433df3665160b1313df517bcfcce044f8",
       "npc/rv64/eval/ppa/tests/test_fdg_arch_trap_evidence.py": "36581a91ccd6ec2bc26f3fd7b26e21d5d980386fa62b6f521e1a4bdf8c6a7111",
-      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "f005650ee9e8e11a7225ee32eaa6bb35fac4a7a6ca081c8a8c92df84c6e54724",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "4a406b97104199b25ede8a46da97c3d068ecaa0fbc02183acb47cc8c404dbbfb",
       "npc/rv64/eval/ppa/tools/fdg_arch_trap_evidence.py": "6b95f3b9f60ff02c8e6e770b3ae5b95c71902759ff5ef518994baedeebc115e4",
-      "npc/rv64/testbench/Makefile": "1dd6b8d0cf7c9d348572aefbc26f7557d237797c7f6e51da451ea6b64b12c613",
+      "npc/rv64/testbench/Makefile": "3372306313f5b4ba6373171a9960f04294c1b13215702b5fd5e2dc7b2ef3bd06",
       "npc/rv64/testbench/scripts/check_tb_result.py": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332",
       "npc/rv64/testbench/tests/tb_ooo_fp_legality_dispatch_path.sv": "550b928c419351ca181e912952c06e221aa5a612564e4ce061acdbcc324e7591",
       "npc/rv64/testbench/tests/tb_ooo_priv_system.sv": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",

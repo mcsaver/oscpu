@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13u-ooo3-frozen-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对当前 OOO-3 访存序冻结证据执行独立限定材料复核，判断 design_id、正向 testbench、compile-success 负向 RTL 版本、proof role 和 hard-gate 状态是否支持仅限 OOO-3 的 APPROVED_FOR_CURRENT_SCOPE，或存在必须拒绝的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/evidence",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1/subagent-contracts/v13u-ooo3-frozen-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 RTL design_id 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；scoped architecture manifest 仅含 memory_ordering=PASS。",
+      "六个 OOO_ASSERT 配置 lq、sq、backend、backend-dual、glue、sustained 的各自日志均恰有一个 [RESULT] PASS，且 runner 拒绝任何 [RESULT] FAIL、[CHECK-FAIL]、[TIMEOUT] 或 FATAL。",
+      "OooLoadQueue 九个 compile-success 负向 RTL 版本均 compile_success=true、oracle_seen=true、dynamic_rejected=true、passed=true；五个漂移切点以 generated-open-hit、generated-release-ready 或 onehot-allocation 唯一锚点重绑定，其余四项唯一命中历史仍存表达。",
+      "F2 父证据 result 为 PASS，十八个 compile-success 双 memory core 负向版本均检出；memory_ordering evidence 使用 task-run-v1 且精确包含十二个 proof role。",
+      "sources.pre.sha256 与 sources.post.sha256 字节一致且 SHA-256 均为 a12535809777d3abcc2d67e95d5f89398ed8bd974a59dad334c321b06c1907dd；38 项 evidence 单测与 hard-gate 内 31 项反例单测均 PASS。",
+      "最终 OOO-3 结果为 metrics 11/11、mutations 9/9、OOO-3 GREEN；DI-1、DI-2、DI-3、DI-4、DI-5、OOO-1、OOO-2、OOO-4 均 RED，overall RED，PPA UNQUALIFIED，promotion_eligible=false。",
+      "scoped manifest SHA-256 为 90e4421f343f7b5027c99e23e4631d70a19e8f6ea01b58bb029e8aea9fdff500；architecture result SHA-256 为 c9c4813923841df6adab63fc9f2a8c1a8421796ab38ecfc12e7a8d836d2817f7；canonical manifest 保持既有 SHA-256 a0bd58bf4ef9bdfa7724087af3dcef79a72cb8384d8e1e8131d20957897c1bc1。",
+      "规范承重不变量的重复编号已改为连续 9、10、11、12，随后完整 runner 重跑 PASS；本轮没有修改 npc/rv64/vsrc 下的 production RTL。",
+      "六个临时 precheck 目录已删除，保留 f2-current、ooo3-current、lq-mutations、manifest、gate log 与合同；task-run 内未发现 vvp、目标文件或综合中间物。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象、编译配置、TB/EDA 观测、PASS/GAP 范围给出冻结材料 reviewer 结论；列出反例、替代假设、未知项、证据复用边界和 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "明确 APPROVED_FOR_CURRENT_SCOPE 或具体 REJECTED/GAP；不得把冻结材料复核称为完整源码独立审查，也不得把 OOO-3 局部 GREEN 外推为 overall architecture、CPI 或 PPA promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

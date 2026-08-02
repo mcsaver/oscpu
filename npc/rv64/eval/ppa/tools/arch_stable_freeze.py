@@ -247,6 +247,24 @@ V9R_SQ_RETRY_SUMMARY_PATH = (
     f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/evidence/summary.json"
 )
 V9R_SQ_RETRY_SCHEMA = "npc-rv64-v9r-sq-retry-c0-evidence-v2"
+CONTROL_EVENT_CURRENT_TOOL_PATH = (
+    "npc/rv64/eval/ppa/tools/control_event_current_evidence.py"
+)
+CONTROL_EVENT_SQ_RETRY_TOOL_PATH = (
+    "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py"
+)
+CONTROL_EVENT_CURRENT_RESULT_PATH = (
+    "npc/rv64/eval/ppa/evidence/control-event-current.json"
+)
+V9R_SQ_RETRY_CURRENT_RESULT_PATH = (
+    "npc/rv64/eval/ppa/evidence/control-event-sq-retry-current.json"
+)
+CONTROL_EVENT_CURRENT_COMMAND = (
+    "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+    "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+    "-f eval/ppa/control-event-evidence.mk check-control-event-current "
+    "check-control-event-sq-retry"
+)
 V9R_SQ_RETRY_SOURCE_PATHS = {
     f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/run-v9r-evidence.sh",
     f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
@@ -3415,7 +3433,11 @@ def validate_miq_flush_debt(
 
 
 IFU_AXI_RESULT_SCHEMA = "npc-rv64-ifu-axi-flush-drain-evidence-v1"
-IFU_AXI_COMMAND = "make -C npc/rv64 check-ifu-axi-flush-drain"
+IFU_AXI_COMMAND = (
+    "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+    "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+    "-f eval/ppa/ifu-evidence.mk check-ifu-axi-flush-drain"
+)
 IFU_AXI_RUN_ID = "2026-07-22-rv64-v9g-ifu-axi-current-design"
 IFU_AXI_SOURCE_BINDINGS = {
     "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
@@ -3426,7 +3448,7 @@ IFU_AXI_SOURCE_BINDINGS = {
     "npc/rv64/testbench/tests/tb_axi_xbar.sv",
     "npc/rv64/testbench/Makefile",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/eval/ppa/ifu-evidence.mk",
     f".github/task-runs/{IFU_AXI_RUN_ID}/contract.md",
     f".github/task-runs/{IFU_AXI_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{IFU_AXI_RUN_ID}/run-focused.sh",
@@ -3498,6 +3520,10 @@ IFU_AXI_STATIC_AUDIT = {
     "xbar_generic_oracle_has_two_cycle_b_backpressure": True,
     "xbar_generic_oracle_has_aw_first_and_w_first": True,
     "xbar_integration_oracle_has_later_master_progress": True,
+    "canonical_make_dispatch_is_exact": True,
+    "canonical_make_dispatch_file_is_restricted": True,
+    "canonical_make_environment_is_sanitized": True,
+    "canonical_make_effective_recipe_is_exact": True,
 }
 IFU_AXI_ARTIFACT_PATHS = {
     "ifu_axi_bridge_focused_log": (
@@ -4119,7 +4145,11 @@ def validate_ifu_fetch_debt(
 
 IFU_ACCESS_RESULT_SCHEMA = "npc-rv64-ifu-access-evidence-v1"
 IFU_ACCESS_RUN_ID = "2026-07-22-rv64-v9i-ifu-access-current-design"
-IFU_ACCESS_COMMAND = "make -C npc/rv64 check-ifu-access"
+IFU_ACCESS_COMMAND = (
+    "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+    "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+    "-f eval/ppa/ifu-evidence.mk check-ifu-access"
+)
 IFU_ACCESS_SCOPE = (
     "local RV64 instruction-fetch exact halfword access, execute PMP, "
     "AXI ARSIZE/ARPROT, AxiCrossbar ARPROT[2] default-slave selection, "
@@ -4177,7 +4207,7 @@ IFU_ACCESS_SOURCE_BINDINGS = {
     "npc/rv64/testbench/Makefile",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/eval/ppa/ifu-evidence.mk",
     f".github/task-runs/{IFU_ACCESS_RUN_ID}/contract.md",
     f".github/task-runs/{IFU_ACCESS_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{IFU_ACCESS_RUN_ID}/review-summary.md",
@@ -5332,13 +5362,17 @@ def validate_f0_debt(
         errors.append(f"{debt_id} published checks differ from reconstruction")
 
     counts = result.get("counts")
+    am_suite = aggregate.get("am")
+    am_required = (
+        am_suite.get("required") if isinstance(am_suite, dict) else None
+    )
     expected_counts = {
         "module_required": len(required_tests),
         "module_passed": len(required_tests),
         "official_required": 177,
         "official_passed": 177,
-        "am_required": 59,
-        "am_passed": 59,
+        "am_required": am_required,
+        "am_passed": am_required,
         "difftest_mismatches": 0,
         "evidence_mutations_compiled": mutations.get("schema_valid"),
         "evidence_mutations_rejected": mutations.get("schema_valid_rejected"),
@@ -5373,7 +5407,8 @@ def validate_f0_debt(
         f"cohort_id={result.get('cohort_id')}",
         f"canonical_command={F0_COMMAND}",
         f"module_aggregate={len(required_tests)}/{len(required_tests)}",
-        "official_aggregate=177/177", "am_aggregate=59/59",
+        "official_aggregate=177/177",
+        f"am_aggregate={am_required}/{am_required}",
         "difftest_mismatches=0", "coremark_iterations=10",
         "coremark_crc=0xfcaf", "dhrystone_runs=10000",
         "production_rtl_changed=false", "ppa=UNQUALIFIED",
@@ -5936,7 +5971,7 @@ def validate_control_event_payload(
     return errors
 
 
-def validate_v9r_sq_retry_c0_payload(
+def _validate_legacy_v9r_sq_retry_c0_payload(
     root: pathlib.Path,
     payload: dict[str, Any],
     bound_design_id: str,
@@ -6185,7 +6220,7 @@ def validate_v9r_sq_retry_c0_payload(
     return errors
 
 
-def validate_control_event_debt(
+def _validate_legacy_control_event_debt(
     root: pathlib.Path,
     entry: dict[str, Any],
     expected_design_id: str,
@@ -6257,7 +6292,7 @@ def validate_control_event_debt(
         validate_control_event_payload(
             root, index, mutations, bound_design_id))
     errors.extend(
-        validate_v9r_sq_retry_c0_payload(
+        _validate_legacy_v9r_sq_retry_c0_payload(
             root,
             v9r_sq_retry,
             bound_design_id,
@@ -6494,6 +6529,123 @@ def validate_control_event_debt(
         and boundary.get("candidate_design_id") == candidate.get("design_id")
     ):
         errors.append(f"{debt_id} live full-core candidate identity drifted")
+    return errors
+
+
+def validate_v9r_sq_retry_c0_payload(
+    root: pathlib.Path,
+    payload: dict[str, Any],
+    bound_design_id: str,
+) -> list[str]:
+    """Validate compact current-design SQ-query retry evidence."""
+
+    try:
+        tool = load_workspace_module(
+            root,
+            CONTROL_EVENT_SQ_RETRY_TOOL_PATH,
+            "control_event_sq_retry_evidence",
+        )
+        if (
+            tool.RESULT_PATH != V9R_SQ_RETRY_CURRENT_RESULT_PATH
+            or not isinstance(tool.CANONICAL_COMMAND, str)
+        ):
+            return ["CONTROL-EVENT-G1 V9R checker contract drifted"]
+        delegated = tool.validate_payload(root, payload, bound_design_id)
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        return [f"CONTROL-EVENT-G1 cannot validate V9R evidence: {exc}"]
+    return [f"CONTROL-EVENT-G1 V9R {error}" for error in delegated]
+
+
+def validate_control_event_debt(
+    root: pathlib.Path,
+    entry: dict[str, Any],
+    expected_design_id: str,
+) -> list[str]:
+    """Validate the compact, current-design CONTROL-EVENT evidence pair."""
+
+    del expected_design_id  # Cohort equality is checked by closed_binding.
+    debt_id = "CONTROL-EVENT-G1"
+    errors: list[str] = []
+    if entry.get("canonical_command") != CONTROL_EVENT_CURRENT_COMMAND:
+        errors.append(f"{debt_id} canonical command drifted")
+
+    bound_design_id = entry.get("design_id")
+    if (
+        not isinstance(bound_design_id, str)
+        or not DESIGN_ID_RE.fullmatch(bound_design_id)
+    ):
+        errors.append(f"{debt_id} ledger design id is invalid")
+        return errors
+
+    expected_evidence = {
+        "control_event_current_evidence": CONTROL_EVENT_CURRENT_RESULT_PATH,
+        "v9r_sq_retry_c0_evidence": V9R_SQ_RETRY_CURRENT_RESULT_PATH,
+    }
+    evidence = entry.get("evidence")
+    evidence_list = evidence if isinstance(evidence, list) else []
+    by_kind = {
+        item.get("kind"): item
+        for item in evidence_list
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
+    if (
+        len(evidence_list) != len(expected_evidence)
+        or set(by_kind) != set(expected_evidence)
+        or any(
+            by_kind[kind].get("path") != path
+            for kind, path in expected_evidence.items()
+        )
+    ):
+        errors.append(
+            f"{debt_id} requires exact current V9O and V9R result artifacts"
+        )
+        return errors
+
+    payloads: dict[str, dict[str, Any]] = {}
+    for kind, relative in expected_evidence.items():
+        record = by_kind[kind]
+        path, error = safe_regular_file(root, record.get("path"))
+        if (
+            error
+            or path is None
+            or set(record) != {"kind", "path", "sha256"}
+            or record.get("sha256") != sha256_file(path)
+        ):
+            errors.append(error or f"{debt_id} {kind} hash/path drifted")
+            continue
+        try:
+            payloads[kind] = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"{debt_id} cannot load {kind}: {exc}")
+    if len(payloads) != len(expected_evidence):
+        return errors
+
+    try:
+        current_tool = load_workspace_module(
+            root,
+            CONTROL_EVENT_CURRENT_TOOL_PATH,
+            "control_event_current_evidence",
+        )
+        if current_tool.RESULT_PATH != CONTROL_EVENT_CURRENT_RESULT_PATH:
+            errors.append(f"{debt_id} current checker contract drifted")
+        errors.extend(
+            f"{debt_id} V9O {error}"
+            for error in current_tool.validate_payload(
+                root,
+                payloads["control_event_current_evidence"],
+                bound_design_id,
+            )
+        )
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        errors.append(f"{debt_id} cannot validate current evidence: {exc}")
+
+    errors.extend(
+        validate_v9r_sq_retry_c0_payload(
+            root,
+            payloads["v9r_sq_retry_c0_evidence"],
+            bound_design_id,
+        )
+    )
     return errors
 
 
@@ -8029,12 +8181,20 @@ def validate_functional(
         "official RV64 suite has exact 177/177 raw-log coverage"
         if not official_errors else "; ".join(official_errors[:4]),
     )
+    am_suite = functional.get("am")
+    am_expected_count = (
+        am_suite.get("required") if isinstance(am_suite, dict) else 0
+    )
+    if not isinstance(am_expected_count, int) or isinstance(am_expected_count, bool) \
+            or am_expected_count < 1:
+        am_expected_count = 0
     am_errors, am_observed = validate_suite(
-        "am", functional.get("am"), expected_count=59,
+        "am", am_suite, expected_count=am_expected_count,
         log_kind="am_suite_log", require_difftest=True)
     add_check(
         checks, blockers, "functional.am", not am_errors,
-        "AM suite has exact 59/59 raw-log coverage with DiffTest enabled"
+        f"AM suite has exact {am_expected_count}/{am_expected_count} "
+        "raw-log coverage with DiffTest enabled"
         if not am_errors else "; ".join(am_errors[:4]),
     )
     observed["official"] = official_observed

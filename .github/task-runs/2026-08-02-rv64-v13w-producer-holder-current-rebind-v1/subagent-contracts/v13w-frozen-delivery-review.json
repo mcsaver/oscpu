@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13w-frozen-delivery-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 RV64 producer/holder 事务身份与持有者生命周期证据是否支持 44 个语义单元局部闭包，并检查 LQ 历史 checker replay、compile image 清退和全架构 promotion 边界是否存在假绿或证据断链。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/design/arch/producer-holder-artifact-retirement-index.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/load_queue_producer_checker_replay.py",
+      "npc/rv64/eval/ppa/tools/compile_image_retirement.py",
+      "npc/rv64/Makefile",
+      ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/semantic-vvp-retirement.json",
+      ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/compile-image-retirement-receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/yosys-full-graph-hardlink-dedupe.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/subagent-contracts/v13w-frozen-delivery-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前 design_id 为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；holder instance graph 为 15 modules、17 instances、2 duplicated modules，census 为 direct 20、packed 5、token_q 15、generation 1。",
+      "删除可重建产物后的聚合命令 make -C npc/rv64 check-producer-holder-semantic-coverage 返回 0；graph 21 tests、census 16 tests、checker/replay/retirement/semantic 128 tests 均 PASS；ledger 报 units 44、instances 17、bindings 50、semantic_pass 44。",
+      "canonical ledger 顶层仍为 GAP，global_no_live_reuse 为 SEMANTIC_COVERAGE_REQUIRED、whole_architecture 为 RED、PPA 为 UNPROMOTED；44/44 只表示各 census semantic unit 有合同内闭包证据。",
+      "V11H 当前 LQ 证据绑定当前 design_id，包含 4 positive profiles、1 raw-Q knownness assertion probe、31 compile-success RTL mutations 和 62 个被拒绝的 mutation simulations；历史 attempt-4 原始 FAIL 保留。",
+      "V11H checker-replay v3 只绑定历史 attempt-4 的 OooLoadQueue RTL 与两个 testbench 冻结哈希，replay_contract.current_rtl_binding_claimed=false；当前 LQ 正确性由本轮完整 RTL 仿真证据承担。",
+      "compile-image retirement manifest 状态 PASS，限定当前单一 task-run，记录并删除 489 个 vvp 共 3233104756 bytes；RTL、testbench、mutation sources、logs、JSON、SHA bindings 和 result markers 保留；删除后同一 ledger 可重建为 semantic_pass 44。",
+      "Yosys full graph 只对完全相同 SHA-256 的不可变 gzip payload 做 hardlink 去重；17 个历史逻辑路径保留为 4 个 inode，保存 350646181 bytes，唯一内容版本未删除。",
+      "本轮未修改 production RTL；check-contract 返回 0，RTL 立即断言计数 508 不低于基线 89。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL 对象、编译配置、TB或EDA观测和 PASS或GAP 范围给出独立反例复核，明确任何证据矛盾、假绿、清退后不可审计项、过度 promotion 或剩余未知项。"
+  ],
+  "success_criteria": [
+    "结论必须区分当前 holder 局部语义闭包与 whole-architecture、system rerun、PPA promotion，并逐项判断 V11H 历史 replay 与当前 RTL 证据是否混淆、删除后的 manifest 是否保留精确哈希证据、hardlink 是否改变路径或字节语义；保留反例、替代假设、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

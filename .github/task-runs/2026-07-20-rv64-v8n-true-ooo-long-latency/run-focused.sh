@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Local RV64 Verilog/SystemVerilog verification only.  This runner checks
+# load-miss and iterative MUL/DIV owner residency, younger dual issue, exact
+# full-ProducerId completion and in-order ROB retirement, then emits bounded
+# simulation/evidence artifacts under the selected local task-run.
+
 RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(git -C "$RUN_DIR" rev-parse --show-toplevel)
+REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
 NPC_HOME="$REPO_ROOT/npc/rv64"
 TB_HOME="$NPC_HOME/testbench"
-EVIDENCE_DIR="$RUN_DIR/evidence/focused"
 MUTATOR="$RUN_DIR/mutate-v8n-true-ooo-long-latency.py"
 BUILDER="$NPC_HOME/eval/ppa/tools/true_ooo_long_latency_evidence.py"
-ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
-ARCH_LOG="$NPC_HOME/eval/ppa/evidence/true-ooo-long-latency.log"
+DEFAULT_EVIDENCE_DIR="$RUN_DIR/evidence/focused"
+DEFAULT_ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
+DEFAULT_ARCH_LOG="$NPC_HOME/eval/ppa/evidence/true-ooo-long-latency.log"
+EVIDENCE_DIR=$(realpath -m -- "${V8N_EVIDENCE_DIR:-$DEFAULT_EVIDENCE_DIR}")
+ARCH_MANIFEST=$(realpath -m -- "${V8N_ARCH_MANIFEST:-$DEFAULT_ARCH_MANIFEST}")
+ARCH_LOG=$(realpath -m -- "${V8N_ARCH_LOG:-$DEFAULT_ARCH_LOG}")
 ARCH_REFRESH_MODE=${ARCH_REFRESH_MODE:-0}
+SCOPED_REFRESH_MODE=${V8N_SCOPED_REFRESH_MODE:-0}
+TASK_RUN_ID=${V8N_TASK_RUN_ID:-2026-07-20-rv64-v8n-true-ooo-long-latency}
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/v8n-true-ooo.XXXXXX")
 
 cleanup() {
@@ -25,9 +35,39 @@ fail() {
   exit 1
 }
 
-case "$EVIDENCE_DIR" in
-  "$RUN_DIR"/evidence/focused) rm -rf -- "$EVIDENCE_DIR" ;;
-  *) fail "unsafe evidence path: $EVIDENCE_DIR" ;;
+case "$SCOPED_REFRESH_MODE" in
+  0)
+    PROOF_MODE=canonical-v8n
+    [[ "$EVIDENCE_DIR" == "$DEFAULT_EVIDENCE_DIR" ]] ||
+      fail "canonical mode requires the canonical evidence directory"
+    [[ "$ARCH_MANIFEST" == "$DEFAULT_ARCH_MANIFEST" ]] ||
+      fail "canonical mode requires the canonical architecture manifest"
+    [[ "$ARCH_LOG" == "$DEFAULT_ARCH_LOG" ]] ||
+      fail "canonical mode requires the canonical architecture log"
+    rm -rf -- "$EVIDENCE_DIR"
+    ;;
+  1)
+    PROOF_MODE=task-run-v1
+    ARCH_REFRESH_MODE=1
+    case "$EVIDENCE_DIR" in
+      "$REPO_ROOT"/.github/task-runs/*/evidence/ooo1-current) ;;
+      *) fail "unsafe scoped OOO-1 evidence path: $EVIDENCE_DIR" ;;
+    esac
+    SCOPED_EVIDENCE_ROOT=${EVIDENCE_DIR%/ooo1-current}
+    [[ "$ARCH_MANIFEST" == "$SCOPED_EVIDENCE_ROOT/architecture-current.json" ]] ||
+      fail "scoped manifest must share the selected task-run evidence root"
+    [[ "$ARCH_LOG" == "$SCOPED_EVIDENCE_ROOT/true-ooo-long-latency.log" ]] ||
+      fail "scoped gate log must share the selected task-run evidence root"
+    [[ "$EVIDENCE_DIR" == "$REPO_ROOT/.github/task-runs/$TASK_RUN_ID/evidence/ooo1-current" ]] ||
+      fail "scoped task-run id does not match the selected evidence path"
+    rm -rf -- "$EVIDENCE_DIR"
+    rm -f -- "$ARCH_MANIFEST" "$ARCH_LOG"
+    ;;
+  *) fail "V8N_SCOPED_REFRESH_MODE must be 0 or 1" ;;
+esac
+case "$ARCH_REFRESH_MODE" in
+  0|1) ;;
+  *) fail "ARCH_REFRESH_MODE must be 0 or 1" ;;
 esac
 mkdir -p "$EVIDENCE_DIR/static"
 
@@ -56,6 +96,23 @@ source_paths=(
 sha256sum "${source_paths[@]}" > "$EVIDENCE_DIR/sources.pre.sha256"
 
 base_flags='-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon'
+IVERILOG_BIN=$(command -v iverilog || true)
+VVP_BIN=$(command -v vvp || true)
+[[ -n "$IVERILOG_BIN" && -x "$IVERILOG_BIN" ]] ||
+  fail "Icarus Verilog compiler is unavailable"
+[[ -n "$VVP_BIN" && -x "$VVP_BIN" ]] ||
+  fail "Icarus Verilog runtime is unavailable"
+{
+  printf 'schema=rv64-ooo1-simulator-config-v1\n'
+  printf 'target=v8n-true-ooo-long-latency\n'
+  printf 'release_ivflags=%s\n' "$base_flags"
+  printf 'assert_ivflags=%s\n' "$base_flags -DOOO_ASSERT"
+  printf 'mutation_ivflags=%s\n' "$base_flags"
+  printf 'iverilog '
+  sha256sum -- "$IVERILOG_BIN"
+  printf 'vvp '
+  sha256sum -- "$VVP_BIN"
+} > "$EVIDENCE_DIR/static/simulator-config.txt"
 
 run_make() {
   local label=$1
@@ -163,6 +220,14 @@ for row in "${mutation_rows[@]}"; do
   fi
   vvp="$TEMP_DIR/build-mutation-$name/tb_ooo_int_backend.vvp"
   [[ -s "$vvp" ]] || fail "mutation did not elaborate successfully: $name"
+  source_sha=$(sha256sum -- "$source" | awk '{print $1}')
+  mutant_sha=$(sha256sum -- "$mutant" | awk '{print $1}')
+  image_sha=$(sha256sum -- "$vvp" | awk '{print $1}')
+  [[ "$source_sha" != "$mutant_sha" ]] ||
+    fail "mutation is byte-identical to current RTL: $name"
+  printf '[V8N-MUTATION-HASH] name=%s source_sha256=%s mutant_sha256=%s image_sha256=%s\n' \
+    "$name" "$source_sha" "$mutant_sha" "$image_sha" \
+    >> "$EVIDENCE_DIR/mutation-$name.mutator.log"
   log="$EVIDENCE_DIR/mutation-$name/logs/tb_ooo_int_backend.log"
   require_marker "[V8N-ACTIVATION] scenario=$activation" "$log"
   require_marker "[CHECK-FAIL] $failure" "$log"
@@ -186,9 +251,31 @@ python3 "$BUILDER" \
   --mutation-summary "$EVIDENCE_DIR/mutation-summary.log" \
   --sources-pre "$EVIDENCE_DIR/sources.pre.sha256" \
   --sources-post "$EVIDENCE_DIR/sources.post.sha256" \
+  --simulator-config "$EVIDENCE_DIR/static/simulator-config.txt" \
   --gate-log "$ARCH_LOG" \
   --manifest "$ARCH_MANIFEST" \
+  --proof-mode "$PROOF_MODE" \
+  --task-run-id "$TASK_RUN_ID" \
   > "$EVIDENCE_DIR/evidence-builder.log" 2>&1
+require_marker '[V8N-EVIDENCE][PASS]' "$EVIDENCE_DIR/evidence-builder.log"
+
+if [[ "$SCOPED_REFRESH_MODE" == 1 ]]; then
+  python3 - "$ARCH_MANIFEST" "$TASK_RUN_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+tests = manifest.get("tests", {})
+record = tests.get("true_ooo_long_latency", {})
+if set(tests) != {"true_ooo_long_latency"}:
+    raise SystemExit(f"scoped OOO-1 inventory mismatch: {sorted(tests)}")
+if record.get("task_run_id") != sys.argv[2]:
+    raise SystemExit("scoped OOO-1 task-run binding mismatch")
+if record.get("provenance", {}).get("mode") != "task-run-v1":
+    raise SystemExit("scoped OOO-1 proof mode mismatch")
+PY
+fi
 
 set +e
 make -C "$TB_HOME" \

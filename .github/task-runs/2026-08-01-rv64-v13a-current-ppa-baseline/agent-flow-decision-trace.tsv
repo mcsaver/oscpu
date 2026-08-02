@@ -1,0 +1,4 @@
+2026-08-01T05:20:00Z	decision	Keep the optimized binary StoreQueue query network and add only a SYNTHESIS-excluded four-state replay overlay.	npc/rv64/vsrc/memory/OooStoreQueue.v
+2026-08-01T05:20:00Z	counterexample	Known-invalid payload X must remain ignorable, while potentially participating SQ state X must replay on both query lanes.	npc/rv64/testbench/tests/tb_ooo_store_queue.sv
+2026-08-01T05:20:01Z	decision	Keep full-core mapped and STA as GAP; module ideal-clock STA and full-core coarse data are not promotion evidence.	.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/sq-x-state-final/summary.json
+2026-08-01T05:31:46Z	decision	Retain result logs and hashes; remove reproducible VVP, Verilator and Yosys intermediate payloads after exact-path verification.	.github/task-runs/2026-08-01-rv64-v13a-current-ppa-baseline/evidence/cleanup-summary.md

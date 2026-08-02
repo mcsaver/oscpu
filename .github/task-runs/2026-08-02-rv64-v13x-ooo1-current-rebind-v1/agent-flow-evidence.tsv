@@ -1,0 +1,4 @@
+2026-08-02T01:57:55Z	ooo1-current-suite	PASS	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/ooo1-current/runner-summary.log
+2026-08-02T01:57:56Z	checker-unit-37	PASS	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/ooo1-current/static/checker-unit.log
+2026-08-02T01:57:56Z	scoped-architecture-aggregate	GAP	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/ooo1-current/static/architecture-result.json
+2026-08-02T01:57:57Z	frozen-review-v3	PASS	.github/task-runs/2026-08-02-rv64-v13x-ooo1-current-rebind-v1/evidence/pre-delivery-review.md

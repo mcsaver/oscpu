@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v13o-request-detail-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 NpcSimTop 退休槽 request-detail 投影、cpu-exec 守恒累加、v8 parser/policy 与 V13O CoreMark 证据，确认完整 ProducerId 到单一 memory owner token、双 OooMemAxiBridge state_q、cycle/slot 端点修正及三级 aggregate 是否一致；优先寻找假绿、身份漂移、重复或遗漏计数、越级 production/PPA 结论，并核对精确 aggregate B 前不得退休 store 的合同边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/arch/performance-measurement-contract.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "npc/rv64/eval/ppa/README.md",
+      "npc/rv64/eval/ppa/tools/check.py",
+      "npc/rv64/eval/ppa/tests",
+      ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/post-run-binding.json",
+      ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/subagent-contracts/v13o-request-detail-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      ".github/task-runs/2026-08-01-rv64-v13o-memory-request-detail-cpi-v1/evidence/coremark-current/post-run-binding.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象、配置与周期、TB/EDA 观测、PASS/GAP 范围输出独立审查；列出实现正确性、可操作反例、未知项、替代解释、证据置信度与必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "逐项核对 v8/v4 编码、request-detail 与 primary reason 双向绑定、cycle/slot/request/memory/head 守恒、V13N aggregate 等价、simulator/config/raw/result 身份及 S_WRITE_RESP 解释边界；任何不充分证据保持 GAP，不把单次 CoreMark 观察外推为 baseline、因果 CPI、production RTL 优化或 PPA promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

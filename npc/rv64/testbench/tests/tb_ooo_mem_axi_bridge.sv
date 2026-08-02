@@ -1632,14 +1632,18 @@ module tb_ooo_mem_axi_bridge #(
       tb_check1("rmw store waits aggregate B", lsu_axi_bready, 1'b1);
       tb_check1("rmw store has no pre-B response", mem0_rsp_valid, 1'b0);
       lsu_axi_bvalid = 1'b1;
+      #1;
+      tb_check1("rmw aggregate B direct response valid", mem0_rsp_valid,
+                1'b1);
+      tb_check1("rmw aggregate B uses V13P fusion",
+                dut.data_store_b_response_fusion_w, 1'b1);
       tick();
       lsu_axi_bvalid = 1'b0;
       #1;
-      // B-ok 后的 RMW 判决拍: store 响应有效(S_RESP)且被消费，
-      // 但 rmw_busy 必须压住站内
-      // load 的 advance(不发 lookup)——这就是 store 后 1 bubble 的新观察点。
-      tb_check1("rmw decision cycle store response valid", mem0_rsp_valid,
-                1'b1);
+      // B-ok 已在终端拍直接交付；下一拍不得从 S_RESP 重复响应。cache RMW
+      // 判决仍独立占宏口并压住站内 load 的 advance(不发 lookup)。
+      tb_check1("rmw decision cycle has no duplicate store response",
+                mem0_rsp_valid, 1'b0);
       tb_check1("rmw decision cycle holds staged load (1 bubble)",
                 dut.stage_advance_w, 1'b0);
       tb_check1("rmw decision cycle no req lookup",
@@ -4938,11 +4942,257 @@ module tb_ooo_mem_axi_bridge #(
     end
   endtask
 
+  // V13P: put one store at the exact aggregate-B wait boundary.  The focused
+  // cases below vary only response credit, BRESP and kill state, so any timing
+  // difference is attributable to the B-terminal response path itself.
+  task automatic v13p_drive_store_to_b_wait;
+    input [`XLEN-1:0] pa;
+    input retired_nokill;
+    output [4:0] owner_token;
+    begin
+      clear_inputs();
+      tick();
+      owner_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = retired_nokill;
+      mem0_req_nokill = retired_nokill;
+      mem0_req_attr_valid = retired_nokill;
+      mem0_req_class = retired_nokill ? `OOO_MEM_CLASS_NC :
+                                       `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
+      mem0_req_addr = pa;
+      mem0_req_wdata = 64'h1357_9bdf_2468_ace0;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("V13P store request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      #1;
+      tb_check1("V13P store station advances", dut.stage_advance_w, 1'b1);
+      tick();
+      #1;
+      tb_check1("V13P store AW visible", lsu_axi_awvalid, 1'b1);
+      tb_check1("V13P store W visible", lsu_axi_wvalid, 1'b1);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("V13P store waits aggregate B", lsu_axi_bready, 1'b1);
+      tb_check1("V13P store has no pre-B response", mem0_rsp_valid, 1'b0);
+      tb_check1("V13P store escaped AW/W", dut.write_escaped_q, 1'b1);
+    end
+  endtask
+
+  task automatic v13p_direct_b_case;
+    input [1023:0] label;
+    input [`XLEN-1:0] pa;
+    input [1:0] bresp;
+    reg [4:0] owner_token;
+    begin
+      v13p_drive_store_to_b_wait(pa, 1'b1, owner_token);
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = bresp;
+      #1;
+      tb_check1({label, " direct predicate"},
+                dut.data_store_b_response_fusion_w, 1'b1);
+      tb_check1({label, " direct valid"}, mem0_rsp_valid, 1'b1);
+      tb_check1({label, " direct error"}, mem0_rsp_error,
+                bresp != 2'b00);
+      tb_check1({label, " direct no page fault"},
+                mem0_rsp_page_fault, 1'b0);
+      tb_check64({label, " direct zero payload"}, mem0_rsp_rdata,
+                 {`XLEN{1'b0}});
+      tb_check32({label, " direct owner kind"},
+                 {30'b0, mem0_rsp_owner_kind}, 32'd1);
+      tb_check32({label, " direct owner token"},
+                 {27'b0, mem0_rsp_owner_token}, {27'b0, owner_token});
+      tb_check64({label, " direct original VA"}, mem0_rsp_fault_tval, pa);
+      tb_check1({label, " B cycle cannot advance station"},
+                dut.stage_advance_w, 1'b0);
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      lsu_axi_bresp = 2'b00;
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1({label, " no registered duplicate"}, mem0_rsp_valid, 1'b0);
+      tb_check32({label, " direct returns IDLE"},
+                 {28'b0, dut.state_q}, {28'b0, dut.S_IDLE});
+      tick();
+      #1;
+      tb_check1({label, " remains single terminal"}, mem0_rsp_valid, 1'b0);
+      $display("[V13P-B-FUSION-DIRECT][PASS] %0s token=%0d error=%0d",
+               label, owner_token, bresp != 2'b00);
+    end
+  endtask
+
+  task automatic v13p_stalled_b_fallback;
+    reg [4:0] owner_token;
+    begin
+      v13p_drive_store_to_b_wait(DATA_PA + 64'h1a0, 1'b1, owner_token);
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b10;
+      #1;
+      tb_check1("V13P stalled B valid independent of ready",
+                mem0_rsp_valid, 1'b1);
+      tb_check1("V13P stalled B reports error", mem0_rsp_error, 1'b1);
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      lsu_axi_bresp = 2'b00;
+      #1;
+      tb_check32("V13P stalled B enters S_RESP", {28'b0, dut.state_q},
+                 {28'b0, dut.S_RESP});
+      tb_check1("V13P fallback response held", mem0_rsp_valid, 1'b1);
+      tb_check1("V13P fallback error held", mem0_rsp_error, 1'b1);
+      tb_check32("V13P fallback owner held",
+                 {27'b0, mem0_rsp_owner_token}, {27'b0, owner_token});
+      tick();
+      #1;
+      tb_check1("V13P fallback survives another stall", mem0_rsp_valid,
+                1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("V13P fallback consumed exactly once", mem0_rsp_valid, 1'b0);
+      $display("[V13P-B-FUSION-FALLBACK][PASS] token=%0d", owner_token);
+    end
+  endtask
+
+  // V13R isolates the bridge response holder from backend arbitration.  The
+  // external B payload is poisoned immediately after the transport edge, and
+  // S_RESP must retain the accepted DECERR tuple for three full stall edges.
+  task automatic v13r_decerr_multicycle_fallback;
+    reg [4:0] owner_token;
+    integer hold_cycle;
+    begin
+      v13p_drive_store_to_b_wait(DATA_PA + 64'h1e0, 1'b1, owner_token);
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b11;
+      #1;
+      tb_check1("V13R DECERR B is directly visible before capture",
+                mem0_rsp_valid && mem0_rsp_error, 1'b1);
+      tb_check32("V13R DECERR direct owner token",
+                 {27'b0, mem0_rsp_owner_token}, {27'b0, owner_token});
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      lsu_axi_bresp = 2'b00;
+      #1;
+
+      for (hold_cycle = 0; hold_cycle < 3;
+           hold_cycle = hold_cycle + 1) begin
+        tb_check32("V13R DECERR holder remains S_RESP",
+                   {28'b0, dut.state_q}, {28'b0, dut.S_RESP});
+        tb_check1("V13R DECERR holder no longer reads live B",
+                  dut.data_store_b_response_fusion_w, 1'b0);
+        tb_check1("V13R DECERR holder keeps response valid",
+                  mem0_rsp_valid, 1'b1);
+        tb_check1("V13R DECERR holder keeps error",
+                  mem0_rsp_error, 1'b1);
+        tb_check32("V13R DECERR holder keeps owner token",
+                   {27'b0, mem0_rsp_owner_token}, {27'b0, owner_token});
+        tb_check64("V13R DECERR holder keeps original VA",
+                   mem0_rsp_fault_tval, DATA_PA + 64'h1e0);
+        tick();
+        #1;
+      end
+
+      mem0_rsp_ready = 1'b1;
+      #1;
+      tb_check1("V13R DECERR holder presents final accepting beat",
+                mem0_rsp_valid && mem0_rsp_error, 1'b1);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("V13R DECERR holder consumes exactly once",
+                mem0_rsp_valid, 1'b0);
+      tb_check32("V13R DECERR holder returns IDLE",
+                 {28'b0, dut.state_q}, {28'b0, dut.S_IDLE});
+      tick();
+      #1;
+      tb_check1("V13R DECERR holder has no delayed duplicate",
+                mem0_rsp_valid, 1'b0);
+      $display("[V13R-B-FUSION-MULTICYCLE][PASS] decerr=1 poisoned_b=1 s_resp_stall_edges=3 exact_owner=1 exact_tval=1 consume=1");
+    end
+  endtask
+
+  task automatic v13p_killed_b_is_drop_only;
+    reg [4:0] owner_token;
+    begin
+      v13p_drive_store_to_b_wait(DATA_PA + 64'h1c0, 1'b0, owner_token);
+      flush = 1'b1;
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b00;
+      #1;
+      tb_check1("V13P killed B cannot fuse",
+                dut.data_store_b_response_fusion_w, 1'b0);
+      tb_check1("V13P killed B hides response", mem0_rsp_valid, 1'b0);
+      tb_check1("V13P killed B emits exact drop", mem0_drop0_valid, 1'b1);
+      tb_check32("V13P killed B drop owner",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, owner_token});
+      tick();
+      flush = 1'b0;
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("V13P killed B leaves no response", mem0_rsp_valid, 1'b0);
+      tb_check1("V13P killed B releases drop", mem0_drop0_valid, 1'b0);
+      $display("[V13P-B-FUSION-KILLED-DROP][PASS] token=%0d", owner_token);
+    end
+  endtask
+
+  task automatic v13p_aggregate_b_fusion_contract;
+    begin
+      v13p_direct_b_case("B OKAY", DATA_PA + 64'h140, 2'b00);
+      v13p_direct_b_case("B SLVERR", DATA_PA + 64'h160, 2'b10);
+      v13p_direct_b_case("B DECERR", DATA_PA + 64'h180, 2'b11);
+      v13p_stalled_b_fallback();
+      v13p_killed_b_is_drop_only();
+      $display("[V13P-B-FUSION-CONTRACT][PASS] direct=3 fallback=1 killed-drop=1");
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active | mem0_rsp_cacheable;
 
-`ifdef V9R_SQ_RETRY_C0_FOCUSED
+`ifdef V13R_STORE_B_MULTICYCLE_HOLD_FOCUSED
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    clear_inputs();
+    tick();
+    tick();
+    rst = 1'b0;
+    #1;
+    v13r_decerr_multicycle_fallback();
+    tb_finish("tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold");
+  end
+`elsif V13P_STORE_B_FUSION_FOCUSED
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    clear_inputs();
+    tick();
+    tick();
+    rst = 1'b0;
+    #1;
+    v13p_aggregate_b_fusion_contract();
+    tb_finish("tb_ooo_mem_axi_bridge_v13p_store_b_fusion");
+  end
+`elsif V9R_SQ_RETRY_C0_FOCUSED
   initial begin
     tb_errors = 0;
     clk = 1'b0;

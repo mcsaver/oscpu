@@ -5,11 +5,11 @@ RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(git -C "$RUN_DIR" rev-parse --show-toplevel)
 NPC_HOME="$REPO_ROOT/npc/rv64"
 TB_HOME="$NPC_HOME/testbench"
-EVIDENCE_DIR="$RUN_DIR/evidence/focused"
+EVIDENCE_DIR=${V8M_EVIDENCE_DIR:-"$RUN_DIR/evidence/focused"}
 MUTATOR="$RUN_DIR/mutate-v8m-selective-scheduling.py"
 BUILDER="$NPC_HOME/eval/ppa/tools/selective_scheduling_evidence.py"
-ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
-ARCH_LOG="$NPC_HOME/eval/ppa/evidence/selective-scheduling.log"
+ARCH_MANIFEST=${V8M_ARCH_MANIFEST:-"$NPC_HOME/eval/ppa/evidence/architecture-current.json"}
+ARCH_LOG=${V8M_ARCH_LOG:-"$NPC_HOME/eval/ppa/evidence/selective-scheduling.log"}
 ARCH_REFRESH_MODE=${ARCH_REFRESH_MODE:-0}
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/v8m-selective.XXXXXX")
 
@@ -25,9 +25,25 @@ fail() {
   exit 1
 }
 
+EVIDENCE_DIR=$(realpath -m -- "$EVIDENCE_DIR")
+ARCH_MANIFEST=$(realpath -m -- "$ARCH_MANIFEST")
+ARCH_LOG=$(realpath -m -- "$ARCH_LOG")
 case "$EVIDENCE_DIR" in
   "$RUN_DIR"/evidence/focused) rm -rf -- "$EVIDENCE_DIR" ;;
+  "$REPO_ROOT"/.github/task-runs/*/evidence/focused)
+    rm -rf -- "$EVIDENCE_DIR"
+    ;;
   *) fail "unsafe evidence path: $EVIDENCE_DIR" ;;
+esac
+case "$ARCH_MANIFEST" in
+  "$NPC_HOME"/eval/ppa/evidence/architecture-current.json) ;;
+  "$REPO_ROOT"/.github/task-runs/*/evidence/*.json) ;;
+  *) fail "unsafe architecture manifest path: $ARCH_MANIFEST" ;;
+esac
+case "$ARCH_LOG" in
+  "$NPC_HOME"/eval/ppa/evidence/selective-scheduling.log) ;;
+  "$REPO_ROOT"/.github/task-runs/*/evidence/gates/*.log) ;;
+  *) fail "unsafe architecture gate log path: $ARCH_LOG" ;;
 esac
 mkdir -p "$EVIDENCE_DIR/static"
 
@@ -220,8 +236,10 @@ if result["gates"]["OOO-2"]["status"] != "GREEN":
 if result["overall_status"] != "RED":
     raise SystemExit("architecture inventory is not RED")
 PY
-printf '[V8M-RUNNER][PASS] refresh=1 baselines=4/4 mutations=%d/%d OOO-1=GREEN OOO-2=GREEN overall=RED\n' \
-  "${#mutation_rows[@]}" "${#mutation_rows[@]}" |
+ooo1_status=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["gates"]["OOO-1"]["status"])' \
+  "$EVIDENCE_DIR/static/architecture-result.json")
+printf '[V8M-RUNNER][PASS] refresh=1 baselines=4/4 mutations=%d/%d OOO-1=%s OOO-2=GREEN overall=RED\n' \
+  "${#mutation_rows[@]}" "${#mutation_rows[@]}" "$ooo1_status" |
   tee "$EVIDENCE_DIR/runner-summary.log"
 else
 require_marker 'DI-4: GREEN (0 red checks)' \

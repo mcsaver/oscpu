@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -23,6 +24,10 @@ sys.modules[SPEC.name] = arch
 SPEC.loader.exec_module(arch)
 
 RUN_ID = "2026-07-21-rv64-v8y-speculation-recovery"
+MUTATOR_REL = pathlib.Path(
+    ".github/task-runs/2026-07-21-rv64-v8y-speculation-recovery/"
+    "run-v8y-mutations.py"
+)
 FOCUSED_ASSERT_REL = pathlib.Path(
     f".github/task-runs/{RUN_ID}/evidence/final-run/focused/assert/logs/"
     "tb_ooo_int_backend_v8y_speculation_recovery.log"
@@ -42,6 +47,10 @@ SOURCE_PRE_REL = pathlib.Path(
 )
 SOURCE_POST_REL = pathlib.Path(
     f".github/task-runs/{RUN_ID}/evidence/final-run/sources.post.sha256"
+)
+SIMULATOR_CONFIG_REL = pathlib.Path(
+    f".github/task-runs/{RUN_ID}/evidence/final-run/static/"
+    "simulator-config.txt"
 )
 PREDECESSOR_LOG_REL = pathlib.Path(
     f".github/task-runs/{RUN_ID}/evidence/final-run/static/"
@@ -138,6 +147,35 @@ def require_once(text: str, marker: str, label: str) -> None:
         raise ValueError(f"{label}: expected unique marker {marker}")
 
 
+def validate_predecessor_receipt(text: str, design_id: str) -> str:
+    fresh_marker = "[V8V-OOO3-RUNNER][PASS]"
+    reuse_prefix = "[ARCH-CURRENT-PREDECESSORS][PASS]"
+    reuse_matches = re.findall(
+        r"^\[ARCH-CURRENT-PREDECESSORS\]\[PASS\] "
+        r"design_id=(sha256:[0-9a-f]{64}) green=6 red=3 next=OOO-4$",
+        text,
+        flags=re.MULTILINE,
+    )
+    fresh_count = text.count(fresh_marker)
+    if fresh_count > 1 or text.count(reuse_prefix) != len(reuse_matches):
+        raise ValueError("same-design predecessor receipt is ambiguous or malformed")
+    if (
+        "[V8V-OOO3-RUNNER][FAIL]" in text
+        or "[ARCH-CURRENT-PREDECESSORS][FAIL]" in text
+    ):
+        raise ValueError("same-design predecessor refresh emitted a failure marker")
+    modes = []
+    if fresh_count == 1:
+        modes.append("fresh_replay")
+    if len(reuse_matches) == 1:
+        if reuse_matches[0] != design_id:
+            raise ValueError("reused predecessor receipt has a stale RTL design id")
+        modes.append("current_hard_gate_reuse")
+    if len(modes) != 1:
+        raise ValueError("expected exactly one valid same-design predecessor receipt")
+    return modes[0]
+
+
 def clean_simulation_text(text: str, label: str) -> None:
     if text.count("[RESULT] PASS") != 1:
         raise ValueError(f"{label}: expected exactly one [RESULT] PASS")
@@ -205,6 +243,7 @@ def resolve_exact_input(
 
 def read_mutations(
     root: pathlib.Path, path: pathlib.Path, suite_run_id: str,
+    mutation_log_rels: dict[str, pathlib.Path],
 ) -> tuple[dict[str, Any], dict[str, list[str]]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     results = payload.get("results")
@@ -241,8 +280,7 @@ def read_mutations(
 
     for item in results:
         name = item["name"]
-        expected_log_rel = pathlib.Path(
-            f".github/task-runs/{RUN_ID}/evidence/mutations/{name}.log")
+        expected_log_rel = mutation_log_rels[name]
         if item.get("log") != expected_log_rel.as_posix():
             raise ValueError(f"{name}: mutation log path mismatch")
         if (
@@ -277,6 +315,53 @@ def read_mutations(
     return payload, coverage
 
 
+def validate_reconstructed_mutations(
+    root: pathlib.Path, payload: dict[str, Any],
+) -> int:
+    """Rebuild every declared mutant digest from one unique live RTL anchor."""
+    mutator_path = arch.safe_artifact(root, MUTATOR_REL.as_posix())
+    spec = importlib.util.spec_from_file_location(
+        "v8y_speculation_recovery_mutator", mutator_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("V8Y mutation runner cannot be loaded")
+    mutator = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mutator
+    spec.loader.exec_module(mutator)
+    mutations = getattr(mutator, "MUTATIONS", ())
+    by_name = {
+        item.get("name"): item
+        for item in payload.get("results", ())
+        if isinstance(item, dict)
+    }
+    if {item.name for item in mutations} != set(REQUIRED_MUTATION_METRICS):
+        raise ValueError("V8Y live mutation identity set mismatch")
+    for mutation in mutations:
+        texts: dict[pathlib.Path, str] = {}
+        for edit in mutation.edits:
+            target = edit.target.resolve(strict=True)
+            if not target.is_relative_to(root):
+                raise ValueError(f"{mutation.name}: mutation target escapes workspace")
+            texts.setdefault(target, target.read_text(encoding="utf-8"))
+            count = texts[target].count(edit.old)
+            if count != 1:
+                raise ValueError(
+                    f"{mutation.name}: live RTL anchor count={count} for "
+                    f"{target.relative_to(root).as_posix()}")
+            mutated = texts[target].replace(edit.old, edit.new, 1)
+            if mutated == texts[target]:
+                raise ValueError(f"{mutation.name}: byte-identical mutation")
+            texts[target] = mutated
+        reconstructed = {
+            target.relative_to(root).as_posix():
+                hashlib.sha256(text.encode("utf-8")).hexdigest()
+            for target, text in texts.items()
+        }
+        if by_name[mutation.name].get("mutant_sha256") != reconstructed:
+            raise ValueError(
+                f"{mutation.name}: mutant digest is not reproducible from live RTL")
+    return len(mutations)
+
+
 def read_suite_run_id(path: pathlib.Path) -> str:
     lines = path.read_text(encoding="utf-8").splitlines()
     if len(lines) != 1 or not re.fullmatch(
@@ -295,6 +380,53 @@ def workspace_output(root: pathlib.Path, value: pathlib.Path) -> pathlib.Path:
         raise ValueError(f"output traverses symlink: {value}")
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def task_run_evidence_rel(task_run_id: str, suffix: str) -> pathlib.Path:
+    if not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}-rv64-[a-z0-9][a-z0-9._-]*",
+        task_run_id,
+    ):
+        raise ValueError("malformed local RV64 OOO-4 task-run id")
+    return pathlib.Path(".github/task-runs") / task_run_id / "evidence" / suffix
+
+
+def validate_simulator_config(path: pathlib.Path) -> dict[str, str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    expected_prefix = [
+        "schema=rv64-ooo4-simulator-config-v1",
+        "target=v8y-speculation-recovery",
+        "focused_assert_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon -DOOO_ASSERT",
+        "focused_release_ivflags="
+        "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon",
+        "mutation_defines=-DOOO_ASSERT,"
+        "-DV8X_BACKEND_BRIDGE_RECOVERY_FOCUSED,"
+        "-DV8Y_SPECULATION_RECOVERY_FOCUSED",
+    ]
+    if len(lines) != 7 or lines[:5] != expected_prefix:
+        raise ValueError("OOO-4 simulator/config receipt is malformed")
+    result = {
+        "schema": "rv64-ooo4-simulator-config-v1",
+        "target": "v8y-speculation-recovery",
+        "focused_assert_ivflags": expected_prefix[2].split("=", 1)[1],
+        "focused_release_ivflags": expected_prefix[3].split("=", 1)[1],
+        "mutation_defines": expected_prefix[4].split("=", 1)[1],
+    }
+    for expected_role, line in zip(("iverilog", "vvp"), lines[5:]):
+        fields = line.split(maxsplit=2)
+        if (
+            len(fields) != 3
+            or fields[0] != expected_role
+            or not arch.is_sha256(fields[1])
+        ):
+            raise ValueError(f"OOO-4 {expected_role} receipt is malformed")
+        binary = pathlib.Path(fields[2]).resolve(strict=True)
+        if not binary.is_file() or arch.digest(binary) != fields[1]:
+            raise ValueError(f"OOO-4 {expected_role} binary digest is stale")
+        result[f"{expected_role}_path"] = binary.as_posix()
+        result[f"{expected_role}_sha256"] = fields[1]
+    return result
 
 
 def snapshot_sources(root: pathlib.Path, output: pathlib.Path) -> None:
@@ -340,19 +472,65 @@ def validate_same_design_predecessors(
 
 def build(args: argparse.Namespace) -> None:
     root = args.repo_root.resolve(strict=True)
+    task_run_mode = args.proof_mode == "task-run-v1"
+    task_run_id = args.task_run_id if task_run_mode else RUN_ID
+    if task_run_mode:
+        evidence_rel = task_run_evidence_rel(task_run_id, "ooo4-current")
+        mutation_rel = task_run_evidence_rel(task_run_id, "ooo4-mutations")
+        focused_assert_rel = evidence_rel / (
+            "focused/assert/logs/"
+            "tb_ooo_int_backend_v8y_speculation_recovery.log")
+        focused_release_rel = evidence_rel / (
+            "focused/release/logs/"
+            "tb_ooo_int_backend_v8y_speculation_recovery.log")
+        mutation_summary_rel = mutation_rel / "summary.json"
+        suite_run_id_rel = evidence_rel / "suite-run-id.txt"
+        source_pre_rel = evidence_rel / "sources.pre.sha256"
+        source_post_rel = evidence_rel / "sources.post.sha256"
+        simulator_config_rel = evidence_rel / "static/simulator-config.txt"
+        regression_rels = {
+            name: evidence_rel / f"regressions/logs/{name}.log"
+            for name in REGRESSION_NAMES
+        }
+        mutation_log_rels = {
+            name: mutation_rel / f"{name}.log"
+            for name in REQUIRED_MUTATION_METRICS
+        }
+        predecessor_rel = None
+    else:
+        focused_assert_rel = FOCUSED_ASSERT_REL
+        focused_release_rel = FOCUSED_RELEASE_REL
+        mutation_summary_rel = MUTATION_SUMMARY_REL
+        suite_run_id_rel = SUITE_RUN_ID_REL
+        source_pre_rel = SOURCE_PRE_REL
+        source_post_rel = SOURCE_POST_REL
+        simulator_config_rel = SIMULATOR_CONFIG_REL
+        regression_rels = REGRESSION_RELS
+        mutation_log_rels = {
+            name: pathlib.Path(
+                f".github/task-runs/{RUN_ID}/evidence/mutations/{name}.log")
+            for name in REQUIRED_MUTATION_METRICS
+        }
+        predecessor_rel = PREDECESSOR_LOG_REL
     assert_log = resolve_exact_input(
-        root, args.assert_log, FOCUSED_ASSERT_REL)
+        root, args.assert_log, focused_assert_rel)
     release_log = resolve_exact_input(
-        root, args.release_log, FOCUSED_RELEASE_REL)
+        root, args.release_log, focused_release_rel)
     mutation_summary = resolve_exact_input(
-        root, args.mutation_summary, MUTATION_SUMMARY_REL)
+        root, args.mutation_summary, mutation_summary_rel)
     suite_run_id_path = resolve_exact_input(
-        root, args.suite_run_id_file, SUITE_RUN_ID_REL)
-    sources_pre = resolve_exact_input(root, args.sources_pre, SOURCE_PRE_REL)
-    sources_post = resolve_exact_input(root, args.sources_post, SOURCE_POST_REL)
-    predecessor_log = arch.safe_artifact(root, PREDECESSOR_LOG_REL.as_posix())
+        root, args.suite_run_id_file, suite_run_id_rel)
+    sources_pre = resolve_exact_input(root, args.sources_pre, source_pre_rel)
+    sources_post = resolve_exact_input(root, args.sources_post, source_post_rel)
+    simulator_config_path = resolve_exact_input(
+        root, args.simulator_config, simulator_config_rel)
+    simulator_config = validate_simulator_config(simulator_config_path)
+    predecessor_log = (
+        arch.safe_artifact(root, predecessor_rel.as_posix())
+        if predecessor_rel is not None else None
+    )
     regression_logs = {
-        name: resolve_exact_input(root, value, REGRESSION_RELS[name])
+        name: resolve_exact_input(root, value, regression_rels[name])
         for name, value in (
             ("tb_ooo_int_backend", args.backend_regression_log),
             ("tb_ooo_core_top_glue", args.glue_regression_log),
@@ -377,20 +555,28 @@ def build(args: argparse.Namespace) -> None:
         release_log.read_text(encoding="utf-8"), "V8Y release focused")
     for name, path in regression_logs.items():
         parse_clean_simulation(path, name)
-    predecessor_text = predecessor_log.read_text(encoding="utf-8")
-    require_once(
-        predecessor_text, "[V8V-OOO3-RUNNER][PASS]", "same-design predecessors")
-    if "[V8V-OOO3-RUNNER][FAIL]" in predecessor_text:
-        raise ValueError("same-design predecessor refresh emitted a failure marker")
     mutation_payload, mutation_coverage = read_mutations(
-        root, mutation_summary, suite_run_id)
+        root, mutation_summary, suite_run_id, mutation_log_rels)
+    reconstructed_mutations = validate_reconstructed_mutations(
+        root, mutation_payload)
 
     source_sha, rtl_files = arch.rtl_binding(root)
     design_id = f"sha256:{source_sha}"
     manifest = workspace_output(root, args.manifest)
-    if not manifest.is_file():
-        raise ValueError("same-design architecture evidence manifest is missing")
-    before_manifest = validate_same_design_predecessors(manifest, design_id)
+    if task_run_mode:
+        if manifest.exists():
+            raise ValueError("scoped OOO-4 manifest must start absent")
+        predecessor_mode = "not_required_scoped_gate"
+        before_manifest: dict[str, Any] = {"tests": {}}
+    else:
+        if predecessor_log is None:
+            raise ValueError("canonical predecessor receipt is missing")
+        predecessor_text = predecessor_log.read_text(encoding="utf-8")
+        predecessor_mode = validate_predecessor_receipt(
+            predecessor_text, design_id)
+        if not manifest.is_file():
+            raise ValueError("same-design architecture evidence manifest is missing")
+        before_manifest = validate_same_design_predecessors(manifest, design_id)
 
     observations: dict[str, bool] = {}
     observations.update({f"assert.{key}": value
@@ -399,7 +585,8 @@ def build(args: argparse.Namespace) -> None:
                          for key, value in release_observations.items()})
     observations.update({f"regression.{name}": True
                          for name in regression_logs})
-    observations["predecessors.same_design"] = True
+    if not task_run_mode:
+        observations["predecessors.same_design"] = True
     observations.update({f"mutation.{name}": bool(owners)
                          for name, owners in mutation_coverage.items()})
     metric_basis = {
@@ -461,34 +648,58 @@ def build(args: argparse.Namespace) -> None:
     if failed_metrics:
         raise ValueError(f"OOO-4 metric mapping rejected: {failed_metrics}")
 
+    provenance_paths = (
+        arch.SPECULATION_RECOVERY_SOURCE_PATHS
+        if task_run_mode else arch.SPECULATION_RECOVERY_PROVENANCE_PATHS
+    )
     provenance_files = {
         rel: arch.digest(arch.safe_artifact(root, rel))
-        for rel in arch.SPECULATION_RECOVERY_PROVENANCE_PATHS
+        for rel in provenance_paths
     }
     provenance_sha = arch.canonical_digest(provenance_files)
-    proof_paths = (
-        assert_log,
-        release_log,
-        mutation_summary,
-        suite_run_id_path,
-        sources_pre,
-        sources_post,
-        predecessor_log,
-        *regression_logs.values(),
-        *(arch.safe_artifact(
-            root,
-            f".github/task-runs/{RUN_ID}/evidence/mutations/{name}.log",
-        ) for name in REQUIRED_MUTATION_METRICS),
-    )
+    proof_paths = {
+        "focused_assert": assert_log,
+        "focused_release": release_log,
+        "mutation_summary": mutation_summary,
+        "suite_run_id": suite_run_id_path,
+        "sources_pre": sources_pre,
+        "sources_post": sources_post,
+        "simulator_config": simulator_config_path,
+        **{
+            f"regression_{name.removeprefix('tb_ooo_')}": path
+            for name, path in regression_logs.items()
+        },
+        **{
+            f"mutation_{name}": arch.safe_artifact(root, rel.as_posix())
+            for name, rel in mutation_log_rels.items()
+        },
+    }
+    if predecessor_log is not None:
+        proof_paths["predecessor_receipt"] = predecessor_log
+    if task_run_mode and set(proof_paths) != set(
+        arch.SPECULATION_RECOVERY_TASK_RUN_PROOF_ROLES
+    ):
+        raise ValueError("scoped OOO-4 proof role inventory mismatch")
     artifacts = {
         path.relative_to(root).as_posix(): arch.digest(path)
-        for path in proof_paths
+        for path in proof_paths.values()
+    }
+    proof_files = {
+        role: {
+            "path": path.relative_to(root).as_posix(),
+            "sha256": arch.digest(path),
+        }
+        for role, path in proof_paths.items()
+    }
+    proof_digest_map = {
+        role: f"{item['path']}:{item['sha256']}"
+        for role, item in proof_files.items()
     }
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     gate_log = workspace_output(root, args.gate_log)
     gate_lines = [
         "OOO-4 local RV64 speculation and recovery evidence",
-        f"task_run_id={RUN_ID}",
+        f"task_run_id={task_run_id}",
         f"suite_run_id={suite_run_id}",
         f"generated_at_utc={generated_at}",
         f"design_id={design_id}",
@@ -533,11 +744,20 @@ def build(args: argparse.Namespace) -> None:
             "compile_success": mutation_payload["compile_success"],
             "dynamic_rejected": mutation_payload["dynamic_rejected"],
             "metric_coverage": mutation_coverage,
+            "reconstructed_sha256": reconstructed_mutations,
+            "non_noop": reconstructed_mutations,
             "production_sources_unchanged": True,
         },
+        "simulator_config": simulator_config,
         "predecessor_tests": sorted(
             set(before_manifest["tests"]) - {"speculation_recovery"}),
+        "predecessor_evidence_mode": predecessor_mode,
         "provenance": {
+            **({
+                "mode": "task-run-v1",
+                "proof_files": proof_files,
+                "proof_sha256": arch.canonical_digest(proof_digest_map),
+            } if task_run_mode else {}),
             "files": provenance_files,
             "rtl_file_count": len(rtl_files),
             "rtl_sha256": source_sha,
@@ -568,7 +788,8 @@ def build(args: argparse.Namespace) -> None:
     print(
         "[V8Y-OOO4-EVIDENCE][PASS] speculation_recovery "
         f"suite_run_id={suite_run_id} design_id={design_id} "
-        f"metrics={len(metrics)} mutations={len(REQUIRED_MUTATION_METRICS)}"
+        f"metrics={len(metrics)} mutations={len(REQUIRED_MUTATION_METRICS)} "
+        f"proof_mode={args.proof_mode}"
     )
 
 
@@ -593,8 +814,13 @@ def parser() -> argparse.ArgumentParser:
     builder.add_argument("--wrapper-regression-log", required=True, type=pathlib.Path)
     builder.add_argument("--sources-pre", required=True, type=pathlib.Path)
     builder.add_argument("--sources-post", required=True, type=pathlib.Path)
+    builder.add_argument("--simulator-config", required=True, type=pathlib.Path)
     builder.add_argument("--gate-log", required=True, type=pathlib.Path)
     builder.add_argument("--manifest", required=True, type=pathlib.Path)
+    builder.add_argument(
+        "--proof-mode", choices=("canonical-v8y", "task-run-v1"),
+        default="canonical-v8y")
+    builder.add_argument("--task-run-id", default=RUN_ID)
     return value
 
 

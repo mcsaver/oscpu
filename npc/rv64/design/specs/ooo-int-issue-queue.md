@@ -9,8 +9,14 @@
 > Universal owner 占用时允许独立 ALU terminal 继续前进**；
 > **R3.2：仅对 actual-fire 的 fixed GPR producer 生成 lookahead sticky wake，consumer
 > 下一拍从 registered EX payload 前递，PRF 仍为 stored-only**；
-> **R3.3：已冻结 packed-age balanced-select 合同，RTL/验证待本轮候选落地**；
-> **R3.4：已冻结 ALU terminal true-by-construction 物理裁剪合同，待 R3.3 后实施**。
+> **R3.3：packed-age balanced-select 已实现并验证；V13G compaction 直接消费
+> fire-qualified selector onehot，移除 onehot→binary index→entry compare 回译**；
+> **V13I：packed survivor/source 静态映射合同已实现，并完成定向/集成功能、
+> 当前设计功能闭包及同配置局部 mapped/OpenSTA 验证；V13I 是当前已验证 RTL
+> 开发检查点，但完整芯片 PPA、Power 与系统事务仍未闭合，`promotion_eligible=false`**；
+> **R3.4：ALU terminal true-by-construction 物理裁剪已于 2026-07-15 实现并完成
+> capability 负向、模块/集成与结构验证；当前后端保持 `2 x ALU`、
+> `1 x OooBitmanipGate`、`1 x WBU`，不是后续待实施项**。
 > **v8f：已冻结 ProducerId 单一 holder 合同，RTL 落地中；raw ROB index 将只由 PID 低位派生**。
 > **v8n：同一 vsrc 闭包下 scoped OOO-1 已由真实 load miss、迭代 MUL/DIV、双 lane
 > 非空接受、完整 ProducerId 账本与定向变异证据验证；整体架构仍 RED，不能外推 OOO-3 或 PPA**。
@@ -71,10 +77,11 @@ R2.5/R3.2 定向 STA 中，EX0 总路径退化 `1.093676 ns`，而 IQ 内段单�
   无 owner 时：`A=complex` 则 `{Universal,ALU}={A,S}`；`A=ALU,B=ALU` 则 `{A,B}`；
   `A=ALU,B=complex` 则 `{B,A}` 且 swap=1；只有 A 时只发 A。owner=1 时 Universal
   不输出 valid，ALU 只取 S。该真值表与 R3.1 oldest-first scan 集合/能力完全等价。
-- **payload/compaction**：terminal select 保持 one-hot 到 payload mux；binary index 只作
-  compaction、age assertion 与 observability。issue fire 仍是 valid&&ready，swapped younger
-  memory capture 仍蕴含 older ALU 同拍 fire；不增加 issue register，不改变 R3.2 producer
-  N fire→consumer N+1 fire/registered-forward 边界。
+- **payload/compaction**：issue0 的两路 PRF 地址保持 one-hot tree，其余 payload 与 observability
+  仍读 binary index；compaction pop 则直接消费同一 selector onehot，经 `issue*_fire` 限定后形成
+  entry remove mask，不再做 onehot→index→逐项比较的回译。issue fire 仍是 valid&&ready，
+  swapped younger memory capture 仍蕴含 older ALU 同拍 fire；不增加 issue register，不改变
+  R3.2 producer N fire→consumer N+1 fire/registered-forward 边界。
 
 六类接口合同不变：valid/ready 与 payload ownership 不变；stall 只冻结未 fire entry；
 `rst/flush > kill > normal compaction/dispatch`，kill survivor 继续吸收 wake；异常仍只由 ROB
@@ -82,13 +89,13 @@ R2.5/R3.2 定向 STA 中，EX0 总路径退化 `1.093676 ns`，而 IQ 内段单�
 预计关键路径为 `ready Q -> 3-level associative prefix -> one-hot terminal mux -> PRF`；禁止
 通过静态 lane、false path 或新增流水拍取得时序。
 
-### 2.2 R3.4 ALU terminal true-by-construction 合同（RTL 前冻结）
+### 2.2 R3.4 ALU terminal true-by-construction 合同（已实现并验证）
 
-R3.1 起 `issue1` 的规范能力只含 fixed-latency simple ALU/IMM，但当前 backend 仍实例化第二个
-`OooBitmanipGate` 和通用 WBU；综合器无法从独立 capability metadata 推出 wide ctrl 的蕴含，
-所以语义不可达电路仍占面积。R3.2 fresh stat 中 `OooBitmanipGate` 单实例 logic-area proxy
-约 `12,746.16`，而 R3.2 已因 area ratio `0.9975046 < 0.999` 无法晋级。R3.4 将物理电路
-与已冻结能力边界对齐，不改变 IQ 可选集合：
+R3.1 起 `issue1` 的规范能力只含 fixed-latency simple ALU/IMM；R3.4 实施前 backend 仍实例化
+第二个 `OooBitmanipGate` 和通用 WBU，综合器无法从独立 capability metadata 推出 wide ctrl
+的蕴含，所以语义不可达电路仍占面积。R3.2 fresh stat 中 `OooBitmanipGate` 单实例
+logic-area proxy 约 `12,746.16`，而 R3.2 已因 area ratio `0.9975046 < 0.999` 无法晋级。
+R3.4 已将物理电路与能力边界对齐，不改变 IQ 可选集合：
 
 - 删除 ALU terminal 的 bitmanip/CLMUL、MulDiv、branch/JAL/JALR、memory/AMO/exception
   结果臂；这些类别继续由 dynamic steering 送 Universal，不能被丢弃或静态绑定到程序 lane。
@@ -102,6 +109,15 @@ R3.1 起 `issue1` 的规范能力只含 fixed-latency simple ALU/IMM，但当前
 无端口、寄存器、FSM、flush/stall/retire/memory-order 变化；共享 Universal 的复杂执行资源
 保持完整。该切片要求 focused capability mutation、module/full functionality 与 fresh mapped
 area/STA；只有真实 netlist 证明第二 bitmanip 实例消失且功能门全绿，才可记面积收益。
+
+**实现与证据状态**：canonical `OooIntBackend.v` 已删除 issue1 的第二个 bitmanip 与通用
+WBU，只保留 ordinary ALU 和 ALU/IMM 写回二选一；原始 ctrl 仍由
+`INT-ALU-TERMINAL-CAPABILITY` fail-closed 断言看护。2026-07-15 的 focused 3/3、两类
+capability compile-success 负向版本、全核 lint/style 与 Yosys hierarchy check 均通过，历史
+证据位于 `.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/`。V13H、V13I 的
+current-design 输入清单继续绑定同一后端 SHA-256
+`49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a`；因此后续不得以
+“实施 R3.4”为名重复修改该电路。完整芯片 PPA/Power 与系统资格仍由各自当前设计门裁决。
 - **Universal memory reservation（T3S/T3V/R3.1）**：IQ 选中的 memory uop 只在 station
   有空 credit 时 pop，沿上原子锁存 ctrl/ROB/pdest/rs1 value/imm/store data；capture
   拍没有执行或请求。T3V 起 generic `issue0_*`/PRF/ALU0 只承载 raw non-memory，
@@ -126,6 +142,69 @@ area/STA；只有真实 netlist 证明第二 bitmanip 实例消失且功能门�
 - 误预测恢复=ROB-walk:按 `kill_rob_idx` 环形年龄 squash 更年轻项,recover 期冻结发射
   (存活前缀同拍继续吸收 wakeup 防漏唤醒);checkpoint 影子阵列在 `OOO_ROB_WALK_MODE=1` 下
   capture/restore 恒被 gate,为死硅(fp 新增字段亦不进影子)。
+
+### 2.3 V13I packed survivor/source 静态映射合同（已实现并完成局部门验证）
+
+V13G 的局部 mapped top1 已移动到 `valid_q[5] -> bht_idx_q[1] D`。路径经过 resident
+eligibility、fire-qualified `compact_remove_w`，再进入按源槽扫描并用动态 `write_i` 选择目的槽的
+通用 compaction。对 packed 8-entry IQ，较年轻槽 5 是否被删除不可能改变较老目的槽 1 的 survivor，
+因此该跨域依赖不是架构必要路径。V13I 只替换 normal compaction 的组合拓扑，属于
+`intermediate_checkpoint`；完整 architecture freeze、full-core PPA、Power 和 system gate 未闭合前
+`promotion_eligible=false`。
+
+**阶段 1——需求与边界**：
+
+- 端口、队列容量、dispatch/issue latency、valid/ready/fire、selector、owner、ProducerId 与所有
+  payload 字段不变；dispatch ready 仍只按沿前空位计算，不借用同拍 pop credit。
+- `rst/flush > kill > normal compaction/dispatch` 的状态更新全序不变；kill survivor 继续在原分支
+  吸收当拍 integer/FP wake，V13I 不进入 kill/recovery 组合锥。
+- normal 分支必须保持 pop0/pop1/pop2、程序序 survivor、dispatch0 后 dispatch1 append、同拍 sticky
+  wake、count 守恒与无重复/无丢失；不改变 exception、retirement 或 memory ordering。
+- out-of-scope：selector eligibility、terminal steering、普通双 memory lane READY 耦合、四态 selector
+  合同、队列深度和任何新增流水拍。
+
+**阶段 2a/2b——协议与状态机**：本模块不新增 FSM。沿前 Q-only entry、fire-qualified remove mask、
+wakeup 与 accepted dispatch 组合生成 next state，仍在同一上升沿由既有 normal 分支一次提交；stall
+只保持未 fire resident，flush/kill 分支继续高优先级覆盖 normal next-state。
+
+**阶段 2c——承重不变量**：
+
+1. `valid_q` 是长度 `count_q` 的前缀；`compact_remove_w` 只能删除有效 resident，且 popcount
+   不超过 2。memory-pair fire 与 regular issue fire 互斥，regular owner exact-onehot 且相互不同。
+2. 对目的槽 `d`，合法 survivor 来源最多为 `d/d+1/d+2`：remove 前缀计数为 0 时取 `d`；
+   `remove[0:d]` 恰有 1 项且 `d+1` 未删除时取 `d+1`；`remove[0:d+1]` 恰有 2 项且 `d+2`
+   未删除时取 `d+2`。其它较年轻 remove 位不得进入目的槽 `d` 的来源选择锥。
+3. survivor valid 必须仍是前缀；第一个空槽接 dispatch0（若 fire），dispatch1 在 dispatch0 未 fire
+   时接同一首空槽，否则接后一槽。三类写入互斥，完整 payload 与 full ProducerId 原子同行。
+4. `count_next = count_q - popcount(compact_remove_w) + dispatch0_fire + dispatch1_fire`；正常态
+   每个旧 survivor 和 accepted dispatch 在 next state 恰好出现一次。
+5. `OOO_ASSERT` 下保留独立的旧式源序 scan reference，逐槽比较 next valid、payload 和 count；
+   静态映射的任一 source/append 错接必须由该 reference fail closed，而不是只依赖当前 RTL PASS。
+
+**阶段 2d/2e——数据通路与 RTL 拓扑**：
+
+- 所有 entry 字段打包成一个组合 payload；resident 源在打包时吸收原有 integer/FP sticky wake，
+  dispatch0/1 各形成同宽 append payload。没有新增状态寄存器或共享资源。
+- 8-bit remove mask 经平衡的局部 prefix-count 网络产生每个目的槽的固定三路 source select；8 组
+  三路 payload mux 并行展开。survivor-valid 前缀生成首空 onehot，dispatch1 只选择首空或后一槽。
+- next payload 再解包回既有 Q 阵列；时序块、复位值、kill 分支和端口完全复用。for-loop 只展开
+  8 个相互独立的目的槽，不再承载跨迭代 `write_i` 状态。
+- 预计关键路径从“任意 entry remove -> 动态写指针 -> 任意低槽 D”收敛为“目的槽局部 remove
+  prefix -> 固定 3:1 payload mux -> 对应槽 D”。禁止通过 false path、增加流水拍、静态 lane 或
+  削弱断言获得时序数字。
+
+**验证与裁决（2026-08-01）**：八槽满队列对 popcount 不超过 2 的 37 个 remove mask 与
+5 个 append 组合全部通过；强制破坏 source select 的负向版本命中独立 scan reference 的
+`IQ-V13I-SURVIVOR-VALID/PAYLOAD`。三个 backend 集成 TB 为 3/3 PASS；当前设计闭包为模块
+113/113、official 177/177、AM 61/61、DiffTest mismatch=0。相同 Yosys/liberty/200 MHz/
+flatten=1/share=0 条件下，V13G→V13I 的 mapped cells 为 `33,284→29,354`，组合+时序总面积
+为 `74,917.64→66,764.88`（`-10.88%`），sequential area 均为 `19,293.12`；5 ns ideal-clock
+OpenSTA worst positive slack 为 `+2.406632185→+2.485146284 ns`（改善 `+0.078514099 ns`），
+两侧综合检查均为 0 problems。与同一冻结工作负载的 V13H 当前设计证据相比，CoreMark
+`5,485,583 cycles / 3,218,532 commits / CPI 1.704`、Dhrystone
+`10,844,882 / 4,260,665 / CPI 2.545` 均精确不变，故本刀裁决为 CPI-neutral，不能宣称 CPI
+提升。该结论只批准 `intermediate_checkpoint`；full-core mapped/STA、qualified power 与
+新完整系统事务均为 NOT_RUN，架构冻结与 `promotion_eligible` 仍为 false。
 
 ## 3. 不变量
 - **IQ-I1 选择集合、能力与架构序**：无外部 owner 时，选择集合必须来自 oldest-first
@@ -220,6 +299,13 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
 24 条到 EX1，仅 3 条显式经过 bitmanip0；WBU 段仅约 `0.116–0.154 ns`，所以先改 WBU 或
 撤 registered forward 均不是根因修复。R3.3 晋级要求不仅 WNS>=0，还须 worst slack
 >=`+0.10 ns`；focused/OOC 的层数下降只能筛选，不能替代 fresh full-chip 两轮综合/STA。
+
+V13G 在 current-source `OooIntIssueQueue` 200 MHz、flatten=1、share=0 的同配置局部映射中，
+以 fire-qualified selector onehot 替换 compaction 的 binary owner 回译；功能上 G1/G4
+stimulus-owned edge model 与 G4 全量 IQ TB 均通过。mapped cells `34468→33284`、area
+`75205.48→74917.64`、sequential area 不变；5 ns ideal-clock worst slack
+`+2.233862638→+2.406632185 ns`，原 `valid_q[0]→entry0 payload D` 路径族退出 top40。
+这些数字只证明局部相对收益，parent/full-core 时序、功耗与系统事务仍须独立证据。
 
 ## 5. 验证
 - 模块 TB `tb_ooo_int_issue_queue`(N+1 发射口径契约,含 kill/recover/flush/唤醒吸收);
@@ -325,6 +411,11 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   tag-match forward。定向覆盖 64 级连续 RAW、dual producer/consumer、stall、kill/flush，
   以及 load/AMO/MulDiv/CLMUL/CSR/FP/branch/illegal 排除矩阵。只建立功能候选，不替代
   fresh synthesis/STA/power 与 benchmark A/B。
+- 2026-07-15 R3.4：在不改变 dynamic steering、issue/EX/WB 拍点或异常语义的前提下，
+  删除 ALU terminal 上能力合同禁止的第二个 bitmanip 与通用 WBU；保留两套 ordinary ALU，
+  Universal terminal 继续承载全部复杂类别。focused 3/3、BITMANIP/WB_SEL_PC4 负向版本、
+  全核 lint/style 与结构实例计数通过。2026-08-01 复核确认该实现仍在当前 V13I 输入闭包中，
+  并修正此前误写为“待实施”的状态指针。
 - 2026-07-20 v8n：不修改生产 RTL 功能，在既有实现上建立 scoped OOO-1 常驻证据门。
   三类长延迟 owner 的 release/assert 基线、完整 ProducerId/ROB/commit 账本、7 个已激活
   compile-success mutation、exact provenance 与原子证据合并均通过独立反例审查；OOO-2
@@ -339,3 +430,10 @@ R3.2 fresh netlist 的新 top40 为 IQ→EX0/EX1：EX0 worst `-0.433356017 ns`�
   birth/hold/compaction/issue/pair/kill/flush/reset 和 raw PID knownness。assert/release
   × `GEN_W=1/4` 为 4/4 PASS；20 个 compile-success 反例的 40/40 release 仿真由独立
   oracle 拒绝。语义账本只将 `integer-iq-producers` 从 GAP 晋级 PASS，整体仍 RED。
+- 2026-08-01 V13I：normal compaction 改为 packed entry state、平衡 remove-prefix 与每个
+  目的槽固定 `d/d+1/d+2` survivor source，不再用跨迭代动态 `write_i`；dispatch0/1 仍按
+  首空槽顺序 append，完整 payload、ProducerId 与 sticky wake 原子同行。37 个 remove、
+  5 个 append、selector 负向扰动、3 个 backend 集成 TB 和当前设计功能闭包通过；同配置
+  局部 mapped area 减少 `10.88%`、worst positive slack 改善 `0.078514099 ns`，两个冻结
+  benchmark 的 cycles/commits/CPI 精确不变。只批准当前 RTL 开发检查点，不提升完整架构、
+  full-core PPA、Power 或系统事务状态。

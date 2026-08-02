@@ -1,5 +1,0 @@
-[TEST] tb_ooo_fetch_branch_target
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fetch_branch_target -o build-t3z-request-mux-v1/tb_ooo_fetch_branch_target.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchBranchTarget.v tests/tb_ooo_fetch_branch_target.sv
-[PASS] tb_ooo_fetch_branch_target
-common/tb_common.svh:32: $finish called at 6173 (1s)
-[RESULT] PASS

@@ -1,8 +1,0 @@
-[TEST] tb_ooo_fetch_packet_fifo
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fetch_packet_fifo -o build-t3z-request-mux-v1/tb_ooo_fetch_packet_fifo.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v tests/tb_ooo_fetch_packet_fifo.sv
-[T3W-FIFO-WRAP] packet E atomic static/decode readback
-[T3W-FIFO-WRAP] packet F atomic static/decode readback
-[T3W-FIFO-WRAP] packet G atomic static/decode readback
-[PASS] tb_ooo_fetch_packet_fifo
-common/tb_common.svh:32: $finish called at 32 (1s)
-[RESULT] PASS

@@ -1,5 +1,0 @@
-[TEST] tb_ooo_amo_gate
-[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_amo_gate -o build-t3z-request-mux-v1/tb_ooo_amo_gate.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v tests/tb_ooo_amo_gate.sv
-[PASS] tb_ooo_amo_gate
-common/tb_common.svh:32: $finish called at 7 (1s)
-[RESULT] PASS

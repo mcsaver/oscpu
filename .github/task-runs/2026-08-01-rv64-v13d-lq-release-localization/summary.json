@@ -1,0 +1,87 @@
+{
+  "schema": "npc-rv64-v13d-lq-release-localization-v1",
+  "status": "NEGATIVE_CANDIDATE_ROLLED_BACK",
+  "classification": {
+    "workflow_class": "development",
+    "technical_class": "ppa_candidate",
+    "evidence_class": "diagnostic",
+    "promotion_eligible": false
+  },
+  "identity": {
+    "parent_design_id": "sha256:29c0afe820a5ce58a1299da1faaefabce6f9038156f628e9f0f3ff3b6e23f483",
+    "parent_load_queue_sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+    "candidate_load_queue_sha256": "b51b23fcfa269ace90daed7f01f5a5aa7b1d9951ebea26deb6aec8e1108ed13f",
+    "candidate_tb_sha256": "c0463e593ad3391d5bdf9f3f576c9268f8b8aace2b9e6e94a61af8db523e5716",
+    "candidate_spec_sha256": "b99e72aad779dc7dc071942f0ff3725e49bfe7d9203ff176f0f6a6ddee5fb792",
+    "restored_tb_sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74",
+    "restored_spec_sha256": "e2d5f60dac01588bc2b8da1367142ebea67ae1afbbf10a3e04c0b3a2e5f86a6d"
+  },
+  "semantic_delta": {
+    "candidate": "per-entry release ready-hit times lane commit directly qualifies entry clear; external fire equation unchanged",
+    "ports_changed": false,
+    "registered_state_changed": false,
+    "pipeline_changed": false,
+    "assertions_weakened": false,
+    "final_live_production_delta": false
+  },
+  "functional": {
+    "baseline_discriminator": "EXPECTED_FAIL_COMPILE_SUCCESS",
+    "baseline_discriminator_failures": 3,
+    "candidate_discriminator": "PASS",
+    "candidate_focused_assert": "PASS",
+    "candidate_raw_q_profiles": "4/4 PASS",
+    "candidate_parent": "PASS",
+    "candidate_di5": "PASS_64_CYCLES_IPC_2_000_COMPLETIONS_64_64",
+    "rollback_focused_assert": "PASS",
+    "rtl_style": "NOT_RUN_EARLY_PPA_STOP",
+    "historical_31x2_mutation": "NOT_RUN_EARLY_PPA_STOP"
+  },
+  "ppa": {
+    "configuration": "OooLoadQueue; 200 MHz; flatten=1; share=0; Yosys 0.66+197; icsprout55; OpenSTA 3.1.0; 5 ns ideal clock; zero IO delay",
+    "coarse": {
+      "baseline": {"cells": 4568, "mux_cells": 1790, "wire_bits": 41922},
+      "candidate": {"cells": 4568, "mux_cells": 1790, "wire_bits": 41922},
+      "delta": {"cells": 0, "mux_cells": 0, "wire_bits": 0}
+    },
+    "mapped": {
+      "baseline": {"cells": 18979, "area": 44073.68, "sequential_area": 9264.64},
+      "candidate": {"cells": 19272, "area": 44773.12, "sequential_area": 9264.64},
+      "delta": {"cells": 293, "area": 699.44, "sequential_area": 0.0}
+    },
+    "opensta": {
+      "baseline_worst_slack_ns": 3.475173950,
+      "candidate_worst_slack_ns": 3.469281435,
+      "delta_ns": -0.005892515,
+      "baseline_tns_ns": 0.0,
+      "candidate_tns_ns": 0.0,
+      "timing_qualified": false
+    },
+    "verdict": "DOMINATED_ROLLBACK",
+    "full_core_coarse": "NOT_RUN_LOCAL_EARLY_STOP",
+    "full_core_mapped_sta": "NOT_RUN",
+    "power": "NOT_RUN"
+  },
+  "test_disposition": {
+    "candidate_raw_state_discriminator": "OBSOLETE_WITH_EVIDENCE",
+    "reason": "candidate-specific invalid duplicate-PID behavior; candidate rejected and live contract restored",
+    "historical_evidence_preserved": true
+  },
+  "cleanup": {
+    "regenerable_runtime_removed": true,
+    "removed_bytes": 260235414,
+    "removed_files": 38,
+    "retained_ppa_files_total": 18,
+    "retained_ppa_files_nonempty": 16,
+    "empty_opensta_check_setup_files": 2
+  },
+  "system": {
+    "full_system_rerun_required": "NO",
+    "launch_authorization_state": "NOT_REQUIRED",
+    "reason": "candidate rolled back; current production RTL identity restored"
+  },
+  "review": {
+    "pre_implementation": "APPROVED_FOR_IMPLEMENTATION",
+    "final": "APPROVED_NOT_PROMOTION_ELIGIBLE",
+    "scope": "negative-candidate disposition, compact evidence retention, and V13B production rollback"
+  }
+}

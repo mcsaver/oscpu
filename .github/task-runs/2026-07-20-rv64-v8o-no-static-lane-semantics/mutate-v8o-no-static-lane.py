@@ -42,6 +42,18 @@ MUTATIONS: dict[str, tuple[str, str]] = {
     ),
 }
 
+# The executable DI-4 target remains valid across the V13I IQ representation
+# change.  Keep the historical per-field anchor above and accept exactly one
+# packed-entry anchor when that is the live representation; accepting zero or
+# multiple anchors is still fail-closed.
+ALTERNATE_MUTATIONS: dict[str, tuple[tuple[str, str], ...]] = {
+    "slot1_capability_capture": ((
+        "ctrl_is_alu_terminal_capable(dispatch1_ctrl_i) &&\n"
+        "        !dispatch1_fp_pdest_i && !dispatch1_fp_st_src_en_i,",
+        "1'b1,",
+    ),),
+}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -51,13 +63,17 @@ def main() -> int:
     args = parser.parse_args()
 
     text = args.source.read_text(encoding="utf-8")
-    old, new = MUTATIONS[args.mutation]
-    count = text.count(old)
-    if count != 1:
+    candidates = (MUTATIONS[args.mutation],) + ALTERNATE_MUTATIONS.get(
+        args.mutation, ())
+    matches = [
+        (old, new) for old, new in candidates if text.count(old) == 1
+    ]
+    if len(matches) != 1:
         raise SystemExit(
             f"[V8O-MUTATOR][FAIL] {args.mutation}: "
-            f"expected one anchor, got {count}"
+            f"expected one representation anchor, got {len(matches)}"
         )
+    old, new = matches[0]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(text.replace(old, new, 1), encoding="utf-8")
     print(f"[V8O-MUTATOR][PASS] {args.mutation} -> {args.output}")

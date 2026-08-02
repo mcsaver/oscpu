@@ -1,0 +1,2 @@
+2026-08-01T18:06:22Z	counterexample	plain-store DRAIN bypasses OooMemOwnerTerminalCollector; B edge consumes formal-WB and SQ-terminal credit, STORE owner dies through later SQ release	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/reviewer-result.md
+2026-08-01T18:06:22Z	decision	retain aggregate-B fusion as DEVELOPMENT_PASS checkpoint; do not freeze arch-stable or promote before repeated CPI evidence and mapped area/STA/power	.github/task-runs/2026-08-02-rv64-v13p-store-b-terminal-cpi-architecture-v1/task-report.md

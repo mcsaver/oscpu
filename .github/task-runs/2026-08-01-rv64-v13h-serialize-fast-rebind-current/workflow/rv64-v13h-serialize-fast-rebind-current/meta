@@ -1,0 +1,12 @@
+schema=1
+task_id=rv64-v13h-serialize-fast-rebind-current
+task_class=verification
+archive_mode=compact
+status=BLOCKED
+overhead_target_percent=40
+started_ms=1785575088206
+initial_work_ms=0
+gate_ms=0
+paused_ms=0
+pause_started_ms=0
+generation=3

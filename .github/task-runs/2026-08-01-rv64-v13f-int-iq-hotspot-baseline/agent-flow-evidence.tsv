@@ -1,0 +1,3 @@
+2026-08-01T08:11:11Z	local-coarse	PASS	.github/task-runs/2026-08-01-rv64-v13f-int-iq-hotspot-baseline/evidence/ppa/local-baseline/coarse-synth-stat.txt
+2026-08-01T08:11:11Z	local-mapped	PASS	.github/task-runs/2026-08-01-rv64-v13f-int-iq-hotspot-baseline/evidence/ppa/local-baseline/mapped-synth-stat.txt
+2026-08-01T08:11:11Z	local-opensta	PASS	.github/task-runs/2026-08-01-rv64-v13f-int-iq-hotspot-baseline/evidence/ppa/local-baseline/opensta-top40.rpt
