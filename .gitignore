@@ -3,6 +3,20 @@
 *.s
 __pycache__/
 *.py[cod]
+
+# 可再生的二级编译目录：仅匹配目录，避免误伤 build-*.py 等工程脚本。
+**/build/
+**/build-*/
+**/build_*/
+**/obj_dir/
+**/CMakeFiles/
+
+# 名称含 build 但承载真实构建描述/源码的目录，继续纳入版本控制。
+!tool/softfloat/build/
+!tool/softfloat/build/**
+!ysyxSoC/rocket-chip/dependencies/chisel/.github/workflows/build-scala-cli-template/
+!ysyxSoC/rocket-chip/dependencies/chisel/.github/workflows/build-scala-cli-template/**
+
 /tmp/
 *oss-cad-suite/
 oss-cad-suite-linux-x64-*.tgz
@@ -96,6 +110,11 @@ Linux/tools/initramfs/
 # 一次性审计目录和重型 task-run evidence 不进入 tracked source。
 .github/shujuku_aireview/**
 .github/task-runs/.async/**
+.github/task-runs/**/build/
+.github/task-runs/**/build-*/
+.github/task-runs/**/build_*/
+.github/task-runs/**/obj_dir/
+.github/task-runs/**/CMakeFiles/
 .github/task-runs/*.log
 .github/task-runs/**/*.log
 .github/task-runs/**/evidence/**
