@@ -21,6 +21,12 @@ SPEC.loader.exec_module(LANES)
 
 BACKEND = (ROOT / LANES.BACKEND).read_text(encoding="utf-8")
 COLLECTOR = (ROOT / LANES.COLLECTOR).read_text(encoding="utf-8")
+HISTORICAL_BACKEND = (
+    ROOT
+    / ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/"
+      "rtl-verification/v9p-replay-capacity-evidence/"
+      "fence-open-mutation/OooIntBackend.v"
+).read_text(encoding="utf-8")
 
 
 class TerminalCollectorLaneContractTests(unittest.TestCase):
@@ -30,6 +36,64 @@ class TerminalCollectorLaneContractTests(unittest.TestCase):
         self.assertEqual(len(result["tracker_free_lanes"]), 2)
         self.assertFalse(result["raw_ingress_is_transfer_authority"])
         self.assertFalse(result["duplicate_ingress_is_merged"])
+        matrix = result["source_pair_matrix"]
+        self.assertEqual(len(matrix["pairs"]), 66)
+        self.assertEqual(matrix["source_guarded_or_asserted_pairs"], 66)
+        self.assertEqual(matrix["collector_only_pairs"], 0)
+        self.assertEqual(matrix["collector_only_pair_ids"], [])
+        self.assertEqual(matrix["precollector_pair_status"], "CLOSED")
+        self.assertEqual(matrix["guard_counts"]["response-credit"], 21)
+        self.assertEqual(
+            matrix["guard_counts"]["amo-transient-holder-assertion"], 3
+        )
+
+    def test_historical_snapshot_keeps_unknown_pair_boundary(self) -> None:
+        matrix = LANES.build_pair_matrix(HISTORICAL_BACKEND)
+        self.assertEqual(len(matrix["pairs"]), 66)
+        self.assertEqual(matrix["source_guarded_or_asserted_pairs"], 27)
+        self.assertEqual(matrix["collector_only_pairs"], 39)
+        self.assertFalse(
+            matrix["source_guard_presence"]["bridge-holder-assertion"]
+        )
+
+    def test_source_pair_assertion_removal_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "[V9Q-TRANSIENT-BRIDGE-DISJOINT]",
+            "[V9Q-TRANSIENT-BRIDGE-REMOVED]",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "transient-bridge-assertion"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_amo_transient_holder_assertion_removal_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+            "[V14U-AMO-TRANSIENT-HOLDER-REMOVED]",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "amo-transient-holder-assertion"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_amo_transient_holder_operand_omission_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "      (mem_issue_res_owner_mask_w | "
+            "mem_issue1_res_owner_mask_w |\n"
+            "       mem_buffer_owner_mask_w);",
+            "      (mem_issue_res_owner_mask_w | "
+            "mem_issue1_res_owner_mask_w);",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "amo-transient-holder-assertion"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
 
     def test_lane_token_swap_is_rejected(self) -> None:
         mutant = BACKEND.replace(

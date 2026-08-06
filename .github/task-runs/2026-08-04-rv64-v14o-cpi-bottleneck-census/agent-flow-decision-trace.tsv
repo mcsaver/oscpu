@@ -1,0 +1,5 @@
+2026-08-04T00:12:55Z	evidence	CoreMark 与 Dhrystone 均呈 memory_latency 到 request_outstanding 再到 axi_write_response 的 ROB-head 驻留层级；该计数不是 transaction count 或唯一因果证明。	npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json
+2026-08-04T00:12:55Z	decision	保持 optimization_candidate_authorized=false 与 PPA=UNQUALIFIED；先增加 per-owner transaction count、duration histogram 和 overlap/bridge occupancy 诊断。	npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json
+2026-08-04T00:19:56Z	counterexample	首轮独立材料复核发现 H4 缺少 reservation/translation 进入退出时长与 owner correlation，且摘要未附完整 rank 向量。	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1/subagent-contracts/v14o-cpi-bottleneck-census-final-review-v2.json
+2026-08-04T00:19:56Z	decision	V2 补齐 H1-H4 判别矩阵、pre-request channel、完整向量守恒测试与方法入口；仍保持 candidate_authorized=false。	npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json
+2026-08-04T00:20:48Z	evidence	独立冻结材料复核确认完整向量守恒、H1-H4 判别 channel、B terminal 与候选/PPA 边界；未选择 causal root。	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/independent-review.md

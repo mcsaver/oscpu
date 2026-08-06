@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14k-independent-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 RV64 历史缺陷收据的五项修复：V14E 已清理 sidefile 的零返回码哈希与保留 TB 日志合取、QH 三次提交与两次选择性清除原始标记、V14G 26 份日志头返回码、exit 12 项 source role 与 Icarus/+V10D_ONLY 配置、C 指针对显式和路径选择的 architecture-debt 前置正规化；寻找仍可导致假绿或越级结论的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
+      "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/testbench/scripts/run_historical_exit_current.py",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/qh",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/system",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/evidence/historical-exit-current",
+      ".github/runtime-artifacts/agent-flow/rv64-v14g-producer-owner-global-gate/v14g-delivery-current-20260803/logs",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/subagent-contracts/v14k-independent-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "scripts/agent-flow.c"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象/证据路径、design/config、testbench/EDA 原始观测与 PASS/GAP 范围给出第三轮独立结论；逐项判定第二轮三类 blocker 是否 CLOSED，并保留新反例、未知项和 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认删除 sidefile 的证明链不会把缺失文件冒充留存、QH/V14G 计数来自保留日志、exit source/tool/config 为精确集合、V14G runtime log 路由及显式 historical 指针均强制 debt 在前，同时 A3 原始 FAIL、whole_architecture=RED、ppa=UNPROMOTED 保持不变。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

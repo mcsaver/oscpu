@@ -1,0 +1,4 @@
+2026-08-04T00:12:55Z	cpi-census-runner	PASS	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1/cpi-bottleneck-census.status
+2026-08-04T00:12:55Z	cpi-census-test-build-verify	PASS	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1/evidence/cpi-bottleneck-census/command-status.txt
+2026-08-04T00:19:56Z	cpi-census-v2-test-build-verify	PASS	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/command-status.txt
+2026-08-04T00:20:48Z	cpi-census-v2-independent-review	PASS	.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/independent-review.md

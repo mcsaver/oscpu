@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-historical-defect-current-v1.schema.json",
+  "title": "NPC RV64 current historical-defect receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "design_id",
+    "rtl_file_count",
+    "config_identity",
+    "defect_ids",
+    "defect_status",
+    "validation_depth",
+    "support",
+    "inputs",
+    "metrics",
+    "evidence_reuse_contract",
+    "promotion"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-historical-defect-current-v1"
+    },
+    "status": {
+      "const": "PASS"
+    },
+    "design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "rtl_file_count": {
+      "const": 146
+    },
+    "config_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "npc_config",
+        "npc_auto_conf",
+        "npc_autoconf_header"
+      ],
+      "properties": {
+        "npc_config": {
+          "$ref": "#/$defs/artifact"
+        },
+        "npc_auto_conf": {
+          "$ref": "#/$defs/artifact"
+        },
+        "npc_autoconf_header": {
+          "$ref": "#/$defs/artifact"
+        }
+      }
+    },
+    "defect_ids": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "defect_status": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6,
+      "additionalProperties": {
+        "const": "BACKFILLED_CURRENT_DESIGN"
+      }
+    },
+    "validation_depth": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6,
+      "additionalProperties": {
+        "enum": ["VD3", "VD4"]
+      }
+    },
+    "support": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6
+    },
+    "evidence_reuse_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_state",
+        "artifact_state",
+        "build_product_state",
+        "compile_sidefile_state",
+        "shared_system_dependency",
+        "assertion_state",
+        "oracle_state",
+        "replay_state",
+        "full_system_rerun",
+        "rerun_on"
+      ],
+      "properties": {
+        "execution_state": {
+          "const": "ORIGINAL_STATUS_IMMUTABLE"
+        },
+        "artifact_state": {
+          "const": "TOP_LEVEL_RECEIPTS_PATH_SHA256_SIZE_BOUND_AND_RETAINED_LOGS_SHA256_BOUND"
+        },
+        "build_product_state": {
+          "const": "REGENERABLE_SIMULATOR_IMAGES_REMOVED_AFTER_HASH_RECEIPT"
+        },
+        "compile_sidefile_state": {
+          "const": "REMOVED_ZERO_RC_HASH_RECEIPT_CROSSCHECKED_WITH_RETAINED_TB_LOG"
+        },
+        "shared_system_dependency": {
+          "const": "LAYERED_SIGNOFF_AND_CURRENT_CHECKER_CONTRACT_REQUIRED"
+        },
+        "assertion_state": {
+          "const": "POSITIVE_ZERO_FAILURE_AND_COMPILE_SUCCESS_NEGATIVE_REJECTION_REQUIRED"
+        },
+        "oracle_state": {
+          "const": "VERSIONED_REPLAY_WITH_KNOWN_GOOD_AND_EXPECTED_FAIL_FIXTURES"
+        },
+        "replay_state": {
+          "const": "ONLY_TARGETED_HISTORICAL_RTL_AND_ORACLE_REPLAYS"
+        },
+        "full_system_rerun": {
+          "const": false
+        },
+        "rerun_on": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "historical_defect_ledger",
+        "whole_architecture",
+        "ppa"
+      ],
+      "properties": {
+        "historical_defect_ledger": {
+          "const": "BACKFILLED_CURRENT_DESIGN"
+        },
+        "whole_architecture": {
+          "const": "RED"
+        },
+        "ppa": {
+          "const": "UNPROMOTED"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

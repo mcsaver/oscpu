@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import pathlib
 import re
 import shutil
@@ -26,20 +27,54 @@ from typing import Any, Iterable
 import jsonschema
 
 
-CANDIDATE_SCHEMA = "npc-rv64-arch-stable-candidate-v1"
+CANDIDATE_SCHEMA = "npc-rv64-arch-stable-candidate-v2"
 LEDGER_SCHEMA = "npc-rv64-architecture-debt-ledger-v2"
 HISTORICAL_DEFECT_SCHEMA = (
     "npc-rv64-historical-defect-backfill-ledger-v1"
 )
+HISTORICAL_CURRENT_SCHEMA = "npc-rv64-historical-defect-current-v1"
 RESULT_SCHEMA = "npc-rv64-arch-stable-result-v1"
+INDEPENDENT_REVIEW_SCHEMA = (
+    "npc-rv64-arch-stable-independent-review-v1"
+)
 ARCH_EVIDENCE_SCHEMA = "npc-rv64-architecture-directed-suite-v2"
 ARCH_RESULT_SCHEMA = "npc-rv64-architecture-hard-gates-result-v2"
 CENSUS_SCHEMA = "rv64-producer-holder-census-v1"
+SEMANTIC_COVERAGE_SCHEMA = "rv64-producer-holder-semantic-coverage-v1"
+SEMANTIC_COVERAGE_PATH = (
+    "npc/rv64/design/arch/producer-holder-semantic-coverage.json"
+)
+SEMANTIC_COVERAGE_POLICY_PATH = (
+    "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json"
+)
+GLOBAL_NO_LIVE_REUSE_SCHEMA = (
+    "npc-rv64-global-producer-no-live-reuse-receipt-v2"
+)
+GLOBAL_NO_LIVE_REUSE_PATH = (
+    "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json"
+)
 FUNCTIONAL_SCHEMA = "npc-rv64-functional-aggregate-v2"
 PROGRAM_IMAGE_CANONICALIZATION = "npc-rv64-program-image-map-v1"
 DIFFTEST_PROFILE_SCHEMA = "npc-rv64-difftest-reference-profile-v1"
 FUNCTIONAL_RESULT_SCHEMA = "npc-rv64-functional-aggregate-result-v1"
 COHORT_SCHEMA = "npc-rv64-arch-stable-cohort-inventory-v1"
+CURRENT_DEBT_SCHEMA = "npc-rv64-architecture-debt-current-v2"
+CURRENT_DEBT_RECEIPT_KIND = "architecture_debt_current_receipt"
+CURRENT_DEBT_TOOL_PATH = (
+    "npc/rv64/eval/ppa/tools/architecture_debt_current.py"
+)
+SYSTEM_RECERTIFICATION_SCHEMA = (
+    "npc-rv64-system-recertification-current-v2"
+)
+SYSTEM_RECERTIFICATION_PATH = (
+    "npc/rv64/eval/ppa/evidence/system-recertification-current.json"
+)
+SYSTEM_RECERTIFICATION_TOOL_PATH = (
+    "npc/rv64/eval/ppa/tools/system_recertification_current.py"
+)
+LAYERED_SYSTEM_SIGNOFF_PATH = (
+    "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
+)
 
 GATE_IDS = {
     "DI-1", "DI-2", "DI-3", "DI-4", "DI-5",
@@ -69,26 +104,46 @@ DEBT_MARKER_RE = re.compile(
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DESIGN_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 SCHEMA_PATHS = {
-    CANDIDATE_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v1.schema.json",
+    CANDIDATE_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v2.schema.json",
     LEDGER_SCHEMA: "npc/rv64/eval/ppa/schemas/architecture-debt-ledger-v2.schema.json",
     HISTORICAL_DEFECT_SCHEMA: (
         "npc/rv64/eval/ppa/schemas/"
         "historical-defect-backfill-ledger-v1.schema.json"
     ),
+    HISTORICAL_CURRENT_SCHEMA: (
+        "npc/rv64/eval/ppa/schemas/"
+        "historical-defect-current-v1.schema.json"
+    ),
     RESULT_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-result-v1.schema.json",
+    INDEPENDENT_REVIEW_SCHEMA: (
+        "npc/rv64/eval/ppa/schemas/"
+        "arch-stable-independent-review-v1.schema.json"
+    ),
     FUNCTIONAL_SCHEMA: "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
     DIFFTEST_PROFILE_SCHEMA: "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
     FUNCTIONAL_RESULT_SCHEMA: "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
     COHORT_SCHEMA: "npc/rv64/eval/ppa/schemas/arch-stable-cohort-inventory-v1.schema.json",
+    CURRENT_DEBT_SCHEMA: (
+        "npc/rv64/eval/ppa/schemas/architecture-debt-current-v2.schema.json"
+    ),
 }
 WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
     "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+    "npc/rv64/eval/ppa/tools/historical_defect_current.py",
     "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+    "npc/rv64/eval/ppa/tools/architecture_provenance_replay.py",
+    "npc/rv64/eval/ppa/tools/functional_archive_rehydrate.py",
+    "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
     "npc/rv64/eval/ppa/tools/functional_aggregate.py",
     "npc/rv64/eval/ppa/tools/producer_holder_census.py",
     "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
     "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+    "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+    "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+    "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+    "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
+    "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
     "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
     "npc/rv64/eval/ppa/tools/memory_tracker_semantic_evidence.py",
     "npc/rv64/eval/ppa/tools/memory_tracker_cursor_semantic_evidence.py",
@@ -100,7 +155,17 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
     "npc/rv64/eval/ppa/tools/ifu_fetch_provenance_evidence.py",
     "npc/rv64/eval/ppa/tools/vectored_trap_evidence.py",
+    "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
+    "npc/rv64/eval/ppa/tests/test_architecture_debt_delta_rebind.py",
+    "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
+    "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
+    "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
     "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
+    "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
+    "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+    ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+    "scripts/check-rv64-soc-delivery-gates.sh",
+    "scripts/tests/test-rv64-soc-delivery-gates.sh",
     ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh",
     ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/build-current-census-evidence.py",
     ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/mutate-v8l-global-lease.py",
@@ -115,7 +180,11 @@ WORKFLOW_BINDING_PATHS = (
     "scripts/task-run-status.sh",
     "scripts/tests/test-task-run-status.sh",
     "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/tests/test_architecture_provenance_replay.py",
+    "npc/rv64/eval/ppa/tests/test_functional_archive_rehydrate.py",
+    "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py",
     "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+    "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
     "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
     "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
     "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
@@ -123,10 +192,19 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
     "npc/rv64/eval/ppa/tests/test_v11a_instance_graph_runner.py",
     "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+    "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
+    "npc/rv64/eval/ppa/tests/test_system_recertification_current.py",
+    "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py",
     "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
     "npc/rv64/eval/ppa/tests/test_memory_tracker_semantic_evidence.py",
     "npc/rv64/eval/ppa/tests/test_memory_tracker_cursor_semantic_evidence.py",
     "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+    "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+    "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+    "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+    "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+    "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+    "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
     "npc/rv64/eval/ppa/tests/test_fdg_arch_trap_evidence.py",
     "npc/rv64/eval/ppa/tests/test_xret_current_mode_evidence.py",
     "npc/rv64/eval/ppa/tests/test_instret_retirement_evidence.py",
@@ -707,6 +785,25 @@ def load_workspace_module(root: pathlib.Path, relative: str, label: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
+    return module
+
+
+_CURRENT_DEBT_TOOL_CACHE: dict[tuple[str, str], Any] = {}
+
+
+def load_current_debt_tool(root: pathlib.Path) -> Any:
+    path, error = safe_regular_file(root, CURRENT_DEBT_TOOL_PATH)
+    if error or path is None:
+        raise ValueError(error or "current architecture-debt tool is missing")
+    key = (str(root.resolve()), sha256_file(path))
+    module = _CURRENT_DEBT_TOOL_CACHE.get(key)
+    if module is None:
+        module = load_workspace_module(
+            root,
+            CURRENT_DEBT_TOOL_PATH,
+            "architecture_debt_current",
+        )
+        _CURRENT_DEBT_TOOL_CACHE[key] = module
     return module
 
 
@@ -5208,7 +5305,579 @@ F0_AGGREGATE_PATH = (
 F0_RESULT_PATH = (
     "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json")
 F0_RAW_PATH = "npc/rv64/eval/ppa/evidence/functional-aggregate.log"
+F0_BINDING_PATH = (
+    "npc/rv64/eval/ppa/evidence/functional-aggregate-current.binding.json")
 F0_MUTATION_SCHEMA = "npc-rv64-functional-evidence-mutations-v1"
+F0_PUBLICATION_SCHEMA = "npc-rv64-full-core-functional-current-publication-v1"
+F0_RUN_RESULT_SCHEMA = "npc-rv64-full-core-functional-current-evidence-v1"
+F0_COHORT_ID = "full-core-single-hart-rv64-dual-issue-ooo-v1"
+F0_MODULE_INPUT_SCHEMA = "npc-rv64-full-core-module-input-binding-v1"
+F0_FUNCTIONAL_INPUT_SCHEMA = "npc-rv64-full-core-functional-input-binding-v2"
+F0_GENERATED_INPUT_PARTS = frozenset({
+    ".git", ".cache", "__pycache__", "build", "obj_dir",
+})
+F0_GENERATED_INPUT_NAMES = frozenset({".result"})
+F0_GENERATED_INPUT_SUFFIXES = frozenset({
+    ".a", ".bin", ".dump", ".elf", ".o", ".so", ".vvp",
+})
+F0_SCHEMA_VALID_MUTATION_IDS = (
+    "official_test_to_image_swap",
+    "official_duplicate_image_file_identity",
+    "official_stale_image_set_digest",
+    "difftest_am_map_mismatch",
+    "stale_simulator_digest",
+    "stale_configuration_digest",
+    "stale_reference_digest",
+    "stale_reference_profile_digest",
+    "module_log_file_reuse",
+    "module_duplicate_pass_marker",
+    "official_membership_substitution",
+)
+F0_SCHEMA_INVALID_MUTATION_IDS = (
+    "official_missing_image_record",
+    "am_duplicate_inventory_id",
+    "coremark_crc_change",
+)
+F0_CANONICAL_MUTATION_IDS = (
+    *F0_SCHEMA_VALID_MUTATION_IDS,
+    *F0_SCHEMA_INVALID_MUTATION_IDS,
+)
+
+
+def f0_repository_input_is_generated(path: pathlib.Path) -> bool:
+    """Recognize local RV64 build products beside source inputs."""
+
+    if path.suffix.lower() in F0_GENERATED_INPUT_SUFFIXES:
+        return True
+    try:
+        with path.open("rb") as handle:
+            return handle.read(4) == b"\x7fELF"
+    except OSError as exc:
+        raise RuntimeError(f"cannot inspect functional input candidate: {path}") from exc
+
+
+def f0_collect_repository_files(
+    root: pathlib.Path, entries: list[pathlib.Path]
+) -> list[str]:
+    """Return the exact source/control closure, excluding secondary products."""
+
+    root_resolved = root.resolve(strict=True)
+    collected: set[str] = set()
+    for raw in entries:
+        candidate = raw if raw.is_absolute() else root / raw
+        if candidate.is_symlink():
+            raise RuntimeError(f"functional input root is a symlink: {candidate}")
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(root_resolved)
+        if resolved.is_file():
+            if not f0_repository_input_is_generated(resolved):
+                collected.add(resolved.relative_to(root_resolved).as_posix())
+            continue
+        if not resolved.is_dir():
+            raise RuntimeError(f"functional input root is not regular: {candidate}")
+        for path in resolved.rglob("*"):
+            local_parts = path.relative_to(resolved).parts
+            if any(part in F0_GENERATED_INPUT_PARTS for part in local_parts):
+                continue
+            if (
+                path.name in F0_GENERATED_INPUT_NAMES
+                or path.name.startswith("Makefile.")
+                or path.is_symlink()
+                or not path.is_file()
+                or f0_repository_input_is_generated(path)
+            ):
+                continue
+            collected.add(path.relative_to(root_resolved).as_posix())
+    return sorted(collected)
+
+
+def f0_official_test_ids(root: pathlib.Path) -> list[str]:
+    """Derive the exact official RV64 suite membership from live sources."""
+
+    runner_path, error = safe_regular_file(
+        root, "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh")
+    if error or runner_path is None:
+        raise RuntimeError(error or "official regression runner is missing")
+    text = runner_path.read_text(encoding="utf-8")
+
+    def parse_array(name: str) -> list[str]:
+        matches = re.findall(
+            rf"(?m)^{re.escape(name)}=\(([^\n()]*)\)$", text)
+        if len(matches) != 1:
+            raise RuntimeError(f"official runner {name} array is not unique")
+        raw = matches[0].strip()
+        if not raw:
+            return []
+        tokens = re.findall(r"[A-Za-z0-9_]+", raw)
+        if " ".join(tokens) != " ".join(raw.split()):
+            raise RuntimeError(f"official runner {name} array is not canonical")
+        return tokens
+
+    suites = parse_array("RISCV_SUITES_DEFAULT") + parse_array(
+        "RISCV_PRIVILEGED_SUITES")
+    if not suites or len(suites) != len(set(suites)):
+        raise RuntimeError("official suite inventory is empty or duplicated")
+    isa_root = root / "npc/rv64/testsuites/core-tests/src/riscv-tests/isa"
+    test_ids = sorted(
+        f"{suite}-p-{source.stem}"
+        for suite in suites
+        for source in (isa_root / suite).glob("*.S")
+        if source.is_file() and not source.is_symlink()
+    )
+    if len(test_ids) != 177 or len(test_ids) != len(set(test_ids)):
+        raise RuntimeError(
+            f"official source inventory requires 177 unique tests, got {len(test_ids)}")
+    return test_ids
+
+
+def f0_capture_module_inputs(
+    root: pathlib.Path, tests: list[str], architecture: Any
+) -> dict[str, Any]:
+    """Capture the exact current module RTL/TB/workflow input closure."""
+
+    design_hex, rtl_files = architecture.rtl_binding(root)
+    if not rtl_files:
+        raise RuntimeError("canonical RTL source closure is empty")
+    expected = expected_input_sets(root, tests)
+    grouped_paths: dict[str, list[str]] = {
+        "rtl": sorted(rtl_files),
+        "generated_headers": sorted(expected["generated_headers"]),
+        "filelists": sorted(expected["filelists"]),
+        "test_sources": sorted(expected["test_sources"]),
+        "workflow": [
+            "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+            "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+            "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+        ],
+    }
+    groups: dict[str, dict[str, str]] = {}
+    seen: set[str] = set()
+    for group, paths in grouped_paths.items():
+        records: dict[str, str] = {}
+        for relative in paths:
+            if relative in seen:
+                continue
+            path, error = safe_regular_file(root, relative)
+            if error or path is None:
+                raise RuntimeError(error or f"module input is missing: {relative}")
+            records[relative] = sha256_file(path)
+            seen.add(relative)
+        if not records:
+            raise RuntimeError(f"module input group is empty: {group}")
+        groups[group] = records
+    return {
+        "schema": F0_MODULE_INPUT_SCHEMA,
+        "design_id": f"sha256:{design_hex}",
+        "required_tests": tests,
+        "groups": groups,
+    }
+
+
+def f0_capture_functional_inputs(
+    root: pathlib.Path, tests: list[str], architecture: Any
+) -> dict[str, Any]:
+    """Capture exact full-core program/reference/tool inputs for replay."""
+
+    value = f0_capture_module_inputs(root, tests, architecture)
+    value["schema"] = F0_FUNCTIONAL_INPUT_SCHEMA
+    groups = value["groups"]
+    seen = {path for records in groups.values() for path in records}
+    source_groups = {
+        "functional_workflow": [
+            root / "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+            root / (
+                ".github/task-runs/"
+                "2026-07-22-rv64-v9l-functional-aggregate-current-design/"
+                "run-functional-aggregate.py"),
+            root / "npc/rv64/eval/ppa/run-full-core-current.sh",
+            root / "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+            root / "scripts/task-run-status.sh",
+            root / "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+            root / "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+            root / "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+            root / "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
+            root / "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh",
+            root / "am-kernels/tests/cpu-tests/scripts/check_results.py",
+        ],
+        "npc_host_harness_sources": [
+            root / "npc/rv64/Makefile",
+            root / "npc/rv64/Kconfig",
+            root / "npc/rv64/.config",
+            root / "npc/rv64/configs/default_defconfig",
+            root / "npc/rv64/csrc",
+        ],
+        "official_program_sources": [
+            root / "npc/rv64/testsuites/core-tests/src/riscv-tests"],
+        "am_program_sources": [
+            root / "am-kernels/tests/cpu-tests/Makefile",
+            root / "am-kernels/tests/cpu-tests/tests",
+            root / "am-kernels/tests/cpu-tests/scripts",
+            root / "abstract-machine/Makefile",
+            root / "abstract-machine/am",
+            root / "abstract-machine/klib",
+            root / "abstract-machine/scripts",
+        ],
+        "benchmark_program_sources": [
+            root / "am-kernels/benchmarks/coremark",
+            root / "am-kernels/benchmarks/dhrystone",
+        ],
+        "reference_model_sources": [
+            root / "nemu/Makefile",
+            root / "nemu/Kconfig",
+            root / "nemu/.config",
+            root / "nemu/configs/riscv64-npc_defconfig",
+            root / "nemu/src",
+            root / "nemu/include",
+            root / "nemu/scripts",
+        ],
+    }
+    for group, entries in source_groups.items():
+        records: dict[str, str] = {}
+        for relative in f0_collect_repository_files(root, entries):
+            if relative in seen:
+                continue
+            path, error = safe_regular_file(root, relative)
+            if error or path is None:
+                raise RuntimeError(error or f"functional input is missing: {relative}")
+            records[relative] = sha256_file(path)
+            seen.add(relative)
+        if not records:
+            raise RuntimeError(f"functional input group is empty: {group}")
+        groups[group] = records
+
+    tools: dict[str, dict[str, str]] = {}
+    for name in ("make", "verilator", "g++", "python3"):
+        located = shutil.which(name)
+        if located is None:
+            raise RuntimeError(f"required functional tool is missing: {name}")
+        resolved = pathlib.Path(located).resolve(strict=True)
+        tools[name] = {"path": resolved.as_posix(), "sha256": sha256_file(resolved)}
+    for name in ("riscv64-linux-gnu-gcc", "riscv64-unknown-elf-gcc"):
+        located = shutil.which(name)
+        if located is not None:
+            resolved = pathlib.Path(located).resolve(strict=True)
+            tools[name] = {
+                "path": resolved.as_posix(), "sha256": sha256_file(resolved)}
+    value["toolchain"] = tools
+    am_tests = root / "am-kernels/tests/cpu-tests/tests"
+    value["am_test_ids"] = sorted(
+        path.stem for path in am_tests.glob("*.c")
+        if path.is_file() and not path.is_symlink())
+    if not value["am_test_ids"]:
+        raise RuntimeError("functional AM source inventory is empty")
+    value["official_test_ids"] = f0_official_test_ids(root)
+    return value
+
+
+def f0_load_source_run_verifier(root: pathlib.Path) -> Any:
+    """Load the full-core verifier from this root without cross-run module cache."""
+    module_names = (
+        "architecture_hard_gates",
+        "arch_stable_freeze",
+        "full_core_current_evidence",
+    )
+    saved_modules = {name: sys.modules.pop(name, None) for name in module_names}
+    saved_path = list(sys.path)
+    tools_dir = str(root / "npc/rv64/eval/ppa/tools")
+    try:
+        sys.path.insert(0, tools_dir)
+        return load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+            "f0_source_run_verifier",
+        )
+    finally:
+        sys.path[:] = saved_path
+        for name in module_names:
+            sys.modules.pop(name, None)
+            if saved_modules[name] is not None:
+                sys.modules[name] = saved_modules[name]
+
+
+def f0_aggregate_log_text(
+    aggregate: dict[str, Any], counts: dict[str, int], checks: list[dict[str, Any]]
+) -> str:
+    """Reconstruct the exact non-PPA F0 terminal receipt."""
+    lines = [
+        f"schema={FUNCTIONAL_RESULT_SCHEMA}",
+        f"aggregate_schema={FUNCTIONAL_SCHEMA}",
+        f"design_id={aggregate['design_id']}",
+        f"cohort_id={aggregate['cohort_id']}",
+        f"canonical_command={F0_COMMAND}",
+        f"module_aggregate={counts['module_passed']}/{counts['module_required']}",
+        f"official_aggregate={counts['official_passed']}/{counts['official_required']}",
+        f"am_aggregate={counts['am_passed']}/{counts['am_required']}",
+        f"difftest_mismatches={counts['difftest_mismatches']}",
+        f"compile_success_evidence_mutations={counts['evidence_mutations_compiled']}",
+        f"rejected_evidence_mutations={counts['evidence_mutations_rejected']}",
+        "coremark_iterations=10",
+        "coremark_crc=0xfcaf",
+        "dhrystone_runs=10000",
+        "production_rtl_changed=false",
+        "ppa=UNQUALIFIED",
+        "promotion_eligible=false",
+    ]
+    lines.extend(
+        f"check[{item['check_id']}]={item['status']}" for item in checks
+    )
+    lines.append("[F0-G1-GATE] PASS")
+    return "\n".join(lines) + "\n"
+
+
+def f0_mutation_summary_errors(
+    value: Any,
+    *,
+    expected_design_id: str,
+    cohort_id: str,
+    counts: Any,
+) -> list[str]:
+    """Validate the exact canonical 14-case F0 mutation receipt."""
+    errors: list[str] = []
+    summary = value if isinstance(value, dict) else {}
+    expected_keys = {
+        "schema", "design_id", "cohort_id", "aggregate_schema", "total",
+        "schema_valid", "schema_invalid", "schema_valid_rejected",
+        "all_rejected", "mutations",
+    }
+    if set(summary) != expected_keys:
+        errors.append("mutation summary field set differs from exact contract")
+    if (
+        summary.get("schema") != F0_MUTATION_SCHEMA
+        or summary.get("design_id") != expected_design_id
+        or summary.get("cohort_id") != cohort_id
+        or summary.get("aggregate_schema") != FUNCTIONAL_SCHEMA
+    ):
+        errors.append("mutation summary design/cohort/schema binding drifted")
+    records = summary.get("mutations")
+    records_list = records if isinstance(records, list) else []
+    observed_ids = [
+        item.get("mutation_id") for item in records_list
+        if isinstance(item, dict)
+    ]
+    if observed_ids != list(F0_CANONICAL_MUTATION_IDS):
+        errors.append("mutation summary canonical inventory drifted")
+    valid_ids = set(F0_SCHEMA_VALID_MUTATION_IDS)
+    for index, item in enumerate(records_list):
+        if not isinstance(item, dict):
+            errors.append(f"mutation record {index} is not an object")
+            continue
+        mutation_id = item.get("mutation_id")
+        expected_record_keys = {
+            "mutation_id", "schema_valid", "rejected",
+            "mutant_canonical_sha256", "reasons",
+        }
+        if set(item) != expected_record_keys:
+            errors.append(f"mutation record field set drifted: {mutation_id}")
+        if item.get("schema_valid") is not (mutation_id in valid_ids):
+            errors.append(f"mutation schema class drifted: {mutation_id}")
+        if item.get("rejected") is not True:
+            errors.append(f"mutation was not rejected: {mutation_id}")
+        digest = item.get("mutant_canonical_sha256")
+        if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+            errors.append(f"mutation digest is invalid: {mutation_id}")
+        reasons = item.get("reasons")
+        if (
+            not isinstance(reasons, list)
+            or not reasons
+            or any(not isinstance(reason, str) or not reason for reason in reasons)
+        ):
+            errors.append(f"mutation rejection reasons are missing: {mutation_id}")
+    expected_summary = {
+        "total": len(F0_CANONICAL_MUTATION_IDS),
+        "schema_valid": len(F0_SCHEMA_VALID_MUTATION_IDS),
+        "schema_invalid": len(F0_SCHEMA_INVALID_MUTATION_IDS),
+        "schema_valid_rejected": len(F0_SCHEMA_VALID_MUTATION_IDS),
+        "all_rejected": True,
+    }
+    for key, expected in expected_summary.items():
+        if summary.get(key) != expected:
+            errors.append(
+                f"mutation summary {key}={summary.get(key)} expected={expected}")
+    count_map = counts if isinstance(counts, dict) else {}
+    if (
+        count_map.get("evidence_mutations_compiled")
+        != len(F0_SCHEMA_VALID_MUTATION_IDS)
+        or count_map.get("evidence_mutations_rejected")
+        != len(F0_SCHEMA_VALID_MUTATION_IDS)
+    ):
+        errors.append("functional result mutation counts drifted")
+    return errors
+
+
+def _f0_bound_artifact(
+    root: pathlib.Path,
+    value: Any,
+    *,
+    expected_kind: str,
+    label: str,
+) -> tuple[pathlib.Path | None, list[str]]:
+    """Resolve one immutable full-core artifact receipt."""
+
+    errors: list[str] = []
+    entry = value if isinstance(value, dict) else {}
+    if set(entry) != {"kind", "path", "sha256", "size_bytes"}:
+        errors.append(f"{label} artifact field set drifted")
+    if entry.get("kind") != expected_kind:
+        errors.append(f"{label} artifact kind drifted")
+    path, error = safe_regular_file(root, entry.get("path"))
+    if error or path is None:
+        errors.append(error or f"{label} artifact is missing")
+        return None, errors
+    if entry.get("sha256") != sha256_file(path):
+        errors.append(f"{label} artifact hash is stale")
+    if entry.get("size_bytes") != path.stat().st_size:
+        errors.append(f"{label} artifact size is stale")
+    return path, errors
+
+
+def validate_f0_publication_binding(
+    root: pathlib.Path,
+    *,
+    expected_design_id: str,
+    result: dict[str, Any],
+    resolved: dict[str, pathlib.Path],
+) -> tuple[list[str], pathlib.Path | None]:
+    """Bind canonical F0 files to one completed immutable full-core run."""
+
+    debt_id = "F0-G1"
+    errors: list[str] = []
+    binding_path, error = safe_regular_file(root, F0_BINDING_PATH)
+    if error or binding_path is None:
+        errors.append(error or f"{debt_id} publication binding is missing")
+        return errors, None
+    try:
+        binding = load_json(binding_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"{debt_id} publication binding is unreadable: {exc}")
+        return errors, None
+    expected_binding_keys = {
+        "schema", "status", "design_id", "cohort_id", "source_run_result",
+        "execution_status", "artifacts",
+    }
+    if set(binding) != expected_binding_keys:
+        errors.append(f"{debt_id} publication binding field set drifted")
+    if not (
+        binding.get("schema") == F0_PUBLICATION_SCHEMA
+        and binding.get("status") == "PASS"
+        and binding.get("design_id") == expected_design_id
+        and binding.get("cohort_id") == F0_COHORT_ID
+        and result.get("cohort_id") == F0_COHORT_ID
+    ):
+        errors.append(f"{debt_id} publication identity/status/cohort drifted")
+
+    source_result_path, artifact_errors = _f0_bound_artifact(
+        root,
+        binding.get("source_run_result"),
+        expected_kind="functional_run_result",
+        label=f"{debt_id} source run result",
+    )
+    errors.extend(artifact_errors)
+    if source_result_path is None:
+        return errors, None
+    source_relative = source_result_path.relative_to(root).as_posix()
+    source_parts = pathlib.PurePosixPath(source_relative).parts
+    if not (
+        len(source_parts) == 6
+        and source_parts[:2] == (".github", "task-runs")
+        and source_parts[2] not in {"", ".", ".."}
+        and source_parts[3:] == ("evidence", "functional", "run-result.json")
+    ):
+        errors.append(f"{debt_id} source result is not an exact task-run output")
+        return errors, None
+    source_output_dir = source_result_path.parent
+    run_dir = source_output_dir.parents[1]
+
+    execution_path, artifact_errors = _f0_bound_artifact(
+        root,
+        binding.get("execution_status"),
+        expected_kind="full_core_execution_status",
+        label=f"{debt_id} execution status",
+    )
+    errors.extend(artifact_errors)
+    expected_execution_path = run_dir / "full-core-current.status"
+    if execution_path != expected_execution_path.resolve(strict=False):
+        errors.append(f"{debt_id} execution status points to another run")
+    elif execution_path.read_text(encoding="utf-8") != "PASS\n":
+        errors.append(f"{debt_id} execution status is not exact PASS")
+
+    publication_path, publication_error = safe_regular_file(
+        root,
+        (run_dir / "full-core-publication.status").relative_to(root).as_posix(),
+    )
+    if publication_error or publication_path is None:
+        errors.append(
+            publication_error or f"{debt_id} publication status is missing")
+    elif publication_path.read_text(encoding="utf-8") != "PASS\n":
+        errors.append(f"{debt_id} publication status is not exact PASS")
+
+    canonical_artifacts = binding.get("artifacts")
+    canonical_map = canonical_artifacts if isinstance(canonical_artifacts, dict) else {}
+    expected_canonical = {
+        "aggregate": (
+            "functional_aggregate", resolved["functional_aggregate"],
+        ),
+        "aggregate_result": (
+            "functional_aggregate_result",
+            resolved["functional_aggregate_result"],
+        ),
+        "aggregate_log": ("functional_aggregate_log", resolved["raw_log"]),
+    }
+    if set(canonical_map) != set(expected_canonical):
+        errors.append(f"{debt_id} canonical publication inventory drifted")
+    canonical_paths: dict[str, pathlib.Path] = {}
+    for name, (kind, expected_path) in expected_canonical.items():
+        path, artifact_errors = _f0_bound_artifact(
+            root,
+            canonical_map.get(name),
+            expected_kind=kind,
+            label=f"{debt_id} canonical {name}",
+        )
+        errors.extend(artifact_errors)
+        if path is not None:
+            canonical_paths[name] = path
+            if path != expected_path:
+                errors.append(f"{debt_id} canonical {name} path drifted")
+
+    try:
+        source_result = load_json(source_result_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"{debt_id} source run result is unreadable: {exc}")
+        return errors, source_output_dir
+    if not (
+        source_result.get("schema") == F0_RUN_RESULT_SCHEMA
+        and source_result.get("status") == "PASS"
+        and source_result.get("design_id") == expected_design_id
+        and source_result.get("counts") == result.get("counts")
+        and source_result.get("published_current") is False
+    ):
+        errors.append(f"{debt_id} immutable source run result contract drifted")
+    source_artifacts = source_result.get("artifacts")
+    source_map = source_artifacts if isinstance(source_artifacts, dict) else {}
+    expected_source = {
+        "aggregate": ("functional_aggregate", "functional-aggregate.json"),
+        "aggregate_result": (
+            "functional_aggregate_result", "functional-aggregate-result.json",
+        ),
+        "aggregate_log": (
+            "functional_aggregate_log", "functional-aggregate.log",
+        ),
+    }
+    for name, (kind, filename) in expected_source.items():
+        path, artifact_errors = _f0_bound_artifact(
+            root,
+            source_map.get(name),
+            expected_kind=kind,
+            label=f"{debt_id} source {name}",
+        )
+        errors.extend(artifact_errors)
+        expected_path = source_output_dir / filename
+        if path is not None and path != expected_path.resolve(strict=False):
+            errors.append(f"{debt_id} source {name} path drifted")
+        canonical_path = canonical_paths.get(name)
+        if path is not None and canonical_path is not None:
+            if sha256_file(path) != sha256_file(canonical_path):
+                errors.append(f"{debt_id} source/canonical {name} hash drifted")
+    return errors, source_output_dir
 
 
 def validate_f0_debt(
@@ -5277,26 +5946,57 @@ def validate_f0_debt(
     if not (
         result.get("schema") == FUNCTIONAL_RESULT_SCHEMA
         and result.get("design_id") == expected_design_id
+        and result.get("cohort_id") == F0_COHORT_ID
         and result.get("status") == "PASS"
         and result.get("exit_code") == 0
         and result.get("canonical_command") == F0_COMMAND
     ):
         errors.append(f"{debt_id} result identity/status/command is incomplete")
 
+    binding_errors, source_output_dir = validate_f0_publication_binding(
+        root,
+        expected_design_id=expected_design_id,
+        result=result,
+        resolved=resolved,
+    )
+    errors.extend(binding_errors)
+    if source_output_dir is None:
+        return errors
+
     result_artifacts = {
-        "aggregate": ("functional_aggregate", resolved["functional_aggregate"]),
-        "raw_log": ("raw_log", resolved["raw_log"]),
-        "mutation_summary": ("mutation_summary", resolved["mutation_summary"]),
+        "aggregate": (
+            "functional_aggregate",
+            source_output_dir / "functional-aggregate.json",
+            resolved["functional_aggregate"],
+        ),
+        "raw_log": (
+            "raw_log",
+            source_output_dir / "functional-aggregate.log",
+            resolved["raw_log"],
+        ),
+        "mutation_summary": (
+            "mutation_summary",
+            source_output_dir / "mutations/summary.json",
+            resolved["mutation_summary"],
+        ),
     }
-    for key, (kind, path) in result_artifacts.items():
+    for key, (kind, expected_source, published_path) in result_artifacts.items():
         item = result.get(key)
-        if not (
-            isinstance(item, dict)
-            and item == {
-                "kind": kind,
-                "path": path.relative_to(root).as_posix(),
-                "sha256": sha256_file(path),
-            }
+        entry = item if isinstance(item, dict) else {}
+        source_path, source_error = safe_regular_file(root, entry.get("path"))
+        expected_entry = {
+            "kind": kind,
+            "path": expected_source.relative_to(root).as_posix(),
+            "sha256": sha256_file(published_path),
+        }
+        if (
+            source_error
+            or source_path != expected_source.resolve(strict=False)
+            or entry != expected_entry
+            or (
+                source_path is not None
+                and sha256_file(source_path) != sha256_file(published_path)
+            )
         ):
             errors.append(f"{debt_id} result {key} artifact binding drifted")
 
@@ -5322,6 +6022,18 @@ def validate_f0_debt(
         required_tests, inventory_errors = parse_required_tests(
             makefile.read_text(encoding="utf-8"))
         errors.extend(f"{debt_id} {error}" for error in inventory_errors)
+    if required_tests:
+        try:
+            # F0 不只消费三份 publication 文件；复用正式 verifier 深验同一
+            # task-run 的 module/status/input/retention/guest/mutation 闭包。
+            functional_verifier = f0_load_source_run_verifier(root)
+            functional_verifier.verify_functional_result(
+                source_output_dir / "run-result.json",
+                require_current_design=True,
+                require_canonical_current=False,
+            )
+        except Exception as exc:  # checker boundary must convert all drift to GAP
+            errors.append(f"{debt_id} immutable source run deep validation failed: {exc}")
     images: list[dict[str, Any]] = []
     for suite_name in ("official", "am"):
         suite = aggregate.get(suite_name)
@@ -5374,55 +6086,33 @@ def validate_f0_debt(
         "am_required": am_required,
         "am_passed": am_required,
         "difftest_mismatches": 0,
-        "evidence_mutations_compiled": mutations.get("schema_valid"),
-        "evidence_mutations_rejected": mutations.get("schema_valid_rejected"),
+        "evidence_mutations_compiled": len(F0_SCHEMA_VALID_MUTATION_IDS),
+        "evidence_mutations_rejected": len(F0_SCHEMA_VALID_MUTATION_IDS),
     }
     if counts != expected_counts:
         errors.append(f"{debt_id} exact module/official/AM/DiffTest counts drifted")
-    mutation_records = mutations.get("mutations")
-    mutation_ok = (
-        mutations.get("schema") == F0_MUTATION_SCHEMA
-        and mutations.get("design_id") == expected_design_id
-        and mutations.get("cohort_id") == result.get("cohort_id")
-        and mutations.get("aggregate_schema") == FUNCTIONAL_SCHEMA
-        and isinstance(mutations.get("schema_valid"), int)
-        and mutations.get("schema_valid", 0) >= 10
-        and mutations.get("schema_valid_rejected") == mutations.get("schema_valid")
-        and mutations.get("all_rejected") is True
-        and isinstance(mutation_records, list)
-        and mutations.get("total") == len(mutation_records)
-        and all(
-            isinstance(item, dict) and item.get("rejected") is True
-            for item in mutation_records
+    errors.extend(
+        f"{debt_id} {error}"
+        for error in f0_mutation_summary_errors(
+            mutations,
+            expected_design_id=expected_design_id,
+            cohort_id=result.get("cohort_id", ""),
+            counts=counts,
         )
     )
-    if not mutation_ok:
-        errors.append(f"{debt_id} evidence-mutation summary is incomplete")
 
     raw_text = resolved["raw_log"].read_text(encoding="utf-8")
-    required_raw_markers = (
-        f"schema={FUNCTIONAL_RESULT_SCHEMA}",
-        f"aggregate_schema={FUNCTIONAL_SCHEMA}",
-        f"design_id={expected_design_id}",
-        f"cohort_id={result.get('cohort_id')}",
-        f"canonical_command={F0_COMMAND}",
-        f"module_aggregate={len(required_tests)}/{len(required_tests)}",
-        "official_aggregate=177/177",
-        f"am_aggregate={am_required}/{am_required}",
-        "difftest_mismatches=0", "coremark_iterations=10",
-        "coremark_crc=0xfcaf", "dhrystone_runs=10000",
-        "production_rtl_changed=false", "ppa=UNQUALIFIED",
-        "promotion_eligible=false", "[F0-G1-GATE] PASS",
-    )
-    missing = [
-        marker for marker in required_raw_markers
-        if raw_text.splitlines().count(marker) != 1
-    ]
-    if missing or any(marker in raw_text for marker in (
-        "[F0-G1-GATE] FAIL", "[RESULT] FAIL", "[CHECK-FAIL]")):
-        errors.append(
-            f"{debt_id} raw log markers are incomplete or contradictory: "
-            f"missing={missing[:4]}")
+    try:
+        expected_raw_text = f0_aggregate_log_text(
+            aggregate,
+            counts if isinstance(counts, dict) else {},
+            functional_checks,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        errors.append(f"{debt_id} cannot reconstruct terminal receipt: {exc}")
+        expected_raw_text = None
+    if expected_raw_text is not None and raw_text != expected_raw_text:
+        errors.append(f"{debt_id} raw log differs from exact terminal receipt")
     return errors
 
 
@@ -7231,11 +7921,28 @@ def validate_debt_ledger(
                     ok,
                     errors[0] if errors else "evidence hash must match current artifact",
                 )
-            validator = DEBT_SEMANTIC_VALIDATORS.get(debt_id)
-            semantic_errors = (
-                ["no registered debt-specific semantic validator"]
-                if validator is None else validator(root, entry, expected_design_id)
+            current_receipt_mode = any(
+                isinstance(item, dict)
+                and item.get("kind") == CURRENT_DEBT_RECEIPT_KIND
+                for item in evidence_list
             )
+            if current_receipt_mode:
+                try:
+                    current_tool = load_current_debt_tool(root)
+                    semantic_errors = current_tool.validate_entry(
+                        root, entry, expected_design_id
+                    )
+                except (OSError, ValueError, AttributeError, TypeError) as exc:
+                    semantic_errors = [
+                        f"current architecture-debt receipt could not be validated: {exc}"
+                    ]
+            else:
+                validator = DEBT_SEMANTIC_VALIDATORS.get(debt_id)
+                semantic_errors = (
+                    ["no registered debt-specific semantic validator"]
+                    if validator is None
+                    else validator(root, entry, expected_design_id)
+                )
             add_check(
                 checks, blockers, f"debt.{debt_id}.semantic_evidence",
                 not semantic_errors,
@@ -7574,22 +8281,24 @@ def validate_census(
     blockers: list[str] = []
     scope = census.get("scope") if isinstance(census, dict) else None
     ledger = census.get("status_ledger") if isinstance(census, dict) else None
-    complete = (
+    static_declared = (
         isinstance(census, dict)
         and census.get("schema_version") == CENSUS_SCHEMA
         and census.get("design_id") == expected_design_id
         and isinstance(scope, dict)
         and scope.get("field_level_complete") is True
         and scope.get("instance_graph_complete") is True
-        and scope.get("semantic_complete") is True
+        and scope.get("semantic_complete") is False
         and isinstance(ledger, dict)
-        and ledger.get("current_production_holder_census") == "GREEN"
-        and ledger.get("global_no_live_reuse") == "GREEN"
-        and ledger.get("whole_architecture") == "GREEN"
+        and ledger.get("current_production_holder_census")
+        == "ELABORATED_INSTANCE_COMPLETE"
+        and ledger.get("global_no_live_reuse") == "SEMANTIC_COVERAGE_REQUIRED"
+        and ledger.get("whole_architecture") == "RED"
+        and ledger.get("ppa_promotion") == "UNPROMOTED"
     )
     add_check(
-        checks, blockers, "census.full_core_complete", complete,
-        "census requires current design_id, field/instance/semantic closure and GREEN no-live-reuse lifecycle",
+        checks, blockers, "census.static_scope_boundary", static_declared,
+        "static census is current-design field/instance complete and leaves semantic, architecture and PPA promotion to independent receipts",
     )
 
     static_errors: list[str] = []
@@ -7639,62 +8348,194 @@ def validate_census(
         if not static_errors else "; ".join(static_errors[:4]),
     )
 
-    dynamic_errors: list[str] = []
-    freeze_evidence = census.get("freeze_evidence") if isinstance(census, dict) else None
-    required_markers = {
-        "V8L-INTIQ-DEATH-EDGE",
-        "V8L-FINITE-GENERATION-WRAP",
-        "V8L-TRANSIENT-HOLDER-CENSUS",
-        "V8L-MEM-HANDOFF-BACKPRESSURE",
-        "V8L-MEM-INDIRECT-TRACKER",
-    }
-    if not isinstance(freeze_evidence, dict) or set(freeze_evidence) != {
-        "canonical_command", "dynamic_log", "mutation_summary"
-    }:
-        dynamic_errors.append("freeze_evidence must contain exact command/log/mutation fields")
-    else:
-        if freeze_evidence.get("canonical_command") != (
-            "make -C npc/rv64 check-global-producer-no-live-reuse"
+    semantic_errors: list[str] = []
+    semantic_result: dict[str, Any] | None = None
+    semantic_expected: dict[str, Any] | None = None
+    semantic_path: pathlib.Path | None = None
+    try:
+        semantic_path, error = safe_regular_file(root, SEMANTIC_COVERAGE_PATH)
+        if error or semantic_path is None:
+            raise ValueError(error or "semantic coverage ledger is missing")
+        if census_path is None:
+            raise ValueError("census manifest path is missing")
+        policy_path, error = safe_regular_file(
+            root, SEMANTIC_COVERAGE_POLICY_PATH)
+        if error or policy_path is None:
+            raise ValueError(error or "semantic coverage policy is missing")
+        semantic_result = load_json(semantic_path)
+        semantic_tool = load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+            "producer_holder_semantic_coverage",
+        )
+        try:
+            graph_path = semantic_tool.manifest_instance_graph_path(
+                root, census_path)
+            semantic_expected = semantic_tool.build_ledger(
+                root, census_path, graph_path, policy_path)
+        except semantic_tool.CoverageError as exc:
+            raise ValueError(str(exc)) from exc
+        if semantic_result != semantic_expected:
+            semantic_errors.append(
+                "semantic coverage ledger differs from canonical current-input evaluation")
+        counts = semantic_result.get("counts")
+        expected_counts = {
+            "holder_instances": 17,
+            "semantic_units": 46,
+            "unit_instance_bindings": 52,
+            "units_semantic_gap": 0,
+            "units_semantic_pass": 46,
+        }
+        if not isinstance(counts, dict) or any(
+            counts.get(key) != value for key, value in expected_counts.items()
         ):
-            dynamic_errors.append("census dynamic canonical command drifted")
-        dynamic_log, log_errors = artifact_entry_observation(
-            root,
-            freeze_evidence.get("dynamic_log"),
-            allowed_kinds={"holder_lifecycle_log"},
-        )
-        dynamic_errors.extend(log_errors)
-        if not log_errors:
-            log_path, _ = safe_regular_file(root, dynamic_log.get("path"))
-            assert log_path is not None
-            text = log_path.read_text(encoding="utf-8")
-            missing = sorted(marker for marker in required_markers if marker not in text)
-            if f"design_id={expected_design_id}" not in text:
-                missing.append("design_id")
-            if missing:
-                dynamic_errors.append(f"census dynamic log missing markers={missing}")
-        mutation_artifact, mutation_errors = artifact_entry_observation(
-            root,
-            freeze_evidence.get("mutation_summary"),
-            allowed_kinds={"mutation_summary"},
-        )
-        dynamic_errors.extend(mutation_errors)
-        if not mutation_errors:
-            mutation_path, _ = safe_regular_file(root, mutation_artifact.get("path"))
-            assert mutation_path is not None
-            mutation = load_json(mutation_path)
-            if not (
-                mutation.get("schema") == "npc-rv64-holder-lifecycle-mutations-v1"
-                and mutation.get("design_id") == expected_design_id
-                and isinstance(mutation.get("compile_success"), int)
-                and mutation.get("compile_success", 0) > 0
-                and mutation.get("rejected") == mutation.get("compile_success")
+            semantic_errors.append(
+                "semantic coverage counts are not 17 instances, 46/46 units and 52 bindings")
+        expected_promotion = {
+            "global_no_live_reuse": "GREEN",
+            "whole_architecture": "RED",
+            "system_recertification": "PASS_CURRENT_CONFIG",
+            "ppa": "UNPROMOTED",
+        }
+        if not (
+            semantic_result.get("schema_version") == SEMANTIC_COVERAGE_SCHEMA
+            and semantic_result.get("status") == "PASS"
+            and semantic_result.get("design_id") == expected_design_id
+            and semantic_result.get("promotion") == expected_promotion
+        ):
+            semantic_errors.append(
+                "semantic coverage identity, status or promotion boundary drifted")
+    except (
+        OSError, ValueError, AttributeError, json.JSONDecodeError,
+        ImportError, SyntaxError, RuntimeError,
+    ) as exc:
+        semantic_errors.append(str(exc))
+    add_check(
+        checks, blockers, "census.semantic_coverage",
+        not semantic_errors,
+        "canonical semantic evaluator reproduced 17 holder instances, 46/46 units and 52 exact instance bindings"
+        if not semantic_errors else "; ".join(semantic_errors[:4]),
+    )
+
+    dynamic_errors: list[str] = []
+    global_receipt: dict[str, Any] | None = None
+    global_path: pathlib.Path | None = None
+    try:
+        global_path, error = safe_regular_file(root, GLOBAL_NO_LIVE_REUSE_PATH)
+        if error or global_path is None:
+            raise ValueError(error or "global no-live-reuse receipt is missing")
+        global_receipt = load_json(global_path)
+        expected_promotion = {
+            "global_no_live_reuse": "GREEN",
+            "whole_architecture": "RED",
+            "system_recertification": "REQUIRED",
+            "ppa": "UNPROMOTED",
+        }
+        if not (
+            global_receipt.get("schema_version") == GLOBAL_NO_LIVE_REUSE_SCHEMA
+            and global_receipt.get("status") == "PASS"
+            and global_receipt.get("design_id") == expected_design_id
+            and global_receipt.get("promotion") == expected_promotion
+        ):
+            dynamic_errors.append(
+                "global no-live-reuse receipt identity, status or promotion boundary drifted")
+        support = global_receipt.get("semantic_support")
+        support_counts = support.get("counts") if isinstance(support, dict) else None
+        if not (
+            isinstance(support, dict)
+            and support.get("status") == "PASS"
+            and support.get("design_id") == expected_design_id
+            and isinstance(support_counts, dict)
+            and support_counts.get("holder_instances") == 17
+            and support_counts.get("semantic_units") == 46
+            and support_counts.get("unit_instance_bindings") == 52
+            and support_counts.get("units_semantic_gap") == 0
+            and support_counts.get("units_semantic_pass") == 46
+        ):
+            dynamic_errors.append(
+                "global receipt semantic support does not match 17/46/52 closure")
+        dynamic = global_receipt.get("v14g_dynamic_fence")
+        if not (
+            isinstance(dynamic, dict)
+            and dynamic.get("status") == "PASS"
+            and dynamic.get("design_id") == expected_design_id
+            and dynamic.get("baseline_profiles_pass") == 4
+            and isinstance(dynamic.get("baselines"), list)
+            and len(dynamic["baselines"]) == 4
+            and dynamic.get("compile_success_mutations_rejected") == 22
+            and isinstance(dynamic.get("mutations"), list)
+            and len(dynamic["mutations"]) == 22
+            and dynamic.get("generation_widths") == [1, 4]
+            and isinstance(dynamic.get("intermediate_products_retained"), int)
+            and not isinstance(
+                dynamic.get("intermediate_products_retained"), bool)
+            and dynamic.get("intermediate_products_retained") == 0
+        ):
+            dynamic_errors.append(
+                "V14G dynamic fence is not 4/4 baseline plus 22/22 compile-success mutation closure at GEN_W 1/4")
+        if not isinstance(semantic_result, dict):
+            dynamic_errors.append("semantic coverage ledger is unavailable")
+        else:
+            closure = semantic_result.get("global_closure")
+            expected_closure = {
+                "status": "PASS",
+                "design_id": expected_design_id,
+                "semantic_units": 46,
+                "unit_instance_bindings": 52,
+                "v14g_baselines": 4,
+                "v14g_compile_success_mutations_rejected": 22,
+                "global_no_live_reuse": "GREEN",
+                "whole_architecture": "RED",
+                "system_recertification": "REQUIRED",
+                "ppa": "UNPROMOTED",
+            }
+            if not isinstance(closure, dict) or any(
+                closure.get(key) != value
+                for key, value in expected_closure.items()
             ):
-                dynamic_errors.append("census mutation summary is not current-design all-rejected")
+                dynamic_errors.append(
+                    "semantic ledger global-closure summary drifted")
+            global_sha = sha256_file(global_path)
+            global_size = global_path.stat().st_size
+            expected_input_binding = {
+                "path": GLOBAL_NO_LIVE_REUSE_PATH,
+                "sha256": global_sha,
+                "size_bytes": global_size,
+            }
+            inputs = semantic_result.get("inputs")
+            if not isinstance(inputs, dict) or inputs.get(
+                "global_closure_receipt") != expected_input_binding:
+                dynamic_errors.append(
+                    "semantic ledger does not exact-bind the global no-live-reuse receipt")
+            expected_closure_binding = {
+                "kind": "global-producer-no-live-reuse-receipt",
+                **expected_input_binding,
+            }
+            if not isinstance(closure, dict) or closure.get(
+                "receipt") != expected_closure_binding:
+                dynamic_errors.append(
+                    "semantic global-closure summary receipt binding drifted")
+    except (
+        OSError, ValueError, AttributeError, json.JSONDecodeError,
+        ImportError, SyntaxError, RuntimeError,
+    ) as exc:
+        dynamic_errors.append(str(exc))
     add_check(
         checks, blockers, "census.dynamic_lifecycle_evidence",
         not dynamic_errors,
-        "holder lifecycle markers and compile-success mutations are current-design bound"
+        "current V14G fence binds 4/4 baseline profiles, 22/22 compile-success mutations and generation widths 1/4"
         if not dynamic_errors else "; ".join(dynamic_errors[:4]),
+    )
+
+    complete = (
+        static_declared
+        and not static_errors
+        and not semantic_errors
+        and not dynamic_errors
+    )
+    add_check(
+        checks, blockers, "census.full_core_complete", complete,
+        "static field/instance census, canonical 46/46 semantic coverage and current V14G lifecycle fence compose without premature architecture/PPA promotion",
     )
     return checks, blockers, {
         "design_id": census.get("design_id") if isinstance(census, dict) else None,
@@ -7703,7 +8544,236 @@ def validate_census(
         "static_audit_sha256": canonical_sha256(static_result)
         if static_result is not None else None,
         "instance_graph": instance_observation,
+        "semantic_coverage_sha256": sha256_file(semantic_path)
+        if semantic_path is not None else None,
+        "semantic_counts": semantic_result.get("counts")
+        if isinstance(semantic_result, dict) else None,
+        "semantic_evaluation_sha256": canonical_sha256(semantic_expected)
+        if semantic_expected is not None else None,
+        "global_no_live_reuse_sha256": sha256_file(global_path)
+        if global_path is not None else None,
+        "v14g_dynamic_fence": global_receipt.get("v14g_dynamic_fence")
+        if isinstance(global_receipt, dict) else None,
     }
+
+
+def validate_system_recertification(
+    *,
+    root: pathlib.Path,
+    receipt: dict[str, Any] | None,
+    receipt_path: pathlib.Path | None,
+    expected_design_id: str,
+) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    """Recompute and exact-bind the default L0+L1+L2+L3 signoff.
+
+    This is deliberately a checker replay.  It consumes retained, sealed
+    evidence and never launches the DUT, while still making a missing or
+    replaced L2/L3 receipt fail closed at the ARCH_STABLE boundary.
+    """
+
+    checks: list[dict[str, Any]] = []
+    blockers: list[str] = []
+    observed: dict[str, Any] = {}
+
+    canonical_path_ok = False
+    if receipt_path is not None:
+        try:
+            canonical_path_ok = (
+                receipt_path.resolve().relative_to(root.resolve()).as_posix()
+                == SYSTEM_RECERTIFICATION_PATH
+            )
+        except ValueError:
+            canonical_path_ok = False
+    add_check(
+        checks,
+        blockers,
+        "system_recertification.canonical_path",
+        canonical_path_ok,
+        f"candidate must bind {SYSTEM_RECERTIFICATION_PATH}",
+    )
+
+    layers = receipt.get("layers") if isinstance(receipt, dict) else None
+    optional = (
+        receipt.get("optional_full_ubuntu")
+        if isinstance(receipt, dict) else None
+    )
+    promotion = receipt.get("promotion") if isinstance(receipt, dict) else None
+    expected_layers = {
+        "L0_DIRECTED_RTL",
+        "L1_FULL_CORE_DIFFTEST",
+        "L2_MINI_SYSTEM",
+        "L3_LIGHTWEIGHT_LINUX",
+    }
+    contract_errors: list[str] = []
+    if not (
+        isinstance(receipt, dict)
+        and receipt.get("schema_version") == SYSTEM_RECERTIFICATION_SCHEMA
+        and receipt.get("status") == "PASS"
+        and receipt.get("design_id") == expected_design_id
+        and receipt.get("default_signoff_conjunction") == [
+            "L0_DIRECTED_RTL",
+            "L1_FULL_CORE_DIFFTEST",
+            "L2_MINI_SYSTEM",
+            "L3_LIGHTWEIGHT_LINUX",
+        ]
+    ):
+        contract_errors.append(
+            "system receipt schema/status/design/default conjunction drifted")
+    if not isinstance(layers, dict) or set(layers) != expected_layers:
+        contract_errors.append("system receipt does not contain exactly L0-L3")
+    else:
+        for name in sorted(expected_layers):
+            layer = layers.get(name)
+            if not isinstance(layer, dict) or layer.get("status") != "PASS":
+                contract_errors.append(f"{name} is not PASS")
+        l0 = layers.get("L0_DIRECTED_RTL")
+        l1 = layers.get("L1_FULL_CORE_DIFFTEST")
+        l2 = layers.get("L2_MINI_SYSTEM")
+        l3 = layers.get("L3_LIGHTWEIGHT_LINUX")
+        if not isinstance(l0, dict) or l0.get("tests") != {
+            "passed": 113, "required": 113,
+        } or l0.get("rtl_assertion_failures") != 0:
+            contract_errors.append("L0 is not 113/113 with zero RTL assertions")
+        if not isinstance(l1, dict) or any(
+            l1.get(key) != value
+            for key, value in {
+                "official_passed": 177,
+                "official_required": 177,
+                "am_passed": 61,
+                "am_required": 61,
+                "difftest_mismatches": 0,
+            }.items()
+        ):
+            contract_errors.append("L1 official/AM/DiffTest counts drifted")
+        for name, layer in (("L2", l2), ("L3", l3)):
+            if not isinstance(layer, dict) or (
+                layer.get("case") != "all"
+                or layer.get("rtl_assertion_failures") != 0
+                or not isinstance(layer.get("commits"), int)
+                or layer.get("commits", 0) <= 0
+                or not isinstance(layer.get("cycles"), int)
+                or layer.get("cycles", 0) <= 0
+            ):
+                contract_errors.append(
+                    f"{name} is not full-case positive execution with zero RTL assertions")
+    if optional != {
+        "status": "NOT_RUN",
+        "launch_policy": "explicit-user-request-only",
+        "blocks_default_signoff": False,
+        "claim": "OPTIONAL_NOT_IMPLIED",
+    }:
+        contract_errors.append("optional Ubuntu boundary drifted")
+    if promotion != {
+        "system_recertification": "PASS_CURRENT_CONFIG",
+        "default_layered_signoff": "PASS",
+        "whole_architecture": "RED",
+        "ppa": "UNPROMOTED",
+    }:
+        contract_errors.append("system/PPA promotion boundary drifted")
+    add_check(
+        checks,
+        blockers,
+        "system_recertification.layer_contract",
+        not contract_errors,
+        "same-design L0+L1+L2+L3 PASS, zero RTL assertions, Ubuntu NOT_RUN optional and PPA unpromoted"
+        if not contract_errors else "; ".join(contract_errors[:4]),
+    )
+
+    replay_errors: list[str] = []
+    replay: dict[str, Any] | None = None
+    try:
+        if receipt_path is None:
+            raise ValueError("system recertification receipt path is missing")
+        evaluator = load_workspace_module(
+            root,
+            SYSTEM_RECERTIFICATION_TOOL_PATH,
+            "system_recertification_current_for_arch_stable",
+        )
+        replay = evaluator.validate_receipt(
+            root,
+            receipt_path,
+            expected_design_id=expected_design_id,
+        )
+        expected_replay = {
+            "status": "PASS",
+            "design_id": expected_design_id,
+            "system_recertification": "PASS_CURRENT_CONFIG",
+            "default_signoff_conjunction": [
+                "L0_DIRECTED_RTL",
+                "L1_FULL_CORE_DIFFTEST",
+                "L2_MINI_SYSTEM",
+                "L3_LIGHTWEIGHT_LINUX",
+            ],
+            "l0_passed": 113,
+            "l0_required": 113,
+            "l1_official_passed": 177,
+            "l1_official_required": 177,
+            "l1_am_passed": 61,
+            "l1_am_required": 61,
+            "l2_case": "all",
+            "l3_case": "all",
+            "rtl_assertion_failures": 0,
+            "optional_ubuntu": "NOT_RUN_OPTIONAL",
+            "whole_architecture": "RED",
+            "ppa": "UNPROMOTED",
+        }
+        if replay != expected_replay:
+            replay_errors.append(
+                "canonical system checker returned an unexpected summary")
+    except (
+        OSError, ValueError, KeyError, AttributeError, json.JSONDecodeError,
+        ImportError, SyntaxError, RuntimeError,
+    ) as exc:
+        replay_errors.append(str(exc))
+    add_check(
+        checks,
+        blockers,
+        "system_recertification.canonical_reevaluation",
+        not replay_errors,
+        "canonical checker replayed sealed L0-L3 evidence and exact Ubuntu boundary without DUT execution"
+        if not replay_errors else "; ".join(replay_errors[:4]),
+    )
+
+    layered_errors: list[str] = []
+    layered_observation: dict[str, Any] = {"status": "INVALID"}
+    layered_binding = (
+        receipt.get("layered_signoff_receipt")
+        if isinstance(receipt, dict) else None
+    )
+    if not isinstance(layered_binding, dict) or set(layered_binding) != {
+        "path", "sha256", "size_bytes",
+    }:
+        layered_errors.append("layered receipt binding is malformed")
+    else:
+        layered_observation, errors = artifact_observation(
+            root, layered_binding.get("path"))
+        layered_errors.extend(errors)
+        if layered_binding.get("path") != LAYERED_SYSTEM_SIGNOFF_PATH:
+            layered_errors.append("layered receipt path is not canonical")
+        if not errors and any(
+            layered_binding.get(key) != layered_observation.get(key)
+            for key in ("path", "sha256", "size_bytes")
+        ):
+            layered_errors.append("layered receipt hash/size binding drifted")
+    add_check(
+        checks,
+        blockers,
+        "system_recertification.layered_receipt_binding",
+        not layered_errors,
+        "system receipt exact-binds the canonical layered L0-L3 receipt"
+        if not layered_errors else "; ".join(layered_errors[:4]),
+    )
+
+    observed.update({
+        "design_id": receipt.get("design_id")
+        if isinstance(receipt, dict) else None,
+        "layers": layers,
+        "optional_full_ubuntu": optional,
+        "promotion": promotion,
+        "canonical_replay": replay,
+        "layered_signoff_receipt": layered_observation,
+    })
+    return checks, blockers, observed
 
 
 def _functional_artifact_bound(
@@ -8311,6 +9381,7 @@ def validate_freeze_inputs(
     expected_design_id: str,
     cohort_id: str,
     run_parameters: Any,
+    functional: dict[str, Any] | None,
 ) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
     checks: list[dict[str, Any]] = []
     blockers: list[str] = []
@@ -8389,6 +9460,16 @@ def validate_freeze_inputs(
         observed[group] = artifacts
 
     expected = expected_input_sets(root, required_tests)
+    functional_config = (
+        functional.get("configuration")
+        if isinstance(functional, dict) else None
+    )
+    functional_config_path = (
+        functional_config.get("path")
+        if isinstance(functional_config, dict) else None
+    )
+    if isinstance(functional_config_path, str):
+        expected["config"] = set(expected["config"]) | {functional_config_path}
     expected_test_tops = {
         f"npc/rv64/testbench/tests/{name}.sv" for name in required_tests
     }
@@ -8409,6 +9490,34 @@ def validate_freeze_inputs(
             not missing and not extra,
             f"missing={missing[:12]} missing_count={len(missing)} extra={extra[:12]} extra_count={len(extra)}",
         )
+    config_equivalence_errors: list[str] = []
+    live_config_entries = {
+        item.get("path"): item
+        for item in group_map.get("config", [])
+        if isinstance(item, dict)
+    } if isinstance(group_map.get("config"), list) else {}
+    live_config = live_config_entries.get("npc/rv64/.config")
+    execution_config = live_config_entries.get(functional_config_path)
+    if not isinstance(live_config, dict):
+        config_equivalence_errors.append("live npc/rv64/.config is not frozen")
+    if not isinstance(functional_config_path, str) or not isinstance(
+        execution_config, dict
+    ):
+        config_equivalence_errors.append(
+            "functional execution configuration is not frozen")
+    if (
+        isinstance(live_config, dict)
+        and isinstance(execution_config, dict)
+        and live_config.get("sha256") != execution_config.get("sha256")
+    ):
+        config_equivalence_errors.append(
+            "live and functional execution configuration hashes differ")
+    add_check(
+        checks, blockers, "freeze_inputs.config.execution_equivalence",
+        not config_equivalence_errors,
+        "live Kconfig and frozen functional execution Kconfig are byte-equivalent"
+        if not config_equivalence_errors else "; ".join(config_equivalence_errors),
+    )
     workflow_paths = paths_by_group.get("workflow", set())
     required_workflow_paths = set(WORKFLOW_BINDING_PATHS)
     add_check(
@@ -8441,12 +9550,21 @@ def validate_freeze_inputs(
                         }:
                             tool_errors.append(f"{name}: tool entry key set is invalid")
                             continue
-                        located = shutil.which(name)
-                        if located is None:
-                            tool_errors.append(f"{name}: executable is not on PATH")
+                        path_value = record.get("path")
+                        if not isinstance(path_value, str) or not pathlib.Path(
+                            path_value
+                        ).is_absolute():
+                            tool_errors.append(
+                                f"{name}: recorded executable path is not absolute")
                             continue
                         try:
-                            executable = pathlib.Path(located).resolve(strict=True)
+                            executable = pathlib.Path(path_value).resolve(strict=True)
+                            if not executable.is_file() or not os.access(
+                                executable, os.X_OK
+                            ):
+                                tool_errors.append(
+                                    f"{name}: recorded executable is not runnable")
+                                continue
                             completed = subprocess.run(
                                 [str(executable), *TOOL_VERSION_ARGS[name]],
                                 check=False,
@@ -8459,8 +9577,9 @@ def validate_freeze_inputs(
                             if completed.returncode != 0:
                                 tool_errors.append(
                                     f"{name}: version command returned {completed.returncode}")
-                            if record.get("path") != executable.as_posix():
-                                tool_errors.append(f"{name}: resolved executable path drifted")
+                            if path_value != executable.as_posix():
+                                tool_errors.append(
+                                    f"{name}: recorded executable path is not canonical")
                             if record.get("executable_sha256") != sha256_file(executable):
                                 tool_errors.append(f"{name}: executable hash drifted")
                             if record.get("version_output_sha256") != sha256_bytes(version_output):
@@ -8477,7 +9596,7 @@ def validate_freeze_inputs(
     add_check(
         checks, blockers, "freeze_inputs.tool_versions.semantic",
         not tool_errors,
-        "exact six-tool paths, executable hashes and live version outputs verified"
+        "exact six-tool absolute paths, executable hashes and live version outputs verified independent of caller PATH"
         if not tool_errors else "; ".join(tool_errors[:3]),
     )
 
@@ -8623,6 +9742,139 @@ def validate_claim(value: Any) -> tuple[list[dict[str, Any]], list[str]]:
     return checks, blockers
 
 
+INDEPENDENT_REVIEW_SCOPE = {
+    "architecture_prerequisites": "PASS",
+    "producer_holder_static_semantic_dynamic": "PASS",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": False,
+}
+
+
+def _review_artifact_binding(
+    root: pathlib.Path,
+    value: Any,
+    *,
+    expected_kind: str,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    if not isinstance(value, dict) or set(value) != {
+        "kind", "path", "sha256", "size_bytes"
+    }:
+        return None, [f"{expected_kind} artifact fields are not exact"]
+    if value.get("kind") != expected_kind:
+        return None, [f"{expected_kind} artifact kind drifted"]
+    observed, errors = artifact_observation(root, value.get("path"))
+    if errors:
+        return None, errors
+    expected = {
+        "kind": expected_kind,
+        "path": observed["path"],
+        "sha256": observed["sha256"],
+        "size_bytes": observed["size_bytes"],
+    }
+    if value != expected:
+        return None, [f"{expected_kind} artifact hash or size drifted"]
+    return expected, []
+
+
+def validate_independent_review(
+    *,
+    root: pathlib.Path,
+    review_path: pathlib.Path | None,
+    candidate_artifact: dict[str, Any],
+    expected_design_id: str,
+) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    checks: list[dict[str, Any]] = []
+    blockers: list[str] = []
+    observed: dict[str, Any] = {"required": True}
+    errors: list[str] = []
+    if review_path is None:
+        add_check(
+            checks, blockers, "independent_review.exact_binding", False,
+            "ARCH_STABLE requires an independent review receipt bound to the exact candidate",
+        )
+        observed["receipt"] = {"path": None, "status": "MISSING"}
+        return checks, blockers, observed
+
+    try:
+        review_relative = review_path.resolve().relative_to(
+            root.resolve()).as_posix()
+    except (OSError, ValueError):
+        review_relative = str(review_path)
+        errors.append("independent review receipt escapes the workspace")
+    receipt_artifact, receipt_errors = artifact_observation(
+        root, review_relative)
+    errors.extend(receipt_errors)
+    observed["receipt"] = receipt_artifact
+    receipt: dict[str, Any] | None = None
+    if not receipt_errors:
+        receipt_file, _ = safe_regular_file(root, review_relative)
+        assert receipt_file is not None
+        try:
+            receipt = load_json(receipt_file)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"independent review receipt is not parseable: {exc}")
+    if receipt is not None:
+        errors.extend(schema_errors(root, receipt, INDEPENDENT_REVIEW_SCHEMA))
+        expected_candidate = {
+            "kind": "arch_stable_candidate",
+            "path": candidate_artifact.get("path"),
+            "sha256": candidate_artifact.get("sha256"),
+            "size_bytes": candidate_artifact.get("size_bytes"),
+        }
+        if receipt.get("design_id") != expected_design_id:
+            errors.append("independent review design identity drifted")
+        if receipt.get("candidate") != expected_candidate:
+            errors.append("independent review candidate binding drifted")
+        if receipt.get("decision") != "APPROVE_ARCH_STABLE":
+            errors.append("independent review decision is not APPROVE_ARCH_STABLE")
+        if receipt.get("review_scope") != INDEPENDENT_REVIEW_SCOPE:
+            errors.append("independent review scope or PPA boundary drifted")
+        if receipt.get("open_blockers") != [] or receipt.get("unknowns") != []:
+            errors.append("independent review retains blockers or unknowns")
+        evidence = receipt.get("evidence")
+        by_kind = {
+            item.get("kind"): item
+            for item in evidence
+            if isinstance(item, dict)
+        } if isinstance(evidence, list) else {}
+        if set(by_kind) != {"rtl_task_contract", "independent_review_report"}:
+            errors.append("independent review evidence inventory is not exact")
+        else:
+            bound_evidence: dict[str, dict[str, Any]] = {}
+            for kind in sorted(by_kind):
+                binding, binding_errors = _review_artifact_binding(
+                    root, by_kind[kind], expected_kind=kind)
+                errors.extend(binding_errors)
+                if binding is not None:
+                    bound_evidence[kind] = binding
+            observed["evidence"] = bound_evidence
+            marker = (
+                "[ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] "
+                f"design_id={expected_design_id} "
+                f"candidate_sha256={candidate_artifact.get('sha256')}"
+            )
+            for kind in ("rtl_task_contract", "independent_review_report"):
+                binding = bound_evidence.get(kind)
+                if binding is None:
+                    continue
+                evidence_file, _ = safe_regular_file(root, binding["path"])
+                assert evidence_file is not None
+                text = evidence_file.read_text(encoding="utf-8")
+                if text.count(marker) != 1:
+                    errors.append(
+                        f"{kind} lacks one exact candidate/design approval marker")
+        observed["decision"] = receipt.get("decision")
+        observed["reviewer_task"] = receipt.get("reviewer_task")
+        observed["review_scope"] = receipt.get("review_scope")
+
+    add_check(
+        checks, blockers, "independent_review.exact_binding", not errors,
+        "independent reviewer receipt, contract and report bind the exact candidate/design with PPA unqualified"
+        if not errors else "; ".join(errors[:6]),
+    )
+    return checks, blockers, observed
+
+
 def _load_referenced_json(
     *,
     root: pathlib.Path,
@@ -8652,6 +9904,7 @@ def evaluate_candidate(
     *,
     root: pathlib.Path,
     candidate_path: pathlib.Path,
+    review_path: pathlib.Path | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     candidate = load_json(candidate_path)
@@ -8703,6 +9956,7 @@ def evaluate_candidate(
     expected_refs = {
         "debt_ledger", "architecture_evidence", "architecture_result",
         "holder_census", "functional_aggregate", "cohort_inventory",
+        "system_recertification",
     }
     add_check(
         checks, blockers, "candidate.artifacts.exact",
@@ -8807,6 +10061,20 @@ def evaluate_candidate(
     blockers.extend(census_blockers)
     observed["census"] = census_observed
 
+    system_path, _ = safe_regular_file(
+        root, refs_map.get("system_recertification"))
+    system_checks, system_blockers, system_observed = (
+        validate_system_recertification(
+            root=root,
+            receipt=referenced.get("system_recertification"),
+            receipt_path=system_path,
+            expected_design_id=expected_design_id,
+        )
+    )
+    checks.extend(system_checks)
+    blockers.extend(system_blockers)
+    observed["system_recertification"] = system_observed
+
     test_makefile = root / "npc/rv64/testbench/Makefile"
     required_tests, inventory_errors = parse_required_tests(
         test_makefile.read_text(encoding="utf-8")
@@ -8839,6 +10107,7 @@ def evaluate_candidate(
         expected_design_id=expected_design_id,
         cohort_id=str(scope_map.get("cohort_id", "")),
         run_parameters=candidate.get("run_parameters"),
+        functional=referenced.get("functional_aggregate"),
     )
     checks.extend(input_checks)
     blockers.extend(input_blockers)
@@ -8851,6 +10120,25 @@ def evaluate_candidate(
     claim_checks, claim_blockers = validate_claim(candidate.get("claim"))
     checks.extend(claim_checks)
     blockers.extend(claim_blockers)
+
+    claim = candidate.get("claim") if isinstance(candidate.get("claim"), dict) else {}
+    if claim.get("architecture_freeze") == "ARCH_STABLE":
+        review_checks, review_blockers, review_observed = (
+            validate_independent_review(
+                root=root,
+                review_path=review_path,
+                candidate_artifact=candidate_artifact,
+                expected_design_id=expected_design_id,
+            )
+        )
+        checks.extend(review_checks)
+        blockers.extend(review_blockers)
+        observed["independent_review"] = review_observed
+    else:
+        observed["independent_review"] = {
+            "required": False,
+            "status": "NOT_APPLICABLE_TO_GAP_DECLARATION",
+        }
 
     workflow_observed: dict[str, Any] = {}
     workflow_errors: list[str] = []
@@ -8866,7 +10154,6 @@ def evaluate_candidate(
     observed["workflow"] = workflow_observed
 
     prereq_blockers = list(dict.fromkeys(blockers))
-    claim = candidate.get("claim") if isinstance(candidate.get("claim"), dict) else {}
     prerequisites_green = not prereq_blockers
     issued = prerequisites_green and claim.get("architecture_freeze") == "ARCH_STABLE"
     if prerequisites_green and not issued:
@@ -8896,6 +10183,87 @@ def evaluate_candidate(
             "internal result does not satisfy its JSON schema: "
             + "; ".join(result_schema_errors[:4]))
     return result
+
+
+def _captured_review_artifact(
+    root: pathlib.Path, path: pathlib.Path, kind: str,
+) -> dict[str, Any]:
+    try:
+        relative = path.resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{kind} escapes the workspace") from exc
+    observed, errors = artifact_observation(root, relative)
+    if errors:
+        raise RuntimeError(f"invalid {kind}: {errors[0]}")
+    return {
+        "kind": kind,
+        "path": relative,
+        "sha256": observed["sha256"],
+        "size_bytes": observed["size_bytes"],
+    }
+
+
+def build_independent_review_receipt(
+    *,
+    root: pathlib.Path,
+    candidate_path: pathlib.Path,
+    contract_path: pathlib.Path,
+    report_path: pathlib.Path,
+    reviewer_task: str,
+    reviewed_at_utc: str,
+) -> dict[str, Any]:
+    candidate = load_json(candidate_path)
+    if candidate.get("claim", {}).get("architecture_freeze") != "ARCH_STABLE":
+        raise RuntimeError(
+            "independent ARCH_STABLE review receipt requires an ARCH_STABLE declaration")
+    preflight = evaluate_candidate(
+        root=root,
+        candidate_path=candidate_path,
+        review_path=None,
+        generated_at_utc=reviewed_at_utc,
+    )
+    blockers = preflight.get("blockers")
+    if not isinstance(blockers, list) or len(blockers) != 1 or not str(
+        blockers[0]).startswith("independent_review.exact_binding:"):
+        raise RuntimeError(
+            "candidate prerequisites are not green before independent review: "
+            f"{blockers}")
+    candidate_binding = _captured_review_artifact(
+        root, candidate_path, "arch_stable_candidate")
+    evidence = [
+        _captured_review_artifact(root, contract_path, "rtl_task_contract"),
+        _captured_review_artifact(
+            root, report_path, "independent_review_report"),
+    ]
+    marker = (
+        "[ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] "
+        f"design_id={candidate.get('design_id')} "
+        f"candidate_sha256={candidate_binding['sha256']}"
+    )
+    for entry in evidence:
+        evidence_file, _ = safe_regular_file(root, entry["path"])
+        assert evidence_file is not None
+        if evidence_file.read_text(encoding="utf-8").count(marker) != 1:
+            raise RuntimeError(
+                f"{entry['kind']} must contain exactly one approval marker: {marker}")
+    receipt = {
+        "schema": INDEPENDENT_REVIEW_SCHEMA,
+        "decision": "APPROVE_ARCH_STABLE",
+        "design_id": candidate.get("design_id"),
+        "candidate": candidate_binding,
+        "reviewer_task": reviewer_task,
+        "review_scope": dict(INDEPENDENT_REVIEW_SCOPE),
+        "evidence": sorted(evidence, key=lambda item: item["kind"]),
+        "open_blockers": [],
+        "unknowns": [],
+        "reviewed_at_utc": reviewed_at_utc,
+    }
+    errors = schema_errors(root, receipt, INDEPENDENT_REVIEW_SCHEMA)
+    if errors:
+        raise RuntimeError(
+            "generated independent review receipt is invalid: "
+            + "; ".join(errors[:4]))
+    return receipt
 
 
 def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
@@ -8940,9 +10308,17 @@ def verify_result(
         return None, [error or "candidate path is invalid"]
     if candidate.get("sha256") != sha256_file(path):
         errors.append("candidate declaration hash drifted")
+    review_path: pathlib.Path | None = None
+    if stored.get("architecture_freeze") == "ARCH_STABLE":
+        independent_review = stored.get("observed", {}).get(
+            "independent_review", {})
+        review_relative = independent_review.get("receipt", {}).get("path")
+        if isinstance(review_relative, str):
+            review_path = root / review_relative
     fresh = evaluate_candidate(
         root=root,
         candidate_path=path,
+        review_path=review_path,
         generated_at_utc=stored.get("generated_at_utc"),
     )
     if stored.get("evaluation_sha256") != fresh.get("evaluation_sha256"):
@@ -8979,10 +10355,21 @@ def main(argv: Iterable[str] | None = None) -> int:
     audit = subparsers.add_parser("audit", help="build a current exact-input audit result")
     audit.add_argument("candidate", type=pathlib.Path)
     audit.add_argument("--output", type=pathlib.Path, required=True)
+    audit.add_argument("--review", type=pathlib.Path)
     audit.add_argument("--require-stable", action="store_true")
     verify = subparsers.add_parser("verify", help="recompute and verify a stored audit result")
     verify.add_argument("result", type=pathlib.Path)
     verify.add_argument("--require-stable", action="store_true")
+    review_receipt = subparsers.add_parser(
+        "review-receipt",
+        help="bind an independent review contract/report to one exact candidate",
+    )
+    review_receipt.add_argument("candidate", type=pathlib.Path)
+    review_receipt.add_argument("--contract", type=pathlib.Path, required=True)
+    review_receipt.add_argument("--report", type=pathlib.Path, required=True)
+    review_receipt.add_argument("--reviewer-task", required=True)
+    review_receipt.add_argument("--output", type=pathlib.Path, required=True)
+    review_receipt.add_argument("--reviewed-at-utc")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
@@ -8990,10 +10377,32 @@ def main(argv: Iterable[str] | None = None) -> int:
             root = find_repo_root(args.candidate)
             candidate = args.candidate.resolve()
             candidate.relative_to(root.resolve())
-            result = evaluate_candidate(root=root, candidate_path=candidate)
+            review = args.review.resolve() if args.review is not None else None
+            result = evaluate_candidate(
+                root=root, candidate_path=candidate, review_path=review)
             write_json(args.output, result)
             _print_summary(result)
             return 2 if args.require_stable and result["architecture_freeze"] != "ARCH_STABLE" else 0
+
+        if args.command == "review-receipt":
+            root = find_repo_root(args.candidate)
+            candidate = args.candidate.resolve()
+            candidate.relative_to(root.resolve())
+            receipt = build_independent_review_receipt(
+                root=root,
+                candidate_path=candidate,
+                contract_path=args.contract.resolve(),
+                report_path=args.report.resolve(),
+                reviewer_task=args.reviewer_task,
+                reviewed_at_utc=args.reviewed_at_utc or dt.datetime.now(
+                    dt.timezone.utc).isoformat(),
+            )
+            write_json(args.output, receipt)
+            print(
+                "[ARCH-STABLE-INDEPENDENT-REVIEW][PASS] "
+                f"design_id={receipt['design_id']} "
+                f"candidate_sha256={receipt['candidate']['sha256']}")
+            return 0
 
         root = find_repo_root(args.result)
         result, errors = verify_result(root=root, result_path=args.result.resolve())

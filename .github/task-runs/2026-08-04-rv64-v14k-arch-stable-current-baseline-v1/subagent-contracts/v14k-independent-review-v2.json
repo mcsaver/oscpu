@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14k-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 V14K 五项 RV64 历史缺陷当前收据对首轮两个 GAP 的闭合：逐 profile 编译/marker/保留日志/exit mutation-anchor/V8L mutation-row 校验，以及全 RTL design-id、backfill schema、V14E build-control 与 architecture-debt 硬前置的 C 路由；继续寻找可导致假绿或越级结论的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
+      "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/testbench/scripts/run_historical_exit_current.py",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/scripts/check_tb_result.py",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+      "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/qh",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/system",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/evidence/historical-exit-current",
+      ".github/runtime-artifacts/agent-flow/rv64-v14g-producer-owner-global-gate/v14g-delivery-current-20260803/logs",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/subagent-contracts/v14k-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "scripts/agent-flow.c"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 证据对象、design/config、testbench 原始观测和 PASS/GAP 边界给出第二轮独立结论；逐项裁决首轮 aggregate-spoof/raw-log 与 C 依赖闭包反例是否 CLOSED，保留新反例、未知项、替代解释及 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认逐行负向返回码、精确 marker、保留日志 SHA/内容、exit mutation anchor、V8L 22-row、system upstream verifier、全 vsrc design-id、backfill schema/build-control 路由及 architecture-debt 前置均 fail-closed；同时确认 A3 原始 FAIL、whole_architecture=RED、ppa=UNPROMOTED 未改写。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

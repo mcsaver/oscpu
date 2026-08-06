@@ -1,0 +1,86 @@
+# 本地 RV64 CPU RTL/验证子任务 `v15j-arch-stable-independent-review-f7a-v2`
+
+- RV64 RTL/证据对象：独立复核本地 RV64 双发射 OoO 核的 exact ARCH_STABLE candidate：核对 146 个 production RTL 文件、DI-1..DI-5/OOO-1..OOO-4、L0/L1/L2/L3、ProducerId holder 生命周期、历史缺陷收据与工具身份，并主动寻找证据假绿、身份漂移、覆盖洞或越级 PPA 结论；信息不足时返回 GAP 或 inconclusive。
+- 流水线配置：任务类型 `read-only-review`；执行模式 `workspace-files`（默认只读探索；仅按声明路径与命令读取）
+- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
+
+## 合同证据绑定
+
+- 合同 JSON 路径：`.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/subagent-contracts/v15j-arch-stable-independent-review-f7a-v2.json`
+- 合同 JSON SHA-256：`e2eebbf8a54d9ad6cd7269614ab6fa9d485eb657202542f7ab4620281c725623`
+- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+
+## 本地 RTL 输入、动作与产物
+
+RTL/spec/TB/evidence 输入路径：
+- npc/rv64/vsrc
+- npc/rv64/testbench
+- npc/rv64/design/arch
+- npc/rv64/eval/ppa/tools
+- npc/rv64/eval/ppa/tests
+- npc/rv64/eval/ppa/schemas
+- npc/rv64/eval/ppa/evidence
+- .github/instructions/rv64-ppa-optimization-workflow.instructions.md
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence
+- .github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence
+- .github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2
+- .github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system
+- .github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux
+- .github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence
+- .github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- npc/rv64/design/arch/rv64-architecture-ppa-contract.md
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v2/candidate.json
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-audit-f7a-v2-pre-review.json
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/subagent-contracts/v15j-arch-stable-independent-review-f7a-v2.json
+
+RTL/证据输出路径：
+- 无（只读）
+
+工程命令：
+- command=rg; mode=read-only
+- command=sed; mode=read-only
+- command=sha256sum; mode=read-only
+
+工程命令用途（固定枚举）：
+- rg: purpose=search-allowed-paths; label=只读检索允许路径
+- sed: purpose=view-selected-lines; label=只读查看指定文本行
+- sha256sum: purpose=hash-declared-artifact; label=计算已声明产物哈希
+
+`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
+
+工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+
+## RV64 RTL 必读材料
+
+- .github/AGENTS.md
+- .github/instructions/rtl-agent-task-contract.instructions.md
+- .github/instructions/rv64-ppa-optimization-workflow.instructions.md
+- npc/rv64/design/arch/rv64-architecture-ppa-contract.md
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v2/candidate.json
+- .github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-audit-f7a-v2-pre-review.json
+
+## RV64 微架构复核边界
+
+- 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
+- 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
+- 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
+- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
+- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+
+## RV64 RTL 交付
+
+- 本地 RV64 RTL 交付：首行按 RV64 RTL 结论格式给出 exact candidate 的 PASS/GAP/inconclusive；随后列出已核对的本地证据文件与哈希、反例、unknowns、替代假设、scope_extension_request、confidence_and_basis，并仅在确实无 blocker/unknown 时给出合同约定的 exact approval marker。
+
+## RV64 RTL 判定条件
+
+- 本地 RV64 RTL 判定：独立确认 candidate design_id、当前 RTL/TB/tool/config identity、9/9 architecture gates、L0 113/113、L1 official/AM/DiffTest、L2 all、L3 all、零 RTL assertion、holder 46/46 与 V14G 4/4+22/22、architecture-debt 16 CLOSED+4 EXCLUDED、historical-defect 6/6 均 exact-bound；Ubuntu 保持 optional NOT_RUN，PPA 保持 UNQUALIFIED 且 promotion_eligible=false。若且仅若不存在 blocker 与 unknown，报告中恰好一次输出 [ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 candidate_sha256=3d5f5d5813c680373ff1da361cc282e1faf35ec57f3a72ac49afccfcac1668b7；否则不得输出该 marker，并明确 GAP。
+
+## 最终技术回复
+
+- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
+- 仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。

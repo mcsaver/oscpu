@@ -165,7 +165,7 @@ class NegativeTests(unittest.TestCase):
         self.assertEqual(
             arch.SPECULATION_RECOVERY_EVIDENCE_COMMAND,
             "make -C npc/rv64 check-speculation-recovery")
-        self.assertEqual(len(arch.PAIR_MATRIX_PROVENANCE_PATHS), 16)
+        self.assertEqual(len(arch.PAIR_MATRIX_PROVENANCE_PATHS), 17)
         self.assertEqual(len(arch.FRONTEND_II1_SOURCE_PATHS), 29)
         self.assertEqual(len(arch.FRONTEND_II1_PROVENANCE_PATHS), 56)
         self.assertEqual(len(arch.FRONTEND_II1_TASK_RUN_SOURCE_PATHS), 27)
@@ -176,10 +176,10 @@ class NegativeTests(unittest.TestCase):
         self.assertEqual(len(arch.WIDTH_CONTINUITY_TASK_RUN_PROOF_ROLES), 28)
         self.assertEqual(len(arch.SELECTIVE_PROVENANCE_PATHS), 13)
         self.assertEqual(len(arch.LONG_LATENCY_PROVENANCE_PATHS), 13)
-        self.assertEqual(len(arch.NO_STATIC_LANE_PROVENANCE_PATHS), 13)
+        self.assertEqual(len(arch.NO_STATIC_LANE_PROVENANCE_PATHS), 14)
         self.assertEqual(len(arch.DUAL_MEMORY_PROVENANCE_PATHS), 18)
-        self.assertEqual(len(arch.MEMORY_ORDERING_SOURCE_PATHS), 46)
-        self.assertEqual(len(arch.MEMORY_ORDERING_PROVENANCE_PATHS), 61)
+        self.assertEqual(len(arch.MEMORY_ORDERING_SOURCE_PATHS), 48)
+        self.assertEqual(len(arch.MEMORY_ORDERING_PROVENANCE_PATHS), 63)
         self.assertEqual(len(arch.SPECULATION_RECOVERY_SOURCE_PATHS), 27)
         self.assertEqual(len(arch.SPECULATION_RECOVERY_PROVENANCE_PATHS), 52)
         self.assertEqual(
@@ -353,10 +353,30 @@ class NegativeTests(unittest.TestCase):
                 "LSU u_issue1_lsu_hidden (",
                 "source.two_captured_data_agus",
             ),
+            "bank0_age_bypass": (
+                "execute/OooIntBackend.v",
+                "!live_grant_retry0_w && !live_grant_issue0_w &&\n"
+                "      issue1_mem_req_valid_w &&",
+                "!live_grant_retry0_w &&\n"
+                "      issue1_mem_req_valid_w &&",
+                "source.memory_bank_age_serialized",
+            ),
             "bank1_age_bypass": (
                 "execute/OooIntBackend.v",
-                "issue1_dual_bank1_w && !grant_mem1_issue0_w;",
+                "issue1_dual_bank1_w && !live_grant_mem1_issue0_w;",
                 "issue1_dual_bank1_w;",
+                "source.memory_bank_age_serialized",
+            ),
+            "bank0_hold_origin_cut": (
+                "execute/OooIntBackend.v",
+                "mem_req_hold_sel_q <= live_mem_req_sel_w;",
+                "mem_req_hold_sel_q <= 6'b100000;",
+                "source.memory_bank_age_serialized",
+            ),
+            "bank1_hold_origin_cut": (
+                "execute/OooIntBackend.v",
+                "mem1_req_hold_sel_q <= live_mem1_req_sel_w;",
+                "mem1_req_hold_sel_q <= 3'b100;",
                 "source.memory_bank_age_serialized",
             ),
             "bind1_cut": (

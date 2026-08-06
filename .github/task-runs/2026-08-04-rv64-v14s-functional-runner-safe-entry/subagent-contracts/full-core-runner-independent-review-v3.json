@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "full-core-runner-independent-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 全核 module、official 177、AM DiffTest、CoreMark 与 Dhrystone 证据入口：确认执行状态先于 publication 授权，冻结 aggregate/result/mutation/input 的 CPU 功能语义被重新检查，AM 与 NEMU 编译物仅进入临时根，且任何缺失 marker、hash 漂移或未完成终端阶段均不能形成可消费的 current 证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "AI_ENVIRONMENT.md",
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh",
+      "abstract-machine/Makefile",
+      "abstract-machine/am/Makefile",
+      "abstract-machine/klib/Makefile",
+      "am-kernels/benchmarks/coremark/Makefile",
+      "am-kernels/benchmarks/dhrystone/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      "npc/rv64/eval/ppa/run-full-core-current.sh",
+      "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py",
+      "scripts/task-run-status.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-soc-delivery-gates.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/flow-self-test.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-full-core-runner-contract.log",
+      ".github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts/full-core-runner-independent-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地 RV64 证据文件、执行配置、testbench/EDA 观测与 PASS/GAP 范围给出独立结论；列出仍可使空壳或错绑证据通过的反例、未知项、替代假设、复用边界及 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认或否定以下硬件证据性质：full-core-current.status 只有在 module 与功能聚合语义复核后为 PASS；publication 仅在执行 PASS 后启动且独立 fail closed；run-result 不被发布回写；aggregate/result/mutation/source inventory 的设计身份与计数闭合；AM、klib、NEMU 与 benchmark clean 不改变源码树产物；旧 V9L help/no-arg 不触发历史 evidence reset；门禁 PASS 不越级声明 ARCH_STABLE、系统事务或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

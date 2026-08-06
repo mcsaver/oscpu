@@ -1,0 +1,6 @@
+2026-08-05T16:19:41Z	hypothesis	主分类=architecture；当前f7a相对093c的active production delta预计集中在OooIntBackend request-admission与OooStoreQueue相关cone，先按owner_paths/source closure判断哪些P0/P1需要定向重验，禁止直接改写旧receipt design-id。	npc/rv64/design/arch/architecture-debt-ledger.json
+2026-08-05T16:19:41Z	counterexample	竞争假设：若f7a变化进入多个debt owner cone或旧证据缺少逐文件绑定，则对应债务必须重新执行当前设计的directed/mutation；聚合design-id变化本身既不能证明全部失效，也不能证明全部可复用。	npc/rv64/eval/ppa/evidence/architecture-debt-current.json
+2026-08-05T19:09:28Z	decision	Default RV64 signoff is L0+L1+L2+L3; Ubuntu 22.04 is explicit-request-only and nonblocking.	npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+2026-08-05T19:09:28Z	note	Architecture-debt ledger remains its immutable 093c snapshot; f7a debt migration is a separate targeted-evidence round and is not inferred from layered signoff.	npc/rv64/design/arch/architecture-debt-ledger.json
+2026-08-05T19:12:57Z	decision	Layered system current paths execute only the layered/system current gate; architecture-debt and historical current receipts are invalidated pointers rebuilt only in their own targeted rounds.	scripts/agent-flow.c
+2026-08-05T19:13:15Z	decision	task class changed development -> environment: Layered RV64 validation implementation also changes AGENTS/instruction policy and the C gate router.	-

@@ -1,0 +1,11 @@
+.github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill
+npc/rv64/design/arch/historical-defect-backfill-ledger.json
+npc/rv64/eval/ppa/tools/historical_defect_current.py
+npc/rv64/eval/ppa/tools/historical_defect_backfill.py
+npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json
+npc/rv64/eval/ppa/tests/test_historical_defect_current.py
+npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py
+npc/rv64/eval/ppa/evidence/historical-defect-current.json
+scripts/agent-flow.c
+scripts/tests/test-agent-flow.sh
+.github/instructions/agent-lightweight-workflow.instructions.md

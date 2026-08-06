@@ -1,0 +1,7 @@
+2026-08-06T01:30:19Z	arch-stable-checker-77	PASS	.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-tests.log
+2026-08-06T01:30:19Z	l0-directed-113	PASS	.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/l0-current-final-v3
+2026-08-06T01:30:20Z	layered-system-signoff	PASS	npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json
+2026-08-06T01:30:20Z	arch-stable-candidate-v3	PASS	.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3/candidate.json
+2026-08-06T01:30:21Z	independent-review-v3	PASS	.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-independent-review-f7a-v3.md
+2026-08-06T01:30:21Z	arch-stable-current	PASS	npc/rv64/eval/ppa/evidence/arch-stable-current.json
+2026-08-06T01:35:03Z	post-candidate-binding-review	PASS	.github/runtime-artifacts/agent-flow/rv64-v15j-arch-stable-current-f7a/summary.txt

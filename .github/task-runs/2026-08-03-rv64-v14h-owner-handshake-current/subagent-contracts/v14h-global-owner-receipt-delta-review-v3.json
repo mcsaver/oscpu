@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14h-global-owner-receipt-delta-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "限定复核当前 RV64 global ProducerId owner compact receipt 的冻结 replay 增量：确认新增 observed oracle_stages 与 compile/artifact/log 摘要检查关闭原独立审查 residual，且不改变 NpcTop design-id、global_no_live_reuse 局部 GREEN 或 whole architecture/system/PPA 边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      ".github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/subagent-contracts/v14h-global-owner-independent-review-v2.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/subagent-contracts/v14h-global-owner-receipt-delta-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "v2 workspace reviewer 对 design-id 093c2380…a7488 给出限定 PASS/GREEN：V14G 4/4、22/22，44/44 units、50 bindings、optional lane1 NpcTop Yosys constant-0；whole architecture=RED、system=REQUIRED、PPA=UNPROMOTED。",
+      "v2 reviewer residual：旧 compact verify 未消费 profile oracle_stages 与 log binding；V14G identity 部分取自 DUT，需与 V11D/E/M 独立 scoreboard 合取；runner signal 留痕为非阻断流程 residual。",
+      "当前 global_producer_no_live_reuse.py SHA-256=820d7d34051f17ad85c76d530e78e723f4253d75f2d98e8838abe4f8bfa9b68f；normalized_profile 现保存 oracle_stages，validate_v14g_snapshot 要求 baseline=[]、mutation=[expected_stage]，并校验 compile_command_sha256、artifact_sha256 与非空 log origin_path/sha256/size_bytes。",
+      "当前 compact receipt SHA-256=2dd4bcf4ac0326a4349ccf5f56e93e9d5113f92f90bfe483718ece9bc5e31a25；semantic ledger SHA-256=1fff233d4a27baaee4ceb505cf6be2257ae9e0645fc774c8a2e3a1fa7e1f53fb；production RTL design-id 仍为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488。",
+      "定向回归 python3 -B -m unittest -q test_global_producer_no_live_reuse.py test_producer_holder_semantic_coverage.py 返回 rc=0，Ran 134 tests，新增 observed stage drift 与 malformed compact log 两个反例均被拒绝。"
+    ]
+  },
+  "deliverables": [
+    "给出仅限该 frozen-replay 增量的 PASS/GAP，判断旧 oracle_stages/log residual 是否关闭、v2 bounded GREEN 是否仍成立，并保留 DUT-observed identity、runner signal 留痕和系统/全核/PPA 的剩余边界。"
+  ],
+  "success_criteria": [
+    "新 receipt/tool/test 哈希与 134 项结果足以支持时才给限定 PASS；若 observed stage 或 log 摘要仍未被 checker 消费则给 GAP；不得把 no-tools 增量复核表述为完整仓库重审或系统、全核架构、PPA 证据。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

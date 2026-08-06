@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the twelve memory-terminal ingress lanes and two tracker-free lanes."""
+"""Audit memory-terminal ingress wiring and every source-lane pair."""
 
 from __future__ import annotations
 
@@ -12,9 +12,11 @@ import sys
 from typing import Any
 
 
-SCHEMA = "rv64-terminal-collector-lane-contract-v1"
+SCHEMA = "rv64-terminal-collector-lane-contract-v2"
+PAIR_SCHEMA = "rv64-terminal-collector-source-pair-matrix-v1"
 BACKEND = "npc/rv64/vsrc/execute/OooIntBackend.v"
 COLLECTOR = "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+TOOL = "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py"
 
 LANES = [
     {
@@ -115,6 +117,95 @@ LANES = [
     },
 ]
 
+RESPONSE_LANES = {0, 1}
+BRIDGE_LANES = {2, 3, 4, 5}
+TRANSIENT_LANES = {6, 7, 8, 10, 11}
+AMO_LANE = 9
+
+# These expressions classify protection before the collector.  They are kept
+# separate from the collector's exact-tuple rejection: rejecting two terminals
+# is fail-closed, but it is not evidence that the producer transition is legal.
+SOURCE_GUARD_PATTERNS = {
+    "response-credit": (
+        r"wire\s+\[31:0\]\s+mem_terminal_nonresponse_raw_mask_w\s*=\s*"
+        r"mem_terminal_ingress2_mask_w\s*\|\s*"
+        r"mem_terminal_ingress3_mask_w\s*\|\s*"
+        r"mem_terminal_ingress4_mask_w\s*\|\s*"
+        r"mem_terminal_ingress5_mask_w\s*\|\s*"
+        r"mem_terminal_ingress6_mask_w\s*\|\s*"
+        r"mem_terminal_ingress7_mask_w\s*\|\s*"
+        r"mem_terminal_ingress8_mask_w\s*\|\s*"
+        r"mem_terminal_ingress9_mask_w\s*\|\s*"
+        r"mem_terminal_ingress10_mask_w\s*\|\s*"
+        r"mem_terminal_ingress11_mask_w\s*;",
+        r"wire\s+\[31:0\]\s+mem_response_other_raw_mask_w\s*=\s*"
+        r"mem_terminal_nonresponse_raw_mask_w\s*\|\s*"
+        r"\(mem1_response_terminal_raw_w\s*\?\s*"
+        r"\(32'b1\s*<<\s*miq1_head_owner_token_w\)\s*:\s*32'b0\)\s*;",
+        r"wire\s+\[31:0\]\s+mem1_response_other_raw_mask_w\s*=\s*"
+        r"mem_terminal_nonresponse_raw_mask_w\s*\|\s*"
+        r"\(mem_response_terminal_raw_w\s*\?\s*"
+        r"\(32'b1\s*<<\s*miq_head_owner_token_w\)\s*:\s*32'b0\)\s*;",
+        r"wire\s+mem_response_terminal_credit_w\s*=\s*"
+        r"!mem_terminal_pending_mask_w\[miq_head_owner_token_w\]\s*&&\s*"
+        r"!mem_response_other_raw_mask_w\[miq_head_owner_token_w\]\s*;",
+        r"wire\s+mem1_response_terminal_credit_w\s*=\s*"
+        r"!mem_terminal_pending_mask_w\[miq1_head_owner_token_w\]\s*&&\s*"
+        r"!mem1_response_other_raw_mask_w\[miq1_head_owner_token_w\]\s*;",
+    ),
+    "bridge-holder-assertion": (
+        r"wire\s+\[31:0\]\s+v9q_bridge_pair_overlap_mask_w\s*=",
+        r"if\s*\(v9q_bridge_pair_overlap_mask_w\s*!=\s*32'b0\).*?"
+        r"\[V9Q-BRIDGE-HOLDER-DISJOINT\]",
+    ),
+    "transient-holder-assertion": (
+        r"wire\s+\[31:0\]\s+v9q_transient_holder_duplicate_mask_w\s*=",
+        r"if\s*\(v9q_transient_holder_duplicate_mask_w\s*!=\s*32'b0\).*?"
+        r"\[V9Q-TRANSIENT-HOLDER-DISJOINT\]",
+    ),
+    "transient-bridge-assertion": (
+        r"wire\s+\[31:0\]\s+v9q_transient_bridge_overlap_mask_w\s*=",
+        r"if\s*\(v9q_transient_bridge_overlap_mask_w\s*!=\s*32'b0\).*?"
+        r"\[V9Q-TRANSIENT-BRIDGE-DISJOINT\]",
+    ),
+    "amo-interphase-assertion": (
+        r"if\s*\(mem_amo_interphase_cancel_w\s*&&\s*"
+        r"\(\(mem_terminal_ingress9_mask_w\s*&.*?"
+        r"mem_terminal_ingress5_mask_w\)\)\s*!=\s*32'b0\)\).*?"
+        r"\[S2-G1-AMO-INTERPHASE-DUP\]",
+    ),
+    "amo-transient-holder-assertion": (
+        r"wire\s+\[31:0\]\s+v14u_amo_pending_owner_mask_w\s*=\s*"
+        r"\(mem_pending_q\s*&&\s*mem_amo_q\)\s*\?\s*"
+        r"\(32'b1\s*<<\s*mem_owner_token_q\)\s*:\s*32'b0\s*;",
+        r"wire\s+\[31:0\]\s+v14u_amo_transient_overlap_mask_w\s*=\s*"
+        r"v14u_amo_pending_owner_mask_w\s*&\s*"
+        r"\(mem_issue_res_owner_mask_w\s*\|\s*"
+        r"mem_issue1_res_owner_mask_w\s*\|\s*"
+        r"mem_buffer_owner_mask_w\)\s*;",
+        r"if\s*\(v14u_amo_transient_overlap_mask_w\s*!==\s*32'b0\).*?"
+        r"\[V14U-AMO-TRANSIENT-HOLDER-DISJOINT\]",
+    ),
+    "retry-cancel-assertion": (
+        r"mem_terminal_ingress10_mask_w\s*&.*?"
+        r"mem_terminal_ingress11_mask_w.*?"
+        r"\[V8T-RETRY-CANCEL-TERMINAL\]",
+    ),
+}
+
+REQUIRED_CURRENT_SOURCE_GUARDS = tuple(SOURCE_GUARD_PATTERNS)
+
+GUARD_ENFORCEMENT = {
+    "response-credit": "production-rtl-gate",
+    "bridge-holder-assertion": "rtl-assertion",
+    "transient-holder-assertion": "rtl-assertion",
+    "transient-bridge-assertion": "rtl-assertion",
+    "amo-interphase-assertion": "rtl-assertion",
+    "amo-transient-holder-assertion": "rtl-assertion",
+    "retry-cancel-assertion": "rtl-assertion",
+    "collector-exact-tuple-reject": "collector-fail-closed",
+}
+
 
 class ContractError(RuntimeError):
     """Raised when a lane or owner-transfer mapping is no longer exact."""
@@ -157,6 +248,92 @@ def extract_concat(text: str, signal: str) -> list[str]:
 def require_pattern(text: str, pattern: str, label: str) -> None:
     if not re.search(pattern, text, re.DOTALL):
         raise ContractError(f"missing exact contract: {label}")
+
+
+def detect_source_guards(backend: str) -> dict[str, bool]:
+    return {
+        guard: all(re.search(pattern, backend, re.DOTALL) is not None
+                   for pattern in patterns)
+        for guard, patterns in SOURCE_GUARD_PATTERNS.items()
+    }
+
+
+def pair_guard(lane_a: int, lane_b: int) -> str:
+    lanes = {lane_a, lane_b}
+    if lanes & RESPONSE_LANES:
+        return "response-credit"
+    if lanes <= BRIDGE_LANES:
+        return "bridge-holder-assertion"
+    if lanes <= TRANSIENT_LANES:
+        return "transient-holder-assertion"
+    if lanes & BRIDGE_LANES and lanes & TRANSIENT_LANES:
+        return "transient-bridge-assertion"
+    if AMO_LANE in lanes and lanes & BRIDGE_LANES:
+        return "amo-interphase-assertion"
+    if AMO_LANE in lanes and lanes & {10, 11}:
+        return "retry-cancel-assertion"
+    if AMO_LANE in lanes and lanes & {6, 7, 8}:
+        return "amo-transient-holder-assertion"
+    raise ContractError(f"unclassified terminal source pair: {lane_a}/{lane_b}")
+
+
+def build_pair_matrix(backend: str) -> dict[str, Any]:
+    presence = detect_source_guards(backend)
+    rows: list[dict[str, Any]] = []
+    guard_counts = {
+        guard: 0
+        for guard in (*SOURCE_GUARD_PATTERNS,
+                      "collector-exact-tuple-reject")
+    }
+    collector_only: list[str] = []
+    for lane_a in range(len(LANES)):
+        for lane_b in range(lane_a + 1, len(LANES)):
+            required_guard = pair_guard(lane_a, lane_b)
+            observed_guard = required_guard
+            if (required_guard != "collector-exact-tuple-reject" and
+                    not presence[required_guard]):
+                observed_guard = "collector-exact-tuple-reject"
+            pair_id = f"lane{lane_a}-lane{lane_b}"
+            source_covered = observed_guard != "collector-exact-tuple-reject"
+            if not source_covered:
+                collector_only.append(pair_id)
+            guard_counts[observed_guard] += 1
+            rows.append(
+                {
+                    "pair_id": pair_id,
+                    "lane_a": lane_a,
+                    "source_a": LANES[lane_a]["source"],
+                    "lane_b": lane_b,
+                    "source_b": LANES[lane_b]["source"],
+                    "guard": observed_guard,
+                    "enforcement": GUARD_ENFORCEMENT[observed_guard],
+                    "precollector_duplicate_status": (
+                        "PROTECTED"
+                        if source_covered else "COLLECTOR_ONLY_GAP"
+                    ),
+                    "duplicate_policy": (
+                        "suppress-response-terminal-credit"
+                        if observed_guard == "response-credit"
+                        else (
+                            "fail-at-source-assertion"
+                            if source_covered else "reject-without-merge"
+                        )
+                    ),
+                }
+            )
+    if len(rows) != 66:
+        raise ContractError(f"terminal source-pair inventory is {len(rows)}, not 66")
+    return {
+        "source_guard_presence": presence,
+        "precollector_pair_status": (
+            "GAP" if collector_only else "CLOSED"
+        ),
+        "source_guarded_or_asserted_pairs": len(rows) - len(collector_only),
+        "collector_only_pairs": len(collector_only),
+        "collector_only_pair_ids": collector_only,
+        "guard_counts": guard_counts,
+        "pairs": rows,
+    }
 
 
 def audit_text(backend: str, collector: str) -> dict[str, Any]:
@@ -284,6 +461,10 @@ def audit_text(backend: str, collector: str) -> dict[str, Any]:
     ):
         if label not in collector:
             raise ContractError(f"collector assertion label is missing: {label}")
+    pair_matrix = build_pair_matrix(backend)
+    for guard in REQUIRED_CURRENT_SOURCE_GUARDS:
+        if not pair_matrix["source_guard_presence"][guard]:
+            raise ContractError(f"missing source-pair guard: {guard}")
     return {
         "lanes": rows,
         "tracker_free_lanes": [
@@ -305,6 +486,7 @@ def audit_text(backend: str, collector: str) -> dict[str, Any]:
         "raw_ingress_is_transfer_authority": False,
         "duplicate_ingress_is_merged": False,
         "assertion_labels_checked": 7,
+        "source_pair_matrix": pair_matrix,
     }
 
 
@@ -322,12 +504,45 @@ def build(root: pathlib.Path) -> dict[str, Any]:
         "sources": {
             BACKEND: sha256_file(backend_path),
             COLLECTOR: sha256_file(collector_path),
+            TOOL: sha256_file(root / TOOL),
         },
         **audit,
         "claim_boundary": (
-            "Static current-source lane/tuple/accept/free wiring only. "
-            "Dynamic lifecycle, full semantic census, whole architecture "
-            "and PPA remain separately gated."
+            "Static current-source lane/tuple/accept/free wiring and all "
+            "66 lane-pair protection classes only. Collector-only pairs "
+            "remain source-contract gaps; dynamic lifecycle, historical "
+            "root cause, whole architecture and PPA remain separately gated."
+        ),
+    }
+
+
+def build_snapshot_pair_matrix(
+    root: pathlib.Path,
+    backend_path: pathlib.Path,
+) -> dict[str, Any]:
+    backend_path = backend_path.resolve()
+    try:
+        relative = backend_path.relative_to(root.resolve()).as_posix()
+    except ValueError as exc:
+        raise ContractError("backend snapshot escapes workspace") from exc
+    if not backend_path.is_file():
+        raise ContractError(f"backend snapshot is missing: {relative}")
+    matrix = build_pair_matrix(backend_path.read_text(encoding="utf-8"))
+    return {
+        "schema_version": PAIR_SCHEMA,
+        "status": "PASS",
+        "source": {
+            "path": relative,
+            "sha256": sha256_file(backend_path),
+        },
+        "classifier": {
+            "path": TOOL,
+            "sha256": sha256_file(root / TOOL),
+        },
+        **matrix,
+        "claim_boundary": (
+            "Static source snapshot only. A collector-only pair is a bounded "
+            "candidate, not identification of the historical dynamic pair."
         ),
     }
 
@@ -350,8 +565,29 @@ def main(argv: list[str] | None = None) -> int:
     build_parser.add_argument("--output", type=pathlib.Path, required=True)
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("--input", type=pathlib.Path, required=True)
+    matrix_parser = sub.add_parser("classify-backend")
+    matrix_parser.add_argument("--backend", type=pathlib.Path, required=True)
+    matrix_parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args(argv)
     root = args.root.resolve()
+    if args.command == "classify-backend":
+        backend_path = args.backend
+        if not backend_path.is_absolute():
+            backend_path = root / backend_path
+        expected = build_snapshot_pair_matrix(root, backend_path)
+        output = args.output
+        if not output.is_absolute():
+            output = root / output
+        write_json(output, expected)
+        print(
+            "[V14T-TERMINAL-SOURCE-PAIR-MATRIX][PASS] "
+            f"source={expected['source']['path']} pairs=66 "
+            "source_guarded="
+            f"{expected['source_guarded_or_asserted_pairs']} "
+            f"collector_only={expected['collector_only_pairs']}"
+        )
+        return 0
+
     expected = build(root)
     if args.command == "build":
         output = args.output

@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14m-arch-stable-final-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 full-core ARCH_STABLE exact-input final-2 candidate；确认 V14G transcript path/SHA-256/size replay、static/semantic/dynamic holder 合取、current debt/history 绑定和独立审查 receipt 机制均 fail-closed，且不外推 PPA",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas/arch-stable-independent-review-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-2/candidate.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-2/pre-review-audit.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/v14g-dynamic-logs",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-final-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-2/pre-review-audit.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL/本地证据对象、current design/config、checker 观测、PASS/GAP 范围输出独立结论；若无 blocker/unknown，逐字输出合同规定的唯一 APPROVE marker；若有 GAP，不得输出该 marker，并列出可操作反例"
+  ],
+  "success_criteria": [
+    "独立确认 final-2 除 review receipt 外无 blocker，26 份 V14G transcript 均由 current receipt 绑定并在 replay 中重开校验，receipt 对 candidate SHA/design-id/contract/report/PPA 边界有负例，且 ARCH_STABLE 仍为 PPA UNQUALIFIED",
+    "批准时在最终回复中恰好一次逐字输出：[ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 candidate_sha256=3a8010d1fc654431bb377528be8fbd28fedbb9ca9a3077cb065fcbd59965c841"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

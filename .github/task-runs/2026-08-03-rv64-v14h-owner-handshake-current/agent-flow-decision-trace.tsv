@@ -1,0 +1,11 @@
+evidence-boundary	V14G 不是单独的全 stimulus-owned identity 证明，因此仅在 V11D/V11E/V11M 独立 scoreboard 证据同时有效时接受 bounded GREEN。	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json
+product-lane-boundary	产品配置的 optional lane1 仅在冻结 NpcTop elaboration 中证明为 constant-low，不推广到未来启用 lane1 的配置。	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json
+runtime-reuse	将 4 个 baseline、22 个 mutation、source/simulator hash、oracle stage 与日志摘要压缩成耐久 receipt；普通门禁只验 receipt，显式 refresh 才重跑 V14G。	npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py
+review-correction	初审合同缺少 V14G runner/TB 时保持 INCONCLUSIVE；扩展合同后再给 bounded PASS，原始结论不覆写。	.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/dispatch-log.md
+negative-testing	增加 stage 漂移、日志绑定破坏、source/simulator 漂移、V11M lane7/pair-credit 削弱及 elaboration 断链反例，拒绝假绿。	npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py
+promotion	只提升 global_no_live_reuse；whole architecture、system recertification、PPA 保持原边界。	npc/rv64/design/arch/producer-holder-semantic-coverage.json
+production-rtl	本轮未修改 production RTL；不触发系统重跑或 PPA 重测。	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json
+process-residual	短 focused runner 中断不会形成 false PASS，但未显式记录 HUP/INT/TERM 的 stage/signal；禁止把该状态方案复制到长仿真。	.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/independent-review.json
+dependency-scope	V14H receipt 不加入旧 architecture-freeze 的全局 workflow hash 集；否则会把新增 checker 误传播成 V9O/V9R 等无关旧证据漂移。V14H 由自身 receipt/ledger 绑定。	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json
+guard-exemption	strict guard 仅缺宽泛 npc-dev profile；本轮 production RTL 零改动，已有 receipt、134 项负向单测、完整 holder semantic 门禁和两轮独立复核，故不重复运行无关仿真，并显式保留豁免。	.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/verification-summary.json
+architecture-gap	architecture-freeze 单测的 3 个失败来自 V9O/V9R 历史 design-id 882111fb… 与 current 093c2380… 不一致；保持 GAP，不修改旧证据、不放宽 checker。	.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/verification-summary.json

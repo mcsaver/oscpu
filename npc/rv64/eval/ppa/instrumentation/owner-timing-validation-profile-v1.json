@@ -1,0 +1,47 @@
+{
+  "schema": "npc-rv64-owner-timing-validation-profile-v1",
+  "task_class": "diagnostic",
+  "binding": {
+    "baseline_receipt": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+    "baseline_schema": "npc-rv64-performance-baseline-current-v2",
+    "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+    "measurement_contract": "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+    "production_rtl_semantics_changed": false
+  },
+  "required_configuration": {
+    "CONFIG_NPC_OOO_STATS": "y",
+    "CONFIG_NPC_OOO_OWNER_TIMING": "diagnostic-build-only",
+    "production_filelist_modified": false,
+    "production_top_modified": false
+  },
+  "tiers": {
+    "fast": {
+      "steps": ["contract", "baseline_receipt_binding", "sample_abi_binding", "required_config_negative", "script_syntax", "cpp_unit", "workload_consumer_unit", "sv_lint", "identity_non_interference"],
+      "trigger": "owner-timing contract, collector, probe, or diagnostic make fragment changes"
+    },
+    "link": {
+      "steps": ["contract", "baseline_receipt_binding", "sample_abi_binding", "required_config_negative", "script_syntax", "cpp_unit", "workload_consumer_unit", "sv_lint", "full_dpi_link", "identity_non_interference"],
+      "trigger": "probe hierarchy, sample ABI, DPI signature, top-level elaboration, make fragment, or required config changes"
+    },
+    "workload_ab": {
+      "steps": ["stats_off_reference", "stats_on_diagnostic", "counter_identity", "terminal_marker", "collector_conservation"],
+      "trigger": "first measurement release, workload or ROI change, simulator/device semantic change, or production/elaborated RTL change"
+    }
+  },
+  "refresh_policy": {
+    "checker_only": "versioned replay is permitted when frozen raw input, terminal evidence, and post-hash binding are complete",
+    "production_or_elaboration_change": "refresh affected functional evidence and stats-off/stats-on workload comparison",
+    "review_only": "no gate pointer and no task-run required",
+    "candidate_delivery": "implementer evidence followed by independent counterexample review"
+  },
+  "retention": {
+    "task_run_keep": ["status", "command_rc", "bounded_log", "input_sha256", "review_decision"],
+    "runtime_delete": ["unit_binary", "verilator_obj_dir", "diagnostic_simulator", "unbounded_build_log"],
+    "production_release_keep": ["qualified_report", "constraints", "design_tool_config_identity", "required_final_netlist"]
+  },
+  "authorization": {
+    "optimization_candidate_authorized": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  }
+}

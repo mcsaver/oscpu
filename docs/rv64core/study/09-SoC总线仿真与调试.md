@@ -10,7 +10,7 @@ NpcSimTop
 ├── NpcTop
 │   ├── NpcCoreTop
 │   ├── NpcAxiBus
-│   │   └── AxiXbar
+│   │   └── AxiCrossbar
 │   ├── AxiResetSyscon
 │   ├── AxiToUart -> Uart
 │   ├── AxiClint
@@ -29,12 +29,13 @@ NpcSimTop
 - LSU AXI master：两个 data bank 经 miss arbiter/lane adapter 合并后的 load/store/PTW/
   D-bit update/MMIO 流量。
 
-IFU 和 LSU 是两个独立 master，可以并行请求；它们在 `AxiXbar` 根据目标 slave 再发生
+IFU 和 LSU 是两个独立 master，可以并行请求；它们在 `AxiCrossbar` 根据目标 slave 再发生
 仲裁。数据侧双 bank 已在进入总线前合成一个 LSU master。
 
-## 9.3 `NpcAxiBus` 与 `AxiXbar`
+## 9.3 `NpcAxiBus` 与 `AxiCrossbar`
 
-`NpcAxiBus` 是顶层总线包装，`AxiXbar` 完成两 master 到 16 slave 的路由。每个 AXI
+`NpcAxiBus` 是顶层总线包装，`AxiCrossbar` 完成两 master 到 16 slave 的路由。当前实例名
+是 `u_crossbar`；这个全称同时替代了旧文件名和旧层次名。每个 AXI
 channel 都要保存 owner：
 
 - AR：read address；
@@ -49,7 +50,7 @@ xbar 必须记住哪个 master/slave 拥有该 response。
 同理，AW 和 W 可不同拍握手。xbar 不能看到 AWREADY 就忘记 write owner，也不能把另一个
 master 的 WDATA 接到前一笔 AWADDR。
 
-当前 `AxiXbar` 是 2-master、16-slave、single-outstanding 子集：每个 slave 做
+当前 `AxiCrossbar` 是 2-master、16-slave、single-outstanding 子集：每个 slave 做
 round-robin，读写彼此独立。slave 的 R 先进入 per-master registered response slice，
 下一拍才对 master 可见；AW/W 也要分别 capture 后才能完成 grant。它不是支持任意 burst
 并行的通用高性能 AXI fabric。
@@ -228,7 +229,7 @@ SRAM 内容本身不 reset、上电未定义；合法性由 Cache 外部 valid F
 | [`NpcTop.v`](../../../npc/rv64/vsrc/core/NpcTop.v) | Core、总线和片上设备装配 |
 | [`NpcCoreTop.v`](../../../npc/rv64/vsrc/core/NpcCoreTop.v) | IFU/dual LSU/glue/CSR Core 边界 |
 | [`NpcAxiBus.v`](../../../npc/rv64/vsrc/bus/NpcAxiBus.v) | 两 master/多 slave 总线 wrapper |
-| [`AxiXbar.v`](../../../npc/rv64/vsrc/bus/AxiXbar.v) | 地址译码、channel owner 与仲裁 |
+| [`AxiCrossbar.v`](../../../npc/rv64/vsrc/bus/AxiCrossbar.v) | 地址译码、channel owner 与仲裁 |
 | [`AxiDefaultSlave.v`](../../../npc/rv64/vsrc/bus/AxiDefaultSlave.v) | 未实现/非法窗口错误响应 |
 | [`AxiResetSyscon.v`](../../../npc/rv64/vsrc/bus/AxiResetSyscon.v) | reset/shutdown syscon |
 | [`AxiToUart.v`](../../../npc/rv64/vsrc/bus/AxiToUart.v) | AXI 到 UART 寄存器桥 |

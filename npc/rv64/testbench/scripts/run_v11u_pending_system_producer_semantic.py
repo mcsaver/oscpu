@@ -146,12 +146,10 @@ CORE_TOP_EXECUTE_PENDING_VALID = """\
 INT_BACKEND_INITIAL_ANCHOR = """\
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
     run_v11i_terminal_lifecycle_after_lq_clear();
-`elsif V8S_DUAL_MEMORY_FOCUSED
 """
 INT_BACKEND_FINISH_ANCHOR = """\
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
         tb_finish("tb_ooo_int_backend_v11i_terminal_lifecycle");
-`elsif V8Y_SPECULATION_RECOVERY_FOCUSED
 """
 PRIV_DECLARATION_ANCHOR = """\
   integer cycle_count;
@@ -1027,26 +1025,20 @@ def render_int_backend_overlay(
         (
             replacement(
                 INT_BACKEND_INITIAL_ANCHOR,
-                INT_BACKEND_INITIAL_ANCHOR.replace(
-                    "`elsif V8S_DUAL_MEMORY_FOCUSED\n",
-                    "`elsif V11U_PENDING_CSR_LEASE_FOCUSED\n"
-                    "    run_v8k_pending_csr_lease_fence();\n"
-                    "    if (tb_errors == 0) begin\n"
-                    "      $display(\"[V11U-BACKEND-PENDING-LEASE] "
-                    "width=%0d PASS\", PRODUCER_GEN_W);\n"
-                    "    end\n"
-                    "`elsif V8S_DUAL_MEMORY_FOCUSED\n",
-                ),
+                INT_BACKEND_INITIAL_ANCHOR
+                + "`elsif V11U_PENDING_CSR_LEASE_FOCUSED\n"
+                "    run_v8k_pending_csr_lease_fence();\n"
+                "    if (tb_errors == 0) begin\n"
+                "      $display(\"[V11U-BACKEND-PENDING-LEASE] "
+                "width=%0d PASS\", PRODUCER_GEN_W);\n"
+                "    end\n",
                 "insert the isolated V11U backend lease profile",
             ),
             replacement(
                 INT_BACKEND_FINISH_ANCHOR,
-                INT_BACKEND_FINISH_ANCHOR.replace(
-                    "`elsif V8Y_SPECULATION_RECOVERY_FOCUSED\n",
-                    "`elsif V11U_PENDING_CSR_LEASE_FOCUSED\n"
-                    "        tb_finish(\"tb_ooo_int_backend\");\n"
-                    "`elsif V8Y_SPECULATION_RECOVERY_FOCUSED\n",
-                ),
+                INT_BACKEND_FINISH_ANCHOR
+                + "`elsif V11U_PENDING_CSR_LEASE_FOCUSED\n"
+                "        tb_finish(\"tb_ooo_int_backend\");\n",
                 "bind the focused branch to the canonical test result name",
             ),
         ),

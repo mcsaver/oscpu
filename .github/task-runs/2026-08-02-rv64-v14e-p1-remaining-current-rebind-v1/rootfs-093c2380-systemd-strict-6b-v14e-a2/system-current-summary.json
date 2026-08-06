@@ -1,0 +1,127 @@
+{
+  "architecture_gate_state": "RED",
+  "binding": {
+    "linux_image_sha256": "c26b967e40137f7e932f7434d1f7ea82858cebe09d6c95e5090647c30793dc6a",
+    "npc_config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "opensbi_fw_sha256": "2f15419f76e03cf2acb8d09298aafd4c19b77060b7934505794d1fac39ac4ac9",
+    "post_binding_status": "PASS",
+    "rootfs_template_sha256": "ba580d8bd549f6dd35c571aa5aef1594b99ac5623b7a9439bf8e53017603f095",
+    "run_dtb_sha256": "dc058a1bb9443b884ce47035ef992198eafae30b9f148dd72211ea2741be7a5a",
+    "simulator_sha256": "d3076bc2b24da46e3b69f7a01dfcdb6b1b3bcdd033e7cdd5181074876f1d064a"
+  },
+  "current_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "debt_current_status": "CURRENT_DYNAMIC_PASS",
+  "debt_id": "SERIALIZE-G1",
+  "evidence": {
+    "assertions": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/rtl-assertion-failures.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "binding": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/binding.txt",
+      "sha256": "a47c881b8f26ee4f5c02a3dc13ad55686e7737e5d9ba3051076f7faaf3fba976",
+      "size_bytes": 1297
+    },
+    "console": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/console.log",
+      "sha256": "1185a2a0f30e4f9ce98faefa001a07720a189948afde13d7b6e78dd5b668377f",
+      "size_bytes": 3074190
+    },
+    "driver": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/driver.log",
+      "sha256": "5c27db9929d12bfe81218762e9f52f36ffa6f9c3d0bf1022a5d10172561cb5ff",
+      "size_bytes": 3076551
+    },
+    "npc": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/npc.log",
+      "sha256": "18fca8be9ffb9fd47f1c18593db76358560d94f27836ce3d74e9c3c1cb3b32de",
+      "size_bytes": 2986372
+    },
+    "post_binding": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/post-binding.txt",
+      "sha256": "484d591db030b26ce1b4ef2fcd446dcbc8c3e009f4b65b9bc5299015dddd644c",
+      "size_bytes": 5695
+    },
+    "progress_tail": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/progress-tail.txt",
+      "sha256": "2bfa2a182405a38075e8608ea032b647c6ff84da016289c114bb84ba8d058e27",
+      "size_bytes": 29749
+    },
+    "runtime_cleanup": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/runtime-cleanup.txt",
+      "sha256": "0c6d8bb2f2a62d17207c37298b67b31e672a3be2d64710964505160db7c80734",
+      "size_bytes": 200
+    },
+    "source_after": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-after.json",
+      "sha256": "72a2db1ebc680a903b9f7281865f77f50ac66ce02f666dd10d1fd5841b964bf1",
+      "size_bytes": 17298
+    },
+    "source_before": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-before.json",
+      "sha256": "72a2db1ebc680a903b9f7281865f77f50ac66ce02f666dd10d1fd5841b964bf1",
+      "size_bytes": 17298
+    },
+    "system_stats": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/system-stats.txt",
+      "sha256": "749e24905abd7581392851ca8802e0c7721347677d4fa2f5170ae36c1cffd5d3",
+      "size_bytes": 8605
+    },
+    "terminal": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/terminal-markers.txt",
+      "sha256": "87e41c7ae3c3ebcb7e70c6093fc778a90237957efceb71fbbfc8199e77589938",
+      "size_bytes": 7190
+    },
+    "transaction": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/systemd-transaction-evidence.json",
+      "sha256": "e2a2cc6e6de548eed04550803bacafa1b16324b6189c7853131725a21f918e68",
+      "size_bytes": 4311
+    }
+  },
+  "full_system_recertification": {
+    "commits": 1231323780,
+    "cpi_reported": 4.106,
+    "cycles": 5055252337,
+    "final_pc": "0x00000000800237ae",
+    "max_cycles": 6000000000,
+    "mode": "CURRENT_DESIGN_EXECUTION",
+    "rtl_assertion_failures": 0,
+    "status": "PASS",
+    "strict_passed": 17,
+    "strict_required": 17,
+    "system_reset_code": 0,
+    "terminal_counts": {
+      "good_trap": 1,
+      "kernel_power_down": 1,
+      "poweroff_begin": 1,
+      "strict_done_rc0": 1,
+      "syscon_poweroff": 1,
+      "system_reset_exit": 1
+    },
+    "uart_rx_bytes": 0
+  },
+  "ppa_state": "BLOCKED_BY_ARCHITECTURE",
+  "production_rtl_written": false,
+  "runtime_compaction": {
+    "compiled_products_in_task_run": [],
+    "runtime_products_retained": 0,
+    "runtime_removed": true
+  },
+  "schema": "rv64-v14e-serialize-system-current-summary-v1",
+  "scope_status": "CURRENT_DYNAMIC_PASS",
+  "source_identity": {
+    "after": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-after.json",
+      "sha256": "72a2db1ebc680a903b9f7281865f77f50ac66ce02f666dd10d1fd5841b964bf1",
+      "size_bytes": 17298
+    },
+    "before": {
+      "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-before.json",
+      "sha256": "72a2db1ebc680a903b9f7281865f77f50ac66ce02f666dd10d1fd5841b964bf1",
+      "size_bytes": 17298
+    },
+    "file_count": 146,
+    "unchanged": true
+  }
+}

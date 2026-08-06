@@ -16,15 +16,18 @@ from typing import Any, Sequence
 import run_v11m_memory_reservation_holder_semantic as runner_common
 
 
-SCHEMA = "npc-rv64-v11n-memory-pending-holder-semantic-evidence-v1"
+SCHEMA = "npc-rv64-v11n-memory-pending-holder-semantic-evidence-v2"
 TOP = "tb_ooo_int_backend"
 FOCUSED_DEFINE = "-DV11N_MEMORY_PENDING_HOLDER_FOCUSED"
 TB_PASS = "[PASS] tb_ooo_int_backend_v11n_memory_pending_holder"
 MATRIX_PASS = "[V11N-MEM-PENDING-HOLDER-MATRIX][PASS]"
 ORACLE_FAIL = "[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL]"
+V14U_PASS = "[V14U-AMO-TRANSIENT-LANE-MATRIX][PASS]"
+V14U_ASSERT_FAIL = "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]"
 UNIT_IDS = (
     "memory-pending-producer-cache",
     "memory-pending-token",
+    "amo-transient-holder-disjoint",
 )
 PRODUCT_INSTANCE = (
     "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice."
@@ -39,6 +42,7 @@ BASELINE_MARKERS = {
     "[V11N-FINAL-LANE0-DEATH][PASS]": 1,
     "[V11N-INTERPHASE-LANE9-DEATH][PASS]": 1,
     "[V11N-READ-FAULT-LANE0][PASS]": 1,
+    V14U_PASS: 1,
 }
 
 
@@ -53,8 +57,11 @@ class Replacement:
 class Mutation:
     name: str
     unit_ids: tuple[str, ...]
-    expected_stage: str
+    expected_stage: str | None
     replacements: tuple[Replacement, ...]
+    assertions: bool = False
+    expected_marker: str | None = None
+    expected_holder: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,10 +72,14 @@ class Profile:
     kind: str
     mutation: str | None = None
     expected_stage: str | None = None
+    expected_marker: str | None = None
+    expected_holder: str | None = None
 
 
 PENDING_PRODUCER = "memory-pending-producer-cache"
 PENDING_TOKEN = "memory-pending-token"
+AMO_TRANSIENT_DISJOINT = "amo-transient-holder-disjoint"
+PENDING_UNITS = (PENDING_PRODUCER, PENDING_TOKEN)
 
 
 def replacement(anchor: str, value: str, purpose: str) -> Replacement:
@@ -97,6 +108,30 @@ LANE9_TOKEN_PACK = """\
       mem_retry0_owner_token_q,
       mem_owner_token_q,
       mem_buffer_owner_token_q,
+"""
+RESERVATION0_CONSUME_TAIL = """\
+    end else if (mem_issue_res_consume_fire_w) begin
+      mem_issue_res_valid_q <= 1'b0;
+    end
+  end
+
+  always @(posedge clk) begin
+"""
+RESERVATION1_CONSUME_TAIL = """\
+    end else if (mem_issue1_res_consume_fire_w) begin
+      mem_issue1_res_valid_q <= 1'b0;
+    end
+  end
+
+`ifdef OOO_ASSERT
+"""
+BUFFER_READ_PHASE_ENTRY = """\
+      if (mem_amo_read_rsp_w) begin
+        mem_amo_write_phase_q <= 1'b1;
+        mem_amo_write_sent_q <= 1'b0;
+        mem_amo_old_value_q <= mem_amo_old_value_w;
+        mem_amo_write_data_q <= mem_amo_write_wdata_w;
+        mem_amo_write_wstrb_q <= mem_amo_write_wstrb_w;
 """
 
 
@@ -213,7 +248,7 @@ MUTATIONS = (
     ),
     Mutation(
         "read-phase-clears-pending",
-        UNIT_IDS,
+        PENDING_UNITS,
         "successful-read-write-phase",
         (
             replacement(
@@ -263,7 +298,7 @@ MUTATIONS = (
     ),
     Mutation(
         "final-response-keeps-pending",
-        UNIT_IDS,
+        PENDING_UNITS,
         "amo-final-next-cycle-clear",
         (
             replacement(
@@ -311,6 +346,87 @@ MUTATIONS = (
             ),
         ),
     ),
+    Mutation(
+        "amo-read-aliases-reservation0",
+        (AMO_TRANSIENT_DISJOINT,),
+        None,
+        (
+            replacement(
+                RESERVATION0_CONSUME_TAIL,
+                """\
+    end else if (mem_pending_q && mem_amo_q &&
+                 !mem_amo_write_phase_q && mem_rsp_valid_i &&
+                 mem_rsp_ready_o && !mem_rsp_error_i &&
+                 !mem_rsp_page_fault_i) begin
+      mem_issue_res_valid_q <= 1'b1;
+      mem_issue_res_owner_kind_q <= mem_owner_kind_q;
+      mem_issue_res_owner_token_q <= mem_owner_token_q;
+      mem_issue_res_mmu_epoch_q <= mem_mmu_epoch_q;
+    end else if (mem_issue_res_consume_fire_w) begin
+      mem_issue_res_valid_q <= 1'b0;
+    end
+  end
+
+  always @(posedge clk) begin
+""",
+                "recreate the AMO token in reservation0 after read response",
+            ),
+        ),
+        assertions=True,
+        expected_marker=V14U_ASSERT_FAIL,
+        expected_holder="res0",
+    ),
+    Mutation(
+        "amo-read-aliases-reservation1",
+        (AMO_TRANSIENT_DISJOINT,),
+        None,
+        (
+            replacement(
+                RESERVATION1_CONSUME_TAIL,
+                """\
+    end else if (mem_pending_q && mem_amo_q &&
+                 !mem_amo_write_phase_q && mem_rsp_valid_i &&
+                 mem_rsp_ready_o && !mem_rsp_error_i &&
+                 !mem_rsp_page_fault_i) begin
+      mem_issue1_res_valid_q <= 1'b1;
+      mem_issue1_res_owner_kind_q <= mem_owner_kind_q;
+      mem_issue1_res_owner_token_q <= mem_owner_token_q;
+      mem_issue1_res_mmu_epoch_q <= mem_mmu_epoch_q;
+    end else if (mem_issue1_res_consume_fire_w) begin
+      mem_issue1_res_valid_q <= 1'b0;
+    end
+  end
+
+`ifdef OOO_ASSERT
+""",
+                "recreate the AMO token in reservation1 after read response",
+            ),
+        ),
+        assertions=True,
+        expected_marker=V14U_ASSERT_FAIL,
+        expected_holder="res1",
+    ),
+    Mutation(
+        "amo-read-aliases-legacy-buffer",
+        (AMO_TRANSIENT_DISJOINT,),
+        None,
+        (
+            replacement(
+                BUFFER_READ_PHASE_ENTRY,
+                BUFFER_READ_PHASE_ENTRY
+                + """\
+        mem_buffer_valid_q <= 1'b1;
+        mem_buffer_owner_kind_q <= mem_owner_kind_q;
+        mem_buffer_owner_token_q <= mem_owner_token_q;
+        mem_buffer_mmu_epoch_q <= mem_mmu_epoch_q;
+""",
+                "recreate the AMO token in the legacy buffer after read response",
+            ),
+        ),
+        assertions=True,
+        expected_marker=V14U_ASSERT_FAIL,
+        expected_holder="buffer",
+    ),
 )
 
 
@@ -338,12 +454,15 @@ def build_profiles() -> tuple[Profile, ...]:
     )
     mutations = tuple(
         Profile(
-            f"{mutation.name}-g{gen_width}-release",
+            f"{mutation.name}-g{gen_width}-"
+            f"{'assert' if mutation.assertions else 'release'}",
             gen_width,
-            False,
+            mutation.assertions,
             "mutation",
             mutation=mutation.name,
             expected_stage=mutation.expected_stage,
+            expected_marker=mutation.expected_marker,
+            expected_holder=mutation.expected_holder,
         )
         for mutation in MUTATIONS
         for gen_width in GEN_WIDTHS
@@ -356,6 +475,7 @@ def marker_counts(text: str) -> dict[str, int]:
         "tb_pass": text.count(TB_PASS),
         "matrix_pass": text.count(MATRIX_PASS),
         "oracle_fail": text.count(ORACLE_FAIL),
+        "v14u_assert_fail": text.count(V14U_ASSERT_FAIL),
     }
     for marker in BASELINE_MARKERS:
         result[marker] = text.count(marker)
@@ -368,6 +488,21 @@ def oracle_failure_stages(text: str) -> list[str]:
         + r" stage=([A-Za-z0-9_-]+)(?=[ \t\r\n@]|$)",
         text,
     )
+
+
+def v14u_assertion_holder_samples(
+    text: str,
+) -> list[tuple[int, int, int, int, int, int, int, int]]:
+    return [
+        tuple(int(value) for value in match)
+        for match in re.findall(
+            re.escape(V14U_ASSERT_FAIL)
+            + r" overlap=[0-9a-fA-F]+ amo=([01])/([0-9]+) "
+            + r"res0=([01])/([0-9]+) res1=([01])/([0-9]+) "
+            + r"buffer=([01])/([0-9]+)",
+            text,
+        )
+    ]
 
 
 def evaluate_profile(
@@ -398,6 +533,42 @@ def evaluate_profile(
                 markers[marker] == count
                 for marker, count in BASELINE_MARKERS.items()
             )
+        )
+    elif profile.expected_marker is not None:
+        holder_samples = v14u_assertion_holder_samples(log_text)
+        expected_valids = {
+            "res0": (1, 0, 0),
+            "res1": (0, 1, 0),
+            "buffer": (0, 0, 1),
+        }.get(profile.expected_holder)
+        holder_exact = False
+        if len(holder_samples) == 1 and expected_valids is not None:
+            (amo_valid, amo_token, res0_valid, res0_token,
+             res1_valid, res1_token, buffer_valid,
+             buffer_token) = holder_samples[0]
+            holder_exact = (
+                amo_valid == 1
+                and amo_token == 28
+                and (res0_valid, res1_valid, buffer_valid)
+                == expected_valids
+                and (
+                    (profile.expected_holder == "res0" and
+                     res0_token == 28) or
+                    (profile.expected_holder == "res1" and
+                     res1_token == 28) or
+                    (profile.expected_holder == "buffer" and
+                     buffer_token == 28)
+                )
+            )
+        passed = (
+            compile_ok
+            and sim_rc not in (None, 0)
+            and not sim_timeout
+            and log_text.count(profile.expected_marker) == 1
+            and holder_exact
+            and markers["oracle_fail"] == 0
+            and markers["tb_pass"] == 0
+            and markers["matrix_pass"] == 0
         )
     else:
         passed = (
@@ -493,12 +664,14 @@ def build_variants(
                 "name": mutation.name,
                 "unit_ids": list(mutation.unit_ids),
                 "expected_stage": mutation.expected_stage,
+                "expected_marker": mutation.expected_marker,
+                "expected_holder": mutation.expected_holder,
                 "target": runner_common.repo_path(rtl_path, repo_root),
                 "production_sha256": runner_common.sha256_file(rtl_path),
                 "variant": runner_common.repo_path(variant, repo_root),
                 "variant_sha256": runner_common.sha256_file(variant),
                 "compile_success_required": True,
-                "assertions": False,
+                "assertions": mutation.assertions,
                 "receipts": receipts,
             }
         )
@@ -534,7 +707,9 @@ def run_profile(
         f"-DOOO_PRODUCER_GEN_W={profile.gen_width}",
     ]
     if profile.assertions:
-        defines.append("-DOOO_ASSERT")
+        defines.extend(
+            ("-DOOO_ASSERT", "-DOOO_TERMINAL_HOLDER_ASSERT")
+        )
     compile_command = [
         str(iverilog),
         "-g2012",
@@ -593,6 +768,8 @@ def run_profile(
         "assertions": profile.assertions,
         "mutation": profile.mutation,
         "expected_stage": profile.expected_stage,
+        "expected_marker": profile.expected_marker,
+        "expected_holder": profile.expected_holder,
         "status": "PASS" if passed else "FAIL",
         "compile": {
             "rc": crc,
@@ -633,6 +810,78 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args(argv)
+
+
+def cleanup_pass_artifacts(
+    *,
+    repo_root: Path,
+    result_dir: Path,
+    profile_records: list[dict[str, object]],
+    regression_records: list[dict[str, object]],
+    variants: dict[str, Path],
+) -> dict[str, object]:
+    result_root = result_dir.resolve()
+    targets: list[tuple[Path, str]] = []
+
+    for profile in profile_records:
+        targets.append((
+            result_dir / "profiles" / str(profile["profile"]) / f"{TOP}.vvp",
+            "focused-compile-image",
+        ))
+    for regression in regression_records:
+        targets.append((
+            result_dir
+            / "regressions"
+            / "build"
+            / f"{regression['test']}.vvp",
+            "regression-compile-image",
+        ))
+    targets.extend(
+        (variant, "generated-negative-rtl")
+        for variant in variants.values()
+    )
+
+    prepared: list[tuple[Path, dict[str, object]]] = []
+    seen: set[Path] = set()
+    for path, kind in targets:
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError(f"cleanup artifact is not a regular file: {path}")
+        resolved = path.resolve(strict=True)
+        try:
+            resolved.relative_to(result_root)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"cleanup artifact escapes result directory: {resolved}"
+            ) from exc
+        if resolved in seen:
+            raise RuntimeError(f"duplicate cleanup artifact: {resolved}")
+        seen.add(resolved)
+        record = runner_common.artifact_record(path, repo_root)
+        record["kind"] = kind
+        record["removed_after_validation"] = True
+        prepared.append((path, record))
+
+    removed: list[dict[str, object]] = []
+    for path, record in prepared:
+        path.unlink()
+        removed.append(record)
+
+    expected_count = (
+        len(profile_records) + len(regression_records) + len(variants)
+    )
+    if len(removed) != expected_count:
+        raise RuntimeError(
+            f"artifact cleanup count mismatch: {len(removed)} != {expected_count}"
+        )
+    cleanup = {
+        "status": "PASS",
+        "policy": "retain-results-logs-and-hashes-only",
+        "removed_count": len(removed),
+        "retained_compile_images": 0,
+        "removed": removed,
+    }
+    runner_common.write_json(result_dir / "artifact-cleanup.json", cleanup)
+    return cleanup
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -738,7 +987,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "mutation_profile_count": len(MUTATIONS) * len(GEN_WIDTHS),
                 "regression_count": len(REGRESSIONS),
                 "baseline_assert_and_release": True,
-                "mutations_release_mode": True,
+                "mutation_modes": {
+                    "release_oracle": sum(
+                        not mutation.assertions for mutation in MUTATIONS
+                    ),
+                    "assertion": sum(
+                        mutation.assertions for mutation in MUTATIONS
+                    ),
+                },
                 "full_system_run": False,
             },
             "tools": {
@@ -783,9 +1039,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "post_write_hold": True,
                 "collector_lane0_final_acceptance": True,
                 "collector_lane9_cancel_acceptance": True,
+                "collector_lane9_vs_lane6_7_8_natural_cycle": True,
                 "read_fault_lane0_no_lane9_duplicate": True,
                 "tracker_terminal_death": True,
                 "release_mode_mutation_rejection": True,
+                "amo_transient_assertion_mutation_rejection": True,
             },
             "counts": {
                 "profiles_total": len(profile_records),
@@ -806,7 +1064,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "global_no_live_reuse": "NOT_PROVEN",
                 "whole_architecture": "RED",
                 "ppa": "UNPROMOTED",
-                "production_rtl_change": False,
+                "production_rtl_change": True,
+                "production_data_path_change": False,
+                "assertion_only_rtl_change": True,
                 "a3_original_status": "FAIL_RETAINED",
                 "a3_checker_replay": "PASS_INDEPENDENT",
                 "system_rerun": {
@@ -824,6 +1084,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "system_recertification": "NOT_RUN",
             },
         }
+        if overall:
+            cleanup = cleanup_pass_artifacts(
+                repo_root=repo_root,
+                result_dir=result_dir,
+                profile_records=profile_records,
+                regression_records=regression_records,
+                variants=variants,
+            )
+            summary["artifact_cleanup"] = cleanup
         runner_common.write_json(result_dir / "summary.json", summary)
         (result_dir / "summary.md").write_text(
             "\n".join(
@@ -847,7 +1116,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "- source pre/post: "
                         f"{'MATCH' if binding_match else 'DRIFT'}"
                     ),
-                    "- production RTL change: none",
+                    "- production RTL change: assertion-only; release data path unchanged",
+                    "- compile images and generated negative RTL: removed after validation",
                     "- A3 original FAIL retained; checker replay remains separate",
                     "- current whole-design system recert: still required before promotion",
                     "- whole architecture: RED",

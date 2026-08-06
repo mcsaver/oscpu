@@ -1,0 +1,8 @@
+5	rv64-memory-request-hold-fast	PASS	1503	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-memory-request-hold-fast.log
+5	rv64-owner-timing-fast	PASS	5009	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-owner-timing-fast.log
+5	flow-self-test	PASS	1904	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/flow-self-test.log
+5	rv64-soc-delivery-gates	PASS	451	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-soc-delivery-gates.log
+7	rv64-memory-request-hold-fast	PASS	4761	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-memory-request-hold-fast.log
+7	rv64-owner-timing-fast	PASS	5261	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-owner-timing-fast.log
+7	flow-self-test	PASS	2256	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/flow-self-test.log
+7	rv64-soc-delivery-gates	PASS	502	.github/runtime-artifacts/agent-flow/rv64-v14r-memory-request-admission-hold/gates/rv64-soc-delivery-gates.log

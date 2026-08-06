@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14m-arch-stable-final3-delta-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 ARCH_STABLE final-3 增量候选；确认永久 audit runner 已把 current independent-review receipt 接入 audit，并确认新 candidate 的唯一 GAP 仍只是待签发 review receipt，PPA 保持 UNQUALIFIED",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/evidence/arch-stable-independent-review-current.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-2/candidate.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/candidate.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/pre-review-audit.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-final3-delta-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/pre-review-audit.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 runner/candidate 本地证据、current design/config、checker 观测、PASS/GAP 范围给出增量复核；若无 blocker/unknown，逐字输出唯一 APPROVE marker；若有 GAP，不得输出 marker"
+  ],
+  "success_criteria": [
+    "确认 runner audit_args 总是传入可覆盖的 ARCH_STABLE_REVIEW，verify 仍 require-stable fail-closed，final-3 candidate SHA 精确，pre-review 只有 independent receipt blocker，且无 PPA promotion",
+    "批准时在最终回复中恰好一次逐字输出：[ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 candidate_sha256=636f9c8935557444dc6d2e9fa180bb8c3f980f7cdeb5d97a10f855f17f8d4c37"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

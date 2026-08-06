@@ -1,0 +1,13 @@
+aac00b34f691b193409526bea9a31f30d41006ffffaafb29a3c4214bbbe6c621  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b/NpcSimTop
+8f7b4cc351963e94a5cd48a528c2a5d4f87c7afb032710b8b81b04f1951d10e5  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b/simulator-verFiles.dat
+debecccf328b0dd7859bb3906fa515ef6e7d3dd76e510ee5a81b2342b9147396  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/Image
+d8a08015c40ed2ab821a31bbb35e42abeb036fa5508f8cc2c1402155496681b2  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/init
+66393b5a7ec3c239f94df1df5791a7c066d4ba2ef1fe85843867ef0bce80e66c  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/initramfs.cpio
+8fb0e60c0f69d096de65f0d86f12350fc5ba24f341d21f5f759573b515870ba6  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/guest.dtb
+8fb0e60c0f69d096de65f0d86f12350fc5ba24f341d21f5f759573b515870ba6  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/opensbi-platform.dtb
+d1ded70590c2b4e9b5ab3fd2cca4f791da82c6dab815dd2be2d8874f847d7d8f  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/fw_jump.bin
+a2d7d7043e427e41c2d0a6bbf7a58504d3b4ea468b39380fa685dcb567a3ccdc  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/linux.config
+f5cfdf5638def40b6b020e8994868a664aeff2171242764cfe8c003a43a59f37  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/run-lightweight-linux-current.sh
+da87fb0a50a63e1806f7892b170409655737d87c96c1d796b10708a967a745c4  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/lightweight_linux_run.py
+ed3382075d86701de8af9dd96a534fefdb439f37840cb1b8420ee074e2ba1118  /home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6  /home/lyg/PA/ysyx-workbench/scripts/task-run-status.sh

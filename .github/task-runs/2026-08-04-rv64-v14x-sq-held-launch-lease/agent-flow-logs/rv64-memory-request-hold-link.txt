@@ -1,0 +1,9 @@
+[V14R-HOLD-STEP][PASS] step=store-queue
+[V14R-HOLD-STEP][PASS] step=focused
+[V14R-HOLD-STEP][PASS] step=single-bank
+[V14R-HOLD-STEP][PASS] step=mutation-matrix variants=6
+[V14R-HOLD-STEP][PASS] step=dual-memory
+[V14R-HOLD-STEP][PASS] step=linked-regressions cases=4
+[V14R-HOLD-IDENTITY][PASS] manifest_sha256=d0c57e829352d68c59fbfc0a50d2ca7876390fda2bfa76c95cc4a5723e70b7d4 files=9
+[V14R-HOLD-CHECK][PASS] tier=link holder_ff=29 payload_shadow_bits=217 mutation=6 ppa=UNQUALIFIED
+[V14R-HOLD-CLEANUP][PASS]

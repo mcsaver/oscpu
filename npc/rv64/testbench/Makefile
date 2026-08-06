@@ -173,6 +173,9 @@ FOCUSED_TESTS := \
   tb_ooo_int_backend_v11q_int_lane0_packet \
   tb_ooo_int_backend_v11r_int_lane1_packet \
   tb_ooo_int_backend_v9r_sq_retry_c0 \
+  tb_ooo_int_backend_v14r_memory_request_hold \
+  tb_ooo_int_backend_v14r_single_bank_probe_order \
+  tb_ooo_int_backend_v8s_dual_memory \
   tb_ooo_mem_axi_bridge_v13p_store_b_fusion \
   tb_ooo_int_backend_v13p_store_b_fusion \
   tb_ooo_int_backend_v13q_store_b_error_backpressure \
@@ -270,6 +273,15 @@ TB_IVFLAGS_tb_ooo_int_backend_v11r_int_lane1_packet := -DOOO_ASSERT -DV11R_INT_L
 TB_SRCS_tb_ooo_int_backend_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v9r_sq_retry_c0 := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v14r_memory_request_hold := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v14r_memory_request_hold := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v14r_memory_request_hold := -DOOO_ASSERT -DV14R_MEMORY_REQUEST_HOLD_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v14r_single_bank_probe_order := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v14r_single_bank_probe_order := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v14r_single_bank_probe_order := -DOOO_ASSERT -DV14R_SINGLE_BANK_PROBE_ORDER_FOCUSED
+TB_SRCS_tb_ooo_int_backend_v8s_dual_memory := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_v8s_dual_memory := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_v8s_dual_memory := -DOOO_ASSERT -DV8S_DUAL_MEMORY_FOCUSED
 TB_SRCS_tb_v9n_amo_owner_residency := $(V9N_OWNER_RESIDENCY_DIR)/tb_v9n_amo_owner_residency.sv tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_TOP_tb_v9n_amo_owner_residency := tb_v9n_amo_owner_residency
 TB_SRCS_tb_ooo_int_backend_v8x_backend_bridge_recovery := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS) $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE) $(RTL_OOO_DUAL_MEM_AXI_ARBITER) $(RTL_OOO_DUAL_MEM_BRIDGE_WRAPPER)
@@ -680,6 +692,18 @@ v9r-sq-retry-c0-handoff: \
   $(LOG_DIR)/tb_ooo_int_backend_v9r_sq_retry_c0.log \
   $(LOG_DIR)/tb_ooo_mem_axi_bridge_v9r_sq_retry_c0.log
 	@grep -E '\[V9R-|\[PASS\]|\[RESULT\]' $^
+
+v14r-memory-request-hold-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_v14r_memory_request_hold.log
+	@grep -E '\[V14R-|\[PASS\]|\[RESULT\]' $<
+
+v14r-single-bank-probe-order-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_v14r_single_bank_probe_order.log
+	@grep -E '\[V14R-|\[PASS\]|\[RESULT\]' $<
+
+v8s-dual-memory-core-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_v8s_dual_memory.log
+	@grep -E '\[V8S-|\[V8T-|\[V8U-|\[V8V-|\[V9P-|\[PASS\]|\[RESULT\]' $<
 
 v13p-store-b-fusion-focused: \
   $(LOG_DIR)/tb_ooo_mem_axi_bridge_v13p_store_b_fusion.log \

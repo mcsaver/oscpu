@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import sys
 import tempfile
 import unittest
 
@@ -31,6 +32,7 @@ def load_tool():
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -85,7 +87,7 @@ class HistoricalDefectBackfillTest(unittest.TestCase):
         )
         return ledger_path, ledger
 
-    def test_live_ledger_is_clear_after_all_blockers_are_backfilled(self) -> None:
+    def test_live_ledger_closes_the_terminal_duplicate_at_vd4(self) -> None:
         result = self.tool.audit(
             ROOT,
             expected_design_id=self.live_ledger["design_id"],
@@ -95,11 +97,19 @@ class HistoricalDefectBackfillTest(unittest.TestCase):
         self.assertEqual(result["selected_id"], "NONE")
         self.assertEqual(result["counts"]["depths"]["VD1"], 0)
         self.assertEqual(result["counts"]["depths"]["VD3"], 3)
+        self.assertEqual(result["counts"]["depths"]["VD4"], 3)
+        self.assertEqual(result["current_receipt_status"], "PASS")
 
     def test_wrong_selected_entry_fails_closed(self) -> None:
         def transform(ledger):
+            for entry in ledger["entries"]:
+                if entry["id"] == (
+                    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP"
+                ):
+                    entry["status"] = "QUEUED"
             ledger["entries"][0]["validation_depth"] = "VD1"
             ledger["entries"][0]["status"] = "QUEUED"
+            ledger["entries"][1]["validation_depth"] = "VD1"
             ledger["entries"][1]["status"] = "SELECTED"
             ledger["selected_id"] = ledger["entries"][1]["id"]
 
@@ -109,6 +119,7 @@ class HistoricalDefectBackfillTest(unittest.TestCase):
             result = self.tool.audit(
                 root,
                 expected_design_id=ledger["design_id"],
+                require_current_receipt=False,
             )
         self.assertFalse(result["valid"])
         self.assertTrue(
@@ -124,6 +135,7 @@ class HistoricalDefectBackfillTest(unittest.TestCase):
             result = self.tool.audit(
                 root,
                 expected_design_id=ledger["design_id"],
+                require_current_receipt=False,
             )
         self.assertFalse(result["valid"])
         self.assertTrue(
@@ -144,10 +156,59 @@ class HistoricalDefectBackfillTest(unittest.TestCase):
             result = self.tool.audit(
                 root,
                 expected_design_id=ledger["design_id"],
+                require_current_receipt=False,
             )
         self.assertTrue(result["valid"], result["errors"])
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["blocking_ids"], [])
+
+    def test_missing_known_defect_cannot_disable_the_inventory_gate(self) -> None:
+        def transform(ledger):
+            ledger["entries"] = [
+                entry
+                for entry in ledger["entries"]
+                if entry["id"] != (
+                    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP"
+                )
+            ]
+            ledger["selected_id"] = "NONE"
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _, ledger = self.make_workspace(root, transform)
+            result = self.tool.audit(
+                root,
+                expected_design_id=ledger["design_id"],
+                require_current_receipt=False,
+            )
+        self.assertFalse(result["valid"])
+        self.assertTrue(
+            any("ledger inventory drifted" in error
+                for error in result["errors"])
+        )
+
+    def test_cleared_inventory_is_fully_supported_by_current_receipt(self) -> None:
+        def transform(ledger):
+            for entry in ledger["entries"]:
+                if entry["validation_depth"] in {"VD0", "VD1"}:
+                    entry["validation_depth"] = "VD2"
+                    entry["status"] = "BACKFILLED"
+            ledger["selected_id"] = "NONE"
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _, ledger = self.make_workspace(root, transform)
+            result = self.tool.audit(
+                root,
+                expected_design_id=ledger["design_id"],
+                require_current_receipt=False,
+            )
+        self.assertTrue(result["valid"], result["errors"])
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(
+            self.tool.CURRENT_RECEIPT_IDS,
+            self.tool.KNOWN_LEDGER_IDS,
+        )
 
 
 if __name__ == "__main__":

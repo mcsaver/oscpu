@@ -1,0 +1,16 @@
+6	flow-self-test	PASS	2504	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/flow-self-test.log
+6	rv64-soc-delivery-gates	PASS	952	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-soc-delivery-gates.log
+6	rv64-mini-system-runner-contract	PASS	150	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-mini-system-runner-contract.log
+6	rv64-lightweight-linux-runner-contract	PASS	151	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-lightweight-linux-runner-contract.log
+7	flow-self-test	PASS	2810	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/flow-self-test.log
+7	rv64-soc-delivery-gates	PASS	1408	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-soc-delivery-gates.log
+7	rv64-mini-system-runner-contract	PASS	158	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-mini-system-runner-contract.log
+7	rv64-lightweight-linux-runner-contract	PASS	160	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-lightweight-linux-runner-contract.log
+7	rv64-current-simulator-cache-contract	PASS	50	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-current-simulator-cache-contract.log
+7	rv64-system-recertification-runner-contract	PASS	20046	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-system-recertification-runner-contract.log
+8	flow-self-test	PASS	2606	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/flow-self-test.log
+8	rv64-soc-delivery-gates	PASS	1253	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-soc-delivery-gates.log
+8	rv64-mini-system-runner-contract	PASS	151	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-mini-system-runner-contract.log
+8	rv64-lightweight-linux-runner-contract	PASS	150	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-lightweight-linux-runner-contract.log
+8	rv64-current-simulator-cache-contract	PASS	50	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-current-simulator-cache-contract.log
+8	rv64-system-recertification-runner-contract	PASS	18497	.github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates/rv64-system-recertification-runner-contract.log

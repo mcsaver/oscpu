@@ -1,0 +1,11 @@
+schema=npc-rv64-layer-checker-replay-v1
+layer=l2
+source_run=.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-sv39-a4
+source_status_sha256=1a8cec04c14b57d76f20c80121ebe10535db45ef10dbfbef8b01b102bc3c191b
+checker_sha256=e9c0d068de1654dafee87ae58f07986a6045004207a8bac7239e6f43d96842c0
+checker_test_sha256=0b9d81081a339e351b2075f5113c5f5a6e6b2c1917a3e9ccdc68a13768fd0bcd
+source_status=FAIL
+original_status_unchanged=1
+claim_scope=checker-replay-only
+guest_rerun=0
+ubuntu2204_full_simulation=not_launched

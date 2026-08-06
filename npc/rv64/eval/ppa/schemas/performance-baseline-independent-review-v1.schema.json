@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-performance-baseline-independent-review-v1.schema.json",
+  "title": "NPC RV64 PERF_BASELINE independent review receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision",
+    "design_id",
+    "result",
+    "final_manifest",
+    "reviewer_contract",
+    "review_report",
+    "task_run_status",
+    "command_status",
+    "checker_regression",
+    "review_scope",
+    "open_blockers",
+    "unknowns",
+    "reviewed_at_utc"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-performance-baseline-independent-review-v1"
+    },
+    "decision": {
+      "const": "APPROVE_PERF_BASELINE"
+    },
+    "design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "result": {
+      "$ref": "#/$defs/artifact"
+    },
+    "final_manifest": {
+      "$ref": "#/$defs/artifact"
+    },
+    "reviewer_contract": {
+      "$ref": "#/$defs/artifact"
+    },
+    "review_report": {
+      "$ref": "#/$defs/artifact"
+    },
+    "task_run_status": {
+      "$ref": "#/$defs/artifact"
+    },
+    "command_status": {
+      "$ref": "#/$defs/artifact"
+    },
+    "checker_regression": {
+      "$ref": "#/$defs/artifact"
+    },
+    "review_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "legacy_v1_phase_rejection",
+        "endpoint_amendment_precedence",
+        "cycle_and_slot_conservation",
+        "bit_exact_repetitions",
+        "instrumentation_noninterference",
+        "historical_fail_immutability",
+        "fresh_arch_stable_postflight",
+        "canonical_build_and_verify",
+        "ppa",
+        "promotion_eligible"
+      ],
+      "properties": {
+        "legacy_v1_phase_rejection": {"const": "PASS"},
+        "endpoint_amendment_precedence": {"const": "PASS"},
+        "cycle_and_slot_conservation": {"const": "PASS"},
+        "bit_exact_repetitions": {"const": "PASS"},
+        "instrumentation_noninterference": {"const": "PASS"},
+        "historical_fail_immutability": {"const": "PASS"},
+        "fresh_arch_stable_postflight": {"const": "PASS"},
+        "canonical_build_and_verify": {"const": "PASS"},
+        "ppa": {"const": "UNQUALIFIED"},
+        "promotion_eligible": {"const": false}
+      }
+    },
+    "open_blockers": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "reviewed_at_utc": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "size_bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

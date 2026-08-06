@@ -1,0 +1,393 @@
+{
+  "policy": "retain-results-logs-and-hashes-only",
+  "removed": [
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/production-g1-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "cced05c3865880a372da93adbc9ceed51cf5b56e6fecd7f9b69fe45b71a3a05c",
+      "size_bytes": 12639994
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/production-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "e01e47102c76ad4be690f670c1e471adc8e502ce0e82eede779a9a27ad2494dc",
+      "size_bytes": 12045614
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/production-g4-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "784e43ded0eb40e93c8b2355976d1ba5c55f37db64501c8a051feeaab7b077e3",
+      "size_bytes": 12657657
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/production-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "8214b74ead241e26345ec4780903d370bbe220d061a7305aa867577ee2447d7d",
+      "size_bytes": 12063269
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-generation-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "8541def582ee2b29b2b5e338cb084d9ebc02ca91dca3c31ae819caed6b165ff9",
+      "size_bytes": 12045841
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-generation-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "f65b8aca51043f718a1959a4e9d3d3dc339d2f374c9d88c586eb319fc502fbc4",
+      "size_bytes": 12063496
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-cross-lane-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "5e9c4c850614299d304aba315ae18cb572f245ca2da8305939ad20197b1c94e2",
+      "size_bytes": 12045750
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-cross-lane-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "a06ed8e5fd2f27a9b06ccd1b5521dd497d5542b3466a8494ff6a5b9e6d34bcb6",
+      "size_bytes": 12063405
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-x-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "70a83d418a3156a7ea3383f40f19ad78f45cfa284b4b037db0bc71e072f5eb90",
+      "size_bytes": 12045734
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-producer-x-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "3805c6ec26b5e5914295c626e953b363f335f4b7b41f4c802117d8d1c7061d5c",
+      "size_bytes": 12063391
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-token-high-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "780110eb61102220759b61fb08f860e5a973123521582c406cb11af8e7ae1042",
+      "size_bytes": 12045832
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-token-high-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "65d6c32158e08cc2b8e2bcc7588999c0d332371e0541d3416d1a8d9fd7ade343",
+      "size_bytes": 12063487
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-token-z-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "b99e948666c2f39b678b09197504dede351d3b686004bf9892814f9d0924904e",
+      "size_bytes": 12045730
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/capture-token-z-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "9ef8283f88a53f7e655e718eee84f2bc7756da733a4fd0d4534ea47357c27fd2",
+      "size_bytes": 12063385
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-producer-generation-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "3d34fb00dfa69f7711b5861a0953dc6f09cf5985b5dbd7de1d2195561310054a",
+      "size_bytes": 12045917
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-producer-generation-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "c8a3601574f63207b494c9b6423463e8da60febc44dc81ae580d67cd7fcc2096",
+      "size_bytes": 12063572
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-token-high-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "21ec5bf10912f98ecaf23aa875cc7814240387babed7dcc1d541fc76fad15fb3",
+      "size_bytes": 12045908
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-token-high-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "c23a123b2545980d0fb7e603aeafa73d8af642f1f1d26d3bf61069c0a9522d80",
+      "size_bytes": 12063563
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-clears-pending-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "f93bb9e0d88c2847aaf566c59915061f70dee3d6e6d715471c52d62247e81562",
+      "size_bytes": 12045812
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/read-phase-clears-pending-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "c0463d777b91587a1653cfe5f3fa8c2ad16b0f4ad6cdac9883566399e8072a9c",
+      "size_bytes": 12063467
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/write-fire-producer-generation-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "fafbd215bb05386f183ffa4e40430286faff415cca2ee9c9cf4cbdfb04faf2b5",
+      "size_bytes": 12045917
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/write-fire-producer-generation-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "a1bbc43ef133663e749fd9b139b39d9b3cd4e985e12fe8af0a6ecd5a486ba8f9",
+      "size_bytes": 12063572
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/write-fire-token-high-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "5acff49ea3a959b769bf01eb1289a2d242f7b3120237b0adb69a425e7fa492dc",
+      "size_bytes": 12045908
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/write-fire-token-high-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "526c13c19f618394377832bed70cdbacb374480e16112898e947c6dbfc2463b2",
+      "size_bytes": 12063563
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/final-response-keeps-pending-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "1c691c0b44149701b04cbbaa4cb3ae18a63a4bcf3af5f2c84f7782596deab52f",
+      "size_bytes": 12045751
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/final-response-keeps-pending-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "5f14e845ebf54b9615aa66a36907827e7e066dedbcee9a5c64fedc5f72491038",
+      "size_bytes": 12063406
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/interphase-cancel-suppressed-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "a843fb17816ef253ccbf6a5b2dbac2561a60a2fe7725ac581c11ea9accd1fcdf",
+      "size_bytes": 12045064
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/interphase-cancel-suppressed-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "c1ef7171051838c8d758e89465ad7a57a345058b49042ed31cf5547acc02c1db",
+      "size_bytes": 12062719
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/interphase-lane9-token-high-truncate-g1-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "45530324a72e530aa97e35f5649037957117eaffa39e53f87e239a62458c9178",
+      "size_bytes": 12046159
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/interphase-lane9-token-high-truncate-g4-release/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "21a8f66cea1c45e0debe4e6614bcee278fc4d1baa8147a236835b547b8d0358e",
+      "size_bytes": 12063814
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-reservation0-g1-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "ece266f714ce74841be1c15ce533af1aafe38c55c1e526dca6f3eb4880b7cc3b",
+      "size_bytes": 12641322
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-reservation0-g4-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "0effae989a73f2fb038e2f4f90a38399ce325c104b8428c41779e965907a6215",
+      "size_bytes": 12658985
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-reservation1-g1-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "4e02d2c62e7e407a299d8b166eff287d3e45b3e8dd19e9ca30c2a3ee699992eb",
+      "size_bytes": 12641320
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-reservation1-g4-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "41a7a5c76f78dc86586f809f3d7f49c79f8e00c59bb1855b7b5fa0463f69de7c",
+      "size_bytes": 12658983
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-legacy-buffer-g1-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "eb0f9a63700be91266d219ec600926a02f5d71274ace9f7f2de7ff06a0a443b6",
+      "size_bytes": 12640416
+    },
+    {
+      "kind": "focused-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/profiles/amo-read-aliases-legacy-buffer-g4-assert/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "dd2e4f1dd07bb9866159e9e30ec1d5b5244aefe42a5d00968890655f4138e857",
+      "size_bytes": 12658079
+    },
+    {
+      "kind": "regression-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/regressions/build/tb_ooo_int_backend.vvp",
+      "removed_after_validation": true,
+      "sha256": "be7e432979701d766ceda1fd32815915ec32dfb8155fccf3933103e4a8651dff",
+      "size_bytes": 13361672
+    },
+    {
+      "kind": "regression-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/regressions/build/tb_ooo_int_backend_v11l_memory_retry_holder.vvp",
+      "removed_after_validation": true,
+      "sha256": "fbabe61042a0f7399cb5fc94899168f5467108f6fb1d53c23dc3ba2e14e6e902",
+      "size_bytes": 12624910
+    },
+    {
+      "kind": "regression-compile-image",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/regressions/build/tb_ooo_int_backend_v11i_terminal_lifecycle.vvp",
+      "removed_after_validation": true,
+      "sha256": "2a312e9a72e4d72e9e7f72b141856bede0d57af024ef42aae671e30d32f103f0",
+      "size_bytes": 12462446
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-generation-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "677b1de861e851831718e5aff0e7d6b25ee941e99b28f1e228a54a55bf8fce62",
+      "size_bytes": 410623
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-cross-lane/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "28e7e8545918af3b4b33bceef80c4bb5a6e2dc7220ed2edb075c41030c04ec9e",
+      "size_bytes": 410581
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-x/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "a8ad2a24335941979dd324ac9710a5f5738ec03e3e0af20b2da8ad86f7b38005",
+      "size_bytes": 410574
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-token-high-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "f2610f4765f0aa45721d99b16f85e0bc8a00065adfb3fc6bf2a764910885ac8c",
+      "size_bytes": 410607
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-token-z/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "d91e328f20b9d963b9469ca38788024682672d63cb27c1e8103fffe77bc1f122",
+      "size_bytes": 410562
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-producer-generation-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "22c9ea073ba98c19c8142f9b1791c1584d8bf0a031dcf54a788fbbec32b85606",
+      "size_bytes": 410696
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-token-high-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "cb5a528b7b3208a1e437a8040f341667f1ab555f1ae6f5d8c4fe2b04738a7ea9",
+      "size_bytes": 410643
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-clears-pending/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "7318ed14d9be3de430b8e6e77bb5a1e866c5972c0b1faa8796966d57aa721728",
+      "size_bytes": 410611
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/write-fire-producer-generation-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "b557dd8176c56fbe75592d34f48a5ca788a89db29eafdf826abbd6359d97423b",
+      "size_bytes": 410696
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/write-fire-token-high-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "56ce55eada6fc3675af8d3912aa743bc7ad1524d1112a4ed815c2de0c32be05f",
+      "size_bytes": 410643
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/final-response-keeps-pending/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "71f4f9c84282141eb0a588e10946da3eb62d44734fe844d5ead7ced39ed0fade",
+      "size_bytes": 410580
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/interphase-cancel-suppressed/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "3d8b742439bb70b85906f0121cd233bf88dd2d0d36d6d8fb7a2cef25564d5c20",
+      "size_bytes": 410588
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/interphase-lane9-token-high-truncate/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "0a5bd9acfc481bcb6512327b8283e84e177a5d911b3bd529111f9ae1ecb8d5df",
+      "size_bytes": 410595
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-reservation0/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "426ad2183aab48a641bf4cea20818ac2519365883e7fdbf6dd6a401b2af877cb",
+      "size_bytes": 410990
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-reservation1/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "7245ca249dece52a9d1cc43b7dbf1bdab5df0d1bacd6b3aee2c9acc9e8a7d2bd",
+      "size_bytes": 410994
+    },
+    {
+      "kind": "generated-negative-rtl",
+      "path": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-legacy-buffer/OooIntBackend.v",
+      "removed_after_validation": true,
+      "sha256": "2887b0f96d288bcb98c38f357f1defba99ed74a90dd8b329b6ad9247ee95c44b",
+      "size_bytes": 410775
+    }
+  ],
+  "removed_count": 55,
+  "retained_compile_images": 0,
+  "status": "PASS"
+}

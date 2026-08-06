@@ -1,0 +1,38 @@
+--- production/OooIntBackend.v
++++ mutation/consume-miq-live-split/OooIntBackend.v
+@@ -4857,16 +4857,16 @@
+   assign mem_retry0_req_fire_w = grant_retry0_w && mem_req_ready_i;
+   assign mem_retry1_req_fire_w = grant_retry1_w && mem1_req_ready_i;
+   assign issue0_mem_request_fire_w =
+-      (grant_issue0_w && mem_req_ready_i) ||
+-      (grant_mem1_issue0_w && mem1_req_ready_i);
++      (live_grant_issue0_w && mem_req_ready_i) ||
++      (live_grant_mem1_issue0_w && mem1_req_ready_i);
+   assign issue0_mem_buffer_fire_w =
+       !ENABLE_DUAL_MEM && mem_issue_res_consume_fire_w &&
+       issue0_is_mem_w && !issue0_is_amo_w &&
+       !issue0_mem_exception_w && !issue0_sq_fwd_w &&
+       !issue0_mem_request_fire_w && !mem_buffer_valid_q;
+   assign issue1_mem_request_fire_w =
+-      (grant_issue1_w && mem_req_ready_i) ||
+-      (grant_mem1_issue1_w && mem1_req_ready_i);
++      (live_grant_issue1_w && mem_req_ready_i) ||
++      (live_grant_mem1_issue1_w && mem1_req_ready_i);
+   assign issue1_mem_buffer_fire_w =
+       !ENABLE_DUAL_MEM && mem_issue1_res_consume_fire_w && issue1_is_mem_w &&
+       !issue1_mem_exception_w && !issue1_sq_fwd_w &&
+@@ -5167,10 +5167,10 @@
+   wire push_buffer_w = mem_buffer_req_fire_w;
+   wire push_retry0_w = mem_retry0_req_fire_w;
+   wire push_retry1_w = mem_retry1_req_fire_w;
+-  wire push_issue0_w = grant_issue0_w && mem_req_ready_i;
+-  wire push_issue1_w = grant_issue1_w && mem_req_ready_i;
+-  wire push_mem1_issue0_w = grant_mem1_issue0_w && mem1_req_ready_i;
+-  wire push_mem1_issue1_w = grant_mem1_issue1_w && mem1_req_ready_i;
++  wire push_issue0_w = live_grant_issue0_w && mem_req_ready_i;
++  wire push_issue1_w = live_grant_issue1_w && mem_req_ready_i;
++  wire push_mem1_issue0_w = live_grant_mem1_issue0_w && mem1_req_ready_i;
++  wire push_mem1_issue1_w = live_grant_mem1_issue1_w && mem1_req_ready_i;
+   wire push_drain_w = sq_drain_req_fire_w;
+ 
+   assign miq_push_valid_w = mem_req_fire_any_w;

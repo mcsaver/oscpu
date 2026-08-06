@@ -1,0 +1,12 @@
+5	flow-self-test	PASS	2508	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/flow-self-test.log
+5	rtl-task-contract	PASS	953	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rtl-task-contract.log
+5	rv64-soc-delivery-gates	FAIL	150	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-soc-delivery-gates.log
+6	flow-self-test	PASS	2557	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/flow-self-test.log
+6	rtl-task-contract	PASS	1003	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rtl-task-contract.log
+6	rv64-soc-delivery-gates	PASS	1504	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-soc-delivery-gates.log
+6	rv64-lightweight-linux-runner-contract	PASS	151	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-lightweight-linux-runner-contract.log
+6	rv64-mini-system-runner-contract	PASS	151	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-mini-system-runner-contract.log
+6	rv64-current-simulator-cache-contract	PASS	50	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-current-simulator-cache-contract.log
+6	rv64-layered-system-signoff-current	PASS	6319	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-layered-system-signoff-current.log
+6	rv64-system-recertification-runner-contract	PASS	19203	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-system-recertification-runner-contract.log
+6	rv64-full-core-runner-contract	PASS	65052	.github/runtime-artifacts/agent-flow/rv64-v15h-architecture-debt-current-f7a/gates/rv64-full-core-runner-contract.log

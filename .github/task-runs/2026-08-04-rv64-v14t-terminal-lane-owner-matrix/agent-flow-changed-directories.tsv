@@ -1,0 +1,9 @@
+.github/instructions
+npc/rv64/design/arch
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+scripts
+scripts/tests
+.github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix/evidence
+.github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix/subagent-contracts
+.github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix

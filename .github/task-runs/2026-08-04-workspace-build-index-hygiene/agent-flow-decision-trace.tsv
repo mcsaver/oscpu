@@ -1,0 +1,7 @@
+2026-08-04T12:56:13Z	decision	task class changed cleanup -> environment: cleanup scope added a C-dispatched index-hygiene gate and workflow documentation	-
+2026-08-04T12:57:09Z	decision	Git is used only for its own index hygiene; normal RV64 development remains explicit-path and zero Git worktree discovery. Build/cache outputs are rejected, four source-bearing build directories remain exact-allowlisted, and assembly source stays visible.	.gitignore
+2026-08-04T13:03:00Z	note	Independent read-only review node exceeded its bounded window and was interrupted; Windows process audit found WSL_WORKSPACE_PROCESS_COUNT=0. Candidate gates remain PASS, reviewer verdict is GAP rather than inferred PASS.	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/summary.txt
+2026-08-04T13:19:21Z	decision	Git last-match 使 .github allowlist 重新放行 task-run Python bytecode；专用 ignore 必须位于 allowlist 之后，并由两个 ignore probe 与缺规则负向版本固定。	-
+2026-08-04T13:19:21Z	evidence	源码索引检查 tracked=39545 generated=0 allowed_build_descriptions=4 probes=10；两处未跟踪 task-run Python cache 已删除，日志、结果与证据指针保持不变。	-
+2026-08-04T13:21:57Z	decision	路径分类先识别 build、obj_dir、CMakeFiles、__pycache__、bytecode 和仿真波形；这些可再生产物只选择 source-artifact-hygiene，保留的 result、summary 与 manifest 仍保持原架构 receipt 路由。	-
+2026-08-04T13:27:17Z	evidence	独立只读复核先发现 pyd 与 docs-class build report 两个 GAP；补丁后复核确认两项均闭合。复核不外推 RTL、仿真、综合、STA 或 PPA。	-

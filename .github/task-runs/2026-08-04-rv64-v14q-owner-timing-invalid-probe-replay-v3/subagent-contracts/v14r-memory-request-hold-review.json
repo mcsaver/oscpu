@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14r-memory-request-hold-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooIntBackend bank0/bank1 memory request 仲裁器在 mem_req_valid_o && !mem_req_ready_i 周期内的 transaction owner 与 payload 保持合同；根据 V14Q CoreMark reason-conserved 证据，判断 admission_identity_change 是否为 production RTL ready/valid 违约，并给出不改变 request-fire、MIQ birth、flush/restore、selective-recovery、SQ DRAIN B-terminal 与双 bank 语义的最小寄存器/组合拓扑及定向 testbench 反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/owner-timing-invalid-probe.status",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/logs/coremark-owner-timing-rep1.log",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/owner-timing-invalid-probe-replay.status",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/evidence/owner-timing-invalid-probe-replay/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/subagent-contracts/v14r-memory-request-hold-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/evidence/owner-timing-invalid-probe-replay/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 bank0/bank1 request source/grant/holder/kill/flush/fire 数据流与寄存器拓扑，明确哪些 source payload 已由 Q 保持、何时允许取消、如何锁定选中 source，及必须新增的立即断言和定向 TB 场景。",
+    "列出会推翻最小方案的反例、组合环或 PPA/CPI 风险，并明确是否需要扩大路径。"
+  ],
+  "success_criteria": [
+    "结论必须将 1176 个 admission_identity_change 与具体 OooIntBackend grant/payload 路径对应，区分 collector 合同缺陷与 production RTL 违约两种解释。",
+    "方案必须保持 request fire 与 MIQ push 同拍、SQ physical DRAIN exactly-once、flush/restore fail-closed、selective-recovery owner cancel、双 bank 独立 fire，且不得用去重或放宽 invalid_events 得到 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

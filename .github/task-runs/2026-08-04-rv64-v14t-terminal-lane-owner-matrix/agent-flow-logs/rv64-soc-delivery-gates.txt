@@ -1,0 +1,1 @@
+[RV64-SOC-DELIVERY-GATES-TEST][PASS] positive=1 negative=25

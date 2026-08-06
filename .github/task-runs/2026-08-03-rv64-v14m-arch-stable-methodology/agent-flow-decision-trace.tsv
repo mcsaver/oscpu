@@ -1,0 +1,1 @@
+2026-08-03T22:05:01Z	decision	采用公开可核验的分阶段 SoC signoff 原则；task class、execution tier、design maturity 三轴正交。ARCH_STABLE 只在 static/semantic/dynamic/full-functional/current-debt/history/independent-review 同源合取后签发，且固定 PPA UNQUALIFIED；普通 review 和日常 RTL 开发不增加完整候选门。	npc/rv64/design/arch/rv64-soc-maturity-stages.tsv

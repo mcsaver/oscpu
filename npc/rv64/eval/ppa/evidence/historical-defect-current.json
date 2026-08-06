@@ -1,0 +1,303 @@
+{
+  "config_identity": {
+    "npc_auto_conf": {
+      "path": "npc/rv64/include/config/auto.conf",
+      "sha256": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4",
+      "size_bytes": 641
+    },
+    "npc_autoconf_header": {
+      "path": "npc/rv64/include/generated/autoconf.h",
+      "sha256": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9",
+      "size_bytes": 828
+    },
+    "npc_config": {
+      "path": "npc/rv64/.config",
+      "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+      "size_bytes": 1257
+    }
+  },
+  "defect_ids": [
+    "HIST-A3-DMESG-DEBUG-TOKEN",
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL",
+    "HIST-SER-QH-STOP-HOLD-DROP",
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+    "HIST-V8L-FORCE-RELEASE-SHADOW",
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP"
+  ],
+  "defect_status": {
+    "HIST-A3-DMESG-DEBUG-TOKEN": "BACKFILLED_CURRENT_DESIGN",
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL": "BACKFILLED_CURRENT_DESIGN",
+    "HIST-SER-QH-STOP-HOLD-DROP": "BACKFILLED_CURRENT_DESIGN",
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE": "BACKFILLED_CURRENT_DESIGN",
+    "HIST-V8L-FORCE-RELEASE-SHADOW": "BACKFILLED_CURRENT_DESIGN",
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": "BACKFILLED_CURRENT_DESIGN"
+  },
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "evidence_reuse_contract": {
+    "artifact_state": "TOP_LEVEL_RECEIPTS_PATH_SHA256_SIZE_BOUND_AND_RETAINED_LOGS_SHA256_BOUND",
+    "assertion_state": "POSITIVE_ZERO_FAILURE_AND_COMPILE_SUCCESS_NEGATIVE_REJECTION_REQUIRED",
+    "build_product_state": "REGENERABLE_SIMULATOR_IMAGES_REMOVED_AFTER_HASH_RECEIPT",
+    "compile_sidefile_state": "REMOVED_ZERO_RC_HASH_RECEIPT_CROSSCHECKED_WITH_RETAINED_TB_LOG",
+    "execution_state": "ORIGINAL_STATUS_IMMUTABLE",
+    "full_system_rerun": false,
+    "oracle_state": "VERSIONED_REPLAY_WITH_KNOWN_GOOD_AND_EXPECTED_FAIL_FIXTURES",
+    "replay_state": "ONLY_TARGETED_HISTORICAL_RTL_AND_ORACLE_REPLAYS",
+    "rerun_on": [
+      "production_or_elaborated_rtl_change_in_the_bound_owner_cone",
+      "active_device_model_host_harness_or_simulator_semantics_change",
+      "configuration_workload_or_frozen_input_identity_change",
+      "missing_raw_terminal_assertion_or_post_hash_evidence",
+      "mutation_anchor_or_expected_rejection_marker_drift"
+    ],
+    "shared_system_dependency": "LAYERED_SIGNOFF_AND_CURRENT_CHECKER_CONTRACT_REQUIRED"
+  },
+  "inputs": {
+    "architecture_binding_tool": {
+      "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
+      "size_bytes": 125852
+    },
+    "backfill_ledger_schema": {
+      "path": "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+      "sha256": "f55437e42a4ce8d40cfe71f649793b073514f0d89011d9e4a5fbd1bdab8393da",
+      "size_bytes": 4169
+    },
+    "current_checker": {
+      "path": "Linux/scripts/npc-systemd-strict-check.sh",
+      "sha256": "1cb1c6b9e9c7440447dd3fa3f0759938e9d5e4aede90d87357676f32c71fbbe6",
+      "size_bytes": 5522
+    },
+    "current_checker_test": {
+      "path": "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "sha256": "d381684ee2d57ed918fcdd9d3ae4b1c616c1cc09fcfa69bdebe631062dd5cade",
+      "size_bytes": 2376
+    },
+    "exit_current_runner": {
+      "path": "npc/rv64/testbench/scripts/run_historical_exit_current.py",
+      "sha256": "dcfbd7b88f2ac4898167f4f2f4902d16be1e755992fb6f14e680fc617bc877e9",
+      "size_bytes": 17233
+    },
+    "historical_a3_checker_replay": {
+      "path": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      "sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8",
+      "size_bytes": 13461
+    },
+    "historical_a3_original_status": {
+      "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      "sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8",
+      "size_bytes": 70
+    },
+    "historical_qh_reconstruction": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
+      "sha256": "a7c15649be90432aa6961671b10e1be06ade4ddef18e8e06846fb6f3cd7b9fa0",
+      "size_bytes": 14215
+    },
+    "historical_stop_hold_matrix": {
+      "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/summary.json",
+      "sha256": "8f989410a6037cee1eba4cb04255af6e72b4b827f99583a0dd2165ff95f0bd8c",
+      "size_bytes": 13425
+    },
+    "historical_v8l_matrix": {
+      "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
+      "sha256": "d142f039cb9c2fc3c239b9920074e6a04e85e1493fd1706e00bdeb7630f66cdc",
+      "size_bytes": 10803
+    },
+    "historical_v9p_root_cause": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      "sha256": "653fc5387f38df567c17f3418eca44381d50c503251530cf6fbd8400eab01220",
+      "size_bytes": 6604
+    },
+    "layered_system_current": {
+      "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "sha256": "f342ce6ed7317afcb2cda6676f130616b5e15a76a8e5d43305ae8ede8ab0a09c",
+      "size_bytes": 15150
+    },
+    "receipt_schema": {
+      "path": "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "sha256": "440264de564a0ef6a91e75f66b82a5bc001a2648e7780756139ae07147288640",
+      "size_bytes": 4894
+    },
+    "receipt_tool": {
+      "path": "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "sha256": "581b52026bbf06bf2027fa0406bdaa7249475fb7254433a86803926b157f476b",
+      "size_bytes": 85804
+    },
+    "v15g_exit_current": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/exit/summary.json",
+      "sha256": "d47e84d8e9b74435017831e3e054dd19299efa6cc3e4302a995c2ee320c98db9",
+      "size_bytes": 17553
+    },
+    "v15g_independent_review": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/independent-review.json",
+      "sha256": "fe68086d6ab0f8bcead93f7c05ec817e34bc11723920552a339f5a23b8c315c7",
+      "size_bytes": 1891
+    },
+    "v15g_root_cause_verifier": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/verify-v9p-root-cause.py",
+      "sha256": "17f544f7f76c0c51ad1736da0e45a7d5af84acd84d0eff0bd88d6cb441bff72a",
+      "size_bytes": 23901
+    },
+    "v15g_serialize_qh_current": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/qh/summary.json",
+      "sha256": "a4969ec2635648450ff43e7ecb7b1f4ec307edde54994742a9c96b78f9d4a098",
+      "size_bytes": 254045
+    },
+    "v15g_serialize_system_current": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/system/summary.json",
+      "sha256": "cf90786defd91eef71c31691a78cc0e011ca23d3d29bf1014d5d58503f74e8f8",
+      "size_bytes": 707626
+    },
+    "v15g_v8l_current": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v8l-current-f7a-run-1/summary.json",
+      "sha256": "622ab7711f3af47dbd415ec7098679e4cc75be65449cf4357dd8c6d3dd629346",
+      "size_bytes": 15549
+    },
+    "v8l_testbench": {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
+      "size_bytes": 925236
+    },
+    "v9r_current": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9r-current/summary.json",
+      "sha256": "b0fa888b9ad028af9ea19567eed4b4415c4d01845b642430198e873333d9aa07",
+      "size_bytes": 4098
+    }
+  },
+  "metrics": {
+    "HIST-A3-DMESG-DEBUG-TOKEN": {
+      "current_checker_tests": "3/3_FOCUSED",
+      "current_matches": 0,
+      "layered_current": {
+        "default_signoff": "L0+L1+L2+L3",
+        "layer_status": {
+          "L0_DIRECTED_RTL": "PASS",
+          "L1_FULL_CORE_DIFFTEST": "PASS",
+          "L2_MINI_SYSTEM": "PASS",
+          "L3_LIGHTWEIGHT_LINUX": "PASS"
+        },
+        "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
+        "rtl_assertion_failures": 0
+      },
+      "legacy_matches": 2,
+      "original_status": "FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0",
+      "original_status_preserved": true,
+      "printk_debug_accepted": true,
+      "real_bug_rejected": true
+    },
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL": {
+      "baseline_profiles": "2/2",
+      "compile_success_mutations": "7/7",
+      "current_csrfile_hash": "73d9647879753a4d67a270e74701f6eab16bfe36a1be137c3f7a821ab669c966",
+      "intermediate_products_retained": 0,
+      "source_bindings": "12/12_EXACT_ROLE_BOUND",
+      "system_current": {
+        "default_signoff": "L0+L1+L2+L3",
+        "layer_status": {
+          "L0_DIRECTED_RTL": "PASS",
+          "L1_FULL_CORE_DIFFTEST": "PASS",
+          "L2_MINI_SYSTEM": "PASS",
+          "L3_LIGHTWEIGHT_LINUX": "PASS"
+        },
+        "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
+        "rtl_assertion_failures": 0
+      },
+      "tool_configuration_bound": true
+    },
+    "HIST-SER-QH-STOP-HOLD-DROP": {
+      "compile_success_evidence": "RETAINED_TB_LOG_PLUS_REMOVED_ZERO_RC_RECEIPT",
+      "current_compile_success_mutations": "2/2",
+      "current_positive_profiles": "2/2",
+      "event_deduplication": false,
+      "historical_compile_success_cases": "8/8",
+      "historical_root_rejected_assert_on_off": true
+    },
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE": {
+      "compile_success_evidence": "RETAINED_TB_LOG_PLUS_REMOVED_ZERO_RC_RECEIPT",
+      "current_compile_success_mutations": "3/3",
+      "current_design_bound": true,
+      "current_positive_profiles": "2/2",
+      "historical_compile_success": "6/6",
+      "historical_negative_rejection": "2/2"
+    },
+    "HIST-V8L-FORCE-RELEASE-SHADOW": {
+      "assertion_modes": [
+        "assert",
+        "release"
+      ],
+      "current_baseline_profiles": "4/4",
+      "current_compile_success_mutations": "9/9",
+      "distinct_forced_producer_ids": 4,
+      "historical_compile_success_mutations": "9/9",
+      "intermediate_products_retained": 0,
+      "release_reset_boundaries": 4,
+      "scope": "FOCUSED_V8L_CURRENT_DESIGN"
+    },
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": {
+      "compiled_images_retained": 0,
+      "current_baseline_profiles": "2/2",
+      "current_compile_success_mutations": "3/3",
+      "current_default_signoff": "L0+L1+L2+L3",
+      "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "exact_reproducible_lane_pairs": {
+        "bank0": [
+          2,
+          10
+        ],
+        "bank1": [
+          4,
+          11
+        ]
+      },
+      "historical_design_id": "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
+      "historical_physical_assertion_events": 1,
+      "immutable_frozen_lane_pair": "UNKNOWN",
+      "independent_review": "PASS_VD4",
+      "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
+      "root_cause": "C0_RETRY_HANDOFF_SPLIT_OWNERSHIP_THEN_C1_DUPLICATE_TERMINAL"
+    }
+  },
+  "promotion": {
+    "historical_defect_ledger": "BACKFILLED_CURRENT_DESIGN",
+    "ppa": "UNPROMOTED",
+    "whole_architecture": "RED"
+  },
+  "rtl_file_count": 146,
+  "schema": "npc-rv64-historical-defect-current-v1",
+  "status": "PASS",
+  "support": {
+    "HIST-A3-DMESG-DEBUG-TOKEN": [
+      "historical_a3_checker_replay",
+      "layered_system_current"
+    ],
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL": [
+      "v15g_exit_current",
+      "layered_system_current"
+    ],
+    "HIST-SER-QH-STOP-HOLD-DROP": [
+      "historical_stop_hold_matrix",
+      "v15g_serialize_system_current"
+    ],
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE": [
+      "historical_qh_reconstruction",
+      "v15g_serialize_qh_current"
+    ],
+    "HIST-V8L-FORCE-RELEASE-SHADOW": [
+      "historical_v8l_matrix",
+      "v15g_v8l_current"
+    ],
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": [
+      "historical_v9p_root_cause",
+      "v9r_current",
+      "layered_system_current",
+      "v15g_independent_review"
+    ]
+  },
+  "validation_depth": {
+    "HIST-A3-DMESG-DEBUG-TOKEN": "VD4",
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL": "VD4",
+    "HIST-SER-QH-STOP-HOLD-DROP": "VD3",
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE": "VD3",
+    "HIST-V8L-FORCE-RELEASE-SHADOW": "VD3",
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": "VD4"
+  }
+}

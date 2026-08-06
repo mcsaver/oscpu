@@ -1,10 +1,10 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-08-01T23:46:32+00:00",
+  "updated_at": "2026-08-04T03:37:52+00:00",
   "schema_version": "4",
   "backup_format": "dev-memory-cas-v2",
   "backup_layout": "content-addressed-v1",
-  "manifest_generation": 1785627997125675663,
+  "manifest_generation": 1785814675152757398,
   "authoritative_kinds": {
     "dispatch-log": 1785455791233745345,
     "memory": 1785455791233745345,
@@ -54,7 +54,12 @@
     ".github/task-runs/2026-07-31-rv64-v11w-ifu-dispatch-rebind": 1785520073253436315,
     ".github/task-runs/2026-07-31-workspace-artifact-cleanup-a1": 1785472404426537097,
     ".github/task-runs/2026-08-02-rv64-v13u-ooo3-current-rebind-v1": 1785625392926320684,
-    ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1": 1785627997125675663
+    ".github/task-runs/2026-08-02-rv64-v13v-ooo4-current-rebind-v1": 1785627997125675663,
+    ".github/task-runs/2026-08-03-rv64-v14i-system-recertification-replay-v1": 1785774931946908673,
+    ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics": 1785808495098289438,
+    ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1": 1785808479488102490,
+    ".github/task-runs/2026-08-04-rv64-v14p-owner-timing-checker-replay-v5": 1785808487597120941,
+    ".github/task-runs/2026-08-04-rv64-v14p-owner-timing-workflow-standard": 1785808601041873273
   },
   "entries": [
     {
@@ -1188,14 +1193,14 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 20059,
-      "sha256": "4ac6ceba490fcc49aa281c71a9ca1567de07fa67a6e9aec4bb5f161a29b70ff0",
+      "size_bytes": 27339,
+      "sha256": "bf88c8ccb79c82242b7e268d51b910ff9bad96a0a77bd609309b204daee6f385",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/4a/4ac6ceba490fcc49aa281c71a9ca1567de07fa67a6e9aec4bb5f161a29b70ff0",
+      "backup_object": "objects/sha256/bf/bf88c8ccb79c82242b7e268d51b910ff9bad96a0a77bd609309b204daee6f385",
       "mode": 420,
-      "archived_at": "2026-08-01T10:08:22+00:00",
-      "generation": 1785578906791135788
+      "archived_at": "2026-08-04T03:37:52+00:00",
+      "generation": 1785814675152757398
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1212,14 +1217,14 @@
     {
       "path": ".github/memory/modules/agent-system.md",
       "kind": "memory-module",
-      "size_bytes": 35908,
-      "sha256": "5b05917aabb37bd6407249f90d19bd8902a089bcddbb260a4dad6fe8605e0025",
+      "size_bytes": 5517,
+      "sha256": "6507b7424283078d18e7c289bf74ca1999bc43216c8731c26b5a19b8c22cfffb",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/5b/5b05917aabb37bd6407249f90d19bd8902a089bcddbb260a4dad6fe8605e0025",
+      "backup_object": "objects/sha256/65/6507b7424283078d18e7c289bf74ca1999bc43216c8731c26b5a19b8c22cfffb",
       "mode": 420,
-      "archived_at": "2026-07-31T04:35:12+00:00",
-      "generation": 1785472514054914152
+      "archived_at": "2026-08-03T19:47:15+00:00",
+      "generation": 1785786436631409354
     },
     {
       "path": ".github/memory/modules/am-kernels.md",
@@ -1272,14 +1277,14 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 21827,
-      "sha256": "1645777138b699b0f1676f1dafd3f161fa5869136f825cead57b8afa5ef76cff",
+      "size_bytes": 35258,
+      "sha256": "0846d2c110d1d9dd1ad083a30adf8a9c223454836bdd982fd95741ef80d179f8",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/16/1645777138b699b0f1676f1dafd3f161fa5869136f825cead57b8afa5ef76cff",
+      "backup_object": "objects/sha256/08/0846d2c110d1d9dd1ad083a30adf8a9c223454836bdd982fd95741ef80d179f8",
       "mode": 420,
-      "archived_at": "2026-08-01T18:11:08+00:00",
-      "generation": 1785607869787663827
+      "archived_at": "2026-08-04T03:37:45+00:00",
+      "generation": 1785814666573952724
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1320,14 +1325,14 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 24708,
-      "sha256": "8af161b67214dd882172621afe7312276a43a8524daa6c78628a1347097616f6",
+      "size_bytes": 39917,
+      "sha256": "87807c040704860ac93122cc3b92038d7f6b870867d24af02eb090c41d7c4253",
       "backup_source": "database",
       "consistency": "stored-db",
-      "backup_object": "objects/sha256/8a/8af161b67214dd882172621afe7312276a43a8524daa6c78628a1347097616f6",
+      "backup_object": "objects/sha256/87/87807c040704860ac93122cc3b92038d7f6b870867d24af02eb090c41d7c4253",
       "mode": 420,
-      "archived_at": "2026-08-01T18:11:04+00:00",
-      "generation": 1785607867383615469
+      "archived_at": "2026-08-04T03:37:35+00:00",
+      "generation": 1785814658517347437
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -95900,6 +95905,114 @@
       "mode": 420,
       "archived_at": "2026-08-01T23:46:32+00:00",
       "generation": 1785627997125675663
+    },
+    {
+      "path": ".github/task-runs/2026-08-03-rv64-v14i-system-recertification-replay-v1/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 1046,
+      "sha256": "b75b832daccc7e9faa9ac9205635c221e672d8737c9447959fc29fa041c0d133",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/b7/b75b832daccc7e9faa9ac9205635c221e672d8737c9447959fc29fa041c0d133",
+      "mode": 420,
+      "archived_at": "2026-08-03T16:35:27+00:00",
+      "generation": 1785774931946908673
+    },
+    {
+      "path": ".github/task-runs/2026-08-03-rv64-v14i-system-recertification-replay-v1/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1021,
+      "sha256": "4924322d452fc5c796ae0cb9e2815520bf41f604818636875d278e8ab99558d5",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/49/4924322d452fc5c796ae0cb9e2815520bf41f604818636875d278e8ab99558d5",
+      "mode": 420,
+      "archived_at": "2026-08-03T16:35:27+00:00",
+      "generation": 1785774931946908673
+    },
+    {
+      "path": ".github/task-runs/2026-08-03-rv64-v14i-system-recertification-replay-v1/independent-review-v1.md",
+      "kind": "task-run",
+      "size_bytes": 1377,
+      "sha256": "e85417ff86cf10414ab2b03513838c40471f0b5f055b80675e6be1300e12e210",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/e8/e85417ff86cf10414ab2b03513838c40471f0b5f055b80675e6be1300e12e210",
+      "mode": 420,
+      "archived_at": "2026-08-03T16:35:27+00:00",
+      "generation": 1785774931946908673
+    },
+    {
+      "path": ".github/task-runs/2026-08-03-rv64-v14i-system-recertification-replay-v1/independent-review-v2.md",
+      "kind": "task-run",
+      "size_bytes": 1134,
+      "sha256": "38aad80a162bb6adb909cbb12d21c2248524336acda272d3057f680e6874c068",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/38/38aad80a162bb6adb909cbb12d21c2248524336acda272d3057f680e6874c068",
+      "mode": 420,
+      "archived_at": "2026-08-03T16:35:27+00:00",
+      "generation": 1785774931946908673
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 1200,
+      "sha256": "298d613f10f859ec9f56c7188476a204c54ff3ac2de0e1431fe5c41bad7055c5",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/29/298d613f10f859ec9f56c7188476a204c54ff3ac2de0e1431fe5c41bad7055c5",
+      "mode": 420,
+      "archived_at": "2026-08-04T01:54:34+00:00",
+      "generation": 1785808479488102490
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts/v14p-owner-timing-closing-review-input-v2.md",
+      "kind": "task-run",
+      "size_bytes": 1308,
+      "sha256": "b0849377f572ec2740aaa073190d356aa538aa84a273dcb8a7da702f02c78099",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/b0/b0849377f572ec2740aaa073190d356aa538aa84a273dcb8a7da702f02c78099",
+      "mode": 420,
+      "archived_at": "2026-08-04T01:54:34+00:00",
+      "generation": 1785808479488102490
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 1220,
+      "sha256": "3963b488b22ce7fefc24e674872b42d40bbfc955df98fa5db889541851c4a9b2",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/39/3963b488b22ce7fefc24e674872b42d40bbfc955df98fa5db889541851c4a9b2",
+      "mode": 420,
+      "archived_at": "2026-08-04T01:54:53+00:00",
+      "generation": 1785808495098289438
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14p-owner-timing-checker-replay-v5/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 937,
+      "sha256": "84a354b67647aaeb1ec9d850e897ef418e4fc10f088394622e9cefe6233926f9",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/84/84a354b67647aaeb1ec9d850e897ef418e4fc10f088394622e9cefe6233926f9",
+      "mode": 420,
+      "archived_at": "2026-08-04T01:54:46+00:00",
+      "generation": 1785808487597120941
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14p-owner-timing-workflow-standard/agent-flow-result.md",
+      "kind": "task-run",
+      "size_bytes": 799,
+      "sha256": "80f8c8a9f2b920e14e1beb674a8e659652b9e7243b7541e96a4c1db48465d081",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/80/80f8c8a9f2b920e14e1beb674a8e659652b9e7243b7541e96a4c1db48465d081",
+      "mode": 420,
+      "archived_at": "2026-08-04T01:56:39+00:00",
+      "generation": 1785808601041873273
     },
     {
       "path": ".github/task-runs/README.md",

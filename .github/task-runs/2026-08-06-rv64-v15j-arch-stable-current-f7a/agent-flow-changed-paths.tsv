@@ -1,0 +1,14 @@
+npc/rv64/eval/ppa/tools/arch_stable_freeze.py
+npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py
+npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py
+npc/rv64/eval/ppa/schemas/arch-stable-candidate-v2.schema.json
+npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json
+npc/rv64/eval/ppa/evidence/system-recertification-current.json
+npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json
+npc/rv64/eval/ppa/evidence/architecture-debt-current.json
+npc/rv64/eval/ppa/evidence/historical-defect-current.json
+npc/rv64/eval/ppa/evidence/arch-stable-current.json
+npc/rv64/design/arch/producer-holder-semantic-coverage.json
+npc/rv64/design/arch/architecture-debt-ledger.json
+npc/rv64/design/arch/historical-defect-backfill-ledger.json
+.github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a

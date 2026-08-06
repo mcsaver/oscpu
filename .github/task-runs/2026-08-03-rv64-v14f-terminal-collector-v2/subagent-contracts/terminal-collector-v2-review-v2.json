@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "terminal-collector-v2-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立执行并复核本地 RV64 systemd terminal collector v2 修正：区分真实 host timeout 与 simulator exit 124，在预清理前拒绝 managed output 与 RTL 仿真输入别名，闭合 console stats、NPC mirror、assertion marker 负向矩阵，并验证 producer-closed receipt 绑定及 A2/A3 冻结回放。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/a3-replay.json",
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/a2-current.json",
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/review-v2-scratch",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/npc.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/console.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/npc.log",
+      ".github/task-runs/2026-08-03-rv64-v14f-terminal-collector-v2/review-v1.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-03-rv64-v14f-terminal-collector-v2/subagent-contracts/terminal-collector-v2-review-v2.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/review-v2-scratch"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      ".github/task-runs/2026-08-03-rv64-v14f-terminal-collector-v2/review-v1.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 对象、cycle/config、TB/EDA 观测、PASS/GAP 给出独立复核；逐项说明 v1 五个 GAP 是否关闭，并保留反例、未知项、命令返回码与 shell ownership 归还。"
+  ],
+  "success_criteria": [
+    "两组 Python 定向测试全部通过；真实 timeout 返回 124 且 simulator 自返 124 不被误报；路径别名在 simulator launch 前拒绝；stats/NPC/assertion 分支有负向观测；producer-closed flag 被 canonical verifier 绑定；A2 PASS 与 A3 stage FAIL terminal PASS 保持。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

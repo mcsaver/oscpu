@@ -1,0 +1,311 @@
+{
+  "arch_stable": {
+    "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+    "sha256": "7e9844baacf69fb807b2e48630386016ba2f51b528712ba40cbff6ef4e2fd404",
+    "size_bytes": 762555
+  },
+  "baseline_contract": {
+    "path": "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+    "sha256": "4d3d416a2b12c40f467c1278cd3038c4fb7337cca7754c235cb7349ac89ce238",
+    "size_bytes": 6917
+  },
+  "benchmarks": {
+    "coremark": {
+      "bit_exact": true,
+      "counter_signature_sha256": "f3cf355a224ab18a89a3b45bbc8a302f0a36e24793886770cf22b98da9f03f04",
+      "cpi": "1.689910563991",
+      "cpi_stack": {
+        "dependency": 0,
+        "exception_redirect": 213046,
+        "execution_latency": 600149,
+        "head_lifecycle_unknown": 0,
+        "head_not_complete_aggregate": 3150371,
+        "issue_terminal": 15283,
+        "memory_commit": 0,
+        "memory_latency": 2534939,
+        "memory_lifecycle": {
+          "lifecycle_unknown": 0,
+          "request_outstanding": 1131262,
+          "reservation_queue": 635454,
+          "response_terminal": 469290,
+          "retry": 0,
+          "translation_order": 298933
+        },
+        "memory_request_detail": {
+          "axi_read_address": 10470,
+          "axi_read_data": 112778,
+          "axi_write_request": 302506,
+          "axi_write_response": 689677,
+          "cache_lookup": 15831,
+          "detail_unknown": 0,
+          "device_wait": 0
+        },
+        "rob_empty": 11053,
+        "serialization": 0,
+        "unknown": 0,
+        "unknown_ratio": 0.0,
+        "useful": 2005558
+      },
+      "cycles": 5380028,
+      "ipc": "0.591747292022",
+      "logs": [
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep1.log",
+          "sha256": "7175b934a4563d9888745de0c37240f8db9ddacaa3b7ee7e7c5953816fe66e9d",
+          "size_bytes": 10562
+        },
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep2.log",
+          "sha256": "6823375e4e7918cd7f2c3b49b0c9f7c8f5923abeec396917385d619ba98cd110",
+          "size_bytes": 10562
+        },
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep3.log",
+          "sha256": "38b84976d247273d4517be59d082932337a5f0a3d658e3229911903e4d945991",
+          "size_bytes": 10562
+        }
+      ],
+      "repetitions": 3,
+      "retire_slots": {
+        "capacity": 10760056,
+        "dependency": 0,
+        "exception_redirect": 426092,
+        "execution_latency": 1414865,
+        "head_lifecycle_unknown": 0,
+        "head_not_complete_aggregate": 7124060,
+        "issue_terminal": 317498,
+        "memory_commit": 0,
+        "memory_latency": 5391697,
+        "memory_lifecycle": {
+          "lifecycle_unknown": 0,
+          "request_outstanding": 2288931,
+          "reservation_queue": 1446927,
+          "response_terminal": 1022800,
+          "retry": 0,
+          "translation_order": 633039
+        },
+        "memory_request_detail": {
+          "axi_read_address": 21971,
+          "axi_read_data": 237545,
+          "axi_write_request": 605012,
+          "axi_write_response": 1379354,
+          "cache_lookup": 45049,
+          "detail_unknown": 0,
+          "device_wait": 0
+        },
+        "retired": 3183617,
+        "rob_empty": 26287,
+        "serialization": 0,
+        "unknown": 0,
+        "unused": 7576439
+      },
+      "retired_instructions": 3183617
+    },
+    "dhrystone_10000": {
+      "bit_exact": true,
+      "counter_signature_sha256": "71fb2966234c08ec0f62c41b9d360f4f286fa2f0c1eeb2cc6f946f8f6b8a19f2",
+      "cpi": "2.435629882353",
+      "cpi_stack": {
+        "dependency": 0,
+        "exception_redirect": 190014,
+        "execution_latency": 280019,
+        "head_lifecycle_unknown": 0,
+        "head_not_complete_aggregate": 7450448,
+        "issue_terminal": 20076,
+        "memory_commit": 0,
+        "memory_latency": 7150353,
+        "memory_lifecycle": {
+          "lifecycle_unknown": 0,
+          "request_outstanding": 4510141,
+          "reservation_queue": 1750100,
+          "response_terminal": 460083,
+          "retry": 0,
+          "translation_order": 430029
+        },
+        "memory_request_detail": {
+          "axi_read_address": 10024,
+          "axi_read_data": 50110,
+          "axi_write_request": 1279997,
+          "axi_write_response": 2969999,
+          "cache_lookup": 200011,
+          "detail_unknown": 0,
+          "device_wait": 0
+        },
+        "rob_empty": 10928,
+        "serialization": 0,
+        "unknown": 0,
+        "unknown_ratio": 0.0,
+        "useful": 2700037
+      },
+      "cycles": 10351427,
+      "ipc": "0.410571412038",
+      "logs": [
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep1.log",
+          "sha256": "d59d97a1eae20a960ca99df744027dbea65ff8af26328055bd1a713e7a9b4a5f",
+          "size_bytes": 11546
+        },
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep2.log",
+          "sha256": "a02f512ec768532459660605cdee7b6c7246d9e4c26810d08970a803f5fe3894",
+          "size_bytes": 11546
+        },
+        {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep3.log",
+          "sha256": "389519daadeb7e29e1df0d7507321397b702902aaf1cef08a1c8b5e07a0cc842",
+          "size_bytes": 11546
+        }
+      ],
+      "repetitions": 3,
+      "retire_slots": {
+        "capacity": 20702853,
+        "dependency": 0,
+        "exception_redirect": 380028,
+        "execution_latency": 770045,
+        "head_lifecycle_unknown": 0,
+        "head_not_complete_aggregate": 16040927,
+        "issue_terminal": 240158,
+        "memory_commit": 0,
+        "memory_latency": 15030724,
+        "memory_lifecycle": {
+          "lifecycle_unknown": 0,
+          "request_outstanding": 9020287,
+          "reservation_queue": 4220201,
+          "response_terminal": 920175,
+          "retry": 0,
+          "translation_order": 870061
+        },
+        "memory_request_detail": {
+          "axi_read_address": 20051,
+          "axi_read_data": 100220,
+          "axi_write_request": 2559994,
+          "axi_write_response": 5939998,
+          "cache_lookup": 400024,
+          "detail_unknown": 0,
+          "device_wait": 0
+        },
+        "retired": 4250000,
+        "rob_empty": 31898,
+        "serialization": 0,
+        "unknown": 0,
+        "unused": 16452853
+      },
+      "retired_instructions": 4250000
+    }
+  },
+  "blockers": [],
+  "boundary_qualification_amendment": {
+    "path": "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
+    "sha256": "f4236d6426145f9698865ce95ec8b1951fb4e6be66eac1328bccb58ecbff36ac",
+    "size_bytes": 3777
+  },
+  "claim_boundary": {
+    "full_causal_cpi_stack": false,
+    "global_workload_representativeness": false,
+    "maturity_stage": "PERF_BASELINE",
+    "not_claimed": [
+      "qualified frequency, area or power",
+      "global integer and FP physical issue-slot capacity",
+      "region-bound queue occupancy closure",
+      "complete causal CPI attribution",
+      "system performance recertification",
+      "PPA Pareto promotion"
+    ],
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "scope": "two deterministic current-design bare-metal PC-bounded workloads"
+  },
+  "counter_schema": {
+    "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+    "size_bytes": 12237
+  },
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "execution_mode": "FRESH_CURRENT_DESIGN_DIRECT",
+  "identity": {
+    "configuration": {
+      "path": "npc/rv64/.config",
+      "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+      "size_bytes": 1257
+    },
+    "simulator": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/frozen/NpcSimTop",
+      "sha256": "4c991c9fdaf70cb15e1c525bddb6417fd659f367de46c3b6d4b5e3012eef232e",
+      "size_bytes": 3243304
+    },
+    "stats_off_simulator": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/inputs/NpcSimTop-stats-off",
+      "sha256": "350c1055af80c351ee93ad9a0df93b0cb61a65cad2269d5a43d682c2ff36b059",
+      "size_bytes": 3239072
+    }
+  },
+  "instrumentation_noninterference": {
+    "comparisons": {
+      "coremark": {
+        "counter_available": false,
+        "cycles": 5380028,
+        "end_hits": 1,
+        "log": {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/coremark-stats-off.log",
+          "sha256": "6e067b371f5245e324109a012bf94ec7d0f2cbbdbd77890b99cdc334e6c92ffb",
+          "size_bytes": 7758
+        },
+        "matches_stats_on": true,
+        "retired_instructions": 3183617,
+        "start_hits": 1
+      },
+      "dhrystone_10000": {
+        "counter_available": false,
+        "cycles": 10351427,
+        "end_hits": 1,
+        "log": {
+          "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/logs/dhrystone-stats-off.log",
+          "sha256": "c2abb9594ccd13dfc7fd3e4145e0c9405a18b7cb5cf8d5f71cd4b5698865d8ad",
+          "size_bytes": 7471
+        },
+        "matches_stats_on": true,
+        "retired_instructions": 4250000,
+        "start_hits": 10000
+      }
+    },
+    "observer_mode": "stats-on baseline versus CONFIG_NPC_OOO_STATS=n",
+    "status": "PASS"
+  },
+  "manifest": {
+    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/run-manifest.json",
+    "sha256": "7771a8914de458e5757404fe80325c25f328419dd812dc6e2a324854529cbb88",
+    "size_bytes": 6009
+  },
+  "maturity_stage": "PERF_BASELINE",
+  "measurement_contract": {
+    "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+    "sha256": "873d3fa27a307278e078d1e65f4686ffd9b2c59902fa0518179d04cee8678b51",
+    "size_bytes": 5837
+  },
+  "policy": {
+    "path": "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
+    "sha256": "9ec60a37f243575be750ac5473e7908ba08ea33dc9fd74cd462609856866e391",
+    "size_bytes": 2391
+  },
+  "postflight_arch_stable_verify": {
+    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/arch-stable-post.log",
+    "sha256": "163e7cd85f0232175fe3aa1307eadb937c2e774acf9f950256931cc531498fc5",
+    "size_bytes": 85
+  },
+  "ppa": "UNQUALIFIED",
+  "promotion_eligible": false,
+  "repeatability": {
+    "bit_exact_cycles_retired_and_counter_stack": true,
+    "outliers_removed": 0,
+    "repetitions_per_workload": 3
+  },
+  "schema": "npc-rv64-performance-baseline-current-v3",
+  "scope": "current ARCH_STABLE simulator; deterministic CoreMark10 and Dhrystone10000 endpoint-corrected PC-bounded CPI/IPC only",
+  "status": "PERF_BASELINE",
+  "unknowns": [],
+  "workload_matrix": {
+    "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
+    "sha256": "c2f4245d5f8793ab92ef0a44e3222e6d58a35e59f59a9aa938b8b030c4d0900e",
+    "size_bytes": 3310
+  }
+}

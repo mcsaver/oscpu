@@ -84,6 +84,7 @@ module tb_ooo_store_queue;
   reg [ROB_INDEX_W-1:0] release_rob_idx;
   reg [PRODUCER_ID_W-1:0] release_producer_id;
   reg req_fire;
+  reg req_held_lease;
   reg query0_valid;
   reg [PRODUCER_ID_W-1:0] query0_producer_id;
   reg [`XLEN-1:0] query0_paddr;
@@ -102,6 +103,7 @@ module tb_ooo_store_queue;
   wire release_ready;
   wire release_fire;
   wire req_valid;
+  wire req_source_resident;
   wire [ROB_INDEX_W-1:0] req_rob_idx;
   wire [PRODUCER_ID_W-1:0] req_producer_id;
   wire [1:0] req_owner_kind;
@@ -224,6 +226,7 @@ module tb_ooo_store_queue;
     .release_producer_id_i(release_producer_id),
     .release_ready_o(release_ready),
     .release_fire_o(release_fire),
+    .req_source_resident_o(req_source_resident),
     .req_valid_o(req_valid),
     .req_rob_idx_o(req_rob_idx),
     .req_producer_id_o(req_producer_id),
@@ -238,6 +241,7 @@ module tb_ooo_store_queue;
     .req_cacheable_o(req_cacheable),
     .req_data_o(req_data),
     .req_strb_o(req_strb),
+    .req_held_lease_i(req_held_lease),
     .req_fire_i(req_fire),
     .owner_release_mask_o(owner_release_mask),
     .snoop_valid_o(snoop_valid),
@@ -1860,6 +1864,7 @@ module tb_ooo_store_queue;
     release_rob_idx = '0;
     release_producer_id = '0;
     req_fire = 1'b0;
+    req_held_lease = 1'b0;
     query_ports_idle();
     repeat (2) `TB_TICK(clk);
     rst = 1'b0;

@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14o-cpi-bottleneck-census-closing-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据冻结材料复核本地 RV64 双发射 OoO 核 CPI bottleneck census v2 的完整 rank 向量、ROB-head residency 因果边界、OooMemAxiBridge B terminal、H1-H4 判别矩阵与 PPA 候选授权边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/subagent-contracts/v14o-cpi-bottleneck-census-closing-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；生产 RTL、elaborated design、simulator、配置、workload、ROI 与 memory/device latency 语义均未变化。",
+      "CoreMark cycles=5392187 retired=3183617 CPI=1.693729804810；cycle rank=memory_latency 2542049,useful 2006774,execution_latency 601844,exception_redirect 214701,issue_terminal 15766,rob_empty 11053,其余五项 0；memory rank=request_outstanding 1139006,reservation_queue 633721,response_terminal 469892,translation_order 299430,其余两项 0；request rank=axi_write_response 691538,axi_write_request 308164,axi_read_data 112890,cache_lookup 15848,axi_read_address 10566,其余两项 0。",
+      "Dhrystone cycles=10311431 retired=4250000 CPI=2.426219058824；cycle rank=memory_latency 7100359,useful 2710035,execution_latency 280019,exception_redirect 190014,issue_terminal 20076,rob_empty 10928,其余五项 0；memory rank=request_outstanding 4510140,reservation_queue 1690109,response_terminal 460083,translation_order 440027,其余两项 0；request rank=axi_write_response 2969998,axi_write_request 1279997,cache_lookup 200011,axi_read_data 50110,axi_read_address 10024,其余两项 0。",
+      "完整向量守恒：每个 cycle rank 总和=cycles，memory rank 总和=memory_latency，request rank 总和=request_outstanding；Dhrystone request_outstanding/memory_latency=0.635198868 且 axi_write_response/request_outstanding=0.658515700；CoreMark 对应为 0.448066107 与 0.607141666。",
+      "performance-counter-schema.md 定义 counter 为互斥 ROB-head edge-old residency bucket，不是 transaction count 或排他 causal root；NpcSimTop 映射 bridge active state；OooMemAxiBridge S_WRITE_RESP 等待 lsu_axi_bvalid_i，B response 是唯一 completion terminal，禁止提前完成 store 或削弱 B terminal/assertion。",
+      "V2 判别 channels=owner_transaction、bridge_timing、pre_request_pipeline；观测含 per-owner count、S_WRITE_REQ/S_WRITE_RESP fixed-bin duration、AW/W completion to BVALID、owner admission wait、write inflight occupancy、independent-memory overlap、reservation/translation entry-exit count/duration 与 ROB-head owner correlation。",
+      "H1 映射 AW/W-to-B 与 S_WRITE_RESP duration；H2 映射 admission wait/inflight occupancy/overlap；H3 映射 per-owner count、write-state duration 与 owner correlation；H4 映射 reservation/translation entry-exit duration 与 owner correlation；量测合同要求预声明 fixed bins、event count 与 residency 分离、稳定 owner/class 绑定、complete/overflow/invalid/conservation 字段。",
+      "canonical schema=npc-rv64-cpi-bottleneck-census-v2，status=CPI_BOTTLENECK_CENSUS，optimization_candidate_authorized=false，ppa=UNQUALIFIED，promotion_eligible=false；V2 task-run PASS，test/build/verify rc=0，7 tests OK；canonical 与 task-run SHA-256=7b4370116e1fc8507d88eb8543d5a3f67642b02bb218fb76c92566062d0e75b7。",
+      "上一轮材料复核的实质 GAP 是 H4 缺 pre-request entry/exit duration 与 owner correlation；V2 已补齐。上一轮无法完整重排属于摘要未附全向量，本合同现已附两 workload 的完整 cycle/memory/request 向量。"
+    ]
+  },
+  "deliverables": [
+    "按本地 counter/RTL 对象、周期配置、TB/EDA 观测和 PASS/GAP 范围给出结构化复核；保留数值反例、替代解释、未知项及 PPA/候选授权边界。"
+  ],
+  "success_criteria": [
+    "确认完整向量可重排并守恒，H1-H4 均有区分观测，且材料未把 S_WRITE_RESP 越级解释为唯一 root cause、未授权提前完成 store、削弱 B terminal 或 PPA promotion；仍有不可区分假设时给出 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

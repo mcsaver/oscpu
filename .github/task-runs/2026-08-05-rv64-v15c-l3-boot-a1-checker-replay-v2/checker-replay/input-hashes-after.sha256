@@ -1,0 +1,6 @@
+1a8cec04c14b57d76f20c80121ebe10535db45ef10dbfbef8b01b102bc3c191b  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a1/lightweight-linux.status
+6198522fdfb5f0912eead24e9fcb5cd9b1e8a66dfd5c142f4389b08b6dd28fba  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a1/lightweight-linux/console.log
+13c9267a0cdfc3717dd4f28b54e4261a600e7617136ab0e7f79a7b46d689c7cd  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a1/lightweight-linux/npc.log
+5e5e78d865cbc5d99a4031692ee9c96841db24246668e1bba280e08442ea3d64  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a1/lightweight-linux/binding.txt
+da87fb0a50a63e1806f7892b170409655737d87c96c1d796b10708a967a745c4  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/lightweight_linux_run.py
+bcb42556fa59d39491e75ea742010cd0f15c6ca7f7feaf0978904dab4bfe3991  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py

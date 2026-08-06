@@ -1,0 +1,13 @@
+aac00b34f691b193409526bea9a31f30d41006ffffaafb29a3c4214bbbe6c621  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b/NpcSimTop
+8f7b4cc351963e94a5cd48a528c2a5d4f87c7afb032710b8b81b04f1951d10e5  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b/simulator-verFiles.dat
+4cbe6d8c610a3a4c15239cfd3102d6b72d4d61fd23aa0f7daa05c67c2a6e4407  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.elf
+99703c5d7e3d4b8604399832dbea22895d1f58cb5ed998ecc7add4c02ad0f667  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.bin
+bea515433546d05d1245979898a303c86761a52b8a302329ce6b55fa690ce6f0  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.dtb
+b4d7362b22ff07a7f114c82376510acb2bb08ca687ec15d48d7d9b7e2ea462aa  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/fw_jump.bin
+fb8630f674de03987b43bebd7a47f8ffc128647bff71b358b3bc55c4ca3e6968  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/run-mini-system-current.sh
+b1078c451a586602cc227d0a14f60100c466730469bb09807b24395d70925413  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/mini_system_run.py
+234fe63c8169d1321204b539822fcebab92e75720a62fd171b51eca741c674e4  /home/lyg/PA/ysyx-workbench/Linux/scripts/build-rv64-mini-system.sh
+c2f392965219e282271a8f115ba2305483301f1d13889401ed8768a18e75bd5d  /home/lyg/PA/ysyx-workbench/Linux/mini-system/rv64-l2-payload.S
+7ec3ab3d6730fd376b08eb706350ccad127deb6174b83878907968aeab3f5669  /home/lyg/PA/ysyx-workbench/Linux/mini-system/rv64-l2-payload.ld
+ed3382075d86701de8af9dd96a534fefdb439f37840cb1b8420ee074e2ba1118  /home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6  /home/lyg/PA/ysyx-workbench/scripts/task-run-status.sh

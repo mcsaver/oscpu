@@ -1,0 +1,35 @@
+{
+  "candidate": {
+    "kind": "arch_stable_candidate",
+    "path": "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+    "sha256": "636f9c8935557444dc6d2e9fa180bb8c3f980f7cdeb5d97a10f855f17f8d4c37",
+    "size_bytes": 164916
+  },
+  "decision": "APPROVE_ARCH_STABLE",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "evidence": [
+    {
+      "kind": "independent_review_report",
+      "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/independent-review-report.md",
+      "sha256": "adeebdb28abd5b983ae622981539f376a0d481db1967b5d21a4e91e387cc3d35",
+      "size_bytes": 1445
+    },
+    {
+      "kind": "rtl_task_contract",
+      "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-final3-delta-review.json",
+      "sha256": "4d656c9d5fe3cfa6e7d6f184e9bdb8633fb6dca6415f64a455ec0a2deacd4cd8",
+      "size_bytes": 3289
+    }
+  ],
+  "open_blockers": [],
+  "review_scope": {
+    "architecture_prerequisites": "PASS",
+    "ppa": "UNQUALIFIED",
+    "producer_holder_static_semantic_dynamic": "PASS",
+    "promotion_eligible": false
+  },
+  "reviewed_at_utc": "2026-08-04T00:30:00+08:00",
+  "reviewer_task": "/root/v14m_final_review",
+  "schema": "npc-rv64-arch-stable-independent-review-v1",
+  "unknowns": []
+}

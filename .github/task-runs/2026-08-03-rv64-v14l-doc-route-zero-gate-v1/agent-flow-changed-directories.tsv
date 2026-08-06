@@ -1,0 +1,7 @@
+scripts
+scripts/tests
+.github/instructions
+.github/task-runs/2026-08-04-rv64-v14l-doc-route-zero-gate-v1
+.github/memory
+.github/memory/modules
+.github/db-backup

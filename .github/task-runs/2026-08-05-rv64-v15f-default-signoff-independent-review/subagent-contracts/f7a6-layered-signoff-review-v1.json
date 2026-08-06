@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "f7a6-layered-signoff-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 f7a6 的 L0/L1/L2/L3 current receipt：检查 113 项 RTL testbench 断言配置、full-core DiffTest 冻结 cohort、mini-system 与 lightweight Linux 终端事务是否由同一 production RTL design-id 支撑，并寻找输入漂移、seal 替换、层级越权或 Ubuntu/PPA 假绿反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "AI_ENVIRONMENT.md",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+      "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py",
+      "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+      "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_replay.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_functional_replay.py",
+      "npc/rv64/eval/ppa/replay-full-core-functional-current.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v3",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11",
+      ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6",
+      ".github/task-runs/2026-08-05-rv64-v15f-default-signoff-independent-review/subagent-contracts/f7a6-layered-signoff-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按规定首行输出 RV64 RTL 证据对象、设计/周期配置、TB/EDA 观测和 PASS/GAP 范围；随后列出可操作反例、未知项、替代解释、scope_extension_request 与 confidence_and_basis，明确 v2 PASS、v3 FAIL、A11、A6 及 optional Ubuntu/PPA 边界是否一致"
+  ],
+  "success_criteria": [
+    "只读核对 checker 与冻结证据后，对 f7a6 默认四层合取给出可审计 PASS/GAP/inconclusive；任何结论都绑定真实文件、schema 字段、marker 或哈希，并且不把可选 Ubuntu、ARCH_STABLE、综合、STA、功耗、面积或 PPA 外推为完成"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

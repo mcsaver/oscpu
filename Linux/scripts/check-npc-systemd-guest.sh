@@ -43,6 +43,7 @@ ROOTFS_EXPECTED_TEMPLATE_SHA256=${NPC_SYSTEMD_ROOTFS_EXPECTED_TEMPLATE_SHA256:-}
 ROOTFS_BINDING_LOG=${NPC_SYSTEMD_ROOTFS_BINDING_LOG:-"$LOG_DIR/rootfs-binding.txt"}
 TRANSACTION_PARSER=${NPC_SYSTEMD_TRANSACTION_PARSER:-"$SCRIPT_DIR/npc_systemd_transaction_evidence.py"}
 TRANSACTION_EVIDENCE=${NPC_SYSTEMD_TRANSACTION_EVIDENCE:-"$LOG_DIR/systemd-transaction-evidence.json"}
+CANONICAL_TRANSACTION_VERIFIER="$SCRIPT_DIR/npc_systemd_transaction_evidence.py"
 NEXT_ADDR_VALUE=${NEXT_ADDR:-}
 DTB_ADDR_VALUE=${DTB_ADDR:-}
 case "$GUEST_COMMAND_MODE" in
@@ -103,12 +104,117 @@ fi
 
 fail() {
   echo "[npc-systemd-check] FAIL: $*" >&2
-  if [ -f "$CONSOLE_LOG" ]; then
+  if [ "${LOG_OUTPUTS_READY:-0}" = "1" ] && [ -f "$CONSOLE_LOG" ]; then
     echo "[npc-systemd-check] ---- console tail ----" >&2
     tail -120 "$CONSOLE_LOG" >&2 || true
     echo "[npc-systemd-check] ----------------------" >&2
   fi
   exit 1
+}
+
+paths_alias() {
+  local left=$1
+  local right=$2
+  local left_resolved
+  local right_resolved
+  left_resolved=$(realpath -m -- "$left") || return 2
+  right_resolved=$(realpath -m -- "$right") || return 2
+  if [ "$left_resolved" = "$right_resolved" ]; then
+    return 0
+  fi
+  if [ -e "$left" ] && [ -e "$right" ] && [ "$left" -ef "$right" ]; then
+    return 0
+  fi
+  return 1
+}
+
+require_no_path_alias() {
+  local left_label=$1
+  local left=$2
+  local right_label=$3
+  local right=$4
+  local alias_rc
+  if paths_alias "$left" "$right"; then
+    fail "$left_label path aliases $right_label: $left"
+  else
+    alias_rc=$?
+  fi
+  [ "$alias_rc" -eq 1 ] ||
+    fail "unable to resolve $left_label/$right_label path identity"
+}
+
+preclear_output() {
+  local label=$1
+  local path=$2
+  if [ -d "$path" ]; then
+    fail "$label output path is a directory: $path"
+  fi
+  rm -f -- "$path" || fail "unable to preclear $label output: $path"
+}
+
+require_distinct_output_paths() {
+  if [ "$CONSOLE_LOG" = "$NPC_LOG" ] ||
+     [ "$CONSOLE_LOG" = "$TRANSACTION_EVIDENCE" ] ||
+     [ "$NPC_LOG" = "$TRANSACTION_EVIDENCE" ]; then
+    fail "console, NPC and transaction evidence outputs must use distinct paths"
+  fi
+}
+
+require_safe_managed_paths() {
+  local managed_labels=(console "NPC log" "transaction evidence" "guest commands")
+  local managed_paths=("$CONSOLE_LOG" "$NPC_LOG" "$TRANSACTION_EVIDENCE" "$GUEST_CMDS")
+  local input_labels=(host-script "transaction parser" "canonical transaction verifier")
+  local input_paths=(
+    "$SCRIPT_DIR/check-npc-systemd-guest.sh"
+    "$TRANSACTION_PARSER"
+    "$CANONICAL_TRANSACTION_VERIFIER"
+  )
+  local index
+  local other
+
+  if [ -n "$ROOTFS_WORK_IMAGE" ]; then
+    managed_labels+=("rootfs work image" "rootfs binding log")
+    managed_paths+=("$ROOTFS_WORK_IMAGE" "$ROOTFS_BINDING_LOG")
+  fi
+  for index in "${!managed_paths[@]}"; do
+    for ((other = index + 1; other < ${#managed_paths[@]}; other++)); do
+      require_no_path_alias \
+        "${managed_labels[$index]} output" "${managed_paths[$index]}" \
+        "${managed_labels[$other]} output" "${managed_paths[$other]}"
+    done
+  done
+
+  for index in NPC_SIM_BIN LINUX_IMAGE_FILE RUN_FW_FILE RUN_DTB_FILE RUN_ROOTFS_FILE; do
+    if [ -n "${!index}" ]; then
+      input_labels+=("$index input")
+      input_paths+=("${!index}")
+    fi
+  done
+  for index in "${!managed_paths[@]}"; do
+    for other in "${!input_paths[@]}"; do
+      require_no_path_alias \
+        "${managed_labels[$index]} output" "${managed_paths[$index]}" \
+        "${input_labels[$other]}" "${input_paths[$other]}"
+    done
+  done
+}
+
+HOST_TIMEOUT_DIAGNOSTIC=
+cleanup_host_timeout_diagnostic() {
+  if [ -n "$HOST_TIMEOUT_DIAGNOSTIC" ]; then
+    rm -f -- "$HOST_TIMEOUT_DIAGNOSTIC"
+  fi
+}
+
+run_with_host_timeout() {
+  LC_ALL=C timeout --verbose "${HOST_TIMEOUT}s" \
+    bash -c 'exec "$@" 2>&1' npc-host-timeout "$@" \
+    2>"$HOST_TIMEOUT_DIAGNOSTIC"
+}
+
+host_timeout_expired() {
+  [ -n "$HOST_TIMEOUT_DIAGNOSTIC" ] &&
+    grep -qaF 'timeout: sending signal TERM to command' "$HOST_TIMEOUT_DIAGNOSTIC"
 }
 
 write_guest_commands() {
@@ -209,42 +315,6 @@ require_poweroff_evidence() {
     fail "missing natural-poweroff evidence: $label"
 }
 
-terminal_sequence_line=0
-require_ordered_terminal_evidence() {
-  local label=$1
-  local pattern=$2
-  local occurrence_matches=""
-  local occurrence_rc=0
-  local line_matches=""
-  local line_rc=0
-  local count=0
-  local line
-
-  occurrence_matches="$(
-    grep -aoE "$pattern" "$CONSOLE_LOG" 2>/dev/null
-  )" || occurrence_rc=$?
-  if [ "$occurrence_rc" -eq 0 ]; then
-    count="$(printf '%s\n' "$occurrence_matches" | wc -l)"
-  elif [ "$occurrence_rc" -ne 1 ]; then
-    fail "natural-poweroff event query failed: $label rc=$occurrence_rc"
-  fi
-  if [ "$count" -ne 1 ]; then
-    fail "natural-poweroff event count mismatch: $label observed=$count expected=1"
-  fi
-
-  line_matches="$(
-    grep -aEn "$pattern" "$CONSOLE_LOG" 2>/dev/null
-  )" || line_rc=$?
-  if [ "$line_rc" -ne 0 ]; then
-    fail "natural-poweroff event line query failed: $label rc=$line_rc"
-  fi
-  line=${line_matches%%:*}
-  if [ "$line" -le "$terminal_sequence_line" ]; then
-    fail "natural-poweroff event order mismatch: $label line=$line previous=$terminal_sequence_line"
-  fi
-  terminal_sequence_line=$line
-}
-
 require_strict_passes() {
   local label
   for label in \
@@ -257,6 +327,10 @@ require_strict_passes() {
   done
 }
 
+LOG_OUTPUTS_READY=0
+require_distinct_output_paths
+require_safe_managed_paths
+
 if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
   write_guest_commands
 else
@@ -266,6 +340,11 @@ else
 # guest checks are emitted by rootfs systemd units; no UART payload is used.
 GUEST_CMDS_EOF
 fi
+
+mkdir -p "$LOG_DIR"
+preclear_output "console" "$CONSOLE_LOG"
+preclear_output "NPC log" "$NPC_LOG"
+preclear_output "transaction evidence" "$TRANSACTION_EVIDENCE"
 
 if [ -n "$ROOTFS_WORK_IMAGE" ]; then
   rootfs_prepare_args=(
@@ -307,6 +386,7 @@ echo "[npc-systemd-check] progress interval: $PROGRESS_INTERVAL"
 echo "[npc-systemd-check] guest commands: $GUEST_CMDS"
 if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
   echo "[npc-systemd-check] transaction parser: $TRANSACTION_PARSER"
+  echo "[npc-systemd-check] canonical transaction verifier: $CANONICAL_TRANSACTION_VERIFIER"
   echo "[npc-systemd-check] transaction evidence: $TRANSACTION_EVIDENCE"
 fi
 
@@ -318,6 +398,10 @@ progress_args=(--no-progress)
 if [ -n "$PROGRESS_INTERVAL" ] && [ "$PROGRESS_INTERVAL" != "0" ]; then
   progress_args=("--progress=$PROGRESS_INTERVAL")
 fi
+
+HOST_TIMEOUT_DIAGNOSTIC=$(mktemp "$LOG_DIR/.npc-host-timeout.XXXXXX") ||
+  fail "unable to allocate host-timeout diagnostic"
+trap cleanup_host_timeout_diagnostic EXIT
 
 set +e
 tee_rc=0
@@ -352,8 +436,8 @@ if [ "$POWEROFF_ENABLE" = "1" ]; then
       NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT"
     )
   fi
-  "${sim_env[@]}" \
-    timeout "${HOST_TIMEOUT}s" \
+  run_with_host_timeout \
+    "${sim_env[@]}" \
       "$NPC_SIM_BIN" -b "${progress_args[@]}" --no-diff --max="$MAX_CYCLES" \
         --log="$NPC_LOG" \
         -i "$RUN_FW_FILE" \
@@ -364,7 +448,7 @@ if [ "$POWEROFF_ENABLE" = "1" ]; then
   run_rc=${pipe_rc[0]:-125}
   tee_rc=${pipe_rc[1]:-125}
 elif [ "$GUEST_COMMAND_MODE" = "uart" ]; then
-  env NPC_OOO_WINDOW=0 \
+  run_with_host_timeout env NPC_OOO_WINDOW=0 \
     NPC_UART_RX_FILE="$GUEST_CMDS" \
     NPC_UART_RX_WAIT="$UART_WAIT" \
     NPC_UART_RX_TRACE="$UART_TRACE" \
@@ -372,21 +456,28 @@ elif [ "$GUEST_COMMAND_MODE" = "uart" ]; then
     NPC_UART_RX_CYCLE_GAP="$UART_CYCLE_GAP" \
     NPC_UART_RX_RELEASE_DELAY_CYCLES="$UART_RELEASE_DELAY" \
     NPC_GUEST_EXPECT="$DONE_MARKER" \
-    timeout "${HOST_TIMEOUT}s" \
       make -C "$LINUX_HOME" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
         MAX_CYCLES="$MAX_CYCLES" PROGRESS="$PROGRESS_INTERVAL" LOG_DIR="$LOG_DIR" run
   run_rc=$?
 else
-  env NPC_OOO_WINDOW=0 \
+  run_with_host_timeout env NPC_OOO_WINDOW=0 \
     NPC_UART_RX_TRACE="$UART_TRACE" \
     NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT" \
     NPC_GUEST_EXPECT="$AUTOCHECK_EXPECT" \
-    timeout "${HOST_TIMEOUT}s" \
       make -C "$LINUX_HOME" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
         MAX_CYCLES="$MAX_CYCLES" PROGRESS="$PROGRESS_INTERVAL" LOG_DIR="$LOG_DIR" run
   run_rc=$?
 fi
 set -e
+
+LOG_OUTPUTS_READY=1
+host_timed_out=0
+if [ "$run_rc" -eq 124 ] && host_timeout_expired; then
+  host_timed_out=1
+fi
+if [ -s "$HOST_TIMEOUT_DIAGNOSTIC" ]; then
+  cat "$HOST_TIMEOUT_DIAGNOSTIC" >&2
+fi
 
 [ "$tee_rc" -eq 0 ] || fail "console tee failed (rc=$tee_rc)"
 [ -f "$CONSOLE_LOG" ] && [ -r "$CONSOLE_LOG" ] ||
@@ -395,15 +486,30 @@ set -e
   fail "NPC log is not a readable regular file: $NPC_LOG"
 
 transaction_rc=77
+transaction_verify_rc=77
 if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
   [ -x "$TRANSACTION_PARSER" ] ||
     fail "systemd transaction parser is not executable: $TRANSACTION_PARSER"
+  [ -x "$CANONICAL_TRANSACTION_VERIFIER" ] ||
+    fail "canonical systemd transaction verifier is not executable: $CANONICAL_TRANSACTION_VERIFIER"
   set +e
-  python3 "$TRANSACTION_PARSER" \
+  python3 -B "$TRANSACTION_PARSER" collect \
     --console "$CONSOLE_LOG" \
+    --npc-log "$NPC_LOG" \
     --protocol auto \
+    --terminal-contract natural-poweroff \
+    --producer-closed \
     --json-out "$TRANSACTION_EVIDENCE"
   transaction_rc=$?
+  python3 -B "$CANONICAL_TRANSACTION_VERIFIER" verify \
+    --console "$CONSOLE_LOG" \
+    --npc-log "$NPC_LOG" \
+    --protocol auto \
+    --terminal-contract natural-poweroff \
+    --producer-closed \
+    --evidence "$TRANSACTION_EVIDENCE" \
+    --require-status PASS
+  transaction_verify_rc=$?
   set -e
 fi
 
@@ -418,7 +524,7 @@ if [ "$rtl_assertion_scan_rc" -eq 0 ]; then
   fail "RTL assertion marker was observed"
 fi
 
-if [ "$run_rc" -eq 124 ] && [ "$rtl_assertion_scan_rc" -eq 1 ]; then
+if [ "$host_timed_out" -eq 1 ] && [ "$rtl_assertion_scan_rc" -eq 1 ]; then
   echo "[npc-systemd-check] GAP: RV64 host wall-clock budget expired before natural terminal transaction (host_timeout=${HOST_TIMEOUT}s max_cycles=$MAX_CYCLES)" >&2
   exit 124
 fi
@@ -449,6 +555,8 @@ if [ "$POWEROFF_ENABLE" = "1" ]; then
   if [ "$GUEST_COMMAND_MODE" = "systemd-strict" ]; then
     [ "$transaction_rc" -eq 0 ] ||
       fail "bounded systemd transaction evidence is RED: $TRANSACTION_EVIDENCE"
+    [ "$transaction_verify_rc" -eq 0 ] ||
+      fail "canonical systemd transaction verification is RED: $TRANSACTION_EVIDENCE"
   else
     grep -qaF "$DONE_MARKER" "$CONSOLE_LOG" ||
       fail "strict guest done marker was not reached"
@@ -456,30 +564,10 @@ if [ "$POWEROFF_ENABLE" = "1" ]; then
       fail "strict guest checks reported failure"
     require_strict_passes
   fi
-  ! grep -qaF '__NPC_SYSTEMD_POWEROFF_CMD_FAIL__' "$CONSOLE_LOG" ||
-    fail "systemctl poweroff command failed"
   require_poweroff_evidence "OpenSBI boot" 'OpenSBI v[0-9]'
   require_poweroff_evidence "OpenSBI reboot device" 'Platform Reboot Device[[:space:]]*: syscon-reboot'
   require_poweroff_evidence "OpenSBI shutdown device" 'Platform Shutdown Device[[:space:]]*: syscon-poweroff'
   require_poweroff_evidence "Linux SBI SRST" 'SBI SRST extension detected'
-  require_poweroff_evidence "guest poweroff command" '__NPC_SYSTEMD_POWEROFF_BEGIN__'
-  require_poweroff_evidence "kernel power down" 'reboot: Power down'
-  require_poweroff_evidence "RTL syscon terminal" 'syscon-reset: poweroff requested value=0x00005555'
-  require_poweroff_evidence "host system-reset exit" 'exit via system-reset, code=0'
-  require_poweroff_evidence "zero exit status" 'HIT GOOD TRAP'
-  terminal_sequence_line=0
-  require_ordered_terminal_evidence \
-    "strict done" '__NPC_SYSTEMD_STRICT_DONE__ rc=0'
-  require_ordered_terminal_evidence \
-    "poweroff begin" '__NPC_SYSTEMD_POWEROFF_BEGIN__'
-  require_ordered_terminal_evidence \
-    "kernel power down" 'reboot: Power down'
-  require_ordered_terminal_evidence \
-    "RTL syscon terminal" 'syscon-reset: poweroff requested value=0x00005555'
-  require_ordered_terminal_evidence \
-    "GOOD TRAP" 'HIT GOOD TRAP'
-  require_ordered_terminal_evidence \
-    "host system-reset exit" 'exit via system-reset, code=0'
   echo "[npc-systemd-check] PASS strict guest + natural poweroff (mode=$GUEST_COMMAND_MODE)"
   exit 0
 fi

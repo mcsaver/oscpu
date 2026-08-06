@@ -1,0 +1,5 @@
+2026-08-04T03:16:02Z	counterexample	旧讲义仅覆盖 149/150 个当前 vsrc 文件，仍引用不存在的 AxiXbar；旧 XML 新鲜度门同时拒绝 Makefile、MemAxiBridge、NpcSimTop、IntIQ、LQ 更新。	docs/rv64core/study/11-逐文件源码地图.md
+2026-08-04T03:16:02Z	decision	按当前 module/signal/transaction 同步 AxiCrossbar、LQ terminal_seen、IQ static compaction、SQ X-safe CAM、aggregate-B fusion 与 CSR WARL/FS；审计同时复算 XML hash 和完整 source fingerprint。	docs/rv64core/study/tools/audit_interactive_datasheet.py
+2026-08-04T03:16:02Z	note	交付边界为当前源码静态 elaboration、离线 HTML 和讲义结构；未启动浏览器，也未重跑 RTL TB、综合、STA 或 PPA。	docs/rv64core/study/index.html
+2026-08-04T03:30:11Z	counterexample	独立复核发现旧 timingTerms 无边界子串会把 Store/AW 误绑到 BPU/FMA/FPWB WaveDrom；以显式完整标题映射替换。	docs/rv64core/study/tools/build_interactive_datasheet.py
+2026-08-04T03:30:11Z	evidence	Closure reviewer 复核 builder/auditor/HTML 9/9 映射有序相等，Store 首图为 aggregate-B，P0/P1/P2/P3 均无剩余 finding；未覆盖浏览器动态渲染或 RTL 行为。	docs/rv64core/study/index.html

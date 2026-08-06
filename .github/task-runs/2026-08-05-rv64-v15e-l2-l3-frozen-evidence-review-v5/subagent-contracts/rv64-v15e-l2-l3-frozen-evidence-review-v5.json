@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15e-l2-l3-frozen-evidence-review-v5",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对本地 RV64 f7a6 NpcSimTop 的 L2 A11 与 L3 A6 冻结仿真证据做独立逻辑复核，判断 cycle/commit 事务链、输入身份、checker 负向覆盖和最终 seal 是否足以支持 full-l2/full-l3 当前身份结论，并指出任何证据内在矛盾或剩余 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/binding.txt",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/evidence-seal.txt",
+      ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/binding.txt",
+      ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/evidence-seal.txt",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-l3-frozen-evidence-review-v5/subagent-contracts/rv64-v15e-l2-l3-frozen-evidence-review-v5.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "设计与仿真器身份：A11/A6 均绑定 rtl_design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9、production_rtl_file_count=146、simulator_sha256=319287572c21c14be459b1861434964e480cd3ebc8741d6c33cf54d9206e689c、simulator_source_sha256=610235f67d37ce54f7079b1223e905e6f5d2e1bf69c7a805935c9d34b8f1cce2，当前现场重算 simulator source ID 相同。",
+      "L2 A11 full-l2 PASS：6,098,469 commits、10,183,481 cycles、CPI=1.6698422178；CASE_SELECT=9,469,988/5,929,240，selector RX=9,470,989/5,929,427，CASE_ALL=9,507,535/5,937,316；MMIO_PASS=10,021,206/6,063,947，UART+PLIC assert=10,023,964/6,064,531，PLIC_UART_IRQ_PASS=10,077,183/6,075,909，MINI_SYSTEM_PASS=10,174,807/6,096,971，syscon=10,183,480/6,098,469，最终 cycles=10,183,481；五类 terminal 各一次，RTL assertion=0。",
+      "L3 A6 full-l3 PASS：24,449,283 commits、59,160,907 cycles、CPI=2.4197399572；CASE_SELECT=54,833,099/23,433,137，selector x RX=54,834,100/23,433,401，CASE_ALL=54,907,304/23,446,145；ARM1=56,757,687，A RX=56,834,100，UART+PLIC assert=56,834,104，A software marker=56,879,207；ARM2=56,895,723，B RX=58,834,100，UART+PLIC assert=58,834,104，B software marker=58,878,138；UART_IRQ_PASS=59,042,632，SHUTDOWN_ARM=59,062,885，LIGHTWEIGHT_PASS=59,079,501，kernel powerdown=59,146,930，syscon=59,160,906，最终 cycles=59,160,907；六类 terminal 各一次、critical marker=0、RTL assertion=0。",
+      "层级源码身份：A11 layer_source_sha256=2ffa538ae319551dee758beaddae0a6140ad92a29c98535126ef30c196676b5d，A6 layer_source_sha256=d0e181836737c83bc3585127ed793a4c258c006e9d3dacc8c49576daa4450b01；两轮 simulator-source-before/after 与 layer-source-before/after 均逐字节相同，当前现场重算仍分别得到同三个 SHA。",
+      "实现哈希闭合：A11 input-hashes-after 中 runner=3b5fbffcaff28a0a74703670ee27bb9eec56c2df798b2a7d5b6f7bc9941b1006、checker=43df4a86ce0448f584de041666586f4d151943dd0992c18e558f3f9db831dd06、layer-source tool=1d8f71820787f1b9cc808f84692cb7bfc6b602a34dd4d16804c25be559e3dd05、policy=ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100，均与当前现场 SHA 相同；A6 对应 runner=3b6527dfa1bc49d47d2b73ef9bfbe23b0b6dac432f52847158af713421370f27、checker=6f4bd37abd682ff87b57df5a5c98afae9424fb59a81f21727215c40eaf9c2959、同一 source tool/policy，均与当前现场 SHA 相同。",
+      "checker 与状态机：L2 12 项单测覆盖 selector-before/RX-before-selector/missing-PLIC/reordered-terminal/missing-syscon-counters/duplicate-terminal，L3 15 项单测覆盖 printk debug 接受、真实 BUG 拒绝、RX-before-arm/missing-PLIC/binding-drift/syscon-counter；31 项 SoC delivery mutation、task-run HUP/INT/TERM fail-closed 自测及 6 个候选 C 指针均 PASS。",
+      "最终证据：A11 与 A6 均先完成 runtime removal，再 seal 21 个直接证据文件；各自 evidence-files.sha256 在结果目录内全部验证 OK，seal verification=PASS；binding 均记录 ubuntu2204_full_simulation=not_launched，默认策略只合取 L0+L1+L2+L3。",
+      "结论边界：本轮正式重跑并独立封存的是 L2 A11 与 L3 A6；L0、L1、综合、STA、PPA 和可选 Ubuntu 未在本轮执行，任何 PASS 不得外推到这些层级或物理设计指标。"
+    ]
+  },
+  "deliverables": [
+    "按 RV64 对象、cycle/config、仿真观测与 PASS/GAP 范围输出限定材料独立复核，检查事务不等式、哈希闭合、checker 反例覆盖和结论边界，并给出 unknowns、counterexamples、scope_extension_request、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "若冻结材料存在次序矛盾、身份缺口、seal 缺口或把 L2/L3 外推到 L0/L1/PPA/Ubuntu，明确给出 GAP；否则只对 A11/A6 的 exact f7a6 identity 给出限定 PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

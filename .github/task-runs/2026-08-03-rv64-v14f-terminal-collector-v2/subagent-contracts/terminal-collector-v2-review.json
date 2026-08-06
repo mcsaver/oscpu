@@ -1,0 +1,84 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "terminal-collector-v2-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 systemd 仿真的 console 与 NPC 双日志 terminal transaction collector v2：检查 stage/terminal 状态优先级、自然关机事件逐次计数与顺序、PC/cycles/commits 镜像、canonical receipt 复算、host 单次 simulator 调用及 assertion/timeout/cycle-budget 判据是否保持，并寻找可证伪反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/a3-replay.json",
+      ".github/runtime-artifacts/npc-systemd-terminal-v2/a2-current.json",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/console.log",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3/guest/npc.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/console.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/npc.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/system-current-summary.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-03-rv64-v14f-terminal-collector-v2/subagent-contracts/terminal-collector-v2-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RV64 terminal transaction 对象、输入日志配置、定向测试观测、PASS/GAP 范围；列出反例、未知项、替代假设、confidence_and_basis 与必要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认或反驳 INVALID_EVIDENCE 高于 FAIL 高于 PASS、重复事件不去重、console/NPC 镜像与 init path 绑定、FAIL receipt verify=0 但 require PASS=1、A2 PASS 与 A3 stage FAIL terminal PASS，以及 host assertion/timeout/cycle-budget 优先级；任何未覆盖反例必须明确为 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

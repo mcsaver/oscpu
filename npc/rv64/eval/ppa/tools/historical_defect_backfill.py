@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import pathlib
 import sys
@@ -23,6 +24,18 @@ SCHEMA_PATH = pathlib.Path(
 )
 BLOCKING_DEPTHS = {"VD0", "VD1"}
 DEPTH_ORDER = {"VD0": 0, "VD1": 1, "VD2": 2, "VD3": 3, "VD4": 4}
+CURRENT_TOOL_PATH = pathlib.Path(
+    "npc/rv64/eval/ppa/tools/historical_defect_current.py"
+)
+CURRENT_RECEIPT_IDS = {
+    "HIST-A3-DMESG-DEBUG-TOKEN",
+    "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL",
+    "HIST-SER-QH-STOP-HOLD-DROP",
+    "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+    "HIST-V8L-FORCE-RELEASE-SHADOW",
+    "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP",
+}
+KNOWN_LEDGER_IDS = set(CURRENT_RECEIPT_IDS)
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -38,6 +51,16 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"top-level JSON object required: {path}")
     return value
+
+
+def load_module(path: pathlib.Path, name: str) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"cannot import helper: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def validate_artifact(
@@ -69,6 +92,7 @@ def audit(
     root: pathlib.Path,
     *,
     expected_design_id: str | None = None,
+    require_current_receipt: bool = True,
 ) -> dict[str, Any]:
     root = root.resolve()
     errors: list[str] = []
@@ -85,6 +109,7 @@ def audit(
             "errors": [str(exc)],
             "blocking_ids": [],
             "selected_id": None,
+            "current_receipt_status": "INVALID",
             "counts": {},
         }
 
@@ -173,6 +198,14 @@ def audit(
         errors.append("entry ids must be unique")
     if len(ranks) != len(set(ranks)):
         errors.append("priority_rank values must be unique")
+    observed_ids = set(ids)
+    if observed_ids != KNOWN_LEDGER_IDS:
+        missing = sorted(KNOWN_LEDGER_IDS - observed_ids)
+        extra = sorted(observed_ids - KNOWN_LEDGER_IDS)
+        errors.append(
+            "ledger inventory drifted: "
+            f"missing={missing or 'none'} extra={extra or 'none'}"
+        )
     selected_id = ledger.get("selected_id")
     if blocking_entries:
         if len(selected_entries) != 1:
@@ -200,6 +233,45 @@ def audit(
             errors.append(
                 "selected_id must be NONE after VD0/VD1 reaches zero")
 
+    canonical_current_ledger = (
+        len(ids) == len(KNOWN_LEDGER_IDS)
+        and observed_ids == KNOWN_LEDGER_IDS
+    )
+    current_receipt_status = "NOT_APPLICABLE"
+    if blocking_entries:
+        current_receipt_status = (
+            "BLOCKED_BY_SELECTED_DEFECT"
+            if require_current_receipt else "SKIPPED_FOR_TEST"
+        )
+    elif canonical_current_ledger and require_current_receipt:
+        if observed_ids != CURRENT_RECEIPT_IDS:
+            current_receipt_status = "INCOMPLETE_INVENTORY"
+            errors.append(
+                "current-receipt: supported defect inventory does not cover "
+                "the now-clear ledger"
+            )
+        else:
+            try:
+                current_module = load_module(
+                    root / CURRENT_TOOL_PATH,
+                    "historical_defect_current_from_backfill",
+                )
+                current_module.validate_current_contract(
+                    root,
+                    ledger=ledger,
+                    expected_design_id=(
+                        expected_design_id
+                        if expected_design_id is not None
+                        else ledger.get("design_id")
+                    ),
+                )
+                current_receipt_status = "PASS"
+            except Exception as exc:
+                current_receipt_status = "INVALID"
+                errors.append(f"current-receipt: {exc}")
+    elif canonical_current_ledger:
+        current_receipt_status = "SKIPPED_FOR_TEST"
+
     blocking_ids = [
         str(entry.get("id"))
         for entry in sorted(
@@ -218,6 +290,7 @@ def audit(
         "status": status,
         "design_id": ledger.get("design_id"),
         "selected_id": selected_id,
+        "current_receipt_status": current_receipt_status,
         "blocking_ids": blocking_ids,
         "counts": {
             "entries": len(entry_list),

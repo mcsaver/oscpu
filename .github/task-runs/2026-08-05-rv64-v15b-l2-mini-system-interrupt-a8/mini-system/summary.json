@@ -1,0 +1,86 @@
+{
+  "assertion_failures": 0,
+  "binding_sha256": "a9bc2218cde761810a16c94256f54e30f004fba9cd51dccf6a0fddd140c7a134",
+  "claim": "L2_MINI_SYSTEM_DIRECTED_CASE_PASS_CURRENT_IDENTITY",
+  "commits": 5982567,
+  "console_sha256": "03ea4ab845e73f65d8a0a657c944c10a2944a23c669c9b335326ee51f715d91f",
+  "cpi": 1.6246632925297786,
+  "cycles": 9719657,
+  "l2_case": "interrupt",
+  "non_claims": [
+    "Linux",
+    "Ubuntu userland",
+    "systemd",
+    "virtio rootfs"
+  ],
+  "npc_log_sha256": "0458b65e0c69863da3b14692e2a1e21ebffaf6c7ac17198ddeb2f42cc1a7a4e6",
+  "phase_observations": {
+    "__RV64_L2_BEGIN__": {
+      "commit": 5893215,
+      "cycle": 9302966,
+      "tx_ordinal": 2799
+    },
+    "__RV64_L2_CASE_INTERRUPT__": {
+      "commit": 5939596,
+      "cycle": 9518065,
+      "tx_ordinal": 2925
+    },
+    "__RV64_L2_CASE_SELECT__": {
+      "commit": 5929240,
+      "cycle": 9469988,
+      "tx_ordinal": 2897
+    },
+    "__RV64_L2_FDT_PASS__": {
+      "commit": 5920041,
+      "cycle": 9427320,
+      "tx_ordinal": 2872
+    },
+    "__RV64_L2_MINI_SYSTEM_PASS__": {
+      "commit": 5981069,
+      "cycle": 9711030,
+      "tx_ordinal": 3037
+    },
+    "__RV64_L2_MMIO_PASS__": {
+      "commit": 5948044,
+      "cycle": 9557303,
+      "tx_ordinal": 2948
+    },
+    "__RV64_L2_M_TO_S_PASS__": {
+      "commit": 5911988,
+      "cycle": 9389997,
+      "tx_ordinal": 2850
+    },
+    "__RV64_L2_OPENSBI_PASS__": {
+      "commit": 5902792,
+      "cycle": 9347379,
+      "tx_ordinal": 2825
+    },
+    "__RV64_L2_PLIC_UART_IRQ_PASS__": {
+      "commit": 5960006,
+      "cycle": 9613386,
+      "tx_ordinal": 2980
+    },
+    "__RV64_L2_POWERDOWN_ARM__": {
+      "commit": 5969968,
+      "cycle": 9659590,
+      "tx_ordinal": 3007
+    }
+  },
+  "production_rtl_file_count": 146,
+  "rtl_design_id": "sha256:06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b",
+  "schema": "npc-rv64-l2-mini-system-execution-v1",
+  "selector_rx": {
+    "commit": 5929427,
+    "cycle": 9470989,
+    "data": 105
+  },
+  "signoff_scope": "directed-case",
+  "status": "PASS",
+  "terminal_counts": {
+    "good_trap": 1,
+    "stats_cycles": 1,
+    "stats_instructions": 1,
+    "syscon_poweroff": 1,
+    "system_reset": 1
+  }
+}

@@ -10,10 +10,30 @@
 
 `gen_dts.py` 的生成模式:
 
-- `kernel` 模式:保持现有 OpenSBI + Linux kernel smoke,不声明 initrd/rootfs。
+- `kernel` 模式:保持现有 OpenSBI + Linux kernel smoke,不声明 initrd/rootfs；
+  需要 OpenSBI 独占关机设备时可显式加 `--reset-syscon`。
 - `initramfs` 模式:在 `/chosen` 里生成 `linux,initrd-start/end`,目标是先进入 BusyBox `/bin/sh`。
 - `ubuntu_initramfs` bootargs:配合官方 Ubuntu Base 22.04 riscv64 cpio,目标是先执行 guest `/init` 并打印 `/etc/os-release`。
 - `rootfs` 模式:Ubuntu 22.04 rootfs + virtio-mmio block 的设备树形态；共有 reset-syscon 节点由 NPC/NEMU 两侧 rootfs DTB 规则都以 `--reset-syscon` 打开，NEMU 独有的 virtio-rng/virtio-net/goldfish-rtc 仅由 NEMU 规则打开。
+
+L3 轻量 Linux 使用一份共享有效 DTB：它同时包含 initramfs 地址、
+`rdinit=/init` 和 reset-syscon，并通过 `FW_FDT_PATH` 嵌入 OpenSBI；
+`guest.dtb` 与 `opensbi-platform.dtb` 必须逐字节一致。OpenSBI 启动时会把
+内嵌 FDT 复制到 `FW_JUMP_FDT_ADDR`，所以不能再用一份不含 initrd 的独立
+platform DTB 覆盖 Linux 输入。L3 内核配置显式关闭 Linux syscon poweroff
+驱动，因此 PID1 的 poweroff 仍必须经过 SBI SRST，再由 OpenSBI 写
+`0x5555` 到本地 syscon，不能绕过固件链路。
+
+L2 mini-system 使用 `build-rv64-mini-system.sh` 生成一份 OpenSBI + S/U payload、有效 DTB 与
+`fw_jump.bin`，由 `run-mini-system-current.sh` 在 production `NpcSimTop` 上选择
+`privilege/sv39/timer/interrupt/atomic-mmio/shutdown/all`。产物只保留一个 current identity cache，
+task-run 仅保存 binding、phase/terminal、断言、哈希与 bounded 日志；只有 `all` 可以形成完整 L2 签核。
+
+L2/L3 共享的当前 `NpcSimTop` 由 `build-current-simulator-cache.sh` 生成；cache 除 RTL design-id 外还绑定
+vsrc、csrc、Makefile 与生效配置的内容哈希。每次 layer runner 在执行前复核该 source-id，完成后先做
+post-binding 与 runtime cleanup，再以 evidence manifest/verification/seal 授权 PASS。L3 的两次 UART RX
+必须分别落在 ARM/RX phase 之间并观测到 `uart_irq=1,plic_irq=1`；关机顺序用 UART TX 字节流和 syscon
+cycle/commit 直接绑定。
 
 长期原则:
 

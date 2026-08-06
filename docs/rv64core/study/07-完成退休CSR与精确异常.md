@@ -263,6 +263,18 @@ cache/PTW 和已 handoff transaction。
 - debug trigger no-op CSR；
 - `mstatus.TVM/TW/TSR/SUM/MXR/FS` 等权限/状态位。
 
+当前 WARL/legality 边界还包括几处容易从“CSR 地址存在”误读的细节：
+
+- `mstatus.MPP=2` 是保留编码，写入时由 `sanitize_mstatus_write` 规范化为 U；SXL/UXL
+  固定为 RV64。`sstatus` 只暴露属于它的 UXL，而不会把 machine-only SXL 一并泄漏；
+- `medeleg` 写入只保留当前实现的 `0x0000_0000_0000_b3ff` cause mask，`mideleg`
+  只保留 SSIP/STIP/SEIP。`sie/sip` 又是 `mideleg` 选中位的受限视图，不是对 `mie/mip`
+  全部 supervisor 位的无条件别名；
+- supervisor 经 `sip` 只能写已 delegated 的 SSIP，STIP/SEIP 仍由 machine/hardware
+  路径控制；
+- 当 `mstatus.FS=Off` 时，访问 `fflags/frm/fcsr` 本身就是 illegal。合法写这些 FP CSR
+  会把 FS 置 Dirty，与提交 FPR/fflags 的 `fp_dirty_i` 路径形成同一架构状态合同。
+
 具体实现是教学/bring-up 所需子集，不能仅凭 CSR 地址存在就外推完整 privileged spec
 覆盖。
 
@@ -332,7 +344,7 @@ FP `fflags` 随 ROB entry 到 commit 才 OR；被 kill FP producer 的 flags 不
 | [`OooControlCommitSequencer.v`](../../../npc/rv64/vsrc/writeback/OooControlCommitSequencer.v) | control pseudo-commit 和 serial flush |
 | [`OooCommitOutputMux.v`](../../../npc/rv64/vsrc/writeback/OooCommitOutputMux.v) | 外部双 commit/retire mux |
 | [`OooArchRegFile.v`](../../../npc/rv64/vsrc/writeback/OooArchRegFile.v) | 架构 GPR |
-| [`CsrFile.v`](../../../npc/rv64/vsrc/core/CsrFile.v) | CSR/priv/trap/PMP/counter 状态 |
+| [`CsrFile.v`](../../../npc/rv64/vsrc/core/CsrFile.v) | CSR/priv/trap/PMP/counter 状态，以及 delegation/FS/WARL 规范化 |
 | [`OooCsrAccessRequestMux.v`](../../../npc/rv64/vsrc/control/OooCsrAccessRequestMux.v) | CSR main access 与 probe source 选择 |
 | [`OooCsrIllegalProbeGate.v`](../../../npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v) | 无副作用 legality probe 结果 |
 | [`OooCsrTrapRequestMux.v`](../../../npc/rv64/vsrc/control/OooCsrTrapRequestMux.v) | commit/pending/IRQ/xRET trap request 选择 |

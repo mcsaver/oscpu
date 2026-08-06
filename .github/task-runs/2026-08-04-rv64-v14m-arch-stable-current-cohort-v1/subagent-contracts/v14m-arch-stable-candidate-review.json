@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14m-arch-stable-candidate-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 full-core ARCH_STABLE exact-input candidate；核对 producer/holder static census、44/44 semantic coverage、V14G 4/4 baseline 与 22/22 compile-success mutation 生命周期证据的合取，确认设计成熟度声明不越过 PPA UNQUALIFIED 边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-candidate-3/candidate.json",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-candidate-3/arch-stable-audit.json",
+      "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
+      "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-candidate-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-candidate-3/arch-stable-audit.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与本地证据文件、当前 design/config、checker 观测、PASS/GAP 范围给出独立复核；列出任何假绿、证据覆盖洞、越级成熟度声明、未知项与所需范围扩展"
+  ],
+  "success_criteria": [
+    "确认 candidate-3 是否确实只剩 claim.issue，static/semantic/dynamic 三层边界是否可证伪，19 个 SoC 配置负例与 C current-result 指针是否防止执行层级或成熟度越级，且 ARCH_STABLE 不外推 PPA promotion"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

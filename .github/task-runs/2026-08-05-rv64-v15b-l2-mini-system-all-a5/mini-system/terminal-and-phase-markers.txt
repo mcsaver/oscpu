@@ -1,0 +1,43 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:16:[cpu-exec.cpp:730 user_trace] enabled ecall=1 ecall_priv=1 path_trace=0 ecall_limit=64 ecall_min_commit=0 progress_interval=0 progress_limit=64 min_commit=0 path_max=96
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:17:[dpi.c:156 uart-rx] loaded bytes=1 file_bytes=0 text_bytes=1 trace=1 min_commit=0 limit=1 cycle_gap=0 release_delay=1000 wait='__RV64_L2_CASE_SELECT__'
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:18:[dpi.c:402 uart-rx] waiting for guest output pattern='__RV64_L2_CASE_SELECT__' before releasing bytes=1
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:21:[dpi.c:249 irq-trace] enabled min_commit=0 limit=256
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:22:[progress] 1000001 insts, pc=0x0000000080019386, 48017 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:60:[progress] 2000000 insts, pc=0x00000000800194ae, 46954 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:77:[guest] OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:384:[progress] 3000000 insts, pc=0x00000000800148e0, 41791 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:385:[progress] 4000001 insts, pc=0x000000008000b99e, 44787 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:386:[progress] 5000001 insts, pc=0x0000000080019516, 49620 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:2966:[guest] __RV64_L2_BEGIN__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3043:[guest] __RV64_L2_OPENSBI_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3111:[guest] __RV64_L2_M_TO_S_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3155:[guest] __RV64_L2_FDT_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3205:[dpi.c:175 uart-rx] pop=1 cycle=9470989 commit=5929427 data=0x78 char='x'
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3208:[guest] __RV64_L2_CASE_SELECT__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3252:[guest] __RV64_L2_CASE_ALL__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3298:[guest] __RV64_L2_SV39_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3356:[guest] __RV64_L2_AD_UPDATE_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3432:[guest] __RV64_L2_PERMISSION_RECOVERY_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3482:[guest] __RV64_L2_S_TO_U_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3548:[guest] __RV64_L2_AMO_LRSC_FENCE_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3556:[progress] 6000001 insts, pc=0x00000000800024ae, 34009 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3607:[guest] __RV64_L2_SFENCE_VMA_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3666:[guest] __RV64_L2_TIMER_IRQ_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3712:[guest] __RV64_L2_MMIO_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3713:[progress] 7000000 insts, pc=0x0000000080400670, 14826 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3714:[progress] 8000000 insts, pc=0x0000000080400670, 15014 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/npc.log:3715:[progress] 9000000 insts, pc=0x0000000080400670, 15459 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:21:[1;34m[cpu-exec.cpp:730 user_trace] enabled ecall=1 ecall_priv=1 path_trace=0 ecall_limit=64 ecall_min_commit=0 progress_interval=0 progress_limit=64 min_commit=0 path_max=96[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:22:[1;34m[dpi.c:156 uart-rx] loaded bytes=1 file_bytes=0 text_bytes=1 trace=1 min_commit=0 limit=1 cycle_gap=0 release_delay=1000 wait='__RV64_L2_CASE_SELECT__'[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:23:[1;34m[dpi.c:402 uart-rx] waiting for guest output pattern='__RV64_L2_CASE_SELECT__' before releasing bytes=1[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:26:[1;34m[dpi.c:249 irq-trace] enabled min_commit=0 limit=256[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:27:[progress] 1000001 insts, pc=0x0000000080019386, 48017 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:65:[progress] 2000000 insts, pc=0x00000000800194ae, 46954 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:391:[progress] 3000000 insts, pc=0x00000000800148e0, 41791 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:392:[progress] 4000001 insts, pc=0x000000008000b99e, 44787 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:393:[progress] 5000001 insts, pc=0x0000000080019516, 49620 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:3214:[1;34m[dpi.c:175 uart-rx] pop=1 cycle=9470989 commit=5929427 data=0x78 char='x'[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:3565:[progress] 6000001 insts, pc=0x00000000800024ae, 34009 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:3722:[progress] 7000000 insts, pc=0x0000000080400670, 14826 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:3723:[progress] 8000000 insts, pc=0x0000000080400670, 15014 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a5/mini-system/console.log:3724:[progress] 9000000 insts, pc=0x0000000080400670, 15459 inst/s

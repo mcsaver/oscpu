@@ -1,0 +1,12 @@
+test_artifact_hash_drift_fails_closed (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_artifact_hash_drift_fails_closed) ... ok
+test_clearing_new_defect_requires_extended_current_receipt (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_clearing_new_defect_requires_extended_current_receipt) ... ok
+test_live_ledger_selects_the_open_terminal_duplicate (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_live_ledger_selects_the_open_terminal_duplicate) ... ok
+test_missing_known_defect_cannot_disable_the_inventory_gate (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_missing_known_defect_cannot_disable_the_inventory_gate) ... ok
+test_wrong_selected_entry_fails_closed (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_wrong_selected_entry_fails_closed) ... ok
+test_zero_vd0_vd1_allows_no_selected_entry (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_zero_vd0_vd1_allows_no_selected_entry) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.086s
+
+OK
+[HISTORICAL-DEFECT-BACKFILL] status=GAP entries=6 blocking=HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP selected=HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP arch_stable=GAP ppa=UNQUALIFIED

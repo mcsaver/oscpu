@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15e-l2-l3-independent-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 NpcSimTop 在 f7a6 production RTL identity 下的 L2 mini-system A11 与 L3 Linux 6.6 A6：逐项核对 selector/RX/PLIC cycle/commit 顺序、PASS 到 kernel/syscon/GOOD_TRAP/system-reset 的终端链、RTL assertion 零失败、simulator/layer source 前后身份、当前 artifact cache、final evidence seal 和 C initializer 门禁指针；重点寻找仍会造成 full-l2/full-l3 假绿的硬件证据反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-linux-bringup.instructions.md",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/dpi.c",
+      "npc/rv64/eval/ppa/run-mini-system-current.sh",
+      "npc/rv64/eval/ppa/run-lightweight-linux-current.sh",
+      "npc/rv64/eval/ppa/replay-layer-checker-current.sh",
+      "npc/rv64/eval/ppa/build-current-simulator-cache.sh",
+      "npc/rv64/eval/ppa/rv64-simulator-source-id.sh",
+      "npc/rv64/eval/ppa/rv64-layer-source-id.sh",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/mini_system_run.py",
+      "npc/rv64/eval/ppa/tools/lightweight_linux_run.py",
+      "npc/rv64/eval/ppa/tests/test_mini_system_run.py",
+      "npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py",
+      "Linux/mini-system",
+      "Linux/lightweight",
+      "Linux/platform",
+      "Linux/scripts/build-rv64-mini-system.sh",
+      "Linux/scripts/build-rv64-lightweight-linux.sh",
+      "Linux/scripts/check-rv64-lightweight-linux-config.sh",
+      "Linux/scripts/build-opensbi.sh",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      ".github/task-runs/2026-08-05-rv64-v15d-current-simulator-f7a6-a1",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11",
+      ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6",
+      ".github/runtime-artifacts/rv64-current-simulator/f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      ".github/runtime-artifacts/rv64-mini-system-current/artifacts",
+      ".github/runtime-artifacts/rv64-lightweight-linux-current/artifacts",
+      ".github/runtime-artifacts/agent-flow/rv64-v15a-lightweight-linux-signoff/gates",
+      ".github/task-runs/2026-08-05-rv64-v15e-l2-l3-independent-review-v4/subagent-contracts/rv64-v15e-l2-l3-independent-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-linux-bringup.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 证据对象、cycle/commit/config、testbench/EDA 观测与 PASS/GAP 范围输出独立结论；逐项判断 prior GAP：最终代码/策略哈希漂移、live simulator/Linux/OpenSBI/DTB/PID1 source post-bind 缺失、L2 selector/PLIC/terminal 顺序未编码、replay 未绑定当前 simulator/device/guest source 是否已由 A11/A6 与现行脚本闭合，并列出反例、未知项、替代假设、scope_extension_request、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "任何可造成 full-l2/full-l3 假绿、合法事务误拒绝、case 越级、UART/PLIC 或自然关机时序断链、RTL/simulator/layer/artifact 身份漂移、evidence seal 漏项、C gate 跨 initializer 误配或 Ubuntu 隐式启动的反例，均关联真实文件、schema 字段、cycle/commit、marker 或测试返回码。",
+    "若无阻断项，明确 A11/A6 对 f7a6 identity 的有效范围，并明确不能外推到未在本轮重跑的 L0、L1、PPA 或可选 Ubuntu。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

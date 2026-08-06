@@ -1,0 +1,4 @@
+2026-08-03T17:35:08Z	architecture-debt-current-15-tests	PASS	npc/rv64/eval/ppa/evidence/architecture-debt-current.json
+2026-08-03T17:35:09Z	arch-stable-freeze-54-tests	PASS	npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py
+2026-08-03T17:35:09Z	agent-flow-dependency-routing	PASS	scripts/tests/test-agent-flow.sh
+2026-08-03T17:35:11Z	rv64-soc-delivery-negative-13	PASS	scripts/tests/test-rv64-soc-delivery-gates.sh

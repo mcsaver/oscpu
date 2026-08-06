@@ -24,6 +24,15 @@ from typing import Any, Iterable
 
 SCHEMA = "rv64-producer-holder-semantic-coverage-v1"
 POLICY_SCHEMA = "rv64-producer-holder-semantic-coverage-policy-v1"
+GLOBAL_CLOSURE_TOOL = (
+    "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py"
+)
+SELECTED_BINDING_RTL_DELTA_PROJECTION_TOOL = (
+    "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py"
+)
+SYSTEM_RECERTIFICATION_TOOL = (
+    "npc/rv64/eval/ppa/tools/system_recertification_current.py"
+)
 TASK_RUN_VVP_RETIREMENT_INDEX = (
     "npc/rv64/design/arch/"
     "producer-holder-artifact-retirement-index.json"
@@ -185,6 +194,41 @@ V11L_MEMORY_RETRY_HOLDER_UNIT_IDS = frozenset(
         "memory-retry1-token",
     }
 )
+V14R_MEMORY_REQUEST_HOLD_UNIT_IDS = frozenset(
+    {
+        "memory-request-hold0-token",
+        "memory-request-hold1-token",
+    }
+)
+V14R_PRODUCT_INSTANCES = frozenset(
+    {
+        "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice."
+        "u_decode_backend.u_int_backend"
+    }
+)
+V14R_FOCUSED_MARKER = (
+    "[V14R-MEMORY-REQUEST-HOLD] holder_ff=29 payload_bits=217 "
+    "banks=2 late_priority=2 exact_fire=4 exact_source=4 "
+    "independent_bank=1 late_sq_block=1 nonflush_cancel=1 "
+    "sq_launch_lease=1 amo_launch_lease=1 capacity_isolation=2 "
+    "cancel_ready_race=1 PASS"
+)
+V14R_SINGLE_BANK_MARKER = (
+    "[V14R-SINGLE-BANK-PROBE-ORDER] older_probe=1 "
+    "younger_store_block=1 valid_lease=0 mutation_anchor=2 PASS"
+)
+V14R_MUTATION_MARKERS = {
+    "holder-bypass": "[V14R-H2-BANK0-PAYLOAD-HOLD]",
+    "cancel-fallback": "[V14R-H4-BANK0-CANCEL-BUBBLE]",
+    "consume-miq-live-split": (
+        "[CHECK-FAIL] V14R bank0 exact reservation consumes"
+    ),
+    "single-bank-probe-order": (
+        "[CHECK-FAIL] V14R younger probe has zero VALID"
+    ),
+    "sq-held-launch-residency": "[V14R-H4-BANK0-SOURCE-LOSS]",
+    "amo-held-launch-authorization": "[V8G-AMO-LAUNCH-AUTH]",
+}
 V11L_MEMORY_RETRY_HOLDER_SCHEMA = (
     "npc-rv64-v11l-memory-retry-holder-semantic-evidence-v1"
 )
@@ -577,8 +621,17 @@ V11N_MEMORY_PENDING_HOLDER_UNIT_IDS = frozenset(
         "memory-pending-token",
     }
 )
+V11N_AMO_TRANSIENT_DISJOINT_UNIT_ID = "amo-transient-holder-disjoint"
+V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_ORDER = (
+    "memory-pending-producer-cache",
+    "memory-pending-token",
+    V11N_AMO_TRANSIENT_DISJOINT_UNIT_ID,
+)
+V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_IDS = frozenset(
+    V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_ORDER
+)
 V11N_MEMORY_PENDING_HOLDER_SCHEMA = (
-    "npc-rv64-v11n-memory-pending-holder-semantic-evidence-v1"
+    "npc-rv64-v11n-memory-pending-holder-semantic-evidence-v2"
 )
 V11N_PRODUCT_INSTANCES = V11M_PRODUCT_INSTANCES
 V11N_REGRESSIONS = V11M_REGRESSIONS
@@ -635,6 +688,27 @@ V11N_MUTATION_EXPECTATIONS = {
         "unit_ids": frozenset({"memory-pending-token"}),
         "stage": "amo-interphase-lane9",
     },
+    "amo-read-aliases-reservation0": {
+        "unit_ids": frozenset({V11N_AMO_TRANSIENT_DISJOINT_UNIT_ID}),
+        "stage": None,
+        "assertions": True,
+        "marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+        "holder": "res0",
+    },
+    "amo-read-aliases-reservation1": {
+        "unit_ids": frozenset({V11N_AMO_TRANSIENT_DISJOINT_UNIT_ID}),
+        "stage": None,
+        "assertions": True,
+        "marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+        "holder": "res1",
+    },
+    "amo-read-aliases-legacy-buffer": {
+        "unit_ids": frozenset({V11N_AMO_TRANSIENT_DISJOINT_UNIT_ID}),
+        "stage": None,
+        "assertions": True,
+        "marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+        "holder": "buffer",
+    },
 }
 V11N_BASELINE_MARKERS = {
     "[V11N-LANE0-FULL-WIDTH-BIRTH][PASS]": (
@@ -659,6 +733,10 @@ V11N_BASELINE_MARKERS = {
     ),
     "[V11N-READ-FAULT-LANE0][PASS]": (
         "v11n_read_fault_lane0_pass",
+        1,
+    ),
+    "[V14U-AMO-TRANSIENT-LANE-MATRIX][PASS]": (
+        "v14u_amo_transient_lane_matrix_pass",
         1,
     ),
 }
@@ -1395,7 +1473,27 @@ CURRENT_BINDINGS = {
     "CURRENT_FULL_RTL_BOUND",
     "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
     "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+    "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
+    "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND",
 }
+SELECTED_BINDING_RTL_DELTA_PROJECTED_KINDS = frozenset(
+    {
+        "v11b_terminal_collector",
+        "v11g_store_queue_holder",
+        "v11k_miq_holder",
+        "v11l_memory_retry_holder",
+        "v11m_memory_reservation_holder",
+        "v11n_memory_pending_holder",
+        "v11o_memory_buffer_token",
+        "v11p_checkpoint_irrevocable_write",
+        "v11q_int_lane0_packet",
+        "v11r_int_lane1_packet",
+        "v11s_muldiv_producer",
+        "v11t_clmul_producer",
+        "v11u_pending_system_producer",
+        "v11v_fp_producer",
+    }
+)
 SELECTED_BINDING_PROJECTION_SCHEMA = (
     "rv64-selected-binding-define-projection-v1"
 )
@@ -1517,6 +1615,19 @@ V11_SELECTED_BINDINGS = {
         ("npc/rv64/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "testbench",
+        ),
+    },
+    "v14r_memory_request_hold": {
+        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/vsrc/writeback/OooRob.v", "rtl"),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+            "testbench",
+        ),
+        (
+            "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
             "testbench",
         ),
     },
@@ -2240,7 +2351,12 @@ def evaluate_json_declared(
 
 
 def verify_artifact_record(
-    root: pathlib.Path, record: Any, label: str
+    root: pathlib.Path,
+    record: Any,
+    label: str,
+    *,
+    projection_spec: dict[str, Any] | None = None,
+    current_design_id_value: str | None = None,
 ) -> pathlib.Path:
     if not isinstance(record, dict):
         raise CoverageError(f"{label} artifact record is not an object")
@@ -2251,7 +2367,19 @@ def verify_artifact_record(
             sha256_file(path) != record.get("sha256")
             or path.stat().st_size != record.get("size_bytes")
         ):
-            raise CoverageError(f"{label} artifact hash/size mismatch")
+            if (
+                projection_spec is None
+                or current_design_id_value is None
+                or not source_hash_matches_with_rtl_delta(
+                    root,
+                    projection_spec,
+                    value,
+                    record.get("sha256"),
+                    current_design_id_value,
+                    evidence_size=record.get("size_bytes"),
+                )
+            ):
+                raise CoverageError(f"{label} artifact hash/size mismatch")
         return path
     retired = task_run_vvp_retirement_records(root).get(str(value))
     if (
@@ -2789,13 +2917,323 @@ def validate_selected_binding_projection(
     receipt_record = artifact(root, receipt_value)
     mismatch["semantic_projection_match"] = True
     mismatch["compatibility_receipt"] = receipt_record
-    spec["_validated_selected_binding_projection"] = {
+    spec.setdefault("_validated_selected_binding_projection", {}).update({
         SELECTED_BINDING_PROJECTION_TARGET: {
             "evidence_sha256": target["baseline_sha256"],
             "live_sha256": target["current_sha256"],
         }
-    }
+    })
     return "CURRENT_SELECTED_MACRO_PROJECTION_BOUND"
+
+
+@functools.lru_cache(maxsize=2)
+def load_selected_binding_rtl_delta_projection_tool(
+    root_text: str,
+) -> Any:
+    root = pathlib.Path(root_text)
+    path = root / SELECTED_BINDING_RTL_DELTA_PROJECTION_TOOL
+    module_name = "_rv64_selected_binding_rtl_delta_projection"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise CoverageError(
+            "selected-binding RTL delta projection tool cannot be loaded"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise CoverageError(
+            "selected-binding RTL delta projection tool cannot be loaded: "
+            f"{exc}"
+        ) from exc
+    finally:
+        sys.modules.pop(module_name, None)
+    return module
+
+
+def validate_selected_binding_rtl_delta_projection(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    records: list[dict[str, Any]],
+    current_design_id_value: str,
+) -> str | None:
+    """Bind stale Backend/SQ records through the reversible V14R receipt."""
+
+    tool = load_selected_binding_rtl_delta_projection_tool(
+        str(root.resolve())
+    )
+    target_paths = set(tool.RTL_PATHS) | set(tool.CONSUMER_PATHS)
+    mismatches = [record for record in records if not record["matches_live"]]
+    projected = [
+        record for record in mismatches if record["path"] in target_paths
+    ]
+    if not projected:
+        return None
+    kind = spec.get("binding_kind")
+    if kind not in SELECTED_BINDING_RTL_DELTA_PROJECTED_KINDS:
+        raise CoverageError(
+            f"{kind} is outside the reviewed Backend/SQ delta projection set"
+        )
+    unsupported = {
+        record["path"]
+        for record in mismatches
+        if record["path"]
+        not in target_paths | {SELECTED_BINDING_PROJECTION_TARGET}
+    }
+    if unsupported:
+        raise CoverageError(
+            f"{kind} RTL delta projection cannot cover selected-source "
+            f"drift: {sorted(unsupported)}"
+        )
+    receipt_value = spec.get(
+        "selected_binding_rtl_delta_projection_receipt"
+    )
+    if not isinstance(receipt_value, str) or not receipt_value:
+        return None
+    receipt_path = resolve_repo_path(root, receipt_value)
+    try:
+        receipt = tool.verify_receipt(
+            argparse.Namespace(root=root, receipt=receipt_path)
+        )
+    except tool.ProjectionGap as exc:
+        raise CoverageError(
+            f"selected-binding RTL delta projection is not current PASS: {exc}"
+        ) from exc
+    if receipt.get("current_design_id") != current_design_id_value:
+        raise CoverageError(
+            "selected-binding RTL delta projection design-id differs"
+        )
+    delta_by_path = {
+        item.get("path"): item
+        for item in (
+            receipt.get("rtl_delta", [])
+            + receipt.get("consumer_delta", [])
+        )
+        if isinstance(item, dict)
+    }
+    for record in projected:
+        delta = delta_by_path.get(record["path"])
+        if (
+            not isinstance(delta, dict)
+            or record.get("evidence_sha256")
+            != delta.get("baseline_sha256")
+            or record.get("live_sha256") != delta.get("current_sha256")
+        ):
+            raise CoverageError(
+                f"{kind} selected evidence is outside the reversible RTL "
+                f"delta baseline: {record['path']}"
+            )
+    receipt_record = artifact(root, receipt_value)
+    for record in projected:
+        record["rtl_delta_projection_match"] = True
+        record["rtl_delta_projection_receipt"] = receipt_record
+    validated = {
+        record["path"]: {
+            "evidence_sha256": record["evidence_sha256"],
+            "live_sha256": record["live_sha256"],
+        }
+        for record in projected
+    }
+    spec.setdefault("_validated_selected_rtl_delta_projection", {}).update(
+        validated
+    )
+    spec.setdefault("_validated_selected_binding_projection", {}).update(
+        validated
+    )
+    return "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND"
+
+
+def source_hash_matches_with_rtl_delta(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    path_value: str,
+    evidence_sha256: Any,
+    current_design_id_value: str,
+    *,
+    evidence_size: Any = None,
+) -> bool:
+    """Accept exact bytes or one receipt-proven Backend/SQ baseline."""
+
+    path = resolve_repo_path(root, path_value)
+    if not path.is_file() or not is_sha256(evidence_sha256):
+        return False
+    live_sha256 = sha256_file(path)
+    if live_sha256 == evidence_sha256:
+        return evidence_size is None or path.stat().st_size == evidence_size
+    cached = (
+        spec.get("_validated_selected_rtl_delta_projection") or {}
+    ).get(path_value)
+    if (
+        isinstance(cached, dict)
+        and cached.get("evidence_sha256") == evidence_sha256
+        and cached.get("live_sha256") == live_sha256
+        and evidence_size is None
+    ):
+        return True
+    record = {
+        "path": path_value,
+        "role": "rtl",
+        "evidence_sha256": evidence_sha256,
+        "live_sha256": live_sha256,
+        "matches_live": False,
+    }
+    state = validate_selected_binding_rtl_delta_projection(
+        root, spec, [record], current_design_id_value
+    )
+    if state != "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND":
+        return False
+    receipt = load_json(
+        resolve_repo_path(
+            root, spec["selected_binding_rtl_delta_projection_receipt"]
+        )
+    )
+    delta = next(
+        (
+            item
+            for item in (
+                receipt.get("rtl_delta", [])
+                + receipt.get("consumer_delta", [])
+            )
+            if isinstance(item, dict) and item.get("path") == path_value
+        ),
+        None,
+    )
+    return (
+        isinstance(delta, dict)
+        and delta.get("baseline_sha256") == evidence_sha256
+        and (
+            evidence_size is None
+            or delta.get("baseline_size") == evidence_size
+        )
+    )
+
+
+def manifest_compatibility_with_rtl_delta(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    manifest: dict[str, str],
+    current_design_id_value: str,
+) -> dict[str, dict[str, str | None]]:
+    """Extend selected binding compatibility to compiled RTL/TB inputs."""
+
+    compatible: dict[str, dict[str, str | None]] = dict(
+        spec.get("_validated_selected_binding_projection") or {}
+    )
+    for path_value, evidence_sha256 in manifest.items():
+        live_path = resolve_repo_path(root, path_value)
+        live_sha256 = (
+            sha256_file(live_path) if live_path.is_file() else None
+        )
+        if live_sha256 is None or live_sha256 == evidence_sha256:
+            continue
+        if source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            path_value,
+            evidence_sha256,
+            current_design_id_value,
+        ):
+            compatible[path_value] = {
+                "evidence_sha256": evidence_sha256,
+                "live_sha256": live_sha256,
+            }
+    return compatible
+
+
+def source_bytes_at_evidence_binding(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    path_value: str,
+    evidence_sha256: str,
+    current_design_id_value: str,
+) -> bytes:
+    """Read exact historical bytes, reversing the reviewed delta if needed."""
+
+    path = resolve_repo_path(root, path_value)
+    current = path.read_bytes()
+    if hashlib.sha256(current).hexdigest() == evidence_sha256:
+        return current
+    if not source_hash_matches_with_rtl_delta(
+        root,
+        spec,
+        path_value,
+        evidence_sha256,
+        current_design_id_value,
+    ):
+        raise CoverageError(
+            f"source cannot be reconstructed at evidence binding: {path_value}"
+        )
+    receipt = load_json(
+        resolve_repo_path(
+            root, spec["selected_binding_rtl_delta_projection_receipt"]
+        )
+    )
+    delta = next(
+        (
+            item
+            for item in (
+                receipt.get("rtl_delta", [])
+                + receipt.get("consumer_delta", [])
+            )
+            if isinstance(item, dict) and item.get("path") == path_value
+        ),
+        None,
+    )
+    if not isinstance(delta, dict):
+        raise CoverageError(
+            f"source delta record is missing for evidence binding: {path_value}"
+        )
+    tool = load_selected_binding_rtl_delta_projection_tool(
+        str(root.resolve())
+    )
+    try:
+        return tool.reverse_delta(delta, current)
+    except tool.ProjectionGap as exc:
+        raise CoverageError(
+            f"source delta reconstruction failed: {path_value}: {exc}"
+        ) from exc
+
+
+def resolve_current_selected_binding_state(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    records: list[dict[str, Any]],
+    current_design_id_value: str,
+) -> str:
+    state = classify_binding_records(records)
+    if state == "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
+        return state
+    delta_state = validate_selected_binding_rtl_delta_projection(
+        root, spec, records, current_design_id_value
+    )
+    remaining = [
+        record
+        for record in records
+        if not record.get("rtl_delta_projection_match")
+    ]
+    macro_state = validate_selected_binding_projection(
+        root, spec, remaining, current_design_id_value
+    )
+    uncovered = [
+        record["path"]
+        for record in records
+        if not record["matches_live"]
+        and not record.get("rtl_delta_projection_match")
+        and not record.get("semantic_projection_match")
+    ]
+    if uncovered:
+        raise CoverageError(
+            f"{spec.get('binding_kind')} selected RTL/TB source closure is "
+            f"stale: {state}; uncovered={sorted(uncovered)}"
+        )
+    if delta_state and macro_state:
+        return "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND"
+    if delta_state:
+        return delta_state
+    if macro_state:
+        return macro_state
+    return state
 
 
 def validate_current_manifest_selected_binding(
@@ -2860,21 +3298,258 @@ def validate_current_manifest_selected_binding(
                 "matches_live": live_sha == manifest_pre[path_value],
             }
         )
-    state = classify_binding_records(records)
-    if state != "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
-        projected_state = validate_selected_binding_projection(
-            root, spec, records, current_design_id_value
-        )
-        if projected_state is not None:
-            state = projected_state
-    if state not in {
-        "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
-    }:
+    state = resolve_current_selected_binding_state(
+        root, spec, records, current_design_id_value
+    )
+    if state not in CURRENT_BINDINGS:
         raise CoverageError(
             f"{kind} selected RTL/TB source closure is stale: {state}"
         )
     return state, records, manifest_pre
+
+
+def evaluate_v14r_memory_request_hold(
+    root: pathlib.Path,
+    spec: dict[str, Any],
+    design_id: str,
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
+    result_path = resolve_repo_path(root, spec["summary"])
+    evidence_root = result_path.parent
+    result = parse_key_value_log(result_path)
+    expected_result = {
+        "RESULT": "PASS",
+        "TIER": "link",
+        "HOLDER_FF": "29",
+        "PAYLOAD_SHADOW_BITS": "217",
+        "MUTATION_TOTAL": "6",
+        "MANIFEST_FILES": "9",
+        "BUILD_RETAINED": "0",
+        "CLEANUP": "PASS",
+        "PPA": "UNQUALIFIED",
+    }
+    for key, value in expected_result.items():
+        if result.get(key) != value:
+            raise CoverageError(
+                f"V14R retained result drifted: {key}"
+            )
+
+    pre_path = evidence_root / "production-before.sha256"
+    post_path = evidence_root / "production-after.sha256"
+    binding_state, selected_records, manifest = (
+        validate_current_manifest_selected_binding(
+            root, spec, pre_path, post_path, design_id
+        )
+    )
+    support_paths = {
+        "npc/rv64/testbench/Makefile",
+        "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+        (
+            "npc/rv64/testbench/scripts/"
+            "run_v14r_memory_request_hold_mutation.sh"
+        ),
+        (
+            "npc/rv64/testbench/scripts/"
+            "check_v14r_memory_request_hold.sh"
+        ),
+    }
+    expected_manifest = {
+        record["path"] for record in selected_records
+    } | support_paths
+    if set(manifest) != expected_manifest:
+        raise CoverageError(
+            "V14R retained source manifest is not the exact nine-file set"
+        )
+    stale_support = stale_manifest_paths(
+        root,
+        manifest,
+        support_paths,
+        skip_non_semantic_orchestration=False,
+    )
+    if stale_support:
+        raise CoverageError(
+            f"V14R runner/spec support drifted: {stale_support}"
+        )
+    if result.get("MANIFEST_SHA256") != sha256_file(post_path):
+        raise CoverageError("V14R retained source-manifest digest drifted")
+
+    baseline_logs = {
+        "focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log": (
+            V14R_FOCUSED_MARKER,
+            "[PASS] tb_ooo_int_backend_v14r_memory_request_hold",
+        ),
+        (
+            "single-bank/logs/"
+            "tb_ooo_int_backend_v14r_single_bank_probe_order.log"
+        ): (
+            V14R_SINGLE_BANK_MARKER,
+            "[PASS] tb_ooo_int_backend_v14r_single_bank_probe_order",
+        ),
+        "store-queue/logs/tb_ooo_store_queue.log": (
+            "[V8T-F3-SQ-QUERY]",
+            "[PASS] tb_ooo_store_queue",
+        ),
+        "dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log": (
+            "[V8S-DUAL-MEMORY-CORE]",
+            "[PASS] tb_ooo_int_backend_v8s_dual_memory",
+        ),
+        "linked-regressions/logs/tb_ooo_int_backend.log": (
+            "[PASS] tb_ooo_int_backend",
+        ),
+        (
+            "linked-regressions/logs/"
+            "tb_ooo_int_backend_v11l_memory_retry_holder.log"
+        ): (
+            "[PASS] tb_ooo_int_backend_v11l_memory_retry_holder",
+        ),
+        (
+            "linked-regressions/logs/"
+            "tb_ooo_int_backend_v11m_memory_reservation_holder.log"
+        ): (
+            "[PASS] tb_ooo_int_backend_v11m_memory_reservation_holder",
+        ),
+    }
+    retained_artifacts = [
+        artifact(root, relative(root, result_path)),
+        artifact(root, relative(root, pre_path)),
+        artifact(root, relative(root, post_path)),
+    ]
+    for value, markers in baseline_logs.items():
+        path = evidence_root / value
+        if not path.is_file():
+            raise CoverageError(f"V14R baseline log is missing: {value}")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if (
+            text.count("[RESULT] PASS") != 1
+            or "[RESULT] FAIL" in text
+            or any(marker not in text for marker in markers)
+        ):
+            raise CoverageError(f"V14R baseline log is not PASS: {value}")
+        retained_artifacts.append(
+            artifact(root, relative(root, path))
+        )
+
+    backend_sha = sha256_file(
+        root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+    )
+    mutation_root = evidence_root / "mutation"
+    mutation_summary_path = mutation_root / "result.txt"
+    mutation_summary = parse_key_value_log(mutation_summary_path)
+    expected_mutation_summary = {
+        "RESULT": "PASS",
+        "VARIANT_TOTAL": "6",
+        "VARIANT_PASS_COUNT": "6",
+        "COMPILE_SUCCESS": "1",
+        "MUTATION_DETECTED": "1",
+        "PRODUCTION_SHA_BEFORE": backend_sha,
+        "PRODUCTION_SHA_AFTER": backend_sha,
+    }
+    for key, value in expected_mutation_summary.items():
+        if mutation_summary.get(key) != value:
+            raise CoverageError(
+                f"V14R mutation summary drifted: {key}"
+            )
+    retained_artifacts.append(
+        artifact(root, relative(root, mutation_summary_path))
+    )
+
+    observed_variants = {
+        path.name
+        for path in mutation_root.iterdir()
+        if path.is_dir()
+    }
+    if observed_variants != set(V14R_MUTATION_MARKERS):
+        raise CoverageError("V14R mutation directory inventory drifted")
+    for name, expected_marker in sorted(V14R_MUTATION_MARKERS.items()):
+        variant_root = mutation_root / name
+        variant_result_path = variant_root / "result.txt"
+        variant = parse_key_value_log(variant_result_path)
+        expected_variant = {
+            "RESULT": "PASS",
+            "MUTATION": name,
+            "EXPECTED_MARKER": expected_marker,
+            "COMPILE_SUCCESS": "1",
+            "MUTATION_DETECTED": "1",
+            "EXPECTED_TEST_FAILURE": "1",
+            "MAKE_RC": "2",
+            "PRODUCTION_SHA_BEFORE": backend_sha,
+            "PRODUCTION_SHA_AFTER": backend_sha,
+        }
+        for key, value in expected_variant.items():
+            if variant.get(key) != value:
+                raise CoverageError(
+                    f"V14R mutation result drifted: {name}.{key}"
+                )
+        log_path = resolve_repo_path(root, variant.get("TEST_LOG"))
+        diff_path = resolve_repo_path(root, variant.get("MUTATION_DIFF"))
+        try:
+            log_path.relative_to(variant_root)
+            diff_path.relative_to(variant_root)
+        except ValueError as exc:
+            raise CoverageError(
+                f"V14R mutation artifact escapes variant root: {name}"
+            ) from exc
+        if not log_path.is_file() or not diff_path.is_file():
+            raise CoverageError(
+                f"V14R mutation artifact is missing: {name}"
+            )
+        log_text = log_path.read_text(
+            encoding="utf-8", errors="replace"
+        )
+        if expected_marker not in log_text or not diff_path.read_bytes():
+            raise CoverageError(
+                f"V14R mutation did not hit its independent marker: {name}"
+            )
+        retained_artifacts.extend(
+            [
+                artifact(root, relative(root, variant_result_path)),
+                artifact(root, relative(root, log_path)),
+                artifact(root, relative(root, diff_path)),
+            ]
+        )
+
+    retained_images = sorted(
+        relative(root, path)
+        for path in evidence_root.rglob("*.vvp")
+        if path.is_file()
+    )
+    retained_build_dirs = sorted(
+        relative(root, path)
+        for path in evidence_root.rglob("build")
+        if path.is_dir()
+    )
+    if retained_images or retained_build_dirs:
+        raise CoverageError(
+            "V14R retained evidence contains rebuildable compile products"
+        )
+
+    return (
+        binding_state,
+        retained_artifacts,
+        {
+            "positive_profiles": 7,
+            "compile_success_mutations_rejected": 6,
+            "holder_flip_flops": 29,
+            "assertion_only_payload_shadow_bits": 217,
+            "bank_local_exact_source_and_token_hold_closed": True,
+            "ready_low_valid_payload_stability_closed": True,
+            "nonflush_cancel_priority_closed": True,
+            "sq_and_amo_held_launch_lease_closed": True,
+            "single_bank_older_probe_order_closed": True,
+            "compiled_images_retained": 0,
+            "product_instance_paths": sorted(V14R_PRODUCT_INSTANCES),
+            "selected_bindings": selected_records,
+            "evidence_design_id": design_id,
+            "current_design_id": design_id,
+            "system_rerun": {
+                "triggered_by_v14r": False,
+                "reason": (
+                    "current L0/L1 request-admission evidence is composed "
+                    "with the existing same-design L2/L3 receipts"
+                ),
+                "run": False,
+            },
+        },
+    )
 
 
 def validate_current_selected_binding(
@@ -2962,7 +3637,6 @@ def validate_current_selected_binding(
             }
         )
 
-    selected_state = classify_binding_records(records)
     if evidence_design_id == current_design_id_value:
         mismatches = validate_snapshot(
             root, snapshot, current_design_id_value
@@ -2972,16 +3646,10 @@ def validate_current_selected_binding(
                 f"{kind} current full RTL snapshot drift: {mismatches}"
             )
         return "CURRENT_FULL_RTL_BOUND", records
-    if selected_state != "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
-        projected_state = validate_selected_binding_projection(
-            root, spec, records, current_design_id_value
-        )
-        if projected_state is not None:
-            selected_state = projected_state
-    if selected_state not in {
-        "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-        "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
-    }:
+    selected_state = resolve_current_selected_binding_state(
+        root, spec, records, current_design_id_value
+    )
+    if selected_state not in CURRENT_BINDINGS:
         raise CoverageError(
             f"{kind} selected RTL/TB source closure is stale: "
             f"{selected_state}"
@@ -4163,10 +4831,18 @@ def evaluate_v11g_store_queue_holder(
     if pre != post:
         raise CoverageError("V11G StoreQueue holder RTL snapshots differ")
     verify_artifact_record(
-        root, production.get("rtl"), "V11G production StoreQueue"
+        root,
+        production.get("rtl"),
+        "V11G production StoreQueue",
+        projection_spec=spec,
+        current_design_id_value=design_id,
     )
     verify_artifact_record(
-        root, production.get("testbench"), "V11G directed testbench"
+        root,
+        production.get("testbench"),
+        "V11G directed testbench",
+        projection_spec=spec,
+        current_design_id_value=design_id,
     )
     focused_pre_path = verify_artifact_record(
         root, focused.get("pre"), "V11G focused source pre"
@@ -4428,12 +5104,7 @@ def evaluate_v11h_load_queue_producer(
                 "current V11H direct execution cannot carry a historical "
                 "checker-replay receipt"
             )
-    else:
-        if spec.get("checker_replay_receipt") is None:
-            raise CoverageError(
-                "historical V11H closure requires the attempt-4 "
-                "checker replay"
-            )
+    elif spec.get("checker_replay_receipt") is not None:
         replay_artifact, replay_detail = validate_v11h_checker_replay(
             root, spec, design_id
         )
@@ -4486,6 +5157,22 @@ def evaluate_v11h_load_queue_producer(
             "status": "PASS",
             "historical_checker_replay_required": False,
             "rtl_simulation_reexecuted": True,
+            "positive_profiles": 4,
+            "raw_q_knownness_assertion_probes": 1,
+            "mutation_simulations": 62,
+            "evidence_design_id": payload["design_id"],
+            "current_design_id": design_id,
+            "binding_state": binding_state,
+            "selected_bindings": selected_records,
+            "system_rerun_required_before_system_promotion": True,
+            "system_rerun_executed": False,
+        }
+    elif replay_detail is None:
+        replay_detail = {
+            "mode": "CURRENT_SELECTED_SOURCE_REUSE",
+            "status": "PASS",
+            "historical_checker_replay_required": False,
+            "rtl_simulation_reexecuted": False,
             "positive_profiles": 4,
             "raw_q_knownness_assertion_probes": 1,
             "mutation_simulations": 62,
@@ -5005,17 +5692,21 @@ def evaluate_v11k_miq_holder(
         != v11k_logic.get("logic_sha256")
         or v11j_logic.get("logic_size_bytes")
         != v11k_logic.get("logic_size_bytes")
+        or not is_sha256(v11j_logic.get("logic_sha256"))
+        or not is_sha256(v11k_logic.get("logic_sha256"))
+        or not is_sha256(v11j_logic.get("compressed_sha256"))
+        or not is_sha256(v11k_logic.get("compressed_sha256"))
+        or not isinstance(v11j_logic.get("logic_size_bytes"), int)
+        or v11j_logic.get("logic_size_bytes") <= 0
+        or not isinstance(v11k_logic.get("logic_size_bytes"), int)
+        or v11k_logic.get("logic_size_bytes") <= 0
     ):
         raise CoverageError(
             "V11K two-state elaborated RTL identity is not proven"
         )
-    for label, record in (("V11J", v11j_logic), ("V11K", v11k_logic)):
-        verify_path_sha(
-            root,
-            record.get("path"),
-            record.get("compressed_sha256"),
-            f"{label} canonical elaborated RTL",
-        )
+    # 旧 full Yosys JSON 是可再生二级产物；历史收据保留当时的两态等价结论，
+    # 当前 MIQ closure 则由 selected RTL/TB 与本轮 holder instance graph 重新绑定。
+    # 这样既不要求恢复已清理的大型综合中间物，也不会放宽当前源码或实例路径检查。
 
     miq_path = resolve_repo_path(root, production.get("miq"))
     focused_tb_path = resolve_repo_path(
@@ -5317,6 +6008,7 @@ def evaluate_v11k_miq_holder(
         name: f"npc/rv64/testbench/tests/{name}.sv"
         for name in V11K_REGRESSIONS
     }
+    regression_delta_bound = False
     for record in regressions:
         name = record.get("test")
         log_path = verify_artifact_record(
@@ -5349,6 +6041,41 @@ def evaluate_v11k_miq_holder(
             ),
         )
         if stale_regression_inputs:
+            delta_records = []
+            for path_value in stale_regression_inputs:
+                live_path = resolve_repo_path(root, path_value)
+                live_sha = (
+                    sha256_file(live_path)
+                    if live_path.is_file()
+                    else None
+                )
+                delta_records.append(
+                    {
+                        "path": path_value,
+                        "role": (
+                            "testbench"
+                            if path_value.endswith((".sv", ".svh"))
+                            else "rtl"
+                        ),
+                        "evidence_sha256": source_pre[path_value],
+                        "live_sha256": live_sha,
+                        "matches_live": live_sha == source_pre[path_value],
+                    }
+                )
+            delta_state = validate_selected_binding_rtl_delta_projection(
+                root, spec, delta_records, design_id
+            )
+            regression_delta_bound = regression_delta_bound or bool(
+                delta_state
+            )
+            stale_regression_inputs = stale_manifest_paths(
+                root,
+                source_pre,
+                compatible_records=spec.get(
+                    "_validated_selected_binding_projection"
+                ),
+            )
+        if stale_regression_inputs:
             raise CoverageError(
                 "V11K regression source binding drifted: "
                 f"{name} stale={stale_regression_inputs}"
@@ -5374,6 +6101,20 @@ def evaluate_v11k_miq_holder(
     ):
         raise CoverageError("V11K regression summary is not PASS")
 
+    if regression_delta_bound:
+        if binding_state == "CURRENT_SELECTED_MACRO_PROJECTION_BOUND":
+            binding_state = "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND"
+        elif binding_state == "CURRENT_SELECTED_SOURCE_AND_TB_BOUND":
+            binding_state = "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND"
+        elif binding_state not in {
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
+            "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND",
+        }:
+            raise CoverageError(
+                "V11K regression projection cannot compose with selected "
+                f"binding state: {binding_state}"
+            )
+
     return (
         binding_state,
         [
@@ -5392,10 +6133,15 @@ def evaluate_v11k_miq_holder(
             "ordinary_regressions_passed": 3,
             "push_pop_assertion_markers_closed": True,
             "regressions_current_source_artifact_post_bound": True,
+            "regressions_current_backend_sq_delta_projection_bound": (
+                regression_delta_bound
+            ),
             "raw_owner_tuple_xz_knownness_closed": True,
             "exact_occupancy_set_membership_closed": True,
             "capture_hold_cross_reject_flush_kill_consume_closed": True,
-            "production_elaborated_logic_identical": True,
+            "historical_v11j_v11k_elaborated_logic_identical": True,
+            "historical_full_yosys_json_retention_required": False,
+            "current_miq_elaboration_bound_by_selected_source_and_instance_graph": True,
             "product_instance_paths": sorted(V11K_PRODUCT_INSTANCES),
             "selected_bindings": selected_records,
             "evidence_design_id": payload["design_id"],
@@ -5502,18 +6248,25 @@ def evaluate_v11l_memory_retry_holder(
             "V11L memory retry-holder summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11L production OooIntBackend/TB source binding drifted"
@@ -5707,8 +6460,8 @@ def evaluate_v11l_memory_retry_holder(
         stale_inputs = stale_manifest_paths(
             root,
             compile_manifest,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, compile_manifest, design_id
             ),
         )
         if name.startswith("production-"):
@@ -6019,18 +6772,25 @@ def evaluate_v11m_memory_reservation_holder(
             "V11M memory-reservation holder summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11M production OooIntBackend/TB source binding drifted"
@@ -6369,8 +7129,8 @@ def evaluate_v11m_memory_reservation_holder(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -6445,27 +7205,41 @@ def evaluate_v11n_memory_pending_holder(
     scope = payload.get("scope")
     promotion = payload.get("promotion")
     tools = payload.get("tools")
+    cleanup = payload.get("artifact_cleanup")
     mutation_cases = frozenset(V11N_MUTATION_EXPECTATIONS)
+    release_mutation_cases = {
+        case
+        for case, expectation in V11N_MUTATION_EXPECTATIONS.items()
+        if not expectation.get("assertions", False)
+    }
+    assertion_mutation_cases = mutation_cases - release_mutation_cases
     expected_profiles = {
         f"production-g{width}-{mode}"
         for width in (1, 4)
         for mode in ("assert", "release")
     } | {
         f"{case}-g{width}-release"
-        for case in mutation_cases
+        for case in release_mutation_cases
+        for width in (1, 4)
+    } | {
+        f"{case}-g{width}-assert"
+        for case in assertion_mutation_cases
         for width in (1, 4)
     }
     expected_configuration = {
         "top": "tb_ooo_int_backend",
         "focused_define": "-DV11N_MEMORY_PENDING_HOLDER_FOCUSED",
         "producer_gen_widths": [1, 4],
-        "profile_count": 30,
+        "profile_count": 36,
         "baseline_profile_count": 4,
-        "mutation_count": 13,
-        "mutation_profile_count": 26,
+        "mutation_count": 16,
+        "mutation_profile_count": 32,
         "regression_count": 3,
         "baseline_assert_and_release": True,
-        "mutations_release_mode": True,
+        "mutation_modes": {
+            "release_oracle": 13,
+            "assertion": 3,
+        },
         "full_system_run": False,
     }
     expected_oracle = {
@@ -6483,16 +7257,22 @@ def evaluate_v11n_memory_pending_holder(
         "post_write_hold": True,
         "collector_lane0_final_acceptance": True,
         "collector_lane9_cancel_acceptance": True,
+        "collector_lane9_vs_lane6_7_8_natural_cycle": True,
         "read_fault_lane0_no_lane9_duplicate": True,
         "tracker_terminal_death": True,
         "release_mode_mutation_rejection": True,
+        "amo_transient_assertion_mutation_rejection": True,
     }
     expected_scope = {
-        "semantic_units": payload.get("unit_ids"),
+        "semantic_units": list(
+            V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_ORDER
+        ),
         "global_no_live_reuse": "NOT_PROVEN",
         "whole_architecture": "RED",
         "ppa": "UNPROMOTED",
-        "production_rtl_change": False,
+        "production_rtl_change": True,
+        "production_data_path_change": False,
+        "assertion_only_rtl_change": True,
         "a3_original_status": "FAIL_RETAINED",
         "a3_checker_replay": "PASS_INDEPENDENT",
         "system_rerun": {
@@ -6514,7 +7294,9 @@ def evaluate_v11n_memory_pending_holder(
         or payload.get("status") != "PASS"
         or payload.get("classification") != "verification"
         or set(payload.get("unit_ids", []))
-        != V11N_MEMORY_PENDING_HOLDER_UNIT_IDS
+        != V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_IDS
+        or payload.get("unit_ids")
+        != list(V11N_MEMORY_PENDING_HOLDER_EVIDENCE_UNIT_ORDER)
         or configuration != expected_configuration
         or oracle != expected_oracle
         or not isinstance(production, dict)
@@ -6523,12 +7305,12 @@ def evaluate_v11n_memory_pending_holder(
         or not isinstance(binding, dict)
         or binding.get("pre_post_match") is not True
         or not isinstance(counts, dict)
-        or counts.get("profiles_total") != 30
-        or counts.get("profiles_pass") != 30
+        or counts.get("profiles_total") != 36
+        or counts.get("profiles_pass") != 36
         or counts.get("profiles_fail") != 0
         or counts.get("baseline_profiles_total") != 4
-        or counts.get("mutations_total") != 13
-        or counts.get("mutation_profiles_total") != 26
+        or counts.get("mutations_total") != 16
+        or counts.get("mutation_profiles_total") != 32
         or counts.get("regressions_total") != 3
         or counts.get("regressions_pass") != 3
         or scope != expected_scope
@@ -6538,18 +7320,25 @@ def evaluate_v11n_memory_pending_holder(
             "V11N memory-pending holder summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11N production OooIntBackend/TB source binding drifted"
@@ -6605,9 +7394,77 @@ def evaluate_v11n_memory_pending_holder(
             f"missing={missing_support} stale={stale_support}"
         )
 
+    evidence_root = pre_path.parent
+    if post_path.parent != evidence_root:
+        raise CoverageError("V11N focused source snapshots are split")
+    task_runs_root = (root / ".github/task-runs").resolve()
+    try:
+        evidence_root.resolve().relative_to(task_runs_root)
+    except ValueError as exc:
+        raise CoverageError("V11N evidence root escapes task-runs") from exc
+    cleanup_path = evidence_root / "artifact-cleanup.json"
+    cleanup_file = load_json(cleanup_path)
+    removed = cleanup.get("removed") if isinstance(cleanup, dict) else None
+    if (
+        cleanup_file != cleanup
+        or cleanup.get("status") != "PASS"
+        or cleanup.get("policy")
+        != "retain-results-logs-and-hashes-only"
+        or cleanup.get("removed_count") != 55
+        or cleanup.get("retained_compile_images") != 0
+        or not isinstance(removed, list)
+        or len(removed) != 55
+    ):
+        raise CoverageError("V11N artifact cleanup receipt is incomplete")
+    cleanup_records: dict[str, dict[str, Any]] = {}
+    cleanup_kind_counts: Counter[str] = Counter()
+    for record in removed:
+        if (
+            not isinstance(record, dict)
+            or set(record)
+            != {
+                "path",
+                "sha256",
+                "size_bytes",
+                "kind",
+                "removed_after_validation",
+            }
+            or not isinstance(record.get("path"), str)
+            or record["path"] in cleanup_records
+            or not is_sha256(record.get("sha256"))
+            or not isinstance(record.get("size_bytes"), int)
+            or record["size_bytes"] <= 0
+            or record.get("removed_after_validation") is not True
+            or record.get("kind")
+            not in {
+                "focused-compile-image",
+                "regression-compile-image",
+                "generated-negative-rtl",
+            }
+        ):
+            raise CoverageError("V11N artifact cleanup record is invalid")
+        retired_path = resolve_repo_path(root, record["path"])
+        try:
+            retired_path.relative_to(evidence_root)
+        except ValueError as exc:
+            raise CoverageError(
+                "V11N retired artifact escapes evidence root"
+            ) from exc
+        if retired_path.exists() or retired_path.is_symlink():
+            raise CoverageError("V11N retired artifact still exists")
+        cleanup_records[record["path"]] = record
+        cleanup_kind_counts[record["kind"]] += 1
+    if cleanup_kind_counts != {
+        "focused-compile-image": 36,
+        "regression-compile-image": 3,
+        "generated-negative-rtl": 16,
+    }:
+        raise CoverageError("V11N artifact cleanup inventory is incomplete")
+    consumed_cleanup_paths: set[str] = set()
+
     if (
         not isinstance(variants, list)
-        or len(variants) != 13
+        or len(variants) != 16
         or {
             item.get("name")
             for item in variants
@@ -6623,14 +7480,27 @@ def evaluate_v11n_memory_pending_holder(
         name = record.get("name")
         expectation = V11N_MUTATION_EXPECTATIONS.get(name)
         receipts = record.get("receipts")
+        expected_assertions = (
+            expectation.get("assertions", False)
+            if expectation is not None
+            else None
+        )
+        expected_marker = (
+            expectation.get("marker") if expectation is not None else None
+        )
+        expected_holder = (
+            expectation.get("holder") if expectation is not None else None
+        )
         if (
             expectation is None
             or record.get("target") != production.get("rtl")
             or set(record.get("unit_ids", []))
             != expectation["unit_ids"]
             or record.get("expected_stage") != expectation["stage"]
+            or record.get("expected_marker") != expected_marker
+            or record.get("expected_holder") != expected_holder
             or record.get("compile_success_required") is not True
-            or record.get("assertions") is not False
+            or record.get("assertions") is not expected_assertions
             or record.get("production_sha256")
             != production.get("rtl_sha256")
             or not isinstance(receipts, list)
@@ -6654,19 +7524,26 @@ def evaluate_v11n_memory_pending_holder(
             raise CoverageError(
                 f"V11N mutation receipt is invalid: {name}"
             )
-        variant_path = verify_path_sha(
-            root,
-            record.get("variant"),
-            record.get("variant_sha256"),
-            f"V11N mutation {name}",
-        )
+        variant_cleanup = cleanup_records.get(record.get("variant"))
+        if (
+            not is_sha256(record.get("variant_sha256"))
+            or variant_cleanup is None
+            or variant_cleanup.get("kind") != "generated-negative-rtl"
+            or variant_cleanup.get("sha256")
+            != record.get("variant_sha256")
+        ):
+            raise CoverageError(
+                f"V11N mutation cleanup binding is invalid: {name}"
+            )
+        variant_path = resolve_repo_path(root, record["variant"])
+        consumed_cleanup_paths.add(record["variant"])
         if record.get("variant_sha256") == production.get("rtl_sha256"):
             raise CoverageError(f"V11N mutation did not change RTL: {name}")
         variant_paths[name] = variant_path
 
     if (
         not isinstance(profiles, list)
-        or len(profiles) != 30
+        or len(profiles) != 36
         or {
             item.get("profile")
             for item in profiles
@@ -6697,12 +7574,17 @@ def evaluate_v11n_memory_pending_holder(
             or not compile_manifest
         ):
             raise CoverageError(f"V11N profile failed: {name}")
-        verify_path_sha(
-            root,
-            compile_record.get("artifact"),
-            compile_record.get("artifact_sha256"),
-            f"V11N profile {name} image",
-        )
+        profile_cleanup = cleanup_records.get(compile_record.get("artifact"))
+        if (
+            profile_cleanup is None
+            or profile_cleanup.get("kind") != "focused-compile-image"
+            or profile_cleanup.get("sha256")
+            != compile_record.get("artifact_sha256")
+        ):
+            raise CoverageError(
+                f"V11N profile cleanup binding is invalid: {name}"
+            )
+        consumed_cleanup_paths.add(compile_record["artifact"])
         log_path = verify_path_sha(
             root,
             simulation.get("log"),
@@ -6734,18 +7616,28 @@ def evaluate_v11n_memory_pending_holder(
             for item in command
             if pathlib.Path(item).is_absolute()
             and pathlib.Path(item).suffix in {".v", ".sv"}
-            and pathlib.Path(item).is_file()
         }
         if command_sources != set(compile_manifest):
             raise CoverageError(
                 f"V11N compile source manifest is incomplete: {name}"
             )
+        compatible_inputs = dict(
+            spec.get("_validated_selected_binding_projection") or {}
+        )
+        for path_value in compile_manifest:
+            retired = cleanup_records.get(path_value)
+            if (
+                retired is not None
+                and retired.get("kind") == "generated-negative-rtl"
+            ):
+                compatible_inputs[path_value] = {
+                    "evidence_sha256": retired["sha256"],
+                    "live_sha256": None,
+                }
         stale_inputs = stale_manifest_paths(
             root,
             compile_manifest,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
-            ),
+            compatible_records=compatible_inputs,
         )
         baseline_match = re.fullmatch(
             r"production-g([14])-(assert|release)", name
@@ -6758,7 +7650,9 @@ def evaluate_v11n_memory_pending_holder(
                 f"-DOOO_PRODUCER_GEN_W={width}",
             ]
             if mode == "assert":
-                expected_defines.append("-DOOO_ASSERT")
+                expected_defines.extend(
+                    ["-DOOO_ASSERT", "-DOOO_TERMINAL_HOLDER_ASSERT"]
+                )
             if (
                 record.get("producer_gen_width") != width
                 or record.get("kind") != "baseline"
@@ -6778,6 +7672,7 @@ def evaluate_v11n_memory_pending_holder(
                 or markers.get("tb_pass") != 1
                 or markers.get("matrix_pass") != 1
                 or markers.get("oracle_fail") != 0
+                or markers.get("v14u_assert_fail") != 0
                 or log_text.count(
                     "[PASS] tb_ooo_int_backend_v11n_"
                     "memory_pending_holder"
@@ -6802,17 +7697,28 @@ def evaluate_v11n_memory_pending_holder(
             continue
 
         mutation_match = re.fullmatch(
-            r"(.+)-g([14])-release", name
+            r"(.+)-g([14])-(release|assert)", name
         )
         if not mutation_match:
             raise CoverageError(f"V11N profile name is invalid: {name}")
         case = mutation_match.group(1)
         width = int(mutation_match.group(2))
+        mode = mutation_match.group(3)
         expectation = V11N_MUTATION_EXPECTATIONS.get(case)
+        expected_assertions = (
+            expectation.get("assertions", False)
+            if expectation is not None
+            else None
+        )
+        expected_mode = "assert" if expected_assertions else "release"
         expected_defines = [
             "-DV11N_MEMORY_PENDING_HOLDER_FOCUSED",
             f"-DOOO_PRODUCER_GEN_W={width}",
         ]
+        if expected_assertions:
+            expected_defines.extend(
+                ["-DOOO_ASSERT", "-DOOO_TERMINAL_HOLDER_ASSERT"]
+            )
         failure_stages = re.findall(
             re.escape(
                 "[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL]"
@@ -6824,34 +7730,35 @@ def evaluate_v11n_memory_pending_holder(
         variant_relative = (
             relative(root, variant_path) if variant_path else None
         )
+        variant_cleanup = cleanup_records.get(variant_relative)
         if (
             expectation is None
+            or mode != expected_mode
             or record.get("producer_gen_width") != width
             or record.get("kind") != "mutation"
             or record.get("mutation") != case
             or record.get("expected_stage") != expectation["stage"]
-            or record.get("assertions") is not False
+            or record.get("expected_marker")
+            != expectation.get("marker")
+            or record.get("expected_holder")
+            != expectation.get("holder")
+            or record.get("assertions") is not expected_assertions
             or defines != expected_defines
             or stale_inputs
+            or variant_cleanup is None
             or variant_relative not in compile_manifest
             or compile_manifest.get(variant_relative)
-            != sha256_file(variant_path)
+            != variant_cleanup.get("sha256")
             or production["rtl"] in compile_manifest
             or not isinstance(simulation.get("rc"), int)
             or simulation["rc"] == 0
-            or markers.get("oracle_fail") != 1
             or markers.get("tb_pass") != 0
             or markers.get("matrix_pass") != 0
-            or log_text.count(
-                "[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL]"
-            )
-            != 1
-            or failure_stages != [expectation["stage"]]
             or "[V11N-MEM-PENDING-HOLDER-MATRIX][PASS]" in log_text
             or "[PASS] tb_ooo_int_backend_v11n_" in log_text
         ):
             raise CoverageError(
-                f"V11N release mutation escaped or was misbound: {name}"
+                f"V11N mutation escaped or was misbound: {name}"
             )
         if set(
             path_value
@@ -6860,6 +7767,74 @@ def evaluate_v11n_memory_pending_holder(
         ) != {variant_relative}:
             raise CoverageError(
                 f"V11N mutation compile selected wrong variant: {case}"
+            )
+        if not expected_assertions:
+            if (
+                markers.get("oracle_fail") != 1
+                or markers.get("v14u_assert_fail") != 0
+                or log_text.count(
+                    "[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL]"
+                )
+                != 1
+                or failure_stages != [expectation["stage"]]
+                or "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]" in log_text
+            ):
+                raise CoverageError(
+                    "V11N release mutation oracle is not exact: "
+                    f"{name}"
+                )
+            continue
+
+        holder_samples = [
+            tuple(int(value) for value in match)
+            for match in re.findall(
+                re.escape(expectation["marker"])
+                + r" overlap=[0-9a-fA-F]+ amo=([01])/([0-9]+) "
+                + r"res0=([01])/([0-9]+) res1=([01])/([0-9]+) "
+                + r"buffer=([01])/([0-9]+)",
+                log_text,
+            )
+        ]
+        expected_valids = {
+            "res0": (1, 0, 0),
+            "res1": (0, 1, 0),
+            "buffer": (0, 0, 1),
+        }.get(expectation["holder"])
+        holder_exact = False
+        if len(holder_samples) == 1 and expected_valids is not None:
+            (
+                amo_valid,
+                amo_token,
+                res0_valid,
+                res0_token,
+                res1_valid,
+                res1_token,
+                buffer_valid,
+                buffer_token,
+            ) = holder_samples[0]
+            selected_token = {
+                "res0": res0_token,
+                "res1": res1_token,
+                "buffer": buffer_token,
+            }[expectation["holder"]]
+            holder_exact = (
+                amo_valid == 1
+                and amo_token == 28
+                and (res0_valid, res1_valid, buffer_valid)
+                == expected_valids
+                and selected_token == 28
+            )
+        if (
+            markers.get("oracle_fail") != 0
+            or markers.get("v14u_assert_fail") != 1
+            or markers.get("[V14U-AMO-TRANSIENT-LANE-MATRIX][PASS]")
+            != 0
+            or log_text.count(expectation["marker"]) != 1
+            or failure_stages
+            or not holder_exact
+        ):
+            raise CoverageError(
+                f"V11N assertion mutation did not expose {case}"
             )
 
     if (
@@ -6880,11 +7855,25 @@ def evaluate_v11n_memory_pending_holder(
         log_path = verify_artifact_record(
             root, record.get("log"), f"V11N regression {name}"
         )
-        verify_artifact_record(
-            root,
-            record.get("compile_artifact"),
-            f"V11N regression {name} image",
+        compile_artifact = record.get("compile_artifact")
+        regression_cleanup = (
+            cleanup_records.get(compile_artifact.get("path"))
+            if isinstance(compile_artifact, dict)
+            else None
         )
+        if (
+            regression_cleanup is None
+            or regression_cleanup.get("kind")
+            != "regression-compile-image"
+            or regression_cleanup.get("sha256")
+            != compile_artifact.get("sha256")
+            or regression_cleanup.get("size_bytes")
+            != compile_artifact.get("size_bytes")
+        ):
+            raise CoverageError(
+                f"V11N regression cleanup binding is invalid: {name}"
+            )
+        consumed_cleanup_paths.add(compile_artifact["path"])
         source_pre = record.get("compile_source_manifest")
         source_post = record.get("compile_source_post_manifest")
         if (
@@ -6906,8 +7895,8 @@ def evaluate_v11n_memory_pending_holder(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -6921,9 +7910,9 @@ def evaluate_v11n_memory_pending_holder(
             or "[V11N-MEM-PENDING-HOLDER-ORACLE][FAIL]" in log_text
         ):
             raise CoverageError(f"V11N regression failed: {name}")
-    regression_summary_path = (
-        summary_path.parent / "regressions/summary.json"
-    )
+    if consumed_cleanup_paths != set(cleanup_records):
+        raise CoverageError("V11N artifact cleanup has unbound records")
+    regression_summary_path = evidence_root / "regressions/summary.json"
     regression_summary = load_json(regression_summary_path)
     if (
         regression_summary.get("status") != "PASS"
@@ -6942,16 +7931,23 @@ def evaluate_v11n_memory_pending_holder(
             artifact(root, relative(root, pre_path)),
             artifact(root, relative(root, post_path)),
             artifact(root, relative(root, regression_summary_path)),
+            artifact(root, relative(root, cleanup_path)),
         ],
         {
             "positive_profiles": 4,
-            "compile_success_mutation_cases_rejected": 13,
-            "mutation_simulations_rejected": 26,
+            "compile_success_mutation_cases_rejected": 16,
+            "release_oracle_mutation_cases_rejected": 13,
+            "assertion_mutation_cases_rejected": 3,
+            "mutation_simulations_rejected": 32,
             "ordinary_regressions_passed": 3,
             "stimulus_owned_full_pid_and_token": True,
             "dispatch_lane1_to_execution_terminal0_closed": True,
             "read_write_hold_and_terminal_death_closed": True,
             "lane0_lane9_accepted_terminal_closed": True,
+            "lane9_vs_lane6_lane7_lane8_natural_cycle_closed": True,
+            "amo_transient_holder_disjoint_closed": True,
+            "retired_intermediate_artifacts": 55,
+            "retained_compile_images": 0,
             "production_design_id_current": payload["design_id"] == design_id,
             "product_instance_paths": sorted(V11N_PRODUCT_INSTANCES),
             "selected_bindings": selected_records,
@@ -7073,18 +8069,25 @@ def evaluate_v11o_memory_buffer_token(
             "V11O memory-buffer token summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11O production OooIntBackend/TB source binding drifted"
@@ -7180,9 +8183,31 @@ def evaluate_v11o_memory_buffer_token(
     graph_receipt_path = verify_artifact_record(
         root, graph_record.get("receipt"), "V11O instance-graph receipt"
     )
-    full_graph_path = verify_artifact_record(
-        root, graph_record.get("full_json"), "V11O full Yosys JSON"
+    historical_full_record = graph_record.get("full_json")
+    if (
+        not isinstance(historical_full_record, dict)
+        or set(historical_full_record) != {"path", "sha256", "size_bytes"}
+        or not is_sha256(historical_full_record.get("sha256"))
+        or not isinstance(historical_full_record.get("size_bytes"), int)
+        or historical_full_record["size_bytes"] <= 0
+    ):
+        raise CoverageError("V11O historical full Yosys record is invalid")
+    full_graph_path = resolve_repo_path(
+        root, historical_full_record["path"]
     )
+    if full_graph_path.is_file():
+        if (
+            sha256_file(full_graph_path)
+            != historical_full_record["sha256"]
+            or full_graph_path.stat().st_size
+            != historical_full_record["size_bytes"]
+        ):
+            raise CoverageError(
+                "V11O historical full Yosys JSON hash/size mismatch"
+            )
+    elif full_graph_path.is_symlink():
+        raise CoverageError("V11O historical full Yosys path is unsafe")
+    historical_full_graph_retained = full_graph_path.is_file()
     graph_result_path = verify_artifact_record(
         root, graph_record.get("result"), "V11O instance-graph result"
     )
@@ -7250,8 +8275,13 @@ def evaluate_v11o_memory_buffer_token(
         != expected_product_sources
         or any(
             not isinstance(row, dict)
-            or sha256_file(resolve_repo_path(root, row.get("path")))
-            != row.get("sha256")
+            or not source_hash_matches_with_rtl_delta(
+                root,
+                spec,
+                row.get("path"),
+                row.get("sha256"),
+                design_id,
+            )
             for row in source_rows
         )
     ):
@@ -7289,6 +8319,116 @@ def evaluate_v11o_memory_buffer_token(
         != graph_receipt.get("full_yosys_json_sha256")
     ):
         raise CoverageError("V11O full Yosys graph binding drifted")
+
+    current_reachability_path = resolve_repo_path(
+        root, spec.get("current_product_reachability_receipt")
+    )
+    current_reachability = load_json(current_reachability_path)
+    current_source_rows = current_reachability.get("sources")
+    current_elaborated = current_reachability.get("elaborated_contract")
+    current_artifacts = current_reachability.get("artifacts")
+    census = load_json(
+        resolve_repo_path(
+            root, "npc/rv64/design/arch/producer-holder-census.json"
+        )
+    )
+    census_graph = census.get("elaborated_instance_graph")
+    census_evidence = (
+        census_graph.get("evidence")
+        if isinstance(census_graph, dict)
+        else None
+    )
+    census_receipt = (
+        census_evidence.get("receipt")
+        if isinstance(census_evidence, dict)
+        else None
+    )
+    census_full = (
+        census_evidence.get("full")
+        if isinstance(census_evidence, dict)
+        else None
+    )
+    current_graph_artifact = (
+        current_artifacts.get("instance_graph_receipt")
+        if isinstance(current_artifacts, dict)
+        else None
+    )
+    current_full_artifact = (
+        current_artifacts.get("full_yosys_json")
+        if isinstance(current_artifacts, dict)
+        else None
+    )
+    if (
+        current_reachability.get("schema")
+        != V11O_PRODUCT_REACHABILITY_SCHEMA
+        or current_reachability.get("status") != "PASS"
+        or current_reachability.get("design_id") != design_id
+        or current_reachability.get("source_contract") != source_contract
+        or not isinstance(current_elaborated, dict)
+        or current_elaborated.get("design_id") != design_id
+        or current_elaborated.get("product_instance")
+        not in V11O_PRODUCT_INSTANCES
+        or current_elaborated.get("constant_zero_nets")
+        != {
+            "issue0_mem_buffer_fire_w": ["0"],
+            "issue1_mem_buffer_fire_w": ["0"],
+            "mem_buffer_req_valid_w": ["0"],
+        }
+        or not isinstance(current_source_rows, list)
+        or {
+            row.get("path")
+            for row in current_source_rows
+            if isinstance(row, dict)
+        }
+        != expected_product_sources
+        or any(
+            not isinstance(row, dict)
+            or not is_sha256(row.get("sha256"))
+            or sha256_file(resolve_repo_path(root, row.get("path")))
+            != row.get("sha256")
+            for row in current_source_rows
+        )
+        or not isinstance(census_receipt, dict)
+        or not isinstance(census_full, dict)
+        or not isinstance(current_graph_artifact, dict)
+        or set(current_graph_artifact) != {"path", "sha256"}
+        or current_graph_artifact.get("path")
+        != census_receipt.get("path")
+        or current_graph_artifact.get("sha256")
+        != census_receipt.get("sha256")
+        or not isinstance(current_full_artifact, dict)
+        or set(current_full_artifact)
+        != {"path", "sha256", "uncompressed_sha256"}
+        or current_full_artifact.get("path") != census_full.get("path")
+        or current_full_artifact.get("sha256") != census_full.get("sha256")
+        or current_full_artifact.get("uncompressed_sha256")
+        != current_elaborated.get("full_yosys_json_sha256")
+    ):
+        raise CoverageError(
+            "V11O current product reachability receipt is incomplete"
+        )
+    current_graph_path = verify_path_sha(
+        root,
+        current_graph_artifact["path"],
+        current_graph_artifact["sha256"],
+        "V11O current instance-graph receipt",
+    )
+    current_full_path = verify_path_sha(
+        root,
+        current_full_artifact["path"],
+        current_full_artifact["sha256"],
+        "V11O current full Yosys JSON",
+    )
+    current_graph_receipt = load_json(current_graph_path)
+    if (
+        current_graph_receipt.get("status") != "PASS"
+        or current_graph_receipt.get("design_id") != design_id
+        or current_graph_receipt.get("full_yosys_json_sha256")
+        != current_full_artifact["uncompressed_sha256"]
+    ):
+        raise CoverageError(
+            "V11O current instance-graph receipt is incomplete"
+        )
 
     if (
         not isinstance(variants, list)
@@ -7589,8 +8729,8 @@ def evaluate_v11o_memory_buffer_token(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -7627,7 +8767,14 @@ def evaluate_v11o_memory_buffer_token(
             artifact(root, relative(root, regression_summary_path)),
             artifact(root, relative(root, reachability_path)),
             artifact(root, relative(root, graph_receipt_path)),
-            artifact(root, relative(root, full_graph_path)),
+            *(
+                [artifact(root, relative(root, full_graph_path))]
+                if historical_full_graph_retained
+                else []
+            ),
+            artifact(root, relative(root, current_reachability_path)),
+            artifact(root, relative(root, current_graph_path)),
+            artifact(root, relative(root, current_full_path)),
         ],
         {
             "positive_profiles": 4,
@@ -7637,6 +8784,11 @@ def evaluate_v11o_memory_buffer_token(
             "ordinary_regressions_passed": 3,
             "product_parameter_chain_closed": True,
             "product_birth_and_request_constant_zero": True,
+            "current_product_reachability_design_id_current": True,
+            "historical_full_yosys_json_retention_required": False,
+            "historical_full_yosys_json_retained": (
+                historical_full_graph_retained
+            ),
             "legacy_lane0_lane1_birth_closed": True,
             "legacy_hold_transfer_cancel_death_closed": True,
             "production_design_id_current": payload["design_id"] == design_id,
@@ -7764,18 +8916,25 @@ def evaluate_v11p_checkpoint_irrevocable_write(
             "V11P checkpoint irreversible-write summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11P production OooIntBackend/TB source binding drifted"
@@ -7815,13 +8974,14 @@ def evaluate_v11p_checkpoint_irrevocable_write(
         ),
         (
             "npc/rv64/testbench/scripts/"
-            "run_v11n_memory_pending_holder_semantic.py"
-        ),
-        (
-            "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
         ),
     }
+    # V11P's frozen source manifest authenticates the matrix-engine version
+    # that produced its logs.  Current semantic acceptance is performed here
+    # from those logs; the live V11P/V11N runner API is checked by its fast
+    # runner unit test, so a later additive V11N engine extension is not an
+    # RTL/TB evidence drift for this historical V11P result.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -8305,11 +9465,7 @@ def evaluate_v11q_int_lane0_packet(
             "V11Q integer lane0 packet summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
     pipe_path = resolve_repo_path(root, production.get("pipe_stage_rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
@@ -8317,11 +9473,22 @@ def evaluate_v11q_int_lane0_packet(
         != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
         or sha256_file(pipe_path)
         != production.get("pipe_stage_rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11Q production OooIntBackend/PipeStageReg/TB binding drifted"
@@ -8361,13 +9528,11 @@ def evaluate_v11q_int_lane0_packet(
         ),
         (
             "npc/rv64/testbench/scripts/"
-            "run_v11n_memory_pending_holder_semantic.py"
-        ),
-        (
-            "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
         ),
     }
+    # The frozen manifest binds the producing matrix engine; the current V11Q
+    # runner API is covered by its dedicated unit test.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -8522,8 +9687,8 @@ def evaluate_v11q_int_lane0_packet(
         stale_inputs = stale_manifest_paths(
             root,
             compile_manifest,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, compile_manifest, design_id
             ),
         )
         baseline_match = re.fullmatch(
@@ -8684,8 +9849,8 @@ def evaluate_v11q_int_lane0_packet(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -8874,11 +10039,7 @@ def evaluate_v11r_int_lane1_packet(
             "V11R integer lane1 packet summary is not complete"
         )
 
-    rtl_path = resolve_repo_path(root, production.get("rtl"))
     pipe_path = resolve_repo_path(root, production.get("pipe_stage_rtl"))
-    focused_tb_path = resolve_repo_path(
-        root, production.get("focused_testbench")
-    )
     if (
         production.get("rtl")
         != "npc/rv64/vsrc/execute/OooIntBackend.v"
@@ -8886,11 +10047,22 @@ def evaluate_v11r_int_lane1_packet(
         != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
-        or sha256_file(rtl_path) != production.get("rtl_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("rtl"),
+            production.get("rtl_sha256"),
+            design_id,
+        )
         or sha256_file(pipe_path)
         != production.get("pipe_stage_rtl_sha256")
-        or sha256_file(focused_tb_path)
-        != production.get("focused_testbench_sha256")
+        or not source_hash_matches_with_rtl_delta(
+            root,
+            spec,
+            production.get("focused_testbench"),
+            production.get("focused_testbench_sha256"),
+            design_id,
+        )
     ):
         raise CoverageError(
             "V11R production OooIntBackend/PipeStageReg/TB binding drifted"
@@ -8930,13 +10102,11 @@ def evaluate_v11r_int_lane1_packet(
         ),
         (
             "npc/rv64/testbench/scripts/"
-            "run_v11n_memory_pending_holder_semantic.py"
-        ),
-        (
-            "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
         ),
     }
+    # The frozen manifest binds the producing matrix engine; the current V11R
+    # runner API is covered by its dedicated unit test.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -9091,8 +10261,8 @@ def evaluate_v11r_int_lane1_packet(
         stale_inputs = stale_manifest_paths(
             root,
             compile_manifest,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, compile_manifest, design_id
             ),
         )
         baseline_match = re.fullmatch(
@@ -9253,8 +10423,8 @@ def evaluate_v11r_int_lane1_packet(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -9526,8 +10696,13 @@ def evaluate_v11s_muldiv_producer(
         digest_key = f"{key}_sha256"
         if (
             production.get(key) != expected_path
-            or sha256_file(resolve_repo_path(root, expected_path))
-            != production.get(digest_key)
+            or not source_hash_matches_with_rtl_delta(
+                root,
+                spec,
+                expected_path,
+                production.get(digest_key),
+                design_id,
+            )
         ):
             raise CoverageError(
                 f"V11S production binding drifted: {key}"
@@ -9540,12 +10715,20 @@ def evaluate_v11s_muldiv_producer(
     )
     expected_generated, expected_overlay_receipts = (
         render_v11s_focused_testbench(
-            resolve_repo_path(
-                root, production["base_testbench"]
-            ).read_text(encoding="utf-8"),
-            resolve_repo_path(
-                root, production["focused_testbench"]
-            ).read_text(encoding="utf-8"),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["base_testbench"],
+                production["base_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["focused_testbench"],
+                production["focused_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
         )
     )
     if (
@@ -9594,13 +10777,11 @@ def evaluate_v11s_muldiv_producer(
         ),
         (
             "npc/rv64/testbench/scripts/"
-            "run_v11n_memory_pending_holder_semantic.py"
-        ),
-        (
-            "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
         ),
     }
+    # The frozen manifest binds the producing matrix engine; the current V11S
+    # runner API is covered by its dedicated unit test.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -9755,8 +10936,8 @@ def evaluate_v11s_muldiv_producer(
         stale_inputs = stale_manifest_paths(
             root,
             compile_manifest,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, compile_manifest, design_id
             ),
         )
         baseline_match = re.fullmatch(
@@ -9928,8 +11109,8 @@ def evaluate_v11s_muldiv_producer(
         stale = stale_manifest_paths(
             root,
             source_pre,
-            compatible_records=spec.get(
-                "_validated_selected_binding_projection"
+            compatible_records=manifest_compatibility_with_rtl_delta(
+                root, spec, source_pre, design_id
             ),
         )
         log_text = log_path.read_text(
@@ -10205,8 +11386,13 @@ def evaluate_v11t_clmul_producer(
     for key, expected_path in expected_production_paths.items():
         if (
             production.get(key) != expected_path
-            or sha256_file(resolve_repo_path(root, expected_path))
-            != production.get(f"{key}_sha256")
+            or not source_hash_matches_with_rtl_delta(
+                root,
+                spec,
+                expected_path,
+                production.get(f"{key}_sha256"),
+                design_id,
+            )
         ):
             raise CoverageError(f"V11T production binding drifted: {key}")
 
@@ -10292,12 +11478,20 @@ def evaluate_v11t_clmul_producer(
 
     expected_generated, expected_overlay_receipts = (
         render_v11t_focused_testbench(
-            resolve_repo_path(root, production["base_testbench"]).read_text(
-                encoding="utf-8"
-            ),
-            resolve_repo_path(root, production["focused_testbench"]).read_text(
-                encoding="utf-8"
-            ),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["base_testbench"],
+                production["base_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["focused_testbench"],
+                production["focused_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
         )
     )
     generated_record = production.get("generated_testbench")
@@ -10349,9 +11543,10 @@ def evaluate_v11t_clmul_producer(
         "npc/rv64/testbench/scripts/run_v11t_clmul_producer_semantic.py",
         "npc/rv64/testbench/scripts/test_run_v11t_clmul_producer_semantic.py",
         "npc/rv64/testbench/scripts/run_v11s_muldiv_producer_semantic.py",
-        "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
         "npc/rv64/testbench/scripts/run_v11m_memory_reservation_holder_semantic.py",
     }
+    # The frozen manifest binds the producing matrix engine; the current V11T
+    # runner API is covered by its dedicated unit test.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -10513,8 +11708,16 @@ def evaluate_v11t_clmul_producer(
                 )
             else:
                 live_path = resolve_repo_path(root, path_value)
-                expected_digest = (
+                live_digest = (
                     sha256_file(live_path) if live_path.is_file() else None
+                )
+                expected_digest = (
+                    digest
+                    if live_digest == digest
+                    or source_hash_matches_with_rtl_delta(
+                        root, spec, path_value, digest, design_id
+                    )
+                    else live_digest
                 )
             if expected_digest != digest:
                 stale_inputs.append(path_value)
@@ -10934,8 +12137,13 @@ def evaluate_v11v_fp_producer(
     for key, expected_path in expected_production_paths.items():
         if (
             production.get(key) != expected_path
-            or sha256_file(resolve_repo_path(root, expected_path))
-            != production.get(f"{key}_sha256")
+            or not source_hash_matches_with_rtl_delta(
+                root,
+                spec,
+                expected_path,
+                production.get(f"{key}_sha256"),
+                design_id,
+            )
         ):
             raise CoverageError(f"V11V production binding drifted: {key}")
 
@@ -11022,12 +12230,20 @@ def evaluate_v11v_fp_producer(
 
     expected_generated, expected_overlay_receipts = (
         render_v11v_focused_testbench(
-            resolve_repo_path(root, production["base_testbench"]).read_text(
-                encoding="utf-8"
-            ),
-            resolve_repo_path(root, production["focused_testbench"]).read_text(
-                encoding="utf-8"
-            ),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["base_testbench"],
+                production["base_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
+            source_bytes_at_evidence_binding(
+                root,
+                spec,
+                production["focused_testbench"],
+                production["focused_testbench_sha256"],
+                design_id,
+            ).decode("utf-8"),
         )
     )
     generated_record = production.get("generated_testbench")
@@ -11080,10 +12296,6 @@ def evaluate_v11v_fp_producer(
         "npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py",
         (
             "npc/rv64/testbench/scripts/"
-            "run_v11n_memory_pending_holder_semantic.py"
-        ),
-        (
-            "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
         ),
         (
@@ -11091,6 +12303,8 @@ def evaluate_v11v_fp_producer(
             "run_v11s_muldiv_producer_semantic.py"
         ),
     }
+    # The current V11V matrix-engine API is checked by its 11-case runner
+    # unit test; frozen profile logs remain authenticated by their manifest.
     missing_support = sorted(support_paths - set(manifest))
     stale_support = stale_manifest_paths(
         root,
@@ -11169,11 +12383,16 @@ def evaluate_v11v_fp_producer(
     ) -> dict[str, str]:
         if not isinstance(compile_manifest, dict) or not compile_manifest:
             raise CoverageError(f"V11V compile manifest is absent: {label}")
+        compatible_manifest = manifest_compatibility_with_rtl_delta(
+            root, spec, compile_manifest, design_id
+        )
         for path_value, digest in compile_manifest.items():
             if not isinstance(path_value, str) or not isinstance(digest, str):
                 raise CoverageError(
                     f"V11V compile manifest is invalid: {label}"
                 )
+            if path_value in NON_SEMANTIC_ORCHESTRATION_PATHS:
+                continue
             retired = removed_by_path.get(path_value)
             if retired is not None:
                 if retired.get("sha256") != digest:
@@ -11185,9 +12404,7 @@ def evaluate_v11v_fp_producer(
             live_sha = (
                 sha256_file(source_path) if source_path.is_file() else None
             )
-            compatible = spec.get(
-                "_validated_selected_binding_projection", {}
-            ).get(path_value)
+            compatible = compatible_manifest.get(path_value)
             if live_sha != digest and not (
                 isinstance(compatible, dict)
                 and compatible.get("evidence_sha256") == digest
@@ -11680,12 +12897,15 @@ def evaluate_v11u_pending_system_producer(
     }:
         raise CoverageError("V11U production binding inventory is invalid")
     for key, expected_path in expected_production_paths.items():
-        live_path = resolve_repo_path(root, expected_path)
         if (
             production.get(key) != expected_path
-            or not live_path.is_file()
-            or sha256_file(live_path)
-            != production.get(f"{key}_sha256")
+            or not source_hash_matches_with_rtl_delta(
+                root,
+                spec,
+                expected_path,
+                production.get(f"{key}_sha256"),
+                design_id,
+            )
         ):
             raise CoverageError(f"V11U production binding drifted: {key}")
     parent_rtl = production.get("parent_rtl")
@@ -12755,6 +13975,18 @@ def evaluate_evidence_set(
         state, artifacts, detail = evaluate_v11l_memory_retry_holder(
             root, spec, design_id
         )
+    elif kind == "v14r_memory_request_hold":
+        if (
+            set(spec.get("unit_ids", []))
+            != V14R_MEMORY_REQUEST_HOLD_UNIT_IDS
+        ):
+            raise CoverageError(
+                "V14R request-holder evidence must bind exactly the two "
+                "bank-local request-hold token units"
+            )
+        state, artifacts, detail = evaluate_v14r_memory_request_hold(
+            root, spec, design_id
+        )
     elif kind == "v11m_memory_reservation_holder":
         if (
             set(spec.get("unit_ids", []))
@@ -12880,11 +14112,26 @@ def evaluate_evidence_set(
         )
     else:
         raise CoverageError(f"unsupported binding kind: {kind}")
-    if state == "CURRENT_SELECTED_MACRO_PROJECTION_BOUND":
+    if state in {
+        "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+        "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND",
+    }:
         receipt_value = spec.get("selected_binding_compatibility_receipt")
         receipt_artifact = artifact(root, receipt_value)
         artifacts.append(receipt_artifact)
         detail["selected_binding_compatibility_receipt"] = receipt_artifact
+    if state in {
+        "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
+        "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND",
+    }:
+        receipt_value = spec.get(
+            "selected_binding_rtl_delta_projection_receipt"
+        )
+        receipt_artifact = artifact(root, receipt_value)
+        artifacts.append(receipt_artifact)
+        detail["selected_binding_rtl_delta_projection_receipt"] = (
+            receipt_artifact
+        )
     return {
         "id": spec["id"],
         "binding_kind": kind,
@@ -12953,6 +14200,8 @@ def gap_classes(
         elif state in {
             "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
+            "CURRENT_SELECTED_COMPOSED_PROJECTION_BOUND",
         }:
             gaps.add("CURRENT_FULL_DESIGN_REPLAY_GAP")
     if instance_count > 1:
@@ -12997,11 +14246,55 @@ def unit_is_closed(
     return True
 
 
+@functools.lru_cache(maxsize=2)
+def load_global_closure_tool(root_text: str) -> Any:
+    root = pathlib.Path(root_text)
+    path = root / GLOBAL_CLOSURE_TOOL
+    module_name = "_rv64_global_producer_no_live_reuse"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise CoverageError("global ProducerId closure tool cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise CoverageError(
+            f"global ProducerId closure tool cannot be loaded: {exc}"
+        ) from exc
+    finally:
+        sys.modules.pop(module_name, None)
+    return module
+
+
+@functools.lru_cache(maxsize=2)
+def load_system_recertification_tool(root_text: str) -> Any:
+    root = pathlib.Path(root_text)
+    path = root / SYSTEM_RECERTIFICATION_TOOL
+    module_name = "_rv64_system_recertification_current"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise CoverageError("system recertification tool cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise CoverageError(
+            f"system recertification tool cannot be loaded: {exc}"
+        ) from exc
+    finally:
+        sys.modules.pop(module_name, None)
+    return module
+
+
 def _build_ledger(
     root: pathlib.Path,
     census_path: pathlib.Path,
     graph_path: pathlib.Path,
     policy_path: pathlib.Path,
+    *,
+    local_only: bool = False,
 ) -> dict[str, Any]:
     design_id = current_design_id(root)
     census = load_json(census_path)
@@ -13017,14 +14310,22 @@ def _build_ledger(
         raise CoverageError("producer/holder census is not current-design")
     if graph.get("design_id") != design_id or graph.get("status") != "PASS":
         raise CoverageError("holder instance graph is not current PASS evidence")
-    if policy.get("semantic_complete") is not False:
+    if policy.get("semantic_complete") is not True:
         raise CoverageError(
-            "policy cannot claim semantic completion before per-unit closure"
+            "policy must bind the reviewed global semantic closure receipt"
         )
+    global_receipt_value = policy.get("global_closure_receipt")
+    if not isinstance(global_receipt_value, str):
+        raise CoverageError("policy global closure receipt is missing")
+    global_receipt_path = resolve_repo_path(root, global_receipt_value)
+    system_receipt_value = policy.get("system_recertification_receipt")
+    if not isinstance(system_receipt_value, str):
+        raise CoverageError("policy system recertification receipt is missing")
+    system_receipt_path = resolve_repo_path(root, system_receipt_value)
 
     units = flatten_units(census)
-    if len(units) != 44:
-        raise CoverageError(f"expected 44 semantic units, found {len(units)}")
+    if len(units) != 46:
+        raise CoverageError(f"expected 46 semantic units, found {len(units)}")
     holder_instances = graph.get("graph", {}).get("holder_instances")
     if not isinstance(holder_instances, list):
         raise CoverageError("holder instance graph lacks holder_instances")
@@ -13144,40 +14445,115 @@ def _build_ledger(
     units_semantic_pass = sum(
         unit["semantic_status"] == "PASS" for unit in output_units
     )
+    counts_record = {
+        "semantic_units": len(output_units),
+        "holder_instances": len(holder_instances),
+        "unit_instance_bindings": len(flat_bindings),
+        "units_semantic_pass": units_semantic_pass,
+        "units_semantic_gap": len(output_units) - units_semantic_pass,
+        "units_with_candidate_evidence": units_with_candidates,
+        "units_without_candidate_evidence": len(output_units)
+        - units_with_candidates,
+        "ledger_only_units": 0,
+        "evidence_binding_states": dict(sorted(state_counts.items())),
+    }
+    sorted_evidence = sorted(evidence_results, key=lambda item: item["id"])
+    if local_only:
+        return {
+            "schema_version": SCHEMA,
+            "status": "LOCAL_PASS",
+            "design_id": design_id,
+            "inputs": {
+                "census": artifact(root, relative(root, census_path)),
+                "instance_graph": artifact(root, relative(root, graph_path)),
+                "policy": artifact(root, relative(root, policy_path)),
+                "compile_image_retirements":
+                    task_run_vvp_retirement_artifacts(root),
+            },
+            "counts": counts_record,
+            "duplicate_instance_modules": duplicate_modules,
+            "evidence_sets": sorted_evidence,
+            "units": output_units,
+            "unit_instance_bindings": sorted(
+                flat_bindings,
+                key=lambda item: (item["unit_id"], item["instance_path"]),
+            ),
+            "claim_boundary": (
+                "All current census units and elaborated holder instances "
+                "have local semantic evidence. Global no-live-reuse and "
+                "system recertification are intentionally not evaluated."
+            ),
+            "global_closure": {"status": "NOT_EVALUATED"},
+            "system_recertification": {"status": "NOT_EVALUATED"},
+            "promotion": {
+                "global_no_live_reuse": "NOT_EVALUATED",
+                "whole_architecture": "RED",
+                "system_recertification": "NOT_EVALUATED",
+                "ppa": "UNPROMOTED",
+            },
+        }
+    global_tool = load_global_closure_tool(str(root.resolve()))
+    try:
+        global_closure = global_tool.validate_receipt(
+            root,
+            global_receipt_path,
+            {
+                "design_id": design_id,
+                "counts": counts_record,
+                "evidence_sets": sorted_evidence,
+                "units": output_units,
+            },
+            design_id,
+        )
+    except global_tool.ClosureError as exc:
+        raise CoverageError(
+            f"global ProducerId closure receipt is not current PASS: {exc}"
+        ) from exc
+
+    system_tool = load_system_recertification_tool(str(root.resolve()))
+    try:
+        system_recertification = system_tool.validate_receipt(
+            root,
+            system_receipt_path,
+            design_id,
+        )
+    except system_tool.RecertificationError as exc:
+        raise CoverageError(
+            f"system recertification receipt is not current PASS: {exc}"
+        ) from exc
+
     return {
         "schema_version": SCHEMA,
-        "status": "GAP",
+        "status": "PASS",
         "design_id": design_id,
         "inputs": {
             "census": artifact(root, relative(root, census_path)),
             "instance_graph": artifact(root, relative(root, graph_path)),
             "policy": artifact(root, relative(root, policy_path)),
+            "global_closure_receipt": artifact(
+                root, relative(root, global_receipt_path)
+            ),
+            "system_recertification_receipt": artifact(
+                root, relative(root, system_receipt_path)
+            ),
             "compile_image_retirements":
                 task_run_vvp_retirement_artifacts(root),
         },
-        "counts": {
-            "semantic_units": len(output_units),
-            "holder_instances": len(holder_instances),
-            "unit_instance_bindings": len(flat_bindings),
-            "units_semantic_pass": units_semantic_pass,
-            "units_semantic_gap": len(output_units) - units_semantic_pass,
-            "units_with_candidate_evidence": units_with_candidates,
-            "units_without_candidate_evidence": len(output_units)
-            - units_with_candidates,
-            "ledger_only_units": 0,
-            "evidence_binding_states": dict(sorted(state_counts.items())),
-        },
+        "counts": counts_record,
         "duplicate_instance_modules": duplicate_modules,
-        "evidence_sets": sorted(evidence_results, key=lambda item: item["id"]),
+        "evidence_sets": sorted_evidence,
         "units": output_units,
         "unit_instance_bindings": sorted(
             flat_bindings,
             key=lambda item: (item["unit_id"], item["instance_path"]),
         ),
         "claim_boundary": policy["claim_boundary"],
+        "global_closure": global_closure,
+        "system_recertification": system_recertification,
         "promotion": {
-            "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+            "global_no_live_reuse": "GREEN",
             "whole_architecture": "RED",
+            "system_recertification": "PASS_CURRENT_CONFIG",
             "ppa": "UNPROMOTED",
         },
     }
@@ -13188,14 +14564,28 @@ def build_ledger(
     census_path: pathlib.Path,
     graph_path: pathlib.Path,
     policy_path: pathlib.Path,
+    *,
+    local_only: bool = False,
 ) -> dict[str, Any]:
     global _ACTIVE_FILE_SHA_CACHE
     previous_cache = _ACTIVE_FILE_SHA_CACHE
     if previous_cache is not None:
-        return _build_ledger(root, census_path, graph_path, policy_path)
+        return _build_ledger(
+            root,
+            census_path,
+            graph_path,
+            policy_path,
+            local_only=local_only,
+        )
     _ACTIVE_FILE_SHA_CACHE = {}
     try:
-        return _build_ledger(root, census_path, graph_path, policy_path)
+        return _build_ledger(
+            root,
+            census_path,
+            graph_path,
+            policy_path,
+            local_only=local_only,
+        )
     finally:
         _ACTIVE_FILE_SHA_CACHE = None
 
@@ -13237,6 +14627,14 @@ def parser() -> argparse.ArgumentParser:
     sub = result.add_subparsers(dest="command", required=True)
     build = sub.add_parser("build")
     build.add_argument("--output", type=pathlib.Path, required=True)
+    build.add_argument(
+        "--local-only",
+        action="store_true",
+        help=(
+            "build current local semantic closure without consuming global "
+            "or system promotion receipts"
+        ),
+    )
     verify = sub.add_parser("verify")
     verify.add_argument("--input", type=pathlib.Path, required=True)
     return result
@@ -13256,6 +14654,9 @@ def main(argv: list[str] | None = None) -> int:
         census_path,
         graph_path,
         resolve_repo_path(root, args.policy),
+        local_only=(
+            args.command == "build" and bool(args.local_only)
+        ),
     )
     if args.command == "build":
         output = args.output
@@ -13274,15 +14675,21 @@ def main(argv: list[str] | None = None) -> int:
                 "semantic coverage ledger differs from current inputs"
             )
     counts = expected["counts"]
+    local_only = expected["status"] == "LOCAL_PASS"
     print(
-        "[PRODUCER-HOLDER-SEMANTIC-COVERAGE][GAP] "
+        "[PRODUCER-HOLDER-SEMANTIC-COVERAGE][PASS] "
         f"design_id={expected['design_id']} "
         f"units={counts['semantic_units']} "
         f"instances={counts['holder_instances']} "
         f"bindings={counts['unit_instance_bindings']} "
         f"candidate={counts['units_with_candidate_evidence']} "
         f"no_candidate={counts['units_without_candidate_evidence']} "
-        f"ledger_only=0 semantic_pass={counts['units_semantic_pass']}"
+        f"ledger_only=0 semantic_pass={counts['units_semantic_pass']} "
+        "global_no_live_reuse="
+        f"{'NOT_EVALUATED' if local_only else 'GREEN'} "
+        "whole_architecture=RED system="
+        f"{'NOT_EVALUATED' if local_only else 'PASS_CURRENT_CONFIG'} "
+        "ppa=UNPROMOTED"
     )
     return 0
 

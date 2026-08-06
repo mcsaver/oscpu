@@ -1552,6 +1552,12 @@
             <tr>
               <td>${escapeHtml(DATA.meta.revision)}</td>
               <td>${escapeHtml(DATA.meta.snapshotDate)}</td>
+              <td>同步当前 AxiCrossbar 全称拓扑、LQ terminal history、IQ static compaction、SQ X-safe physical-byte CAM、Store aggregate-B response fusion，以及 CSR delegation/FS/WARL 边界。</td>
+              <td>当前源码静态 elaboration、精确 source fingerprint、离线资源、讲义覆盖与事务结构审计；未在本轮文档更新中重跑 RTL TB、综合、STA 或 PPA。</td>
+            </tr>
+            <tr>
+              <td>Rev. D</td>
+              <td>2026-07-30</td>
               <td>建立标准/大/特大三级阅读字号并默认使用大字号；统一放大 transaction 字段、导航、表格、Self-check 与 WaveDrom 标签，同时修复未定义的强调色变量。</td>
               <td>当前源码静态 elaboration、离线资源与可读性结构审计；未执行浏览器截图对比、RTL TB、综合、STA 或 PPA。</td>
             </tr>

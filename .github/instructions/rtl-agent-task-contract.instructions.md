@@ -31,7 +31,9 @@ applyTo: "npc/rv64/**"
 11. 合同证据绑定：渲染提示必须同时给出 JSON 的仓库相对路径与该文件 SHA-256，并明确哈希只绑定该 JSON，不绑定设计 `contract.md` 或其它上下文。
 12. WSL 调度：Windows/Codex 访问本 WSL 工作区时，工程 shell 为 single-flight；主 agent 可以把当前
     唯一 shell ownership 交给一个契约授权的子 agent，但该节点执行期间主 agent 与其它子 agent
-    不得并发运行工程命令。只有无 shell 推理或自包含材料复核可以并行。
+    不得并发运行工程命令。ownership 只绑定合同中的一个有界命令批次；节点完成、GAP、异常或被中止时
+    必须停止工程进程并明确归还。节点无响应时，主 agent 中止节点并从 Windows 进程表确认没有指向本
+    工作区的 `wsl.exe` 工程进程后才可强制回收。只有无 shell 推理或自包含材料复核可以并行。
 13. 硬件措辞剖面：`goal/deliverables/success_criteria/supplied_material` 直接使用 RV64 CPU 微架构、流水线、
     事务、时序、缓存一致性、验证或 PPA 术语；`render` 追加同一硬件语境前缀。反引号包裹的 RTL 标识符
     和 PMP、RISC-V 特权级、访问异常、内存保护、权限检查、store probe 等架构术语保持原样。合同验证器

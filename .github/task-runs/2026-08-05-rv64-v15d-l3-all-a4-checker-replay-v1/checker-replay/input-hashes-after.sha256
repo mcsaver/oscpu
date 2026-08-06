@@ -1,0 +1,9 @@
+1a8cec04c14b57d76f20c80121ebe10535db45ef10dbfbef8b01b102bc3c191b  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15d-l3-lightweight-linux-all-a4/lightweight-linux.status
+b957db49d3b38f3b4b5d76068b7883a92b6bc362fd4896b27ec95371ec65ab92  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15d-l3-lightweight-linux-all-a4/lightweight-linux/console.log
+3a5eb60f6b9aa484cd9242c9f98110d19d6bee9b97e7e9743d274d09195e1af0  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15d-l3-lightweight-linux-all-a4/lightweight-linux/npc.log
+dfb1760cd6914750040a8fe7af8c697298e0c8133f5435dd00b3f6ff9907f2ce  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15d-l3-lightweight-linux-all-a4/lightweight-linux/binding.txt
+05abe10b68fe497dc2df57a76a582655c5e38f936cad49b0d201191d5155ba74  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/lightweight_linux_run.py
+69001e90c9673f0218b1073a62a97a359e9556d3f5ed964e5bcfe41d070b3d83  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py
+785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6  /home/lyg/PA/ysyx-workbench/scripts/task-run-status.sh
+af8f24291357d9a4936f23c808de2da4c18252325ee538ce7143925718616f95  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/replay-layer-checker-current.sh

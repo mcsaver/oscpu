@@ -1,0 +1,517 @@
+{
+  "blockers_to_candidate": [
+    "the dominant residency has not yet been separated into transaction count and per-transaction duration",
+    "the effect of bridge concurrency versus downstream B latency is not yet discriminated",
+    "reservation and translation residency has not yet been separated into owner-correlated pre-request intervals"
+  ],
+  "competing_hypotheses": [
+    {
+      "id": "H1_B_RESPONSE_LATENCY",
+      "statement": "The downstream memory model's AW/W-to-B latency directly dominates the observed S_WRITE_RESP residency."
+    },
+    {
+      "id": "H2_WRITE_CONCURRENCY",
+      "statement": "A single outstanding bridge/owner policy exposes B latency at the ROB head because independent memory work cannot overlap."
+    },
+    {
+      "id": "H3_HEAD_RESIDENCY_WEIGHTING",
+      "statement": "Long-lived store/AMO owners are overrepresented in a head residency ledger even if their transaction frequency is low."
+    },
+    {
+      "id": "H4_PRE_REQUEST_PIPELINE",
+      "statement": "Reservation-queue and translation-order residency remains material, so improving B response alone may shift rather than remove the memory bottleneck."
+    }
+  ],
+  "cross_workload_observation": {
+    "causal_status": "HYPOTHESIS_NOT_PROVEN",
+    "converges": true,
+    "dominant_residency_hierarchy": {
+      "coremark": {
+        "cycle_residency": "memory_latency",
+        "memory_lifecycle": "request_outstanding",
+        "memory_request_detail": "axi_write_response"
+      },
+      "dhrystone_10000": {
+        "cycle_residency": "memory_latency",
+        "memory_lifecycle": "request_outstanding",
+        "memory_request_detail": "axi_write_response"
+      }
+    },
+    "interpretation": "Both workloads spend the largest cycle residency in a memory head, primarily while a request is outstanding, with S_WRITE_RESP as the largest request-state residency.",
+    "warning": "These are mutually exclusive ROB-head residency buckets, not transaction counts or proof that AXI B latency is the sole cause."
+  },
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "next_discriminating_measurement": {
+    "action": "Add diagnostic-only owner-correlated event counts, fixed-bin duration histograms and bridge/pre-request timing channels so H1 through H4 can be separated before choosing an RTL change.",
+    "channels": {
+      "bridge_timing": {
+        "observations": [
+          "AW/W completion to BVALID interval",
+          "owner wait before bridge admission",
+          "write in-flight occupancy",
+          "overlap with independent memory work"
+        ]
+      },
+      "owner_transaction": {
+        "observations": [
+          "per-owner transaction count",
+          "S_WRITE_REQ duration histogram",
+          "S_WRITE_RESP duration histogram"
+        ],
+        "operation_classes": [
+          "STORE",
+          "AMO",
+          "A-D"
+        ]
+      },
+      "pre_request_pipeline": {
+        "observations": [
+          "reservation-queue entry/exit count and duration histogram",
+          "translation-order entry/exit count and duration histogram",
+          "ROB-head owner correlation for each pre-request interval"
+        ]
+      }
+    },
+    "decision_rule": "Select one RTL optimization mechanism only after both workloads provide complete owner-correlated observations that distinguish B latency, bridge concurrency, head weighting and pre-request pipeline residency without unknown or conservation debt.",
+    "hypothesis_discrimination_matrix": {
+      "H1_B_RESPONSE_LATENCY": [
+        "AW/W completion to BVALID interval",
+        "S_WRITE_RESP duration histogram"
+      ],
+      "H2_WRITE_CONCURRENCY": [
+        "owner wait before bridge admission",
+        "write in-flight occupancy",
+        "overlap with independent memory work"
+      ],
+      "H3_HEAD_RESIDENCY_WEIGHTING": [
+        "per-owner transaction count",
+        "S_WRITE_REQ duration histogram",
+        "S_WRITE_RESP duration histogram",
+        "ROB-head owner correlation for each pre-request interval"
+      ],
+      "H4_PRE_REQUEST_PIPELINE": [
+        "reservation-queue entry/exit count and duration histogram",
+        "translation-order entry/exit count and duration histogram",
+        "ROB-head owner correlation for each pre-request interval"
+      ]
+    },
+    "measurement_contract": [
+      "declare fixed histogram bins before workload execution",
+      "keep event counts distinct from ROB-head cycle residency",
+      "bind every interval to one stable transaction owner and operation class",
+      "report complete, overflow, invalid and conservation fields"
+    ],
+    "must_preserve": [
+      "production request/response/retirement semantics",
+      "current workload, ROI, simulator, config and latency profile",
+      "all existing assertions and v4 conservation checks"
+    ],
+    "schema": "npc-rv64-cpi-discriminator-plan-v1"
+  },
+  "optimization_candidate_authorized": false,
+  "performance_baseline": {
+    "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+    "sha256": "941bbf0df1c51dd284dba0cacb46c2281da642cbe749d1127d27c29e66f87dd7",
+    "size_bytes": 12024
+  },
+  "ppa": "UNQUALIFIED",
+  "promotion_eligible": false,
+  "schema": "npc-rv64-cpi-bottleneck-census-v2",
+  "status": "CPI_BOTTLENECK_CENSUS",
+  "workloads": {
+    "coremark": {
+      "cpi": "1.693729804810",
+      "cycle_residency_rank": [
+        {
+          "cycles_or_slots": 2542049,
+          "fraction": "0.471431907",
+          "name": "memory_latency"
+        },
+        {
+          "cycles_or_slots": 2006774,
+          "fraction": "0.372163280",
+          "name": "useful"
+        },
+        {
+          "cycles_or_slots": 601844,
+          "fraction": "0.111614082",
+          "name": "execution_latency"
+        },
+        {
+          "cycles_or_slots": 214701,
+          "fraction": "0.039817054",
+          "name": "exception_redirect"
+        },
+        {
+          "cycles_or_slots": 15766,
+          "fraction": "0.002923860",
+          "name": "issue_terminal"
+        },
+        {
+          "cycles_or_slots": 11053,
+          "fraction": "0.002049818",
+          "name": "rob_empty"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "dependency"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "head_lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "memory_commit"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "serialization"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "unknown"
+        }
+      ],
+      "cycles": 5392187,
+      "ipc": "0.590412943765",
+      "key_ratios": {
+        "axi_write_response_cycles": "0.128248149",
+        "memory_latency_cycles": "0.471431907",
+        "request_outstanding_cycles": "0.211232659",
+        "unused_retire_slots": "0.704793528",
+        "useful_cycles": "0.372163280"
+      },
+      "memory_lifecycle_rank": [
+        {
+          "cycles_or_slots": 1139006,
+          "fraction": "0.448066107",
+          "name": "request_outstanding"
+        },
+        {
+          "cycles_or_slots": 633721,
+          "fraction": "0.249295352",
+          "name": "reservation_queue"
+        },
+        {
+          "cycles_or_slots": 469892,
+          "fraction": "0.184847735",
+          "name": "response_terminal"
+        },
+        {
+          "cycles_or_slots": 299430,
+          "fraction": "0.117790806",
+          "name": "translation_order"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "retry"
+        }
+      ],
+      "memory_request_detail_rank": [
+        {
+          "cycles_or_slots": 691538,
+          "fraction": "0.607141666",
+          "name": "axi_write_response"
+        },
+        {
+          "cycles_or_slots": 308164,
+          "fraction": "0.270555203",
+          "name": "axi_write_request"
+        },
+        {
+          "cycles_or_slots": 112890,
+          "fraction": "0.099112735",
+          "name": "axi_read_data"
+        },
+        {
+          "cycles_or_slots": 15848,
+          "fraction": "0.013913886",
+          "name": "cache_lookup"
+        },
+        {
+          "cycles_or_slots": 10566,
+          "fraction": "0.009276510",
+          "name": "axi_read_address"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "detail_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "device_wait"
+        }
+      ],
+      "retired_instructions": 3183617,
+      "slot_residency_rank": [
+        {
+          "cycles_or_slots": 5406892,
+          "fraction": "0.501363547",
+          "name": "memory_latency"
+        },
+        {
+          "cycles_or_slots": 3183617,
+          "fraction": "0.295206472",
+          "name": "retired"
+        },
+        {
+          "cycles_or_slots": 1418734,
+          "fraction": "0.131554599",
+          "name": "execution_latency"
+        },
+        {
+          "cycles_or_slots": 429402,
+          "fraction": "0.039817054",
+          "name": "exception_redirect"
+        },
+        {
+          "cycles_or_slots": 319439,
+          "fraction": "0.029620542",
+          "name": "issue_terminal"
+        },
+        {
+          "cycles_or_slots": 26290,
+          "fraction": "0.002437786",
+          "name": "rob_empty"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "dependency"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "head_lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "memory_commit"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "serialization"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "unknown"
+        }
+      ],
+      "unknown_cycle_ratio": "0.000000000"
+    },
+    "dhrystone_10000": {
+      "cpi": "2.426219058824",
+      "cycle_residency_rank": [
+        {
+          "cycles_or_slots": 7100359,
+          "fraction": "0.688591040",
+          "name": "memory_latency"
+        },
+        {
+          "cycles_or_slots": 2710035,
+          "fraction": "0.262818517",
+          "name": "useful"
+        },
+        {
+          "cycles_or_slots": 280019,
+          "fraction": "0.027156173",
+          "name": "execution_latency"
+        },
+        {
+          "cycles_or_slots": 190014,
+          "fraction": "0.018427510",
+          "name": "exception_redirect"
+        },
+        {
+          "cycles_or_slots": 20076,
+          "fraction": "0.001946965",
+          "name": "issue_terminal"
+        },
+        {
+          "cycles_or_slots": 10928,
+          "fraction": "0.001059795",
+          "name": "rob_empty"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "dependency"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "head_lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "memory_commit"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "serialization"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "unknown"
+        }
+      ],
+      "cycles": 10311431,
+      "ipc": "0.412163937285",
+      "key_ratios": {
+        "axi_write_response_cycles": "0.288029663",
+        "memory_latency_cycles": "0.688591040",
+        "request_outstanding_cycles": "0.437392249",
+        "unused_retire_slots": "0.793918021",
+        "useful_cycles": "0.262818517"
+      },
+      "memory_lifecycle_rank": [
+        {
+          "cycles_or_slots": 4510140,
+          "fraction": "0.635198868",
+          "name": "request_outstanding"
+        },
+        {
+          "cycles_or_slots": 1690109,
+          "fraction": "0.238031485",
+          "name": "reservation_queue"
+        },
+        {
+          "cycles_or_slots": 460083,
+          "fraction": "0.064797146",
+          "name": "response_terminal"
+        },
+        {
+          "cycles_or_slots": 440027,
+          "fraction": "0.061972500",
+          "name": "translation_order"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "retry"
+        }
+      ],
+      "memory_request_detail_rank": [
+        {
+          "cycles_or_slots": 2969998,
+          "fraction": "0.658515700",
+          "name": "axi_write_response"
+        },
+        {
+          "cycles_or_slots": 1279997,
+          "fraction": "0.283804272",
+          "name": "axi_write_request"
+        },
+        {
+          "cycles_or_slots": 200011,
+          "fraction": "0.044346960",
+          "name": "cache_lookup"
+        },
+        {
+          "cycles_or_slots": 50110,
+          "fraction": "0.011110520",
+          "name": "axi_read_data"
+        },
+        {
+          "cycles_or_slots": 10024,
+          "fraction": "0.002222547",
+          "name": "axi_read_address"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "detail_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "device_wait"
+        }
+      ],
+      "retired_instructions": 4250000,
+      "slot_residency_rank": [
+        {
+          "cycles_or_slots": 14950732,
+          "fraction": "0.724959161",
+          "name": "memory_latency"
+        },
+        {
+          "cycles_or_slots": 4250000,
+          "fraction": "0.206081979",
+          "name": "retired"
+        },
+        {
+          "cycles_or_slots": 770045,
+          "fraction": "0.037339388",
+          "name": "execution_latency"
+        },
+        {
+          "cycles_or_slots": 380028,
+          "fraction": "0.018427511",
+          "name": "exception_redirect"
+        },
+        {
+          "cycles_or_slots": 240158,
+          "fraction": "0.011645232",
+          "name": "issue_terminal"
+        },
+        {
+          "cycles_or_slots": 31898,
+          "fraction": "0.001546730",
+          "name": "rob_empty"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "dependency"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "head_lifecycle_unknown"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "memory_commit"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "serialization"
+        },
+        {
+          "cycles_or_slots": 0,
+          "fraction": "0.000000000",
+          "name": "unknown"
+        }
+      ],
+      "unknown_cycle_ratio": "0.000000000"
+    }
+  }
+}

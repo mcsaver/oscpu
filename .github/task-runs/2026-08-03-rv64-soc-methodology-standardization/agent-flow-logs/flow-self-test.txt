@@ -1,0 +1,25 @@
+[agent-flow] BEGIN task=review-ok class=review archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/review-ok
+[agent-flow] BEGIN task=review-gate class=review archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/review-gate
+[agent-flow] BEGIN task=analysis-gate class=analysis archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/analysis-gate
+[agent-flow] BEGIN task=review-write class=review archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/review-write
+[agent-flow] RECORD task=review-write paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=development-evidence class=development archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/development-evidence
+[agent-flow] RECORD task=development-evidence paths=1 gates=0 generation=2
+[agent-flow] EVIDENCE task=development-evidence name=rtl-focused-test status=PASS artifact=-
+[agent-flow] DECISION task=development-evidence kind=decision artifact=-
+[agent-flow] BEGIN task=environment-plan class=environment archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/environment-plan
+[agent-flow] RECORD task=environment-plan paths=3 gates=0 generation=2
+[agent-flow] RECORD task=environment-plan paths=1 gates=0 generation=3
+[agent-flow] BEGIN task=rv64-methodology-plan class=environment archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/rv64-methodology-plan
+[agent-flow] RECORD task=rv64-methodology-plan paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=environment-advisory-target class=environment archive=none overhead_target~1% state=/tmp/tmp.sMlsV6a6Ti/state/environment-advisory-target
+[agent-flow] RECORD task=environment-advisory-target paths=0 gates=1 generation=2
+[agent-flow] BEGIN task=candidate-invalidated class=environment archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/candidate-invalidated
+[agent-flow] RECORD task=candidate-invalidated paths=0 gates=1 generation=2
+[agent-flow] RECORD task=candidate-invalidated paths=0 gates=1 generation=3
+[agent-flow] BEGIN task=invalid-path class=development archive=none overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/invalid-path
+[agent-flow] BEGIN task=compact-archive class=development archive=compact overhead_target~40% state=/tmp/tmp.sMlsV6a6Ti/state/compact-archive
+[agent-flow] RECORD task=compact-archive paths=1 gates=0 generation=2
+[agent-flow] EVIDENCE task=compact-archive name=focused-test status=PASS artifact=-
+[agent-flow] DECISION task=compact-archive kind=hypothesis artifact=-
+[agent-flow-test] PASS review/analysis zero gates, class mismatch, development evidence, decision trace, compact task-run, environment and RV64 methodology gate pointers, repeated-path and candidate invalidation, advisory overhead target, and path confinement

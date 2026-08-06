@@ -86,6 +86,34 @@ class FullCoreCurrentEvidenceTests(unittest.TestCase):
             output = task_dir / "evidence/module-attempt-1"
             self.assertEqual(output.resolve(strict=False), evidence.safe_output_dir(output))
 
+    def test_output_rejects_parent_symlink_to_another_task_run(self) -> None:
+        with tempfile.TemporaryDirectory(
+            dir=evidence.TASK_RUN_ROOT, prefix="full-core-output-owner-"
+        ) as owner_raw, tempfile.TemporaryDirectory(
+            dir=evidence.TASK_RUN_ROOT, prefix="full-core-output-foreign-"
+        ) as foreign_raw:
+            owner = pathlib.Path(owner_raw)
+            foreign = pathlib.Path(foreign_raw)
+            alias = owner / "evidence"
+            alias.symlink_to(foreign, target_is_directory=True)
+            with self.assertRaisesRegex(RuntimeError, "symlink"):
+                evidence.safe_output_dir(alias / "module-attempt-1")
+
+    def test_artifact_rejects_final_file_symlink_to_another_task_run(self) -> None:
+        with tempfile.TemporaryDirectory(
+            dir=evidence.TASK_RUN_ROOT, prefix="full-core-artifact-owner-"
+        ) as owner_raw, tempfile.TemporaryDirectory(
+            dir=evidence.TASK_RUN_ROOT, prefix="full-core-artifact-foreign-"
+        ) as foreign_raw:
+            owner = pathlib.Path(owner_raw)
+            foreign = pathlib.Path(foreign_raw)
+            target = foreign / "result.json"
+            target.write_text("{}\n", encoding="utf-8")
+            alias = owner / "result.json"
+            alias.symlink_to(target)
+            with self.assertRaisesRegex(RuntimeError, "symlink"):
+                evidence.artifact(alias, kind="module_current_result")
+
     def test_current_module_input_capture_is_nonempty(self) -> None:
         tests = evidence.required_tests()
         binding = evidence.capture_inputs(tests)

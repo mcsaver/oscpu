@@ -1,0 +1,9 @@
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/testbench/Makefile
+npc/rv64/testbench/scripts/run_v14g_global_producer_owner_fence.py
+npc/rv64/testbench/scripts/test_run_v14g_global_producer_owner_fence.py
+npc/rv64/Makefile
+npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md
+npc/rv64/testbench/tests/tb_ooo_int_backend_v14g_global_owner_fence.svh
+.github/memory/project-status.md
+.github/memory/modules/npc.md

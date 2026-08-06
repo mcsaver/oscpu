@@ -6,6 +6,7 @@
 
 - `docs/research-paper/` 下的研究台账、实验计划和只读脚本；
 - `docs/research-paper/ubuntu-19h-milestone-evidence.md`；
+- `docs/research-paper/case-selection-protocol.md` 与 `independent-claim-review.tsv`；
 - `docs/thinking/verifiable-ai-hardware-engineering.tex`；
 - 同名 PDF；
 - 原 TeX 的备份 `verifiable-ai-hardware-engineering.before-evidence-integration.tex`。
@@ -41,14 +42,14 @@ python3 docs/research-paper/scripts/paper_evidence_extract.py
 
 脚本对 `.github/task-runs/` 顶层目录做只读盘点。它不会把目录数解释为独立实验数。
 
-在 2026-07-29 的工作区快照中，脚本得到：
+在 2026-08-04 的工作区快照中，脚本得到：
 
 | 月份 | workflow-event directory |
 |---|---:|
 | 2026-04 | 8 |
 | 2026-05 | 137 |
 | 2026-06 | 1246 |
-| 2026-07 | 670 |
+| 2026-07 | 756 |
 
 这些数字只描述记录目录密度。仓库继续演进后，脚本输出会自然变化。
 
@@ -65,10 +66,13 @@ python3 docs/research-paper/scripts/paper_evidence_extract.py \
 claim_map_check.ok = true
 claim_map_check.errors = []
 claim_map_check.path_warnings = []
-rows = 26
+rows = 30
+status_counts = SUPPORTED 18, PARTIALLY_SUPPORTED 4,
+                OBSERVATIONAL_ONLY 1, CONTRADICTED 6, MISSING 1
+claim-map SHA-256 = f20a63ce701d31703f9fe3615d9bb7ae45c134b8b681293c1d98515facf7ab7a
 ```
 
-路径存在只说明材料可回查，不自动把某条主张升级为 `SUPPORTED`。状态仍需根据设计身份、配置、负向证据和结论边界人工审计。
+路径存在只说明材料可回查，不自动把某条主张升级为 `SUPPORTED`。状态仍需根据设计身份、配置、负向证据和结论边界审计。固定的 12/30 第二 Agent 抽样、初次分歧和修订结论见 `independent-claim-review.tsv`；它不是人类双编码一致性实验。
 
 ## 5. DB-first 回查示例
 
@@ -132,9 +136,16 @@ python3 scripts/github_index_db.py load \
 | V9L 功能聚合 | `.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/task-report.md` |
 | FENCE V9M | `.github/task-runs/2026-07-23-rv64-v9m-fence-ordering-current-design/task-report.md` |
 | STORE/AMO V9N | `.github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/task-report.md` |
-| CONTROL-EVENT V9O | `.github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/task-report.md` |
+| CONTROL-EVENT V9O 身份快照冲突 | `.github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/task-report.md` 与同目录 `evidence-index.md` |
 | 5 ns proxy setup 边界 | `.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/evidence/opensta-fresh-t4i-final/opensta-current-check-setup.txt` |
 | drain gate 三快照演化 | `docs/research-paper/module-evolution-evidence.md` |
+| 当前 ARCH_STABLE | `npc/rv64/eval/ppa/evidence/arch-stable-current.json` |
+| endpoint-corrected PERF_BASELINE | `npc/rv64/eval/ppa/evidence/performance-baseline-current.json` |
+| 性能基线原始 FAIL 与 checker replay | `.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v2/` |
+| CPI bottleneck census | `.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/census.json` |
+| owner-timing 诊断 link | `.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence/owner-timing-diagnostics/command-status.txt` |
+| owner-timing workload A/B 失败关闭 | `.github/task-runs/2026-08-04-rv64-v14q-owner-timing-workload-ab-v1/owner-timing-workload-ab.status` |
+| invalid owner 负向重放 | `.github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/evidence/owner-timing-invalid-probe-replay/result.json` |
 
 逐条字段见 `claim-evidence-map.tsv`。
 
@@ -216,6 +227,8 @@ pdftoppm -png -r 120 \
 - TikZ 流程图是否有文字重叠；
 - NEMU/NPC、Yosys 日志块是否保持等宽且可读；
 - drain gate 三快照表、三段代码和负向证据摘要是否连续、无浮动错位；
+- `agent-flow.c` 状态机表、当前性能基线/CPI census 表与 owner-timing 代码是否越界；
+- 首次 owner-timing workload A/B 的 FAIL 日志是否保持可读，且没有被图表浮动拆散；
 - “自建术语的操作性定义”长表是否跨页正确、表头重复且没有文字越界；
 - 参考证据附录是否出现空白页。
 

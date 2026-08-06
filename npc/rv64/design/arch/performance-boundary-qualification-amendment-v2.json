@@ -1,0 +1,71 @@
+{
+  "schema": "npc-rv64-performance-boundary-qualification-amendment-v2",
+  "amendment_id": "npc-rv64-pcs-v4-endpoint-qualification-f7a-20260806",
+  "state": "NORMATIVE_ERRATUM",
+  "purpose": "Bind the v4 counter schema to the exact two-lane endpoint equation used by the f7a scoped performance baseline.",
+  "bound_inputs": {
+    "measurement_contract": {
+      "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "sha256": "873d3fa27a307278e078d1e65f4686ffd9b2c59902fa0518179d04cee8678b51",
+      "size_bytes": 5837
+    },
+    "counter_schema": {
+      "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+      "size_bytes": 12237
+    }
+  },
+  "scope": {
+    "counter_marker_schema": "npc-rv64-performance-counter-v4",
+    "counter_scope": "pc_bounded_region_v1",
+    "start_lane_domain": [0, 1],
+    "end_lane_domain": [0, 1],
+    "applicability": "Only a receipt that binds this amendment and satisfies every proof obligation may use endpoint-corrected baseline qualification."
+  },
+  "normative_precedence": {
+    "supersedes": [
+      {
+        "source": "performance-counter-schema-v4.json#/qualification/baseline_requires_phase_aligned_boundaries",
+        "prior_value": true,
+        "amended_value": false
+      }
+    ],
+    "preserves": [
+      "performance-counter-schema-v4.json#/retire_slot_partition/capacity",
+      "performance-counter-schema-v4.json#/retire_slot_partition/marker_interval",
+      "performance-counter-schema-v4.json#/boundary_sampling/slot_endpoint_correction",
+      "performance-measurement-contract-v2.json#/counter_read_semantics/retire_slot_capacity",
+      "all cycle, slot, head, memory and request-detail conservation rules",
+      "all overflow, invalid-event, complete, available and unknown-ratio gates"
+    ],
+    "precedence_rule": "This amendment overrides only the v4 equal-lane qualification proxy; every exact endpoint, conservation, identity and error check remains normative."
+  },
+  "qualification_rule": {
+    "cycles": "end_cycle - start_cycle",
+    "retired_instructions": "end_retired_before - start_retired_before",
+    "slot_capacity": "2 * cycles + end_lane - start_lane",
+    "phase_aligned": "int(start_lane == end_lane); diagnostic only",
+    "unused_slots": "slot_capacity - retired_instructions"
+  },
+  "proof_obligations": [
+    "the BOUNDARY start/end markers are unique and bind the policy start/stop PCs",
+    "FINAL is unique, complete, successful and exactly matches both boundary deltas",
+    "COUNTERS_FINAL is unique, complete, available, non-overflowing and has zero invalid events",
+    "COUNTERS_FINAL start_lane/end_lane/phase_aligned match the boundary markers",
+    "slot_capacity equals 2 * cycles + end_lane - start_lane",
+    "retired_slots equals retired instructions and unused_slots equals slot_capacity - retired_slots",
+    "primary cycle and slot ledgers conserve exactly",
+    "head, memory and memory-request nested aggregates conserve exactly",
+    "unknown or unclassified cycle ratio remains within the bound measurement contract",
+    "all required repetitions are bit-exact without outlier removal"
+  ],
+  "rationale": {
+    "root_cause": "The counter marker already emits the exact endpoint correction; requiring equal lanes is a redundant proxy that rejects a mathematically conserved lane1-to-lane0 interval.",
+    "safety_property": "No tolerance or missing bucket is introduced; the exact two-lane interval equation replaces only the proxy.",
+    "non_claims": [
+      "no production RTL semantic change",
+      "no workload, ROI, simulator, configuration or latency change",
+      "no full causal CPI, occupancy or PPA qualification"
+    ]
+  }
+}

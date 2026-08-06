@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+from tempfile import TemporaryDirectory
 from pathlib import Path
 
 import run_v11n_memory_pending_holder_semantic as runner
@@ -19,7 +20,7 @@ class V11nMemoryPendingHolderRunnerTests(unittest.TestCase):
         cls.source = cls.rtl_path.read_text(encoding="utf-8")
 
     def test_all_mutation_anchors_are_unique_and_change_source(self) -> None:
-        self.assertEqual(len(runner.MUTATIONS), 13)
+        self.assertEqual(len(runner.MUTATIONS), 16)
         for mutation in runner.MUTATIONS:
             mutated, receipts = runner.apply_mutation(
                 self.source, mutation.replacements
@@ -33,13 +34,14 @@ class V11nMemoryPendingHolderRunnerTests(unittest.TestCase):
 
     def test_profile_inventory_covers_two_widths(self) -> None:
         profiles = runner.build_profiles()
-        self.assertEqual(len(profiles), 30)
+        self.assertEqual(len(profiles), 36)
         baselines = [item for item in profiles if item.kind == "baseline"]
         mutations = [item for item in profiles if item.kind == "mutation"]
         self.assertEqual(len(baselines), 4)
-        self.assertEqual(len(mutations), 26)
+        self.assertEqual(len(mutations), 32)
         self.assertEqual({item.gen_width for item in profiles}, {1, 4})
-        self.assertTrue(all(not item.assertions for item in mutations))
+        self.assertEqual(sum(item.assertions for item in mutations), 6)
+        self.assertEqual(sum(not item.assertions for item in mutations), 26)
 
     def test_baseline_requires_exact_markers(self) -> None:
         profile = runner.Profile(
@@ -127,12 +129,56 @@ class V11nMemoryPendingHolderRunnerTests(unittest.TestCase):
             ["post-write-hold", "amo-interphase-lane9"],
         )
 
+    def test_v14u_mutation_requires_exact_assertion_marker(self) -> None:
+        profile = runner.Profile(
+            "amo-read-aliases-reservation0-g4-assert",
+            4,
+            True,
+            "mutation",
+            mutation="amo-read-aliases-reservation0",
+            expected_marker=runner.V14U_ASSERT_FAIL,
+            expected_holder="res0",
+        )
+        passed, _ = runner.evaluate_profile(
+            profile,
+            compile_rc=0,
+            compile_timeout=False,
+            sim_rc=1,
+            sim_timeout=False,
+            log_text=(
+                f"{runner.V14U_ASSERT_FAIL} overlap=10000000 "
+                "amo=1/28 res0=1/28 res1=0/0 buffer=0/0 @134\n"
+            ),
+            artifact_exists=True,
+        )
+        self.assertTrue(passed)
+        for log in (
+            "",
+            f"{runner.V14U_ASSERT_FAIL}\n{runner.V14U_ASSERT_FAIL}\n",
+            f"{runner.ORACLE_FAIL} stage=read-hold\n",
+            (
+                f"{runner.V14U_ASSERT_FAIL} overlap=10000000 "
+                "amo=1/28 res0=0/28 res1=1/28 buffer=0/0 @134\n"
+            ),
+        ):
+            passed, _ = runner.evaluate_profile(
+                profile,
+                compile_rc=0,
+                compile_timeout=False,
+                sim_rc=1,
+                sim_timeout=False,
+                log_text=log,
+                artifact_exists=True,
+            )
+            self.assertFalse(passed)
+
     def test_unit_ids_are_exact_pending_units(self) -> None:
         self.assertEqual(
             set(runner.UNIT_IDS),
             {
                 "memory-pending-producer-cache",
                 "memory-pending-token",
+                "amo-transient-holder-disjoint",
             },
         )
         self.assertTrue(
@@ -141,6 +187,64 @@ class V11nMemoryPendingHolderRunnerTests(unittest.TestCase):
                 for mutation in runner.MUTATIONS
             )
         )
+
+    def test_pass_cleanup_retains_logs_and_removes_only_intermediates(self) -> None:
+        with TemporaryDirectory() as raw_root:
+            repo_root = Path(raw_root)
+            result_dir = repo_root / "result"
+            profile_image = (
+                result_dir / "profiles/p0" / f"{runner.TOP}.vvp"
+            )
+            regression_image = (
+                result_dir / "regressions/build/r0.vvp"
+            )
+            variant = result_dir / "variants/m0/OooIntBackend.v"
+            retained_log = result_dir / "profiles/p0/sim.log"
+            for path in (
+                profile_image, regression_image, variant, retained_log
+            ):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(path.name.encode("utf-8"))
+
+            cleanup = runner.cleanup_pass_artifacts(
+                repo_root=repo_root,
+                result_dir=result_dir,
+                profile_records=[{"profile": "p0"}],
+                regression_records=[{"test": "r0"}],
+                variants={"m0": variant},
+            )
+            self.assertEqual(cleanup["status"], "PASS")
+            self.assertEqual(cleanup["removed_count"], 3)
+            self.assertEqual(cleanup["retained_compile_images"], 0)
+            self.assertFalse(profile_image.exists())
+            self.assertFalse(regression_image.exists())
+            self.assertFalse(variant.exists())
+            self.assertTrue(retained_log.is_file())
+            self.assertTrue((result_dir / "artifact-cleanup.json").is_file())
+
+    def test_cleanup_preflight_rejects_escape_without_partial_delete(self) -> None:
+        with TemporaryDirectory() as raw_root:
+            repo_root = Path(raw_root)
+            result_dir = repo_root / "result"
+            profile_image = (
+                result_dir / "profiles/p0" / f"{runner.TOP}.vvp"
+            )
+            escaped_variant = repo_root / "outside/OooIntBackend.v"
+            for path in (profile_image, escaped_variant):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("fixture\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                RuntimeError, "escapes result directory"
+            ):
+                runner.cleanup_pass_artifacts(
+                    repo_root=repo_root,
+                    result_dir=result_dir,
+                    profile_records=[{"profile": "p0"}],
+                    regression_records=[],
+                    variants={"escape": escaped_variant},
+                )
+            self.assertTrue(profile_image.is_file())
+            self.assertTrue(escaped_variant.is_file())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14p-cpi-owner-timing-architecture-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 diagnostic-only CPI owner timing 量测架构：沿 OooMemAxiBridge 两路 state/owner、NpcSimTop DPI edge-old 采样与 cpu-exec.cpp region probe 数据流，提出能区分 H1-H4 的最小信号集、固定分箱、ROI 左右删失处理、owner/token 守恒与非干扰验证。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "npc/rv64/eval/ppa/PERFORMANCE_BASELINE.md",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/testbench/README.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts/v14p-cpi-owner-timing-architecture-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/csrc/cpu/cpu-exec.cpp",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 module/signal/cycle 级 instrumentation 方案、ROI 采样合同、完整/overflow/invalid/conservation 字段、最小定向 TB 与负向 RTL/host 反例，以及不改变 B terminal 和生产请求响应退休语义的边界。"
+  ],
+  "success_criteria": [
+    "方案能分别观测 H1 AW-W-to-B、H2 admission/occupancy/overlap、H3 per-owner count/duration、H4 reservation/translation interval，并显式处理跨 ROI interval、owner token 复用、同拍 state transition 和双 bridge overlap；不足时返回 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

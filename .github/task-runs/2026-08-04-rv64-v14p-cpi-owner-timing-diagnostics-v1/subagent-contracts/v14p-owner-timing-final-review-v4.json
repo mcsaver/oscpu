@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14p-owner-timing-final-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对冻结的本地 RV64 双桥 owner timing 诊断基础设施给最终 PASS/GAP；不运行命令，不评估 workload 或 PPA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+      "npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp",
+      ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence-index.md",
+      ".github/task-runs/2026-08-04-rv64-v14p-owner-timing-checker-replay-v5/evidence-index.md",
+      ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts/v14p-owner-timing-final-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "周期合同：一个 DPI posedge 同时采两桥 edge-old image 与 lane0/lane1 commit PC；ROI 先在已见 start 且未见 end 时采样，再按 lane0→lane1 处理 marker，故窗口 S+1..E，同拍 start/end 为零周期且不合格。边界已有 activity 左删失，E 后仍 active 右删失。",
+      "owner 合同：sample 分离 bit38 station_cancel、bit39 active_drop、bit40 response_fire；cancel/drop 只进 cancelled，B/response 正常完成；A/D 同拍 AW/W→B 进 bin0。owner kind/token/epoch 变化为 invalid；S0..S12 合法、S13..S15 invalid；SQ_QUERY 与 translation 分列；完整 state/occupancy/interval/bin 守恒，禁止去重 B 事件。",
+      "验证：9 个正负向 C++ case、严格编译、SV lint、source ABI、显式 CONFIG_NPC_OOO_STATS=n 拒绝、脚本语法、当前 ABI full DPI link 全 PASS。V1 simulator SHA=1fe306d73e9784956ad87b6ff74c4e4af49d32b52c068f80b0554a5d7617cad6；148-file production manifest pre/post 不变。V5 current fast 与 frozen-link replay PASS，逐项绑定工具、manifest、contract/probe/collector/Make hash；runtime build 已删除。",
+      "授权边界：production RTL/filelist/断言/B terminal 未改变；无 workload stats-off/on、CoreMark/Dhrystone collector 输出、综合/STA/power。只能签收诊断基础设施，必须保持 candidate=false、promotion=false、PPA=UNQUALIFIED。"
+    ]
+  },
+  "deliverables": [
+    "第一行给对象、周期/配置、TB/EDA 观测与 PASS/GAP；若 GAP 只列能改变基础设施资格的最小周期反例，否则明确允许基础设施签收但不授权 workload/RTL/PPA。"
+  ],
+  "success_criteria": [
+    "确认所述 ROI、终端分类、身份、删失、守恒、link/replay 与授权边界无内部反例则 PASS；信息不足以验证所述事实本身不等于反例，但必须列为 unknown。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

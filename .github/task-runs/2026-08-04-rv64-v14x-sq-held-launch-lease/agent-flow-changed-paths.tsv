@@ -1,0 +1,7 @@
+npc/rv64/design/specs/ooo-memory-request-admission-hold.md
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/vsrc/execute/OooIntBackend.v
+npc/rv64/vsrc/memory/OooStoreQueue.v
+npc/rv64/testbench/tests/tb_ooo_store_queue.sv
+npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh
+npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh

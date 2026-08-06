@@ -1,0 +1,3 @@
+2026-08-03T14:25:30Z	decision	采用仓库自定义 fast/scheduled/candidate 映射：review/analysis 零门禁；development 对每个不可变 design/config identity 只取一次受影响配置证据；昂贵 CDC/RDC、快综与完整 signoff 由客观硬件触发项低频选择。	npc/rv64/design/arch/rv64-soc-delivery-gates.tsv
+2026-08-03T14:25:30Z	evidence	独立方法论复核结论为流程设计 PASS、无系统性过度约束；已补齐 affected supported configuration elaboration、CDC/RDC/快综客观触发边界和 candidate 完整身份字段。C 指针仍只做结构审计。	.github/instructions/rv64-ppa-optimization-workflow.instructions.md
+2026-08-03T14:29:11Z	evidence	候选后独立冻结复核：本仓库 RV64 fast/scheduled/candidate 流程设计 PASS、GAP=0，无关键欠约束或实质性过度约束；流程自检结果不得外推为 RTL、CDC/RDC、综合、STA 或 PPA PASS。	.github/runtime-artifacts/agent-flow/rv64-soc-methodology-standardization/summary.txt

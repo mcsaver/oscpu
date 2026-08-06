@@ -1,0 +1,15 @@
+.github/instructions
+.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design
+abstract-machine
+npc/rv64
+npc/rv64/design/arch
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+scripts
+scripts/tests
+.
+abstract-machine/am
+abstract-machine/klib
+.github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry
+.github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts

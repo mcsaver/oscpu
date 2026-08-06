@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14t-terminal-lane-workflow-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地RV64 OooMemOwnerTerminalCollector的12路kind/token/epoch终端事务入口、OooIntBackend源侧holder互斥合同与66个lane pair静态分类；核验V9P 340000000次退休处S2-G1-TCOLL-INGRESS-DUP仅能收敛到候选集合、历史账本SELECTED/VD1不越级闭合，并检查C调度器把库存审计、current receipt合同和同源重认证分层而不削弱断言或负向RTL验证。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+      "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      ".github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix/evidence/terminal-lane-pair-current.json",
+      ".github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix/evidence/terminal-lane-pair-v9p-snapshot.json",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full.classification.json",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/failure-binding.txt",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/driver.log",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-verification/v9p-replay-capacity-evidence/fence-open-mutation/OooIntBackend.v",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-verification/v9p-replay-capacity-evidence/binding.sha256",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/mutate-v9p-replay-capacity.py",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
+      "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      "npc/rv64/design/arch/ROADMAP.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14t-terminal-lane-owner-matrix/subagent-contracts/v14t-terminal-lane-workflow-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按RV64 RTL对象、配置/周期、testbench或静态EDA观测、PASS/GAP范围给出独立审查；逐项说明lane pair计数、V9P证据边界、账本状态、固定门触发范围、可操作反例、未知项、替代假设、置信依据与scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认每个数字和状态可回指合同内RTL或JSON证据；任何历史lane唯一性、当前ARCH_STABLE、系统再认证或PPA越级结论必须被指出；工作流PASS不得替代本地RV64功能结论，collector重复事务不得被合并，现有断言不得削弱。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,4 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-run/2026-08-05-rv64-v15b-l2-mini-system-interrupt-a7
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

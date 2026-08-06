@@ -1,0 +1,2 @@
+2026-08-03T14:25:28Z	decision	共享 tb_ooo_int_backend.sv 与 testbench Makefile 保持原哈希；V14G 通过临时 overlay 和稳定 runner 注入三处唯一锚点，避免历史 hash-bound evidence 与当前验证入口互相耦合。	npc/rv64/testbench/scripts/run_v14g_global_producer_owner_fence.py
+2026-08-03T14:25:29Z	counterexample	独立审查限定 PASS：optional lane1 production 可达性、lane7 V14G 重跑、GEN_W=4 全空间以及 candidate/valid/free 停顿轨迹仍是 GAP；canonical promotion、全核 architecture 和 PPA 不升级。	.github/runtime-artifacts/agent-flow/rv64-v14g-producer-owner-global-gate/subagent-contracts/v14g-frozen-evidence-review.json

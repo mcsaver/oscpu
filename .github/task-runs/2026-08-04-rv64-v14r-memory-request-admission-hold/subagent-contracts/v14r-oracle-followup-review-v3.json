@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14r-oracle-followup-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地RV64 V14R定向验证oracle收口：领域PASS marker只在tb_errors为零时输出；holder-bypass、cancel-fallback、consume-miq-live-split与single-bank-probe-order四个compile-success RTL mutation分别要求专属拒绝marker和最终RESULT FAIL；确认verification-v3正向PASS、4/4负向检测且无build/VVP留档。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh",
+      "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/evidence/independent-review-v2.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/verification-v3",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/subagent-contracts/v14r-oracle-followup-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/evidence/independent-review-v2.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按RTL/TB对象、Icarus配置、正负向日志观测和PASS/GAP范围报告；逐variant列出专属marker、compile-success、最终FAIL，并确认负向single-bank日志不再包含领域PASS marker。"
+  ],
+  "success_criteria": [
+    "oracle只有在正向领域marker受tb_errors门控、4个负向版本各命中自己的marker并最终FAIL、aggregate为4/4且production SHA不漂移时PASS；不得重新裁决CoreMark、ARCH_STABLE或PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

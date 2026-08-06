@@ -1,0 +1,1 @@
+[ARCH-STABLE] status=ARCH_STABLE ppa=UNQUALIFIED promotion_eligible=false blockers=0

@@ -1,8 +1,8 @@
 {
-  "schema": "npc-rv64-historical-defect-backfill-ledger-v1",
-  "revision": "v3-20260729",
-  "scope": "local RV64 dual-issue OoO RTL, testbench oracle and evidence-binding defects with high diagnosis or replay cost",
-  "design_id": "sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897",
+  "blocking_depths": [
+    "VD0",
+    "VD1"
+  ],
   "depth_contract": {
     "VD0": "Historical symptom or root-cause narrative only; no executable current-workspace observation.",
     "VD1": "A current positive regression or static witness exists, but the historical failure mode is not recreated and dynamically rejected.",
@@ -10,50 +10,13 @@
     "VD3": "Current-design raw cycle or transaction observations reject a compile-success negative RTL/oracle version and bind stable local artifacts.",
     "VD4": "VD3 plus current-design aggregate or frozen-system replay, explicit publication boundaries and independent review."
   },
-  "blocking_depths": [
-    "VD0",
-    "VD1"
-  ],
-  "selected_id": "NONE",
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
   "entries": [
     {
-      "id": "HIST-SER-QH-YOUNGER-STORE-CYCLE",
-      "priority_rank": 1,
-      "title": "queue-head CSR waits on a younger SQ entry and forms a liveness cycle",
-      "domain": "rtl-liveness",
-      "severity": "critical",
-      "recurrence_risk": "high",
-      "observation_cost": "high",
-      "first_observed": "2026-07-05",
-      "status": "BACKFILLED",
-      "validation_depth": "VD3",
-      "historical_symptom": "The queue-head CSR remains inflight with mem_quiet low while a younger store remains resident in the Store Queue, so neither the CSR nor the younger store can retire.",
-      "root_cause": "The historical intermediate RTL required mem_idle and mem_retire_quiet for queue-head CSR retirement; mem_retire_quiet included sq_empty even though the resident SQ entry was younger than the CSR and could only be flushed after the CSR retired.",
-      "owner_paths": [
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "npc/rv64/vsrc/writeback/OooRob.v",
-        "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-        "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
-        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py"
-      ],
-      "source_artifacts": [
-        {
-          "path": "npc/rv64/design/arch/serialize-at-retire-phase1.md",
-          "sha256": "a767a2acaa71d80c0a709837b4732647ca326dd1402e7d73a82e77383bd04525"
-        }
-      ],
       "current_evidence": [
         {
-          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json",
-          "sha256": "ea36f9855b2658e63ea3b5f7264ed9e5a668f6e91701113338bdafc93732d445"
-        },
-      {
-        "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
-        "sha256": "a7c15649be90432aa6961671b10e1be06ade4ddef18e8e06846fb6f3cd7b9fa0"
-      },
-      {
-        "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/product-frontdoor-v2/logs/tb_ooo_core_top_glue_v9o_csr_qh.log",
-        "sha256": "1ac4a715d1d18d91e11fa4d1ef2589e0291b4f7bea4a00d2ff24dd41f2c0228a"
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
         }
       ],
       "depth_basis": [
@@ -61,75 +24,46 @@
         "The backend-only directed state counts one CSR dispatch, one younger STORE dispatch, one SQ allocation, one successful probe request/response, one exact STORE owner and zero physical writes in assertions-on and assertions-off modes.",
         "Current owner-lifetime RTL intentionally keeps mem_idle=0 for that backend-only state; it is recorded as a current guard rather than misreported as queue-head progress.",
         "A root-cone-equivalent historical transport-idle source reaches exactly one CSR C0/C1 and quiet C2 with zero younger STORE writes in both assertion configurations.",
-    "Adding the historical mem_idle-and-mem_retire_quiet dependency compiles successfully in both assertion configurations and is rejected only at the dedicated bounded marker with mem_idle=1, mem_retire_quiet=0, hold=1, SQ count=1 and owner-live count=1.",
-    "Runner v2 retains each raw Icarus image receipt but binds the summary to allocator-normalized VVP identities; two identical full replays produced a byte-identical summary while semantic-content unit tests remained fail-sensitive.",
-    "Production OooIntBackend bytes and the 146-file design-id remain unchanged at sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897."
+        "Adding the historical mem_idle-and-mem_retire_quiet dependency compiles successfully in both assertion configurations and is rejected only at the dedicated bounded marker with mem_idle=1, mem_retire_quiet=0, hold=1, SQ count=1 and owner-live count=1.",
+        "Runner v2 retains each raw Icarus image receipt but binds the summary to allocator-normalized VVP identities; two identical full replays produced a byte-identical summary while semantic-content unit tests remained fail-sensitive.",
+        "The V14K current-design receipt binds the unchanged OooIntBackend owner cone and V14E queue-head assert/release plus three compile-success mutations to sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488; the historical reconstruction remains immutable.",
+        "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion."
       ],
+      "domain": "rtl-liveness",
+      "first_observed": "2026-07-05",
+      "historical_symptom": "The queue-head CSR remains inflight with mem_quiet low while a younger store remains resident in the Store Queue, so neither the CSR nor the younger store can retire.",
+      "id": "HIST-SER-QH-YOUNGER-STORE-CYCLE",
+      "observation_cost": "high",
+      "owner_paths": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/writeback/OooRob.v",
+        "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/run-historical-reconstruction.py"
+      ],
+      "priority_rank": 1,
+      "recurrence_risk": "high",
       "required_backfill": [
         "Reopen if queue-head CSR packet single-dispatch, head0_csr_inflight frontend hold, SQ owner lifetime, mem_idle, mem_retire_quiet or OooRob mem_quiet wiring changes.",
         "Reopen if the deterministic reconstruction anchors stop being unique or either assertions-on/off historical cycle version is no longer compile-success and dynamically rejected."
-      ]
-    },
-    {
-      "id": "HIST-SER-QH-STOP-HOLD-DROP",
-      "priority_rank": 2,
-      "title": "queue-head CSR stop ownership drops before its inflight lifetime ends",
-      "domain": "rtl-liveness",
-      "severity": "high",
-      "recurrence_risk": "high",
-      "observation_cost": "medium",
-      "first_observed": "2026-07-05",
-      "status": "BACKFILLED",
-      "validation_depth": "VD3",
-      "historical_symptom": "The pre-T3U queue-head CSR could leave the fetch head without a complete inflight stop owner: the frontend reopened before the older CSR reached C0 and a younger lane1 CSR entered the pending path. The original history attributed the state drop to ordinary drain; the current-topology reconstruction instead observes orphan owner cleanup with drain=0.",
-      "root_cause": "The historical owner cone lacked both the OooStopPendingSequencer head0_csr_inflight state hold and the OooFrontendRunGate head0_csr_inflight owner-to-busy term. Without the RunGate term, stop_pending is interpreted as orphan and can_run reopens; without the state hold, the orphan clear also drops stop before C0.",
-      "owner_paths": [
-        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-        "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
-        "npc/rv64/vsrc/frontend/OooFrontend.v",
-        "npc/rv64/vsrc/control/OooControlPlane.v",
-        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
-        "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
-        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/run-stop-hold-matrix.py"
       ],
+      "root_cause": "The historical intermediate RTL required mem_idle and mem_retire_quiet for queue-head CSR retirement; mem_retire_quiet included sq_empty even though the resident SQ entry was younger than the CSR and could only be flushed after the CSR retired.",
+      "severity": "critical",
       "source_artifacts": [
         {
           "path": "npc/rv64/design/arch/serialize-at-retire-phase1.md",
-          "sha256": "a767a2acaa71d80c0a709837b4732647ca326dd1402e7d73a82e77383bd04525"
+          "sha256": "b0c582eef1e639cd6f10ea4ad562cd77d9df45e6fa8e7d4da134413eacbc8897"
         }
       ],
+      "status": "BACKFILLED",
+      "title": "queue-head CSR waits on a younger SQ entry and forms a liveness cycle",
+      "validation_depth": "VD3"
+    },
+    {
       "current_evidence": [
         {
-          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/product-default-qh-fallback-v1/summary.json",
-          "sha256": "ea36f9855b2658e63ea3b5f7264ed9e5a668f6e91701113338bdafc93732d445"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/summary.json",
-          "sha256": "8f989410a6037cee1eba4cb04255af6e72b4b827f99583a0dd2165ff95f0bd8c"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/replay-stability.json",
-          "sha256": "9d904605135c40906c874f1b0ad2c91020fe425e3be69178291c11b455a71b2f"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/variants/drop_stop_hold/source.diff",
-          "sha256": "757c8b76695a991e22d5a99347287d9e8d6a68daae1c860c1435fc647686aa47"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/variants/drop_run_gate_owner/source.diff",
-          "sha256": "868056e814509e8ba87e92cf2121abd76a8b2effda25000a8686e914125b07cc"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/cases/historical_pre_t3u-assert-on/result/logs/tb_ooo_core_top_glue_hist_ser_qh_stop_hold.log",
-          "sha256": "a871da13aeaf988e00b5411639c98b7f0b7ce617da4fe04d7b0246f1f34965b3"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/cases/historical_pre_t3u-assert-off/result/logs/tb_ooo_core_top_glue_hist_ser_qh_stop_hold.log",
-          "sha256": "aaf20cffce908f727eb922eea60ccb1076d56fe81a4fcc9624c2a476dd2bf66c"
-        },
-        {
-          "path": ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/module-aggregate-assert-on/summary.txt",
-          "sha256": "27a4e2afd72daf2df385d7b64b2aa489a0dfc49856744ebb4bc60112f2966a00"
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
         }
       ],
       "depth_basis": [
@@ -141,137 +75,267 @@
         "All eight variants compile successfully and use the same raw product-topology scoreboard without event deduplication. Existing assertions remain present and are not weakened to collect later events.",
         "The current topology has ordinary_drain_root=0 because backend_drained requires ROB empty while the queue-head CSR is inflight; the causal record therefore distinguishes the historical drain narrative from the observed orphan-clear root.",
         "A full replay produced byte-identical summary and case logs plus stable allocator-normalized VVP identities. The focused runner/oracle unit tests pass 7/7, related V9O and standalone tests pass with assertions on/off, and the assertion-on module aggregate passes 113/113.",
-        "Production OooStopPendingSequencer and OooFrontendRunGate bytes remain unchanged and the 146-file design-id remains sha256:04c5458ff274b7b30e0629fc20ccef4ffa958dee3b80595ee4b46faf17a73897."
+        "The V14K current-design receipt binds unchanged OooStopPendingSequencer, OooFrontendRunGate and core-top testbench bytes plus V14E holder/stop positive and compile-success negative observations to sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488; the historical 8/8 matrix remains immutable.",
+        "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion."
       ],
+      "domain": "rtl-liveness",
+      "first_observed": "2026-07-05",
+      "historical_symptom": "The pre-T3U queue-head CSR could leave the fetch head without a complete inflight stop owner: the frontend reopened before the older CSR reached C0 and a younger lane1 CSR entered the pending path. The original history attributed the state drop to ordinary drain; the current-topology reconstruction instead observes orphan owner cleanup with drain=0.",
+      "id": "HIST-SER-QH-STOP-HOLD-DROP",
+      "observation_cost": "medium",
+      "owner_paths": [
+        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+        "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+        "npc/rv64/vsrc/frontend/OooFrontend.v",
+        "npc/rv64/vsrc/control/OooControlPlane.v",
+        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/run-stop-hold-matrix.py"
+      ],
+      "priority_rank": 2,
+      "recurrence_risk": "high",
       "required_backfill": [
         "Reopen if queue-head CSR birth/inflight/C0/C1/C2, stop sequencer priority, RunGate owner/orphan/busy mapping, pending lane1 capture or drain ROB-empty semantics change.",
         "Reopen if either assertions-on/off historical-pre-T3U version no longer compiles or the raw scoreboard no longer rejects owner gap, premature can_run and real younger lane1 capture.",
         "Exact historical-source or VD4 claims require a separately bound historical snapshot plus aggregate/design-id independent review; this VD3 record does not qualify formal, full-system, architecture-stable, synthesis, STA or PPA conclusions."
-      ]
+      ],
+      "root_cause": "The historical owner cone lacked both the OooStopPendingSequencer head0_csr_inflight state hold and the OooFrontendRunGate head0_csr_inflight owner-to-busy term. Without the RunGate term, stop_pending is interpreted as orphan and can_run reopens; without the state hold, the orphan clear also drops stop before C0.",
+      "severity": "high",
+      "source_artifacts": [
+        {
+          "path": "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+          "sha256": "b0c582eef1e639cd6f10ea4ad562cd77d9df45e6fa8e7d4da134413eacbc8897"
+        }
+      ],
+      "status": "BACKFILLED",
+      "title": "queue-head CSR stop ownership drops before its inflight lifetime ends",
+      "validation_depth": "VD3"
     },
     {
-      "id": "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL",
-      "priority_rank": 3,
-      "title": "simulation exit terminalizes while a memory owner is still active",
+      "current_evidence": [
+        {
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
+        }
+      ],
+      "depth_basis": [
+        "The historical assertions-on/off focused terminal tests pass 5/5 in each mode and seven compile-success RTL negative versions are dynamically rejected.",
+        "Current CsrFile drift required one bounded replay: assertions-on/off baselines pass 2/2 and seven compile-success RTL variants are rejected on sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488.",
+        "The current replay binds twelve live source artifacts, retains zero intermediate simulator products and does not authorize a full-system rerun.",
+        "The SERIALIZE-G1 independent review and V14K receipt retain the trap/exit, whole-architecture and PPA non-claim boundaries.",
+        "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion."
+      ],
       "domain": "rtl-terminal-ownership",
-      "severity": "critical",
-      "recurrence_risk": "medium",
-      "observation_cost": "high",
       "first_observed": "2026-07-27",
-      "status": "BACKFILLED",
-      "validation_depth": "VD4",
       "historical_symptom": "pending_exit could reach raw exit and latch halted status after ROB/issue drain even when the exact memory owner had not terminalized.",
-      "root_cause": "The drain-complete equation historically applied mem_owner_terminalized only to pending SYSTEM and architectural trap, not to pending exit.",
+      "id": "HIST-EXIT-ACTIVE-MEM-EARLY-TERMINAL",
+      "observation_cost": "high",
       "owner_paths": [
         "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
         "npc/rv64/vsrc/control/OooTrapExitEventMux.v",
         "npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v"
       ],
+      "priority_rank": 3,
+      "recurrence_risk": "medium",
+      "required_backfill": [
+        "Reopen if the pending exit holder, exact memory terminal equation, trap/exit priority or output latch RTL changes."
+      ],
+      "root_cause": "The drain-complete equation historically applied mem_owner_terminalized only to pending SYSTEM and architectural trap, not to pending exit.",
+      "severity": "critical",
       "source_artifacts": [
         {
           "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/round-state.json",
           "sha256": "efe93aad3a95cfd5eb71dbdc142699a2db502ecdbe842713f2f12e7a321f042e"
         }
       ],
+      "status": "BACKFILLED",
+      "title": "simulation exit terminalizes while a memory owner is still active",
+      "validation_depth": "VD4"
+    },
+    {
       "current_evidence": [
         {
-          "path": ".github/task-runs/2026-07-27-rv64-v10d-simulation-exit-exactly-once/mutations/summary.json",
-          "sha256": "44ae585216ef65a964cd62839f70197c5a0137a9e6644a2779d15ce248f739d4"
-        },
-        {
-          "path": ".github/task-runs/2026-07-28-rv64-v10g-serialize-currentness-closure/serialize-g1-closure-candidate-v2.json",
-          "sha256": "158cf6328943a275cd3e12eac780c0cc48223012e2692ca9d9e7f9dace110bab"
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
         }
       ],
       "depth_basis": [
-        "Assertions-on/off focused terminal tests pass 5/5 in each mode.",
-        "Seven compile-success RTL negative versions are dynamically rejected.",
-        "Production RTL applicability is hash-bound to the current design and relevant stages are present in the 26-stage replay.",
-        "The SERIALIZE-G1 independent review retained the trap/exit non-claim boundary."
+        "The immutable A3 publication remains FAIL while execution and oracle states are separated.",
+        "Frozen console replay accepts printk debug text and rejects a real BUG token with 3/3 positive/negative unit cases.",
+        "The current bounded-token checker passes 45/45 contract tests and the 17/17 strict frozen-system receipt is bound to sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 with zero RTL assertion failures.",
+        "An independent review approved only the system-transaction-complete and legacy-oracle-invalid classification; the original A3 FAIL remains immutable.",
+        "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion."
       ],
-      "required_backfill": [
-        "Reopen if the pending exit holder, exact memory terminal equation, trap/exit priority or output latch RTL changes."
-      ]
-    },
-    {
-      "id": "HIST-A3-DMESG-DEBUG-TOKEN",
-      "priority_rank": 4,
-      "title": "dmesg checker classifies printk debug text as a BUG token",
       "domain": "verification-oracle",
-      "severity": "high",
-      "recurrence_risk": "medium",
-      "observation_cost": "high",
       "first_observed": "2026-07-28",
-      "status": "BACKFILLED",
-      "validation_depth": "VD4",
       "historical_symptom": "A completed 5,071,521,696-cycle system transaction publishes FAIL because the checker matches the BUG substring inside printk debug text.",
-      "root_cause": "The historical case-insensitive expression used an unbounded BUG: alternative instead of requiring a non-identifier boundary.",
+      "id": "HIST-A3-DMESG-DEBUG-TOKEN",
+      "observation_cost": "high",
       "owner_paths": [
         "Linux/scripts/npc-systemd-strict-check.sh",
         ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/replay-a3-checker-v2.py"
       ],
+      "priority_rank": 4,
+      "recurrence_risk": "medium",
+      "required_backfill": [
+        "Reopen if the production dmesg expression, frozen A3 console, checker identity or A3 publication state changes."
+      ],
+      "root_cause": "The historical case-insensitive expression used an unbounded BUG: alternative instead of requiring a non-identifier boundary.",
+      "severity": "high",
       "source_artifacts": [
         {
           "path": ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
           "sha256": "85b2bccb227bb9c0b35fa0284a3bea8912ebca0c8cfec2579e3e8fee714062d8"
         }
       ],
+      "status": "BACKFILLED",
+      "title": "dmesg checker classifies printk debug text as a BUG token",
+      "validation_depth": "VD4"
+    },
+    {
       "current_evidence": [
         {
-          "path": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
-          "sha256": "5274b0d67eae3472e8fe8df86b4fbf49b7783eacc375d8b5e2e11c96b7881af8"
-        },
-        {
-          "path": ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/review-v1.md",
-          "sha256": "0172ba7d11f88034bfcfa3ef1f43015e7be181506010a95a58bffd098c5708c3"
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
         }
       ],
       "depth_basis": [
-        "The immutable A3 publication remains FAIL while execution and oracle states are separated.",
-        "Frozen console replay accepts printk debug text and rejects a real BUG token with 3/3 positive/negative unit cases.",
-        "An independent review approved only the system-transaction-complete and legacy-oracle-invalid classification."
+        "The fixed test uses distinct ProducerIds and crosses reset after each release.",
+        "Nine compile-success transient-owner RTL negative versions are dynamically rejected and canonical source pre/post hashes are stable.",
+        "The V14H/V14G current holder receipt passes 4/4 positive profiles and rejects 22/22 compile-success negative versions on sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488; the static testbench contract binds four distinct ProducerIds and four release/reset boundaries.",
+        "The evidence is focused and independently reviewed but is not promoted to a current full-system, whole-architecture or PPA claim.",
+        "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion."
       ],
-      "required_backfill": [
-        "Reopen if the production dmesg expression, frozen A3 console, checker identity or A3 publication state changes."
-      ]
-    },
-    {
-      "id": "HIST-V8L-FORCE-RELEASE-SHADOW",
-      "priority_rank": 5,
-      "title": "procedural force/release leaves a stale holder value and hides a missing transient owner",
       "domain": "verification-oracle",
-      "severity": "high",
-      "recurrence_risk": "low",
-      "observation_cost": "medium",
       "first_observed": "2026-07-20",
-      "status": "BACKFILLED",
-      "validation_depth": "VD3",
       "historical_symptom": "Removing the EX1 transient-owner union remained green because a previously forced procedural variable retained its value after release and masked the missing holder.",
-      "root_cause": "Four transient probes reused one ProducerId and relied on release to restore a procedural variable before the next procedural assignment.",
+      "id": "HIST-V8L-FORCE-RELEASE-SHADOW",
+      "observation_cost": "medium",
       "owner_paths": [
         "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
         ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh"
       ],
+      "priority_rank": 5,
+      "recurrence_risk": "low",
+      "required_backfill": [
+        "Reopen if the transient holder probe reuses a ProducerId, omits the reset boundary or stops checking compile-success negative versions."
+      ],
+      "root_cause": "Four transient probes reused one ProducerId and relied on release to restore a procedural variable before the next procedural assignment.",
+      "severity": "high",
       "source_artifacts": [
         {
           "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/task-report.md",
           "sha256": "c0e4b9e12f5f70bc31f46c2cea10c3d4131d1a0c95077cd531ef2557f5499374"
         }
       ],
+      "status": "BACKFILLED",
+      "title": "procedural force/release leaves a stale holder value and hides a missing transient owner",
+      "validation_depth": "VD3"
+    },
+    {
       "current_evidence": [
         {
-          "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
-          "sha256": "4b46efea0c31871916bff76d459c3f894819b0e9ffa7ae50f63a3e3b2370c58d"
+          "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+          "sha256": "fc9658d712c44a035b0fa34ce09ea7336d16071847b2b0630cd2658f36008488"
         }
       ],
       "depth_basis": [
-        "The fixed test uses distinct ProducerIds and crosses reset after each release.",
-        "Nine compile-success transient-owner RTL negative versions are dynamically rejected and canonical source pre/post hashes are stable.",
-        "The evidence is focused and independently reviewed but is not promoted to a current full-system claim."
+        "The immutable V9P run at sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a reached 340,000,000 committed instructions and PC 0xffffffff80426c9c before [S2-G1-TCOLL-INGRESS-DUP]. The driver contains the same marker twice because its bounded console tail repeats the fatal sequence; this is one physical RTL assertion event. The actual bank and kind/token/epoch tuple remain UNKNOWN.",
+        "The V15G reconstruction recomputes the frozen 146-file source-set identity and binds byte-exact V9P OooIntBackend, OooMemAxiBridge and OooMemOwnerTerminalCollector sources. In that RTL, both backend retry-ready equations and bridge sq_query_retry_fire_w omit the C0 barrier gate, while S_SQ_QUERY gives barrier retention priority over retry release.",
+        "The exact V9P bridge counterexample observes C0 retry capture plus bridge owner retention and C1 drop0 for the same token. Collector negatives reject bank0 lanes 2/10 and bank1 lanes 4/11 with [S2-G1-TCOLL-INGRESS-DUP]. This proves the symmetric reproducible pair family without claiming which bank fired in the immutable run.",
+        "On current sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9, both backend retry-ready equations and bridge retry-fire are barrier gated. Two focused baselines pass and all three single-gate-open compile-success RTL variants are rejected by dedicated V9R markers; no compiled image is retained.",
+        "The current layered-system receipt binds L0 directed RTL, L1 full-core DiffTest, L2 mini-system and L3 lightweight Linux PASS to the same f7a68455 design with zero reported RTL assertion failures where present. Ubuntu 22.04 remains NOT_RUN, is launchable only by explicit user request and does not block the default conjunction.",
+        "The isolated V15G read-only reviewer confirmed exact-source identity, the C0-to-C1 owner handoff root cause, current fix, mutation sensitivity, fail-loud collector policy and the frozen-bank UNKNOWN boundary. This supplies VD4 aggregate/replay, publication boundaries and independent review without an ARCH_STABLE, synthesis, STA, CPI or PPA claim."
       ],
+      "domain": "rtl-terminal-ownership",
+      "first_observed": "2026-07-23",
+      "historical_symptom": "One live memory-owner tuple reached at least two OooMemOwnerTerminalCollector ingress lanes in the same cycle. With assertions enabled the collector stopped on S2-G1-TCOLL-INGRESS-DUP; without that assertion it rejects every same-tuple lane rather than merging them, so the owner may remain live without a terminal transfer.",
+      "id": "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP",
+      "observation_cost": "high",
+      "owner_paths": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+        "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+        "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+        "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+        ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/verify-v9p-root-cause.py",
+        ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/run-v9p-bridge-counterexample.sh",
+        ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/run-v9p-lane-pair-negatives.sh",
+        ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/run-v9r-current-evidence.sh"
+      ],
+      "priority_rank": 6,
+      "recurrence_risk": "high",
       "required_backfill": [
-        "Reopen if the transient holder probe reuses a ProducerId, omits the reset boundary or stops checking compile-success negative versions."
-      ]
+        "Reopen if the byte-exact V9P source reconstruction, immutable failure input or original FAIL binding becomes unavailable or hash-inconsistent.",
+        "Reopen if either backend retry-ready gate or the bridge retry-fire gate stops suppressing C0 handoff, if any compile-success gate-open mutation survives, or if collector duplicate rejection is merged, deduplicated, waived or weakened.",
+        "Rebind current evidence after production or elaborated RTL, active simulator/device semantics, configuration or L0-L3 input identity changes. Full Ubuntu is not a default closure condition and may run only on explicit user request."
+      ],
+      "root_cause": "At C0 full-flush barrier, exact V9P RTL let OooIntBackend accept SQ-query replay into the bank-local retry holder and pop the MIQ while OooMemAxiBridge retained the same S_SQ_QUERY owner. At C1 flush, bridge drop0 and retry-holder cancel emitted the same owner tuple into collector lanes 2/10 or 4/11. Current RTL barrier-gates both retry-ready banks and bridge retry-fire. The immutable run did not record which symmetric bank or tuple fired.",
+      "severity": "critical",
+      "source_artifacts": [
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full.classification.json",
+          "sha256": "925b57286ad9d2c3e6b22ae70513d66d36b9251ee9470719f8c019daeddd1117"
+        },
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/failure-binding.txt",
+          "sha256": "80e3739c71faf0ce8fa6fdf13e90dde45230cc0c74ddcc47191e10b74c38c23b"
+        },
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/driver.log",
+          "sha256": "4fbd006bf807f73793ed290d925dcb4ae4a5c2e1157cc452e8472af745df552b"
+        },
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-verification/v9p-replay-capacity-evidence/fence-open-mutation/OooIntBackend.v",
+          "sha256": "d3274cc3480f1c0607ea20073443effd3034129dd5b02d87435fb97eeea60499"
+        },
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rtl-verification/v9p-replay-capacity-evidence/binding.sha256",
+          "sha256": "16c27bc6623ad996bf8826c62487eba6bc2d85f2501a9c572354664e8290820c"
+        },
+        {
+          "path": ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/mutate-v9p-replay-capacity.py",
+          "sha256": "14b00160ec5cc7ff81bfa90cd7ef53cccf7df2ddd5356ac57d0ecd221f534241"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-exact-source/reconstruction-receipt.json",
+          "sha256": "d9cd14a52cbd1736480dd22911da20d0e27575f4f95d3f99b83c1210ccd487db"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-lane-pairs/summary.json",
+          "sha256": "580f2e657f9505a03669d0a0ea5a1c32d4a6c4dbc6db1355a8bdc830dd467a35"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-bridge-counterexample/summary.json",
+          "sha256": "dd4fe0615ee28e4f6d0af00aa395de5c9204825248dd8d2a4ba89e4eee144eba"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9r-current/summary.json",
+          "sha256": "b0fa888b9ad028af9ea19567eed4b4415c4d01845b642430198e873333d9aa07"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+          "sha256": "653fc5387f38df567c17f3418eca44381d50c503251530cf6fbd8400eab01220"
+        },
+        {
+          "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/independent-review.json",
+          "sha256": "fe68086d6ab0f8bcead93f7c05ec817e34bc11723920552a339f5a23b8c315c7"
+        },
+        {
+          "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+          "sha256": "f342ce6ed7317afcb2cda6676f130616b5e15a76a8e5d43305ae8ede8ab0a09c"
+        }
+      ],
+      "status": "BACKFILLED",
+      "title": "memory terminal collector receives a same-owner tuple from multiple ingress lanes",
+      "validation_depth": "VD4"
     }
-  ]
+  ],
+  "revision": "v15g-20260805-v9p-terminal-root-cause-vd4",
+  "schema": "npc-rv64-historical-defect-backfill-ledger-v1",
+  "scope": "local RV64 dual-issue OoO RTL, testbench oracle and evidence-binding defects with high diagnosis or replay cost",
+  "selected_id": "NONE"
 }

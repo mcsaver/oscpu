@@ -66,7 +66,7 @@ console SHA-256：
 | 859–862 | `Power down`、syscon、`GOOD TRAP`、system-reset code 0 | guest systemd 发起的有序关机事务传到仿真终端并干净退出 |
 | 863–867 | host time、commits、cycles、CPI | 仿真成本与执行规模 |
 
-终点统计为：
+运行结束统计为：
 
 ```text
 cycles  = 5,071,521,696

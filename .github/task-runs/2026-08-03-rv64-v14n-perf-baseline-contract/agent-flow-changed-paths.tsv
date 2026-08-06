@@ -1,0 +1,16 @@
+npc/rv64/design/arch/performance-baseline-contract-v2.json
+npc/rv64/design/arch/performance-boundary-qualification-amendment-v1.json
+npc/rv64/eval/ppa/PERFORMANCE_BASELINE.md
+npc/rv64/eval/ppa/tools/performance_baseline_current.py
+npc/rv64/eval/ppa/tests/test_performance_baseline_current.py
+npc/rv64/eval/ppa/run-performance-baseline-replay.sh
+npc/rv64/eval/ppa/schemas/performance-baseline-current-v2.schema.json
+npc/rv64/eval/ppa/schemas/performance-baseline-independent-review-v1.schema.json
+npc/rv64/eval/ppa/evidence/performance-baseline-current.json
+npc/rv64/eval/ppa/evidence/performance-baseline-independent-review-current.json
+.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v1
+.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v2
+.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-composite-replay-v1
+.github/memory/project-status.md
+.github/memory/modules/npc.md
+.github/memory/modules/agent-system.md

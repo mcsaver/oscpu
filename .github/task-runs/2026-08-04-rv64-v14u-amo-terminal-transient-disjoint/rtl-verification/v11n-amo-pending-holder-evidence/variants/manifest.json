@@ -1,0 +1,372 @@
+[
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-read-pending-birth",
+    "name": "capture-producer-generation-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "cc15f94e66cd1b02e51cd5035f4f33bbead13e2e57ba45b8065cfc4a43736975",
+        "purpose": "truncate the AMO singleton cached ProducerId generation",
+        "replacement_sha256": "42ec8bebcb232f8ebe2bafd674f696b3c5b277b38f3319df2903493501919775"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-generation-truncate/OooIntBackend.v",
+    "variant_sha256": "677b1de861e851831718e5aff0e7d6b25ee941e99b28f1e228a54a55bf8fce62"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-read-pending-birth",
+    "name": "capture-producer-cross-lane",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "cc15f94e66cd1b02e51cd5035f4f33bbead13e2e57ba45b8065cfc4a43736975",
+        "purpose": "cross-connect the terminal1 ProducerId into AMO singleton",
+        "replacement_sha256": "00ec36fef73e68ca253984ab5fddd31362af8256de33149e2f110a7bab3fa48e"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-cross-lane/OooIntBackend.v",
+    "variant_sha256": "28e7e8545918af3b4b33bceef80c4bb5a6e2dc7220ed2edb075c41030c04ec9e"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-read-pending-birth",
+    "name": "capture-producer-x",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "cc15f94e66cd1b02e51cd5035f4f33bbead13e2e57ba45b8065cfc4a43736975",
+        "purpose": "drive unknown ProducerId into the AMO singleton cache",
+        "replacement_sha256": "3ff21d87aa6ea7da78bb2c86168f938a4a8062246d529f7caecec1773f4911bd"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-producer-x/OooIntBackend.v",
+    "variant_sha256": "a8ad2a24335941979dd324ac9710a5f5738ec03e3e0af20b2da8ad86f7b38005"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-read-pending-birth",
+    "name": "capture-token-high-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "60e0a1851a79c68125d799c0753819392d9b199de0540cc9813f4c04ab6d1564",
+        "purpose": "truncate owner token high bits at AMO singleton birth",
+        "replacement_sha256": "44864a65944582aa9162a8467192cdfcd432265df2adefafc73ed0eaaeb6354d"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-token-high-truncate/OooIntBackend.v",
+    "variant_sha256": "f2610f4765f0aa45721d99b16f85e0bc8a00065adfb3fc6bf2a764910885ac8c"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-read-pending-birth",
+    "name": "capture-token-z",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "60e0a1851a79c68125d799c0753819392d9b199de0540cc9813f4c04ab6d1564",
+        "purpose": "drive high impedance into the AMO singleton owner token",
+        "replacement_sha256": "27cffe56b92ac56034027977cbe15de0b1ba14e74ba78dab398b4277ecc206fe"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/capture-token-z/OooIntBackend.v",
+    "variant_sha256": "d91e328f20b9d963b9469ca38788024682672d63cb27c1e8103fffe77bc1f122"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "successful-read-write-phase",
+    "name": "read-phase-producer-generation-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "675699e1acee081139d3800c4a29261235fa828ed8ffd2ed1ab2347984b069ee",
+        "purpose": "corrupt cached ProducerId on AMO read-to-write transition",
+        "replacement_sha256": "56cdb4e78bdd92cab6efec8628fd969b85647236072733ae64e983dee4769736"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-producer-generation-truncate/OooIntBackend.v",
+    "variant_sha256": "22c9ea073ba98c19c8142f9b1791c1584d8bf0a031dcf54a788fbbec32b85606"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "successful-read-write-phase",
+    "name": "read-phase-token-high-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "675699e1acee081139d3800c4a29261235fa828ed8ffd2ed1ab2347984b069ee",
+        "purpose": "corrupt owner token on AMO read-to-write transition",
+        "replacement_sha256": "17346b56affe06ce53e3c6de6a43b2c6baf9a18d70d6511a1e6b02f1c48ff641"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-token-high-truncate/OooIntBackend.v",
+    "variant_sha256": "cb5a528b7b3208a1e437a8040f341667f1ab555f1ae6f5d8c4fe2b04738a7ea9"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "successful-read-write-phase",
+    "name": "read-phase-clears-pending",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "675699e1acee081139d3800c4a29261235fa828ed8ffd2ed1ab2347984b069ee",
+        "purpose": "clear singleton residency on the nonterminal read response",
+        "replacement_sha256": "87aaaa750fcac8adea2be7fcd441eb65dcabf90db332ffea38ef9a34ebd893be"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache",
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/read-phase-clears-pending/OooIntBackend.v",
+    "variant_sha256": "7318ed14d9be3de430b8e6e77bb5a1e866c5972c0b1faa8796966d57aa721728"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "post-write-hold",
+    "name": "write-fire-producer-generation-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "99724c5ef6b57e0a0f7a12cb8f840a7eb24a43b59f8dafe3707f60402a0910b8",
+        "purpose": "corrupt cached ProducerId on physical AMO write fire",
+        "replacement_sha256": "ba15787c81c527e8356690b905b8fc1ef562531875e3ab1f831d92afdc32eaba"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/write-fire-producer-generation-truncate/OooIntBackend.v",
+    "variant_sha256": "b557dd8176c56fbe75592d34f48a5ca788a89db29eafdf826abbd6359d97423b"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "post-write-hold",
+    "name": "write-fire-token-high-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "99724c5ef6b57e0a0f7a12cb8f840a7eb24a43b59f8dafe3707f60402a0910b8",
+        "purpose": "corrupt cached owner token on physical AMO write fire",
+        "replacement_sha256": "88ee0634426d0481b89f895eaad3b1f37f8f12036145a9efb919cc66a6175105"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/write-fire-token-high-truncate/OooIntBackend.v",
+    "variant_sha256": "56ce55eada6fc3675af8d3912aa743bc7ad1524d1112a4ed815c2de0c32be05f"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-final-next-cycle-clear",
+    "name": "final-response-keeps-pending",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "739b5e33a6621de52691836afa174191d7899d2fcb55b5a835057442e9787aa1",
+        "purpose": "retain singleton valid after the exact final response",
+        "replacement_sha256": "12697511ca5ed6f7da11f6e6294c5b42545cf43336d06a43ffac6a498f294fb8"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-producer-cache",
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/final-response-keeps-pending/OooIntBackend.v",
+    "variant_sha256": "71f4f9c84282141eb0a588e10946da3eb62d44734fe844d5ead7ced39ed0fade"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-interphase-cancel",
+    "name": "interphase-cancel-suppressed",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "588cf89dc5c9001e9438332539c936b8de58b1e9bb998e8c4e5ad974ae7ebe48",
+        "purpose": "suppress the AMO interphase collector terminal",
+        "replacement_sha256": "01d51ca5160c20086e1282783375aa90396a2acbc5628a9182036a626442d67a"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/interphase-cancel-suppressed/OooIntBackend.v",
+    "variant_sha256": "3d8b742439bb70b85906f0121cd233bf88dd2d0d36d6d8fb7a2cef25564d5c20"
+  },
+  {
+    "assertions": false,
+    "compile_success_required": true,
+    "expected_holder": null,
+    "expected_marker": null,
+    "expected_stage": "amo-interphase-lane9",
+    "name": "interphase-lane9-token-high-truncate",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "8addf535daba60c1ec37ee44a5c61ec6bf799126b06c3c8e25182f15107e7f03",
+        "purpose": "truncate the owner token carried by collector lane9",
+        "replacement_sha256": "142e98fc5951cb8a13e1054693b8cf6c30e76eea7979117e55fbf8264cf95695"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "memory-pending-token"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/interphase-lane9-token-high-truncate/OooIntBackend.v",
+    "variant_sha256": "0a5bd9acfc481bcb6512327b8283e84e177a5d911b3bd529111f9ae1ecb8d5df"
+  },
+  {
+    "assertions": true,
+    "compile_success_required": true,
+    "expected_holder": "res0",
+    "expected_marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+    "expected_stage": null,
+    "name": "amo-read-aliases-reservation0",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "09bfadb1beba8811281ebadf82f25110bb40a3bda11167d7d6aec312bb0e0fcc",
+        "purpose": "recreate the AMO token in reservation0 after read response",
+        "replacement_sha256": "92d8cecf82043fe25d513e4a00315aea238f998385159943089b9dfd2be0b68c"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "amo-transient-holder-disjoint"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-reservation0/OooIntBackend.v",
+    "variant_sha256": "426ad2183aab48a641bf4cea20818ac2519365883e7fdbf6dd6a401b2af877cb"
+  },
+  {
+    "assertions": true,
+    "compile_success_required": true,
+    "expected_holder": "res1",
+    "expected_marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+    "expected_stage": null,
+    "name": "amo-read-aliases-reservation1",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "c1abaa87f3ec85753e9055b98f8b6352ef4c309dad6060d1609f8fb189e850c3",
+        "purpose": "recreate the AMO token in reservation1 after read response",
+        "replacement_sha256": "55d5878eae4b26ef316941fab0f5442143e113afa2ea659643b061a97962e624"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "amo-transient-holder-disjoint"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-reservation1/OooIntBackend.v",
+    "variant_sha256": "7245ca249dece52a9d1cc43b7dbf1bdab5df0d1bacd6b3aee2c9acc9e8a7d2bd"
+  },
+  {
+    "assertions": true,
+    "compile_success_required": true,
+    "expected_holder": "buffer",
+    "expected_marker": "[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]",
+    "expected_stage": null,
+    "name": "amo-read-aliases-legacy-buffer",
+    "production_sha256": "d5948534d7c793cf90dc46a40c71cbea0bb60c9da05bdf628df384cebdfb2613",
+    "receipts": [
+      {
+        "anchor_count": 1,
+        "anchor_sha256": "a6856da20f01144f129492faebd48b57ffc411d4de7d504b8a1141cfe9da892a",
+        "purpose": "recreate the AMO token in the legacy buffer after read response",
+        "replacement_sha256": "6d76dfcf53a886601ef9f87588e73d3728644f3f98ebe88e1778a9c48c943612"
+      }
+    ],
+    "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "unit_ids": [
+      "amo-transient-holder-disjoint"
+    ],
+    "variant": ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/variants/amo-read-aliases-legacy-buffer/OooIntBackend.v",
+    "variant_sha256": "2887b0f96d288bcb98c38f357f1defba99ed74a90dd8b329b6ad9247ee95c44b"
+  }
+]

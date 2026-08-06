@@ -1,0 +1,7 @@
+npc/rv64/testbench/tests
+npc/rv64/testbench
+npc/rv64/testbench/scripts
+npc/rv64
+npc/rv64/design/specs
+.github/memory
+.github/memory/modules

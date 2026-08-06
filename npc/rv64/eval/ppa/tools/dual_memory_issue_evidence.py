@@ -475,7 +475,8 @@ def read_frozen_source_manifest(
         entries[rel] = expected_sha
         if arch.digest(resolved) != expected_sha:
             if rel not in allowed_drift_paths:
-                raise ValueError(f"non-checker F2 replay source drift: {rel}")
+                raise ValueError(
+                    f"non-authorized F2 replay source drift: {rel}")
             drift.add(rel)
     if not entries:
         raise ValueError("frozen F2 source manifest is empty")
@@ -518,6 +519,7 @@ def validate_f2_replay(
         ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/"
         "evidence/focused/result.json",
         "npc/rv64/Makefile",
+        "npc/rv64/testbench/Makefile",
         "npc/rv64/design/arch/producer-holder-census.json",
         "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
         "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
@@ -563,14 +565,16 @@ def validate_f2_replay(
 
     if f1_current_sources_pre.read_bytes() != f1_current_sources_post.read_bytes():
         raise ValueError("current F1 source manifests differ")
+    f1_allowed_drift = allowed_drift - {
+        ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/"
+        "evidence/focused/result.json",
+    }
     _, f1_drift = read_frozen_source_manifest(
         root,
         f1_current_sources_pre,
-        {"npc/rv64/eval/ppa/tools/architecture_hard_gates.py"},
+        f1_allowed_drift,
     )
-    if f1_drift - {
-        "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-    }:
+    if f1_drift - f1_allowed_drift:
         raise ValueError("current F1 replay contains unauthorized source drift")
     f1_result = read_predecessor(f1_current_result, "F1")
     if f1_result.get("source_closure_sha256") != arch.digest(

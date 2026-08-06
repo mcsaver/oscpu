@@ -1,0 +1,16 @@
+npc/rv64/testbench/scripts
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa/schemas
+npc/rv64/eval/ppa
+scripts
+scripts/tests
+npc/rv64/design/arch
+npc/rv64/design/arch/cohort
+npc/rv64/eval/ppa/evidence
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9o
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a2
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence
+.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a3

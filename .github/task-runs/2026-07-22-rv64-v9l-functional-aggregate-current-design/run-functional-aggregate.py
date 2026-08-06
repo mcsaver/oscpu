@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Run the F0-G1 same-design local RV64 functional cohort."""
+"""Historical F0-G1 helper library for the local RV64 functional cohort.
+
+The fixed-output V9L entry point is retired.  Current-design execution imports
+the reusable phase helpers from this file through
+``full_core_functional_evidence.py`` and writes a new, explicit task-run.
+"""
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -35,6 +41,7 @@ REFERENCE_LIVE = NEMU / "build/riscv64-nemu-interpreter-so"
 REFERENCE_FROZEN = EVIDENCE / "frozen/riscv64-nemu-interpreter-so"
 CONFIG_FROZEN = EVIDENCE / "frozen/npc.config"
 SIMULATOR_FROZEN = EVIDENCE / "frozen/NpcSimTop"
+AM_BUILD_ROOT: pathlib.Path | None = None
 
 TOOL_PATH = ROOT / "npc/rv64/eval/ppa/tools/functional_aggregate.py"
 TOOL_SPEC = importlib.util.spec_from_file_location(
@@ -125,9 +132,14 @@ def run_command(
 
 
 def copy_regular(source: pathlib.Path, destination: pathlib.Path, *, executable: bool = False) -> None:
-    source = source.resolve(strict=True)
+    source = pathlib.Path(os.path.abspath(os.fspath(source)))
+    cursor = pathlib.Path(source.anchor)
+    for part in source.parts[1:]:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise RuntimeError(f"source artifact path contains a symlink: {source}")
     ensure_within(source, ROOT)
-    if source.is_symlink() or not source.is_file():
+    if not source.is_file():
         raise RuntimeError(f"source artifact is not a regular file: {source}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() and destination.is_symlink():
@@ -313,7 +325,7 @@ def am_make_args(*extra: str, max_cycles: int = 2_000_000) -> list[str]:
     diff_args = (
         f"-b --no-progress --max-cycles {max_cycles} "
         f"--diff={REFERENCE_FROZEN}")
-    return [
+    args = [
         "make", *extra,
         f"AM_HOME={AM_HOME}", f"NEMU_HOME={NEMU}",
         f"NPC_HOME={ROOT / 'npc'}", "ARCH=riscv64-npc",
@@ -321,6 +333,15 @@ def am_make_args(*extra: str, max_cycles: int = 2_000_000) -> list[str]:
         "VERILATOR=verilator -Wno-fatal",
         f"NPC_RUN_ARGS={diff_args}",
     ]
+    if AM_BUILD_ROOT is not None:
+        args.append(f"AM_BUILD_ROOT={AM_BUILD_ROOT}")
+    return args
+
+
+def am_image_path(directory: pathlib.Path, name: str) -> pathlib.Path:
+    if AM_BUILD_ROOT is not None:
+        return AM_BUILD_ROOT / f"{name}-riscv64-npc.bin"
+    return directory / "build" / f"{name}-riscv64-npc.bin"
 
 
 def assert_simulator_binding() -> None:
@@ -348,7 +369,7 @@ def am_phase() -> tuple[str, list[dict[str, Any]]]:
             f"extra={sorted(set(raw_map) - set(tests))[:8]}")
     records = []
     for test_id in tests:
-        image = CPU_TESTS / "build" / f"{test_id}-riscv64-npc.bin"
+        image = am_image_path(CPU_TESTS, test_id)
         if not image.is_file():
             raise RuntimeError(f"AM program image is missing: {image}")
         log_destination = EVIDENCE / "raw/am" / f"{test_id}.log"
@@ -378,6 +399,8 @@ def benchmark_phase(
     # the subsequent image build/run.
     clean_args = [
         "make", "-C", str(directory), f"AM_HOME={AM_HOME}", "clean"]
+    if AM_BUILD_ROOT is not None:
+        clean_args.append(f"AM_BUILD_ROOT={AM_BUILD_ROOT}")
     clean_command = run_command(
         f"benchmark-{name}-image-clean", clean_args,
         EVIDENCE / "raw" / f"{name}-clean.log")
@@ -386,7 +409,7 @@ def benchmark_phase(
     run_display = run_command(f"benchmark-{name}", args, raw)
     command = f"{clean_command} && {run_display}"
     assert_simulator_binding()
-    image = directory / "build" / f"{name}-riscv64-npc.bin"
+    image = am_image_path(directory, name)
     destination = EVIDENCE / "images/benchmarks" / f"{name}.bin"
     copy_regular(image, destination)
     return {
@@ -398,7 +421,15 @@ def benchmark_phase(
     }
 
 
-def main() -> int:
+def _retired_fixed_output_implementation() -> int:
+    raise RuntimeError(
+        "fixed-output V9L execution is retired; use "
+        "npc/rv64/eval/ppa/run-full-core-current.sh --run-dir "
+        ".github/task-runs/<new-run-id>"
+    )
+
+    # Kept unreachable as an exact record of the historical V9L driver.  The
+    # guard above is deliberately before every reset/invalidation operation.
     try:
         reset_generated_dir(EVIDENCE, TASK)
         reset_generated_dir(CACHE, ROOT / ".github/cache")
@@ -503,6 +534,25 @@ def main() -> int:
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
         print(f"[F0-G1] FAIL {exc}", file=sys.stderr, flush=True)
         return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Retired fixed-output V9L RV64 functional driver; current runs "
+            "must use an explicit immutable task-run"
+        ),
+        epilog=(
+            "Use: npc/rv64/eval/ppa/run-full-core-current.sh --run-dir "
+            ".github/task-runs/<new-run-id>"
+        ),
+    )
+    parser.parse_args(argv)
+    parser.error(
+        "direct V9L execution is disabled; use the current-design runner "
+        "with --run-dir"
+    )
+    return 2
 
 
 if __name__ == "__main__":

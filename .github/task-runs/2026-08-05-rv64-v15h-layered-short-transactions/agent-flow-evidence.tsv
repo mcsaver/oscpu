@@ -1,0 +1,3 @@
+2026-08-05T14:43:36Z	l2-runner-contract-current	PASS	npc/rv64/eval/ppa/run-mini-system-current.sh
+2026-08-05T14:43:36Z	l3-runner-contract-current	PASS	npc/rv64/eval/ppa/run-lightweight-linux-current.sh
+2026-08-05T14:43:36Z	layered-system-signoff-current-f7a6	PASS	npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json

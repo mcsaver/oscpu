@@ -252,6 +252,18 @@ lane0/lane1。Universal 终端承载 branch、MulDiv、CLMUL、复杂/访存操�
 “oldest-ready”保护年龄公平，但不是全局按序执行；一个更老但源未 ready 的 entry 不阻止
 更年轻 ready entry。
 
+当前 `OooIntIssueQueue` 的选择与压缩网络还做了两项不改变周期语义的组合拓扑优化：
+
+- selector 直接输出唯一 owner onehot；issue0 的两个 PRF 地址由平衡 onehot mux 读取，
+  不再先编码为 binary index、再通过动态 8:1 mux 解码；
+- issue fire 直接形成 `compact_remove_w`。因为正常一拍最多移除两个 entry，目的槽 `d`
+  的 static survivor map 只需在原槽 `d/d+1/d+2` 中选择，再把 dispatch0/1 追加到第一个
+  空槽，而不再使用 loop-carried write pointer 扫描搬运整队列。
+
+`OOO_ASSERT` 构建仍保留旧式 source-order scan 作为 reference，并逐槽比较 valid、count
+和完整 entry payload。这些修改缩短的是 selector→PRF 与 compaction 组合锥；dispatch
+仍无同拍 issue bypass，年龄、双 pop、kill 和 wakeup 的状态边界没有因此增加或减少一拍。
+
 ## 3.12 PRF 读与旁路
 
 `OooPhysRegFile` 保存整数物理结果，当前读口是 stored-only。执行源最终可能来自：

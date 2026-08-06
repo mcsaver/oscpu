@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15g-v9p-root-cause-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OoO memory-owner 的 V9P C0 barrier retry handoff 与 C1 drop/cancel 双终端根因、当前 barrier-gate 修复、三项 compile-success mutation 和 L0-L3 当前签核绑定；判定能否在不声称冻结 bank/tuple 已知且不弱化断言的前提下达到 VD4。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full.classification.json",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/failure-binding.txt",
+      ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full/driver.log",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9r-current/summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/subagent-contracts/v15g-v9p-root-cause-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9r-current/summary.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与证据文件、周期合同、TB/EDA 观测、PASS/GAP 范围组织审查结论；逐项给出 exact-source binding、C0到C1因果链、2/10与4/11 pair family、冻结实例未知边界、当前修复、mutation敏感性、L0-L3与Ubuntu非声明。",
+    "若 PASS，给出可机器转写为 independent-review.json 的九项结论值：exact_source_binding、root_cause、frozen_lane_claim、current_fix、mutation_sensitivity、layered_signoff、optional_ubuntu、assertion_policy、validation_depth；若 GAP，列出具体缺失证据且不得建议去重或弱化断言。"
+  ],
+  "success_criteria": [
+    "精确区分 driver中console-tail重复日志行与一次物理RTL assertion事件，不把两行日志当作两次DUT事件。",
+    "只在 exact V9P RTL与动态反例足以证明对称 pair family时确认根因，同时保持冻结运行实际bank和owner tuple为UNKNOWN。",
+    "确认当前f7a设计三处barrier gate、2/2 baseline、3/3 compile-success mutation拒绝、零保留编译镜像及默认L0-L3 PASS；Ubuntu必须保持NOT_RUN且不阻塞默认签核。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,8 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/console.log:21:[1;34m[cpu-exec.cpp:3057 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/console.log:35:[progress] 5000001 insts, pc=0x000000008001946a, 42805 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:42:[1;34m[cpu-exec.cpp:3057 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:56:[progress] 5000001 insts, pc=0x000000008001946a, 42805 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:199:[1;34m[cpu-exec.cpp:3057 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:213:[progress] 5000001 insts, pc=0x000000008001946a, 42805 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/npc.log:16:[cpu-exec.cpp:3057 commit-gap] enabled limit_cycles=1000000 start_cycle=0 start_commits=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/npc.log:28:[progress] 5000001 insts, pc=0x000000008001946a, 42805 inst/s

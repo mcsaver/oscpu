@@ -249,6 +249,16 @@ reset
 - ROB head/serialized drain → CSR/trap/flush → frontend run gate；
 - AXI ready → bridge ready → MIQ/IQ ready 回传。
 
+当前 RTL 已对其中几条组合锥做了保持协议不变的结构切分：Integer IQ 用平衡
+oldest-ready/onehot 树直接驱动 issue0 PRF 地址，并用 static survivor map 完成最多双 pop
+后的 compaction；SQ 把每 entry 的地址差和 byte overlap 并行展开；memory bridge 则允许
+normal Store 的 aggregate B 在 terminal 拍直接形成 `mem_rsp`。最后一项也新增了真实的
+`BVALID/BRESP + active owner tuple → mem_rsp → backend ready` 组合路径：后端不 ready 时
+必须落入 `S_RESP` 保持，不能为了切短路径丢 terminal 或让 READY 反向限定 VALID。
+
+这些都是 RTL 结构事实，不是频率结论。平衡树、静态搬运和 response fusion 是否改善
+worst slack，仍必须看与当前 design/config identity 同源的综合和 STA。
+
 优化时不能直接“随便插一拍”。插拍会改变：
 
 - ready/valid 协议；

@@ -1,0 +1,5 @@
+----------------------------------------------------------------------
+Ran 34 tests in 0.832s
+
+OK
+[HISTORICAL-DEFECT-CURRENT] status=PASS defects=6/6 design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 whole_architecture=RED ppa=UNPROMOTED

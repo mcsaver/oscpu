@@ -1,0 +1,9 @@
+npc/rv64/design/arch/rv64-soc-delivery-gates.tsv
+scripts/check-rv64-soc-delivery-gates.sh
+scripts/tests/test-rv64-soc-delivery-gates.sh
+scripts/agent-flow.c
+scripts/tests/test-agent-flow.sh
+.github/instructions/agent-lightweight-workflow.instructions.md
+.github/instructions/rv64-ppa-optimization-workflow.instructions.md
+AI_ENVIRONMENT.md
+.github/memory/modules/agent-system.md

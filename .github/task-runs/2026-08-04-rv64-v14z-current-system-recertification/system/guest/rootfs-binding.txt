@@ -1,0 +1,6 @@
+rootfs_template=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-strict.ext4
+rootfs_run_image=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-system-recertification/2026-08-04-rv64-v14z-current-system-recertification/rootfs.ext4
+rootfs_template_sha256_pre=ba580d8bd549f6dd35c571aa5aef1594b99ac5623b7a9439bf8e53017603f095
+rootfs_run_image_sha256_pre=ba580d8bd549f6dd35c571aa5aef1594b99ac5623b7a9439bf8e53017603f095
+rootfs_logical_bytes=2147483648
+copy_mode=reflink-auto+sparse

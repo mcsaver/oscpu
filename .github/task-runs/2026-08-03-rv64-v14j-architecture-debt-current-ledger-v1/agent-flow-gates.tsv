@@ -1,0 +1,6 @@
+6	rv64-architecture-debt-current	PASS	4310	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/rv64-architecture-debt-current.log
+6	flow-self-test	PASS	1804	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/flow-self-test.log
+6	rv64-soc-delivery-gates	PASS	251	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/rv64-soc-delivery-gates.log
+8	rv64-architecture-debt-current	PASS	3357	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/rv64-architecture-debt-current.log
+8	flow-self-test	PASS	1754	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/flow-self-test.log
+8	rv64-soc-delivery-gates	PASS	251	.github/runtime-artifacts/agent-flow/rv64-v14j-architecture-debt-current-ledger-v1/gates/rv64-soc-delivery-gates.log

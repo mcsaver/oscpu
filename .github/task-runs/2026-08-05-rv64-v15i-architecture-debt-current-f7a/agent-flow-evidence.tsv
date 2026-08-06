@@ -1,0 +1,6 @@
+2026-08-05T20:26:00Z	architecture-delta-rebind	PASS	npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json
+2026-08-05T20:26:06Z	l0-current-f7a	PASS	.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a2/result.json
+2026-08-05T20:26:10Z	default-layered-system-signoff	PASS	npc/rv64/eval/ppa/evidence/system-recertification-current.json
+2026-08-05T20:26:22Z	architecture-debt-current	PASS	npc/rv64/eval/ppa/evidence/architecture-debt-current.json
+2026-08-05T20:26:26Z	historical-defect-current	PASS	npc/rv64/eval/ppa/evidence/historical-defect-current.json
+2026-08-05T20:36:59Z	l0-current-f7a-final	PASS	.github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a3/result.json

@@ -1,8 +1,11 @@
 *.o
 *.d
-*.s
 __pycache__/
 *.py[cod]
+
+# 汇编源码属于设计/验证输入，不按扩展名全局忽略；build/、obj_dir/ 中的生成汇编由目录规则覆盖。
+!*.s
+!*.S
 
 # 可再生的二级编译目录：仅匹配目录，避免误伤 build-*.py 等工程脚本。
 **/build/
@@ -98,6 +101,11 @@ Linux/tools/initramfs/
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/
 !.github/**
+
+# 上述 allowlist 之后重新屏蔽 AI/task-run 自身生成的 Python 二级产物。
+# 规则必须位于 !.github/** 之后，否则 Git 的 last-match 语义会重新放行这些文件。
+.github/**/__pycache__/
+.github/**/*.py[cod]
 
 # AI runtime cache
 .github/cache/**

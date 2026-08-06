@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15c-l2-l3-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 L2 OpenSBI/S-U mini-system 与 L3 Linux 6.6 PID1 的 case 选择、Sv39、中断、原子、MMIO、自然关机事务，以及 checker exact-once、identity、post-hash 和 C gate 指针；寻找会使 full-l2 或 full-l3 结论误判的硬件证据反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "Linux/mini-system",
+      "Linux/lightweight",
+      "Linux/scripts/build-rv64-mini-system.sh",
+      "Linux/scripts/build-rv64-lightweight-linux.sh",
+      "Linux/scripts/check-rv64-lightweight-linux-config.sh",
+      "Linux/platform",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/eval/ppa/run-mini-system-current.sh",
+      "npc/rv64/eval/ppa/run-lightweight-linux-current.sh",
+      "npc/rv64/eval/ppa/replay-layer-checker-current.sh",
+      "npc/rv64/eval/ppa/tools/mini_system_run.py",
+      "npc/rv64/eval/ppa/tools/lightweight_linux_run.py",
+      "npc/rv64/eval/ppa/tests/test_mini_system_run.py",
+      "npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      ".github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-all-a9",
+      ".github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-all-a3",
+      ".github/task-runs/2026-08-05-rv64-v15b-l2-sv39-a4-checker-replay-v2",
+      ".github/task-runs/2026-08-05-rv64-v15c-l3-boot-a1-checker-replay-v2",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-linux-bringup.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-05-rv64-v15c-l2-l3-independent-review-v1/subagent-contracts/rv64-v15c-l2-l3-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-linux-bringup.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 对象、配置、EDA 观测与 PASS/GAP 范围输出独立复核结论，列出反例、未知项、替代假设、scope_extension_request 和 confidence_and_basis。",
+    "逐项核对 L2 A9、L3 A3、两份 checker replay 与静态 C 指针是否支持其声明边界。"
+  ],
+  "success_criteria": [
+    "任何可造成 full-l2/full-l3 假绿、合法事务误拒绝、case 越级、输入身份漂移或 Ubuntu 隐式启动的反例均被明确关联到真实文件、marker 或 schema 字段。",
+    "若无阻断项，仍明确说明审查覆盖范围、未运行的 testbench/EDA 动作和不能外推的结论。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15k-performance-baseline-f7a-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立复核当前 f7a RV64 双发射 OoO 核的 CoreMark/Dhrystone committed-PC 性能计数事务：确认 ARCH_STABLE、candidate、NpcSimTop、config、workload image 与 v3 manifest/result 精确同源；三次 stats-on counter signature、stats-off cycles/retired 非干扰、两级 retire-slot 守恒、fail-closed 状态和构建树清理真实闭合；验证旧 093c 计数不能重绑定，并检查 PPA、全局 workload 代表性、完整因果 CPI、occupancy 与全局 issue-slot 未被越级声明。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa/tools/performance_baseline_current.py",
+      "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_v3.py",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-current-v3.schema.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional",
+      ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3",
+      ".github/runtime-artifacts/tests",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/design/arch/performance-workload-matrix-v1.json",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/subagent-contracts/v15k-performance-baseline-f7a-review.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts/tests"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/design/arch/performance-workload-matrix-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按当前 RV64 design-id、周期/退休计数、testbench/checker 观测和 PASS/GAP 范围给出独立结论；列出反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis；若批准，给出包含 design_id 与 result SHA-256 的唯一 approval marker。"
+  ],
+  "success_criteria": [
+    "现场复算 v3 result 与 schema/checker 一致，确认 6 个 stats-on 日志 bit-exact、2 个 stats-off 日志逐 workload 等价、status PASS 且 cleanup_rc=0，并证明旧 design-id/simulator、缺 workload 类别或复用日志的定向反例被拒绝；任何未闭合项必须保持 GAP，禁止以两项 workload 外推 PPA 或全局性能代表性。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

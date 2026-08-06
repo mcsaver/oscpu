@@ -1,0 +1,15 @@
+schema=npc-rv64-system-recertification-launch-v1
+run_label=2026-08-04-rv64-v14z-current-system-recertification
+runner=/home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/run-system-recertification-current.sh
+runtime_dir=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-system-recertification/2026-08-04-rv64-v14z-current-system-recertification
+lock_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-engineering-single-flight.lock
+expected_design_id=sha256:06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b
+expected_file_count=146
+max_cycles=6000000000
+host_timeout_seconds=100000
+commit_gap_limit_cycles=1000000
+progress_interval=5000000
+jobs=2
+session_mode=setsid-no-tty
+stdin=dev-null
+prelaunch_contract=PASS

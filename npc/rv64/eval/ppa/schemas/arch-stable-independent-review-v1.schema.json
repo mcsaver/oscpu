@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-arch-stable-independent-review-v1.schema.json",
+  "title": "NPC RV64 ARCH_STABLE independent review receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "decision", "design_id", "candidate", "reviewer_task",
+    "review_scope", "evidence", "open_blockers", "unknowns",
+    "reviewed_at_utc"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-arch-stable-independent-review-v1"
+    },
+    "decision": {"const": "APPROVE_ARCH_STABLE"},
+    "design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "candidate": {"$ref": "#/$defs/artifact"},
+    "reviewer_task": {"type": "string", "minLength": 1},
+    "review_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture_prerequisites",
+        "producer_holder_static_semantic_dynamic",
+        "ppa",
+        "promotion_eligible"
+      ],
+      "properties": {
+        "architecture_prerequisites": {"const": "PASS"},
+        "producer_holder_static_semantic_dynamic": {"const": "PASS"},
+        "ppa": {"const": "UNQUALIFIED"},
+        "promotion_eligible": {"const": false}
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/artifact"},
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "enum": ["rtl_task_contract", "independent_review_report"]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "open_blockers": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "reviewed_at_utc": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "size_bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

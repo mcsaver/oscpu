@@ -89,6 +89,22 @@ bridge/cache/request ready -----X----> IQ pair_ready
 | local completion | 对应 reservation Q | 其它 bank 与下游 owner | LOAD tagged terminal；STORE 先形成 exact SQ terminal，后由精确 ROB commit release |
 | request/buffer handoff | 对应 reservation Q | MIQ/buffer/SQ/tracker owner | 不是 token terminal；owner tuple 原样迁移 |
 
+v14u 对 AMO singleton 再冻结一条 holder 互斥合同：
+
+- `issue0_mem_request_fire_w && issue0_is_excl_kind_w` 是
+  `mem_issue_res` 到 `mem_pending_q && mem_amo_q` 的唯一 AMO owner handoff；同一时钟沿
+  reservation0 清 `valid`、pending 捕获相同 `{kind,token,epoch,full ProducerId}`，禁止
+  两个 Q 在下一拍同时持有该 token。
+- reservation1 的准入只接受 plain-memory pair，不能捕获 AMO；legacy buffer 也只接受
+  plain-memory handoff。它们可与 AMO pending 同时保存不同 token，但不得保存 AMO pending
+  的同一 token。
+- `flush_i`/`checkpoint_restore_apply_w` 观察 edge-old Q。合法状态下 lane9 可与 lane6、
+  lane7 或 lane8 同拍有效，但 token 必须互异；若相同 token 同拍出现，属于 producer holder
+  重复，不允许依靠 collector 拒收或去重来掩盖。
+- `OOO_TERMINAL_HOLDER_ASSERT=1` 必须以独立 raw-Q token mask 检查上述三对互斥，违约
+  marker 固定为 `[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]`。断言不参与 request、ready、
+  flush 或综合数据通路，不改变 release-mode 功能语义。
+
 `OooMemOwnerTerminalCollector` 的 ingress 是不可反压的 token-mask capture，而不是
 valid/ready sink；合同要求任一合法非 STORE cancel 在清 reservation 的同一沿被 collector
 无损吸收。若 ingress token 重复、非 exact-live 或集合容量不守恒，立即 `$fatal`，不得先清
@@ -173,6 +189,8 @@ bank1 绑定次老 entry，不能按物理端口重新编号。
 | both empty | ready LL/LS/SL/SS pair + dual owner credit | bank0=older, bank1=younger | IQ 双 pop、tracker 双 birth、可选 SQ 双 bind |
 | bank0 valid | local terminal 或 request/buffer handoff | bank0 empty | exact completion/owner handoff；bank1 本拍仍不得越过 edge-old bank0 |
 | bank1 valid, bank0 empty | local terminal 或 request/buffer handoff | bank1 empty | 使用 bank1 AGU/owner tuple，经共享 mux进入既有下游 |
+| bank0 AMO valid | AMO read request fire | bank0 empty、AMO pending valid | exact tuple 单沿迁移；下一拍 reservation0/1 与 legacy buffer 均不得持有同 token |
+| AMO pending write phase | global flush / restore before write fire | AMO pending empty | 仅 lane9 结束该 token；lane6/7/8 可结束其它 token，但不得重复 lane9 token |
 | bankX valid | global/selective cancel | bankX empty | non-STORE collector terminal 或 STORE-qualified SQ release |
 | any valid | 下游 stall | hold | payload/token/PID/tval 逐位稳定 |
 
@@ -200,6 +218,10 @@ flush 清除时，bank1 同沿仍不得产生 request、MIQ push、local complet
   set；双 bank cancel 不覆盖，pending 满时不存在合法的额外 nonpending live owner。
 - `[V8P-MEM-SPECIAL-EXCLUDE]`：AMO/LR/SC/FP memory 不得选择 issue1 memory、申请
   alloc1、写 bank1 或 SQ bind1。
+- `[V14U-AMO-TRANSIENT-HOLDER-DISJOINT]`：AMO pending raw-Q token 与 reservation0、
+  reservation1、legacy buffer 三个 raw-Q token mask 两两互斥；必须分别用三个
+  compile-success alias mutation 激活，且自然 AMO interphase cancel 周期观察 lane9=1、
+  lane6/7/8=0。
 
 每条承重断言必须至少有一个 compile-success 临时 mutation 激活；编译失败、未激活或仅超时
 不算 kill。

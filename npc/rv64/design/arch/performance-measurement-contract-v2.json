@@ -1,0 +1,120 @@
+{
+  "schema": "npc-rv64-performance-measurement-contract-v2",
+  "performance_measurement_contract_id": "npc-rv64-pmc-v2-f7a-scoped-baseline-20260806",
+  "contract_state": "FROZEN_SCOPED_CURRENT_DESIGN_BASELINE",
+  "performance_baseline_eligible": true,
+  "measurement_scope": "Current f7a RV64 dual-retire OoO core; deterministic CoreMark10 and Dhrystone10000 committed-PC regions; exact CPI/IPC, counter conservation and stats-on/off non-interference.",
+  "target_hart": 0,
+  "retire_width": 2,
+  "core_configuration": {
+    "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v2",
+    "config_path": "npc/rv64/.config",
+    "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "isa": "rv64imafd_zicsr_zifencei_zba_zbb_zbc_zbs",
+    "mode": "single-hart"
+  },
+  "current_identity": {
+    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "arch_stable_result": {
+      "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "sha256": "7e9844baacf69fb807b2e48630386016ba2f51b528712ba40cbff6ef4e2fd404",
+      "size_bytes": 762555
+    },
+    "arch_stable_candidate": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3/candidate.json",
+      "sha256": "4f25d52d235e8f19a5050302ea91de7e8be8197fa0af3f6163b7586b61ccd0f1",
+      "size_bytes": 162721
+    },
+    "functional_inputs_pre": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.pre.json",
+      "sha256": "63a250cf43c051b56d873bba785f05e1b53a7e82f0e37a283621368aa119806c",
+      "size_bytes": 314126
+    },
+    "functional_inputs_post": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.post.json",
+      "sha256": "63a250cf43c051b56d873bba785f05e1b53a7e82f0e37a283621368aa119806c",
+      "size_bytes": 314126
+    },
+    "simulator": {
+      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/frozen/NpcSimTop",
+      "sha256": "4c991c9fdaf70cb15e1c525bddb6417fd659f367de46c3b6d4b5e3012eef232e",
+      "size_bytes": 3243304
+    }
+  },
+  "workload_matrix": {
+    "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
+    "sha256": "c2f4245d5f8793ab92ef0a44e3222e6d58a35e59f59a9aa938b8b030c4d0900e",
+    "size_bytes": 3310
+  },
+  "workload_suite_id": "npc-rv64-coremark10-dhrystone10000-v2-f7a",
+  "workload_binary_id": {
+    "coremark": "sha256:a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+    "dhrystone_10000": "sha256:56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41"
+  },
+  "workload_input_id": {
+    "coremark": "ITERATIONS=10",
+    "dhrystone_10000": "mainargs=10000"
+  },
+  "regions": {
+    "coremark": {
+      "start_pc": "0x00000000800017a8",
+      "stop_pc": "0x00000000800017b0",
+      "start_hits": 1,
+      "stop_hits": 1
+    },
+    "dhrystone_10000": {
+      "start_pc": "0x0000000080000334",
+      "stop_pc": "0x000000008000047c",
+      "start_hits": 10000,
+      "stop_hits": 1
+    }
+  },
+  "execution_contract": {
+    "stats_on_repetitions_per_workload": 3,
+    "stats_off_repetitions_per_workload": 1,
+    "stats_off_mode": "CONFIG_NPC_OOO_STATS=n",
+    "outlier_removal": false,
+    "determinism": "cycles, retired instructions and complete counter signature must be bit-exact",
+    "warmup_policy": "execute from reset and exclude cycles and instructions before the first committed start marker",
+    "cache_tlb_predictor_initial_state": "bound reset state",
+    "interrupt_policy": "no asynchronous external interrupt injection in the measured region",
+    "latency_profile": "npc-rv64-axi-dpi-default-deterministic-v1"
+  },
+  "counter_schema_binding": {
+    "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+    "size_bytes": 12237,
+    "id": "npc-rv64-pcs-v4-request-detail-20260801"
+  },
+  "counter_read_semantics": {
+    "cycles": "end_cycle - start_cycle from unique committed-PC boundary records",
+    "retired_instructions": "end_retired_before - start_retired_before from ordered commit events",
+    "same_cycle_lane_order": "lane0 before lane1; retired_before includes only older same-cycle lanes",
+    "retire_slot_capacity": "2 * cycles + end_lane - start_lane; baseline qualification uses exact endpoint correction and does not require start_lane == end_lane",
+    "whole_program_counters": "termination diagnostics only; never selected for region CPI/IPC"
+  },
+  "guardrails": {
+    "unknown_or_unclassified_cycle_ratio_max": 0.01,
+    "counter_conservation_mismatches": 0,
+    "overflow_events": 0,
+    "invalid_events": 0,
+    "rtl_assertion_failures": 0,
+    "timeout_or_infrastructure_errors": 0
+  },
+  "qualification_boundary": {
+    "scoped_baseline": "ELIGIBLE_AFTER_FRESH_3X_STATS_ON_1X_STATS_OFF_AND_INDEPENDENT_REVIEW",
+    "global_issue_slot_accounting": "GAP_INTEGER_AND_FP_PHYSICAL_TERMINALS_NOT_UNIFIED",
+    "region_occupancy_histograms": "GAP_ROB_IQ_LQ_SQ_MSHR_STATION_HISTOGRAMS_NOT_EMITTED",
+    "full_causal_cpi_stack": "GAP_CURRENT_STACK_IS_CONSERVING_HOLDER_RESIDENCY_NOT_COMPLETE_CAUSAL_ATTRIBUTION",
+    "global_workload_representativeness": "GAP_REQUIRES_FULL_CPI_CENSUS_AND_REPRESENTATIVE_SAMPLE_SELECTION",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "refresh_triggers": [
+    "ARCH_STABLE result or candidate identity changes",
+    "production or elaborated RTL changes",
+    "simulator executable, host harness or device execution semantics change",
+    "config, workload image, ROI marker, counter schema, workload matrix, latency profile, policy or checker changes",
+    "stats-on/off non-interference is not bit-exact"
+  ]
+}

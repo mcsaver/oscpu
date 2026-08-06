@@ -1,0 +1,4 @@
+2026-08-04T14:38:40Z	current-yosys-instance-graph	PASS	.github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/evidence/current-holder-instance-graph/holder-instance-graph.json
+2026-08-04T14:38:40Z	producer-holder-census	PASS	.github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/evidence/check-producer-holder-census.log
+2026-08-04T14:38:40Z	aggregate-contract	PASS	.github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/evidence/check-contract.log
+2026-08-04T14:49:22Z	candidate-independent-review	PASS	.github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/candidate-review.md

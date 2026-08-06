@@ -1,0 +1,1 @@
+FAIL rc=1 stage=systemd-strict-guest evidence_complete=0 cleanup_rc=0

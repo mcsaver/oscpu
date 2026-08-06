@@ -1,0 +1,8 @@
+schema=npc-rv64-runtime-cache-cleanup-v1
+removed_path=.github/runtime-artifacts/rv64-current-simulator/06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b
+removed_bytes=2810548
+source_binding_sha256=a6dec46f43fd76091f4c93b8b7265d0381da0e6c0326f5b45b81342fc686a120
+replacement_path=.github/runtime-artifacts/rv64-current-simulator/f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9
+replacement_builder_status=.github/task-runs/2026-08-05-rv64-v15d-current-simulator-f7a6-a1/simulator-cache.status
+retained_history=all task-run logs and results
+recoverability=rebuildable with npc/rv64/eval/ppa/build-current-simulator-cache.sh

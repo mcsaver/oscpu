@@ -1,0 +1,5 @@
+----------------------------------------------------------------------
+Ran 29 tests in 3.485s
+
+OK
+[HISTORICAL-DEFECT-CURRENT] status=PASS defects=5/5 design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 whole_architecture=RED ppa=UNPROMOTED

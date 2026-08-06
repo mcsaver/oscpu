@@ -1,0 +1,3 @@
+2026-08-03T22:05:01Z	arch-stable-current	PASS	npc/rv64/eval/ppa/evidence/arch-stable-current.json
+2026-08-03T22:05:01Z	independent-review	PASS	.github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/independent-review-receipt.json
+2026-08-03T22:05:01Z	checker-regression	PASS	.github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/validation-summary.md

@@ -4,7 +4,7 @@
 > `full-core-single-hart-rv64-dual-issue-ooo-v1`
 >
 > **Bound RTL design ID**:
-> `sha256:3460e14b8e06452017a20d0b35a552cf4e28966fcaeaf3dd747518760300df92`
+> `sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9`
 
 This document freezes product-capability boundaries that are not inferred from
 test availability.  Each exclusion has a machine-readable
@@ -74,6 +74,7 @@ The generic `arch_stable_freeze.py` cohort-exclusion validator supplies
 fail-closed negative coverage for a missing rationale, stale contract hash,
 wrong design ID, wrong cohort ID and candidate/ledger membership drift.
 
-These scope decisions do not close `SERIALIZE-G1`, do not complete the
-producer/holder census or freeze-input inventory, and do not qualify area,
-timing or power.  PPA remains `UNQUALIFIED` and promotion remains false.
+These scope decisions do not by themselves close `SERIALIZE-G1`, complete the
+producer/holder census or qualify area, timing or power.  Those prerequisites
+are evaluated by separate current-design receipts.  PPA promotion remains
+`UNPROMOTED` until the full architecture and PPA signoff layers pass.

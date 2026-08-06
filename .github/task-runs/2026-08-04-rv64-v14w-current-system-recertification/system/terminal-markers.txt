@@ -1,0 +1,13 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/npc.log:19:[guest] OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/npc.log:38:[guest] Platform Reboot Device      : syscon-reboot
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/npc.log:39:[guest] Platform Shutdown Device    : syscon-poweroff
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/console.log:25:OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/console.log:45:Platform Reboot Device      : syscon-reboot
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/guest/console.log:46:Platform Shutdown Device    : syscon-poweroff
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:10:[npc-systemd-check] done marker: __NPC_SYSTEMD_STRICT_DONE__ rc=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:46:OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:66:Platform Reboot Device      : syscon-reboot
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:67:Platform Shutdown Device    : syscon-poweroff
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:203:OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:223:Platform Reboot Device      : syscon-reboot
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14w-current-system-recertification/system/driver.log:224:Platform Shutdown Device    : syscon-poweroff

@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14y-current-producer-holder-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前本地 RV64 NpcTop producer-holder census 与 Yosys 实例图换绑：确认 design-id sha256:06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b、精确 synthesis source list、15-module/17-instance holder 拓扑、五件套路径/SHA-256 和 check-contract PASS 属于同一当前 RTL 身份，且不越级声明 holder lifecycle、完整系统事务或 PPA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+      "npc/rv64/Makefile",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/vsrc",
+      ".github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/evidence",
+      ".github/runtime-artifacts/agent-flow/rv64-v14y-current-producer-holder-rebind/summary.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14y-current-producer-holder-rebind/subagent-contracts/v14y-current-producer-holder-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/producer-holder-census.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 current-design producer-holder 换绑的 PASS/GAP，列明身份或拓扑 blocker、证据假绿反例、unknowns、替代假设、scope_extension_request 与 confidence_and_basis；明确 full-system 与 PPA 非结论边界。"
+  ],
+  "success_criteria": [
+    "census design_id、result/receipt/full/script/log 哈希、精确 synthesis source list、current RTL source binding 与两份 checker 日志相互一致；holder 拓扑仍为15个module和17个实例，原 check-contract 漂移项全部关闭，且审查不执行 Yosys、仿真或综合重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

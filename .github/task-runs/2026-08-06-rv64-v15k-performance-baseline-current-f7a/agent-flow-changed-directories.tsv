@@ -1,0 +1,11 @@
+npc/rv64/design/arch
+npc/rv64/eval/ppa/policies
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa/schemas
+.github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/subagent-contracts
+.github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a
+.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-composite-replay-v1/evidence/composite-replay
+.github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence
+npc/rv64/eval/ppa/evidence

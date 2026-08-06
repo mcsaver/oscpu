@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-layered-system-signoff-current-v1.schema.json",
+  "title": "RV64 current layered system signoff receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "claim",
+    "rtl_design_id",
+    "production_rtl_file_count",
+    "default_signoff_conjunction",
+    "source_directories",
+    "policy",
+    "checker",
+    "schema_contract",
+    "layers",
+    "optional_full_ubuntu",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-layered-system-signoff-current-v1"},
+    "status": {"const": "PASS"},
+    "claim": {"const": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY"},
+    "rtl_design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
+    "production_rtl_file_count": {"const": 146},
+    "default_signoff_conjunction": {
+      "const": [
+        "L0_DIRECTED_RTL",
+        "L1_FULL_CORE_DIFFTEST",
+        "L2_MINI_SYSTEM",
+        "L3_LIGHTWEIGHT_LINUX"
+      ]
+    },
+    "source_directories": {"type": "object"},
+    "policy": {"type": "object"},
+    "checker": {"type": "object"},
+    "schema_contract": {"type": "object"},
+    "layers": {
+      "type": "object",
+      "required": [
+        "L0_DIRECTED_RTL",
+        "L1_FULL_CORE_DIFFTEST",
+        "L2_MINI_SYSTEM",
+        "L3_LIGHTWEIGHT_LINUX"
+      ]
+    },
+    "optional_full_ubuntu": {
+      "type": "object",
+      "properties": {
+        "status": {"const": "NOT_RUN"},
+        "blocks_default_signoff": {"const": false}
+      },
+      "required": ["status", "blocks_default_signoff"]
+    },
+    "non_claims": {"type": "array", "minItems": 3}
+  }
+}

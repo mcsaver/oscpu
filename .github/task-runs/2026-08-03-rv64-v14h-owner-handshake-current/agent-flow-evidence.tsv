@@ -1,0 +1,10 @@
+V14H-global-receipt	PASS	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json	sha256=2dd4bcf4ac0326a4349ccf5f56e93e9d5113f92f90bfe483718ece9bc5e31a25
+V14H-semantic-ledger	PASS	npc/rv64/design/arch/producer-holder-semantic-coverage.json	sha256=1fff233d4a27baaee4ceb505cf6be2257ae9e0645fc774c8a2e3a1fa7e1f53fb
+V14H-independent-review	PASS	.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/independent-review.json	sha256=5234fc8b17018e1e93125a8fbf37edc8a1ebf5505cf6df673ab2af4127758ace
+V14G-dynamic-fence	PASS	.github/task-runs/2026-08-03-rv64-v14g-producer-owner-global-gate/agent-flow-evidence.tsv	baseline=4/4;compile-success-mutations-rejected=22/22
+V11-semantic-support	PASS	npc/rv64/eval/ppa/evidence	V11B/C/D/E/M required and hash-bound by receipt
+product-elaboration	PASS	npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json	dispatch1_optional=PRODUCT_INACTIVE_CONSTANT_LOW;9-stage-chain
+focused-units	PASS	verification-summary.json	134 tests
+full-holder-semantic	PASS	verification-summary.json	145 tests;44/44 units;50 bindings
+architecture-freeze-current-workspace	KNOWN_GAP	verification-summary.json	53 tests;3 failures;historical V9O/V9R design-id=882111fb... vs current=093c2380...
+strict-agent-e2e-guard	EXEMPT	verification-summary.json	missing broad npc-dev profile;task-specific deterministic evidence retained

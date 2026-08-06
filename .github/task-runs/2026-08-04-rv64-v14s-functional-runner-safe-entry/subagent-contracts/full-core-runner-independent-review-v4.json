@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "full-core-runner-independent-review-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 双发射 OoO 全核功能证据入口 generation 8：复核 module/functional/semantic-verifier 三个 PASS marker、aggregate terminal log 精确语义、canonical 14 项 mutation inventory、执行与 publication 双状态、AM/NEMU 临时构建根及 benchmark Makefile 门禁映射，并寻找仍可让错绑或不完整 CPU 功能证据获得 current 资格的反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+      "abstract-machine/Makefile",
+      "abstract-machine/am/Makefile",
+      "abstract-machine/klib/Makefile",
+      "am-kernels/benchmarks/coremark/Makefile",
+      "am-kernels/benchmarks/dhrystone/Makefile",
+      "npc/rv64/Makefile",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      "npc/rv64/eval/ppa/run-full-core-current.sh",
+      "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py",
+      "scripts/task-run-status.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-full-core-runner-contract.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/flow-self-test.log",
+      ".github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts/full-core-runner-independent-review-v4.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地 RV64 证据对象、current-design 配置、testbench/EDA 观测与 PASS/GAP 范围给出终审结论；保留反例、未知项、替代假设、证据复用边界和 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "验证 generation 8 是否机器拒绝缺失阶段 marker、重绑定但语义漂移的 terminal log、非 canonical mutation 集、执行 FAIL 或 publication 未完成、源码树 AM/benchmark 产物漂移，并确认 C 门禁指针覆盖所有相关构建入口；若合同内仍存在可消费假绿路径则必须判为 GAP，且门禁结果不得扩写为 ARCH_STABLE、系统事务或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

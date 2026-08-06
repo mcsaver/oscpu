@@ -35,17 +35,94 @@ class CurrentWorkspaceTests(unittest.TestCase):
 
     def test_exact_inventory_is_expanded(self) -> None:
         counts = self.ledger["counts"]
-        self.assertEqual(counts["semantic_units"], 44)
+        self.assertEqual(counts["semantic_units"], 46)
         self.assertEqual(counts["holder_instances"], 17)
-        self.assertEqual(counts["unit_instance_bindings"], 50)
-        self.assertEqual(counts["units_semantic_pass"], 44)
+        self.assertEqual(counts["unit_instance_bindings"], 52)
+        self.assertEqual(counts["units_semantic_pass"], 46)
         self.assertEqual(counts["units_semantic_gap"], 0)
         self.assertEqual(counts["ledger_only_units"], 0)
+
+    def test_local_only_mode_closes_units_without_promoting_system(self) -> None:
+        local = COVERAGE.build_ledger(
+            ROOT, CENSUS, GRAPH, POLICY, local_only=True
+        )
+        self.assertEqual(local["status"], "LOCAL_PASS")
+        self.assertEqual(local["counts"]["semantic_units"], 46)
+        self.assertEqual(local["counts"]["unit_instance_bindings"], 52)
+        self.assertEqual(local["counts"]["units_semantic_pass"], 46)
+        self.assertEqual(local["global_closure"]["status"], "NOT_EVALUATED")
+        self.assertEqual(
+            local["system_recertification"]["status"], "NOT_EVALUATED"
+        )
+        self.assertEqual(
+            local["promotion"]["system_recertification"], "NOT_EVALUATED"
+        )
+
+    def test_global_and_system_promotions_are_independently_bounded(self) -> None:
+        self.assertEqual(self.ledger["status"], "PASS")
+        self.assertEqual(
+            self.ledger["promotion"],
+            {
+                "global_no_live_reuse": "GREEN",
+                "whole_architecture": "RED",
+                "system_recertification": "PASS_CURRENT_CONFIG",
+                "ppa": "UNPROMOTED",
+            },
+        )
+        closure = self.ledger["global_closure"]
+        self.assertEqual(closure["status"], "PASS")
+        self.assertEqual(closure["semantic_units"], 46)
+        self.assertEqual(closure["unit_instance_bindings"], 52)
+        self.assertEqual(closure["v14g_baselines"], 4)
+        self.assertEqual(
+            closure["v14g_compile_success_mutations_rejected"], 22
+        )
+        self.assertEqual(
+            closure["optional_lane1_product_configuration"],
+            "PRODUCT_INACTIVE_CONSTANT_LOW",
+        )
+        self.assertEqual(closure["whole_architecture"], "RED")
+        self.assertEqual(closure["system_recertification"], "REQUIRED")
+        self.assertEqual(closure["ppa"], "UNPROMOTED")
+        system = self.ledger["system_recertification"]
+        self.assertEqual(system["status"], "PASS")
+        self.assertEqual(
+            system["system_recertification"], "PASS_CURRENT_CONFIG"
+        )
+        self.assertEqual(
+            system["default_signoff_conjunction"],
+            [
+                "L0_DIRECTED_RTL",
+                "L1_FULL_CORE_DIFFTEST",
+                "L2_MINI_SYSTEM",
+                "L3_LIGHTWEIGHT_LINUX",
+            ],
+        )
+        self.assertEqual(
+            (system["l0_passed"], system["l0_required"]), (113, 113)
+        )
+        self.assertEqual(
+            (
+                system["l1_official_passed"],
+                system["l1_official_required"],
+            ),
+            (177, 177),
+        )
+        self.assertEqual(
+            (system["l1_am_passed"], system["l1_am_required"]),
+            (61, 61),
+        )
+        self.assertEqual(system["l2_case"], "all")
+        self.assertEqual(system["l3_case"], "all")
+        self.assertEqual(system["optional_ubuntu"], "NOT_RUN_OPTIONAL")
+        self.assertEqual(system["rtl_assertion_failures"], 0)
+        self.assertEqual(system["whole_architecture"], "RED")
+        self.assertEqual(system["ppa"], "UNPROMOTED")
 
     def test_every_census_unit_and_instance_is_auditable(self) -> None:
         unit_ids = [unit["id"] for unit in self.ledger["units"]]
         self.assertEqual(len(unit_ids), len(set(unit_ids)))
-        self.assertEqual(len(unit_ids), 44)
+        self.assertEqual(len(unit_ids), 46)
         graph = json.loads(GRAPH.read_text(encoding="utf-8"))
         expected_paths = {
             item["path"] for item in graph["graph"]["holder_instances"]
@@ -116,7 +193,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             states["v11b-terminal-collector-current-closure"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
         )
         self.assertEqual(
             states["v11c-memory-tracker-current-closure"],
@@ -130,37 +207,37 @@ class CurrentWorkspaceTests(unittest.TestCase):
             "v11e-rob-slot-generation-current-closure":
                 "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
             "v11f-int-iq-producer-current-closure":
-                "CURRENT_FULL_RTL_BOUND",
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "v11g-store-queue-holder-current-closure":
-                "CURRENT_FULL_RTL_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11h-load-queue-producer-current-closure":
-                "CURRENT_FULL_RTL_BOUND",
+                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "v11j-bridge-holder-current-closure":
                 "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "v11k-miq-holder-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11l-memory-retry-holder-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11m-memory-reservation-holder-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11n-memory-pending-holder-current-closure":
                 "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "v11o-memory-buffer-token-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11p-checkpoint-irrevocable-write-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11q-int-lane0-packet-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11r-int-lane1-packet-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11s-muldiv-producer-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11t-clmul-producer-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
             "v11u-pending-system-producer-current-closure":
                 "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
             "v11v-fp-producer-current-closure":
-                "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
         }
         for evidence_id, expected_state in expected_current_states.items():
             self.assertEqual(states[evidence_id], expected_state)
@@ -177,29 +254,28 @@ class CurrentWorkspaceTests(unittest.TestCase):
         ]
         self.assertEqual(len(selected), 19)
         projection_ids = {"v11e-rob-slot-generation-current-closure"}
-        full_current_ids = {
-            "v11f-int-iq-producer-current-closure",
+        delta_projection_ids = {
+            "v11b-terminal-collector-current-closure",
             "v11g-store-queue-holder-current-closure",
-        }
-        direct_current_ids = full_current_ids | {
-            "v11j-bridge-holder-current-closure",
             "v11k-miq-holder-current-closure",
             "v11l-memory-retry-holder-current-closure",
             "v11m-memory-reservation-holder-current-closure",
-            "v11n-memory-pending-holder-current-closure",
             "v11o-memory-buffer-token-current-closure",
             "v11p-checkpoint-irrevocable-write-current-closure",
             "v11q-int-lane0-packet-current-closure",
             "v11r-int-lane1-packet-current-closure",
             "v11s-muldiv-producer-current-closure",
             "v11t-clmul-producer-current-closure",
-            "v11u-pending-system-producer-current-closure",
             "v11v-fp-producer-current-closure",
+        }
+        current_execution_ids = {
+            "v11n-memory-pending-holder-current-closure",
+            "v11u-pending-system-producer-current-closure",
         }
         for item in selected:
             expected_state = (
-                "CURRENT_FULL_RTL_BOUND"
-                if item["id"] in full_current_ids
+                "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND"
+                if item["id"] in delta_projection_ids
                 else (
                     "CURRENT_SELECTED_MACRO_PROJECTION_BOUND"
                     if item["id"] in projection_ids
@@ -208,7 +284,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
             )
             self.assertEqual(item["binding_state"], expected_state)
             detail = item["detail"]
-            if item["id"] in direct_current_ids:
+            if item["id"] in current_execution_ids:
                 self.assertEqual(
                     detail["evidence_design_id"],
                     detail["current_design_id"],
@@ -222,6 +298,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
             if item["id"] in projection_ids:
                 self.assertIn(
                     "selected_binding_compatibility_receipt", detail
+                )
+            if item["id"] in delta_projection_ids:
+                self.assertIn(
+                    "selected_binding_rtl_delta_projection_receipt", detail
                 )
 
     def test_define_projection_is_narrow_and_auditable(self) -> None:
@@ -241,8 +321,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             receipt_paths,
             {
-                ".github/task-runs/2026-08-02-rv64-"
-                "v13w-producer-holder-current-rebind-v1/evidence/"
+                ".github/task-runs/2026-08-06-rv64-"
+                "v15h-architecture-debt-current-f7a/evidence/"
                 "define-projection-current/receipt.json"
             },
         )
@@ -338,18 +418,17 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         replay = detail["checker_replay"]
         self.assertEqual(
-            replay["mode"], "DIRECT_CURRENT_RTL_EXECUTION"
+            replay["mode"], "CURRENT_SELECTED_SOURCE_REUSE"
         )
         self.assertFalse(replay["historical_checker_replay_required"])
-        self.assertTrue(replay["rtl_simulation_reexecuted"])
+        self.assertFalse(replay["rtl_simulation_reexecuted"])
         self.assertEqual(
             replay["binding_state"],
-            "CURRENT_FULL_RTL_BOUND",
+            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
         )
         self.assertEqual(len(replay["selected_bindings"]), 3)
-        self.assertEqual(
-            replay["evidence_design_id"],
-            replay["current_design_id"],
+        self.assertNotEqual(
+            replay["evidence_design_id"], replay["current_design_id"]
         )
         self.assertEqual(replay["positive_profiles"], 4)
         self.assertEqual(replay["raw_q_knownness_assertion_probes"], 1)
@@ -359,7 +438,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(replay["system_rerun_executed"])
 
-    def test_only_bounded_v11b_through_v11v_units_are_closed(self) -> None:
+    def test_only_bounded_v11b_through_v14r_units_are_closed(self) -> None:
         passed = {
             unit["id"]
             for unit in self.ledger["units"]
@@ -395,6 +474,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 "memory-reservation1-token",
                 "memory-pending-producer-cache",
                 "memory-pending-token",
+                "memory-request-hold0-token",
+                "memory-request-hold1-token",
                 "memory-buffer-token",
                 "checkpoint-irrevocable-write-producer",
                 "integer-ex0-packed-alias",
@@ -474,7 +555,17 @@ class CurrentWorkspaceTests(unittest.TestCase):
             ]
         )
         self.assertTrue(
-            detail["production_elaborated_logic_identical"]
+            detail[
+                "historical_v11j_v11k_elaborated_logic_identical"
+            ]
+        )
+        self.assertFalse(
+            detail["historical_full_yosys_json_retention_required"]
+        )
+        self.assertTrue(
+            detail[
+                "current_miq_elaboration_bound_by_selected_source_and_instance_graph"
+            ]
         )
         self.assertEqual(
             detail["compile_success_mutation_cases_rejected"], 12
@@ -487,6 +578,11 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(
             detail[
                 "regressions_current_source_artifact_post_bound"
+            ]
+        )
+        self.assertTrue(
+            detail[
+                "regressions_current_backend_sq_delta_projection_bound"
             ]
         )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11k"])
@@ -526,7 +622,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(detail["c0_empty_and_resident_barriers_closed"])
         self.assertTrue(detail["flush_cancel_over_fire_priority_closed"])
         self.assertTrue(detail["lane10_lane11_cancel_terminal_closed"])
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11l"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -568,7 +667,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(
             detail["selective_and_global_recovery_closed"]
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         self.assertTrue(detail["a3_frozen_evidence_unchanged"])
         self.assertFalse(detail["system_rerun"]["triggered_by_v11m"])
         self.assertFalse(detail["system_rerun"]["run"])
@@ -592,10 +694,14 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(detail["positive_profiles"], 4)
         self.assertEqual(
-            detail["compile_success_mutation_cases_rejected"], 13
+            detail["compile_success_mutation_cases_rejected"], 16
         )
-        self.assertEqual(detail["mutation_simulations_rejected"], 26)
+        self.assertEqual(detail["mutation_simulations_rejected"], 32)
+        self.assertEqual(detail["assertion_mutation_cases_rejected"], 3)
+        self.assertEqual(detail["release_oracle_mutation_cases_rejected"], 13)
         self.assertEqual(detail["ordinary_regressions_passed"], 3)
+        self.assertEqual(detail["retired_intermediate_artifacts"], 55)
+        self.assertEqual(detail["retained_compile_images"], 0)
         self.assertTrue(detail["stimulus_owned_full_pid_and_token"])
         self.assertTrue(
             detail["read_write_hold_and_terminal_death_closed"]
@@ -603,6 +709,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(detail["lane0_lane9_accepted_terminal_closed"])
         self.assertTrue(
             detail["dispatch_lane1_to_execution_terminal0_closed"]
+        )
+        self.assertTrue(detail["amo_transient_holder_disjoint_closed"])
+        self.assertTrue(
+            detail["lane9_vs_lane6_lane7_lane8_natural_cycle_closed"]
         )
         self.assertEqual(detail["a3_original_status"], "FAIL_RETAINED")
         self.assertEqual(
@@ -646,7 +756,20 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertTrue(
+            detail["current_product_reachability_design_id_current"]
+        )
+        self.assertFalse(detail["historical_full_yosys_json_retained"])
+        self.assertFalse(
+            detail["historical_full_yosys_json_retention_required"]
+        )
+        self.assertEqual(
+            detail["selected_binding_rtl_delta_projection_receipt"]["path"],
+            ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-"
+            "current-f7a/evidence/selected-binding-rtl-delta-projection/"
+            "receipt.json",
+        )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11o"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -684,7 +807,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11p"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -726,7 +852,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             detail["a3_checker_replay"], "PASS_INDEPENDENT"
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11q"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -778,7 +907,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
             detail["a3_interpretation"],
             "SYSTEM_TRANSACTION_COMPLETE_LEGACY_ORACLE_FALSE_POSITIVE",
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11r"])
         self.assertFalse(detail["system_rerun"]["run"])
 
@@ -805,7 +937,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(evidence["semantic_closure"])
         self.assertEqual(
             evidence["binding_state"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
         )
         self.assertEqual(evidence["unit_ids"], ["muldiv-producer"])
         self.assertEqual(detail["positive_profiles"], 4)
@@ -840,7 +972,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(
             detail["leaf_kill_and_functional_regression_closed"]
         )
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         unit = next(
             item
             for item in self.ledger["units"]
@@ -860,7 +995,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(evidence["semantic_closure"])
         self.assertEqual(
             evidence["binding_state"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
         )
         self.assertEqual(evidence["unit_ids"], ["clmul-producer"])
         self.assertEqual(detail["positive_profiles"], 4)
@@ -885,7 +1020,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(detail["retired_compile_artifacts_validated"], 36)
         self.assertTrue(detail["focused_testbench_overlay_reconstructed"])
         self.assertFalse(detail["eight_younger_pressure_closed"])
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         unit = next(
             item
             for item in self.ledger["units"]
@@ -985,7 +1123,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertTrue(evidence["semantic_closure"])
         self.assertEqual(
             evidence["binding_state"],
-            "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
+            "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
         )
         self.assertEqual(set(evidence["unit_ids"]), expected_units)
         self.assertEqual(detail["positive_profiles"], 4)
@@ -1011,7 +1149,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         ):
             self.assertTrue(detail[key], key)
         self.assertEqual(detail["retired_compile_artifacts_validated"], 51)
-        self.assertTrue(detail["production_design_id_current"])
+        self.assertFalse(detail["production_design_id_current"])
+        self.assertIn(
+            "selected_binding_rtl_delta_projection_receipt", detail
+        )
         units = {
             item["id"]: item
             for item in self.ledger["units"]
@@ -1216,11 +1357,47 @@ class NegativeContractTests(unittest.TestCase):
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
-    def test_policy_cannot_predeclare_semantic_completion(self) -> None:
+    def test_policy_cannot_drop_reviewed_semantic_completion(self) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
-        policy["semantic_complete"] = True
+        policy["semantic_complete"] = False
         with self.assertRaisesRegex(
-            COVERAGE.CoverageError, "cannot claim semantic completion"
+            COVERAGE.CoverageError, "must bind the reviewed global"
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_policy_cannot_drop_global_closure_receipt(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        policy.pop("global_closure_receipt")
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError, "global closure receipt is missing"
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_policy_cannot_drop_system_recertification_receipt(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        policy.pop("system_recertification_receipt")
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "system recertification receipt is missing",
+        ):
+            COVERAGE.build_ledger(
+                ROOT, CENSUS, GRAPH, self.write_policy(policy)
+            )
+
+    def test_system_recertification_pointer_cannot_select_other_receipt(
+        self,
+    ) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        policy["system_recertification_receipt"] = policy[
+            "global_closure_receipt"
+        ]
+        with self.assertRaisesRegex(
+            COVERAGE.CoverageError,
+            "system recertification receipt is not current PASS",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
@@ -1460,7 +1637,7 @@ class NegativeContractTests(unittest.TestCase):
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
-    def test_v11h_current_execution_rejects_historical_replay_receipt(
+    def test_v11h_selected_source_reuse_rejects_unbound_replay_receipt(
         self,
     ) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
@@ -1476,13 +1653,13 @@ class NegativeContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
-            "direct execution cannot carry a historical",
+            "V11H checker-replay receipt is incomplete",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
 
-    def test_v11h_historical_closure_cannot_omit_attempt4_replay(self) -> None:
+    def test_v11h_historical_summary_substitution_is_rejected(self) -> None:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
         closure = next(
             item
@@ -1497,7 +1674,7 @@ class NegativeContractTests(unittest.TestCase):
         closure.pop("checker_replay_receipt", None)
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
-            "historical V11H closure requires the attempt-4 checker replay",
+            "V11H production LoadQueue artifact hash/size mismatch",
         ):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
@@ -1685,6 +1862,36 @@ class NegativeContractTests(unittest.TestCase):
             COVERAGE.build_ledger(
                 ROOT, CENSUS, GRAPH, self.write_policy(policy)
             )
+
+    def test_v11k_does_not_require_cleaned_full_yosys_json(self) -> None:
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        closure = next(
+            item
+            for item in policy["evidence_sets"]
+            if item["binding_kind"] == "v11k_miq_holder"
+        )
+        identity = json.loads(
+            (ROOT / closure["elaborated_logic_identity"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertTrue(
+            all(
+                not (ROOT / identity[label]["path"]).exists()
+                for label in ("v11j", "v11k")
+            )
+        )
+        ledger = COVERAGE.build_ledger(ROOT, CENSUS, GRAPH, POLICY)
+        result = next(
+            item
+            for item in ledger["evidence_sets"]
+            if item["id"] == "v11k-miq-holder-current-closure"
+        )
+        self.assertTrue(
+            result["detail"][
+                "current_miq_elaboration_bound_by_selected_source_and_instance_graph"
+            ]
+        )
 
     def test_v11k_push_interface_probe_marker_is_fail_closed(
         self,

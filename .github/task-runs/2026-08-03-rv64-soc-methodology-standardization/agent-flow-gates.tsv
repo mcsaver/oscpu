@@ -1,0 +1,2 @@
+2	rv64-soc-delivery-gates	PASS	150	.github/runtime-artifacts/agent-flow/rv64-soc-methodology-standardization/gates/rv64-soc-delivery-gates.log
+2	flow-self-test	PASS	1003	.github/runtime-artifacts/agent-flow/rv64-soc-methodology-standardization/gates/flow-self-test.log

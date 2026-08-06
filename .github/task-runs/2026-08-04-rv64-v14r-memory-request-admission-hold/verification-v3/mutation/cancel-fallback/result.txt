@@ -1,0 +1,11 @@
+RESULT=PASS
+MUTATION=cancel-fallback
+EXPECTED_MARKER=[V14R-H4-BANK0-CANCEL-BUBBLE]
+COMPILE_SUCCESS=1
+MUTATION_DETECTED=1
+EXPECTED_TEST_FAILURE=1
+MAKE_RC=2
+PRODUCTION_SHA_BEFORE=7b63ad0e12d8fd887c5243f68b01643892bf581167e26bed994ccdc799658188
+PRODUCTION_SHA_AFTER=7b63ad0e12d8fd887c5243f68b01643892bf581167e26bed994ccdc799658188
+TEST_LOG=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/verification-v3/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log
+MUTATION_DIFF=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/verification-v3/mutation/cancel-fallback/cancel-fallback.diff

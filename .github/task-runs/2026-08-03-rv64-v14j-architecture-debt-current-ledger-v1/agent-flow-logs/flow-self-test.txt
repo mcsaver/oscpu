@@ -1,0 +1,88 @@
+[agent-flow] BEGIN task=review-ok class=review archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/review-ok
+[agent-flow] BEGIN task=review-gate class=review archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/review-gate
+[agent-flow] BEGIN task=analysis-gate class=analysis archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/analysis-gate
+[agent-flow] BEGIN task=review-write class=review archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/review-write
+[agent-flow] RECORD task=review-write paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=development-evidence class=development archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/development-evidence
+[agent-flow] RECORD task=development-evidence paths=1 gates=0 generation=2
+[agent-flow] EVIDENCE task=development-evidence name=rtl-focused-test status=PASS artifact=-
+[agent-flow] DECISION task=development-evidence kind=decision artifact=-
+[agent-flow] BEGIN task=scope-expanded class=development archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/scope-expanded
+[agent-flow] RECORD task=scope-expanded paths=1 gates=0 generation=2
+[agent-flow] RECLASSIFY task=scope-expanded class=development->environment generation=3
+[agent-flow] BEGIN task=environment-plan class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/environment-plan
+[agent-flow] RECORD task=environment-plan paths=3 gates=0 generation=2
+[agent-flow] RECORD task=environment-plan paths=1 gates=0 generation=3
+[agent-flow] BEGIN task=rv64-methodology-plan class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-methodology-plan
+[agent-flow] RECORD task=rv64-methodology-plan paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-0 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-0
+[agent-flow] RECORD task=rv64-debt-dependency-0 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-1 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-1
+[agent-flow] RECORD task=rv64-debt-dependency-1 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-2 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-2
+[agent-flow] RECORD task=rv64-debt-dependency-2 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-3 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-3
+[agent-flow] RECORD task=rv64-debt-dependency-3 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-4 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-4
+[agent-flow] RECORD task=rv64-debt-dependency-4 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-5 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-5
+[agent-flow] RECORD task=rv64-debt-dependency-5 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-6 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-6
+[agent-flow] RECORD task=rv64-debt-dependency-6 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-7 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-7
+[agent-flow] RECORD task=rv64-debt-dependency-7 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-8 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-8
+[agent-flow] RECORD task=rv64-debt-dependency-8 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-9 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-9
+[agent-flow] RECORD task=rv64-debt-dependency-9 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-10 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-10
+[agent-flow] RECORD task=rv64-debt-dependency-10 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-11 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-11
+[agent-flow] RECORD task=rv64-debt-dependency-11 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-12 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-12
+[agent-flow] RECORD task=rv64-debt-dependency-12 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-13 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-13
+[agent-flow] RECORD task=rv64-debt-dependency-13 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-14 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-14
+[agent-flow] RECORD task=rv64-debt-dependency-14 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-15 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-15
+[agent-flow] RECORD task=rv64-debt-dependency-15 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-16 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-16
+[agent-flow] RECORD task=rv64-debt-dependency-16 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-17 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-17
+[agent-flow] RECORD task=rv64-debt-dependency-17 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-18 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-18
+[agent-flow] RECORD task=rv64-debt-dependency-18 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-19 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-19
+[agent-flow] RECORD task=rv64-debt-dependency-19 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-20 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-20
+[agent-flow] RECORD task=rv64-debt-dependency-20 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-21 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-21
+[agent-flow] RECORD task=rv64-debt-dependency-21 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-22 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-22
+[agent-flow] RECORD task=rv64-debt-dependency-22 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-23 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-23
+[agent-flow] RECORD task=rv64-debt-dependency-23 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-24 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-24
+[agent-flow] RECORD task=rv64-debt-dependency-24 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-25 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-25
+[agent-flow] RECORD task=rv64-debt-dependency-25 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-26 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-26
+[agent-flow] RECORD task=rv64-debt-dependency-26 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-27 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-27
+[agent-flow] RECORD task=rv64-debt-dependency-27 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-dependency-28 class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-dependency-28
+[agent-flow] RECORD task=rv64-debt-dependency-28 paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=rv64-debt-status-helper class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/rv64-debt-status-helper
+[agent-flow] RECORD task=rv64-debt-status-helper paths=1 gates=0 generation=2
+[agent-flow] BEGIN task=environment-advisory-target class=environment archive=none overhead_target~1% state=/tmp/tmp.No9FINmfGk/state/environment-advisory-target
+[agent-flow] RECORD task=environment-advisory-target paths=0 gates=1 generation=2
+[agent-flow] BEGIN task=candidate-invalidated class=environment archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/candidate-invalidated
+[agent-flow] RECORD task=candidate-invalidated paths=0 gates=1 generation=2
+[agent-flow] RECORD task=candidate-invalidated paths=0 gates=1 generation=3
+[agent-flow] BEGIN task=invalid-path class=development archive=none overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/invalid-path
+[agent-flow] BEGIN task=compact-archive class=development archive=compact overhead_target~40% state=/tmp/tmp.No9FINmfGk/state/compact-archive
+[agent-flow] RECORD task=compact-archive paths=1 gates=0 generation=2
+[agent-flow] EVIDENCE task=compact-archive name=focused-test status=PASS artifact=-
+[agent-flow] DECISION task=compact-archive kind=hypothesis artifact=-
+[agent-flow-test] PASS review/analysis zero gates, class mismatch and audited reclassification, development evidence, decision trace, compact task-run, environment and RV64 methodology/debt dependency gate pointers, repeated-path and candidate invalidation, advisory overhead target, and path confinement

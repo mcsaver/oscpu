@@ -1,0 +1,8 @@
+Linux/scripts/npc_systemd_transaction_evidence.py
+Linux/scripts/check-npc-systemd-guest.sh
+Linux/scripts/tests/test_npc_systemd_transaction_evidence.py
+Linux/scripts/tests/test_check_npc_systemd_guest_contract.py
+.github/task-runs/2026-08-03-rv64-v14f-terminal-collector-v2
+.github/memory/project-status.md
+.github/memory/modules/agent-system.md
+.github/memory/modules/npc.md

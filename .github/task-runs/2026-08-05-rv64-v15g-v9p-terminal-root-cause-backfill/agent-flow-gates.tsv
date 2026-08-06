@@ -1,0 +1,10 @@
+2	rv64-historical-defect-ledger-audit	FAIL	201	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-ledger-audit.log
+2	rv64-historical-defect-ledger-audit	PASS	902	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-ledger-audit.log
+2	rv64-historical-defect-current-contract	PASS	802	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-current-contract.log
+2	rv64-layered-system-signoff-current	PASS	1153	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-layered-system-signoff-current.log
+2	rv64-architecture-debt-current	FAIL	101	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-architecture-debt-current.log
+4	rv64-historical-defect-ledger-audit	PASS	852	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-ledger-audit.log
+4	rv64-historical-defect-current-contract	PASS	752	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-current-contract.log
+4	rv64-layered-system-signoff-current	PASS	1053	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-layered-system-signoff-current.log
+4	rv64-historical-defect-current	PASS	1003	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/rv64-historical-defect-current.log
+4	flow-self-test	PASS	2506	.github/runtime-artifacts/agent-flow/rv64-v15g-v9p-terminal-root-cause-backfill/gates/flow-self-test.log

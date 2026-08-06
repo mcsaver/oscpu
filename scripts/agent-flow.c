@@ -72,6 +72,138 @@ static const GateDef GATES[] = {
         5,
     },
     {
+        "source-artifact-hygiene",
+        "scripts/tests/test-source-tree-artifact-hygiene.sh && "
+        "scripts/check-source-tree-artifact-hygiene.sh",
+        30,
+    },
+    {
+        "rv64-soc-delivery-gates",
+        "scripts/tests/test-rv64-soc-delivery-gates.sh",
+        60,
+    },
+    {
+        "rv64-terminal-collector-lane-contract",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract -v",
+        60,
+    },
+    {
+        "rv64-historical-defect-ledger-audit",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_historical_defect_backfill -v && "
+        "/usr/bin/python3 -B "
+        "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+        60,
+    },
+    {
+        "rv64-historical-defect-current-contract",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_historical_defect_current -v",
+        60,
+    },
+    {
+        "rv64-full-core-runner-contract",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_full_core_current_evidence "
+        "npc.rv64.eval.ppa.tests.test_full_core_functional_evidence "
+        "npc.rv64.eval.ppa.tests.test_full_core_runner_entry "
+        "npc.rv64.eval.ppa.tests.test_full_core_functional_replay "
+        "npc.rv64.eval.ppa.tests.test_functional_aggregate -v && "
+        "/usr/bin/python3 -B "
+        "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py "
+        "--isolation-smoke && "
+        "scripts/tests/test-task-run-status.sh",
+        300,
+    },
+    {
+        "rv64-system-recertification-runner-contract",
+        "npc/rv64/eval/ppa/run-system-recertification-current.sh "
+        "--validate-only",
+        300,
+    },
+    {
+        "rv64-current-simulator-cache-contract",
+        "npc/rv64/eval/ppa/build-current-simulator-cache.sh --validate-only",
+        60,
+    },
+    {
+        "rv64-mini-system-runner-contract",
+        "npc/rv64/eval/ppa/run-mini-system-current.sh --validate-only",
+        300,
+    },
+    {
+        "rv64-lightweight-linux-runner-contract",
+        "npc/rv64/eval/ppa/run-lightweight-linux-current.sh "
+        "--validate-only",
+        300,
+    },
+    {
+        "rv64-layered-system-signoff-current",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_layered_system_signoff "
+        "npc.rv64.eval.ppa.tests.test_system_recertification_current -v && "
+        "/usr/bin/python3 -B "
+        "npc/rv64/eval/ppa/tools/layered_system_signoff.py verify "
+        "--receipt "
+        "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json && "
+        "/usr/bin/python3 -B "
+        "npc/rv64/eval/ppa/tools/system_recertification_current.py "
+        "--root . verify --input "
+        "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+        300,
+    },
+    {
+        "rv64-architecture-debt-current",
+        "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+        "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+        "-f eval/ppa/architecture-debt-current-evidence.mk "
+        "check-architecture-debt-current",
+        180,
+    },
+    {
+        "rv64-historical-defect-current",
+        "/usr/bin/env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS "
+        "-u MAKEFILES /usr/bin/make -rR --no-print-directory -C npc/rv64 "
+        "-f eval/ppa/historical-defect-current-evidence.mk "
+        "check-historical-defect-current",
+        180,
+    },
+    {
+        "rv64-arch-stable-checker-contract",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_arch_stable_freeze "
+        "npc.rv64.eval.ppa.tests.test_arch_stable_current_candidate "
+        "npc.rv64.eval.ppa.tests.test_functional_archive_rehydrate -v",
+        300,
+    },
+    {
+        "rv64-arch-stable-current",
+        "/usr/bin/python3 -B npc/rv64/eval/ppa/tools/arch_stable_freeze.py verify "
+        "npc/rv64/eval/ppa/evidence/arch-stable-current.json --require-stable",
+        300,
+    },
+    {
+        "rv64-owner-timing-fast",
+        "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh --tier fast",
+        120,
+    },
+    {
+        "rv64-owner-timing-link",
+        "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh --tier link",
+        600,
+    },
+    {
+        "rv64-memory-request-hold-fast",
+        "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh --tier fast",
+        120,
+    },
+    {
+        "rv64-memory-request-hold-link",
+        "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh --tier link",
+        300,
+    },
+    {
         "profile-bindings",
         "scripts/agent-e2e.sh --validate-all-profiles",
         180,
@@ -482,6 +614,70 @@ static int starts_with(const char *value, const char *prefix) {
     return strncmp(value, prefix, strlen(prefix)) == 0;
 }
 
+static int ends_with(const char *value, const char *suffix) {
+    size_t value_length = strlen(value);
+    size_t suffix_length = strlen(suffix);
+    return value_length >= suffix_length &&
+           strcmp(value + value_length - suffix_length, suffix) == 0;
+}
+
+static int is_allowed_build_description(const char *path) {
+    return strcmp(path,
+                  "tool/softfloat/build/Linux-x86_64-GCC/.gitignore") == 0 ||
+           strcmp(path,
+                  "tool/softfloat/build/Linux-x86_64-GCC/Makefile") == 0 ||
+           strcmp(path,
+                  "tool/softfloat/build/Linux-x86_64-GCC/platform.h") == 0 ||
+           starts_with(
+               path,
+               "ysyxSoC/rocket-chip/dependencies/chisel/.github/workflows/"
+               "build-scala-cli-template/");
+}
+
+static int has_generated_directory_component(const char *path) {
+    const char *component = path;
+    while (*component != '\0') {
+        const char *slash = strchr(component, '/');
+        size_t length = slash == NULL ? strlen(component)
+                                      : (size_t)(slash - component);
+        if ((length == strlen("build") &&
+             strncmp(component, "build", length) == 0) ||
+            (length == strlen("obj_dir") &&
+             strncmp(component, "obj_dir", length) == 0) ||
+            (length == strlen("CMakeFiles") &&
+             strncmp(component, "CMakeFiles", length) == 0) ||
+            (length == strlen("__pycache__") &&
+             strncmp(component, "__pycache__", length) == 0)) {
+            return 1;
+        }
+        /* build-*.py/build_helper.c 等源码文件不是目录；只有后续仍有
+         * path component 时才把 build-/build_ 前缀视作二级产物目录。 */
+        if (slash != NULL && length > strlen("build-") &&
+            (strncmp(component, "build-", strlen("build-")) == 0 ||
+             strncmp(component, "build_", strlen("build_")) == 0)) {
+            return 1;
+        }
+        if (slash == NULL) {
+            break;
+        }
+        component = slash + 1;
+    }
+    return 0;
+}
+
+static int is_regenerable_source_artifact(const char *path) {
+    if (is_allowed_build_description(path)) {
+        return 0;
+    }
+    return has_generated_directory_component(path) ||
+           ends_with(path, ".pyc") || ends_with(path, ".pyo") ||
+           ends_with(path, ".pyd") ||
+           ends_with(path, ".o") || ends_with(path, ".vvp") ||
+           ends_with(path, ".vcd") || ends_with(path, ".fst") ||
+           ends_with(path, ".fsdb") || ends_with(path, ".wlf") ||
+           ends_with(path, ".vpd") || ends_with(path, ".ghw");
+}
+
 static int is_environment_surface(const char *path) {
     return strcmp(path, "AGENTS.md") == 0 ||
            strcmp(path, "AI_ENVIRONMENT.md") == 0 ||
@@ -492,11 +688,44 @@ static int is_environment_surface(const char *path) {
            starts_with(path, ".github/e2e/") ||
            starts_with(path, ".github/skills/") ||
            starts_with(path, ".github/instructions/agent-") ||
+           strcmp(path,
+                  ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
            starts_with(path, ".github/workflows/agent-") ||
+           strcmp(path,
+                  "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv") == 0 ||
+           strcmp(path,
+                  "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
            starts_with(path, "scripts/agent-") ||
+           strcmp(path, "scripts/check-rv64-soc-delivery-gates.sh") == 0 ||
+           strcmp(path, "scripts/tests/test-rv64-soc-delivery-gates.sh") == 0 ||
            starts_with(path, "scripts/e2e/") ||
            starts_with(path, "scripts/dev_memory/") ||
            strcmp(path, "scripts/github_index_db.py") == 0;
+}
+
+static int is_ordinary_documentation_path(const char *path) {
+    int documentation_suffix = ends_with(path, ".md") ||
+                               ends_with(path, ".rst") ||
+                               ends_with(path, ".adoc") ||
+                               ends_with(path, ".txt");
+    if (!documentation_suffix || is_environment_surface(path)) {
+        return 0;
+    }
+    /* ROADMAP mirrors machine authorities; editing its narration is not a
+       request to rebuild a stale current-design receipt. */
+    if (strcmp(path, "npc/rv64/design/arch/ROADMAP.md") == 0) {
+        return 1;
+    }
+    /* Architecture contracts remain evidence-bearing even when Markdown. */
+    if (starts_with(path, "npc/rv64/design/arch/") ||
+        starts_with(path, ".github/runtime-artifacts/")) {
+        return 0;
+    }
+    if (starts_with(path, ".github/task-runs/")) {
+        return ends_with(path, "/delivery-summary.md") ||
+               ends_with(path, "/dispatch-log.md");
+    }
+    return 1;
 }
 
 static int add_gate(StringList *gates, const char *id) {
@@ -505,6 +734,29 @@ static int add_gate(StringList *gates, const char *id) {
         return -1;
     }
     return list_add(gates, id) < 0 ? -1 : 0;
+}
+
+static int normalize_gate_dependencies(StringList *gates) {
+    StringList normalized;
+    int owner_timing_link = list_contains(gates, "rv64-owner-timing-link");
+    int memory_request_hold_link =
+        list_contains(gates, "rv64-memory-request-hold-link");
+    memset(&normalized, 0, sizeof(normalized));
+    for (size_t i = 0; i < gates->count; ++i) {
+        const char *id = gates->values[i];
+        if (owner_timing_link && strcmp(id, "rv64-owner-timing-fast") == 0) {
+            continue;
+        }
+        if (memory_request_hold_link &&
+            strcmp(id, "rv64-memory-request-hold-fast") == 0) {
+            continue;
+        }
+        if (add_gate(&normalized, id) != 0) {
+            return -1;
+        }
+    }
+    *gates = normalized;
+    return 0;
 }
 
 static int derive_gates(const FlowMeta *meta, const StringList *paths,
@@ -524,12 +776,356 @@ static int derive_gates(const FlowMeta *meta, const StringList *paths,
     }
     for (size_t i = 0; i < paths->count; ++i) {
         const char *path = paths->values[i];
+        /* 可再生编译物只属于源码树清洁面。先短路能避免历史 task-run
+         * 目录名把 __pycache__/build/ 清理误路由到架构 current receipt。 */
+        if (is_regenerable_source_artifact(path)) {
+            if (add_gate(gates, "source-artifact-hygiene") != 0) {
+                return -1;
+            }
+            continue;
+        }
+        if (strcmp(meta->task_class, "docs") == 0 &&
+            is_ordinary_documentation_path(path)) {
+            continue;
+        }
+        if (strcmp(path, ".gitignore") == 0 ||
+            strcmp(path, "scripts/check-source-tree-artifact-hygiene.sh") == 0 ||
+            strcmp(path,
+                   "scripts/tests/test-source-tree-artifact-hygiene.sh") == 0) {
+            if (add_gate(gates, "source-artifact-hygiene") != 0) {
+                return -1;
+            }
+        }
         if (strcmp(path, "scripts/agent-flow.c") == 0 ||
             strcmp(path, "scripts/agent-flow.sh") == 0 ||
             strcmp(path, "scripts/tests/test-agent-flow.sh") == 0 ||
             strcmp(path,
                    ".github/instructions/agent-lightweight-workflow.instructions.md") == 0) {
             if (add_gate(gates, "flow-self-test") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
+            strcmp(path, "scripts/check-rv64-soc-delivery-gates.sh") == 0 ||
+            strcmp(path, "scripts/tests/test-rv64-soc-delivery-gates.sh") == 0) {
+            if (add_gate(gates, "rv64-soc-delivery-gates") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/full-core-functional-run-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-full-core-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/full_core_current_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/functional_aggregate.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/arch_stable_freeze.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh") == 0 ||
+            strcmp(path,
+                   "am-kernels/tests/cpu-tests/scripts/check_results.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/replay-full-core-functional-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/full_core_functional_replay.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_full_core_functional_replay.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_functional_aggregate.py") == 0 ||
+            strcmp(path,
+                   ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py") == 0 ||
+            strcmp(path,
+                   ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh") == 0 ||
+            strcmp(path, "abstract-machine/Makefile") == 0 ||
+            strcmp(path, "abstract-machine/am/Makefile") == 0 ||
+            strcmp(path, "abstract-machine/klib/Makefile") == 0 ||
+            strcmp(path, "am-kernels/benchmarks/coremark/Makefile") == 0 ||
+            strcmp(path, "am-kernels/benchmarks/dhrystone/Makefile") == 0 ||
+            strcmp(path, "am-kernels/tests/cpu-tests/Makefile") == 0 ||
+            strcmp(path, "nemu/Makefile") == 0 ||
+            strcmp(path, "abstract-machine/scripts/riscv64-npc.mk") == 0 ||
+            strcmp(path, "abstract-machine/scripts/platform/npc.mk") == 0 ||
+            strcmp(path, "npc/rv64/Makefile") == 0) {
+            if (add_gate(gates, "rv64-full-core-runner-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/system-recertification-run-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-system-recertification-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/system_recertification_run.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_system_recertification_runner.py") == 0 ||
+            strcmp(path, "Linux/scripts/check-ubuntu-rootfs.sh") == 0 ||
+            strcmp(path, "Linux/scripts/check-npc-systemd-guest.sh") == 0 ||
+            strcmp(path, "Linux/scripts/npc-systemd-strict-check.sh") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/npc_systemd_transaction_evidence.py") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/prepare-npc-rootfs-run-image.sh") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/tests/test_npc_systemd_strict_check.py") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py") == 0 ||
+            strcmp(path, "npc/rv64/configs/default_defconfig") == 0 ||
+            strcmp(path, "npc/rv64/configs/product-rtl-defaults.mk") == 0) {
+            if (add_gate(gates,
+                         "rv64-system-recertification-runner-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
+            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
+            strcmp(path, "npc/rv64/csrc/dpi.c") == 0) {
+            if (add_gate(gates,
+                         "rv64-current-simulator-cache-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-mini-system-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/rv64-layer-source-id.sh") == 0 ||
+            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
+            strcmp(path, "npc/rv64/csrc/dpi.c") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/replay-layer-checker-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/mini_system_run.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_mini_system_run.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "Linux/mini-system/rv64-l2-payload.S") == 0 ||
+            strcmp(path,
+                   "Linux/mini-system/rv64-l2-payload.ld") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/build-rv64-mini-system.sh") == 0 ||
+            strcmp(path, "Linux/scripts/build-opensbi.sh") == 0 ||
+            strcmp(path, "Linux/platform/gen_dts.py") == 0 ||
+            strcmp(path, "Linux/platform/common-rv64.yml") == 0 ||
+            strcmp(path, "Linux/platform/npc-rv64.yml") == 0) {
+            if (add_gate(gates,
+                         "rv64-mini-system-runner-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-lightweight-linux-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/rv64-layer-source-id.sh") == 0 ||
+            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
+            strcmp(path, "npc/rv64/csrc/dpi.c") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/replay-layer-checker-current.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/lightweight_linux_run.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "Linux/lightweight/rv64-l3-kernel.config") == 0 ||
+            strcmp(path,
+                   "Linux/lightweight/rv64-l3-init.c") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/build-rv64-lightweight-linux.sh") == 0 ||
+            strcmp(path,
+                   "Linux/scripts/check-rv64-lightweight-linux-config.sh") == 0 ||
+            strcmp(path, "Linux/scripts/build-opensbi.sh") == 0 ||
+            strcmp(path, "Linux/platform/gen_dts.py") == 0 ||
+            strcmp(path, "Linux/platform/common-rv64.yml") == 0 ||
+            strcmp(path, "Linux/platform/npc-rv64.yml") == 0) {
+            if (add_gate(gates,
+                         "rv64-lightweight-linux-runner-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/layered_system_signoff.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/system_recertification_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_system_recertification_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/system-recertification-current.json") == 0) {
+            if (add_gate(gates,
+                         "rv64-layered-system-signoff-current") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path, "npc/rv64/vsrc/execute/OooIntBackend.v") == 0 ||
+            strcmp(path,
+                   "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py") == 0) {
+            if (add_gate(gates,
+                         "rv64-terminal-collector-lane-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/historical-defect-backfill-ledger.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/historical_defect_backfill.py") == 0) {
+            if (add_gate(gates,
+                         "rv64-historical-defect-ledger-audit") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_historical_defect_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/historical_defect_current.py") == 0) {
+            if (add_gate(gates,
+                         "rv64-historical-defect-current-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path, "npc/rv64/design/arch/architecture-debt-ledger.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/full-core-cohort-scope-v1.md") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/producer-holder-semantic-coverage.json") == 0 ||
+            starts_with(path, "npc/rv64/design/arch/cohort/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/") ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/architecture-debt-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/system-recertification-checker-replay-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/system-recertification-checker-tests.log") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/architecture-debt-current-v2.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_architecture_debt_delta_rebind.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/run_architecture_delta_mutations.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/test_run_architecture_delta_mutations.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_debt_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py") == 0) {
+            if (add_gate(gates, "rv64-architecture-debt-current") != 0) {
+                return -1;
+            }
+        }
+        if (starts_with(path,
+                        ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/") ||
+            starts_with(path,
+                        ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/") ||
+            starts_with(path,
+                        ".github/runtime-artifacts/agent-flow/rv64-v14g-producer-owner-global-gate/") ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/historical-defect-current-evidence.mk") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/historical-defect-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/run_historical_exit_current.py") == 0) {
+            if (add_gate(gates, "rv64-historical-defect-current") != 0) {
                 return -1;
             }
         }
@@ -590,12 +1186,97 @@ static int derive_gates(const FlowMeta *meta, const StringList *paths,
         }
         if (strcmp(path, "scripts/task-run-status.sh") == 0 ||
             strcmp(path, "scripts/tests/test-task-run-status.sh") == 0) {
+            /* 该 helper 是全核 runner 的 fail-closed 状态承重件；修改时同时
+             * 复核入口接线，不能只测 helper 的孤立状态机。 */
+            if (add_gate(gates, "rv64-full-core-runner-contract") != 0) {
+                return -1;
+            }
+            if (add_gate(gates,
+                         "rv64-system-recertification-runner-contract") != 0) {
+                return -1;
+            }
+            if (add_gate(gates,
+                         "rv64-mini-system-runner-contract") != 0) {
+                return -1;
+            }
+            if (add_gate(gates,
+                         "rv64-lightweight-linux-runner-contract") != 0) {
+                return -1;
+            }
             if (add_gate(gates, "task-run-status-test") != 0) {
                 return -1;
             }
         }
+        if (strcmp(path,
+                   "npc/rv64/eval/ppa/tools/arch_stable_freeze.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/functional_archive_rehydrate.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_functional_archive_rehydrate.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/arch-stable-independent-review-v1.schema.json") == 0) {
+            if (add_gate(gates, "rv64-arch-stable-checker-contract") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/eval/ppa/run-arch-stable-audit.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/arch-stable/full-core-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/arch-stable-independent-review-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/arch-stable-current.json") == 0) {
+            if (add_gate(gates, "rv64-arch-stable-current") != 0) {
+                return -1;
+            }
+        }
+        if (starts_with(path,
+                        "npc/rv64/eval/ppa/instrumentation/owner-timing") ||
+            starts_with(path,
+                        "npc/rv64/eval/ppa/instrumentation/owner_timing") ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-owner-timing-diagnostics.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/replay-owner-timing-link.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/replay-owner-timing-invalid-probe.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py") == 0) {
+            if (add_gate(gates, "rv64-owner-timing-fast") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path, "npc/rv64/vsrc/execute/OooIntBackend.v") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/tests/tb_ooo_int_backend.sv") == 0 ||
+            strcmp(path, "npc/rv64/testbench/Makefile") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/specs/ooo-memory-request-admission-hold.md") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh") == 0) {
+            if (add_gate(gates, "rv64-memory-request-hold-fast") != 0) {
+                return -1;
+            }
+        }
     }
-    return 0;
+    return normalize_gate_dependencies(gates);
 }
 
 static int count_pass_evidence(const char *state_dir, const char *required_name) {
@@ -1165,6 +1846,7 @@ static void usage(FILE *stream) {
             "  scripts/agent-flow.sh decision --task ID "
             "--kind hypothesis|evidence|decision|counterexample|rollback|note --text TEXT "
             "[--artifact PATH|-]\n"
+            "  scripts/agent-flow.sh reclassify --task ID --class CLASS --reason TEXT\n"
             "  scripts/agent-flow.sh pause|resume|status --task ID\n"
             "  scripts/agent-flow.sh finish --task ID [--plan|--candidate]\n"
             "  scripts/agent-flow.sh classify\n"
@@ -1457,6 +2139,28 @@ static int valid_trace_text(const char *text) {
     return 1;
 }
 
+static int append_decision_trace(const char *state_dir, const char *kind,
+                                 const char *text, const char *artifact) {
+    char decisions_path[PATH_MAX];
+    char timestamp[32];
+    if (path_join(decisions_path, sizeof(decisions_path), state_dir,
+                  "decisions.tsv") != 0) {
+        return -1;
+    }
+    FILE *stream = fopen(decisions_path, "a");
+    if (stream == NULL) {
+        return -1;
+    }
+    iso8601_now(timestamp, sizeof(timestamp));
+    fprintf(stream, "%s\t%s\t%s\t%s\n", timestamp, kind, text, artifact);
+    if (fclose(stream) != 0) {
+        return -1;
+    }
+    char detail[MAX_LINE];
+    snprintf(detail, sizeof(detail), "%s:%s", kind, artifact);
+    return append_event(state_dir, "DECISION_TRACE", detail);
+}
+
 static int command_decision(const char *repo_root, const char *state_root,
                             int argc, char **argv) {
     const char *task_id = option_value(argc, argv, "--task");
@@ -1491,23 +2195,7 @@ static int command_decision(const char *repo_root, const char *state_root,
     if (read_meta(state_dir, &meta) != 0 || strcmp(meta.status, "PASS") == 0) {
         return 2;
     }
-    char decisions_path[PATH_MAX];
-    char timestamp[32];
-    if (path_join(decisions_path, sizeof(decisions_path), state_dir, "decisions.tsv") != 0) {
-        return 2;
-    }
-    FILE *stream = fopen(decisions_path, "a");
-    if (stream == NULL) {
-        return 2;
-    }
-    iso8601_now(timestamp, sizeof(timestamp));
-    fprintf(stream, "%s\t%s\t%s\t%s\n", timestamp, kind, text, artifact);
-    if (fclose(stream) != 0) {
-        return 2;
-    }
-    char detail[MAX_LINE];
-    snprintf(detail, sizeof(detail), "%s:%s", kind, artifact);
-    if (append_event(state_dir, "DECISION_TRACE", detail) != 0) {
+    if (append_decision_trace(state_dir, kind, text, artifact) != 0) {
         return 2;
     }
     snprintf(meta.status, sizeof(meta.status), "ACTIVE");
@@ -1516,6 +2204,56 @@ static int command_decision(const char *repo_root, const char *state_root,
     }
     printf("[agent-flow] DECISION task=%s kind=%s artifact=%s\n",
            task_id, kind, artifact);
+    return 0;
+}
+
+static int command_reclassify(const char *state_root, int argc, char **argv) {
+    const char *task_id = option_value(argc, argv, "--task");
+    const char *task_class = option_value(argc, argv, "--class");
+    const char *reason = option_value(argc, argv, "--reason");
+    if (task_id == NULL || task_class == NULL || reason == NULL ||
+        !valid_class(task_class) || !valid_trace_text(reason)) {
+        return 2;
+    }
+    char state_dir[PATH_MAX];
+    if (state_dir_for_task(state_root, task_id, state_dir,
+                           sizeof(state_dir)) != 0) {
+        return 2;
+    }
+    FlowMeta meta;
+    if (read_meta(state_dir, &meta) != 0 ||
+        strcmp(meta.status, "PASS") == 0) {
+        fprintf(stderr,
+                "[agent-flow] task is missing or already complete: %s\n",
+                task_id);
+        return 2;
+    }
+    if (strcmp(meta.task_class, task_class) == 0) {
+        fprintf(stderr, "[agent-flow] task already has class=%s\n", task_class);
+        return 2;
+    }
+    char old_class[MAX_CLASS];
+    char trace_text[MAX_LINE];
+    char event_detail[MAX_LINE];
+    snprintf(old_class, sizeof(old_class), "%s", meta.task_class);
+    snprintf(trace_text, sizeof(trace_text),
+             "task class changed %s -> %s: %s",
+             old_class, task_class, reason);
+    snprintf(event_detail, sizeof(event_detail), "%s->%s:%s",
+             old_class, task_class, reason);
+    if (!valid_trace_text(trace_text) ||
+        append_decision_trace(state_dir, "decision", trace_text, "-") != 0 ||
+        append_event(state_dir, "RECLASSIFY", event_detail) != 0) {
+        return 2;
+    }
+    snprintf(meta.task_class, sizeof(meta.task_class), "%s", task_class);
+    snprintf(meta.status, sizeof(meta.status), "ACTIVE");
+    ++meta.generation;
+    if (write_meta(state_dir, &meta) != 0) {
+        return 2;
+    }
+    printf("[agent-flow] RECLASSIFY task=%s class=%s->%s generation=%d\n",
+           task_id, old_class, task_class, meta.generation);
     return 0;
 }
 
@@ -1745,6 +2483,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(command, "decision") == 0) {
         return command_decision(repo_root, state_root, sub_argc, sub_argv);
+    }
+    if (strcmp(command, "reclassify") == 0) {
+        return command_reclassify(state_root, sub_argc, sub_argv);
     }
     if (strcmp(command, "pause") == 0) {
         return command_pause_resume(state_root, sub_argc, sub_argv, 0);

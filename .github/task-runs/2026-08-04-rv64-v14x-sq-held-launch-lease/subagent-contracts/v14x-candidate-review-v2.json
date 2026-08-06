@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14x-candidate-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 V14X candidate 的本地RV64 SQ/AMO request holder最终差异与收据提交：确认核心RTL结论未漂移，并检查 check_v14r_memory_request_hold.sh 仅在focused/link/mutation/identity/runtime cleanup全部成功后原子提交result.txt，失败路径不产生PASS收据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh",
+      "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/evidence/v14r-link-v3",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/evidence/static",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/evidence/independent-review.md",
+      ".github/runtime-artifacts/agent-flow/rv64-v14x-sq-held-launch-lease/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14x-sq-held-launch-lease/gates/rv64-memory-request-hold-link.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14x-sq-held-launch-lease/gates/rv64-terminal-collector-lane-contract.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/subagent-contracts/v14x-candidate-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出candidate PASS或GAP，逐项列明RTL/脚本 blocker、假绿反例、非阻断风险、unknowns、替代假设、scope_extension_request和confidence_and_basis；明确result.txt原子提交是否fail-closed。"
+  ],
+  "success_criteria": [
+    "候选差异保持first-launch与held owner lease分层且断言不弱化；candidate两个固定门日志PASS；retained result只在command_rc=0、cleanup_rc=0、result_ready=1时写入并以同目录临时文件原子rename，任何失败不留下RESULT=PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

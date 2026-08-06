@@ -1,0 +1,103 @@
+{
+  "schema": "npc-rv64-performance-workload-matrix-v1",
+  "workload_matrix_id": "npc-rv64-pwm-v1-f7a-scoped-baseline-20260806",
+  "state": "FROZEN_SCOPED_BASELINE_MATRIX",
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "performance_baseline_eligible": true,
+  "global_representativeness": false,
+  "qualified_baseline_workloads": [
+    "coremark",
+    "dhrystone_10000"
+  ],
+  "workloads": {
+    "coremark": {
+      "role": "deterministic_integer_control_and_memory_mix",
+      "input": "ITERATIONS=10",
+      "image_sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+      "region": {
+        "start_pc": "0x00000000800017a8",
+        "stop_pc": "0x00000000800017b0",
+        "start_hits": 1,
+        "stop_hits": 1
+      },
+      "weight": 0.5,
+      "qualification": "SCOPED_BASELINE"
+    },
+    "dhrystone_10000": {
+      "role": "deterministic_integer_string_and_control_mix",
+      "input": "mainargs=10000",
+      "image_sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+      "region": {
+        "start_pc": "0x0000000080000334",
+        "stop_pc": "0x000000008000047c",
+        "start_hits": 10000,
+        "stop_hits": 1
+      },
+      "weight": 0.5,
+      "qualification": "SCOPED_BASELINE"
+    }
+  },
+  "coverage_categories": {
+    "integer_control": {
+      "status": "QUALIFIED_SCOPED_BASELINE",
+      "workloads": [
+        "coremark",
+        "dhrystone_10000"
+      ]
+    },
+    "branch_control": {
+      "status": "QUALIFIED_SCOPED_BASELINE",
+      "workloads": [
+        "coremark",
+        "dhrystone_10000"
+      ]
+    },
+    "memory_locality": {
+      "status": "DIAGNOSTIC_WITHIN_SCOPED_BASELINE",
+      "workloads": [
+        "coremark",
+        "dhrystone_10000"
+      ],
+      "non_claim": "not a standalone cache, LSQ or external-memory saturation cohort"
+    },
+    "floating_point_vector": {
+      "status": "NOT_COVERED_BY_SCOPED_BASELINE",
+      "workloads": [],
+      "guardrail": "functional L0/L1 evidence only"
+    },
+    "privilege_system": {
+      "status": "FUNCTIONAL_ONLY_NOT_CPI_BASELINE",
+      "workloads": [],
+      "guardrail": "current L2 mini-system and L3 lightweight-Linux receipts"
+    }
+  },
+  "functional_guardrails": {
+    "official_tests": 177,
+    "am_tests": 61,
+    "difftest_mismatches": 0,
+    "layered_system": "L0+L1+L2+L3 current identity",
+    "ubuntu2204": "optional-explicit-only-not-run"
+  },
+  "representative_sample_policy": {
+    "state": "PENDING_FULL_CPI_CENSUS",
+    "required_after_baseline": [
+      "highest_cpi",
+      "lowest_cpi",
+      "near_average_cpi",
+      "highest_cycle_contribution",
+      "highest_excess_cycle_contribution"
+    ],
+    "constraint": "The two qualified baseline workloads cannot substitute for a later full-cohort representative-sample census."
+  },
+  "claim_boundary": {
+    "allowed": "deterministic current-design CoreMark10 and Dhrystone10000 PC-bounded CPI, IPC, counter conservation and instrumentation non-interference",
+    "not_allowed": [
+      "full workload representativeness",
+      "complete causal CPI attribution",
+      "global integer and FP issue-slot capacity",
+      "region-bound queue occupancy closure",
+      "qualified frequency, area or power",
+      "PPA promotion"
+    ]
+  }
+}

@@ -1,50 +1,3467 @@
 {
+  "artifacts": {
+    "architecture_evidence": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/rebind-2/architecture-current-replay.json",
+    "architecture_result": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/rebind-2/architecture-current-result.json",
+    "cohort_inventory": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/cohort-inventory.json",
+    "debt_ledger": "npc/rv64/design/arch/architecture-debt-ledger.json",
+    "functional_aggregate": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/functional-aggregate-rehydrated.json",
+    "holder_census": "npc/rv64/design/arch/producer-holder-census.json"
+  },
+  "claim": {
+    "architecture_feasible_seed": null,
+    "architecture_freeze": "ARCH_STABLE",
+    "canonical": null,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "freeze_inputs": {
+    "binaries": [
+      {
+        "kind": "simulator_binary",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/frozen/NpcSimTop",
+        "sha256": "c7c9d9184560fc8d8d7b82fccb9d0a5567e37aac1837500add1d3357a1e01e33"
+      },
+      {
+        "kind": "reference_model_binary",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/frozen/riscv64-nemu-interpreter-so",
+        "sha256": "a7277da49ed0bb84555bbae586114d44c4dcf905f885e1400d328dfc210f0b10"
+      }
+    ],
+    "config": [
+      {
+        "kind": "kconfig",
+        "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-2/functional/frozen/npc.config",
+        "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+      },
+      {
+        "kind": "kconfig",
+        "path": "npc/rv64/.config",
+        "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+      }
+    ],
+    "constraints": [
+      {
+        "kind": "primary_sdc",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/primary-clock-5ns.sdc",
+        "sha256": "0942f4cc004ac87aa80122024406f17047f8e809b5fa87eee2114c47a1a420ae"
+      }
+    ],
+    "filelists": [
+      {
+        "kind": "test_inventory",
+        "path": "npc/rv64/testbench/Makefile",
+        "sha256": "9468acb422ec3939ac2fc9114667c5018e2a868569b6587c601d1d6675f3647c"
+      },
+      {
+        "kind": "rtl_filelist",
+        "path": "npc/rv64/vsrc/filelist.mk",
+        "sha256": "6529498bf0538122f5f22034e11166cec014306ac0e67966ccd512bf04f4067b"
+      }
+    ],
+    "generated_headers": [
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/auto.conf",
+        "sha256": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/auto.conf.cmd",
+        "sha256": "cf0a40805dd3125fe96ce04c8c0cdacaa3367cd06c034d4d5658038f0dcd60b6"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/cc.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/cc/gpp.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/cc/o3.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/cc/opt.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/basic/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/batch/mode.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/branch/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/cache/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/colored/log.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/debug/ports.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/debug/ring.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/default/log/path.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/default/max/cycles.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/default/ooo/window/cycles.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/default/progress/interval.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/difftest.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/dtrace.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/dtrace/by/default.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/expr.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/has/vga.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/itrace.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/itrace/by/default.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/itrace/cond.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/log/file.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/mtrace.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/mtrace/by/default.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/ooo/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/ooo/window/by/default.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/perf/mode.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/progress/by/default.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/sdb.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/sim/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/stdin/keyboard.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/summary/stats.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/text/trace.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/uart/rx/poll/shift.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/config/npc/watchpoint.h",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "kind": "generated_header",
+        "path": "npc/rv64/include/generated/autoconf.h",
+        "sha256": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9"
+      }
+    ],
+    "images": [
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/add-longlong.bin",
+        "sha256": "f4383c4d50bcb979e57fa800e4dcd3d8d2198c42223b3cb1b619af7241cc670d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/add.bin",
+        "sha256": "2142e467297bd8ea2ff71b268663c547303a59acd3569e50df1af36c44e9c195"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bit.bin",
+        "sha256": "8302a9a6a410b7cd431f9957474762814a41e84d3af31fa6d5836580b4897197"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bitmanip.bin",
+        "sha256": "8206f183e26ea648398184c5a5eaadc364d88dfb9c61e5bc1f0bf6e049534832"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/branch-fallthrough-save.bin",
+        "sha256": "07a08b1ae9cf65ef223f1cb9ed959e7b5f52694aa76f5804d85cc19eff756dfd"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/branch-resolve-loop.bin",
+        "sha256": "bff663994532a4d9d1f349668b65ced5d561ffc4eec07293fb47b3e56c1a47a7"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bubble-sort.bin",
+        "sha256": "b4366670fdd0b3fb2c7e88d23f828dc313dd13b1086abde39cd75a74c99dc901"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/char-test.bin",
+        "sha256": "e445d14c1e96f15720bfe53031d6c441c277ae29ba98a1b6a70b7588932dc09e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/compressed.bin",
+        "sha256": "3f1643548b84430163e7393673ed275f10244da85708ec898fafc67a0d7bc3e8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/counteren-time.bin",
+        "sha256": "5689db1a7991bacae9f9c413394849c41c3199344d9b3d48d503dbc1024df649"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/crc32.bin",
+        "sha256": "6a7a59d4b5d6750b8c8bfee604d37aff8ad754c69bb89cc2c5b10b2c43a2a121"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/div.bin",
+        "sha256": "7980c913e3ffe23f762349ffee524a13d559686e82e434ef1fa24e547c3e07f2"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/dummy.bin",
+        "sha256": "01dbe4c3a33bf506407d2d40d20c3d127b240ba30d07894f5045d3f3302465fa"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fact.bin",
+        "sha256": "d372cb0ee4507b0a5cc6d5008168869dc2d1892a49c9dc093b8cd55d5bc5bcf1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fence-i.bin",
+        "sha256": "cef50150652e8eaced47db93e8b18c36f0f6a55aa46d9bd5153077f354662626"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fib.bin",
+        "sha256": "99354c8a1a51e4337de47bf5fcf6f82e582e9f5a991344485d805c3569a98296"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fp-difftest-probe.bin",
+        "sha256": "fccc4db970dfc94d2aea513a8c73aa171c3b4e09cb0e6ddbfc47ee73715a044e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/goldbach.bin",
+        "sha256": "3d0b49397407ca7a198c58f852c63ed2a1f1a15cd72a784c6d33363f82573fee"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/hello-str.bin",
+        "sha256": "49115609fbf1b505b0158069a4515522fd9caf1a753d89094fa91cb712259b48"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/if-else.bin",
+        "sha256": "6b69814e828d57494cbe58d06b894b225627db242f24b8078171e4de60375e3c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/leap-year.bin",
+        "sha256": "63eb0932ca8bd2287d2923781064930ee62ab577140cbf825a10b64807c61c47"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/linux-handoff.bin",
+        "sha256": "c68d62399245b6a89c518547f9d86719004bc2246863d0b29f5ce42d01fa5171"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/linux-mini-boot.bin",
+        "sha256": "6b76cc153c1e6f497c62a296a4c59a257a1b45468e2438d6b964082700e3b985"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/load-store.bin",
+        "sha256": "0012faf5abc8682b6806dd975bd7c071008a5954c22e42d8a5585c5d44e8a469"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/matrix-mul.bin",
+        "sha256": "88c9ac961392ffe540d7255146f7095100cbd8102868af7d46c83c628b16f0ba"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/max.bin",
+        "sha256": "005d5d1e2dd3a296eac2777f080db2b27de0c61e8d47cdd8f9d42e50661f1c2e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mem-test.bin",
+        "sha256": "2907e4d2eb0cc285d13ec6e6039a09ae1792d0ba0c9220bf9b44c230d2e579ba"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mersenne.bin",
+        "sha256": "26df1008b0b45c2dc3a5b7b497d242637fe4627b2a5d4c0704d2bb9f65c29f4d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/min3.bin",
+        "sha256": "39568450df61732790b0475cd636cc9e37addaf0cebd091f189ce9c935c142aa"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/misa-priv.bin",
+        "sha256": "c2de5ec82d47746e28ca076761c7130d39fda01a6e3727ce3a090c7c6573ff2b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mov-c.bin",
+        "sha256": "d93fc5da36ccb77c149ca8b17d3ac898fc73a7a6d05c5127844cb9d26830dd60"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/movsx.bin",
+        "sha256": "4e134ce2f5f5f3e97ef5b7d71383eab0e43a2f07dee46f5e88c4cfa4080e3216"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mul-longlong.bin",
+        "sha256": "12ebc4f9785b08791f3f8d61c6f0ab91df29a648329769d1ff532ecfc0be5142"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/ooo-mem-order.bin",
+        "sha256": "c821cdadd32345d69dc11ae17e11152c125602a110be8881d66ec2d348b62d62"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/pascal.bin",
+        "sha256": "82a4982f12c1997b9f4609eb11fafb5871b85c1cf5e5768f4e18a4b59ba9b45c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/plic-sirq.bin",
+        "sha256": "6be9f5126886ce9a517bcf2d6237b068f24c217ea7620e274350a57a1316f1f4"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/prime.bin",
+        "sha256": "94e58c3031dd6abebb6da292c015b3f55a27e88de16efa0fd31fa2144a25fbbf"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/quick-sort.bin",
+        "sha256": "41c06b504ab650645187db1bb998fe948ac9777d3874d7dcf2cf742010044a3b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/recursion.bin",
+        "sha256": "43c36773adeb56894f02a89f6fafc66ea03c08e45fb4c662cd9d94ca38a4b25b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/rv64-inst-audit.bin",
+        "sha256": "fbbaf6f3ee0a91cc4f09611a20fae1c862881334fefe9a0ca0a1be70ddcdfcd1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/rv64a-amo.bin",
+        "sha256": "250a96c0369701c9e12095014a4ad3b6f2dbbbd70d207f49055b4085f61d1ed5"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-base-console.bin",
+        "sha256": "f4c601a1573209e329c3687b4585177e85e60e3824e15721c7a1d64d04e480a8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-ipi-reset-hsm.bin",
+        "sha256": "ddf53d4bff5b1879c14c3a6b627e35be74f6d1e2466f7958146a140965baff6d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-timer.bin",
+        "sha256": "9bb5994bc0df999f7a3fb93582ac34a5bcc48256ed1ecc87494d3649cefd0e58"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/select-sort.bin",
+        "sha256": "6a7cc3f65ce17576fa909e1710b5510dd5ab92553377dc55ebc454a92e6c8aeb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/semihost-ebreak.bin",
+        "sha256": "c50798385228c716cc6af70a31395f97348a08da0dd89b4c72855c338d238ea0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/shift.bin",
+        "sha256": "4628f3ef47a649e647c6bd893ea500e9055c0e02edd4637b3a53366c8e8f4718"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/shuixianhua.bin",
+        "sha256": "ce76164ded189638663ef0440d280952215b2245cafbaf488cbc4ad56be77cbc"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/smc-fencei-trigger.bin",
+        "sha256": "070712f94348cd261073134911182924a5e1b7a5ca55767b1a1486a9f11db6a6"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/stdio-format.bin",
+        "sha256": "cec794ec62e7d1e6e94144bf8e3c156a8b6da992d41f5137444f7f1fa86995b8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/string.bin",
+        "sha256": "7966645e96826582bc103d4cd417550825c39e7c3c467216795eb616ca5b4041"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sub-longlong.bin",
+        "sha256": "7862955a9e82a836e0bd5f74239b1a697b896f2e69f024208db3e4cbe383f587"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sum.bin",
+        "sha256": "2bed96d0e498d7f5df777f42f6fdcdd5d10b140161089d509b118fdd1e9669f3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-ad-bits.bin",
+        "sha256": "6f086a32cd079e13ed57060492db6cb707ac045594a6d5535de695b93bcdd160"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-ras-relocate.bin",
+        "sha256": "acf21d7abd4f1c6fc6cd5109c6bc19846f64e50db28567a4505daf09e7e4b5ee"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-xpage-misalign.bin",
+        "sha256": "028d823fe101b65c842abbeb5fcf8cb7bb97e374eb5ee9d1e42bf8b25a541b0b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/switch.bin",
+        "sha256": "d28249224aaf642e3a992582ce82b49d0b6966d64dc8bba80ecf09f8f2508356"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/to-lower-case.bin",
+        "sha256": "a5f9111c7c43e5e7d2410d9a92d8826a09610c35dd08e0eb65fee62481fd65d4"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/uart-plic-sirq.bin",
+        "sha256": "ad3c30794e4f45012ee3014e48ffd28f55606c35a6ee997d5007439b7e7443c1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/unalign.bin",
+        "sha256": "af08e99da09e8adbda0d2a8d102fc3b46c0e396d7be96145f618a5fb29211a11"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/wanshu.bin",
+        "sha256": "0ffe7f881a4d0382b1cf38b915bc2b6b1e3f7eb662cfdc3e78ba91b73cd17374"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/coremark.bin",
+        "sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/dhrystone.bin",
+        "sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-breakpoint.bin",
+        "sha256": "759bacf90a27050b888263f901fd5eb0ffa9c3e8b10d9c2c1add856d31c28392"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-csr.bin",
+        "sha256": "64ea22733c1c648d458ed72ca058e8e6cab07bf1bb3a405c30194b124d72ea43"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-illegal.bin",
+        "sha256": "fe618512fc09c6bec94ec603c2d4669b6f9225895d1018c00296d4ae648e9453"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-instret_overflow.bin",
+        "sha256": "c7eb752ddf7df2836c15e057636b2b3b066bbe61020cfa1fcb7667044ba4fb74"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ld-misaligned.bin",
+        "sha256": "c44e62773c367801944447046f471368c167a7b46cc18ff61e89ced9b1e10b45"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-lh-misaligned.bin",
+        "sha256": "0a625bdb1bde894e591b08910e9c522dae78cacf6f215057e5084ebb7215469f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-lw-misaligned.bin",
+        "sha256": "81a2d0f7543c87aab91ea4ba7f6df69cb54772b8b02fc1970baaa2dec4813138"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ma_addr.bin",
+        "sha256": "43aba4a5ed598e42eafa14d04575df2738a9dc1b2262e599788408accf523041"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ma_fetch.bin",
+        "sha256": "23128cb88a441f0ec5b0aa92e3ff235468a97a94e292d35d9092ba02c0cd6d75"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-mcsr.bin",
+        "sha256": "c8ab2c5fbb9cf529518ebf007812028ad1dc524efde5bf2edfaa20c2b8a3df6c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-pmpaddr.bin",
+        "sha256": "f5c82f4f85902b25a1496ffba37f4338b26a971da939e6921985125def9242a2"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sbreak.bin",
+        "sha256": "fab026d76c46c8506cb94a08cb632f2de6937d8b057204464e3e2cdc019780e3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-scall.bin",
+        "sha256": "eb468050871ee3c797254f90c6571b5dab04bb018834af2c69265c0274a165b8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sd-misaligned.bin",
+        "sha256": "580363d39fef7b89f9e2e386be8a7e60ac3fd56c1df679ebe3ed5de107573e9e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sh-misaligned.bin",
+        "sha256": "3c3de98bcf0acee9619646b0ace0b28ce19cad50d97d6323aeb3e30866219c48"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sw-misaligned.bin",
+        "sha256": "e0715db1e4a9e3efd1784bbde55edb741d3ae50f551315ce987e5434a5683aa4"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-zicntr.bin",
+        "sha256": "aeadca97e007d646ed5565e489bf1a0b805cfa321e996930effd2ad4bab21159"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-csr.bin",
+        "sha256": "2f7d31a97b4a1a8836b5b16b048e42d6d3be2d02275a1bb9e4810b27575a72f3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-dirty.bin",
+        "sha256": "302f824e3cbcf3b842793355d42fdc5011dfaed03e59cec2ab8d1b4831766a3f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-icache-alias.bin",
+        "sha256": "4557a25ddcb7abec27c88269b480cb0d7ec7fa64305725d29d8d3c0a52f7dada"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-ma_fetch.bin",
+        "sha256": "4f38f4a5a44b94c3317295c23666c5c5d6eb5d5aa6978b7de5509ec65f3ae17c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-sbreak.bin",
+        "sha256": "5a27651d09a02b29a03a577555aa3571f8196280aa72cfd8baf0f3fd7b8778ae"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-scall.bin",
+        "sha256": "16442ae5360eef6283fa542a660128ff90f325c6385c4f14561403282e63b9d6"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-wfi.bin",
+        "sha256": "00771ff518788f921c94a744180cc11a58d4c6867a7a28e02f20735727e41927"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoadd_d.bin",
+        "sha256": "40e36f29967eb4e4805ce6477ff3f3b783b42c57d705830f2472b839dfe48e55"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoadd_w.bin",
+        "sha256": "ac499bd0251351f4b1e130a27056d44e45d75979cc4af96639d6acfe7c13ac23"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoand_d.bin",
+        "sha256": "83526b92eb1da801ad8660b78a289d1e160b9b4c125d1c30d936ac216cf31ecb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoand_w.bin",
+        "sha256": "981f7712d80bd44562f82e9da3a41ec67699e500a43ca80bc887a014b467df84"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomax_d.bin",
+        "sha256": "5a72b7c6b753e84547cdab70ca9d7780b800c9c6f4760db2eb2064c37e65fcb6"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomax_w.bin",
+        "sha256": "7b8c04a10dc435a2ddde3e9528ff897203351b99f92f779560651b9278d42ad7"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomaxu_d.bin",
+        "sha256": "f5d3864b8101cbf257989c27910912f0825615d420e8ac6b1f19e3c5c5c1bcdc"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomaxu_w.bin",
+        "sha256": "505c10ab25037803850bbc52edf18b2073ddd78b15768a6a27b1030b9f04a2c4"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomin_d.bin",
+        "sha256": "b10fde08ed33e391d3ff5713e06fc91aaaac9d0e909f96332add44427e1168ac"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomin_w.bin",
+        "sha256": "4851f09c3903fa24910dd59972ef663328987e6b2f62bb178cdf7b29c1f9d117"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amominu_d.bin",
+        "sha256": "5e6b8e0bdc3c2c50052ec5d43972747e350316163eb08091236fbafa8d7ca7eb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amominu_w.bin",
+        "sha256": "83740d372ffcb61e19f26331c8f5d8c533d65cffde907bb8b2c9656ceb7dee2e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoor_d.bin",
+        "sha256": "c9afab2a4030512754ec44ad51f1e8624a29613681448e5d45ded9e797a2c171"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoor_w.bin",
+        "sha256": "9754b97b64e07d958a6282a148d26f218f550e94f4e724a60878c5c567e811ed"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoswap_d.bin",
+        "sha256": "019138d4a449c94f2983d64cf02306e2a0ae07feed0ece548550806df77bafbb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoswap_w.bin",
+        "sha256": "896e94d947929333edc5b7483a3f23f39a0d13732e92d2a721c2fa607b1151f3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoxor_d.bin",
+        "sha256": "93d5ee153afebc219fd10c90c8799b58115c27678637e10d2906c1828cbe0ce0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoxor_w.bin",
+        "sha256": "a23e3c5246e5bf6181c96e8e164fcc6ec25c8b4ae0f05f49eeebc1b9233c6708"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-lrsc.bin",
+        "sha256": "b934d0ff06ddb997af53c9be2710ea84278a1001f4c87a937778c1a58cef8beb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uc-p-rvc.bin",
+        "sha256": "d11f34f3af9c0724bdb29392691fe6ec38679020d44e62de83bc6256ed1fa132"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fadd.bin",
+        "sha256": "b0e889ab180282b4cf5e6c57aad517ab7550809d64f0cc473d6b915a95b895f3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fclass.bin",
+        "sha256": "b5100addefba2520e1bbb51e3ce674b327cc5f6c520fc7866a9a558e4e44b35d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcmp.bin",
+        "sha256": "0513970de2ddf14819bc8d70b2e526c18da9487a281272771b1ff12a2efb97f3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcvt.bin",
+        "sha256": "0ac6c2fb446436b221ab7b4cc0022dc9bb9dd8e4fd2975348876ea88d67e1d0e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcvt_w.bin",
+        "sha256": "445e86b8b46053286a56e2087568d83355d4ada764ce452c00e4e4709be8f92e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fdiv.bin",
+        "sha256": "bf081a07cd10966e78a44a59916f2da5d22e1adb56dedafa44d3269aa5b90abc"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fmadd.bin",
+        "sha256": "04df09e50d4f00cdc41abc6a91edea03e104c6d50431b97ba13a159d39551a1d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fmin.bin",
+        "sha256": "16fe340833f9d20de8929da17b51d40300445a0da83121f52f8fb162cf301d94"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-ldst.bin",
+        "sha256": "3fb88b571e6628e02017cd30299d0cbb9f4f25fda0880e6c2459fe391652b54d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-move.bin",
+        "sha256": "39228c2a37a0907671708e1f7b2d9aa764eefd15563b0b0879e8ff21580827f7"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-recoding.bin",
+        "sha256": "75981a7020a53723f745c100b9fc05946a2782a61b478050c0fedbfe1212e267"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-structural.bin",
+        "sha256": "f4a62ea79e01a2943c4a1aa54ed53b92597640168f9a23752bf14dd9c3bd3f2c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fadd.bin",
+        "sha256": "de456b0c77d3b3e6e1acb2fedbfc6a36ee1ee8c69cf9a9f3f4d80362e3508992"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fclass.bin",
+        "sha256": "da0f54056f527d4bc1607f26774d685dde856fce4cf6942eff0b218bb0c27e5c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcmp.bin",
+        "sha256": "18d301b130316c7a4dd6484c5a8f892aa0231ccb59b31989ea038bef8d304294"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcvt.bin",
+        "sha256": "d625880b74f7b97c409757846041172d5e93509cf9b79702a612170935068a5e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcvt_w.bin",
+        "sha256": "fc5f80f2c1581c2a1b8dcee8fe5598cb80b1ccd878ca5c5c731127d63f250863"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fdiv.bin",
+        "sha256": "a169bccfc06c73ee84565aab803639927d3d21b773248d67218b5c9622fde1de"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fmadd.bin",
+        "sha256": "ed00e3e01ff59b91cdc3824e3e2ae9ae63a1c3364e189fbf33a79194f40b5c71"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fmin.bin",
+        "sha256": "a3479614997bfa55019327d587ba04f10f67dd86e114d4073385ea8bca36af1f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-ldst.bin",
+        "sha256": "1aa70a8aa263a27757a3f038ee25ade6ee3189bbbc23e5617ca1ee9fb7cd80c3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-move.bin",
+        "sha256": "e77d600105f5adae64cce494f6fec18c30d4f7ee19eea08d22b7e5e1f12273fb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-recoding.bin",
+        "sha256": "b3d139f51b82815a69dc2acd83dd16ef3e3b98927059ee1fa234bb889b892b47"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-add.bin",
+        "sha256": "5e0de399fa1191cc396b73a5a2a95af51d64d7ebbaa03dfa707b231227303883"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addi.bin",
+        "sha256": "6aa27611ac4914609dc0bd1fc2c5348bffb0459717524f0affbd8259394dd9ca"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addiw.bin",
+        "sha256": "73eced0e4a130e15b35aa8b5a9acb6c303caaaa1102d84fcd1d8bdba191dd1f5"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addw.bin",
+        "sha256": "3fb84def959f1446056d6c66941da4033068109c752cffdd96a0b472a58fa79f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-and.bin",
+        "sha256": "dc72de604bc42485e0271c7544746a72de89a570ab090bc55b203f680671cf6c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-andi.bin",
+        "sha256": "8757079a76ef41dfc130617b2144c2a0fe418991befeeed1d912695b9341e51b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-auipc.bin",
+        "sha256": "5737a743ca924512a42d40ce3e3b2dd5044b3d3221c219f4aa8c4617a1295454"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-beq.bin",
+        "sha256": "518cd4573367f0d382361c2707ce33b41d330608e868ed4afee028e81207dda1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bge.bin",
+        "sha256": "5c1462b5fb4cf846b54fb69e3e94ab0dfee308c1991fa2293937c80fda1db72e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bgeu.bin",
+        "sha256": "66b061fd0f306e8f148bfe163c0ba5d5631335d0c30bea3bbaed4f8b0bdbc1ff"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-blt.bin",
+        "sha256": "844f0e1f0d01a1c092ca75a06d5aa321622ed07f969ce592732b4cbf0c79d377"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bltu.bin",
+        "sha256": "8eac0b7cdff8e5ee7187e6ea44486ed76fb448c89b8b324773f7ac31bf663fad"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bne.bin",
+        "sha256": "fe4ea4101123b640952077d483c6f65f58819ce80577a5ebf86b67cec6a0d5c3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-fence_i.bin",
+        "sha256": "001bb2441512f111a6966ec788c6a0aa6ba0833b023be3249aaf1fb336dcf51b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-jal.bin",
+        "sha256": "97c289adb0a05a00ecfc5e453b799362f5c7eefeccd8de28a174a27f42379926"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-jalr.bin",
+        "sha256": "1a870f25986986f0180de3fb002756ce815fa493103da6f14038f285dbd12def"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lb.bin",
+        "sha256": "fe5efc3cf1cb425553acee7541d20eca46c4b3d722e5cf2371b7dcbd148f92d1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lbu.bin",
+        "sha256": "4213656b18ac462e7ec26d3792f43f0b7343d516ff1de66e67d8ee3ac5050ff9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ld.bin",
+        "sha256": "7fb6be2f482e67be0e3af4ed092baded2c49edefc7c017a648a37165372ccadb"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ld_st.bin",
+        "sha256": "72cb9b77ea434075d99cb03ab327c7dcd17cf3f8ff6d52341aaf52f0f47a4dce"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lh.bin",
+        "sha256": "341466d1395a140faab6a5814b30ab4f83c0551f80d0d6671c0ef76683ec725b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lhu.bin",
+        "sha256": "4df1d87d56d9353beaba36442afc43b86b3fd655120607d94b70d22963bdd555"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lui.bin",
+        "sha256": "56a456dcc5e9f2ea4c77cc466e720ea79a6c17e01aa529e7125b33546f13e037"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lw.bin",
+        "sha256": "36a994d5c817f93d63d3af87a26dba769f7275c41ac5503e6e8afde59108b5fe"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lwu.bin",
+        "sha256": "ff0a91d6b257411f081481518152421d17cf1eacae6ee9970615991c5ba05889"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ma_data.bin",
+        "sha256": "13510f7775f6b00ec9758047eba52b9762391479124eab48c0b70e2ebb9f374a"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-or.bin",
+        "sha256": "78225c1a4ebbacbbec69375927f62aa3151aec634f201e25c3adbbcc59e97a93"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ori.bin",
+        "sha256": "0919e2c9836799768872805903f4f273bf3a6ca54bfb787726a7a9fe52a1a17e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sb.bin",
+        "sha256": "aea94b4b941d5a381806f6d6ab89ec571a2358eb7ac1e5a5209ce6579ca4adee"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sd.bin",
+        "sha256": "a6242e8c759d72402ec92b7359c91e1985c29f08d9603a580d8dfa2c6bb5d07f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sh.bin",
+        "sha256": "c02250cb78530fb2fa56a57e05c5c22df5dcdb4b18c1d81f6eb84f0076f5f7ec"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-simple.bin",
+        "sha256": "caae9f5816f6ff2f9a90cfb68eb3e2cedbd701e0fbcb30cf8171df39a0fa97c0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sll.bin",
+        "sha256": "18becf549a748446c93404fc8765a111595178cf4cc14195a0f31d18af131b32"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slli.bin",
+        "sha256": "fbfa31452bd8b73e1f436cdf83ab84d265647ae633ef41c57f6eeec474a06b94"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slliw.bin",
+        "sha256": "7d394b5a2d0dc7339db3c2253a8b0e8d732a475b925ff8abcadb08b7e1f5879b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sllw.bin",
+        "sha256": "ddfa5d1ebc4a0b4a327168239aef60b0ed3e2fd2af3bb3d70c95ad80e3379d30"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slt.bin",
+        "sha256": "ed0e65bf51d7fc4cf676ffaaab798796ea3533d8d640629ab3422a5baed9fac9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slti.bin",
+        "sha256": "5e33686b1f0a37a1b98cb1982517ef6cdb48a8074b9abe0ed2a750f95b2235e2"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sltiu.bin",
+        "sha256": "9858d08fce765bb22f43a40258c2444346e42baa10b2be7b687609654812f39d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sltu.bin",
+        "sha256": "da9c47137f6cb7dd35dc660ad6c7125a64b29ea28efeee1ff7f2f34f04f4d86d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sra.bin",
+        "sha256": "8f6a33066b58bb8677937fff5f2bb8f0c0bbe09492adfbba1b91446838c37a5a"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srai.bin",
+        "sha256": "58932bf914fd2c79288c5c2879669571b2562c4865b5009fc38af52ebf118c3e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sraiw.bin",
+        "sha256": "c57e317cdf106796b258c1fdf2bfd8565ffb40d68277c4bf32993d6d43c39bc3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sraw.bin",
+        "sha256": "b9b9e8362cc9b690e492d19e6991671f1fecd4eb423d4b5db55df69260726012"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srl.bin",
+        "sha256": "31177e38a90aef3df4d0156bc763fcfb14e6eb91813dc3602cdd026f0641c8b0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srli.bin",
+        "sha256": "0e3348cf25e9833f3894b5acf831b92064825f05f57d98f3a681c69df1b39428"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srliw.bin",
+        "sha256": "e8fe166c0b04a7ef084a82c33809b4aeb0d45574dc4da7560bb1ea7e998ef9a3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srlw.bin",
+        "sha256": "e912ffc7f56ad5844b242c2a0e8c79909ed0a3140ffccd8b29d9038be79d02a1"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-st_ld.bin",
+        "sha256": "e61f1fad19e0cee7c85d55e1a86920a692ee499a95ccdbd4fd211e148f61c357"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sub.bin",
+        "sha256": "3d112840acb08e32ef43ef5bd37d5eed92261da52a866ef7d1229afc028850dd"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-subw.bin",
+        "sha256": "b1da1b356666b94e50970e427b03b68eb46edb0514a062f27a935e356b77180e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sw.bin",
+        "sha256": "eb76e441433952d6781f3525265b31c213532d4d418844ccc0c8ee04c00cc679"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-xor.bin",
+        "sha256": "b606a64937436d5c4f4f074785589a8afd427a603d4611cc1e5e953cfee64f96"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-xori.bin",
+        "sha256": "2a1d90b9a3c60dc7e7d231e01a05c0a1d8d3ca986e0c2f602b617bc9c5d3278d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-div.bin",
+        "sha256": "44f3840869e0cc074db1ed335c932519ccbe34f1d866807cf86ffb0743c953a9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divu.bin",
+        "sha256": "672440b891c867bdaabdb9c9eaca0dbe10d4a04794829edbbc5c130fdf85897b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divuw.bin",
+        "sha256": "a8d5711ccf23018c73208a0f422dbb7c1e905e738102d4ec7c2eed2dba9a217d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divw.bin",
+        "sha256": "bb0d9bb0a24016c4cb11adcd4071e8bfa516605d0f5860e2ca7a198e7b23788e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mul.bin",
+        "sha256": "01f2bbace777f073716b8cc5091a3e863c6f3ccff53f89b23aa00ba6696f8ded"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulh.bin",
+        "sha256": "fc6fd7c53853a5e5d14990bb6a3421d00530c06b778490af40b8541bcd7b76e8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulhsu.bin",
+        "sha256": "f6983457179bd80659fd1afbb9024cee384b3ada4996b262b57faeb49a85d2ae"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulhu.bin",
+        "sha256": "f0438bbeeb21c46bb99761757f0413bccc69e6e5f33bb0a01d30e57f72c268f8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulw.bin",
+        "sha256": "5c7d95105555210e28b07d58c81048f6f78e338e2bd8161c88a8cec0535bd956"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-rem.bin",
+        "sha256": "e82f781f5b19120186f630daa68af1dc202746ea31852f1c808d0eb6383c9326"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remu.bin",
+        "sha256": "5e6f1723551a16bd7868daffbbe9817055f707d43374a7eab9f6cd5e80d0ed51"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remuw.bin",
+        "sha256": "f4e559c92755434d1e876748d7c9199e15d419a2c73fd4616b7fa9ea4b09f9f9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remw.bin",
+        "sha256": "cab5034a4b8b98c4420e369d0aa35d0f35271d5efed7e159bd0a027b4b4f8f24"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-add_uw.bin",
+        "sha256": "0aa918cab4e34388264e8098188820d738f44369eb5829ad847a65210809fe4f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh1add.bin",
+        "sha256": "4188c2ad410b55bd716f4c2b5297c5a87e04b19e117b7cd69de1bceb0d630bb7"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh1add_uw.bin",
+        "sha256": "f5ff38ec3295945c11f73a714a2f55791b2310d4822bc9cf01e4e3fdb018705a"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh2add.bin",
+        "sha256": "1bd567c563aa3412339a468b45424a817f9e5a2bb6bee85029b0773e571cb4e7"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh2add_uw.bin",
+        "sha256": "0074b1b96e82aac4d68087d00870690e364fa5ef58194df4a93d3b6bc321f2e9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh3add.bin",
+        "sha256": "4a9fa44ae324c163c502187fbd91ab065b1a1bdc260364526e6545a00e80566e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh3add_uw.bin",
+        "sha256": "ae8f68b876fefa498f3a6844f0fb8f0f4aa1b8abd5d9efbc26ab34cdd640f23a"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-slli_uw.bin",
+        "sha256": "15b0f47a599f0f0c0d0aaae5e5af1ff928f678235cedd081876bad8a4fb8e32f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-andn.bin",
+        "sha256": "f19811cbb497c05b5d6e5826225333ae8478bd04946ebc2a9133a70200e593fd"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-clz.bin",
+        "sha256": "6ba3a3bc33691afa8d79aedd4d97a9f4c6a16f77b4f073f24dbe96808612be88"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-clzw.bin",
+        "sha256": "33408c5db8a984c06ddb78bc3eddde3d8c4dc1d1b0cabfca2336d557c5ae1813"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-cpop.bin",
+        "sha256": "54d9c69097cc7b5c6d74ece7fdfcca78f5b4c47197fb2033da8b8c995d2fbb6d"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-cpopw.bin",
+        "sha256": "d38e270e6f87084436a7d4d3dc269712e1f051d578c3f04e1f07ddc48156b29e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ctz.bin",
+        "sha256": "93c879bd6d9e8052df6c2347e190adf55af18bb6b038e6d5f2c3d471faedbce3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ctzw.bin",
+        "sha256": "6b828c243d4c31420d1653b451e86d6828e3ed6f7223500e72d8cf71acb65de0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-max.bin",
+        "sha256": "6194cb4ce3d87cb3b42f08c42303d9d17be9d40e58fa3fbf0f6498667676db83"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-maxu.bin",
+        "sha256": "e6e47bd13db350550048d36260bdf5c54cf265ccf628201a972cf84aa47e6d55"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-min.bin",
+        "sha256": "1dce3122d4f7af347afe0704cd2287d2e841d95a33745018704ef4c34c53791c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-minu.bin",
+        "sha256": "e42fb382e38e338157a7a09f0af61b81e1adb55fce8c0238fbc18a1f9f854c6c"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-orc_b.bin",
+        "sha256": "e747140fda5bf4c2a9c7c61baaf50e98f11d9a0868de2929226a73897c24d89a"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-orn.bin",
+        "sha256": "1dc85c483efa1dd9ae3caa4ac8b83652a9d703b17e19200432dc03b7344f7860"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rev8.bin",
+        "sha256": "8323caa090d7bef716030ff48c874bb610e4bcdafa9f40650b67b65b5df587f2"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rol.bin",
+        "sha256": "b30437b4efdc38041fa7f3359789077de3c4b0354cffb8e557ea373cb3d12fb0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rolw.bin",
+        "sha256": "4ea26f5aa28665049b718ca9c205a14211eb22a23d6ade4abced5e6f86d19040"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ror.bin",
+        "sha256": "00e3f4989872295d4cc789ca5157c7d3f4e79f960ae64dc5a4a9f91a8b142b02"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rori.bin",
+        "sha256": "dedf00a9bb2ad52ba976e88740212cffdb2b38241368d634ec25cc88c4e66b1e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-roriw.bin",
+        "sha256": "d0eab7105f35eb9f734d2ec7d0b324b75837d4c2d0945ce6f7ac3bec01571f7b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rorw.bin",
+        "sha256": "033a1c7ae08aa96a008e3bd79de503629bf9ee854e6ac95af66a4d47e6a72115"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-sext_b.bin",
+        "sha256": "5eaaaa6053c3f1df1397b1efd948ca59a029e8d4cb9e7e109017e12aa93ff1f8"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-sext_h.bin",
+        "sha256": "f65dd47398f516e100712d6007e634099fcc8e73eeb780ce4557fa1f376d5656"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-xnor.bin",
+        "sha256": "5c9520fd4b5b92c89d63a8125af88be702afbf8361042b894ec8fb96668eb9b0"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-zext_h.bin",
+        "sha256": "b7684eda4bb87bb88bd76be1a5b41c4799d2a21d94881327ff419326b612901b"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmul.bin",
+        "sha256": "d144029621d295b0c2ad5c1dfc2dcfd2162695e8c1605400060e8e9dec2797dd"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmulh.bin",
+        "sha256": "d14fdd7c58a57a0035f5ca09c2df530c963671bd1ee1cbef9584b52755637731"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmulr.bin",
+        "sha256": "a9215a3d0608c6d4f3d495d947fc4f808241ad42d99292913dd9d3d75bf71e1e"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bclr.bin",
+        "sha256": "f8d5a36e757e695191986e5601ab988354c85febedc4e76cc78c25fb0609392f"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bclri.bin",
+        "sha256": "37d0418280baac2d769f3145216ec157e06966460815bf5740f2f22f6e306f42"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bext.bin",
+        "sha256": "c3b71a5fb246eee19e888009d61837fcf6b2c449d2fdb8af289f60d927e135c9"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bexti.bin",
+        "sha256": "793fe375c8e13a7b1c7b5e6f4af73049e37cc664e477bde2cc7555985a92d4db"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-binv.bin",
+        "sha256": "8471d3e0a7b4a987ad22ef20b34cecb76d725f29f9c8a5a284e34c7a1032c894"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-binvi.bin",
+        "sha256": "8974fed3cb7c502d42aca753d05044e2db6f8bbd3243a23c4377d82bc5977b39"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bset.bin",
+        "sha256": "31e4ba324b166112ff91fd8e518c314831ff07fefbda4bb1e90f60cc7fbe30d3"
+      },
+      {
+        "kind": "program_image",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bseti.bin",
+        "sha256": "937f8e935000f904dff522ad07d3ccc9f029b6cd2cfc072ef92ff2cefff37c97"
+      }
+    ],
+    "liberty": [
+      {
+        "kind": "macro_liberty",
+        "path": "npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+        "sha256": "ddbd7ba12b76f06efa81b59bfaef9599f4a337e52457679a8d3462ca3441699c"
+      },
+      {
+        "kind": "macro_liberty",
+        "path": "npc/rv64/syn/macro-lib/OooFpArithGate.lib",
+        "sha256": "864b2c7d088d18819de5375c2aaba161b5cba9ac2f90f87bf39f6a38f9d92bfe"
+      },
+      {
+        "kind": "macro_liberty",
+        "path": "npc/rv64/syn/macro-lib/Sram4096x113.lib",
+        "sha256": "ec50e7d4a37bd389fe365d425a577aed93c49f260faa428bba2cb3ef43070f67"
+      },
+      {
+        "kind": "macro_liberty",
+        "path": "npc/rv64/syn/macro-lib/Sram4096x199.lib",
+        "sha256": "8ab0ad9dbdf1fd04ef4ef298a76738f0b89bfb8dd0a59436a2499007b695c8c6"
+      },
+      {
+        "kind": "standard_cell_liberty",
+        "path": "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+        "sha256": "55c129ca0f03a409622e6c309f7f2da3034a003323fc6f4e58ae2225ed416264"
+      }
+    ],
+    "macros": [
+      {
+        "kind": "macro_inventory",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/macro-inventory.json",
+        "sha256": "1415453d2ae9a8c1e9eeea0ac9dfde9551978ff96bc35a6b1267322cb7c7bcca"
+      }
+    ],
+    "specifications": [
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/ROADMAP.md",
+        "sha256": "2206102f044176ba907e72914e44589551321f2de10149cdbc281156e181f3c3"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/SPEC-TEMPLATE.md",
+        "sha256": "b46d0203c91a0da637ed1a9250c5f43908d2d9998c2552b0600459a67c499d19"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
+        "sha256": "66e699b3d0ab38710d77c8922377045a0bf9424eea5938120051d119cb9dd14a"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/knife-b2-fetch-time-bpu.md",
+        "sha256": "ba5d3cfb92f53683e51d158626e2e83125f7df947dcb32b230a6b4fa659ab4b4"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/knife-d-dcache-hit-fusion.md",
+        "sha256": "649d685164013ac492b41dad0cc2c47ce84622facea4d44f2f2b62090e8a6fad"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/knife-f-fetch-hit-fusion.md",
+        "sha256": "5790fdd39401ea834d84074741117ae0d73dec1101f14185451909985fc11346"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/knife-x-mul-latency-recovery.md",
+        "sha256": "7b42cb27d8aeea5bf82ac3ac64d8614e520c6f227675e5d80291c2b03160355b"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/mem-lsq.md",
+        "sha256": "1c66f925cedd8f38540685f4fbc2cc118d125bf3bece53b6ff1486bc63de8372"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/ooo-core-architecture.md",
+        "sha256": "91aaf282af1e8c20851efabc19a7c058217154c4fb5756b6838c6e9f3a1e34a7"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/p5-repipeline-first-batch.md",
+        "sha256": "a42ce36eafa986413891e5135816dd2fd83ce37a6d00469c8c971f0e5a22803f"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/performance-counter-schema.md",
+        "sha256": "80971ec78a1baef3bfa2a5c4812ee3d3cca448c1540e6fc80cef35c7af6fa591"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/performance-measurement-contract.md",
+        "sha256": "6850a8c51380f610364cfccade31ab7acc6af0dcb80e6244037f6b0636c6d2ab"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/pipeline-stage-boundary.md",
+        "sha256": "fcc280855848047d79fb201dfc2b8efc159a2912280c089c783367e22c54c532"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md",
+        "sha256": "0d39bb431f84b34eb5b3fdbb5595c78318416f4a67114d2d55842b4ffcddcea7"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/rv64-200mhz-completion-design.md",
+        "sha256": "c06277bd12ad3ef78f4d13f509d1ae6844204ac3f856c40d73d148140721da00"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+        "sha256": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+        "sha256": "cca5594daa47c9d96e52edbab6a746c4def03c6ab6653085a9b426bf2f89f496"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/serialize-at-retire-phase1.md",
+        "sha256": "b0c582eef1e639cd6f10ea4ad562cd77d9df45e6fa8e7d4da134413eacbc8897"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/serialize-at-retire.md",
+        "sha256": "bcc93bacd529b7bb00abace1af0a99d5dfd55fedab181ed26e64f645bb644db4"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/timing-dispatch-issue-path.md",
+        "sha256": "8b8ca2afb2ee904beb27162ea8dce4a3552920d18a8a686057a67097850acf2c"
+      },
+      {
+        "kind": "architecture_spec",
+        "path": "npc/rv64/design/arch/topology-analysis-2026-07-11.md",
+        "sha256": "496f4bd0b76b867537c5fcda5d355480607e778593ec0cfd711975e101184c02"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/README.md",
+        "sha256": "0aa0872b67b6da8ef7ccd892de52ee8db3d41d4d0823e2ce9fe7a82c871b8467"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/axi-plic.md",
+        "sha256": "d8110a20b264eecabe9c6c60842691fd975365a2491cee9ac23378c50e0e679e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/axi4-bus.md",
+        "sha256": "1306cee2c9dcf91afdface346e7ea7dcbd88031bdf32a689c9c3ee55544f6d16"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-backend-drain-tracker.md",
+        "sha256": "7cba98e91a75f5fe3719bc3d5086c623b9793e2631104805e6b29ec5715f3763"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-append-dispatch-gate.md",
+        "sha256": "69b9ac902afb7c3b5e1676d6d5e1a351c1ff5427ef494c168da4c5fdfd1f4952"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+        "sha256": "8ce9c45dee62aba17815ee01960d2de51eb2c319ddf497608c8e3c8e5d439cd1"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+        "sha256": "9f1171a89a47b51cfce6e006010c7c0c1d587e083c3edb7052faa7137171ecfa"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-resolve-producer-authorization.md",
+        "sha256": "477e1e47e9856d6c076d6066f3da2bb1a9a630f9e9bba9c6b12805cb5a2dbd61"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+        "sha256": "1ea72264691f31ce52b6db4f288fbfdc5639348d37736b282c3eda7de9d78577"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-branch-spec-tracker.md",
+        "sha256": "734f133207443f94aa7c060ab3846d9041e2a16d39690a3a58c7d174f90f28ab"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-clmul-unit.md",
+        "sha256": "c474f29b26a931fbe20f4918221ae93c81da891a5cfdb11bba2aa7644ee296c3"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-commit-output-mux.md",
+        "sha256": "92378ba6e20aeca9be970dc7e2961b1f96b4db2fc0044499d09afd2da35aee1c"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-control-commit-sequencer.md",
+        "sha256": "fd84e6de31a380e81752c2992bb12d1f912c9a3365af9c5e25fabe5da982dc0e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
+        "sha256": "01a47aa3ce6aa55b1bfc15b202d61142335a04f752ee6eb8243d6b07da67d8c7"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-control-flush-sequencer.md",
+        "sha256": "5d6b61f1a0d31e55762f99dab2a8b5db3afef69fce17f2ca3fb3b26fa572112f"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-control-plane.md",
+        "sha256": "a3aed824cdb8dac2d48a4a3912a68ca6c324d7cd742aee549d3994e56b5b0962"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-core-top-glue.md",
+        "sha256": "038cf223c25a537a61b69925196a9c2c54e27e814831b875c45bc72df3a6bb59"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-cross-domain-wakeup.md",
+        "sha256": "15b5f15a2ddb5a395cf59cacc4fcc2350ae6c53524fc9962ee9475c25d02f0ef"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-csr-access-request-mux.md",
+        "sha256": "752c010aa1842226817b6239ad09e802a1ef9f9e0dcfbb3c85bb4a3a5f3b31b9"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+        "sha256": "7e86098f8334a2e9e478d4b279bd979ba1134116875d19a2e53b86b09925e871"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-csrfile.md",
+        "sha256": "e4b104511b96479913d72377d409ae8393ff49232ae6e5d68c07f498a85b9099"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-current-system-recertification.md",
+        "sha256": "43f17a5cf02b54ea5d6bffdb2d02a3143e4b33b0695a08547bb247be6a20900d"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-data-word-cache.md",
+        "sha256": "656d6d910e8ad683188de36031e3b5225bc35809e7a2470fd817720a050596c2"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-debug-observability-architecture.md",
+        "sha256": "26245780131078e664554ae75ef0dbea4cd7d5c33cfe53657a8014184dab9599"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-direct-branch-resolve-gate.md",
+        "sha256": "eb91822ec40120c6045078cd66471a5bff70af996072a2e69f0c8d7239af22ff"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-direct-branch-wait-buffer.md",
+        "sha256": "260bc8025d38531b9ba896a0ca71ae2d3f9609029844dcaf44250dc40b3aff0b"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-direct-ras-candidate-gate.md",
+        "sha256": "c7f4340560857a55a0c10fde88783c5877e18f492177bee8f6f6d8996307c88e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-drain-retire-redundancy.md",
+        "sha256": "45983a5e1bc867a95525d88bd0984a9ac8f3bb1da9aa5dda3632faded073aaac"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+        "sha256": "d2061f5202c27abdb9cfe82e29e235f56282430948a31ec8e45e948c10fb8216"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+        "sha256": "dbbca6e84c079fabcbb3c1c90f1b26459b5bedca898d1d2bfa2b2d764dace2d8"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-ex-sticky-wakeup-barrier.md",
+        "sha256": "29095c508ad3f20ba63c85056558d73ea4f039da4e2c39f76b37757d1833cf04"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-execute-backend.md",
+        "sha256": "198a28a528c7db8aba954e7f856cecbd8e1163999b2e659baaa631e96afe128d"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fence-drain-ordering.md",
+        "sha256": "4b4682fccd48dbfa60de8a6eb5a9e9441d0252ac32a91a40046a77ceeac957db"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+        "sha256": "e7ec053322de2af126c43e8f45c78fca3b126fe121e0ae1a0917ead29ea49a87"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-branch-target.md",
+        "sha256": "ed2022ecf5bd85b52978d112895b92cccf41eac7ddc8346eada4e6a7f56aa703"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-flow-control.md",
+        "sha256": "65daafffe7c9d3339230c8614a79c96819113383dc18a1d7890b4c3809aaf0bf"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-head-classify-gate.md",
+        "sha256": "d69ff9e2307bb21e610bd06941c222fe4462a823036a7459404d3fa02af6b77a"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-head-pair-gate.md",
+        "sha256": "ac746b17c72009c8c032bdb1db360a2e1fc9e2dd6f1242af4070036bbf4738b2"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-packet-cache.md",
+        "sha256": "5612f4e8d9f504ea41819b0e23be5ecc4cf27476b98000bcf5bdf2bb8efb4976"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-packet-decode.md",
+        "sha256": "bf2cc75ad9ab1789c7a390e355476b5e178a71e8041de45e53bcc8ffa0f2a77b"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-packet-fifo.md",
+        "sha256": "57f3399f767009de4ff53cb009064a6963c061afa8e2285b2541b9c4158f5823"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-packet-head-mux.md",
+        "sha256": "628d3c8ef7ca4570f33606bb8f8b4d0f3b7045df409c03f542a8aec8706204f0"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-packet-seed-mux.md",
+        "sha256": "01c9952eba1ebea1fec01a1f3d13b26e4d2fdd948b5cebc8aa46e0c4801a9f1e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-pc-outstanding-sequencer.md",
+        "sha256": "724eff48e2889784405b96058de47409b80b82d54efb3885b6ac5f193361aa6f"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-predecode-bundle.md",
+        "sha256": "558dd38dbdb80ac073bea12e44e84044b8696d88be1d94b244d4729cc24fd1dd"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fetch-request-mux.md",
+        "sha256": "fe12b07db62799dc1a9424ec6b020f161e18648f8ae547c345962401113b3a32"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-flush-redirect-contract.md",
+        "sha256": "e0db6b8a741d9910471dd8c3369097a80e94b6869307e8eba934729d9224555f"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fp-admission-credit.md",
+        "sha256": "645c90a5fe6d8af92dba32326ac73bef937dc5b43b4f25041ab67e2d31063548"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+        "sha256": "19943bd92e719a592b81e597592ba9741c867e85ea1cf85b45777c8040e946ef"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fp-producer-lease.md",
+        "sha256": "9ef62ccb9cbb036ccde7a17fc1a95a082408cf0ad12102d9b2761050131cdecb"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fp-reg-file.md",
+        "sha256": "9b4dc6e0eefc6bd87f453e4ab38d013bce170c1c82faf74ab388d70d2d51550a"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-fp-sticky-wakeup-barrier.md",
+        "sha256": "9ccb2962a775adf4f3af96ea093c8fec1c1b1971d17f3d5dfcdb4237e7f7c511"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-frontend-action-gate.md",
+        "sha256": "26369e56b591f73d94d81bd8d253a736554026ee8de678679022dd7eb7afebce"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-frontend-backend-dispatch-mux.md",
+        "sha256": "d20da9be96fb13a75aa9b00fcd59b44327562d569c323d0d12049c54418c33cf"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-frontend-dispatch-gate.md",
+        "sha256": "c3ced0905d813e3f077474606da116a4773e34e2a386d5294e7397558cf75c26"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-frontend-run-gate.md",
+        "sha256": "7f385fa6cebf70fbd5aabbd48771023324233a434dd4e41b736dd6eefe8a57cc"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-frontend-uop-safety.md",
+        "sha256": "5f3f5fa7f0dc184ac8d9c0ccb638ec12c0f8ecce35c8eab9e8a440d6c3d3a382"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+        "sha256": "de50c4710751fd80bd526ea77e1fa28c0dfe083574a8d64d45610f6b57f31f1e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-int-issue-queue.md",
+        "sha256": "2b4981ae739adf015de3bdf102381994a438669c9807d83b0c0ca94bab8727ee"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-int-to-fp-sticky-wakeup.md",
+        "sha256": "714f69ce3d0af3734ebe077e5be2d18eafc3225c99c93414c76acc18bc96ddea"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-integer-longop-producer-lease.md",
+        "sha256": "1c796631716525da29012036493685ac699fd46912c1e38a3885607b4580ead0"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-load-queue.md",
+        "sha256": "8f991470793f52b53a685ae5e39201fd8a01c8f44a5a0febdb13dc1f76d29abe"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-longop-fast-broadcast.md",
+        "sha256": "55bd771e926c73e1a1306ba2564d093d5ad874dd68d6f07cc2b701e041ec3183"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-lsu-axi-lane-adapter.md",
+        "sha256": "b448d442785a877144770079a07613b5d0e1e9f220e675ae1ba5f1df10fe2e83"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+        "sha256": "cff90c251c56f5311983f111d022bda65a7e35c66eb82f686ce11c1a8d04af43"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-mem-formal-only.md",
+        "sha256": "0668f6fb7e2ebc7c721eecaf3672d4f0f7362267181cd753df5e613708992859"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-memory-access.md",
+        "sha256": "4c34a48cc4412a1a59f11acb3b4f20b68f07dd013ac5f6d62307494ba74767ce"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+        "sha256": "a3b4282f0899207a2ff8da7b9d33822d51620b0745f3245551f04042b4df25d4"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-memory-typed-abi.md",
+        "sha256": "18a01675f2d38fcda6d9d73c498754af02ac920973aa6f6874cea78a71e57e1a"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-mmu-epoch-owner.md",
+        "sha256": "1c87d124019f0ee51a3b9c38597ce9c0397cad981a1df255fc96f673b9d83f81"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-muldiv-unit.md",
+        "sha256": "2d5f9860cf2dd45c675d8d909c5863d9cb2c354e741bc75385817774e04b51a2"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pending-dispatch-arbiter.md",
+        "sha256": "9ca3d68fe664422fcf81a538f3b220555d028252ce0f9fc0dbc5b6afd889dd51"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pending-lane1-capture-gate.md",
+        "sha256": "ff8f9c86b4f0f97664cde79fba15966b692e03777f53f99c9fdef72ebe0eeec0"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+        "sha256": "4c457f671fbc5f59ff9cb34d6aab8ce65c57479b2cbd07f074e3bc6f91b770f2"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+        "sha256": "5cf340ffaeb1223394ed6bfc6fc4dd82b6203b04503bef68f3a12d6c74795772"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pending-trap-exit-sequencer.md",
+        "sha256": "99b7565a4f5d2edcd36876ed30740ade156a81d0429394b212545f76bb242520"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-phys-reg-file.md",
+        "sha256": "576793ee4e951e1661d9bace2093591d60e99078ac8e2001549a05a2e5fc5eed"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-pma-checker.md",
+        "sha256": "6cfbbde524516b48cc0dc440e29ab02dd6b97a8bbc5d76fc68c72b5005c3c40e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-ras-update-gate.md",
+        "sha256": "10eb3bcc04dcd757f889165fbd3f38643fcb6cb9f0924231c11c439dbef87da8"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-redirect-arbiter.md",
+        "sha256": "ab9a472c0d61d224bb9b641a8a5867673547938a166f3b2ac6a0a7ee8ef4f45a"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-rename-alloc.md",
+        "sha256": "44f56fda70ebf17c1082ad2a0c85f9e2060b314f8f9281ca9b20de3e41964884"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-rename-map.md",
+        "sha256": "b7a3926001cf2ca387d9fc11b811dfeda080a0df168fe8582488ec91fd78fa36"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-rob.md",
+        "sha256": "ac9e0e9b0927e047c5aae19482d3f8331169023d407720fac3fc89b0e459ab99"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+        "sha256": "7e23b978cc5acb71ddfea4018f39335fc5bad0701a6ef6c30123bc0186519c96"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-serialize-owner-birth.md",
+        "sha256": "9a5c457d84ba139daec1a9103f6b13a5bbdb3c1f66e202ddb59502ad3347c9c8"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-stop-pending-sequencer.md",
+        "sha256": "75bb156d2b3dca2a019009f699e54df1962dc327618b0702f50fc8b4df841b9e"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+        "sha256": "674bbeeab8c4f107ed95c72b20bc3acdc86e7c8b1fd1738600a67f018e4878d0"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-sv39-tlb.md",
+        "sha256": "fe4a5e508d227eb46fc3d630165f5921845cd84b97f3a0652cb4c5912c2d3301"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-trap-exit-event-mux.md",
+        "sha256": "a1dfbdf9b18784394552e09863f15535d307eec561a52a30b4bbb7ba5c15c6eb"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-trap-exit-output-sequencer.md",
+        "sha256": "6416dd7af06b8a8f867bc8f2b8f989e0e6417f496719c0ef4ade896cb2e22fc2"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-writeback.md",
+        "sha256": "e529adcf12fc8763a7c9cfb9ee431c76b7b94781dfe982ebb29646ed7b84c383"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/pmp-checker.md",
+        "sha256": "09319dd5ee8725ab1ff838bb535fb4a44ee2bf03a811fc95a2495527a225f8bb"
+      },
+      {
+        "kind": "module_spec",
+        "path": "npc/rv64/design/specs/yosys-macro-boundary-contracts.md",
+        "sha256": "301e066ad8fc81127d90c0a97173db4a3d5357d10f58429dc15e5e8584a1b858"
+      }
+    ],
+    "test_sources": [
+      {
+        "kind": "test_common",
+        "path": "npc/rv64/testbench/common/rv32_encode.svh",
+        "sha256": "4f304dc71e654a523bdaa5f511afc2b7a28769f04c9bd0043fd5164cbb6f6d01"
+      },
+      {
+        "kind": "test_common",
+        "path": "npc/rv64/testbench/common/tb_common.svh",
+        "sha256": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db"
+      },
+      {
+        "kind": "test_common",
+        "path": "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh",
+        "sha256": "f3899f8fcfca9af39b1092f7acc7f36eaf019082b8f854c136db2664dfeed633"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/__init__.py",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
+        "sha256": "a6a825b36a6913560e3d64f570db8080336d5378aec1bfd8bedb871cf7b96a6f"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/check_serialize_current_evidence.py",
+        "sha256": "065a7c7f63ec5dc59670facd47c21bbbab3830abea98fff4497911dc5497437a"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/check_tb_result.py",
+        "sha256": "e7e5efa8c1c7e6aa36c750a68c997df31f8ff8abbeff32d4835781914bedc332"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/fixtures/tb_error_then_pass.sv",
+        "sha256": "704e44b7bcd6626944efe30214a0a143586c2837c9faaba39738f5cd41a190b3"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/fixtures/tb_false_green.sv",
+        "sha256": "6ed62af942f23fde180b88187a632c8b03b1fea79e83c26e4a77d9cac50a79fa"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/fixtures/tb_true_green.sv",
+        "sha256": "b099d60595e7861b9256507a67354b86f11a1b1777388cfeceb71db6928b253b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_axi_dpi_sized.sh",
+        "sha256": "2d388ff1ca5b269113bece8c6ba5353ebe1b84b47cfc75f174abfb2ebbbc2dd5"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_csr_vectored_trap_mutations.py",
+        "sha256": "7c51393e00a0c332b2ada14567200bdf48d18e230660b79295e3b5380b0eeb5b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_historical_exit_current.py",
+        "sha256": "dcfbd7b88f2ac4898167f4f2f4902d16be1e755992fb6f14e680fc617bc877e9"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_ifu_access_assert_negative.sh",
+        "sha256": "f2537b21af3b6c785e1df9d324c095670be2874a43dcf1dcf535f39baf36e409"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_ifu_access_footprint.sh",
+        "sha256": "e9ac16f239f1b9f395f56a0aef92569f000db08f61db22ce8f86d2efcebd976a"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_int_alu_terminal_capability_negative.sh",
+        "sha256": "7b961fc259b1a1456bf6ee4aa905c3de989d109d93dea93c4acc3a4f1bbdd3fd"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_int_dispatch_packet_packed_assert_negative.sh",
+        "sha256": "466458875535aac2f2750c37613d321733a00981214b47e7ada9f15c546a01a9"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_int_issue_queue_packed_hole_negative.sh",
+        "sha256": "99f64b8e6755ad05f01e56b426c6dd02c4dcd498943a12b4f58456b4a8632286"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_terminal_duplicate_current.sh",
+        "sha256": "a79747f1d77c9c8085500b88d53c44a0227e7b767e88fd832f230a987d5c2fd8"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11i_terminal_lifecycle.py",
+        "sha256": "9e56eb7fe1c1c804d4e4bfdc349798147adb9666e560e50d7cc985b016385bab"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11j_bridge_holder_semantic.py",
+        "sha256": "5fb78605203bf563a2d334591ceda3e93647b45c949c6845b9ba22d79f8644e5"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11k_miq_holder_semantic.py",
+        "sha256": "c06ca7fbedc9314c151cf4c6f74213abbaae598dcc012106ad64e4915cec7e34"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11l_memory_retry_holder_semantic.py",
+        "sha256": "7c9c5f64486442d7dfb441b124569d266323a768c93af428dae45fc80017639b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11m_memory_reservation_holder_semantic.py",
+        "sha256": "5c01b094e09e3006305f20078fd8bfa1ad824c2777f3ec49f4280ba0602c8d89"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
+        "sha256": "4e5812f4767387eb1ac5126649b108e94c27cb093a938d58c388c4951df26a6d"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11o_memory_buffer_token_semantic.py",
+        "sha256": "7377dd73a13e399c6f739b8e2d7eb3550a285c4e3d6840acc2634c8e0bbb490b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11p_checkpoint_irrevocable_write_semantic.py",
+        "sha256": "e35b2479d026ee20dd6b2c2cba782301cfe2535cb5078632bcd762e8c6fa1487"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11q_int_lane0_packet_semantic.py",
+        "sha256": "ea14b52707ff85ee339d78a814a4f63ab432d47ebf309d6febc083af53d66597"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11r_int_lane1_packet_semantic.py",
+        "sha256": "5d6ee43669cedbd7700443a7a7ea6903088a966f25f6d598a6c65d9510a3569c"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11s_muldiv_producer_semantic.py",
+        "sha256": "3ab6ffba4b4d31d8b89623e7ba09c936254bff45488004e6a98322c81e698160"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11t_clmul_producer_semantic.py",
+        "sha256": "adda4886063276e2b228e8b7c1046e7b408aaa6a394041c161e42e813ec8802c"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11u_pending_system_producer_semantic.py",
+        "sha256": "2953b22e4f7353a5a884798ae679b2fd0db44713b2f5c616a4100ce66c1cdb77"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+        "sha256": "10542543dcab24fc15312490bf604e8c639932b583bfcfe95e8a6cf8120fee16"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v12c_serialize_qh_current.py",
+        "sha256": "9b2c9af7b3e97d598c7e94d6d83aab5c379faa5e5c36b4163be6f4e98fadef88"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v12c_serialize_system_current.py",
+        "sha256": "1fe26ea3e1f42355f2954a9bf59a39fd9ce05c1a5f6b7372a47e49b5da3ef55e"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v14g_global_producer_owner_fence.py",
+        "sha256": "5b1b9d4569b65208ce48a179969de10e387b6e5a42e246d8794182121b738b82"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_check_serialize_current_evidence.py",
+        "sha256": "3546fdcc3374d26fec760213b325d8c5271b15a079fc5015632eefe5480764da"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_check_tb_result.py",
+        "sha256": "a1dc88622513458db955d6ff3f134055cf8606d296035312e4d043fe7c6ed503"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py",
+        "sha256": "f8c41eb8a3e3b07d6af42c3672d09455b53a25d0e8eb6d539c39faa5d149f15f"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11i_terminal_lifecycle.py",
+        "sha256": "94d8aaa7c4c412f202a5f901ec92959c285c5098cef46ff8658ff55821332acf"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11j_bridge_holder_semantic.py",
+        "sha256": "438b724ad59db81d6d6dd31960ffe2fe2953bc10b53d134573b6e5684a635a01"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11k_miq_holder_semantic.py",
+        "sha256": "d5fbd00bae6aa51450d579d8619c7eacb09070c0e46078b35ff2434cdd2f8cbb"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11l_memory_retry_holder_semantic.py",
+        "sha256": "8857df480c92b14ff0777ef816e05b7ff3a4f39ea140cef655d8b91bec6c6261"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11m_memory_reservation_holder_semantic.py",
+        "sha256": "21dcd71132a0abd995a486baf864cae65a8367713a351b5096c86c82bc875200"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11n_memory_pending_holder_semantic.py",
+        "sha256": "1804f93533fcd25d4ebaa3e0c1aca4677853be132dbe89d50cb5492e8aad4c2e"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11o_memory_buffer_token_semantic.py",
+        "sha256": "feca485d14556e4002784e63d5b5a8abd3dccaeaaf523f819bcf1c4ac9c4bc76"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11p_checkpoint_irrevocable_write_semantic.py",
+        "sha256": "217dd17304b91bad30b054597af37867a6c51af01e052f4f971034f6763da7de"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11q_int_lane0_packet_semantic.py",
+        "sha256": "af8cbb2723e8261b35831894d9d1abec3528ddb7dd0c43d24b54bcace7025b83"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11r_int_lane1_packet_semantic.py",
+        "sha256": "32fce9c71aa6dbc98fabb50eba58b754b3aaf41f6eb9939ed34d03998d213cc2"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11s_muldiv_producer_semantic.py",
+        "sha256": "2766e5828105cbe238ace25d7c416eae2d48cc82599436eeda341952cb436685"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11t_clmul_producer_semantic.py",
+        "sha256": "09b9e7794c26abb734b13a6b815f7405cc0371894c71d65349b1acff878dc8c8"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11u_pending_system_producer_semantic.py",
+        "sha256": "ed7c0644e0c3fd9d7a970bda37747dadd5dfda753e6efe39d74a4df50e19a21c"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py",
+        "sha256": "8c79f95a5b79e62df5bb084de75996fef3e4d8c3372816c11dffedf4424aa47a"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v12c_serialize_qh_current.py",
+        "sha256": "a98d273208064fa379f37f0fe3c2f8e1085cf03cc165154c1789e0685cdeab5a"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v12c_serialize_system_current.py",
+        "sha256": "505d490d6cbe00ad045930bba6ca4b68625c54aada0d966e34dfabee8e753815"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_v14g_global_producer_owner_fence.py",
+        "sha256": "d891591909d36aa26bf175baf05d58a04cd1abff1c4a60a9a6412accf0246589"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_alu.sv",
+        "sha256": "58580db3b14701c112c1f0980bf96c340c04f0ed07f93fd0c211401e455dcd71"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_clint.sv",
+        "sha256": "0a95dca122ad71a9cc1ac0c64b3447c96ff2fa26aded27fb315e43874ed24426"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_exec_firewall.sv",
+        "sha256": "6a1e77a79720ac662c95462f4afcd3dffc539cd69808d2bebfcae8ef131da61d"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_plic.sv",
+        "sha256": "c1f5a9d4ce71a7edabaa3b6940a33c1ca090b786b633891043dd45a837dd72cb"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_reset_syscon.sv",
+        "sha256": "078d005ef303fc93565afe632aa6ee955045bc2d4c303a3187de5b18e6cf7023"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_to_uart.sv",
+        "sha256": "d0cf23b2711faa47a35211dce765f94967c5ece3c2b8c7f1e3330501b8556cd0"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_axi_xbar.sv",
+        "sha256": "953a29d09ac11ba615dfdfc362b6e4994e2291aa47e4b09af7ca0708567ec079"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_compare.sv",
+        "sha256": "e373e40169e8cfcdd76481912fd73c784947086e7c6de53da91b47a8df65faf4"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_csr_file.sv",
+        "sha256": "95282a75fe57288ea6276f4de12b20abf28846c4f7c6410acf6b4a206fb6802f"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_csr_file_vectored_trap.sv",
+        "sha256": "75592064103213658e210391930f3cfdda7f2b7bd3628915f0fbe99dd0bcb2ee"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_decode_stage.sv",
+        "sha256": "d2e991aeb25007c5dfe03c7b0d2ce9077491c5ff09795515704e217e5f597177"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_decode_unit.sv",
+        "sha256": "540b50498239a5c51576d3ec61ff6157258da1dfc64aab4ffd64cbf2b899aca8"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_immgen.sv",
+        "sha256": "cf09cd261f82a587fc297371eacbe88735c4ef70df958af0e50885ce06895853"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_lsu.sv",
+        "sha256": "834c470bbe95e0294c1ac76dc3ee8e4dad2c92846d5a9a1735c9e4f938009dbe"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_lsu_control.sv",
+        "sha256": "5590deb5291c576b67a3130518e3c9d5e882e1c37a226302c609022f57e92eb0"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_lsu_datapath.sv",
+        "sha256": "b85562f3cf022b96747c612fa1b539731114f529901f1793e406b0105c1a4270"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_alu_core_slice.sv",
+        "sha256": "4a0aba86715bdf9ed69e1a39805327fa2898b18d67bb4989e52cb52f44b01f6e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_alu_decode_backend.sv",
+        "sha256": "fd25f42bb8aba3af0dcdaff217ca8a03d44bd6d41acef6b40f9d1f6311617706"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_amo_gate.sv",
+        "sha256": "e259e8edc4c9a31dba0c4cbd20670093f42aa0989899f8a57ec39e486df02557"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_backend_drain_tracker.sv",
+        "sha256": "60dfb02ad4d305c92b435ce268a50a3a376719bc7c8cbd2bad6af4c7ed299991"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_bitmanip_gate.sv",
+        "sha256": "6ed2b7f42d317f16053fd33708a61a733f1f95b26e487d620edf98556c0eb655"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_branch_append_dispatch_gate.sv",
+        "sha256": "b25be25fc5a736029f79bca7c8a61e311f5d882508ccd687fca14c2310eef7da"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_branch_bpu_update_gate.sv",
+        "sha256": "bde13c03e91bc2a652598f5df86e92c1cf080c12fb92652f3ced59b2c60cd44f"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+        "sha256": "9a2a447f73d7585b64e742a7d7937fc4f9308d1a3c1d87ef6a8359a38843bdb6"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_branch_resolve_recovery_gate.sv",
+        "sha256": "8a575edfdc2c5341e56d9cb91d9382b4118e8aa33c12f52e8667cdf28c62657a"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_branch_spec_tracker.sv",
+        "sha256": "e15a62f1837b119bad0e9b5c050cb1c0f9570d6fdc5899b0c974b3cec6640455"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_busy_table.sv",
+        "sha256": "7b4b2a29f75e6a2243a4de85d2e0d0daeba589981ed97006f7884a6be3524822"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+        "sha256": "9139cd6245a05772c4e4c0d580fcec580e4b198d35982502db9363281de3c456"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_commit_output_mux.sv",
+        "sha256": "45042344893a40f5a48c3f348a57a1308bf964a76d74d768391b884304577737"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_control_commit_sequencer.sv",
+        "sha256": "0dd18d6ef66ba4c983c5269558deaa10b41e3fdc8d6e5ba055e4e95fe2b9f3d5"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_control_event_apply_sequencer.sv",
+        "sha256": "e637153f377947bc865cf067f2a0fefe01f4b986b49beecb169e1328d035ca43"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_control_flush_sequencer.sv",
+        "sha256": "1ec559ee8d322f2e2735c197d95f75b1028dc475279ad2e33058b65416344d69"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+        "sha256": "a6cd3c93d42109b9319e4fc9e5544cc0b0a2e52ee576c645ef4fb2a433e928aa"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+        "sha256": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv",
+        "sha256": "cc499ce89bf915b95745241813f6298615e0d5c3f3e6c201ebb2e917b22f449d"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_data_word_cache.sv",
+        "sha256": "ec365384303805d687a8775f3af72e5baa0cf6c8655191b0b0d554800682bdd5"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_direct_branch_resolve_gate.sv",
+        "sha256": "299c36b31400e1af13dc0996088798585582bdc74c881d8ff17101817405c413"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_direct_branch_wait_buffer.sv",
+        "sha256": "38d15aa7a1b4e7b561c3816f9b9b5dae7c40ec11a46b4e542fb212b7a9b52a31"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_direct_ras_candidate_gate.sv",
+        "sha256": "977aa8a9c2b97943a6ec7b5dae8f7bc79739b022212734a6fbb8826b9913a11e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_dispatch_backend.sv",
+        "sha256": "4318e83604e8bef66872a0e56a7af3cda8f08088ac16978765697f053b7d1b93"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_axi_arbiter.sv",
+        "sha256": "79bdb317fc08a85f3f44701d800ec8a3b7cf7f3fae976f8b8f50df3f015981af"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_bridge_wrapper.sv",
+        "sha256": "359ae78e4f9c9e52f228e6af3b2feb3e17d40782e11a78d91312ead773cf4524"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+        "sha256": "aa1f331c9f054482c6fa21c1420b53b8ae50374e3ce7618c08379c735cd1e56c"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv",
+        "sha256": "39a6851e0b374f39196e4329c9d0c08f8e847546ce2989eaf43ffc8e60f4d270"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_access_footprint.sv",
+        "sha256": "be383e88d54738dedeba630896e68612b01ad8afdf47de559e53ee3733e50f4d"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_axi_access_attrs.sv",
+        "sha256": "0ab826e4a915fe88f98e8bb729bc9d793d2daeca3529f791249252c8b665312a"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
+        "sha256": "bab9479a2007900879bd8469ca992f9095dc6da2d597bf63ae3fb9b145338bd7"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
+        "sha256": "81d60c8cdf9c17ff921941b704259946252cb2ce95ecd2e70d1a224f1e9831dc"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_branch_target.sv",
+        "sha256": "d968990f3840f5362129c5df82a248a4554c04a8cfd6896fbc728362f55b84be"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_flow_control.sv",
+        "sha256": "f569f3c9e9f45f5eaee33c97a8f330dcabe2aaba1c683efc0fb22484f6359bef"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_head_classify_gate.sv",
+        "sha256": "d8d992629c1e2dd8e571c06ba8f6d03685f7ffc042243cde34cd5de7a523f6e5"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_head_pair_gate.sv",
+        "sha256": "d915bd3aa5a26dbfaf0ba7bf8f1a02511b079138a304853015d521524246b1c9"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_cache.sv",
+        "sha256": "87c8367cc8ecf2627cc98ca1ac62c0b7dae336585f0ff19df22a669711088f76"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
+        "sha256": "010c25accd130f302fc303edfdb2baec6a2d3b0c36fbdc171cb487e2466adf8c"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
+        "sha256": "cb9ef9aeb64de26bc5b237df4ded11b6c31c948094de9a3d44ab8bca9c94e8b9"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_head_mux.sv",
+        "sha256": "eb204755b68f1a393b40a281c763b0000b528950e2bf9775e421500bf1cbd016"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_seed_mux.sv",
+        "sha256": "d9344bb40b8b72e3c01d63a1c2bfc736c0bb10842eecfdcae2578daaa05e0375"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
+        "sha256": "48a8128a093804836e68a0cf72730295731eb1f71443cbf73b6b723a6ec8e6e5"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_pc_outstanding_sequencer.sv",
+        "sha256": "4ae2120390a2c8aa29922c91572937c770945de18f5583410eba8164b6d5ec61"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_request_mux.sv",
+        "sha256": "4778e6c093834a73d9c97fa2691ed40aba75a9e45f5167e473ced040ecb80447"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_static_classify.sv",
+        "sha256": "369f50d045799d25e529f199a669b8197f0e65b42ea1c93c9430d1f24b1a34b9"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fetch_trap_gate.sv",
+        "sha256": "4179219921488d42e3bc537412786e072d6bb723e4ef33b7c04d054033b91cc3"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+        "sha256": "52c953e42e82a42800cedfe464ab8d5c49e654135834a7de73c7d8205fcad643"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_classify_gate.sv",
+        "sha256": "844ca92c177fa7cd36e8dfc03a0f3e7bbf26ee9de5dabcf2b1183399c852749b"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_compare_gate.sv",
+        "sha256": "5b2f3fc1cd248d7421009ad0185bbb5f705db611b6ec0abcb4cdfce93dfb5ffd"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_convert_gate.sv",
+        "sha256": "9fa599b8aacbda2d93ef6d79d43afdd11b2041a6ccc91dded4853d9e74662882"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+        "sha256": "425ab9f3bde5d053ae0110eb927929875bbedc5398c0ee7570fb253fb5e7710e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_iter.sv",
+        "sha256": "590f3c49c21853e7a70943627c09a8ecaf546d0f0c0a26d83b45ed2971414fef"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_legality_dispatch_path.sv",
+        "sha256": "550b928c419351ca181e912952c06e221aa5a612564e4ce061acdbcc324e7591"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_long_op_gate.sv",
+        "sha256": "6a176eb04fdd6a5a49037f3322ad0c8e875431bfefe8dfab6253d337ac075fa9"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_phys_reg_file.sv",
+        "sha256": "46b69eae3ab630dd02618bf486ac4eef181eb3b2811e87e5f9c96b01ccd1c5e1"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_reg_file.sv",
+        "sha256": "aa0b40463cbe0fb93e78aede402f20ff9de304b48e07d867591da34635840b77"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_sgnj_gate.sv",
+        "sha256": "d7b889369716369fba4f65335f4d1e468c8b58a9933ef7912444c0d18752c836"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_free_list.sv",
+        "sha256": "e543cf7e793136b8298bd52e3ffbb4271d08f2344cae47c1553a8f8c0dac0289"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_frontend_action_gate.sv",
+        "sha256": "019220b32111812193f6ee8bc9c14c3b4acae3f4487b9655f5467dd9522ce740"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_frontend_backend_dispatch_mux.sv",
+        "sha256": "f585c264f5e2ee8cc2e1240dbb82e6331369ecc5fc44085b237d30dd0e5ff31c"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_frontend_dispatch_gate.sv",
+        "sha256": "7d7d1c1281e0d94bc9df4f766d54e584d3555795a4e441eb2be7d7d24dca84a7"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_frontend_run_gate.sv",
+        "sha256": "7f19df4b80fa3cc26474bd2e9b6937a24aec18d7a27e8fdc13ca0f786162efad"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_frontend_uop_safety.sv",
+        "sha256": "6991a373f336783e964e013619a4bd5e78ef8729c56611270e82a3a2dc03bf90"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_ifu_access_assert_negative_driver.sv",
+        "sha256": "c8b3874de8ab614dd8a49d4f3235d0bafcf12af3f5d5d5660bb6039a364aa191"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv",
+        "sha256": "3343b29197c910713841a5e8582a43b58a24703ba8c387e8598e0119df821e4b"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+        "sha256": "842d1c89f83b431a716a47a53fae0595eaf7bea9111157195396d5209af23c89"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+        "sha256": "60e7513f3939bf14147049853659df9204295f3e72e44b371b52425573e0c2ba"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+        "sha256": "6e04121271a2e7f31781054d0e874823c74c382adab1b22af16859b5f520d933"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v14g_global_owner_fence.svh",
+        "sha256": "7adcddde51ea17274ef6d92b6c02e15b97c6e44bd1db8aab2fb501095c0ffc3e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh",
+        "sha256": "efaa7a340ce27a5df4e519c302e028319ce6dafdd8028628ca96483e5108c627"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+        "sha256": "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
+        "sha256": "1779aa1a56cfbf21409d093f5db92f264d8a76b3f8c6c316960ca83fade27a74"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_load_queue_producer_semantic.sv",
+        "sha256": "fba6eade2179bd1c9fe350b437a951efd0522bf6980f814761c0bf7d7e87a780"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+        "sha256": "17675c45fb4d8079ecb6ac954ae7b654ab8f4ee63b3487c4b5ced5ac89b4b739"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
+        "sha256": "f9e09766ecf9eb6e40e4d350c584af29ebc069f60a4f5aca5275373ebad48555"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+        "sha256": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+        "sha256": "283cc43b7dde240b3d12c9c61820afe8b9577d737468508b7a4a26a848710bd0"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+        "sha256": "e80a219ae920d53cc630bb80bab86607592e2dd8443346beddd197837b52ef5a"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker_cursor.sv",
+        "sha256": "31cc9c2699d313b0bf6697c4e92d9882e1b27a8678671035db9aeb3aa69a6698"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker_semantic_checker.sv",
+        "sha256": "06ad5c9cffcaa4828091be5bd7c81ba137f04893087ad88c6c275644d80d08c1"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_memory_request_gate.sv",
+        "sha256": "f0131ca7c65af2037c25e76e7e12f08ca99d023aef278768f421e4944ad3034c"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_mmu_epoch_owner.sv",
+        "sha256": "e6661d3bd830b63c672c7bf4fcfb75f5a4e43eaa889c2b2fc4e59fa7cfa9f670"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+        "sha256": "74b7277b89e269945d44c08460dfce036a32ea7c18f0467b885077b69c39fd1f"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv",
+        "sha256": "049415506d00b2d09f0f6f46dcc01dcca0a2b84d784a40ffad8e19b70cf9655b"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_dispatch_arbiter.sv",
+        "sha256": "d73c02d4e773c4dd06bd3d928e0b4fe63e6e8c15cf9a9d3bc0fc59741a60debf"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+        "sha256": "bdb8191629d7868e2150ef3f2d480a9d2767f26256133c8e6b12a386dd1e968d"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_lane1_capture_gate.sv",
+        "sha256": "8caa8cd8ad19946d2040451eb10527a6cd3267afbb6b31dca842e9fd47b29700"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
+        "sha256": "f37c48e9f744f5e1bd65e5c653d8b6842dbc671b9dc965ca24c9a454b2a40fcd"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+        "sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+        "sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_trap_exit_sequencer.sv",
+        "sha256": "c26d1c54001b6ddf9a1ddb2a2b1d7a0130d91b791109c297eff1f38b079b767e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_phys_reg_file.sv",
+        "sha256": "3bcd63607a243891c94aa3eabb3df7fac08798b51415ce33461ef1a2a45f475e"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_pma_checker.sv",
+        "sha256": "f3333ca045278234a1741de81cbe46c27a32f543585b43c3c76bf09caba07b8a"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "sha256": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_ras_update_gate.sv",
+        "sha256": "192c9d4762344e52f9c333f95af738129a3e2213affe90c077a3aa49eda7352b"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_redirect_arbiter.sv",
+        "sha256": "7140202bcc728e76b6274f08f6d0e37d6d20d32829229b3732e9be5673faeb53"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_rename_map.sv",
+        "sha256": "a296aab784f3d1608ed18d454cac04442019066951e9bcca699f0389fc5d7b08"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+        "sha256": "6c5881089fc1437d40f15532279dde1e0c8b1359d4bd5c47ff03b4886a87f4f5"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+        "sha256": "533a02415276c6c042c83bb04a848ae698f8f1ce94fc6d30bbf33150291f5481"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer.sv",
+        "sha256": "95aa37812eee0ed60fb48014649df65ca152c0ffe1ce2e184bd8bd69a17c7f59"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_stop_pending_sequencer_assert_negative.sv",
+        "sha256": "0adbde5ca0bfe080f758020af963370963ff48403f257e399d9cd3b6576b0433"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+        "sha256": "6968ad0699be59e7166064bcf62033d655185c688cb52aa4cf80d8536cb67823"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_sv39_boot.sv",
+        "sha256": "11d4614f30d72c28d78b806b29308d76e96a0f5c3a8eac72950a39b2df0725eb"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_trap_exit_event_mux.sv",
+        "sha256": "cba58d99d251af430230524655dcb203a39d919c469c45cf4a8495405920f863"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_trap_exit_output_sequencer.sv",
+        "sha256": "64784d280b103a617e222578eabb23c3aa661a879df1fd5a368c5ae9c5147e92"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_typed_memory_classifier.sv",
+        "sha256": "eb1dcff06dadc24b67b428c0a1fa939b5f5adaf75bbde4c6aeadc713e657c9eb"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_pipe_stage_reg.sv",
+        "sha256": "5a1491e7914b50b76fea0d29c0de84d0fe3874b0bc394493d8f9e4e1c1935519"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_pmp_checker.sv",
+        "sha256": "390bceee53fc09ea72f8c40228ea68c304f1355ee02e67b2cdf20d126685730f"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_uart.sv",
+        "sha256": "a9cc288e0c34542790bf2bb331cd1ce29c17429eb616381659de702fbb7951cf"
+      },
+      {
+        "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_wbu.sv",
+        "sha256": "25c0e72072692a5c2ccffa012edc517ede1e622b8359f234ec4e468c1ce6118c"
+      }
+    ],
+    "tool_versions": [
+      {
+        "kind": "tool_version_manifest",
+        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/tool-versions.json",
+        "sha256": "c4b344dc3051315df5f0ec0841e730802142cf3cdd044cd27bd28314f5967dfc"
+      }
+    ],
+    "workflow": [
+      {
+        "kind": "audit_test",
+        "path": ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+        "sha256": "5ccb74fadf8266aacfb7f38114eb1819a2aa43a49c3a0027fe65bd3ead190d2b"
+      },
+      {
+        "kind": "audit_checker",
+        "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/build-current-census-evidence.py",
+        "sha256": "4a18fba698e063e3607f792972ebbfcdf7054949ca0d8c32b412ddf44aa57364"
+      },
+      {
+        "kind": "audit_checker",
+        "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/mutate-v8l-global-lease.py",
+        "sha256": "c6b5f4a7542d233dc69486578d6973dc1c8e40e8d64c199f3de2e5453b55f50c"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh",
+        "sha256": "af2398d1433e74846df39e294a83e27bfc377cbd3c6641d6941d38ff653cdc6f"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh",
+        "sha256": "76ebb93546f42e949066b502a74e04568b80544cc31114a550837fc20c7cd3f1"
+      },
+      {
+        "kind": "audit_checker",
+        "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+        "sha256": "80804cd9d289b9e4a0086b264de0a46fc01b7fbb3a0b8a4777f83af16cdb7cf6"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-26-rv64-v9u-vectored-trap-current-design/run-focused.sh",
+        "sha256": "e9d53aee806d0abc09d394a7fbd18c85dedc89d2c6f25e4570dbdd7a1c505fc8"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-29-rv64-v11a-producer-holder-instance-graph/run-instance-graph.sh",
+        "sha256": "3ae26414e48696972ede53d6e01f34d80646ee12d73661fac1ddda81d0cee438"
+      },
+      {
+        "kind": "audit_checker",
+        "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/build-terminal-collector-evidence.py",
+        "sha256": "0c2aa9bc111f01fc07caa03e83ac3fbc971d0f0964b07938aa26cd3c7c1d8ec2"
+      },
+      {
+        "kind": "audit_checker",
+        "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/mutate-terminal-collector.py",
+        "sha256": "372776e1c6425ed81f0f07304d0a7600a0e88195e9225e881216419301be5a1f"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-29-rv64-v11b-producer-holder-semantic-coverage/run-terminal-collector-focused.sh",
+        "sha256": "fd5377c3837802de26bcd337f4b20ecd311c4332fcfa0ef58cbddcfdb115d72c"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-29-rv64-v11c-memory-tracker-semantic-coverage/run-memory-tracker-focused.sh",
+        "sha256": "9ddcfc6ba68f37c4b3e6bfceda5e7ad7b63a734d9ea058fbc597f10b14faf00c"
+      },
+      {
+        "kind": "audit_test",
+        "path": ".github/task-runs/2026-07-30-rv64-v11d-memory-tracker-cursor-semantic-coverage/run-memory-tracker-cursor-focused.sh",
+        "sha256": "ee917fa6b227f5a89dbdac884392040650ce487b2c2d6029a988cd0e7b09bc5d"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+        "sha256": "7ab2a753fe5c93d3a6163b64f6a7d90f8a38280c94e6b6a5ecf18ab2ac84e5be"
+      },
+      {
+        "kind": "holder_semantic_policy",
+        "path": "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+        "sha256": "f8f77e71feafe0b585d1c8f47ff5acd7771b8819496eaea2850dc40dedd9a507"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+        "sha256": "ba73ab3be961b5626593b50c86d126796ab2e9fc246e77ccb6c9aeba811c0fcd"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
+        "sha256": "d81bc48f7c4c4d2728fc9869da6a0ba943c05a0e9f0cf38a3fab0fb205fbb762"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+        "sha256": "522b45d18f1f3b9aa6e7c12086515946c6fdb35ce81571c366d24d4275b4e1c2"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
+        "sha256": "3723d9a437bc4972e3c1390978ef7493444fc2513defe1a85fd0e64c53d11aa3"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+        "sha256": "10325db82110ffd854a28d420f5b2c5fa867dfab7edf7b8da0f804a7602876c8"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+        "sha256": "8f80e3b5b2115733e85c87e4723b56e1f9e8a80ae3c4d15a71a222fdf3407a19"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+        "sha256": "bfaec77c6b3fb60f3fca89f13585283ae639cfc172dd7a47878249acbdde5e99"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
+        "sha256": "070352b0ce67003630f97219e2ef3a9863817ef4b8027bbb2396ab45f0422265"
+      },
+      {
+        "kind": "audit_runner",
+        "path": "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
+        "sha256": "f4e8d3d08c50246f98097d1b526089d4c450ecadf02264a3817d459552ddbfc3"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v1.schema.json",
+        "sha256": "04e460d0505ff9a97a87c31b8bde340825b88b113b1e285e6697c901a1cac7f9"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/arch-stable-cohort-inventory-v1.schema.json",
+        "sha256": "4f122522984dd9a2929b6b36a6f6661c3835298095487bc55d7b2eb866c7a364"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/arch-stable-independent-review-v1.schema.json",
+        "sha256": "0abe11050145aea40a8d0fd4ff409a75d2924ab4f159b900a55473f501f5956b"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/arch-stable-result-v1.schema.json",
+        "sha256": "e2d8161da30c53beb748948657c7cb7795eabf90766727188a5e7eda8efeb4de"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json",
+        "sha256": "7cfb6ce81c19fdac5bbb0548ef08095981a1acfc783a8eb6ee38cd1e7408cf5d"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/architecture-debt-ledger-v2.schema.json",
+        "sha256": "41168dad43d28a8b609edce538bfed4f75f7e5b08057429e55caadc70a546682"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
+        "sha256": "2fcde0b2fe3ab2c73837080fc9c6f0868b025391c5f5499eeb33d7e01ad960e4"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+        "sha256": "44aa67be84340a83b744d21f080c384f578f396899710317d805556a804e0973"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+        "sha256": "bf5ffb471e29e10eaf230e178ba140561004b0bd92602e3f014d4ea80894aa8a"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json",
+        "sha256": "f55437e42a4ce8d40cfe71f649793b073514f0d89011d9e4a5fbd1bdab8393da"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+        "sha256": "966e877c657c889be2a5c6e752839e1d5e40be20a30b20d9c9b4e33b9973bfb2"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py",
+        "sha256": "26993785bfcade4fa6474e2afa28a579d14de6fcf323121cfa541adf702cd6dc"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+        "sha256": "ecd1961b3b87af398924583b5d2e1f2590991f0309d7ed728b4a288858ef9f46"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
+        "sha256": "f64c0d9d317e99618b4923a4a46974800526be3e96812c4998baf54b7cbd0ec3"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_architecture_provenance_replay.py",
+        "sha256": "2246a728d51358912cf2f11132bd25fd9e08d19df0ce098d1c9c08fa4929d3d8"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_fdg_arch_trap_evidence.py",
+        "sha256": "36581a91ccd6ec2bc26f3fd7b26e21d5d980386fa62b6f521e1a4bdf8c6a7111"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
+        "sha256": "73e582cf2542c8a5f402d57e8af07cffd7c4414a27d8274a156b66485da02175"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_functional_archive_rehydrate.py",
+        "sha256": "2c954003b74f95fb20914dea845b489c73649fd1798e2a44115811f8a26f033f"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
+        "sha256": "a959ae5f4a8a025fd4194dcdf272f78a0a38605a0fbdab0b4a9818893e00175f"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+        "sha256": "101f2000f5a6f5810f4572afd00d9641bb5d2e462677252f4f412b7dc3590775"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+        "sha256": "59fcb6de7aee4815417adb157fa8dddafc824a6144295c32270f809cbe811f8e"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_ifu_axi_flush_drain_evidence.py",
+        "sha256": "d2938eef094a000bda3557090eed59f6638f9d4b69047858d166b5f16e3db1d1"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_ifu_fetch_provenance_evidence.py",
+        "sha256": "631d4dd02850d00ed0f7ba5b618fd8fe2137cc28c7ae038f81cf9aac7b6dd0e3"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_instret_retirement_evidence.py",
+        "sha256": "0016a82691dd6bd1fc1c4498fc9bc70facb9a4aaf1a7c121ac0c936855026041"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_irrevocable_owner_residency_evidence.py",
+        "sha256": "b489e576ec6a8b086e356d6539d5c6ff5e9d60c349557b21fddfcc4a58899ae8"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_memory_issue_lifecycle_evidence.py",
+        "sha256": "03db6f096825d076aafc4cb9e1d6f3244786aeeee7c67790511a33348f7cf9a9"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_memory_tracker_cursor_semantic_evidence.py",
+        "sha256": "1b685b297736b1dc910abd0366fda5d625ef8ef067a0fddeba1807da121245ae"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_memory_tracker_semantic_evidence.py",
+        "sha256": "b50e987736cfd2fb1baef300f8f43b61b33fbc8129c38894e817b2da111e1ba7"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+        "sha256": "1ee6b0f6c7278c4b5e0d8dfeb221a07c0bed93ab1bf74d8b2b0ccf86acaeb605"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_producer_holder_instance_graph.py",
+        "sha256": "e6a677230b20de24178dae90f277956bbf5ebcbc53261489ac4d71be81bab85d"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+        "sha256": "d9bb418f312adbdd50760819348b116dd901ac9690457121ea748c0d1dd4437d"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_system_recertification_current.py",
+        "sha256": "9462563f5c4c59c25676e30d1b90208eaf8c63380af951b45219d33cb59fb776"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+        "sha256": "7614466c97bfc6b8a389fa7dde7a6524b38be10d5f252041edc4c109607633cd"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_v11a_instance_graph_runner.py",
+        "sha256": "2617744cd6cb34e95fc07b44e371d47eb45e8ce6c2715d2a046246e1b59a27a8"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_v8l_current_census_evidence.py",
+        "sha256": "4f3101d0af2a75d48288642c80f610e2e07c7daccbf0dbd1a3a4187ac55f9c5b"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_vectored_trap_evidence.py",
+        "sha256": "096dd123c37fca703c2247fb57eae34fc42e7c7eab8bf38b1ebaec94cc1c1363"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_xret_current_mode_evidence.py",
+        "sha256": "53cd2de0fa4039e63fdd2b692ee15fe732c7c0c2e12821e086de1fa3aeebc7d0"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
+        "sha256": "504d0143c77bdfe056aefba94d697879872846b54835f3d3e0e05f93fadf3a5b"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+        "sha256": "14ad24573d96601e68ccf9463eba4e2afc793f4f3c10848c52a84911d36758d1"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
+        "sha256": "59f4299065132bf183090dd7b66f1778ed0c1a199a2a9e35f20e0b9b8c947a97"
+      },
+      {
+        "kind": "canonical_architecture_checker",
+        "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+        "sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
+      },
+      {
+        "kind": "canonical_architecture_checker",
+        "path": "npc/rv64/eval/ppa/tools/architecture_provenance_replay.py",
+        "sha256": "d07e0c4d247ecadc5ff0457f98b3fe0127135f954eb77f9bfa90d5bf8f052ebb"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/fdg_arch_trap_evidence.py",
+        "sha256": "6b95f3b9f60ff02c8e6e770b3ae5b95c71902759ff5ef518994baedeebc115e4"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+        "sha256": "90a9f87c6490dec06a0cca55761e0b8cd38aa904bfb545a29348015441be3e2b"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/functional_archive_rehydrate.py",
+        "sha256": "f4d0d2c7388830e57529b91357e1f8612e3d4032d88b3db732cd0387038c409c"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+        "sha256": "846623ab8ba31b6a7a1f0b496ef72f536330e2858b2eb2be316923133e946f3d"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+        "sha256": "e2fcf1bcde15db1ae8f8a4aab7b09801f1d9c3ee9396624237a168b9fb5f8205"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+        "sha256": "c87a1133b3a392b5a0e6842341e2900ef8138520a0012457b4bd86c037b08feb"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/ifu_axi_flush_drain_evidence.py",
+        "sha256": "3de48b3684769f402c6aa470367d282f0f87d22d29bada78da0f9ba20f9fec3d"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/ifu_fetch_provenance_evidence.py",
+        "sha256": "ecd7744b6baea0c9f0a16ac0fc060f13767592db8ccd73c9bb50c8ffbdd43e71"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/instret_retirement_evidence.py",
+        "sha256": "bb7918581c5b415e4ae2fb362ce0ef08256484c23e7b85349b12b5bc57b5710a"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py",
+        "sha256": "9dc27f788a39db3d7ffc324e659ad7e98abad98889e274b97a778de96408d004"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/memory_issue_lifecycle_evidence.py",
+        "sha256": "61d609d5496cd15bb439328c7d1c0ae872d1d7e2a4f251ab54f73ac4f04e0a30"
+      },
+      {
+        "kind": "memory_tracker_cursor_semantic_checker",
+        "path": "npc/rv64/eval/ppa/tools/memory_tracker_cursor_semantic_evidence.py",
+        "sha256": "0a336546c146ef5ff47f6b69471767c81dd00ede9f57585af26b53ab63a68b91"
+      },
+      {
+        "kind": "memory_tracker_semantic_checker",
+        "path": "npc/rv64/eval/ppa/tools/memory_tracker_semantic_evidence.py",
+        "sha256": "1f7d59ebf9c0b884e678cc1b7748309d61551311ef3a81327e006aadc25b4b6e"
+      },
+      {
+        "kind": "holder_census_checker",
+        "path": "npc/rv64/eval/ppa/tools/producer_holder_census.py",
+        "sha256": "91d500102098e8628c2677ea23aa01240351553deed16028eec536208d623a16"
+      },
+      {
+        "kind": "holder_instance_graph_checker",
+        "path": "npc/rv64/eval/ppa/tools/producer_holder_instance_graph.py",
+        "sha256": "96faf21f17754eaec3145045e6263ae0aec07d6f72dcc8358a41bcc6ca898906"
+      },
+      {
+        "kind": "holder_semantic_checker",
+        "path": "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+        "sha256": "22c01241de26d1dcf7fccf716f1415fc444ae52e3793a584cefffed2457fd2f4"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+        "sha256": "6672747775c5bd3787a944deefcd56e87587c79cdfc81a2b18b2e5caa26ae935"
+      },
+      {
+        "kind": "holder_lane_contract_checker",
+        "path": "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+        "sha256": "cce4660da1141f990ec9a235c08243aa046d1bf33cdca71dab36fdc6dcaf2bb4"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/vectored_trap_evidence.py",
+        "sha256": "6d70980b32ba9a8c03b5359241c97cc1d905cd513367b2355ce1266b75a2d713"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/xret_current_mode_evidence.py",
+        "sha256": "3c42017c49e1d2c979bf8d836ec43356094a780b67e6c69bc26b3c69a87e2012"
+      },
+      {
+        "kind": "audit_test",
+        "path": "scripts/check-rv64-soc-delivery-gates.sh",
+        "sha256": "a787d8b7a1082ee7fc9c915662936c7a51f64c3a705b99688637beef65148ee5"
+      },
+      {
+        "kind": "task_run_status_helper",
+        "path": "scripts/task-run-status.sh",
+        "sha256": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6"
+      },
+      {
+        "kind": "audit_test",
+        "path": "scripts/tests/test-rv64-soc-delivery-gates.sh",
+        "sha256": "ab2fc077446e62cde5b7065be31a66bbbb4fb722d542966e8d49e3d9e4e706a3"
+      },
+      {
+        "kind": "task_run_status_test",
+        "path": "scripts/tests/test-task-run-status.sh",
+        "sha256": "35ba14c15c31a291e6a5db8b436d584d0535bd69d11db5495f00232e371a0640"
+      }
+    ]
+  },
+  "run_parameters": {
+    "clock_port": "clk",
+    "period_ns": 5.0,
+    "synthesis_seed": 0,
+    "threads": 1,
+    "top": "NpcTop"
+  },
   "schema": "npc-rv64-arch-stable-candidate-v1",
-  "design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
   "scope": {
     "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
-    "product": "local NpcTop RV64 dual-issue out-of-order processor RTL",
     "excluded_debt_ids": [
       "A-COHERENCE-G1",
       "DEBUG-TRIGGER-G1",
       "SFENCE-SINVAL-G1",
       "WFI-G1"
-    ]
-  },
-  "artifacts": {
-    "debt_ledger": "npc/rv64/design/arch/architecture-debt-ledger.json",
-    "architecture_evidence": "npc/rv64/eval/ppa/evidence/architecture-current.json",
-    "architecture_result": ".github/task-runs/2026-07-21-rv64-v9a-width-continuity/evidence/final-run/static/architecture-result.json",
-    "holder_census": "npc/rv64/design/arch/producer-holder-census.json",
-    "functional_aggregate": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
-    "cohort_inventory": null
-  },
-  "freeze_inputs": {
-    "config": [],
-    "generated_headers": [],
-    "filelists": [],
-    "specifications": [],
-    "test_sources": [],
-    "tool_versions": [],
-    "liberty": [],
-    "macros": [],
-    "constraints": [],
-    "images": [],
-    "binaries": [],
-    "workflow": []
-  },
-  "run_parameters": {
-    "top": "NpcTop",
-    "clock_port": "clk",
-    "period_ns": 5.0,
-    "synthesis_seed": 0,
-    "threads": 1
-  },
-  "claim": {
-    "architecture_freeze": "GAP",
-    "ppa": "UNQUALIFIED",
-    "promotion_eligible": false,
-    "canonical": null,
-    "architecture_feasible_seed": null
+    ],
+    "product": "local NpcTop RV64 dual-issue out-of-order processor RTL"
   }
 }

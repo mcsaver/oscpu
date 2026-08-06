@@ -53,8 +53,27 @@ def sha256_file(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
+def lexical_repo_file(path: pathlib.Path) -> pathlib.Path:
+    """Return one regular repository file without dereferencing path aliases."""
+    candidate = path if path.is_absolute() else ROOT / path
+    root = ROOT.resolve(strict=True)
+    lexical = pathlib.Path(os.path.abspath(os.fspath(candidate)))
+    try:
+        parts = lexical.relative_to(root).parts
+    except ValueError as exc:
+        raise RuntimeError(f"path escapes repository root: {path}") from exc
+    cursor = root
+    for part in parts:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise RuntimeError(f"path contains a symlink: {path}")
+    if not lexical.is_file():
+        raise RuntimeError(f"path is not a regular repository file: {path}")
+    return lexical
+
+
 def relative(path: pathlib.Path) -> str:
-    return path.resolve(strict=True).relative_to(ROOT.resolve()).as_posix()
+    return lexical_repo_file(path).relative_to(ROOT.resolve(strict=True)).as_posix()
 
 
 def write_json(path: pathlib.Path, value: Any) -> None:
@@ -79,10 +98,7 @@ def normalize_text(text: str, *, temporary_root: pathlib.Path) -> str:
 
 
 def artifact(path: pathlib.Path, *, kind: str) -> dict[str, Any]:
-    resolved = path.resolve(strict=True)
-    resolved.relative_to(ROOT.resolve())
-    if resolved.is_symlink() or not resolved.is_file():
-        raise RuntimeError(f"artifact is not a regular repository file: {path}")
+    resolved = lexical_repo_file(path)
     return {
         "kind": kind,
         "path": relative(resolved),
@@ -93,21 +109,26 @@ def artifact(path: pathlib.Path, *, kind: str) -> dict[str, Any]:
 
 def safe_output_dir(raw: pathlib.Path) -> pathlib.Path:
     candidate = raw if raw.is_absolute() else ROOT / raw
-    resolved = candidate.resolve(strict=False)
-    resolved.relative_to(TASK_RUN_ROOT.resolve(strict=True))
-    if resolved == TASK_RUN_ROOT.resolve(strict=True):
+    task_root = TASK_RUN_ROOT.resolve(strict=True)
+    lexical = pathlib.Path(os.path.abspath(os.fspath(candidate)))
+    try:
+        parts = lexical.relative_to(task_root).parts
+    except ValueError as exc:
+        raise RuntimeError(f"output escapes task-run root: {raw}") from exc
+    if not parts:
         raise RuntimeError("output must be a task-run subdirectory")
-    if resolved.exists():
+    cursor = task_root
+    for index, part in enumerate(parts):
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise RuntimeError(f"output path contains a symlink: {cursor}")
+        if index < len(parts) - 1 and cursor.exists() and not cursor.is_dir():
+            raise RuntimeError(f"output ancestor is not a directory: {cursor}")
+    if lexical.exists():
         raise RuntimeError(
-            f"output already exists; use a new attempt directory: {resolved}"
+            f"output already exists; use a new attempt directory: {lexical}"
         )
-    ancestor = resolved.parent
-    while not ancestor.exists():
-        ancestor = ancestor.parent
-    if ancestor.is_symlink() or not ancestor.is_dir():
-        raise RuntimeError(f"output ancestor is not a regular directory: {ancestor}")
-    ancestor.resolve(strict=True).relative_to(TASK_RUN_ROOT.resolve(strict=True))
-    return resolved
+    return lexical
 
 
 def required_tests() -> list[str]:
@@ -121,40 +142,8 @@ def required_tests() -> list[str]:
 
 
 def capture_inputs(tests: list[str]) -> dict[str, Any]:
-    design_hex, rtl_files = architecture.rtl_binding(ROOT)
-    if not rtl_files:
-        raise RuntimeError("canonical RTL source closure is empty")
-    expected = freeze.expected_input_sets(ROOT, tests)
-    grouped_paths: dict[str, list[str]] = {
-        "rtl": sorted(rtl_files),
-        "generated_headers": sorted(expected["generated_headers"]),
-        "filelists": sorted(expected["filelists"]),
-        "test_sources": sorted(expected["test_sources"]),
-        "workflow": [
-            relative(pathlib.Path(__file__)),
-            "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-            "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
-        ],
-    }
-    inputs: dict[str, dict[str, str]] = {}
-    seen: set[str] = set()
-    for group, paths in grouped_paths.items():
-        group_hashes: dict[str, str] = {}
-        for item in paths:
-            if item in seen:
-                continue
-            path = ROOT / item
-            if path.is_symlink() or not path.is_file():
-                raise RuntimeError(f"module input is not a regular file: {item}")
-            group_hashes[item] = sha256_file(path)
-            seen.add(item)
-        inputs[group] = group_hashes
-    return {
-        "schema": "npc-rv64-full-core-module-input-binding-v1",
-        "design_id": f"sha256:{design_hex}",
-        "required_tests": tests,
-        "groups": inputs,
-    }
+    # producer 与 ARCH_STABLE consumer 共用同一闭包定义，避免清单静默漂移。
+    return freeze.f0_capture_module_inputs(ROOT, tests, architecture)
 
 
 def validate_module_log(text: str, *, test_id: str, design_id: str) -> list[str]:

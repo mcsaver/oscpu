@@ -64,18 +64,25 @@ endif
 ### Create the destination directory (`build/$ARCH`)
 ##当前目录
 WORK_DIR  = $(shell pwd)
-##输出目录
+## 可选隔离输出根。未指定时保持既有项目内 build/ 行为；验证 runner
+## 指定 AM_BUILD_ROOT，把 app、AM 与 klib 的可再生产物统一放入临时目录。
+AM_BUILD_ROOT ?=
+ifeq ($(strip $(AM_BUILD_ROOT)),)
 DST_DIR   = $(WORK_DIR)/build/$(ARCH)
+IMAGE_REL = build/$(NAME)-$(ARCH)
+ARCHIVE   = $(WORK_DIR)/build/$(NAME)-$(ARCH).a
+else
+AM_BUILD_ROOT_ABS := $(abspath $(AM_BUILD_ROOT))
+DST_DIR   = $(AM_BUILD_ROOT_ABS)/$(ARCH)
+IMAGE_REL = $(AM_BUILD_ROOT_ABS)/$(NAME)-$(ARCH)
+ARCHIVE   = $(AM_BUILD_ROOT_ABS)/$(NAME)-$(ARCH).a
+endif
 ##确保输出目录存在
 $(shell mkdir -p $(DST_DIR))
 
 ### Compilation targets (a binary image or archive)
-##产物相对路径
-IMAGE_REL = build/$(NAME)-$(ARCH)
 ##产物绝对路径
 IMAGE     = $(abspath $(IMAGE_REL))
-##静态库路径
-ARCHIVE   = $(WORK_DIR)/build/$(NAME)-$(ARCH).a
 
 ### Collect the files to be linked: object files (`.o`) and libraries (`.a`)
 ##源文件对应的目标文件列表
@@ -159,10 +166,14 @@ $(ARCHIVE): $(OBJS)
 else
 # $(1): library name
 ##定义地推构建依赖库(am/kilb)
+lib_archive = $(if $(strip $(AM_BUILD_ROOT)),$(AM_BUILD_ROOT_ABS)/$(1)-$(ARCH).a,$(AM_HOME)/$(1)/build/$(1)-$(ARCH).a)
 define LIB_TEMPLATE =
-$$(AM_HOME)/$(1)/build/$(1)-$$(ARCH).a: force
-	@$$(MAKE) -s -C $$(AM_HOME)/$(1) archive
-LINKAGE += $$(AM_HOME)/$(1)/build/$(1)-$$(ARCH).a
+$$(call lib_archive,$(1)): force
+	@$$(MAKE) -s -C $$(AM_HOME)/$(1) archive MAKEOVERRIDES= \
+		AM_LIBRARY_RECURSIVE=1 NAME=$(1) ARCH=$$(ARCH) AM_HOME=$$(AM_HOME) \
+		NEMU_HOME=$$(NEMU_HOME) NPC_HOME=$$(NPC_HOME) \
+		AM_BUILD_ROOT=$$(AM_BUILD_ROOT)
+LINKAGE += $$(call lib_archive,$(1))
 endef
 ##展开模板生成规则
 ### Rule (recursive make): build a dependent library (am, klib, ...)
@@ -196,7 +207,7 @@ force:
 
 ### Clean a single project (remove `build/`)
 clean:
-	rm -rf Makefile.html $(WORK_DIR)/build/
+	$(if $(strip $(AM_BUILD_ROOT)),rm -rf $(AM_BUILD_ROOT_ABS),rm -rf Makefile.html $(WORK_DIR)/build/)
 .PHONY: clean
 
 ### Clean all sub-projects within depth 2 (and ignore errors)

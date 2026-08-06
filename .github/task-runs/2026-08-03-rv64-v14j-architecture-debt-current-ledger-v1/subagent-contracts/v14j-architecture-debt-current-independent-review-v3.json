@@ -1,0 +1,117 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14j-architecture-debt-current-independent-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 NpcTop design-id 093c2380 下 architecture-debt-current 修订版：cohort 规范设计绑定、V14C/V14D/V14I/A3 原始状态不可改写、16 CLOSED 与 4 EXCLUDED_BY_COHORT、C 门禁依赖路由以及 whole_architecture/PPA 边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
+      "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-checker-replay-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-checker-tests.log",
+      "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/p0-final-2/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/p1-direct-1/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-6/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/fence-run-1/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/vectored-run-1/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a1.status",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2.status",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/system-current-summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-before.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/source-after.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/binding.txt",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/post-binding.txt",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/rtl-assertion-failures.txt",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/terminal-markers.txt",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/systemd-transaction-evidence.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/console.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/guest/npc.log",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a2/driver.log",
+      "Linux/scripts/check-npc-systemd-guest.sh",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "AI_ENVIRONMENT.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-03-rv64-v14j-architecture-debt-current-ledger-v1/subagent-contracts/v14j-architecture-debt-current-independent-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象/本地证据文件、设计/周期/配置、testbench/EDA 观测和 PASS/GAP 范围给出第二轮独立复核；逐项确认上一轮四类 GAP 是否关闭"
+  ],
+  "success_criteria": [
+    "确认 normative cohort design-id 与四份 exclusion 一致；V14C/V14D/V14I/A3 原始状态改写和 holder A3 状态删除均可被门禁拒绝；V14I terminal/assertion/post-binding 链可从原始文件复核；每个依赖路径可选择 rv64-architecture-debt-current；whole_architecture=RED 且 ppa=UNPROMOTED"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

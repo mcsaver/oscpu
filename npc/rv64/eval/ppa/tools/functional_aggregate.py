@@ -30,6 +30,10 @@ CANONICAL_COMMAND = "make -C npc/rv64 check-functional-aggregate"
 RUN_ID = "2026-07-22-rv64-v9l-functional-aggregate-current-design"
 LOAD_ADDRESS = "0x0000000080000000"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+GOOD_TRAP_LINE_RE = re.compile(
+    r"^(?:HIT GOOD TRAP|(?:\[[^]\r\n]+\]\s+)?npc:\s+HIT GOOD TRAP\s+"
+    r"at pc = 0x[0-9a-fA-F]+)$"
+)
 
 TOOL_PATH = pathlib.Path(__file__).resolve()
 FREEZE_PATH = TOOL_PATH.with_name("arch_stable_freeze.py")
@@ -39,6 +43,9 @@ assert FREEZE_SPEC is not None and FREEZE_SPEC.loader is not None
 freeze = importlib.util.module_from_spec(FREEZE_SPEC)
 sys.modules[FREEZE_SPEC.name] = freeze
 FREEZE_SPEC.loader.exec_module(freeze)
+SCHEMA_VALID_MUTATION_IDS = freeze.F0_SCHEMA_VALID_MUTATION_IDS
+SCHEMA_INVALID_MUTATION_IDS = freeze.F0_SCHEMA_INVALID_MUTATION_IDS
+CANONICAL_MUTATION_IDS = freeze.F0_CANONICAL_MUTATION_IDS
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -85,35 +92,43 @@ def artifact(root: pathlib.Path, relative: str, kind: str) -> dict[str, str]:
     }
 
 
-def relative_path(root: pathlib.Path, path: pathlib.Path) -> str:
-    resolved = path.resolve()
+def lexical_output_path(
+    root: pathlib.Path, path: pathlib.Path
+) -> tuple[pathlib.Path, pathlib.PurePosixPath]:
+    root_resolved = root.resolve(strict=True)
+    candidate = path if path.is_absolute() else root_resolved / path
+    lexical = pathlib.Path(os.path.abspath(os.fspath(candidate)))
     try:
-        relative = resolved.relative_to(root.resolve())
+        relative = lexical.relative_to(root_resolved)
     except ValueError as exc:
         raise ValueError(f"output escapes repository: {path}") from exc
     if any(part in {"", ".", ".."} for part in relative.parts):
         raise ValueError(f"output path is not canonical: {path}")
+    cursor = root_resolved
+    for part in relative.parts:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise ValueError(f"output path contains symlink: {cursor}")
+    return lexical, pathlib.PurePosixPath(*relative.parts)
+
+
+def relative_path(root: pathlib.Path, path: pathlib.Path) -> str:
+    _lexical, relative = lexical_output_path(root, path)
     return relative.as_posix()
 
 
 def prepare_output(root: pathlib.Path, path: pathlib.Path) -> pathlib.Path:
-    relative_path(root, path)
-    cursor = root.resolve()
-    relative = path.resolve().relative_to(root.resolve())
-    for part in relative.parts[:-1]:
-        cursor = cursor / part
-        if cursor.is_symlink():
-            raise ValueError(f"output parent contains symlink: {cursor}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and path.is_symlink():
-        raise ValueError(f"refusing symlink output: {path}")
-    return path
+    lexical, _relative = lexical_output_path(root, path)
+    lexical.parent.mkdir(parents=True, exist_ok=True)
+    if lexical.is_symlink():
+        raise ValueError(f"refusing symlink output: {lexical}")
+    return lexical
 
 
 def write_text(root: pathlib.Path, path: pathlib.Path, text: str) -> pathlib.Path:
-    prepare_output(root, path)
-    path.write_text(text, encoding="utf-8")
-    return path
+    target = prepare_output(root, path)
+    target.write_text(text, encoding="utf-8")
+    return target
 
 
 def write_json(root: pathlib.Path, path: pathlib.Path, value: Any) -> pathlib.Path:
@@ -158,6 +173,62 @@ def source_markers(root: pathlib.Path, relative: str) -> list[str]:
         f"source_log_path={relative}",
         f"source_log_sha256={sha256_file(path)}",
     ]
+
+
+def validate_benchmark_raw_output(name: str, text: str) -> None:
+    """Bind benchmark claims to guest-emitted result lines, not argv text."""
+    lines = [line.strip() for line in strip_ansi(text).splitlines()]
+    if name == "coremark":
+        requirements = (
+            re.compile(r"^Running CoreMark for 10 iterations$"),
+            re.compile(r"^Iterations\s*:\s*10$"),
+            re.compile(r"^\[0\]crcfinal\s*:\s*0xfcaf$", re.IGNORECASE),
+            re.compile(r"^CoreMark PASS\s+[0-9]+ Marks$"),
+        )
+        forbidden = ("Errors detected", "CoreMark FAIL")
+        semantic_lines = (
+            re.compile(r"^Running CoreMark for .* iterations$"),
+            re.compile(r"^Iterations\s*:.*$"),
+            re.compile(r"^\[0\]crcfinal\s*:.*$", re.IGNORECASE),
+            re.compile(r"^CoreMark PASS.*$"),
+        )
+    elif name == "dhrystone":
+        requirements = (
+            re.compile(r"^Trying 10000 runs through Dhrystone\.$"),
+            re.compile(r"^Dhrystone PASS\s+[0-9]+ Marks$"),
+        )
+        forbidden = ("Dhrystone FAIL",)
+        semantic_lines = (
+            re.compile(r"^Trying .* runs through Dhrystone\.$"),
+            re.compile(r"^Dhrystone PASS.*$"),
+        )
+    else:
+        raise ValueError(f"unknown benchmark oracle: {name}")
+    match_counts = {
+        pattern.pattern: sum(pattern.fullmatch(line) is not None for line in lines)
+        for pattern in requirements
+    }
+    missing = [pattern for pattern, count in match_counts.items() if count == 0]
+    duplicate = [pattern for pattern, count in match_counts.items() if count > 1]
+    contradictory_values = [
+        line
+        for line in lines
+        if any(pattern.fullmatch(line) for pattern in semantic_lines)
+        and not any(pattern.fullmatch(line) for pattern in requirements)
+    ]
+    contradictory = [marker for marker in forbidden if any(
+        marker in line for line in lines
+    )]
+    trap_count = sum(
+        GOOD_TRAP_LINE_RE.fullmatch(line) is not None for line in lines
+    )
+    if missing or duplicate or contradictory_values or contradictory or trap_count != 1:
+        raise ValueError(
+            f"benchmark:{name}: guest result markers drifted: "
+            f"missing={missing} duplicate={duplicate} "
+            f"contradictory_values={contradictory_values} "
+            f"contradictory={contradictory} good_traps={trap_count}"
+        )
 
 
 def common_markers(
@@ -325,6 +396,52 @@ def require_raw_markers(text: str, required: list[str], forbidden: list[str], la
         raise ValueError(f"{label}: raw evidence missing={missing} forbidden={present}")
 
 
+def validate_suite_raw_output(name: str, text: str, *, test_id: str) -> None:
+    """Reconstruct official/AM architectural terminal semantics from guest output."""
+    clean = strip_ansi(text)
+    if name == "official":
+        require_raw_markers(
+            clean,
+            [],
+            ["[RESULT] FAIL", "ABORT at pc", "TOHOST FAIL", "HIT BAD TRAP"],
+            f"official:{test_id}",
+        )
+        terminal_count = sum(
+            "TOHOST PASS" in line or "HIT GOOD TRAP" in line
+            for line in clean.splitlines()
+        )
+        if terminal_count != 1:
+            raise ValueError(
+                f"official:{test_id}: architectural terminal count is "
+                f"{terminal_count}, expected 1"
+            )
+        return
+    if name != "am":
+        raise ValueError(f"unknown functional suite oracle: {name}")
+    require_raw_markers(
+        clean,
+        ["HIT GOOD TRAP", "Difftest:"],
+        [
+            "[RESULT] FAIL", "ABORT at pc", "difftest mismatch",
+            "TOHOST FAIL", "HIT BAD TRAP",
+        ],
+        f"am:{test_id}",
+    )
+    states = re.findall(r"Difftest:\s*(ON|OFF)", clean)
+    if states != ["ON"]:
+        raise ValueError(
+            f"am:{test_id}: DiffTest is not ON exclusively: {states}"
+        )
+    terminal_count = sum(
+        "HIT GOOD TRAP" in line for line in clean.splitlines()
+    )
+    if terminal_count != 1:
+        raise ValueError(
+            f"am:{test_id}: architectural terminal count is "
+            f"{terminal_count}, expected 1"
+        )
+
+
 def build_aggregate(
     root: pathlib.Path,
     descriptor: dict[str, Any],
@@ -417,20 +534,7 @@ def build_aggregate(
         for record in source_records:
             test_id = record["test_id"]
             source_path, source = raw_text(root, record["raw_log"], f"{name}:{test_id}")
-            clean = strip_ansi(source)
-            if name == "official":
-                require_raw_markers(
-                    clean, [], ["[RESULT] FAIL", "ABORT at pc"],
-                    f"official:{test_id}")
-                if "TOHOST PASS" not in clean and "HIT GOOD TRAP" not in clean:
-                    raise ValueError(f"official:{test_id}: no architectural pass terminal")
-            else:
-                require_raw_markers(
-                    clean, ["HIT GOOD TRAP", "Difftest:"],
-                    ["[RESULT] FAIL", "ABORT at pc", "difftest mismatch"],
-                    f"am:{test_id}")
-                if not re.search(r"Difftest:\s*ON", clean):
-                    raise ValueError(f"am:{test_id}: DiffTest is not ON")
+            validate_suite_raw_output(name, source, test_id=test_id)
             image = artifact(root, record["image"], "program_image")
             log_path = wrapper_dir / name / f"{test_id}.log"
             markers = [
@@ -547,10 +651,7 @@ def build_aggregate(
             f"benchmark:{name}")
         if clean.count("HIT GOOD TRAP") != expected["good_traps"]:
             raise ValueError(f"benchmark:{name}: GOOD TRAP count drifted")
-        if name == "coremark" and "0xfcaf" not in clean.lower():
-            raise ValueError("benchmark:coremark: CRC 0xfcaf not present in raw output")
-        if name == "dhrystone" and "10000" not in clean:
-            raise ValueError("benchmark:dhrystone: run count 10000 not present in raw output")
+        validate_benchmark_raw_output(name, clean)
         image = artifact(root, record["image"], "program_image")
         command = record["command"]
         log_path = wrapper_dir / f"{name}.log"
@@ -598,8 +699,13 @@ def run_mutations(
     aggregate: dict[str, Any],
     required_tests: list[str],
     mutation_dir: pathlib.Path,
+    *,
+    prepare_inputs: bool = True,
 ) -> dict[str, Any]:
-    mutation_dir.mkdir(parents=True, exist_ok=True)
+    if prepare_inputs:
+        mutation_dir.mkdir(parents=True, exist_ok=True)
+    elif not mutation_dir.is_dir() or mutation_dir.is_symlink():
+        raise ValueError("functional mutation replay input directory is missing")
     cases: list[tuple[str, Callable[[dict[str, Any]], None], bool]] = []
 
     def add(name: str, mutate: Callable[[dict[str, Any]], None], schema_valid: bool) -> None:
@@ -623,9 +729,15 @@ def run_mutations(
 
     duplicate_marker_path = mutation_dir / "module-duplicate-result.log"
     first_module_log = safe_file(root, aggregate["module"]["tests"][0]["log"]["path"])
-    write_text(
-        root, duplicate_marker_path,
-        first_module_log.read_text(encoding="utf-8") + "[RESULT] PASS\n")
+    duplicate_marker_text = (
+        first_module_log.read_text(encoding="utf-8") + "[RESULT] PASS\n"
+    )
+    if prepare_inputs:
+        write_text(root, duplicate_marker_path, duplicate_marker_text)
+    else:
+        existing_duplicate = safe_file(root, relative_path(root, duplicate_marker_path))
+        if existing_duplicate.read_text(encoding="utf-8") != duplicate_marker_text:
+            raise ValueError("functional duplicate-marker replay input drifted")
 
     def duplicate_module_marker(value: dict[str, Any]) -> None:
         value["module"]["tests"][0]["log"] = artifact(
@@ -670,11 +782,25 @@ def run_mutations(
     add("am_duplicate_inventory_id", duplicate_inventory_id, False)
     add("coremark_crc_change", alter_coremark_crc, False)
 
+    observed_ids = tuple(name for name, _, _ in cases)
+    if observed_ids != CANONICAL_MUTATION_IDS:
+        raise ValueError(
+            "functional mutation implementation inventory drift: "
+            f"observed={observed_ids} expected={CANONICAL_MUTATION_IDS}"
+        )
+
     records: list[dict[str, Any]] = []
     schema_valid_count = 0
     schema_valid_rejected = 0
     for name, mutator, expected_schema_valid in cases:
-        mutant = copy.deepcopy(aggregate)
+        # Canonicalize mapping order before mutation so schema rejection
+        # reasons are byte-stable when the frozen aggregate is reloaded.
+        mutant = json.loads(json.dumps(
+            aggregate,
+            allow_nan=False,
+            ensure_ascii=False,
+            sort_keys=True,
+        ))
         mutator(mutant)
         schema_issues = freeze.schema_errors(root, mutant, freeze.FUNCTIONAL_SCHEMA)
         schema_valid = not schema_issues
@@ -710,6 +836,13 @@ def run_mutations(
         "all_rejected": all(item["rejected"] for item in records),
         "mutations": records,
     }
+
+
+def aggregate_log_text(
+    aggregate: dict[str, Any], counts: dict[str, int], checks: list[dict[str, Any]]
+) -> str:
+    """Return the exact terminal summary consumed by current publication."""
+    return freeze.f0_aggregate_log_text(aggregate, counts, checks)
 
 
 def verify_current_design(root: pathlib.Path, expected: str) -> None:
@@ -757,31 +890,7 @@ def assemble(
         "evidence_mutations_compiled": mutations["schema_valid"],
         "evidence_mutations_rejected": mutations["schema_valid_rejected"],
     }
-    raw_lines = [
-        f"schema={freeze.FUNCTIONAL_RESULT_SCHEMA}",
-        f"aggregate_schema={freeze.FUNCTIONAL_SCHEMA}",
-        f"design_id={aggregate['design_id']}",
-        f"cohort_id={aggregate['cohort_id']}",
-        f"canonical_command={CANONICAL_COMMAND}",
-        f"module_aggregate={counts['module_passed']}/{counts['module_required']}",
-        f"official_aggregate={counts['official_passed']}/{counts['official_required']}",
-        f"am_aggregate={counts['am_passed']}/{counts['am_required']}",
-        f"difftest_mismatches={counts['difftest_mismatches']}",
-        f"compile_success_evidence_mutations={counts['evidence_mutations_compiled']}",
-        f"rejected_evidence_mutations={counts['evidence_mutations_rejected']}",
-        "coremark_iterations=10",
-        "coremark_crc=0xfcaf",
-        "dhrystone_runs=10000",
-        "production_rtl_changed=false",
-        "ppa=UNQUALIFIED",
-        "promotion_eligible=false",
-    ]
-    raw_lines.extend(
-        f"check[{item['check_id']}]={item['status']}"
-        for item in checks
-    )
-    raw_lines.append("[F0-G1-GATE] PASS")
-    write_text(root, raw_log_path, "\n".join(raw_lines) + "\n")
+    write_text(root, raw_log_path, aggregate_log_text(aggregate, counts, checks))
 
     result = {
         "schema": freeze.FUNCTIONAL_RESULT_SCHEMA,

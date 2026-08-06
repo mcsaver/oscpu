@@ -1,0 +1,22 @@
+--- production/OooIntBackend.v
++++ mutation/single-bank-probe-order/OooIntBackend.v
+@@ -4425,8 +4425,7 @@
+        // must not be presented while an older probe can still become the SQ
+        // physical-head request.  Otherwise backpressure would legally lease
+        // the younger VALID and make the later SQ priority impossible.
+-       !(sq_mode_w && issue0_is_plain_store_w &&
+-         issue0_miq_probe_block_r));
++       1'b1); /* V14R_MUTATION_SINGLE_BANK_PROBE_ORDER_BYPASS0 */
+   wire issue1_mem_buffer_fire_w;
+   wire issue1_mem_req_valid_w =
+       ENABLE_DUAL_MEM ? issue1_dual_selected_w :
+@@ -4436,8 +4435,7 @@
+        !mem_buffer_valid_q && !flush_i && !checkpoint_restore_hold_w &&
+        !branch_resolve_mispredict_w && !issue_block_w &&
+        !mem_issue_block_w && issue1_mem_order_ready_w &&
+-       !(sq_mode_w && issue1_is_plain_store_w &&
+-         issue1_miq_probe_block_r));
++       1'b1); /* V14R_MUTATION_SINGLE_BANK_PROBE_ORDER_BYPASS1 */
+   wire mem_retry0_req_valid_w = mem_retry0_selected_w &&
+       miq_slot_open_w && !flush_i && !checkpoint_restore_hold_w &&
+       !branch_resolve_mispredict_w && !issue_block_w &&

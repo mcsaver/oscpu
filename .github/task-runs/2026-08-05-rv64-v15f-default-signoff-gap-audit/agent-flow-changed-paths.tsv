@@ -1,0 +1,16 @@
+npc/rv64/eval/ppa/tools/functional_aggregate.py
+npc/rv64/eval/ppa/tests/test_functional_aggregate.py
+npc/rv64/eval/ppa/tools/full_core_functional_replay.py
+npc/rv64/eval/ppa/tests/test_full_core_functional_replay.py
+npc/rv64/eval/ppa/replay-full-core-functional-current.sh
+npc/rv64/design/arch/full-core-functional-run-policy-v1.json
+scripts/agent-flow.c
+scripts/tests/test-agent-flow.sh
+npc/rv64/eval/ppa/tools/layered_system_signoff.py
+npc/rv64/eval/ppa/tests/test_layered_system_signoff.py
+npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json
+npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json
+scripts/check-rv64-soc-delivery-gates.sh
+scripts/tests/test-rv64-soc-delivery-gates.sh
+.github/instructions/agent-lightweight-workflow.instructions.md
+AI_ENVIRONMENT.md

@@ -1,0 +1,8 @@
+4	rv64-soc-delivery-gates	PASS	251	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-soc-delivery-gates.log
+4	rv64-architecture-debt-current	PASS	3260	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-architecture-debt-current.log
+4	rv64-historical-defect-current	PASS	5517	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-historical-defect-current.log
+4	flow-self-test	PASS	2557	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/flow-self-test.log
+5	rv64-soc-delivery-gates	PASS	251	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-soc-delivery-gates.log
+5	rv64-architecture-debt-current	PASS	3360	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-architecture-debt-current.log
+5	rv64-historical-defect-current	PASS	5467	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/rv64-historical-defect-current.log
+5	flow-self-test	PASS	2357	.github/runtime-artifacts/agent-flow/rv64-v14k-arch-stable-current-baseline-v1/gates/flow-self-test.log

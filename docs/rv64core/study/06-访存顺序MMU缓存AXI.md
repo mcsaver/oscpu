@@ -90,6 +90,12 @@ data 和 byte mask 可以分阶段填入同一个 owner。
 entry 仍是 speculative 时，就要参加 younger load 的顺序查询和 byte-level forwarding。
 SQ CAM 是 load ordering 的关键 oracle；地址或数据尚未知时，load 不能凭空假设无冲突。
 
+当前查询网把 4 个 entry 展开为并行年龄/地址差计算，再按 head→tail 合并 byte；较年轻的
+older Store 会覆盖更老 Store 提供的同一 byte。仿真构建额外叠加 four-state fail-closed
+检查：只要参与查询的 valid/age/address/class/strobe 或真正重叠的数据 byte 含 X/Z，就只能
+得到 replay，不能乐观放行 memory access。该 overlay 在 `SYNTHESIS` 下移除，不改变二值硬件
+网络；它的作用是让未知状态在验证中暴露，而不是把 X 当作一种硬件 memory class。
+
 ### Head launch
 
 只有这个 entry 同时位于 **SQ head**、匹配 **ROB head**，并且
@@ -102,6 +108,13 @@ AW/W 可以独立握手，真正的写 terminal 要等 B response。terminal 到
 memory owner 与 ROB release 才按 exact identity 完成。当前实现不能描述成“ROB 已退休，
 以后慢慢等 B”；B 是 Store 精确完成链的一部分。
 
+当前 bridge 对这个末端增加了 **aggregate-B response fusion**。`S_WRITE_RESP` 收到 B 时，
+normal/nokill owner 直接用 active `{kind, token, epoch, fault_tval}` 在同拍形成 `mem_rsp`：
+若后端 `rsp_ready` 已经为 1，本拍就消费 terminal 并回到 `S_IDLE`；若后端反压，则同一份
+payload/error 无条件锁存进既有 `S_RESP`，随后保持到 handshake。READY 只决定“直接 fire
+还是落入 skid”，绝不参与 VALID 资格；被 kill、但已经逃逸到 AXI 的写仍走 exact drop
+terminal，不能借融合路径取得正常完成资格。
+
 ```wavedrom
 {
   "signal": [
@@ -113,9 +126,12 @@ memory owner 与 ROB release 才按 exact identity 完成。当前实现不能�
     {"name": "physical req fire",  "wave": "0...10...."},
     {"name": "AW/W accepted",      "wave": "0....1...."},
     {"name": "B terminal",         "wave": "0.....10.."},
+    {"name": "backend rsp_ready",  "wave": "1........."},
+    {"name": "direct mem_rsp fire", "wave": "0.....10.."},
+    {"name": "S_RESP fallback",    "wave": "0........."},
     {"name": "ROB/SQ release",     "wave": "0......10."}
   ],
-  "head": {"text": "当前 Store：到达 SQ head 与 ROB head 后 launch，B terminal 后才精确释放"}
+  "head": {"text": "ready 场景：aggregate B 同拍形成 mem_rsp；反压时才进入 S_RESP 保持"}
 }
 ```
 
@@ -170,6 +186,14 @@ load data 已写 PRF 不代表所有顺序风险消失。若后来发现更老 s
 entry 仍须等待真实 terminal，不能在 flush 当拍释放 owner；否则晚到 R response 会成为
 无人认领的 transaction，甚至撞上已复用的 ROB 槽。
 
+还要区分 `terminal_seen_q` 与 `completed_q`：terminal 表示物理 owner 的 exact response
+已经发生，completion 表示结果已经取得 formal 完成资格，二者可以在不同边沿出现。
+normal terminal 会留下 `terminal_seen_q=1`，同时关闭该 entry 的 issue/query/response
+open gate，但 entry 仍可为 retire residency 保持 valid。若此后 recovery 命中它，LQ 会
+直接清除，而不是把它改成等待第二个 terminal 的 killed tombstone；任何重复 exact terminal
+都会触发 `[V11H-LQ-DUP-TERMINAL]`。双 allocation 则用 two-lowest-free onehot 选择，lane1
+仍以前缀依赖 lane0 fire，不改变双 dispatch 的原子语义。
+
 ## 6.7 MIQ：IQ 与 bridge 之间的所有权
 
 memory uop 一旦离开 Integer IQ，IQ entry 可以被复用；但 bridge 未必立即 ready。
@@ -189,6 +213,11 @@ memory uop 一旦离开 Integer IQ，IQ entry 可以被复用；但 bridge 未�
 每个 MIQ 是 4-entry transport FIFO，当前 kind 包括 LOAD、PROBE、DRAIN 和 LEGACY。
 flush 可以杀 LOAD/PROBE，已经承担 Store drain 的 DRAIN owner 必须存活；队列每拍仍只有
 一个真实 pop，next-head 只是只读 lookahead。
+
+MIQ 与 bridge 的 assertion 现在都把完整 `{owner_kind, owner_token, mmu_epoch}` 视为身份：
+push/pop、resident head、active/station/response/verified holder 只要 tuple 任一位未知就
+fail loud；队列没有 push/pop/flush/kill 时，head tuple 还必须逐拍稳定。仅检查 token 已不足以
+证明 late response 不会跨 kind 或 epoch 认错 owner。
 
 ### 同 bank 与不同 bank
 
@@ -436,12 +465,12 @@ response 脉冲本身不能证明 owner 已终止。
 | [`LSUControl.v`](../../../npc/rv64/vsrc/memory/LSUControl.v) | width/sign/alignment 控制 |
 | [`LSUDataPath.v`](../../../npc/rv64/vsrc/memory/LSUDataPath.v) | EA、store mask、load extract |
 | [`LSU.v`](../../../npc/rv64/vsrc/memory/LSU.v) | LSU helper 包装 |
-| [`OooStoreQueue.v`](../../../npc/rv64/vsrc/memory/OooStoreQueue.v) | store allocate/fill、SQ/ROB-head launch、terminal release 与 forwarding |
-| [`OooLoadQueue.v`](../../../npc/rv64/vsrc/memory/OooLoadQueue.v) | load ordering/replay/retire residency |
-| [`OooMemInflightQueue.v`](../../../npc/rv64/vsrc/memory/OooMemInflightQueue.v) | 双 bank request owner queue |
+| [`OooStoreQueue.v`](../../../npc/rv64/vsrc/memory/OooStoreQueue.v) | store allocate/fill、SQ/ROB-head launch、physical-byte forwarding 与 X-safe replay |
+| [`OooLoadQueue.v`](../../../npc/rv64/vsrc/memory/OooLoadQueue.v) | load ordering/replay、terminal history 与 retire residency |
+| [`OooMemInflightQueue.v`](../../../npc/rv64/vsrc/memory/OooMemInflightQueue.v) | 双 bank request owner queue 与完整 tuple 稳定性 |
 | [`OooMemoryAccess.v`](../../../npc/rv64/vsrc/memory/OooMemoryAccess.v) | glue 侧每 bank request/response wrapper |
 | [`OooMemoryRequestGate.v`](../../../npc/rv64/vsrc/memory/OooMemoryRequestGate.v) | core/bank request 和 flush gating |
-| [`OooMemAxiBridge.v`](../../../npc/rv64/vsrc/memory/OooMemAxiBridge.v) | DTLB/PTW/PMP/PMA/D$/AXI FSM |
+| [`OooMemAxiBridge.v`](../../../npc/rv64/vsrc/memory/OooMemAxiBridge.v) | DTLB/PTW/PMP/PMA/D$/AXI FSM 与 aggregate-B response fusion |
 | [`OooDualMemBridgeWrapper.v`](../../../npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v) | 双 bridge、peer maintenance、共享 miss |
 | [`OooDualMemAxiArbiter.v`](../../../npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v) | raw AXI owner lock/response routing |
 | [`OooLsuAxiLaneAdapter.v`](../../../npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v) | logical window 到标准 byte lane/split |

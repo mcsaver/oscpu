@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14m-arch-stable-freeze-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 NpcCoreTop 设计的九门架构证据、全核功能回归、owner/holder 收据与 arch-stable 冻结字段，判定可复用边界和仍需补齐的 exact-input 绑定，不对 production RTL 或历史状态作改写。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v1.schema.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/replay-1/current-directed-nine-gate-replay.json",
+      ".github/task-runs/2026-08-02-rv64-v14b-architecture-current-freeze-audit-v1/evidence/replay-1/current-directed-nine-gate-result.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-2/functional/functional-aggregate.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-2/functional/functional-aggregate-result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-freeze-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "当前完整 RTL 设计身份为 sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488，共 146 个 Verilog/SystemVerilog 源文件。",
+      "V14B 九门 manifest 与结果均绑定当前设计，原始 replay 为 DI-1..DI-5、OOO-1..OOO-4 全 GREEN；今日复核唯一 RED 是九条记录共同绑定的 npc/rv64/Makefile 哈希漂移。",
+      "当前 npc/rv64/Makefile 相对 V14B 版本只修改 producer-holder semantic coverage 与 refresh 入口，九个架构门 target 的 recipe 未变化，production RTL 设计身份未变化。",
+      "V14E 全核功能 aggregate 绑定当前设计、同一 cohort、冻结 simulator/config/reference/image/log，module 113/113、official 177/177、AM 61/61、DiffTest mismatch 0、CoreMark 与 Dhrystone GOOD TRAP。",
+      "architecture-debt-current.json 与 producer-holder-census.json 均绑定当前设计；16 项架构债务 CLOSED，4 项按 full-core-single-hart-rv64-dual-issue-ooo-v1 cohort 排除，整体架构与 PPA 尚未晋级。",
+      "现有 full-core-current.json 仍绑定旧设计且 freeze_inputs 全空；当前 architecture-current.json、functional-aggregate-current.json 与 arch-stable-current.json 也是旧设计，因此不能直接声明 ARCH_STABLE。",
+      "规范要求冻结 RTL、执行证据、oracle、测试、配置、生成头、filelist、spec、工具版本、liberty/macro/SDC、镜像、二进制、workflow、run parameters、性能测量合同和独立 reviewer，缺项必须保持 GAP。"
+    ]
+  },
+  "deliverables": [
+    "按 RTL/证据对象、配置、TB/EDA 观测和 PASS/GAP 范围给出最小 current-design 冻结输入集合、可复用工件、不可复用工件、反例、未知项与下一步。"
+  ],
+  "success_criteria": [
+    "明确区分九门证据的非语义 Makefile rebind、全核功能工件复用与 ARCH_STABLE 声明；任何身份或测量合同缺口必须 fail-closed，并报告替代假设和范围扩展请求。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

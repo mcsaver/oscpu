@@ -10,6 +10,7 @@ runtime resource.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -24,8 +25,16 @@ STUDY_ROOT = SCRIPT.parents[1]
 REPO_ROOT = SCRIPT.parents[4]
 VSRC_ROOT = REPO_ROOT / "npc" / "rv64" / "vsrc"
 DEFAULT_HTML = STUDY_ROOT / "index.html"
+DEFAULT_XML = Path("/tmp/rv64-study-npctop.xml")
 CSS_PATH = STUDY_ROOT / "tools" / "interactive_datasheet.css"
 JS_PATH = STUDY_ROOT / "tools" / "interactive_datasheet.js"
+BUILD_SCRIPT_PATH = STUDY_ROOT / "tools" / "build_interactive_datasheet.py"
+ELABORATION_SCRIPT_PATH = STUDY_ROOT / "tools" / "generate_elaboration_xml.sh"
+ATLAS_PATH = STUDY_ROOT / "11-逐文件源码地图.md"
+NPC_MAKEFILE_PATH = REPO_ROOT / "npc" / "rv64" / "Makefile"
+PRODUCT_DEFAULTS_PATH = (
+    REPO_ROOT / "npc" / "rv64" / "configs" / "product-rtl-defaults.mk"
+)
 
 DATA_RE = re.compile(
     r'<script\s+id="rv64-data"\s+type="application/json">(.*?)</script>',
@@ -50,6 +59,57 @@ REQUIRED_TRANSACTIONS = {
     "csr-queue-head",
     "precise-trap",
 }
+EXPECTED_TRANSACTION_TIMING_TITLES = {
+    "instruction-life": [
+        "程序序 DIV(older) → ADD(younger)：ADD 可先 formal-WB，但只能等 DIV 后以 commit1 同拍退休",
+        "普通整数 ALU：dispatch 后至少跨三个后续上升沿才更新架构 GPR",
+        "head1 早完成也不能越过 head0；head0 ready 后可双退休",
+    ],
+    "fetch-packet": [
+        "fetch miss：outstanding owner 覆盖 TLB/PTW/AXI 全寿命",
+        "redirect 后旧响应可到达总线，但必须被 discard，不能入 FIFO",
+        "response 在沿上写 FIFO，registered head 后续才派发",
+        "RVC packet：16-bit slot0 + 32-bit slot1，共消耗 6B",
+    ],
+    "integer-completion": [
+        "EX stage 遇 completion 反压时保持同一个 producer",
+        "普通整数 ALU：dispatch 后至少跨三个后续上升沿才更新架构 GPR",
+        "valid 等待 ready 时，tag、结果与异常元数据必须稳定",
+        "completion 广播清 busy/唤醒，dependent 使用 PRF 或 bypass",
+    ],
+    "fp-completion": [
+        "FMA producer 的身份与 fflags 必须穿过全部流水级",
+        "FP long-op 单 owner：busy 期间禁止覆盖，done 后再取得 completion 资格",
+        "FP 结果先物理可见，再进入 done FIFO，最后 formal-WB 与按序 commit",
+        "valid 等待 ready 时，tag、结果与异常元数据必须稳定",
+    ],
+    "load": [
+        "SQ 完整覆盖时 load 从最近的老 store 前递，不访问 cache",
+        "不同 addr[3] 的双 memory uop 可同拍进入两个 bank",
+        "PTW 发现叶 PTE A/D 未置位：先更新 PTE，再重试原访存",
+        "AXI AR 反压期间地址、尺寸、属性和 owner 全部保持",
+    ],
+    "store": [
+        "ready 场景：aggregate B 同拍形成 mem_rsp；反压时才进入 S_RESP 保持",
+        "AW 与 W 可以在不同周期握手，内部状态必须分别记账",
+        "双 bank 同时 miss：共享 raw AXI 按 owner 串行服务",
+    ],
+    "branch-recovery": [
+        "branch resolve 后统一 redirect，并取消所有 younger transaction",
+        "redirect 后旧响应可到达总线，但必须被 discard，不能入 FIFO",
+    ],
+    "csr-queue-head": [
+        "产品默认 head0 CSR：inflight 持有 stop，只等 mem_idle；C0 提交，C1 apply，C2 静默",
+        "serialized owner：capture -> drain -> exact terminal -> 单次 apply -> clear",
+        "控制命令要跨越多个周期保存身份和参数",
+    ],
+    "precise-trap": [
+        "精确异常：老 I0 退休，fault I1 不正常退休，年轻 I2 即使完成也被取消",
+        "精确异常：较老者可先退休，异常者本身不产生普通提交",
+        "older trap 压制 pending exit：raw 与 sticky 两层都不能双 terminal",
+        "设备中断可异步 pending，但只在 Core 精确边界形成 trap",
+    ],
+}
 REQUIRED_MODULES = {
     "NpcTop",
     "NpcCoreTop",
@@ -67,6 +127,7 @@ REQUIRED_MODULES = {
     "OooWriteback",
     "OooControlPlane",
     "CsrFile",
+    "AxiCrossbar",
 }
 REQUIRED_DOM_IDS = {
     "globalSearch",
@@ -138,6 +199,49 @@ def source_paths() -> set[str]:
     }
 
 
+def current_source_fingerprint(xml_path: Path = DEFAULT_XML) -> str:
+    """复算 builder 的完整源码绑定，防止 HTML 在原地悄悄过期。"""
+
+    paths = [
+        ATLAS_PATH,
+        xml_path,
+        NPC_MAKEFILE_PATH,
+        PRODUCT_DEFAULTS_PATH,
+        BUILD_SCRIPT_PATH,
+        CSS_PATH,
+        JS_PATH,
+        ELABORATION_SCRIPT_PATH,
+        *sorted(STUDY_ROOT.glob("[0-9][0-9]-*.md")),
+        *sorted(path for path in VSRC_ROOT.rglob("*") if path.is_file()),
+    ]
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(path.as_posix().encode("utf-8"))
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def audit_source_freshness(meta: dict[str, Any]) -> list[str]:
+    """Bind the delivered payload to the current XML and every source input."""
+
+    errors: list[str] = []
+    if not DEFAULT_XML.is_file():
+        return [f"缺少当前 elaboration XML：{DEFAULT_XML}"]
+    actual_elaboration = hashlib.sha256(DEFAULT_XML.read_bytes()).hexdigest()
+    if meta.get("elaborationSha256") != actual_elaboration:
+        errors.append(
+            "HTML elaborationSha256 与当前 NpcTop XML 不一致："
+            f"html={meta.get('elaborationSha256')} current={actual_elaboration}"
+        )
+    actual_fingerprint = current_source_fingerprint(DEFAULT_XML)
+    if meta.get("sourceFingerprint") != actual_fingerprint:
+        errors.append(
+            "HTML sourceFingerprint 与当前 RTL/讲义/工具不一致："
+            f"html={meta.get('sourceFingerprint')} current={actual_fingerprint}"
+        )
+    return errors
+
+
 def normalize_binary_holds(wave: str) -> str:
     normalized: list[str] = []
     active_level: str | None = None
@@ -165,6 +269,40 @@ def load_payload(text: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("rv64-data 顶层必须是 object")
     return payload
+
+
+def audit_transaction_timing_bindings(
+    transactions: list[dict[str, Any]],
+    timings: list[dict[str, Any]],
+) -> list[str]:
+    """Require an exact semantic transaction-to-WaveDrom binding."""
+
+    errors: list[str] = []
+    timing_titles_by_id = {
+        str(timing.get("id", "")): str(timing.get("title", ""))
+        for timing in timings
+    }
+    transactions_by_id = {
+        str(transaction.get("id", "")): transaction
+        for transaction in transactions
+    }
+    for transaction_id, expected_titles in (
+        EXPECTED_TRANSACTION_TIMING_TITLES.items()
+    ):
+        transaction = transactions_by_id.get(transaction_id)
+        if transaction is None:
+            continue
+        timing_ids = transaction.get("timingIds", [])
+        actual_titles = [
+            timing_titles_by_id.get(str(timing_id), f"<missing:{timing_id}>")
+            for timing_id in timing_ids
+        ]
+        if actual_titles != expected_titles:
+            errors.append(
+                f"{transaction_id}: WaveDrom 语义绑定不匹配："
+                f"actual={actual_titles} expected={expected_titles}"
+            )
+    return errors
 
 
 def audit_payload(payload: dict[str, Any]) -> list[str]:
@@ -363,6 +501,8 @@ def audit_payload(payload: dict[str, Any]) -> list[str]:
         if not transaction.get("timingIds"):
             errors.append(f"{transaction.get('id')}: 未绑定 WaveDrom")
 
+    errors.extend(audit_transaction_timing_bindings(transactions, timings))
+
     store_transaction = next(
         (item for item in transactions if item.get("id") == "store"),
         None,
@@ -497,8 +637,9 @@ def audit_payload(payload: dict[str, Any]) -> list[str]:
     elaboration_hash = str(meta.get("elaborationSha256", ""))
     if not re.fullmatch(r"[0-9a-f]{64}", elaboration_hash):
         errors.append("elaborationSha256 不是 sha256")
-    if meta.get("revision") != "Rev. D":
-        errors.append(f"可读性优化版本不是 Rev. D：{meta.get('revision')}")
+    if meta.get("revision") != "Rev. E":
+        errors.append(f"当前源码同步版本不是 Rev. E：{meta.get('revision')}")
+    errors.extend(audit_source_freshness(meta))
     return errors
 
 
@@ -552,7 +693,7 @@ def audit_css_readability(css_text: str) -> list[str]:
 
 
 def audit_readability_self_test() -> list[str]:
-    """Prove that the readability audit rejects the two observed regressions."""
+    """Prove that readability and source-freshness regressions fail closed."""
 
     errors: list[str] = []
     css_text = CSS_PATH.read_text(encoding="utf-8")
@@ -577,6 +718,72 @@ def audit_readability_self_test() -> list[str]:
         errors.append("负向样例中的未定义 CSS 变量未被审计拦截")
     if not any("隐藏了唯一字号" in item for item in injected_errors):
         errors.append("负向样例中的移动端隐藏字号按钮未被审计拦截")
+
+    if not DEFAULT_HTML.is_file():
+        errors.append(f"缺少 self-test baseline HTML：{DEFAULT_HTML}")
+        return errors
+    try:
+        payload = load_payload(DEFAULT_HTML.read_text(encoding="utf-8"))
+    except (ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"无法读取 self-test baseline payload：{exc}")
+        return errors
+    meta = payload.get("meta", {})
+    transactions = payload.get("transactions", [])
+    timings = payload.get("timings", [])
+    binding_errors = audit_transaction_timing_bindings(transactions, timings)
+    if binding_errors:
+        errors.append(
+            "当前 HTML 未通过 transaction timing baseline："
+            + "；".join(binding_errors)
+        )
+    mutated_transactions = json.loads(json.dumps(transactions, ensure_ascii=False))
+    bpu_timing = next(
+        (
+            timing
+            for timing in timings
+            if str(timing.get("title", "")).startswith("BPU：")
+        ),
+        None,
+    )
+    mutated_store = next(
+        (
+            transaction
+            for transaction in mutated_transactions
+            if transaction.get("id") == "store"
+        ),
+        None,
+    )
+    if bpu_timing is None or mutated_store is None:
+        errors.append("无法构造 transaction timing 负向样例")
+    else:
+        mutated_store["timingIds"] = [bpu_timing["id"]]
+        if not any(
+            "store: WaveDrom 语义绑定不匹配" in item
+            for item in audit_transaction_timing_bindings(
+                mutated_transactions, timings
+            )
+        ):
+            errors.append("负向样例中的 Store/BPU timing 误绑未被审计拦截")
+    freshness_errors = audit_source_freshness(meta)
+    if freshness_errors:
+        errors.append(
+            "当前 HTML 未通过 source-freshness baseline："
+            + "；".join(freshness_errors)
+        )
+    stale_source_meta = dict(meta)
+    stale_source_meta["sourceFingerprint"] = "0" * 64
+    if not any(
+        "sourceFingerprint" in item
+        for item in audit_source_freshness(stale_source_meta)
+    ):
+        errors.append("负向样例中的 stale source fingerprint 未被审计拦截")
+    stale_xml_meta = dict(meta)
+    stale_xml_meta["elaborationSha256"] = "0" * 64
+    if not any(
+        "elaborationSha256" in item
+        for item in audit_source_freshness(stale_xml_meta)
+    ):
+        errors.append("负向样例中的 stale elaboration hash 未被审计拦截")
     return errors
 
 
@@ -625,6 +832,11 @@ def audit_html_structure(text: str) -> list[str]:
         "data-copy-link",
         "data-font-scale-control",
         "data-font-scale=\"large\"",
+        "AxiCrossbar",
+        "aggregate B 同拍形成 mem_rsp",
+        "terminal_seen_q",
+        "static survivor map",
+        "FS=Off",
         "TOP-TO-BOTTOM MODULE / DATA FLOW",
         "NO MODULE-SPECIFIC TIMING",
         "flow-step-transfer",
@@ -669,6 +881,8 @@ def audit_html_structure(text: str) -> list[str]:
         "grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);": "lead-grid 仍在窄主内容区强制第二栏最小 280px",
         "function selfTestQuestions(": "Self-check 仍是只有问题、没有答案的旧实现",
         "owner-tagged terminal ingress：kind/token/epoch/ProducerId + response status": "Store owner-lifetime 分支仍错误携带 ProducerId/response status",
+        "AxiXbar": "讲义仍引用已重命名的旧 AXI 互连",
+        "S_WRITE_RESP → S_RESP → rsp fire": "Store transaction 仍把 S_RESP 误写成 aggregate B 的必经级",
     }
     for marker, message in forbidden_markers.items():
         if marker in text:
@@ -691,7 +905,7 @@ def main() -> int:
     parser.add_argument(
         "--self-test",
         action="store_true",
-        help="运行不落盘的可读性审计正/负向自检",
+        help="运行不落盘的可读性与源码新鲜度正/负向自检",
     )
     args = parser.parse_args()
     if args.self_test:
@@ -705,7 +919,10 @@ def main() -> int:
             "[interactive-audit-self-test] "
             "baseline=PASS negative-9px=REJECTED "
             "negative-undefined-variable=REJECTED "
-            "negative-hidden-control=REJECTED"
+            "negative-hidden-control=REJECTED "
+            "negative-transaction-timing=REJECTED "
+            "negative-stale-source=REJECTED "
+            "negative-stale-elaboration=REJECTED"
         )
         print("[interactive-audit-self-test] PASS")
         return 0
@@ -781,6 +998,25 @@ def main() -> int:
     print(
         "[interactive-audit] undefined_css_variables="
         f"{len(css_references.difference(css_definitions))}"
+    )
+    current_meta = payload.get("meta", {})
+    current_xml_hash = (
+        hashlib.sha256(DEFAULT_XML.read_bytes()).hexdigest()
+        if DEFAULT_XML.is_file()
+        else "missing"
+    )
+    print(
+        "[interactive-audit] current_elaboration_bound="
+        f"{int(current_meta.get('elaborationSha256') == current_xml_hash)}"
+    )
+    current_fingerprint = (
+        current_source_fingerprint(DEFAULT_XML)
+        if DEFAULT_XML.is_file()
+        else "missing"
+    )
+    print(
+        "[interactive-audit] current_source_bound="
+        f"{int(current_meta.get('sourceFingerprint') == current_fingerprint)}"
     )
     for error in errors:
         print(f"[interactive-audit][BAD] {error}")

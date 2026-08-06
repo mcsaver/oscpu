@@ -1,0 +1,14 @@
+----------------------------------------------------------------------
+Ran 17 tests in 0.714s
+
+OK
+----------------------------------------------------------------------
+Ran 12 tests in 0.255s
+
+OK
+----------------------------------------------------------------------
+Ran 5 tests in 0.022s
+
+OK
+[ARCHITECTURE-DEBT-DELTA-REBIND][PASS] baseline=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 current=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 rtl_files=146 changed=3 historical=175 replayed=19 whole_architecture=RED ppa=UNPROMOTED
+[ARCHITECTURE-DEBT-CURRENT][PASS] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 closed=16 excluded=4 ledger=RESOLVED_CURRENT_DESIGN system=PASS_CURRENT_CONFIG whole_architecture=RED ppa=UNPROMOTED

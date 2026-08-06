@@ -1,0 +1,41 @@
+--- run-focused.sh
++++ run-focused.sh
+@@ -1,8 +1,9 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+-RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
++RUN_DIR=$(realpath -m -- "${V8U_ASSET_DIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}")
+ REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
++CURRENT_ADAPTER_PATCH=$(realpath -- "${V8U_CURRENT_ADAPTER_PATCH:?current adapter patch is required}")
+ NPC_HOME="$REPO_ROOT/npc/rv64"
+ TB_HOME="$NPC_HOME/testbench"
+ ARCH_TOOL="$NPC_HOME/eval/ppa/tools/architecture_hard_gates.py"
+@@ -197,5 +198,6 @@
+         ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/evidence/focused/result.json",
+         "npc/rv64/Makefile",
++        "npc/rv64/testbench/Makefile",
+         "npc/rv64/design/arch/producer-holder-census.json",
+         "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
+         "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+@@ -221,6 +223,7 @@
+   "$RUN_DIR/mutate-v8u-f4.py"
+   "$RUN_DIR/run-mutations.sh"
+   "$RUN_DIR/run-focused.sh"
++  "$CURRENT_ADAPTER_PATCH"
+   "$NPC_HOME/Makefile"
+   "$NPC_HOME/design/arch/rv64-architecture-ppa-contract.md"
+   "$NPC_HOME/eval/ppa/tests/test_architecture_hard_gates.py"
+@@ -272,8 +275,10 @@
+ run_tb leaf-iq tb_ooo_int_issue_queue '-DOOO_ASSERT'
+ run_tb leaf-backend tb_ooo_int_backend '-DOOO_ASSERT'
+ run_tb leaf-bridge tb_ooo_mem_axi_bridge '-DOOO_ASSERT'
+-run_tb backend-partial tb_ooo_int_backend \
+-  '-DOOO_ASSERT -DV8S_DUAL_MEMORY_FOCUSED'
++run_tb backend-partial tb_ooo_int_backend_v8s_dual_memory ''
++cp -- \
++  "$EVIDENCE_DIR/backend-partial/logs/tb_ooo_int_backend_v8s_dual_memory.log" \
++  "$EVIDENCE_DIR/backend-partial/logs/tb_ooo_int_backend.log"
+ run_tb system tb_ooo_dual_memory_sustained_issue '-DOOO_ASSERT'
+ 
+ require_marker \

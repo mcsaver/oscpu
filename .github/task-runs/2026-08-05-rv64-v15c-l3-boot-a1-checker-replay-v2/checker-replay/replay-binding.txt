@@ -1,0 +1,11 @@
+schema=npc-rv64-layer-checker-replay-v1
+layer=l3
+source_run=.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a1
+source_status_sha256=1a8cec04c14b57d76f20c80121ebe10535db45ef10dbfbef8b01b102bc3c191b
+checker_sha256=da87fb0a50a63e1806f7892b170409655737d87c96c1d796b10708a967a745c4
+checker_test_sha256=bcb42556fa59d39491e75ea742010cd0f15c6ca7f7feaf0978904dab4bfe3991
+source_status=FAIL
+original_status_unchanged=1
+claim_scope=checker-replay-only
+guest_rerun=0
+ubuntu2204_full_simulation=not_launched

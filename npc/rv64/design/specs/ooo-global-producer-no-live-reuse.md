@@ -1,10 +1,11 @@
 # OoO 全局 ProducerId 持有者与有限代际不复用合同
 
-> 状态：V11N current-production-top 审计合同。字段 census 与
-> `NpcTop` product elaboration instance graph 已闭合；44 个语义单元中 27 个
-> 具有当前或明确限定的 source-bound 正/负向语义证据，余下 17 个保持 GAP。
-> 因而全局 no-live-reuse、完整双 memory、系统级验证、全核 architecture promotion
-> 和 PPA 仍按 `../arch/rv64-architecture-ppa-contract.md` 保持 RED/unpromoted。
+> 状态：V14H current-production global closure。字段 census 与
+> `NpcTop` product elaboration instance graph 已闭合；机器账本当前为 44/44
+> semantic PASS、50 条 unit×instance binding 无局部 GAP。V14H 显式合并 V14G
+> current dynamic fence、V11B/C/D/E/M 支撑证据与 NpcTop optional lane1 恒低产品接线，
+> 因此仅 `global_no_live_reuse=GREEN`；全核 architecture 仍为 RED，当前设计系统重认证
+> 仍为 REQUIRED，PPA 仍为 UNPROMOTED。
 
 ## 1. 身份与出生门
 
@@ -117,11 +118,40 @@ checker 会：
 6. 运行 compile-independent mutation self-test，证明新增字段/packed stage/token、删 IntIQ
    union、改 raw-index lookup、manifest 自我晋级都会 fail closed。
 
-动态门还必须运行 v8l focused runner：assert/release、真实 `GEN_W=1`
-allocate→issue→WB→commit 整圈回绕、死亡沿、memory tracker backpressure/cancel/recovery，以及
-compile-success semantic mutation。TB reference 直接扫描 raw Q holder，不复用 production mask。
-`check-global-producer-no-live-reuse` 是该动态门的长期入口；它先运行静态 census，再执行绑定 task-run
-runner，并要求 mutation 先成功生成 vvp 后才允许以预期运行后果计为击杀。
+当前动态门运行稳定 V14G runner，而不再执行历史 task-run 中的 v8l 脚本。runner 将
+`tb_ooo_int_backend_v14g_global_owner_fence.svh` 通过三个唯一 anchor 注入临时 TB；共享
+`tb_ooo_int_backend.sv` 保持 SHA-256
+`2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613`，避免无关测试新增使已有
+source-bound evidence 整体漂移。临时 generated TB、负向 RTL copy 与 vvp 在判定后全部删除。
+
+V14G 对 `PRODUCER_GEN_W=4/1` 分别运行 assertions-on/off，共 4 个 production baseline；真实 LOAD
+从 IntIQ Q 经 capture edge 交接到 reservation+LQ+tracker，flush 通过 collector ingress lane6 的
+精确 `{kind,token,epoch}` 进入 pending，tracker dequeue0/free 的 edge-old 周期继续阻塞 exact P，
+下一周期才开放。full-P lane0、mandatory lane1 pair、optional lane1 drop 与同 raw index 错 generation
+均有定向生命周期 oracle。V14G 的 `memory_pid` 与 reservation tuple 部分读取 DUT-observed identity，
+因此不得把 V14G 单独写成全字段 stimulus-owned；身份权威、cursor 与 pair/lane7 结论必须与
+V11D/V11E/V11M 的独立 scoreboard 合取。11 类 compile-success RTL source mutation 在两种
+generation width 下形成 22 个
+release 负向 profile；每个都必须先成功生成非空 vvp，再由唯一预期 stage marker 拒绝，且不得出现
+global/TB PASS。lane7 当前动态语义仍由 hash-bound V11M reservation evidence 提供，V14G 不把
+lane6 本轮运行误写成 lane7 重跑。
+
+V14H 把动态执行与日常判定分离。`check-global-producer-no-live-reuse` 只验证紧凑 receipt、当前 RTL
+design-id、V14G executable input、Icarus simulator identity、V11 支撑摘要以及冻结的产品 elaboration，
+不重复编译 26 个 profile。只有需要刷新动态证据时才运行：
+
+```bash
+make -C npc/rv64 refresh-global-producer-no-live-reuse
+```
+
+刷新目标运行 V14G 后重建 compact receipt 与 semantic ledger；临时 generated TB、负向 RTL copy 和 vvp
+仍全部删除。完整字段 census/instance graph 的重建继续由 `check-producer-holder-census` 显式运行。
+
+V14G 中的 optional lane1 force probe 只证明 `OooDispatchBackend` 的组合语义，不能单独证明产品可达性。
+V14H 直接读取当前 NpcTop 的完整 Yosys JSON，逐级核对
+`OooBranchAppendDispatchGate.dispatch1_optional_o=1'b0` 经 Frontend、CoreTopGlue、ExecuteBackend、
+AluCoreSlice、AluDecodeBackend、IntBackend、DispatchBackend 到 IntIssueQueue 的同一层次连接。因此当前
+配置的正确分类是 `PRODUCT_INACTIVE_CONSTANT_LOW`，不是缺少一条合法动态激励。
 
 ## 5. 声明边界
 
@@ -130,7 +160,7 @@ runner，并要求 mutation 先成功生成 vvp 后才允许以预期运行后�
 `OooMemInflightQueue` 与两个 `OooMemAxiBridge` 实例保持独立可审计；因此
 `instance_graph_complete=true`。
 
-V11B/V11C/V11D/V11E/V11F/V11G/V11H/V11J/V11K/V11L/V11M/V11N
+V11B–V11V
 语义账本将 44 个 census 单元展开成 50 条
 unit×instance 绑定。当前
 `terminal-output0-token`、`terminal-output1-token` 和 `terminal-pending-set`
@@ -233,9 +263,9 @@ DUT pending holder，full-width capture/read/write/lane9 截断与错误相位 m
 均由 exact-stage oracle 拒绝。`memory-pending-producer-cache` 与
 `memory-pending-token` 晋级 PASS；production `OooIntBackend.v` 未修改。
 
-`memory-buffer-token` 不由 V11N 代替。当前 product `ENABLE_DUAL_MEM=1` 下 legacy
-buffer path 为参数静态关闭，但在建立 product-inactive exemption 或配置专属动态
-证据前，该单元继续保持独立 GAP。
+`memory-buffer-token` 不由 V11N 代替。V11O 将当前 product `ENABLE_DUAL_MEM=1` 下的参数链、birth/request
+恒零与 8 个静态反例，同 legacy 配置的 4 个正向 profile、8 类 compile-success mutation 的 16 次仿真
+以及 3 个 ordinary regression 合取；因此该单元已独立 PASS，不能仅凭产品恒禁跳过 legacy 语义。
 
 局部证据重放必须区分绑定强度。V11B–V11H 的旧 full-design snapshot 不得改写
 design-id；仅当 policy 中逐项列出的 RTL、include/filelist 与 testbench SHA-256
@@ -246,20 +276,30 @@ design-id；仅当 policy 中逐项列出的 RTL、include/filelist 与 testbenc
 正向配置、1 个 raw-Q assertion probe、31×2 负向仿真及 pre/post 输入，
 生成新 PASS receipt，且明确历史 full-RTL snapshot 不是当前设计，只允许以
 未漂移的 LoadQueue RTL 与两份 TB 作 selected binding，
-`rtl_simulation_reexecuted=false`。系统边界
-必须用 exact object 记录 local closure 不要求重跑、system promotion 要求重跑、
-当前未运行；字段删除或弱化必须 fail closed。
+`rtl_simulation_reexecuted=false`。系统边界必须使用独立 exact object：局部 closure
+不隐式触发系统运行，system promotion 只接受当前 design/config/guest 绑定的完整执行，
+或在运行语义未变化时对完整冻结输入执行 versioned checker replay；字段删除或弱化必须
+fail closed。
 
-其余 17 个单元继续记录具体覆盖缺口，所以
-`semantic_complete=false`，global no-live-reuse 仍为 RED。
+当前 44 个单元均为 `semantic_status=PASS`，`units_semantic_gap=0`。V14H receipt 进一步要求：V14G
+4/4 baseline 与 22/22 compile-success mutation 精确闭合；V11B/C/D/E/M 的 collector accept/free、
+tracker cursor、GEN_W=1/4、pair-credit 与 lane6/lane7 字段不可削弱；optional lane1 产品链必须仍为恒 0。
+compact receipt 还必须消费每个 profile 的 observed `oracle_stages`、compile-command/artifact SHA-256
+与非空 log 摘要；stage 漂移或 log 摘要畸形由独立负例拒绝。它允许原 runtime payload 在冻结后退休，
+所以摘要绑定不等价于重放原始日志语义。上述条件与当前 design/tool/product identities 同时成立时，
+机器账本顶层为 `PASS`，且
+`promotion.global_no_live_reuse=GREEN`。任一字段、源哈希、simulator binary、产品接线或证据摘要漂移都
+fail closed，不允许只修改 receipt 制造晋级。
 
-不得把字段 census、实例图或 27/44 局部语义 PASS 单独外推为完整架构 GREEN、
-系统级 GREEN、200 MHz、Power 或 PPA promotion。只有所有 44 个单元在各自
-product instance 上具备当前 source-bound 正向、反例与语义 oracle，且全局门重新验证，
-才允许晋级 global no-live-reuse。
+不得把字段 census、实例图、44/44 局部语义 PASS、V14G focused PASS 或本次局部 GREEN 单独外推为
+完整架构 GREEN、200 MHz、Power 或 PPA promotion。V14H global receipt 固定保持
+`whole_architecture=RED`、`system_recertification=REQUIRED` 与 `ppa=UNPROMOTED`；这些字段被改为更强
+结论时，正负向单测必须拒绝。聚合语义账本另行消费 V14E A2 system receipt，且只在当前 RTL、
+配置、guest/boot artifact、冻结 console/NPC log、post-binding 与 current checker replay 全部精确匹配时，
+把账本顶层标记为 `system_recertification=PASS_CURRENT_CONFIG`。这不修改 V14H receipt 的声明边界。
 
-V11H 修改了 production core RTL 语义，因此旧 A3 系统 evidence 不再是当前设计绑定。
-新的完整系统运行是未来 system-level promotion 的前置条件；本地 focused closure 不自动
-启动该高成本运行，也不能用旧 A3 checker replay 代替当前设计的系统验证。V11J
-断言增量以及 V11K/V11L/V11M/V11N 的 verification-only 增量本身不增加新的完整系统
-重跑触发条件。
+V11H 修改了 production core RTL 语义，因此旧 A3 系统 evidence 不再是当前设计绑定，且不能
+用旧 A3 checker replay 代替当前设计的系统验证。V14E A2 随后在当前 design-id 上完成了完整系统
+运行；其原始执行、自然关机终态、assertion、配置与 pre/post hash 证据由独立 system receipt 保留。
+当前 checker/parser 只对 A2 冻结输入重放，并保留失败的 A1 状态。V11J 断言增量以及
+V11K/V11L/V11M/V11N 的 verification-only 增量本身不增加新的完整系统重跑触发条件。

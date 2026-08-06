@@ -69,7 +69,7 @@ assign drain_complete_o =
 - MIQ、bridge buffer、retry、reservation、live owner、terminal pending 的完整静默条件；
 - ordinary FENCE 与其他 system event 的专用区分。
 
-`campaign-report.md` 记录的优化战役从 `0bb371593` 到 `e7ff03a1d`；该模块在两个端点具有相同文件 SHA。战役终点得到 module 112/112、official 271/0、AM 56/56 和整体 workload 指标。这些是“包含该模块版本的系统曾通过战役级门禁”的证据，不是该局部合取式每一项必要性的负向证明。
+`campaign-report.md` 记录的优化任务从 `0bb371593` 到 `e7ff03a1d`；该模块在两个端点具有相同文件 SHA。任务结束时得到 module 112/112、official 271/0、AM 56/56 和整体 workload 指标。这些是“包含该模块版本的系统曾通过任务级门禁”的证据，不是该局部合取式每一项必要性的负向证明。
 
 证据等级：源码身份为 `SUPPORTED`；局部谓词必要性为 `OBSERVATIONAL_ONLY`。
 

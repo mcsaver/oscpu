@@ -1,0 +1,66 @@
+{
+  "schema": "npc-rv64-ppa-policy-v1",
+  "policy_id": "npc-rv64-performance-baseline-f7-v1-20260806",
+  "claim_tier": "scoped_simulation_performance_baseline_only",
+  "performance_evidence": {
+    "schema": "npc-rv64-performance-evidence-v8",
+    "measurement_contract": {
+      "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "id": "npc-rv64-pmc-v2-f7a-scoped-baseline-20260806",
+      "sha256": "873d3fa27a307278e078d1e65f4686ffd9b2c59902fa0518179d04cee8678b51"
+    },
+    "counter_schema": {
+      "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "id": "npc-rv64-pcs-v4-request-detail-20260801",
+      "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128"
+    },
+    "workload_matrix": {
+      "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
+      "id": "npc-rv64-pwm-v1-f7a-scoped-baseline-20260806",
+      "sha256": "c2f4245d5f8793ab92ef0a44e3222e6d58a35e59f59a9aa938b8b030c4d0900e"
+    },
+    "minimum_repetitions": 3,
+    "require_bit_exact_repetition_counters": true,
+    "benchmark_contracts": {
+      "coremark": {
+        "counter_scope": "pc_bounded_region_v1",
+        "raw_log_artifact_kinds": [
+          "coremark_raw_log_rep1",
+          "coremark_raw_log_rep2",
+          "coremark_raw_log_rep3"
+        ],
+        "region": {
+          "start_pc": "0x00000000800017a8",
+          "stop_pc": "0x00000000800017b0",
+          "start_marker_semantics": "first_committed_hit",
+          "final_marker_semantics": "termination_time_total_hits",
+          "start_hits": 1,
+          "stop_hits": 1
+        }
+      },
+      "dhrystone_10000": {
+        "counter_scope": "pc_bounded_region_v1",
+        "raw_log_artifact_kinds": [
+          "dhrystone_raw_log_rep1",
+          "dhrystone_raw_log_rep2",
+          "dhrystone_raw_log_rep3"
+        ],
+        "region": {
+          "start_pc": "0x0000000080000334",
+          "stop_pc": "0x000000008000047c",
+          "start_marker_semantics": "first_committed_hit",
+          "final_marker_semantics": "termination_time_total_hits",
+          "start_hits": 10000,
+          "stop_hits": 1
+        }
+      }
+    }
+  },
+  "claim_boundary": {
+    "scoped_current_design_baseline": true,
+    "global_workload_representativeness": false,
+    "full_causal_cpi_stack": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  }
+}

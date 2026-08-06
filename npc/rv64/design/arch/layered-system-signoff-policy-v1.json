@@ -1,0 +1,139 @@
+{
+  "schema": "npc-rv64-layered-system-signoff-policy-v1",
+  "purpose": "Default current-design system signoff for the local RV64 dual-issue OoO core without requiring an Ubuntu 22.04 full-system run.",
+  "priority": {
+    "current_highest_priority_layer": "L3_LIGHTWEIGHT_LINUX",
+    "reason": "Close Linux, SBI, Sv39, interrupt, UART, process, timer and natural-poweroff semantics with bounded simulation cost."
+  },
+  "default_signoff_conjunction": [
+    "L0_DIRECTED_RTL",
+    "L1_FULL_CORE_DIFFTEST",
+    "L2_MINI_SYSTEM",
+    "L3_LIGHTWEIGHT_LINUX"
+  ],
+  "layers": {
+    "L0_DIRECTED_RTL": {
+      "scope": "Module and transaction-contract testbenches for owner/holder, ready/valid, flush, replay, exception and memory-order behavior.",
+      "required_observations": [
+        "affected directed tests pass",
+        "RTL assertions remain enabled and show zero failures",
+        "checker-changing work includes a compile-success expected-fail mutation"
+      ]
+    },
+    "L1_FULL_CORE_DIFFTEST": {
+      "entrypoint": "npc/rv64/eval/ppa/run-full-core-current.sh",
+      "scope": "Current complete RV64 core, official/AM cohort and bounded benchmark guardrails.",
+      "required_observations": [
+        "execution and publication are independently fail-closed",
+        "official and AM source logs bind byte-for-byte to the same run",
+        "semantic verifier rejects its frozen mutation inventory"
+      ]
+    },
+    "L2_MINI_SYSTEM": {
+      "entrypoint": "npc/rv64/eval/ppa/run-mini-system-current.sh",
+      "scope": "OpenSBI plus a purpose-built S/U supervisor payload on NpcSimTop.",
+      "case_policy": {
+        "directed_cases": [
+          "privilege",
+          "sv39",
+          "timer",
+          "interrupt",
+          "atomic-mmio",
+          "shutdown"
+        ],
+        "complete_layer_case": "all",
+        "directed_case_claims_full_layer": false
+      },
+      "required_observations": [
+        "M-to-S-to-U transitions",
+        "Sv39 faults, permission recovery, A/D updates and sfence.vma remap",
+        "timer and PLIC/UART interrupts",
+        "AMO, LR/SC, fence, MMIO and natural syscon poweroff",
+        "duplicate terminal-event mutation is rejected",
+        "payload, OpenSBI, DTB and simulator source identities match before and after execution",
+        "post-binding, runtime cleanup and the final evidence-file seal all pass"
+      ]
+    },
+    "L3_LIGHTWEIGHT_LINUX": {
+      "entrypoint": "npc/rv64/eval/ppa/run-lightweight-linux-current.sh",
+      "scope": "Linux 6.6 from the same source tree as the Ubuntu path, a minimal effective kernel config, libc-free static PID1/initramfs, OpenSBI and the production NpcSimTop device model.",
+      "case_policy": {
+        "directed_cases": [
+          "boot",
+          "mmu",
+          "process",
+          "timer",
+          "storage",
+          "atomic",
+          "interrupt",
+          "shutdown"
+        ],
+        "complete_layer_case": "all",
+        "directed_case_claims_full_layer": false,
+        "artifact_reuse": "one Image/initramfs/effective-DTB/OpenSBI set; UART selector chooses the transaction after PID1"
+      },
+      "required_observations": [
+        "Linux reaches PID1 with Sv39 and SBI SRST",
+        "devtmpfs, procfs, sysfs and tmpfs mount successfully",
+        "clone/wait4 and MAP_PRIVATE copy-on-write preserve the parent page",
+        "monotonic clock_nanosleep rejects invalid nsec and completes three valid rounds",
+        "tmpfs write, seek, read and unlink succeed",
+        "AMO and LR/SC execute in user mode",
+        "two UART RX bytes are each bracketed by ARM/RX phases and a UART-to-PLIC assertion in cycle/commit order",
+        "PASS precedes the UART-byte-stream kernel power-down, counted OpenSBI syscon poweroff, GOOD TRAP and clean system-reset exit exactly once",
+        "Linux source content, simulator source content, post-binding, cleanup and the final evidence-file seal all pass"
+      ],
+      "non_claims": [
+        "Ubuntu userland",
+        "systemd",
+        "virtio block filesystem",
+        "networking",
+        "SMP",
+        "full distribution device coverage"
+      ]
+    }
+  },
+  "optional_full_ubuntu": {
+    "entrypoint": "npc/rv64/eval/ppa/run-system-recertification-current.sh",
+    "launch_policy": "explicit-user-request-only",
+    "required_flag": "--user-authorized-full-ubuntu",
+    "absence_blocks_default_signoff": false,
+    "historical_receipts": "immutable-and-still-auditable",
+    "claim_when_run": "optional Ubuntu 22.04/systemd recertification for its exact bound identity"
+  },
+  "identity_and_refresh": {
+    "production_or_elaborated_rtl_semantics": "rerun affected L0 plus L1, L2 and L3 according to scope",
+    "privilege_mmu_interrupt_exception_memory_or_device_semantics": "rerun affected L0 plus L1 plus L2 plus L3",
+    "linux_opensbi_dtb_pid1_or_simulator_semantics": "rerun L3",
+    "mini_payload_opensbi_dtb_or_simulator_semantics": "rerun L2",
+    "checker_parser_or_report_only": "retain original execution state, recompute and match current RTL, simulator, layer-source and artifact identities, then produce a versioned frozen-input replay",
+    "missing_raw_log_terminal_assertion_artifact_or_post_hash": "execution cannot sign off and the affected layer must rerun",
+    "ubuntu2204_full_recertification": "never inferred from another trigger; explicit user request remains mandatory"
+  },
+  "retention": {
+    "task_run_keep": [
+      "fail-closed status",
+      "design, simulator, boot-artifact and tool identity",
+      "bounded console, terminal, assertion and phase extracts",
+      "semantic summary and checker-mutation results",
+      "runtime cleanup receipt",
+      "final evidence manifest, verification log and seal receipt"
+    ],
+    "runtime_keep": [
+      "one validated current lightweight Linux artifact set",
+      "one RTL-and-simulator-source-content-bound current NpcSimTop cache"
+    ],
+    "remove": [
+      "kernel and OpenSBI object trees",
+      "temporary initramfs root",
+      "Verilator obj_dir",
+      "unbounded build intermediates"
+    ]
+  },
+  "promotion_boundary": {
+    "required_default_claim": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
+    "ubuntu2204_full_recertification": "OPTIONAL_NOT_IMPLIED",
+    "architecture": "NOT_IMPLIED_BY_SYSTEM_SIGNOFF_ALONE",
+    "ppa": "NOT_IMPLIED_BY_SYSTEM_SIGNOFF_ALONE"
+  }
+}

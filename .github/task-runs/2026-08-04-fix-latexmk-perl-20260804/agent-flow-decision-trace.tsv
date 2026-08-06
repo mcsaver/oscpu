@@ -1,0 +1,1 @@
+2026-08-04T10:46:04Z	decision	根因是 Windows MiKTeX 的 latexmk 解释器依赖缺失；安装 Scoop Perl 5.42.2.1 并持久接入用户 PATH，不修改 TeX 源码，也不处理无关的 MiKTeX 更新告警。	.github/runtime-artifacts/agent-flow/fix-latexmk-perl-20260804/latexmk-validation.txt

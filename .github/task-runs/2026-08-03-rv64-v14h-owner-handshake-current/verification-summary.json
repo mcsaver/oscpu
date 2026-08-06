@@ -1,0 +1,58 @@
+{
+  "schema_version": "npc-rv64-v14h-verification-summary-v1",
+  "generated_at_utc": "2026-08-03T15:38:37Z",
+  "classification": "architecture",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "production_rtl_change": false,
+  "checks": [
+    {
+      "id": "json-and-focused-negative-units",
+      "status": "PASS",
+      "command": "python3 -m json.tool <review/receipt/ledger> && python3 -B -m unittest -q npc.rv64.eval.ppa.tests.test_global_producer_no_live_reuse npc.rv64.eval.ppa.tests.test_producer_holder_semantic_coverage",
+      "return_code": 0,
+      "tests_run": 134,
+      "elapsed_seconds": 25.7
+    },
+    {
+      "id": "daily-global-receipt-gate",
+      "status": "PASS",
+      "command": "make -C npc/rv64 --no-print-directory check-global-producer-no-live-reuse",
+      "return_code": 0,
+      "elapsed_seconds": 3.3,
+      "observed": "units=44 instances=17 bindings=50 semantic_pass=44 global_no_live_reuse=GREEN whole_architecture=RED system=REQUIRED ppa=UNPROMOTED"
+    },
+    {
+      "id": "delivery-holder-semantic-gate",
+      "status": "PASS",
+      "command": "make -C npc/rv64 --no-print-directory check-producer-holder-semantic-coverage",
+      "return_code": 0,
+      "elapsed_seconds": 60.5,
+      "test_groups": [21, 16, 145],
+      "observed": "instance graph 15 modules/17 instances; census direct=20 packed=5 token_q=15 generation=1; semantic units=44/44; bindings=50"
+    },
+    {
+      "id": "architecture-freeze-current-workspace-tests",
+      "status": "KNOWN_GAP_OUTSIDE_V14H_PROMOTION",
+      "command": "python3 -B -m unittest -q npc.rv64.eval.ppa.tests.test_arch_stable_freeze",
+      "return_code": 1,
+      "tests_run": 53,
+      "failures": 3,
+      "basis": "V9O/V9R CONTROL-EVENT retained evidence is bound to historical design-id sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b, while current design-id is sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488. The checker correctly retains GAP; no V14H file is used to hide or rewrite the stale evidence."
+    },
+    {
+      "id": "strict-agent-e2e-guard",
+      "status": "EXEMPT_MISSING_BROAD_PROFILE",
+      "command": "scripts/agent-e2e.sh --guard --guard-mode strict --paths-file .github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/agent-flow-changed-paths.tsv",
+      "return_code": 1,
+      "missing_profile": "npc-dev",
+      "exemption_basis": "V14H has no production RTL change and already ran task-specific hash-bound receipt validation, 134 focused negative units, the complete holder semantic delivery gate, and two independent bounded reviews. Running the broad npc-dev profile would duplicate unrelated simulation and contradict the deterministic post-delivery routing policy."
+    }
+  ],
+  "promotion": {
+    "global_no_live_reuse": "GREEN",
+    "whole_architecture": "RED",
+    "system_recertification": "REQUIRED",
+    "ppa": "UNPROMOTED"
+  },
+  "status": "PASS_BOUNDED_WITH_RECORDED_EXTERNAL_GAPS"
+}

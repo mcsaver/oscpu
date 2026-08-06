@@ -1,0 +1,7 @@
+2026-08-05T07:53:56Z	decision	task class changed verification -> environment: 新增本地 RV64 轻量 Linux runner、分层系统签核策略与 C 门禁指针；Ubuntu 22.04 保持显式请求才运行	-
+2026-08-05T10:57:56Z	decision	默认系统签核采用 L0+L1+L2+L3；Ubuntu 22.04 只保留显式请求入口，本轮未启动。	npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+2026-08-05T10:57:56Z	counterexample	L2 A4 与 L3 A1 原始 status 保持 FAIL；独立 replay 只纠正冻结日志的 oracle 解释，不扩大 case 范围。	.github/task-runs/2026-08-05-rv64-v15c-l3-boot-a1-checker-replay-v2/checker-replay/replay-binding.txt
+2026-08-05T12:12:45Z	counterexample	Frozen A4 proved console UART trace is byte-interleaved; the valid cross-stream contract binds the reconstructed reboot byte stream directly to counted syscon cycle/commit, while the original A4 FAIL remains immutable.	.github/task-runs/2026-08-05-rv64-v15d-l3-lightweight-linux-all-a4/lightweight-linux.status
+2026-08-05T12:12:45Z	decision	Default system evidence is L0+L1+L2+L3; Ubuntu 22.04 remains explicit-user-only and was not launched in this task.	npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+2026-08-05T12:57:46Z	decision	默认系统签核为 L0+L1+L2+L3；Ubuntu 22.04 仅在用户明确授权时运行，本轮未启动。	npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+2026-08-05T13:23:33Z	evidence	独立限定材料复核支持 exact f7a6 的 A11 full-l2 与 A6 full-l3；L0/L1/PPA/Ubuntu 不外推。	.github/task-runs/2026-08-05-rv64-v15e-l2-l3-frozen-evidence-review-v5/review.md

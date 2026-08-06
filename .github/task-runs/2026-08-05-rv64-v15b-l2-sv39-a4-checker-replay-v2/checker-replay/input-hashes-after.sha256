@@ -1,0 +1,6 @@
+1a8cec04c14b57d76f20c80121ebe10535db45ef10dbfbef8b01b102bc3c191b  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-sv39-a4/mini-system.status
+c4daf1ba534374754eec58ee104c95b84170cb5461fe3516b333fe8c743ee0f5  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-sv39-a4/mini-system/console.log
+cb4ae66b9c1b1b163329365175d39ecdc3a97670f463c6c77028a38d799a0d25  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-sv39-a4/mini-system/npc.log
+cd5a95b764d9f7c49fb0880778ba7e0c370a711dad50c1eb63b7dd46fe6b20de  /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15b-l2-mini-system-sv39-a4/mini-system/binding.txt
+e9c0d068de1654dafee87ae58f07986a6045004207a8bac7239e6f43d96842c0  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/mini_system_run.py
+0b9d81081a339e351b2075f5113c5f5a6e6b2c1917a3e9ccdc68a13768fd0bcd  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tests/test_mini_system_run.py

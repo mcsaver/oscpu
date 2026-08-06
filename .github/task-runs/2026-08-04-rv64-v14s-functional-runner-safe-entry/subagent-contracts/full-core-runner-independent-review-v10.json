@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "full-core-runner-independent-review-v10",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审本地 RV64 双发射 OoO full-core evidence 的 byte-exact raw provenance 与 canonical publication path：确认 wrapper delimiter/source section 以 bytes 解析并与 retained raw bytes 相等，CRLF-only mutation 被拒绝，canonical destination 和 temporary 的 parent/final/dangling alias 在写入前被拒绝且 temporary 使用 exclusive/no-follow；复核候选回归未削弱既有 F0 semantic/isolation 合同。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      "npc/rv64/eval/ppa/run-full-core-current.sh",
+      "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py",
+      "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-soc-delivery-gates.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/flow-self-test.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-full-core-runner-contract.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-arch-stable-checker-contract.log",
+      ".github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts/full-core-runner-independent-review-v10.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 evidence path/raw bytes 对象、current-design 配置、定向 testbench/日志观测和 PASS/GAP 范围给出终审；保留全部可消费反例、未知项、替代假设、marker 与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "候选四项 C gate 均 PASS；CRLF-only retained raw mutation、canonical destination parent/final alias 与 temporary dangling alias 均由定向测试拒绝；源码在文本解码前执行 byte equality，并在写入前 lexical 检查 destination/temp 且 exclusive/no-follow 创建；既有 cross-run、terminal、DiffTest、benchmark、mutation、二级产物反例继续 PASS。任何可消费假绿判 GAP，不外推 official-177 实跑、ARCH_STABLE、系统事务或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

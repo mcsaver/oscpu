@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14j-architecture-debt-current-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核当前 NpcTop design-id 下 20 项架构债务机器账本：V14C/V14D/V14E/V14I 本地 RTL 与系统事务收据是否足以支持 16 个 CLOSED 和 4 个 EXCLUDED_BY_COHORT，并确认 whole_architecture 与 PPA 未被越级提升",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
+      "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
+      "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/p0-final-2/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/evidence/p1-direct-1/receipt.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-6/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/fence-run-1/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/vectored-run-1/summary.json",
+      "scripts/agent-flow.c",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "AI_ENVIRONMENT.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-03-rv64-v14j-architecture-debt-current-ledger-v1/subagent-contracts/v14j-architecture-debt-current-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/ROADMAP.md",
+      "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按账本项、design-id、配置/周期、testbench/EDA 观测和 PASS/GAP 边界给出独立反例复核；列出任何哈希未消费、来源范围不闭合、cohort 越界或固定门禁假绿"
+  ],
+  "success_criteria": [
+    "独立确认或否定 16 CLOSED、4 EXCLUDED_BY_COHORT、SERIALIZE 快层与完整系统收据合取、原始状态不可改写、whole_architecture=RED 和 ppa=UNPROMOTED；每个 GAP 必须指向具体本地文件、字段或缺失观测"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

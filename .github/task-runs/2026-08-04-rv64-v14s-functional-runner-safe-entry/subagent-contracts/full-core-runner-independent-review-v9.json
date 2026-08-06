@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "full-core-runner-independent-review-v9",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 全核入口、evidence producer、aggregate writer 与 F0 consumer 的统一 lexical path 和 retained raw-log provenance：确认 dangling run-dir、source/output parent/file alias 均在解引用前被拒绝，build/official/AM/benchmark wrapper 回绑同轮 raw path、SHA-256 和 byte-equal source section，且既有 semantic 与 isolation 反例保持关闭。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      "AI_ENVIRONMENT.md",
+      ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      "npc/rv64/eval/ppa/run-full-core-current.sh",
+      "npc/rv64/eval/ppa/tools/full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tools/functional_aggregate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json",
+      "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json",
+      "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh",
+      "am-kernels/tests/cpu-tests/scripts/check_results.py",
+      "abstract-machine/Makefile",
+      "abstract-machine/am/Makefile",
+      "abstract-machine/klib/Makefile",
+      "am-kernels/benchmarks/coremark/Makefile",
+      "am-kernels/benchmarks/dhrystone/Makefile",
+      "am-kernels/tests/cpu-tests/Makefile",
+      "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py",
+      "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py",
+      "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-soc-delivery-gates.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/flow-self-test.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-full-core-runner-contract.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/gates/rv64-arch-stable-checker-contract.log",
+      ".github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts/full-core-runner-independent-review-v9.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/full-core-functional-run-policy-v1.json",
+      ".github/runtime-artifacts/agent-flow/rv64-v14s-functional-runner-safe-entry/summary.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 entry/producer/consumer 对象、current-design 配置、testbench/EDA 观测和 PASS/GAP 范围给出独立结论；列全可消费反例、未知项、替代假设、日志 marker 与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "候选 C 门禁全部 PASS；源码和负向测试拒绝 dangling run-dir、producer source/output parent/final alias 与 consumer cross-run alias；build/official/AM/benchmark wrapper 精确回绑同轮 retained raw path/hash/bytes；terminal、DiffTest、benchmark、mutation、二级产物和 C mapping 反例仍被拒绝。任何可消费假绿判 GAP，不外推 official-177 实跑、ARCH_STABLE、系统事务或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

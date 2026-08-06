@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14o-cpi-bottleneck-census-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 CPI bottleneck census：重算 CoreMark/Dhrystone 的 cycle、slot、memory lifecycle 与 request-detail 排名，核对 S_WRITE_RESP 仅是 ROB-head residency 而非事务次数或唯一因果，并评估下一组诊断计数能否区分 B latency、bridge concurrency、head weighting 与 pre-request pipeline。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/run-performance-bottleneck-census.sh",
+      "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1/subagent-contracts/v14o-cpi-bottleneck-census-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地 counter/RTL 对象、周期/配置、TB/EDA 观测与 PASS/GAP 范围给出不超过 12 条的审查结论；列出反例、竞争假设、未知项、下一判别实验和 PPA/候选授权边界。"
+  ],
+  "success_criteria": [
+    "确认排名与比例可复算，且 census 没有把 S_WRITE_RESP 驻留越级解释为唯一 root cause、没有授权提前完成 store 或弱化 B terminal；若诊断计划不足以区分竞争假设则给出 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

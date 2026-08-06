@@ -1,0 +1,1 @@
+[RV64-SIM-CACHE-CONTRACT][PASS] source-content-bound=1 single-flight=1 fail-closed=1

@@ -2196,6 +2196,7 @@ module OooIntBackend #(
   reg drain_inflight_q;                // SQ physical write 已 fire、B 尚未 terminal
   // sq_alloc0/1_ready_w 声明已前置到 u_dispatch_backend 实例之前(iverilog 14)
   wire sq_drain_valid_w;
+  wire sq_drain_source_resident_w;
   wire [ROB_INDEX_W-1:0] sq_drain_rob_w;
   wire [PRODUCER_ID_W-1:0] sq_drain_producer_id_w;
   wire [1:0] sq_drain_owner_kind_w;
@@ -4420,7 +4421,13 @@ module OooIntBackend #(
                                 : mem_request_slot_open_w) &&
        !mem_buffer_valid_q && !flush_i && !checkpoint_restore_hold_w &&
        !branch_resolve_mispredict_w &&
-       !issue_block_w && !mem_issue_block_w && issue0_mem_order_ready_w);
+       !issue_block_w && !mem_issue_block_w && issue0_mem_order_ready_w &&
+       // V14R: on the single physical request bank, a younger store probe
+       // must not be presented while an older probe can still become the SQ
+       // physical-head request.  Otherwise backpressure would legally lease
+       // the younger VALID and make the later SQ priority impossible.
+       !(sq_mode_w && issue0_is_plain_store_w &&
+         issue0_miq_probe_block_r));
   wire issue1_mem_buffer_fire_w;
   wire issue1_mem_req_valid_w =
       ENABLE_DUAL_MEM ? issue1_dual_selected_w :
@@ -4429,7 +4436,9 @@ module OooIntBackend #(
        !issue1_sq_fwd_w && mem_request_slot_open_w &&
        !mem_buffer_valid_q && !flush_i && !checkpoint_restore_hold_w &&
        !branch_resolve_mispredict_w && !issue_block_w &&
-       !mem_issue_block_w && issue1_mem_order_ready_w);
+       !mem_issue_block_w && issue1_mem_order_ready_w &&
+       !(sq_mode_w && issue1_is_plain_store_w &&
+         issue1_miq_probe_block_r));
   wire mem_retry0_req_valid_w = mem_retry0_selected_w &&
       miq_slot_open_w && !flush_i && !checkpoint_restore_hold_w &&
       !branch_resolve_mispredict_w && !issue_block_w &&
@@ -4597,42 +4606,273 @@ module OooIntBackend #(
       !flush_i && !checkpoint_restore_hold_w && mem_request_slot_open_w;
   wire mem_request_transport_open_w =
       !flush_i && !checkpoint_restore_hold_w;
-  wire grant_sq_w =
+  // V14R: bridge-facing VALID is a transaction lease, not a live view of the
+  // priority encoder.  Once a bank presents VALID while READY is low, retain
+  // the source selector and exact owner tuple until that request fires.  The
+  // source Q remains the payload truth, avoiding 2 * 217 payload flops in the
+  // production datapath; assertion-only shadows below prove it stays stable.
+  localparam integer MEM_REQ_SEL_SQ = 0;
+  localparam integer MEM_REQ_SEL_AMO = 1;
+  localparam integer MEM_REQ_SEL_BUFFER = 2;
+  localparam integer MEM_REQ_SEL_RETRY0 = 3;
+  localparam integer MEM_REQ_SEL_ISSUE0 = 4;
+  localparam integer MEM_REQ_SEL_ISSUE1 = 5;
+  localparam integer MEM1_REQ_SEL_RETRY1 = 0;
+  localparam integer MEM1_REQ_SEL_ISSUE0 = 1;
+  localparam integer MEM1_REQ_SEL_ISSUE1 = 2;
+
+  reg mem_req_hold_valid_q;
+  reg [5:0] mem_req_hold_sel_q;
+  reg [1:0] mem_req_hold_owner_kind_q;
+  reg [4:0] mem_req_hold_owner_token_q;
+  reg [1:0] mem_req_hold_mmu_epoch_q;
+  reg mem1_req_hold_valid_q;
+  reg [2:0] mem1_req_hold_sel_q;
+  reg [1:0] mem1_req_hold_owner_kind_q;
+  reg [4:0] mem1_req_hold_owner_token_q;
+  reg [1:0] mem1_req_hold_mmu_epoch_q;
+
+  wire mem_issue0_req_owner_exact_w = mem_issue_res_valid_q &&
+      mem_owner_live_mask_w[mem_issue_res_owner_token_q] &&
+      (mem_owner_kind_table_w[mem_issue_res_owner_token_q*2 +: 2] ==
+       mem_issue_res_owner_kind_q) &&
+      (mem_owner_epoch_table_w[mem_issue_res_owner_token_q*2 +: 2] ==
+       mem_issue_res_mmu_epoch_q) &&
+      (mem_owner_producer_id_table_w[
+           mem_issue_res_owner_token_q*PRODUCER_ID_W +: PRODUCER_ID_W] ==
+       mem_issue_res_producer_id_q);
+  wire mem_issue1_req_owner_exact_w = mem_issue1_res_valid_q &&
+      mem_owner_live_mask_w[mem_issue1_res_owner_token_q] &&
+      (mem_owner_kind_table_w[mem_issue1_res_owner_token_q*2 +: 2] ==
+       mem_issue1_res_owner_kind_q) &&
+      (mem_owner_epoch_table_w[mem_issue1_res_owner_token_q*2 +: 2] ==
+       mem_issue1_res_mmu_epoch_q) &&
+      (mem_owner_producer_id_table_w[
+           mem_issue1_res_owner_token_q*PRODUCER_ID_W +: PRODUCER_ID_W] ==
+       mem_issue1_res_producer_id_q);
+  wire mem_buffer_req_owner_exact_w = mem_buffer_valid_q &&
+      mem_owner_live_mask_w[mem_buffer_owner_token_q] &&
+      (mem_owner_kind_table_w[mem_buffer_owner_token_q*2 +: 2] ==
+       mem_buffer_owner_kind_q) &&
+      (mem_owner_epoch_table_w[mem_buffer_owner_token_q*2 +: 2] ==
+       mem_buffer_mmu_epoch_q);
+
+  wire mem_req_hold_issue_barrier_w = branch_resolve_mispredict_w ||
+      issue_block_w || mem_issue_block_w;
+  wire mem_req_hold_cancel_w = !mem_request_transport_open_w ||
+      ((mem_req_hold_sel_q[MEM_REQ_SEL_RETRY0] ||
+        mem_req_hold_sel_q[MEM_REQ_SEL_ISSUE0] ||
+        mem_req_hold_sel_q[MEM_REQ_SEL_ISSUE1]) &&
+       mem_req_hold_issue_barrier_w) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_BUFFER] && mem_buffer_kill_w);
+  wire mem1_req_hold_cancel_w = !mem_request_transport_open_w ||
+      ((mem1_req_hold_sel_q[MEM1_REQ_SEL_RETRY1] ||
+        mem1_req_hold_sel_q[MEM1_REQ_SEL_ISSUE0] ||
+        mem1_req_hold_sel_q[MEM1_REQ_SEL_ISSUE1]) &&
+       mem_req_hold_issue_barrier_w);
+
+  // V14X: launch_open authorizes only the first presentation.  Once READY=0
+  // captures an older physical-write request, selective recovery may close
+  // launch_open for one cycle without revoking the exact ROB/source owner.
+  // Keep that held lease tied to resident SQ/AMO state plus owner_open; global
+  // cancellation and every real owner/request/terminal drift still fail loud.
+  wire sq_drain_owner_lease_w = sq_mode_w &&
+      sq_drain_source_resident_w && !drain_inflight_q &&
+      sq_drain_tracker_exact_w &&
+      (sq_drain_tracker_producer_id_w == sq_drain_producer_id_w) &&
+      (sq_snoop_owner_token_w[sq_snoop_head_w*5 +: 5] ==
+       sq_drain_owner_token_w);
+  wire mem_amo_owner_lease_w = mem_pending_q && mem_amo_q &&
+      mem_amo_write_phase_q && !mem_amo_write_sent_q &&
+      mem_amo_tracker_exact_w && rob_head_owner_open_w &&
+      (mem_rob_idx_q == rob_head_idx_w) &&
+      (mem_amo_tracker_producer_id_w == mem_producer_id_q) &&
+      (mem_producer_id_q == rob_head_producer_id_w);
+
+  wire mem_req_hold_source_exact_w =
+      (mem_req_hold_sel_q[MEM_REQ_SEL_SQ] && sq_drain_owner_lease_w &&
+       (sq_drain_owner_kind_w == mem_req_hold_owner_kind_q) &&
+       (sq_drain_owner_token_w == mem_req_hold_owner_token_q) &&
+       (sq_drain_mmu_epoch_w == mem_req_hold_mmu_epoch_q)) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_AMO] && mem_amo_owner_lease_w &&
+       (mem_owner_kind_q == mem_req_hold_owner_kind_q) &&
+       (mem_owner_token_q == mem_req_hold_owner_token_q) &&
+       (mem_mmu_epoch_q == mem_req_hold_mmu_epoch_q)) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_BUFFER] &&
+       mem_buffer_req_owner_exact_w &&
+       (mem_buffer_owner_kind_q == mem_req_hold_owner_kind_q) &&
+       (mem_buffer_owner_token_q == mem_req_hold_owner_token_q) &&
+       (mem_buffer_mmu_epoch_q == mem_req_hold_mmu_epoch_q)) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_RETRY0] &&
+       mem_retry0_tracker_exact_w && !mem_retry0_cancel_w &&
+       !mem_retry0_addr_q[3] &&
+       (mem_retry0_owner_kind_q == mem_req_hold_owner_kind_q) &&
+       (mem_retry0_owner_token_q == mem_req_hold_owner_token_q) &&
+       (mem_retry0_mmu_epoch_q == mem_req_hold_mmu_epoch_q)) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_ISSUE0] &&
+       mem_issue0_req_owner_exact_w && issue0_is_mem_w &&
+       !issue0_mem_exception_w && !issue0_sq_fwd_w &&
+       (!ENABLE_DUAL_MEM || issue0_is_amo_w || !issue0_mem_addr_w[3]) &&
+       (mem_issue_res_owner_kind_q == mem_req_hold_owner_kind_q) &&
+       (mem_issue_res_owner_token_q == mem_req_hold_owner_token_q) &&
+       (mem_issue_res_mmu_epoch_q == mem_req_hold_mmu_epoch_q)) ||
+      (mem_req_hold_sel_q[MEM_REQ_SEL_ISSUE1] &&
+       mem_issue1_req_owner_exact_w && issue1_is_mem_w &&
+       !issue1_mem_exception_w && !issue1_sq_fwd_w &&
+       (!ENABLE_DUAL_MEM || !issue1_mem_addr_w[3]) &&
+       (mem_issue1_res_owner_kind_q == mem_req_hold_owner_kind_q) &&
+       (mem_issue1_res_owner_token_q == mem_req_hold_owner_token_q) &&
+       (mem_issue1_res_mmu_epoch_q == mem_req_hold_mmu_epoch_q));
+  wire mem1_req_hold_source_exact_w =
+      (mem1_req_hold_sel_q[MEM1_REQ_SEL_RETRY1] &&
+       mem_retry1_tracker_exact_w && !mem_retry1_cancel_w &&
+       mem_retry1_addr_q[3] &&
+       (mem_retry1_owner_kind_q == mem1_req_hold_owner_kind_q) &&
+       (mem_retry1_owner_token_q == mem1_req_hold_owner_token_q) &&
+       (mem_retry1_mmu_epoch_q == mem1_req_hold_mmu_epoch_q)) ||
+      (mem1_req_hold_sel_q[MEM1_REQ_SEL_ISSUE0] &&
+       mem_issue0_req_owner_exact_w && issue0_is_mem_w &&
+       !issue0_is_amo_w && !issue0_mem_exception_w && !issue0_sq_fwd_w &&
+       issue0_mem_addr_w[3] &&
+       (mem_issue_res_owner_kind_q == mem1_req_hold_owner_kind_q) &&
+       (mem_issue_res_owner_token_q == mem1_req_hold_owner_token_q) &&
+       (mem_issue_res_mmu_epoch_q == mem1_req_hold_mmu_epoch_q)) ||
+      (mem1_req_hold_sel_q[MEM1_REQ_SEL_ISSUE1] &&
+       mem_issue1_req_owner_exact_w && issue1_is_mem_w &&
+       !issue1_mem_exception_w && !issue1_sq_fwd_w &&
+       issue1_mem_addr_w[3] &&
+       (mem_issue1_res_owner_kind_q == mem1_req_hold_owner_kind_q) &&
+       (mem_issue1_res_owner_token_q == mem1_req_hold_owner_token_q) &&
+       (mem_issue1_res_mmu_epoch_q == mem1_req_hold_mmu_epoch_q));
+
+  // A bank1 holder may coexist with an independent bank0 ordinary request,
+  // but a pending singleton/SQ source cannot be bypassed by a younger bank0
+  // source while it waits for bank1 to drain.
+  wire mem_req_singleton_wait_w = ENABLE_DUAL_MEM &&
+      mem1_req_hold_valid_q && mem_request_transport_open_w &&
+      (sq_drain_req_valid_w || mem_amo_write_req_valid_w ||
+       (!mem_buffer_kill_w && mem_buffer_req_valid_w));
+  wire live_grant_sq_w = !mem_req_singleton_wait_w &&
       mem_request_transport_open_w && sq_drain_req_valid_w;
-  wire grant_amo_write_w =
-      mem_request_transport_open_w && !grant_sq_w &&
+  wire live_grant_amo_write_w = !mem_req_singleton_wait_w &&
+      mem_request_transport_open_w && !live_grant_sq_w &&
       mem_amo_write_req_valid_w;
-  wire grant_buffer_w =
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !mem_buffer_kill_w &&
+  wire live_grant_buffer_w = !mem_req_singleton_wait_w &&
+      mem_request_transport_open_w && !live_grant_sq_w &&
+      !live_grant_amo_write_w && !mem_buffer_kill_w &&
       mem_buffer_req_valid_w;
-  wire grant_retry0_w = ENABLE_DUAL_MEM &&
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && mem_retry0_req_valid_w;
-  wire grant_issue0_w =
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && !grant_retry0_w &&
-      issue0_mem_req_valid_w &&
+  wire live_grant_retry0_w = ENABLE_DUAL_MEM &&
+      !mem_req_singleton_wait_w && mem_request_transport_open_w &&
+      !live_grant_sq_w && !live_grant_amo_write_w &&
+      !live_grant_buffer_w && mem_retry0_req_valid_w;
+  wire live_grant_issue0_w = !mem_req_singleton_wait_w &&
+      mem_request_transport_open_w && !live_grant_sq_w &&
+      !live_grant_amo_write_w && !live_grant_buffer_w &&
+      !live_grant_retry0_w && issue0_mem_req_valid_w &&
       (!ENABLE_DUAL_MEM || issue0_dual_singleton_candidate_w ||
        !issue0_dual_bank1_w);
-  wire grant_issue1_w =
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && !grant_retry0_w &&
-      !grant_issue0_w &&
+  wire live_grant_issue1_w = !mem_req_singleton_wait_w &&
+      mem_request_transport_open_w && !live_grant_sq_w &&
+      !live_grant_amo_write_w && !live_grant_buffer_w &&
+      !live_grant_retry0_w && !live_grant_issue0_w &&
       issue1_mem_req_valid_w &&
       (!ENABLE_DUAL_MEM || !issue1_dual_bank1_w);
-  wire grant_retry1_w = ENABLE_DUAL_MEM &&
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && mem_retry1_req_valid_w;
-  wire grant_mem1_issue0_w = ENABLE_DUAL_MEM &&
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && !grant_retry1_w &&
-      issue0_dual_selected_w && issue0_dual_bank1_w;
-  wire grant_mem1_issue1_w = ENABLE_DUAL_MEM &&
-      mem_request_transport_open_w && !grant_sq_w &&
-      !grant_amo_write_w && !grant_buffer_w && !grant_retry1_w &&
-      issue1_dual_selected_w &&
-      issue1_dual_bank1_w && !grant_mem1_issue0_w;
+  wire [5:0] live_mem_req_sel_w =
+      {live_grant_issue1_w, live_grant_issue0_w, live_grant_retry0_w,
+       live_grant_buffer_w, live_grant_amo_write_w, live_grant_sq_w};
+  wire mem_req_hold_active_w = mem_req_hold_valid_q &&
+      !mem_req_hold_cancel_w && mem_req_hold_source_exact_w;
+  wire [5:0] mem_req_effective_sel_w = mem_req_hold_valid_q ?
+      (mem_req_hold_active_w ? mem_req_hold_sel_q : 6'b0) :
+      live_mem_req_sel_w;
+  wire grant_sq_w = mem_req_effective_sel_w[MEM_REQ_SEL_SQ];
+  wire grant_amo_write_w = mem_req_effective_sel_w[MEM_REQ_SEL_AMO];
+  wire grant_buffer_w = mem_req_effective_sel_w[MEM_REQ_SEL_BUFFER];
+  wire grant_retry0_w = mem_req_effective_sel_w[MEM_REQ_SEL_RETRY0];
+  wire grant_issue0_w = mem_req_effective_sel_w[MEM_REQ_SEL_ISSUE0];
+  wire grant_issue1_w = mem_req_effective_sel_w[MEM_REQ_SEL_ISSUE1];
+  wire sq_drain_fire_authorized_w = sq_drain_launch_authorized_w ||
+      (mem_req_hold_active_w &&
+       mem_req_hold_sel_q[MEM_REQ_SEL_SQ] && sq_drain_owner_lease_w);
+  wire mem_amo_fire_authorized_w = mem_amo_launch_authorized_w ||
+      (mem_req_hold_active_w &&
+       mem_req_hold_sel_q[MEM_REQ_SEL_AMO] && mem_amo_owner_lease_w);
+  wire mem_req_effective_singleton_w = grant_sq_w || grant_amo_write_w ||
+      grant_buffer_w || (grant_issue0_w && issue0_is_amo_w);
+
+  wire live_grant_retry1_w = ENABLE_DUAL_MEM &&
+      mem_request_transport_open_w && !mem_req_effective_singleton_w &&
+      mem_retry1_req_valid_w;
+  wire live_grant_mem1_issue0_w = ENABLE_DUAL_MEM &&
+      mem_request_transport_open_w && !mem_req_effective_singleton_w &&
+      !live_grant_retry1_w && issue0_dual_selected_w &&
+      issue0_dual_bank1_w;
+  wire live_grant_mem1_issue1_w = ENABLE_DUAL_MEM &&
+      mem_request_transport_open_w && !mem_req_effective_singleton_w &&
+      !live_grant_retry1_w && issue1_dual_selected_w &&
+      issue1_dual_bank1_w && !live_grant_mem1_issue0_w;
+  wire [2:0] live_mem1_req_sel_w =
+      {live_grant_mem1_issue1_w, live_grant_mem1_issue0_w,
+       live_grant_retry1_w};
+  wire mem1_req_hold_active_w = mem1_req_hold_valid_q &&
+      !mem1_req_hold_cancel_w && mem1_req_hold_source_exact_w;
+  wire [2:0] mem1_req_effective_sel_w = mem1_req_hold_valid_q ?
+      (mem1_req_hold_active_w ? mem1_req_hold_sel_q : 3'b0) :
+      live_mem1_req_sel_w;
+  wire grant_retry1_w = mem1_req_effective_sel_w[MEM1_REQ_SEL_RETRY1];
+  wire grant_mem1_issue0_w =
+      mem1_req_effective_sel_w[MEM1_REQ_SEL_ISSUE0];
+  wire grant_mem1_issue1_w =
+      mem1_req_effective_sel_w[MEM1_REQ_SEL_ISSUE1];
+
+  wire mem_req_hold_capture_w = !mem_req_hold_valid_q &&
+      (|live_mem_req_sel_w) && !mem_req_ready_i;
+  wire mem1_req_hold_capture_w = !mem1_req_hold_valid_q &&
+      (|live_mem1_req_sel_w) && !mem1_req_ready_i;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      mem_req_hold_valid_q <= 1'b0;
+      mem_req_hold_sel_q <= 6'b0;
+      mem_req_hold_owner_kind_q <= MEM_OWNER_RESERVED;
+      mem_req_hold_owner_token_q <= 5'b0;
+      mem_req_hold_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+    end else if (mem_req_hold_valid_q) begin
+      if (mem_req_hold_cancel_w || !mem_req_hold_source_exact_w ||
+          (mem_req_hold_active_w && mem_req_ready_i)) begin
+        mem_req_hold_valid_q <= 1'b0;
+        mem_req_hold_sel_q <= 6'b0;
+      end
+    end else if (mem_req_hold_capture_w) begin
+      mem_req_hold_valid_q <= 1'b1;
+      mem_req_hold_sel_q <= live_mem_req_sel_w;
+      mem_req_hold_owner_kind_q <= mem_req_owner_kind_o;
+      mem_req_hold_owner_token_q <= mem_req_owner_token_o;
+      mem_req_hold_mmu_epoch_q <= mem_req_mmu_epoch_o;
+    end
+  end
+
+  always @(posedge clk) begin
+    if (rst) begin
+      mem1_req_hold_valid_q <= 1'b0;
+      mem1_req_hold_sel_q <= 3'b0;
+      mem1_req_hold_owner_kind_q <= MEM_OWNER_RESERVED;
+      mem1_req_hold_owner_token_q <= 5'b0;
+      mem1_req_hold_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+    end else if (mem1_req_hold_valid_q) begin
+      if (mem1_req_hold_cancel_w || !mem1_req_hold_source_exact_w ||
+          (mem1_req_hold_active_w && mem1_req_ready_i)) begin
+        mem1_req_hold_valid_q <= 1'b0;
+        mem1_req_hold_sel_q <= 3'b0;
+      end
+    end else if (mem1_req_hold_capture_w) begin
+      mem1_req_hold_valid_q <= 1'b1;
+      mem1_req_hold_sel_q <= live_mem1_req_sel_w;
+      mem1_req_hold_owner_kind_q <= mem1_req_owner_kind_o;
+      mem1_req_hold_owner_token_q <= mem1_req_owner_token_o;
+      mem1_req_hold_mmu_epoch_q <= mem1_req_mmu_epoch_o;
+    end
+  end
 
   wire sq_drain_req_fire_w = grant_sq_w && mem_req_ready_i;
   assign mem_buffer_req_fire_w = grant_buffer_w && mem_req_ready_i;
@@ -4752,6 +4992,165 @@ module OooIntBackend #(
       grant_mem1_issue0_w ? issue0_mem_wdata_w : issue1_mem_wdata_w;
   assign mem1_req_wstrb_o = grant_retry1_w ? mem_retry1_wstrb_q :
       grant_mem1_issue0_w ? issue0_mem_wstrb_w : issue1_mem_wstrb_w;
+
+`ifdef OOO_ASSERT
+  localparam integer MEM_REQ_HOLD_PAYLOAD_W = 217;
+  wire [MEM_REQ_HOLD_PAYLOAD_W-1:0] mem_req_hold_payload_w =
+      {mem_req_write_o, mem_req_addr_o, mem_req_wdata_o, mem_req_wstrb_o,
+       mem_req_probe_o, mem_req_pretrans_o, mem_req_nokill_o,
+       mem_req_attr_valid_o, mem_req_class_o, mem_req_cacheable_o,
+       mem_req_owner_kind_o, mem_req_owner_token_o, mem_req_mmu_epoch_o,
+       mem_req_fault_tval_o};
+  wire [MEM_REQ_HOLD_PAYLOAD_W-1:0] mem1_req_hold_payload_w =
+      {mem1_req_write_o, mem1_req_addr_o, mem1_req_wdata_o,
+       mem1_req_wstrb_o, mem1_req_probe_o, mem1_req_pretrans_o,
+       mem1_req_nokill_o, mem1_req_attr_valid_o, mem1_req_class_o,
+       mem1_req_cacheable_o, mem1_req_owner_kind_o,
+       mem1_req_owner_token_o, mem1_req_mmu_epoch_o,
+       mem1_req_fault_tval_o};
+  reg [MEM_REQ_HOLD_PAYLOAD_W-1:0] mem_req_hold_payload_shadow_q;
+  reg [MEM_REQ_HOLD_PAYLOAD_W-1:0] mem1_req_hold_payload_shadow_q;
+  reg mem_req_hold_payload_shadow_valid_q;
+  reg mem1_req_hold_payload_shadow_valid_q;
+  wire [2:0] live_mem_req_sel_count_w =
+      {2'b0, live_mem_req_sel_w[0]} + {2'b0, live_mem_req_sel_w[1]} +
+      {2'b0, live_mem_req_sel_w[2]} + {2'b0, live_mem_req_sel_w[3]} +
+      {2'b0, live_mem_req_sel_w[4]} + {2'b0, live_mem_req_sel_w[5]};
+  wire [2:0] mem_req_effective_sel_count_w =
+      {2'b0, mem_req_effective_sel_w[0]} +
+      {2'b0, mem_req_effective_sel_w[1]} +
+      {2'b0, mem_req_effective_sel_w[2]} +
+      {2'b0, mem_req_effective_sel_w[3]} +
+      {2'b0, mem_req_effective_sel_w[4]} +
+      {2'b0, mem_req_effective_sel_w[5]};
+  wire [1:0] live_mem1_req_sel_count_w =
+      {1'b0, live_mem1_req_sel_w[0]} +
+      {1'b0, live_mem1_req_sel_w[1]} +
+      {1'b0, live_mem1_req_sel_w[2]};
+  wire [1:0] mem1_req_effective_sel_count_w =
+      {1'b0, mem1_req_effective_sel_w[0]} +
+      {1'b0, mem1_req_effective_sel_w[1]} +
+      {1'b0, mem1_req_effective_sel_w[2]};
+
+  always @(posedge clk) begin
+    if (rst) begin
+      mem_req_hold_payload_shadow_q <=
+          {MEM_REQ_HOLD_PAYLOAD_W{1'b0}};
+      mem1_req_hold_payload_shadow_q <=
+          {MEM_REQ_HOLD_PAYLOAD_W{1'b0}};
+      mem_req_hold_payload_shadow_valid_q <= 1'b0;
+      mem1_req_hold_payload_shadow_valid_q <= 1'b0;
+    end else begin
+      if (mem_req_hold_capture_w) begin
+        mem_req_hold_payload_shadow_q <= mem_req_hold_payload_w;
+        mem_req_hold_payload_shadow_valid_q <= 1'b1;
+      end else if (mem_req_hold_valid_q &&
+                   (mem_req_hold_cancel_w ||
+                    !mem_req_hold_source_exact_w ||
+                    (mem_req_hold_active_w && mem_req_ready_i))) begin
+        mem_req_hold_payload_shadow_valid_q <= 1'b0;
+      end
+      if (mem1_req_hold_capture_w) begin
+        mem1_req_hold_payload_shadow_q <= mem1_req_hold_payload_w;
+        mem1_req_hold_payload_shadow_valid_q <= 1'b1;
+      end else if (mem1_req_hold_valid_q &&
+                   (mem1_req_hold_cancel_w ||
+                    !mem1_req_hold_source_exact_w ||
+                    (mem1_req_hold_active_w && mem1_req_ready_i))) begin
+        mem1_req_hold_payload_shadow_valid_q <= 1'b0;
+      end
+
+      if ((live_mem_req_sel_count_w > 3'd1) ||
+          (mem_req_effective_sel_count_w > 3'd1) ||
+          (live_mem1_req_sel_count_w > 2'd1) ||
+          (mem1_req_effective_sel_count_w > 2'd1)) begin
+        $display("[V14R-H0-REQUEST-SELECT-ONEHOT] live0=%b effective0=%b live1=%b effective1=%b @%0t",
+                 live_mem_req_sel_w, mem_req_effective_sel_w,
+                 live_mem1_req_sel_w, mem1_req_effective_sel_w, $time);
+        $fatal;
+      end
+      if ((mem_req_hold_valid_q &&
+           (mem_req_hold_sel_q == 6'b0)) ||
+          (mem1_req_hold_valid_q &&
+           (mem1_req_hold_sel_q == 3'b0))) begin
+        $display("[V14R-H1-HOLDER-SELECT-NONZERO] hold0=%b sel0=%b hold1=%b sel1=%b @%0t",
+                 mem_req_hold_valid_q, mem_req_hold_sel_q,
+                 mem1_req_hold_valid_q, mem1_req_hold_sel_q, $time);
+        $fatal;
+      end
+      if (mem_req_hold_valid_q && !mem_req_hold_cancel_w &&
+          mem_req_hold_source_exact_w &&
+          (!mem_req_valid_o || !mem_req_hold_payload_shadow_valid_q ||
+           (mem_req_hold_payload_w != mem_req_hold_payload_shadow_q))) begin
+        $display("[V14R-H2-BANK0-PAYLOAD-HOLD] valid=%b shadow_valid=%b sel=%b owner=%b/%0d/%0d @%0t",
+                 mem_req_valid_o, mem_req_hold_payload_shadow_valid_q,
+                 mem_req_hold_sel_q, mem_req_hold_owner_kind_q,
+                 mem_req_hold_owner_token_q, mem_req_hold_mmu_epoch_q,
+                 $time);
+        $fatal;
+      end
+      if (mem1_req_hold_valid_q && !mem1_req_hold_cancel_w &&
+          mem1_req_hold_source_exact_w &&
+          (!mem1_req_valid_o || !mem1_req_hold_payload_shadow_valid_q ||
+           (mem1_req_hold_payload_w != mem1_req_hold_payload_shadow_q))) begin
+        $display("[V14R-H3-BANK1-PAYLOAD-HOLD] valid=%b shadow_valid=%b sel=%b owner=%b/%0d/%0d @%0t",
+                 mem1_req_valid_o, mem1_req_hold_payload_shadow_valid_q,
+                 mem1_req_hold_sel_q, mem1_req_hold_owner_kind_q,
+                 mem1_req_hold_owner_token_q, mem1_req_hold_mmu_epoch_q,
+                 $time);
+        $fatal;
+      end
+      if (mem_req_hold_valid_q && !mem_req_hold_cancel_w &&
+          !mem_req_hold_source_exact_w) begin
+        $display("[V14R-H4-BANK0-SOURCE-LOSS] held selector lost exact source without an authorized cancellation sel=%b owner=%b/%0d/%0d @%0t",
+                 mem_req_hold_sel_q, mem_req_hold_owner_kind_q,
+                 mem_req_hold_owner_token_q, mem_req_hold_mmu_epoch_q,
+                 $time);
+        $fatal;
+      end
+      if (mem1_req_hold_valid_q && !mem1_req_hold_cancel_w &&
+          !mem1_req_hold_source_exact_w) begin
+        $display("[V14R-H5-BANK1-SOURCE-LOSS] held selector lost exact source without an authorized cancellation sel=%b owner=%b/%0d/%0d @%0t",
+                 mem1_req_hold_sel_q, mem1_req_hold_owner_kind_q,
+                 mem1_req_hold_owner_token_q, mem1_req_hold_mmu_epoch_q,
+                 $time);
+        $fatal;
+      end
+      if (mem_req_hold_valid_q &&
+          (mem_req_hold_cancel_w || !mem_req_hold_source_exact_w) &&
+          mem_req_valid_o) begin
+        $display("[V14R-H4-BANK0-CANCEL-BUBBLE] cancel=%b exact=%b valid=%b @%0t",
+                 mem_req_hold_cancel_w, mem_req_hold_source_exact_w,
+                 mem_req_valid_o, $time);
+        $fatal;
+      end
+      if (mem1_req_hold_valid_q &&
+          (mem1_req_hold_cancel_w || !mem1_req_hold_source_exact_w) &&
+          mem1_req_valid_o) begin
+        $display("[V14R-H5-BANK1-CANCEL-BUBBLE] cancel=%b exact=%b valid=%b @%0t",
+                 mem1_req_hold_cancel_w, mem1_req_hold_source_exact_w,
+                 mem1_req_valid_o, $time);
+        $fatal;
+      end
+      if (mem_req_hold_active_w &&
+          ((mem_req_owner_kind_o != mem_req_hold_owner_kind_q) ||
+           (mem_req_owner_token_o != mem_req_hold_owner_token_q) ||
+           (mem_req_mmu_epoch_o != mem_req_hold_mmu_epoch_q))) begin
+        $display("[V14R-H6-BANK0-OWNER-IDENTITY] output owner diverged from held tuple @%0t",
+                 $time);
+        $fatal;
+      end
+      if (mem1_req_hold_active_w &&
+          ((mem1_req_owner_kind_o != mem1_req_hold_owner_kind_q) ||
+           (mem1_req_owner_token_o != mem1_req_hold_owner_token_q) ||
+           (mem1_req_mmu_epoch_o != mem1_req_hold_mmu_epoch_q))) begin
+        $display("[V14R-H7-BANK1-OWNER-IDENTITY] output owner diverged from held tuple @%0t",
+                 $time);
+        $fatal;
+      end
+    end
+  end
+`endif
 
   // ============ MIQ push(与桥 req fire 同拍, 优先级与 req mux 一致) ============
   // 【P5 刀 M】fire 语义重释=进桥侧 req 寄存站(翻译/dcache 发射推迟到桥内 advance
@@ -6478,6 +6877,7 @@ module OooIntBackend #(
     .release_producer_id_i(rob_head_producer_id_w),
     .release_ready_o(sq_release_ready_w),
     .release_fire_o(sq_release_fire_w),
+    .req_source_resident_o(sq_drain_source_resident_w),
     .req_valid_o(sq_drain_valid_w),
     .req_rob_idx_o(sq_drain_rob_w),
     .req_producer_id_o(sq_drain_producer_id_w),
@@ -6492,6 +6892,8 @@ module OooIntBackend #(
     .req_cacheable_o(sq_drain_cacheable_w),
     .req_data_o(sq_drain_data_w),
     .req_strb_o(sq_drain_strb_w),
+    .req_held_lease_i(mem_req_hold_active_w &&
+                      mem_req_hold_sel_q[MEM_REQ_SEL_SQ]),
     .req_fire_i(sq_drain_req_fire_w),
     .owner_release_mask_o(sq_owner_release_mask_w),
     .snoop_valid_o(sq_snoop_valid_w),
@@ -7211,6 +7613,17 @@ module OooIntBackend #(
        mem_buffer_owner_mask_w | mem_retry0_owner_mask_w |
        mem_retry1_owner_mask_w) &
       (v9q_bridge0_token_mask_w | v9q_bridge1_token_mask_w);
+  // v14u: the AMO singleton is born by an exact reservation0 -> pending
+  // handoff.  Scan the independent edge-old Q valids so a stale reservation
+  // or legacy-buffer alias cannot reach lane6/7/8 beside lane9.  This is an
+  // assertion-only view and never feeds request, recovery, or collector RTL.
+  wire [31:0] v14u_amo_pending_owner_mask_w =
+      (mem_pending_q && mem_amo_q) ?
+      (32'b1 << mem_owner_token_q) : 32'b0;
+  wire [31:0] v14u_amo_transient_overlap_mask_w =
+      v14u_amo_pending_owner_mask_w &
+      (mem_issue_res_owner_mask_w | mem_issue1_res_owner_mask_w |
+       mem_buffer_owner_mask_w);
 `endif
   integer v8l_assert_i;
   reg [31:0] v9y_terminal_transfer_shadow_q;
@@ -7387,6 +7800,16 @@ module OooIntBackend #(
                  mem_buffer_valid_q, mem_buffer_owner_token_q,
                  mem_retry0_valid_q, mem_retry0_owner_token_q,
                  mem_retry1_valid_q, mem_retry1_owner_token_q,
+                 $time);
+        $fatal;
+      end
+      if (v14u_amo_transient_overlap_mask_w !== 32'b0) begin
+        $display("[V14U-AMO-TRANSIENT-HOLDER-DISJOINT] overlap=%h amo=%b/%0d res0=%b/%0d res1=%b/%0d buffer=%b/%0d @%0t",
+                 v14u_amo_transient_overlap_mask_w,
+                 mem_pending_q && mem_amo_q, mem_owner_token_q,
+                 mem_issue_res_valid_q, mem_issue_res_owner_token_q,
+                 mem_issue1_res_valid_q, mem_issue1_res_owner_token_q,
+                 mem_buffer_valid_q, mem_buffer_owner_token_q,
                  $time);
         $fatal;
       end
@@ -7840,13 +8263,13 @@ module OooIntBackend #(
            issue1_mem_request_fire_w || push_amo_write_w))
         $error("[T4N-SQ-PRIORITY] SQ fire overlapped younger/other fire @%0t",
                $time);
-      if (sq_drain_req_fire_w && !sq_drain_launch_authorized_w) begin
-        $display("[V8G-SQ-LAUNCH-AUTH] physical STORE fired without exact capability/PID/head @%0t",
+      if (sq_drain_req_fire_w && !sq_drain_fire_authorized_w) begin
+        $display("[V8G-SQ-LAUNCH-AUTH] physical STORE fired without first-launch or held owner lease @%0t",
                  $time);
         $fatal;
       end
-      if (push_amo_write_w && !mem_amo_launch_authorized_w) begin
-        $display("[V8G-AMO-LAUNCH-AUTH] AMO write fired without exact capability/PID/head @%0t",
+      if (push_amo_write_w && !mem_amo_fire_authorized_w) begin
+        $display("[V8G-AMO-LAUNCH-AUTH] AMO write fired without first-launch or held owner lease @%0t",
                  $time);
         $fatal;
       end

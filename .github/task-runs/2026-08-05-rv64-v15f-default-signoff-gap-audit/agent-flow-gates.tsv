@@ -1,0 +1,4 @@
+5	rv64-full-core-runner-contract	PASS	65747	.github/runtime-artifacts/agent-flow/rv64-v15f-default-signoff-gap-audit/gates/rv64-full-core-runner-contract.log
+5	flow-self-test	PASS	2405	.github/runtime-artifacts/agent-flow/rv64-v15f-default-signoff-gap-audit/gates/flow-self-test.log
+5	rv64-layered-system-signoff-current	PASS	652	.github/runtime-artifacts/agent-flow/rv64-v15f-default-signoff-gap-audit/gates/rv64-layered-system-signoff-current.log
+5	rv64-soc-delivery-gates	PASS	1303	.github/runtime-artifacts/agent-flow/rv64-v15f-default-signoff-gap-audit/gates/rv64-soc-delivery-gates.log

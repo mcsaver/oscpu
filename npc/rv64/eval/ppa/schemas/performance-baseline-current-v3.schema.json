@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-performance-baseline-current-v3.schema.json",
+  "title": "NPC RV64 fresh current-design scoped PERF_BASELINE receipt v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "maturity_stage",
+    "design_id",
+    "arch_stable",
+    "manifest",
+    "baseline_contract",
+    "measurement_contract",
+    "counter_schema",
+    "boundary_qualification_amendment",
+    "workload_matrix",
+    "policy",
+    "execution_mode",
+    "identity",
+    "benchmarks",
+    "repeatability",
+    "instrumentation_noninterference",
+    "postflight_arch_stable_verify",
+    "claim_boundary",
+    "blockers",
+    "unknowns",
+    "ppa",
+    "promotion_eligible",
+    "scope"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-performance-baseline-current-v3"},
+    "status": {"const": "PERF_BASELINE"},
+    "maturity_stage": {"const": "PERF_BASELINE"},
+    "design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "arch_stable": {"$ref": "#/$defs/artifact"},
+    "manifest": {"$ref": "#/$defs/artifact"},
+    "baseline_contract": {"$ref": "#/$defs/artifact"},
+    "measurement_contract": {"$ref": "#/$defs/artifact"},
+    "counter_schema": {"$ref": "#/$defs/artifact"},
+    "boundary_qualification_amendment": {"$ref": "#/$defs/artifact"},
+    "workload_matrix": {"$ref": "#/$defs/artifact"},
+    "policy": {"$ref": "#/$defs/artifact"},
+    "execution_mode": {"const": "FRESH_CURRENT_DESIGN_DIRECT"},
+    "identity": {
+      "type": "object",
+      "required": ["simulator", "configuration", "stats_off_simulator"]
+    },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coremark", "dhrystone_10000"],
+      "properties": {
+        "coremark": {"$ref": "#/$defs/benchmark"},
+        "dhrystone_10000": {"$ref": "#/$defs/benchmark"}
+      }
+    },
+    "repeatability": {
+      "type": "object",
+      "required": [
+        "repetitions_per_workload",
+        "bit_exact_cycles_retired_and_counter_stack",
+        "outliers_removed"
+      ]
+    },
+    "instrumentation_noninterference": {
+      "type": "object",
+      "required": ["status", "observer_mode", "comparisons"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "comparisons": {"type": "object"}
+      }
+    },
+    "postflight_arch_stable_verify": {"$ref": "#/$defs/artifact"},
+    "claim_boundary": {
+      "type": "object",
+      "required": [
+        "maturity_stage",
+        "scope",
+        "global_workload_representativeness",
+        "full_causal_cpi_stack",
+        "ppa",
+        "promotion_eligible",
+        "not_claimed"
+      ],
+      "properties": {
+        "maturity_stage": {"const": "PERF_BASELINE"},
+        "global_workload_representativeness": {"const": false},
+        "full_causal_cpi_stack": {"const": false},
+        "ppa": {"const": "UNQUALIFIED"},
+        "promotion_eligible": {"const": false}
+      }
+    },
+    "blockers": {"type": "array", "maxItems": 0},
+    "unknowns": {"type": "array", "maxItems": 0},
+    "ppa": {"const": "UNQUALIFIED"},
+    "promotion_eligible": {"const": false},
+    "scope": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "required": [
+        "repetitions",
+        "bit_exact",
+        "cycles",
+        "retired_instructions",
+        "cpi",
+        "ipc",
+        "counter_signature_sha256",
+        "cpi_stack",
+        "retire_slots",
+        "logs"
+      ],
+      "properties": {
+        "repetitions": {"const": 3},
+        "bit_exact": {"const": true},
+        "cycles": {"type": "integer", "minimum": 1},
+        "retired_instructions": {"type": "integer", "minimum": 1},
+        "cpi": {"type": "string", "pattern": "^[0-9]+\\.[0-9]{12}$"},
+        "ipc": {"type": "string", "pattern": "^[0-9]+\\.[0-9]{12}$"},
+        "counter_signature_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "cpi_stack": {"type": "object"},
+        "retire_slots": {"type": "object"},
+        "logs": {"type": "array", "minItems": 3, "maxItems": 3}
+      }
+    }
+  }
+}

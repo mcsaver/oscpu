@@ -386,6 +386,7 @@ PAIR_MATRIX_PROVENANCE_PATHS = (
     "mutate-v8p-pair-matrix.py",
     ".github/task-runs/2026-07-20-rv64-v8p-dual-memory-terminal-owners/"
     "run-focused.sh",
+    "npc/rv64/eval/ppa/patches/v8p-pair-matrix-current.patch",
     "npc/rv64/Makefile",
     "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
     "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
@@ -467,6 +468,7 @@ NO_STATIC_LANE_PROVENANCE_PATHS = (
     "mutate-v8o-no-static-lane.py",
     ".github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/"
     "run-focused.sh",
+    "npc/rv64/eval/ppa/patches/v8o-no-static-lane-current.patch",
     "npc/rv64/Makefile",
     "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
     "npc/rv64/eval/ppa/tests/test_architecture_hard_gates.py",
@@ -503,6 +505,7 @@ DUAL_MEMORY_PROVENANCE_PATHS = (
     "npc/rv64/testbench/tests/tb_ooo_dual_memory_sustained_issue.sv",
 )
 DUAL_MEMORY_SOURCE_PATHS = DUAL_MEMORY_PROVENANCE_PATHS + (
+    "npc/rv64/eval/ppa/patches/v8u-dual-memory-sustained-current.patch",
     "npc/rv64/eval/ppa/tests/test_dual_memory_issue_evidence.py",
     "npc/rv64/eval/ppa/tests/test_directed_evidence_manifest.py",
     "npc/rv64/testbench/common/tb_common.svh",
@@ -566,6 +569,8 @@ MEMORY_ORDERING_SOURCE_PATHS = (
     "mutate-v8s-dual-memory-core.py",
     ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/"
     "run-focused.sh",
+    "npc/rv64/eval/ppa/patches/v8v-memory-ordering-current.patch",
+    "npc/rv64/eval/ppa/tools/v8s_dual_memory_core_mutator_current.py",
     "npc/rv64/Makefile",
     "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
     "npc/rv64/design/arch/producer-holder-census.json",
@@ -1300,12 +1305,37 @@ def di3_checks(src: dict[str, str]) -> list[Check]:
               r"\.eff_addr_i\s*\(mem_issue1_res_eff_addr_w\)"),
     ))
 
-    age_serialized = all((
+    legacy_age_serialized = all((
         match(backend, r"\bwire\s+grant_issue1_w\s*=.*?"
               r"!grant_issue0_w\s*&&.*?issue1_mem_req_valid_w\s*&&"),
         match(backend, r"\bwire\s+grant_mem1_issue1_w\s*=.*?"
               r"issue1_dual_bank1_w\s*&&\s*!grant_mem1_issue0_w\s*;"),
     ))
+    hold_aware_age_serialized = all((
+        match(backend, r"\bwire\s+live_grant_issue1_w\s*=.*?"
+              r"!live_grant_issue0_w\s*&&\s*"
+              r"issue1_mem_req_valid_w\s*&&"),
+        match(backend, r"\bwire\s+live_grant_mem1_issue1_w\s*=.*?"
+              r"issue1_dual_bank1_w\s*&&\s*"
+              r"!live_grant_mem1_issue0_w\s*;"),
+        match(backend, r"\bwire\s+\[5:0\]\s+live_mem_req_sel_w\s*=\s*"
+              r"\{\s*live_grant_issue1_w\s*,\s*"
+              r"live_grant_issue0_w\s*,"),
+        match(backend, r"\bwire\s+\[2:0\]\s+live_mem1_req_sel_w\s*=\s*"
+              r"\{\s*live_grant_mem1_issue1_w\s*,\s*"
+              r"live_grant_mem1_issue0_w\s*,"),
+        match(backend, r"\bwire\s+\[5:0\]\s+mem_req_effective_sel_w\s*=\s*"
+              r"mem_req_hold_valid_q\s*\?.*?mem_req_hold_sel_q.*?:\s*"
+              r"live_mem_req_sel_w\s*;"),
+        match(backend, r"\bwire\s+\[2:0\]\s+mem1_req_effective_sel_w\s*=\s*"
+              r"mem1_req_hold_valid_q\s*\?.*?mem1_req_hold_sel_q.*?:\s*"
+              r"live_mem1_req_sel_w\s*;"),
+        match(backend, r"mem_req_hold_sel_q\s*<=\s*"
+              r"live_mem_req_sel_w\s*;"),
+        match(backend, r"mem1_req_hold_sel_q\s*<=\s*"
+              r"live_mem1_req_sel_w\s*;"),
+    ))
+    age_serialized = legacy_age_serialized or hold_aware_age_serialized
     dual_sq_bind = all((
         match(backend, r"\bwire\s+sq_owner_bind1_valid_w\s*=\s*"
               r"mem_issue1_res_capture_w\s*&&.*?MEM_OWNER_STORE"),

@@ -21,6 +21,7 @@ JOBS=${JOBS:-$(nproc)}
 DTB=${OPENSBI_DTB:-"$LINUX_HOME/build/riscv64-$PLATFORM/npc-rv64.dtb"}
 LINUX_MAKE_ARCH=${LINUX_MAKE_ARCH:-}
 FW_JUMP_ADDR=${FW_JUMP_ADDR:-0x80200000}
+FW_JUMP_FDT_ADDR=${FW_JUMP_FDT_ADDR:-}
 DISABLE_PMU=${OPENSBI_DISABLE_PMU:-0}
 PLATFORM_DEFCONFIG=defconfig
 
@@ -90,9 +91,22 @@ if [ "$DISABLE_PMU" = "1" ]; then
 fi
 
 mkdir -p "$BUILD_DIR"
-make -C "$ROOT" O="$BUILD_DIR" PLATFORM=generic CROSS_COMPILE="$CROSS_COMPILE" \
-  PLATFORM_DEFCONFIG="$PLATFORM_DEFCONFIG" \
-  FW_FDT_PATH="$DTB" FW_JUMP_ADDR="$FW_JUMP_ADDR" -j"$JOBS"
+make_args=(
+  -C "$ROOT"
+  O="$BUILD_DIR"
+  PLATFORM=generic
+  CROSS_COMPILE="$CROSS_COMPILE"
+  PLATFORM_DEFCONFIG="$PLATFORM_DEFCONFIG"
+  FW_FDT_PATH="$DTB"
+  FW_JUMP_ADDR="$FW_JUMP_ADDR"
+)
+if [ -n "$FW_JUMP_FDT_ADDR" ]; then
+  make_args+=(FW_JUMP_FDT_ADDR="$FW_JUMP_FDT_ADDR")
+fi
+make "${make_args[@]}" -j"$JOBS"
 
 echo "[opensbi] fw_jump.bin: $BUILD_DIR/platform/generic/firmware/fw_jump.bin"
 echo "[opensbi] embedded dtb: $DTB"
+if [ -n "$FW_JUMP_FDT_ADDR" ]; then
+  echo "[opensbi] next-stage dtb address: $FW_JUMP_FDT_ADDR"
+fi

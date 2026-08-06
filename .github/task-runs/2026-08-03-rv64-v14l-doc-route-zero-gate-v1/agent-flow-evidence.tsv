@@ -1,0 +1,4 @@
+2026-08-03T19:39:38Z	flow-self-test-focused	PASS	scripts/tests/test-agent-flow.sh
+2026-08-03T19:44:52Z	flow-self-test-after-retained-evidence-counterexample	PASS	scripts/tests/test-agent-flow.sh
+2026-08-03T19:47:43Z	independent-doc-route-review-v2	PASS	.github/task-runs/2026-08-04-rv64-v14l-doc-route-zero-gate-v1/reviewer-result.md
+2026-08-03T19:47:43Z	db-first-audit-preexisting-residual	GAP	.github/db-backup/manifest.json

@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v14i-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "本地 RV64 NpcTop 当前 design-id 的 V14E A2 系统事务收据、ProducerId 聚合语义账本与 SoC 交付配置独立反例复核：确认冻结 console/NPC 重放只修正 current oracle，不改写 A1/A2 原始状态；确认 global receipt、system receipt、whole-architecture 与 PPA 声明互不越界；确认 agent-flow class 升级保留证据且使旧 generation gate 失效。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+      "npc/rv64/eval/ppa/tests/test_system_recertification_current.py",
+      "npc/rv64/eval/ppa/system-recertification-evidence.mk",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-checker-replay-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-checker-tests.log",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
+      "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
+      "npc/rv64/design/specs/ooo-current-system-recertification.md",
+      "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
+      "npc/rv64/Makefile",
+      "Linux/scripts/npc_systemd_transaction_evidence.py",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py",
+      "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py",
+      "npc/rv64/.config",
+      "npc/rv64/include/config/auto.conf",
+      "npc/rv64/include/generated/autoconf.h",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      "AI_ENVIRONMENT.md",
+      "scripts/check-rv64-soc-delivery-gates.sh",
+      "scripts/tests/test-rv64-soc-delivery-gates.sh",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/summary.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/paths.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/evidence.tsv",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/decisions.tsv",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/gates/rv64-soc-delivery-gates.log",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/gates/flow-self-test.log",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/runtime-artifacts/agent-flow/rv64-v14i-system-recertification-replay-v1/review/rv64-v14i-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-current-system-recertification.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 RTL 对象/证据路径、设计与配置 identity、testbench/checker 观测、PASS/GAP 边界给出独立结论，并列出可操作反例、未知项、替代解释、scope_extension_request 与置信依据。"
+  ],
+  "success_criteria": [
+    "确认 design-id 093c2380...a7488、三项配置哈希、A2 PASS、A1 原始 FAIL、17/17 strict、7/7 终端事件、零 RTL assertion 与 45 项 current checker 合同的绑定是否 fail closed。",
+    "确认 V14H global receipt 自身仍为 system=REQUIRED，而聚合账本只能由独立 system receipt 提升到 PASS_CURRENT_CONFIG；whole_architecture=RED 与 ppa=UNPROMOTED 不得越级。",
+    "确认 fast/scheduled/candidate 配置的 evidence reuse/rerun/waiver 规则与 agent-flow reclassify 不削弱 domain gate、不会复用旧 generation candidate，且反例测试能拒绝弱化。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

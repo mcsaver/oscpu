@@ -1,0 +1,6 @@
+2026-08-04T06:36:18Z	full-core-runner-contract-initial	FAIL	-
+2026-08-04T06:40:34Z	isolated-build-smoke-workdir-attempt	FAIL	-
+2026-08-04T06:43:29Z	isolated-reference-am-build	PASS	-
+2026-08-04T09:22:02Z	f0-source-run-negative-tests	PASS	npc/rv64/eval/ppa/tests/test_functional_aggregate.py
+2026-08-04T09:22:02Z	flow-pointer-self-test	PASS	scripts/tests/test-agent-flow.sh
+2026-08-04T10:56:38Z	full-core-independent-review-v10	PASS	.github/task-runs/2026-08-04-rv64-v14s-functional-runner-safe-entry/subagent-contracts/full-core-runner-independent-review-v10.json

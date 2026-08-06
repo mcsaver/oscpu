@@ -1,0 +1,16 @@
+319287572c21c14be459b1861434964e480cd3ebc8741d6c33cf54d9206e689c  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9/NpcSimTop
+0659e6e6ab473fb2a0cb6278483937552230df9e71620b540b930eaa13cf8ade  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9/simulator-verFiles.dat
+907c5556cbd4bcf17267fde55de6d37cd57a5c2b4d1e743e64f920eb3bf562a8  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9/source-binding.txt
+debecccf328b0dd7859bb3906fa515ef6e7d3dd76e510ee5a81b2342b9147396  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/Image
+d8a08015c40ed2ab821a31bbb35e42abeb036fa5508f8cc2c1402155496681b2  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/init
+66393b5a7ec3c239f94df1df5791a7c066d4ba2ef1fe85843867ef0bce80e66c  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/initramfs.cpio
+8fb0e60c0f69d096de65f0d86f12350fc5ba24f341d21f5f759573b515870ba6  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/guest.dtb
+8fb0e60c0f69d096de65f0d86f12350fc5ba24f341d21f5f759573b515870ba6  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/opensbi-platform.dtb
+d1ded70590c2b4e9b5ab3fd2cca4f791da82c6dab815dd2be2d8874f847d7d8f  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/fw_jump.bin
+a2d7d7043e427e41c2d0a6bbf7a58504d3b4ea468b39380fa685dcb567a3ccdc  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts/linux.config
+a8e852d00b267a6b0e52cca8e28b8108bfaae3294d9376a88f6255ef4e3e8a61  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/run-lightweight-linux-current.sh
+05abe10b68fe497dc2df57a76a582655c5e38f936cad49b0d201191d5155ba74  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/lightweight_linux_run.py
+785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+192170d473f14fa8ea23cffe2161536d2f4559e89541dddf079afa7b2a4040a3  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/rv64-simulator-source-id.sh
+ed3382075d86701de8af9dd96a534fefdb439f37840cb1b8420ee074e2ba1118  /home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6  /home/lyg/PA/ysyx-workbench/scripts/task-run-status.sh

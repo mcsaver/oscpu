@@ -1,0 +1,10 @@
+3	rv64-architecture-debt-current	PASS	2358	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-architecture-debt-current.log
+3	rv64-full-core-runner-contract	PASS	65148	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-full-core-runner-contract.log
+3	rv64-arch-stable-checker-contract	FAIL	56133	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-arch-stable-checker-contract.log
+4	rv64-architecture-debt-current	PASS	2358	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-architecture-debt-current.log
+4	rv64-full-core-runner-contract	PASS	63500	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-full-core-runner-contract.log
+4	rv64-arch-stable-checker-contract	PASS	68221	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-arch-stable-checker-contract.log
+4	flow-self-test	PASS	2807	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/flow-self-test.log
+4	rv64-layered-system-signoff-current	PASS	6268	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-layered-system-signoff-current.log
+4	rv64-historical-defect-current	PASS	1204	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-historical-defect-current.log
+4	rv64-historical-defect-ledger-audit	PASS	652	.github/runtime-artifacts/agent-flow/rv64-v15i-architecture-debt-current-f7a/gates/rv64-historical-defect-ledger-audit.log

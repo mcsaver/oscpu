@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14o-cpi-bottleneck-census-final-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据冻结材料复核本地 RV64 双发射 OoO 核 CPI bottleneck census 的数值排序、ROB-head residency 因果边界、OooMemAxiBridge B terminal 语义、下一诊断量测与 PPA 候选授权边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/design/arch/performance-counter-schema.md",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1/subagent-contracts/v14o-cpi-bottleneck-census-final-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "design_id=sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488；生产 RTL、elaborated design、simulator、配置、workload、ROI 与 memory/device latency 语义均未变化。",
+      "canonical baseline=PERF_BASELINE；CoreMark cycles=5392187 retired=3183617 CPI=1.693729804810；Dhrystone cycles=10311431 retired=4250000 CPI=2.426219058824；两者 3/3 counter stack 与 stats-off cycle/retired 均精确一致。",
+      "CoreMark cycle residency: memory_latency=2542049/5392187=0.471431907 最大；memory lifecycle 内 request_outstanding=1139006/2542049=0.448066107 最大；request detail 内 axi_write_response=691538/1139006=0.607141666 最大。",
+      "Dhrystone cycle residency: memory_latency=7100359/10311431=0.688591040 最大；memory lifecycle 内 request_outstanding=4510140/7100359=0.635199040 最大；request detail 内 axi_write_response=2969998/4510140=0.658515039 最大。",
+      "performance-counter-schema.md 定义这些 counter 为互斥的 ROB-head edge-old residency bucket；它们不是 transaction count，也不是排他性 causal root。",
+      "NpcSimTop.sv 将 OooMemAxiBridge 当前 active state 映射到 request-detail；OooMemAxiBridge.v 的 S_WRITE_RESP 等待 lsu_axi_bvalid_i，B response 是唯一 completion terminal；不得提前完成 store 或削弱 B terminal/assertion。",
+      "census competing hypotheses: H1 downstream B response latency；H2 single-outstanding bridge/owner concurrency；H3 long store/AMO owner 在 head-residency ledger 中被时长加权；H4 reservation/translation pre-request pipeline 仍显著。",
+      "next measurement=diagnostic-only per-owner transaction count 与 S_WRITE_REQ/S_WRITE_RESP duration histogram，按 STORE/AMO/A-D 分类，并观察 overlap/bridge occupancy；保持生产语义、workload/ROI、simulator/config/latency、assertion 与 v4 conservation。",
+      "cpi-bottleneck-census-current.json status=CPI_BOTTLENECK_CENSUS，optimization_candidate_authorized=false，ppa=UNQUALIFIED，promotion_eligible=false；task-run status=PASS，test/build/verify rc=0，5 个定向测试 OK；canonical 与 task-run census SHA-256 均为 275e3de6341b48f8d0a11cc29dabbc790e352794ff6961f323454985d0f31b90。"
+    ]
+  },
+  "deliverables": [
+    "按本地 counter/RTL 对象、周期配置、TB/EDA 观测和 PASS/GAP 范围给出结构化复核；保留反例、替代假设、未知项、下一判别量测及 PPA/候选授权边界。"
+  ],
+  "success_criteria": [
+    "确认冻结数值排序可复算，且材料没有把 S_WRITE_RESP 驻留越级解释为唯一 root cause、没有授权提前完成 store、削弱 B terminal 或启动 PPA promotion；若诊断计划不能区分竞争假设则给出 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

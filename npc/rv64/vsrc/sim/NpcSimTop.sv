@@ -21,6 +21,9 @@ import "DPI-C" function void npc_exit_event(
   input longint unsigned pc
 );
 
+import "DPI-C" function longint unsigned npc_current_cycles();
+import "DPI-C" function longint unsigned npc_current_commits();
+
 // 全状态 difftest: 每 commit 拍 XMR 读 CsrFile 的 CSR+priv 快照(23 槽, 索引约定见 difftest.h)。
 // 用 23 个 scalar 参数(scalar 传递自动 4→2 state 转换; unpacked array DPI 的 shape 匹配过严)。
 import "DPI-C" function void npc_arch_csr_event(
@@ -2100,15 +2103,18 @@ module NpcSimTop (
       if (reset_syscon_terminal_w && !exit_reported_q) begin
         exit_reported_q <= 1'b1;
         if (reset_syscon_poweroff_w) begin
-          $display("syscon-reset: poweroff requested value=0x%08x pc=0x%016x",
-                   reset_syscon_write_value_w, debug_pc_o);
+          $display("syscon-reset: poweroff requested value=0x%08x pc=0x%016x cycle=%0d commit=%0d",
+                   reset_syscon_write_value_w, debug_pc_o,
+                   npc_current_cycles(), npc_current_commits());
         end else if (reset_syscon_reboot_w) begin
-          $display("syscon-reset: reboot requested value=0x%08x pc=0x%016x",
-                   reset_syscon_write_value_w, debug_pc_o);
+          $display("syscon-reset: reboot requested value=0x%08x pc=0x%016x cycle=%0d commit=%0d",
+                   reset_syscon_write_value_w, debug_pc_o,
+                   npc_current_cycles(), npc_current_commits());
         end else begin
-          $display("syscon-reset: test-finisher exit code=%0d value=0x%08x pc=0x%016x",
+          $display("syscon-reset: test-finisher exit code=%0d value=0x%08x pc=0x%016x cycle=%0d commit=%0d",
                    reset_syscon_write_value_w[31:16],
-                   reset_syscon_write_value_w, debug_pc_o);
+                   reset_syscon_write_value_w, debug_pc_o,
+                   npc_current_cycles(), npc_current_commits());
         end
         npc_exit_event(
           32'd0,

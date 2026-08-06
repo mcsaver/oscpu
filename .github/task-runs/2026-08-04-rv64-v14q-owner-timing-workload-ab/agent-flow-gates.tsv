@@ -1,0 +1,8 @@
+8	rv64-owner-timing-fast	PASS	4460	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rv64-owner-timing-fast.log
+8	rv64-soc-delivery-gates	PASS	451	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rv64-soc-delivery-gates.log
+8	flow-self-test	PASS	2204	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/flow-self-test.log
+8	rtl-task-contract	PASS	952	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rtl-task-contract.log
+9	rv64-owner-timing-fast	PASS	4808	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rv64-owner-timing-fast.log
+9	rv64-soc-delivery-gates	PASS	501	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rv64-soc-delivery-gates.log
+9	flow-self-test	PASS	2455	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/flow-self-test.log
+9	rtl-task-contract	PASS	1051	.github/runtime-artifacts/agent-flow/rv64-v14q-owner-timing-workload-ab/gates/rtl-task-contract.log

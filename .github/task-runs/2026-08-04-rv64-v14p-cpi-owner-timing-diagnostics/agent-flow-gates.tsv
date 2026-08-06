@@ -1,0 +1,2 @@
+2	rv64-owner-timing-fast	PASS	5124	.github/runtime-artifacts/agent-flow/rv64-v14p-cpi-owner-timing-diagnostics/gates/rv64-owner-timing-fast.log
+3	rv64-owner-timing-fast	PASS	4810	.github/runtime-artifacts/agent-flow/rv64-v14p-cpi-owner-timing-diagnostics/gates/rv64-owner-timing-fast.log

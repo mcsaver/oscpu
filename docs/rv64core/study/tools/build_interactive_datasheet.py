@@ -192,6 +192,15 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "flush 清有效性，不能把旧 payload 误认成新 packet。",
         ],
     },
+    "OooRvcDecompressor": {
+        "summary": "把 16-bit C 编码组合规范化为后端唯一消费的 canonical 32-bit instruction。",
+        "features": [
+            "RVC 长度与 slot 边界由前端 packet decode 共同使用",
+            "C.LUI 的 rd=x2 分支走 C.ADDI16SP，普通 rd 展开为 LUI",
+            "非零立即数且 rd=x0 的 C.LUI 边界输出 ADDI x0,x0,0；零立即数仍走非法路径",
+        ],
+        "boundary": "该模块只做组合展开；head-time privilege、FS、fault 与 side-effect legality 仍由后续分类/译码决定。",
+    },
     "OooExecuteBackend": {
         "summary": "后端结构 wrapper，承接前端 dispatch 与控制/访存边界，内部下接 OooAluCoreSlice。",
         "features": [
@@ -256,8 +265,11 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "新 dispatch entry 下一周期才参与 select",
             "early wake 改 sticky-ready，不把数据写入 PRF",
             "选择必须服从资源冲突、lane 能力与 strictly-younger kill",
+            "selector onehot 直接驱动 issue0 PRF 地址与 fire-qualified remove mask",
+            "最多双 pop 后，每个目的槽只从 d/d+1/d+2 static survivor map 读取完整 entry",
+            "OOO_ASSERT reference 逐槽核对旧式 scan 的 valid/count/payload 语义",
         ],
-        "boundary": "IQ 只决定执行资格；执行结果和 completion owner 属于后续 EX/long-op/LSU。",
+        "boundary": "平衡选择/静态压缩只改变组合拓扑，不增加流水级；IQ 只决定执行资格，结果和 completion owner 属于后续 EX/long-op/LSU。",
     },
     "OooFpBackend": {
         "summary": "独立 FP RAT/FreeList/IQ8/PRF64、短流水、长迭代、raw wake、8-entry done FIFO 与 formal FPWB 的总 owner。",
@@ -295,7 +307,9 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "DTLB/PTW、typed PMA/classifier 与 direct-mapped D-cache",
             "Load/Probe 可被 kill；不可撤回 DRAIN transaction 继续到 terminal",
             "Store 使用分离 AW/W/B 通道，B response 才是写 terminal",
+            "normal aggregate B 可同拍形成 mem_rsp；反压时锁存到 S_RESP 保持",
             "每个响应携带 owner kind/token/epoch，防止认错晚到 transaction",
+            "assertion 对 active/station/response/verified 的完整 owner tuple 做 knownness 检查",
         ],
         "boundary": "该桥负责物理访问和 terminal response；程序序 Load/Store 精确性由 LQ/SQ/ROB owner 共同约束。",
     },
@@ -314,7 +328,8 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "SQ entry 保存地址、数据、byte mask、ProducerId 与精确释放资格",
             "rob_head_launch_open 才允许程序序 Store 发起物理 transaction",
             "AW/W 可异步完成；B terminal 后才释放 SQ/ROB owner",
-            "Store-to-load forwarding 在物理写之前提供年轻 Load 数据依赖",
+            "physical-byte CAM 由并行地址差与 head→tail byte merge 形成 forwarding",
+            "仿真 four-state overlay 对参与查询的 X/Z 只允许保守 replay",
         ],
         "boundary": "Store 不是“先退休、后台慢慢 drain”；B terminal 是精确完成链的一部分。",
         "invariants": [
@@ -329,6 +344,8 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "已 launch 后被 kill 的 Load 仍必须等待物理 terminal",
             "晚到 response 通过 ProducerId/owner token 授权或丢弃",
             "Load completion 与 ROB 顺序 commit 分离",
+            "terminal_seen_q 关闭重复 open，并让 terminal 后 recovery 直接清 entry",
+            "双 allocation 使用 two-lowest-free onehot，lane1 以前缀依赖 lane0 fire",
         ],
         "boundary": "LQ 持有 speculative load 身份；DTLB/cache/AXI 的具体物理访问由 memory bridge 处理。",
     },
@@ -435,10 +452,12 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "CSR access、异常提交、中断与 xRET 存在明确同拍优先级",
             "mtime/irq 是输入条件，trap 只在精确边界更新架构状态",
             "fflags/frm 与浮点提交协同形成架构可见 FP 状态",
+            "FS=Off 时 fflags/frm/fcsr access illegal；合法 FP-CSR 写把 FS 置 Dirty",
+            "MPP 保留编码、SXL/UXL、medeleg/mideleg 与 delegated sie/sip 视图均做 WARL 收敛",
         ],
         "boundary": "CSR file 保存架构状态，但 pending/drain 与 redirect apply 生命周期由控制面持有。",
     },
-    "AxiXbar": {
+    "AxiCrossbar": {
         "summary": "2-master/16-slave single-outstanding AXI 子集互连，读写通道独立仲裁并为 R 通道设置注册响应切片。",
         "features": [
             "每 slave round-robin 仲裁",
@@ -446,7 +465,7 @@ RICH_MODULE_META: dict[str, dict[str, Any]] = {
             "AW 与 W 分别 capture，禁止用单一 write-fire 简化",
             "R response 经过 registered slice 后返回 master",
         ],
-        "boundary": "Xbar 负责总线 owner 与地址分发，不理解 ROB、ProducerId 或精确异常。",
+        "boundary": "Crossbar 负责总线 owner 与地址分发，不理解 ROB、ProducerId 或精确异常。",
     },
 }
 
@@ -474,7 +493,11 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooRob", "event": "done 边沿后等待到程序序 head", "edge": "WB edge-old done", "transfer": "commit candidate"},
             {"module": "OooWriteback", "event": "顺序 commit 输出", "edge": "commit fire", "transfer": "architectural state"},
         ],
-        "timingTerms": ["ADD commit", "dispatch", "ROB done"],
+        "timingTitles": [
+            "程序序 DIV(older) → ADD(younger)：ADD 可先 formal-WB，但只能等 DIV 后以 commit1 同拍退休",
+            "普通整数 ALU：dispatch 后至少跨三个后续上升沿才更新架构 GPR",
+            "head1 早完成也不能越过 head0；head0 ready 后可双退休",
+        ],
     },
     {
         "id": "fetch-packet",
@@ -495,7 +518,12 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooFetchPacketFifo", "event": "response enqueue 与 registered head", "edge": "posedge", "transfer": "head packet"},
             {"module": "OooFrontendDispatchGate", "event": "双槽 admission 与 pop", "edge": "dispatch fire", "transfer": "backend uops"},
         ],
-        "timingTerms": ["discard", "FIFO", "request"],
+        "timingTitles": [
+            "fetch miss：outstanding owner 覆盖 TLB/PTW/AXI 全寿命",
+            "redirect 后旧响应可到达总线，但必须被 discard，不能入 FIFO",
+            "response 在沿上写 FIFO，registered head 后续才派发",
+            "RVC packet：16-bit slot0 + 32-bit slot1，共消耗 6B",
+        ],
     },
     {
         "id": "integer-completion",
@@ -516,7 +544,12 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooRob", "event": "写 done 后等待 head", "edge": "posedge", "transfer": "commit candidate"},
             {"module": "OooArchRegFile", "event": "commit-time GPR update", "edge": "commit fire", "transfer": "architectural state"},
         ],
-        "timingTerms": ["EX stage", "最短路径", "formal"],
+        "timingTitles": [
+            "EX stage 遇 completion 反压时保持同一个 producer",
+            "普通整数 ALU：dispatch 后至少跨三个后续上升沿才更新架构 GPR",
+            "valid 等待 ready 时，tag、结果与异常元数据必须稳定",
+            "completion 广播清 busy/唤醒，dependent 使用 PRF 或 bypass",
+        ],
     },
     {
         "id": "fp-completion",
@@ -539,7 +572,12 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooRob", "event": "ROB done / ordered head", "edge": "WB then later commit", "transfer": "commit"},
             {"module": "OooFpRegFile", "event": "架构 FPR/fflags 更新", "edge": "commit fire", "transfer": "architectural state"},
         ],
-        "timingTerms": ["done FIFO", "FMA", "formal FPWB"],
+        "timingTitles": [
+            "FMA producer 的身份与 fflags 必须穿过全部流水级",
+            "FP long-op 单 owner：busy 期间禁止覆盖，done 后再取得 completion 资格",
+            "FP 结果先物理可见，再进入 done FIFO，最后 formal-WB 与按序 commit",
+            "valid 等待 ready 时，tag、结果与异常元数据必须稳定",
+        ],
     },
     {
         "id": "load",
@@ -561,18 +599,23 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooLoadQueue", "event": "token/ProducerId 授权 response", "edge": "terminal accept", "transfer": "completion"},
             {"module": "OooRob", "event": "formal WB then ordered commit", "edge": "two distinct edges", "transfer": "architectural state"},
         ],
-        "timingTerms": ["Load", "response", "kill"],
+        "timingTitles": [
+            "SQ 完整覆盖时 load 从最近的老 store 前递，不访问 cache",
+            "不同 addr[3] 的双 memory uop 可同拍进入两个 bank",
+            "PTW 发现叶 PTE A/D 未置位：先更新 PTE，再重试原访存",
+            "AXI AR 反压期间地址、尺寸、属性和 owner 全部保持",
+        ],
     },
     {
         "id": "store",
         "title": "Store SQ/ROB 双头、AW/W 与 B terminal",
         "shortTitle": "Store",
         "kind": "STORE / MEMORY ORDERING",
-        "summary": "Store dispatch 后进入 SQ；只有 SQ head 与 ROB head 精确匹配且 launch-open 时才发物理写。AW/W 可分离，B response 才授权 SQ/ROB 释放。",
+        "summary": "Store dispatch 后进入 SQ；只有 SQ head 与 ROB head 精确匹配且 launch-open 时才发物理写。AW/W 可分离；aggregate B 可直接融合为 mem_rsp，反压时回退到 S_RESP。",
         "initiator": "OooStoreQueue at SQ/ROB dual head",
         "owner": "SQ entry → memory bridge write owner",
-        "terminal": "B 经 bridge 形成 response 后，completion 与 owner-lifetime 两条分支各自闭合",
-        "backpressure": "launch gate、AW、W、B 与共享 AXI arbiter 都可独立等待。",
+        "terminal": "aggregate B 直接形成 response；若 backend 反压则由 S_RESP 保存，随后 completion 与 owner-lifetime 两条分支各自闭合",
+        "backpressure": "launch gate、AW、W、B、backend response credit 与共享 AXI arbiter 都可独立等待。",
         "flush": "未 launch younger Store 可清除；已 launch 写 transaction 不可撤回，必须 drain B。",
         "architecturalEffect": "本设计把 B terminal 纳入精确完成链，不采用先退休后后台 drain 模型。",
         "phases": [
@@ -581,11 +624,15 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooMemoryRequestGate", "event": "SQ head == ROB head && launch-open", "edge": "request fire", "transfer": "physical write"},
             {"module": "OooMemAxiBridge", "event": "锁存 write owner，向 arbiter 发 raw AW/W", "edge": "bridge request / raw AXI", "transfer": "raw AW/W + lane owner"},
             {"module": "OooDualMemAxiArbiter", "event": "锁定 lane owner，转发 AW/W 并路由 B", "edge": "owner held through B", "transfer": "lane B response"},
-            {"module": "OooMemAxiBridge", "event": "B 回到锁存 owner，形成带 tuple/error 的 bridge response", "edge": "S_WRITE_RESP → S_RESP → rsp fire", "transfer": "rsp tuple + error/fault"},
+            {"module": "OooMemAxiBridge", "event": "aggregate B 直接形成 bridge response；反压才锁存 S_RESP", "edge": "B terminal → direct fire / S_RESP fallback", "transfer": "rsp tuple + error/fault"},
             {"module": "OooIntBackend", "event": "exact tuple 匹配 MIQ/live tracker，恢复 PID 并分成两条闭合链", "edge": "mem_rsp_valid && mem_rsp_ready", "transfer": "formal WB + SQ terminal"},
             {"module": "OooRob", "event": "Store 精确完成并顺序前进", "edge": "terminalized edge", "transfer": "architectural order"},
         ],
-        "timingTerms": ["Store", "AW", "B terminal"],
+        "timingTitles": [
+            "ready 场景：aggregate B 同拍形成 mem_rsp；反压时才进入 S_RESP 保持",
+            "AW 与 W 可以在不同周期握手，内部状态必须分别记账",
+            "双 bank 同时 miss：共享 raw AXI 按 owner 串行服务",
+        ],
     },
     {
         "id": "branch-recovery",
@@ -607,7 +654,10 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooControlEventApplySequencer", "event": "request reason/kill index 打拍", "edge": "C0 request → C1 apply", "transfer": "flush/apply"},
             {"module": "OooFetchPcOutstandingSequencer", "event": "更新 PC，旧响应进入 discard", "edge": "redirect edge", "transfer": "next-cycle fetch"},
         ],
-        "timingTerms": ["redirect", "mispredict", "branch"],
+        "timingTitles": [
+            "branch resolve 后统一 redirect，并取消所有 younger transaction",
+            "redirect 后旧响应可到达总线，但必须被 discard，不能入 FIFO",
+        ],
     },
     {
         "id": "csr-queue-head",
@@ -665,7 +715,11 @@ TRANSACTIONS: list[dict[str, Any]] = [
                 "transfer": "younger kill + frontend refetch",
             },
         ],
-        "timingTerms": ["head0 CSR", "queue-head CSR", "C0 commit"],
+        "timingTitles": [
+            "产品默认 head0 CSR：inflight 持有 stop，只等 mem_idle；C0 提交，C1 apply，C2 静默",
+            "serialized owner：capture -> drain -> exact terminal -> 单次 apply -> clear",
+            "控制命令要跨越多个周期保存身份和参数",
+        ],
     },
     {
         "id": "precise-trap",
@@ -687,7 +741,12 @@ TRANSACTIONS: list[dict[str, Any]] = [
             {"module": "OooControlEventApplySequencer", "event": "reason/kill-index 下一拍 apply", "edge": "registered apply", "transfer": "full flush"},
             {"module": "OooFrontend", "event": "清旧 packet 并从 xTVEC 重新取指", "edge": "next-cycle request", "transfer": "new fetch stream"},
         ],
-        "timingTerms": ["trap apply", "exception", "older trap"],
+        "timingTitles": [
+            "精确异常：老 I0 退休，fault I1 不正常退休，年轻 I2 即使完成也被取消",
+            "精确异常：较老者可先退休，异常者本身不产生普通提交",
+            "older trap 压制 pending exit：raw 与 sticky 两层都不能双 terminal",
+            "设备中断可异步 pending，但只在 Core 精确边界形成 trap",
+        ],
     },
 ]
 
@@ -878,7 +937,7 @@ TRANSACTION_PHASE_DATA: dict[str, list[dict[str, str]]] = {
         },
         {
             "dataIn": "tagged response、LQ entry、live owner tuple 与 ROB exact-open result",
-            "stateChange": "校验 token/epoch/ProducerId，接受合法 terminal 或吞掉 killed late response",
+            "stateChange": "校验 token/epoch/ProducerId；合法 terminal 记录 terminal_seen，killed late response 只关闭物理 owner",
             "dataOut": "authorized load completion：result、fault 与 ProducerId",
             "guard": "terminal identity 全匹配且 completion slot ready；stale/duplicate 不得写 ROB",
         },
@@ -922,9 +981,9 @@ TRANSACTION_PHASE_DATA: dict[str, list[dict[str, str]]] = {
         },
         {
             "dataIn": "原 lane B response 与 bridge 保存的 STORE {kind, token, mmu_epoch, fault_tval}",
-            "stateChange": "B 拍锁存 error，进入 S_RESP；response snapshot 继续保持原 owner tuple",
+            "stateChange": "normal aggregate B 同拍形成 mem_rsp；ready 时直接 fire，否则锁存 error/tuple 到 S_RESP 保持",
             "dataOut": "mem_rsp：{kind, token, mmu_epoch, fault_tval} + error/page_fault；不携带 ProducerId",
-            "guard": "B 在 S_WRITE_RESP 被接收；S_RESP 的 payload/tuple 必须稳定到 backend ready",
+            "guard": "READY 只选择 direct fire 或 S_RESP fallback，不限定 VALID；killed escaped write 只能走 exact drop terminal",
         },
         {
             "dataIn": "bridge response、MIQ head 与 owner tracker 的 kind/token/epoch→ProducerId live table",
@@ -1554,7 +1613,7 @@ def timing_module_hints(chapter_name: str, title: str, diagram: dict[str, Any]) 
             "OooPendingDrainResolveGate",
             "OooRedirectArbiter",
         ],
-        "09": ["NpcTop", "NpcAxiBus", "AxiXbar", "AxiClint", "AxiPlic"],
+        "09": ["NpcTop", "NpcAxiBus", "AxiCrossbar", "AxiClint", "AxiPlic"],
         "10": [
             "NpcCoreTop",
             "OooFrontend",
@@ -1658,38 +1717,36 @@ def bind_timings(
         for module_name in timing["moduleHints"]:
             if module_name in module_defs:
                 module_defs[module_name]["timingIds"].append(timing["id"])
-    chapter_fallback = {
-        "instruction-life": "01-",
-        "fetch-packet": "02-",
-        "integer-completion": "04-",
-        "fp-completion": "05-",
-        "load": "06-",
-        "store": "06-",
-        "branch-recovery": "08-",
-        "csr-queue-head": "07-",
-        "precise-trap": "07-",
-    }
+    timings_by_title: dict[str, dict[str, Any]] = {}
+    duplicate_titles: set[str] = set()
+    for timing in timings:
+        title = timing["title"]
+        if title in timings_by_title:
+            duplicate_titles.add(title)
+        timings_by_title[title] = timing
+    if duplicate_titles:
+        raise ValueError(
+            "WaveDrom 标题必须唯一，重复标题："
+            + "；".join(sorted(duplicate_titles))
+        )
+
     for transaction in transactions:
-        terms = [term.lower() for term in transaction.pop("timingTerms", [])]
-        matches = []
-        for timing in timings:
-            haystack = " ".join(
-                [
-                    timing["title"],
-                    timing["chapter"],
-                    *[signal["name"] for signal in timing["signals"]],
-                ]
-            ).lower()
-            if any(term in haystack for term in terms):
-                matches.append(timing["id"])
-        if not matches:
-            prefix = chapter_fallback[transaction["id"]]
-            matches = [
-                timing["id"]
-                for timing in timings
-                if timing["chapter"].startswith(prefix)
-            ]
-        transaction["timingIds"] = matches[:4]
+        requested_titles = transaction.pop("timingTitles", [])
+        if not requested_titles:
+            raise ValueError(
+                f"transaction {transaction['id']} 缺少显式 timingTitles"
+            )
+        missing_titles = [
+            title for title in requested_titles if title not in timings_by_title
+        ]
+        if missing_titles:
+            raise ValueError(
+                f"transaction {transaction['id']} 引用了不存在的 WaveDrom："
+                + "；".join(missing_titles)
+            )
+        transaction["timingIds"] = [
+            timings_by_title[title]["id"] for title in requested_titles
+        ]
         transaction_modules: list[str] = []
         for phase in transaction["phases"]:
             transaction_modules.append(phase["module"])
@@ -1848,7 +1905,7 @@ def build_payload(
         "meta": {
             "title": "RV64 Core Interactive Technical Reference",
             "documentId": "RV64CORE-TRM-001",
-            "revision": "Rev. D",
+            "revision": "Rev. E",
             "snapshotDate": date.today().isoformat(),
             "sourceFingerprint": source_fingerprint(fingerprint_paths),
             "elaborationSha256": hashlib.sha256(xml_path.read_bytes()).hexdigest(),

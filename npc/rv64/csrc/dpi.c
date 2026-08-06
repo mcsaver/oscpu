@@ -372,6 +372,14 @@ void npc_irq_event(uint32_t uart_irq, uint32_t plic_irq) {
   g_irq_trace_count++;
 }
 
+uint64_t npc_current_cycles(void) {
+  return npc_stats()->cycles;
+}
+
+uint64_t npc_current_commits(void) {
+  return npc_stats()->commits;
+}
+
 void npc_mmio_load_event(void) {
   // 【F2 difftest 基建】旧"总线 rsp 拍置全局 skip 旗"机制退役: 与 commit 粗配对在
   // SQ(store 总线访问晚于 commit)与 MIQ/F2(rsp→commit 距离拉大)时代双双失效并毒

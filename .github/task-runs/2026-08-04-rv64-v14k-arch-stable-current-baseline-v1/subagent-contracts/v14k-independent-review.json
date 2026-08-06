@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14k-independent-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核五项 RV64 历史缺陷在当前 design/config identity 上的正向与 compile-success 负向 testbench 证据、账本单指针、ARCH_STABLE 组合边界及 C 路径门，寻找假绿、遗漏输入、重复证据所有权或越级 architecture/PPA 结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
+      "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/testbench/scripts/run_historical_exit_current.py",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "npc/rv64/.config",
+      "npc/rv64/include/config/auto.conf",
+      "npc/rv64/include/generated/autoconf.h",
+      "Linux/scripts/npc-systemd-strict-check.sh",
+      "Linux/scripts/tests/test_npc_systemd_strict_check.py",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/evidence/focused/mutation-summary.json",
+      ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/rootfs-c1b531-systemd-strict-6b-a3.status",
+      ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/checker-replay-v2-evidence.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/evidence/stop-hold-matrix/summary.json",
+      ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/evidence/historical-reconstruction/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/qh/summary.json",
+      ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/system/summary.json",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/evidence/historical-exit-current/summary.json",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/subagent-contracts/v14k-independent-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 证据对象、design/config、testbench 观测、PASS/GAP 边界给出独立结论，列出全部可操作反例、未知项、替代假设、证据复用边界和需要的 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认或否定五项 defect membership、当前 design/config 哈希、正向与 compile-success 负向观测、原始 A3 FAIL 不可改写、exit 定向重放留存、单一账本指针、C 门触发集合以及 whole_architecture=RED 和 ppa=UNPROMOTED 边界；任何不一致必须指向具体路径、字段与 marker。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

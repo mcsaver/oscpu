@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14x-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooIntBackend 与 OooStoreQueue 的 SQ/AMO memory-request holder：首次展示使用 rob_head_launch_open，READY反压后已持有物理写事务使用 exact source residency 与 rob_head_owner_open；检查真实source loss仍触发fail-loud断言，且request_sent、MIQ birth、payload与owner tuple同拍同源。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh",
+      "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/evidence/v14r-link",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/evidence/static",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14x-sq-held-launch-lease/subagent-contracts/v14x-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按module/signal/cycle列出PASS、阻断GAP、非阻断风险、替代假设、未知项、反例及scope_extension_request；核验六项compile-success RTL变异均由专属testbench或断言marker检出。"
+  ],
+  "success_criteria": [
+    "复核区分first-launch与held owner lease，检查无READY到VALID组合回边、无选择性恢复误撤VALID、无真实owner/source漂移漏报、StoreQueue req_fire授权与request_sent更新一致，并以本地日志marker和文件行号支撑PASS或GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

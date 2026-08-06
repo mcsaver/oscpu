@@ -1977,6 +1977,28 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  task automatic v14u_check_amo_transient_lane_disjoint;
+    input [4:0] token;
+    begin
+      if ((dut.mem_terminal_ingress_valid_w[9] !== 1'b1) ||
+          (dut.mem_terminal_ingress_valid_w[8:6] !== 3'b000) ||
+          (dut.mem_terminal_ingress9_mask_w[token] !== 1'b1) ||
+          ((dut.mem_terminal_ingress9_mask_w &
+            (dut.mem_terminal_ingress6_mask_w |
+             dut.mem_terminal_ingress7_mask_w |
+             dut.mem_terminal_ingress8_mask_w)) !== 32'b0) ||
+          ((dut.mem_issue_res_valid_q === 1'b1) &&
+           (dut.mem_issue_res_owner_token_q === token)) ||
+          ((dut.mem_issue1_res_valid_q === 1'b1) &&
+           (dut.mem_issue1_res_owner_token_q === token)) ||
+          ((dut.mem_buffer_valid_q === 1'b1) &&
+           (dut.mem_buffer_owner_token_q === token)))
+        v11n_oracle_fail("v14u-amo-transient-lane-matrix");
+      $display("[V14U-AMO-TRANSIENT-LANE-MATRIX][PASS] lane9=1 lane6=0 lane7=0 lane8=0 token=%0d",
+               token);
+    end
+  endtask
+
   task automatic v11n_wait_token_dead;
     input [4:0] token;
     input [1023:0] stage;
@@ -2234,6 +2256,7 @@ module tb_ooo_int_backend;
           (dut.miq_push_valid_w !== 1'b0))
         v11n_oracle_fail("amo-interphase-cancel");
       v11n_check_terminal_lane(9, V11N_TOKEN, "amo-interphase-lane9");
+      v14u_check_amo_transient_lane_disjoint(V11N_TOKEN);
       v11n_check_pending_holder(
           V11N_PID1, V11N_TOKEN, 1'b1, 1'b0,
           "amo-interphase-edge-old-holder");
@@ -3448,6 +3471,10 @@ module tb_ooo_int_backend;
   localparam TB_ENABLE_DUAL_MEM = 1;
 `elsif V9R_SQ_RETRY_C0_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V14R_MEMORY_REQUEST_HOLD_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V14R_SINGLE_BANK_PROBE_ORDER_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 0;
 `elsif V8S_DUAL_MEMORY_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
 `elsif V8W_MEMORY_RECOVERY_FOCUSED
@@ -18861,6 +18888,675 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // V14R bank-local request lease: a later live-priority winner must not
+  // replace a transaction already presented under backpressure.  Real
+  // reservation/owner state supplies both held payloads; only the competing
+  // live grants are forced, so release still exercises normal consume+MIQ.
+  task automatic run_v14r_memory_request_admission_hold;
+    reg [216:0] held_payload0;
+    reg [216:0] held_payload1;
+    reg [216:0] observed_payload0;
+    reg [216:0] observed_payload1;
+    reg [ROB_INDEX_W-1:0] held_rob0;
+    reg [ROB_INDEX_W-1:0] held_rob1;
+    reg [PHY_REG_ADDR_W-1:0] held_pdest0;
+    reg [PHY_REG_ADDR_W-1:0] held_pdest1;
+    reg [1:0] held_size0;
+    reg [1:0] held_size1;
+    reg held_unsigned0;
+    reg held_unsigned1;
+    reg [216:0] held_sq_payload;
+    reg [216:0] held_amo_payload;
+    integer sq_wait_cycle;
+    integer amo_wait_cycle;
+    begin
+      tb_check32("V14R production dual-memory parameter",
+                 TB_ENABLE_DUAL_MEM, 32'd1);
+      reset_dut();
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+
+      set_dispatch0(64'h0000_0000_8001_8000,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd20, 64'h0000_0000_0000_2200);
+      set_dispatch1(64'h0000_0000_8001_8004,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd21, 64'h0000_0000_0000_2208);
+      #1;
+      tb_check1("V14R pair dispatch0 ready", dispatch0_ready, 1'b1);
+      tb_check1("V14R pair dispatch1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("V14R pair selected", dut.iq_memory_pair_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R bank0 request presented", mem_req_valid, 1'b1);
+      tb_check1("V14R bank1 request presented", mem1_req_valid, 1'b1);
+      tb_check64("V14R bank0 original address", mem_req_addr,
+                 64'h0000_0000_0000_2200);
+      tb_check64("V14R bank1 original address", mem1_req_addr,
+                 64'h0000_0000_0000_2208);
+      held_payload0 =
+          {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+           mem_req_probe, mem_req_pretrans, mem_req_nokill,
+           mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+           mem_req_owner_kind, mem_req_owner_token, mem_req_mmu_epoch,
+           mem_req_fault_tval};
+      held_payload1 =
+          {mem1_req_write, mem1_req_addr, mem1_req_wdata, mem1_req_wstrb,
+           mem1_req_probe, mem1_req_pretrans, mem1_req_nokill,
+           mem1_req_attr_valid, mem1_req_class, mem1_req_cacheable,
+           mem1_req_owner_kind, mem1_req_owner_token,
+           mem1_req_mmu_epoch, mem1_req_fault_tval};
+      held_rob0 = dut.mem_issue_res_rob_idx_q;
+      held_rob1 = dut.mem_issue1_res_rob_idx_q;
+      held_pdest0 = dut.mem_issue_res_pdest_q;
+      held_pdest1 = dut.mem_issue1_res_pdest_q;
+      held_size0 = dut.mem_issue_res_ctrl_q[
+          `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
+      held_size1 = dut.mem_issue1_res_ctrl_q[
+          `CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
+      held_unsigned0 =
+          dut.mem_issue_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT];
+      held_unsigned1 =
+          dut.mem_issue1_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT];
+
+      // This stalled edge captures issue0 on bank0 and issue1 on bank1.
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R bank0 holder valid", dut.mem_req_hold_valid_q, 1'b1);
+      tb_check1("V14R bank1 holder valid", dut.mem1_req_hold_valid_q, 1'b1);
+      tb_check1("V14R bank0 holder source issue0",
+                dut.mem_req_hold_sel_q == 6'b010000, 1'b1);
+      tb_check1("V14R bank1 holder source issue1",
+                dut.mem1_req_hold_sel_q == 3'b100, 1'b1);
+
+      // Emulate later higher-priority live candidates without perturbing the
+      // resident source Qs.  A live-mux implementation would expose SQ/retry1
+      // payload immediately; the holder must keep the complete old bundles.
+      force dut.live_grant_issue0_w = 1'b0;
+      force dut.live_grant_sq_w = 1'b1;
+      force dut.live_grant_mem1_issue1_w = 1'b0;
+      force dut.live_grant_retry1_w = 1'b1;
+      #1;
+      observed_payload0 =
+          {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+           mem_req_probe, mem_req_pretrans, mem_req_nokill,
+           mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+           mem_req_owner_kind, mem_req_owner_token, mem_req_mmu_epoch,
+           mem_req_fault_tval};
+      observed_payload1 =
+          {mem1_req_write, mem1_req_addr, mem1_req_wdata, mem1_req_wstrb,
+           mem1_req_probe, mem1_req_pretrans, mem1_req_nokill,
+           mem1_req_attr_valid, mem1_req_class, mem1_req_cacheable,
+           mem1_req_owner_kind, mem1_req_owner_token,
+           mem1_req_mmu_epoch, mem1_req_fault_tval};
+      tb_check1("V14R bank0 full payload stable under late SQ",
+                observed_payload0 == held_payload0, 1'b1);
+      tb_check1("V14R bank1 full payload stable under late retry",
+                observed_payload1 == held_payload1, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R bank0 multi-cycle payload stable",
+                {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+                 mem_req_probe, mem_req_pretrans, mem_req_nokill,
+                 mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+                 mem_req_owner_kind, mem_req_owner_token,
+                 mem_req_mmu_epoch, mem_req_fault_tval} == held_payload0,
+                1'b1);
+      tb_check1("V14R bank1 multi-cycle payload stable",
+                {mem1_req_write, mem1_req_addr, mem1_req_wdata,
+                 mem1_req_wstrb, mem1_req_probe, mem1_req_pretrans,
+                 mem1_req_nokill, mem1_req_attr_valid, mem1_req_class,
+                 mem1_req_cacheable, mem1_req_owner_kind,
+                 mem1_req_owner_token, mem1_req_mmu_epoch,
+                 mem1_req_fault_tval} == held_payload1, 1'b1);
+
+      // Bank0 ordinary may complete while the independent bank1 holder
+      // remains stalled.  Keep both late contenders asserted through the
+      // exact-fire edge so payload, consume and MIQ birth must all use the
+      // same held selector rather than a split live-grant view.
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check1("V14R bank0 held request fires", dut.mem_req_fire_any_w,
+                1'b1);
+      tb_check1("V14R bank1 remains held", mem1_req_valid, 1'b1);
+      tb_check1("V14R bank1 does not fire while stalled",
+                dut.mem1_req_fire_any_w, 1'b0);
+      tb_check1("V14R bank0 exact reservation consumes",
+                dut.mem_issue_res_consume_fire_w, 1'b1);
+      tb_check1("V14R bank0 late SQ does not consume",
+                dut.sq_drain_req_fire_w, 1'b0);
+      tb_check1("V14R bank1 reservation remains",
+                dut.mem_issue1_res_consume_fire_w, 1'b0);
+      tb_check1("V14R bank0 exact MIQ source",
+                dut.push_issue0_w, 1'b1);
+      tb_check32("V14R bank0 exact MIQ kind",
+                 {30'b0, dut.miq_push_kind_w},
+                 32'd0);
+      tb_check32("V14R bank0 exact MIQ ROB",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.miq_push_rob_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, held_rob0});
+      tb_check32("V14R bank0 exact MIQ pdest",
+                 {{(32-PHY_REG_ADDR_W){1'b0}}, dut.miq_push_pdest_w},
+                 {{(32-PHY_REG_ADDR_W){1'b0}}, held_pdest0});
+      tb_check32("V14R bank0 exact MIQ size",
+                 {30'b0, dut.miq_push_size_w}, {30'b0, held_size0});
+      tb_check1("V14R bank0 exact MIQ unsigned",
+                dut.miq_push_unsigned_w, held_unsigned0);
+      tb_check1("V14R bank0 exact MIQ owner tuple",
+                (dut.miq_push_owner_kind_w ==
+                 dut.mem_req_hold_owner_kind_q) &&
+                (dut.miq_push_owner_token_w ==
+                 dut.mem_req_hold_owner_token_q) &&
+                (dut.miq_push_mmu_epoch_w ==
+                 dut.mem_req_hold_mmu_epoch_q), 1'b1);
+      tb_check1("V14R bank0 fire payload exact",
+                {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+                 mem_req_probe, mem_req_pretrans, mem_req_nokill,
+                 mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+                 mem_req_owner_kind, mem_req_owner_token,
+                 mem_req_mmu_epoch, mem_req_fault_tval} == held_payload0,
+                1'b1);
+      tb_check1("V14R bank1 stalled payload exact",
+                {mem1_req_write, mem1_req_addr, mem1_req_wdata,
+                 mem1_req_wstrb, mem1_req_probe, mem1_req_pretrans,
+                 mem1_req_nokill, mem1_req_attr_valid, mem1_req_class,
+                 mem1_req_cacheable, mem1_req_owner_kind,
+                 mem1_req_owner_token, mem1_req_mmu_epoch,
+                 mem1_req_fault_tval} == held_payload1, 1'b1);
+      `TB_TICK(clk);
+      release dut.live_grant_issue0_w;
+      release dut.live_grant_sq_w;
+      #1;
+      tb_check1("V14R bank0 holder clears on exact fire",
+                dut.mem_req_hold_valid_q, 1'b0);
+      tb_check1("V14R bank1 holder persists independently",
+                dut.mem1_req_hold_valid_q, 1'b1);
+      tb_check1("V14R bank0 reservation drains",
+                dut.mem_issue_res_valid_q, 1'b0);
+      tb_check1("V14R bank1 reservation remains resident",
+                dut.mem_issue1_res_valid_q, 1'b1);
+      tb_check32("V14R bank0 MIQ exact push", dut.miq_count_w, 32'd1);
+
+      // A late singleton/SQ request must wait for bank1's already-presented
+      // ordinary request; no lower-priority bank0 fallback is permitted.
+      force dut.sq_drain_req_valid_w = 1'b1;
+      #1;
+      tb_check1("V14R late SQ observes bank1 holder",
+                dut.mem_req_singleton_wait_w, 1'b1);
+      tb_check1("V14R late SQ is not granted", dut.live_grant_sq_w, 1'b0);
+      tb_check1("V14R bank0 has no singleton fallback", mem_req_valid, 1'b0);
+      tb_check1("V14R bank1 payload survives late SQ",
+                {mem1_req_write, mem1_req_addr, mem1_req_wdata,
+                 mem1_req_wstrb, mem1_req_probe, mem1_req_pretrans,
+                 mem1_req_nokill, mem1_req_attr_valid, mem1_req_class,
+                 mem1_req_cacheable, mem1_req_owner_kind,
+                 mem1_req_owner_token, mem1_req_mmu_epoch,
+                 mem1_req_fault_tval} == held_payload1, 1'b1);
+      `TB_TICK(clk);
+      release dut.sq_drain_req_valid_w;
+      mem1_req_ready = 1'b1;
+      #1;
+      tb_check1("V14R bank1 held request fires",
+                dut.mem1_req_fire_any_w, 1'b1);
+      tb_check1("V14R bank1 exact reservation consumes",
+                dut.mem_issue1_res_consume_fire_w, 1'b1);
+      tb_check1("V14R bank1 late retry does not consume",
+                dut.mem_retry1_req_fire_w, 1'b0);
+      tb_check1("V14R bank1 exact MIQ source",
+                dut.push_mem1_issue1_w, 1'b1);
+      tb_check32("V14R bank1 exact MIQ kind",
+                 {30'b0, dut.miq1_push_kind_w},
+                 32'd0);
+      tb_check32("V14R bank1 exact MIQ ROB",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.miq1_push_rob_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, held_rob1});
+      tb_check32("V14R bank1 exact MIQ pdest",
+                 {{(32-PHY_REG_ADDR_W){1'b0}}, dut.miq1_push_pdest_w},
+                 {{(32-PHY_REG_ADDR_W){1'b0}}, held_pdest1});
+      tb_check32("V14R bank1 exact MIQ size",
+                 {30'b0, dut.miq1_push_size_w}, {30'b0, held_size1});
+      tb_check1("V14R bank1 exact MIQ unsigned",
+                dut.miq1_push_unsigned_w, held_unsigned1);
+      tb_check1("V14R bank1 exact MIQ owner tuple",
+                (dut.miq1_push_owner_kind_w ==
+                 dut.mem1_req_hold_owner_kind_q) &&
+                (dut.miq1_push_owner_token_w ==
+                 dut.mem1_req_hold_owner_token_q) &&
+                (dut.miq1_push_mmu_epoch_w ==
+                 dut.mem1_req_hold_mmu_epoch_q), 1'b1);
+      tb_check1("V14R bank1 fire payload exact",
+                {mem1_req_write, mem1_req_addr, mem1_req_wdata,
+                 mem1_req_wstrb, mem1_req_probe, mem1_req_pretrans,
+                 mem1_req_nokill, mem1_req_attr_valid, mem1_req_class,
+                 mem1_req_cacheable, mem1_req_owner_kind,
+                 mem1_req_owner_token, mem1_req_mmu_epoch,
+                 mem1_req_fault_tval} == held_payload1, 1'b1);
+      `TB_TICK(clk);
+      release dut.live_grant_mem1_issue1_w;
+      release dut.live_grant_retry1_w;
+      #1;
+      tb_check1("V14R bank1 holder clears on exact fire",
+                dut.mem1_req_hold_valid_q, 1'b0);
+      tb_check1("V14R bank1 reservation drains",
+                dut.mem_issue1_res_valid_q, 1'b0);
+      tb_check32("V14R bank1 MIQ exact push", dut.miq1_count_w, 32'd1);
+
+      // A branch-recovery barrier cancels held issue sources without closing
+      // the request transport.  Simultaneous live SQ/retry contenders make
+      // fallback observable: the entire cancellation cycle must remain a
+      // zero-VALID bubble even when READY is high.
+      reset_dut();
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8001_8040,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd24, 64'h0000_0000_0000_2240);
+      set_dispatch1(64'h0000_0000_8001_8044,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd25, 64'h0000_0000_0000_2248);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R recovery setup holder0",
+                dut.mem_req_hold_valid_q, 1'b1);
+      tb_check1("V14R recovery setup holder1",
+                dut.mem1_req_hold_valid_q, 1'b1);
+      force dut.live_grant_issue0_w = 1'b0;
+      force dut.live_grant_sq_w = 1'b1;
+      force dut.live_grant_mem1_issue1_w = 1'b0;
+      force dut.live_grant_retry1_w = 1'b1;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      #1;
+      tb_check1("V14R recovery keeps transport open",
+                dut.mem_request_transport_open_w, 1'b1);
+      tb_check1("V14R recovery cancels both holders",
+                dut.mem_req_hold_cancel_w && dut.mem1_req_hold_cancel_w,
+                1'b1);
+      tb_check1("V14R recovery has live fallback contenders",
+                (|dut.live_mem_req_sel_w) && (|dut.live_mem1_req_sel_w),
+                1'b1);
+      tb_check1("V14R recovery masks bank0 held valid", mem_req_valid, 1'b0);
+      tb_check1("V14R recovery masks bank1 held valid", mem1_req_valid, 1'b0);
+      tb_check1("V14R recovery forbids bank0 fire",
+                dut.mem_req_fire_any_w, 1'b0);
+      tb_check1("V14R recovery forbids bank1 fire",
+                dut.mem1_req_fire_any_w, 1'b0);
+      tb_check1("V14R recovery forbids reservation consume",
+                dut.mem_issue_res_consume_fire_w ||
+                dut.mem_issue1_res_consume_fire_w, 1'b0);
+      tb_check1("V14R recovery forbids MIQ birth",
+                dut.miq_push_valid_w || dut.miq1_push_valid_w, 1'b0);
+      `TB_TICK(clk);
+      release dut.branch_resolve_mispredict_w;
+      release dut.live_grant_issue0_w;
+      release dut.live_grant_sq_w;
+      release dut.live_grant_mem1_issue1_w;
+      release dut.live_grant_retry1_w;
+      #1;
+      tb_check1("V14R recovery clears holder0",
+                dut.mem_req_hold_valid_q, 1'b0);
+      tb_check1("V14R recovery clears holder1",
+                dut.mem1_req_hold_valid_q, 1'b0);
+      tb_check32("V14R recovery leaves bank0 MIQ empty",
+                 dut.miq_count_w, 32'd0);
+      tb_check32("V14R recovery leaves bank1 MIQ empty",
+                 dut.miq1_count_w, 32'd0);
+
+      // A physical SQ request that was already presented is an older write
+      // lease.  A younger selective recovery may close ROB first-launch
+      // admission, but it must not revoke the exact resident SQ source.
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_translate_active = 1'b1;
+      mem_req_ready = 1'b1;
+      set_dispatch0(64'h0000_0000_8001_8050,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_4000_2450);
+      dispatch0_inst = 32'h0000_3023;
+      #1;
+      tb_check1("V14R SQ lease store dispatch ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("V14R SQ lease reservation captures",
+                dut.mem_issue_res_capture_w, 1'b1);
+      sq_wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (sq_wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        sq_wait_cycle = sq_wait_cycle + 1;
+      end
+      tb_check1("V14R SQ lease probe presented",
+                mem_req_valid && mem_req_write && mem_req_probe, 1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      tb_check1("V14R SQ lease probe owns MIQ",
+                (dut.miq_count_w == 1) &&
+                (dut.miq_head_owner_token_w == 5'd0), 1'b1);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0000_0000_8000_2450;
+      mem_rsp_error = 1'b0;
+      #1;
+      tb_check1("V14R SQ lease probe response fills SQ",
+                mem_rsp_ready && dut.sq_fill_valid_w, 1'b1);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("V14R SQ physical request reaches live priority",
+                dut.sq_drain_valid_w && dut.grant_sq_w &&
+                !dut.sq_drain_req_fire_w, 1'b1);
+      held_sq_payload =
+          {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+           mem_req_probe, mem_req_pretrans, mem_req_nokill,
+           mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+           mem_req_owner_kind, mem_req_owner_token, mem_req_mmu_epoch,
+           mem_req_fault_tval};
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R SQ physical holder captures",
+                dut.mem_req_hold_valid_q &&
+                (dut.mem_req_hold_sel_q == 6'b000001), 1'b1);
+      force dut.rob_head_launch_open_w = 1'b0;
+      #1;
+      tb_check1("V14R SQ live launch view closes",
+                dut.sq_drain_valid_w, 1'b0);
+      tb_check1("V14R SQ held source remains exact",
+                dut.mem_req_hold_source_exact_w, 1'b1);
+      tb_check1("V14R SQ held VALID survives launch closure",
+                mem_req_valid, 1'b1);
+      tb_check1("V14R SQ held payload survives launch closure",
+                {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+                 mem_req_probe, mem_req_pretrans, mem_req_nokill,
+                 mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+                 mem_req_owner_kind, mem_req_owner_token,
+                 mem_req_mmu_epoch, mem_req_fault_tval} == held_sq_payload,
+                1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R SQ holder persists through launch closure",
+                dut.mem_req_hold_valid_q && mem_req_valid, 1'b1);
+      mem_req_ready = 1'b1;
+      #1;
+      tb_check1("V14R SQ held lease exact fires",
+                dut.sq_drain_req_fire_w && dut.push_drain_w &&
+                dut.miq_push_valid_w, 1'b1);
+      tb_check1("V14R SQ held lease keeps drain MIQ source",
+                dut.miq_push_kind_w == dut.MIQ_KIND_DRAIN, 1'b1);
+      `TB_TICK(clk);
+      release dut.rob_head_launch_open_w;
+      mem_req_ready = 1'b0;
+      #1;
+      tb_check1("V14R SQ holder clears after held fire",
+                dut.mem_req_hold_valid_q, 1'b0);
+      tb_check1("V14R SQ held fire records request sent",
+                dut.sq_snoop_request_sent_w[dut.sq_snoop_head_w] &&
+                dut.drain_inflight_q, 1'b1);
+      tb_check32("V14R SQ held fire creates one drain MIQ",
+                 dut.miq_count_w, 32'd1);
+
+      // The same first-launch/held-lease split applies to an AMO write phase.
+      // Its read phase first creates the resident singleton; the write request
+      // is then captured under backpressure before launch_open is withdrawn.
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8001_8054,
+                    make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b0),
+                    5'd0, 5'd0, 5'd20, 64'd0);
+      dispatch0_inst = inst_amo(5'b00000, 5'd0, 5'd0,
+                                `FUNCT3_LD, 5'd20);
+      #1;
+      tb_check1("V14R AMO lease dispatch ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      amo_wait_cycle = 0;
+      while ((mem_req_valid !== 1'b1) && (amo_wait_cycle < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        amo_wait_cycle = amo_wait_cycle + 1;
+      end
+      tb_check1("V14R AMO read request presented",
+                mem_req_valid && !mem_req_write &&
+                (mem_req_owner_kind == 2'b10), 1'b1);
+      mem_req_ready = 1'b1;
+      #1;
+      tb_check1("V14R AMO read exact fires",
+                dut.issue0_mem_request_fire_w && dut.miq_push_valid_w,
+                1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0123_4567_89ab_cdef;
+      mem_rsp_error = 1'b0;
+      #1;
+      tb_check1("V14R AMO read response enters write phase",
+                mem_rsp_ready && dut.mem_amo_read_rsp_w, 1'b1);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      tb_check1("V14R AMO write reaches live priority",
+                dut.mem_amo_write_req_valid_w && dut.grant_amo_write_w &&
+                !dut.push_amo_write_w, 1'b1);
+      held_amo_payload =
+          {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+           mem_req_probe, mem_req_pretrans, mem_req_nokill,
+           mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+           mem_req_owner_kind, mem_req_owner_token, mem_req_mmu_epoch,
+           mem_req_fault_tval};
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R AMO write holder captures",
+                dut.mem_req_hold_valid_q &&
+                (dut.mem_req_hold_sel_q == 6'b000010), 1'b1);
+      force dut.rob_head_launch_open_w = 1'b0;
+      #1;
+      tb_check1("V14R AMO live launch view closes",
+                dut.mem_amo_write_req_valid_w, 1'b0);
+      tb_check1("V14R AMO held source remains exact",
+                dut.mem_req_hold_source_exact_w, 1'b1);
+      tb_check1("V14R AMO held VALID survives launch closure",
+                mem_req_valid, 1'b1);
+      tb_check1("V14R AMO held payload survives launch closure",
+                {mem_req_write, mem_req_addr, mem_req_wdata, mem_req_wstrb,
+                 mem_req_probe, mem_req_pretrans, mem_req_nokill,
+                 mem_req_attr_valid, mem_req_class, mem_req_cacheable,
+                 mem_req_owner_kind, mem_req_owner_token,
+                 mem_req_mmu_epoch, mem_req_fault_tval} == held_amo_payload,
+                1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R AMO holder persists through launch closure",
+                dut.mem_req_hold_valid_q && mem_req_valid, 1'b1);
+      mem_req_ready = 1'b1;
+      #1;
+      tb_check1("V14R AMO held lease exact fires",
+                dut.push_amo_write_w && dut.miq_push_valid_w &&
+                dut.mem_amo_fire_authorized_w, 1'b1);
+      `TB_TICK(clk);
+      release dut.rob_head_launch_open_w;
+      mem_req_ready = 1'b0;
+      #1;
+      tb_check1("V14R AMO holder clears after held fire",
+                dut.mem_req_hold_valid_q, 1'b0);
+      tb_check1("V14R AMO held fire records write sent",
+                dut.mem_amo_write_sent_q, 1'b1);
+      tb_check32("V14R AMO held fire creates one legacy MIQ",
+                 dut.miq_count_w, 32'd1);
+
+      // Bank capacity is local.  A full bank1 MIQ cannot suppress a bank0
+      // request, and a full bank0 MIQ cannot suppress a bank1 request.
+      reset_dut();
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      force dut.miq1_full_w = 1'b1;
+      set_dispatch0(64'h0000_0000_8001_8060,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd26, 64'h0000_0000_0000_2260);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R bank1 full closes only bank1 slot",
+                dut.miq_slot_open_w && !dut.miq1_slot_open_w, 1'b1);
+      tb_check1("V14R bank1 full preserves bank0 valid",
+                mem_req_valid && !mem1_req_valid, 1'b1);
+      release dut.miq1_full_w;
+
+      reset_dut();
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      force dut.miq_full_w = 1'b1;
+      set_dispatch0(64'h0000_0000_8001_8064,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd27, 64'h0000_0000_0000_2268);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R bank0 full closes only bank0 slot",
+                !dut.miq_slot_open_w && dut.miq1_slot_open_w, 1'b1);
+      tb_check1("V14R bank0 full preserves bank1 valid",
+                !mem_req_valid && mem1_req_valid, 1'b1);
+      release dut.miq_full_w;
+
+      // Global cancellation dominates READY and produces a zero-VALID bubble;
+      // neither reservation may be consumed or pushed on the flush edge.
+      reset_dut();
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8001_8080,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd22, 64'h0000_0000_0000_2300);
+      set_dispatch1(64'h0000_0000_8001_8084,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd23, 64'h0000_0000_0000_2308);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R cancel setup holder0", dut.mem_req_hold_valid_q,
+                1'b1);
+      tb_check1("V14R cancel setup holder1", dut.mem1_req_hold_valid_q,
+                1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      flush = 1'b1;
+      #1;
+      tb_check1("V14R flush masks bank0 held valid", mem_req_valid, 1'b0);
+      tb_check1("V14R flush masks bank1 held valid", mem1_req_valid, 1'b0);
+      tb_check1("V14R flush forbids bank0 consume",
+                dut.mem_issue_res_consume_fire_w, 1'b0);
+      tb_check1("V14R flush forbids bank1 consume",
+                dut.mem_issue1_res_consume_fire_w, 1'b0);
+      `TB_TICK(clk);
+      flush = 1'b0;
+      #1;
+      tb_check1("V14R flush clears holder0", dut.mem_req_hold_valid_q,
+                1'b0);
+      tb_check1("V14R flush clears holder1", dut.mem1_req_hold_valid_q,
+                1'b0);
+      tb_check32("V14R flush leaves bank0 MIQ empty", dut.miq_count_w,
+                 32'd0);
+      tb_check32("V14R flush leaves bank1 MIQ empty", dut.miq1_count_w,
+                 32'd0);
+      if (tb_errors == 0)
+        $display("[V14R-MEMORY-REQUEST-HOLD] holder_ff=29 payload_bits=217 banks=2 late_priority=2 exact_fire=4 exact_source=4 independent_bank=1 late_sq_block=1 nonflush_cancel=1 sq_launch_lease=1 amo_launch_lease=1 capacity_isolation=2 cancel_ready_race=1 PASS");
+      else
+        $display("[V14R-MEMORY-REQUEST-HOLD][FAIL] errors=%0d",
+                 tb_errors);
+      reset_dut();
+    end
+  endtask
+
+  // V14R single-bank ordering: an older speculative store probe resident in
+  // MIQ may still become the SQ physical-head request.  A younger plain-store
+  // probe must therefore remain in its reservation and must not present a
+  // backpressured VALID ahead of that older owner.
+  task automatic run_v14r_single_bank_probe_order;
+    reg [ROB_INDEX_W-1:0] older_rob;
+    reg [ROB_INDEX_W-1:0] younger_rob;
+    begin
+      tb_check32("V14R single-bank production parameter",
+                 TB_ENABLE_DUAL_MEM, 32'd0);
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b1;
+
+      set_dispatch0(64'h0000_0000_8001_80c0,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_22c0);
+      #1;
+      tb_check1("V14R older probe dispatch ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("V14R older probe captures reservation",
+                dut.mem_issue_res_capture_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      older_rob = dut.mem_issue_res_rob_idx_q;
+      tb_check1("V14R older probe exact request",
+                mem_req_valid && mem_req_write && mem_req_probe, 1'b1);
+      tb_check1("V14R older probe request fires",
+                dut.mem_req_fire_any_w, 1'b1);
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      #1;
+      tb_check32("V14R older probe resident in MIQ",
+                 dut.miq_count_w, 32'd1);
+      tb_check32("V14R older MIQ entry is probe",
+                 {30'b0, dut.miq_head_kind_w}, 32'd1);
+      tb_check32("V14R older MIQ ROB identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.miq_head_rob_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, older_rob});
+
+      set_dispatch0(64'h0000_0000_8001_80c4,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_22d0);
+      #1;
+      tb_check1("V14R younger probe dispatch ready", dispatch0_ready, 1'b1);
+      younger_rob = dut.dispatch0_rob_idx_w;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("V14R younger probe captures reservation",
+                dut.mem_issue_res_capture_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("V14R younger probe remains in reservation",
+                dut.mem_issue_res_valid_q, 1'b1);
+      tb_check32("V14R younger reservation ROB identity",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.mem_issue_res_rob_idx_q},
+                 {{(32-ROB_INDEX_W){1'b0}}, younger_rob});
+      tb_check1("V14R older MIQ probe blocks younger presentation",
+                dut.issue0_miq_probe_block_r, 1'b1);
+      tb_check1("V14R younger probe has zero VALID", mem_req_valid, 1'b0);
+      tb_check1("V14R younger probe does not consume",
+                dut.mem_issue_res_consume_fire_w, 1'b0);
+      tb_check1("V14R older MIQ entry remains unique",
+                (dut.miq_count_w == 4'd1) && !dut.miq_push_valid_w, 1'b1);
+      if (tb_errors == 0)
+        $display("[V14R-SINGLE-BANK-PROBE-ORDER] older_probe=1 younger_store_block=1 valid_lease=0 mutation_anchor=2 PASS");
+      else
+        $display("[V14R-SINGLE-BANK-PROBE-ORDER][FAIL] errors=%0d",
+                 tb_errors);
+      reset_dut();
+    end
+  endtask
+
   // v8s/F2 canonical dual-memory integration.  This focused path enables the
   // production parameter and drives both bridge-facing request/response
   // identities; the default regression remains on the legacy parameter.
@@ -19207,6 +19903,10 @@ module tb_ooo_int_backend;
     run_v9r_sq_retry_c0_handoff();
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
     run_v11i_terminal_lifecycle_after_lq_clear();
+`elsif V14R_MEMORY_REQUEST_HOLD_FOCUSED
+    run_v14r_memory_request_admission_hold();
+`elsif V14R_SINGLE_BANK_PROBE_ORDER_FOCUSED
+    run_v14r_single_bank_probe_order();
 `elsif V8S_DUAL_MEMORY_FOCUSED
     run_v8s_dual_memory_core_integration();
 `elsif V8W_MEMORY_RECOVERY_FOCUSED
@@ -20622,6 +21322,12 @@ module tb_ooo_int_backend;
         tb_finish("tb_ooo_int_backend_v11l_memory_retry_holder");
 `elsif V9R_SQ_RETRY_C0_FOCUSED
         tb_finish("tb_ooo_int_backend_v9r_sq_retry_c0");
+`elsif V14R_MEMORY_REQUEST_HOLD_FOCUSED
+        tb_finish("tb_ooo_int_backend_v14r_memory_request_hold");
+`elsif V14R_SINGLE_BANK_PROBE_ORDER_FOCUSED
+        tb_finish("tb_ooo_int_backend_v14r_single_bank_probe_order");
+`elsif V8S_DUAL_MEMORY_FOCUSED
+        tb_finish("tb_ooo_int_backend_v8s_dual_memory");
 `elsif V11I_TERMINAL_LIFECYCLE_FOCUSED
         tb_finish("tb_ooo_int_backend_v11i_terminal_lifecycle");
 `elsif V8Y_SPECULATION_RECOVERY_FOCUSED

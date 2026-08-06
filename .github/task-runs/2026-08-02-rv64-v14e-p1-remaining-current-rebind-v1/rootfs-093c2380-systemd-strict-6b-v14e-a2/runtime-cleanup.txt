@@ -1,0 +1,5 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-systemd-strict/rootfs-093c2380-systemd-strict-6b-v14e-a2
+runtime_path_validated=1
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

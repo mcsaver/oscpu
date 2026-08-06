@@ -1,0 +1,8 @@
+npc/rv64/eval/ppa/instrumentation
+npc/rv64/eval/ppa
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1
+.github/task-runs/2026-08-04-rv64-v14p-owner-timing-checker-replay-v5
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence/owner-timing-diagnostics
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts
+.github/memory
+.github/memory/modules

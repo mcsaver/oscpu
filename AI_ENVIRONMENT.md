@@ -7,7 +7,8 @@
 1. 从 `AGENTS.md` 和 `.github/instructions/agent-lightweight-workflow.instructions.md` 分类任务。
    `review/analysis` 直接读取相关代码/spec，不运行 guard。
 2. 有落盘修改时运行 `scripts/agent-flow.sh begin --task <id> --class <class>`；每批修改用
-   `record --path` 登记，不扫描 Git。
+   `record --path` 登记，不扫描 Git。用户追加范围跨入另一任务 class 时使用带 reason 的
+   `reclassify`，保留原记录并递增 generation，不手改运行态或复制任务。
 3. 只读取相关 `instructions/*.instructions.md`、module memory 和模块 README/spec。只有需要历史事实
    或跨模块 profile 上下文时才运行 bounded `brief`。
 4. 业务开发选择 domain test/仿真/综合/STA 作为开发验证，并用 `agent-flow evidence` 登记结果；
@@ -30,6 +31,94 @@
    `scripts/agent-flow.sh finish --task <id> --candidate`，审查无改动后再正式 `finish`；小型任务可
    直接正式收尾。C 调度器只调用路径对应的固定 gate pointer；流程占用约 40% 是非阻断复盘目标，
    不设置精确时间门禁。strict e2e guard 仅用于 release/迁移，且必须显式传入 paths-file/path。
+
+源码树/索引清理使用固定 C 指针 `source-artifact-hygiene`：只在 `.gitignore` 或清理检查器变化时读取
+Git 索引，拒绝把可再生 build、bytecode、仿真波形、Yosys 结果和 runtime artifact 纳入版本控制；
+日常 RTL 开发仍按显式修改路径工作，不用 Git 枚举本轮改动。
+
+同一 domain 有 fast/link/workload 等层级时，机器可读 profile 必须列出客观变化触发与留存边界；
+C pointer 默认选择最小充分层，显式重层包含并替代轻层，禁止重复执行。仅 checker/profile/report
+变化且冻结执行输入、终端、工具、production manifest 与 link 语义输入哈希完整时，可用独立
+versioned replay 组合原始 link PASS 与当前 fast PASS；原始 FAIL/PASS 均不回写。production RTL、
+elaboration、simulator/device 语义或必要身份漂移时不得 replay。review/analysis 仍不因此增加 gate。
+
+`OooIntBackend` memory-request holder的固定开发轮为
+`check_v14r_memory_request_hold.sh --tier fast|link`，C指针分别是
+`rv64-memory-request-hold-fast|link`。fast承载双/单bank focused与4项专属marker mutation，link包含并
+替代fast后追加四项关联回归；workload探针不由finish自动触发。只有显式提供
+`--evidence-dir .github/task-runs/.../<empty-subdir>`时才保留bounded result/log/diff/manifest，build/VVP/
+mutant工作副本始终清理。production RTL变化后允许单次current-design invalid probe以旧baseline作
+counter reference，但必须绑定当前manifest、前后hash、simulator与cleanup，并声明
+`observer_noninterference_qualified=false`、`PPA=UNQUALIFIED`；完整A/B和PPA仍要求重新取得同设计
+ARCH_STABLE/cohort。若仅修跨设计checker，保留原始FAIL并用`--mode current-design`冻结输入replay。
+
+全核 module/official/AM/DiffTest/benchmark 的唯一长跑入口是
+`npc/rv64/eval/ppa/run-full-core-current.sh --run-dir .github/task-runs/<new-run-id>`；机器合同见
+`npc/rv64/design/arch/full-core-functional-run-policy-v1.json`。它只写新 task-run，当前 NPC/NEMU 配置
+作为只读输入，NEMU/AM/Verilator 可再生编译物进入临时根；默认不发布 current，显式 publication 以
+已完成的执行 PASS 为前置条件，并以独立 fail-closed publication 状态和 binding-last 事务提交；执行
+result 不被发布动作回写。下游 F0/ARCH_STABLE 消费者同时核验不可变 source run-result、同轮 module
+result/status/log、live RTL/official-177/AM 输入闭包、execution/publication 两个精确 PASS 状态、
+source/canonical hash、14 项 mutation 的只读重放、逐项重开的 official/AM source-log、唯一且无矛盾值的
+benchmark guest 行与字节级终端收据；同轮路径任一层含 symlink 即拒绝，不能绕过 binding
+直接消费三项 canonical data。C 指针 `rv64-full-core-runner-contract` 只在上述 runner/policy/tool/测试或相关
+构建入口改变时运行定向单测与隔离构建 smoke，不在普通 RTL 编辑、review 或每次收尾运行完整 cohort。
+CoreMark/Dhrystone、cpu-tests、NEMU、AM/klib 及 platform script 的构建入口变化都映射到同一 C 指针；smoke
+真实构建 NEMU reference、AM dummy、CoreMark 和 Dhrystone，启动前和结束后均要求 source tree 中不存在
+`.result`、`Makefile.*`、`build` 或 `obj_dir` 二级产物，全部新产物位于临时根。执行 PASS 要求
+module/functional/verifier 各自恰好一个 PASS 且无同阶段 FAIL；module 输入组精确闭包、benchmark guest 输出
+行、冻结终端摘要与 canonical 14 项 mutation 的只读重放逐项复核。`scripts/task-run-status.sh` 既是通用
+fail-closed helper，也是该全核入口的承重依赖；修改 helper 或其单测时，C 同时选择 helper 单测和全核
+runner contract，避免只验证孤立状态机而遗漏接线。
+
+全核 producer 在创建 attempt 目录或登记 artifact 前按 lexical path 逐层检查，父目录别名与最终文件
+symlink 均不得先 `resolve()` 后放行；official/AM guest 段分别要求恰好一个 architectural PASS terminal，
+AM 还要求恰好一个 `Difftest: ON` 且不存在 `OFF`。入口 shell 对原始 `--run-dir` 做同样的 lexical
+final-component 检查；simulator-build、official、AM 与 benchmark wrapper 的 source-log path/hash 必须
+回绑同轮 retained raw log，delimiter 以 bytes 解析且内嵌段与 raw 文件逐字节一致。canonical publication
+对 destination 与 `.tmp-full-core-current` 逐层做 lexical 检查，并以 exclusive/no-follow 创建临时文件。
+
+仅当完整 guest 阶段已结束、原始 FAIL 精确落在 benchmark `GOOD TRAP` 终端 oracle、冻结输入前后相同，
+且当前 live 漂移唯一为 `functional_aggregate.py` 时，使用
+`npc/rv64/eval/ppa/replay-full-core-functional-current.sh` 生成独立 L1 checker-replay。原始 FAIL 不回写，
+replay 不发布 canonical execution binding；RTL/elaboration/simulator/device 或其它输入变化仍必须重跑。
+
+当前默认系统签核采用
+`L0 directed RTL + L1 full-core DiffTest + L2 mini-system + L3 lightweight Linux` 合取，机器策略见
+`npc/rv64/design/arch/layered-system-signoff-policy-v1.json`。L2 入口为
+`npc/rv64/eval/ppa/run-mini-system-current.sh --run-dir .github/task-runs/<new-run-id>`，可选七个定向 case，
+只有 `--case all` 形成完整 L2；固定 C 指针 `rv64-mini-system-runner-contract` 只做静态合同与 oracle 单测。
+其中 L3 是当前最高优先级，入口为
+`npc/rv64/eval/ppa/run-lightweight-linux-current.sh --run-dir .github/task-runs/<new-run-id>`。该入口复用
+production `NpcSimTop`、Linux 6.6、OpenSBI 与设备模型，只替换为最小内核配置和静态 PID1/initramfs，
+覆盖 Sv39、SBI、进程/COW、timer、tmpfs、AMO/LRSC、PLIC/UART 与自然 poweroff，并用 fail-closed status、
+前后哈希、UART/PLIC cycle/commit 窗口、带计数的 syscon 终端顺序、零 RTL assertion failure，以及清理后的
+最终 evidence-file seal 收口。构建树和临时 rootfs 位于 runtime，task-run
+只保留结果、身份、bounded 日志/marker 与 cleanup receipt；当前有效的轻量 guest 产物和 `NpcSimTop`
+各只保留一份内容绑定缓存。L3 可选九个短事务，只有 `--case all` 形成完整 L3。固定 C 指针
+`rv64-lightweight-linux-runner-contract` 只跑脚本合同与正负向 oracle 单测，不启动 guest；真实 L3 回放
+作为本轮 domain evidence 显式执行一次。
+当前 `NpcSimTop` 缓存由 `build-current-simulator-cache.sh` 构建，并用
+`rv64-simulator-source-id.sh` 同时绑定 vsrc、csrc、Makefile 和生效配置；固定 C 指针
+`rv64-current-simulator-cache-contract` 只做静态合同检查，不触发编译。
+L2/L3 另由 `rv64-layer-source-id.sh` 绑定 payload/kernel、OpenSBI、DTB、PID1 与构建入口，并在真实执行
+前后复核；checker replay 只有在当前 RTL、simulator、层级源码、运行产物和 runner/policy 全部一致时有效。
+
+四层默认结果由 `npc/rv64/eval/ppa/tools/layered_system_signoff.py` 聚合，当前机器收据为
+`npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json`，固定 C 指针是
+`rv64-layered-system-signoff-current`。该 checker 复核 L0 的 113 项 `-DOOO_ASSERT` 编译与日志、L1
+冻结 cohort、L2/L3 原始 console/npc 事务、当前输入 manifest 和 seal；只读执行，不启动任何 guest。
+
+完整 Ubuntu 22.04/systemd 仅作为可选再认证。其入口仍是
+`npc/rv64/eval/ppa/run-system-recertification-current.sh`，但每次真实执行必须同时提供
+`--user-authorized-full-ubuntu`，且只在用户明确要求时启动；普通 RTL 修改、候选收尾、自动化唤醒或 L3
+失败都不得自动转入该路径。`--validate-only` 仍可做静态合同检查。历史 Ubuntu PASS/FAIL 保持不可改写，
+缺少新的可选 Ubuntu 运行不阻断默认分层系统签核。
+
+L2/L3 checker-only 修正使用 `npc/rv64/eval/ppa/replay-layer-checker-current.sh`。该轮子只读取一个已有
+FAIL task-run 的冻结日志，写入新的小型 replay task-run 并保持原状态不变；任何 RTL、simulator、设备、
+guest 或配置语义变化仍必须重跑受影响层。replay 必须现场重算当前 RTL identity，并与冻结 binding 和
+新 summary 同时一致，才能使用 `CURRENT_IDENTITY` 措辞。
 
 task-run 按 `none/compact/durable` 留存：review/analysis 默认不建，落盘开发和环境修改保存 compact
 结果，长仿真/综合/STA/系统回放及 release 保存 durable 结果。只归档修改目录、验证指针、结构化工程
@@ -60,7 +149,28 @@ dispatch 的 task/trace/slug、report/manifest 语义时间，以及 resolve/man
 
 RV64 完整双发射/OoO/PPA 的稳定入口是
 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`；架构能力和 promotion 阈值
-仍以 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md` 为规范真源。
+仍以 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md` 为规范真源。公开 SoC 方法适配后的
+`fast/scheduled/candidate` 触发配置位于
+`npc/rv64/design/arch/rv64-soc-delivery-gates.tsv`；它决定何时选择证据，不替代任何功能或 PPA 合同。
+domain evidence 的“一次登记”以不可变 design/config identity 为单位；RTL、filelist、parameter/define、
+约束、工具执行语义或 workload/input 身份变化后必须重新取得对应证据。
+
+流程判断分为三个正交轴：轻量工作流定义 task class，`rv64-soc-delivery-gates.tsv` 定义
+`fast/scheduled/candidate` execution tier，`rv64-soc-maturity-stages.tsv` 定义
+`ARCH_DISCOVERY` 到 `PROMOTABLE` 的 design maturity。checker/schema/source 改动由
+`rv64-arch-stable-checker-contract` 运行定向单测；只有 current receipt/audit 入口或 current evidence 改动才选择
+`rv64-arch-stable-current`。后者只复核已生成的 exact-input current result，不在 agent 收尾重复运行
+testbench/仿真/综合/STA；业务验证先执行并用 evidence 登记。
+`ARCH_STABLE` 只在独立审查合同、报告和机器 receipt 同时绑定 exact candidate SHA 与 current design-id
+后签发；这项检查不进入普通 RTL development 或只读 review。
+
+当前架构债务的机器入口为 `npc/rv64/design/arch/architecture-debt-ledger.json`，其当前设计收据为
+`npc/rv64/eval/ppa/evidence/architecture-debt-current.json`。固定 C 指针
+`rv64-architecture-debt-current` 只在候选交付阶段复核 retained execution/replay、cohort 与 design-id；
+它不替代原始 RTL gate，也不把债务账本层的闭合外推为 whole-architecture 或 PPA promotion。
+`rv64-historical-defect-current`采用同一边界。两者只由账本、current receipt、cohort、冻结历史输入或
+checker/runner维护面自动选择；普通RTL/TB/product config变化记录旧current失效和maturity GAP，先跑
+受影响domain fast，不在日常finish执行必然过期的current-result gate。candidate/release仍必须显式重建。
 
 ## 入口文件
 
@@ -156,7 +266,9 @@ scripts/agent-maintain.sh --mode release
   `scope`；schema v1 只保留历史 validate/render 兼容。`render` 自动绑定该 JSON 的路径与 SHA-256
   （不绑定设计 `contract.md`）。把这两项
   逐字写入当前 task-run 的 dispatch log。Windows/Codex→WSL 工程命令按 single-flight 调度，当前唯一
-  shell ownership 可以交给一个契约授权节点。需要发现遗漏或核对源码时默认使用 `workspace-files`；
+  shell ownership 可以交给一个契约授权节点，且只覆盖合同中的一个有界命令批次；完成、GAP、异常或
+  中止后必须停止工程进程并归还，无响应节点需经 Windows 进程表确认后强制回收。需要发现遗漏或核对
+  源码时默认使用 `workspace-files`；
   只有限定材料复核才使用 `--self-contained-no-tools` 和 `--supplied-material`，使 JSON 原生声明
   `allowed_commands=[]`、无写路径，并只消费提示中冻结的 RTL 材料。所有模式都保留 unknowns、替代假设、反例、
   `scope_extension_request`、置信依据和 `inconclusive` 出口，不得强制 PASS 或设置固定发现数量上限。

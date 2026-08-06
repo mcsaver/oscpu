@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14r-final-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地RV64 OooIntBackend双bank request holder的exact-fire payload/consume/MIQ同源、transport-open recovery cancel、bank-local capacity与single-bank older-probe顺序；逐项读取四个compile-success RTL mutation原始日志；核对旧design-id CoreMark owner-timing invalid_events=1176与当前design-id invalid_events=0均来自原始日志，同时保持跨设计周期差、ARCH_STABLE与PPA不晋级。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh",
+      "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      "scripts/agent-flow.c",
+      "scripts/tests/test-agent-flow.sh",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/task-report.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/verification-v2",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/owner-timing-invalid-probe.status",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/command-status.txt",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/production-manifest-before.sha256",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/production-manifest-after.sha256",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/result.json",
+      ".github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-v2/evidence/owner-timing-invalid-probe/logs/coremark-owner-timing-rep1.log",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-invalid-probe-v1/owner-timing-invalid-probe.status",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-invalid-probe-v1/evidence/owner-timing-invalid-probe/command-status.txt",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-invalid-probe-v1/evidence/owner-timing-invalid-probe/production-manifest-before.sha256",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-invalid-probe-v1/evidence/owner-timing-invalid-probe/production-manifest-after.sha256",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-invalid-probe-v1/evidence/owner-timing-invalid-probe/logs/coremark-owner-timing-rep1.log",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-checker-replay-v1/owner-timing-invalid-probe-replay.status",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-checker-replay-v1/evidence/owner-timing-invalid-probe-replay/result.json",
+      ".github/task-runs/2026-08-04-rv64-v14r-owner-timing-checker-replay-v1/evidence/owner-timing-invalid-probe-replay/command-status.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/subagent-contracts/v14r-final-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      ".github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/task-report.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地RTL对象、周期/配置、TB或EDA观测、PASS/GAP范围输出；逐项核对4个mutation各自compile-success与预期FAIL marker、focused/single-bank/link原始PASS marker、旧1176与当前0原始OWNER_TIMING_FINAL，并列出仍可操作反例、未知项、真实路径和哈希。"
+  ],
+  "success_criteria": [
+    "只有原始日志与RTL数据流共同支持的结论可PASS；不得把checker replay PASS改写为原始run PASS，不得把1176到0归因外推为同设计observer noninterference、CPI收益、ARCH_STABLE或PPA promotion；检查C gate显式link取代auto-fast且review保持零gate。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

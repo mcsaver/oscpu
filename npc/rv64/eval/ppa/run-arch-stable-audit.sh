@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../../.." && pwd)"
 CANDIDATE="${REPO_ROOT}/npc/rv64/eval/ppa/arch-stable/full-core-current.json"
 RESULT="${ARCH_STABLE_RESULT:-${REPO_ROOT}/npc/rv64/eval/ppa/evidence/arch-stable-current.json}"
+REVIEW="${ARCH_STABLE_REVIEW:-${REPO_ROOT}/npc/rv64/eval/ppa/evidence/arch-stable-independent-review-current.json}"
 REQUIRE_STABLE=0
 
 if [[ "${1:-}" == "--require-stable" ]]; then
@@ -15,7 +16,7 @@ elif [[ -n "${1:-}" ]]; then
 fi
 
 cd "${REPO_ROOT}"
-python3 -m unittest -v \
+python3 -B -m unittest -v \
   npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py \
   npc/rv64/eval/ppa/tests/test_fdg_arch_trap_evidence.py \
   npc/rv64/eval/ppa/tests/test_xret_current_mode_evidence.py \
@@ -30,6 +31,7 @@ python3 -m unittest -v \
 audit_args=(
   audit
   "${CANDIDATE}"
+  --review "${REVIEW}"
   --output "${RESULT}"
 )
 verify_args=(verify "${RESULT}")
@@ -38,6 +40,6 @@ if [[ "${REQUIRE_STABLE}" -eq 1 ]]; then
   verify_args+=(--require-stable)
 fi
 
-python3 npc/rv64/eval/ppa/tools/arch_stable_freeze.py "${audit_args[@]}"
-python3 npc/rv64/eval/ppa/tools/arch_stable_freeze.py "${verify_args[@]}"
+python3 -B npc/rv64/eval/ppa/tools/arch_stable_freeze.py "${audit_args[@]}"
+python3 -B npc/rv64/eval/ppa/tools/arch_stable_freeze.py "${verify_args[@]}"
 printf '[ARCH-STABLE-EVIDENCE] %s\n' "${RESULT}"

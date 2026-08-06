@@ -1,7 +1,7 @@
 # RV64 Core 源码学习讲义
 
 > 文档类型：常驻学习索引（ACTIVE）  
-> RTL 基线：当前工作区 `npc/rv64/vsrc/`，2026-07-30 产品配置与 elaboration 静态复核
+> RTL 基线：当前工作区 `npc/rv64/vsrc/`，2026-08-04 产品配置与 elaboration 静态复核
 > 教学目标：像“一生一芯”讲义一样，从问题、事务和周期出发理解一颗真实 RV64
 > 双发射乱序核，而不是背模块名。
 
@@ -25,6 +25,11 @@ Data In / State / Data Out / Guard 字段。正文仍是
 页面默认使用“大”字号。页面右上角的“字号”按钮可以在“标准 → 大 → 特大”之间循环，
 选择会保存在本机；事务卡片、表格、Self-check 和 WaveDrom 标签会一起缩放，不需要分别
 调整。浏览器本身的 `Ctrl +` / `Ctrl -` 仍可作为额外缩放手段。
+
+Rev. E 已同步当前源码的 `AxiCrossbar` 全称层次，以及 LQ terminal history、Integer IQ
+static compaction、SQ physical-byte CAM 的 X-safe 验证、Store aggregate-B response
+fusion 和 CSR delegation/FS/WARL 边界。这里的“同步”表示这些事实已经进入讲义、事务卡片
+与源码地图；它不等于本轮重新取得了 RTL 仿真、综合或 STA 结论。
 
 ## 先给结论：这是一颗什么样的 Core
 
@@ -112,6 +117,7 @@ Data In / State / Data Out / Guard 字段。正文仍是
 - 9 条 transaction 的每个阶段是否都具备输入、状态变化、输出和准入条件；
 - Self-check 是否包含可展开答案及状态线索，而不是只留下问题；
 - Features 长文本和 transaction 是否使用可换行的纵向/响应式布局；
+- HTML 的 elaboration SHA-256 与完整 source fingerprint 是否仍绑定当前 RTL、讲义和工具；
 - 讲义是否至少包含一张 WaveDrom 时序图。
 
 运行：

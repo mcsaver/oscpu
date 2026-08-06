@@ -1,0 +1,12 @@
+npc/rv64/Makefile
+npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json
+npc/rv64/design/arch/producer-holder-semantic-coverage.json
+npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md
+npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json
+npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py
+npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py
+npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py
+npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py
+.github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current
+.github/memory/project-status.md
+.github/memory/modules/npc.md

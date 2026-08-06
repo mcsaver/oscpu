@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15k-performance-contract-audit",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立审查本地 RV64 双发射 OoO 核当前 performance measurement contract、counter schema、workload matrix 与 PERF_BASELINE 收据：比较当前 ARCH_STABLE design-id f7a68455 与旧 baseline design-id 093c2380，判断哪些 CPU 仿真/计数身份必须重新执行，哪些只允许冻结证据 replay；逐项检查 cycles、retired instructions、CPI/IPC、双发射 retire-slot 守恒、issue terminal、occupancy、instrumentation non-interference 和 workload 代表性，给出不可越级的最小闭合顺序。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-measurement-contract.md",
+      "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "npc/rv64/design/arch/performance-baseline-contract-v2.json",
+      "npc/rv64/design/arch/performance-boundary-qualification-amendment-v1.json",
+      "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+      "npc/rv64/eval/ppa/run-performance-baseline-replay.sh",
+      "npc/rv64/eval/ppa/tools/performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-current-v2.schema.json",
+      "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3/candidate.json",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.pre.json",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.post.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/subagent-contracts/v15k-performance-contract-audit.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-measurement-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "实现者之外的 performance contract 审查结论：逐项列出 PASS/GAP、当前 baseline 是否可重绑或必须重跑、量具与 workload 反例、未知项、证据等级，以及不修改 production RTL 的最小下一步。"
+  ],
+  "success_criteria": [
+    "结论必须独立核对当前和旧 design-id、ARCH_STABLE/仿真器/配置/二进制绑定，明确 PERF_BASELINE 可声明范围与禁止范围，并保留 competing hypothesis、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

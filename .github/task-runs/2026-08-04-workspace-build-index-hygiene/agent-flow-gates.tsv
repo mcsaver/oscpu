@@ -1,0 +1,9 @@
+4	source-artifact-hygiene	PASS	1453	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/source-artifact-hygiene.log
+4	flow-self-test	PASS	2505	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/flow-self-test.log
+5	source-artifact-hygiene	PASS	1353	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/source-artifact-hygiene.log
+5	flow-self-test	PASS	2404	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/flow-self-test.log
+5	rv64-architecture-debt-current	FAIL	201	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/rv64-architecture-debt-current.log
+6	source-artifact-hygiene	PASS	1454	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/source-artifact-hygiene.log
+6	flow-self-test	PASS	2507	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/flow-self-test.log
+7	source-artifact-hygiene	PASS	1402	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/source-artifact-hygiene.log
+7	flow-self-test	PASS	2555	.github/runtime-artifacts/agent-flow/workspace-build-index-hygiene/gates/flow-self-test.log

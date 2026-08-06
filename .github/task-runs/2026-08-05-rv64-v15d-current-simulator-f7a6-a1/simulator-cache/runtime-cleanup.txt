@@ -1,0 +1,3 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator-build/2026-08-05-rv64-v15d-current-simulator-f7a6-a1
+runtime_removed=1
+remove_rc=0

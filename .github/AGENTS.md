@@ -17,7 +17,7 @@
 
 - **工作区事实**：本仓库是 YSYX 工作区，核心模块包括 `npc/sim`、`npc/single`、`npc/soc`、`ysyxSoC`、`nemu`、`abstract-machine`、`am-kernels`、`yosys-sta`、`nvboard`、`digital_logic_experiment`、`fceux-am` 等。
 - **当前默认主闭环**：默认围绕 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)` 建立回归闭环；纯参考、快速定位或 AM/NEMU 平台问题仍可截断为 `am-kernels -> abstract-machine -> NEMU(reference)`。
-- **RV64 Linux/Ubuntu 主线**：`npc/rv64` 的近期目标是用 Verilator 启动尽量真实的 Linux/Ubuntu 22.04；暂不把 Vivado/FPGA 作为功能 bring-up 前置。完整 Ubuntu 结论必须按 QEMU reference、NPC/Verilator、`/init`、`/etc/os-release`、`/bin/sh`、rootfs 等 gate 分层表述。
+- **RV64 系统验证主线**：`npc/rv64` 默认以 L0 directed RTL、L1 full-core DiffTest、L2 mini-system 和最高优先级 L3 轻量 Linux 形成 Verilator 分层签核；暂不把 Vivado/FPGA 作为功能 bring-up 前置。Ubuntu 22.04/systemd 全量仿真只在用户明确要求时运行，不作为默认 promotion gate；任何系统结论仍按 OpenSBI、kernel、PID1、设备事务和自然 poweroff 证据分层表述。
 - **NPC 后端分层**：外部模块优先通过 `npc/sim` 交互；`npc/single` 是普通 NPC 自仿真后端，`npc/soc` 是 ysyxSoC 接入后端，`ysyxSoC` 负责 Chisel SoC 与 CPU ABI/地址图。
 - **核心方法学**：涉及 RTL 正确性时，优先使用参考模型、trace、watchpoint、DiffTest 或等价证据链收敛问题，而不是直接猜修复点。
 - **构建系统**：GNU Make + Kconfig；详细命令与模块约束见 `.github/copilot-instructions.md`。

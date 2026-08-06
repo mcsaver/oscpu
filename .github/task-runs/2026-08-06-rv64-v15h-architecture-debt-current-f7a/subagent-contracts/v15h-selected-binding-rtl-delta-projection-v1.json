@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15h-selected-binding-rtl-delta-projection-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "为本地 RV64 OooIntBackend 与 OooStoreQueue 的 request-admission RTL 差分实现可逆、fail-closed 的 selected-binding 语义投影收据；证明旧 holder 寄存状态写入指纹未变，并将新增 bank-local request-hold token 的当前 V14R testbench 正向与编译成功负向 RTL 变体绑定到当前设计；任何不能证明的 evidence set 保持 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py",
+      "npc/rv64/eval/ppa/tests/test_selected_binding_rtl_delta_projection.py",
+      "npc/rv64/eval/ppa/tools/selected_binding_define_projection.py",
+      "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/subagent-contracts/v15h-selected-binding-rtl-delta-projection-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py",
+      "npc/rv64/eval/ppa/tests/test_selected_binding_rtl_delta_projection.py"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git show",
+        "mode": "read-only",
+        "purpose": "inspect-versioned-content"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-memory-request-admission-hold.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增 selected_binding_rtl_delta_projection.py 与定向单测：capture 只读冻结的 Git RTL blob，一次生成可逆差分；verify 不依赖 Git，复核当前整文件哈希、反向重构基线哈希、pre-existing holder 写入指纹、V14R 收据与负向 fixture。"
+  ],
+  "success_criteria": [
+    "工具对当前 OooIntBackend/OooStoreQueue 与 V14R 证据生成 PASS 收据；修改 current RTL 字节、reverse edit、holder 写入指纹或 V14R artifact 哈希的定向单测均返回非零；不写 production RTL，不启动 Ubuntu、系统仿真、综合或 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

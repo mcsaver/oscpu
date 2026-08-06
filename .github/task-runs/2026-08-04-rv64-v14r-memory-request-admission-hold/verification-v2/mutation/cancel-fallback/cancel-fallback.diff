@@ -1,0 +1,20 @@
+--- production/OooIntBackend.v
++++ mutation/cancel-fallback/OooIntBackend.v
+@@ -4767,7 +4767,7 @@
+   wire mem_req_hold_active_w = mem_req_hold_valid_q &&
+       !mem_req_hold_cancel_w && mem_req_hold_source_exact_w;
+   wire [5:0] mem_req_effective_sel_w = mem_req_hold_valid_q ?
+-      (mem_req_hold_active_w ? mem_req_hold_sel_q : 6'b0) :
++      (mem_req_hold_active_w ? mem_req_hold_sel_q : live_mem_req_sel_w) :
+       live_mem_req_sel_w;
+   wire grant_sq_w = mem_req_effective_sel_w[MEM_REQ_SEL_SQ];
+   wire grant_amo_write_w = mem_req_effective_sel_w[MEM_REQ_SEL_AMO];
+@@ -4795,7 +4795,7 @@
+   wire mem1_req_hold_active_w = mem1_req_hold_valid_q &&
+       !mem1_req_hold_cancel_w && mem1_req_hold_source_exact_w;
+   wire [2:0] mem1_req_effective_sel_w = mem1_req_hold_valid_q ?
+-      (mem1_req_hold_active_w ? mem1_req_hold_sel_q : 3'b0) :
++      (mem1_req_hold_active_w ? mem1_req_hold_sel_q : live_mem1_req_sel_w) :
+       live_mem1_req_sel_w;
+   wire grant_retry1_w = mem1_req_effective_sel_w[MEM1_REQ_SEL_RETRY1];
+   wire grant_mem1_issue0_w =

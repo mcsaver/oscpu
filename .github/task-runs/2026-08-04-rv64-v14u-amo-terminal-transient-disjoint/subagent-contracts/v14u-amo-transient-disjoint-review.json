@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14u-amo-transient-disjoint-review",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 OooIntBackend AMO pending owner 与 reservation0、reservation1、legacy buffer 三个 raw-Q token holder 的互斥合同，以及 lane9 对 lane6/7/8 的当前生产者侧闭合范围。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
+      "npc/rv64/testbench/scripts/test_run_v11n_memory_pending_holder_semantic.py",
+      "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+      "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/evidence",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/evidence/terminal-lane-pair-current.json",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/summary.json",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/subagent-contracts/v14u-amo-transient-disjoint-review.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/evidence/terminal-lane-pair-current.json",
+      ".github/task-runs/2026-08-04-rv64-v14u-amo-terminal-transient-disjoint/rtl-verification/v11n-amo-pending-holder-evidence/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RTL 对象、双 generation 编译配置、testbench/EDA marker、PASS/GAP 范围，并列出任何可执行反例、未知项与 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "确认断言独立读取 raw-Q holder、自然 lane9 周期非真空、三个 compile-success alias 变体各命中专用 marker，且没有去重逻辑、断言削弱或对 release 数据通路的功能修改；任一条件不成立则报告 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

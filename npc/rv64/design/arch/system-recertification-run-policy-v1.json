@@ -1,0 +1,90 @@
+{
+  "schema": "npc-rv64-system-recertification-run-policy-v1",
+  "entrypoint": "npc/rv64/eval/ppa/run-system-recertification-current.sh",
+  "purpose": "Bind one local RV64 NpcSimTop strict Linux transaction to an exact RTL, simulator, reference, boot-artifact, checker and tool identity.",
+  "role": "optional-ubuntu2204-full-recertification",
+  "launch_authorization": {
+    "mode": "explicit-user-request-only",
+    "required_entrypoint_flag": "--user-authorized-full-ubuntu",
+    "automatic_launch": false,
+    "default_promotion_gate": false
+  },
+  "task_run_layout": {
+    "input": ".github/task-runs/<new-run-id>",
+    "result_directory": "system",
+    "status_file": "system.status",
+    "ownership": "new-direct-child-only"
+  },
+  "execution_configuration": {
+    "OOO_ASSERT": 1,
+    "OOO_CSR_QUEUE_HEAD": 1,
+    "OOO_TERMINAL_HOLDER_ASSERT": 1,
+    "guest_command_mode": "systemd-strict",
+    "minimum_max_cycles": 6000000000,
+    "natural_poweroff": true,
+    "transaction_protocol": "strict-v2",
+    "uart_rx_bytes": 0
+  },
+  "isolation": {
+    "engineering_command_lane": "rv64-engineering-single-flight.lock",
+    "npc_config": "generated-in-runtime-source-sandbox",
+    "rootfs": "runtime-work-copy",
+    "simulator_build": "runtime-only",
+    "workspace_npc_config": "read-never-write",
+    "workspace_rootfs_template": "read-only"
+  },
+  "required_states": {
+    "artifact_state": "CLEANED",
+    "assertion_state": "PASS_ZERO_FAILURES",
+    "execution_state": "PASS",
+    "oracle_state": "PASS",
+    "terminal_state": "PASS_EXACT_ONCE"
+  },
+  "required_terminal_events": [
+    "poweroff_begin",
+    "kernel_power_down",
+    "syscon_poweroff",
+    "system_reset",
+    "good_trap",
+    "stats_instructions",
+    "stats_cycles"
+  ],
+  "retention": {
+    "keep": [
+      "outer fail-closed status",
+      "input and post-run identity manifests",
+      "binding and cleanup receipts",
+      "driver, console and NPC execution logs",
+      "terminal, assertion, progress and statistics extracts",
+      "bounded build and configuration log tails",
+      "Verilator source manifest",
+      "semantic summary"
+    ],
+    "remove": [
+      "NpcSimTop executable",
+      "Verilator obj_dir",
+      "isolated NPC source/config sandbox",
+      "rootfs runtime work image",
+      "unbounded build logs"
+    ]
+  },
+  "promotion_boundary": {
+    "architecture": "NOT_IMPLIED",
+    "ppa": "NOT_IMPLIED",
+    "system_transaction": "PASS_CURRENT_IDENTITY",
+    "default_system_signoff": "NOT_REQUIRED_BY_THIS_OPTIONAL_RUN"
+  },
+  "refresh_triggers": {
+    "checker_parser_or_report_only": "retain original state and produce an independent frozen-input replay",
+    "missing_original_log_terminal_assertion_or_post_hash": "rerun",
+    "production_or_elaborated_rtl": "rerun",
+    "simulator_device_model_or_host_harness_semantics": "rerun",
+    "tool_reference_config_guest_or_boot_artifact_identity": "rerun"
+  },
+  "non_claims": [
+    "ARCH_STABLE",
+    "PPA_QUALIFIED",
+    "physical signoff",
+    "historical duplicate source-pair root cause"
+  ]
+}

@@ -1,0 +1,28 @@
+[RV64-SYSTEM-RECERT-SUMMARY-SELFTEST] PASS
+----------------------------------------------------------------------
+Ran 12 tests in 0.002s
+
+OK
+[task-run-status-test] PASS explicit completion, early exit, command failure, cleanup failure, PASS-write fallback, and HUP/INT/TERM
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.017s
+
+OK
+.....................
+----------------------------------------------------------------------
+Ran 21 tests in 16.694s
+
+OK
+.....................
+----------------------------------------------------------------------
+Ran 21 tests in 2.139s
+
+OK
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.001s
+
+OK
+[RV64-SYSTEM-RECERT-CONFIG-SMOKE] PASS workspace_config_drift=0
+[RV64-SYSTEM-RECERT-PRELAUNCH] status=PASS checker_suites=7

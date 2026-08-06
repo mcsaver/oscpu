@@ -1,0 +1,5 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-system-recertification/2026-08-04-rv64-v14w-current-system-recertification
+runtime_path_validated=1
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

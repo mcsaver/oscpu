@@ -184,14 +184,14 @@ def render(
     }};"""
 
     reset_syscon_node = ""
-    if mode == "rootfs" and reset_syscon:
+    if reset_syscon:
         reset = dev["reset_syscon"]
         reset_base = int(reset["base"])
         reset_size = int(reset["size"])
         poweroff_value = int(reset["poweroff_value"])
         reboot_value = int(reset["reboot_value"])
-        # NEMU/NPC rootfs DTB 通过标准 syscon-poweroff/syscon-reboot binding
-        # 暴露关机/重启终点，让 systemd -> kernel -> OpenSBI 的官方 reset 链闭合。
+        # rootfs 可以把该节点交给 Linux；L3 轻量系统则只把含该节点的独立
+        # platform DTB 嵌入 OpenSBI，并给 Linux 传递不含 syscon 的 guest DTB。
         reset_syscon_node = f"""
 
     SYSCON: syscon@{reset_base:x} {{

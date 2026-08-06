@@ -17,6 +17,11 @@
 5. Yosys 结构统计和代理 STA 可用于风险定位或候选筛选，不能替代物理签核。
 6. 十九小时 A3 记录确实完成了 Ubuntu/systemd/rootfs/virtio 到自然关机的 guest 系统事务，
    并在保留原始 FAIL 的前提下把唯一 live gate 缺口定位为旧 oracle 假阳性。
+7. 当前 design-id 已形成 ARCH_STABLE 与 endpoint-corrected PERF_BASELINE；两个 workload 的
+   三次统计可重复且 stats-on/off cycles/retired 一致。
+8. 当前 CPI census 的嵌套驻留排序可重算；首次 owner-timing workload A/B 中，CoreMark 与
+   Dhrystone 三次运行分别稳定出现 1176 和 49993 个 identity-change invalid event，因此保持
+   FAIL；V3 冻结重放只证明 checker 能拒绝 CoreMark 的 1176-event 样本。
 
 当前证据不可支持：
 
@@ -27,6 +32,9 @@
 5. 不能把 focused、module、代理综合或理想时钟 STA 通过写成全核完成或物理 PPA 签核。
 6. 不能把冻结 console 上的 oracle 重放写成一次新的 raw 17/17 live run，也不能把
    19 小时宿主耗时写成 guest 连续运行 19 小时。
+7. 不能把 `memory_latency -> request_outstanding -> axi_write_response` 的驻留排序写成唯一
+   因果根因，也不能把被 owner checker 拒绝的阶段时长用于选择 production RTL 候选。
+8. 不能把 ARCH_STABLE、PERF_BASELINE、诊断 link PASS 写成 PPA qualified 或 promotion。
 
 ## 3. 缺口台账
 
@@ -41,13 +49,14 @@
 | G07 | oracle 可观察性 | `PARTIALLY_SUPPORTED` | 触发、传播和观测点的逐变体证明 | 同值连接或旧值 force/release 可产生假绿 | 每个 mutant 保存错误传播轨迹 |
 | G08 | 回滚 | `OBSERVATIONAL_ONLY` | 有/无回滚门禁的配对结果，以及回滚后 design-id 恢复率 | 只能说明曾经回滚，不能量化收益 | 随机化移除 rollback 的消融 |
 | G09 | 分层验证 | `OBSERVATIONAL_ONLY` | 每层新增发现的故障及移除某层后的逃逸率 | 不能量化 focused、module、official 等层的边际价值 | 逐层消融并记录首次检出层 |
-| G10 | PPA 外部有效性 | `PARTIALLY_SUPPORTED` | 完整 I/O 约束、真实宏、SPEF、CTS、OCV 和物理后端 | 代理结果被误写成签核 | 未闭合前统一标记 `PPA UNQUALIFIED` |
+| G10 | PPA 外部有效性 | `PARTIALLY_SUPPORTED` | 当前 093c… design-id 仍缺完整 I/O 约束、真实宏、SPEF、CTS、OCV、合格功耗与物理后端；ARCH_STABLE/PERF_BASELINE 不是 PPA 证据 | 架构/性能成熟度被误写成签核 | 未闭合前统一标记 `PPA UNQUALIFIED`，只比较完整合格 design point |
 | G11 | 隐藏评审 | `MISSING` | Agent 是否提前看到隐藏测试、mutation 标签或判定规则 | 对已知样例过拟合 | 独立维护者冻结私有 oracle |
 | G12 | 评审独立性 | `MISSING` | reviewer 是否不知道条件标签和预期结论 | 审查者可能重复实现者假设 | 匿名 run-id 与盲化语义评审 |
 | G13 | 论文可复现性 | `PARTIALLY_SUPPORTED` | 所有正文数字到原始文件和工具版本的机器追踪 | 数字随文档复制而失去来源 | claim-evidence map + 只读抽取脚本 |
 | G14 | 外部有效性 | `MISSING` | 其他 RTL 仓库、HDL、EDA 流程和团队中的重复 | 单仓库经验被外推为普遍规律 | 将当前结论限制在本仓库，未来跨项目复现 |
 | G15 | 模块纵向快照归因 | `OBSERVATIONAL_ONLY` | 同一 base design 上只开关 drain 条件的 paired variant、相同 workload/EDA 配置与重复测量 | 把 `OooPendingDrainResolveGate` 的三快照源码演化误写成单一机制导致性能或正确率提升 | 保留精确 Git/file SHA 历史用于机制追踪；因果问题另做配对消融 |
 | G16 | 长跑系统事务 | `PARTIALLY_SUPPORTED` | 修正 checker 后、绑定当前目标 design-id 的新 live 17/17 run；A4 已被 TERM 中断 | 把 A3 冻结重放升级为新运行，或把旧 design-id 的结果自动外推到后续 RTL | 保留 A3 source FAIL 和 replay classification；需要 promotion 时重跑完整 live gate |
+| G17 | CPI 因果定位 | `PARTIALLY_SUPPORTED` | owner timing 的 H1—H4 判别量测尚未 qualified；首次 A/B 的 CoreMark/Dhrystone 每次分别有 1176/49993 个 `admission_identity_change` invalid event，V3 只重放 CoreMark 样本 | 把嵌套驻留排序或不合格阶段时长误写成唯一根因，或把单一负向重放外推到另一 workload | 先修正并分别负向验证 owner identity 语义，再在同 workload/ROI/simulator/config 下重跑三次 A/B；完整、无 overflow/invalid/unknown 且守恒后才授权单一候选 |
 
 ## 4. 论文提交前的 P0 边界
 
@@ -62,6 +71,8 @@
 7. G15：三个模块快照只证明合同演化；不把跨快照指标差异归因于某一新增或删除条件。
 8. G16：A3 可以写系统事务完成与 legacy-oracle 假阳性，不写 raw 17/17 PASS；
    A4 中断、architecture `GAP` 和 PPA `UNQUALIFIED` 必须同时保留。
+9. G17：可以写 CPI 驻留排序和 owner checker 拒绝了不合格量测；不写唯一根因、已完成
+   CPI 优化或已授权 RTL candidate。
 
 ## 5. 推荐措辞
 

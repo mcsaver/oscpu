@@ -1,0 +1,12 @@
+test_artifact_hash_drift_fails_closed (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_artifact_hash_drift_fails_closed) ... ok
+test_cleared_inventory_is_fully_supported_by_current_receipt (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_cleared_inventory_is_fully_supported_by_current_receipt) ... ok
+test_live_ledger_closes_the_terminal_duplicate_at_vd4 (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_live_ledger_closes_the_terminal_duplicate_at_vd4) ... ok
+test_missing_known_defect_cannot_disable_the_inventory_gate (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_missing_known_defect_cannot_disable_the_inventory_gate) ... ok
+test_wrong_selected_entry_fails_closed (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_wrong_selected_entry_fails_closed) ... ok
+test_zero_vd0_vd1_allows_no_selected_entry (npc.rv64.eval.ppa.tests.test_historical_defect_backfill.HistoricalDefectBackfillTest.test_zero_vd0_vd1_allows_no_selected_entry) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.306s
+
+OK
+[HISTORICAL-DEFECT-BACKFILL] status=PASS entries=6 blocking=none selected=NONE arch_stable=ELIGIBLE_FOR_REVIEW ppa=UNQUALIFIED

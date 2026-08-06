@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15k-performance-publication-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立复核 f7a RV64 双发射 OoO 核 scoped PERF_BASELINE 的 publication 层：确认 v2 review schema、publish checker、cleanup receipt、workflow artifact identity、30 项定向 checker 与 candidate current exact binding；证明旧 093c receipt 仅为历史、canonical current 在批准前仍未改写，并检查两项 committed-PC workload 未被外推为全局 workload、完整因果 CPI 或 PPA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/design/arch",
+      "npc/rv64/.config",
+      "npc/rv64/eval/ppa/tools/performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tools/check.py",
+      "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_v3.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_review_v2.py",
+      "npc/rv64/eval/ppa/tests/fixtures",
+      "npc/rv64/eval/ppa/policies",
+      "npc/rv64/eval/ppa/schemas",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-independent-review-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/dispatch-log.md",
+      ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional",
+      ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3",
+      ".github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v2/evidence/performance-baseline-current/run-manifest.json",
+      ".github/task-runs/2026-08-04-rv64-v14n-performance-baseline-composite-replay-v1",
+      ".github/runtime-artifacts",
+      "scripts/task-run-status.sh",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-independent-review-v2.schema.json",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/subagent-contracts/v15k-performance-publication-review-v3.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts/tests"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-independent-review-v2.schema.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 publication 对象、当前 design-id/周期计数、checker 观测和 PASS/GAP 范围给出结论；列出反例、未知项、替代解释、scope_extension_request 与 confidence_and_basis；若批准，给出包含 design_id、candidate result SHA-256 和 candidate review receipt SHA-256 的唯一 publication approval marker。"
+  ],
+  "success_criteria": [
+    "现场验证 v2 candidate review schema 与 publish 返回 0、candidate current SHA 精确等于冻结 f7a result、30 项定向测试 PASS、cleanup 与 workflow artifact substitution 反例被拒绝、093c receipt 保持历史且 canonical 尚未提前更新；任何身份漂移或 claim 扩张必须保持 GAP，禁止启动 DUT 仿真或声明 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,10 +1,10 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-08-02T03:39:46+00:00",
+  "updated_at": "2026-08-04T00:24:43+00:00",
   "schema_version": "4",
   "backup_format": "dev-memory-cas-v2",
   "backup_layout": "content-addressed-v1",
-  "manifest_generation": 1785641990846390207,
+  "manifest_generation": 1785803088591246408,
   "authoritative_kinds": {
     "dispatch-log": 1785621819156094282,
     "memory": 1785621819156094282,
@@ -96468,6 +96468,30 @@
       "mode": 420,
       "archived_at": "2026-08-02T03:39:46+00:00",
       "generation": 1785641990846390207
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14n-performance-baseline-composite-replay-v1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9057,
+      "sha256": "0f5e1b8f70e1489686f032a7b03fef59d2a9d52c405758afd4111bbb86bd9e47",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/0f/0f5e1b8f70e1489686f032a7b03fef59d2a9d52c405758afd4111bbb86bd9e47",
+      "mode": 420,
+      "archived_at": "2026-08-03T23:50:38+00:00",
+      "generation": 1785801041924378152
+    },
+    {
+      "path": ".github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3669,
+      "sha256": "066e41457e0151f66d15b897371333091d814d2db3c82fea0e552ce8fdaf084a",
+      "backup_source": "database",
+      "consistency": "stored-db",
+      "backup_object": "objects/sha256/06/066e41457e0151f66d15b897371333091d814d2db3c82fea0e552ce8fdaf084a",
+      "mode": 420,
+      "archived_at": "2026-08-04T00:24:43+00:00",
+      "generation": 1785803088591246408
     },
     {
       "path": ".github/task-runs/README.md",

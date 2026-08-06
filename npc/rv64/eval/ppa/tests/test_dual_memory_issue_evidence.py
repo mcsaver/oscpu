@@ -141,39 +141,48 @@ class DualMemoryIssueEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "returned success"):
                 evidence.read_mutations(result, summary, baseline)
 
-    def test_frozen_replay_allows_only_architecture_checker_drift(self) -> None:
+    def test_frozen_replay_allows_only_enumerated_non_rtl_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             checker = root / "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
+            makefile = root / "npc/rv64/Makefile"
             rtl = root / "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
             checker.parent.mkdir(parents=True)
+            makefile.parent.mkdir(parents=True, exist_ok=True)
             rtl.parent.mkdir(parents=True)
             checker.write_text("old checker\n", encoding="utf-8")
+            makefile.write_text("old orchestration\n", encoding="utf-8")
             rtl.write_text("stable rtl\n", encoding="utf-8")
             manifest = root / "sources.sha256"
             manifest.write_text(
                 f"{digest_bytes(checker.read_bytes())}  {checker}\n"
+                f"{digest_bytes(makefile.read_bytes())}  {makefile}\n"
                 f"{digest_bytes(rtl.read_bytes())}  {rtl}\n",
                 encoding="utf-8",
             )
             checker.write_text("new checker\n", encoding="utf-8")
+            makefile.write_text("new orchestration\n", encoding="utf-8")
+            allowed = {
+                "npc/rv64/Makefile",
+                "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+            }
             entries, drift = evidence.read_frozen_source_manifest(
                 root,
                 manifest,
-                {"npc/rv64/eval/ppa/tools/architecture_hard_gates.py"},
+                allowed,
             )
-            self.assertEqual(len(entries), 2)
+            self.assertEqual(len(entries), 3)
             self.assertEqual(
                 drift,
-                {"npc/rv64/eval/ppa/tools/architecture_hard_gates.py"},
+                allowed,
             )
 
             rtl.write_text("drifted rtl\n", encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "non-checker F2"):
+            with self.assertRaisesRegex(ValueError, "non-authorized F2"):
                 evidence.read_frozen_source_manifest(
                     root,
                     manifest,
-                    {"npc/rv64/eval/ppa/tools/architecture_hard_gates.py"},
+                    allowed,
                 )
 
     def test_task_run_path_is_bounded(self) -> None:

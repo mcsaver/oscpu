@@ -261,28 +261,43 @@ check-producer-holder-instance-graph:
 	@python3 -m unittest -q eval/ppa/tests/test_producer_holder_instance_graph.py
 	@python3 $(abspath eval/ppa/tools/producer_holder_instance_graph.py) --check-frozen
 
-# Current bounded semantic ledger.  All 44 inventoried units have local PASS,
-# while the global ledger remains GAP and whole-architecture/PPA promotion stays
-# blocked.  Byte-current inputs remain exact; define.v-only drift additionally
-# requires the fail-closed selected-consumer macro-projection receipt.
+# Current bounded semantic ledger.  All 44 inventoried units and 50 product
+# bindings are local PASS.  A compact, fail-closed receipt joins V14G with the
+# current V11 support set and the elaborated optional-lane1 constant-low chain.
+# A separate frozen-log replay receipt binds the current design/config/guest
+# system transaction.  Whole architecture remains RED and PPA unpromoted.
 PRODUCER_HOLDER_SEMANTIC_LEDGER := $(abspath design/arch/producer-holder-semantic-coverage.json)
+GLOBAL_PRODUCER_CLOSURE_TOOL := $(abspath eval/ppa/tools/global_producer_no_live_reuse.py)
+GLOBAL_PRODUCER_CLOSURE_RECEIPT := $(abspath eval/ppa/evidence/global-producer-no-live-reuse-current.json)
 .PHONY: check-producer-holder-semantic-coverage
 check-producer-holder-semantic-coverage: check-producer-holder-census
 	@python3 -m unittest -q \
 	  eval/ppa/tests/test_compile_image_retirement.py \
 	  eval/ppa/tests/test_load_queue_producer_checker_replay.py \
+	  eval/ppa/tests/test_global_producer_no_live_reuse.py \
+	  eval/ppa/tests/test_system_recertification_current.py \
 	  eval/ppa/tests/test_producer_holder_semantic_coverage.py
 	@python3 $(abspath eval/ppa/tools/producer_holder_semantic_coverage.py) \
 	  verify --input $(PRODUCER_HOLDER_SEMANTIC_LEDGER)
 
-# Dynamic companion to the static census: assert/release baselines, real
-# GEN_W=1 wrap/death-edge/backpressure paths, legacy memory cancellation, and
-# compile-success semantic mutations.  It intentionally remains an explicit
-# focused gate rather than making every check-contract invocation rebuild the
-# full simulation matrix.
-.PHONY: check-global-producer-no-live-reuse
-check-global-producer-no-live-reuse: check-producer-holder-semantic-coverage
-	@bash $(abspath ../../.github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/run-focused.sh)
+# The normal gate reuses the compact receipt and reads only current RTL/tool/
+# product-elaboration identities plus bounded evidence summaries.  The V14G
+# simulation matrix is an explicit refresh action, not a per-check rebuild.
+V14G_GLOBAL_OWNER_FENCE_RUNNER := $(abspath testbench/scripts/run_v14g_global_producer_owner_fence.py)
+V14G_GLOBAL_OWNER_FENCE_RESULT ?= $(abspath ../../.github/runtime-artifacts/rv64-gates/v14g-global-owner-fence/run-$(shell date -u +%Y%m%dT%H%M%S%N))
+.PHONY: check-global-producer-no-live-reuse refresh-global-producer-no-live-reuse
+check-global-producer-no-live-reuse:
+	@python3 -B $(abspath eval/ppa/tools/producer_holder_semantic_coverage.py) \
+	  verify --input $(PRODUCER_HOLDER_SEMANTIC_LEDGER)
+
+refresh-global-producer-no-live-reuse:
+	@python3 -B $(V14G_GLOBAL_OWNER_FENCE_RUNNER) \
+	  --result-dir "$(V14G_GLOBAL_OWNER_FENCE_RESULT)"
+	@python3 -B $(GLOBAL_PRODUCER_CLOSURE_TOOL) capture \
+	  --v14g-result "$(V14G_GLOBAL_OWNER_FENCE_RESULT)" \
+	  --output $(GLOBAL_PRODUCER_CLOSURE_RECEIPT)
+	@python3 -B $(abspath eval/ppa/tools/producer_holder_semantic_coverage.py) \
+	  build --output $(PRODUCER_HOLDER_SEMANTIC_LEDGER)
 
 # V11I exact memory-owner terminal lifecycle: the real IntBackend collector,
 # tracker and LQ traverse all 32 tracker tokens before token-0 reuse.  Both
@@ -521,14 +536,23 @@ check-ifu-tval:
 check-ptw-pmp:
 	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9k-ptw-pmp-current-design/run-focused.sh)
 
-# V9L F0-G1 local RV64 same-design functional aggregation.  One fresh
-# DiffTest-enabled simulator is bound to the dynamic module inventory, exact
-# official 177 and AM 59 program-image maps, local reference-model profile,
-# CoreMark/Dhrystone semantic results and evidence-structure counterexamples.
+# Current F0-G1 local RV64 same-design functional aggregation.  The caller
+# must name a new immutable task-run; historical V9L output is never reset.
+# Publication of the canonical current pointer is explicit, has an independent
+# fail-closed status, and starts only after complete execution evidence is PASS.
 # This functional gate does not qualify physical PPA.
+FULL_CORE_RUN_DIR ?=
+FULL_CORE_JOBS ?= 2
+FULL_CORE_PUBLISH_CURRENT ?= n
 .PHONY: check-functional-aggregate
 check-functional-aggregate:
-	@bash $(abspath ../../.github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh)
+	@test -n "$(FULL_CORE_RUN_DIR)" || { \
+	  printf '%s\n' 'FULL_CORE_RUN_DIR=.github/task-runs/<new-run-id> is required' >&2; \
+	  exit 2; \
+	}
+	@bash $(abspath eval/ppa/run-full-core-current.sh) \
+	  --run-dir "$(FULL_CORE_RUN_DIR)" --jobs "$(FULL_CORE_JOBS)" \
+	  $(if $(filter y,$(FULL_CORE_PUBLISH_CURRENT)),--publish-current,)
 
 # 契约立即断言 gate（architecture-first 的可执行牙齿）：强制
 # .github/instructions/interface-contract-first.instructions.md 的机器可检子集——

@@ -1,0 +1,2 @@
+2026-08-05T14:43:36Z	decision	task class changed development -> verification: 现有 V15A/V15F 已完成落盘实现与独立审查；本轮只复核 L2/L3 case-aware runner、checker 和 current receipt，不产生新源码修改	-
+2026-08-05T14:43:36Z	evidence	L2 7-case/12-test 与 L3 9-case/15-test validate-only 均 PASS；聚合 checker 复核 f7a6 L0=113/113、L1=177+61、L2=all、L3=all，Ubuntu=not-run	npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json

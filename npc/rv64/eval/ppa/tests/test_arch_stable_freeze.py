@@ -154,10 +154,40 @@ class GreenFixture:
             }:
                 continue
             source = REPO_ROOT / relative
-            write_text(root, relative, source.read_text(encoding="utf-8"))
+            source_text = source.read_text(encoding="utf-8")
+            if relative == (
+                "npc/rv64/eval/ppa/tools/historical_defect_backfill.py"
+            ):
+                inventory_start = source_text.index(
+                    "CURRENT_RECEIPT_IDS = {"
+                )
+                inventory_marker = (
+                    "KNOWN_LEDGER_IDS = set(CURRENT_RECEIPT_IDS)"
+                )
+                inventory_end = source_text.index(
+                    inventory_marker, inventory_start
+                ) + len(inventory_marker)
+                source_text = (
+                    source_text[:inventory_start]
+                    + 'CURRENT_RECEIPT_IDS = {"FIXTURE-HIST-1"}\n'
+                    + inventory_marker
+                    + source_text[inventory_end:]
+                )
+                default_marker = "require_current_receipt: bool = True,"
+                if source_text.count(default_marker) != 1:
+                    raise RuntimeError(
+                        "historical fixture current-receipt marker drifted"
+                    )
+                source_text = source_text.replace(
+                    default_marker,
+                    "require_current_receipt: bool = False,",
+                    1,
+                )
+            write_text(root, relative, source_text)
 
         self._write_architecture_evaluator()
         self._write_census_evaluator()
+        self._write_system_evaluator()
         evaluator = freeze.load_workspace_module(
             root,
             "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
@@ -165,6 +195,7 @@ class GreenFixture:
         )
         design_hex, _ = evaluator.rtl_binding(root)
         self.design_id = f"sha256:{design_hex}"
+        self._build_system_recertification()
 
         self.focused_log = write_text(
             root, "evidence/focused.log", "[RESULT] PASS\n")
@@ -549,12 +580,13 @@ class GreenFixture:
             "scope": {
                 "field_level_complete": True,
                 "instance_graph_complete": True,
-                "semantic_complete": True,
+                "semantic_complete": False,
             },
             "status_ledger": {
-                "current_production_holder_census": "GREEN",
-                "global_no_live_reuse": "GREEN",
-                "whole_architecture": "GREEN",
+                "current_production_holder_census":
+                    "ELABORATED_INSTANCE_COMPLETE",
+                "global_no_live_reuse": "SEMANTIC_COVERAGE_REQUIRED",
+                "whole_architecture": "RED",
                 "ppa_promotion": "UNPROMOTED",
             },
             "freeze_evidence": {
@@ -567,6 +599,62 @@ class GreenFixture:
             },
         }
         self.census = write_json(root, "evidence/census.json", census)
+        self.instance_graph = write_json(
+            root,
+            "evidence/instance-graph.json",
+            {"status": "PASS", "design_id": self.design_id},
+        )
+        self.global_receipt = write_json(
+            root,
+            freeze.GLOBAL_NO_LIVE_REUSE_PATH,
+            {
+                "schema_version": freeze.GLOBAL_NO_LIVE_REUSE_SCHEMA,
+                "status": "PASS",
+                "design_id": self.design_id,
+                "promotion": {
+                    "global_no_live_reuse": "GREEN",
+                    "whole_architecture": "RED",
+                    "system_recertification": "REQUIRED",
+                    "ppa": "UNPROMOTED",
+                },
+                "semantic_support": {
+                    "status": "PASS",
+                    "design_id": self.design_id,
+                    "counts": {
+                        "holder_instances": 17,
+                    "semantic_units": 46,
+                    "unit_instance_bindings": 52,
+                    "units_semantic_gap": 0,
+                    "units_semantic_pass": 46,
+                    },
+                },
+                "v14g_dynamic_fence": {
+                    "status": "PASS",
+                    "design_id": self.design_id,
+                    "baseline_profiles_pass": 4,
+                    "baselines": [{"id": index} for index in range(4)],
+                    "compile_success_mutations_rejected": 22,
+                    "mutations": [{"id": index} for index in range(22)],
+                    "generation_widths": [1, 4],
+                    "intermediate_products_retained": 0,
+                },
+            },
+        )
+        semantic_evaluator = freeze.load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+            "fixture_producer_holder_semantic_coverage",
+        )
+        self.semantic_ledger = write_json(
+            root,
+            freeze.SEMANTIC_COVERAGE_PATH,
+            semantic_evaluator.build_ledger(
+                root,
+                self.census,
+                self.instance_graph,
+                root / freeze.SEMANTIC_COVERAGE_POLICY_PATH,
+            ),
+        )
 
         self._build_frozen_inputs()
         self._build_functional_aggregate()
@@ -603,6 +691,9 @@ class GreenFixture:
                 "holder_census": self.census.relative_to(root).as_posix(),
                 "functional_aggregate": self.functional.relative_to(root).as_posix(),
                 "cohort_inventory": self.cohort.relative_to(root).as_posix(),
+                "system_recertification": (
+                    self.system_recertification.relative_to(root).as_posix()
+                ),
             },
             "freeze_inputs": self.freeze_inputs,
             "run_parameters": self.run_parameters,
@@ -615,6 +706,33 @@ class GreenFixture:
             },
         }
         self.candidate = self.write_candidate()
+        marker = (
+            "[ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] "
+            f"design_id={self.design_id} "
+            f"candidate_sha256={freeze.sha256_file(self.candidate)}"
+        )
+        self.review_contract = write_text(
+            root,
+            "freeze/independent-review-contract.md",
+            "# Independent RV64 RTL review contract\n\n" + marker + "\n",
+        )
+        self.review_report = write_text(
+            root,
+            "freeze/independent-review-report.md",
+            "# Independent RV64 RTL review report\n\n" + marker + "\n",
+        )
+        self.review_receipt = write_json(
+            root,
+            "freeze/independent-review-receipt.json",
+            freeze.build_independent_review_receipt(
+                root=root,
+                candidate_path=self.candidate,
+                contract_path=self.review_contract,
+                report_path=self.review_report,
+                reviewer_task="fixture-independent-reviewer",
+                reviewed_at_utc="2026-07-21T00:00:00+00:00",
+            ),
+        )
 
     def close(self) -> None:
         os.environ["PATH"] = self.old_path
@@ -643,6 +761,175 @@ class GreenFixture:
             '''def digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n'''
             '''def audit(root,manifest_path,vsrc):\n    value=json.loads(manifest_path.read_text())\n    files={p.relative_to(root).as_posix():digest(p) for p in sorted(vsrc.rglob("*")) if p.is_file()}\n    return {"status":"PASS" if files else "FAIL","scope":value.get("scope"),"status_ledger":value.get("status_ledger"),"hashes":{"manifest_sha256":digest(manifest_path),"source_files":files},"instance_graph":{"status":"PASS","design_id":value.get("design_id"),"counts":{"holder_instances":1},"graph_sha256":"0"*64}}\n''',
         )
+        write_text(
+            self.root,
+            "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
+            '''import hashlib\nimport json\n\n'''
+            '''class CoverageError(Exception):\n    pass\n\n'''
+            '''def digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\n'''
+            '''def manifest_instance_graph_path(root,census_path):\n    path=root/"evidence/instance-graph.json"\n    if not path.is_file(): raise CoverageError("fixture instance graph missing")\n    return path\n\n'''
+            '''def build_ledger(root,census_path,graph_path,policy_path):\n'''
+            '''    census=json.loads(census_path.read_text())\n'''
+            '''    design_id=census.get("design_id")\n'''
+            '''    receipt_path=root/"npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json"\n'''
+            '''    receipt=json.loads(receipt_path.read_text())\n'''
+            '''    dynamic=receipt.get("v14g_dynamic_fence",{})\n'''
+            '''    if receipt.get("design_id")!=design_id or dynamic.get("baseline_profiles_pass")!=4 or dynamic.get("compile_success_mutations_rejected")!=22:\n'''
+            '''        raise CoverageError("fixture global receipt drifted")\n'''
+            '''    binding={"path":"npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json","sha256":digest(receipt_path),"size_bytes":receipt_path.stat().st_size}\n'''
+            '''    return {"schema_version":"rv64-producer-holder-semantic-coverage-v1","status":"PASS","design_id":design_id,"inputs":{"global_closure_receipt":binding},"counts":{"holder_instances":17,"semantic_units":46,"unit_instance_bindings":52,"units_semantic_gap":0,"units_semantic_pass":46},"global_closure":{"status":"PASS","design_id":design_id,"semantic_units":46,"unit_instance_bindings":52,"v14g_baselines":4,"v14g_compile_success_mutations_rejected":22,"global_no_live_reuse":"GREEN","whole_architecture":"RED","system_recertification":"REQUIRED","ppa":"UNPROMOTED","receipt":{"kind":"global-producer-no-live-reuse-receipt",**binding}},"promotion":{"global_no_live_reuse":"GREEN","whole_architecture":"RED","system_recertification":"PASS_CURRENT_CONFIG","ppa":"UNPROMOTED"}}\n''',
+        )
+
+    def _write_system_evaluator(self) -> None:
+        write_text(
+            self.root,
+            freeze.SYSTEM_RECERTIFICATION_TOOL_PATH,
+            '''import hashlib\nimport json\n\n'''
+            '''class RecertificationError(RuntimeError):\n    pass\n\n'''
+            '''def digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\n'''
+            '''def validate_receipt(root,input_path,expected_design_id=None):\n'''
+            '''    payload=json.loads(input_path.read_text())\n'''
+            '''    binding=payload.get("layered_signoff_receipt",{})\n'''
+            '''    path=root/binding.get("path","")\n'''
+            '''    if not path.is_file() or digest(path)!=binding.get("sha256") or path.stat().st_size!=binding.get("size_bytes"):\n'''
+            '''        raise RecertificationError("fixture layered receipt binding drifted")\n'''
+            '''    layered=json.loads(path.read_text())\n'''
+            '''    design_id=payload.get("design_id")\n'''
+            '''    names=["L0_DIRECTED_RTL","L1_FULL_CORE_DIFFTEST","L2_MINI_SYSTEM","L3_LIGHTWEIGHT_LINUX"]\n'''
+            '''    layers=payload.get("layers",{})\n'''
+            '''    llayers=layered.get("layers",{})\n'''
+            '''    optional={"status":"NOT_RUN","launch_policy":"explicit-user-request-only","blocks_default_signoff":False,"claim":"OPTIONAL_NOT_IMPLIED"}\n'''
+            '''    if expected_design_id is not None and design_id!=expected_design_id:\n'''
+            '''        raise RecertificationError("fixture system design drifted")\n'''
+            '''    if payload.get("schema_version")!="npc-rv64-system-recertification-current-v2" or payload.get("status")!="PASS" or payload.get("default_signoff_conjunction")!=names or payload.get("optional_full_ubuntu")!=optional:\n'''
+            '''        raise RecertificationError("fixture system contract drifted")\n'''
+            '''    if layered.get("rtl_design_id")!=design_id or layered.get("default_signoff_conjunction")!=names or layered.get("optional_full_ubuntu")!=optional:\n'''
+            '''        raise RecertificationError("fixture layered contract drifted")\n'''
+            '''    if set(layers)!=set(names) or set(llayers)!=set(names) or any(layers[name].get("status")!="PASS" or llayers[name].get("status")!="PASS" or llayers[name].get("design_id")!=design_id for name in names):\n'''
+            '''        raise RecertificationError("fixture L0-L3 status/design drifted")\n'''
+            '''    if llayers["L2_MINI_SYSTEM"].get("case")!="all" or llayers["L3_LIGHTWEIGHT_LINUX"].get("case")!="all" or llayers["L2_MINI_SYSTEM"].get("rtl_assertions")!={"enabled":True,"failures":0} or llayers["L3_LIGHTWEIGHT_LINUX"].get("rtl_assertions")!={"enabled":True,"failures":0}:\n'''
+            '''        raise RecertificationError("fixture L2/L3 contract drifted")\n'''
+            '''    return {"status":"PASS","design_id":design_id,"system_recertification":"PASS_CURRENT_CONFIG","default_signoff_conjunction":names,"l0_passed":113,"l0_required":113,"l1_official_passed":177,"l1_official_required":177,"l1_am_passed":61,"l1_am_required":61,"l2_case":"all","l3_case":"all","rtl_assertion_failures":0,"optional_ubuntu":"NOT_RUN_OPTIONAL","whole_architecture":"RED","ppa":"UNPROMOTED"}\n''',
+        )
+
+    def _build_system_recertification(self) -> None:
+        names = [
+            "L0_DIRECTED_RTL",
+            "L1_FULL_CORE_DIFFTEST",
+            "L2_MINI_SYSTEM",
+            "L3_LIGHTWEIGHT_LINUX",
+        ]
+        optional = {
+            "status": "NOT_RUN",
+            "launch_policy": "explicit-user-request-only",
+            "blocks_default_signoff": False,
+            "claim": "OPTIONAL_NOT_IMPLIED",
+        }
+        self.layered_signoff = write_json(
+            self.root,
+            freeze.LAYERED_SYSTEM_SIGNOFF_PATH,
+            {
+                "schema": "npc-rv64-layered-system-signoff-current-v1",
+                "status": "PASS",
+                "claim": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
+                "rtl_design_id": self.design_id,
+                "production_rtl_file_count": 146,
+                "default_signoff_conjunction": names,
+                "layers": {
+                    "L0_DIRECTED_RTL": {
+                        "status": "PASS",
+                        "design_id": self.design_id,
+                        "tests": {"passed": 113, "required": 113},
+                        "rtl_assertions": {"enabled": True, "failures": 0},
+                    },
+                    "L1_FULL_CORE_DIFFTEST": {
+                        "status": "PASS",
+                        "design_id": self.design_id,
+                        "counts": {
+                            "official_passed": 177,
+                            "official_required": 177,
+                            "am_passed": 61,
+                            "am_required": 61,
+                            "difftest_mismatches": 0,
+                        },
+                        "signoff_scope": "full-l1-checker-replay",
+                    },
+                    "L2_MINI_SYSTEM": {
+                        "status": "PASS",
+                        "design_id": self.design_id,
+                        "case": "all",
+                        "signoff_scope": "full-l2",
+                        "commits": 2,
+                        "cycles": 3,
+                        "rtl_assertions": {"enabled": True, "failures": 0},
+                    },
+                    "L3_LIGHTWEIGHT_LINUX": {
+                        "status": "PASS",
+                        "design_id": self.design_id,
+                        "case": "all",
+                        "signoff_scope": "full-l3",
+                        "commits": 4,
+                        "cycles": 5,
+                        "rtl_assertions": {"enabled": True, "failures": 0},
+                    },
+                },
+                "optional_full_ubuntu": optional,
+            },
+        )
+        layered_binding = {
+            "path": self.layered_signoff.relative_to(self.root).as_posix(),
+            "sha256": freeze.sha256_file(self.layered_signoff),
+            "size_bytes": self.layered_signoff.stat().st_size,
+        }
+        self.system_recertification = write_json(
+            self.root,
+            freeze.SYSTEM_RECERTIFICATION_PATH,
+            {
+                "schema_version": freeze.SYSTEM_RECERTIFICATION_SCHEMA,
+                "status": "PASS",
+                "classification": "architecture",
+                "claim": "DEFAULT_LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
+                "design_id": self.design_id,
+                "default_signoff_conjunction": names,
+                "layered_signoff_receipt": layered_binding,
+                "layers": {
+                    "L0_DIRECTED_RTL": {
+                        "status": "PASS",
+                        "tests": {"passed": 113, "required": 113},
+                        "rtl_assertion_failures": 0,
+                    },
+                    "L1_FULL_CORE_DIFFTEST": {
+                        "status": "PASS",
+                        "official_passed": 177,
+                        "official_required": 177,
+                        "am_passed": 61,
+                        "am_required": 61,
+                        "difftest_mismatches": 0,
+                    },
+                    "L2_MINI_SYSTEM": {
+                        "status": "PASS",
+                        "case": "all",
+                        "commits": 2,
+                        "cycles": 3,
+                        "rtl_assertion_failures": 0,
+                    },
+                    "L3_LIGHTWEIGHT_LINUX": {
+                        "status": "PASS",
+                        "case": "all",
+                        "commits": 4,
+                        "cycles": 5,
+                        "rtl_assertion_failures": 0,
+                    },
+                },
+                "optional_full_ubuntu": optional,
+                "promotion": {
+                    "system_recertification": "PASS_CURRENT_CONFIG",
+                    "default_layered_signoff": "PASS",
+                    "whole_architecture": "RED",
+                    "ppa": "UNPROMOTED",
+                },
+            },
+        )
 
     def _build_frozen_inputs(self) -> None:
         fakebin = self.root / "freeze/fakebin"
@@ -653,7 +940,7 @@ class GreenFixture:
             executable = write_text(
                 self.root,
                 f"freeze/fakebin/{name}",
-                "#!/bin/sh\nprintf '%s test-1.0\\n' \"$(basename \"$0\")\"\n",
+                f"#!/bin/sh\nprintf '%s test-1.0\\n' '{name}'\n",
             )
             executable.chmod(0o755)
             resolved = executable.resolve()
@@ -1212,6 +1499,7 @@ class GreenFixture:
         return freeze.evaluate_candidate(
             root=self.root,
             candidate_path=self.candidate,
+            review_path=self.review_receipt,
             generated_at_utc="2026-07-21T00:00:00+00:00",
         )
 
@@ -1291,10 +1579,102 @@ class EndToEndFixtureTests(unittest.TestCase):
 
     def test_complete_fixture_can_issue_arch_stable_without_ppa_promotion(self) -> None:
         result = self.fixture.audit()
-        self.assertEqual(result["architecture_freeze"], "ARCH_STABLE")
+        self.assertEqual(
+            result["architecture_freeze"], "ARCH_STABLE", result["blockers"])
         self.assertEqual(result["blockers"], [])
         self.assertEqual(result["ppa"], "UNQUALIFIED")
         self.assertFalse(result["promotion_eligible"])
+
+    def test_system_recertification_artifact_is_required(self) -> None:
+        self.fixture.candidate_value["artifacts"].pop("system_recertification")
+        self.assert_gap(self.fixture.audit(), "candidate.artifacts.exact")
+
+    def test_deleted_layered_receipt_is_rejected(self) -> None:
+        self.fixture.layered_signoff.unlink()
+        self.assert_gap(
+            self.fixture.audit(),
+            "system_recertification.canonical_reevaluation",
+        )
+
+    def test_replaced_l3_layered_receipt_is_rejected(self) -> None:
+        layered = freeze.load_json(self.fixture.layered_signoff)
+        layered["layers"]["L3_LIGHTWEIGHT_LINUX"]["status"] = "GAP"
+        write_json(
+            self.root,
+            self.fixture.layered_signoff.relative_to(self.root).as_posix(),
+            layered,
+        )
+        self.assert_gap(
+            self.fixture.audit(),
+            "system_recertification.canonical_reevaluation",
+        )
+
+    def test_optional_ubuntu_must_remain_not_run_and_non_blocking(self) -> None:
+        system = freeze.load_json(self.fixture.system_recertification)
+        system["optional_full_ubuntu"]["status"] = "PASS"
+        write_json(
+            self.root,
+            self.fixture.system_recertification.relative_to(self.root).as_posix(),
+            system,
+        )
+        self.assert_gap(
+            self.fixture.audit(),
+            "system_recertification.layer_contract",
+        )
+
+    def test_arch_stable_without_independent_review_is_rejected(self) -> None:
+        self.fixture.write_candidate()
+        result = freeze.evaluate_candidate(
+            root=self.root,
+            candidate_path=self.fixture.candidate,
+            review_path=None,
+            generated_at_utc="2026-07-21T00:00:00+00:00",
+        )
+        self.assert_gap(result, "independent_review.exact_binding")
+
+    def test_independent_review_design_id_drift_is_rejected(self) -> None:
+        receipt = json.loads(
+            self.fixture.review_receipt.read_text(encoding="utf-8"))
+        receipt["design_id"] = "sha256:" + "e" * 64
+        write_json(
+            self.root,
+            self.fixture.review_receipt.relative_to(self.root).as_posix(),
+            receipt,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "independent_review.exact_binding")
+
+    def test_independent_review_candidate_hash_drift_is_rejected(self) -> None:
+        receipt = json.loads(
+            self.fixture.review_receipt.read_text(encoding="utf-8"))
+        receipt["candidate"]["sha256"] = "0" * 64
+        write_json(
+            self.root,
+            self.fixture.review_receipt.relative_to(self.root).as_posix(),
+            receipt,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "independent_review.exact_binding")
+
+    def test_independent_review_report_marker_drift_is_rejected(self) -> None:
+        self.fixture.review_report.write_text(
+            "# Independent review without exact candidate marker\n",
+            encoding="utf-8",
+        )
+        receipt = json.loads(
+            self.fixture.review_receipt.read_text(encoding="utf-8"))
+        report = next(
+            item for item in receipt["evidence"]
+            if item["kind"] == "independent_review_report")
+        report["sha256"] = freeze.sha256_file(self.fixture.review_report)
+        report["size_bytes"] = self.fixture.review_report.stat().st_size
+        write_json(
+            self.root,
+            self.fixture.review_receipt.relative_to(self.root).as_posix(),
+            receipt,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "independent_review.exact_binding")
 
     def test_missing_holder_instance_graph_workflow_dependency_is_rejected(
         self,
@@ -1360,6 +1740,7 @@ class EndToEndFixtureTests(unittest.TestCase):
         completed = subprocess.run(
             [
                 sys.executable, str(TOOL), "audit", str(self.fixture.candidate),
+                "--review", str(self.fixture.review_receipt),
                 "--output", str(result_path), "--require-stable",
             ],
             cwd=self.root,
@@ -1624,6 +2005,81 @@ class EndToEndFixtureTests(unittest.TestCase):
         )
         self.assert_gap(self.fixture.audit(), "census.full_core_complete")
 
+    def test_static_census_cannot_self_promote_semantic_architecture(self) -> None:
+        census = json.loads(self.fixture.census.read_text(encoding="utf-8"))
+        census["scope"]["semantic_complete"] = True
+        census["status_ledger"]["global_no_live_reuse"] = "GREEN"
+        census["status_ledger"]["whole_architecture"] = "GREEN"
+        write_json(
+            self.root,
+            self.fixture.census.relative_to(self.root).as_posix(),
+            census,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "census.static_scope_boundary")
+
+    def test_semantic_coverage_design_id_drift_is_rejected(self) -> None:
+        semantic = json.loads(
+            self.fixture.semantic_ledger.read_text(encoding="utf-8"))
+        semantic["design_id"] = "sha256:" + "e" * 64
+        write_json(
+            self.root,
+            self.fixture.semantic_ledger.relative_to(self.root).as_posix(),
+            semantic,
+        )
+        self.assert_gap(self.fixture.audit(), "census.semantic_coverage")
+
+    def test_v14g_dynamic_mutation_count_shrink_is_rejected(self) -> None:
+        receipt = json.loads(
+            self.fixture.global_receipt.read_text(encoding="utf-8"))
+        receipt["v14g_dynamic_fence"][
+            "compile_success_mutations_rejected"] = 21
+        write_json(
+            self.root,
+            self.fixture.global_receipt.relative_to(self.root).as_posix(),
+            receipt,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "census.dynamic_lifecycle_evidence")
+
+    def test_v14g_legacy_global_receipt_schema_is_rejected(self) -> None:
+        receipt = json.loads(
+            self.fixture.global_receipt.read_text(encoding="utf-8"))
+        receipt["schema_version"] = (
+            "npc-rv64-global-producer-no-live-reuse-receipt-v1")
+        write_json(
+            self.root,
+            self.fixture.global_receipt.relative_to(self.root).as_posix(),
+            receipt,
+        )
+        self.assert_gap(
+            self.fixture.audit(), "census.dynamic_lifecycle_evidence")
+
+    def test_semantic_coverage_premature_promotion_is_rejected(self) -> None:
+        semantic = json.loads(
+            self.fixture.semantic_ledger.read_text(encoding="utf-8"))
+        semantic["promotion"]["whole_architecture"] = "GREEN"
+        semantic["promotion"]["ppa"] = "PROMOTED"
+        write_json(
+            self.root,
+            self.fixture.semantic_ledger.relative_to(self.root).as_posix(),
+            semantic,
+        )
+        self.assert_gap(self.fixture.audit(), "census.semantic_coverage")
+
+    def test_semantic_global_receipt_hash_drift_is_rejected(self) -> None:
+        semantic = json.loads(
+            self.fixture.semantic_ledger.read_text(encoding="utf-8"))
+        semantic["inputs"]["global_closure_receipt"]["sha256"] = "0" * 64
+        write_json(
+            self.root,
+            self.fixture.semantic_ledger.relative_to(self.root).as_posix(),
+            semantic,
+        )
+        result = self.fixture.audit()
+        self.assert_gap(result, "census.semantic_coverage")
+        self.assert_gap(result, "census.dynamic_lifecycle_evidence")
+
     def test_missing_constraint_is_rejected(self) -> None:
         self.fixture.candidate_value["freeze_inputs"]["constraints"] = []
         self.assert_gap(self.fixture.audit(), "freeze_inputs.constraints.artifacts")
@@ -1679,6 +2135,7 @@ class EndToEndFixtureTests(unittest.TestCase):
             expected_design_id=self.fixture.design_id,
             cohort_id=self.fixture.cohort_id,
             run_parameters=self.fixture.run_parameters,
+            functional=freeze.load_json(self.fixture.functional),
         )
         self.assertTrue(blockers)
         image_check = next(
@@ -1686,6 +2143,62 @@ class EndToEndFixtureTests(unittest.TestCase):
             if item["check_id"] == "freeze_inputs.images.artifacts")
         self.assertEqual(image_check["status"], "GAP")
         self.assertIn("reused across groups", image_check["detail"])
+
+    def test_distinct_frozen_execution_config_must_match_live_config(self) -> None:
+        frozen_config = write_text(
+            self.root,
+            "freeze/execution.config",
+            self.fixture.config.read_text(encoding="utf-8"),
+        )
+        groups = json.loads(json.dumps(self.fixture.freeze_inputs))
+        frozen_entry = artifact(self.root, frozen_config, "kconfig")
+        groups["config"].append(frozen_entry)
+        functional = freeze.load_json(self.fixture.functional)
+        functional["configuration"] = frozen_entry
+        cohort = {
+            "schema": freeze.COHORT_SCHEMA,
+            "design_id": self.fixture.design_id,
+            "cohort_id": self.fixture.cohort_id,
+            "freeze_inputs": groups,
+            "run_parameters": self.fixture.run_parameters,
+        }
+        checks, blockers, _ = freeze.validate_freeze_inputs(
+            root=self.root,
+            groups=groups,
+            required_tests=["tb_a"],
+            cohort=cohort,
+            expected_design_id=self.fixture.design_id,
+            cohort_id=self.fixture.cohort_id,
+            run_parameters=self.fixture.run_parameters,
+            functional=functional,
+        )
+        self.assertEqual(blockers, [])
+        by_id = {item["check_id"]: item for item in checks}
+        self.assertEqual(
+            by_id["freeze_inputs.config.exact_membership"]["status"], "PASS")
+        self.assertEqual(
+            by_id["freeze_inputs.config.execution_equivalence"]["status"],
+            "PASS",
+        )
+
+        groups["config"][1]["sha256"] = "0" * 64
+        cohort["freeze_inputs"] = groups
+        checks, blockers, _ = freeze.validate_freeze_inputs(
+            root=self.root,
+            groups=groups,
+            required_tests=["tb_a"],
+            cohort=cohort,
+            expected_design_id=self.fixture.design_id,
+            cohort_id=self.fixture.cohort_id,
+            run_parameters=self.fixture.run_parameters,
+            functional=functional,
+        )
+        self.assertTrue(blockers)
+        by_id = {item["check_id"]: item for item in checks}
+        self.assertEqual(
+            by_id["freeze_inputs.config.execution_equivalence"]["status"],
+            "GAP",
+        )
 
     def test_wrong_artifact_kind_is_rejected(self) -> None:
         self.fixture.candidate_value["freeze_inputs"]["constraints"][0]["kind"] = (
@@ -1713,6 +2226,16 @@ class EndToEndFixtureTests(unittest.TestCase):
             "#!/bin/sh\necho 'python3 test-2.0'\n", encoding="utf-8")
         fake_python.chmod(0o755)
         self.assert_gap(self.fixture.audit(), "freeze_inputs.tool_versions.semantic")
+
+    def test_tool_verification_uses_frozen_absolute_paths(self) -> None:
+        previous = os.environ.get("PATH", "")
+        os.environ["PATH"] = "/fixture-path-without-eda-tools"
+        try:
+            result = self.fixture.audit()
+        finally:
+            os.environ["PATH"] = previous
+        self.assertEqual(
+            result["architecture_freeze"], "ARCH_STABLE", result["blockers"])
 
     def test_extra_claim_field_is_rejected_by_schema(self) -> None:
         self.fixture.candidate_value["claim"]["ppa_champion"] = True
@@ -1757,7 +2280,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         root = freeze.find_repo_root(TOOL)
         return freeze.load_json(root / freeze.V9R_SQ_RETRY_CURRENT_RESULT_PATH)
 
-    def test_control_event_debt_evidence_is_current(self) -> None:
+    def test_legacy_control_event_evidence_is_rejected_as_stale(self) -> None:
         root = freeze.find_repo_root(TOOL)
         current = self.control_event_current_payload()
         entry = {
@@ -1776,10 +2299,17 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 ),
             ],
         }
-        self.assertEqual(
-            freeze.validate_control_event_debt(
-                root, entry, current["design_id"]),
-            [],
+        errors = freeze.validate_control_event_debt(
+            root, entry, current["design_id"]
+        )
+        self.assertTrue(errors)
+        self.assertIn(
+            "CONTROL-EVENT-G1 V9O full RTL pre/post/current binding drifted",
+            errors,
+        )
+        self.assertIn(
+            "CONTROL-EVENT-G1 V9R full RTL pre/post/current binding drifted",
+            errors,
         )
 
     def test_control_event_payload_rejects_false_green_shapes(self) -> None:
@@ -1939,16 +2469,18 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 )
                 self.assertTrue(errors, label)
 
-    def test_v9r_sq_retry_payload_is_current(self) -> None:
+    def test_legacy_v9r_sq_retry_payload_is_rejected_as_stale(self) -> None:
         root = freeze.find_repo_root(TOOL)
         payload = self.v9r_sq_retry_payload()
-        self.assertEqual(
-            freeze.validate_v9r_sq_retry_c0_payload(
-                root,
-                payload,
-                payload["design_id"],
-            ),
-            [],
+        errors = freeze.validate_v9r_sq_retry_c0_payload(
+            root,
+            payload,
+            payload["design_id"],
+        )
+        self.assertTrue(errors)
+        self.assertIn(
+            "CONTROL-EVENT-G1 V9R full RTL pre/post/current binding drifted",
+            errors,
         )
 
     def test_control_event_architecture_json_rejects_boundary_reference(
@@ -2001,32 +2533,22 @@ class CurrentWorkspaceTests(unittest.TestCase):
             expected_inventory,
         )
         checks = {item["check_id"]: item for item in result["checks"]}
-        current_semantic_debts = (
-            "FDG-G1", "XRET-G1", "INSTRET-G1", "MEM-ISSUE-G1",
-            "MIQ-FLUSH-G1", "IFU-AXI-G1", "IFU-FETCH-G2",
-            "IFU-ACCESS-G1", "IFU-TVAL-G1", "PTW-PMP-G1",
-            "STORE-BRESP-G1", "FENCE-G1", "F0-G1", "SERIALIZE-G1",
+        self.assertEqual(checks["debt.design_id"]["status"], "GAP")
+        self.assertNotEqual(
+            result["observed"]["architecture"]["design_id"],
+            freeze.load_json(
+                root / "npc/rv64/design/arch/architecture-debt-ledger.json"
+            )["design_id"],
         )
-        for debt_id in current_semantic_debts:
-            self.assertEqual(
-                checks[f"debt.{debt_id}.closed_binding"]["status"], "PASS")
-            self.assertEqual(
-                checks[f"debt.{debt_id}.semantic_evidence"]["status"],
-                "PASS",
-            )
-            self.assertFalse(any(
-                f"debt.{debt_id}" in blocker
-                for blocker in result["blockers"]
-            ))
+        self.assertTrue(any(
+            "debt.design_id: ledger and architecture evidence must use the "
+            "same design_id" in blocker
+            for blocker in result["blockers"]
+        ))
         self.assertEqual(
-            checks["debt.CONTROL-EVENT-G1.semantic_evidence"]["status"],
-            "PASS",
-        )
-        self.assertEqual(
-            checks["debt.CONTROL-EVENT-G1.closed_binding"]["status"], "PASS",
-        )
-        self.assertFalse(any(
-            "debt.CONTROL-EVENT-G1.closed_binding" in blocker
+            checks["architecture.rtl_source_drift"]["status"], "GAP")
+        self.assertTrue(any(
+            "architecture.rtl_source_drift" in blocker
             for blocker in result["blockers"]
         ))
         cohort_exclusions = (
@@ -2037,24 +2559,24 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         for debt_id in cohort_exclusions:
             self.assertEqual(
-                checks[f"debt.{debt_id}.cohort_exclusion"]["status"], "PASS")
-            self.assertFalse(any(
+                checks[f"debt.{debt_id}.cohort_exclusion"]["status"], "GAP")
+            self.assertTrue(any(
                 f"debt.{debt_id}.cohort_exclusion" in blocker
                 for blocker in result["blockers"]
             ))
         self.assertEqual(
             checks["debt.cohort_exclusions.exact"]["status"], "PASS")
         self.assertEqual(
-            checks["historical_defect_backfill.valid"]["status"], "PASS")
+            checks["historical_defect_backfill.valid"]["status"], "GAP")
         self.assertEqual(
             checks["historical_defect_backfill.vd0_vd1_clear"]["status"],
-            "PASS",
+            "GAP",
         )
         self.assertEqual(
             result["observed"]["historical_defect_backfill"]["selected_id"],
             "NONE",
         )
-        self.assertFalse(any(
+        self.assertTrue(any(
             "historical_defect_backfill.vd0_vd1_clear" in blocker
             for blocker in result["blockers"]
         ))
@@ -2068,10 +2590,76 @@ class CurrentWorkspaceTests(unittest.TestCase):
             "functional.schema_design_cohort" in blocker
             for blocker in result["blockers"]
         ))
-        self.assertTrue(any(
+        self.assertFalse(any(
             "freeze_inputs.cohort_inventory" in blocker
             for blocker in result["blockers"]
         ))
+
+    def test_current_debt_ledger_adapter_accepts_exact_live_binding(self) -> None:
+        root = freeze.find_repo_root(TOOL)
+        ledger = freeze.load_json(
+            root / "npc/rv64/design/arch/architecture-debt-ledger.json"
+        )
+        architecture = freeze.load_workspace_module(
+            root,
+            "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+            "arch_stable_test_current_rtl",
+        )
+        rtl_sha, _ = architecture.rtl_binding(root)
+        design_id = f"sha256:{rtl_sha}"
+        checks, blockers, observed = freeze.validate_debt_ledger(
+            root=root,
+            ledger=ledger,
+            expected_design_id=design_id,
+            cohort_id="full-core-single-hart-rv64-dual-issue-ooo-v1",
+            excluded_debt_ids={
+                "A-COHERENCE-G1",
+                "DEBUG-TRIGGER-G1",
+                "SFENCE-SINVAL-G1",
+                "WFI-G1",
+            },
+        )
+        self.assertEqual(freeze.CURRENT_DEBT_SCHEMA,
+                         "npc-rv64-architecture-debt-current-v2")
+        self.assertEqual(blockers, [])
+        self.assertEqual(
+            observed["status_counts"],
+            {"CLOSED": 16, "EXCLUDED_BY_COHORT": 4},
+        )
+        by_id = {item["check_id"]: item for item in checks}
+        self.assertEqual(by_id["debt.design_id"]["status"], "PASS")
+        self.assertEqual(
+            by_id["debt.SERIALIZE-G1.semantic_evidence"]["status"], "PASS"
+        )
+
+    def test_current_debt_ledger_adapter_rejects_stale_design_binding(self) -> None:
+        root = freeze.find_repo_root(TOOL)
+        ledger = freeze.load_json(
+            root / "npc/rv64/design/arch/architecture-debt-ledger.json"
+        )
+        stale_design_id = freeze.load_json(
+            root
+            / ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1"
+            / "evidence/p1-direct-1/source-before.json"
+        )["design_id"]
+        checks, blockers, _ = freeze.validate_debt_ledger(
+            root=root,
+            ledger=ledger,
+            expected_design_id=stale_design_id,
+            cohort_id="full-core-single-hart-rv64-dual-issue-ooo-v1",
+            excluded_debt_ids={
+                "A-COHERENCE-G1",
+                "DEBUG-TRIGGER-G1",
+                "SFENCE-SINVAL-G1",
+                "WFI-G1",
+            },
+        )
+        self.assertTrue(blockers)
+        by_id = {item["check_id"]: item for item in checks}
+        self.assertEqual(by_id["debt.design_id"]["status"], "GAP")
+        self.assertEqual(
+            by_id["debt.SERIALIZE-G1.semantic_evidence"]["status"], "GAP"
+        )
 
     def test_cli_require_stable_returns_two_for_current_gap(self) -> None:
         root = freeze.find_repo_root(TOOL)

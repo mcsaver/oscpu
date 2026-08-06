@@ -1,0 +1,87 @@
+{
+  "claim": "DEFAULT_LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
+  "claim_boundary": "PASS_CURRENT_CONFIG covers the same-design L0 directed RTL, L1 full-core DiffTest, L2 mini-system, and L3 lightweight-Linux conjunction. Ubuntu 22.04 is not run and does not block this default signoff. Whole architecture remains RED and PPA remains unpromoted.",
+  "classification": "architecture",
+  "default_signoff_conjunction": [
+    "L0_DIRECTED_RTL",
+    "L1_FULL_CORE_DIFFTEST",
+    "L2_MINI_SYSTEM",
+    "L3_LIGHTWEIGHT_LINUX"
+  ],
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "layered_signoff_receipt": {
+    "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+    "sha256": "f342ce6ed7317afcb2cda6676f130616b5e15a76a8e5d43305ae8ede8ab0a09c",
+    "size_bytes": 15150
+  },
+  "layers": {
+    "L0_DIRECTED_RTL": {
+      "rtl_assertion_failures": 0,
+      "status": "PASS",
+      "tests": {
+        "passed": 113,
+        "required": 113
+      }
+    },
+    "L1_FULL_CORE_DIFFTEST": {
+      "am_passed": 61,
+      "am_required": 61,
+      "difftest_mismatches": 0,
+      "guest_rerun": false,
+      "official_passed": 177,
+      "official_required": 177,
+      "status": "PASS"
+    },
+    "L2_MINI_SYSTEM": {
+      "case": "all",
+      "commits": 6098469,
+      "cycles": 10183481,
+      "rtl_assertion_failures": 0,
+      "status": "PASS",
+      "terminal_counts": {
+        "good_trap": 1,
+        "stats_cycles": 1,
+        "stats_instructions": 1,
+        "syscon_poweroff": 1,
+        "system_reset": 1
+      }
+    },
+    "L3_LIGHTWEIGHT_LINUX": {
+      "case": "all",
+      "commits": 24449283,
+      "cycles": 59160907,
+      "rtl_assertion_failures": 0,
+      "status": "PASS",
+      "terminal_counts": {
+        "good_trap": 1,
+        "kernel_power_down": 1,
+        "stats_cycles": 1,
+        "stats_instructions": 1,
+        "syscon_poweroff": 1,
+        "system_reset": 1
+      }
+    }
+  },
+  "optional_full_ubuntu": {
+    "blocks_default_signoff": false,
+    "claim": "OPTIONAL_NOT_IMPLIED",
+    "launch_policy": "explicit-user-request-only",
+    "status": "NOT_RUN"
+  },
+  "promotion": {
+    "default_layered_signoff": "PASS",
+    "ppa": "UNPROMOTED",
+    "system_recertification": "PASS_CURRENT_CONFIG",
+    "whole_architecture": "RED"
+  },
+  "reuse_boundary": {
+    "current_rtl_design_id_required": true,
+    "dut_rerun_performed": false,
+    "sealed_layered_evidence_recomputed": true,
+    "ubuntu_full_run_performed": false,
+    "ubuntu_full_run_required_for_default_signoff": false,
+    "ubuntu_launch_requires_explicit_user_request": true
+  },
+  "schema_version": "npc-rv64-system-recertification-current-v2",
+  "status": "PASS"
+}

@@ -116,7 +116,7 @@ class ProducerHolderCensusTests(unittest.TestCase):
                 "direct_full_p_fields": 20,
                 "combinational_full_p_regs": 1,
                 "generation_authorities": 1,
-                "token_q_fields": 15,
+                "token_q_fields": 17,
                 "packed_full_p_stages": 5,
             },
         )

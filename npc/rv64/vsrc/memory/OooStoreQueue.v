@@ -120,7 +120,12 @@ module OooStoreQueue #(
   output release_ready_o,
   output release_fire_o,
 
-  // Physical-write request.  Fire marks request_sent but never releases the entry.
+  // Physical-write request.  req_valid_o is the first-launch view.  Once the
+  // backend has captured that request under backpressure, req_held_lease_i may
+  // authorize the same resident source to fire while launch_open is transiently
+  // closed by a younger selective recovery.  Fire marks request_sent but never
+  // releases the entry.
+  output req_source_resident_o,
   output req_valid_o,
   output [ROB_INDEX_W-1:0] req_rob_idx_o,
   output [PRODUCER_ID_W-1:0] req_producer_id_o,
@@ -135,6 +140,7 @@ module OooStoreQueue #(
   output req_cacheable_o,
   output [`XLEN-1:0] req_data_o,
   output [`STRB_W-1:0] req_strb_o,
+  input req_held_lease_i,
   input req_fire_i,
 
   // Exact STORE token terminals for the owner tracker.  The backend suppresses
@@ -354,13 +360,16 @@ module OooStoreQueue #(
     end
   endgenerate
 
-  assign req_valid_o =
+  assign req_source_resident_o =
       head_valid_w && owner_valid_q[head_q] && filled_q[head_q] &&
       !request_sent_q[head_q] &&
       attr_valid_q[head_q] && !terminal_q[head_q] && rob_head_valid_i &&
-      rob_head_launch_open_i &&
+      rob_head_owner_open_i &&
       (producer_id_q[head_q] == rob_head_producer_id_i) &&
       (rob_idx_q[head_q] == rob_head_idx_i);
+  assign req_valid_o = req_source_resident_o && rob_head_launch_open_i;
+  wire req_fire_authorized_w = req_valid_o ||
+      (req_held_lease_i && req_source_resident_o);
   assign req_rob_idx_o = rob_idx_q[head_q];
   assign req_producer_id_o = producer_id_q[head_q];
   assign req_owner_kind_o = owner_kind_q[head_q];
@@ -1022,7 +1031,7 @@ module OooStoreQueue #(
           terminal_q[i] <= 1'b1;
       end
 
-      if (req_fire_i && req_valid_o)
+      if (req_fire_i && req_fire_authorized_w)
         request_sent_q[head_q] <= 1'b1;
 
       if (release_fire_o) begin
@@ -1303,8 +1312,16 @@ module OooStoreQueue #(
                  $time);
         $fatal;
       end
-      if (req_fire_i && !req_valid_o)
-        $error("[T4N-SQ-REQ-FIRE] physical request fire without eligible head @%0t", $time);
+      if (req_fire_i && !req_fire_authorized_w) begin
+        $display("[T4N-SQ-REQ-FIRE] physical request fire without first-launch or held resident lease @%0t",
+                 $time);
+        $fatal;
+      end
+      if (req_held_lease_i && !req_source_resident_o) begin
+        $display("[V14X-SQ-HELD-LEASE-RESIDENCY] held request lost exact resident SQ/ROB owner @%0t",
+                 $time);
+        $fatal;
+      end
       if (req_valid_o &&
           ((req_producer_id_o !== producer_id_q[head_q]) ||
            (req_producer_id_o !== rob_head_producer_id_i) ||

@@ -1,0 +1,2 @@
+[SOURCE-ARTIFACT-HYGIENE-TEST][PASS] positive=1 negative=7 git_scope=index-only
+[SOURCE-ARTIFACT-HYGIENE][PASS] tracked=39545 generated=0 allowed_build_descriptions=4 probes=11

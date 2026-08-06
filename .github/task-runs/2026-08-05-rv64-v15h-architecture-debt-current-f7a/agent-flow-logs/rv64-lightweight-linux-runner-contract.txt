@@ -1,0 +1,7 @@
+[RV64-L3-CHECK-SELF-TEST][PASS] debug-accepted bug-rejected
+----------------------------------------------------------------------
+Ran 15 tests in 0.037s
+
+OK
+[RV64-LAYERED-SYSTEM-SIGNOFF-CONTRACT][PASS] layers=4 ubuntu=explicit-only
+[RV64-L3-RUNNER-CONTRACT][PASS] cases=9 checker-positive=9 mutations=13 status=fail-closed evidence-seal=1 source-post-bind=1

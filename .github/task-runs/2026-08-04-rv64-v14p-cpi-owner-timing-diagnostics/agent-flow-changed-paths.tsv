@@ -1,0 +1,16 @@
+npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json
+npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json
+npc/rv64/eval/ppa/instrumentation/owner-timing.mk
+npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv
+npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp
+npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh
+npc/rv64/eval/ppa/instrumentation/README.md
+npc/rv64/eval/ppa/run-owner-timing-diagnostics.sh
+npc/rv64/eval/ppa/replay-owner-timing-link.sh
+npc/rv64/eval/ppa/PERFORMANCE_BASELINE.md
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence-index.md
+.github/task-runs/2026-08-04-rv64-v14p-owner-timing-checker-replay-v5/evidence-index.md
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence/owner-timing-diagnostics/independent-review-status.md
+.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts/v14p-owner-timing-final-review-v4.json
+.github/memory/project-status.md
+.github/memory/modules/npc.md

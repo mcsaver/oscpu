@@ -1,0 +1,16 @@
+.
+.github
+.github/instructions
+.github/agents
+Linux/platform
+npc/rv64/design/arch
+Linux/mini-system
+Linux/scripts
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+Linux/lightweight
+scripts
+scripts/tests
+npc/rv64/vsrc/sim
+npc/rv64/csrc

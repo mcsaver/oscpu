@@ -1,0 +1,91 @@
+{
+  "assertion_failures": 0,
+  "binding": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a2/lightweight-linux/binding.txt",
+    "sha256": "5e5e78d865cbc5d99a4031692ee9c96841db24246668e1bba280e08442ea3d64"
+  },
+  "claim": "L3_LIGHTWEIGHT_LINUX_DIRECTED_CASE_PASS_CURRENT_IDENTITY",
+  "commits": 23482036,
+  "console": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a2/lightweight-linux/console.log",
+    "sha256": "1cfd64814d3de0e16eee10925505d859425ca8917303ceaac7014784fb02a563"
+  },
+  "cpi": 2.3452418691462698,
+  "critical_markers": 0,
+  "cycles": 55071054,
+  "l3_case": "boot",
+  "non_claims": [
+    "Ubuntu userland",
+    "systemd",
+    "virtio block rootfs",
+    "networking",
+    "SMP"
+  ],
+  "npc_log": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-05-rv64-v15c-l3-lightweight-linux-boot-a2/lightweight-linux/npc.log",
+    "sha256": "b036ae05419f12d06820f9d3eab3f8ce5a133d7f943c7e167d9a8310ea19aa4d"
+  },
+  "phase_observations": {
+    "__RV64_L3_BOOT_PASS__": {
+      "commit": 23450327,
+      "cycle": 54923773,
+      "tx_ordinal": 3784
+    },
+    "__RV64_L3_CASE_BOOT__": {
+      "commit": 23446199,
+      "cycle": 54907392,
+      "tx_ordinal": 3762
+    },
+    "__RV64_L3_CASE_SELECT__": {
+      "commit": 23433137,
+      "cycle": 54833099,
+      "tx_ordinal": 3740
+    },
+    "__RV64_L3_FILES_PASS__": {
+      "commit": 23420136,
+      "cycle": 54765328,
+      "tx_ordinal": 3715
+    },
+    "__RV64_L3_LIGHTWEIGHT_PASS__": {
+      "commit": 23459136,
+      "cycle": 54956446,
+      "tx_ordinal": 3838
+    },
+    "__RV64_L3_MOUNTS_PASS__": {
+      "commit": 23315510,
+      "cycle": 54320380,
+      "tx_ordinal": 3691
+    },
+    "__RV64_L3_PID1_BEGIN__": {
+      "commit": 23218056,
+      "cycle": 53854555,
+      "tx_ordinal": 3666
+    },
+    "__RV64_L3_SHUTDOWN_ARM__": {
+      "commit": 23454626,
+      "cycle": 54940161,
+      "tx_ordinal": 3809
+    }
+  },
+  "production_rtl_file_count": 146,
+  "rtl_design_id": "sha256:06c5be5b83be0646e0eda9984ca486b70f1cb8055d2988417528566d4a040a5b",
+  "schema": "npc-rv64-l3-lightweight-linux-execution-v1",
+  "signoff_scope": "directed-case",
+  "status": "PASS",
+  "terminal_counts": {
+    "good_trap": 1,
+    "kernel_power_down": 1,
+    "stats_cycles": 1,
+    "stats_instructions": 1,
+    "syscon_poweroff": 1,
+    "system_reset": 1
+  },
+  "uart_rx": [
+    {
+      "commit": 23433401,
+      "cycle": 54834100,
+      "data": 98,
+      "ordinal": 1
+    }
+  ]
+}

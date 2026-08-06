@@ -1,0 +1,5 @@
+2026-08-04T04:43:16Z	decision	task class changed development -> environment: V14R RTL交付扩展到C gate registry、轻量workflow和current-design owner-timing replay固定轮	-
+2026-08-04T05:55:19Z	counterexample	通用最终FAIL不足以证明目标mutation生效；每个compile-success变体必须命中专属RTL拒绝marker且正向PASS受tb_errors全局约束	.github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/evidence/oracle-followup-review-v3.md
+2026-08-04T05:55:19Z	decision	SoC工作流采用公开可核验原则并固化为task-class、execution-tier、maturity-stage三轴；review零gate，确定性交付后集中复核，不宣称厂商私有标准	.github/instructions/rv64-ppa-optimization-workflow.instructions.md
+2026-08-04T05:55:19Z	decision	task-run仅保留结构化结果、bounded log、差分、manifest和审查结论；build、VVP与mutation工作副本进入runtime并清理	.github/instructions/agent-lightweight-workflow.instructions.md
+2026-08-04T05:58:04Z	decision	strict guard的npc-dev与agent-system宽泛缺证保持FAIL并采用scoped GAP；不重复启动已被更窄V14R oracle、link、lint、C自测和独立审查覆盖的profile	.github/task-runs/2026-08-04-rv64-v14r-memory-request-admission-hold/strict-guard-v14r.status

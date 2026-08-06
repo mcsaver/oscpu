@@ -103,28 +103,28 @@
     "evidence": {
       "result": {
         "kind": "holder_instance_graph_result",
-        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/holder-instance-graph.json",
-        "sha256": "8e3ff1996e5e94b60b02f86fd1070174a2e58e2d39e8f152f5ad7a66c97dd2f6"
+        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/holder-instance-graph.json",
+        "sha256": "548c8a7231e37c86703d1ba6edd2bc7cc89f2441ac0d476e226ceac679608679"
       },
       "receipt": {
         "kind": "holder_instance_graph_receipt",
-        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-        "sha256": "155c57d3f9a9a4133c7ac1d93110a042fc54e46dbb3cf730008d7cd2b258a2ad"
+        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+        "sha256": "2ab52b5271f2f0f2bd274ff462d68a1e21d28c6dc32c739913d0bf1cb67dbfe3"
       },
       "full": {
         "kind": "holder_instance_graph_yosys_canonical_full_json_gzip",
-        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-        "sha256": "483309c8f665a46eb78a0657200fd06ba6990e94324da2865eee48947828d9d2"
+        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+        "sha256": "def7f928396e730131a6f19c8002adda6c95a7f06de3f564b6ae06e78d1cc4f4"
       },
       "script": {
         "kind": "holder_instance_graph_yosys_script",
-        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
+        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
         "sha256": "ba7cd306a1bed385f3d5f76c15aa9ac5de661d7165040641600fa19c117ea601"
       },
       "log": {
         "kind": "holder_instance_graph_yosys_log",
-        "path": ".github/task-runs/2026-08-02-rv64-v13w-producer-holder-current-rebind-v1/evidence/current-holder-instance-graph/yosys-instance-graph.log",
-        "sha256": "4eefb58656749c93f6249ff8f9404978521174845c07d858f160a9902d86cfee"
+        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.log",
+        "sha256": "9e1beea36a898c5889e2830561de0206f7085ab3e78580e03a6a0629e4c12337"
       }
     }
   },
@@ -429,6 +429,24 @@
       "notes": "Request buffer token contributes to the assertion-only raw indirect reference."
     },
     {
+      "id": "memory-request-hold0-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem_req_hold_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem_req_hold_owner_token_q\\s*<=\\s*mem_req_owner_token_o",
+      "notes": "Bank0 request admission lease duplicates only the exact tracker-backed token selector while the complete payload remains resident in its source Q; unexpected source loss is fatal."
+    },
+    {
+      "id": "memory-request-hold1-token",
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "module": "OooIntBackend",
+      "symbol": "mem1_req_hold_owner_token_q",
+      "classification": "INDIRECT_HOLDER",
+      "coverage_anchor": "mem1_req_hold_owner_token_q\\s*<=\\s*mem1_req_owner_token_o",
+      "notes": "Bank1 request admission lease duplicates only the exact tracker-backed token selector while the complete payload remains resident in its source Q; unexpected source loss is fatal."
+    },
+    {
       "id": "bridge-active-token",
       "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
       "module": "OooMemAxiBridge",
@@ -701,7 +719,7 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {

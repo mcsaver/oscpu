@@ -1,0 +1,8 @@
+npc/rv64/eval/ppa/tools/performance_bottleneck_census.py
+npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py
+npc/rv64/eval/ppa/run-performance-bottleneck-census.sh
+npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json
+.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v1
+npc/rv64/eval/ppa/PERFORMANCE_BASELINE.md
+.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2
+.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/independent-review.md

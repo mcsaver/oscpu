@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v14p-owner-timing-self-contained-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "仅依据展开的周期级材料，独立寻找本地 RV64 双发射 OoO 核双 OooMemAxiBridge owner timing collector 在 ROI、owner lifecycle、AW/W/B、flush/drop、删失、守恒与 fast/link 调度中的反例；不运行工程命令。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+      "npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp",
+      "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh",
+      "npc/rv64/eval/ppa/run-owner-timing-diagnostics.sh",
+      "scripts/agent-flow.c",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/subagent-contracts/v14p-owner-timing-self-contained-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "ROI event ordering: on every posedge, if reset then clear; otherwise decode both bridge samples; if start_seen && !end_seen, call observe_cycle first; then process valid commit lane0 followed by lane1. A start PC increments start_hits, first start sets start_seen/start_lane and primes intervals active on boundary as left_censored; repeat start is invalid. An end before start is invalid; first end after start sets end_seen/end_lane and finalizes; repeat end is invalid. Thus qualified window is edge-old S+1..E; start lane0/end lane1 same edge has zero cycles and complete=false.",
+      "Probe ABI per bridge: state[3:0], active kind/token/epoch, station valid/kind/token/epoch, request valid/fire/kind/token/epoch, aw_complete=(aw_done_q||aw_fire_w), w_complete=(w_done_q||w_fire_w), bvalid, stage_advance, bit38 station_cancel=station_drop_terminal_w, bit39 active_drop=active_drop_terminal_r, bit40 response_fire=mem0_rsp_valid_o&&mem0_rsp_ready_i. One DPI call also carries both commit valid/PC and both ROB-head live tokens, avoiding cross-always DPI ordering dependence.",
+      "Legal states S0..S12: IDLE,WALK_AR,WALK_R,READ_ADDR,READ_DATA,WRITE_REQ,WRITE_RESP,RESP,AD_UPDATE,LOOKUP,DEVICE_WAIT,OWNER_HOLD,SQ_QUERY. Encoded S13..S15 retain their state buckets but increment invalid_events. operation class uses active state8=>A_D_UPDATE else kind 0/1/2=>LOAD/STORE/ATOMIC; kind3 while valid is invalid.",
+      "Stages: admission_wait=request_valid until request_fire; reservation=station_valid until stage_advance or station_cancel; translation=states1/2/8; write_request=state5 until AW and W complete; write_response=state6 until B/response; aw_w_to_b=state6 or state8 after AW/W complete until B; sq_query=state12. Owner changes within an active stage increment invalid. station_cancel and active_drop close as cancelled and never enter normal bins; response/B closes normally. A/D AW/W completion plus B on the same first active sample closes aw_w_to_b in bin0; other observed active samples increment duration before close.",
+      "Boundary rules: stages active on S are left_censored and excluded from normal histograms; eligible stages still active after E sample are right_censored; complete bins only contain eligible normal completions. Conservation per bridge/stage/class is eligible_started=completed+right_censored+cancelled, left_censored=left_completed+left_right_censored, sum bins=completed. Per bridge sum state S0..S15 cycles=ROI cycles; write-inflight occupancy 0/1/2 bridges sums to ROI cycles. Any overflow/invalid, missing or duplicate marker, zero ROI, or broken conservation makes complete=false.",
+      "ROB-head correlation compares only the live head token because NpcSimTop exposes a uniqueness-qualified head memory token; contract names this rob_head_token_correlation, not full kind/epoch correlation. Peer overlap requires both bridges active with unequal full kind/token/epoch. B terminal count records every bvalid in state6/state8; no event dedup exists.",
+      "Nine strict C++ cases PASS under -Wall -Wextra -Werror: complete store with bin expectations, left/right censor, owner ABA invalid, station flush cancelled, active drop cancelled, S13 invalid, independent dual-bridge overlap/occupancy, same-edge zero-ROI unqualified, and A/D same-edge AW/W-to-B bin0. SystemVerilog lint PASS. Earlier pre-split ABI linked; current split ABI still requires final link after review.",
+      "Workflow: validation profile binds canonical PERF_BASELINE design_id sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488 and requires CONFIG_NPC_OOO_STATS=y. fast runs contract/profile/baseline binding, unit, lint and full-vsrc+config pre/post manifest stability. link includes fast plus full DPI link. C gate pointer auto-selects fast for instrumentation paths; explicit link replaces fast. review/analysis has zero gates. Task-run keeps status/rc/bounded log/input hashes/review; runtime unit binary,obj_dir,simulator/full log are deleted. HUP/INT/TERM forwards to checker process group then writes FAIL with signal.",
+      "Observed fast task-run: status PASS; check_rc=0 marker_rc=0 identity_rc=0; unit cases=9; vsrc/config manifest files=148 and pre/post stable; contract/profile/baseline/unit/lint/cleanup markers present. No workload run, stats-off/on comparison, functional change, synthesis, STA or PPA evidence exists. Authorization remains candidate=false,promotion=false,ppa=UNQUALIFIED."
+    ]
+  },
+  "deliverables": [
+    "首行按对象、周期/配置、TB/EDA 观测、PASS/GAP 范围；随后列出能改变计数或资格的具体最小反例、未知项和是否允许执行当前 ABI 的最终 link。"
+  ],
+  "success_criteria": [
+    "若展开算法在 S+1..E、dual-lane 顺序、正常/取消终端、同拍 stage、owner ABA、左右删失、双桥 overlap 和守恒上仍有可构造反例，则给 GAP 与最小修正；否则只对 fast 诊断基础设施给 PASS 并保持 workload、候选与 PPA 未授权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

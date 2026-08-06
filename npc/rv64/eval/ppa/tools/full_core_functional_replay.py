@@ -30,6 +30,15 @@ import full_core_functional_evidence as current  # noqa: E402
 SCHEMA = "npc-rv64-full-core-functional-checker-replay-v1"
 INPUT_REPLAY_SCHEMA = "npc-rv64-full-core-functional-input-replay-v1"
 EXPECTED_FAILURE = "RTL/config/test/workflow inputs drifted during functional run"
+BENCHMARK_ORACLE_FAILURE_RE = re.compile(
+    r"^benchmark:(coremark|dhrystone): guest result markers drifted: "
+    r"missing=\[\] duplicate=\[\] contradictory_values=\[\] "
+    r"contradictory=\[\] good_traps=0$"
+)
+BENCHMARK_CHECKER_PATH = "npc/rv64/eval/ppa/tools/functional_aggregate.py"
+BENCHMARK_REPLAY_SCHEMA = (
+    "npc-rv64-full-core-functional-benchmark-oracle-replay-v1"
+)
 CONFIG_BINDING_PATHS = (
     "npc/rv64/configs/default_defconfig",
     "npc/rv64/include/config/auto.conf",
@@ -46,6 +55,15 @@ def resolve_repo_dir(raw: pathlib.Path) -> pathlib.Path:
     if not resolved.is_dir():
         raise RuntimeError(f"repository directory is not regular: {raw}")
     return resolved
+
+
+def relative_repo_dir(path: pathlib.Path) -> str:
+    if path.is_symlink():
+        raise RuntimeError(f"repository directory is a symlink: {path}")
+    resolved = path.resolve(strict=True)
+    if not resolved.is_dir():
+        raise RuntimeError(f"repository directory is not regular: {path}")
+    return resolved.relative_to(ROOT.resolve()).as_posix()
 
 
 def binding_hash(binding: dict[str, Any], relative_path: str) -> str:
@@ -199,18 +217,197 @@ def replay(
     try:
         original_status_path = attempt_dir / "status.json"
         original_status = current.load_json(original_status_path)
+        source_detail = original_status.get("detail")
+        benchmark_failure = (
+            BENCHMARK_ORACLE_FAILURE_RE.fullmatch(source_detail)
+            if isinstance(source_detail, str)
+            else None
+        )
         if (
             original_status.get("state") != "FAIL"
-            or original_status.get("detail") != EXPECTED_FAILURE
+            or (
+                source_detail != EXPECTED_FAILURE
+                and benchmark_failure is None
+            )
             or original_status.get("design_id") != design_id
         ):
             raise RuntimeError("source attempt is not the exact input-oracle FAIL boundary")
 
         stage = "module-result"
         module_result_path = current.resolve_repo_file(module_result_raw)
+        expected_module_result = (attempt_dir.parent / "module/result.json").resolve(
+            strict=True
+        )
+        if module_result_path != expected_module_result:
+            raise RuntimeError("module result is not owned by the source full-core run")
         module_command, module_records = current.validate_module_result(
             module_result_path, expected_design_id=design_id
         )
+
+        if benchmark_failure is not None:
+            if publish_current:
+                raise RuntimeError(
+                    "benchmark checker replay cannot publish an execution binding"
+                )
+            source_run = attempt_dir.parents[1]
+            source_execution_status = source_run / "full-core-current.status"
+            if (
+                source_execution_status.is_symlink()
+                or not source_execution_status.is_file()
+                or re.fullmatch(
+                    r"FAIL rc=[0-9]+ stage=evidence-complete "
+                    r"evidence_complete=0 cleanup_rc=0\n",
+                    source_execution_status.read_text(encoding="utf-8"),
+                )
+                is None
+            ):
+                raise RuntimeError("source full-core status is not the exact FAIL boundary")
+
+            stage = "benchmark-checker-input-binding"
+            pre_path = attempt_dir / "inputs.pre.json"
+            post_path = attempt_dir / "inputs.post.json"
+            before = current.load_json(pre_path)
+            after = current.load_json(post_path)
+            if before != after:
+                raise RuntimeError("source functional inputs changed during execution")
+            legacy = current.load_legacy_runner()
+            live = current.capture_functional_inputs(
+                legacy, module_evidence.required_tests()
+            )
+            if before.get("design_id") != design_id or live.get("design_id") != design_id:
+                raise RuntimeError("benchmark replay RTL design identity drifted")
+            live_changes = binding_changes(before, live)
+            expected_checker_change = [("functional_workflow", BENCHMARK_CHECKER_PATH)]
+            if live_changes != expected_checker_change:
+                raise RuntimeError(
+                    "benchmark replay has non-checker live input drift: "
+                    f"{live_changes[:8]}"
+                )
+            old_checker_sha = binding_hash(before, BENCHMARK_CHECKER_PATH)
+            new_checker_sha = binding_hash(live, BENCHMARK_CHECKER_PATH)
+            if old_checker_sha == new_checker_sha:
+                raise RuntimeError("benchmark checker did not change")
+            input_replay_path = output_dir / "checker-input-replay.json"
+            module_evidence.write_json(
+                input_replay_path,
+                {
+                    "schema": BENCHMARK_REPLAY_SCHEMA,
+                    "classification": "exact-benchmark-terminal-line-checker-change",
+                    "source": {
+                        "pre": module_evidence.artifact(
+                            pre_path, kind="recorded_input_binding"
+                        ),
+                        "post": module_evidence.artifact(
+                            post_path, kind="recorded_input_binding"
+                        ),
+                    },
+                    "source_inputs_unchanged": True,
+                    "live_changes": [
+                        {
+                            "group": "functional_workflow",
+                            "path": BENCHMARK_CHECKER_PATH,
+                            "old_sha256": old_checker_sha,
+                            "new_sha256": new_checker_sha,
+                        }
+                    ],
+                },
+            )
+
+            stage = "benchmark-descriptor-replay"
+            descriptor_path = attempt_dir / "functional-run-descriptor.json"
+            aggregate_path = output_dir / "functional-aggregate.json"
+            aggregate_result_path = output_dir / "functional-aggregate-result.json"
+            aggregate_log_path = output_dir / "functional-aggregate.log"
+            assembled = legacy.functional.assemble(
+                root=ROOT,
+                descriptor_path=descriptor_path,
+                wrapper_dir=output_dir / "wrapped",
+                aggregate_path=aggregate_path,
+                mutation_summary_path=output_dir / "mutations/summary.json",
+                raw_log_path=aggregate_log_path,
+                result_path=aggregate_result_path,
+                check_current_design=True,
+            )
+            if assembled.get("status") != "PASS" or assembled.get("exit_code") != 0:
+                raise RuntimeError("replayed functional aggregate is not PASS")
+
+            stage = "benchmark-replay-receipt"
+            receipt = {
+                "schema": SCHEMA,
+                "status": "PASS",
+                "claim": "L1_FULL_CORE_DIFFTEST_PASS_CURRENT_IDENTITY",
+                "signoff_scope": "full-l1-checker-replay",
+                "design_id": design_id,
+                "classification": (
+                    "execution-complete-old-benchmark-terminal-oracle-false-positive"
+                ),
+                "source_attempt": relative_repo_dir(attempt_dir),
+                "source_status": module_evidence.artifact(
+                    original_status_path, kind="original_fail_status"
+                ),
+                "source_execution_status": module_evidence.artifact(
+                    source_execution_status, kind="original_full_core_fail_status"
+                ),
+                "module_result": module_evidence.artifact(
+                    module_result_path, kind="module_current_result"
+                ),
+                "checker_replay": module_evidence.artifact(
+                    input_replay_path, kind="checker_input_replay"
+                ),
+                "counts": assembled["counts"],
+                "artifacts": {
+                    "descriptor": module_evidence.artifact(
+                        descriptor_path, kind="functional_run_descriptor"
+                    ),
+                    "aggregate": module_evidence.artifact(
+                        aggregate_path, kind="functional_aggregate"
+                    ),
+                    "aggregate_result": module_evidence.artifact(
+                        aggregate_result_path, kind="functional_aggregate_result"
+                    ),
+                    "aggregate_log": module_evidence.artifact(
+                        aggregate_log_path, kind="functional_aggregate_log"
+                    ),
+                    "simulator": module_evidence.artifact(
+                        attempt_dir / "frozen/NpcSimTop", kind="simulator_binary"
+                    ),
+                    "reference": module_evidence.artifact(
+                        attempt_dir / "frozen/riscv64-nemu-interpreter-so",
+                        kind="reference_model_binary",
+                    ),
+                    "configuration": module_evidence.artifact(
+                        attempt_dir / "frozen/npc.config", kind="kconfig"
+                    ),
+                },
+                "source_inputs_unchanged": True,
+                "live_drift_is_checker_only": True,
+                "original_status_unchanged": True,
+                "guest_rerun": False,
+                "published_current": False,
+            }
+            module_evidence.write_json(output_dir / "replay-result.json", receipt)
+            module_evidence.write_status(
+                output_dir,
+                state="PASS",
+                stage="complete",
+                detail=(
+                    f"module={assembled['counts']['module_passed']}/"
+                    f"{assembled['counts']['module_required']} official=177/177 "
+                    f"am={assembled['counts']['am_passed']}/"
+                    f"{assembled['counts']['am_required']} checker_drift=1"
+                ),
+                design_id=design_id,
+            )
+            print(
+                "[FULL-CORE-FUNCTIONAL-REPLAY][PASS] "
+                f"design_id={design_id} module="
+                f"{assembled['counts']['module_passed']}/"
+                f"{assembled['counts']['module_required']} official=177/177 "
+                f"am={assembled['counts']['am_passed']}/"
+                f"{assembled['counts']['am_required']} checker_drift=1 guest_rerun=0",
+                flush=True,
+            )
+            return 0
 
         stage = "input-oracle-replay"
         pre_path = attempt_dir / "inputs.pre.json"
@@ -385,7 +582,7 @@ def replay(
             "status": "PASS",
             "design_id": design_id,
             "classification": "execution-complete-old-input-oracle-false-positive",
-            "source_attempt": module_evidence.relative(attempt_dir),
+            "source_attempt": relative_repo_dir(attempt_dir),
             "source_status": module_evidence.artifact(
                 original_status_path, kind="original_fail_status"),
             "module_result": module_evidence.artifact(

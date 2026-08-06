@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-08-01。
+> **最近更新**：2026-08-03。
 >
 > **现状输入**：`rv64-200mhz-completion-design.md`、
 > `../../eval/ppa/evidence/architecture-current.json`、
@@ -68,20 +68,28 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   memory-owner terminal consumer，V9Z 已闭合 pending architectural-trap 的同一组合
   consumer 边界；当前同源功能聚合为 module 112/112、official 177/177、AM 59/59、
   DiffTest mismatch 0；current module 113/113、official 177/177、AM 59/59，
-  DiffTest mismatch 0。V10G 第二次独立审查曾在 04c5458 设计上批准
-  `SERIALIZE-G1=CLOSED`：product-default queue-head CSR 的 assert/release 原始周期
-  计数覆盖 3 条 committed 与 2 条 selective-kill，typed-apply 生产 RTL 负向版本和
-  CsrFile 生产绑定等价 verification wiring 均被 C2 raw scoreboard 拒绝，
-  pending-SYSTEM 为 3/3 baseline + 14/14 compile-success RTL 版本。V13H 已在 364b1e
-  当前设计上通过 queue-head 2/2 正向、两个 production RTL mutation、一个
-  verification-only `CsrFile` TB-wiring mutation、pending-SYSTEM 3/3+15/15 以及
-  113/177/61 功能队列；但同身份完整系统事务尚缺，当前机器状态为
-  `SERIALIZE-G1=STALE_EVIDENCE`。architecture freeze 仍为 GAP：
-  `historical-defect-backfill-ledger.json` 必须清除 VD0/VD1 后才可申请冻结。
-  初始机器账本为 5 项：VD1×2、VD3×1、VD4×2；自动选择
-  `HIST-SER-QH-YOUNGER-STORE-CYCLE`。该项要求在 current design 上构造
-  head0 CSR + younger SQ store，直接计数 bounded progress/C0/C1/C2，并用可编译
-  RTL 负向版本恢复 `mem_idle && mem_retire_quiet` 依赖以证明门能拒绝历史死锁。
+  DiffTest mismatch 0。V14C 已在 `design_id=sha256:093c2380…a7488` 上把 9 个 P0
+  债务绑定为 current dynamic PASS；V14D 绑定 `CONTROL-EVENT-G1`、
+  `MIQ-FLUSH-G1`、`STORE-BRESP-G1`；V14E 绑定 `F0-G1`、`FENCE-G1`、
+  `VECTORED-TRAP-G1` 及 SERIALIZE 快层，V14I 再以冻结的同身份完整系统事务把
+  `SERIALIZE-G1` 提升为 current dynamic PASS。四个可选能力边界继续由
+  `full-core-single-hart-rv64-dual-issue-ooo-v1` cohort 显式排除，并重新绑定当前
+  design-id。V14J 只把上述 16 个 CLOSED 与 4 个 EXCLUDED 裁决收敛进当前机器账本；
+  原执行状态不改写，checker replay 与系统执行状态分列保存。
+
+  architecture-debt 层的 current resolution 不等于 `ARCH_STABLE`：V14B 当前硬门审计
+  仍显示除 DI-2 外的 DI/OOO 记录存在 provenance currentness 缺口，且
+  `historical-defect-backfill-ledger.json` 尚未形成同一当前候选的最终闭合收据。因此
+  `whole_architecture=RED`、PPA `UNPROMOTED` 保持不变；只有这些独立层也闭合后才可
+  申请完整冻结。
+  V14T 机器账本为 6 项：VD1×1、VD3×3、VD4×2；五项历史缺陷保留已回填证据，
+  自动选择 `HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP`。原始 V9P 只保留通用
+  `S2-G1-TCOLL-INGRESS-DUP` marker，未记录 exact lane pair；恢复的 backend terminal
+  cone 把 66 对缩到 39 个 collector-only 历史候选，当前 5a6895c8 设计为 3 对，但两者都
+  不能替代自然生产者周期。关闭标准是取得 exact kind/token/epoch 与 lane pair，修复上游
+  holder/owner 交接，并以 assertions-on/off 正向、可编译负向 RTL 版本和当前 strict system
+  transaction 复核；禁止 collector 去重或削弱断言。旧五项 current receipt 仍绑定 093c2380，
+  在六项库存与 5a6895c8 当前设计上不具 promotion 资格。
 - `architecture-debt-ledger.json` 是 active P0/P1 裁决的机器真源；
   `eval/ppa/tools/arch_stable_freeze.py` 负责 exact-input audit。资格闭合前只允许诊断性
   synthesis/STA，PPA 保持 `UNQUALIFIED`、`promotion_eligible=false`。

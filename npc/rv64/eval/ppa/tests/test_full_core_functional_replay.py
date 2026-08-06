@@ -9,6 +9,36 @@ from npc.rv64.eval.ppa.tools import full_core_functional_replay as replay
 
 
 class FullCoreFunctionalReplayTests(unittest.TestCase):
+    def test_relative_repo_dir_accepts_only_directory_inside_root(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-functional-replay-root-") as raw:
+            root = pathlib.Path(raw)
+            evidence = root / "evidence/functional"
+            evidence.mkdir(parents=True)
+            alias = root / "alias"
+            alias.symlink_to(evidence, target_is_directory=True)
+            with mock.patch.object(replay, "ROOT", root):
+                self.assertEqual(
+                    replay.relative_repo_dir(evidence), "evidence/functional"
+                )
+                with self.assertRaisesRegex(RuntimeError, "symlink"):
+                    replay.relative_repo_dir(alias)
+
+    def test_benchmark_failure_boundary_is_exact(self) -> None:
+        accepted = (
+            "benchmark:coremark: guest result markers drifted: missing=[] "
+            "duplicate=[] contradictory_values=[] contradictory=[] good_traps=0"
+        )
+        self.assertIsNotNone(replay.BENCHMARK_ORACLE_FAILURE_RE.fullmatch(accepted))
+        for changed in (
+            accepted.replace("good_traps=0", "good_traps=2"),
+            accepted.replace("missing=[]", "missing=['CoreMark PASS']"),
+            accepted + " trailing",
+        ):
+            with self.subTest(changed=changed):
+                self.assertIsNone(
+                    replay.BENCHMARK_ORACLE_FAILURE_RE.fullmatch(changed)
+                )
+
     def test_official_build_outputs_use_isa_directory(self) -> None:
         legacy = mock.Mock(OFFICIAL_TREE=pathlib.Path("/repo/riscv-tests"))
         with mock.patch.object(

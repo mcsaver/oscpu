@@ -1,0 +1,15 @@
+3	rv64-arch-stable-current	PASS	16732	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-arch-stable-current.log
+3	rv64-architecture-debt-current	PASS	3308	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-architecture-debt-current.log
+3	rv64-historical-defect-current	PASS	5512	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-historical-defect-current.log
+3	rv64-soc-delivery-gates	PASS	451	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-soc-delivery-gates.log
+3	flow-self-test	PASS	2405	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/flow-self-test.log
+5	rv64-arch-stable-current	PASS	16981	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-arch-stable-current.log
+5	rv64-architecture-debt-current	PASS	3205	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-architecture-debt-current.log
+5	rv64-historical-defect-current	PASS	5358	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-historical-defect-current.log
+5	rv64-soc-delivery-gates	PASS	450	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-soc-delivery-gates.log
+5	flow-self-test	PASS	2507	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/flow-self-test.log
+6	rv64-arch-stable-current	PASS	16881	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-arch-stable-current.log
+6	rv64-architecture-debt-current	PASS	3205	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-architecture-debt-current.log
+6	rv64-historical-defect-current	PASS	5309	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-historical-defect-current.log
+6	rv64-soc-delivery-gates	PASS	451	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/rv64-soc-delivery-gates.log
+6	flow-self-test	PASS	2554	.github/runtime-artifacts/agent-flow/rv64-v14m-arch-stable-methodology/gates/flow-self-test.log

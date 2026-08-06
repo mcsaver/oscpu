@@ -1,0 +1,6 @@
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa
+npc/rv64/eval/ppa/evidence
+.github/task-runs
+.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census

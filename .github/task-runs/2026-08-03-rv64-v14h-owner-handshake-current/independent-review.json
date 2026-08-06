@@ -1,0 +1,105 @@
+{
+  "schema_version": "npc-rv64-v14h-global-owner-independent-review-v1",
+  "status": "PASS",
+  "classification": "architecture",
+  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "reviewed_claim": {
+    "global_no_live_reuse": "GREEN",
+    "whole_architecture": "RED",
+    "system_recertification": "REQUIRED",
+    "ppa": "UNPROMOTED"
+  },
+  "workspace_review": {
+    "reviewer_task": "/root/v14h_independent_review_v2",
+    "mode": "workspace-files-read-only",
+    "status": "PASS_WITH_NON_BLOCKING_RESIDUALS",
+    "contract": {
+      "path": ".github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/subagent-contracts/v14h-global-owner-independent-review-v2.json",
+      "sha256": "6e4ca625c2ac5b3283018dfb1b3c2c5208581128014183612cc13a72376d419d"
+    },
+    "observed": {
+      "semantic_units_pass": 44,
+      "unit_instance_bindings": 50,
+      "v14g_baselines_pass": 4,
+      "v14g_compile_success_mutations_rejected": 22,
+      "optional_lane1_product_configuration": "PRODUCT_INACTIVE_CONSTANT_LOW",
+      "v11b_ingress_lanes": 12,
+      "v11b_tracker_free_lanes": 2,
+      "v11c_mutations_rejected": 9,
+      "v11d_token_counts": [
+        4,
+        32
+      ],
+      "v11e_generation_widths": [
+        1,
+        4
+      ],
+      "v11m_mutations_rejected": 37,
+      "v11m_pair_credit_and_turnover_atomicity_closed": true,
+      "v11m_lane6_lane7_accepted_terminal_closed": true
+    }
+  },
+  "frozen_delta_review": {
+    "reviewer_task": "/root/v14h_receipt_delta_review_v3",
+    "mode": "prompt-supplied-self-contained",
+    "status": "PASS",
+    "contract": {
+      "path": ".github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/subagent-contracts/v14h-global-owner-receipt-delta-review-v3.json",
+      "sha256": "95b47ee133bf5f3ba0da3b252d7ba8cf4dec28f9ad20847960cfac450c64f3e1"
+    },
+    "closed_findings": [
+      "COMPACT_ORACLE_STAGES_NOT_CONSUMED",
+      "COMPACT_COMPILE_ARTIFACT_LOG_BINDING_NOT_CONSUMED"
+    ],
+    "test_observation": {
+      "return_code": 0,
+      "tests_run": 134,
+      "observed_stage_drift_rejected": true,
+      "malformed_compact_log_rejected": true
+    }
+  },
+  "scope_extension_lineage": {
+    "initial_contract": {
+      "path": ".github/task-runs/2026-08-03-rv64-v14h-owner-handshake-current/subagent-contracts/v14h-global-owner-independent-review.json",
+      "sha256": "bd1e2fcdd18cd6737ff8fecb0a0fe2bc0cc12efd4e58fdb1d29d94b29b50f97e",
+      "status": "INCONCLUSIVE"
+    },
+    "reason": "The initial contract omitted the V14G runner, base testbench and overlay, so it could not independently inspect the lifecycle oracle source.",
+    "resolved_by": "v14h-global-owner-independent-review-v2"
+  },
+  "evidence_bindings": {
+    "global_receipt": {
+      "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "sha256": "2dd4bcf4ac0326a4349ccf5f56e93e9d5113f92f90bfe483718ece9bc5e31a25"
+    },
+    "global_receipt_tool": {
+      "path": "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
+      "sha256": "820d7d34051f17ad85c76d530e78e723f4253d75f2d98e8838abe4f8bfa9b68f"
+    },
+    "global_receipt_tests": {
+      "path": "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
+      "sha256": "574021e66c110d95c33db95296f5988d4747578ca7490ff6f02dd603caa86a75"
+    }
+  },
+  "residuals": [
+    {
+      "id": "V14G_DUT_OBSERVED_IDENTITY",
+      "status": "NON_BLOCKING_CONJOINED",
+      "basis": "V14G memory_pid and reservation tuple partly observe DUT identity; the bounded GREEN therefore requires the V11D/V11E/V11M independent scoreboard evidence already consumed by the receipt.",
+      "promotion_impact": "No impact on current bounded global_no_live_reuse; blocks any claim that V14G alone is a fully stimulus-owned end-to-end identity proof."
+    },
+    {
+      "id": "V14G_FOCUSED_RUNNER_SIGNAL_STAGE_RECORD",
+      "status": "NON_BLOCKING_PROCESS_GAP",
+      "basis": "The short focused runner cannot produce a false PASS on interruption, but does not record explicit HUP/INT/TERM stage and signal fields.",
+      "promotion_impact": "No impact on the completed current receipt; retain as a runner observability improvement and do not reuse this status scheme for long system runs."
+    },
+    {
+      "id": "SYSTEM_RECERTIFICATION_AFTER_LOAD_QUEUE_RTL_CHANGE",
+      "status": "BLOCKS_SYSTEM_PROMOTION_ONLY",
+      "basis": "Current production LoadQueue semantics differ from the old A3 system design identity.",
+      "promotion_impact": "System recertification remains REQUIRED; whole architecture and PPA remain unpromoted."
+    }
+  ],
+  "review_boundary": "PASS applies only to current-design current-product global ProducerId no-live-reuse. The review adds no simulation, synthesis, STA, power or system evidence and cannot promote whole architecture, system recertification or PPA."
+}

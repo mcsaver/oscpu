@@ -1,0 +1,30 @@
+test_checksum_manifest_rejects_duplicate_path (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_checksum_manifest_rejects_duplicate_path) ... ok
+test_checksum_manifest_rejects_symlink_target (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_checksum_manifest_rejects_symlink_target) ... ok
+test_current_input_pair_rejects_drift (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_current_input_pair_rejects_drift) ... ok
+test_current_inputs_accept_exact_identity_helper_replay (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_current_inputs_accept_exact_identity_helper_replay) ... ok
+test_current_inputs_reject_unlisted_live_drift (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_current_inputs_reject_unlisted_live_drift) ... ok
+test_current_inputs_reject_unused_drift_allowance (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_current_inputs_reject_unused_drift_allowance) ... ok
+test_default_conjunction_excludes_optional_ubuntu (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_default_conjunction_excludes_optional_ubuntu) ... ok
+test_design_identity_mismatch_is_rejected (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_design_identity_mismatch_is_rejected) ... ok
+test_directed_case_cannot_claim_complete_layer (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_directed_case_cannot_claim_complete_layer) ... ok
+test_optional_ubuntu_cannot_become_a_default_conjunct (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_optional_ubuntu_cannot_become_a_default_conjunct) ... ok
+test_seal_rejects_manifest_substitution (npc.rv64.eval.ppa.tests.test_layered_system_signoff.LayeredSystemSignoffTests.test_seal_rejects_manifest_substitution) ... ok
+test_canonical_receipt_is_current (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_canonical_receipt_is_current) ... ok
+test_current_default_layered_signoff_is_bounded_pass (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_current_default_layered_signoff_is_bounded_pass) ... ok
+test_optional_ubuntu_cannot_block_default_signoff (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_optional_ubuntu_cannot_block_default_signoff) ... ok
+test_rejects_architecture_or_ppa_overpromotion (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_architecture_or_ppa_overpromotion) ... ok
+test_rejects_assertion_overclaim (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_assertion_overclaim) ... ok
+test_rejects_default_conjunction_drift (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_default_conjunction_drift) ... ok
+test_rejects_design_identity_drift (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_design_identity_drift) ... ok
+test_rejects_directed_l2_case_as_full_layer (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_directed_l2_case_as_full_layer) ... ok
+test_rejects_l0_count_drift (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_l0_count_drift) ... ok
+test_rejects_l1_count_drift (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_l1_count_drift) ... ok
+test_rejects_l3_failure (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_l3_failure) ... ok
+test_rejects_layered_receipt_hash_drift (npc.rv64.eval.ppa.tests.test_system_recertification_current.CurrentWorkspaceTests.test_rejects_layered_receipt_hash_drift) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 5.339s
+
+OK
+[RV64-LAYERED-SYSTEM-SIGNOFF][PASS] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 L0=113/113 L1=177+61 L2=all L3=all Ubuntu=not-run PPA=not-implied
+[SYSTEM-RECERTIFICATION-CURRENT][PASS] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 L0=113/113 L1=177+61 L2=all L3=all Ubuntu=not-run-optional assertions=0 system=PASS_CURRENT_CONFIG whole_architecture=RED ppa=UNPROMOTED
