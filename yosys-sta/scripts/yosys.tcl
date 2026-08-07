@@ -56,6 +56,14 @@ set SYNTH_DFF_AUTONAME 1
 if {[info exists env(SYNTH_DFF_AUTONAME)]} {
   set SYNTH_DFF_AUTONAME $::env(SYNTH_DFF_AUTONAME)
 }
+set SYNTH_STA_FLATTEN_EXPORT 0
+if {[info exists env(SYNTH_STA_FLATTEN_EXPORT)]} {
+  set SYNTH_STA_FLATTEN_EXPORT $::env(SYNTH_STA_FLATTEN_EXPORT)
+}
+set SYNTH_STAGE_SCC 0
+if {[info exists env(SYNTH_STAGE_SCC)]} {
+  set SYNTH_STAGE_SCC $::env(SYNTH_STAGE_SCC)
+}
 set SYNTH_BLACKBOX_MODULES ""
 if {[info exists env(SYNTH_BLACKBOX_MODULES)]} {
   set SYNTH_BLACKBOX_MODULES $::env(SYNTH_BLACKBOX_MODULES)
@@ -75,6 +83,8 @@ set SYNTH_SHARE_ENABLED   [env_flag_enabled $SYNTH_SHARE]
 set SYNTH_STOP_AFTER_COARSE_ENABLED [env_flag_enabled $SYNTH_STOP_AFTER_COARSE]
 set SYNTH_PUBLIC_AUTONAME_ENABLED [env_flag_enabled $SYNTH_PUBLIC_AUTONAME]
 set SYNTH_DFF_AUTONAME_ENABLED [env_flag_enabled $SYNTH_DFF_AUTONAME]
+set SYNTH_STA_FLATTEN_EXPORT_ENABLED [env_flag_enabled $SYNTH_STA_FLATTEN_EXPORT]
+set SYNTH_STAGE_SCC_ENABLED [env_flag_enabled $SYNTH_STAGE_SCC]
 
 set LIBS [concat {*}[lmap lib $LIB_FILES {concat "-liberty" $lib}]]
 set EXCLUDE_CELLS [concat {*}[lmap cell $DONT_USE_CELLS {concat "-dont_use" $cell}]]
@@ -237,6 +247,36 @@ if {$strategy_type == "DELAY" &&
 #===========================================================
 yosys -import
 
+# Optional mapped-loop localization.  Each sample operates on a pushed copy,
+# replaces standard-cell blackboxes with their Liberty Boolean functions, then
+# flattens only that copy.  The production mapping state is restored unchanged
+# before the next pass.  Reports are compact; expanded diagnostic designs are
+# never written to disk.
+proc capture_functional_flat_scc {stage} {
+  global DESIGN RESULT_DIR LIB_FILES
+  log "\[INFO\]: CAPTURING functional flat SCC at $stage"
+  design -push-copy
+  foreach l $LIB_FILES {
+    read_liberty -overwrite -ignore_miss_func -ignore_miss_data_latch $l
+    # Clock-gate outputs in this PDK intentionally omit Boolean `function`.
+    # Restore only cells skipped by the functional import as blackbox shells;
+    # -nooverwrite preserves every combinational function already loaded.
+    read_liberty -lib -nooverwrite $l
+  }
+  setattr -unset keep_hierarchy */*
+  setattr -mod -unset keep_hierarchy *
+  hierarchy -check -top $DESIGN
+  flatten -noscopeinfo
+  hierarchy -check -top $DESIGN
+  opt_clean -purge
+  tee -o $RESULT_DIR/synth_scc_${stage}.txt \
+    scc -set_attr synth_stage_scc_id {}
+  tee -o $RESULT_DIR/synth_scc_${stage}_dump.txt \
+    dump a:synth_stage_scc_id
+  select -clear
+  design -pop
+}
+
 # read verilog files
 foreach file $VERILOG_FILES {
   read_verilog -sv {*}$VERILOG_INCLUDE_ARGS {*}$VERILOG_DEFINE_ARGS $file
@@ -293,6 +333,10 @@ opt_ffinv
 if {$SYNTH_STOP_AFTER_COARSE_ENABLED} {
   log "\[INFO\]: STOPPING after coarse generic synthesis"
   opt_clean -purge
+  tee -o $RESULT_DIR/synth_scc.txt scc -set_attr synth_scc_id {}
+  tee -o $RESULT_DIR/synth_scc_dump.txt dump a:synth_scc_id
+  select -clear
+  select *
   tee -o $RESULT_DIR/synth_check.txt check
   tee -o $RESULT_DIR/synth_stat.txt stat
   write_json $NETLIST_SYN_V.json
@@ -340,6 +384,10 @@ abc -D "$CLK_PERIOD_PS" \
   -script "$strategy_script" \
   -showtmp
 
+if {$SYNTH_STAGE_SCC_ENABLED} {
+  capture_functional_flat_scc post_abc
+}
+
 # technology mapping for constant hi- and/or lo-drivers
 hilomap -singleton -hicell {*}$TIEHI_CELL_AND_PORT -locell {*}$TIELO_CELL_AND_PORT
 
@@ -354,6 +402,10 @@ delete t:\$print t:\$assert t:\$assume t:\$cover t:\$check
 
 # remove unused cells and wires
 opt_clean -purge
+
+if {$SYNTH_STAGE_SCC_ENABLED} {
+  capture_functional_flat_scc post_hilomap
+}
 
 # Generate public names for the various nets, resulting in very long names that include
 # the full heirarchy, which is preferable to the internal names that are simply
@@ -384,5 +436,30 @@ foreach l $LIB_FILES { read_liberty -lib $l }
 tee -o $RESULT_DIR/synth_check.txt check -mapped
 tee -o $RESULT_DIR/synth_stat.txt stat {*}$LIBS
 
+# Keep mapping and recursive area accounting in the requested hierarchy.  Some
+# standalone STA Verilog readers accept a narrower structural subset than the
+# Yosys backend emits for parameter-derived hierarchy.  When requested, make
+# only the final STA handoff flat and identifier-safe; the mapped cells and
+# pre-export reports above remain unchanged.
+if {$SYNTH_STA_FLATTEN_EXPORT_ENABLED} {
+  log "\[INFO\]: FLATTENING mapped hierarchy only for STA netlist export"
+  setattr -unset keep_hierarchy */*
+  setattr -mod -unset keep_hierarchy *
+  flatten -noscopeinfo
+  hierarchy -check -top $DESIGN
+  splitnets -format __v -ports
+  opt_clean -purge
+  yosys rename -unescape */*
+  # OooFpArithGate is frozen as a fixed-interface Liberty macro for this
+  # handoff.  Its elaboration parameters have already determined the port
+  # widths, and standalone OpenSTA does not accept named instance overrides.
+  setparam -unset ROB_INDEX_W -unset PRODUCER_GEN_W \
+    -unset PRODUCER_ID_W -unset PHY_REG_ADDR_W t:OooFpArithGate
+  if {$SYNTH_STAGE_SCC_ENABLED} {
+    capture_functional_flat_scc post_export
+  }
+  tee -o $RESULT_DIR/sta_export_check.txt check -mapped
+}
+
 # write synthesized design
-write_verilog -noattr -noexpr -nohex -nodec $NETLIST_SYN_V
+write_verilog -noattr -noexpr -nohex -nodec -simple-lhs $NETLIST_SYN_V

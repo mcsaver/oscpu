@@ -155,6 +155,15 @@ RV64 完整双发射/OoO/PPA 的稳定入口是
 domain evidence 的“一次登记”以不可变 design/config identity 为单位；RTL、filelist、parameter/define、
 约束、工具执行语义或 workload/input 身份变化后必须重新取得对应证据。
 
+RV64 CPI/PPA 日常优化在上述 hard gate 与 promotion 工具之间增加中型 next-slice selector：固定策略为
+`npc/rv64/design/arch/optimization-slice-selector-policy-v1.json`，活动候选为
+`npc/rv64/eval/ppa/optimization-slices-current.json`，稳定校验入口为
+`npc/rv64/eval/ppa/run-optimization-slice-selector.sh --validate-only`。它只从同一 live design-id 的 current
+receipt/census 选择下一次状态对账、因果量测、PPA 资格化或可回退 RTL 实验；多目标关系不确定时输出
+`RESEARCH_REQUIRED`，不生成新合同、不运行仿真/综合/STA，也不替代 `front.py` promotion。
+research-state 不能直接写入 causal/PPA 布尔授权；owner-timing、accepted PPA、decision schema 与对应
+verifier 都必须经同 design-id canonical 校验并绑定 hash，输入语义变化后旧 decision 自动失效。
+
 流程判断分为三个正交轴：轻量工作流定义 task class，`rv64-soc-delivery-gates.tsv` 定义
 `fast/scheduled/candidate` execution tier，`rv64-soc-maturity-stages.tsv` 定义
 `ARCH_DISCOVERY` 到 `PROMOTABLE` 的 design maturity。checker/schema/source 改动由

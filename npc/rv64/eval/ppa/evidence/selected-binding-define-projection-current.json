@@ -1,0 +1,1818 @@
+{
+  "affected_macros": [
+    "MSTATUS_UXL",
+    "SSTATUS_MASK"
+  ],
+  "bindings": {
+    "v11e_rob_slot_generation": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooRob.v",
+        "role": "rtl"
+      }
+    ],
+    "v11f_int_iq_producer": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+        "role": "rtl"
+      }
+    ],
+    "v11g_store_queue_holder": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11k_miq_holder": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11l_memory_retry_holder": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11m_memory_reservation_holder": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11n_memory_pending_holder": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11o_memory_buffer_token": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11p_checkpoint_irrevocable_write": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "role": "rtl"
+      }
+    ],
+    "v11q_int_lane0_packet": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+        "role": "rtl"
+      }
+    ],
+    "v11r_int_lane1_packet": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+        "role": "rtl"
+      }
+    ],
+    "v11s_muldiv_producer": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "role": "rtl"
+      }
+    ],
+    "v11t_clmul_producer": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      }
+    ],
+    "v11u_pending_system_producer": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "role": "rtl"
+      }
+    ],
+    "v11v_fp_producer": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+        "role": "testbench"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "role": "rtl"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "role": "rtl"
+      }
+    ]
+  },
+  "claim_boundary": "Only the selected producer/holder RTL and testbench consumers listed in this receipt are rebound. The receipt does not promote full-design, whole-architecture, system, or PPA status.",
+  "consumer_sources": [
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+      "role": "testbench",
+      "sha256": "9139cd6245a05772c4e4c0d580fcec580e4b198d35982502db9363281de3c456",
+      "size_bytes": 12688
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+      "role": "testbench",
+      "sha256": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
+      "size_bytes": 13760
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+      "role": "testbench",
+      "sha256": "aa1f331c9f054482c6fa21c1420b53b8ae50374e3ce7618c08379c735cd1e56c",
+      "size_bytes": 20699
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "role": "testbench",
+      "sha256": "52c953e42e82a42800cedfe464ab8d5c49e654135834a7de73c7d8205fcad643",
+      "size_bytes": 12454
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+      "role": "testbench",
+      "sha256": "425ab9f3bde5d053ae0110eb927929875bbedc5398c0ee7570fb253fb5e7710e",
+      "size_bytes": 34647
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "role": "testbench",
+      "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
+      "size_bytes": 925236
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+      "role": "testbench",
+      "sha256": "842d1c89f83b431a716a47a53fae0595eaf7bea9111157195396d5209af23c89",
+      "size_bytes": 10291
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+      "role": "testbench",
+      "sha256": "60e7513f3939bf14147049853659df9204295f3e72e44b371b52425573e0c2ba",
+      "size_bytes": 9168
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+      "role": "testbench",
+      "sha256": "6e04121271a2e7f31781054d0e874823c74c382adab1b22af16859b5f520d933",
+      "size_bytes": 15710
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+      "role": "testbench",
+      "sha256": "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319",
+      "size_bytes": 111486
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+      "role": "testbench",
+      "sha256": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54",
+      "size_bytes": 20254
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+      "role": "testbench",
+      "sha256": "74b7277b89e269945d44c08460dfce036a32ea7c18f0467b885077b69c39fd1f",
+      "size_bytes": 19714
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+      "role": "testbench",
+      "sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
+      "size_bytes": 6086
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "role": "testbench",
+      "sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
+      "size_bytes": 15712
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+      "role": "testbench",
+      "sha256": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",
+      "size_bytes": 138761
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+      "role": "testbench",
+      "sha256": "6c5881089fc1437d40f15532279dde1e0c8b1359d4bd5c47ff03b4886a87f4f5",
+      "size_bytes": 105102
+    },
+    {
+      "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+      "role": "testbench",
+      "sha256": "d9d2c38ad7a53679ecf376305eefded569b88871c82979ce52728913a197c2df",
+      "size_bytes": 86418
+    },
+    {
+      "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+      "role": "rtl",
+      "sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
+      "size_bytes": 53881
+    },
+    {
+      "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "role": "rtl",
+      "sha256": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+      "size_bytes": 5110
+    },
+    {
+      "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "role": "rtl",
+      "sha256": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
+      "size_bytes": 4318
+    },
+    {
+      "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "role": "rtl",
+      "sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+      "size_bytes": 12302
+    },
+    {
+      "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "role": "rtl",
+      "sha256": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
+      "size_bytes": 45876
+    },
+    {
+      "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "role": "rtl",
+      "sha256": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
+      "size_bytes": 91317
+    },
+    {
+      "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "role": "rtl",
+      "sha256": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
+      "size_bytes": 37027
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "role": "rtl",
+      "sha256": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
+      "size_bytes": 26903
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+      "role": "rtl",
+      "sha256": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+      "size_bytes": 6788
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "role": "rtl",
+      "sha256": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
+      "size_bytes": 25676
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "role": "rtl",
+      "sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+      "size_bytes": 75009
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "role": "rtl",
+      "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+      "size_bytes": 58399
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "role": "rtl",
+      "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
+      "size_bytes": 411981
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+      "role": "rtl",
+      "sha256": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+      "size_bytes": 23354
+    },
+    {
+      "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+      "role": "rtl",
+      "sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+      "size_bytes": 26205
+    },
+    {
+      "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+      "role": "rtl",
+      "sha256": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+      "size_bytes": 19588
+    },
+    {
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "role": "rtl",
+      "sha256": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
+      "size_bytes": 18596
+    },
+    {
+      "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "role": "rtl",
+      "sha256": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
+      "size_bytes": 19510
+    },
+    {
+      "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+      "role": "rtl",
+      "sha256": "8a88a83380c62e760d0d7b6e2421e967c17082ede692971a9d3aa2564e1981ea",
+      "size_bytes": 58468
+    },
+    {
+      "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+      "role": "rtl",
+      "sha256": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+      "size_bytes": 3237
+    },
+    {
+      "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "role": "rtl",
+      "sha256": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+      "size_bytes": 46102
+    },
+    {
+      "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "role": "rtl",
+      "sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+      "size_bytes": 18098
+    },
+    {
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+      "role": "rtl",
+      "sha256": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70",
+      "size_bytes": 58395
+    },
+    {
+      "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+      "role": "rtl",
+      "sha256": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+      "size_bytes": 8718
+    },
+    {
+      "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+      "role": "rtl",
+      "sha256": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
+      "size_bytes": 2201
+    },
+    {
+      "path": "npc/rv64/vsrc/writeback/OooRob.v",
+      "role": "rtl",
+      "sha256": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561",
+      "size_bytes": 53548
+    }
+  ],
+  "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "evidence_ids": {
+    "v11e_rob_slot_generation": "v11e-rob-slot-generation-current-closure",
+    "v11f_int_iq_producer": "v11f-int-iq-producer-current-closure",
+    "v11g_store_queue_holder": "v11g-store-queue-holder-current-closure",
+    "v11k_miq_holder": "v11k-miq-holder-current-closure",
+    "v11l_memory_retry_holder": "v11l-memory-retry-holder-current-closure",
+    "v11m_memory_reservation_holder": "v11m-memory-reservation-holder-current-closure",
+    "v11n_memory_pending_holder": "v11n-memory-pending-holder-current-closure",
+    "v11o_memory_buffer_token": "v11o-memory-buffer-token-current-closure",
+    "v11p_checkpoint_irrevocable_write": "v11p-checkpoint-irrevocable-write-current-closure",
+    "v11q_int_lane0_packet": "v11q-int-lane0-packet-current-closure",
+    "v11r_int_lane1_packet": "v11r-int-lane1-packet-current-closure",
+    "v11s_muldiv_producer": "v11s-muldiv-producer-current-closure",
+    "v11t_clmul_producer": "v11t-clmul-producer-current-closure",
+    "v11u_pending_system_producer": "v11u-pending-system-producer-current-closure",
+    "v11v_fp_producer": "v11v-fp-producer-current-closure"
+  },
+  "lexical_dependency": {
+    "all_includes_resolved": true,
+    "include_closure": [
+      {
+        "path": "npc/rv64/testbench/common/rv32_encode.svh",
+        "sha256": "4f304dc71e654a523bdaa5f511afc2b7a28769f04c9bd0043fd5164cbb6f6d01",
+        "size_bytes": 1146
+      },
+      {
+        "path": "npc/rv64/testbench/common/tb_common.svh",
+        "sha256": "b63f96dbbcd30ecd96b2b3d21f9b56a0f18879a17800d20c0ae6a2b40902e5db",
+        "size_bytes": 855
+      },
+      {
+        "path": "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh",
+        "sha256": "f3899f8fcfca9af39b1092f7acc7f36eaf019082b8f854c136db2664dfeed633",
+        "size_bytes": 6035
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+        "sha256": "9139cd6245a05772c4e4c0d580fcec580e4b198d35982502db9363281de3c456",
+        "size_bytes": 12688
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+        "sha256": "2ba8ddd9fdb8db655bf3754212a470f561a2200799be44546f74cad0e5d949a6",
+        "size_bytes": 13760
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+        "sha256": "aa1f331c9f054482c6fa21c1420b53b8ae50374e3ce7618c08379c735cd1e56c",
+        "size_bytes": 20699
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+        "sha256": "52c953e42e82a42800cedfe464ab8d5c49e654135834a7de73c7d8205fcad643",
+        "size_bytes": 12454
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+        "sha256": "425ab9f3bde5d053ae0110eb927929875bbedc5398c0ee7570fb253fb5e7710e",
+        "size_bytes": 34647
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
+        "size_bytes": 925236
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+        "sha256": "842d1c89f83b431a716a47a53fae0595eaf7bea9111157195396d5209af23c89",
+        "size_bytes": 10291
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+        "sha256": "60e7513f3939bf14147049853659df9204295f3e72e44b371b52425573e0c2ba",
+        "size_bytes": 9168
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+        "sha256": "6e04121271a2e7f31781054d0e874823c74c382adab1b22af16859b5f520d933",
+        "size_bytes": 15710
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh",
+        "sha256": "efaa7a340ce27a5df4e519c302e028319ce6dafdd8028628ca96483e5108c627",
+        "size_bytes": 24647
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+        "sha256": "1ddf3eadf8dcab0c1ceaa7fcaf24fab3699e3c188e74e78929f1fa307c003319",
+        "size_bytes": 111486
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+        "sha256": "9673f0e62375fb0d9e503945334c8fcae87925eca721d7fdab670562e7914f54",
+        "size_bytes": 20254
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+        "sha256": "74b7277b89e269945d44c08460dfce036a32ea7c18f0467b885077b69c39fd1f",
+        "size_bytes": 19714
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+        "sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
+        "size_bytes": 6086
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+        "sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
+        "size_bytes": 15712
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "sha256": "6e1aeb993418060b900cd24c5178dc2af97160f3cf6880c076f89a099078e2a3",
+        "size_bytes": 138761
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+        "sha256": "6c5881089fc1437d40f15532279dde1e0c8b1359d4bd5c47ff03b4886a87f4f5",
+        "size_bytes": 105102
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+        "sha256": "d9d2c38ad7a53679ecf376305eefded569b88871c82979ce52728913a197c2df",
+        "size_bytes": 86418
+      },
+      {
+        "path": "npc/rv64/vsrc/common/OooSlotFacts.v",
+        "sha256": "9e57f514234340a93943bbaea8504b4bb6f9d57d9ef8bc20121fb6575613163a",
+        "size_bytes": 3487
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
+        "size_bytes": 53881
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "sha256": "4da6edb018d190ed939efaaa6380d17eaaffce8c261a3db20962284e28e9c3e8",
+        "size_bytes": 5110
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "sha256": "03f32e923c7063af8aad39e5cd474e61140ebfd58a6e44f64845ce5ea4506a2d",
+        "size_bytes": 4318
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
+        "size_bytes": 12302
+      },
+      {
+        "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "sha256": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe",
+        "size_bytes": 45876
+      },
+      {
+        "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "sha256": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217",
+        "size_bytes": 91317
+      },
+      {
+        "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "sha256": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7",
+        "size_bytes": 37027
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "sha256": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4",
+        "size_bytes": 26903
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "sha256": "7fabbbeea8084e563af3c1ec5e5cf57d8e3ec04d349b770cb0ea383ca93a23f4",
+        "size_bytes": 6788
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "sha256": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841",
+        "size_bytes": 25676
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "sha256": "913dba0f2b1339aebe9995a4e0a2867acaac2c9c3d89a1e0851597ad7ab95ce0",
+        "size_bytes": 75009
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "sha256": "fdcc7a2c2897ae700fd869b1927e3a82a4434be276f3d4a9b97f16e6070f80bb",
+        "size_bytes": 58399
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpPredicates.v",
+        "sha256": "a44822188a46413423be239e59da7ea6ab99b2b782ba82c4994911e5d205743b",
+        "size_bytes": 2343
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpRound.v",
+        "sha256": "030ced9ded4ea32062dd9b72e178d6bbbb5ef256b3f7c0a3e278995256a27ce2",
+        "size_bytes": 15818
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
+        "size_bytes": 411981
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "sha256": "c28ad0cf4a00644d906261cc05a6194cc78474afa9f70f8183a6bf996ba38eed",
+        "size_bytes": 23354
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "sha256": "5dc60f2f792ecd3c42bc8111a4522cef14736e09cb1b80f5d12e225b71eec92f",
+        "size_bytes": 26205
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+        "sha256": "02d2e8a23ba8b321723315e317a823844b4aac431e550cf208a379a1df9d7147",
+        "size_bytes": 19588
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "sha256": "d904f13af077b9abf72f9ba8eb2b37911b2e9a593b4933124818191d1487b185",
+        "size_bytes": 18596
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "sha256": "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8",
+        "size_bytes": 19510
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "sha256": "8a88a83380c62e760d0d7b6e2421e967c17082ede692971a9d3aa2564e1981ea",
+        "size_bytes": 58468
+      },
+      {
+        "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+        "sha256": "4f260ff57f92c28b746325eaaf98dbbed2d1c298e320563f38d1799df80c7775",
+        "size_bytes": 3237
+      },
+      {
+        "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "sha256": "c8523b8afbf0a8762990a337dfcb22cf2e34f8d72b81df939f8251483b76adb0",
+        "size_bytes": 46102
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "sha256": "8b487c54cf64216b07ae0bf2c54299d2fa45d3aac1f088d4c28d82cda5dc4e60",
+        "size_bytes": 18098
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "sha256": "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70",
+        "size_bytes": 58395
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+        "sha256": "845d5dc474d8c8b5ebdee54afb54deebf3d588841562743bb351348d6e0e4879",
+        "size_bytes": 8718
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+        "sha256": "5e13cf02f263eb81c470d37d6330ee3db40e6e719c2c0c9067b6e324c2933014",
+        "size_bytes": 2201
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooRob.v",
+        "sha256": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561",
+        "size_bytes": 53548
+      }
+    ],
+    "selected_reference_hits": []
+  },
+  "macro_delta": [
+    {
+      "baseline_body": null,
+      "baseline_present": false,
+      "current_body": "64'h0000_0002_0000_0000",
+      "current_present": true,
+      "name": "MSTATUS_UXL"
+    },
+    {
+      "baseline_body": "(`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_VS_MASK | `MSTATUS_FS_MASK | `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL | `MSTATUS_SD)",
+      "baseline_present": true,
+      "current_body": "(`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_VS_MASK | `MSTATUS_FS_MASK | `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_UXL | `MSTATUS_SD)",
+      "current_present": true,
+      "name": "SSTATUS_MASK"
+    }
+  ],
+  "negative_probe": {
+    "current_body": "4",
+    "detected": true,
+    "macro": "OOO_PRODUCER_GEN_W",
+    "mismatches": [
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooRob.v",
+        "profile": "assertion"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "profile": "product"
+      },
+      {
+        "path": "npc/rv64/vsrc/writeback/OooRob.v",
+        "profile": "product"
+      }
+    ],
+    "mutated_body": "5"
+  },
+  "profiles": [
+    {
+      "defines": [],
+      "name": "product",
+      "records": [
+        {
+          "baseline_sha256": "fb16d14b3b04c18a6cf3eb3abbb15228b488e5242b13b53b545ab5b450076d24",
+          "current_sha256": "fb16d14b3b04c18a6cf3eb3abbb15228b488e5242b13b53b545ab5b450076d24",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+          "size_bytes": 20651
+        },
+        {
+          "baseline_sha256": "7e1ebb0614a949deb32246332192c29c79cd0d067b955f0cf3f3fc52b74b161e",
+          "current_sha256": "7e1ebb0614a949deb32246332192c29c79cd0d067b955f0cf3f3fc52b74b161e",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+          "size_bytes": 20272
+        },
+        {
+          "baseline_sha256": "2e97fa43a1f0e753e141fcc21cae09be72fc87719017acdcf497e1035c355bea",
+          "current_sha256": "2e97fa43a1f0e753e141fcc21cae09be72fc87719017acdcf497e1035c355bea",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+          "size_bytes": 26101
+        },
+        {
+          "baseline_sha256": "2fd0f31e6f1c42e81809df6191b83e26f5aa7e230940518e00cda3d5897e0fa8",
+          "current_sha256": "2fd0f31e6f1c42e81809df6191b83e26f5aa7e230940518e00cda3d5897e0fa8",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+          "size_bytes": 19669
+        },
+        {
+          "baseline_sha256": "e3085b2a99470d4265c5db59d2e834af3ecc05e5723e62631745be48e86132e1",
+          "current_sha256": "e3085b2a99470d4265c5db59d2e834af3ecc05e5723e62631745be48e86132e1",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+          "size_bytes": 40744
+        },
+        {
+          "baseline_sha256": "fd8c8fb089ac8c6bc38880de2b9e1b5b4c3ce18316b43e34f7413a86e629aab2",
+          "current_sha256": "fd8c8fb089ac8c6bc38880de2b9e1b5b4c3ce18316b43e34f7413a86e629aab2",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "size_bytes": 708988
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "b71dc73f1efbedc9bf4c75797b7994d8cc4fcc4042bdff015775164517201274",
+          "current_sha256": "b71dc73f1efbedc9bf4c75797b7994d8cc4fcc4042bdff015775164517201274",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+          "size_bytes": 110987
+        },
+        {
+          "baseline_sha256": "d2d60a14a7f8cbcc21a62ceb60dc04bee5649f0ec3026fa6b765abc3738ad4a1",
+          "current_sha256": "d2d60a14a7f8cbcc21a62ceb60dc04bee5649f0ec3026fa6b765abc3738ad4a1",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+          "size_bytes": 28502
+        },
+        {
+          "baseline_sha256": "9a82d38e715fecbf735d0b79e7b030776de61cccf96338f074b76951bfda2331",
+          "current_sha256": "9a82d38e715fecbf735d0b79e7b030776de61cccf96338f074b76951bfda2331",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+          "size_bytes": 27894
+        },
+        {
+          "baseline_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "current_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+          "size_bytes": 10717
+        },
+        {
+          "baseline_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "current_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+          "size_bytes": 22265
+        },
+        {
+          "baseline_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
+          "current_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+          "size_bytes": 149882
+        },
+        {
+          "baseline_sha256": "ab39eab795929166345c380b3338da47f393acf6e6bac7dddf83ec2fa4fadc23",
+          "current_sha256": "ab39eab795929166345c380b3338da47f393acf6e6bac7dddf83ec2fa4fadc23",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+          "size_bytes": 114897
+        },
+        {
+          "baseline_sha256": "410ebb330ab0297490367819960830f183997217614dcd1f114c2955d2198cfe",
+          "current_sha256": "410ebb330ab0297490367819960830f183997217614dcd1f114c2955d2198cfe",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+          "size_bytes": 92944
+        },
+        {
+          "baseline_sha256": "8d407d0fd25a376fd53c4142aee279263f04cfea8c84a3cb513abf6be487fe82",
+          "current_sha256": "8d407d0fd25a376fd53c4142aee279263f04cfea8c84a3cb513abf6be487fe82",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+          "size_bytes": 44324
+        },
+        {
+          "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
+          "current_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+          "size_bytes": 11706
+        },
+        {
+          "baseline_sha256": "4d60e478044f74ea9b43ca255316362dcab5533315e423214c32f7adcfe6ba0d",
+          "current_sha256": "4d60e478044f74ea9b43ca255316362dcab5533315e423214c32f7adcfe6ba0d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+          "size_bytes": 10896
+        },
+        {
+          "baseline_sha256": "105063e156d537bdc47516728b7678a7f5e96cb0b56c025d9336d5577ce6037f",
+          "current_sha256": "105063e156d537bdc47516728b7678a7f5e96cb0b56c025d9336d5577ce6037f",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+          "size_bytes": 15530
+        },
+        {
+          "baseline_sha256": "fbd0305b9dd4353c98493353aea45df0e6374b4f31e0e437bafb539389405e6d",
+          "current_sha256": "fbd0305b9dd4353c98493353aea45df0e6374b4f31e0e437bafb539389405e6d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+          "size_bytes": 51888
+        },
+        {
+          "baseline_sha256": "12b9387a2152a38459699b326fb5387ffbd4db6856ad4a133c65121b0b67f380",
+          "current_sha256": "12b9387a2152a38459699b326fb5387ffbd4db6856ad4a133c65121b0b67f380",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+          "size_bytes": 91135
+        },
+        {
+          "baseline_sha256": "c9e1d487e8df7a2ee4e598a3d8fcb4436ba96225840188098a840fd0b83b4b22",
+          "current_sha256": "c9e1d487e8df7a2ee4e598a3d8fcb4436ba96225840188098a840fd0b83b4b22",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+          "size_bytes": 42193
+        },
+        {
+          "baseline_sha256": "fa0217dfd5b45252a9fe066eae9a8f5337386bb1c0ccd7bffaec4f3c8671504e",
+          "current_sha256": "fa0217dfd5b45252a9fe066eae9a8f5337386bb1c0ccd7bffaec4f3c8671504e",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+          "size_bytes": 32486
+        },
+        {
+          "baseline_sha256": "863d3031343fabe14517be6f63d929e2e96dffd72674ab989282661e3cd7f391",
+          "current_sha256": "863d3031343fabe14517be6f63d929e2e96dffd72674ab989282661e3cd7f391",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+          "size_bytes": 12749
+        },
+        {
+          "baseline_sha256": "06cf4512f55e30ed41050959d1a07db0c6a22b976924aa8a02c5ca95bf0fa09d",
+          "current_sha256": "06cf4512f55e30ed41050959d1a07db0c6a22b976924aa8a02c5ca95bf0fa09d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+          "size_bytes": 32366
+        },
+        {
+          "baseline_sha256": "056a091e9d8f4fdcad83b476df964a64a2e53e8657b3867317036f68aac77058",
+          "current_sha256": "056a091e9d8f4fdcad83b476df964a64a2e53e8657b3867317036f68aac77058",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+          "size_bytes": 98411
+        },
+        {
+          "baseline_sha256": "1da3b63f220139825e4ec69b980da0a5a32db49c89d2045294caa35eae5fdaf6",
+          "current_sha256": "1da3b63f220139825e4ec69b980da0a5a32db49c89d2045294caa35eae5fdaf6",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+          "size_bytes": 56399
+        },
+        {
+          "baseline_sha256": "f58d4352903da0e9e5d763a6fc028879408076872be2d69730e210f9ce0f098e",
+          "current_sha256": "f58d4352903da0e9e5d763a6fc028879408076872be2d69730e210f9ce0f098e",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "size_bytes": 319366
+        },
+        {
+          "baseline_sha256": "8c7efec212cb21b64f5ed59feb165aa13a64cd004ecb405c4ed0c23bda023e3d",
+          "current_sha256": "8c7efec212cb21b64f5ed59feb165aa13a64cd004ecb405c4ed0c23bda023e3d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+          "size_bytes": 24735
+        },
+        {
+          "baseline_sha256": "45f6c51d8946155cdb7a26663fe3ac444411411e3e6c5e7515c5acb05a9882f4",
+          "current_sha256": "45f6c51d8946155cdb7a26663fe3ac444411411e3e6c5e7515c5acb05a9882f4",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "size_bytes": 25598
+        },
+        {
+          "baseline_sha256": "81d46481b61de1c4ff5a457a5e8f110a0a52750ab012eada6680c3750f43dd1d",
+          "current_sha256": "81d46481b61de1c4ff5a457a5e8f110a0a52750ab012eada6680c3750f43dd1d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "size_bytes": 21862
+        },
+        {
+          "baseline_sha256": "ade74758edf86cd8e82a6c5e08282ddbb35009dc3062066ea140a3a11f550445",
+          "current_sha256": "ade74758edf86cd8e82a6c5e08282ddbb35009dc3062066ea140a3a11f550445",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "size_bytes": 11535
+        },
+        {
+          "baseline_sha256": "172e6c2d958494f05c0aac8810d89dda8263cf6cbb780bffd04a0738e29c97b0",
+          "current_sha256": "172e6c2d958494f05c0aac8810d89dda8263cf6cbb780bffd04a0738e29c97b0",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "size_bytes": 10639
+        },
+        {
+          "baseline_sha256": "641bcb0e4df95f89c273180f6ba60c4019371c5c7098ce4d5eedc9677610c64d",
+          "current_sha256": "641bcb0e4df95f89c273180f6ba60c4019371c5c7098ce4d5eedc9677610c64d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "size_bytes": 48601
+        },
+        {
+          "baseline_sha256": "a69edcbfe34cb00a4c42242e43c2774e54c6eb191a83d5701be272ddf6178aa7",
+          "current_sha256": "a69edcbfe34cb00a4c42242e43c2774e54c6eb191a83d5701be272ddf6178aa7",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+          "size_bytes": 1966
+        },
+        {
+          "baseline_sha256": "d81f98c0a7946d476d3e53535de109a618090f35ee83ea2599a8d6c9f24b9a88",
+          "current_sha256": "d81f98c0a7946d476d3e53535de109a618090f35ee83ea2599a8d6c9f24b9a88",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+          "size_bytes": 49162
+        },
+        {
+          "baseline_sha256": "6d8032c6e7d6876bf6a5145d0f2c47607e537bc04cf33582eb77a42cdbc1d7fe",
+          "current_sha256": "6d8032c6e7d6876bf6a5145d0f2c47607e537bc04cf33582eb77a42cdbc1d7fe",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+          "size_bytes": 22354
+        },
+        {
+          "baseline_sha256": "47371a4e8fdd1eb7562ae16b942bb5c57cf07cf3b51d822eef2fb824f3b4a021",
+          "current_sha256": "47371a4e8fdd1eb7562ae16b942bb5c57cf07cf3b51d822eef2fb824f3b4a021",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+          "size_bytes": 48758
+        },
+        {
+          "baseline_sha256": "c8d1adc6f2de40aa43f846272b45a58b4b5c0142a837c20f75f805a795c28a37",
+          "current_sha256": "c8d1adc6f2de40aa43f846272b45a58b4b5c0142a837c20f75f805a795c28a37",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+          "size_bytes": 8700
+        },
+        {
+          "baseline_sha256": "958d86d10aca0cc37a849c99747a7bea9b55e869ccf6861e4e4140b318002599",
+          "current_sha256": "958d86d10aca0cc37a849c99747a7bea9b55e869ccf6861e4e4140b318002599",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+          "size_bytes": 8829
+        },
+        {
+          "baseline_sha256": "72936bb0ba4b7eaebc6e3901e27a3d751470062bf8769a33834e8dd8a5776ae5",
+          "current_sha256": "72936bb0ba4b7eaebc6e3901e27a3d751470062bf8769a33834e8dd8a5776ae5",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/writeback/OooRob.v",
+          "size_bytes": 47308
+        }
+      ]
+    },
+    {
+      "defines": [
+        "OOO_ASSERT"
+      ],
+      "name": "assertion",
+      "records": [
+        {
+          "baseline_sha256": "fb16d14b3b04c18a6cf3eb3abbb15228b488e5242b13b53b545ab5b450076d24",
+          "current_sha256": "fb16d14b3b04c18a6cf3eb3abbb15228b488e5242b13b53b545ab5b450076d24",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
+          "size_bytes": 20651
+        },
+        {
+          "baseline_sha256": "7e1ebb0614a949deb32246332192c29c79cd0d067b955f0cf3f3fc52b74b161e",
+          "current_sha256": "7e1ebb0614a949deb32246332192c29c79cd0d067b955f0cf3f3fc52b74b161e",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
+          "size_bytes": 20272
+        },
+        {
+          "baseline_sha256": "fbd6c799798ab77c7b359fe6caf35ff0547c22f2cd2fbcfeaeb2556575b858ee",
+          "current_sha256": "fbd6c799798ab77c7b359fe6caf35ff0547c22f2cd2fbcfeaeb2556575b858ee",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_dual_mem_inflight_queue_semantic.sv",
+          "size_bytes": 25394
+        },
+        {
+          "baseline_sha256": "2fd0f31e6f1c42e81809df6191b83e26f5aa7e230940518e00cda3d5897e0fa8",
+          "current_sha256": "2fd0f31e6f1c42e81809df6191b83e26f5aa7e230940518e00cda3d5897e0fa8",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+          "size_bytes": 19669
+        },
+        {
+          "baseline_sha256": "e3085b2a99470d4265c5db59d2e834af3ecc05e5723e62631745be48e86132e1",
+          "current_sha256": "e3085b2a99470d4265c5db59d2e834af3ecc05e5723e62631745be48e86132e1",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_fp_issue_queue.sv",
+          "size_bytes": 40744
+        },
+        {
+          "baseline_sha256": "1c254432cf1d9ddc96e4596e4c44ffa3ba57047dea5499d306ad91b052b77edd",
+          "current_sha256": "1c254432cf1d9ddc96e4596e4c44ffa3ba57047dea5499d306ad91b052b77edd",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+          "size_bytes": 716682
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11t_clmul_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "current_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11v_fp_producer.svh",
+          "size_bytes": 1
+        },
+        {
+          "baseline_sha256": "b71dc73f1efbedc9bf4c75797b7994d8cc4fcc4042bdff015775164517201274",
+          "current_sha256": "b71dc73f1efbedc9bf4c75797b7994d8cc4fcc4042bdff015775164517201274",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
+          "size_bytes": 110987
+        },
+        {
+          "baseline_sha256": "d2d60a14a7f8cbcc21a62ceb60dc04bee5649f0ec3026fa6b765abc3738ad4a1",
+          "current_sha256": "d2d60a14a7f8cbcc21a62ceb60dc04bee5649f0ec3026fa6b765abc3738ad4a1",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
+          "size_bytes": 28502
+        },
+        {
+          "baseline_sha256": "9a82d38e715fecbf735d0b79e7b030776de61cccf96338f074b76951bfda2331",
+          "current_sha256": "9a82d38e715fecbf735d0b79e7b030776de61cccf96338f074b76951bfda2331",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_muldiv_unit.sv",
+          "size_bytes": 27894
+        },
+        {
+          "baseline_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "current_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
+          "size_bytes": 10717
+        },
+        {
+          "baseline_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "current_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+          "size_bytes": 22265
+        },
+        {
+          "baseline_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
+          "current_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
+          "size_bytes": 149882
+        },
+        {
+          "baseline_sha256": "ab39eab795929166345c380b3338da47f393acf6e6bac7dddf83ec2fa4fadc23",
+          "current_sha256": "ab39eab795929166345c380b3338da47f393acf6e6bac7dddf83ec2fa4fadc23",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_rob.sv",
+          "size_bytes": 114897
+        },
+        {
+          "baseline_sha256": "410ebb330ab0297490367819960830f183997217614dcd1f114c2955d2198cfe",
+          "current_sha256": "410ebb330ab0297490367819960830f183997217614dcd1f114c2955d2198cfe",
+          "equivalent": true,
+          "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
+          "size_bytes": 92944
+        },
+        {
+          "baseline_sha256": "08f99e26d4f5dd7454da90a2953c00d58e739a31f4c6a1dc6d6382952686c3ed",
+          "current_sha256": "08f99e26d4f5dd7454da90a2953c00d58e739a31f4c6a1dc6d6382952686c3ed",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooControlPlane.v",
+          "size_bytes": 60396
+        },
+        {
+          "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
+          "current_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+          "size_bytes": 11706
+        },
+        {
+          "baseline_sha256": "4d60e478044f74ea9b43ca255316362dcab5533315e423214c32f7adcfe6ba0d",
+          "current_sha256": "4d60e478044f74ea9b43ca255316362dcab5533315e423214c32f7adcfe6ba0d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+          "size_bytes": 10896
+        },
+        {
+          "baseline_sha256": "5f5e0e32b63a8cef500d46c9c3bb716d77b89ef3d8cea4446a864044fdad977e",
+          "current_sha256": "5f5e0e32b63a8cef500d46c9c3bb716d77b89ef3d8cea4446a864044fdad977e",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+          "size_bytes": 18783
+        },
+        {
+          "baseline_sha256": "4ae02837d38964f6fd7d751a10f744de105f7180a859c4ba73242a65619d2bb2",
+          "current_sha256": "4ae02837d38964f6fd7d751a10f744de105f7180a859c4ba73242a65619d2bb2",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+          "size_bytes": 52115
+        },
+        {
+          "baseline_sha256": "aca3b3b5f982dd719b6797d790f5ff460cd143a8465b71fa713773d137ec3db4",
+          "current_sha256": "aca3b3b5f982dd719b6797d790f5ff460cd143a8465b71fa713773d137ec3db4",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+          "size_bytes": 96908
+        },
+        {
+          "baseline_sha256": "c9e1d487e8df7a2ee4e598a3d8fcb4436ba96225840188098a840fd0b83b4b22",
+          "current_sha256": "c9e1d487e8df7a2ee4e598a3d8fcb4436ba96225840188098a840fd0b83b4b22",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+          "size_bytes": 42193
+        },
+        {
+          "baseline_sha256": "e01ffd2348c13af80fbf0e471c4dfe2b99feb5bc4b7e6c20f4c43bf707c47fdc",
+          "current_sha256": "e01ffd2348c13af80fbf0e471c4dfe2b99feb5bc4b7e6c20f4c43bf707c47fdc",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+          "size_bytes": 33208
+        },
+        {
+          "baseline_sha256": "7f776b8f0bc53c6a961c1252811d004990681b2ca73243ea379f2f9021c102e7",
+          "current_sha256": "7f776b8f0bc53c6a961c1252811d004990681b2ca73243ea379f2f9021c102e7",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+          "size_bytes": 13346
+        },
+        {
+          "baseline_sha256": "06cf4512f55e30ed41050959d1a07db0c6a22b976924aa8a02c5ca95bf0fa09d",
+          "current_sha256": "06cf4512f55e30ed41050959d1a07db0c6a22b976924aa8a02c5ca95bf0fa09d",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+          "size_bytes": 32366
+        },
+        {
+          "baseline_sha256": "643213131eb1b6478f28fe78b1c5c650127a9fb8431f195e0ddfd5ca296fc038",
+          "current_sha256": "643213131eb1b6478f28fe78b1c5c650127a9fb8431f195e0ddfd5ca296fc038",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+          "size_bytes": 99490
+        },
+        {
+          "baseline_sha256": "b4d6a489c5e438323f1415c3fc40ff95b746a06f816e1c7bd2f0ad0ddc6db923",
+          "current_sha256": "b4d6a489c5e438323f1415c3fc40ff95b746a06f816e1c7bd2f0ad0ddc6db923",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooFpBackend.v",
+          "size_bytes": 64505
+        },
+        {
+          "baseline_sha256": "0c410e9e561c88139b227ac46239c6ea6429110983a0516ed11cdd93b20f8d78",
+          "current_sha256": "0c410e9e561c88139b227ac46239c6ea6429110983a0516ed11cdd93b20f8d78",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "size_bytes": 407182
+        },
+        {
+          "baseline_sha256": "852516ebebb088e052233dce8645f658b6bc578b82d1df9efdc4ece40c1caeb6",
+          "current_sha256": "852516ebebb088e052233dce8645f658b6bc578b82d1df9efdc4ece40c1caeb6",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+          "size_bytes": 29599
+        },
+        {
+          "baseline_sha256": "73680be66700ec6ec517b3ba648c85b8c639b1939126e438455ecc9e5f88edcb",
+          "current_sha256": "73680be66700ec6ec517b3ba648c85b8c639b1939126e438455ecc9e5f88edcb",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "size_bytes": 32164
+        },
+        {
+          "baseline_sha256": "961ecc9f56e3b15414230c8e289b5248a49241e562c9910c6c99320fa09a8415",
+          "current_sha256": "961ecc9f56e3b15414230c8e289b5248a49241e562c9910c6c99320fa09a8415",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
+          "size_bytes": 26214
+        },
+        {
+          "baseline_sha256": "884e8d30001851cfb9e09bcbfaa6f888024d5761e8bb15030246ec62475a79bd",
+          "current_sha256": "884e8d30001851cfb9e09bcbfaa6f888024d5761e8bb15030246ec62475a79bd",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+          "size_bytes": 18533
+        },
+        {
+          "baseline_sha256": "b973d74f3a2c6fb73931f9728d6b41e52e79663513febb441b779235a531990f",
+          "current_sha256": "b973d74f3a2c6fb73931f9728d6b41e52e79663513febb441b779235a531990f",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+          "size_bytes": 19452
+        },
+        {
+          "baseline_sha256": "6c140c95da9e1146656250a7c3b75757733f4165ec4a7a599126457ff50d1705",
+          "current_sha256": "6c140c95da9e1146656250a7c3b75757733f4165ec4a7a599126457ff50d1705",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/memory/OooStoreQueue.v",
+          "size_bytes": 64311
+        },
+        {
+          "baseline_sha256": "c67a8e5edd0d5c69b9bac0b3e8b70f8e024fbfcea725609436442132d8005c87",
+          "current_sha256": "c67a8e5edd0d5c69b9bac0b3e8b70f8e024fbfcea725609436442132d8005c87",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+          "size_bytes": 3208
+        },
+        {
+          "baseline_sha256": "5a69c96ac25253cc3ee891c251207275c1c687dad98784de4d010950e9899737",
+          "current_sha256": "5a69c96ac25253cc3ee891c251207275c1c687dad98784de4d010950e9899737",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+          "size_bytes": 51156
+        },
+        {
+          "baseline_sha256": "a0f9a4e1c3f15eeee259feaa90997d6effee73d2ea374e2fd49d44315b4b6342",
+          "current_sha256": "a0f9a4e1c3f15eeee259feaa90997d6effee73d2ea374e2fd49d44315b4b6342",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+          "size_bytes": 24720
+        },
+        {
+          "baseline_sha256": "03adb563f8cfc16edd4e05a97e53db562a081a8827e168d2824ef562200c10ea",
+          "current_sha256": "03adb563f8cfc16edd4e05a97e53db562a081a8827e168d2824ef562200c10ea",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+          "size_bytes": 61809
+        },
+        {
+          "baseline_sha256": "c8d1adc6f2de40aa43f846272b45a58b4b5c0142a837c20f75f805a795c28a37",
+          "current_sha256": "c8d1adc6f2de40aa43f846272b45a58b4b5c0142a837c20f75f805a795c28a37",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v",
+          "size_bytes": 8700
+        },
+        {
+          "baseline_sha256": "958d86d10aca0cc37a849c99747a7bea9b55e869ccf6861e4e4140b318002599",
+          "current_sha256": "958d86d10aca0cc37a849c99747a7bea9b55e869ccf6861e4e4140b318002599",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/writeback/OooArchRegFile.v",
+          "size_bytes": 8829
+        },
+        {
+          "baseline_sha256": "c18e7b3c72370160a0cd50e801744b8262c0c0bee8a1df872e4f81ec9447decc",
+          "current_sha256": "c18e7b3c72370160a0cd50e801744b8262c0c0bee8a1df872e4f81ec9447decc",
+          "equivalent": true,
+          "path": "npc/rv64/vsrc/writeback/OooRob.v",
+          "size_bytes": 58653
+        }
+      ]
+    }
+  ],
+  "schema_version": "rv64-selected-binding-define-projection-v1",
+  "status": "PASS",
+  "target": {
+    "baseline_blob": "1df41d5f19f33d1395676e164eb59452b3079c10",
+    "baseline_commit": "dc027b3988777cba9fdb2200d721d24bba6368fc",
+    "baseline_git_ref": "dc027b3988777cba9fdb2200d721d24bba6368fc",
+    "baseline_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
+    "current_sha256": "5d1d5b1137d9b60699799857d66070668d05032aaf3352476edaf8e43f99bb2a",
+    "path": "npc/rv64/vsrc/include/define.v"
+  },
+  "tool": {
+    "path": "/usr/bin/iverilog",
+    "sha256": "a6071e4b4a68feafca0c8ee0e6aa275eee9a43a108c62801cfd1eca6eab6d8a3",
+    "version": "Icarus Verilog version 12.0 (stable) ()"
+  }
+}

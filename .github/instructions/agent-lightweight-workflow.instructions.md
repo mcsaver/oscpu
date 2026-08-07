@@ -128,6 +128,7 @@ Windows→WSL 的 single-flight ownership 只覆盖合同列出的一个有界�
 - `rv64-arch-stable-current`
 - `rv64-owner-timing-fast`
 - `rv64-owner-timing-link`
+- `rv64-optimization-slice-selector`
 - `rv64-memory-request-hold-fast`
 - `rv64-memory-request-hold-link`
 - `profile-bindings`
@@ -199,6 +200,12 @@ domain fast gate 同次执行，不追加全核 current-result 门。
 和 production manifest 身份检查；`rv64-owner-timing-link` 包含并替代 fast，再验证 Verilator/DPI
 elaboration/link。workload A/B、单 workload invalid probe 与 checker replay 是显式 domain evidence，
 不注册为自动 finish gate，避免收尾时意外重跑高成本 workload。
+
+`rv64-optimization-slice-selector` 只运行 selector/census 正负向单测，并 canonical verify 当前
+next-slice decision；它不运行 benchmark、RTL 仿真、综合、STA 或 `front.py` promotion。policy、active
+catalog、selector/schema/runner/current decision 与其 current receipt/census head 变化时选择该指针，
+迫使派生决策随输入 hash 更新；普通 production RTL 编辑仍先使 current receipt 失效，不在 finish 中
+伪造新的 selector decision。
 
 `rv64-memory-request-hold-fast` 是`OooIntBackend`双bank request admission holder的日常固定轮：运行
 双bankexact-fire/recovery/capacity focused TB、single-bank older-probe TB，以及holder bypass、cancel

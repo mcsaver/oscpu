@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15l-owner-timing-independent-review-f7a-a2-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 CoreMark/Dhrystone owner-timing A2 receipt：核对同一 design-id 下 ARCH_STABLE successor、冻结 PERF_BASELINE、NpcSimTop、.config 与 workload image 身份，六次 PC-bounded diagnostic 事务的 cycles/retired、owner signature、state/interval 守恒、overflow/invalid、production RTL 前后身份和 runtime cleanup；复核 selector 只进入 analyze.owner-timing-hypothesis，并根据 ROB-head 周期、事务频率、固定时长和 peer overlap 排序 H1 至 H4，不把相关性越级写成已授权 RTL 候选。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc",
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa/instrumentation",
+      "npc/rv64/eval/ppa/tools",
+      "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/eval/ppa/schemas",
+      "npc/rv64/eval/ppa/policies",
+      "npc/rv64/eval/ppa/baselines/index.json",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/eval/ppa/README.md",
+      ".github/agentic-hardware-blueprint.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a1",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a",
+      ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1",
+      ".github/runtime-artifacts",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+      "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/arch-stable-current-f7a-v4.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/owner-timing-workload-ab.status",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/command-status.txt",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/optimization-research-state-owner-timing-a2.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-selector-tests.log",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/subagent-contracts/v15l-owner-timing-independent-review-f7a-a2-v2.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts/tests"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+      "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/arch-stable-current-f7a-v4.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/owner-timing-workload-ab.status",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/command-status.txt",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/optimization-research-state-owner-timing-a2.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-selector-tests.log"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "首行按 RV64 RTL 结论格式给出 A2 receipt 与 selector 的 PASS/GAP/inconclusive；列出 exact hash、六次事务 marker/bit-exact、守恒、前后 RTL identity、cleanup、反例、unknowns、替代假设、scope_extension_request 与 confidence_and_basis；给出 H1 至 H4 的证据排序和仍需区分的替代解释，并保持 hypothesis_selection_authorized=false、optimization_candidate_authorized=false、PPA UNQUALIFIED。"
+  ],
+  "success_criteria": [
+    "独立执行 receipt rebuild/verify 和 owner-timing 加 selector 共 43 项定向测试，确认 A2 status PASS、全部 stage rc=0、result SHA-256 为 1a99bd6ae38d4b672c20d263834ccddc13203d377777888203b935698ce2afef、CoreMark 5380028/3183617 与 Dhrystone 10351427/4250000 不受 observer 影响、每 workload 三次 owner signature bit-exact、owner overflow/invalid 为零、148 项 production manifest 前后均为 33df2e297514d267c941546410f89f6ca934d1ea0ccfa66b915bb78e0d23a557、runtime_absent=true，并确认 selector SHA-256 51841c120668a264ddba2b8b3a89ad46f147ca9e6ba5aa669bc24c8c897fcd0b 只选择 analyze.owner-timing-hypothesis。若且仅若不存在 blocker，报告中恰好一次输出 [OWNER-TIMING-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 result_sha256=1a99bd6ae38d4b672c20d263834ccddc13203d377777888203b935698ce2afef selector_sha256=51841c120668a264ddba2b8b3a89ad46f147ca9e6ba5aa669bc24c8c897fcd0b；否则不得输出该 marker。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

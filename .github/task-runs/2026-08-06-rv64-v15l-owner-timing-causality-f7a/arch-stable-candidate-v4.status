@@ -1,0 +1,1 @@
+PASS stage=complete schema=v2 claim=ARCH_STABLE ppa=UNQUALIFIED promotion_eligible=false

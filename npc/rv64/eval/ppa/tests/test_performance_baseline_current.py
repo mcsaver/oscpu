@@ -27,16 +27,16 @@ AMENDMENT = ROOT / (
 COUNTER = ROOT / "npc/rv64/design/arch/performance-counter-schema-v4.json"
 POLICY = ROOT / "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json"
 SIMULATOR = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/frozen/NpcSimTop"
 )
 CONFIG = ROOT / "npc/rv64/.config"
 COREMARK_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/images/benchmarks/coremark.bin"
 )
 DHRYSTONE_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/images/benchmarks/dhrystone.bin"
 )
 A2_SOURCE_MANIFEST = ROOT / (

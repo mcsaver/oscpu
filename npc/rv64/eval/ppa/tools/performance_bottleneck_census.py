@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 from decimal import Decimal
 import json
+import os
 import pathlib
 import sys
+import tempfile
 from typing import Any
 
 
@@ -37,6 +39,79 @@ def require(condition: bool, message: str) -> None:
         raise baseline.BaselineError(message)
 
 
+def lexical_parts(value: str, label: str) -> tuple[str, ...]:
+    require(isinstance(value, str) and value, f"{label} path is invalid")
+    require("\\" not in value, f"{label} path must use workspace separators")
+    pure = pathlib.PurePosixPath(value)
+    require(not pure.is_absolute(), f"{label} path must be workspace relative")
+    require(all(part not in ("", ".", "..") for part in pure.parts),
+            f"{label} path contains an unsafe component")
+    return pure.parts
+
+
+def argument_relative(
+    root: pathlib.Path, value: pathlib.Path, label: str,
+) -> str:
+    if value.is_absolute():
+        try:
+            relative_value = value.relative_to(root)
+        except ValueError as exc:
+            raise baseline.BaselineError(
+                f"{label} escapes workspace") from exc
+    else:
+        relative_value = value
+    raw = relative_value.as_posix()
+    lexical_parts(raw, label)
+    return raw
+
+
+def workspace_path(
+    root: pathlib.Path, value: str, label: str, *, must_exist: bool = True,
+) -> pathlib.Path:
+    parts = lexical_parts(value, label)
+    current = root
+    for part in parts:
+        current = current / part
+        if current.exists() or current.is_symlink():
+            require(not current.is_symlink(), f"{label} path uses a symlink")
+    resolved = root.joinpath(*parts).resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise baseline.BaselineError(f"{label} escapes workspace") from exc
+    if must_exist:
+        require(resolved.is_file(), f"{label} is missing")
+    return resolved
+
+
+def resolve_input(
+    root: pathlib.Path, value: pathlib.Path, label: str,
+) -> pathlib.Path:
+    return workspace_path(root, argument_relative(root, value, label), label)
+
+
+def resolve_output(
+    root: pathlib.Path, value: pathlib.Path, label: str,
+) -> pathlib.Path:
+    path = workspace_path(
+        root, argument_relative(root, value, label), label, must_exist=False)
+    require(not path.exists() or path.is_file(),
+            f"{label} must be a regular file path")
+    return path
+
+
+def validate_artifact(
+    root: pathlib.Path, value: Any, label: str,
+) -> pathlib.Path:
+    require(isinstance(value, dict), f"{label} artifact is invalid")
+    path = workspace_path(root, value.get("path"), label)
+    require(value.get("sha256") == baseline.sha256(path),
+            f"{label} sha256 mismatch")
+    require(value.get("size_bytes") == path.stat().st_size,
+            f"{label} size mismatch")
+    return path
+
+
 def ratio(value: int, total: int) -> str:
     require(isinstance(value, int) and isinstance(total, int) and total > 0,
             "ratio inputs are invalid")
@@ -60,9 +135,12 @@ def validate_current_baseline(
     root: pathlib.Path, path: pathlib.Path,
 ) -> dict[str, Any]:
     stored = baseline.read_json(path, "canonical performance baseline")
-    require(stored.get("schema") == baseline.RESULT_SCHEMA
+    # current baseline 已进入 direct v3；census 同时保留 v2 replay 兼容，
+    # 但两条路径都必须由各自 manifest 重新构造后逐字段相等。
+    require(stored.get("schema") in (
+                baseline.RESULT_SCHEMA, baseline.DIRECT_RESULT_SCHEMA)
             and stored.get("status") == "PERF_BASELINE",
-            "input is not canonical PERF_BASELINE v2")
+            "input is not canonical PERF_BASELINE v2/v3")
     manifest_path = baseline.validate_artifact(
         root, stored.get("manifest"), "performance baseline manifest")
     recomputed = baseline.build_result(root, manifest_path)
@@ -264,12 +342,33 @@ def build_census(
     }
 
 
-def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
+def write_json(
+    root: pathlib.Path, path: pathlib.Path, value: dict[str, Any],
+) -> None:
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise baseline.BaselineError("census output escapes workspace") from exc
+    require(not path.is_symlink(), "census output must not be a symlink")
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    current = root
+    for part in path.relative_to(root).parts[:-1]:
+        current = current / part
+        require(not current.is_symlink(),
+                "census output parent must not be a symlink")
+    payload = json.dumps(value, indent=2, sort_keys=True) + "\n"
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        require(not path.is_symlink(), "census output became a symlink")
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -291,16 +390,15 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
     try:
         if args.command == "build":
-            baseline_path = (
-                args.baseline if args.baseline.is_absolute()
-                else root / args.baseline).resolve()
+            baseline_path = resolve_input(
+                root, args.baseline, "performance baseline")
             result = build_census(root, baseline_path)
-            output = args.output if args.output.is_absolute() else root / args.output
-            write_json(output.resolve(), result)
+            output = resolve_output(root, args.output, "census output")
+            write_json(root, output, result)
         else:
-            input_path = args.input if args.input.is_absolute() else root / args.input
-            stored = baseline.read_json(input_path.resolve(), "CPI bottleneck census")
-            baseline_path = baseline.validate_artifact(
+            input_path = resolve_input(root, args.input, "CPI bottleneck census")
+            stored = baseline.read_json(input_path, "CPI bottleneck census")
+            baseline_path = validate_artifact(
                 root, stored.get("performance_baseline"), "performance baseline")
             result = build_census(root, baseline_path)
             require(stored == result, "stored CPI bottleneck census is not canonical")

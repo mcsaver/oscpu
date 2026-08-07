@@ -62,9 +62,9 @@ workload_matrix="${repo_root}/npc/rv64/design/arch/performance-workload-matrix-v
 policy="${repo_root}/npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json"
 tool="${repo_root}/npc/rv64/eval/ppa/tools/performance_baseline_current.py"
 arch_tool="${repo_root}/npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
-stats_on_simulator="${repo_root}/.github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/frozen/NpcSimTop"
-coremark_image="${repo_root}/.github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/images/benchmarks/coremark.bin"
-dhrystone_image="${repo_root}/.github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/images/benchmarks/dhrystone.bin"
+stats_on_simulator="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop"
+coremark_image="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/coremark.bin"
+dhrystone_image="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/dhrystone.bin"
 config_path="${repo_root}/npc/rv64/.config"
 
 runtime_root="${repo_root}/.github/runtime-artifacts/rv64-performance-baseline-run"

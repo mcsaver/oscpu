@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15n-owner-b-latency-sensitivity-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 owner B-response checker-replay-v2 的 fail-closed 状态机，确认 original binding、unit tests、receipt build、receipt verify 与非空 result 五个阶段全部门控 evidence_complete，并确认 v2 receipt 才能驱动 selector 进入 canonical AW/W→B 路径分析。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/replay-owner-b-latency-sensitivity.sh",
+      "npc/rv64/eval/ppa/tests/test_owner_b_latency_sensitivity.py",
+      "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
+      "scripts/task-run-status.sh",
+      "scripts/tests/test-task-run-status.sh",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
+      "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1/evidence/owner-b-latency-sensitivity",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1/dispatch-log.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1/subagent-contracts/v15n-owner-b-latency-sensitivity-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 runner stage、return code、status marker、receipt 哈希与 selector 下一切片给出 PASS/GAP；保留反例、未知项、替代解释、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "确认四个强制失败用例分别留下对应 FAIL stage 且 evidence_complete=0，全通过用例和真实冻结 replay-v2 才写 PASS；v1 fail-open marker 保持 historical candidate-only，v2 selector 仅授权路径分析而不授权 production RTL、PPA 或 promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

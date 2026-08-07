@@ -410,7 +410,7 @@ def verify_l0(
     }
 
 
-def verify_l1(
+def verify_l1_replay(
     replay_dir: pathlib.Path,
     *,
     design_id: str,
@@ -569,6 +569,97 @@ def verify_l1(
     return l1
 
 
+def verify_l1_direct(
+    run_dir: pathlib.Path,
+    *,
+    design_id: str,
+    root: pathlib.Path = ROOT,
+) -> dict[str, Any]:
+    """Verify a current-design L1 run that completed without checker replay."""
+
+    run_dir = task_run_dir(run_dir, root=root)
+    status_path = repo_path(run_dir / "full-core-current.status", root=root)
+    if status_path.read_text(encoding="utf-8") != "PASS\n":
+        raise SignoffError("L1 direct-execution top status is not exact PASS")
+    result_path = repo_path(
+        run_dir / "evidence/functional/run-result.json", root=root
+    )
+    try:
+        result = full_core.verify_functional_result(
+            result_path,
+            require_current_design=True,
+            require_canonical_current=False,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise SignoffError(f"L1 direct-execution evidence is invalid: {exc}") from exc
+    if result.get("design_id") != design_id:
+        raise SignoffError("L1 direct-execution design-id differs from live RTL")
+    if result.get("counts") != EXPECTED_L1_COUNTS:
+        raise SignoffError("L1 direct-execution counts differ from exact cohort")
+
+    module_result = verify_artifact(
+        result.get("module_result"),
+        expected_kind="module_current_result",
+        root=root,
+    )
+    expected_module_result = run_dir / "evidence/module/result.json"
+    if module_result != expected_module_result:
+        raise SignoffError("L1 direct module result is not owned by the source run")
+    functional_status = repo_path(
+        run_dir / "evidence/functional/status.json", root=root
+    )
+    return {
+        "claim": "L1_FULL_CORE_DIFFTEST_PASS_CURRENT_IDENTITY",
+        "status": "PASS",
+        "design_id": design_id,
+        "signoff_scope": "full-l1-direct-execution",
+        "classification": "direct-current-design-execution-pass",
+        "counts": result["counts"],
+        "guest_rerun": True,
+        "published_current": False,
+        "execution_result": artifact(
+            result_path, kind="full_core_functional_current_result", root=root
+        ),
+        "module_result": artifact(
+            module_result, kind="module_current_result", root=root
+        ),
+        "functional_stage_status": artifact(
+            functional_status, kind="functional_stage_status", root=root
+        ),
+        "top_status": artifact(status_path, kind="task_run_status", root=root),
+        "inputs": {
+            "pre": result["inputs"]["pre"],
+            "post": result["inputs"]["post"],
+            "unchanged": True,
+            "execution_reused": False,
+            "replay_scope": "direct-current-execution",
+        },
+        "artifacts": result["artifacts"],
+        "retention": result["retention"],
+    }
+
+
+def verify_l1(
+    source_dir: pathlib.Path,
+    *,
+    design_id: str,
+    root: pathlib.Path = ROOT,
+) -> dict[str, Any]:
+    """Dispatch one exact L1 authority without conflating execution and replay."""
+
+    source_dir = task_run_dir(source_dir, root=root)
+    direct_status = source_dir / "full-core-current.status"
+    replay_status = source_dir / "full-core-checker-replay.status"
+    modes = [direct_status.is_file(), replay_status.is_file()]
+    if modes == [True, True]:
+        raise SignoffError("L1 authority directory is ambiguous")
+    if modes == [True, False]:
+        return verify_l1_direct(source_dir, design_id=design_id, root=root)
+    if modes == [False, True]:
+        return verify_l1_replay(source_dir, design_id=design_id, root=root)
+    raise SignoffError("L1 authority directory has no supported top status")
+
+
 def verify_layer(
     result_dir: pathlib.Path,
     *,
@@ -603,11 +694,20 @@ def verify_layer(
     seal = verify_seal(
         result_dir, expected_names=LAYER_EVIDENCE_FILES, root=root
     )
-    inputs = verify_current_inputs(
-        result_dir,
-        allowed_live_drift=LAYER_IDENTITY_HELPER_REPLAY_PATHS,
-        root=root,
-    )
+    try:
+        inputs = verify_current_inputs(result_dir, root=root)
+    except SignoffError as exact_error:
+        try:
+            inputs = verify_current_inputs(
+                result_dir,
+                allowed_live_drift=LAYER_IDENTITY_HELPER_REPLAY_PATHS,
+                root=root,
+            )
+        except SignoffError as replay_error:
+            raise SignoffError(
+                f"{layer} inputs are neither exact-current nor the allowed "
+                f"identity-helper-only replay: {replay_error}"
+            ) from exact_error
     binding_path = repo_path(result_dir / "binding.txt", root=root)
     binding = checker.read_binding(binding_path)
     checker.require_binding(binding)
@@ -760,12 +860,17 @@ def compose_receipt(
 def evaluate(
     *,
     l0_module_dir: pathlib.Path,
-    l1_replay_dir: pathlib.Path,
+    l1_dir: pathlib.Path | None = None,
+    l1_replay_dir: pathlib.Path | None = None,
     l2_result_dir: pathlib.Path,
     l3_result_dir: pathlib.Path,
     root: pathlib.Path = ROOT,
 ) -> dict[str, Any]:
     root = root.resolve(strict=True)
+    if (l1_dir is None) == (l1_replay_dir is None):
+        raise SignoffError("exactly one L1 authority directory is required")
+    selected_l1_dir = l1_dir if l1_dir is not None else l1_replay_dir
+    assert selected_l1_dir is not None
     design_hex, rtl_files = architecture.rtl_binding(root)
     design_id = f"sha256:{design_hex}"
     if len(rtl_files) != 146:
@@ -776,11 +881,11 @@ def evaluate(
     if policy.get("schema") != "npc-rv64-layered-system-signoff-policy-v1":
         raise SignoffError("layered system policy schema mismatch")
     l0_dir = task_run_dir(l0_module_dir, root=root)
-    l1_dir = task_run_dir(l1_replay_dir, root=root)
+    l1_source_dir = task_run_dir(selected_l1_dir, root=root)
     l2_dir = task_run_dir(l2_result_dir, root=root)
     l3_dir = task_run_dir(l3_result_dir, root=root)
     l0 = verify_l0(l0_dir, design_id=design_id, root=root)
-    l1 = verify_l1(l1_dir, design_id=design_id, root=root)
+    l1 = verify_l1(l1_source_dir, design_id=design_id, root=root)
     l2 = verify_layer(l2_dir, layer="L2", design_id=design_id, root=root)
     l3 = verify_layer(l3_dir, layer="L3", design_id=design_id, root=root)
     return compose_receipt(
@@ -798,7 +903,11 @@ def evaluate(
         rtl_file_count=len(rtl_files),
         source_directories={
             "l0_module": relative(l0_dir, root=root),
-            "l1_checker_replay": relative(l1_dir, root=root),
+            (
+                "l1_checker_replay"
+                if l1["signoff_scope"] == "full-l1-checker-replay"
+                else "l1_full_core"
+            ): relative(l1_source_dir, root=root),
             "l2_mini_system": relative(l2_dir, root=root),
             "l3_lightweight_linux": relative(l3_dir, root=root),
         },
@@ -828,7 +937,9 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("create")
     create.add_argument("--l0-module-dir", type=pathlib.Path, required=True)
-    create.add_argument("--l1-replay-dir", type=pathlib.Path, required=True)
+    l1_source = create.add_mutually_exclusive_group(required=True)
+    l1_source.add_argument("--l1-dir", type=pathlib.Path)
+    l1_source.add_argument("--l1-replay-dir", type=pathlib.Path)
     create.add_argument("--l2-result-dir", type=pathlib.Path, required=True)
     create.add_argument("--l3-result-dir", type=pathlib.Path, required=True)
     create.add_argument("--output", type=pathlib.Path, required=True)
@@ -839,6 +950,7 @@ def main() -> int:
         if args.command == "create":
             result = evaluate(
                 l0_module_dir=args.l0_module_dir,
+                l1_dir=args.l1_dir,
                 l1_replay_dir=args.l1_replay_dir,
                 l2_result_dir=args.l2_result_dir,
                 l3_result_dir=args.l3_result_dir,
@@ -850,16 +962,21 @@ def main() -> int:
             receipt_path = repo_path(args.receipt)
             receipt = load_json(receipt_path)
             directories = receipt.get("source_directories")
-            if not isinstance(directories, dict) or set(directories) != {
-                "l0_module",
-                "l1_checker_replay",
-                "l2_mini_system",
-                "l3_lightweight_linux",
-            }:
+            base_directory_keys = {
+                "l0_module", "l2_mini_system", "l3_lightweight_linux"
+            }
+            l1_directory_keys = {"l1_checker_replay", "l1_full_core"}
+            if (
+                not isinstance(directories, dict)
+                or set(directories) - base_directory_keys - l1_directory_keys
+                or not base_directory_keys.issubset(directories)
+                or len(set(directories) & l1_directory_keys) != 1
+            ):
                 raise SignoffError("receipt source directory set differs")
+            l1_key = next(iter(set(directories) & l1_directory_keys))
             result = evaluate(
                 l0_module_dir=pathlib.Path(directories["l0_module"]),
-                l1_replay_dir=pathlib.Path(directories["l1_checker_replay"]),
+                l1_dir=pathlib.Path(directories[l1_key]),
                 l2_result_dir=pathlib.Path(directories["l2_mini_system"]),
                 l3_result_dir=pathlib.Path(directories["l3_lightweight_linux"]),
             )

@@ -1,0 +1,15 @@
+npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh
+npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh
+npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-unit.log
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-fast.log
+npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py
+npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/optimization-research-state-owner-timing-a2.json
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/optimization-slice-owner-timing-a2.json
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-selector-tests.log
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-independent-review-f7a-a2-v1-gap.md
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-independent-review-f7a-a2.md
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/subagent-contracts/v15l-owner-timing-independent-review-f7a-a2-v2.json
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/dispatch-log.md
+.github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json

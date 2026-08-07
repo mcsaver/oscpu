@@ -1,13 +1,31 @@
 {
   "baseline_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
-  "claim_boundary": "This receipt rebinds the 16 architecture-debt closures from immutable 093c historical executions to the exact f7a RTL identity by per-file hash projection plus current changed-cone counterexamples and current L0+L1+L2+L3 positives. It does not promote whole-architecture, synthesis, STA, power, CPI, or PPA state.",
+  "changed_source_coverage": {
+    "historical_negative_sources": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooStoreQueue.v"
+    ],
+    "positive_only_changed_files": [
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/sim/NpcSimTop.sv"
+    ],
+    "positive_only_coverage": "CURRENT_L0_L1_L2_L3"
+  },
+  "claim_boundary": "This receipt rebinds the 16 architecture-debt closures from immutable 093c historical executions to the exact live RTL identity by per-file hash projection plus exact-current-source changed-cone counterexamples and current L0+L1+L2+L3 positives. Changed files outside the historical negative cones are listed as positive-only coverage. It does not promote whole-architecture, synthesis, STA, power, CPI, or PPA state.",
   "current_changed_cone": {
     "passed": 19,
-    "replacement_sha256": "339b617777524c0e3d78807c91059665d4e5030a6114b7b4ca860e9cb1f57f34",
+    "replacement_sha256": "ab79d3929a1530e37c2932af6ac1f64101428a86d8f7ed4f6ee3d07367563794",
     "replacements": {
       "CONTROL-EVENT-G1:RTL_MUTATION:backend-bank0-ready-open": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/backend-bank0-ready-open.log",
@@ -24,6 +42,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:backend-bank0-resident-fire-open": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/backend-bank0-resident-fire-open.log",
@@ -40,6 +64,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:backend-bank1-ready-open": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/backend-bank1-ready-open.log",
@@ -56,6 +86,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:backend-bank1-resident-fire-open": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/backend-bank1-resident-fire-open.log",
@@ -72,6 +108,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:head0_pregrant_does_not_mask_branch_event": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9o",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9o/logs/head0_pregrant_does_not_mask_branch_event.log",
@@ -87,6 +129,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:head0_pregrant_does_not_mask_branch_recovery": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9o",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9o/logs/head0_pregrant_does_not_mask_branch_recovery.log",
@@ -102,6 +150,12 @@
       "CONTROL-EVENT-G1:RTL_MUTATION:queue_head_mode_requires_both_memory_pair_ids_at_head": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9o",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9o/logs/queue_head_mode_requires_both_memory_pair_ids_at_head.log",
@@ -117,6 +171,12 @@
       "F0-G1:RTL_MUTATION:retry-distinct-residency-broad-assertion": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/retry-distinct-residency-broad-assertion.log",
@@ -133,6 +193,12 @@
       "F0-G1:RTL_MUTATION:sq-launch-admission-substitution": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/sq-launch-admission-substitution.log",
@@ -149,6 +215,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue0_miq_birth_uses_terminal1_identity": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue0_miq_birth_uses_terminal1_identity.log",
@@ -164,6 +236,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_consume_uses_global_port_fire": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_consume_uses_global_port_fire.log",
@@ -179,6 +257,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_consume_uses_valid_under_backpressure": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_consume_uses_valid_under_backpressure.log",
@@ -194,6 +278,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_normal_launch_false_closed": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_normal_launch_false_closed.log",
@@ -209,6 +299,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_request_without_terminal_consume": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_request_without_terminal_consume.log",
@@ -224,6 +320,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_terminal_consume_without_request": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_terminal_consume_without_request.log",
@@ -239,6 +341,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:issue1_terminal_retained_after_launch": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/issue1_terminal_retained_after_launch.log",
@@ -254,6 +362,12 @@
       "MEM-ISSUE-G1:RTL_MUTATION:miq_birth_uses_valid_under_backpressure": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+          "recorded_design_id": null,
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_v9f",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/v9f/logs/miq_birth_uses_valid_under_backpressure.log",
@@ -269,6 +383,12 @@
       "STORE-BRESP-G1:RTL_MUTATION:amo_clear_kind_on_write_fire": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/amo-clear-kind-on-write-fire.log",
@@ -285,6 +405,12 @@
       "STORE-BRESP-G1:RTL_MUTATION:sq_clear_owner_valid_on_request_fire": {
         "compile_success": true,
         "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+          "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "whole_design_reexecuted": false
+        },
         "evidence_set": "current_supplemental",
         "log": {
           "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/logs/sq-clear-owner-valid-on-authorized-request-fire.log",
@@ -303,14 +429,20 @@
     "supplemental_input_replay": {
       "classification": "rtl_identity_helper_only",
       "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
+      "evidence_design_projection": {
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+        "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
+        "recorded_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "whole_design_reexecuted": false
+      },
       "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
       "production_rtl_reexecuted": false,
       "recorded_sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
     }
   },
-  "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "current_positive": {
-    "artifact_records": 29,
+    "artifact_records": 33,
     "l0": {
       "artifact_records": 117,
       "rtl_assertion_failures": 0,
@@ -335,6 +467,7 @@
   "evidence_contract": {
     "changed_rtl": "CURRENT_COMPILE_SUCCESS_REJECTED_VARIANT_REQUIRED",
     "historical_status": "IMMUTABLE",
+    "retained_negative_projection": "EXACT_CURRENT_SOURCE_HASH_WITH_EXPLICIT_PRIOR_DESIGN_ID",
     "simulator_launched_by_receipt_builder": false,
     "supplemental_input_replay": "RTL_IDENTITY_HELPER_ONLY",
     "system_delta": "CURRENT_L0_L1_L2_L3_REQUIRED",
@@ -2503,14 +2636,14 @@
       "size_bytes": 17298
     },
     "current_l0": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a3/result.json",
-      "sha256": "f5f03db66a3e4aeb67e5e906bf3a9d1ad82bf77a51c119dbd9ffa5b6950bd6a5",
-      "size_bytes": 44726
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
+      "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
+      "size_bytes": 42270
     },
     "current_manifest": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/l0-current-f7a-v15i-a3/inputs.pre.json",
-      "sha256": "9462ac57e67bbe70aef16580f0b2003a8a345b805aee4e33dde9ac927391a11d",
-      "size_bytes": 51599
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/inputs.pre.json",
+      "sha256": "ce69880329db4894a8038e63c2cf8a40f022ca73ff3424fef1f12b007d87425b",
+      "size_bytes": 51890
     },
     "current_supplemental": {
       "path": ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/evidence/current-delta/supplemental/summary.json",
@@ -2554,23 +2687,23 @@
     },
     "layered_signoff": {
       "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-      "sha256": "f342ce6ed7317afcb2cda6676f130616b5e15a76a8e5d43305ae8ede8ab0a09c",
-      "size_bytes": 15150
+      "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7",
+      "size_bytes": 15303
     },
     "receipt_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
-      "sha256": "4dbb65fdb8fa53f4ed70f3460923df2ddb1cbbb8943b567bab4148799a76de45",
-      "size_bytes": 35142
+      "sha256": "b82fd3d13dd2bbb50696ee7e7182acd43866573816e4f9af10e804eac9944578",
+      "size_bytes": 38691
     },
     "selected_binding_receipt": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-      "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-      "size_bytes": 123540
+      "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+      "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+      "size_bytes": 123984
     },
     "selected_binding_tool": {
       "path": "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py",
-      "sha256": "86423f926024cd396f26cc42ccf572dde4247b03ed5624159f103120e7357d05",
-      "size_bytes": 29636
+      "sha256": "eb802d8a5bd2e96ebc3279b56b622473dc9be1d8f6a93ccab7e7457b60104338",
+      "size_bytes": 33864
     },
     "serialize_qh": {
       "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/serialize-fast-run-1/qh/summary.json",
@@ -2615,12 +2748,22 @@
     "whole_architecture": "RED"
   },
   "rtl_delta": {
-    "changed_file_count": 3,
+    "changed_file_count": 5,
     "changed_files": [
+      {
+        "baseline_sha256": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
+        "current_sha256": "a092c5792a6f4140adf4b99234610d0a05df3cb8512660817e8d75db7e7b4491",
+        "path": "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
+      },
       {
         "baseline_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "current_sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
         "path": "npc/rv64/vsrc/execute/OooIntBackend.v"
+      },
+      {
+        "baseline_sha256": "3f59eb66967afca26700a520fedba6372a0ab7f96464048a5493642df55ab3b6",
+        "current_sha256": "6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22",
+        "path": "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
       },
       {
         "baseline_sha256": "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f",
@@ -2635,9 +2778,9 @@
     ],
     "file_count": 146,
     "membership_equal": true,
-    "unchanged_file_count": 143
+    "unchanged_file_count": 141
   },
-  "schema": "npc-rv64-architecture-debt-delta-rebind-v1",
+  "schema": "npc-rv64-architecture-debt-delta-rebind-v2",
   "selected_binding_projection": {
     "claim_boundary": "This receipt projects only the census-declared pre-existing holder write statements across the Backend/SQ delta, requires the two selected legacy testbench deltas to be additive-only, and binds the two new bank-local request-hold tokens plus current testbench bytes to retained V14R evidence. It does not promote full architecture, system, synthesis, STA, power, CPI, or PPA status.",
     "new_holder_units": [

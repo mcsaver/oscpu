@@ -40,7 +40,7 @@
     "WFI-G1": "EXCLUDED_BY_COHORT",
     "XRET-G1": "CLOSED_CURRENT_DESIGN"
   },
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "evidence_reuse_contract": {
     "artifact_state": "PATH_SHA256_SIZE_BOUND",
     "assertion_state": "POSITIVE_ZERO_FAILURE_AND_NEGATIVE_REJECTION_REQUIRED",
@@ -70,43 +70,43 @@
     },
     "cohort_scope": {
       "path": "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
-      "sha256": "f245af2867e69d3e6a35f2281d6a362d934256efee5bb800a98414e50addb14c",
+      "sha256": "7ebb0a27bdabd4fb68ba3ae41d5ddb20e59ac2873649a659c494385a174aeb85",
       "size_bytes": 4104
     },
     "delta_rebind": {
       "path": "npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json",
-      "sha256": "087582a94532dfe7f5eb17944a44a2eaf178192bcd648ad6e53df48be1d8e7e8",
-      "size_bytes": 155581
+      "sha256": "c0eb84ea1732aad9812d2eaa49fd32b3c5388b5bd6eb2329d6dc5e5caf956edd",
+      "size_bytes": 163684
     },
     "delta_rebind_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
-      "sha256": "4dbb65fdb8fa53f4ed70f3460923df2ddb1cbbb8943b567bab4148799a76de45",
-      "size_bytes": 35142
+      "sha256": "b82fd3d13dd2bbb50696ee7e7182acd43866573816e4f9af10e804eac9944578",
+      "size_bytes": 38691
     },
     "exclusion_a-coherence-g1": {
       "path": "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
-      "sha256": "2c87298747a45aec67bde9fb7f7437c2878ca3327a8f97319fa082238c864f9c",
+      "sha256": "6f368b4960bed3a6384f83084bea11d966bd1175bf10616bc4816e7aa80a50bc",
       "size_bytes": 476
     },
     "exclusion_debug-trigger-g1": {
       "path": "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
-      "sha256": "b2b9a8776379029ed0e4ca70e7074cd44ee3c115b1f56b7f4523e028070b2a09",
+      "sha256": "46f803e72e578606f8e4a37876b34713d72c0b56e535e390346c242f7ea5ac13",
       "size_bytes": 446
     },
     "exclusion_sfence-sinval-g1": {
       "path": "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
-      "sha256": "044cb8d297eacb5419e4a19daf7d8a8fa19d1cefea6918dab9e832d91b1575ca",
+      "sha256": "532cb7d680b4e9f1e6dbda6d97c21dce6fcea858a4f3089890c9c961dcc59fd8",
       "size_bytes": 480
     },
     "exclusion_wfi-g1": {
       "path": "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
-      "sha256": "dc16bd5c6007d1384775c24fe3f5eac7602751e6bffc48bcdb02786abe52f541",
+      "sha256": "ca635960dec1b6f3b18128785c69465d33ead9b9cfa44af2ab8b3dd24fff4fff",
       "size_bytes": 447
     },
     "global_holder_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "a9ba303ca67bf5fa94d672d405ab5a6db04706cd9b47341beb1d11e709b91678",
-      "size_bytes": 81605
+      "sha256": "ce4bfaf09ed0bdd28fc8e69c176d90fc02d1189a3f2358db08c33f54b9839a1c",
+      "size_bytes": 81779
     },
     "global_holder_tool": {
       "path": "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
@@ -115,8 +115,8 @@
     },
     "layered_system": {
       "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
-      "sha256": "a21e0d6b849c2468bb23e2a1d2347c43f12aeee36c49f442b65279ed9fe727a7",
-      "size_bytes": 2716
+      "sha256": "99fe31b9bba8128277cb1c158154888f062b3e71f85eefdf498631142884873d",
+      "size_bytes": 2714
     },
     "legacy_v14e_a1_status": {
       "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/rootfs-093c2380-systemd-strict-6b-v14e-a1.status",
@@ -135,13 +135,13 @@
     },
     "receipt_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
-      "sha256": "5c5ad343e5abb26a0d774adcf6e17235d726eb62868e93a2cbcfae0ef0340ce7",
-      "size_bytes": 45626
+      "sha256": "de1524b6cc58c37cf84343837a80b75f09002e1a1483848bf47881f9f9c63d5f",
+      "size_bytes": 47075
     },
     "system_tool": {
       "path": "npc/rv64/eval/ppa/tools/system_recertification_current.py",
-      "sha256": "746d674904ca22c26213a0a91f8c62f3185350957acf7a895d8fb41622da359f",
-      "size_bytes": 14859
+      "sha256": "ccd47e1051f49488204169956c38327854da57f80d96c52549576484772793c8",
+      "size_bytes": 15712
     },
     "v14c_p0": {
       "path": ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/p0-final-2/receipt.json",
@@ -175,17 +175,18 @@
     },
     "v14h_holder": {
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
-      "sha256": "7746dd6b2c1f886e5dbdbc36dadd8650101281d1154c3bed2c6469a3e9b1e8d7",
-      "size_bytes": 207518
+      "sha256": "ef8f5404a13194a74ebe02d92031b776a5a60944ceecb8ea808c3b91542c62c0",
+      "size_bytes": 205417
     }
   },
   "metrics": {
     "delta_rebind": {
       "artifact_records": 23,
       "baseline_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
-      "changed_rtl_files": 3,
+      "changed_rtl_files": 5,
       "changed_rtl_replayed": "19/19",
       "historical_negative": "175/175",
+      "positive_only_changed_rtl_files": 3,
       "rtl_files": 146,
       "unchanged_rtl_reused": 152,
       "verification_only_reused": 4
@@ -248,7 +249,7 @@
     },
     "cohort_scope_binding": {
       "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9"
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968"
     },
     "producer_holder": {
       "a3_legacy_oracle_records": 5,
@@ -265,7 +266,7 @@
         "L2_MINI_SYSTEM",
         "L3_LIGHTWEIGHT_LINUX"
       ],
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
       "execution_history": {
         "historical_status_rewritten": false,
         "legacy_v14e_a1_original_status": "FAIL",

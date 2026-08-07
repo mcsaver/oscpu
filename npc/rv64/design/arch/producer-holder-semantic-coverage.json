@@ -18,7 +18,7 @@
     "units_with_candidate_evidence": 46,
     "units_without_candidate_evidence": 0
   },
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "duplicate_instance_modules": [
     "OooMemAxiBridge",
     "OooMemInflightQueue"
@@ -42,9 +42,9 @@
           "size_bytes": 1332
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11b_terminal_collector",
@@ -52,15 +52,15 @@
       "detail": {
         "compile_success_mutations_rejected": 3,
         "compiled_images_retained": 0,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "ingress_lanes": 12,
         "positive_profiles": 2,
         "rtl_file_count": 146,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -78,9 +78,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -126,7 +126,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": false,
         "positive_profiles": 2,
@@ -188,7 +188,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": true,
         "positive_profiles": 4,
@@ -241,8 +241,8 @@
           "size_bytes": 1888
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/define-projection-current/receipt.json",
-          "sha256": "b32f74b214866c3964844a9a570d9b29079e688d0c9822145bab795665cef15e",
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
+          "sha256": "8f597297235383d8478f8ece34146a19129a1fd73ee4a66400d4ba3defc79b5a",
           "size_bytes": 67825
         }
       ],
@@ -250,7 +250,7 @@
       "binding_state": "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 17,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "generation_widths": [
           1,
@@ -261,8 +261,8 @@
         "rob_slot_generation_closed": true,
         "rtl_file_count": 146,
         "selected_binding_compatibility_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/define-projection-current/receipt.json",
-          "sha256": "b32f74b214866c3964844a9a570d9b29079e688d0c9822145bab795665cef15e",
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
+          "sha256": "8f597297235383d8478f8ece34146a19129a1fd73ee4a66400d4ba3defc79b5a",
           "size_bytes": 67825
         },
         "selected_bindings": [
@@ -282,8 +282,8 @@
           },
           {
             "compatibility_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/define-projection-current/receipt.json",
-              "sha256": "b32f74b214866c3964844a9a570d9b29079e688d0c9822145bab795665cef15e",
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
+              "sha256": "8f597297235383d8478f8ece34146a19129a1fd73ee4a66400d4ba3defc79b5a",
               "size_bytes": 67825
             },
             "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
@@ -340,7 +340,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 20,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -409,16 +409,16 @@
           "size_bytes": 2003
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11g_store_queue_holder",
       "binding_state": "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 24,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -430,9 +430,9 @@
         "raw_producer_identity_knownness_closed": true,
         "rtl_file_count": 146,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -443,9 +443,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -463,9 +463,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           }
         ],
@@ -495,7 +495,7 @@
       "detail": {
         "checker_replay": {
           "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-          "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+          "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
           "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
           "historical_checker_replay_required": false,
           "mode": "CURRENT_SELECTED_SOURCE_REUSE",
@@ -531,7 +531,7 @@
           "system_rerun_required_before_system_promotion": true
         },
         "compile_success_mutation_cases_rejected": 31,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -611,7 +611,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 13,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_residency_set_membership_closed": true,
         "mutation_simulations_rejected": 26,
@@ -697,9 +697,9 @@
           "size_bytes": 1396
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11k_miq_holder",
@@ -707,7 +707,7 @@
       "detail": {
         "capture_hold_cross_reject_flush_kill_consume_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "current_miq_elaboration_bound_by_selected_source_and_instance_graph": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_occupancy_set_membership_closed": true,
@@ -727,9 +727,9 @@
         "regressions_current_backend_sq_delta_projection_bound": true,
         "regressions_current_source_artifact_post_bound": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -802,9 +802,9 @@
           "size_bytes": 34364
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11l_memory_retry_holder",
@@ -813,7 +813,7 @@
         "c0_empty_and_resident_barriers_closed": true,
         "capture_hold_transfer_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 32,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "flush_cancel_over_fire_priority_closed": true,
         "lane10_lane11_cancel_terminal_closed": true,
@@ -826,9 +826,9 @@
         "production_design_id_current": false,
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -839,9 +839,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -852,9 +852,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -900,9 +900,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           }
         ],
@@ -950,9 +950,9 @@
           "size_bytes": 34466
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11m_memory_reservation_holder",
@@ -961,7 +961,7 @@
         "a3_frozen_evidence_unchanged": true,
         "capture_hold_request_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 37,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "lane6_lane7_accepted_terminal_closed": true,
         "mutation_simulations_rejected": 37,
@@ -974,9 +974,9 @@
         "production_design_id_current": false,
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -987,9 +987,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1000,9 +1000,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1048,9 +1048,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           }
         ],
@@ -1111,7 +1111,7 @@
         "amo_transient_holder_disjoint_closed": true,
         "assertion_mutation_cases_rejected": 3,
         "compile_success_mutation_cases_rejected": 16,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "dispatch_lane1_to_execution_terminal0_closed": true,
         "evidence_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
         "lane0_lane9_accepted_terminal_closed": true,
@@ -1122,7 +1122,7 @@
         "product_instance_paths": [
           "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
         ],
-        "production_design_id_current": true,
+        "production_design_id_current": false,
         "read_write_hold_and_terminal_death_closed": true,
         "release_oracle_mutation_cases_rejected": 13,
         "retained_compile_images": 0,
@@ -1237,24 +1237,24 @@
           "size_bytes": 60087
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11o-current-product-reachability.json",
-          "sha256": "fd75fcae7a0cec46bd5fd94e28ca9e57559e9086d3f92d6e0a819a523ac22b70",
-          "size_bytes": 3017
+          "path": "npc/rv64/eval/ppa/evidence/memory-buffer-product-reachability-current.json",
+          "sha256": "8111cf9b9abdbc050401da6dedf64a03324d527687a261f2fe22de71e8eb7b70",
+          "size_bytes": 3021
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-          "sha256": "2ab52b5271f2f0f2bd274ff462d68a1e21d28c6dc32c739913d0bf1cb67dbfe3",
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+          "sha256": "73d0897b33a4a896508983fab65a5c974c8f1e0d7dfb24573d7fc6ae090dec19",
           "size_bytes": 60087
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-          "sha256": "def7f928396e730131a6f19c8002adda6c95a7f06de3f564b6ae06e78d1cc4f4",
-          "size_bytes": 17341835
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+          "sha256": "7722f89d2580f8f3dea0037b091b44baf1830d24468f37027be6046204906c44",
+          "size_bytes": 17341067
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11o_memory_buffer_token",
@@ -1263,7 +1263,7 @@
         "a3_checker_replay": "PASS_INDEPENDENT",
         "a3_original_status": "FAIL_RETAINED",
         "compile_success_mutation_cases_rejected": 8,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "current_product_reachability_design_id_current": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "historical_full_yosys_json_retained": false,
@@ -1281,9 +1281,9 @@
         "product_static_negative_tests": 8,
         "production_design_id_current": false,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -1294,9 +1294,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1342,9 +1342,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1390,9 +1390,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           }
         ],
@@ -1436,9 +1436,9 @@
           "size_bytes": 34378
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11p_checkpoint_irrevocable_write",
@@ -1448,7 +1448,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "amo_tracker_death_before_retire_closed": true,
         "compile_success_mutation_cases_rejected": 10,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "full_width_lane0_retire_guard_closed": true,
         "mutation_simulations_rejected": 20,
@@ -1461,9 +1461,9 @@
         "production_design_id_current": false,
         "restore_gate_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -1474,9 +1474,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1487,9 +1487,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1535,9 +1535,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           }
         ],
@@ -1582,9 +1582,9 @@
           "size_bytes": 34367
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11q_int_lane0_packet",
@@ -1594,7 +1594,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "branch_resolve_packet_fields_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex0_packed_alias_closed": true,
         "ex0_raw_packet_fields_closed": true,
@@ -1608,9 +1608,9 @@
         "raw_ex0_resolve_full_pid_coherence_closed": true,
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -1621,9 +1621,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1634,9 +1634,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1698,9 +1698,9 @@
           "size_bytes": 34367
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11r_int_lane1_packet",
@@ -1713,7 +1713,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "a3_terminal_state": "COMPLETE",
         "compile_success_mutation_cases_rejected": 14,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex1_alu_source_closed": true,
         "ex1_local_memory_source_closed": true,
@@ -1729,9 +1729,9 @@
         "production_design_id_current": false,
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -1742,9 +1742,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1755,9 +1755,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1823,9 +1823,9 @@
           "size_bytes": 36960
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11s_muldiv_producer",
@@ -1839,7 +1839,7 @@
         "a3_terminal_state": "COMPLETE",
         "authorized_wb_and_ordered_retirement_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "eight_younger_dual_issue_pressure_closed": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
@@ -1855,9 +1855,9 @@
         "production_design_id_current": false,
         "request_capture_and_holder_residency_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -1868,9 +1868,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1895,9 +1895,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -1962,9 +1962,9 @@
           "size_bytes": 36938
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11t_clmul_producer",
@@ -1979,7 +1979,7 @@
         "authorized_wb_and_ordered_retirement_closed": true,
         "clmul_low_and_high_paths_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "eight_younger_pressure_closed": false,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
@@ -1995,9 +1995,9 @@
         "request_capture_and_holder_residency_closed": true,
         "retired_compile_artifacts_validated": 36,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -2015,9 +2015,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -2042,9 +2042,9 @@
             "role": "rtl",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -2077,27 +2077,27 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11u-current-f7a/summary.json",
-          "sha256": "c03845048799c519bfd7fede1b142a276388670e6da5cd0ced397d192ef8170a",
-          "size_bytes": 1093339
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1/summary.json",
+          "sha256": "039b0f6372474f8e056c36a15077637898d6c2b41e850862cc49e889e8c0c510",
+          "size_bytes": 1098700
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11u-current-f7a/source-before.sha256",
-          "sha256": "9c7929a3d27835e625b7327acf602f47317f3877df5ad64233eb6775d2b83555",
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1/source-before.sha256",
+          "sha256": "c2cdcd710ed9cc0dbbad031b3ff1f646c5563aeb7c46b65b30089a89704b935a",
           "size_bytes": 2933
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11u-current-f7a/source-after.sha256",
-          "sha256": "9c7929a3d27835e625b7327acf602f47317f3877df5ad64233eb6775d2b83555",
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1/source-after.sha256",
+          "sha256": "c2cdcd710ed9cc0dbbad031b3ff1f646c5563aeb7c46b65b30089a89704b935a",
           "size_bytes": 2933
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11u-current-f7a/artifact-cleanup.json",
-          "sha256": "cdf5ee68d670612d0d26fd96980c36c4a866fd3ff4c7c7d4fa908820a44ed195",
-          "size_bytes": 67692
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1/artifact-cleanup.json",
+          "sha256": "4efd806ce8f9d89453dd47f82061bef2616872b804a8c30fe23c6a00c202ca87",
+          "size_bytes": 68706
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v11u-current-f7a/runner.status",
+          "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1/runner.status",
           "sha256": "97933b97e548f9fc5305d7bec5c80db87b4f925169843bda4d94b13309537bf0",
           "size_bytes": 58
         }
@@ -2124,8 +2124,8 @@
         ],
         "compiler_input_unique_paths_validated": 138,
         "csr_only_exact_birth_closed": true,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
-        "evidence_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+        "evidence_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "exact_commit_and_flush_death_closed": true,
         "full_pid_and_pc_authorization_closed": true,
         "global_live_mask_reuse_fence_closed": true,
@@ -2297,9 +2297,9 @@
           "size_bytes": 19364
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         }
       ],
       "binding_kind": "v11v_fp_producer",
@@ -2312,7 +2312,7 @@
         "a3_terminal_state": "COMPLETE",
         "arith_five_stage_residency_closed": true,
         "compile_success_mutation_cases_rejected": 14,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "done_fifo_pending_and_terminal_release_closed": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exec1_packet_and_packed_alias_closed": true,
@@ -2331,9 +2331,9 @@
         "raw_producer_identity_knownness_mutations_rejected": 6,
         "retired_compile_artifacts_validated": 51,
         "selected_binding_rtl_delta_projection_receipt": {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-          "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-          "size_bytes": 123540
+          "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+          "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+          "size_bytes": 123984
         },
         "selected_bindings": [
           {
@@ -2358,9 +2358,9 @@
             "role": "testbench",
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
-              "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/selected-binding-rtl-delta-projection/receipt.json",
-              "sha256": "a3812fae55781244ec437e3fe52cf77dc2420933fad4520a2410e5d3312c81f7",
-              "size_bytes": 123540
+              "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
+              "sha256": "69b3defa5db2b3902c21c9606eedfcefb9350b1f5e1b37a6d74b8e9bfcc129a3",
+              "size_bytes": 123984
             }
           },
           {
@@ -2426,147 +2426,147 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/result.txt",
-          "sha256": "3afaa8e88e78b6e528f9694a2c50ddbb1f0d39a17b3c366f37425ad729f04721",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/result.txt",
+          "sha256": "a0b835d26aa2d0cd1f8ece978d7e054d83deef186086092e59efe9251819e5bc",
           "size_bytes": 220
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/production-before.sha256",
-          "sha256": "d0c57e829352d68c59fbfc0a50d2ca7876390fda2bfa76c95cc4a5723e70b7d4",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/production-before.sha256",
+          "sha256": "e015fe9af07e13f559559fa12231a275050aefb8d8c6859a403531791b63315c",
           "size_bytes": 1264
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/production-after.sha256",
-          "sha256": "d0c57e829352d68c59fbfc0a50d2ca7876390fda2bfa76c95cc4a5723e70b7d4",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/production-after.sha256",
+          "sha256": "e015fe9af07e13f559559fa12231a275050aefb8d8c6859a403531791b63315c",
           "size_bytes": 1264
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "482ebb13b00f9d76627c2712a8960c08c90fe18269e3b0f4d1e2dd7680bd9f50",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "30786049ee8679c898d959f14edd21293694eb036ad0db3c264e2251a3923443",
           "size_bytes": 20093
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-          "sha256": "88372ea318365a5a88e78ab7313da765d0823ed937f762d9eb776aa54b86bc49",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+          "sha256": "1b6258f809d2ca9683936b0d9b798336d8fbe8741fbd6e98d51a3db7347f1d4a",
           "size_bytes": 19971
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/store-queue/logs/tb_ooo_store_queue.log",
-          "sha256": "bbe26cfad1c1887959a4b7d97fcba6063622d7fb1505d0736ed0e4669b5a4ea3",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/store-queue/logs/tb_ooo_store_queue.log",
+          "sha256": "4af4e2c1aeb9300b6f2f32f48e1c020a6b4cf53f0999700947f47c8beb8ab0a4",
           "size_bytes": 11911
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
-          "sha256": "e57d97c850e6656ffe9251712c734f658935cdec2cfac4411785fb5f5f32f45c",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
+          "sha256": "8103e2607bc96f3b90814da671b73e1b120879098539483df1d7c0194c2197e7",
           "size_bytes": 22049
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/linked-regressions/logs/tb_ooo_int_backend.log",
-          "sha256": "135d692aa7b7d22c7f43424dd9d6093aa6a3c7ede887cb0b0837d4689f89550e",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/linked-regressions/logs/tb_ooo_int_backend.log",
+          "sha256": "b8f8a484a979fc9b11f08811f0a060304bc39b88dd3ab21e0b9699de03f5438f",
           "size_bytes": 25621
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
-          "sha256": "5df9b64136fe6557ef6fb5853e16bf8a718d6ce57f1a203af9d8580d119a34c7",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+          "sha256": "e280ed7bd7d5dcc8f802cd14d50b239fe8a628cdf511f6fdc7ffa5131923d7d5",
           "size_bytes": 20601
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
-          "sha256": "395b8d6cc08b09849d8e7a541611d11b871b67694de875338b71f47ae3eb5b03",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
+          "sha256": "b1be59b91b3fb23a8f47eeae8045ae43da95e5eb8bea557d3d10278454dfec05",
           "size_bytes": 20395
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/result.txt",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/result.txt",
           "sha256": "e9e2feb51e291d70e5fbdd30a7de6dbb8b6c89086bb0acff8838d200778deae5",
           "size_bytes": 260
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/amo-held-launch-authorization/result.txt",
-          "sha256": "0a7439b478970a81913e172dbb2650ea0699f2c89a16b16528110415988db6e7",
-          "size_bytes": 770
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/amo-held-launch-authorization/result.txt",
+          "sha256": "2bfc17954333c2f3dad5fa017f91c941c66151955f4ec9fb506378ef5ef9db20",
+          "size_bytes": 794
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "d07ed62efc239f4337ab5f3d56bd7ad8725e3f350515a4d97c055890af51cd46",
-          "size_bytes": 20309
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "efc8a310110490febef252fa151edfbc292a7a769eda1ef16a47011ac4c96227",
+          "size_bytes": 20342
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
           "sha256": "245c51fa3fffd32b73383601b24e750583dba885d7c94c17428669e0660b14cf",
           "size_bytes": 704
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/cancel-fallback/result.txt",
-          "sha256": "fac56a3b4e6f01c9d09815217bd96f9a6860b0f59e1cddeb20914114b2c506a5",
-          "size_bytes": 722
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/cancel-fallback/result.txt",
+          "sha256": "3dcb1f285a28d56334ab2d606f7d7a0f63c85767850b21771ecea798364cae91",
+          "size_bytes": 746
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "20f50848f8a23e1f499fb12e3caa3ba102c19509c75961867a8a27126028df4d",
-          "size_bytes": 20707
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "bcc64b2340d98cef6155bb58881a869cd71d825c2b5bf406ba93fb96ae7953b4",
+          "size_bytes": 20729
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/cancel-fallback/cancel-fallback.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/cancel-fallback/cancel-fallback.diff",
           "sha256": "ba963365fa644a9c9108562acc7acc49dc1a98c41d88f8cb2fd61f8e9eff3856",
           "size_bytes": 1054
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/consume-miq-live-split/result.txt",
-          "sha256": "23fcbc9e890b5fab13eb846e6d4521f1604ad5d33ac92d36a49dec365d961091",
-          "size_bytes": 771
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/consume-miq-live-split/result.txt",
+          "sha256": "1a313b8672061b7d4195817f1e7eaf365c52d3317e132b86d488405cb0d5c22f",
+          "size_bytes": 795
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "8e8f4d577410c6c0769076f8705ab3a65d0efc520a3ae4d74cdacaa2a64584fe",
-          "size_bytes": 20516
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "2fd1360007240d1737f6113afa7f49e47086072f374bedd495ef9ddc3c7dca9c",
+          "size_bytes": 20538
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/consume-miq-live-split/consume-miq-live-split.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/consume-miq-live-split/consume-miq-live-split.diff",
           "sha256": "f363760b15b46e796ff81bdbb6f04a30657db8e56c2e6b22de691d5396aa7575",
           "size_bytes": 1946
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/holder-bypass/result.txt",
-          "sha256": "0136441931d4763dabf1ed978eb832bc887a0a23a506afcbcd825107cd098e29",
-          "size_bytes": 713
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/holder-bypass/result.txt",
+          "sha256": "779f47cfd9bfc55088f5094766697698beb0237dcb314a0b2ba24a20f3d2652b",
+          "size_bytes": 737
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "592307a2f3439f832cbb8f9a822eb6f6682d6111ecf2d323a8b71a8b3f93884c",
-          "size_bytes": 20701
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "f7f38a85c339d60ed6c127376f71032e670b3eb6821a12bbe9e5daa4c1556e54",
+          "size_bytes": 20745
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/holder-bypass/holder-bypass.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/holder-bypass/holder-bypass.diff",
           "sha256": "33f7921c4d400125342a84e88167e6ad054086ead5683706cdc31f237e9f7b90",
           "size_bytes": 1246
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/single-bank-probe-order/result.txt",
-          "sha256": "72d7d377100d9aa2d836929a7612e84fde8438935f91647508230cf7aa45596d",
-          "size_bytes": 775
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/single-bank-probe-order/result.txt",
+          "sha256": "8daebcc75f22d6ab32daedda0c404c4550b1c1a73b7fa5e11b53e793565f0616",
+          "size_bytes": 799
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-          "sha256": "333365d37d1ba5bbdf90876a45835c8248150024174806d5d0385e2cd6345097",
-          "size_bytes": 20366
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+          "sha256": "25798356ec277ca3b2f7f193f7e79383d464f659e4f8364df85762717e81a56d",
+          "size_bytes": 20388
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/single-bank-probe-order/single-bank-probe-order.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/single-bank-probe-order/single-bank-probe-order.diff",
           "sha256": "53daf160ed5b6d380be2fc27a6213103c62cc1e936df31d2d0d2ab6964043ce0",
           "size_bytes": 1155
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/sq-held-launch-residency/result.txt",
-          "sha256": "e00a8cc880bfae099eb42a09d4149fb50dd666c68f0085a153b15805dc274adb",
-          "size_bytes": 756
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/sq-held-launch-residency/result.txt",
+          "sha256": "1798c8be105843dad9693023f819448d7104bace0ec4ea9604f9dcb36ce1fb45",
+          "size_bytes": 780
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "7950f903a1e78609b7cce1d676ff1dcb0266b1c934b1818cd95bc7cdd50864c1",
-          "size_bytes": 20484
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "9520b555282591a4351fdd75caefb74a23ede95eeb45d326959c029f9c19ce28",
+          "size_bytes": 20517
         },
         {
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14r-current/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14r-current-v1/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
           "sha256": "fd56dbf3c79466888037dd9c0474ba25d157cb2073b3210d03bb1f3a6d20c8e1",
           "size_bytes": 626
         }
@@ -2578,8 +2578,8 @@
         "bank_local_exact_source_and_token_hold_closed": true,
         "compile_success_mutations_rejected": 6,
         "compiled_images_retained": 0,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
-        "evidence_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+        "evidence_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "holder_flip_flops": 29,
         "nonflush_cancel_priority_closed": true,
         "positive_profiles": 7,
@@ -2855,11 +2855,13 @@
       "binding_state": "HISTORICAL_FULL_RTL_BOUND",
       "detail": {
         "compile_success_mutations": 9,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "live_rtl_mismatches": [
+          "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
           "npc/rv64/vsrc/execute/OooIntBackend.v",
           "npc/rv64/vsrc/memory/OooLoadQueue.v",
+          "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
           "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
           "npc/rv64/vsrc/memory/OooStoreQueue.v",
           "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
@@ -2904,7 +2906,7 @@
       "detail": {
         "baseline_passed": 2,
         "compile_success_variants_rejected": 3,
-        "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+        "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "live_source_mismatches": [
           "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
@@ -2990,15 +2992,15 @@
     }
   ],
   "global_closure": {
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "global_no_live_reuse": "GREEN",
     "optional_lane1_product_configuration": "PRODUCT_INACTIVE_CONSTANT_LOW",
     "ppa": "UNPROMOTED",
     "receipt": {
       "kind": "global-producer-no-live-reuse-receipt",
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "a9ba303ca67bf5fa94d672d405ab5a6db04706cd9b47341beb1d11e709b91678",
-      "size_bytes": 81605
+      "sha256": "ce4bfaf09ed0bdd28fc8e69c176d90fc02d1189a3f2358db08c33f54b9839a1c",
+      "size_bytes": 81779
     },
     "semantic_units": 46,
     "status": "PASS",
@@ -3011,8 +3013,8 @@
   "inputs": {
     "census": {
       "path": "npc/rv64/design/arch/producer-holder-census.json",
-      "sha256": "972db7999f184560b8045e67b9c543605ce1d5b205b2e6b239e3afaab2afd873",
-      "size_bytes": 32519
+      "sha256": "eface08a5fdccfbb02d05cc8cbc365205bc09eaeb3f1e9a9e81c3880fd48022a",
+      "size_bytes": 32529
     },
     "compile_image_retirements": [
       {
@@ -3033,23 +3035,23 @@
     ],
     "global_closure_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "a9ba303ca67bf5fa94d672d405ab5a6db04706cd9b47341beb1d11e709b91678",
-      "size_bytes": 81605
+      "sha256": "ce4bfaf09ed0bdd28fc8e69c176d90fc02d1189a3f2358db08c33f54b9839a1c",
+      "size_bytes": 81779
     },
     "instance_graph": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/holder-instance-graph.json",
-      "sha256": "548c8a7231e37c86703d1ba6edd2bc7cc89f2441ac0d476e226ceac679608679",
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      "sha256": "a0e2b1757db9279f596fdc8ed7e1401cb15c0ffd402f2e4213e7ca0c682f67df",
       "size_bytes": 86444
     },
     "policy": {
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
-      "sha256": "28c5a1355becfd0b9c8fd57a802b93ce9ff0ff4442c310b21d32ba3ab3676510",
-      "size_bytes": 36458
+      "sha256": "8c9e3241806c30d1e9ca5d8604975ef73c065c8fc96073a60ee0ddf014ef55fe",
+      "size_bytes": 35282
     },
     "system_recertification_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
-      "sha256": "a21e0d6b849c2468bb23e2a1d2347c43f12aeee36c49f442b65279ed9fe727a7",
-      "size_bytes": 2716
+      "sha256": "99fe31b9bba8128277cb1c158154888f062b3e71f85eefdf498631142884873d",
+      "size_bytes": 2714
     }
   },
   "promotion": {
@@ -3067,7 +3069,7 @@
       "L2_MINI_SYSTEM",
       "L3_LIGHTWEIGHT_LINUX"
     ],
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "l0_passed": 113,
     "l0_required": 113,
     "l1_am_passed": 61,

@@ -12,6 +12,12 @@ import re
 import sys
 from typing import Any
 
+TOOLS_DIR = pathlib.Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+import performance_baseline_current as performance_baseline
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[5]
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -636,8 +642,20 @@ def validate_static_inputs(
     baseline = load_json(baseline_path)
     contract = load_json(contract_path)
     profile = load_json(profile_path)
-    if baseline.get("schema") != "npc-rv64-performance-baseline-current-v2":
+    if baseline.get("schema") not in {
+        performance_baseline.RESULT_SCHEMA,
+        performance_baseline.DIRECT_RESULT_SCHEMA,
+    }:
         raise EvidenceError("baseline schema mismatch")
+    try:
+        manifest_path = performance_baseline.validate_artifact(
+            REPO_ROOT, baseline.get("manifest"), "performance baseline manifest")
+        rebuilt = performance_baseline.build_result(REPO_ROOT, manifest_path)
+    except (performance_baseline.BaselineError, KeyError, OSError) as error:
+        raise EvidenceError(
+            f"baseline is not canonical: {error}") from error
+    if baseline != rebuilt:
+        raise EvidenceError("baseline is not canonical")
     if baseline.get("status") != "PERF_BASELINE":
         raise EvidenceError("baseline status is not PERF_BASELINE")
     if baseline.get("blockers") != [] or baseline.get("unknowns") != []:
@@ -650,6 +668,8 @@ def validate_static_inputs(
         raise EvidenceError("owner timing profile schema mismatch")
     if profile.get("binding", {}).get("design_id") != baseline.get("design_id"):
         raise EvidenceError("profile/baseline design-id mismatch")
+    if profile.get("binding", {}).get("baseline_schema") != baseline.get("schema"):
+        raise EvidenceError("profile/baseline schema mismatch")
     if profile.get("binding", {}).get("baseline_receipt") != rel(baseline_path):
         raise EvidenceError("profile baseline path mismatch")
     if profile.get("binding", {}).get("measurement_contract") != rel(contract_path):
@@ -675,6 +695,118 @@ def validate_static_inputs(
     ):
         raise EvidenceError("boundary reentry contract is missing")
     return baseline, contract, profile
+
+
+def validate_arch_stable_reference(
+    arch_stable_path: pathlib.Path,
+    baseline: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind the diagnostic run to a live-audited ARCH_STABLE successor.
+
+    A methodology-only ARCH_STABLE refresh may legitimately succeed the
+    receipt frozen by the performance reference.  The owner-timing run still
+    has to prove that the RTL design, simulator, configuration, and workload
+    images are identical before it may consume those counters.
+    """
+
+    arch_stable = load_json(arch_stable_path)
+    if arch_stable.get("schema") != "npc-rv64-arch-stable-result-v1":
+        raise EvidenceError("ARCH_STABLE reference schema mismatch")
+    if (
+        arch_stable.get("architecture_freeze") != "ARCH_STABLE"
+        or arch_stable.get("blockers") != []
+        or arch_stable.get("ppa") != "UNQUALIFIED"
+        or arch_stable.get("promotion_eligible") is not False
+    ):
+        raise EvidenceError("ARCH_STABLE reference is not qualified")
+    if arch_stable.get("design_id") != baseline.get("design_id"):
+        raise EvidenceError("ARCH_STABLE/baseline design-id mismatch")
+    try:
+        performance_baseline.validate_artifact(
+            REPO_ROOT,
+            arch_stable.get("candidate"),
+            "ARCH_STABLE candidate",
+        )
+        manifest_path = performance_baseline.validate_artifact(
+            REPO_ROOT,
+            baseline.get("manifest"),
+            "performance baseline manifest",
+        )
+    except performance_baseline.BaselineError as error:
+        raise EvidenceError(f"ARCH_STABLE/baseline binding is invalid: {error}") from error
+
+    functional = arch_stable.get("observed", {}).get("functional")
+    if not isinstance(functional, dict):
+        raise EvidenceError("ARCH_STABLE functional identity is missing")
+    simulator = functional.get("simulator")
+    configuration = functional.get("configuration")
+    baseline_identity = baseline.get("identity")
+    if not isinstance(baseline_identity, dict):
+        raise EvidenceError("baseline execution identity is missing")
+
+    def same_record(
+        left: Any,
+        right: Any,
+        *,
+        include_path: bool = True,
+    ) -> bool:
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            return False
+        keys = ("path", "sha256", "size_bytes") if include_path else (
+            "sha256",
+            "size_bytes",
+        )
+        return all(left.get(key) == right.get(key) for key in keys)
+
+    if not same_record(simulator, baseline_identity.get("simulator")):
+        raise EvidenceError("ARCH_STABLE/baseline simulator mismatch")
+    if not same_record(
+        configuration,
+        baseline_identity.get("configuration"),
+        include_path=False,
+    ):
+        raise EvidenceError("ARCH_STABLE/baseline configuration mismatch")
+
+    manifest = load_json(manifest_path)
+    arch_benchmarks = functional.get("benchmarks")
+    baseline_workloads = manifest.get("workloads")
+    if not isinstance(arch_benchmarks, dict) or not isinstance(baseline_workloads, dict):
+        raise EvidenceError("ARCH_STABLE/baseline workload identity is missing")
+    for arch_key, baseline_key in (
+        ("coremark", "coremark"),
+        ("dhrystone", "dhrystone_10000"),
+    ):
+        arch_entry = arch_benchmarks.get(arch_key)
+        baseline_entry = baseline_workloads.get(baseline_key)
+        if (
+            not isinstance(arch_entry, dict)
+            or not isinstance(baseline_entry, dict)
+            or not same_record(arch_entry.get("image"), baseline_entry.get("image"))
+        ):
+            raise EvidenceError(
+                f"ARCH_STABLE/baseline {baseline_key} image mismatch"
+            )
+    return arch_stable
+
+
+def baseline_image_path(
+    baseline: dict[str, Any], workload: str,
+) -> pathlib.Path:
+    if workload not in ("coremark", "dhrystone_10000"):
+        raise EvidenceError("unsupported baseline workload image")
+    manifest_path = performance_baseline.validate_artifact(
+        REPO_ROOT, baseline.get("manifest"), "performance baseline manifest")
+    manifest = load_json(manifest_path)
+    try:
+        reference = manifest["workloads"][workload]["image"]
+    except (KeyError, TypeError) as error:
+        raise EvidenceError(
+            f"{workload} image binding is missing from baseline manifest") from error
+    try:
+        return performance_baseline.validate_artifact(
+            REPO_ROOT, reference, f"{workload} image")
+    except performance_baseline.BaselineError as error:
+        raise EvidenceError(f"{workload} image is not canonical: {error}") from error
 
 
 def validate_manifest(path: pathlib.Path) -> dict[str, Any]:
@@ -769,6 +901,7 @@ def validate_cleanup(path: pathlib.Path, simulator_identity: dict[str, Any]) -> 
 
 def build_receipt(
     baseline_path: pathlib.Path,
+    arch_stable_path: pathlib.Path,
     contract_path: pathlib.Path,
     profile_path: pathlib.Path,
     manifest_path: pathlib.Path,
@@ -777,6 +910,7 @@ def build_receipt(
     diagnostic_logs: dict[str, list[pathlib.Path]],
 ) -> dict[str, Any]:
     baseline, _, _ = validate_static_inputs(baseline_path, contract_path, profile_path)
+    validate_arch_stable_reference(arch_stable_path, baseline)
     manifest = validate_manifest(manifest_path)
     simulator_identity = validate_simulator_identity(simulator_identity_path)
     cleanup = validate_cleanup(cleanup_path, simulator_identity)
@@ -785,6 +919,7 @@ def build_receipt(
     baseline_keys = {"coremark": "coremark", "dhrystone_10000": "dhrystone_10000"}
     for result_key, baseline_key in baseline_keys.items():
         baseline_entry = baseline["benchmarks"][baseline_key]
+        image_path = baseline_image_path(baseline, baseline_key)
         reference_refs = baseline_entry.get("logs", [])
         if len(reference_refs) != 3:
             raise EvidenceError(f"{result_key} baseline must have three logs")
@@ -828,6 +963,7 @@ def build_receipt(
 
         first = diagnostics[0]
         workloads[result_key] = {
+            "image": file_ref(image_path),
             "cycles": first["cycles"],
             "retired_instructions": first["retired"],
             "cpi": baseline_entry["cpi"],
@@ -868,6 +1004,7 @@ def build_receipt(
         "scope": "CoreMark10 and Dhrystone10000 owner-correlated timing on the frozen PERF_BASELINE design",
         "inputs": {
             "baseline_receipt": file_ref(baseline_path),
+            "arch_stable_receipt": file_ref(arch_stable_path),
             "owner_timing_contract": file_ref(contract_path),
             "validation_profile": file_ref(profile_path),
             "production_manifest": manifest,
@@ -886,6 +1023,7 @@ def build_receipt(
         "workloads": workloads,
         "checks": {
             "arch_stable_pre_post": True,
+            "arch_stable_baseline_identity": True,
             "perf_baseline_pre_post": True,
             "reference_repetitions_bit_exact": True,
             "diagnostic_repetitions_bit_exact": True,
@@ -916,6 +1054,7 @@ def receipt_paths(data: dict[str, Any]) -> tuple[pathlib.Path, ...]:
         resolve_file(inputs[name]["path"])
         for name in (
             "baseline_receipt",
+            "arch_stable_receipt",
             "owner_timing_contract",
             "validation_profile",
             "production_manifest",
@@ -930,6 +1069,7 @@ def rebuild_receipt(data: dict[str, Any]) -> dict[str, Any]:
         raise EvidenceError("owner timing workload receipt schema mismatch")
     (
         baseline_path,
+        arch_stable_path,
         contract_path,
         profile_path,
         manifest_path,
@@ -944,6 +1084,7 @@ def rebuild_receipt(data: dict[str, Any]) -> dict[str, Any]:
         logs[workload] = [verify_ref(entry, f"{workload}.diagnostic") for entry in entries]
     return build_receipt(
         baseline_path,
+        arch_stable_path,
         contract_path,
         profile_path,
         manifest_path,
@@ -1152,6 +1293,16 @@ def command_capture_cleanup(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_resolve_image(args: argparse.Namespace) -> int:
+    baseline, _, _ = validate_static_inputs(
+        resolve_file(args.baseline),
+        resolve_file(args.contract),
+        resolve_file(args.profile),
+    )
+    print(baseline_image_path(baseline, args.workload))
+    return 0
+
+
 def command_build(args: argparse.Namespace) -> int:
     diagnostic_logs = {
         "coremark": [resolve_file(path) for path in args.coremark_log],
@@ -1159,6 +1310,7 @@ def command_build(args: argparse.Namespace) -> int:
     }
     value = build_receipt(
         resolve_file(args.baseline),
+        resolve_file(args.arch_stable),
         resolve_file(args.contract),
         resolve_file(args.profile),
         resolve_file(args.production_manifest),
@@ -1249,8 +1401,17 @@ def parser() -> argparse.ArgumentParser:
     capture_cleanup.add_argument("--output", required=True)
     capture_cleanup.set_defaults(func=command_capture_cleanup)
 
+    resolve_image = sub.add_parser("resolve-image")
+    resolve_image.add_argument("--baseline", required=True)
+    resolve_image.add_argument("--contract", required=True)
+    resolve_image.add_argument("--profile", required=True)
+    resolve_image.add_argument(
+        "--workload", choices=("coremark", "dhrystone_10000"), required=True)
+    resolve_image.set_defaults(func=command_resolve_image)
+
     build = sub.add_parser("build")
     build.add_argument("--baseline", required=True)
+    build.add_argument("--arch-stable", required=True)
     build.add_argument("--contract", required=True)
     build.add_argument("--profile", required=True)
     build.add_argument("--production-manifest", required=True)

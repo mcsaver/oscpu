@@ -1,0 +1,13 @@
+npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py
+npc/rv64/eval/ppa/tests/test_owner_b_response_candidate_analysis.py
+npc/rv64/eval/ppa/tools/current_reference_ppa.py
+npc/rv64/eval/ppa/tests/test_current_reference_ppa.py
+npc/rv64/eval/ppa/tools/optimization_slice_selector.py
+npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py
+npc/rv64/eval/ppa/optimization-slices-current.json
+npc/rv64/design/arch/optimization-slice-selector-policy-v1.json
+npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh
+npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+.github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence
+.github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1

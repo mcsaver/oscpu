@@ -194,6 +194,11 @@ static const GateDef GATES[] = {
         600,
     },
     {
+        "rv64-optimization-slice-selector",
+        "npc/rv64/eval/ppa/run-optimization-slice-selector.sh --validate-only",
+        120,
+    },
+    {
         "rv64-memory-request-hold-fast",
         "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh --tier fast",
         120,
@@ -1258,6 +1263,62 @@ static int derive_gates(const FlowMeta *meta, const StringList *paths,
             strcmp(path,
                    "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py") == 0) {
             if (add_gate(gates, "rv64-owner-timing-fast") != 0) {
+                return -1;
+            }
+        }
+        if (strcmp(path,
+                   "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/rv64-architecture-ppa-contract.md") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/optimization-slices-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/baselines/index.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/architecture-debt-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/historical-defect-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/arch-stable-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/performance-baseline-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/optimization-slice-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/performance_baseline_current.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/check.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/optimization_slice_selector.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-performance-bottleneck-census.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-optimization-slice-selector.sh") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/README.md") == 0 ||
+            strcmp(path,
+                   ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
+            strcmp(path, ".github/agentic-hardware-blueprint.md") == 0 ||
+            strcmp(path, "AI_ENVIRONMENT.md") == 0) {
+            if (add_gate(gates, "rv64-optimization-slice-selector") != 0) {
                 return -1;
             }
         }

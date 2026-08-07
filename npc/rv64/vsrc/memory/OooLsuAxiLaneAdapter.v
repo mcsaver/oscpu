@@ -204,8 +204,6 @@ module OooLsuAxiLaneAdapter #(
   assign u_axi_rvalid_o = (state_q == S_R_RESP);
   assign u_axi_rdata_o = u_rdata_q;
   assign u_axi_rresp_o = u_rresp_q;
-  assign u_axi_bvalid_o = (state_q == S_B_RESP);
-  assign u_axi_bresp_o = u_bresp_q;
 
   assign d_axi_arvalid_o = (state_q == S_R_ADDR);
   assign d_axi_araddr_o = d_araddr_q;
@@ -241,6 +239,19 @@ module OooLsuAxiLaneAdapter #(
       (d_axi_rdata_i >> (natural_read_lane_w * 8)) &
       data_mask_from_size(cmd_size_q);
   wire [3:0] next_beat_idx_w = beat_idx_q + 4'd1;
+  wire split_write_more_beats_w =
+      cmd_split_q && (next_beat_idx_w < cmd_nbytes_q);
+  // The target B is already a registered terminal.  Let only the final
+  // logical-write beat fall through to the upstream owner; a stalled owner is
+  // captured by the existing S_B_RESP register on the same edge.  Keeping
+  // downstream BREADY state-only avoids a READY loop through the crossbar.
+  wire final_b_fallthrough_w = !rst && (state_q == S_W_RESP) &&
+                               d_axi_bvalid_i &&
+                               !split_write_more_beats_w;
+  assign u_axi_bvalid_o = (state_q == S_B_RESP) ||
+                          final_b_fallthrough_w;
+  assign u_axi_bresp_o = final_b_fallthrough_w ? resp_with_b_w :
+                                                    u_bresp_q;
   wire [XLEN-1:0] next_write_addr_w = d_awaddr_q + {{(XLEN-1){1'b0}}, 1'b1};
   wire [LANE_BITS-1:0] next_write_lane_w =
       next_write_addr_w[LANE_BITS-1:0];
@@ -405,7 +416,7 @@ module OooLsuAxiLaneAdapter #(
 
         S_W_RESP: begin
           if (d_axi_bvalid_i) begin
-            if (cmd_split_q && (next_beat_idx_w < cmd_nbytes_q)) begin
+            if (split_write_more_beats_w) begin
               resp_accum_q <= resp_with_b_w;
               beat_idx_q <= next_beat_idx_w;
               d_awaddr_q <= next_write_addr_w;
@@ -420,7 +431,7 @@ module OooLsuAxiLaneAdapter #(
               state_q <= S_W_SEND;
             end else begin
               u_bresp_q <= resp_with_b_w;
-              state_q <= S_B_RESP;
+              state_q <= u_axi_bready_i ? S_IDLE : S_B_RESP;
             end
           end
         end
@@ -439,6 +450,7 @@ module OooLsuAxiLaneAdapter #(
   reg ar_stall_q;
   reg aw_stall_q;
   reg w_stall_q;
+  reg u_b_stall_q;
   reg [XLEN-1:0] araddr_stall_q;
   reg [2:0] arsize_stall_q;
   reg [2:0] arprot_stall_q;
@@ -446,11 +458,13 @@ module OooLsuAxiLaneAdapter #(
   reg [2:0] awsize_stall_q;
   reg [XLEN-1:0] wdata_stall_q;
   reg [STRB_W-1:0] wstrb_stall_q;
+  reg [1:0] u_bresp_stall_q;
   always @(posedge clk) begin
     if (rst) begin
       ar_stall_q <= 1'b0;
       aw_stall_q <= 1'b0;
       w_stall_q <= 1'b0;
+      u_b_stall_q <= 1'b0;
     end else begin
       if (ar_stall_q &&
           (!d_axi_arvalid_o || d_axi_araddr_o !== araddr_stall_q ||
@@ -469,6 +483,21 @@ module OooLsuAxiLaneAdapter #(
           (!d_axi_wvalid_o || d_axi_wdata_o !== wdata_stall_q ||
            d_axi_wstrb_o !== wstrb_stall_q)) begin
         $error("[LANE-W-HOLD] downstream W changed while stalled @%0t", $time);
+        $fatal;
+      end
+      if (u_b_stall_q &&
+          (!u_axi_bvalid_o || u_axi_bresp_o !== u_bresp_stall_q)) begin
+        $error("[LANE-B-HOLD] upstream B changed while stalled @%0t", $time);
+        $fatal;
+      end
+      if ((state_q == S_W_RESP) && d_axi_bvalid_i &&
+          split_write_more_beats_w && u_axi_bvalid_o) begin
+        $error("[LANE-B-SPLIT] non-final split B escaped upstream @%0t", $time);
+        $fatal;
+      end
+      if (final_b_fallthrough_w &&
+          (!u_axi_bvalid_o || u_axi_bresp_o !== resp_with_b_w)) begin
+        $error("[LANE-B-FALLTHROUGH] final B response mismatch @%0t", $time);
         $fatal;
       end
       if (d_axi_arvalid_o &&
@@ -491,6 +520,7 @@ module OooLsuAxiLaneAdapter #(
       ar_stall_q <= d_axi_arvalid_o && !d_axi_arready_i;
       aw_stall_q <= d_axi_awvalid_o && !d_axi_awready_i;
       w_stall_q <= d_axi_wvalid_o && !d_axi_wready_i;
+      u_b_stall_q <= u_axi_bvalid_o && !u_axi_bready_i;
       araddr_stall_q <= d_axi_araddr_o;
       arsize_stall_q <= d_axi_arsize_o;
       arprot_stall_q <= d_axi_arprot_o;
@@ -498,6 +528,7 @@ module OooLsuAxiLaneAdapter #(
       awsize_stall_q <= d_axi_awsize_o;
       wdata_stall_q <= d_axi_wdata_o;
       wstrb_stall_q <= d_axi_wstrb_o;
+      u_bresp_stall_q <= u_axi_bresp_o;
     end
   end
 `endif

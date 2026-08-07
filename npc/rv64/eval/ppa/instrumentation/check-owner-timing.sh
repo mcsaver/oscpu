@@ -5,6 +5,8 @@ set -uo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd "${script_dir}/../../../../.." && pwd)
 tier=fast
+workload_case_count=""
+unit_case_count=""
 
 if [[ $# -eq 2 && $1 == "--tier" && ($2 == "fast" || $2 == "link") ]]; then
   tier=$2
@@ -103,10 +105,11 @@ validate_profile() {
 }
 
 validate_baseline_binding() {
-  local design_id
+  local baseline_schema design_id
+  baseline_schema=$(jq -er '.binding.baseline_schema' "${profile}") || return
   design_id=$(jq -er '.binding.design_id' "${profile}") || return
-  jq -e --arg design_id "${design_id}" '
-    .schema == "npc-rv64-performance-baseline-current-v2" and
+  jq -e --arg baseline_schema "${baseline_schema}" --arg design_id "${design_id}" '
+    .schema == $baseline_schema and
     .design_id == $design_id
   ' "${baseline}"
 }
@@ -162,6 +165,17 @@ run_step source-abi validate_source_abi || exit $?
 run_step config-negative validate_config_fail_closed || exit $?
 run_step script-syntax validate_script_syntax || exit $?
 run_step workload-consumer-unit python3 -B "${workload_test}" || exit $?
+workload_case_markers=()
+mapfile -t workload_case_markers < <(
+  sed -nE 's/^Ran ([1-9][0-9]*) tests? in .*$/\1/p' \
+    "${runtime_dir}/workload-consumer-unit.log"
+)
+if [[ "${#workload_case_markers[@]}" -ne 1 ]]; then
+  printf '%s\n' \
+    '[OWNER-TIMING-STEP][FAIL] step=workload-consumer-unit invalid-case-count-marker' >&2
+  exit 1
+fi
+workload_case_count=${workload_case_markers[0]}
 production_identity >"${runtime_dir}/production-before.sha256" || exit 1
 
 run_step cpp-compile \
@@ -169,6 +183,17 @@ run_step cpp-compile \
   -DNPC_OWNER_TIMING_UNIT_TEST "${collector}" \
   -o "${runtime_dir}/owner-timing-unit" || exit $?
 run_step cpp-unit "${runtime_dir}/owner-timing-unit" || exit $?
+unit_case_markers=()
+mapfile -t unit_case_markers < <(
+  sed -nE 's/^\[OWNER-TIMING-UNIT\]\[PASS\] cases=([1-9][0-9]*)$/\1/p' \
+    "${runtime_dir}/cpp-unit.log"
+)
+if [[ "${#unit_case_markers[@]}" -ne 1 ]]; then
+  printf '%s\n' \
+    '[OWNER-TIMING-STEP][FAIL] step=cpp-unit invalid-case-count-marker' >&2
+  exit 1
+fi
+unit_case_count=${unit_case_markers[0]}
 run_step sv-lint \
   make -s -C "${repo_root}/npc/rv64" -f Makefile \
   -f eval/ppa/instrumentation/owner-timing.mk lint \
@@ -200,4 +225,5 @@ sha256sum "${contract}" "${profile}" "${probe}" "${collector}" "${extension}" |
   sed "s#${repo_root}/##"
 printf '[OWNER-TIMING-TOOL] %s\n' "$(g++ --version | sed -n '1p')"
 printf '[OWNER-TIMING-TOOL] %s\n' "$(verilator --version)"
-printf '[OWNER-TIMING-CHECK][PASS] tier=%s unit_cases=12 workload_cases=14 candidate_authorized=0 ppa=UNQUALIFIED\n' "${tier}"
+printf '[OWNER-TIMING-CHECK][PASS] tier=%s unit_cases=%s workload_cases=%s candidate_authorized=0 ppa=UNQUALIFIED\n' \
+  "${tier}" "${unit_case_count}" "${workload_case_count}"

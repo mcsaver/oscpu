@@ -557,6 +557,102 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     return receipt
 
 
+def rebind_receipt(args: argparse.Namespace) -> dict[str, Any]:
+    """Rebind a frozen reversible delta to a new whole-design identity."""
+
+    root = args.root.resolve()
+    prior = load_json(args.input.resolve())
+    expected_keys = {
+        "schema_version", "status", "current_design_id", "baseline",
+        "consumer_baseline", "rtl_delta", "rtl_delta_sha256",
+        "consumer_delta", "consumer_delta_sha256",
+        "holder_write_projection", "policy_binding", "v14r_evidence",
+        "claim_boundary",
+    }
+    if (
+        set(prior) != expected_keys
+        or prior.get("schema_version") != SCHEMA
+        or prior.get("status") != "PASS"
+        or prior.get("claim_boundary") != CLAIM
+    ):
+        raise ProjectionGap("prior receipt envelope drift")
+
+    rtl = prior.get("rtl_delta")
+    if (
+        not isinstance(rtl, list)
+        or digest(rtl) != prior.get("rtl_delta_sha256")
+        or {item.get("path") for item in rtl if isinstance(item, dict)}
+        != set(RTL_PATHS)
+    ):
+        raise ProjectionGap("prior RTL delta inventory or digest drift")
+    current: dict[str, bytes] = {}
+    baseline: dict[str, bytes] = {}
+    for record in rtl:
+        path = record["path"]
+        current[path] = inside(root, path).read_bytes()
+        baseline[path] = reverse_delta(record, current[path])
+
+    consumer_delta = prior.get("consumer_delta")
+    if (
+        not isinstance(consumer_delta, list)
+        or digest(consumer_delta) != prior.get("consumer_delta_sha256")
+        or {
+            item.get("path")
+            for item in consumer_delta
+            if isinstance(item, dict)
+        } != set(CONSUMER_PATHS)
+    ):
+        raise ProjectionGap("prior consumer delta inventory or digest drift")
+    for record in consumer_delta:
+        require_additive_delta(record)
+        path = record["path"]
+        current[path] = inside(root, path).read_bytes()
+        reverse_delta(record, current[path])
+
+    prior_holder = prior.get("holder_write_projection")
+    if not isinstance(prior_holder, dict):
+        raise ProjectionGap("prior holder projection is missing")
+    frozen_coverage = prior_holder.get("prior_coverage")
+    if not isinstance(frozen_coverage, dict):
+        raise ProjectionGap("prior frozen semantic coverage is missing")
+    # 只重绑定整核 design-id；可逆 RTL/TB delta、holder 写集合和 V14R
+    # 日志必须逐字节保持不变，避免把无关 RTL 漂移伪装成重新执行。
+    holder = holder_projection(
+        root,
+        baseline,
+        current,
+        args.census,
+        str(frozen_coverage.get("path", "")),
+        frozen_coverage,
+    )
+    current_design_id = holder["census"].get("design_id")
+    if not isinstance(current_design_id, str) or re.fullmatch(
+        r"sha256:[0-9a-f]{64}", current_design_id
+    ) is None:
+        raise ProjectionGap("rebound current design identity is invalid")
+
+    policy = policy_binding(root, args.policy, args.evidence_root)
+    evidence = evidence_projection(root, args.evidence_root, current)
+    # policy_binding/evidence_projection 会重新检查固定 V14R inventory、
+    # marker、日志哈希和当前 RTL/TB 字节；因此允许用新的 current 证据替换
+    # prior receipt 中的旧路径，但绝不直接继承旧 policy/evidence 自报值。
+    return {
+        "schema_version": SCHEMA,
+        "status": "PASS",
+        "current_design_id": current_design_id,
+        "baseline": prior["baseline"],
+        "consumer_baseline": prior["consumer_baseline"],
+        "rtl_delta": rtl,
+        "rtl_delta_sha256": prior["rtl_delta_sha256"],
+        "consumer_delta": consumer_delta,
+        "consumer_delta_sha256": prior["consumer_delta_sha256"],
+        "holder_write_projection": holder,
+        "policy_binding": policy,
+        "v14r_evidence": evidence,
+        "claim_boundary": CLAIM,
+    }
+
+
 def verify_receipt(args: argparse.Namespace) -> dict[str, Any]:
     root = args.root.resolve()
     receipt = load_json(args.receipt.resolve())
@@ -614,7 +710,7 @@ def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     sub = result.add_subparsers(dest="mode", required=True)
-    for name in ("capture", "verify"):
+    for name in ("capture", "rebind", "verify"):
         command = sub.add_parser(name)
         command.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[5])
         command.add_argument("--census", default=CENSUS)
@@ -624,6 +720,9 @@ def parser() -> argparse.ArgumentParser:
         if name == "capture":
             command.add_argument("--baseline-ref", required=True)
             command.add_argument("--consumer-baseline-ref", required=True)
+            command.add_argument("--output", type=pathlib.Path, required=True)
+        elif name == "rebind":
+            command.add_argument("--input", type=pathlib.Path, required=True)
             command.add_argument("--output", type=pathlib.Path, required=True)
         else:
             command.add_argument("--receipt", type=pathlib.Path, required=True)
@@ -635,6 +734,10 @@ def main() -> int:
     try:
         if args.mode == "capture":
             receipt = build_receipt(args)
+            write_json(args.output.resolve(), receipt)
+            where = args.output
+        elif args.mode == "rebind":
+            receipt = rebind_receipt(args)
             write_json(args.output.resolve(), receipt)
             where = args.output
         else:

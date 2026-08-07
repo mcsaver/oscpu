@@ -1,0 +1,22 @@
+[OWNER-TIMING-STEP][PASS] step=contract
+[OWNER-TIMING-STEP][PASS] step=profile
+[OWNER-TIMING-STEP][PASS] step=baseline-binding
+[OWNER-TIMING-STEP][PASS] step=source-abi
+[OWNER-TIMING-STEP][PASS] step=config-negative
+[OWNER-TIMING-STEP][PASS] step=script-syntax
+[OWNER-TIMING-STEP][PASS] step=workload-consumer-unit
+[OWNER-TIMING-STEP][PASS] step=cpp-compile
+[OWNER-TIMING-STEP][PASS] step=cpp-unit
+[OWNER-TIMING-UNIT][PASS] cases=12
+[OWNER-TIMING-STEP][PASS] step=sv-lint
+[OWNER-TIMING-IDENTITY][PASS] production-observation-inputs-stable=1
+[OWNER-TIMING-PRODUCTION-MANIFEST] sha256=33df2e297514d267c941546410f89f6ca934d1ea0ccfa66b915bb78e0d23a557 files=148
+b33ea1a6cb6ccee7fe9d3571cb91b35975a5dea594125041b9a5373ced9c36f6  npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json
+5342fcef9c7b4ab74ab8a39ba247405e4bec6a866f359cfec255d894fdac12a8  npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json
+712d567f83e772f5e81e6a703fd130de0c18f968a24eabd33fab94c3bdeb8bff  npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv
+5bb85409f12937628fbceda5122562a6b270483114e361d5dd3734aa86a4a833  npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp
+2e7828ecd2b6d5496ce7024b69fb0862096fcf4a4c7a64c5d623746343a32c00  npc/rv64/eval/ppa/instrumentation/owner-timing.mk
+[OWNER-TIMING-TOOL] g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+[OWNER-TIMING-TOOL] Verilator 5.020 2024-01-01 rev (Debian 5.020-1)
+[OWNER-TIMING-CHECK][PASS] tier=fast unit_cases=12 workload_cases=15 candidate_authorized=0 ppa=UNQUALIFIED
+[OWNER-TIMING-CLEANUP][PASS]

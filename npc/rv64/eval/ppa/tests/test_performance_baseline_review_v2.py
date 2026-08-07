@@ -16,16 +16,17 @@ import jsonschema
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/performance_baseline_current.py"
 RUN_DIR = ROOT / (
-    ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1")
+    ".github/task-runs/2026-08-07-rv64-v15q-"
+    "performance-baseline-current-337-a2")
 EVIDENCE = RUN_DIR / "evidence/performance-baseline-current"
 RESULT = EVIDENCE / "result.json"
 MANIFEST = EVIDENCE / "run-manifest.json"
 TASK_STATUS = RUN_DIR / "performance-baseline-current.status"
 COMMAND_STATUS = EVIDENCE / "command-status.txt"
 REVIEWER_CONTRACT = ROOT / (
-    ".github/task-runs/2026-08-06-rv64-v15k-"
-    "performance-baseline-current-f7a/subagent-contracts/"
-    "v15k-performance-baseline-f7a-review-v2.json")
+    ".github/task-runs/2026-08-07-rv64-v15q-"
+    "performance-baseline-current-337-a2/subagent-contracts/"
+    "v15q-performance-baseline-current-337-review-v1.json")
 REVIEW_SCHEMA = ROOT / (
     "npc/rv64/eval/ppa/schemas/"
     "performance-baseline-independent-review-v2.schema.json")
@@ -103,14 +104,14 @@ class PerformanceBaselineReviewV2Tests(unittest.TestCase):
             json.dumps(value, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
 
-    def write_cleanup(self, deleted_bytes: int = 230789249) -> None:
+    def write_cleanup(self, deleted_bytes: int = 230677810) -> None:
         self.write_json(self.cleanup, {
             "schema": "npc-rv64-performance-baseline-cleanup-receipt-v1",
             "status": "PASS",
             "run_directory": self.relative(RUN_DIR),
             "runtime_build_directory": (
                 ".github/runtime-artifacts/rv64-performance-baseline-run/"
-                "2026-08-06-rv64-v15k-performance-baseline-f7a-a1/"
+                "2026-08-07-rv64-v15q-performance-baseline-current-337-a2/"
                 "stats-off-build"),
             "build_tree_absent": True,
             "deleted_bytes": deleted_bytes,

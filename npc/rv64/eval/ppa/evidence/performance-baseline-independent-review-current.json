@@ -1,83 +1,55 @@
 {
-  "approval_marker": "[PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 result_sha256=0bb6a2b46206f99c9201ee9f12388d5857068e81825463c0ef893221d6b6161b",
+  "schema": "npc-rv64-performance-baseline-independent-review-v2",
+  "decision": "APPROVE_PERF_BASELINE",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "result": {
+    "kind": "performance_baseline_result",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/result.json",
+    "sha256": "735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
+    "size_bytes": 11761
+  },
+  "final_manifest": {
+    "kind": "performance_baseline_final_manifest",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/run-manifest.json",
+    "sha256": "90f39867ac40ffac22aa74fb35b349fe0e52c759fbd7bc42c8c21b79bc28d722",
+    "size_bytes": 6086
+  },
+  "reviewer_contract": {
+    "kind": "rtl_task_contract",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/subagent-contracts/v15q-performance-baseline-current-337-review-v1.json",
+    "sha256": "2a58d64b173e1bec71b7e3aea9b0c61ca8d4a8e75e2d0c829cad0a36d75e1334",
+    "size_bytes": 5216
+  },
+  "review_report": {
+    "kind": "independent_review_report",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-independent-review-337-v1.md",
+    "sha256": "7f18fdf3fcb088741a2d27bceb7bb2d269db69dba3c8536dd38b95a7912ba521",
+    "size_bytes": 2316
+  },
+  "task_run_status": {
+    "kind": "fail_closed_status",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/performance-baseline-current.status",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+    "size_bytes": 5
+  },
+  "command_status": {
+    "kind": "direct_stage_status",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/command-status.txt",
+    "sha256": "ee4cdf767498ae5c040271e3b108708ada03d2b7fb368fce38af26c6f9b7649e",
+    "size_bytes": 195
+  },
   "checker_regression": {
     "kind": "bounded_checker_regression",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence/performance-review-v2-tests.log",
-    "sha256": "6fd62769273b68141e531dcc45618778fa2e31dbf6c53d1627635c885ed72380",
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/review-tests-v2.log",
+    "sha256": "afb70feaaab50a12bb1e07acad70cf492ccf84e162f8625cc8ceed186c42bbb8",
     "size_bytes": 5732
   },
   "cleanup_receipt": {
     "kind": "cleanup_receipt",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence/performance-cleanup-receipt-candidate-v2.json",
-    "sha256": "851c3e939b2f8bff1c45d825b9f66829c25622615bf6278af6918bdbac0b52cd",
-    "size_bytes": 1338
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/cleanup-receipt-v1.json",
+    "sha256": "06ed0d8f132f5094d029a141cedf3c219d2748e4f6a25aaacd4ab54806f18243",
+    "size_bytes": 1381
   },
-  "command_status": {
-    "kind": "direct_stage_status",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/command-status.txt",
-    "sha256": "a4a9966d52a4cce84effbf57b527bccadc8e0093884f1d1e6f038847f888573d",
-    "size_bytes": 195
-  },
-  "decision": "APPROVE_PERF_BASELINE",
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
-  "final_manifest": {
-    "kind": "performance_baseline_final_manifest",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/run-manifest.json",
-    "sha256": "7771a8914de458e5757404fe80325c25f328419dd812dc6e2a324854529cbb88",
-    "size_bytes": 6009
-  },
-  "open_blockers": [],
-  "result": {
-    "kind": "performance_baseline_result",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/evidence/performance-baseline-current/result.json",
-    "sha256": "0bb6a2b46206f99c9201ee9f12388d5857068e81825463c0ef893221d6b6161b",
-    "size_bytes": 11677
-  },
-  "review_report": {
-    "kind": "independent_review_report",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/evidence/performance-independent-review-f7a-v2.md",
-    "sha256": "a91223004db60bed71b74adac61eba26eb7d075940ad4a93397d3939cd47ce55",
-    "size_bytes": 2139
-  },
-  "review_scope": {
-    "bit_exact_repetitions": "PASS",
-    "canonical_build_and_verify": "PASS",
-    "cleanup_receipt": "PASS",
-    "committed_pc_boundaries": "PASS",
-    "current_design_identity": "PASS",
-    "cycle_and_slot_conservation": "PASS",
-    "fail_closed_status": "PASS",
-    "full_causal_cpi_stack": false,
-    "global_workload_representativeness": false,
-    "historical_result_non_rebinding": "PASS",
-    "input_preflight_before_first_simulation": "PASS",
-    "instrumentation_noninterference": "PASS",
-    "negative_mutations": "PASS",
-    "ppa": "UNQUALIFIED",
-    "promotion_eligible": false,
-    "scoped_workloads": [
-      "coremark",
-      "dhrystone_10000"
-    ]
-  },
-  "reviewed_at_utc": "2026-08-06T03:25:35Z",
-  "reviewer_contract": {
-    "kind": "rtl_task_contract",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-current-f7a/subagent-contracts/v15k-performance-baseline-f7a-review-v2.json",
-    "sha256": "4ec9d9e7c88a0c292032cdb9838e5088e43e10cf309e15df11d617fe9ba730d5",
-    "size_bytes": 4887
-  },
-  "schema": "npc-rv64-performance-baseline-independent-review-v2",
-  "task_run_status": {
-    "kind": "fail_closed_status",
-    "path": ".github/task-runs/2026-08-06-rv64-v15k-performance-baseline-f7a-a1/performance-baseline-current.status",
-    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
-    "size_bytes": 5
-  },
-  "unknowns": [
-    "Global integer/FP physical issue-slot capacity and region-bound queue occupancy remain outside this scoped baseline.",
-    "The two deterministic bare-metal workloads do not establish global workload representativeness or a full causal CPI stack."
-  ],
   "workflow_artifacts": {
     "checker": {
       "kind": "checker",
@@ -91,17 +63,35 @@
       "sha256": "327ea3ad4c9d328749c0123cc614bc4bdc9769aec9f27019128e7da7ce5809a5",
       "size_bytes": 129598
     },
+    "runner": {
+      "kind": "runner",
+      "path": "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+      "sha256": "9d70bea7a82be42e192af07f555bdfe506a3d6f79128be17711040627454c076",
+      "size_bytes": 11932
+    },
+    "status_helper": {
+      "kind": "status_helper",
+      "path": "scripts/task-run-status.sh",
+      "sha256": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6",
+      "size_bytes": 3357
+    },
     "current_tests": {
       "kind": "current_tests",
       "path": "npc/rv64/eval/ppa/tests/test_performance_baseline_current.py",
-      "sha256": "4d145a0feed218d228abc52262f9bfa7fc9c255bcba519e7f8e1caf067e86d0a",
-      "size_bytes": 23090
+      "sha256": "2987387d5ca25811d2aebced923e076419731377a12a13e76590ff0868bd6824",
+      "size_bytes": 23087
     },
     "direct_tests": {
       "kind": "direct_tests",
       "path": "npc/rv64/eval/ppa/tests/test_performance_baseline_v3.py",
-      "sha256": "d502f82241530d48f2ceef852bf4ac7197627b036cd80e1da920d2c6c33b26d5",
-      "size_bytes": 14547
+      "sha256": "6da064cd43857049eafbd047f10588db7719fc070b09dfcf0f0b02a949bc5cce",
+      "size_bytes": 14815
+    },
+    "review_tests": {
+      "kind": "review_tests",
+      "path": "npc/rv64/eval/ppa/tests/test_performance_baseline_review_v2.py",
+      "sha256": "220e4c2decbb0bc00b0c745bb4c3d80d6a781d4a8fd1f96a24c6e62e0ad2ebed",
+      "size_bytes": 9725
     },
     "result_schema": {
       "kind": "result_schema",
@@ -114,24 +104,34 @@
       "path": "npc/rv64/eval/ppa/schemas/performance-baseline-independent-review-v2.schema.json",
       "sha256": "7f2cfcad646d6824966cdf8c9cc8987952f50c234cd9a0e11ce8e537289692c3",
       "size_bytes": 4828
-    },
-    "review_tests": {
-      "kind": "review_tests",
-      "path": "npc/rv64/eval/ppa/tests/test_performance_baseline_review_v2.py",
-      "sha256": "cf1eac1ea8b7df3827084f15543f926f2f30707314a0bc3fc5c9054a496248d5",
-      "size_bytes": 9691
-    },
-    "runner": {
-      "kind": "runner",
-      "path": "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
-      "sha256": "82d18086bfb867f59156876c7bd994bdfcb0d18cb3b1cbbf7c19344d3ccbeaa5",
-      "size_bytes": 11935
-    },
-    "status_helper": {
-      "kind": "status_helper",
-      "path": "scripts/task-run-status.sh",
-      "sha256": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6",
-      "size_bytes": 3357
     }
-  }
+  },
+  "approval_marker": "[PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 result_sha256=735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
+  "review_scope": {
+    "current_design_identity": "PASS",
+    "input_preflight_before_first_simulation": "PASS",
+    "committed_pc_boundaries": "PASS",
+    "cycle_and_slot_conservation": "PASS",
+    "bit_exact_repetitions": "PASS",
+    "instrumentation_noninterference": "PASS",
+    "fail_closed_status": "PASS",
+    "cleanup_receipt": "PASS",
+    "negative_mutations": "PASS",
+    "historical_result_non_rebinding": "PASS",
+    "canonical_build_and_verify": "PASS",
+    "scoped_workloads": [
+      "coremark",
+      "dhrystone_10000"
+    ],
+    "global_workload_representativeness": false,
+    "full_causal_cpi_stack": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "open_blockers": [],
+  "unknowns": [
+    "Global integer/FP physical issue-slot capacity and region-bound queue occupancy remain outside this scoped baseline.",
+    "The two deterministic bare-metal workloads do not establish global workload representativeness or a full causal CPI stack."
+  ],
+  "reviewed_at_utc": "2026-08-07T00:02:30Z"
 }

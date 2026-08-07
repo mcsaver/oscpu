@@ -37,10 +37,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
             path.write_text(json.dumps(self.receipt), encoding="utf-8")
             result = TOOL.validate_receipt(ROOT, path)
         self.assertEqual(result["status"], "PASS")
-        self.assertEqual(
-            result["design_id"],
-            "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
-        )
+        self.assertEqual(result["design_id"], self.receipt["design_id"])
         self.assertEqual(
             result["default_signoff_conjunction"], TOOL.DEFAULT_CONJUNCTION
         )

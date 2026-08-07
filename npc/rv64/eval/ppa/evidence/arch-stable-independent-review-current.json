@@ -1,24 +1,24 @@
 {
   "candidate": {
     "kind": "arch_stable_candidate",
-    "path": "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
-    "sha256": "636f9c8935557444dc6d2e9fa180bb8c3f980f7cdeb5d97a10f855f17f8d4c37",
-    "size_bytes": 164916
+    "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/candidate.json",
+    "sha256": "42e1b98c4dfb7798b7d2c01a4c99a21c9ad9061b44bacf1d3a1e54403f1b19a3",
+    "size_bytes": 163052
   },
   "decision": "APPROVE_ARCH_STABLE",
-  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "evidence": [
     {
       "kind": "independent_review_report",
-      "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/independent-review-report.md",
-      "sha256": "adeebdb28abd5b983ae622981539f376a0d481db1967b5d21a4e91e387cc3d35",
-      "size_bytes": 1445
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-independent-review-337-v2.md",
+      "sha256": "28085353afede67f0bcd135895b95abaf4ded834781d74094b797db8c2b2dce7",
+      "size_bytes": 2428
     },
     {
       "kind": "rtl_task_contract",
-      "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/subagent-contracts/v14m-arch-stable-final3-delta-review.json",
-      "sha256": "4d656c9d5fe3cfa6e7d6f184e9bdb8633fb6dca6415f64a455ec0a2deacd4cd8",
-      "size_bytes": 3289
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-arch-stable-current-review-v2.json",
+      "sha256": "e496c7fafa28751d1b975b623c0b9985f397851dca766f1d178375ada7359a69",
+      "size_bytes": 4563
     }
   ],
   "open_blockers": [],
@@ -28,8 +28,8 @@
     "producer_holder_static_semantic_dynamic": "PASS",
     "promotion_eligible": false
   },
-  "reviewed_at_utc": "2026-08-04T00:30:00+08:00",
-  "reviewer_task": "/root/v14m_final_review",
+  "reviewed_at_utc": "2026-08-06T23:13:38.675792+00:00",
+  "reviewer_task": "v15q-arch-stable-current-review-v2",
   "schema": "npc-rv64-arch-stable-independent-review-v1",
   "unknowns": []
 }

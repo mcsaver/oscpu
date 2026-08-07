@@ -31,14 +31,14 @@ POLICY = ROOT / "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json"
 RESULT_SCHEMA = ROOT / (
     "npc/rv64/eval/ppa/schemas/performance-baseline-current-v3.schema.json")
 SIMULATOR = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/frozen/NpcSimTop")
 CONFIG = ROOT / "npc/rv64/.config"
 COREMARK_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/images/benchmarks/coremark.bin")
 DHRYSTONE_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/functional/images/benchmarks/dhrystone.bin")
 
 
@@ -292,7 +292,16 @@ class PerformanceBaselineV3Tests(unittest.TestCase):
         self.assertIn("performance-baseline-contract-v3.json", runner)
         self.assertIn("performance-measurement-contract-v2.json", runner)
         self.assertIn("performance-workload-matrix-v1.json", runner)
-        self.assertIn("2026-08-05-rv64-v15f-full-core-current-f7a6-a1", runner)
+        self.assertIn(
+            "2026-08-07-rv64-v15p-control-loop-current-f7a/"
+            "evidence/functional/frozen/NpcSimTop",
+            runner,
+        )
+        self.assertNotIn(
+            'stats_on_simulator="${repo_root}/.github/task-runs/'
+            '2026-08-05-rv64-v15f-full-core-current-f7a6-a1/',
+            runner,
+        )
         self.assertNotIn("2026-08-04-rv64-v14m", runner)
         self.assertLess(
             runner.index('task_run_status_stage "preflight-exact-input-binding"'),

@@ -1,13 +1,13 @@
 {
   "schema": "npc-rv64-ppa-policy-v1",
-  "policy_id": "npc-rv64-performance-baseline-f7-v1-20260806",
+  "policy_id": "npc-rv64-performance-baseline-f7-v1-337-20260807",
   "claim_tier": "scoped_simulation_performance_baseline_only",
   "performance_evidence": {
     "schema": "npc-rv64-performance-evidence-v8",
     "measurement_contract": {
       "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
-      "id": "npc-rv64-pmc-v2-f7a-scoped-baseline-20260806",
-      "sha256": "873d3fa27a307278e078d1e65f4686ffd9b2c59902fa0518179d04cee8678b51"
+      "id": "npc-rv64-pmc-v2-337-scoped-baseline-20260807",
+      "sha256": "5b23b81f49c0003a4c80c7e825b446b011ca7932578da6a0c7ccd16fa2b7a6e5"
     },
     "counter_schema": {
       "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
@@ -16,8 +16,8 @@
     },
     "workload_matrix": {
       "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
-      "id": "npc-rv64-pwm-v1-f7a-scoped-baseline-20260806",
-      "sha256": "c2f4245d5f8793ab92ef0a44e3222e6d58a35e59f59a9aa938b8b030c4d0900e"
+      "id": "npc-rv64-pwm-v1-337-scoped-baseline-20260807",
+      "sha256": "26db1d8705a1c2d187cc4feedf8296fca3eccd19b8fd891cb9d67418f0aed2e2"
     },
     "minimum_repetitions": 3,
     "require_bit_exact_repetition_counters": true,

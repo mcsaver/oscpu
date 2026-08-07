@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15m-owner-timing-causal-trace-f7a",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核 owner-timing A2 的 H1 至 H4 因果判别：按 workload、bridge、operation class 分解 request、reservation、SQ query、write request、AW/W-to-B、ROB-head 与 peer-overlap 周期，并追踪 OooIntBackend SQ physical drain、OooMemAxiBridge write FSM、OooDualMemAxiArbiter 单 owner、OooLsuAxiLaneAdapter 以及 AxiDpiSlave B terminal 的逐拍关系；判断是否已有唯一 H1_B_RESPONSE_LATENCY 证据，或仍必须 RESEARCH_REQUIRED。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+      "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+      "npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp",
+      "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+      "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
+      "npc/rv64/design/specs/ooo-load-queue.md",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-independent-review-f7a-a2.md",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15m-owner-timing-hypothesis-f7a/subagent-contracts/v15m-owner-timing-causal-trace-f7a.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json",
+      "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+      "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "首行按 RV64 RTL 结论格式给出 H1 至 H4 的 PASS/GAP/inconclusive；列出每 workload 的 exact 事件率、每事务完成周期、ROB-head 周期、store-class reservation 与 SQ-query 分解、write_inflight 和 peer overlap，并把每项数字映射到具体 RTL transaction/state；报告反例、替代解释、unknowns、scope_extension_request 与 confidence_and_basis，不得因总驻留比例单独授权假设或 RTL。"
+  ],
+  "success_criteria": [
+    "若且仅若 A2 与 RTL 逐拍合同能排除 H2、H3、H4 为主要解释并留下唯一 H1，明确说明可进入 causal authority candidate；若任一竞争解释仍不可区分，必须输出 RESEARCH_REQUIRED，并给出最低成本、可证伪且不改变 production RTL 语义的下一项定向观测。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

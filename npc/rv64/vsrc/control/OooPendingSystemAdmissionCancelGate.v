@@ -30,18 +30,25 @@ module OooPendingSystemAdmissionCancelGate (
        pending_jump_nolink_commit_i ||
        pending_jump_redirect_after_dispatch_i);
 
-  assign system_csr_admission_clear_o =
+  // branch-owner terminal 由 direct frontend action 后置屏蔽，属于完整 clear
+  // 观测而不是 admission 权限。若把它们反喂 cancel，会重新形成
+  // system-valid -> backend-ready -> direct-fire -> branch-terminal -> valid
+  // 的组合环；真正的 cancel 只消费下列单向见证。
+  wire feedback_free_dispatch_clear_w =
       csr_trap_mem_valid_i ||
       branch_spec_resolve_valid_i ||
-      pending_branch_commit_resolve_i ||
-      pending_branch_match_clear_i ||
       branch_resolve_untracked_i ||
       pending_jump_clear_w ||
       pending_system_csr_commit_i ||
       head0_csr_commit_i;
 
+  assign system_csr_admission_clear_o =
+      feedback_free_dispatch_clear_w ||
+      pending_branch_commit_resolve_i ||
+      pending_branch_match_clear_i;
+
   assign system_csr_dispatch_cancel_o =
-      rst_i || core_local_flush_i || system_csr_admission_clear_o;
+      rst_i || core_local_flush_i || feedback_free_dispatch_clear_w;
 
 endmodule
 /* verilator lint_on TIMESCALEMOD */

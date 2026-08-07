@@ -1,0 +1,4 @@
+2026-08-07T02:52:20Z	owner-b-next-candidate	GAP	.github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/owner-b-response-candidate-analysis-337-a1.json
+2026-08-07T02:52:20Z	current-reference-ppa	GAP	.github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/current-reference-ppa-337-a1.json
+2026-08-07T02:52:20Z	optimization-selector-v5	PASS	.github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/optimization-slice-current-337-v5.json
+2026-08-07T02:52:20Z	independent-review-v1	PASS	.github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/independent-review-v1.md

@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15p-loop-adapter-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核中 OooPendingSystemAdmissionCancelGate 的反馈无关 dispatch-cancel 控制锥与 OooLsuAxiLaneAdapter 的 final B response fall-through；追踪相关 valid ready flush dispatch 与 AXI B 事务，判断 RTL 协议、状态保持、标准单元组合环闭合和 PPA 证据是否支持仅作为可回退中间检查点保留，并报告任何要求回滚的反例或证据缺口",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-lsu-axi-lane-adapter.md",
+      "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/ppa/parent/OooLsuAxiLaneAdapter.v",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/pending-system-feedback-contract",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/v11u-current-v15p-v1",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/performance-ab-current-v2",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-ab/parent/mapped-loop-localization.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-current-v2",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/slice-disposition-v1.txt",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/run-result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-lsu-axi-lane-adapter.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与周期条件给出独立审查结论、可操作反例、未知项、替代假设、证据绑定和范围扩展请求；明确区分组合环闭合、adapter 事务语义、5ns 时序硬门与可回退中间检查点边界"
+  ],
+  "success_criteria": [
+    "复核 branch terminal observation 不再驱动 system CSR dispatch cancel、dispatch valid 不经 backend ready 或 direct flush 形成反馈、final B response 直通仅覆盖最终分段且在反压时由状态保持；核对定向 TB、编译成功的负向 RTL 变体、L1、同源性能和 mapped STA 证据的当前设计身份，并在发现协议或证据反例时明确要求回滚，在信息不足时返回 GAP 或 inconclusive 而不强制 PASS"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15q-v9p-current-rebind-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooIntBackend 与 OooMemAxiBridge 在 full-flush barrier C0 的 SQ retry owner handoff、OooMemOwnerTerminalCollector 在 C1 的 terminal ingress，以及 OooLsuAxiLaneAdapter final B response 终端时序证据；确认不可变 9ac1 失效事件和 f7a VD4 复核边界、当前 337de8bf 的 Backend/Bridge 精确源字节、V9R 正负向 testbench、L0-L3 回执与 adapter 时序门状态能否组成当前设计 VD4 续接",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v9r-current-v1",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional",
+      ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2",
+      ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-v9p-current-rebind-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按合同规定的 RV64 RTL 证据顺序给出独立结论，逐项说明 immutable V9P assertion event、C0/C1 owner handoff 根因、当前 Backend/Bridge 字节绑定、V9R 2/2 基线与 3/3 编译成功负向 RTL 版本、adapter final-B 正负向时序、L0-L3 与可选 Ubuntu 边界",
+    "显式保留 frozen instance lane pair 与 kind/token/epoch owner tuple 的 UNKNOWN，列出反例、替代假设、scope_extension_request、confidence_and_basis，并在 PASS 时输出合同指定的七个机器可检索 marker"
+  ],
+  "success_criteria": [
+    "旧 9ac1 失效原始 FAIL、单一物理 assertion event、f7a 独立复核及 UNKNOWN 边界保持不可变；不得把重复日志行解释成两个 DUT 事件",
+    "当前 Backend 与 Bridge 精确 SHA-256 仍等于 f7a 修复源，V9R 两个基线和三个 compile-success RTL source mutation 均由原断言 marker 检出，且不得加入 terminal event 去重、合并或断言弱化",
+    "当前 OooLsuAxiLaneAdapter 正向 TB 与 no-final-B-fallthrough 负向版本闭合终端时序，同时 5 ns timing hard gate 必须保持 FAIL_NOT_PROMOTABLE；当前 L0-L3 为 PASS、Ubuntu 为 NOT_RUN_EXPLICIT_REQUEST_ONLY",
+    "若证据完整则逐行输出 [V15Q-V9P-CURRENT-REBIND] PASS、FROZEN_INSTANCE_LANE_PAIR=UNKNOWN、FROZEN_INSTANCE_OWNER_TUPLE=UNKNOWN、CURRENT_V9R=PASS_2_BASELINES_3_MUTATIONS、ADAPTER_TIMING_HARD_GATE=FAIL_NOT_PROMOTABLE、ASSERTION_POLICY=PRESERVED_FAIL_LOUD_NO_DEDUP、GAPS=NONE；否则返回 GAP 或 inconclusive 并保留反例"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -30,6 +30,12 @@ RTL_FILE_COUNT = 146
 DESIGN_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ZERO_RETURN_CODE_SHA256 = hashlib.sha256(b"0\n").hexdigest()
+V9P_FROZEN_DESIGN_ID = (
+    "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a"
+)
+V15G_FIX_DESIGN_ID = (
+    "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9"
+)
 
 DEFECT_IDS = (
     "HIST-A3-DMESG-DEBUG-TOKEN",
@@ -73,6 +79,8 @@ SUPPORT = {
         "v9r_current",
         "layered_system_current",
         "v15g_independent_review",
+        "v15p_adapter_review_closure",
+        "v15q_v9p_current_rebind_review",
     ],
 }
 
@@ -109,12 +117,12 @@ HISTORICAL_STOP_PATH = pathlib.PurePosixPath(
     "evidence/stop-hold-matrix/summary.json"
 )
 V14E_QH_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/"
-    "evidence/historical-current-f7a-run-1/qh/summary.json"
+    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
+    "evidence/historical-current-v1/qh/summary.json"
 )
 V14E_SYSTEM_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/"
-    "evidence/historical-current-f7a-run-1/system/summary.json"
+    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
+    "evidence/historical-current-v1/system/summary.json"
 )
 HISTORICAL_A3_PATH = pathlib.PurePosixPath(
     ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/"
@@ -135,8 +143,8 @@ HISTORICAL_V8L_PATH = pathlib.PurePosixPath(
     "evidence/focused/mutation-summary.json"
 )
 HOLDER_CURRENT_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/"
-    "evidence/v8l-current-f7a-run-1/summary.json"
+    "npc/rv64/eval/ppa/evidence/"
+    "global-producer-no-live-reuse-current.json"
 )
 V8L_TB_PATH = pathlib.PurePosixPath(
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
@@ -147,7 +155,13 @@ V15G_RUN_PATH = pathlib.PurePosixPath(
 HISTORICAL_V9P_ROOT_CAUSE_PATH = (
     V15G_RUN_PATH / "evidence/v9p-root-cause-summary.json"
 )
-V9R_CURRENT_PATH = V15G_RUN_PATH / "evidence/v9r-current/summary.json"
+V15Q_RUN_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf"
+)
+V9R_CURRENT_PATH = V15Q_RUN_PATH / "evidence/v9r-current-v1/summary.json"
+V9R_CURRENT_RUNNER_PATH = pathlib.PurePosixPath(
+    "npc/rv64/eval/ppa/run-v9r-sq-retry-current.sh"
+)
 LAYERED_SYSTEM_CURRENT_PATH = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
 )
@@ -155,8 +169,60 @@ V15G_INDEPENDENT_REVIEW_PATH = (
     V15G_RUN_PATH / "evidence/independent-review.json"
 )
 V15G_VERIFIER_PATH = V15G_RUN_PATH / "verify-v9p-root-cause.py"
-EXIT_CURRENT_PATH = (
-    V15G_RUN_PATH / "evidence/historical-current-f7a-run-1/exit/summary.json"
+V15P_ADAPTER_RUN_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a"
+)
+V15P_ADAPTER_REVIEW_CLOSURE_PATH = (
+    V15P_ADAPTER_RUN_PATH / "evidence/independent-review-closure-v2.txt"
+)
+V15P_ADAPTER_REVIEW_RESULT_PATH = (
+    V15P_ADAPTER_RUN_PATH
+    / "subagent-contracts/v15p-loop-adapter-evidence-closure-review-v2.result.md"
+)
+V15P_ADAPTER_MUTATION_RESULT_PATH = (
+    V15P_ADAPTER_RUN_PATH
+    / "evidence/l0/v15p-adapter-final-b-mutation/result.txt"
+)
+V15P_ADAPTER_MUTATION_LOG_PATH = (
+    V15P_ADAPTER_RUN_PATH
+    / "evidence/l0/v15p-adapter-final-b-mutation/mutation/logs/"
+    "tb_ooo_owner_timing_causal_probe.log"
+)
+V15P_CURRENT_MODULE_RESULT_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
+    "evidence/module/result.json"
+)
+V15P_CURRENT_ADAPTER_LOG_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
+    "evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log"
+)
+V9P_CURRENT_REBIND_REVIEW_PATH = (
+    V15Q_RUN_PATH / "evidence/v9p-current-rebind-review-v1.json"
+)
+V9P_CURRENT_REBIND_CONTRACT_PATH = (
+    V15Q_RUN_PATH / "subagent-contracts/v15q-v9p-current-rebind-review-v1.json"
+)
+V9P_CURRENT_REBIND_RESULT_PATH = (
+    V15Q_RUN_PATH / "subagent-contracts/v15q-v9p-current-rebind-review-v1.result.md"
+)
+V9P_BACKEND_PATH = pathlib.PurePosixPath(
+    "npc/rv64/vsrc/execute/OooIntBackend.v"
+)
+V9P_BRIDGE_PATH = pathlib.PurePosixPath(
+    "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+)
+V15P_ADAPTER_PATH = pathlib.PurePosixPath(
+    "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+)
+V15P_ADAPTER_TB_PATH = pathlib.PurePosixPath(
+    "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv"
+)
+V15P_OWNER_TIMING_TB_PATH = pathlib.PurePosixPath(
+    "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv"
+)
+EXIT_CURRENT_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
+    "evidence/historical-current-v1/exit/summary.json"
 )
 
 INPUT_PATHS = {
@@ -180,8 +246,23 @@ INPUT_PATHS = {
     "v15g_exit_current": EXIT_CURRENT_PATH,
     "v15g_independent_review": V15G_INDEPENDENT_REVIEW_PATH,
     "v15g_root_cause_verifier": V15G_VERIFIER_PATH,
+    "v15p_adapter_review_closure": V15P_ADAPTER_REVIEW_CLOSURE_PATH,
+    "v15p_adapter_review_result": V15P_ADAPTER_REVIEW_RESULT_PATH,
+    "v15p_adapter_mutation_result": V15P_ADAPTER_MUTATION_RESULT_PATH,
+    "v15p_adapter_mutation_log": V15P_ADAPTER_MUTATION_LOG_PATH,
+    "v15p_current_module_result": V15P_CURRENT_MODULE_RESULT_PATH,
+    "v15p_current_adapter_log": V15P_CURRENT_ADAPTER_LOG_PATH,
+    "v15q_v9p_current_rebind_review": V9P_CURRENT_REBIND_REVIEW_PATH,
+    "v15q_v9p_current_rebind_contract": V9P_CURRENT_REBIND_CONTRACT_PATH,
+    "v15q_v9p_current_rebind_result": V9P_CURRENT_REBIND_RESULT_PATH,
+    "v9p_current_backend": V9P_BACKEND_PATH,
+    "v9p_current_bridge": V9P_BRIDGE_PATH,
+    "v15p_current_adapter": V15P_ADAPTER_PATH,
+    "v15p_adapter_testbench": V15P_ADAPTER_TB_PATH,
+    "v15p_owner_timing_testbench": V15P_OWNER_TIMING_TB_PATH,
     "v8l_testbench": V8L_TB_PATH,
     "v9r_current": V9R_CURRENT_PATH,
+    "v9r_current_runner": V9R_CURRENT_RUNNER_PATH,
 }
 
 CONFIG_PATHS = {
@@ -1430,7 +1511,13 @@ def validate_v8l(
             "scope": "FOCUSED_V8L_CURRENT_DESIGN",
         }
 
-    require_equal(current.get("schema_version"), "npc-rv64-global-producer-no-live-reuse-receipt-v1", "V14H holder schema")
+    require(
+        current.get("schema_version") in {
+            "npc-rv64-global-producer-no-live-reuse-receipt-v1",
+            "npc-rv64-global-producer-no-live-reuse-receipt-v2",
+        },
+        "global holder schema is unsupported",
+    )
     require_equal(current.get("status"), "PASS", "V14H holder status")
     require_equal(current.get("design_id"), design_id, "V14H holder design-id")
     fence = current.get("v14g_dynamic_fence", {})
@@ -1507,111 +1594,373 @@ def validate_v8l(
     }
 
 
+def load_key_value_evidence(
+    root: pathlib.Path,
+    relative: str | pathlib.PurePosixPath,
+    label: str,
+) -> tuple[dict[str, str], str]:
+    text = safe_file(root, relative).read_text(encoding="utf-8", errors="replace")
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        require("=" in line, f"{label}: malformed key/value line {line!r}")
+        key, value = line.split("=", 1)
+        require(key and key not in values, f"{label}: duplicate or empty key {key!r}")
+        values[key] = value
+    return values, text
+
+
+def validate_v15p_adapter_current(
+    root: pathlib.Path,
+    design_id: str,
+) -> dict[str, Any]:
+    closure, _ = load_key_value_evidence(
+        root, V15P_ADAPTER_REVIEW_CLOSURE_PATH, "V15P adapter review closure"
+    )
+    expected_fields = {
+        "SCHEMA": "rv64-v15p-independent-review-closure-v2",
+        "RESULT": "PASS",
+        "SCOPE": "REVERSIBLE_INTERMEDIATE_CHECKPOINT_ONLY",
+        "DESIGN_ID": design_id,
+        "V1_ORIGINAL_RESULT": "GAP",
+        "V1_HISTORY_REWRITTEN": "0",
+        "V2_RESULT": "PASS",
+        "MUTATION": "NO_FINAL_B_FALLTHROUGH",
+        "MUTATION_COMPILE_SUCCESS": "1",
+        "MUTATION_EXPECTED_TEST_FAILURE": "1",
+        "MUTATION_MAKE_RC": "2",
+        "MUTATION_PRODUCTION_SHA_UNCHANGED": "1",
+        "POSITIVE_STORE_TERMINAL_CYCLES": "2,4,7",
+        "MUTATED_STORE_TERMINAL_CYCLES": "3,5,8",
+        "MUTATION_ORACLE": "adapter final-B fall-through absolute latency mismatch",
+        "TIMING_HARD_GATE": "FAIL",
+        "PROMOTION_STATE": "NOT_PROMOTABLE",
+    }
+    for key, expected in expected_fields.items():
+        require_equal(closure.get(key), expected, f"V15P adapter closure {key}")
+
+    closure_artifacts = {
+        "V2_RESULT": ("V2_RESULT_PATH", "V2_RESULT_SHA256", V15P_ADAPTER_REVIEW_RESULT_PATH),
+        "ADAPTER": ("ADAPTER_PATH", "ADAPTER_SHA256", V15P_ADAPTER_PATH),
+        "ADAPTER_TB": ("ADAPTER_TB_PATH", "ADAPTER_TB_SHA256", V15P_ADAPTER_TB_PATH),
+        "OWNER_TIMING_TB": (
+            "OWNER_TIMING_TB_PATH",
+            "OWNER_TIMING_TB_SHA256",
+            V15P_OWNER_TIMING_TB_PATH,
+        ),
+        "MODULE_RESULT": (
+            "MODULE_RESULT_PATH",
+            "MODULE_RESULT_SHA256",
+            V15P_CURRENT_MODULE_RESULT_PATH,
+        ),
+        "ADAPTER_MODULE_LOG": (
+            "ADAPTER_MODULE_LOG_PATH",
+            "ADAPTER_MODULE_LOG_SHA256",
+            V15P_CURRENT_ADAPTER_LOG_PATH,
+        ),
+        "MUTATION_RESULT": (
+            "MUTATION_RESULT_PATH",
+            "MUTATION_RESULT_SHA256",
+            V15P_ADAPTER_MUTATION_RESULT_PATH,
+        ),
+    }
+    for name, (path_key, hash_key, expected_path) in closure_artifacts.items():
+        require_equal(closure.get(path_key), expected_path.as_posix(), f"V15P {name} path")
+        require_equal(
+            closure.get(hash_key),
+            sha256_file(safe_file(root, expected_path)),
+            f"V15P {name} SHA-256",
+        )
+
+    review_text = safe_file(root, V15P_ADAPTER_REVIEW_RESULT_PATH).read_text(
+        encoding="utf-8", errors="replace"
+    )
+    for marker in (
+        "`PASS`",
+        "5 ns timing hard gate 仍为 `FAIL`",
+        "Store terminal cycles move from the required `2/4/7` to `3/5/8`",
+        "promotion_state=NOT_PROMOTABLE",
+    ):
+        require(marker in review_text, f"V15P adapter review marker is absent: {marker}")
+
+    module = load_json(root, V15P_CURRENT_MODULE_RESULT_PATH)
+    require_equal(module.get("schema"), "npc-rv64-full-core-module-current-evidence-v1", "V15P module schema")
+    require_equal(module.get("status"), "PASS", "V15P module status")
+    require_equal(module.get("design_id"), design_id, "V15P module design-id")
+    require_equal(module.get("inputs", {}).get("unchanged"), True, "V15P module input stability")
+    require_equal(module.get("tests", {}).get("passed"), 113, "V15P module passed tests")
+    require_equal(module.get("tests", {}).get("required"), 113, "V15P module required tests")
+    adapter_log_record = module.get("tests", {}).get("logs", {}).get(
+        "tb_ooo_lsu_axi_lane_adapter"
+    )
+    validate_artifact_record(root, adapter_log_record, "V15P adapter module log", require_size=True)
+    require_equal(
+        adapter_log_record.get("path") if isinstance(adapter_log_record, dict) else None,
+        V15P_CURRENT_ADAPTER_LOG_PATH.as_posix(),
+        "V15P adapter module log path",
+    )
+    adapter_log = safe_file(root, V15P_CURRENT_ADAPTER_LOG_PATH).read_text(
+        encoding="utf-8", errors="replace"
+    )
+    for marker in ("[PASS] tb_ooo_lsu_axi_lane_adapter", design_id, "[RESULT] PASS"):
+        require(marker in adapter_log, f"V15P adapter module marker is absent: {marker}")
+
+    mutation, _ = load_key_value_evidence(
+        root, V15P_ADAPTER_MUTATION_RESULT_PATH, "V15P adapter mutation"
+    )
+    for key, expected in {
+        "RESULT": "PASS",
+        "MUTATION": "no-final-b-fallthrough",
+        "COMPILE_SUCCESS": "1",
+        "MUTATION_DETECTED": "1",
+        "EXPECTED_TEST_FAILURE": "1",
+        "MAKE_RC": "2",
+        "PRODUCTION_SHA_BEFORE": closure["ADAPTER_SHA256"],
+        "PRODUCTION_SHA_AFTER": closure["ADAPTER_SHA256"],
+    }.items():
+        require_equal(mutation.get(key), expected, f"V15P adapter mutation {key}")
+    mutation_log = safe_file(root, V15P_ADAPTER_MUTATION_LOG_PATH).read_text(
+        encoding="utf-8", errors="replace"
+    )
+    for marker in (
+        "store_terminal_cycles=3",
+        "store_terminal_cycles=5",
+        "store_terminal_cycles=8",
+        "[OWNER-TIMING-CAUSAL-PROBE][FAIL] adapter final-B fall-through absolute latency mismatch",
+        "[RESULT] FAIL status=1",
+    ):
+        require(marker in mutation_log, f"V15P adapter mutation marker is absent: {marker}")
+    return {
+        "design_id": design_id,
+        "module_tests": "113/113",
+        "directed_adapter": "PASS",
+        "compile_success_mutation": "1/1_REJECTED",
+        "positive_store_terminal_cycles": [2, 4, 7],
+        "mutated_store_terminal_cycles": [3, 5, 8],
+        "timing_hard_gate": "FAIL_NOT_PROMOTABLE",
+    }
+
+
+def validate_v9p_current_rebind_review(
+    root: pathlib.Path,
+    review: dict[str, Any],
+    design_id: str,
+) -> None:
+    require_equal(
+        review.get("schema"),
+        "npc-rv64-v15q-v9p-current-rebind-independent-review-v1",
+        "V15Q V9P current rebind review schema",
+    )
+    require_equal(review.get("status"), "PASS", "V15Q V9P current rebind review status")
+    require_equal(review.get("reviewed_design_id"), design_id, "V15Q V9P reviewed design-id")
+    reviewer = review.get("reviewer", {})
+    require_equal(reviewer.get("mode"), "isolated-read-only-review", "V15Q V9P review mode")
+    expected_review_artifacts = {
+        "contract": V9P_CURRENT_REBIND_CONTRACT_PATH,
+        "result": V9P_CURRENT_REBIND_RESULT_PATH,
+        "historical_summary": HISTORICAL_V9P_ROOT_CAUSE_PATH,
+        "legacy_review": V15G_INDEPENDENT_REVIEW_PATH,
+        "current_v9r": V9R_CURRENT_PATH,
+        "layered_current": LAYERED_SYSTEM_CURRENT_PATH,
+        "adapter_closure": V15P_ADAPTER_REVIEW_CLOSURE_PATH,
+        "adapter_review_result": V15P_ADAPTER_REVIEW_RESULT_PATH,
+        "current_module": V15P_CURRENT_MODULE_RESULT_PATH,
+        "adapter_mutation": V15P_ADAPTER_MUTATION_RESULT_PATH,
+        "backend": V9P_BACKEND_PATH,
+        "bridge": V9P_BRIDGE_PATH,
+        "adapter": V15P_ADAPTER_PATH,
+    }
+    reviewed_inputs = review.get("reviewed_inputs")
+    require(isinstance(reviewed_inputs, dict), "V15Q V9P reviewed inputs are missing")
+    require_equal(set(reviewed_inputs), set(expected_review_artifacts), "V15Q V9P reviewed input inventory")
+    for name, expected_path in expected_review_artifacts.items():
+        record = reviewed_inputs[name]
+        validate_artifact_record(root, record, f"V15Q V9P reviewed {name}", require_size=True)
+        require_equal(record.get("path"), expected_path.as_posix(), f"V15Q V9P reviewed {name} path")
+
+    conclusions = review.get("conclusions", {})
+    expected_conclusions = {
+        "historical_root_cause": "PASS_IMMUTABLE_9AC1",
+        "legacy_independent_review": "PASS_VD4_F7A",
+        "current_fix_source_binding": "PASS_BACKEND_BRIDGE_BYTE_IDENTICAL_TO_F7A",
+        "current_v9r": "PASS_2_BASELINES_3_MUTATIONS",
+        "adapter_terminal_path": "PASS_DIRECTED_AND_MUTATION_TIMING_GATE_FAIL",
+        "layered_signoff": "PASS_L0_L1_L2_L3",
+        "frozen_lane_claim": "UNKNOWN_PRESERVED",
+        "assertion_policy": "PRESERVED_FAIL_LOUD_NO_DEDUP",
+        "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
+        "validation_depth": "VD4_REBOUND_CURRENT_DESIGN",
+    }
+    require_equal(conclusions, expected_conclusions, "V15Q V9P review conclusions")
+    require_equal(
+        review.get("review_boundary"),
+        {
+            "production_rtl_modified_by_review": False,
+            "simulation_launched_by_review": False,
+            "full_ubuntu_launched": False,
+            "architecture_stable_claim": False,
+            "ppa_claim": False,
+            "timing_hard_gate": "FAIL_NOT_PROMOTABLE",
+        },
+        "V15Q V9P review boundary",
+    )
+    require_equal(
+        review.get("unknowns"),
+        [
+            "immutable V9P instance bank is not retained",
+            "immutable V9P kind/token/epoch owner tuple is not retained",
+        ],
+        "V15Q V9P review unknowns",
+    )
+    require_equal(review.get("counterexamples"), [], "V15Q V9P review counterexamples")
+    require_equal(
+        review.get("alternative_hypotheses"),
+        [
+            "a future Backend, Bridge or lane-adapter source-byte change requires a new current-design directed rebind"
+        ],
+        "V15Q V9P review alternatives",
+    )
+    require_equal(review.get("scope_extension_request"), None, "V15Q V9P scope extension")
+    require_equal(review.get("gaps"), [], "V15Q V9P review gaps")
+    result_text = safe_file(root, V9P_CURRENT_REBIND_RESULT_PATH).read_text(
+        encoding="utf-8", errors="replace"
+    )
+    for marker in (
+        "[V15Q-V9P-CURRENT-REBIND] PASS",
+        "FROZEN_INSTANCE_LANE_PAIR=UNKNOWN",
+        "FROZEN_INSTANCE_OWNER_TUPLE=UNKNOWN",
+        "CURRENT_V9R=PASS_2_BASELINES_3_MUTATIONS",
+        "ADAPTER_TIMING_HARD_GATE=FAIL_NOT_PROMOTABLE",
+        "ASSERTION_POLICY=PRESERVED_FAIL_LOUD_NO_DEDUP",
+        "GAPS=NONE",
+    ):
+        require(marker in result_text, f"V15Q V9P review result marker is absent: {marker}")
+
+
 def validate_v9p_terminal_duplicate(
     root: pathlib.Path,
     historical: dict[str, Any],
     current: dict[str, Any],
     layered: dict[str, Any],
-    review: dict[str, Any],
+    legacy_review: dict[str, Any],
+    current_rebind_review: dict[str, Any],
     design_id: str,
 ) -> dict[str, Any]:
-    """Bind the exact V9P C0/C1 counterexample to the current RTL fix."""
+    """Bind the immutable V9P C0/C1 counterexample to current RTL evidence."""
     try:
         verifier = load_module(
             safe_file(root, V15G_VERIFIER_PATH),
             "historical_defect_current_v9p_verifier",
         )
-        expected = verifier.build_summary(root)
+        frozen_expected = verifier.verify_frozen_failure(root)
+        exact_expected = verifier.verify_exact_source(root)
+        counterexamples = verifier.verify_counterexamples(root)
+        legacy_fix = verifier.verify_current_fix(root, V15G_FIX_DESIGN_ID)
     except Exception as exc:
         raise HistoricalCurrentError(
-            f"V9P root-cause upstream verifier failed: {exc}"
+            f"V9P immutable/root-cone verifier failed: {exc}"
         ) from exc
-    historical_aggregate = historical.get("current_aggregate")
-    expected_aggregate = expected.get("current_aggregate")
-    if not isinstance(historical_aggregate, dict) or not isinstance(
-        expected_aggregate, dict
-    ):
-        raise HistoricalCurrentError("V9P layered aggregate snapshot is missing")
-    historical_layered_artifact = historical_aggregate.get("receipt")
-    if (
-        not isinstance(historical_layered_artifact, dict)
-        or historical_layered_artifact.get("path")
-        != LAYERED_SYSTEM_CURRENT_PATH.as_posix()
-        or SHA256_RE.fullmatch(
-            str(historical_layered_artifact.get("sha256", ""))
-        )
-        is None
-        or not isinstance(historical_layered_artifact.get("size_bytes"), int)
-        or historical_layered_artifact["size_bytes"] <= 0
-    ):
-        raise HistoricalCurrentError(
-            "V9P reviewed layered aggregate snapshot is malformed"
-        )
-    require_equal(
-        historical_aggregate.get("default_conjunction"),
-        expected_aggregate.get("default_conjunction"),
-        "V9P layered default conjunction",
-    )
-    require_equal(
-        historical_aggregate.get("optional_ubuntu"),
-        expected_aggregate.get("optional_ubuntu"),
-        "V9P optional Ubuntu boundary",
-    )
-    # 独立审查绑定的是当时的聚合收据哈希；当前聚合另由 layered 参数复核。
-    historical_semantics = dict(historical)
-    expected_semantics = dict(expected)
-    aggregate_semantics = {
-        "default_conjunction": historical_aggregate["default_conjunction"],
-        "optional_ubuntu": historical_aggregate["optional_ubuntu"],
-    }
-    historical_semantics["current_aggregate"] = aggregate_semantics
-    expected_semantics["current_aggregate"] = aggregate_semantics
-    require_equal(historical_semantics, expected_semantics, "V9P root-cause summary")
-    require_equal(
-        historical.get("schema"),
-        "npc-rv64-v9p-terminal-root-cause-backfill-v1",
-        "V9P root-cause schema",
-    )
-    require_equal(historical.get("status"), "PASS", "V9P root-cause status")
-    frozen = historical.get("historical_failure", {})
-    require_equal(
-        frozen.get("design_id"),
-        "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
-        "V9P frozen design-id",
-    )
-    require_equal(frozen.get("marker"), "[S2-G1-TCOLL-INGRESS-DUP]", "V9P frozen marker")
-    require_equal(frozen.get("driver_marker_lines"), 2, "V9P retained marker lines")
-    require_equal(frozen.get("physical_assertion_events"), 1, "V9P physical assertion events")
-    require_equal(frozen.get("observed_duplicate_ingress_lanes"), "UNKNOWN", "V9P immutable lane observation")
-    require_equal(frozen.get("observed_owner_tuple"), "UNKNOWN", "V9P immutable owner tuple")
-    require_equal(frozen.get("original_status_preserved"), True, "V9P original status preservation")
 
-    cause = historical.get("root_cause", {})
-    require_equal(
-        cause.get("classification"),
-        "C0_RETRY_HANDOFF_SPLIT_OWNERSHIP_THEN_C1_DUPLICATE_TERMINAL",
-        "V9P root-cause class",
+    historical_aggregate = historical.get("current_aggregate")
+    require(isinstance(historical_aggregate, dict), "V9P layered aggregate snapshot is missing")
+    historical_layered_artifact = historical_aggregate.get("receipt")
+    require(
+        isinstance(historical_layered_artifact, dict)
+        and historical_layered_artifact.get("path") == LAYERED_SYSTEM_CURRENT_PATH.as_posix()
+        and SHA256_RE.fullmatch(str(historical_layered_artifact.get("sha256", ""))) is not None
+        and isinstance(historical_layered_artifact.get("size_bytes"), int)
+        and historical_layered_artifact["size_bytes"] > 0,
+        "V9P reviewed layered aggregate snapshot is malformed",
     )
+    expected_historical = {
+        "schema": "npc-rv64-v9p-terminal-root-cause-backfill-v1",
+        "status": "PASS",
+        "historical_failure": {
+            "design_id": V9P_FROZEN_DESIGN_ID,
+            "run_id": "2026-07-23-rv64-v9p-serialize-current-design/rootfs-flag-on-full",
+            "marker": "[S2-G1-TCOLL-INGRESS-DUP]",
+            **frozen_expected,
+            "original_status_preserved": True,
+        },
+        "exact_source": exact_expected,
+        "root_cause": {
+            "classification": "C0_RETRY_HANDOFF_SPLIT_OWNERSHIP_THEN_C1_DUPLICATE_TERMINAL",
+            "cycle_sequence": [
+                "C0 full-flush barrier: V9P backend exposes retry credit, captures the MIQ owner into the bank-local retry holder and pops the MIQ",
+                "C0 full-flush barrier: V9P bridge gives barrier retention priority and keeps the same S_SQ_QUERY owner",
+                "C1 flush: retained bridge emits drop0 while the captured retry holder emits cancel for the same owner tuple",
+            ],
+            "exact_reproducible_pair_family": counterexamples["reproducible_lane_pairs"],
+            "frozen_instance_lane_pair": "UNKNOWN_NOT_RETAINED_IN_IMMUTABLE_LOG",
+            "frozen_instance_owner_tuple": "UNKNOWN_NOT_RETAINED_IN_IMMUTABLE_LOG",
+            "pair_scope": "both symmetric banks are dynamically reproduced; the immutable run does not identify which bank fired",
+            "counterexample_evidence": counterexamples,
+        },
+        "current_fix": {
+            "design_id": V15G_FIX_DESIGN_ID,
+            "rtl_file_count": 146,
+            "contract": "C0 barrier suppresses both backend retry credit/capture and bridge retry fire; the bridge alone retains the owner until C1 flush",
+            "mechanism": [
+                "barrier gate on backend bank0 retry-ready",
+                "barrier gate on backend bank1 retry-ready",
+                "barrier gate on bridge SQ-query retry-fire",
+            ],
+            "assertion_policy": "fail-loud; no terminal deduplication, merge, waiver or assertion weakening",
+            "focused_evidence": legacy_fix,
+        },
+        "current_aggregate": historical_aggregate,
+        "cleanup": {
+            "compiled_images_retained": 0,
+            "retained": "bounded logs, negative RTL variants, source/hash receipts and result JSON",
+        },
+        "validation_depth_candidate": "VD4_PENDING_INDEPENDENT_REVIEW",
+        "non_claims": [
+            "the exact bank or owner tuple of the immutable V9P failure is known",
+            "Ubuntu 22.04 or systemd full-rootfs recertification was run",
+            "ARCH_STABLE, synthesis, STA, power, area, CPI or PPA promotion",
+        ],
+    }
+    require_equal(historical, expected_historical, "V9P immutable root-cause summary")
+
+    frozen = historical["historical_failure"]
+    cause = historical["root_cause"]
+    require_equal(legacy_review.get("schema"), "npc-rv64-v15g-independent-review-v1", "V15G review schema")
+    require_equal(legacy_review.get("status"), "PASS", "V15G review status")
+    require_equal(legacy_review.get("reviewed_design_id"), V15G_FIX_DESIGN_ID, "V15G reviewed design-id")
+    validate_artifact_record(root, legacy_review.get("reviewed_summary"), "V15G reviewed summary", require_size=True)
     require_equal(
-        cause.get("exact_reproducible_pair_family"),
-        {"bank0": [2, 10], "bank1": [4, 11]},
-        "V9P exact lane-pair family",
+        legacy_review.get("reviewed_summary", {}).get("path"),
+        HISTORICAL_V9P_ROOT_CAUSE_PATH.as_posix(),
+        "V15G reviewed summary path",
     )
-    require_equal(
-        cause.get("frozen_instance_lane_pair"),
-        "UNKNOWN_NOT_RETAINED_IN_IMMUTABLE_LOG",
-        "V9P frozen lane non-claim",
-    )
-    require_equal(
-        cause.get("frozen_instance_owner_tuple"),
-        "UNKNOWN_NOT_RETAINED_IN_IMMUTABLE_LOG",
-        "V9P frozen tuple non-claim",
-    )
+    legacy_conclusions = legacy_review.get("conclusions", {})
+    require_equal(legacy_conclusions.get("exact_source_binding"), "PASS", "V15G exact-source review")
+    require_equal(legacy_conclusions.get("root_cause"), "PASS", "V15G root-cause review")
+    require_equal(legacy_conclusions.get("frozen_lane_claim"), "UNKNOWN_PRESERVED", "V15G frozen-lane review")
+    require_equal(legacy_conclusions.get("current_fix"), "PASS", "V15G current-fix review")
+    require_equal(legacy_conclusions.get("mutation_sensitivity"), "PASS", "V15G mutation review")
+    require_equal(legacy_conclusions.get("layered_signoff"), "PASS_L0_L1_L2_L3", "V15G layered review")
+    require_equal(legacy_conclusions.get("optional_ubuntu"), "NOT_RUN_EXPLICIT_REQUEST_ONLY", "V15G Ubuntu review")
+    require_equal(legacy_conclusions.get("assertion_policy"), "PRESERVED_FAIL_LOUD", "V15G assertion review")
+    require_equal(legacy_conclusions.get("validation_depth"), "VD4", "V15G validation-depth review")
+    require_equal(legacy_review.get("gaps"), [], "V15G review gaps")
 
     require_equal(current.get("schema"), "npc-rv64-v9r-sq-retry-c0-current-v1", "V9R current schema")
     require_equal(current.get("status"), "PASS", "V9R current status")
     require_equal(current.get("design_id"), design_id, "V9R current design-id")
-    require_equal(current.get("baseline", {}).get("status"), "PASS", "V9R baseline")
+    # V9R stores path/hash only; validate exact live bytes without inventing size fields.
+    for name, path in (("backend", V9P_BACKEND_PATH), ("bridge", V9P_BRIDGE_PATH)):
+        record = current.get("production_sources", {}).get(name, {})
+        require_equal(record.get("path"), path.as_posix(), f"V9R {name} source path")
+        require_equal(record.get("sha256"), sha256_file(safe_file(root, path)), f"V9R {name} source SHA-256")
+    baseline = current.get("baseline", {})
+    require_equal(baseline.get("status"), "PASS", "V9R baseline")
+    require_equal(baseline.get("backend_banks"), 2, "V9R backend banks")
+    require_equal(baseline.get("forced_barrier_cases"), 2, "V9R forced barrier cases")
+    for name, record in baseline.get("logs", {}).items():
+        text = validate_retained_log(root, record, f"V9R baseline {name}")
+        require("[PASS]" in text, f"V9R baseline {name} PASS marker is absent")
     variants = current.get("compile_success_rtl_variants", [])
     require_equal(
         [row.get("id") for row in variants],
@@ -1625,23 +1974,14 @@ def validate_v9p_terminal_duplicate(
         require_equal(row.get("compiled_image", {}).get("retained"), False, f"V9R {name} image retention")
         validate_artifact_record(root, row.get("mutated_rtl"), f"V9R {name} RTL")
         log = validate_retained_log(root, row.get("log"), f"V9R {name} log")
-        marker = (
-            "[V9R-MEM-SQ-RETRY-C0-HANDOFF]"
-            if name == "bridge-retry-fire-open"
-            else "[V9R-SQ-RETRY-C0-HANDOFF]"
-        )
+        marker = "[V9R-MEM-SQ-RETRY-C0-HANDOFF]" if name == "bridge-retry-fire-open" else "[V9R-SQ-RETRY-C0-HANDOFF]"
         require(marker in log, f"V9R {name} rejection marker is absent")
     require_equal(current.get("cleanup", {}).get("compiled_images_retained"), 0, "V9R retained images")
 
     require_equal(layered.get("schema"), "npc-rv64-layered-system-signoff-current-v1", "layered current schema")
     require_equal(layered.get("status"), "PASS", "layered current status")
     require_equal(layered.get("rtl_design_id"), design_id, "layered current design-id")
-    expected_layers = [
-        "L0_DIRECTED_RTL",
-        "L1_FULL_CORE_DIFFTEST",
-        "L2_MINI_SYSTEM",
-        "L3_LIGHTWEIGHT_LINUX",
-    ]
+    expected_layers = ["L0_DIRECTED_RTL", "L1_FULL_CORE_DIFFTEST", "L2_MINI_SYSTEM", "L3_LIGHTWEIGHT_LINUX"]
     require_equal(layered.get("default_signoff_conjunction"), expected_layers, "layered default conjunction")
     for name in expected_layers:
         row = layered.get("layers", {}).get(name, {})
@@ -1652,39 +1992,25 @@ def validate_v9p_terminal_duplicate(
     require_equal(ubuntu.get("blocks_default_signoff"), False, "optional Ubuntu gate")
     require_equal(ubuntu.get("launch_policy"), "explicit-user-request-only", "optional Ubuntu policy")
 
-    require_equal(review.get("schema"), "npc-rv64-v15g-independent-review-v1", "V15G review schema")
-    require_equal(review.get("status"), "PASS", "V15G review status")
-    require_equal(review.get("reviewed_design_id"), design_id, "V15G reviewed design-id")
-    validate_artifact_record(root, review.get("reviewed_summary"), "V15G reviewed summary", require_size=True)
-    require_equal(
-        review.get("reviewed_summary", {}).get("path"),
-        HISTORICAL_V9P_ROOT_CAUSE_PATH.as_posix(),
-        "V15G reviewed summary path",
-    )
-    conclusions = review.get("conclusions", {})
-    require_equal(conclusions.get("exact_source_binding"), "PASS", "V15G exact-source review")
-    require_equal(conclusions.get("root_cause"), "PASS", "V15G root-cause review")
-    require_equal(conclusions.get("frozen_lane_claim"), "UNKNOWN_PRESERVED", "V15G frozen-lane review")
-    require_equal(conclusions.get("current_fix"), "PASS", "V15G current-fix review")
-    require_equal(conclusions.get("mutation_sensitivity"), "PASS", "V15G mutation review")
-    require_equal(conclusions.get("layered_signoff"), "PASS_L0_L1_L2_L3", "V15G layered review")
-    require_equal(conclusions.get("optional_ubuntu"), "NOT_RUN_EXPLICIT_REQUEST_ONLY", "V15G Ubuntu review")
-    require_equal(conclusions.get("assertion_policy"), "PRESERVED_FAIL_LOUD", "V15G assertion review")
-    require_equal(conclusions.get("validation_depth"), "VD4", "V15G validation-depth review")
-    require_equal(review.get("gaps"), [], "V15G review gaps")
+    adapter_metrics = validate_v15p_adapter_current(root, design_id)
+    validate_v9p_current_rebind_review(root, current_rebind_review, design_id)
     return {
         "historical_design_id": frozen.get("design_id"),
+        "legacy_fixed_design_id": V15G_FIX_DESIGN_ID,
         "historical_physical_assertion_events": 1,
         "immutable_frozen_lane_pair": "UNKNOWN",
+        "immutable_frozen_owner_tuple": "UNKNOWN",
         "exact_reproducible_lane_pairs": {"bank0": [2, 10], "bank1": [4, 11]},
         "root_cause": cause.get("classification"),
         "current_design_id": design_id,
+        "current_fix_sources": "BACKEND_BRIDGE_BYTE_IDENTICAL_TO_F7A",
         "current_baseline_profiles": "2/2",
         "current_compile_success_mutations": "3/3",
+        "current_adapter_terminal_path": adapter_metrics,
         "current_default_signoff": "L0+L1+L2+L3",
         "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
         "compiled_images_retained": 0,
-        "independent_review": "PASS_VD4",
+        "independent_review": "PASS_VD4_REBOUND_CURRENT_DESIGN",
     }
 
 
@@ -1734,6 +2060,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             "v9r_current": V9R_CURRENT_PATH,
             "layered_current": LAYERED_SYSTEM_CURRENT_PATH,
             "v15g_review": V15G_INDEPENDENT_REVIEW_PATH,
+            "v15q_v9p_review": V9P_CURRENT_REBIND_REVIEW_PATH,
         }.items()
     }
     system_metrics = validate_layered_system_current(
@@ -1768,6 +2095,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             payloads["v9r_current"],
             payloads["layered_current"],
             payloads["v15g_review"],
+            payloads["v15q_v9p_review"],
             design_id,
         ),
     }
@@ -1830,11 +2158,11 @@ def validate_ledger_payload(
 ) -> None:
     require_equal(ledger.get("schema"), LEDGER_SCHEMA, "historical ledger schema")
     require_equal(ledger.get("design_id"), receipt.get("design_id"), "historical ledger design-id")
-    require(
-        isinstance(ledger.get("revision"), str)
-        and any(tag in ledger["revision"] for tag in ("v14k", "v15g")),
-        "historical ledger revision must identify V14K or V15G",
+    expected_revision = (
+        f"v15q-current-{receipt['design_id'].removeprefix('sha256:')[:8]}-"
+        "historical-defect-vd4-rebind"
     )
+    require_equal(ledger.get("revision"), expected_revision, "historical ledger revision")
     require_equal(ledger.get("selected_id"), "NONE", "historical ledger selected id")
     entries = ledger.get("entries")
     require(isinstance(entries, list), "historical ledger entries are missing")
@@ -1900,6 +2228,17 @@ def rebind_ledger_receipt(
         if isinstance(row, dict) and isinstance(row.get("id"), str)
     }
     require_equal(set(entry_map), set(DEFECT_IDS), "historical ledger membership")
+    receipt = load_json(root, RECEIPT_PATH)
+    design_id = receipt.get("design_id")
+    require(
+        isinstance(design_id, str) and DESIGN_ID_RE.fullmatch(design_id) is not None,
+        "historical receipt design-id is malformed",
+    )
+    ledger["design_id"] = design_id
+    ledger["revision"] = (
+        f"v15q-current-{design_id.removeprefix('sha256:')[:8]}-"
+        "historical-defect-vd4-rebind"
+    )
     pointer = receipt_ledger_artifact(root)
     layered_pointer = {
         "path": LAYERED_SYSTEM_CURRENT_PATH.as_posix(),
@@ -1907,6 +2246,25 @@ def rebind_ledger_receipt(
     }
     for defect_id in DEFECT_IDS:
         entry_map[defect_id]["current_evidence"] = [dict(pointer)]
+        depth_basis = entry_map[defect_id].get("depth_basis")
+        require(isinstance(depth_basis, list), f"{defect_id} depth basis is missing")
+        if not any(design_id in text for text in depth_basis if isinstance(text, str)):
+            if defect_id == "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP":
+                depth_basis.append(
+                    "The V15Q current-design receipt binds unchanged OooIntBackend/OooMemAxiBridge "
+                    "fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL "
+                    "versions, the independently reviewed adapter terminal path and L0-L3 evidence "
+                    f"to {design_id}; the immutable bank and kind/token/epoch tuple remain UNKNOWN, "
+                    "the 5 ns timing hard gate remains FAIL_NOT_PROMOTABLE, and no terminal-event "
+                    "deduplication or assertion weakening is permitted."
+                )
+            else:
+                depth_basis.append(
+                    "The V15Q six-defect current receipt revalidates the directed positive, "
+                    "compile-success negative and layered-system evidence on "
+                    f"{design_id} without rewriting historical execution status or claiming "
+                    "ARCH_STABLE or PPA promotion."
+                )
         source_artifacts = entry_map[defect_id].get("source_artifacts", [])
         for index, record in enumerate(source_artifacts):
             if (

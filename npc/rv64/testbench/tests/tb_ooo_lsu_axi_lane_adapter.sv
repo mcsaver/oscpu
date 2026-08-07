@@ -494,7 +494,9 @@ module tb_ooo_lsu_axi_lane_adapter;
   endtask
 
   task automatic split_write(input logic [63:0] addr,
-                             input logic [2:0] size);
+                             input logic [2:0] size,
+                             input integer error_beat,
+                             input logic [1:0] error_resp);
     reg [63:0] pattern;
     reg [63:0] beat_data;
     reg [1:0] beat_resp;
@@ -520,15 +522,93 @@ module tb_ooo_lsu_axi_lane_adapter;
         lsa_tick();
         d_axi_awready_i = 1'b0;
         d_axi_wready_i = 1'b0;
-        beat_resp = (i == 1) ? 2'b10 : 2'b00;
+        beat_resp = (i == error_beat) ? error_resp : 2'b00;
         d_axi_bresp_i = beat_resp;
         d_axi_bvalid_i = 1'b1;
         #1;
         check1("split downstream B ready", d_axi_bready_o, 1'b1);
+        if (i + 1 < count) begin
+          check1("non-final split B remains internal",
+                 u_axi_bvalid_o, 1'b0);
+        end else begin
+          check1("final split B falls through", u_axi_bvalid_o, 1'b1);
+          check2("final split sticky response", u_axi_bresp_o, error_resp);
+        end
         lsa_tick();
         d_axi_bvalid_i = 1'b0;
       end
-      consume_u_b(2'b10, 1'b0);
+      consume_u_b(error_resp, 1'b0);
+    end
+  endtask
+
+  task automatic final_b_response_case(input logic [1:0] response,
+                                       input logic stall_upstream);
+    begin
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
+      u_axi_bready_i = 1'b0;
+      launch_write(64'h0000_0000_0000_8100 + response,
+                   3'd0, 64'h5a, 8'h01, 1'b0, 0);
+      wait_d_aw_w();
+      lsa_tick();
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
+
+      u_axi_bready_i = !stall_upstream;
+      d_axi_bresp_i = response;
+      d_axi_bvalid_i = 1'b1;
+      #1;
+      check1("final downstream B ready is state-only",
+             d_axi_bready_o, 1'b1);
+      check1("final B visible without register bubble",
+             u_axi_bvalid_o, 1'b1);
+      check2("direct final B response", u_axi_bresp_o, response);
+      lsa_tick();
+      d_axi_bvalid_i = 1'b0;
+
+      if (stall_upstream) begin
+        #1;
+        check1("stalled final B falls back to held response",
+               u_axi_bvalid_o, 1'b1);
+        check2("stalled final B response held", u_axi_bresp_o, response);
+        lsa_tick();
+        check1("stalled final B remains valid", u_axi_bvalid_o, 1'b1);
+        check2("stalled final B remains stable", u_axi_bresp_o, response);
+        u_axi_bready_i = 1'b1;
+        lsa_tick();
+        u_axi_bready_i = 1'b0;
+      end else begin
+        u_axi_bready_i = 1'b0;
+      end
+      #1;
+      check1("final B terminates exactly once", u_axi_bvalid_o, 1'b0);
+    end
+  endtask
+
+  task automatic reset_blocks_final_b_fallthrough;
+    begin
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
+      launch_write(64'h0000_0000_0000_8200,
+                   3'd0, 64'ha5, 8'h01, 1'b0, 0);
+      wait_d_aw_w();
+      lsa_tick();
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
+      d_axi_bresp_i = 2'b10;
+      d_axi_bvalid_i = 1'b1;
+      u_axi_bready_i = 1'b0;
+      #1;
+      check1("pre-reset final B is visible", u_axi_bvalid_o, 1'b1);
+      rst = 1'b1;
+      #1;
+      check1("reset masks direct final B", u_axi_bvalid_o, 1'b0);
+      lsa_tick();
+      d_axi_bvalid_i = 1'b0;
+      rst = 1'b0;
+      lsa_tick();
+      check1("reset leaves no held final B", u_axi_bvalid_o, 1'b0);
+      check1("reset returns adapter idle", u_axi_awready_o, 1'b1);
     end
   endtask
 
@@ -629,13 +709,20 @@ module tb_ooo_lsu_axi_lane_adapter;
     aligned_read(64'h7000, 3'd3, 1'b0);
     aligned_write(64'h8000, 3'd3, order, 1'b0);
 
+    // A real final B is visible in S_W_RESP.  A ready owner consumes it in the
+    // same cycle; a stalled owner gets the exact registered fallback.
+    final_b_response_case(2'b00, 1'b0);
+    final_b_response_case(2'b10, 1'b0);
+    final_b_response_case(2'b11, 1'b1);
+    reset_blocks_final_b_fallthrough();
+
     // PMEM-only split contract: SH@7, SW@6 and SD@1 cross an 8-byte lane.
     split_read(64'h9007, 3'd1);
-    split_write(64'ha007, 3'd1);
+    split_write(64'ha007, 3'd1, 0, 2'b11);
     split_read(64'hb006, 3'd2);
-    split_write(64'hc006, 3'd2);
+    split_write(64'hc006, 3'd2, 1, 2'b10);
     split_read(64'hd001, 3'd3);
-    split_write(64'he001, 3'd3);
+    split_write(64'he001, 3'd3, 1, 2'b10);
 
     // MMIO/PTE/AMO mode cannot split: return DECERR without any downstream
     // request.  Sparse masks are rejected even when splitting is allowed.

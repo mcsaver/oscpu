@@ -2,8 +2,8 @@
   "checker": {
     "kind": "layered_signoff_checker",
     "path": "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
-    "sha256": "24b884343047fedc3458feaf2a2a4ed224b41e0eb546d8fc4d0919b846efc5f0",
-    "size_bytes": 34049
+    "sha256": "457e48f1701bf1461f30ea478dfffde77b1c8a999d1496ec6aa8228cf9fbf0f4",
+    "size_bytes": 38987
   },
   "claim": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
   "default_signoff_conjunction": [
@@ -15,12 +15,12 @@
   "layers": {
     "L0_DIRECTED_RTL": {
       "claim": "L0_DIRECTED_RTL_PASS_CURRENT_IDENTITY",
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
       "result": {
         "kind": "module_current_result",
-        "path": ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/l0-current-final-v3/result.json",
-        "sha256": "05e07097bf6c8643a71495fcfc5d2ace3327a12952ed3350a99a6170941aeafc",
-        "size_bytes": 43673
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
+        "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
+        "size_bytes": 42270
       },
       "rtl_assertions": {
         "enabled": true,
@@ -28,8 +28,8 @@
       },
       "stage_status": {
         "kind": "module_stage_status",
-        "path": ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/l0-current-final-v3/status.json",
-        "sha256": "1f1443ea49ce447fed1e3a49655adb104f5856dc1c585226345b56b88e71850b",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/status.json",
+        "sha256": "565c7ab5987e63fb7f26d9c1505217690eb325737f34363e07b86d529aa71e32",
         "size_bytes": 213
       },
       "status": "PASS",
@@ -39,8 +39,46 @@
       }
     },
     "L1_FULL_CORE_DIFFTEST": {
+      "artifacts": {
+        "aggregate": {
+          "kind": "functional_aggregate",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate.json",
+          "sha256": "7c5e9742199bb25fe7894b5a73479a9e6c672b3696b1a72d07525a6a8b604498",
+          "size_bytes": 238423
+        },
+        "aggregate_log": {
+          "kind": "functional_aggregate_log",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate.log",
+          "sha256": "d09cbb10ba451855c670ae9144e143c399db807ebc9498dedfa7531c0a242c34",
+          "size_bytes": 986
+        },
+        "aggregate_result": {
+          "kind": "functional_aggregate_result",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate-result.json",
+          "sha256": "237d2e98373680bdea376476a67affd7406c1c847891ace8da7218cc742448c0",
+          "size_bytes": 3046
+        },
+        "configuration": {
+          "kind": "kconfig",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/npc.config",
+          "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+          "size_bytes": 1257
+        },
+        "reference": {
+          "kind": "reference_model_binary",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/riscv64-nemu-interpreter-so",
+          "sha256": "96bf8ed25222daa31cdcea0917f32b7257e26f2fe69b9dbbac46067646ea5917",
+          "size_bytes": 370672
+        },
+        "simulator": {
+          "kind": "simulator_binary",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop",
+          "sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6",
+          "size_bytes": 3235088
+        }
+      },
       "claim": "L1_FULL_CORE_DIFFTEST_PASS_CURRENT_IDENTITY",
-      "classification": "execution-complete-old-benchmark-terminal-oracle-false-positive",
+      "classification": "direct-current-design-execution-pass",
       "counts": {
         "am_passed": 61,
         "am_required": 61,
@@ -52,65 +90,56 @@
         "official_passed": 177,
         "official_required": 177
       },
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
-      "guest_rerun": false,
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "execution_result": {
+        "kind": "full_core_functional_current_result",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/run-result.json",
+        "sha256": "200a502278545ef841d10d07a2326a2253b2ec371b1277978fe32c058c480a12",
+        "size_bytes": 3462
+      },
+      "functional_stage_status": {
+        "kind": "functional_stage_status",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/status.json",
+        "sha256": "c7a75a0a40812262c634cbac7e61b2062aa6ea046c8a43297d2e8c53a2469607",
+        "size_bytes": 251
+      },
+      "guest_rerun": true,
       "inputs": {
-        "after": {
-          "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/input-hashes-after.sha256",
-          "sha256": "fae4c289b946bbd0a4c3a94b1589054ed6d11ee2f0789b8c074496fc44c0b27c",
-          "size_bytes": 179526
-        },
-        "before": {
-          "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/input-hashes-before.sha256",
-          "sha256": "fae4c289b946bbd0a4c3a94b1589054ed6d11ee2f0789b8c074496fc44c0b27c",
-          "size_bytes": 179526
-        },
-        "current_input_file_count": 979,
         "execution_reused": false,
-        "live_drift": [],
-        "replay_scope": "exact-current-inputs"
+        "post": {
+          "kind": "functional_input_binding",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.post.json",
+          "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
+          "size_bytes": 314702
+        },
+        "pre": {
+          "kind": "functional_input_binding",
+          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.pre.json",
+          "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
+          "size_bytes": 314702
+        },
+        "replay_scope": "direct-current-execution",
+        "unchanged": true
+      },
+      "module_result": {
+        "kind": "module_current_result",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
+        "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
+        "size_bytes": 42270
       },
       "published_current": false,
-      "replay_result": {
-        "kind": "full_core_checker_replay_result",
-        "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/evidence/functional/replay-result.json",
-        "sha256": "c5132528f0ebc1a273cdef42a7ba5dead38b9b3c22b8721e7d64fb1358d16925",
-        "size_bytes": 4259
+      "retention": {
+        "compiled_intermediates_retained": 0,
+        "frozen_reference_retained": 1,
+        "frozen_simulator_retained": 1,
+        "module_simulation_reused": true,
+        "program_images_retained": 240
       },
-      "seal": {
-        "manifest": {
-          "kind": "evidence_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/evidence-files.sha256",
-          "sha256": "9a95fe8ea3260ac4c39255a0733c04ef9e7b59c8298e90d67c0efefad0118320",
-          "size_bytes": 45058
-        },
-        "seal": {
-          "kind": "evidence_seal",
-          "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/evidence-seal.txt",
-          "sha256": "6f141425795da0cc9e643df00caa52e9928d8444fcf8033c67f8e92d71a5e2f6",
-          "size_bytes": 242
-        },
-        "sealed_file_count": 369,
-        "verification_log": {
-          "kind": "evidence_verification_log",
-          "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/evidence-files.verify.log",
-          "sha256": "1202acfb5ecb74af92d82ea4d0695ea19636c70f26b12211f5ddb7305a5cba7c",
-          "size_bytes": 22180
-        }
-      },
-      "signoff_scope": "full-l1-checker-replay",
-      "source_execution_status": {
-        "kind": "original_full_core_fail_status",
-        "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/full-core-current.status",
-        "sha256": "f923a8ae87f26025bdec54301bf96013c31c323228a3c04f266705cfb5a4fe5e",
-        "size_bytes": 67
-      },
+      "signoff_scope": "full-l1-direct-execution",
       "status": "PASS",
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2/full-core-checker-replay.status",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/full-core-current.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -118,50 +147,36 @@
     "L2_MINI_SYSTEM": {
       "binding": {
         "kind": "l2_binding",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/binding.txt",
-        "sha256": "896fea028b3282da623827b3e85bb7f8ee66956626412154ae2862ecad2cb6fc",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/binding.txt",
+        "sha256": "7681d556a379a8203e9a2af66392c3a8e59043c36bdf0bdbe35a203ebcd4225d",
         "size_bytes": 1859
       },
       "case": "all",
       "claim": "L2_MINI_SYSTEM_PASS_CURRENT_IDENTITY",
-      "commits": 6098469,
-      "cpi": 1.6698422177762977,
-      "cycles": 10183481,
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "commits": 6098497,
+      "cpi": 1.6200158826018936,
+      "cycles": 9879662,
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
       "execution_reused": true,
       "guest_rerun": false,
-      "identity_helper_replay": [
-        {
-          "classification": "rtl_identity_helper_only",
-          "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
-          "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-          "recorded_sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
-        }
-      ],
+      "identity_helper_replay": [],
       "inputs": {
         "after": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/input-hashes-after.sha256",
-          "sha256": "8db91f4bcfb3bf8445bc16d80b24fd4dea8c3f1ce3443e1400c6c4a0d68959d1",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/input-hashes-after.sha256",
+          "sha256": "433bf0fff9528bd82abdd6c6c232cf4a12dbadff9ed2b12ceced3a06c7e7082e",
           "size_bytes": 2722
         },
         "before": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/input-hashes-before.sha256",
-          "sha256": "8db91f4bcfb3bf8445bc16d80b24fd4dea8c3f1ce3443e1400c6c4a0d68959d1",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/input-hashes-before.sha256",
+          "sha256": "433bf0fff9528bd82abdd6c6c232cf4a12dbadff9ed2b12ceced3a06c7e7082e",
           "size_bytes": 2722
         },
         "current_input_file_count": 17,
-        "execution_reused": true,
-        "live_drift": [
-          {
-            "classification": "rtl_identity_helper_only",
-            "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
-            "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-            "recorded_sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
-          }
-        ],
-        "replay_scope": "rtl-identity-helper-only"
+        "execution_reused": false,
+        "live_drift": [],
+        "replay_scope": "exact-current-inputs"
       },
       "layer_source_sha256": "2ffa538ae319551dee758beaddae0a6140ad92a29c98535126ef30c196676b5d",
       "rtl_assertions": {
@@ -171,33 +186,33 @@
       "seal": {
         "manifest": {
           "kind": "evidence_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/evidence-files.sha256",
-          "sha256": "cb9c1b8fda57f5cba375e8d639ec88ec112d30163bbde73998957c524dfbc948",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-files.sha256",
+          "sha256": "441cbff2f61c77c9e97604c72d85d2b259abcd376596b903bb6a9129b735afae",
           "size_bytes": 1840
         },
         "seal": {
           "kind": "evidence_seal",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/evidence-seal.txt",
-          "sha256": "6f8b172eea02582c89f005cf2b7bce0683d9b4048e2bdbdb64cfddfe8ff0e4bc",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-seal.txt",
+          "sha256": "d15e63e334c389f9a6ad51ca58805d177768d7de47f566332abd82a6bbde2d87",
           "size_bytes": 241
         },
         "sealed_file_count": 21,
         "verification_log": {
           "kind": "evidence_verification_log",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/evidence-files.verify.log",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-files.verify.log",
           "sha256": "76664e25c9499579d95e1b002160cb44ef88f716f3d243264402d9807cab4227",
           "size_bytes": 538
         }
       },
       "signoff_scope": "full-l2",
-      "simulator_sha256": "319287572c21c14be459b1861434964e480cd3ebc8741d6c33cf54d9206e689c",
-      "simulator_source_sha256": "610235f67d37ce54f7079b1223e905e6f5d2e1bf69c7a805935c9d34b8f1cce2",
+      "simulator_sha256": "466702fafdae4ccb13ec64b877c61ad1a42a0df0f482fa327c76e27f5a3efa61",
+      "simulator_source_sha256": "9b7a08f1389f1543f825383ac41dc990531310b150e382513313513e0936519b",
       "status": "PASS",
       "summary": {
         "kind": "l2_summary",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system/summary.json",
-        "sha256": "83098fc1ce8c24360d7f01e2822fa83e790245741e9cb18c645c6d21b644ff91",
-        "size_bytes": 3241
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/summary.json",
+        "sha256": "a23d92476b4e44c8b358325df3eedd758c9a0c03a5ef028afc0191884a18647d",
+        "size_bytes": 3234
       },
       "terminal_counts": {
         "good_trap": 1,
@@ -208,7 +223,7 @@
       },
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system.status",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -216,50 +231,36 @@
     "L3_LIGHTWEIGHT_LINUX": {
       "binding": {
         "kind": "l3_binding",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/binding.txt",
-        "sha256": "643d260a82a9c9f3d53f35c6fa2dcf6c353b655a1d75a486611725fdd0b9b81b",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/binding.txt",
+        "sha256": "991ea75b350028b5584f2fb3e8b80d71b2de3b1d13e1690d551e4e39def6e0ad",
         "size_bytes": 2649
       },
       "case": "all",
       "claim": "L3_LIGHTWEIGHT_LINUX_PASS_CURRENT_IDENTITY",
-      "commits": 24449283,
-      "cpi": 2.419739957200381,
-      "cycles": 59160907,
-      "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "commits": 24459262,
+      "cpi": 2.3350198791770578,
+      "cycles": 57112863,
+      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
       "execution_reused": true,
       "guest_rerun": false,
-      "identity_helper_replay": [
-        {
-          "classification": "rtl_identity_helper_only",
-          "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
-          "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-          "recorded_sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
-        }
-      ],
+      "identity_helper_replay": [],
       "inputs": {
         "after": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/input-hashes-after.sha256",
-          "sha256": "c5c5caf785102f0495e899444e21ddd2dc17a8fb8b3c6a78378938669f2d0ece",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/input-hashes-after.sha256",
+          "sha256": "be68cf7a5956c89d1b2aefdfebfc02afa050a28ce46476325f3469ab42049810",
           "size_bytes": 2868
         },
         "before": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/input-hashes-before.sha256",
-          "sha256": "c5c5caf785102f0495e899444e21ddd2dc17a8fb8b3c6a78378938669f2d0ece",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/input-hashes-before.sha256",
+          "sha256": "be68cf7a5956c89d1b2aefdfebfc02afa050a28ce46476325f3469ab42049810",
           "size_bytes": 2868
         },
         "current_input_file_count": 17,
-        "execution_reused": true,
-        "live_drift": [
-          {
-            "classification": "rtl_identity_helper_only",
-            "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
-            "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-            "recorded_sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
-          }
-        ],
-        "replay_scope": "rtl-identity-helper-only"
+        "execution_reused": false,
+        "live_drift": [],
+        "replay_scope": "exact-current-inputs"
       },
       "layer_source_sha256": "d0e181836737c83bc3585127ed793a4c258c006e9d3dacc8c49576daa4450b01",
       "rtl_assertions": {
@@ -269,33 +270,33 @@
       "seal": {
         "manifest": {
           "kind": "evidence_manifest",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/evidence-files.sha256",
-          "sha256": "f55bf4635a6b37ea6f9e2e095cc16d6c40bb885228ab7e6cc02360339b43abca",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-files.sha256",
+          "sha256": "0b5fd596f11db7640f9abd33487026c3816038d6e83504d10418cfe87bde5c89",
           "size_bytes": 1840
         },
         "seal": {
           "kind": "evidence_seal",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/evidence-seal.txt",
-          "sha256": "78e8dc693f603ed9a0925982c7e6d8c0705909205ee2be67009c70c01c3a6450",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-seal.txt",
+          "sha256": "58e9694954f795b6decdb2b0ec242d0ce22961fb91832507d9c47dab9290310e",
           "size_bytes": 241
         },
         "sealed_file_count": 21,
         "verification_log": {
           "kind": "evidence_verification_log",
-          "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/evidence-files.verify.log",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-files.verify.log",
           "sha256": "76664e25c9499579d95e1b002160cb44ef88f716f3d243264402d9807cab4227",
           "size_bytes": 538
         }
       },
       "signoff_scope": "full-l3",
-      "simulator_sha256": "319287572c21c14be459b1861434964e480cd3ebc8741d6c33cf54d9206e689c",
-      "simulator_source_sha256": "610235f67d37ce54f7079b1223e905e6f5d2e1bf69c7a805935c9d34b8f1cce2",
+      "simulator_sha256": "466702fafdae4ccb13ec64b877c61ad1a42a0df0f482fa327c76e27f5a3efa61",
+      "simulator_source_sha256": "9b7a08f1389f1543f825383ac41dc990531310b150e382513313513e0936519b",
       "status": "PASS",
       "summary": {
         "kind": "l3_summary",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux/summary.json",
-        "sha256": "848d582abb6d6b15fa561d172cac7313bb75e191d5f185ae42ba27abe1c876ea",
-        "size_bytes": 4378
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/summary.json",
+        "sha256": "eeb755e8dbb26dfa1defe6cf8f071f78f810c8c4d19a5fa6668330653225552d",
+        "size_bytes": 4409
       },
       "terminal_counts": {
         "good_trap": 1,
@@ -307,7 +308,7 @@
       },
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux.status",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -331,7 +332,7 @@
     "size_bytes": 6369
   },
   "production_rtl_file_count": 146,
-  "rtl_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "rtl_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "schema": "npc-rv64-layered-system-signoff-current-v1",
   "schema_contract": {
     "kind": "layered_signoff_schema",
@@ -340,10 +341,10 @@
     "size_bytes": 1662
   },
   "source_directories": {
-    "l0_module": ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/l0-current-final-v3",
-    "l1_checker_replay": ".github/task-runs/2026-08-05-rv64-v15f-full-core-coremark-checker-replay-v2",
-    "l2_mini_system": ".github/task-runs/2026-08-05-rv64-v15e-l2-mini-system-all-a11/mini-system",
-    "l3_lightweight_linux": ".github/task-runs/2026-08-05-rv64-v15e-l3-lightweight-linux-all-a6/lightweight-linux"
+    "l0_module": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module",
+    "l1_full_core": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a",
+    "l2_mini_system": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system",
+    "l3_lightweight_linux": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux"
   },
   "status": "PASS"
 }

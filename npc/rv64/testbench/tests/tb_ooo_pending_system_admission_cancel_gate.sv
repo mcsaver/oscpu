@@ -40,7 +40,7 @@ module tb_ooo_pending_system_admission_cancel_gate;
   task expect_outputs;
     input expected_clear;
     input expected_cancel;
-    input [255:0] label;
+    input [511:0] label;
     begin
       #1;
       checks = checks + 1;
@@ -90,6 +90,28 @@ module tb_ooo_pending_system_admission_cancel_gate;
     pending_jump_redirect_after_dispatch_i = 0;
     pending_jump_resolve_ready_i = 0;
 
+    csr_trap_mem_valid_i = 1;
+    expect_outputs(1, 1, "memory trap cancels admission");
+    csr_trap_mem_valid_i = 0;
+    branch_spec_resolve_valid_i = 1;
+    expect_outputs(1, 1, "branch-spec resolve cancels admission");
+    branch_spec_resolve_valid_i = 0;
+    branch_resolve_untracked_i = 1;
+    expect_outputs(1, 1, "untracked branch resolve cancels admission");
+    branch_resolve_untracked_i = 0;
+    pending_system_csr_commit_i = 1;
+    expect_outputs(1, 1, "pending CSR commit cancels admission");
+    pending_system_csr_commit_i = 0;
+
+    // 这两路是 direct-fire 后置优先级产生的 branch-owner terminal，保留在
+    // full-clear 观测中，但不得重新取得 pending CSR admission 权限。
+    pending_branch_commit_resolve_i = 1;
+    expect_outputs(1, 0, "branch commit terminal is observation only");
+    pending_branch_commit_resolve_i = 0;
+    pending_branch_match_clear_i = 1;
+    expect_outputs(1, 0, "branch match terminal is observation only");
+    pending_branch_match_clear_i = 0;
+
     head0_csr_commit_i = 1;
     expect_outputs(1, 1, "head0 CSR commit cancels admission");
     head0_csr_commit_i = 0;
@@ -100,6 +122,7 @@ module tb_ooo_pending_system_admission_cancel_gate;
     expect_outputs(0, 1, "reset cancels without ordinary clear");
 
     $display("[INFO] admission-cancel checks=%0d", checks);
+    $display("[V15P-PENDING-CSR-FEEDBACK-FREE] PASS");
     $display("PASS tb_ooo_pending_system_admission_cancel_gate");
     $finish;
   end

@@ -371,6 +371,60 @@ cycles/retired 都是结构错误。
 记录单项与联合实验；没有合格单一目标 J 时，分别报告 Performance/Area/qualified-Power 增量和
 Pareto 关系，不先压成一个分数。
 
+### 5.1 中型 CPI/PPA 下一切片选择器
+
+`npc/rv64/eval/ppa/tools/optimization_slice_selector.py` 是优化环中从 current receipts、CPI census 和
+active catalog 选择“下一次工程动作”的唯一机器入口。它属于优化控制面，不属于合同生产、task-run
+归档或 complete design promotion；固定策略、活动目录和派生决策分别是：
+
+- `npc/rv64/design/arch/optimization-slice-selector-policy-v1.json`：稳定的 authority、成熟度、决策类、
+  不确定性和多目标规则；
+- `npc/rv64/eval/ppa/optimization-slices-current.json`：当前可选的量测、资格化和可回退 RTL 实验；
+- `npc/rv64/eval/ppa/evidence/optimization-slice-current.json`：绑定所有输入 SHA-256 的派生 current
+  decision，不得反过来覆盖 ledger/receipt 或充当 promotion 事实。
+
+选择器按以下全序工作：
+
+~~~text
+live RTL identity 与 current receipt 对账
+  -> correctness/architecture blocker
+  -> stale baseline/census reconciliation
+  -> causal measurement
+  -> current-design synth/STA/PPA reference qualification
+  -> one reversible RTL experiment
+  -> measured multiobjective disposition
+  -> complete-design front.py promotion（独立入口）
+~~~
+
+同一决策类先做非支配比较。量测切片最大化 information gain、evidence confidence、reversibility，
+最小化 execution cost、functional risk、scope width；若仍有多个非支配项，输出
+`RESEARCH_REQUIRED`，禁止按 catalog 顺序、slice ID 或隐藏权重消歧。RTL/PPA 观测使用
+Performance/Area/qualified-Power 区间做保守 Pareto：区间重叠不构成确定支配，Power 资格不同不可
+放入同一三轴裁决。Timing 始终是 hard gate；slack 区间跨过门槛时先补 STA，确定低于门槛时直接拒绝，
+不得把 CPI 或面积收益折算成 timing 分数。
+
+中间 RTL slice 可以被选为“有界实验”，但必须预登记 success/stop/rollback，且始终保持
+`selector_authorizes_promotion=false`。只有同 design-id 的实测候选才能进入 complete-design front；
+`front.py` 仍是全局 Pareto/promotion 唯一权威。未校准的模型只能标记 `EXPERT_ESTIMATE` 或
+`CALIBRATED_PREDICTION` 之前的研究缺口，不得宣称 EHVI、RL policy、成功概率或置信区间。
+
+稳定入口为：
+
+~~~bash
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh --validate-only
+python3 -B npc/rv64/eval/ppa/tools/optimization_slice_selector.py build \
+  --output npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+~~~
+
+当 policy、catalog、live design-id、current receipt、baseline/census 或 research-state artifact 的
+SHA-256 未变化时，直接复用 current decision，不重读长 goal 或重新生产子合同。输入变化后旧 decision
+必须 canonical verify FAIL；状态冲突、零候选或多项非支配分别输出
+`STATE_CONFLICT`、`NO_ELIGIBLE`、`RESEARCH_REQUIRED`，不得静默退到 ROADMAP 猜测。
+research-state 不得直接覆盖 `causal_selection_authorized`、`causal_hypothesis` 或
+`ppa_reference_available`；owner-timing 只能由同 design-id 且可 canonical rebuild 的 workload A/B receipt
+派生为 measured，PPA reference 只能由既有 `check.py --require-accepted` 通过后派生。decision schema 与这些
+verifier 的 hash 也是 current decision 输入，schema 或 verifier 变化必须使旧 decision 失效。
+
 ## 6. Performance / Area / Power 资格
 
 - 性能必须跨冻结 workload 报告每项 ratio、最差 workload 和最小 ratio；几何平均不得掩盖单项

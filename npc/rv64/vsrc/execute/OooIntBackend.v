@@ -1252,6 +1252,10 @@ module OooIntBackend #(
   wire [63:0] mem_owner_epoch_table_w;
   wire [32*PRODUCER_ID_W-1:0] mem_owner_producer_id_table_w;
   wire [5:0] mem_owner_live_count_w;
+  // V15S: mem_idle only needs owner-set emptiness.  Keep the popcount for
+  // conservation/observability, but do not place its arithmetic cone on the
+  // global CSR/control-event path.
+  wire v15s_mem_owner_any_live_w = |mem_owner_live_mask_w;
   wire [31:0] mem_terminal_pending_mask_w;
   wire [5:0] mem_terminal_pending_count_w;
   wire mem_terminal_deq0_valid_w;
@@ -3077,8 +3081,21 @@ module OooIntBackend #(
       !mem_pending_q && !mem_buffer_valid_q &&
       !mem_retry0_valid_q && !mem_retry1_valid_q &&
       !mem_issue_res_valid_q && !mem_issue1_res_valid_q &&
-      (mem_owner_live_count_w == 6'd0) &&
+      !v15s_mem_owner_any_live_w &&
       (mem_terminal_pending_count_w == 6'd0);
+`ifdef OOO_ASSERT
+  // The reduced Q-only owner-set view is an exact Boolean projection of the
+  // retained diagnostic count; neither signal grants allocation/free credit.
+  always @(posedge clk) begin
+    if (!rst &&
+        (v15s_mem_owner_any_live_w !==
+         (mem_owner_live_count_w != 6'd0))) begin
+      $error("[V15S-MEM-OWNER-ANY-LIVE] mask/count emptiness mismatch @%0t",
+             $time);
+      $fatal;
+    end
+  end
+`endif
   // 【LSQ·SQ 切换】退休侧静默: SQ 排空且无 drain 在飞。AND 进 backend_drained,
   // system/trap/FP 等串行点等它(mem_idle_o 保持原语义, 供分支恢复 quiet 判定)。
   assign mem_retire_quiet_o =
@@ -7518,11 +7535,17 @@ module OooIntBackend #(
       (32'b1 << mem_retry1_owner_token_q) : 32'b0;
   wire [31:0] v8l_mem_pending_token_mask_w = mem_pending_q ?
       (32'b1 << mem_owner_token_q) : 32'b0;
+  // V15R observability-only token identity for a same-edge reservation birth.
+  // Production terminal control consumes only v15r_mem_birth_any_w below, so
+  // synthesis can remove these dynamic one-hot decoders when SIM_TOP and
+  // OOO_ASSERT are absent.
   wire [31:0] v9y_mem_birth_token_mask_w =
       (mem_issue_res_capture_w ?
        (32'b1 << mem_owner_alloc0_token_w) : 32'b0) |
       (mem_issue1_res_capture_w ?
        (32'b1 << mem_owner_alloc1_token_w) : 32'b0);
+  wire v15r_mem_birth_any_w =
+      mem_issue_res_capture_w || mem_issue1_res_capture_w;
   // Active authority is kept local to the LSU.  The control plane receives
   // only the reduced scalar below, avoiding a 32-bit token bus in the global
   // drain cone.
@@ -7535,8 +7558,7 @@ module OooIntBackend #(
       v8l_mem_retry0_token_mask_w | v8l_mem_retry1_token_mask_w |
       v8l_mem_pending_token_mask_w |
       v8l_sq_owner_token_mask_r |
-      mem_req_fire_owner_mask_w | mem1_req_fire_owner_mask_w |
-      v9y_mem_birth_token_mask_w;
+      mem_req_fire_owner_mask_w | mem1_req_fire_owner_mask_w;
   // Only collector-accepted ingress proves a same-edge handoff.  Raw ingress
   // with a mismatched tuple, duplicate token, pending collision, or same-edge
   // dequeue/re-enqueue remains an active unterminated holder.
@@ -7554,6 +7576,7 @@ module OooIntBackend #(
   wire [31:0] v9y_pending_without_live_mask_w =
       mem_terminal_pending_mask_w & ~mem_owner_live_mask_w;
   assign mem_owner_terminalized_o =
+      !v15r_mem_birth_any_w &&
       (v9y_unterminalized_holder_mask_w == 32'b0) &&
       (v9y_terminal_without_holder_mask_w == 32'b0) &&
       (v9y_unaccounted_live_mask_w == 32'b0) &&
@@ -7631,6 +7654,22 @@ module OooIntBackend #(
     if (rst) begin
       v9y_terminal_transfer_shadow_q <= 32'b0;
     end else begin
+      // V15R independent edge-old event algebra.  Allocation can name only a
+      // FREE token, while live state and accepted terminal transfer name an
+      // existing exact owner.  These indexed facts are assertion-only and do
+      // not re-enter the production terminalized cone.
+      if ((v9y_mem_birth_token_mask_w & mem_owner_live_mask_w) != 32'b0) begin
+        $display("[V15R-MEM-BIRTH-LIVE-OVERLAP] birth=%h live=%h @%0t",
+                 v9y_mem_birth_token_mask_w, mem_owner_live_mask_w, $time);
+        $fatal;
+      end
+      if ((v9y_mem_birth_token_mask_w &
+           v9y_terminal_transfer_mask_w) != 32'b0) begin
+        $display("[V15R-MEM-BIRTH-TERMINAL-OVERLAP] birth=%h terminal=%h @%0t",
+                 v9y_mem_birth_token_mask_w,
+                 v9y_terminal_transfer_mask_w, $time);
+        $fatal;
+      end
       // A token transferred last edge cannot remain in any active holder.
       // Tracker live and collector pending are intentionally allowed.
       if ((v9y_terminal_transfer_shadow_q &

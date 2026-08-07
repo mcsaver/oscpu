@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15p-loop-adapter-evidence-closure-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立核验本地 RV64 OooLsuAxiLaneAdapter final B response fall-through 的当前定向 testbench 回执与 no-final-b-fallthrough 编译成功负向 RTL 版本，确认它们是否精确闭合 v1 复核遗漏的协议证据，同时保持 5ns timing hard gate FAIL 与可回退中间检查点边界",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-independent-review-v1.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/logs/tb_ooo_lsu_axi_lane_adapter.log",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation/result.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation/no-final-b-fallthrough.diff",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation/mutation/logs/tb_ooo_owner_timing_causal_probe.log",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-current-v2/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/slice-disposition-v1.txt",
+      ".github/runtime-artifacts/agent-flow/rv64-v15p-adapter-final-b-fallthrough-f7a/events.log",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-evidence-closure-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-independent-review-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 adapter RTL、testbench identity、mutation diff、仿真 marker 与 hard-gate 边界给出版本化独立闭环结论；保留 v1 GAP，明确当前新增证据只支持可回退检查点还是仍有协议证据缺口"
+  ],
+  "success_criteria": [
+    "核对当前 adapter 与 TB SHA、module receipt 的 current design-id 和 PASS marker、no-final-b-fallthrough 负向 RTL 版本的编译成功与绝对延迟 oracle 预期拒绝、生产 RTL 前后 SHA 不变，并禁止把证据闭环误述为 5ns timing PASS 或 complete-design promotion；发现不一致时返回 GAP 或 inconclusive"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

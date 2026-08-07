@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15q-current-reference-ppa-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "ppa-analysis",
+  "goal": "独立复核当前 RV64 NpcTop 两轮 fresh mapped synthesis 与 exact 5 ns OpenSTA 证据、owner-B 候选分析以及 selector 状态推进，确认同 cohort 可重复性、timing hard-gate FAIL 和 production RTL 未授权边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/subagent-contracts/v15q-current-reference-ppa-review-v1.json",
+      "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+      "npc/rv64/eval/ppa/tests/test_current_reference_ppa.py",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
+      "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/owner-b-response-candidate-analysis-337-a1.json",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/owner-b-path-independent-review-337-v1.md",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/current-reference-ppa-337-a1.json",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/current-fresh-a1",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/current-fresh-a1.status",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/optimization-research-state-337-v3.json",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/optimization-slice-current-337-v5.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-current-v2",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/mapped-sta-current-v2.status"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与本地证据文件、5 ns 配置、Yosys/OpenSTA 观测、PASS/GAP 范围组织结论；列出 blocker、反例、未知项和一条结构化 review marker；不修改文件。"
+  ],
+  "success_criteria": [
+    "逐项核验两轮 netlist/source/top40/area/WNS/TNS/loops、cleanup 与 design-id；确认负 WNS 不会变成 accepted PPA reference，selector 只推进到 analyze.current-timing-recovery-candidate，且 owner-B 候选仍为 candidate-only。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

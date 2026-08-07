@@ -1,0 +1,13 @@
+npc/rv64/eval/ppa/instrumentation
+npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py
+npc/rv64/eval/ppa/tools/optimization_slice_selector.py
+npc/rv64/eval/ppa/tests/test_owner_b_latency_sensitivity.py
+npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py
+npc/rv64/eval/ppa/run-owner-b-latency-sensitivity.sh
+npc/rv64/eval/ppa/replay-owner-b-latency-sensitivity.sh
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh
+npc/rv64/eval/ppa/optimization-slices-current.json
+npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+npc/rv64/design/arch/optimization-slice-selector-policy-v1.json
+npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json
+.github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1

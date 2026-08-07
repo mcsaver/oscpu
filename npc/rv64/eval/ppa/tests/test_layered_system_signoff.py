@@ -94,6 +94,38 @@ class LayeredSystemSignoffTests(unittest.TestCase):
         with self.assertRaisesRegex(signoff.SignoffError, "default conjunction"):
             self.compose(policy=policy)
 
+    def test_direct_l1_source_directory_is_preserved(self) -> None:
+        source_directories = {
+            "l0_module": ".github/task-runs/l0/module",
+            "l1_full_core": ".github/task-runs/l1",
+            "l2_mini_system": ".github/task-runs/l2/mini-system",
+            "l3_lightweight_linux": ".github/task-runs/l3/lightweight-linux",
+        }
+        result = self.compose(source_directories=source_directories)
+        self.assertEqual(result["source_directories"], source_directories)
+
+    def test_l1_authority_rejects_ambiguous_top_status(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            source = root / ".github/task-runs/l1"
+            source.mkdir(parents=True)
+            (source / "full-core-current.status").write_text(
+                "PASS\n", encoding="utf-8"
+            )
+            (source / "full-core-checker-replay.status").write_text(
+                "PASS\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(signoff.SignoffError, "ambiguous"):
+                signoff.verify_l1(source, design_id=DESIGN_ID, root=root)
+
+    def test_l1_authority_rejects_missing_top_status(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            source = root / ".github/task-runs/l1"
+            source.mkdir(parents=True)
+            with self.assertRaisesRegex(signoff.SignoffError, "no supported"):
+                signoff.verify_l1(source, design_id=DESIGN_ID, root=root)
+
     def test_checksum_manifest_rejects_duplicate_path(self) -> None:
         with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
             root = pathlib.Path(raw)
@@ -167,6 +199,25 @@ class LayeredSystemSignoffTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(signoff.SignoffError, "before/after"):
                 signoff.verify_current_inputs(evidence, root=root)
+
+    def test_current_inputs_accept_exact_current_execution(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            evidence = root / ".github/task-runs/a/evidence"
+            payload = root / "npc/rv64/vsrc/core/OooCoreTop.v"
+            evidence.mkdir(parents=True)
+            payload.parent.mkdir(parents=True)
+            payload.write_text("current RTL\n", encoding="utf-8")
+            digest = hashlib.sha256(payload.read_bytes()).hexdigest()
+            manifest = f"{digest}  {payload}\n"
+            for name in ("input-hashes-before.sha256", "input-hashes-after.sha256"):
+                (evidence / name).write_text(manifest, encoding="utf-8")
+
+            result = signoff.verify_current_inputs(evidence, root=root)
+
+            self.assertFalse(result["execution_reused"])
+            self.assertEqual(result["replay_scope"], "exact-current-inputs")
+            self.assertEqual(result["live_drift"], [])
 
     def test_current_inputs_accept_exact_identity_helper_replay(self) -> None:
         with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:

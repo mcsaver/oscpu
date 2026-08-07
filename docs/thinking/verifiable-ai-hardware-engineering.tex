@@ -16,6 +16,7 @@
 \usepackage{fancyhdr}
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{needspace}
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{xurl}
@@ -118,16 +119,16 @@
 }
 
 \hypersetup{
-  pdftitle={Loop-Work：一种面向集成电路工程的仓库原生领域 Agent 构建方法},
+  pdftitle={Loop-Work：一种面向处理器 RTL 工程的仓库原生领域 Agent 构建方法},
   pdfsubject={基于 ysyx-workbench 的领域 Agent 构建方法与 RV64 纵向案例研究},
-  pdfkeywords={IC Agent, RTL Agent, Loop-Work, repository-native workflow, RV64, DiffTest, PPA}
+  pdfkeywords={processor RTL Agent, Loop-Work, repository-native workflow, layered verification, RV64, DiffTest, CPI/PPA}
 }
 
 \begin{document}
 
 \thispagestyle{plain}
 \begin{center}
-  {\zihao{2}\heiti Loop-Work：一种面向集成电路工程的\par}
+  {\zihao{2}\heiti Loop-Work：一种面向处理器 RTL 工程的\par}
   \vspace{0.35em}
   {\zihao{2}\heiti 仓库原生领域 Agent 构建方法\par}
   \vspace{0.35em}
@@ -138,36 +139,35 @@
 
 \vspace{0.7em}
 \noindent\textbf{摘\quad 要：}
-大语言模型已经能够生成寄存器传输级（Register Transfer Level，RTL）代码并调用编译、仿真、综合
-和静态时序分析工具，但复杂处理器开发并不是一次自然语言到 Verilog 的映射。体系结构语义、跨模块
-时序、软件工作负载、参考模型、验证判定器和物理实现条件需要在同一工程上下文中持续协同；只提供
-源码和 shell，模型仍难以稳定完成由需求分析延伸到系统验证的长链任务。
+大语言模型已能生成寄存器传输级（Register Transfer Level，RTL）代码并调用仿真、综合和静态时序
+分析工具，但复杂处理器开发并非一次自然语言到 Verilog 的映射。体系结构语义、跨模块时序、软件
+工作负载、参考模型和物理约束必须在同一上下文中协同；仅有源码与 shell，难以稳定闭合长链任务。
 
-本文提出 \textbf{Loop-Work}，一种面向集成电路工程的仓库原生领域 Agent 构建方法。其核心不是为
-候选增加一个事后审批步骤，而是把项目知识、任务控制、工具执行和分层验证组织成 Agent 可发现、
-可调用并可演进的工程环境。控制、知识、执行和证据四个责任平面规定能力由什么构成；任务内修订环
-使分析、设计、实现和验证相互反馈，跨任务能力环则把反复出现且具有迁移价值的经验固化为
-instruction、Skill、端到端执行剖面、测试和门禁。候选资格化只是证据平面防止错误结果进入后续节点
-的一项机制。
+本文提出 \textbf{Loop-Work}，一种面向处理器 RTL 功能开发与分层验证的仓库原生领域 Agent 构建方法。该方法以控制、
+知识、执行和证据四个责任平面承载工程任务，以任务内修订环连接分析、设计、实现与验证，再由跨任务
+能力环把可迁移经验固化为 instruction、Skill、端到端执行剖面、测试与门禁。
 
-本文采用近四个月的 ysyx-workbench 纵向案例，覆盖从 C/汇编测试程序、Abstract Machine（AM，
-抽象计算机运行时与平台适配层）到 NEMU 参考机、RV32 五级流水核、ysyxSoC 接入和 RV64 双发射乱序核
-的连续演进。NEMU 已形成支持 RV64 M/A/F/D/C、系统态执行及 UART、virtio-blk、PLIC 相关中断、
-RTC 和关机设备的参考平台；AM 与 am-kernels 将应用构建、设备抽象和体系结构测试组织为可在参考端与
-RTL 目标端复用的工作负载；NPC（本项目的 RTL 处理器目标）则由 RV32I 主通路演进为支持
-RV64IMAFDC、Zicsr、Zba/Zbb/Zbc/Zbs、M/S/U、Sv39、硬件页表遍历、I/D TLB、PMP16、浮点和原子路径
-的小窗口双发射乱序核。当前同一设计身份下记录了 113/113 项模块测试、177/177 项 official
-riscv-tests、61/61 项 AM 测试、DiffTest 失配为 0，以及 L0 定向 RTL、L1 完整核、L2 mini-system 和
-L3 轻量 Linux 四层验证通过。
+本文以近四个月的 ysyx-workbench 纵向记录为案例，覆盖“一生一芯”从 C 阶段到 B 阶段的连续演进。
+工程对象从 C/汇编测试、Abstract Machine（AM，抽象计算机运行时与平台适配层）和 NEMU 参考机，
+推进到 RV32 五级流水核、ysyxSoC 接入及 RV64 双发射乱序核。NEMU 已支持 RV64 M/A/F/D/C、系统态
+执行和启动所需设备模型，并在该参考平台内运行 Linux 6.6、进入 Ubuntu 22.04.5 root shell；AM 与
+am-kernels 形成参考端和 RTL 端共用的应用、设备与体系结构测试；NPC
+（本项目的 RTL 处理器目标）则由 RV32I 主通路演进为支持 RV64IMAFDC、Zicsr、Zba/Zbb/Zbc/Zbs、
+M/S/U、Sv39、硬件页表遍历、I/D TLB、PMP16、浮点与原子路径的小窗口双发射乱序核。同一设计身份下，
+113/113 项模块测试、177/177 项 official riscv-tests、61/61 项 AM 测试和 L0--L3 四层验证均通过，
+DiffTest 失配为 0。
 
-案例表明，模型能力与仓库工程环境是共同构建的：Agent 不仅生成 RTL，也消费接口合同；不仅生成
-测试，也利用 NEMU、AM、testbench、负向变体和系统运行反驳自己的候选；需要性能结论时，再由
-Yosys、OpenSTA 和开源工艺库提供实现反馈。当前架构已形成 \statusword{ARCH\_STABLE} 收据，PPA
-仍保持 \statusword{UNQUALIFIED}。本文据此报告方法如何被实例化及其已经形成的工程产物，但不把
-单仓库观察外推为相对于其他 Agent 方法的因果优势，也不以预布局代理结果替代物理签核。
+上述产物来自同一闭环：Agent 生成并消费接口合同、RTL、testbench、负向变体和 AM 程序，NEMU 与
+DiffTest 提供参考语义，系统回放扩大验证压力，Yosys、OpenSTA 与开源工艺库提供实现反馈。架构闭合
+形成 \statusword{ARCH\_STABLE} 收据；中等粒度 Selector 把因果量测、PPA 资格和可回退 RTL 实验
+编入同一选择全序。owner-timing 切片在 CoreMark 与 Dhrystone 上各完成三次同身份重复，
+但收据拒绝授权唯一因果假设、RTL 候选和 promotion，PPA 保持
+\statusword{UNQUALIFIED}。本文报告一种工程方法在单仓库中的实例化及其可复核产物；现有实证范围
+止于处理器 RTL 功能开发、系统回放和预布局实现反馈，不把纵向共现解释为相对其他 Agent 方法的
+因果优势，也不把测试集合通过解释为覆盖率闭合，或以预布局代理结果替代物理签核。
 
 \vspace{0.4em}
-\noindent\textbf{关键词：}集成电路领域 Agent；Loop-Work；仓库原生环境；RTL；分层验证；RV64；CPI/PPA
+\noindent\textbf{关键词：}处理器 RTL Agent；Loop-Work；仓库原生环境；分层验证；RV64；DiffTest；CPI/PPA
 
 \section{引言}
 
@@ -189,7 +189,7 @@ M/S/U 特权级、Sv39 地址转换、双发射乱序执行、OpenSBI/Linux 以�
 本轮反例怎样在下一轮不被遗忘。延长单个提示或增加一次人工审查能够缓解局部问题，却不能稳定保存
 仓库关系、工具入口和验收层级；会话或模型变化后，相同的工程事实仍可能被重新发现和重新踩坑。
 
-本文据此把研究对象从“如何让模型生成一段 RTL”推进为“如何在集成电路工程中构建一个能够工作的
+本文据此把研究对象从“如何让模型生成一段 RTL”推进为“如何在处理器 RTL 工程中构建一个能够工作的
 领域 Agent”。本文提出 Loop-Work，把控制、知识、执行和证据组织为四个责任平面：前两者使 Agent
 在写代码前理解目标、边界和专业约束，后两者使其能够生成并消费 RTL、测试、反例与工具反馈。任务内
 闭环用于完成当前修改，跨任务闭环把稳定经验固化为 instruction、Skill、E2E、测试和门禁。候选是否
@@ -206,7 +206,7 @@ Loop-Work 如何落地，并以 NEMU、AM 与 NPC 的纵向产物检验 Agent �
 
 \begin{enumerate}
   \item \textbf{RQ1（领域能力构成）：}怎样把分散在设计规范、源码、脚本、工具和历史记录中的
-  集成电路知识，组织为 Agent 可发现、可调用并可维护的仓库原生环境？
+  处理器 RTL 知识，组织为 Agent 可发现、可调用并可维护的仓库原生环境？
   \item \textbf{RQ2（目标到任务）：}怎样把工程师的自然语言目标转换为“先分析、后实施”的任务图，
   使 Agent 能够确定设计边界、选择规则和工具、分配责任并控制修改范围？
   \item \textbf{RQ3（设计---验证闭环）：}Agent 怎样在 AM、NEMU、NPC 和 EDA 工具之间生成并消费
@@ -222,21 +222,22 @@ Loop-Work 如何落地，并以 NEMU、AM 与 NPC 的纵向产物检验 Agent �
 本文围绕上述问题给出五项贡献：
 
 \begin{enumerate}
-  \item 提出一种面向集成电路工程的领域 Agent 构建观点：Agent 的有效能力由基础模型与仓库原生
+  \item 提出一种面向处理器 RTL 功能开发的领域 Agent 构建观点：Agent 的有效能力由基础模型与仓库原生
   工程环境共同构成，而不能只用一次代码生成质量衡量。
-  \item 将领域 Agent 形式化为控制、知识、执行和证据四个责任平面，并给出任务内修订与跨任务能力
-  固化两类反馈边，解释能力如何运行及如何增长。
+  \item 用接口化责任模型描述控制、知识、执行和证据四个平面，并给出任务内修订与跨任务能力
+  固化两类反馈边，说明一次工程作业怎样运行以及经验怎样进入后续任务。
   \item 给出从工程目标、写前分析、接口合同和 RTL 拓扑，到 TB、负向变体、AM 程序、DiffTest、
-  L0--L3 系统验证与 EDA 反馈的完整任务方法，使设计与验证成为同一任务的共同产物。
+  L0--L3 系统验证与 EDA 反馈的端到端任务流程，使设计与验证成为同一任务的共同产物。
   \item 给出由 instruction、Skill、机器合同、E2E profile、受控执行和证据收据组成的仓库级参考实现；
-  身份拒绝、负向资格、长跑失败关闭和有界晋级作为其中的四项运行约束接受反例检验。
+  身份拒绝、负向资格、长跑失败关闭和有界晋级被编码为四项可审计工程准则。
   \item 给出 RV32 single、ysyxSoC、NEMU/AM/NPC、RV64 双发射 OoO、分层 Linux 和 CPI/PPA 的纵向
   工程结果，并用机器可读主张、同身份回归和独立反例复核限定结论边界。
 \end{enumerate}
 
 研究材料来自一个持续演化的仓库，本文据此讨论方法接口的可执行性、可审计性及其在所列 RV64 压力
-层级上的实例化，不把纵向共现解释为生产率因果效应。全文依次讨论相关工作、问题与设计要求、方法与
-参考实现、案例研究设计、纵向工程证据、命题与成果综合、未闭合目标及结论。
+层级上的实例化。本文定位为工程方法与纵向案例研究，不提供四平面最小性或完备性定理，也不把纵向
+共现解释为生产率因果效应。全文依次讨论相关工作、问题与设计要求、方法与参考实现、案例研究设计、
+纵向工程证据、成果综合、研究不足与下一步攻克方向及结论。
 
 \section{相关工作与方法空缺}
 
@@ -257,8 +258,17 @@ RTL 任务中更弱。NotSoTiny 进一步在结构更复杂的上下文模块补
 提醒读者：正向
 testbench 接受率不能替代独立的语义资格。
 
+SWE-agent 的 Agent--Computer Interface 主要约束模型怎样浏览仓库、编辑文件和调用工具；Loop-Work
+不把四平面声称为 ACI 的替代或普适泛化，而把 ACI 类执行接口放入处理器 RTL 的领域合同中：写入权限
+必须同时受架构规格、target/reference 身份、周期级观察点和分层验收边界约束。两者的直接差异因而
+不是“能否使用 shell”，而是执行动作能否与硬件事务语义及证据身份共同进入裁决。本文没有在同任务、
+同预算条件下比较二者，故这里只给出职责接口对照，不报告相对效果。
+
 ACE-RTL 以 generator、reflector 和 coordinator 维护迭代调试上下文，其预印本报告在 CVDP 上相对
-14 个基线最高 41.02\% 的 pass-rate 改善\cite{deng2026acertl}；NVIDIA 随后的官方技术发布又报告
+14 个基线最高 41.02\% 的 pass-rate 改善\cite{deng2026acertl}。它与 Loop-Work 都把调试上下文置于
+单次生成之上；ACE-RTL 的 coordinator 聚合跨迭代错误、修复建议及其结果，并在搜索停滞时触发
+restart，而 Loop-Work 控制面还把任务权限、实验身份、失败关闭和跨层晋级编码为必须检查的接口。
+该比较限于公开方法描述，不推断 ACE-RTL 未披露的内部实现。NVIDIA 随后的官方技术发布又报告
 Nemotron 3 Ultra 配合该 Agent 在九类 CVDP 任务上的平均 pass rate 为 97.1\%
 \cite{nvidia2026acertl}。本文以前一项预印本结果作为学术论证锚点；后一个数值来自未经同行评议的
 厂商技术博客，是平均通过率而非 Pass@1，只作补充背景，也不能延伸为系统级签核率。
@@ -307,7 +317,7 @@ sensitivity 不是同一构念。BugGen 则用多 Agent 生成、插入和验证
 Firefly 与 BugGen 主要解决上下文相关 fault 的生成、验证基础设施诊断或数据集扩展；本文后述的
 负向资格化命题关注
 这些 fault 如何成为不可绕过的晋级资格。为此，“变体可编译、语义变化非空、错误被触发、错误传播到
-观察点、判定器拒绝、campaign 完整”必须同时成立。本文当前 23 个定向 mutant 与上述论文的数据集
+观察点、判定器拒绝、campaign 完整”必须同时成立。本文的 23 个定向 mutant 与上述论文的数据集
 没有共同分母；检测给定变体仍然不能证明 DUT 全局正确或 oracle 完备。
 
 \subsection{追踪、可信论证与构建来源}
@@ -335,6 +345,18 @@ Agent 运行时；该公开材料是产品/技术发布，没有给出可用于�
 本文将上述已有机制组合并约束到 repository-native 场景：把本地 module/signal/transaction、验证层级、
 实验身份、负向判定器能力和失败关闭发布编译成同一个可执行工作流。
 
+UVM 的 sequencer、driver、monitor、scoreboard、objection 和 functional coverage 已经提供成熟的验证
+组件与仿真生命周期语义；Loop-Work 所处层级更外侧，负责把一次 RTL 任务的规格、写权限、UVM 或
+非 UVM 执行入口、原始报告与晋级责任绑定到同一仓库身份。当前案例主要使用定向 SystemVerilog TB、
+断言、AM workload 与 DiffTest，尚未建立 UVM verification plan 或 coverage closure，因而不能把
+“113/113 测试通过”等同于功能覆盖率闭合。
+
+形式验证与物理签核同样承担本文工具链不能替代的责任。Symbolic QED 等工作说明处理器不变量可以由
+符号方法和性质证明检验\cite{singh2019symbolicqed,chattopadhyay2023gqed}；等价性检查、模型检查与
+断言证明回答的也不是 mutation 杀伤率。物理实现则还需要布局、时钟树、布线、寄生提取、多模式多角
+时序、功耗及 DRC/LVS 等对象。本文只把这些方法所需的输入身份、执行结果和失败状态预留在责任接口中；
+尚未接入的验证与签核环节统一列入第\ref{sec:limitations-roadmap}节，而不在案例结果中视为已经完成。
+
 \begin{table}[H]
   \centering
   \small
@@ -360,17 +382,18 @@ Agent 运行时；该公开材料是产品/技术发布，没有给出可用于�
 参考文献中分别标明。不同来源共同用于确定研究问题的位置，本文的方法命题仍由后续仓库证据和专门
 实验承担检验责任。
 
-综上，近期工作已经分别推进了 RTL 生成、验证 Agent、EDA 工具调用、来源追踪和阶段门禁，但仍缺少
-一种把仓库知识、工程工具、分层验证和跨任务学习统一组织为领域 Agent 的构建方法。本文的补充不在于
+综上，近期工作已经分别推进了 RTL 生成、验证 Agent、EDA 工具调用、来源追踪和阶段门禁。本文选择
+一种把仓库知识、工程工具、分层验证和跨任务学习统一组织为处理器 RTL 领域 Agent 的工程方法。其补充不在于
 再增加一个 RTL 生成器，而在于说明模型如何依托仓库原生环境获得可持续的工程能力；身份、新鲜度、
-负向敏感性、失败关闭和有界晋级属于其中的证据与控制约束。下一章从处理器任务的实际失效模式推导
-这套领域 Agent 必须具备的责任接口。
+负向敏感性、失败关闭和有界晋级属于其中的证据与控制约束。当前论文检验的是这一组织方式在单个
+RV64 仓库中的可实例化性，而非相对 SWE-agent、UVM 或其他 Agent 方法的平均优势。下一章从处理器
+任务的实际失效模式推导本文采用的责任接口。
 
-\section{集成电路领域 Agent 的构建问题与设计要求}
+\section{处理器 RTL 领域 Agent 的构建问题与设计要求}
 \label{sec:problem-definition}
 
 相关工作表明，候选生成、工具反馈、来源追踪和阶段门禁已经分别取得进展，但它们尚未统一回答：
-一个通用模型怎样在真实集成电路仓库中获得分析架构、受控修改、构造验证、调用工具和吸收反馈的领域
+一个通用模型怎样在真实处理器 RTL 仓库中获得分析架构、受控修改、构造验证、调用工具和吸收反馈的领域
 能力。本文先把这一缺口写成领域 Agent 的构建问题，再由失效模式推导方法所需的责任接口；候选验收
 是其中的证据责任，而不是问题定义本身。
 
@@ -400,7 +423,7 @@ Agent 运行时；该公开材料是产品/技术发布，没有给出可用于�
     跨模块事务耦合 & 局部修改通过，却破坏 owner、flush、异常序或总线生命周期 & 最小充分且可扩展的任务边界 & 合同编译、专业不变量与范围扩展协议 \\
     target/reference 多配置 & 把另一设计、另一配置或旧日志当作当前结果 & 比较前绑定完整实验身份 & design、build、workload、oracle 与 evidence 分层身份 \\
     小时级系统运行 & 进程退出、前台超时或信号中断被写成成功 & 成功必须由证据末端授权 & 失败关闭证据提交协议 \\
-    CPI/PPA 多目标优化 & 用局部 CPI、generic cell 或理想时钟结果交换功能正确性 & 正确性硬门先于性能比较 & 分层门禁、单机制候选和成熟度晋级 \\
+    CPI/PPA 多目标优化 & 用局部 CPI、generic cell 或理想时钟结果交换功能正确性 & 正确性硬门先于性能比较 & 分层门禁、单主假设的中等粒度切片和成熟度晋级 \\
     多会话历史增长 & 无关历史淹没当前问题，过期结论被重复消费 & 最小充分、带来源的历史选择 & retained knowledge、evidence index 与 bounded recall \\
     多 Agent 协作 & 节点越界写入、上下文污染或实现者自证完成 & 明确 owner、作用域与独立审查 & 机器合同、隔离派发与 reviewer/inspector \\
     \bottomrule
@@ -421,14 +444,15 @@ Agent 运行时；该公开材料是产品/技术发布，没有给出可用于�
   \item \textbf{合同先于生成：}先定义对象、输入、输出和成功条件，再允许 Agent 修改或运行。
   \item \textbf{身份先于比较：}baseline 与 candidate 身份不一致时，不计算正式改善。
   \item \textbf{原始观测不可改写：}新 checker 可以生成新解释，但不能覆盖原始 FAIL/PASS。
-  \item \textbf{正向与负向证据并存：}当前版本 PASS 还要接受能够暴露目标错误的反例检查。
+  \item \textbf{正向与负向证据并存：}正向 PASS 还要接受能够暴露目标错误的反例检查。
   \item \textbf{局部接受与工程晋级分离：}focused、module、system、PPA 分别承担不同结论。
   \item \textbf{高成本验证受决策约束：}长跑必须能够改变明确决策，并在开始前完成低成本排除。
 \end{enumerate}
 
 这些原则共同要求一种带类型的闭环：控制责任把目标变成可执行任务，知识责任提供适用规则，执行责任
 同时产生设计、测试和原始观测，证据责任用正反例决定观测能够支持什么结论。增加模型参数或工具数量
-只能扩大潜在动作集合；只有四类责任能够独立检查又共同运行，潜在能力才会转化为稳定的工程能力。
+只能扩大潜在动作集合；在本文采用的分解中，四类责任需要能够分别检查并共同运行，潜在动作才可能
+转化为受约束的工程能力。该操作性分解服务于案例建模，不预设它是所有 Agent 系统的唯一结构。
 
 \subsection{术语的操作性定义}
 
@@ -504,12 +528,12 @@ checker-only 修改若没有改变 DUT 输入、时序、终止或随机性，�
 
 \subsection{中心论点：模型与仓库环境共同构成领域能力}
 
-因此，本文的核心问题是：\textbf{怎样在集成电路工程中构建一个能够工作的领域 Agent}。本文所称
+因此，本文的核心问题是：\textbf{怎样在处理器 RTL 功能开发中构建一个能够工作的领域 Agent}。本文所称
 Agent，是能够读取仓库材料、调用工具并根据运行结果继续行动的大语言模型执行单元；Workflow 是带
 输入、输出、权限、成功条件、失败分流和证据责任的可执行任务图；Loop-Work（闭环工作轮）则把专业
 知识、工程执行和分层验证组织为这种 Agent 的外部能力结构，而不是一个更长的提示词。
 
-本文的中心论点是：\textbf{集成电路领域 Agent 的工程能力并非基础模型固有的代码生成能力，而是
+本文的中心论点是：\textbf{处理器 RTL 领域 Agent 的工程能力并非基础模型固有的代码生成能力，而是
 模型与仓库原生工程环境共同构建的系统能力；只有把项目知识、任务控制、工具执行和分层验证组织为
 可循环演进的工作流，并把任务反馈持续固化为可复用约束，Agent 才能稳定承担从架构分析、RTL 实现
 到功能验证、综合和系统运行的长链任务。}四平面说明能力由什么构成，双闭环说明能力如何运行和增长；
@@ -575,45 +599,59 @@ $C_{\mathrm{decide}}$ 是同一控制面的准备端与裁决端，$K/X/V$ 分�
   \label{fig:double-loop}
 \end{figure}
 
-上述结构给出一条总纲：工程目标先由控制面定界，再由知识面装配规则；执行面产生设计、测试和工具
-观测，证据面用这些观测反驳或接受当前结果。合格产物进入后续工程，局部反例返回当前任务，稳定且
-可迁移的经验则进入下一轮环境能力。只有在最后一条下游边上，候选资格才决定某项结果能否被继续
-使用；它服务于领域 Agent 的构建，而不是取代前面的分析、设计和验证活动。
+上述结构不是叠加在 RTL 开发之外的管理流程，而是 RTL 生产本身的责任骨架。对处理器修改，四平面
+主干具体化为下列对象流：
 
-\subsection{证据与控制环的四项可证伪运行约束}
+\[
+\begin{aligned}
+&\text{工程目标}\rightarrow\text{架构宪法/模块规格}\rightarrow\text{机器任务合同}\rightarrow\\
+&\{\text{可综合 RTL},\ \text{TB/断言/负向 RTL},\ \text{AM C/汇编程序}\}\rightarrow\\
+&\text{L0 模块验证}\rightarrow\text{L1 全核/AM/DiffTest}
+\rightarrow\text{L2/L3 系统回放}\rightarrow\text{实现反馈（按需）}.
+\end{aligned}
+\]
+
+架构与模块规格先固定事务 owner、周期、优先级和可见行为；任务合同再给出允许修改的依赖锥以及客观
+终止条件。RTL、testbench 和 AM 程序不是事后依次补齐的附件，而是同一合同下共同生成的三类对象：
+RTL 实现状态转换，TB 观察逐周期合同并主动注入违约，AM 程序从软件侧激活架构可见语义。执行结果
+分别由模块 oracle、NEMU--NPC DiffTest、系统终态和实现工具消费；任一层失败都返回最早失效的架构、
+实现或验证对象，而不是继续向下游传播。第\ref{sec:engineering-instantiation}节先把这条对象流映射到
+ysyx-workbench 的环境构件，再以一个完整 RTL 修改实例逐项展示其落地方式。
+
+\subsection{证据与控制环的四项工程设计准则}
 
 领域 Agent 要能够持续工作，仍须防止错误结果污染后续节点。Loop-Work 因而对四类关键失效给出
-表\ref{tab:method-propositions}中的运行约束。它们是可以被反例推翻的接口命题，而不是整套方法的
-中心定义，也不会因参考实现存在而自动成立。后文先说明各责任面的形式化接口和工程实例化，再用案例
-材料报告这些约束当前得到何种支持。
+表\ref{tab:method-design-guidelines}中的工程设计准则。D1--D4 是由案例失效模式推导出的可审计接口要求；
+“违规事件”用于检查参考实现是否遵守准则，而不是 Popper 意义上的理论证伪实验。后文先说明各责任面
+的接口和工程实例化，再报告案例中观察到的拒绝事件；当前材料不估计采用这些准则后的平均效果。
 
 \begin{table}[htbp]
   \centering
   \small
-  \caption{Loop-Work 证据与控制环的四项可证伪运行约束}
-  \label{tab:method-propositions}
+  \caption{Loop-Work 证据与控制环的四项工程设计准则}
+  \label{tab:method-design-guidelines}
   \begin{tabularx}{\linewidth}{@{}L{0.10\linewidth}L{0.30\linewidth}L{0.30\linewidth}Y@{}}
     \toprule
-    命题 & 方法预测 & 必要条件 & 直接证伪事件 \\
+    准则 & 期望约束 & 实现条件 & 违规事件 \\
     \midrule
-    P1 身份拒绝 & 不同实验身份的观测不得支持当前候选 & design、verification、build、workload 与 evidence 身份可核验 & 身份不匹配仍形成可消费 PASS \\
-    P2 负向资格 & 正向通过还需证明判定器能够拒绝指定非等价错误 & mutant 可编译、非空、被触发并传播到观察点 & 合格 mutant 存活而结果仍获晋级 \\
-    P3 失败关闭 & 长跑只有在终态 marker、命令、清理和信号状态共同闭合后才能发布 PASS & 状态提交与证据发布不可分割 & 中断或证据不完整仍遗留可消费 PASS \\
-    P4 有界晋级 & 局部结果受父级门禁约束，跨任务能力受复用和稳定阈值约束 & 回滚基线、父级 gate 与外层阈值均被版本化 & 局部失败越级，或未达阈值的能力被标记为已晋级 \\
+    D1 身份拒绝 & 不同实验身份的观测不得支持当前候选 & design、verification、build、workload 与 evidence 身份可核验 & 身份不匹配仍形成可消费 PASS \\
+    D2 负向资格 & 正向通过还需检查判定器能否拒绝指定非等价错误 & mutant 可编译、非空、被触发并传播到观察点 & 合格 mutant 存活而结果仍获晋级 \\
+    D3 失败关闭 & 长跑只有在终态 marker、命令、清理和信号状态共同闭合后才能发布 PASS & 状态提交与证据发布不可分割 & 中断或证据不完整仍遗留可消费 PASS \\
+    D4 有界晋级 & 局部结果受父级门禁约束，跨任务能力受复用和稳定条件约束 & 回滚基线、父级 gate 与外层固化参数均被版本化 & 局部失败越级，或未满足固化条件的对象被标记为已晋级 \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-四条预测回答“在给定接口条件下应当观察到什么”；它们不直接估计相对其他 Agent 架构的生产率。这个
-区分把方法命题、参考实现和案例证据放在同一条推理链上，又使三者承担不同责任。
+四项准则回答“参考实现必须阻止什么”；它们不直接估计相对其他 Agent 架构的生产率。这个区分把
+设计要求、参考实现和案例观察放在同一条推理链上，又使三者承担不同责任。
 
-\section{Loop-Work 四平面的形式化与职责边界}
+\section{Loop-Work 四平面的接口化描述与职责边界}
 \label{sec:four-plane-detail}
 
-\subsection{静态职责树与最小充分性}
+\subsection{静态职责树与可区分状态}
 
-在第\ref{sec:method-overview}节的动态总览基础上，本章把同一方法拆成静态职责树、平面合同和最小
-反例，回答每一类状态的输入、输出、权限边界以及为何不能被无类型 GREEN 位替代。
+在第\ref{sec:method-overview}节的动态总览基础上，本章把同一方法拆成静态职责树、平面合同和案例
+反例，回答每一类状态的输入、输出、权限边界以及为何在本文案例中不能被无类型 GREEN 位替代。
 
 在第\ref{sec:method-overview}节定义的根输入和 $C/K/X/V$ 主干上，图\ref{fig:four-planes}把动态序列
 投影为静态职责树：控制面是生命周期编排根，知识、执行和证据面以类型化接口接受其请求。该图只表达
@@ -674,7 +712,7 @@ $C_{\mathrm{decide}}$ 是同一控制面的准备端与裁决端，$K/X/V$ 分�
 \begin{table}[H]
   \centering
   \small
-  \caption{省略一个责任状态后出现的最小不可区分反例}
+  \caption{案例中省略一个责任状态后出现的不可区分状态对}
   \label{tab:plane-minimal-counterexamples}
   \begin{tabularx}{\linewidth}{@{}L{0.13\linewidth}L{0.29\linewidth}L{0.27\linewidth}Y@{}}
     \toprule
@@ -688,10 +726,11 @@ $C_{\mathrm{decide}}$ 是同一控制面的准备端与裁决端，$K/X/V$ 分�
   \end{tabularx}
 \end{table}
 
-因此，本文的必要性主张是“状态类型不可无损省略”，而不是“必须建立四套工具”。ACI、quality gate、
-W3C PROV、GSN/SACM 可以分别实现这些接口的一部分；若一个实现把它们合并到同一数据库或程序，但仍
-保留四类字段、版本和裁决边界，则只是物理封装发生变化，并没有消除这四类责任。反之，若合并结果
-只剩一行无类型 GREEN，表\ref{tab:plane-minimal-counterexamples}中的状态对将不可表达。
+表\ref{tab:plane-minimal-counterexamples}支持的是案例内辨识能力：在本文选择的裁决模型中，若省略
+对应状态，所列事件将无法仅凭其余字段区分。ACI、quality gate、W3C PROV、GSN/SACM 可以分别实现
+这些接口的一部分；实现也可以把多类字段封装在同一数据库或程序中。本文不据此证明四平面具有全局
+最小性或完备性，也不排除三类、五类或其他编码方案；尚未完成的比较与证明列入
+第\ref{sec:limitations-roadmap}节。
 
 这一分解也不与最新 Agent 架构或产业 self-verifying stack 争夺同一层次。ACE-RTL 的 generator、
 reflector、coordinator 是候选生成和调试上下文的角色分解\cite{deng2026acertl}；Siemens 公开材料列出的
@@ -699,14 +738,14 @@ reflector、coordinator 是候选生成和调试上下文的角色分解\cite{de
 \cite{siemens2026selfverifying}。前者可承载 $K/X$ 的迭代，后者可分别承载执行、治理和判定接口，
 但这些物理构件怎样部署并不自动决定裁决状态怎样编码。就公开材料而言，它们没有报告与本文相同的
 design/build/workload/oracle/evidence 强身份元组、mutation 资格和成熟度全序；这里应理解为“未报告
-同一形式化接口”，而不是断言其系统不存在等价内部机制。反过来，Loop-Work 的四面也不替代专用模型、
+同一责任接口”，而不是断言其系统不存在等价内部机制。反过来，Loop-Work 的四面也不替代专用模型、
 物理引擎或安全运行时；它只规定这些构件的输出在成为下游结论前必须保留哪些可区分责任状态。
 
-本文的贡献定位于责任状态的显式形式化，而非新增底层工具能力：权限、知识适用性、真实执行和证据资格在
-既有系统中可能由不同工具隐式承担，Loop-Work 的增量是把它们编码为可版本化、可审计且可证伪的
-责任状态。若这些状态未被类型化，表\ref{tab:plane-minimal-counterexamples}中“观测相同而正确裁决
-不同”的状态对便无法区分，责任归属、旧证据失效和失败关闭消费也无法由第三方复核；显式形式化则
-为 P1--P4 提供了可检查的接口。该收益来自可表达性与可审计性，而不是对既有工具能力的优先权声明。
+本文的贡献定位于责任状态的显式接口化，而非新增底层工具能力：权限、知识适用性、真实执行和证据
+资格在既有系统中可能由不同工具隐式承担，Loop-Work 的工程增量是把它们编码为可版本化、可审计的
+责任字段。对表\ref{tab:plane-minimal-counterexamples}中的案例状态对，这种编码保留了责任归属、旧证据
+失效和失败关闭消费的差异，并为 D1--D4 提供可检查接口；它不是带有 soundness、completeness 或
+complexity 定理的形式系统。
 
 目标进入体系后，首先必须确定它属于哪类工程活动、允许改变什么以及在何种条件下结束，因此先从控制面
 展开这棵树。
@@ -812,7 +851,8 @@ A2（同一冻结配置下的第二次独立执行）的原始 FAIL，并在物�
 \end{enumerate}
 
 控制面至此给出了问题、权限、角色和终止条件，但它本身不提供 RTL 事实、专业规则与历史经验；这些
-输入由知识面按当前节点构造。
+输入由知识面按当前节点构造。就表\ref{tab:method-design-guidelines}的准则链而言，控制面把 D4 所需的
+父级门禁、回滚基线和晋级阈值写入合同，使“局部接受”与“允许晋级”成为两个可区分状态。
 
 \subsection{知识面：从开放仓库到有界上下文包}
 
@@ -855,6 +895,44 @@ profile 与主题检出的历史证据，$P_i$ 是可调用的 Skill、E2E 与 o
 Skill/E2E 虽以文件实现，却不是与四面平行的第五层：它们首先属于知识面，只有被控制面选择后才在
 执行面运行，并由证据面裁决。
 
+下面的代码清单直接摘自工作区生效的
+\taskpath{.github/instructions/rtl-generation-workflow.instructions.md}。为控制篇幅，清单仅省略各阶段
+内部的枚举项，保留原文中的触发条件、硬门和先后关系。它说明 instruction 不是对仓库文件的介绍，
+而是一段可由控制面查询、并能阻止执行面过早写入 RTL 的领域程序。
+
+\Needspace{25\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={生效 RTL Instruction 的原文承重句摘录},
+  label={lst:knowledge-instruction-excerpt}]
+## 阶段 0 — 接口/控制契约先行
+改动位于 `npc/rv64/**` 且触碰握手 / stall /
+flush·redirect·trap / 异常序 / 访存序 / 投机恢复，
+或跨 >= 2 module 边界时，在进入阶段 1 之前，
+必须先冻结六类跨模块契约，并把受影响模块的
+SPEC-TEMPLATE §2/§3 填满。
+
+硬门槛：填不出契约的格子 = 尚未理解上下游
+        = 禁止进入阶段 1 写 RTL。
+
+## 阶段 1 — 需求
+把任务转写为可验证的需求清单。
+## 阶段 2a/2b/2c/2d
+协议规则 -> 状态机 -> 不变量 -> 数据通路约束。
+## 阶段 2e — RTL 级电路拓扑
+在写任何一行 RTL 之前，必须先输出 RTL 级电路拓扑；
+自审端口、状态、复位优先级和共享资源后才翻译为 RTL。
+## 阶段 3 — RTL
+数据通路骨架 -> 状态机/控制 -> 协议接口
+                -> 不变量对应的断言或注释。
+\end{lstlisting}
+
+清单中的阶段 0 把跨模块事务先冻结为六类接口/控制合同；阶段 1--2e 再把局部目标展开为需求、协议、
+状态、不变量、数据通路和电路拓扑；只有这些对象可审查，阶段 3 才获得写 RTL 的权限。控制面并非仅仅
+“读过”该文件，而是把阶段产物写入任务合同和节点依赖；执行面据此生成 topology、RTL、断言和
+testbench；证据面检查违约变体是否被 oracle 拒绝。因而，该 instruction 把工程师“先弄清上下游再
+改代码”的经验转化为可观察的前置条件，并允许审查者从缺失的 owner、周期或优先级直接判定任务尚未
+准备好。
+
 以本地 RV64 子任务为例，\taskpath{rtl-agent-task-contract.instructions.md} 没有保存某次对话答案，
 而是把“审查一段 RTL”拆为工程域、任务类型、可读路径、可写路径、规范命令、必读 RTL/spec/TB、
 交付物和成功条件。相应 Skill 将这些字段编译为带版本与 SHA-256 的 JSON 合同；E2E 再检查 instruction、
@@ -867,7 +945,8 @@ Skill、合同生成器、执行节点与证据入口是否接通。这样，一
 Skill；需要自动组合和验收的能力才进入 E2E。这样，工作区不会把“发生过”误写成“以后都成立”，
 也不会把所有历史过程重新灌入模型。
 
-有界上下文包把开放工程目录压缩为当前节点能够消费的确定输入，执行面据此产生候选和原始观测。
+有界上下文包把开放工程目录压缩为当前节点能够消费的确定输入，并以来源、版本和适用域为 D1 的
+身份拒绝及 D4 的版本化晋级提供知识侧条件；执行面据此产生候选和原始观测。
 
 \subsection{执行面：在合同授权内产生候选与原始观测}
 
@@ -941,7 +1020,8 @@ for node in topological_order(task_graph):
 
 短命令与小时级作业共享同一合同接口，但状态保存不同。短命令可以直接回传返回码和 bounded log；长时间
 仿真、综合、STA 或系统回放还必须持续记录 stage、signal、evidence-complete 与 cleanup，防止交互终止
-或进程退出被误当作工程完成。这些状态仍只是执行事实，下一节才定义它们怎样成为可接受证据。
+或进程退出被误当作工程完成。这些原始状态构成 D3 失败关闭的执行侧前提，但仍只是执行事实；下一节
+才定义它们怎样成为可接受证据。
 
 \subsection{证据面：从原始观测到限定结论}
 
@@ -995,7 +1075,8 @@ replay 结论，但旧状态不得被追溯改写。
 workload、oracle 与原始产物的来源绑定，$\mathcal{V}_k$ 是限定判定。任何一项缺失，产物只能保持
 候选、GAP 或 UNQUALIFIED；若缺失源于上游合同、上下文、发布或基础设施前提未闭合，则状态为
 \statusword{BLOCKED}。这些状态均不能成为有效交付。至此，四个面的职责已经定义完整；下一节只说明
-它们如何完成一次任务，不再引入新的组成层。
+它们如何完成一次任务，不再引入新的组成层。身份绑定、目标 mutation、原子终态和父级门禁分别使
+D1、D2、D3、D4 获得可裁决接口；其案例观察统一在表\ref{tab:design-guideline-observations}中报告。
 
 \subsection{四面协同的一次数据流}
 
@@ -1031,31 +1112,23 @@ $C_{\mathrm{prepare}}$ 与 $C_{\mathrm{decide}}$ 是同一控制面的两个生�
 workload 改变后，旧 $X_i$ 不能继续支持新的 $\mathcal{A}_i$；oracle 改变时可以对冻结 $O_i$ 产生
 versioned replay，但不能重命名旧的 raw 状态。
 
-\subsection{外层能力晋级的操作阈值}
+\subsection{外层能力固化的参数化条件}
 
-图\ref{fig:double-loop}已经给出外层反馈边；要使“能力扩大”成为可证伪命题，还必须规定一个环境改动
-经历多少次复现、多少次跨合同复用和多长稳定窗口后，才允许从单次实现晋级为可复用能力。
-
-对一次环境改动 $z$，原定义只要求规则进入真源 $R(z)$、接入可发现能力 $W(z)$、经正例和针对性
-反例检验 $Q(z)$，并被后续业务实际复用 $A(z)$。这仍不足以回答“复现几次、复用几次、稳定多久”。
-本文因此为后续审计预先冻结操作阈值 $\theta=(3,2,14\mathrm{d})$：同一版本能力在冻结输入和验收准则下至少有
-3 次连续独立 replay；至少被 2 个不同 task contract 调用，且两个合同在模块、workload 或任务类别上
-至少一项不同；从首次到末次合格调用跨越至少 14 天，并保持同一 artifact hash，或以显式新版本重新
-资格化。外层能力扩展被重新定义为
+图\ref{fig:double-loop}已经给出外层反馈边。一次环境改动不能因为文件已经写入就被称为可复用能力；
+它至少要进入规则真源 $R(z)$、接入可发现入口 $W(z)$、通过正例与目标反例资格 $Q(z)$，并被后续业务
+实际调用 $A(z)$。重复成立次数、跨合同复用次数和稳定窗口由项目参数
+$\theta=(r_{\min},u_{\min},t_{\min})$ 表示，外层固化条件写为
 
 \[
 \operatorname{Ext}_{\theta}(z)=R(z)\land W(z)\land Q(z)\land A(z)
-\land[n_{\mathrm{replay}}\ge3]\land[n_{\mathrm{reuse}}\ge2]
-\land[\Delta t\ge14\mathrm{d}].
+\land[n_{\mathrm{replay}}\ge r_{\min}]
+\land[n_{\mathrm{reuse}}\ge u_{\min}]
+\land[\Delta t\ge t_{\min}].
 \]
 
-这些数值不是从历史结果回算出的通过线，也不用于追认现有构件。三次 replay 用于排除一次性偶合，
-两个合同用于区分“单任务可用”和“跨任务复用”。14 天也不是由本项目平均开发间隔拟合而来，而是
-预先选择的两个七日观察周期：其目的只是避免把同一短时调试会话内的重复调用误写成跨轮稳定性。
-因此，整组阈值只是兼顾审计成本与陈旧风险的工程启发式，不具有统计最优性，也不是跨项目定律。
-后续评价还应报告 replay 阈值
-$2/3/5$、复用阈值 $1/2/3$ 与稳定窗口 $7/14/30$ 天的敏感性。未达任一项的对象只能称为候选能力或
-单次实现，不能进入有效能力集合。相应地，环境条件 $\Gamma$ 下的有效 Agent 能力写为
+该式是参考实现的操作性判定规则，而非经统计校准的普遍定律。阈值必须在观察正式结果之前按任务
+风险、复核成本和陈旧代价登记；未满足条件的对象仍可作为单次实现或候选能力使用，却不能据此声称
+已经形成稳定的跨任务能力。相应地，环境条件 $\Gamma$ 下的有效 Agent 能力写为
 
 \[
 \mathcal{C}_{\mathrm{eff}}(\Gamma;\theta)=
@@ -1065,12 +1138,15 @@ $2/3/5$、复用阈值 $1/2/3$ 与稳定窗口 $7/14/30$ 天的敏感性。未�
 
 只有验收标准不变且
 $\mathcal{C}_{\mathrm{eff}}(\Gamma_1;\theta)\subsetneq
-\mathcal{C}_{\mathrm{eff}}(\Gamma_2;\theta)$ 时，才称环境能力扩大。当前主张映射尚未为每个历史构件完整
-编码 replay 次数、复用次数和稳定窗口，因此本文不把纵向里程碑解释为这一严格集合关系已被证明；
-它们只说明若干构件进入了后续任务。Token、代码行和脚本数量同样不能替代阈值审计。后文的双闭环
-运行机制将在不增加新架构元素的前提下，形式化两条反馈路径的状态、触发条件和停止规则。
+\mathcal{C}_{\mathrm{eff}}(\Gamma_2;\theta)$ 时，才称环境能力扩大。本案例的主张映射尚未为每个历史构件完整
+编码 replay 次数、复用次数和稳定窗口，阈值本身也未做敏感性分析。因此本文不把纵向里程碑解释为
+这一严格集合关系已被证明；它们只说明若干构件进入了后续任务。阈值校准与逐构件审计统一列入
+第\ref{sec:limitations-roadmap}节，Token、代码行和脚本数量不能替代该审计。后文的双闭环运行机制
+将在不增加新架构元素的前提下，接口化描述两条反馈路径的状态、触发条件和停止规则。下一章先把
+上述接口映射为参考实现，再进入双闭环的运行过程。
 
-\section{四面的工程实例化：从方法接口到工作区载体}
+\section{Loop-Work 在 ysyx-workbench 中的工程实例化}
+\label{sec:engineering-instantiation}
 
 \subsection{映射原则与边界}
 
@@ -1080,6 +1156,9 @@ $\mathcal{C}_{\mathrm{eff}}(\Gamma_1;\theta)\subsetneq
 附录 A，正文只保留决定数据流、责任边界和判定范围的实现机制。表\ref{tab:method-implementation-map}
 给出完整职责映射。实现载体可以跨面：例如 E2E 的定义属于知识面，选择属于控制面，运行属于执行面，
 结果资格化属于证据面；因此不能用“某个文件属于哪个目录”代替接口分析。
+沿这一映射，D1 落到身份 manifest 与 freshness 检查，D2 落到 mutation 与 oracle 资格，D3 落到
+长跑状态提交和原子发布，D4 落到父级门禁、Selector 与成熟度全序。这里列出的是准则的实现观察点，
+而不是用文件存在替代准则成立。
 
 \newcommand{\TableMethodImplementationMap}{%
 \begin{table}[H]
@@ -1134,23 +1213,26 @@ Agent 只能观察程序终态，不能定位周期合同或判断实现条件�
     \node[box,below=7mm of src] (am) {Abstract Machine\\编译、链接、ELF $\rightarrow$ BIN};
     \node[side,below left=10mm and 13mm of am] (nemu) {NEMU reference\\ISA/CSR/特权/设备状态};
     \node[side,below right=10mm and 13mm of am] (npc) {NPC target\\Verilator + RTL commit};
-    \node[box,below=13mm of am] (diff) {DiffTest\\逐退休比较 PC/GPR/FPR/CSR/priv};
+    \node[box,below=13mm of am] (diff) {DiffTest\\逐退休比较 PC、GPR、FPR、CSR 与 priv};
     \node[box,below=7mm of diff] (layers) {L0 模块/TB $\rightarrow$ L1 完整核\\$\rightarrow$ L2 mini-system $\rightarrow$ L3 轻量 Linux};
     \node[side,right=14mm of layers] (eda) {Yosys/OpenSTA/开源 PDK\\网表、面积、关键路径与资格边界};
     \node[box,below=7mm of layers] (evidence) {同一 identity 的原始观测、反例与收据\\$\rightarrow$ 接受、返工、GAP 或能力固化};
-    \draw[flow] (src) -- (am);
-    \draw[flow] (am) -- (nemu);
-    \draw[flow] (am) -- (npc);
-    \draw[flow] (nemu) -- (diff);
-    \draw[flow] (npc) -- (diff);
-    \draw[flow] (diff) -- (layers);
-    \draw[flow] (npc.east) -| (eda.north);
-    \draw[flow] (layers) -- (evidence);
+    \draw[flow] (src.south) -- (am.north);
+    \draw[flow] (am.south west) -- (nemu.north);
+    \draw[flow] (am.south east) -- (npc.north);
+    \draw[flow] (nemu.east) -- (diff.west);
+    \draw[flow] (npc.west) -- (diff.east);
+    \draw[flow] (diff.south) -- (layers.north);
+    \draw[flow] (npc.south) -- (eda.north);
+    \draw[flow] (layers.south) -- (evidence.north);
     \draw[flow] (eda.south) |- (evidence.east);
   \end{tikzpicture}}
   \caption{ysyx-workbench 中领域 Agent 的工程数据流：程序、参考语义、RTL 目标、分层验证与实现反馈}
   \label{fig:workbench-domain-loop}
 \end{figure}
+
+图\ref{fig:workbench-domain-loop}只表达执行面与证据面的工程数据流，因此不把 Goal、Selector 或任务
+回传箭头叠加在 NPC 方框上；这些控制面关系分别在后文的根目标合同与中等粒度切片选择中展开。
 
 这一关系由真实构建入口承载。\taskpath{abstract-machine/Makefile} 依据 \texttt{ARCH} 分离 ISA 与
 platform，编译 C/C++/汇编、链接 AM 与 klib，再产生 ELF/image；
@@ -1159,7 +1241,7 @@ platform，编译 C/C++/汇编、链接 AM 与 klib，再产生 ELF/image；
 \taskpath{nemu/src/cpu/difftest/ref.c} 暴露内存、寄存器、执行步进和中断接口，NPC 端据此完成逐退休
 比较。工程环境因此不是一组工具名，而是一条具有明确上游、下游和观测语义的可执行数据通路。
 
-当前分层证据进一步固定了每种观测的结论范围：L0 检查受影响 module/transaction 的 TB、立即断言和
+分层证据进一步固定了每种观测的结论范围：L0 检查受影响 module/transaction 的 TB、立即断言和
 负向变体；L1 合取 module、official、AM 与 DiffTest；L2 运行 OpenSBI 与 M$\rightarrow$S$\rightarrow$U、
 Sv39、timer/PLIC/UART、原子操作和自然关机；L3 运行 Linux 6.6/PID1，并覆盖 process/COW、timer、
 tmpfs、UART IRQ 与唯一终态。完整 Ubuntu 22.04 属于显式授权的可选再认证，不能由低层 PASS 自动
@@ -1291,7 +1373,7 @@ Skill 随后把这些声明式字段编译为实际合同。附录代码\ref{lst
 因此，Skill 的产物不是另一段 Prompt，而是控制面和审查者共同消费的机器对象。
 
 合同校验不是格式检查。生成器会拒绝“写路径不属于可读路径”“只读审查声明写入”“写型命令没有
-写路径”以及“无工具模式仍携带命令”等组合。由此得到的边界仍需进入 E2E 才能成为可发现能力：
+写路径”以及“无工具模式仍携带命令”等组合。该边界只有进入 E2E 才成为可发现能力：
 执行剖面的一行同时绑定节点名、实现模块、节点函数、责任主体、五类输入和预期输出；节点函数再实际
 运行生成器的审计、自测与命令行自测。表\ref{tab:skill-e2e-binding}给出该接线，而不是只说明文件存在。
 
@@ -1324,6 +1406,7 @@ E2E 证明能力接线可运行；只有最后的业务验证才证明合同内�
 主链到“产生原始观测”为止；report、manifest 和 publication 属于下一节的证据面，不能因为它们由同一
 runner 调用就混成一个职责。
 
+\Needspace{18\baselineskip}
 \begin{lstlisting}[language={},numbers=left,
   caption={profile 从任务身份到原始节点观测的执行主链}]
 task_slug + selected profile
@@ -1468,7 +1551,7 @@ resolve、evidence index、dispatch log 与 \texttt{nodes.tsv} 七份 SHA-256。
 与产物集合；任何净化、索引、哈希或数据库步骤失败都会撤销本轮发布。参考实现主要位于
 \taskpath{scripts/e2e/lib/report.sh}，但其抽象职责是“证据原子提交”，不是格式化报告。
 
-下一轮只从已发布对象中选择最小充分历史。当前有效的 instruction、Skill 和执行剖面保持在线；稳定
+下一轮只从已发布对象中选择最小充分历史。已发布的 instruction、Skill 和执行剖面保持可查询；稳定
 memory 与任务档案可查询；原始日志只向上下文提供路径、尺寸、SHA-256、标记和有界摘要。启动摘要受
 执行剖面、非历史主题和 2400-token 硬预算约束；历史运行通过 run-id 与证据索引按需读取。这样，
 证据面可以向知识面反馈已验证结论，而不会把全部聊天和重型日志再次灌入模型。
@@ -1479,54 +1562,322 @@ artifact、Skill、合同和 profile 绑定审计；release 模式再构建相�
 \taskpath{package-ai-dev-env.sh} 形成可迁移包。两者位于外层能力闭环的末端：只有规则、执行入口、反例
 gate 和交付包同时成立，一项环境修改才算从个人经验变成可复用工程能力。
 
-\subsection{一个复合合同的端到端映射}
+\subsection{RTL 生产闭环的工程实例：从架构合同到分层反馈}
 
-前四节分别说明了四个面的实现，本节只用一个真实复合合同把它们串起来，不再引入新的组件。该合同的
-根目标是复核当前 \statusword{PERF\_BASELINE}：核算 lane1 到 lane0 的计数端点修正，验证 v4
-cycle/slot 守恒、三次 bit-exact 结果与 stats-off 等价，确认 A1（第一次原始性能基线执行）和 A2
-（同一冻结配置下的第二次独立执行）的 FAIL 未被覆盖，并在缺少
-物理实现条件时保持 PPA 为 \statusword{UNQUALIFIED}。这里的 reviewer 是前文已定义的独立只读
-审查节点；它只复核冻结输入，不修改 RTL，也不代替 benchmark、综合或 STA。
+前述映射说明了环境构件各自承担的责任，但领域 Agent 是否真正可用，要看它们能否共同完成一次
+处理器修改。以下以“在保持 RV64 架构语义、精确异常和既有回归的前提下，把候选接纳与退休路径由
+单发射扩展到双发射，并建立 CPI/PPA 反馈入口”为贯穿场景。这个任务不是某一个文件的修改：它同时
+影响取指包、跨槽相关性、反压、redirect/flush、ROB 顺序退休、计数端点、AM workload、NEMU 参考状态
+和 NPC 观测。Loop-Work 首先构造这种依赖关系，然后才允许生成 RTL。
 
-该复合主张沿“根目标归一化 $\rightarrow$ 知识装配 $\rightarrow$ 合同编译 $\rightarrow$ 隔离复核
-$\rightarrow$ 资格判定 $\rightarrow$ 节点终止”的连续数据链传递；每一步都以前一步形成的对象为输入。
-完整逐步映射移至附录表\ref{tab:composite-contract-flow}。
+\subsubsection{根目标驱动的写前分析与候选生成}
 
-\newcommand{\TableCompositeContractFlow}{%
-\begin{table}[H]
-  \centering
-  \small
-  \caption{复合性能合同在四面之间的端到端传递}
-  \label{tab:composite-contract-flow}
-  \begin{tabularx}{\linewidth}{@{}L{0.18\linewidth}L{0.15\linewidth}L{0.31\linewidth}Y@{}}
-    \toprule
-    步骤 & 责任面 & 实现动作 & 形成的下游对象 \\
-    \midrule
-    根目标归一化 & 控制面 & 把“看性能是否可靠”拆成端点、守恒、重复性、非干扰、原始状态和 PPA 资格六项义务 & 有明确验收谓词的任务图 \\
-    知识装配 & 知识面 & 选择 counter schema、measurement contract、两版冻结 run 与未晋级规则 & 带 provenance 的有界上下文包 \\
-    合同编译 & 控制面 & 生成 read-only JSON，校验路径、空写集和 canonical 命令 purpose，绑定合同 SHA & 可派发且不能口头扩展的 reviewer 节点 \\
-    隔离复核 & 执行面 & reviewer 在隔离上下文中只运行 \texttt{rg/sed/sha256sum}，重新核算而不继承实现者判断 & 核算表、反例、unknowns 与原始引用 \\
-    资格判定 & 证据面 & 对照 raw result、守恒式、哈希和资格全序，不允许用 corrected replay 改写原始 FAIL & 限定的 PASS、FAIL、GAP 或 UNQUALIFIED receipt \\
-    节点终止 & 控制面 & 仅当合同范围和证据同时闭合才允许下游消费；技术缺口保持 GAP & 可追踪交付或明确未闭合项 \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-}%
+RV64 双发射 OoO 核持续开发以“RV64 双发射 OoO 核持续开发、Selector 驱动优化与 CPI/PPA 晋级 Goal”为控制面的
+根合同。该 Goal 不要求每轮重建一套流程资产，而是要求在功能、架构、系统和实现硬门内，每轮推进
+一个真实且有界的工程切片。代码\ref{lst:rv64-long-goal}直接给出该 Goal 的目标与主循环；其中
+Selector 指工作流中的优化切片选择器，不是 RTL 发射队列中选择就绪指令的 issue selector。
 
-其中，合同的机器边界可概括为附录代码\ref{lst:perf-review-contract}。实际 JSON 还保存完整路径、合同版本和
-SHA-256；此处只保留决定权限与结论范围的字段。
+\Needspace{30\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={RV64 持续开发 Goal 的根合同摘录},
+  label={lst:rv64-long-goal}]
+最终目标：持续开发本地 RV64 双发射乱序执行核，
+在不破坏功能正确性、架构一致性、系统可启动性
+和实现硬门的前提下：
+  1. 闭合架构债务、验证债务和历史缺陷；
+  2. 建立可信、可复现、可比较的性能与 PPA 基线；
+  3. 使用中型优化选片器选择下一项工程工作；
+  4. 通过定向测量、RTL、回归、综合与 STA 降低 CPI；
+  5. 控制面积、时序和功耗退化，形成 Pareto 候选。
 
-合同生成器的结构校验为 PASS，只说明路径、命令、任务类型和回复出口合法；它不证明性能技术结论。
-为检验这条边界，Skill 自测还构造路径穿越、只读任务写入、错误 purpose、no-tools 混入命令以及固定
-“最多发现 $N$ 个问题”等非法合同，验证器必须逐项拒绝。这个实例展示的是同一复合主张如何沿四面
-传递，而不是把某个 JSON 或 Python 文件本身包装成论文方法。
+唯一主循环：
+  1. 轻量分类，只读取当前切片直接需要的文件；
+  2. 校验 design-id、baseline、receipt 与 selector input；
+  3. 输入不变则复用决策，实质变化才重跑 Selector；
+  4. 一次只执行一个主切片，先写清对象、周期与观测；
+  5. 先跑定向门，具备晋级可能时才升级高成本验证；
+  6. 把新测量、区间、硬门和因果结论写回 canonical
+     evidence，再选择下一切片。
+\end{lstlisting}
+
+因此，源代码修改不是主循环的起点。Agent 先把根目标合同与冻结 design-id、架构/性能收据、历史正反例、
+瓶颈普查和 PPA 资格组合为写前分析对象，列出候选的 RTL module/signal/transaction、依赖锥、周期与
+协议不变量、可观测量、验证成本和回滚边界。Goal 中的“中型优化选片器”即本文所称的“中等粒度
+Selector”，二者指同一控制面机制。Selector 先排除身份不一致、缺少验证入口、破坏硬门或
+无法安全回退的候选，再选出一个中等粒度切片。这里的“中等”不按代码行数或文件数定义，而指一个
+主要假设、有界影响范围、明确不变量和可独立关闭的证据链。
+
+被选切片随后编译为任务合同：允许读写的 RTL/spec/TB 范围、定向 testbench 与 AM workload、NEMU--NPC
+对照方式、综合/STA 条件、成功阈值和失败处置均成为机器字段。执行面只有在合同校验后才获得写权限，
+并按需生成或修改 RTL、testbench、负向变体和 AM 程序；证据面再把模块检查、全核回归、DiffTest、
+分层系统回放及实现反馈绑定到同一实验身份。满足合同的候选才进入下一轮，功能回归、归因不足或资格
+条件缺失则分别触发返工、回滚或显式 GAP。这样，根目标合同保持方向稳定，单切片使每轮变化可解释，
+而不是让一次自然语言请求直接跨越分析、实现和晋级。
+
+\subsubsection{任务编译：Skill 把目标变成可校验合同}
+
+写前分析给出技术义务后，\taskpath{.github/skills/prepare-rtl-task-contract/SKILL.md} 调用合同生成器，
+按 \texttt{create $\rightarrow$ validate $\rightarrow$ render} 生成唯一授权对象。
+\mbox{代码\ref{lst:task-contract-excerpt}}展示该 Skill 实际保留的字段；它们分别回答“改什么、读什么、写什么、
+允许运行什么、必须交付什么以及怎样判断完成”。
+
+\Needspace{25\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={RV64 RTL 任务合同的真实字段与双发射实例},
+  label={lst:task-contract-excerpt}]
+engineering_domain: local-rv64-rtl
+task_kind: implementation | verification | ppa-analysis
+goal: dual-issue candidate acceptance/retirement with precise recovery
+allowed_paths:
+  - npc/rv64/vsrc/...
+  - npc/rv64/design/specs/...
+  - npc/rv64/testbench/...
+write_paths: [the minimum RTL/spec/TB subset]
+allowed_commands:
+  - {command: <canonical command>, mode: write-within-scope,
+     purpose: <catalog-bound purpose>}
+required_context:
+  - rtl-generation-workflow.instructions.md
+  - interface-contract-first.instructions.md
+deliverables:
+  - architecture/interface update; RTL; TB/assertion; negative variant
+success_criteria:
+  - focused positive passes; target mutation is rejected;
+    baseline is not weaker; unknowns and GAP remain explicit
+contract_binding: <JSON path + SHA-256; hash binds this JSON only>
+\end{lstlisting}
+
+\texttt{validate} 会拒绝路径穿越、只读任务写入、写命令没有写路径、自由修改命令用途和 no-tools 模式
+携带命令等组合；\texttt{render} 再把同一 JSON 的路径与 SHA-256 写入子 Agent 输入。子 Agent 若发现
+遗漏模块，只能提出 \texttt{scope\_extension\_request}，由控制面创建新版本合同并重新校验，不能在旧
+提示后口头扩大权限。由此，Agent 仍可自主追踪调用链和提出反例，但探索范围、写入范围和结论范围不会
+在执行中静默漂移。
+
+合同能力自身也被接入 E2E，而不是停在一个孤立 Skill。实际
+\taskpath{.github/e2e/profiles/agent-system.tsv} 节点为：
+
+\Needspace{12\baselineskip}
+\begin{lstlisting}[language={},numbers=none,
+  caption={Skill 在 E2E 任务图中的真实接线（换行仅为排版）}]
+rtl-task-contract | agent-system |
+e2e_agent_system_rtl_task_contract | agent-system |
+agent-env-rtl-task-contract.json;
+rtl-agent-task-contract.instructions.md;
+prepare-rtl-task-contract/SKILL.md;
+rtl_task_contract.py |
+create/validate/render and out-of-contract-path mutation must be checked
+\end{lstlisting}
+
+这行配置的意义不是“E2E 完成了 RTL”，而是证明合同能力能被任务图发现、执行并拒绝越界输入；真正的
+RTL 正确性仍由后续 TB、DiffTest 和系统层节点判断。
+
+\subsubsection{架构合同、RTL、TB 与 AM workload 的共同生成}
+
+合同冻结后，Agent 并非只输出一个 RTL 差分，而是形成一组互相约束的工程对象。控制面把目标编译为
+架构、实现、验证和性能节点；知识面选择 ISA/特权规范、架构宪法、模块 spec、Instruction、任务
+Skill、历史反例和 CPI/PPA 全序；执行面再按表\ref{tab:rtl-task-flow}推进。这里的固定步骤构成任何
+RTL 修改都不能绕过的生产主干，风险触发步骤则按事务影响面增加，避免把所有局部改动无差别升级为
+系统长跑。
+
+\begingroup
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}L{0.10\linewidth}L{0.21\linewidth}L{0.39\linewidth}L{0.24\linewidth}@{}}
+  \caption{RV64 RTL 生产闭环中的固定节点与风险触发节点}
+  \label{tab:rtl-task-flow}\\
+  \toprule
+  类型 & 节点 & Agent 产生或消费的对象 & 进入下一节点的条件 \\
+  \midrule
+  \endfirsthead
+  \caption[]{RV64 RTL 生产闭环中的固定节点与风险触发节点（续）}\\
+  \toprule
+  类型 & 节点 & Agent 产生或消费的对象 & 进入下一节点的条件 \\
+  \midrule
+  \endhead
+  \midrule
+  \multicolumn{4}{r}{续下页}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  固定 & 架构宪法与模块规格 & 消费 ISA 与既有设计；产生事务 owner、生命周期、周期、优先级、可见行为和回滚边界 & 受影响合同能够先于源码接受审查 \\
+  固定 & 机器任务合同 & 产生允许读写路径、命令、验证对象、交付物与终止谓词 & 合同校验通过，依赖锥与权限不再含混 \\
+  固定 & RTL、TB 与负向变体 & 共同产生 RTL、定向 TB/断言和可编译违约版本 & 正向行为通过，目标违约被唯一 marker 拒绝 \\
+  固定 & 同身份基线复验 & 消费修改前 inventory；执行修改后同范围或更强回归 & 验证范围不弱于基线，design、build 与 workload 身份一致 \\
+  触发 & AM 与 DiffTest & 现有 workload 不能激活架构语义时生成 C/汇编及 BIN；交给 NEMU 与 NPC & PC、GPR、FPR、CSR、priv 及终态满足合同 \\
+  触发 & L2/L3 系统验证 & 当修改涉及特权、MMU、中断、设备或长事务时，消费系统 workload & 对应层级的完整 case 与唯一终态闭合 \\
+  触发 & CPI/PPA & 当修改声称性能或结构收益时，消费冻结 workload、网表、SDC、库与 PDK & 功能硬门、量测合同和物理资格按全序成立 \\
+\end{longtable}
+\endgroup
+
+下面用同一条 \texttt{FENCE.I} 指令生命周期展示表中四类源文件如何闭合，而不是分别举四个无关例子。
+为适应论文版宽，下列清单只做换行、连续片段截取和显式省略，不改动关键标识、常量、谓词与观测值。
+位于 \taskpath{npc/rv64/design/arch/} 的顶层架构宪法 \taskpath{ooo-core-architecture.md} 规定：凡是修改 instruction
+lifecycle、state owner 或 flush/redirect 路径，必须先更新宪法，再更新模块 spec，最后才能改 RTL。
+据此，取指桥规格把自修改代码（Self-Modifying Code，SMC）的可见性先写成代码
+\ref{lst:fencei-architecture-contract}中的合同。普通 store 不承诺立即改变取指视图；真正的架构边界是
+\texttt{FENCE.I} 提交后产生 \texttt{mmu\_flush}，清除旧 I\$/ITLB 状态并重定向、重取后继 PC。
+
+\Needspace{20\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={取指桥架构规格中的 FENCE.I 可见性合同摘录},
+  label={lst:fencei-architecture-contract}]
+# npc/rv64/design/specs/ooo-fetch-axi-bridge.md
+### R2.5 ordinary-store / FENCE.I 可见性合同
+
+- 普通 store 的 issue、完成、提交与 AXI write fire
+  都不得逐项 invalidate I$；写后未执行 FENCE.I 的
+  自修改代码不要求取指看到新字节。
+- FENCE.I 保持 stop/drain 序列化，在 commit 后生成
+  mmu_flush_i，整体清 I$/ITLB，并沿既有
+  redirect/refetch 重新取得 fence 后继 PC。
+- 永久结构门必须贯通
+  FENCE.I commit -> mmu_flush -> fetch cache/ITLB clear；
+  旧 store-fire 拓扑必须为 RED。
+\end{lstlisting}
+
+修复前的 task-run 反例记录 \taskpath{fencei-fix-plan.md} 先冻结因果链与原始 DiffTest 差异；
+分层验证闭合后，后续规格化再把已经验证的语义固化为上述 R2.5 可见性合同。
+代码\ref{lst:fencei-counterexample-record}保留反例记录的关键字段：
+已有用例经间接跳转，在 store 退休后才取目标指令，因而无法观察“旧 uop 已经进入 ROB”这一窗口；新
+反例把被改写指令放在 \texttt{FENCE.I} 的直线后继，使 NPC 提交旧的 \texttt{addi +1}，而 NEMU 读取
+新字节并执行 \texttt{addi +2}。这份 \texttt{.md} 的作用不是解释一个 PASS，而是在动 RTL 前冻结“怎样才算
+真正复现缺陷”。
+
+\Needspace{16\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={FENCE.I 反例记录中的根因与原始差分摘录},
+  label={lst:fencei-counterexample-record}]
+# fencei-fix-plan.md — Step A 反例
+root cause:
+1) fence.i = 纯 no-op；全仓无 retire 触发 flush/redirect。
+2) store->ifetch 只失效 fetch-packet cache 的 valid 位，
+   绝不 flush 流水/ROB。
+3) 直线 fall-through 上紧邻 fence.i 的目标 L 会以旧字节
+   进入 ROB；store 只失效 cache，陈旧 L 仍可直接提交。
+
+[npc-diff] mismatch at dut commit
+  pc=0x000000008000002c inst=0x00150513
+[npc-diff] x10 ref=0x0000000000000066
+                 dut=0x0000000000000065
+
+existing tests: indirect jalr fetches L after store retirement;
+new test: store -> fence.i -> fall-through L in the same/next packet.
+\end{lstlisting}
+
+修复后，局部 TB 不以“程序最终退出”为唯一 oracle，而是直接消费规格中的旧包、flush 和重取三个
+事件。代码\ref{lst:fencei-tb-excerpt}来自
+\taskpath{npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv}：先填入旧取指包并证明 warm hit，随后施加
+\texttt{mmu\_flush}，明确要求相同 PC 不再命中旧 cache、不产生 stale response，最后从 AXI 接收新包。
+该 TB 能拒绝切断桥内“\texttt{mmu\_flush} 输入 $\rightarrow$ cache/ITLB clear $\rightarrow$ refetch”
+链路的可编译负向 RTL，却不能单独证明上游“\texttt{FENCE.I} commit $\rightarrow$
+\texttt{mmu\_flush\_i}”接线贯通；上游接线由永久结构门和 AM/DiffTest 端到端用例共同约束。
+
+\Needspace{14\baselineskip}
+\begin{lstlisting}[language=Verilog,numbers=left,
+  caption={取指桥 TB 对旧指令、flush 与重取的逐事件观测摘录},
+  label={lst:fencei-tb-excerpt}]
+mmu_flush = 1'b1;
+tick();
+mmu_flush = 1'b0;
+#1;
+tb_check1("V10B FENCE.I pulse returns bridge idle",
+          dut.state_q == S_IDLE_TB, 1'b1);
+start_fetch_ctx("V10B FENCE.I post-update request accepted",
+                FUSION_PC1, `PRIV_M, {`XLEN{1'b0}});
+#1;
+tb_check1("V10B FENCE.I rejects stale cache hit",
+          dut.cache_hit_w, 1'b0);
+tb_check1("V10B FENCE.I exposes no stale response",
+          fetch_rsp_valid, 1'b0);
+drive_fetch_packet("V10B FENCE.I replacement packet refetch",
+                   FUSION_PC1, FUSION_BEAT3);
+expect_rsp("V10B FENCE.I replacement packet response",
+           RESP_OK, RESP_OK, FUSION_BEAT3);
+\end{lstlisting}
+
+模块 TB 证明内部事件链，AM 程序则从软件可见层制造同一个反例。代码
+\ref{lst:fencei-am-excerpt}来自
+\taskpath{am-kernels/tests/cpu-tests/tests/smc-fencei-trigger.c}。程序在运行时把目标指令从
+\texttt{addi a0,a0,1} 改写成 \texttt{addi a0,a0,2}，再执行 \texttt{FENCE.I}；同包和下一包两种
+布局分别压住取指宽度与包边界。AM 把该文件链接成同一 BIN，一路交给 NEMU reference，一路交给 NPC
+target；DiffTest 在目标指令退休拍比较 \texttt{x10}，从而把体系结构语义直接连接到 RTL 观测。
+
+\Needspace{24\baselineskip}
+\begin{lstlisting}[language=C,numbers=left,
+  caption={AM 自修改代码程序中的 FENCE.I 触发序列摘录},
+  label={lst:fencei-am-excerpt}]
+unsigned long smc_fencei_probe_samepkt(unsigned long seed);
+unsigned long smc_fencei_probe_nextpkt(unsigned long seed);
+
+asm(
+".text\n"
+".option push\n"
+".option norvc\n"          // 强制 4 B 指令: 保证取指包/对齐计算精确
+".p2align 3\n"
+".globl smc_fencei_probe_samepkt\n"
+"smc_fencei_probe_samepkt:\n"
+"  la    t0, 1f\n"         // t0 = 被改写指令 L 的地址
+"  li    t1, 0x00250513\n" // 新指令: addi a0,a0,2
+"  sw    t1, 0(t0)\n"      // SMC store: 用新字节覆写 L
+"  .p2align 3\n"
+"  fence.i\n"
+"1:\n"
+"  addi  a0, a0, 1\n"     // 文件旧字节；正确执行应被重取替换
+"  ret\n"
+".option pop\n"
+);
+
+int main(void) {
+  check(smc_fencei_probe_samepkt(100) == 102);
+  check(smc_fencei_probe_nextpkt(200) == 202);
+  return 0;
+}
+\end{lstlisting}
+
+四份源文件形成一条可追踪闭环：架构 \texttt{.md} 定义何时必须看到新指令；反例 \texttt{.md} 固定旧实现为何会错及
+哪个观察点能区分；TB 把该观察点下沉为逐周期 oracle；AM 程序把同一语义提升到软件可见层并交给
+NEMU/NPC 共同消费。修复前的 \texttt{x10=0x65/0x66} 差异因此不会被“既有 fence 测试通过”掩盖；
+修复后的模块 marker、AM check 与 DiffTest 收敛又分别约束内部事件、程序语义和参考一致性。若任何
+一层失败，反馈沿对象依赖返回到对应 spec、RTL、TB 或 workload，而不是在论文中把后续层的 PASS
+倒写为前层正确。冻结记录分别保存了
+\texttt{[V10B-FENCEI-STALE-INSTRUCTION] PASS} 与 \texttt{smc-fencei-trigger PASS}，使修复前原始
+FAIL、模块级消费者证明和软件级回归能够被分开复核。
+
+同样的生产主干适用于双发射扩展。模块级先构造同周期双接纳、跨槽 RAW/WAW、lane1 受 lane0 阻塞、
+redirect 清除年轻事务、精确异常与顺序退休等正向场景，再故意删除相关性检查或清空条件，确认错误
+版本虽可编译却会被目标 oracle 拒绝。若现有软件不能激活某个交互，Agent 在 am-kernels 中增加定向
+C/汇编程序，经 AM 链接为同一 BIN；该 BIN 分别进入 NEMU reference 与 NPC target，DiffTest 比较
+每次退休后的架构状态。Agent 因而既产生 RTL、TB 和程序，也消费负向变体、参考语义与工具反馈。
+
+风险继续增大时，同一 design-id 进入 L0--L3。模块事务先在 L0 定位，完整核的 official/AM/DiffTest
+在 L1 复核架构可见行为，OpenSBI mini-system 在 L2 检查 M$\rightarrow$S$\rightarrow$U、Sv39、中断和
+设备，Linux 6.6/PID1 在 L3 检查进程、文件系统、UART IRQ 和有序关机。只有修改声称 CPI/PPA 收益时，
+同一 RTL 才进入 Yosys/OpenSTA/PDK 支路；若 SDC、宏、活动率或工艺条件不足，结果用于定位而保持
+\statusword{UNQUALIFIED}。这条链使“增减 RTL 后整体仍正确”不再依赖一次全量测试的模糊印象，而是
+依赖受影响语义沿验证压力逐层升级。
+
+\subsubsection{反馈如何改变下一轮 Agent 能力}
+
+每个失败首先沿当前任务的责任边返回：RTL 事务错误回到实现/合同，身份漂移回到构建和输入，oracle
+不敏感回到 TB/反例，系统终态不足回到对应 L2/L3 节点，PPA 条件不足则停在实现资格。只有同类缺口
+重复出现、能够抽象成稳定规则并在后续任务中复用时，外层闭环才更新环境。例如，跨模块 flush/owner
+错误被固化为接口 Instruction，重复派发歧义被固化为合同 Skill，场景串证被固化为 NEMU-only、NPC-only
+和 integrated profile，长跑误终止被固化为 fail-closed 状态协议，系统缺陷则尽可能下沉为 AM 测试、
+模块 TB、立即断言或 compile-success mutation。
+
+因此，环境修改和处理器开发并非两条平行工作：更复杂的 RTL 任务暴露环境缺口，环境将已验证经验
+转成下一轮可执行约束；新的约束又使 Agent 能闭合更长的工程链。一次工作轮最终产生的不只是代码，
+还包括架构合同、测试 workload、反例、原始观测、限定收据和必要的环境能力更新。这正是本文所称
+“模型与仓库环境共同构建领域 Agent”的具体含义。
 
 \section{四面协同的双闭环运行机制}
 
-顶层方法已经定义四类责任状态和两条返回路径，前一章给出了同构参考实现。本章只在时间轴上形式化
+顶层方法已经定义四类责任状态和两条返回路径，前一章给出了同构参考实现。本章只沿时间轴描述
 这些既有接口：
 内层闭环优化当前任务，外层闭环把重复且可迁移的缺口固化到控制、知识、执行或证据面。双闭环不是
 新的架构层，也不改变四面的职责边界。
+就四项设计准则而言，内层闭环以身份核验、负向资格和终态提交落实 D1--D3，外层闭环及 Selector
+以父级门禁和稳定条件约束 D4；第\ref{sec:four-plane-detail}节定义接口，本章说明这些接口何时触发。
 
 \subsection{状态、事件与反馈对象}
 
@@ -1693,7 +2044,7 @@ profile/checker 能发现，环境仍处于“知道但做不到”；若 profil
     lint 无法回答镜像能否运行 & 动态 image/pmem/DPI/trace/exit 图节点 & RV32 single 与 SoC 动态执行 & 从语法推进到给定镜像；不等于完整 ISA \\
     target/reference 与配置易串证 & 场景 profile、分层实验身份和任务合同 & RV64 自测、40/40 DiffTest 与 CoreMark 对拍 & 能区分自测和对拍；无 prompt-only 对照 \\
     完整系统日志被旧 oracle 误判 & 原始状态/版本化 replay 分离，长跑提交失败关闭 & Ubuntu A3 replay、HUP/TERM 与 early-exit 自测 & 保留 source FAIL 并形成限定重放；未测节省时数 \\
-    owner 量测身份非法、PPA 物理条件不足 & measurement contract、守恒式与 PPA 资格全序 & PERF\_BASELINE 审查和候选授权 & 量测保持 FAIL、PPA 保持 UNQUALIFIED \\
+    owner 量测曾身份非法、current 归因仍开放，PPA 物理条件不足 & measurement contract、守恒式、Selector 与 PPA 资格全序 & PERF\_BASELINE、owner A/B 与候选授权 & 新量测可重复但不授权因果/RTL；PPA 保持 UNQUALIFIED \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -1733,25 +2084,119 @@ profile/checker 能发现，环境仍处于“知道但做不到”；若 profil
 再由后续业务任务实际复用；否则只是一项环境候选，而不是能力扩展。这样，图\ref{fig:double-loop}上方
 返回通道的起点和终点都有可检验条件。
 
-\subsection{CPI/PPA 优化的受约束晋级链}
+\subsection{Selector 驱动的中等粒度 CPI/PPA 优化闭环}
 
 处理器性能优化不是“修改 RTL 后观察 CPI 是否下降”的单步任务。CPI（每条退休指令的周期数）可能因
 测量窗口、退休端点、统计逻辑或 workload 身份改变而下降；PPA（性能、功耗、面积）也可能在功能错误、
-时序未约束或 memory macro 缺失时得到更好看的代理数字。Loop-Work 因而把一次优化定义为完整设计点
-沿表\ref{tab:performance-promotion-chain}逐节点晋级。节点之间是硬依赖：前一节点没有形成可消费收据，
-后一节点只能保持缺口，不能由 Agent 依据“趋势合理”跳过。
+时序未约束或 memory macro 缺失时得到更好看的代理数字。该工作流在完整设计点的成熟度晋级之外，
+增加一个中等粒度优化切片 Selector：它把“下一步改什么”先改写为“下一项能够区分竞争解释、并能
+独立关闭的工程动作”，再把动作结果反馈给下一轮选择。
+
+本文所谓中等粒度，不由代码行数或文件数量定义，而由四个条件共同界定：（1）一次切片只承载一个
+主要因果假设；（2）其 RTL、配置、workload 与工具依赖形成有界依赖锥；（3）必须预登记不能破坏的
+功能、架构、周期和实现硬门；（4）可以用一条独立收据结束为接受、回滚、
+\statusword{RESEARCH\_REQUIRED} 或 GAP。它大于单信号试改，因为需要覆盖与假设直接相关的观测和
+验证；又小于无约束的全核联合搜索，因为不得在结果出现后持续扩大修改范围。
+
+这里的 Selector 是工作流控制面的“优化切片选择器”，不是 RTL 中从 issue queue 选择就绪微操作的
+issue selector。后者决定本周期哪些指令占用功能单元，是被分析和优化的微体系结构对象；前者只根据
+工程事实决定下一项测量、资格化或可回退实验，无权改变 RTL 语义。其数据流可写为
+
+\[
+\begin{aligned}
+\{\text{current receipts, catalog, policy}\}
+  &\rightarrow \text{同身份事实}\rightarrow\text{决策类}\\
+  &\rightarrow \{\text{非支配前沿},\ \texttt{RESEARCH\_REQUIRED}\}\\
+  &\rightarrow \text{selected slice}.
+\end{aligned}
+\]
+
+固定 policy、活动目录与派生决策分别位于
+\taskpath{optimization-slice-selector-policy-v1.json}、
+\taskpath{optimization-slices-current.json} 和
+\taskpath{evidence/optimization-slice-current.json}。代码\ref{lst:selector-policy-excerpt}保留了
+该 policy 的真实决策次序和权限边界。派生决策绑定所有输入 SHA-256；它既不能回写 authority receipt，
+也不能替代完整设计点的 promotion checker。
+
+\Needspace{25\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={中等粒度 Selector policy 的真实字段摘录},
+  label={lst:selector-policy-excerpt}]
+"decision_class_order": [
+  "correctness_closure", "state_reconciliation",
+  "causal_measurement", "ppa_qualification",
+  "rtl_experiment", "diversity_experiment"
+],
+"selection_modes": {
+  "information": {
+    "maximize": ["information_gain", "evidence_confidence",
+                 "reversibility"],
+    "minimize": ["execution_cost", "functional_risk",
+                 "scope_width"],
+    "ambiguous_front_action": "RESEARCH_REQUIRED"
+  },
+  "multiobjective": {
+    "maximize": ["performance_ratio", "area_efficiency_ratio",
+                 "qualified_power_efficiency_ratio"],
+    "scalarization_scope": "same_measured_pareto_front_only"
+  }
+},
+"claim_boundary": {
+  "selector_authorizes_rtl_semantics": false,
+  "selector_authorizes_promotion": false,
+  "front_py_remains_promotion_authority": true
+}
+\end{lstlisting}
+
+信息型切片最大化信息增益、证据可信度与可回退性，同时最小化成本、功能风险和影响范围；出现多个
+互不支配项时返回 \statusword{RESEARCH\_REQUIRED}，不能依 catalog 顺序或隐藏权重消歧。只有
+同 design-id 的实测候选才进入多目标比较；时序属于不可交易的 hard gate，而不是能被 CPI 或面积
+收益抵消的软目标。通过时序门后，性能、面积效率和已资格化的功耗效率才形成 Pareto 前沿，最终晋级
+仍由独立的 \texttt{front.py} 裁决。
+
+该规则不是散文建议。代码\ref{lst:selector-dominance}节选自
+\taskpath{optimization_slice_selector.py}：信息型切片必须在全部“应最大化/应最小化”字段上不差且至少
+一项严格更好；实测候选采用区间保守支配，左候选的最坏值低于右候选的最好值时，就不能宣称确定支配。
+因此，epsilon 只抑制数值噪声，不能把重叠区间强行排序。
+
+\Needspace{17\baselineskip}
+\begin{lstlisting}[language=Python,numbers=left,
+  caption={Selector 中的信息支配与区间保守支配},
+  label={lst:selector-dominance}]
+no_worse = all(a[name] >= b[name] for name in INFO_MAXIMIZE)
+no_worse = no_worse and all(
+    a[name] <= b[name] for name in INFO_MINIMIZE)
+strict = any(a[name] > b[name] for name in INFO_MAXIMIZE)
+strict = strict or any(a[name] < b[name] for name in INFO_MINIMIZE)
+return no_worse and strict
+
+# robust_dominates: left worst-case vs. right best-case
+for name in axes:
+    a = left[name]
+    b = right[name]
+    epsilon = epsilons[name]
+    if a["low"] < b["high"]:
+        no_worse = False
+        break
+    if a["low"] > b["high"] + epsilon:
+        strict = True
+return no_worse and strict
+\end{lstlisting}
+
+表\ref{tab:performance-promotion-chain}把 Selector 的中间决策与完整设计点晋级放入同一条链。节点之间
+是硬依赖：前一节点没有形成可消费收据，后一节点只能保持缺口，不能由 Agent 依据“趋势合理”跳过。
 
 \begingroup
 \small
 \setlength{\tabcolsep}{3pt}
 \begin{longtable}{@{}L{0.19\linewidth}L{0.22\linewidth}L{0.28\linewidth}L{0.25\linewidth}@{}}
-  \caption{RV64 双发射乱序核的 CPI/PPA 晋级节点及拒绝边界}
+  \caption{RV64 双发射乱序核的切片选择、反馈与 CPI/PPA 晋级边界}
   \label{tab:performance-promotion-chain}\\
   \toprule
   节点 & 必需输入 & 形成的产物 & 不能晋级的条件 \\
   \midrule
   \endfirsthead
-  \caption[]{RV64 双发射乱序核的 CPI/PPA 晋级节点及拒绝边界（续）}\\
+  \caption[]{RV64 双发射乱序核的切片选择、反馈与 CPI/PPA 晋级边界（续）}\\
   \toprule
   节点 & 必需输入 & 形成的产物 & 不能晋级的条件 \\
   \midrule
@@ -1761,16 +2206,19 @@ profile/checker 能发现，环境仍处于“知道但做不到”；若 profil
   \endfoot
   \bottomrule
   \endlastfoot
-  架构发现\newline\path{ARCH_DISCOVERY} & 当前 RTL、接口、配置、已有缺陷与验证入口 & 模块/事务图、债务清单、待闭合 owner 与观察点 & 调用链未知、设计身份未冻结 \\
+  架构发现\newline\path{ARCH_DISCOVERY} & 冻结 RTL、接口、配置、已有缺陷与验证入口 & 模块/事务图、债务清单、待闭合 owner 与观察点 & 调用链未知、设计身份未冻结 \\
   架构闭合\newline\path{ARCH_CLOSED} & 逐项债务、接口不变量和定向验证 & 每项债务的修复、反例或明确 GAP & 只通过局部正例，没有跨模块事务解释 \\
   历史缺陷下沉与架构门 & 已知 Linux/DiffTest/全核反例 & 最低充分层的 TB、断言或可编译负向 RTL，以及全量回归 & 历史错误只能在昂贵系统层复现，或判定器无法检出变体 \\
   架构稳定\newline\path{ARCH_STABLE} & 同一设计快照上的功能、乱序、恢复和副作用证据 & 带 design-id 的稳定架构收据 & production RTL、配置或验证身份仍在变化 \\
   性能量测合同 & 架构稳定收据、workload、ROI 与计数器定义 & 起止端点、重复次数、守恒式、非干扰检查和原始状态协议 & ROI 或 lane 端点含混，统计开关改变 cycles/retired \\
   性能基线\newline\path{PERF_BASELINE} & 同一合同下的重复执行与独立核算 & 可重放 cycles、retired、CPI/IPC、计数器栈及限定收据 & 运行不重复、端点不守恒、原始 FAIL 被覆盖 \\
-  瓶颈普查（bottleneck census） & 合格基线与计数器所有权定义 & 主瓶颈、竞争瓶颈、可证伪预测和最低成本区分实验 & 嵌套驻留被相加，或探针事件缺少事务身份 \\
-  单机制候选与架构再门禁 & 一个瓶颈假设、一个可归因机制和回滚点 & candidate design-id、A/B 原始日志、差分计数器与回归 & 同时改变多个机制，或优化改变周期/资源合同后未重走架构门 \\
-  CPI/PPA 联合资格 & 同源功能结果、netlist、约束、库、角、活动率和 macro & 逐 workload floor、timing/area/power 资格与 Pareto 位置 & 任一功能硬门失败，或时序/功耗/面积物理条件不完整 \\
-  系统再认证与可重复晋级 & 合格候选、系统 workload 和独立审查 & 系统收据、跨次重复结果及 PROMOTABLE 判定 & 仅局部或代理结果变好，系统和独立复核未闭合 \\
+  瓶颈普查（bottleneck census） & 合格基线与计数器所有权定义 & 驻留层级、竞争解释、可证伪预测与区分实验目录 & 嵌套驻留被相加，或把相关性直接写成根因 \\
+  因果量测切片 & 冻结 census、同身份 workload/ROI、观测器合同 & owner 区间、occupancy、守恒式、A/B 原始日志与量测收据 & 探针改变基线、事件身份非法或收据不守恒 \\
+  假设分析切片 & 合格且同身份的因果量测收据 & 唯一可检验假设，或显式 \path{RESEARCH_REQUIRED} & 多个解释仍非支配，却主观挑选一个 RTL 方向 \\
+  参考 PPA 资格 & 可选择的因果假设、同源 netlist、SDC、library 与 corner & 可重复 P/A 与 timing 参考；不合格 power 继续标记未知 & 网表、路径集、约束或物理条件不可比较 \\
+  可回退 RTL 实验 & 一个主要假设、参考 PPA、success/stop/rollback & 有界 candidate、正负向验证及同身份性能/PPA 观测 & 影响锥静默扩大，或用中间切片申请 promotion \\
+  多目标处置与独立晋级 & 全部硬门、逐 workload floor、实测区间与完整设计点 & 接受、回滚、RESEARCH\_REQUIRED、Pareto 位置及独立 \texttt{front.py} 裁决 & timing 失败、区间重叠或 power 未资格化却被隐藏评分越过 \\
+  分层系统再认证 & 同源 L0--L3 workload、终态与独立审查 & 独立系统收据；完整成熟度合取后形成\newline\path{SYSTEM_RECERTIFIED}/\path{PROMOTABLE} & 把系统 PASS 写成 PPA PASS，或把 PPA 缺口写成系统 FAIL \\
 \end{longtable}
 \endgroup
 
@@ -1820,47 +2268,148 @@ $U_{\mathrm{corr}}=U_{\mathrm{span}}+l_s-l_e=2C-R$ 明确定义为“端点修�
 \mathrm{CPI}=\frac{1}{2}+\frac{U_{\mathrm{corr}}}{2R}.
 \]
 
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+    slot/.style={draw=black,minimum width=16mm,minimum height=7mm,inner sep=1pt,font=\small},
+    note/.style={align=left,font=\small}
+  ]
+    \node[slot] (a10) at (0,0.7) {lane 1};
+    \node[slot,below=0mm of a10] (a00) {lane 0};
+    \node[slot,right=0mm of a10] (a11) {lane 1};
+    \node[slot,below=0mm of a11] (a01) {lane 0};
+    \node[slot,right=0mm of a11] (a12) {$\cdots$};
+    \node[slot,below=0mm of a12] (a02) {$\cdots$};
+    \node[slot,right=0mm of a12] (a13) {lane 1};
+    \node[slot,below=0mm of a13] (a03) {lane 0};
+    \node[above=1mm of a10] {$c_0$};
+    \node[above=1mm of a11] {$c_0+1$};
+    \node[above=1mm of a12] {中间周期};
+    \node[above=1mm of a13] {$c_1-1$};
+    \draw[thick,{Latex[length=2mm]}-{Latex[length=2mm]}]
+      (a00.south west)+(0,-0.35) -- node[below=1mm,font=\small]
+      {固定半开窗口 $[c_0,c_1)$：$C=c_1-c_0$ 个周期，共 $2C$ 个退休槽}
+      (a03.south east)+(0,-0.35);
+    \node[note,below=11mm of a01] {事件端点裁剪从 $(c_0,l_s)$ 到 $(c_1,l_e)$ 时，\\
+      可见槽跨度为 $S=2C+l_e-l_s$；端点差必须进入未使用槽修正。};
+  \end{tikzpicture}
+  \caption{双发射退休槽、半开周期窗口与事件端点修正的关系}
+  \label{fig:cpi-retire-slot-window}
+\end{figure}
+
 为避免 lane 被误解为半个物理周期，新的量测合同优先使用固定半开周期窗口 $[c_0,c_1)$，令
-$C=c_1-c_0$、$U_{\mathrm{full}}=2C-R$；此时上式直接成立且不再需要端点 lane。旧 A1/A2 日志仍按
+$C=c_1-c_0$、$U_{\mathrm{full}}=2C-R$；此时上式直接成立且不再需要端点 lane。旧 performance-baseline
+A1/A2 日志仍按
 其原裁剪协议重放，但收据必须显式保存 $l_s,l_e,U_{\mathrm{span}}$ 与 $U_{\mathrm{corr}}$，不能混用。
 
-本工程中的 A1 是第一次原始性能基线执行，A2 是同一冻结配置下的第二次独立执行。二者都被旧判定器
-因 Dhrystone 的 ROI 从 lane1 结束、在 lane0 重新开始而拒绝；原始状态至今保持 FAIL。后续版本化勘误
-只把错误的“起止 lane 必须相等”代理条件替换为上述精确容量式，并对冻结 A2 日志重放；设计、workload、
-ROI、原始日志和旧状态均未改变。CoreMark 与 Dhrystone 各三次统计开启运行 bit-exact，统计关闭运行的
-cycles/retired 又与开启时相同，才形成 \statusword{PERF\_BASELINE}。这组证据证明量测接口可重复且
-统计逻辑没有观察到干扰，不证明 CPI 已经因某次 RTL 修改而改善。
+历史 performance-baseline 任务中的 A1/A2 曾因 Dhrystone 的 ROI 从 lane1 结束、在 lane0 重新开始而
+被旧判定器拒绝；后续版本化勘误只替换错误的“起止 lane 必须相等”代理条件，并保留原始 FAIL 与冻结
+replay。该事件用于修订量测合同，却不再充当冻结设计基线。f7a 设计的
+\statusword{PERF\_BASELINE} 采用 \texttt{FRESH\_CURRENT\_DESIGN\_DIRECT} 模式重新执行：CoreMark 与
+Dhrystone 各三次统计开启运行 bit-exact，统计关闭运行的 cycles/retired 又与开启时相同。由此，该
+收据既继承了端点修正规则，又绑定新的 design-id、simulator、workload 与 manifest；它证明量测接口
+可重复且统计逻辑没有观察到干扰，不证明 CPI 已经因某次 RTL 修改而改善。
 
-\subsubsection{瓶颈普查、单机制候选与反馈}
+\subsubsection{瓶颈普查、因果量测与 Selector 实例}
 
 性能基线形成后，Agent 才能建立 lost-slot census（退休槽损失普查）。总 cycles、unused retire slots、
 I/D-cache miss、控制等待、LSU 等待、AXI 等待和事务 owner 驻留分别记录；这些计数可能在同一周期重叠，
-不能简单相加为总周期。每个主瓶颈必须附带竞争解释，并预测“若主假设成立，哪个 workload、哪个 counter、
-哪个事务阶段会怎样变化”。控制面优先调度能区分两种解释的最低成本实验，而不是直接要求模型改 RTL。
+不能简单相加为总周期。该 census 在 CoreMark 与 Dhrystone 上均给出
+\texttt{memory\_latency $\rightarrow$ request\_outstanding $\rightarrow$ axi\_write\_response} 的驻留层级，
+但同时保持 \texttt{HYPOTHESIS\_NOT\_PROVEN} 与
+\texttt{optimization\_candidate\_authorized=false}。换言之，驻留排序只决定应观测哪个事务区间，不能
+直接授权“增加 buffer”或“隐藏 B response”等 RTL 方案。
 
-一个候选只允许包含一个可归因机制，并按同一 design/build/workload 身份执行交错 A/B，例如
-A--B--B--A--A--B；每次原始日志独立保存，比较逐 workload 的中位数、最差值和守恒项。候选若改变周期、
-资源数量、调度、恢复或事务生命周期，就被重新分类为架构变更并返回架构门。本工程中，放宽双 memory
-发射使 CPI 从 0.645 退化为 0.665，候选被回滚；另一次只读 owner 探针虽然完成六次 benchmark，
-但事件身份全部无效，因此控制面没有生成 production RTL candidate。这两个结果分别证明负优化和无效
-诊断不会因“程序跑完”而进入下一节点；它们不证明所有未来瓶颈均能由现有计数器识别。
-
-\subsubsection{PPA 资格、系统再认证与可交付边界}
-
-联合资格按固定全序裁决：同源设计与完成定义、功能、双发射/乱序、精确恢复与副作用、精确 timing
-tier、逐 workload floor、面积/功耗资格、Pareto 前沿，最后才执行晋级检查。所谓 Pareto 前沿，是不存在
-另一个设计点在 CPI、频率、功耗和面积上均不差且至少一项更好的候选集合。平均 CPI、generic cell 数
-或一个综合评分不能抵消前面的硬门。
-
-物理资格至少要求同源 netlist、SDC、library/corner、完整 I/O delay、真实 memory macro、有效切换活动、
-时钟树/寄生与对应 timing 报告。当前 Yosys/OpenSTA 结果能够用于结构筛选，却因 I/O 未约束、缺少
-SPEF、CTS、OCV、真实宏和功耗活动而保持 \statusword{UNQUALIFIED}。这种非晋级状态不是“尚未整理
-好的成功”，而是一个可消费的工程结论：允许继续定位面积或逻辑深度，不允许宣称频率、面积、功耗
-签核，也不允许进入系统再认证和可重复 promotion。
+历史设计身份上的第一版只读 owner 探针曾完成六次 benchmark，却产生
+\texttt{complete=0} 与非零 invalid 事件，因而在 receipt-build 阶段失败。该反例促使工作流把 owner
+身份、区间开始/结束、直方图守恒、observer noninterference 和清理状态纳入同一个量测合同。冻结
+design-id 上的切片不再复用该历史结论，而是对 CoreMark10 与 Dhrystone10000 分别执行三次
+参考构建和三次诊断构建。production manifest 的 148 个文件在前后保持一致，统计开关不改变
+cycles/retired，owner 区间与状态计数守恒，非法事件和溢出均为 0，运行时产物完成清理。
 
 \begin{table}[H]
   \centering
   \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{0.94}
+  \caption{冻结设计 owner-timing 中等粒度量测切片的主要观测}
+  \label{tab:owner-timing-current-slice}
+  \begin{tabularx}{\linewidth}{@{}L{0.23\linewidth}C{0.18\linewidth}C{0.18\linewidth}Y@{}}
+    \toprule
+    观测 & CoreMark10 & Dhrystone10000 & 解释边界 \\
+    \midrule
+    CPI / retired & 1.689911 / 3,183,617 & 2.435630 / 4,250,000 & 同一冻结 PERF\_BASELINE 的描述值，不是候选收益 \\
+    AW/W$\rightarrow$B 完成数 & 144,201 & 600,000 & 区间完整且无 right-censored 事件 \\
+    B response 平均区间 / ROB-head 比例 & 5.000 cycle / 1.000 & 5.000 cycle / 1.000 & 强相关不等于缩短该区间必然改善 CPI \\
+    双写 in-flight 比例 & 0 & 0 & 两个 workload 未观察到双写并发；不单独证明应扩容 \\
+    reservation 平均区间 / ROB-head 比例 & 1.966 / 0.388 & 2.167 / 0.235 & 给 H4 提供竞争解释，不能与 H1 驻留相加 \\
+    三次重复与观察器非干扰 & bit-exact / true & bit-exact / true & 只授予量测可消费性，不授予因果和 PPA 资格 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+量测 runner 因而以 \statusword{PASS} 结束，并生成
+\statusword{OWNER\_TIMING\_WORKLOAD\_MEASURED} 收据；但代码\ref{lst:owner-timing-boundary}中的权限字段
+仍全部为 false 或 \statusword{UNQUALIFIED}。这是中等粒度切片的完整终态：测量动作已经成功，H1--H4
+获得了可比较观测，但尚无唯一可归因 RTL 机制。
+
+\Needspace{14\baselineskip}
+\begin{lstlisting}[language={},numbers=left,
+  caption={owner-timing A/B 收据的授权边界},
+  label={lst:owner-timing-boundary}]
+"status": "OWNER_TIMING_WORKLOAD_MEASURED",
+"authorization": {
+  "hypothesis_selection_authorized": false,
+  "optimization_candidate_authorized": false,
+  "ppa": "UNQUALIFIED",
+  "promotion_eligible": false
+},
+"unknowns": [
+  "owner correlation does not by itself prove a causal RTL mechanism",
+  "frequency, area and power were not measured in this run"
+]
+\end{lstlisting}
+
+该收据还暴露了反馈链中的一个真实缺口。存量
+\taskpath{optimization-slice-current.json} 绑定的是量测前的 verifier 哈希；量测工具修订后，Selector
+的 52 项定向测试与 census 校验虽然全部通过，canonical verify 仍返回非零并报告
+\texttt{stored selector decision is not canonical}。因此，旧决策不能因其 JSON 仍可读取而继续被消费，
+新 A/B 收据也不能越过 research-state 与 canonical rebuild 直接把自己写成“因果已闭合”。完成收据
+接入后，活动目录允许的下一类动作是 \texttt{analyze.owner-timing-hypothesis}：若 H1--H4 仍有多个
+非支配解释，就返回 \statusword{RESEARCH\_REQUIRED}；只有唯一假设与同设计 PPA reference 均成立，
+才可选择预登记 success/stop/rollback 的 RTL 实验。
+
+这一序列也重新解释了早先的负优化：放宽双 memory 发射曾使 CPI 从 0.645 退化到 0.665，候选被回滚。
+它不是“中等切片无效”，而是说明切片必须以可归因机制和同身份 guardrail 结束，不能因为功能回归通过
+就留在 production。Selector 的有效产物同样不是一个更低 CPI 数字，而是更窄的假设空间、一个
+可重复量测接口，以及对尚不能修改 RTL 的明确拒绝。
+
+\subsubsection{PPA 资格、分层系统证据与可交付边界}
+
+联合资格按固定全序裁决：同源设计与完成定义、功能、双发射/乱序、精确恢复与副作用、精确 timing
+tier、逐 workload floor、面积/功耗资格、Pareto 前沿，最后才执行晋级检查。Timing 在这里是硬门：
+确定低于门槛的候选直接拒绝，slack 区间跨越门槛时先补 STA，不能把频率或 slack 与 CPI、面积压成
+同一个补偿分数。通过硬门后，Pareto 前沿才比较性能、面积效率和已资格化的功耗效率；所谓前沿，是
+不存在另一个合格设计点在这三项上均不差且至少一项确定更好。平均 CPI、generic cell 数或一个隐藏
+加权评分都不能抵消前面的硬门。
+
+物理资格至少要求同源 netlist、SDC、library/corner、完整 I/O delay、真实 memory macro、有效切换活动、
+时钟树/寄生与对应 timing 报告。所记录的 Yosys/OpenSTA 结果能够用于结构筛选，却因 I/O 未约束、缺少
+SPEF、CTS、OCV、真实宏和功耗活动而保持 \statusword{UNQUALIFIED}。这种非晋级状态不是“尚未整理
+好的成功”，而是一个可消费的工程结论：允许继续定位面积或逻辑深度，不允许宣称频率、面积、功耗
+签核，也不允许进入 PPA promotion。
+
+系统证据与 PPA 资格是独立坐标。L0 module/transaction、L1 完整核、L2 mini-system 与 L3 轻量 Linux
+可以在同一 RTL identity 上形成分层系统收据；它们证明相应软件和设备事务，并不把代理综合变成
+\statusword{PPA\_QUALIFIED}。反过来，PPA 保持 \statusword{UNQUALIFIED} 也不抹去已经闭合的 L0--L3
+功能事实，只阻止成熟度越级到 PPA/PROMOTABLE。完整 Ubuntu 22.04 是需要用户显式授权的可选高成本
+再认证，不是每个切片或系统层失败后自动触发的默认门。
+
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{0.94}
   \caption{现有证据对 CPI/PPA 工作流的支持范围}
   \label{tab:ppa-instruction-products}
   \begin{tabularx}{\linewidth}{@{}L{0.25\linewidth}L{0.31\linewidth}Y@{}}
@@ -1869,16 +2418,18 @@ SPEF、CTS、OCV、真实宏和功耗活动而保持 \statusword{UNQUALIFIED}。
     \midrule
     A1/A2 旧判定器拒绝、冻结重放通过 & 删除 FAIL，只保留新的绿色基线 & 原始 FAIL 与新收据并存；证明判定器版本可修订但历史事实不可改写 \\
     三次重复与统计开关非干扰 & 一次 CPI 数字即可比较候选 & 只授予可重复量测基线；为后续同身份 A/B 提供共同分母 \\
-    六次 benchmark 完成但 owner 事件无效 & workload 完成即证明瓶颈归因成立 & 在收据构造阶段失败，阻止错误归因进入 RTL 搜索空间 \\
+    历史 owner 事件无效；current A/B 可重复 & workload 完成或收据 PASS 即证明瓶颈归因成立 & 旧量测失败关闭；新量测只授予 MEASURED，因果、RTL 与 PPA 授权仍为 false \\
+    Selector verifier 哈希漂移 & 单元测试通过即可继续消费旧决策 & canonical verify 拒绝存量决策；要求新收据接入并重建同身份 decision \\
     双 memory CPI 退化 & 局部回归通过即可保留“优化” & 候选回滚并保留负实验；后续 Agent 不再重复同一搜索方向 \\
     代理综合和时序数字可读 & 直接写成目标频率、面积或功耗改善 & 保持 PPA 未资格化；把缺失物理条件转化为后续输入而非夸大结论 \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-因此，本节证据支持的是“工作流能把量测错误、负优化、无效归因和物理条件不足导向不同终态”，并
-形成下一实验所需的输入；它尚不支持“该方法已经带来稳定 CPI 提升”或“当前核已经完成物理 PPA
-签核”。这种区分使性能工程的有效产物不仅包括更优设计，也包括被可靠淘汰的候选和不能晋级的边界。
+因此，本节证据支持的是“工作流能把量测错误、可重复但未归因的观测、负优化、版本漂移和物理条件
+不足导向不同终态”，并形成下一实验所需的输入；它尚不支持“该方法已经带来稳定 CPI 提升”或“当前
+核已经完成物理 PPA 签核”。这种区分使性能工程的有效产物不仅包括更优设计，也包括被可靠淘汰的
+候选、被拒绝的过期决策和不能晋级的边界。
 
 \section{案例研究设计与证据协议}
 \label{sec:case-design}
@@ -1893,9 +2444,11 @@ SPEF、CTS、OCV、真实宏和功耗活动而保持 \statusword{UNQUALIFIED}。
 案例是持续演化的 RISC-V 处理器工作区；分析单位不是目录、文件或一次聊天，而是任务 episode 中可
 独立判真的工程主张。一个 episode 具有明确目标、待判断对象、可恢复验收条件，以及 accept、reject、
 rollback、GAP、UNQUALIFIED、interrupted 或 MISSING 中至少一个终态。观察窗为
-2026-04-01 至 2026-08-04，数据冻结提交为
-\path{858fd3cf0dc6cb466c80707051f40d4a4710fcbc}。版本化源码、合同、task-run 状态、原始日志、
-结构化收据和证据哈希进入分析；只存在于未归档对话中的推测不进入证据集。
+2026-04-01 至 2026-08-06，冻结源码基线提交为
+\path{5b968b45cb30f761089a7a13d4526622e5b0b0fb}；其后的 Selector policy/catalog 与 owner-timing A/B
+作为工作树扩展证据，以路径、design-id、schema、尺寸和 SHA-256 单独绑定；它们不属于上述冻结提交，
+因此只支持各自明确绑定的观察。版本化源码、合同、task-run 状态、原始日志、结构化收据和证据哈希进入分析；只存在于未
+归档对话中的推测不进入证据集。
 
 \subsection{主张选择、编码与冲突处理}
 
@@ -1912,9 +2465,10 @@ RQ1--RQ4、验证压力、正负结果与证据状态作最大差异选择。纳
 冲突；新判定器可以生成版本化 replay，但保留原始状态。
 
 第二 Agent 对预先固定的 12/30 主张执行隔离、只读的反例复核，检查状态、原始路径、数字、返回码、
-回滚和声明边界。复核者能够看到主编码，因而这是独立反例审查而非盲法双编码；三条初始主张因环境
-描述过强、身份冲突或原始路径不足被阻断并修订。样本规模和非盲条件决定本文不报告人类编码一致性
-指标\cite{oconnor2020intercoder}。
+回滚和声明边界。复核者能够看到主编码，因而这是独立反例审查而非盲法双编码；初审阻断并修订了
+C01（早期阶段描述过强）、C07（同一发布内身份冲突）和 C30（原始路径覆盖不足）。三条记录的修订
+轨迹保留在独立复核表中，最终状态仍纳入 30 条审计集。样本规模和非盲条件决定本文不报告人类编码
+一致性指标\cite{oconnor2020intercoder}。
 
 \subsection{数据保留与可复核入口}
 
@@ -1931,9 +2485,13 @@ schema 见附录~\ref{app:claim-evidence}。可版本控制的合同、状态、
 由此固定证据协议后，下一章才沿验证压力追踪方法如何从 RV32 局部运行扩展到 RV64 系统事务与 OoO
 性能资格化。
 
-\section{需求驱动的方法演进与工程里程碑}
+\section{Loop-Work 的工程实践与能力里程碑}
 
 \subsection{验证压力与环境能力的共同演进}
+
+本文所称“一生一芯 C 阶段至 B 阶段”沿用项目课程记录中的阶段标签，用于界定这段连续实践的范围；
+论文中的 \statusword{ARCH\_STABLE}、\statusword{PERF\_BASELINE} 和 PPA 状态另由机器合同定义，
+二者不能互相替代。
 
 早期把“环境建设”和“芯片开发”混在同一条非结构化对话中，会产生三个直接问题：修改 RTL 后无法
 判断旧日志是否仍属于当前设计；系统启动现象容易被概括为超过证据层级的结论；反复出现的调试经验
@@ -2012,11 +2570,13 @@ RV64 跨模块任务推动“架构事实 $\rightarrow$ 机器合同 $\rightarro
 
 \subsection{从静态候选到局部动态语义闭合}
 
-早期冻结记录包含 RV32I 非流水线 \texttt{NpcCore} 与 8 个辅助 RTL 文件。Verilator lint 通过，但没有
-testbench、镜像和参考对拍，因而只能接受“语法与静态结构成立”。随后的动态接通任务把 AM hello image、
-DPI/C++、pmem、串口和退出码 0 连接起来，并继续增加 itrace、mtrace、dtrace 与批量重放。Agent 的介入
-由“一次生成候选”变为“生成---运行---
-观察---修正”，工程师则开始把隐含的完成定义写成可执行接口。
+在实现 RV32I 的 I/S/B/U/J 译码、ALU 与分支比较、LB/LH/LW 和 SB/SH/SW、唯一写回点以及 redirect
+后旧路径抑制时，最初冻结记录包含一个非流水线 \texttt{NpcCore} 与 8 个辅助 RTL 文件。Agent 能较快
+产生这些局部结构并通过 Verilator lint，但当时尚无 testbench、程序镜像、存储模型、退出协议和参考
+对拍，因而结果最多说明“语法与静态结构成立”。随后的任务不是继续增加 RTL 行数，而是把 AM hello
+image、DPI/C++、pmem、串口和退出码连接为运行链，并继续增加 itrace、mtrace、dtrace 与批量重放。
+Agent 的介入由“一次生成候选”变为“分析现有通路---生成---运行---观察---修正”，工程师则开始把
+原本隐含的完成定义写成可执行接口。
 
 该组证据的有效范围是最小动态闭环，而非完整 ISA、异常或 DiffTest；其方法意义在于把 lint 之后仍
 缺少的运行接口显式转化为下一轮输入。
@@ -2058,6 +2618,14 @@ MROM 入口为 \texttt{0x20000000}，SRAM 为 \texttt{0x0f000000..0x0f001fff}；
 随后 NPC 先扩展 PC/GPR/CSR/AXI/DPI 到 RV64，关闭尚未资格化的 cache 与 DiffTest，得到 38/38。
 NEMU 补齐 RV64 CPU state、CSR 与 RV64I/M/B/C/W reference 后，形成 40/40 和 CoreMark DiffTest。
 这两个冻结点必须区分：38/38 说明 NPC 在给定自测中运行，40/40 才增加 target/reference 一致性证据。
+
+这些数字是演进中的冻结点，不是能力上限。随着整数、浮点、原子、压缩指令、特权态、Sv39 和
+乱序提交路径继续接入，AM 测试从少量 RV64 定向程序扩展为自动发现且逐项留证的 61 项 inventory，
+official riscv-tests 扩展为 177 项，模块测试扩展为 113 项；同一冻结 design-id 下三组 inventory 均
+全部通过，DiffTest mismatch 为 0。测试增长与 RTL 增长被同一合同约束：新增架构语义若现有 workload
+不能激活，就先增加 AM 程序或定向 TB；新增 oracle 又必须用可编译负向 RTL 检查其拒绝能力。因此，
+从 40/40 到分层合取并非简单增加测试数量，而是 Agent 同时扩展参考语义、工作负载和 RTL 观测的
+结果。
 
 从 32 位扩展到 64 位还改变了 Agent 的上下文组织方式。PC/GPR/CSR/AXI/DPI 不再适合由一个宽泛任务
 同时修改，局部 reviewer 也不能只读主 Agent 的摘要。为此，后来的 RTL task Skill 将 RV64 子任务拆为
@@ -2193,6 +2761,7 @@ store 仍驻留 SQ 的情况，也没有完整 memory owner 静默条件。快�
 \texttt{mem\_retire\_quiet\_i}，并根据合法状态域证明 \texttt{rob\_count==0} 蕴含
 \texttt{retire\_count==0}，删除冗余条件：
 
+\noindent\begin{minipage}{\dimexpr\linewidth-2.4em\relax}
 \begin{lstlisting}[language=Verilog,numbers=none,
   caption={快照 B：退休/SQ 静默与冗余条件消除}]
 // commit0_fire -> count_q != 0
@@ -2204,6 +2773,7 @@ assign backend_drained_o = (rob_count_i == 0) &&
                            !synth_lane1_branch_drop_pending_i &&
                            mem_retire_quiet_i;
 \end{lstlisting}
+\end{minipage}
 
 该切片对 16-entry ROB 的有限二值合法域枚举 2176 个用例。枚举器不是把随机输入跑 2176 次，而是先用
 \texttt{commit1\_fire -> commit0\_fire}、\texttt{commit0\_fire -> count\_q!=0} 和
@@ -2250,7 +2820,8 @@ assign drain_complete_o =
 
 两个可编译负向 RTL 分别删除 FENCE full-memory-idle 谓词和常量化 CoreGlue 到 ControlPlane 的
 \texttt{mem\_idle} 连接，均被唯一目标 marker 拒绝；正向 focused 2/2、module 109/109、validator
-12/12。此时只能声明 \texttt{FENCE-G1=CLOSED}；历史 full-core 仍为 GAP、PPA 为 UNQUALIFIED。
+12/12。项目内部状态记为 \texttt{FENCE-G1=CLOSED}，只表示上述局部合同、用例与两个目标 fault model
+形成范围限定的回归闭合；历史 full-core 仍为 GAP、PPA 为 UNQUALIFIED。
 三快照之间同时存在其他 RTL 变化，因此它们证明合同显式化的过程，不构成单变量性能实验。
 
 代码\ref{lst:fence-mutant-transcript}保留了两个变体的关键 shell 转录。二者都先通过 Verilog 编译，随后
@@ -2275,8 +2846,9 @@ assign drain_complete_o =
 [RESULT] FAIL status=1
 \end{lstlisting}
 
-2176 个合法域用例与两个 FENCE mutant 覆盖声明的有限状态域和 fault model；FENCE-G1 CLOSED 是
-full-core 闭合的输入之一，三快照则作为合同演化证据而非单变量性能实验。
+2176 个合法域用例与两个 FENCE mutant 覆盖声明的有限状态域和 fault model；
+\texttt{FENCE-G1=CLOSED} 是项目内部的局部门状态和 full-core 闭合输入，不表示 FENCE.I 语义完备、
+全状态空间覆盖或形式证明。三快照只作为合同演化证据，不构成单变量性能实验。
 
 \subsection{反例驱动的候选淘汰与搜索空间收缩}
 
@@ -2297,7 +2869,7 @@ decode-cache detail run 将 hit rate 提到 94.52\%，但得到 43.19 MIPS，低
 workload，又把负实验转成下一轮 Agent 不应重复的搜索边界。
 
 在后续定向回归中，IFU、FENCE、STORE/AMO 共 23 个 compile-success 负向 RTL 变体被判定器动态拒绝
-（19+2+2）。这些结果不证明全状态空间正确，却证明在指定 fault set 内，测试不是只能对当前正确版本
+（19+2+2）。这些结果不证明全状态空间正确，却证明在指定 fault set 内，测试不是只能对正确版本
 打印 PASS。对工程师而言，回滚是一项带复验证据的候选淘汰结果；对 Agent 而言，它把下一轮搜索
 限制在仍然满足基线合同的空间内。
 
@@ -2307,64 +2879,119 @@ workload，又把负实验转成下一轮 Agent 不应重复的搜索边界。
 \subsection{性能基线、诊断与未晋级边界}
 
 指定产品 cohort
-\path{full-core-single-hart-rv64-dual-issue-ooo-v1} 的 current design-id 为
-\path{sha256:093c2380...1a7488}。当前收据将该对象标记为 \statusword{ARCH\_STABLE} 与
+\path{full-core-single-hart-rv64-dual-issue-ooo-v1} 的冻结 design-id 为
+\path{sha256:f7a68455...2053f9}。项目内部成熟度收据将该对象标记为 \statusword{ARCH\_STABLE} 与
 \statusword{PERF\_BASELINE}，但明确写入 PPA 状态 \statusword{UNQUALIFIED} 和
 \texttt{promotion\_eligible=false}。
 
 \begin{table}[htbp]
   \centering
   \small
-  \caption{当前可重复性能基线}
+  \caption{冻结设计的可重复性能基线}
   \label{tab:perf-baseline}
   \begin{tabularx}{\linewidth}{@{}L{0.24\linewidth}rrrrY@{}}
     \toprule
     workload & cycles & retired & CPI & IPC & 资格边界 \\
     \midrule
-    CoreMark10 & 5,392,187 & 3,183,617 & 1.693730 & 0.590413 & 三次 bit-exact，另有 stats-off 非干扰对照 \\
-    Dhrystone10000 & 10,311,431 & 4,250,000 & 2.426219 & 0.412164 & 三次 bit-exact，另有 stats-off 非干扰对照 \\
+    CoreMark10 & 5,380,028 & 3,183,617 & 1.689911 & 0.591747 & 三次 bit-exact，另有 stats-off 非干扰对照 \\
+    Dhrystone10000 & 10,351,427 & 4,250,000 & 2.435630 & 0.410571 & 三次 bit-exact，另有 stats-off 非干扰对照 \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-这组数字不是从两个成功日志中直接抄出。A1 与 A2 的原始
-\path{performance-baseline-current.status} 均仍为 \statusword{FAIL}，字段分别为 \texttt{rc=1}、
-\texttt{stage=evidence-complete}、\texttt{evidence\_complete=0} 与 \texttt{cleanup\_rc=0}；当前
-\statusword{PERF\_BASELINE} 是独立的 endpoint-corrected composite replay 收据，显式引用两份原始
-FAIL、A2 command status、run manifest、measurement contract、counter schema 和 ARCH\_STABLE pre/post
-flight。前述 v14n reviewer 合同正是围绕这些对象生成，要求审查者重新核算 lane endpoint 与 slot
-守恒，并确认 replay 没有改写原状态。这里，Skill 约束审查输入，performance instruction 约束判定，
-receipt/schema 约束可消费结果，三者共同形成了表\ref{tab:perf-baseline}，而不是由 Agent 自行选择一个
-更好看的 CPI。
+这组数字来自 f7a 冻结设计的直接重跑，而不是从旧设计的成功日志中挑选。每个 workload
+保留三份独立 stats-on 日志和一份 stats-off 非干扰对照，run manifest、measurement contract、counter
+schema、ARCH\_STABLE pre/post-flight 与 simulator identity 一并进入收据；重复中未删除 outlier。历史
+A1/A2 的原始 FAIL 与 endpoint-corrected replay 继续作为判定器演化证据保存，但不参与该基线 CPI 的
+分子、分母或重复性统计。这里，Skill 约束审查输入，performance instruction 约束判定，receipt/schema
+约束可消费结果，三者共同形成表\ref{tab:perf-baseline}，而不是由 Agent 自行选择一个更好看的 CPI。
 
 CPI census 显示两个 workload 的 memory latency、request outstanding 与 AXI write response 分别为
-CoreMark 的 2,542,049/1,139,006/691,538 cycles，以及 Dhrystone 的
-7,100,359/4,510,140/2,969,998 cycles。这些计数是嵌套驻留，不能相加成总周期；它们只形成竞争假设。
+CoreMark 的 2,534,939/1,131,262/689,677 cycles，以及 Dhrystone 的
+7,150,353/4,510,141/2,969,999 cycles。这些计数是嵌套驻留，不能相加成总周期；它们只形成竞争假设。
 
 为进一步区分事务阶段，\taskpath{NpcOooOwnerTimingProbe.sv} 通过 SystemVerilog \texttt{bind} 接入
-只读观测逻辑，production manifest 的 148 个文件和聚合 SHA 在观测前后不变；9 个 C++ test、SV lint
-和完整 DPI link 通过。然而六次 diagnostic benchmark 虽都正常结束，三次 CoreMark 均得到
-\texttt{complete=0, invalid=1176}，三次 Dhrystone 均为
-\texttt{complete=0, invalid=49993}。收据因此在 \texttt{receipt-build} 阶段 FAIL，不授权 production
-RTL candidate。这个结果体现了本文方法的关键价值：benchmark 可以完成，诊断设施可以链接，但身份
-不守恒的量测仍不能成为优化依据。
+只读观测逻辑。历史身份上的第一版探针曾因非零 invalid 事件在 \texttt{receipt-build} 阶段失败；该
+反例随后进入量测合同。f7a 同身份 A/B 中，production manifest 的 148 个文件和聚合 SHA 在
+观测前后不变，CoreMark 与 Dhrystone 各三次 reference/diagnostic 重复均 bit-exact，observer
+noninterference、owner 区间/状态守恒和 runtime cleanup 全部通过，收据形成
+\statusword{OWNER\_TIMING\_WORKLOAD\_MEASURED}。然而该收据仍显式写入
+\path{hypothesis_selection_authorized=false}、
+\path{optimization_candidate_authorized=false} 和
+\texttt{promotion\_eligible=false}；量测成功并未被扩写为因果或 RTL 候选成功。
+
+与此同时，存量 Selector decision 因 verifier 哈希变化不再 canonical：52 项定向测试通过，但
+\texttt{--validate-only} 仍以非零返回码拒绝旧 decision。因而，新量测必须先进入版本化 research-state
+并重建同身份决策，不能以“旧 JSON 仍存在”为理由越过反馈接口。
 
 Yosys 曾给出 18,115 wires、296,118 bits、14,645 generic cells 和 24.82 s；OpenSTA 5 ns proxy 的
 top40 为 40/40 MET，最差裕量 +0.017907454 ns。但该报告有 303 个输入无 input delay、1873 个输出无
 output delay、1875 个 endpoint 未约束，并缺少 SPEF、CTS、OCV、真实宏和多 corner。因此这些数字只能
 用于结构筛选，不能写成 200 MHz、面积或功耗签核。
 
-因此当前成熟度停在 PERF\_BASELINE：owner-timing 的 FAIL 阻断瓶颈归因，Yosys/OpenSTA 结果只承担
-结构筛选，PPA 晋级仍保持 UNQUALIFIED。
+因此该案例的成熟度停在 PERF\_BASELINE：owner-timing 已完成可重复量测，但唯一因果假设尚未授权，
+存量 Selector decision 还需 canonical rebuild；Yosys/OpenSTA 结果只承担结构筛选，PPA 晋级仍保持
+UNQUALIFIED。
 
-这些里程碑给出了方法在不同验证压力下的具体实例。据此，工程产物可以按可迁移构件和 P1--P4 的当前
-观察加以综合，而无需再次复述时间线。
+这些里程碑给出了方法在不同验证压力下的具体实例。据此，工程产物可以按 NEMU、AM、NPC 与方法构件
+加以综合，而无需再次复述时间线。
 
 \section{工程成果与证据综合}
 
+\subsection{NEMU、AM 与 NPC：方法形成的实体工程产物}
+
+Loop-Work 的结果不能只用“工作流已建立”概括。表\ref{tab:concrete-project-products}按工程对象汇总
+同一工作区中的实体产物、可复核结果以及它们对方法论证的意义。这里的计数来自冻结 inventory
+和分层验证收据，而不是把不同时期的最优数字拼接为一个结果。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{NEMU、AM 与 NPC 的工程产物、验证结果和结论边界}
+  \label{tab:concrete-project-products}
+  \begin{tabularx}{\linewidth}{@{}L{0.13\linewidth}L{0.30\linewidth}L{0.30\linewidth}Y@{}}
+    \toprule
+    对象 & 形成的能力与产物 & 直接证据 & 对 Loop-Work 的说明及边界 \\
+    \midrule
+    NEMU & RV64 M/A/F/D/C 指令解释；M/S/U 系统态；UART、virtio-blk、PLIC 相关中断、RTC、syscon；
+    既可独立运行 Linux/Ubuntu，也可编译为 NPC DiffTest reference & Ubuntu 22.04.5 root shell、Linux 6.6、
+    systemd running 与 0 failed units 的独立参考记录；DiffTest API 可同步 memory、GPR/PC、CSR/FPR、
+    单步和中断 & 说明 Agent 能维护“系统参考机”和“逐退休参考模型”两种角色；NEMU 启动 Ubuntu
+    不能替代 NPC RTL 的系统证据 \\
+    AM/am-kernels & 依据 \texttt{ARCH} 组合 ISA/platform，编译 C/C++/汇编并链接 AM/klib，产生 ELF、
+    BIN 和反汇编；提供 CPU、异常、设备、虚存及性能 workload & 61/61 项 AM CPU 测试；代表用例
+    包括 RV64 指令/CSR 审计、W/D 两宽度 9 类 AMO、2048 轮乱序访存顺序、mini-system handoff、
+    PLIC/UART/Sv39/fence.i 等 & 说明测试程序是与 RTL 同级的任务产物，并可在 NEMU/NPC 之间复用；
+    workload 通过不等于未覆盖状态正确 \\
+    NPC single/SoC & RV32 五级流水、Verilator/DPI、PMEM/MMIO、AM 镜像运行；经 AXI bridge 接入
+    \texttt{ysyxSoCFull}，从 MROM 取指并形成 SoC 运行入口 & single 可执行 C/AM 应用并依据 trap/exit
+    终止；SoC lint/run 与指定测试的 GOOD/BAD TRAP、DiffTest 记录 & 说明 Agent 能把局部 RTL 扩展为
+    软件可执行 target 和平台接口；不等于完整 SoC 外设签核 \\
+    NPC RV64 OoO & RV64IMAFDC、Zicsr、Zba/Zbb/Zbc/Zbs，M/S/U、Sv39、PTW、I/D TLB、PMP16，整数与
+    浮点 rename/PRF/IQ/ROB，取指/译码/派发 2 宽、双完成和双退休 & 同一 design-id 下 module 113/113、
+    official 177/177、AM 61/61、DiffTest mismatch=0；L0/L1/L2/L3 均 PASS，架构冻结为
+    \statusword{ARCH\_STABLE} & 说明方法可实例化到跨模块、系统和性能前置层；该核尚未覆盖 L2/coherence/
+    ECC 等完整工业特性，且 PPA 仍 \statusword{UNQUALIFIED} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+这些产物之间存在可追踪的生产关系。AM 生成的同一 BIN 同时进入 NEMU 和 NPC；NPC 的退休状态消费
+NEMU 提供的参考状态；模块 TB 和负向 RTL 先检查周期级合同，L2/L3 再检查跨特权级、地址转换、设备与
+系统软件；只有同一 design-id 的功能与架构门闭合后，RTL 才进入 Yosys/OpenSTA。这些生产关系表明
+四平面与双闭环已在本仓库形成可执行实例：程序、参考模型、RTL、验证器和实现工具之间存在可由
+下一节点消费或拒绝的实体对象。它们不能区分该方法的作用与开发者经验、模型变化或工具演进的作用，
+因而不作为“Loop-Work 比其他流程更有效”的因果证据。
+
+冻结验证收据把 production RTL 的 146 个文件绑定到同一 design-id：L0 为 113/113 模块测试和
+零 RTL assertion failure；L1 为 61/61 AM、113/113 module、177/177 official 与 DiffTest mismatch=0；
+L2 为 OpenSBI/mini-system 的完整 \texttt{all} case；L3 为 Linux 6.6/PID1 的完整 \texttt{all} case。
+四层共同支持“冻结对象在规定压力层级下通过”，却不自动推出完整 Ubuntu 再认证、所有未建模设备
+正确或物理 PPA 签核。保留这种边界正是领域 Agent 能够继续安全迭代的条件。
+
 \subsection{可迁移的工程构件}
 
-工业 RTL 项目通常由架构、前端、验证、性能、后端和发布角色共同推进。单个 Agent 回答很难成为这些
+面向团队协作的 RTL 项目通常由架构、前端、验证、性能、后端和发布角色共同推进。单个 Agent 回答很难成为这些
 角色的稳定接口；身份绑定的合同与证据包则可以。本文方法提供六类可复用工程构件：
 
 \begin{table}[htbp]
@@ -2374,14 +3001,14 @@ output delay、1875 个 endpoint 未约束，并缺少 SPEF、CTS、OCV、真实
   \label{tab:industry-contribution}
   \begin{tabularx}{\linewidth}{@{}L{0.22\linewidth}L{0.29\linewidth}L{0.28\linewidth}Y@{}}
     \toprule
-    构件 & 对应问题 & 直接产物 & 当前证据边界 \\
+    构件 & 对应问题 & 直接产物 & 案例证据边界 \\
     \midrule
     主张编译器 & “完成”在不同角色间含义漂移 & 任务分类、节点合同、成功条件 & 尚未形成跨组织标准 \\
     分层实验身份 & 不同设计、工具或 workload 串证 & 清单与 design、build、workload、evidence 四类身份 & 历史早期记录不完整 \\
     反馈路由器 & 所有 FAIL 都被错误地导向 RTL 修改 & 根因/竞争假设、冻结重放、回滚与证据缺口 & 依赖可观察性与判定器质量 \\
-    负向资格化 & 当前 PASS 无法证明测试敏感 & 编译成功的负向 RTL 与唯一拒绝 marker & 只覆盖声明的故障集合 \\
+    负向资格化 & 单次 PASS 无法证明测试敏感 & 编译成功的负向 RTL 与唯一拒绝 marker & 只覆盖声明的故障集合 \\
     失败关闭发布 & 长跑中断或证据缺失仍遗留绿色状态 & stage、signal、cleanup 与证据完成收据 & 不替代功能或物理签核 \\
-    成熟度阶梯 & 局部功能、系统与 PPA 结论相互越级 & ARCH\_STABLE、PERF、PPA、SYSTEM 状态 & 当前不具备晋级资格 \\
+    成熟度阶梯 & 局部功能、系统与 PPA 结论相互越级 & ARCH\_STABLE、PERF、PPA、SYSTEM 状态 & PPA 尚不具备晋级资格 \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -2389,65 +3016,66 @@ output delay、1875 个 endpoint 未约束，并缺少 SPEF、CTS、OCV、真实
 在这种组织中，instruction、Skill 和 E2E 本身也是可版本化工程资产，而不再是某位工程师账号中的
 个人提示词。\texttt{commercial-delivery-readiness} 节点已经能构建相对路径包，核对三层 policy、Skill、
 维护脚本和数据库入口，排除目录重复嵌套，并扫描本机 home、Windows 用户路径和本地标识。该节点 PASS
-只表示 AI 开发环境达到当前 packaging contract，不代表处理器或组织流程获得认证；但它说明同一套
+只表示 AI 开发环境达到既定 packaging contract，不代表处理器或组织流程获得认证；但它说明同一套
 方法可以把“如何使用 Agent”从口头经验变成可审查、可供迁移验证的内部开发基础设施。
 
 这些构件在机制上允许团队把交接对象从截图和口头结论转为可重建实验，把系统层反例沉淀为定向回归，
 并在 checker-only 变化时重放冻结证据。本文案例实际观察到的是：旧身份消费、局部 PASS 晋级、
-不合格 owner 量测和代理 PPA 越级被相应门禁拒绝。由于没有对照组，本文不推断因此节省了多少人时、
+未归因 owner 量测、过期 Selector decision 和代理 PPA 越级被相应门禁拒绝。由于没有对照组，本文不推断因此节省了多少人时、
 算力、缺陷逃逸或上市周期。
 
-\subsection{P1--P4 的当前观察与证据边界}
+\subsection{四项工程准则的案例观察与证据边界}
 
-方法章已经定义 P1--P4 的预测和证伪事件，本节只报告案例中的对应观察，避免把命题定义与工程验证
-写成同一件事。
+方法章已经定义 D1--D4 四项证据与控制准则及其违规事件，本节只报告案例中的对应观察，避免把
+实现遵从性误解为准则的普遍有效性或方法的因果效果。
 
 \begin{table}[htbp]
   \centering
   \small
-  \caption{P1--P4 在当前案例中的观察与证据上限}
-  \label{tab:falsifiable-propositions}
+  \caption{D1--D4 在纵向案例中的观察与证据上限}
+  \label{tab:design-guideline-observations}
   \begin{tabularx}{\linewidth}{@{}L{0.12\linewidth}L{0.48\linewidth}Y@{}}
     \toprule
-    命题 & 当前观察 & 当前证据上限 \\
+    准则 & 案例观察 & 证据上限 \\
     \midrule
-    P1 身份拒绝 & V9O 身份元组冲突被降级；A3 原始 FAIL 与冻结 replay 分开保存和消费 & 覆盖已记录的错配类型，尚无总体逃逸率 \\
-    P2 负向资格 & IFU、FENCE、STORE/AMO 的 23 个可编译目标变体均被对应门禁拒绝 & 只说明该 fault set 下的判定器敏感性 \\
-    P3 失败关闭 & A3 原始状态未被重放覆盖；TERM、marker 缺失、cleanup 和 owner 收据失败均未遗留绿色终态 & 覆盖已注入的终止与发布故障 \\
-    P4 有界晋级 & branch speculation 候选回滚，owner 量测保持 FAIL，代理 PPA 保持 UNQUALIFIED & 证明这些个案未越级，跨任务复用阈值仍需系统编码 \\
+    D1 身份拒绝 & V9O 身份元组冲突被降级；A3 原始 FAIL 与冻结 replay 分开保存和消费 & 覆盖已记录的错配类型，尚无总体逃逸率 \\
+    D2 负向资格 & IFU、FENCE、STORE/AMO 的 23 个可编译目标变体均被对应门禁拒绝 & 只说明该 fault set 下的判定器敏感性 \\
+    D3 失败关闭 & A3 原始状态未被重放覆盖；TERM、marker/cleanup 故障与 verifier 哈希漂移均未遗留可消费绿色终态 & 覆盖已注入的终止、发布与版本漂移故障 \\
+    D4 有界晋级 & branch speculation 候选回滚；owner 量测为 MEASURED 但因果/RTL 授权为 false；代理 PPA 保持 UNQUALIFIED & 这些个案未越级；跨任务固化条件尚未系统校准 \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-这些观察与方法预测一致，并给出清楚的拒绝事件；相对生产率、跨模型恢复成本和跨团队迁移收益仍由
-后续受控实验回答。
+这些观察符合工程设计准则规定的期望约束，并给出了相应违规结果被拒绝的案例；相对生产率、跨模型
+恢复成本和跨团队迁移收益仍由后续受控实验回答。
 
-在可迁移构件和 P1--P4 观察之外，本章再按研究问题与描述性指标回收同一批案例证据。案例边界、主张
+在实体工程产物、可迁移构件和四项工程准则之外，本章再按研究问题与描述性指标回收同一批案例证据。案例边界、主张
 选择、编码冲突与数据保留协议已经在前置的案例研究设计章固定，因此下列统计承担审计责任，不能脱离
 其选择规则解释为总体成功率。
 
-\subsection{研究问题的当前回答}
+\subsection{研究问题的案例回答}
 
-表\ref{tab:rq-current-answer} 给出当前案例能够回答到的范围。
+表\ref{tab:rq-current-answer} 给出纵向案例能够回答到的范围。
 
 \begin{table}[htbp]
   \centering
   \small
-  \caption{研究问题、观测材料与当前回答边界}
+  \caption{研究问题、观测材料与案例回答边界}
   \label{tab:rq-current-answer}
   \begin{tabularx}{\linewidth}{@{}L{0.10\linewidth}L{0.30\linewidth}L{0.34\linewidth}Y@{}}
     \toprule
-    问题 & 关键观测材料 & 当前回答 & 不能推出的结论 \\
+    问题 & 关键观测材料 & 案例回答 & 不能推出的结论 \\
     \midrule
-    RQ1 & RV32 lint/动态闭环差异；合同、profile 与收据数据流 & 自然语言目标可被编译为带对象、动作、门禁和证据责任的交付单元 & 相对直接提示的平均速度提升 \\
-    RQ2 & 长跑故障注入；A3 原始 FAIL/冻结重放；23 个 compile-success mutant；owner 量测拒绝 & 身份、执行、oracle、mutation 与发布门能够把不同失败导向不同终态 & 对未建模故障的完备拒绝率 \\
-    RQ3 & single$\rightarrow$SoC、RV32$\rightarrow$RV64、NEMU/NPC、Ubuntu 与 OoO 里程碑 & 同一接口在所列 RV64 压力层级上均可实例化，并产生合同、观测和边界状态 & 尺度验证完成，或跨仓库、跨团队的普遍可迁移性 \\
-    RQ4 & PERF\_BASELINE、CPI census、owner probe FAIL 与 PPA UNQUALIFIED & 功能前置门、量测合同和成熟度状态可阻止诊断值越级为晋级值 & 已实现稳定 CPI 优化或物理 PPA signoff \\
+    RQ1 & AGENTS、instruction、Skill、E2E、spec、memory 与工具入口的分层接线 & 分散知识可按不变量、程序化能力、任务合同和执行图组织为可发现环境 & 该分层是唯一可能的知识组织方式 \\
+    RQ2 & RV32 lint/动态闭环差异；接口先行、RTL 四段式、机器合同与代次控制 & 自然语言目标可先转为事务图、修改边界、成功条件和受权节点，再进入 RTL & 相对直接提示的平均速度提升 \\
+    RQ3 & AM image 分叉到 NEMU/NPC；模块 TB、23 个 compile-success mutant、DiffTest 与 L0--L3 & Agent 可以协同生成 RTL、测试和反例，并消费参考状态与分层工具反馈保持冻结身份的一致性 & 对未建模故障的完备拒绝率或全状态空间正确 \\
+    RQ4 & 接口合同、场景 profile、长跑状态协议和历史缺陷下沉的过程链 & 重复反例可以固化为 instruction、Skill、E2E、测试或门禁，并进入后续业务任务 & 每个环境构件的独立生产率因果贡献 \\
+    RQ5 & NEMU/AM/NPC 实体产物；113/113、177/177、61/61、DiffTest=0 与 L0--L3 & 同一方法已在所列 RV32/RV64、single/SoC/OoO 与系统压力层级实例化并形成可复核产物 & 跨仓库普遍可迁移、完整工业 CPU 或物理 PPA signoff \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-\subsection{当前 30 条主张的描述性审计}
+\subsection{30 条主张的描述性审计}
 
 \taskpath{docs/research-paper/claim-evidence-map.tsv} 的冻结 SHA-256 为
 \path{f20a63ce701d31703f9fe3615d9bb7ae45c134b8b681293c1d98515facf7ab7a}。30 条主张中有 18 条
@@ -2455,7 +3083,7 @@ SUPPORTED、4 条 PARTIALLY\_SUPPORTED、1 条 OBSERVATIONAL\_ONLY、6 条 CONTR
 MISSING。CONTRADICTED 不等于“系统失败六次”：其中包括论文主动构造并由现有证据反驳的强命题，
 例如“代理 STA 已证明 200 MHz 物理签核”。同理，SUPPORTED 是逐条主张状态，不是方法成功样本。
 
-为把当前审计和未来实验使用同一指标语言，令 $C_i=1$ 表示 Agent 声明完成，$Y_i=1$ 表示独立隐藏
+为使描述性审计和第\ref{sec:limitations-roadmap}节的受控实验使用同一指标语言，令 $C_i=1$ 表示 Agent 声明完成，$Y_i=1$ 表示独立隐藏
 oracle 的全部强制门通过，$P_i=1$ 表示结果已发布或晋级，则严格指标为
 
 \[
@@ -2466,17 +3094,17 @@ oracle 的全部强制门通过，$P_i=1$ 表示结果已发布或晋级，则�
 \end{aligned}
 \]
 
-表\ref{tab:current-metric-qualification}把三个指标先用于当前主张表的资格审计。结果不是填入一个看似
+表\ref{tab:current-metric-qualification}把三个指标先用于主张表的资格审计。结果不是填入一个看似
 精确的百分比，而是确认现有字段能否构成合法分子和分母。
 
 \begin{table}[H]
   \centering
   \small
-  \caption{FCR、VSR、UPR 在当前 30 条主张上的资格状态}
+  \caption{FCR、VSR、UPR 在 30 条主张上的资格状态}
   \label{tab:current-metric-qualification}
   \begin{tabularx}{\linewidth}{@{}L{0.12\linewidth}L{0.28\linewidth}L{0.35\linewidth}Y@{}}
     \toprule
-    指标 & 必需字段与分母 & 当前材料 & 当前结论 \\
+    指标 & 必需字段与分母 & 案例材料 & 资格结论 \\
     \midrule
     FCR & 真实的完成声明 $C$ 与独立隐藏真值 $Y$ & 台账混合原始声明、限定重写和为审计构造的反命题；没有统一隐藏 oracle & UNQUALIFIED；6 条 CONTRADICTED 不得直接作为分子 \\
     VSR & 每个正式 run 的同预算隐藏验收 $Y$ 与总运行数 $N$ & 只有部分事件存在冻结 replay，且未尝试重放的主张没有统一登记 & UNQUALIFIED；不能把 18 条 SUPPORTED 写成 18/30 VSR \\
@@ -2485,90 +3113,174 @@ oracle 的全部强制门通过，$P_i=1$ 表示结果已发布或晋级，则�
   \end{tabularx}
 \end{table}
 
-这个负结果本身完成了描述性审计：当前材料足以给出 30 条证据状态，却不足以估计严格 FCR/VSR/UPR。
+这个负结果本身完成了描述性审计：案例材料足以给出 30 条证据状态，却不足以估计严格 FCR/VSR/UPR。
 后文的受控实验设计将 $C,Y,P$ 设为逐 run 必填字段；在此之前，本文只报告 A3 原始 FAIL、owner-timing
-失败关闭和 PPA UNQUALIFIED 等可逐项复核的拒绝事件，不把它们汇总为因果效果。
+量测可重复但因果未授权、过期 Selector decision 被拒绝和 PPA UNQUALIFIED 等可逐项复核事件，不把
+它们汇总为因果效果。
 
-\subsection{尚未执行的 B0--B3 受控对照与组件消融}
+\section{研究不足与下一步攻克方向}
+\label{sec:limitations-roadmap}
 
-现有纵向材料用于检验接口能否实例化，尚不能识别 Loop-Work 相对直接提示或一般工具 Agent 的因果
-增益。后续实验因此预注册四个递增条件：B0 为冻结提示的一次生成，B1 加入受预算约束的工具反馈与
-迭代，B2 再加入有界召回、任务合同和显式成功条件，B3 最后加入实验身份、证据新鲜度、mutation、
-rollback 与原子发布。任务按局部功能、跨层逃逸、性能回退、身份错误、半发布和控制事务等风险分层，
-在同一模型、预算、初始提交和执行后端下随机分配；隐藏 oracle 与 mutation 集由被测工作流之外的
-过程预先冻结。
+前文只报告已经存在的仓库对象、运行记录和限定结论。本章集中列出尚未实现、尚未形成充分证据或尚未
+完成外部复制的内容，并把每一项缺口转换为可执行的研究问题、实验设计和验收产物。以下内容均是后续
+研究计划，不构成本文已经取得的实验结果。
 
-B0--B3 只估计逐级组合包。P1--P4 的单项归因还需要在 B3 上分别移除身份、负向资格、状态提交或晋级
-约束，并保持其余组件不变。正式样本量、主要指标 FCR、次要指标 VSR/UPR、盲审、固定停止规则和
-缺失值处理将在不观察正式结果的前提下预注册；当前 512 次仅是资源规划值。完整实验矩阵已经保存在
-公开的 \taskpath{experiment-plan.md}，本文不把计划写成已完成结果。
-
-\subsection{构念、内部、外部、结论与复现效度}
+\subsection{当前证据的适用边界}
 
 \begin{enumerate}
-  \item \textbf{构念效度：}证据完整不等于 RTL 正确，拒绝假 PASS 也不等于提高最终功能成功率；
-  ARCH\_STABLE、PERF\_BASELINE 和 PPA 资格是不同构念。FCR/VSR/UPR 在缺少 $C,Y,P$ 字段时保持
-  UNQUALIFIED，避免用主张状态替代隐藏真值。
-  \item \textbf{内部效度：}模型、任务难度、RTL、验证平台和开发者经验同时演进。A3、mutation、
-  rollback 与 owner FAIL 能建立诊断性过程链，但不能识别 Loop-Work 的独立因果贡献；每个里程碑只
-  说明相应接口在该压力层级被实例化。
-  \item \textbf{外部效度：}当前材料来自一个 RISC-V 仓库和一位主要开发者。NEMU、NPC、Yosys 与
-  OpenSTA 增加了后端和压力类型差异，却不构成跨团队、跨 HDL 或商业项目复制。
-  \item \textbf{结论效度：}30 条主张为目的性审计集，12 条复核由非盲第二 Agent 完成，既不是随机
-  样本也不是人类双编码。状态比例只能描述本表，不能外推总体成功率；未来 512 次仅为初始资源设计
-  目标，正式样本量以预注册功效分析为准。
-  \item \textbf{判定器与系统边界：}mutation 只覆盖声明且非等价的 fault set；A3 只覆盖指定
-  design/config/rootfs 与系统事务；当前 PPA 缺少完整 I/O、SPEF、CTS、OCV、真实 memory macro、
-  power activity 和多 PVT，统一保持 UNQUALIFIED。
-  \item \textbf{复现与维护效度：}工程证据和冻结 oracle 可以重放，但早期模型、seed、temperature、
-  上下文及部分 raw payload 不完整，商业模型采样轨迹不能重建。合同、checker、identity 与索引还需要
-  持续维护；当前没有跨项目成本分母，不能宣称其净收益。
+  \item \textbf{方法效果尚不可归因。}案例中模型、任务难度、RTL、验证平台与开发者经验共同演进，
+  且没有随机化对照或同预算基线。现有材料支持“接口已被实例化”和“若干违规结果被拒绝”，不支持
+  Loop-Work 相对直接提示、一般工具 Agent 或人工流程具有更高成功率、更低成本或更少缺陷逃逸。
+  \item \textbf{责任分解尚无最小性与完备性证明。}四平面能够区分本文列出的案例状态对，但尚未建立
+  soundness、completeness、状态不变量或复杂度结论，也没有排除三平面、五平面及其他编码方案。
+  D1--D4 是工程设计准则，不是已经被普遍验证的科学定律。
+  \item \textbf{验证集合不等于覆盖率闭合。}113/113 模块测试、177/177 official tests、61/61 AM、
+  DiffTest mismatch=0 与 L0--L3 PASS 只描述所列集合；本文没有统一的 line、branch、toggle、FSM、
+  assertion 与 functional coverage 模型，也没有完整 coverage waiver。
+  \item \textbf{反例规模和故障模型有限。}23 个 compile-success mutant 只说明对应 oracle 对该
+  fault set 敏感，不能覆盖全部协议、跨周期状态、时序、功耗或物理故障。FENCE.I 的结果同样是指定
+  single-hart SMC 路径上的范围限定回归闭合，而非对全部实现错误的完备证明。
+  \item \textbf{系统与性能重复性不足。}CoreMark 和 Dhrystone 的三次 bit-exact 证明仿真观测在该
+  配置下确定，不构成跨 workload 统计稳定性；约十九小时 Ubuntu 材料来自一次指定
+  design/config/rootfs 的完整执行及其冻结重放，不能估计独立启动成功率或时长分布。owner-timing
+  量测仍保持因果和 RTL 候选未授权，因而尚未形成可归因的 CPI 优化结果。
+  \item \textbf{物理实现与签核尚未闭合。}Yosys、OpenSTA 和开放 PDK 已进入反馈接口，但缺少完整
+  I/O、真实 memory macro、floorplan、CTS、route、SPEF、OCV/MMMC、活动率功耗、多 PVT、DRC/LVS、
+  EM/IR 与 DFT。PPA 因而保持 \statusword{UNQUALIFIED}，L0--L3 功能 PASS 不能补偿这一缺口。
+  \item \textbf{外部效度和复现信息有限。}材料来自一个 RISC-V 仓库和一位主要开发者；尚未在第二
+  个 HDL 项目、多人团队、商业 EDA 或不同工艺节点复制。早期 model ID、seed、temperature、完整
+  context 与部分 raw payload 没有统一冻结，工程证据可重放不等于模型采样轨迹可重建。
 \end{enumerate}
 
-因而，当前案例研究回答的是“Loop-Work 能否把特定工程状态转化为可审计主张，以及现有记录支持哪些
-有限命题”；B0--B3 及单组件消融才用于回答“这些构件是否导致更低假完成率或更高可交付率”。两类
-证据承担不同的推断责任。
+30 条目的性主张可以被逐项复核，但 12 条非盲第二 Agent 审查不构成人类双编码，且 $C,Y,P$ 字段
+不足使 FCR、VSR、UPR 仍为 UNQUALIFIED。由此，本文回答的是“特定工程状态怎样形成可审计主张”，
+而不是“该方法平均提高了多少生产率或正确率”。
 
-\section{未闭合工程目标如何继续约束 Workflow}
+\subsection{未实现事项与研究验收矩阵}
 
-RV64 双发射完整 OoO 核的未闭合目标被写成一组后续 Workflow 义务：架构债务识别与闭合、历史缺陷
-回归下沉、architecture gate、arch-stable 冻结、performance measurement contract、CPI baseline、
-bottleneck census、单机制优化、CPI/PPA 联合资格、系统再认证和可重复 promotion。这里列出的不是
-既成成果或项目进度，而是对方法的下一组可证伪条件：若 Workflow 无法使每次裁决绑定当前身份、
-使跨轮对象满足版本与 $\operatorname{Ext}_{\theta}$ 约束、阻止越级或为
-候选产生可复核反例，它就不能承载下一阶段决策。
+\begingroup
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}L{0.17\linewidth}L{0.24\linewidth}L{0.30\linewidth}L{0.23\linewidth}@{}}
+  \caption{尚未实现内容、下一步研究动作与完成条件}
+  \label{tab:future-research-matrix}\\
+  \toprule
+  未闭合问题 & 现有证据边界 & 下一步研究动作 & 可接受的验收产物 \\
+  \midrule
+  \endfirsthead
+  \caption[]{尚未实现内容、下一步研究动作与完成条件（续）}\\
+  \toprule
+  未闭合问题 & 现有证据边界 & 下一步研究动作 & 可接受的验收产物 \\
+  \midrule
+  \endhead
+  \midrule
+  \multicolumn{4}{r}{续下页}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  方法因果效果 & 单仓库纵向共现，无同预算基线 & 执行 B0--B3 随机化对照，并在 B3 上做 D1--D4 单组件消融 & 预注册协议、隐藏 oracle、盲审、效应量、置信区间与失败分布 \\
+  四平面理论边界 & 只有案例内不可区分状态对 & 定义不变量与语义映射；比较三/四/五平面和现有 ACI、PROV、GSN 表达 & 定理或明确反例、机器检查模型及适用条件 \\
+  覆盖率模型 & 测试通过计数，没有统一覆盖分母 & 建立语句、分支、翻转、FSM、断言与功能覆盖模型及 waiver 流程 & 分维度报告、交叉覆盖、不可达证明和审计过的 waiver \\
+  形式与等价验证 & DiffTest、断言和定向 mutation & 对 ready/valid、flush、replay、精确异常、提交顺序和访存序建立性质；对保持功能的重构做等价检查 & proof/cex、等价日志、性质---模块---设计身份映射 \\
+  Mutation 规模 & 23 个功能逻辑目标变体 & 扩展到不少于 100 个分层 fault，覆盖握手、owner、优先级、跨周期状态和恢复协议 & 生成规则、触发记录、kill matrix、存活 mutant GAP \\
+  性能泛化 & CoreMark/Dhrystone 与单一 ROI & 增加嵌入式、访存、分支、原子并发和 Linux 系统 workload，冻结 binary/输入/ROI & workload manifest、计数器原始记录、重复分布与置信区间 \\
+  Ubuntu 重复性 & 一次完整执行及同一证据 replay & 在相同 design/config/rootfs 下执行多次冷启动，并预注册超时、登录、服务与自然终止 oracle & 独立 run 身份、完整日志、启动时长分布和失败分类 \\
+  物理实现与 PPA & 预布局综合/STA 诊断，PPA 未资格化 & 完成 floorplan、CTS、route、SPEF、MMMC、功耗、DRC/LVS、EM/IR 与 DFT 路径 & 物理实现 manifest、时序/功耗/面积/物理验证与扫描报告 \\
+  外层固化阈值 & $\theta$ 只有参数化接口，历史字段不完整 & 比较 replay、跨合同复用和稳定窗口阈值，测量误晋级与维护成本 & 阈值敏感性曲线、预登记选择依据和逐构件审计表 \\
+  跨项目复现 & 单仓库、单主要开发者 & 在第二 RTL 项目和多人团队复制，并固定模型、预算和工具权限 & 跨仓库任务集、交接记录、成本分母与复现实验报告 \\
+\end{longtable}
+\endgroup
 
-当前状态可以精确写成：指定 single-hart RV64 dual-issue OoO cohort 已有
-\statusword{ARCH\_STABLE} 和 \statusword{PERF\_BASELINE} 收据；当前基线具有 CoreMark/Dhrystone
-重复性和 stats-off 非干扰对照；owner-timing workload 收据因非法身份事件失败关闭；PPA 仍
-\statusword{UNQUALIFIED}，\texttt{promotion\_eligible=false}。因此下一步不是根据驻留排序直接改 RTL，
-而是先闭合 transaction owner 量测、形成可证伪瓶颈、冻结单机制 candidate 与 guardrail，再进行同身份
-CPI/PPA A/B。若修改周期、资源或调度合同，必须重新经过 architecture gate。
+\subsection{受控对照与组件消融}
 
-该约束还要求把 Linux 首次发现的系统层缺陷下沉到最低充分验证层：软件可见语义优先进入 AM、
-架构测试或 DiffTest；逐周期 owner、flush、replay、completion/commit 合同优先进入 TB 与 assertion；
-只有设备组合、系统事务与系统性能继续保留在 Linux/Ubuntu 层。如此，Loop-Work 的反馈不仅修复当前
-候选，还能形成供后续任务复用的低层检查入口；这些入口能否降低总体验证成本，仍需同预算对照实验。
+方法效果的首要研究问题是：Loop-Work 的知识、控制、执行和证据机制是否相对于直接提示产生可重复、
+可归因的交付收益，以及收益来自哪个组件而非额外 Token 或工具预算。后续实验采用四个递增条件：
+B0 为冻结提示的一次生成；B1 加入受预算约束的工具反馈与迭代；B2 再加入有界召回、任务合同和显式
+成功条件；B3 最后加入实验身份、证据新鲜度、mutation、rollback 与原子发布。任务按局部功能、跨层
+逃逸、性能回退、身份错误、半发布和控制事务风险分层，在同一模型、解码参数、初始提交、工具权限、
+Token/时间预算和执行后端下随机分配。
+
+隐藏 oracle、mutation 集和停止规则必须由被测工作流之外的过程预先冻结，结果由盲化人工审查处理；
+B3 上再分别移除 D1--D4 所对应的身份、负向资格、状态提交或晋级约束，以估计单组件作用。每次 run
+必须填写完成声明 $C$、隐藏真值 $Y$ 和下游消费位 $P$，从而计算 FCR、VSR 与 UPR，并同时报告任务
+闭合率、耗时、Token、计算成本、效应量和置信区间。\taskpath{experiment-plan.md} 仅作为协议草案；
+其中的 512 次是资源规划值，正式样本量仍需在不观察结果的前提下由功效分析确定。
+
+\subsection{验证闭合、形式性质与规模化反例}
+
+下一步首先建立 verification plan，把 ISA、特权、MMU、异常、乱序、存储序、设备与系统交互映射到
+functional coverpoint、cross、assertion 和可执行测试；代码覆盖与功能覆盖分别报告，不用单一百分比
+替代。覆盖缺口必须绑定不可达证明或经独立复核的 waiver。对于 ready/valid、flush、replay、异常、
+提交顺序和 memory owner 等局部不变量，采用模型检查或性质证明；不改变功能的重构采用等价性检查，
+改变流水级或延迟的优化则使用与该时序边界相符的顺序等价或专门性质。
+
+Mutation campaign 从现有 23 个目标变体扩展到不少于 100 个，按数据通路、握手/反压、错误 owner、
+刷新竞争、异常优先级、CSR/特权、内存顺序和跨周期状态更新分层。每个 mutant 都要证明可编译、语义
+非空、能够触发并传播到观察点；“测试/性质---mutant”杀伤矩阵和存活变体共同发布，任何存活项形成
+显式 GAP。时序、功耗和物理故障不能由 compile-success RTL mutation 代替，必须在相应实现层另建
+故障模型。
+
+\subsection{性能、系统重复性与外层阈值校准}
+
+性能研究将 workload 扩展到嵌入式程序、STREAM 或 pointer-chasing 访存负载、分支密集程序、原子与
+锁竞争测试，以及文件系统、进程创建、中断和系统调用等 Linux 场景。每项实验固定 ELF/BIN、编译
+选项、输入、ROI 和初态，除 CPI/IPC 外同步保存退休、分支失误、cache/TLB 和 owner 事件；报告逐次
+分布与置信区间，而不把三次 bit-exact 写成总体性能稳定。
+
+Ubuntu 验证采用多次独立冷启动，区分“同一原始观测的 checker replay”和“新的系统执行”。每次运行
+都绑定 design、simulator、kernel、DTB、rootfs 与 PID1 身份，预注册超时、登录、关键服务、设备事务和
+自然终止条件，失败与超时不得从统计中删除。与此同时，对
+$\theta=(r_{\min},u_{\min},t_{\min})$ 进行敏感性分析，比较不同 replay、复用和稳定窗口对误晋级、
+漏晋级与维护成本的影响；未经校准前，环境改动只能称为候选能力或已被后续任务调用的接口。
+
+\subsection{从 RTL 实现反馈推进到物理签核}
+
+物理方向的研究问题是：Yosys/OpenSTA 形成的预布局网表和时序诊断能否预测布局布线后的频率、面积与
+功耗，以及 Selector 选择的候选在真实物理约束下是否仍位于合格 Pareto 前沿。后续流程固定工艺库、
+I/O、时钟、利用率、宏单元和实现脚本，依次完成 floorplan、power plan、placement、CTS、route 和寄生
+提取；基于 SPEF 执行多模式多角 STA，并用代表性 workload 的 VCD/SAIF 估算功耗。物理验收还包括
+拥塞、天线、DRC/LVS、EM/IR 以及 scan/ATPG 等 DFT 工作。
+
+验收产物至少包括 floorplan 与利用率、CTS skew、route/congestion、SPEF/MMMC、活动率绑定功耗、
+DRC/LVS、EM/IR 和 DFT/扫描覆盖报告，并把工艺角、工具版本、随机种子、约束与 design-id 写入同一
+manifest。所有候选必须与同一基线共享可比较身份；timing、物理验证、功耗或 DFT 任一硬门缺失时，
+PPA 继续保持 \statusword{UNQUALIFIED}。完成该链后，才有条件研究 RTL 级优化是否具有后端可持续性。
+
+\subsection{研究优先级}
+
+近期优先执行 B0--B3 小规模预注册试验并建立 coverage 基线，因为二者分别决定方法是否具有可归因
+效果以及现有验证究竟覆盖了什么。其后扩展形式性质与 mutation fault set，再进行多 workload 与
+Ubuntu 独立重复；这些步骤为物理实现提供稳定功能和性能基线。最后推进完整物理签核并在第二项目、
+多人团队中复制。这样的次序避免在功能、覆盖和实验身份仍不稳定时，过早把一次综合网表或长跑日志
+解释为方法效果或芯片级结论。
 
 \section{结论}
 
-本文提出 Loop-Work，把处理器 Agent 的工程能力定义为在固定验收标准下安全闭合任务的能力。控制面
-把目标编译为对象、权限和门禁，知识面提供当前任务适用的规则与程序化能力，执行面调用真实编译、
-仿真、综合和回放工具，证据面将观测绑定到实验身份、判定器和允许声明。内层闭环处理当前候选，外层
-闭环把重复反例固化为规则、Skill、checker、合同或新节点；二者共同把一次生成转换为可恢复、可审查
-的工程状态迁移。
+本文提出 Loop-Work，一种面向处理器 RTL 功能开发与分层验证的仓库原生领域 Agent 构建方法。其基本
+观点是：基础模型提供推理与候选生成能力，仓库环境提供专业知识、受控执行、验证反馈和长期记忆；
+二者需要作为同一工程系统接受设计和审查。控制面把目标编译为对象、权限和任务图，知识面选择 instruction、Skill、
+spec 与历史事实，执行面协同产生 RTL、测试、反例和工具观测，证据面再限定这些结果能够支持的结论。
+内层闭环完成受约束设计任务，外层闭环把稳定反例固化为下一轮可调用的环境能力。
 
-该方法在同一仓库中经历了逐级增强的验证压力：RV32 从 lint 进入动态执行，single 扩展到 SoC，NPC
-与 NEMU 建立 target/reference 闭合，OpenSBI/Linux 进入 Ubuntu 22.04 系统事务，RV64 双发射 OoO 核
-形成 ARCH\_STABLE 与 PERF\_BASELINE。十九小时 A3 的原始 FAIL 与冻结重放并存，23 个目标 mutant
-被拒绝，branch speculation 候选被回滚，owner-timing 收据失败关闭，代理 PPA 保持 UNQUALIFIED。
-这些结果共同说明，同一四平面接口能够在所列压力层级产生正结果、反例和未晋级状态，而不是只保存
-最有利的成功日志。
+在 ysyx-workbench 中，这一方法已经贯通真实工程数据流：AM 把 C/汇编、运行时和平台适配构建为可复用
+workload；NEMU 同时承担系统参考机与 NPC 的逐退休 reference；NPC 从 RV32I 五级流水和 ysyxSoC 接入
+演进为支持 RV64IMAFDC、Zicsr、Zba/Zbb/Zbc/Zbs、M/S/U、Sv39、PTW/TLB、PMP16、浮点和原子路径的
+双发射乱序核。同一冻结设计身份下，113/113 模块测试、177/177 official riscv-tests、61/61 AM、
+DiffTest mismatch=0 和 L0--L3 分层验证共同形成 \statusword{ARCH\_STABLE}；Yosys/OpenSTA 已进入
+反馈链，但因实现条件尚未完备，PPA 保持 \statusword{UNQUALIFIED}。
 
-Loop-Work 的工程价值在于把个人提示经验转化为可版本化的团队接口：模型可以变化，任务仍由合同、
-身份和证据责任约束；项目可以扩展，新的系统反例仍能下沉为低成本检查入口。当前单仓库纵向材料支持
-方法的可执行性、过程链与声明边界，尚不估计相对其他 Agent 架构的生产率因果增益。后续受控实验将
-比较提示、工具反馈、合同化闭环和资格化闭环，并用定向消融分别检验 P1--P4。
+这些结果说明，在人工定义的目标、规则与验收门下，Agent 可以在同一方法中辅助产生并消费架构合同、
+RTL、AM 程序、testbench、负向 RTL、参考状态和实现报告，而不只是输出代码。23 个目标负向变体被对应 oracle 拒绝、系统原始
+FAIL 与冻结重放并存、branch speculation 候选被回滚、owner-timing 只授予 MEASURED 而不授予因果，
+以及过期 Selector decision 被 canonical verifier 拒绝，表明参考实现中的若干安全约束在这些个案中
+实际触发并阻止了越级消费。候选资格化在这里承担安全阀作用，但方法
+的主体仍是领域知识、工程工具、分层验证和反馈资产怎样共同构成 Agent。
+
+Loop-Work 的潜在可迁移价值在于把个人提示经验转化为可版本化、可执行并可由团队审查的工程接口：模型
+可以变化，任务仍由合同、工具和验证责任约束；项目可以扩展，新的系统反例仍可下沉为 AM 测试、模块
+TB、断言、mutation 或固定门禁。单仓库纵向材料只支持方法的可实例化性、过程链和工程产物边界；
+相对优势、四平面理论边界、覆盖率闭合、系统重复性、跨项目复现和物理签核均尚未完成，其研究路径
+已在第\ref{sec:limitations-roadmap}节集中给出。
 
 研究台账与复现材料位于 \taskpath{docs/research-paper/}；公开仓库为
 \href{https://github.com/mcsaver/oscpu}{mcsaver/oscpu}。
@@ -2798,6 +3510,12 @@ DOI: \href{https://doi.org/10.1177/1609406919899220}{10.1177/1609406919899220}.
 
 \appendix
 
+\section*{补充材料说明}
+
+以下附录保存正文主张所依赖的文件级追踪关系、实现节选、机器可读主张表与复核入口，供审稿和复现时
+按需查阅；它们不属于正文的方法贡献或新增实验结果。正文只保留理解 Loop-Work、案例设计、工程结果
+及其证据边界所必需的内容。
+
 \section{参考实现的追踪表}
 
 本附录保存参考实现的逐文件、逐字段映射和承重实现节选。正文以四面接口、数据流和判定边界
@@ -2816,11 +3534,10 @@ DOI: \href{https://doi.org/10.1177/1609406919899220}{10.1177/1609406919899220}.
 
 \subsection{正文下沉的故障注入与过程证据}
 
-本节保存第 5--7 章中用于复核实现和过程链、但不承担方法定义的完整表格。正文仅保留失败关闭合取、
-四面传递顺序、反馈路由、触发规则与代表性工程链，以免实现明细打断主论证。
+本节保存第 5--7 章中用于复核实现和过程链、但不承担方法定义的完整表格。正文保留真实 RTL 扩展的
+四面传递顺序，附录集中保存失败关闭、反馈路由、触发规则与代表性工程链。
 
 \TableLongrunFaultInjection
-\TableCompositeContractFlow
 \TableProcessTracing
 \TableLoopTriggerMatrix
 \TableWorkflowEvolutionHistory

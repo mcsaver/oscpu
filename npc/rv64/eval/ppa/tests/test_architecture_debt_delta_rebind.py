@@ -27,12 +27,21 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.receipt = TOOL.build_receipt(ROOT)
-        cls.baseline, cls.current = TOOL.manifests(ROOT)
+        cls.layered = TOOL.load_json(ROOT, TOOL.LAYERED_SIGNOFF)
+        _, _, _, current_manifest = TOOL.current_l0_inputs(
+            ROOT, cls.layered
+        )
+        cls.baseline, cls.current = TOOL.manifests(ROOT, current_manifest)
 
-    def test_exact_three_file_delta_and_current_identity(self) -> None:
+    def test_manifest_derived_delta_and_current_identity(self) -> None:
+        baseline = self.baseline["files"]
+        current = self.current["groups"]["rtl"]
+        expected_changed = {
+            path for path in baseline if baseline[path] != current[path]
+        }
         self.assertEqual(
             {row["path"] for row in self.receipt["rtl_delta"]["changed_files"]},
-            TOOL.CHANGED_RTL_PATHS,
+            expected_changed,
         )
         self.assertEqual(self.receipt["rtl_delta"]["file_count"], 146)
         self.assertRegex(
@@ -137,15 +146,30 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         with self.assertRaises(TOOL.DeltaRebindError):
             TOOL.compare_manifests(baseline, current)
 
-    def test_unexpected_fourth_rtl_delta_is_gap(self) -> None:
+    def test_additional_unreferenced_rtl_delta_is_recorded(self) -> None:
         baseline = dict(self.baseline["files"])
         current = dict(self.current["groups"]["rtl"])
+        historical_sources = {
+            row["source"]
+            for row in self.receipt["historical_negative"]["items"]
+            if row.get("source") in baseline
+        }
+        already_changed = {
+            row["path"] for row in self.receipt["rtl_delta"]["changed_files"]
+        }
         unchanged = next(
-            path for path in current if path not in TOOL.CHANGED_RTL_PATHS
+            path for path in current
+            if path not in already_changed and path not in historical_sources
         )
         current[unchanged] = "0" * 64
-        with self.assertRaises(TOOL.DeltaRebindError):
-            TOOL.compare_manifests(baseline, current)
+        delta = TOOL.compare_manifests(baseline, current)
+        self.assertIn(
+            unchanged, {row["path"] for row in delta["changed_files"]}
+        )
+        self.assertEqual(
+            delta["changed_file_count"],
+            self.receipt["rtl_delta"]["changed_file_count"] + 1,
+        )
 
     def test_store_queue_legacy_anchor_has_explicit_current_contract_mapping(self) -> None:
         item_id = (
@@ -163,13 +187,34 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         )
 
     def test_npc_sim_top_delta_requires_current_system_layers(self) -> None:
+        changed_paths = {
+            row["path"] for row in self.receipt["rtl_delta"]["changed_files"]
+        }
         self.assertIn(
-            "npc/rv64/vsrc/sim/NpcSimTop.sv", TOOL.CHANGED_RTL_PATHS
+            "npc/rv64/vsrc/sim/NpcSimTop.sv", changed_paths
         )
         positive = self.receipt["current_positive"]
         self.assertEqual(positive["l2"], {"case": "all", "status": "PASS"})
         self.assertEqual(positive["l3"], {"case": "all", "status": "PASS"})
         self.assertEqual(positive["optional_ubuntu"], "NOT_RUN_OPTIONAL")
+
+    def test_retained_changed_cone_is_exact_source_projected(self) -> None:
+        projections = {
+            row["evidence_design_projection"]["mode"]
+            for row in self.receipt["current_changed_cone"][
+                "replacements"
+            ].values()
+        }
+        self.assertIn(
+            "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN", projections
+        )
+        for row in self.receipt["current_changed_cone"][
+            "replacements"
+        ].values():
+            self.assertEqual(
+                row["source_sha256"],
+                self.current["groups"]["rtl"][row["source"]],
+            )
 
     def test_promotion_boundary_remains_red_and_unpromoted(self) -> None:
         self.assertEqual(

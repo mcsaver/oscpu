@@ -81,10 +81,10 @@ class PerformanceBottleneckCensusTests(unittest.TestCase):
         value = json.loads(self.result.read_text(encoding="utf-8"))
         self.assertEqual(
             value["workloads"]["coremark"]["key_ratios"][
-                "memory_latency_cycles"], "0.471431907")
+                "memory_latency_cycles"], "0.458718136")
         self.assertEqual(
             value["workloads"]["dhrystone_10000"]["key_ratios"][
-                "memory_latency_cycles"], "0.688591040")
+                "memory_latency_cycles"], "0.671731275")
 
     def test_rank_vectors_are_complete_and_conserved(self) -> None:
         built = self.build()
@@ -155,11 +155,9 @@ class PerformanceBottleneckCensusTests(unittest.TestCase):
         shutil.copyfile(BASELINE, copied)
         built = self.build(copied)
         self.assertEqual(built.returncode, 0, built.stdout)
-        copied.write_text(
-            copied.read_text(encoding="utf-8").replace(
-                '"memory_latency": 2542049', '"memory_latency": 2542050', 1),
-            encoding="utf-8",
-        )
+        tampered = json.loads(copied.read_text(encoding="utf-8"))
+        tampered["benchmarks"]["coremark"]["cpi_stack"]["memory_latency"] += 1
+        copied.write_text(json.dumps(tampered), encoding="utf-8")
         verified = self.run_tool(
             "verify", "--input", self.relative(self.result))
         self.assertNotEqual(verified.returncode, 0)
@@ -175,6 +173,29 @@ class PerformanceBottleneckCensusTests(unittest.TestCase):
             "verify", "--input", self.relative(self.result))
         self.assertNotEqual(verified.returncode, 0)
         self.assertIn("not canonical", verified.stdout)
+
+    def test_external_absolute_input_is_rejected(self) -> None:
+        built = self.build()
+        self.assertEqual(built.returncode, 0, built.stdout)
+        with tempfile.TemporaryDirectory(prefix="external-census-") as directory:
+            external = pathlib.Path(directory) / "census.json"
+            shutil.copyfile(self.result, external)
+            verified = self.run_tool("verify", "--input", str(external))
+        self.assertNotEqual(verified.returncode, 0, verified.stdout)
+        self.assertIn("escapes workspace", verified.stdout)
+
+    def test_output_symlink_is_rejected_without_touching_target(self) -> None:
+        target = self.work / "symlink-target.json"
+        link = self.work / "census-link.json"
+        link.symlink_to(target.name)
+        built = self.run_tool(
+            "build",
+            "--baseline", self.relative(BASELINE),
+            "--output", link.relative_to(ROOT).as_posix(),
+        )
+        self.assertNotEqual(built.returncode, 0, built.stdout)
+        self.assertIn("path uses a symlink", built.stdout)
+        self.assertFalse(target.exists())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-run/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

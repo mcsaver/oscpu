@@ -382,7 +382,18 @@ def validate_delta_rebind(
     )
     delta = payload.get("rtl_delta", {})
     require_equal(delta.get("file_count"), RTL_FILE_COUNT, "delta RTL file count")
-    require_equal(delta.get("changed_file_count"), 3, "delta changed RTL count")
+    changed_files = delta.get("changed_files")
+    require(isinstance(changed_files, list), "delta changed RTL inventory is absent")
+    changed_paths = {
+        row.get("path") for row in changed_files if isinstance(row, dict)
+    }
+    require_equal(
+        len(changed_paths), len(changed_files), "delta changed RTL uniqueness"
+    )
+    require_equal(
+        delta.get("changed_file_count"), len(changed_files),
+        "delta changed RTL count",
+    )
     historical = payload.get("historical_negative", {})
     require_equal(historical.get("total"), 175, "delta historical negatives")
     require_equal(
@@ -396,13 +407,33 @@ def validate_delta_rebind(
         (19, 19),
         "delta current changed-cone replay",
     )
+    coverage = payload.get("changed_source_coverage", {})
+    historical_sources = coverage.get("historical_negative_sources")
+    positive_only = coverage.get("positive_only_changed_files")
+    require(
+        isinstance(historical_sources, list) and isinstance(positive_only, list),
+        "delta changed-source coverage split is absent",
+    )
+    require_equal(
+        set(historical_sources) | set(positive_only), changed_paths,
+        "delta changed-source coverage completeness",
+    )
+    require_equal(
+        set(historical_sources) & set(positive_only), set(),
+        "delta changed-source coverage overlap",
+    )
+    require_equal(
+        coverage.get("positive_only_coverage"), "CURRENT_L0_L1_L2_L3",
+        "delta positive-only coverage",
+    )
     promotion = payload.get("promotion", {})
     require_equal(promotion.get("whole_architecture"), "RED", "delta boundary")
     require_equal(promotion.get("ppa"), "UNPROMOTED", "delta PPA boundary")
     return {
         "baseline_design_id": payload["baseline_design_id"],
         "rtl_files": 146,
-        "changed_rtl_files": 3,
+        "changed_rtl_files": len(changed_files),
+        "positive_only_changed_rtl_files": len(positive_only),
         "historical_negative": "175/175",
         "unchanged_rtl_reused": 152,
         "verification_only_reused": 4,
@@ -806,7 +837,13 @@ def validate_ledger_payload(
 ) -> None:
     require_equal(ledger.get("schema"), LEDGER_SCHEMA, "ledger schema")
     require_equal(ledger.get("design_id"), receipt["design_id"], "ledger design-id")
-    require(isinstance(ledger.get("revision"), str) and "v15i" in ledger["revision"], "ledger revision must identify V15I")
+    revision = ledger.get("revision")
+    require(
+        isinstance(revision, str)
+        and receipt["design_id"].removeprefix("sha256:")[:12] in revision
+        and "delta-rebound" in revision,
+        "ledger revision must identify the current delta-rebound design",
+    )
     roadmap = ledger.get("roadmap", {})
     require_equal(roadmap.get("path"), str(ROADMAP_PATH), "ledger ROADMAP path")
     require_equal(roadmap.get("sha256"), sha256_file(safe_file(root, ROADMAP_PATH)), "ledger ROADMAP hash")
@@ -903,7 +940,11 @@ def rebind_ledger_receipt(
     pointer = ledger_artifact(root)
     design_id, _ = current_rtl_binding(root)
     ledger["design_id"] = design_id
-    ledger["revision"] = "v15i-20260806-delta-rebound-current-evidence-ledger"
+    ledger["revision"] = (
+        "current-"
+        f"{design_id.removeprefix('sha256:')[:12]}-"
+        "delta-rebound-evidence-ledger"
+    )
     ledger["roadmap"] = {
         "path": str(ROADMAP_PATH),
         "sha256": sha256_file(safe_file(root, ROADMAP_PATH)),

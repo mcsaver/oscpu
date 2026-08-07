@@ -130,19 +130,23 @@ def recompute_layered_receipt(root: pathlib.Path) -> dict[str, Any]:
     receipt_path = safe_file(root, LAYERED_RECEIPT_PATH)
     stored = load_json(receipt_path)
     directories = stored.get("source_directories")
-    expected_directory_keys = {
-        "l0_module",
-        "l1_checker_replay",
-        "l2_mini_system",
-        "l3_lightweight_linux",
+    base_directory_keys = {
+        "l0_module", "l2_mini_system", "l3_lightweight_linux"
     }
-    if not isinstance(directories, dict) or set(directories) != expected_directory_keys:
+    l1_directory_keys = {"l1_checker_replay", "l1_full_core"}
+    if (
+        not isinstance(directories, dict)
+        or set(directories) - base_directory_keys - l1_directory_keys
+        or not base_directory_keys.issubset(directories)
+        or len(set(directories) & l1_directory_keys) != 1
+    ):
         raise RecertificationError("layered receipt source directory set differs")
+    l1_key = next(iter(set(directories) & l1_directory_keys))
     tool = load_layered_tool(str(root.resolve()))
     try:
         rebuilt = tool.evaluate(
             l0_module_dir=pathlib.Path(directories["l0_module"]),
-            l1_replay_dir=pathlib.Path(directories["l1_checker_replay"]),
+            l1_dir=pathlib.Path(directories[l1_key]),
             l2_result_dir=pathlib.Path(directories["l2_mini_system"]),
             l3_result_dir=pathlib.Path(directories["l3_lightweight_linux"]),
             root=root,
@@ -202,7 +206,23 @@ def validate_layer_contract(receipt: dict[str, Any]) -> None:
         "difftest_mismatches": 0,
     }.items():
         require_equal(counts.get(key), expected, f"L1 {key}")
-    require_equal(l1.get("signoff_scope"), "full-l1-checker-replay", "L1 scope")
+    l1_scope = l1.get("signoff_scope")
+    if l1_scope == "full-l1-checker-replay":
+        require_equal(l1.get("guest_rerun"), False, "L1 replay guest_rerun")
+        require_equal(
+            l1.get("classification"),
+            "execution-complete-old-benchmark-terminal-oracle-false-positive",
+            "L1 replay classification",
+        )
+    elif l1_scope == "full-l1-direct-execution":
+        require_equal(l1.get("guest_rerun"), True, "L1 direct guest_rerun")
+        require_equal(
+            l1.get("classification"),
+            "direct-current-design-execution-pass",
+            "L1 direct classification",
+        )
+    else:
+        raise RecertificationError(f"L1 scope is unsupported: {l1_scope!r}")
 
     l2 = layers["L2_MINI_SYSTEM"]
     l3 = layers["L3_LIGHTWEIGHT_LINUX"]

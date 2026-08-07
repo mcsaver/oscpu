@@ -1,0 +1,11 @@
+2	rv64-optimization-slice-selector	PASS	2355	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-optimization-slice-selector.log
+2	flow-self-test	PASS	2757	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/flow-self-test.log
+2	rv64-soc-delivery-gates	PASS	1454	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-soc-delivery-gates.log
+3	rv64-optimization-slice-selector	PASS	4962	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-optimization-slice-selector.log
+3	flow-self-test	PASS	2656	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/flow-self-test.log
+3	rv64-soc-delivery-gates	PASS	1454	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-soc-delivery-gates.log
+3	rv64-owner-timing-fast	PASS	4311	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-owner-timing-fast.log
+4	rv64-optimization-slice-selector	PASS	5110	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-optimization-slice-selector.log
+4	flow-self-test	PASS	2807	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/flow-self-test.log
+4	rv64-soc-delivery-gates	PASS	1454	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-soc-delivery-gates.log
+4	rv64-owner-timing-fast	PASS	4813	.github/runtime-artifacts/agent-flow/2026-08-06-rv64-ppa-slice-selector-v1/gates/rv64-owner-timing-fast.log

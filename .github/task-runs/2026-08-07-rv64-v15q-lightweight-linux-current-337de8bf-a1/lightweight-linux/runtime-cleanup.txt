@@ -1,0 +1,4 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-run/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

@@ -1,7 +1,7 @@
 {
   "claim_boundary": "Current RV64 product configuration only: 46/46 local holder semantics, the V14R bank-local request-hold contract, the V14G full-ProducerId birth/hold/death fence, and the elaborated dispatch1_optional constant-low chain promote global_no_live_reuse only. Whole architecture, system recertification and PPA remain unpromoted.",
   "classification": "architecture",
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "optional_lane1_product_binding": {
     "chain": [
       {
@@ -116,7 +116,7 @@
     ],
     "configuration": "PRODUCT_INACTIVE_CONSTANT_LOW",
     "constant_value": 0,
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "source_bindings": [
       {
         "path": "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v",
@@ -157,16 +157,16 @@
     ],
     "status": "PASS",
     "yosys_json": {
-      "decompressed_sha256": "aa2584f59626821a742dc5d471d93e9c9d5a6285fc3f551109c5e5314e80f937",
+      "decompressed_sha256": "ed7c61034548ca4e4ec423e8babc4ff0197e7f99f09d452b4ea6c073b8978c07",
       "kind": "full-yosys-json-gzip",
-      "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-      "sha256": "def7f928396e730131a6f19c8002adda6c95a7f06de3f564b6ae06e78d1cc4f4",
-      "size_bytes": 17341835
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+      "sha256": "7722f89d2580f8f3dea0037b091b44baf1830d24468f37027be6046204906c44",
+      "size_bytes": 17341067
     },
     "yosys_receipt": {
       "kind": "yosys-instance-graph-receipt",
-      "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-      "sha256": "2ab52b5271f2f0f2bd274ff462d68a1e21d28c6dc32c739913d0bf1cb67dbfe3",
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+      "sha256": "73d0897b33a4a896508983fab65a5c974c8f1e0d7dfb24573d7fc6ae090dec19",
       "size_bytes": 60087
     }
   },
@@ -195,7 +195,7 @@
       "units_semantic_gap": 0,
       "units_semantic_pass": 46
     },
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "required_evidence": [
       {
         "binding_state": "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
@@ -490,16 +490,16 @@
     "baseline_profiles_pass": 4,
     "baselines": [
       {
-        "artifact_sha256": "aa47adaeed7dda417fe71d25c197e0c2fedaf675fdb46d4b787fa4770202714f",
+        "artifact_sha256": "2855f70372eb81f07804c0e6ebd90e15210d02668135162a67a2aa6333bb1d8a",
         "assertions": true,
-        "compile_command_sha256": "445b9d6e4a2356d8ff83d3d32214f1db05a3e6fa6ee302f57fd031e05ae95295",
+        "compile_command_sha256": "0caea4298ade8de11a501be945e25428ffba15ded0e4bfd8ce1934226ca7812f",
         "expected_stage": null,
         "generation_width": 1,
         "kind": "baseline",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-production-assert.log",
-          "sha256": "529ad321ec70be4d15b12651031136d680f502b1468b85036b6c5dd587298d42",
-          "size_bytes": 18073
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-production-assert.log",
+          "sha256": "1144d7df751fce69a916f7a329330afc3d332ce53525ed02fd2c38f6829a47e9",
+          "size_bytes": 18088
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 1,
@@ -519,16 +519,16 @@
         "sim_rc": 0
       },
       {
-        "artifact_sha256": "91f3cbaf0cc094178583721143fe894f7e3c5bb9fed6e94260f5c93a7ff9b2b6",
+        "artifact_sha256": "f4e7b4e2159d169de5567f77be8d29651b62c9e3a8c8f71fb9a8f056bf5dc478",
         "assertions": false,
-        "compile_command_sha256": "922929bfc77c392a1d884118c8939125bbf67016eb369f2f38ac9630be8fb7e2",
+        "compile_command_sha256": "aeda54d60a531b7c0aa2e45477940356cac358b4af0351696003cbb7b4dd8327",
         "expected_stage": null,
         "generation_width": 1,
         "kind": "baseline",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-production-release.log",
-          "sha256": "e78580d0dde5144c99208f86be1660f109edef2bbfb87d0e7d7e1d638c0225c5",
-          "size_bytes": 16838
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-production-release.log",
+          "sha256": "0ed6103ca361e045519c95f0b80a1d25f0f124e72ce439d2c930bbf37be4647c",
+          "size_bytes": 16853
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 1,
@@ -548,16 +548,16 @@
         "sim_rc": 0
       },
       {
-        "artifact_sha256": "7d2aae7e775b4494d0eae024bfe3c05dadb627a76c3e3bc884d0ad76aef8f8ed",
+        "artifact_sha256": "ddabcb95585e657dd8fbd158c47c0fcb06fcb2859525d7f51afaa0aed872bae8",
         "assertions": true,
-        "compile_command_sha256": "8e403b9da99dd7dd9540fc07ca04db564ba70c2b9ccb08ef982b420f932749f7",
+        "compile_command_sha256": "22469f9884208d7ac2e0b841614448bef646ae877fdaa86592c164f0487bd232",
         "expected_stage": null,
         "generation_width": 4,
         "kind": "baseline",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-production-assert.log",
-          "sha256": "ab0310e0c3470030bb90c08784a7c4e37be50f99bd8bed1ea795b57987cc6b87",
-          "size_bytes": 18074
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-production-assert.log",
+          "sha256": "db700bd12c6debf5640987aacbb691dc1d600ca347bd39a00a31c3809e09e19f",
+          "size_bytes": 18089
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 1,
@@ -577,16 +577,16 @@
         "sim_rc": 0
       },
       {
-        "artifact_sha256": "f7bb875acbdafd060a08bfbb33044f4f5058f2b8d3ad6784698b03c8189ff4a7",
+        "artifact_sha256": "cd66535e59eae713b45a8e86f01370c47d74c49e3502a9f1b904e564e406aa43",
         "assertions": false,
-        "compile_command_sha256": "d50902f1b4731497b3795911ca81b5577c21deb5aeba934094fb6d4017bd3433",
+        "compile_command_sha256": "26f1267d01948e06d8dda72cf944c8c75125f26ef313c5280ebe0ae0caeab2a3",
         "expected_stage": null,
         "generation_width": 4,
         "kind": "baseline",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-production-release.log",
-          "sha256": "8350d68de0592f61287ea72d4e7829da81ccd4a82644a14f98464a7fd502b9d2",
-          "size_bytes": 16839
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-production-release.log",
+          "sha256": "ac28646a942f99bf34da5c62de84321b21188d01e2f00836e3ea5eee11e38f2a",
+          "size_bytes": 16854
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 1,
@@ -607,7 +607,7 @@
       }
     ],
     "compile_success_mutations_rejected": 22,
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "generation_widths": [
       1,
       4
@@ -760,16 +760,16 @@
     ],
     "mutations": [
       {
-        "artifact_sha256": "b64083cd5364fe0aada1c605bd335a1511b7deddc23fb787d4e8dbfc77d3ffb6",
+        "artifact_sha256": "d946bc0f60fe376dd901b0d176d653f8fce8ee04ff770f1f976482ec713eb40b",
         "assertions": false,
-        "compile_command_sha256": "58af09d1f1562ac8ddf5a3edc9cae594dba8b50984f70ae37bb04e7eef60bed8",
+        "compile_command_sha256": "af5ed37abf27c6538930f4f0b1a133b35733e5cc4558fe0aecd270d0d798ab4b",
         "expected_stage": "load-queue-union",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-backend-drops-load-queue-union-release.log",
-          "sha256": "29c0663983324d35398a6152f9971567dd636ec81f70d0e4337238521c65d703",
-          "size_bytes": 16396
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-backend-drops-load-queue-union-release.log",
+          "sha256": "86985b67a174271720d40f01bed39e9704d096a9048fab650d0de9b4c1eb9cbe",
+          "size_bytes": 16416
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -791,16 +791,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "b94ab06bcc8a895a86b5d7774ce998bfcb71f44e9a8b08714682911c38799274",
+        "artifact_sha256": "80afc88a3f28ee5b07f7979e58fb73a8aaeab68a80a78d6599a6f0a9ee288337",
         "assertions": false,
-        "compile_command_sha256": "f682cb4b3e7bf9d4d1a04b3f046bb2dc632eac4da3ed5dbad641e2e7963ced18",
+        "compile_command_sha256": "37d22407206f3deff41c0d51fd50647afd3f7f7ff38b3ef774f17574ac99f5c5",
         "expected_stage": "collector-pending-owner-only",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-backend-drops-memory-owner-union-release.log",
-          "sha256": "cc03b99e872a11570ddfcd0b240055ffc2a6835f0252c920dbedb1fba843604a",
-          "size_bytes": 16597
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-backend-drops-memory-owner-union-release.log",
+          "sha256": "7643a3ac17b22ab13c5e8edc554cdde7787c51a81f9808358e71850c84eef664",
+          "size_bytes": 16617
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -822,16 +822,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "bcb1d682a7fe34d147b5d82c1829bc7a506e8c7777358966aba80cff98f9c703",
+        "artifact_sha256": "a9ab4482a604b2ac1294f3395ca08c5eb50209ac57fd5030550f35a57895cdb7",
         "assertions": false,
-        "compile_command_sha256": "8e5d9c43ebffa189ef3a72bc1d23dd4901d6bfa719155c36c59cd85d5897fca3",
+        "compile_command_sha256": "54173f0ab857fa56804477faf6de58268efb20dcc4b39cfef00cd62976e66c2c",
         "expected_stage": "pending-system-union",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-backend-drops-pending-system-union-release.log",
-          "sha256": "05fea54c444acccf65d8d442fc751bbadab260da3aabbde40240d8a921da2923",
-          "size_bytes": 16723
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-backend-drops-pending-system-union-release.log",
+          "sha256": "33e6e7319e71120669af6076682874a7f599042b15ede1659a6a5f9737cb1a1e",
+          "size_bytes": 16743
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -853,16 +853,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "09bea50c3f4cae26eb23a187ce63d8df57b19b28b53e33e97ce6535e5c514146",
+        "artifact_sha256": "cc9fa9a53c22aed7f2a2505e0032c7b118f5a67899f067c4d1b008d34a22b141",
         "assertions": false,
-        "compile_command_sha256": "31462bb30b327c17921144692fc271767e0458b2d9691099dca1313515101fdc",
+        "compile_command_sha256": "19643fc70e7eaa2df3097c1a55b3b9daba56e8a138d411a7ca6011d20a7da9d6",
         "expected_stage": "reservation-union",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-backend-drops-reservation-union-release.log",
-          "sha256": "e211dd2f5f82ea214611ae24d134475b4abd4a553998db1c9f88fd846d0672a7",
-          "size_bytes": 16398
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-backend-drops-reservation-union-release.log",
+          "sha256": "3bd08c7c5a0faea8cf43666b0586c9f81440dcf70bad74af679948589525b29d",
+          "size_bytes": 16418
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -884,16 +884,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "ac70e3a6372218411204012f5cf30c4743d7a37510747319927c618745c30e25",
+        "artifact_sha256": "80bf16d49857438e68964d276bfb2e5102ce23374f0f434b051e715ed5aeb1c9",
         "assertions": false,
-        "compile_command_sha256": "3a60fc6fbe3a995524b57935efd623760718a08ac194b9610f69b20fd1fe202c",
+        "compile_command_sha256": "d7f3379593c5956e09938e0884799b086a1930154a54b4efebcd7522fe8e7fc1",
         "expected_stage": "terminal-lane6-ingress",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-backend-lane6-corrupts-reservation-token-release.log",
-          "sha256": "dcd11f2fd12de3b2d0fd9145477f8a22167350298e688c03dcc7b467a403c4ce",
-          "size_bytes": 16599
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-backend-lane6-corrupts-reservation-token-release.log",
+          "sha256": "99f47b725347f86ab0ee011267066640123814fd1dff0d5fa4cd7d440ae86f3a",
+          "size_bytes": 16619
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -915,16 +915,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "fb57c9b2dd727a53adca05081477382eb8a7533a42561da45af46300949c1c5e",
+        "artifact_sha256": "36cca384a51884e6439bc2d271c9dcb41aaee458df84f2f78e95d77ee63e3a22",
         "assertions": false,
-        "compile_command_sha256": "2aa495f888cacc1f3de598fb8575b10ddece40034c3e1abd6ebc9150f2875576",
+        "compile_command_sha256": "c46f52a9e38a5852090a91dd439b45c142c6de7b4a4a54e35c9c23c11835c488",
         "expected_stage": "birth-owner-only",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-dispatch-drops-external-union-release.log",
-          "sha256": "7351486f93c7e5883aa6ba1016c175745143e3439130c3c26c67214d9923841b",
-          "size_bytes": 16340
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-dispatch-drops-external-union-release.log",
+          "sha256": "c35a13e3d052c2490597fefe22f7a0ea5be88a1777cc13e6da1a89129df56a25",
+          "size_bytes": 16360
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -946,16 +946,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "1f2da38e5b46a97f9ae7a239aca588e743037472c7b89a3f87cce15bfaa21cfa",
+        "artifact_sha256": "fe1060be38f64758cbe751928ba2269ffeb5274083fbcc5821327d4eb12036b1",
         "assertions": false,
-        "compile_command_sha256": "0c75d6f44b30244979aed3e365e2301460b244b44d0414ca87706fb121a842ee",
+        "compile_command_sha256": "de3cbd531d7b5e593af2025822301ee6527b3a96db00ec22a123885e2f42bcfb",
         "expected_stage": "birth-edge-old",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-dispatch-lane0-truncates-generation-release.log",
-          "sha256": "d9053a8e2bda776895bef6f593d3e2e3308d598b2baca821525b510e14edecbd",
-          "size_bytes": 16295
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-dispatch-lane0-truncates-generation-release.log",
+          "sha256": "e95e78ccc8511f797dc054df301fcccb918fb95b4418372b1f84697ba384a068",
+          "size_bytes": 16315
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -977,16 +977,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "a257a9edd7facdeab3905a7a6094546c5fcc9c1fa1daf0cd923b206772d4d7f5",
+        "artifact_sha256": "7d5f02f066d396121ccb973f10778b9ca292e3c09534107c2a1ad20d9a783b11",
         "assertions": false,
-        "compile_command_sha256": "a883f5cae02d0785cf54e769b083287d24c5463b76bb2ef4fb2e58cbfaf0a5a6",
+        "compile_command_sha256": "439144ca0d1f974daeef61c51a68d35107a6ce48b03940e5552b698adf4b374f",
         "expected_stage": "lane1-mandatory",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-dispatch-mandatory-lane1-truncates-generation-release.log",
-          "sha256": "3dac021e52ac1291b2e577b09faf4b43eec788b3b96351e12d34052f0ed1fc4c",
-          "size_bytes": 16475
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-dispatch-mandatory-lane1-truncates-generation-release.log",
+          "sha256": "7dc7e085a74fef8cc956a2e8a64f550cd669f0288fb5ccdd878d8f40b6eb8a31",
+          "size_bytes": 16495
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1008,16 +1008,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "2f20d0fcea8f3722df6cc986bec7b58fe1bcd68c9abd386ba1c36397f57fe055",
+        "artifact_sha256": "12ec0e1a79f7a97ecbf0cbfe3840c2a8540530a96d2676805e998384509d6804",
         "assertions": false,
-        "compile_command_sha256": "18b5d743625e7130157cc35d0860ab27ba95fc5413f7cab7e71b0b06fecfbb71",
+        "compile_command_sha256": "c4d4757c9ec53ae8fd52e52787e7dc08a4bb62cf24f32ce3f1d979d51423b19d",
         "expected_stage": "lane1-optional",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-dispatch-optional-lane1-truncates-generation-release.log",
-          "sha256": "6c33185dda3df763ac8612922b74f15c38b3bca16ba0433e9fcc8cb2635b5d26",
-          "size_bytes": 16473
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-dispatch-optional-lane1-truncates-generation-release.log",
+          "sha256": "ce9977fc282a3363097a235cf0a6474f3211491701ddb2bc4b0e29cf02bcd195",
+          "size_bytes": 16493
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1039,16 +1039,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "632efefdbc7a6fd221f5bf4092b45b08ab5c53bdbe492dfd3809cbdd72c9fd45",
+        "artifact_sha256": "21e0356a82d49a2ea3c299cc6f9564492e0522c2c1385dd60c057086e91ce70b",
         "assertions": false,
-        "compile_command_sha256": "c2db2d05752e1a7b7689ac26b235f76e4dad723d68c856f1baa330c43aa98a8a",
+        "compile_command_sha256": "399915f52078399bec5abc0ba8dd87336a2acc5752f0e39350649b0af5aa2294",
         "expected_stage": "memory-capture-int-iq-holder",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-int-iq-mask-drops-on-fire-release.log",
-          "sha256": "d68e7c616160b6d2bd4eb181fcc2dbcd730a85fe38867adb7464440d94ddc02d",
-          "size_bytes": 16983
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-int-iq-mask-drops-on-fire-release.log",
+          "sha256": "5a18498093f0e3022d9eb3787d8ab0c4a0aba4888bec938e89e90ee0ae45f6d8",
+          "size_bytes": 17033
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1070,16 +1070,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "252015e8024111a85f50e657fcc4bd4359793b33486fbaf375a4c03f6d1c5659",
+        "artifact_sha256": "64f5cbf89537ad671e9468606db0f1ca83d422a3ba77ded628267596841427a3",
         "assertions": false,
-        "compile_command_sha256": "c78e1ccba573fc1514f674700f8f5ae5565a0e8fd9174fc04ca461f70638f5f3",
+        "compile_command_sha256": "13603431b7d6e2918533098fe51ff7bb12b914db3965436d5a49f8909848bb69",
         "expected_stage": "death-edge-old",
         "generation_width": 1,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen1-tracker-clears-producer-on-death-edge-release.log",
-          "sha256": "0fe6fa472ea980426595c9192816de0575e3530dcc7c05c1caf9447edfb5be6e",
-          "size_bytes": 16927
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen1-tracker-clears-producer-on-death-edge-release.log",
+          "sha256": "2d922f1ceeb5c30ece2a6d082736063a491ffd50aa03abb893eff869c4313232",
+          "size_bytes": 16957
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1101,16 +1101,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "16fef59a4ee9a95ccdcc04bb355062ebc7771436931bc111ffd18292528b3dd7",
+        "artifact_sha256": "28a65cce4f33fdb14b81de0ea7bdfb699b6ccd5ea6f126407635420801a0d54a",
         "assertions": false,
-        "compile_command_sha256": "d89c90b566b8110a3c8043116bb55cba021a2897549cfd68ed42ef7acc3f1d16",
+        "compile_command_sha256": "af20a29b10d9cb523c56d4ec8cd7f2e8fcf6e412d10293072d79546f12919f43",
         "expected_stage": "load-queue-union",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-backend-drops-load-queue-union-release.log",
-          "sha256": "a34d189465f3d20e5142bb869d390f48e4290cdd9f3996197219f5195262b6a6",
-          "size_bytes": 16396
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-backend-drops-load-queue-union-release.log",
+          "sha256": "456a50eaa16270f3a80db71a50f9937debf907af783098fe84d8e53007c18456",
+          "size_bytes": 16416
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1132,16 +1132,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "85569ea3776496276ac94b49bff7c8dbf915eabbab37a7232b9766d08228fb9d",
+        "artifact_sha256": "6c996cd7d2841135a30ac8af4a974d5c6286da0097737511b4c16986d2468329",
         "assertions": false,
-        "compile_command_sha256": "a825eea5eb1cc179525eda4ce6efde6a85147426d2c5b3406936645c1b840050",
+        "compile_command_sha256": "d82754093e88743b3eb0acb4c9e209d99f07e95192b5caa4de0bbff89b9ed0d7",
         "expected_stage": "collector-pending-owner-only",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-backend-drops-memory-owner-union-release.log",
-          "sha256": "314dedbba938139cb6762213e96fbb0d139d71fdd8d3dc70dc1e1a9a09297ffd",
-          "size_bytes": 16597
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-backend-drops-memory-owner-union-release.log",
+          "sha256": "7fd83b43cffaea76e7984dd1b3c97fe9377beebbc37e5a50c6c89943b5a26e3d",
+          "size_bytes": 16617
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1163,16 +1163,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "4e61ff602e857929f7be9c12790aad7ba7dd1cc165f52b453b50473b1f9b1e7f",
+        "artifact_sha256": "6fbc2ff3fe69cfacc48cc4ad3dc508a53e55ee861a6e62352f6941b94f6bb839",
         "assertions": false,
-        "compile_command_sha256": "9be9804f99f0f7fb50d28f634ee68b49cbefbab5c1d8cddad02e6168caca32bc",
+        "compile_command_sha256": "2643a283b413b17cd50751f370a5f815098cec376c7c92881828b68b79f53940",
         "expected_stage": "pending-system-union",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-backend-drops-pending-system-union-release.log",
-          "sha256": "5b96f1fd773d8d1f73e828006478eb52c5e8972e03b323ce917853d156f2b38a",
-          "size_bytes": 16723
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-backend-drops-pending-system-union-release.log",
+          "sha256": "087f3e6bd6fca52fada8d9ffb612c6e602f56cac2599a28ac5cce839f6aea041",
+          "size_bytes": 16743
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1194,16 +1194,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "ee2b7b97be13daab273380598181dc8db052f928cdc245d7f8a137684b78073d",
+        "artifact_sha256": "3e33e7314017cc09f0dc9bf7a8e064d35a4136304e4853e021875f869a064810",
         "assertions": false,
-        "compile_command_sha256": "ed160cc5ae6c173bdffac068a89a72d6394e906baef85651e83caa2a10c91fed",
+        "compile_command_sha256": "dde3f1654faa48eb3eb913b6b8f142683bb67ec3273c787d8ddf49373e51bbdb",
         "expected_stage": "reservation-union",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-backend-drops-reservation-union-release.log",
-          "sha256": "f98c0a1d8f4f4104f3de72718fbbad3423224142600bbbe8e77398edb163ea00",
-          "size_bytes": 16398
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-backend-drops-reservation-union-release.log",
+          "sha256": "22ec1ef57a639857c7bcf602166083be55470d72d4ff404d20fd2190820d8119",
+          "size_bytes": 16418
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1225,16 +1225,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "1b43f15aedae99a886d3d8c9b56b5d8afb40c416921ce6565ba58741003284e5",
+        "artifact_sha256": "b208bf9cfb4944056b08391baa9a38537aba8f8313a28a1b07e44d9c14d11f5a",
         "assertions": false,
-        "compile_command_sha256": "2792a50bc0dade4ad928c7b3038d763d0c97c5fb517b6866c1ff6efa4ce4a1a3",
+        "compile_command_sha256": "e9cea8b32a35474cae03162139c02eb1b523e8aa4a0ffb27e5870cb63f9e89ee",
         "expected_stage": "terminal-lane6-ingress",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-backend-lane6-corrupts-reservation-token-release.log",
-          "sha256": "5bd547ce781e0c04870997cb6eaafb540b4d48bf415354e1b30a78ba80a25dbd",
-          "size_bytes": 16599
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-backend-lane6-corrupts-reservation-token-release.log",
+          "sha256": "3086a991c707d509e8a90a7cd43e4d7a5bcb4b4ab462269f4c4e27643f596cba",
+          "size_bytes": 16619
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1256,16 +1256,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "4e7496985cc6508f45328f817e8b0718733137a3203c86dd61054e74e45ec414",
+        "artifact_sha256": "581116c4eb33d15c3566771be617c732d9209ece3a3a9f7cc81b8766ada293c1",
         "assertions": false,
-        "compile_command_sha256": "7a662eba3d66abc7d94a73110ca4fab0c65d481af32ace9d560c7f762700dc72",
+        "compile_command_sha256": "605826d25970d29d8f007cb0d5ac02a75d2a742f82adf9c40eb19c65e21856c4",
         "expected_stage": "birth-owner-only",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-dispatch-drops-external-union-release.log",
-          "sha256": "d56c4f71d6186e3f386c7070e3f13569da5ee886a6b2f7ddde60f440a8129aef",
-          "size_bytes": 16340
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-dispatch-drops-external-union-release.log",
+          "sha256": "52862226d59c816b11235cf378cf35788659b7d82af7527d2f617eb3a3f69e3e",
+          "size_bytes": 16360
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1287,16 +1287,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "faa379f2826e25e18e244894d9ba9b49cbe4ece5b4f14da04eecbe30aa896700",
+        "artifact_sha256": "59552752e21a6b900b7ba71d78d82fe18b562e761a11df65c9db1d1b82a31716",
         "assertions": false,
-        "compile_command_sha256": "7711e86920e21744db74364e9b6789b617d520137591b9307876b39bda9fd304",
+        "compile_command_sha256": "7a9f32320dc71c3ea2b0db755396dc787663cde67b36eb1afc2409335b58fdee",
         "expected_stage": "birth-edge-old",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-dispatch-lane0-truncates-generation-release.log",
-          "sha256": "990ac0bc0613a039d5a74a23811ed7ea3818672c7a53177901bd475322776167",
-          "size_bytes": 16295
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-dispatch-lane0-truncates-generation-release.log",
+          "sha256": "94e2e00080a37b3e8d80156efef790f160ec8cebb2af18a0ffea1d55aa4ce3cd",
+          "size_bytes": 16315
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1318,16 +1318,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "6b195766f009124583578958bdba6b59abfc15b14398f9d9acd6116cff629e17",
+        "artifact_sha256": "06562a8f40a95c2f2683287f93c941ef2a612e593bb23999ac146c4d2735bfca",
         "assertions": false,
-        "compile_command_sha256": "b2bcd946fa182dc1c30eed70aef0ae0289151952e9da51ad7b2f34ee489f8cfb",
+        "compile_command_sha256": "519f92ec5de18a2d271538d3ff5881dce37aa3b65e37ea825f98988ea967accb",
         "expected_stage": "lane1-mandatory",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-dispatch-mandatory-lane1-truncates-generation-release.log",
-          "sha256": "365eb82ba0bba0e31eced08d61b8815a9e0a75cb9a2348b37abcf6cd687de7e7",
-          "size_bytes": 16475
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-dispatch-mandatory-lane1-truncates-generation-release.log",
+          "sha256": "0846a45901b34bbeb186fa360d13e1f0df6cb5e11724c8cb6ca247f6bdf96889",
+          "size_bytes": 16495
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1349,16 +1349,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "abd18e464425a0c6b9bf606a3c5c958b5fc041ac3b3ebc6e3ee4c5aaa174f45e",
+        "artifact_sha256": "6eec290b4d47201f36a7f75213388b8458fbaa02a31507e04723e8cc919df82a",
         "assertions": false,
-        "compile_command_sha256": "3f5ca751ce73a06fcbc8008883e954eb523d397e956f6af0254ad3f4fce90c3e",
+        "compile_command_sha256": "bcfa26eab1c3a1f76e846be6bc28ace8f2d10b41c05cb65cbc92a47d0623db4c",
         "expected_stage": "lane1-optional",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-dispatch-optional-lane1-truncates-generation-release.log",
-          "sha256": "22f4e3580690f875fc11d93b9064de3d51e6b881cb4ce77c1b7a90bc1ea63f38",
-          "size_bytes": 16473
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-dispatch-optional-lane1-truncates-generation-release.log",
+          "sha256": "263c9f3abf3baa36b7e613ea492b53c8c6d08fd234295c6b5cb339935438b3d5",
+          "size_bytes": 16493
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1380,16 +1380,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "54612e4a13226ee3be486dc08bdb79ff0b66d564334081f8eef068d861f4f760",
+        "artifact_sha256": "406de079e73f4c90a177f6d2cccd917ec21f38dc40595e84bd37cfbbe6fbdbd2",
         "assertions": false,
-        "compile_command_sha256": "f2bdb50b66f6f620665dae0cfb1267ec807f4a431cea183047b0e5a454973900",
+        "compile_command_sha256": "571d96ec566b62ba7fa4576e71767817eee2c7e4db5af28955af7de1f96cb03d",
         "expected_stage": "memory-capture-int-iq-holder",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-int-iq-mask-drops-on-fire-release.log",
-          "sha256": "f3eb37d6524fd6c7d0af2400a2295d9d5d2b2a425def7248db177169ed905d84",
-          "size_bytes": 16983
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-int-iq-mask-drops-on-fire-release.log",
+          "sha256": "8dc82dcd25b5dedb2b29c71b7e13244795ebb758fe80d52bb1a85e82f10d633f",
+          "size_bytes": 17033
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1411,16 +1411,16 @@
         "sim_rc": 1
       },
       {
-        "artifact_sha256": "89a6226cbf3d5eece560dcf443d53e3b7026c5424c3f6577c7d3aede68034a83",
+        "artifact_sha256": "98950c6d3fb0ed64403c6363b1cd1ca7b7ccb0ef4e4a221ebe088cb49b9a2bf5",
         "assertions": false,
-        "compile_command_sha256": "82bdabd68727babf5853dbb2d4acc06169bb99c71d7d765accdcd9acef86e321",
+        "compile_command_sha256": "54794191f0150c4794c6bd577984af6fbfa57d936dd9340e10600fc646cda76e",
         "expected_stage": "death-edge-old",
         "generation_width": 4,
         "kind": "mutation",
         "log": {
-          "origin_path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/logs/gen4-tracker-clears-producer-on-death-edge-release.log",
-          "sha256": "8b166eabd8e6ae6401c5e75d253acb37b746aa774b463cf00e4cf42797f08803",
-          "size_bytes": 16927
+          "origin_path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/logs/gen4-tracker-clears-producer-on-death-edge-release.log",
+          "sha256": "18144fe4101693073f1bd2edec00fd05b5f886b5dbe2331e50a645132f0c62b0",
+          "size_bytes": 16957
         },
         "marker_counts": {
           "[PASS] tb_ooo_int_backend_v14g_global_owner_fence": 0,
@@ -1446,36 +1446,36 @@
       "artifacts": [
         {
           "kind": "v14g-summary",
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/summary.json",
-          "sha256": "7f11d73ada416f4a5df239fca50bacaff8cafadc5d10fc3dea93ce2c2a15cffe",
-          "size_bytes": 40379
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/summary.json",
+          "sha256": "9e7f9995fdb7877355a55e372e14cb21018c23861020b6f163b28df36fd787e5",
+          "size_bytes": 40520
         },
         {
           "kind": "v14g-source-manifest",
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/source-manifest.json",
-          "sha256": "e1c0ec26f9905c6316a0621ee50070dba773341a8e579487cd825052a1ac58c6",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/source-manifest.json",
+          "sha256": "d52336054a6e8ef09e40ebab02ed2f256c600b9030d50e9cd541371a5a08fcb8",
           "size_bytes": 5233
         },
         {
           "kind": "v14g-overlay-manifest",
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/overlay-manifest.json",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/overlay-manifest.json",
           "sha256": "b8afba73891ea61e6595526730739e551d1c90d76844561c3d385769d87513f1",
           "size_bytes": 1377
         },
         {
           "kind": "v14g-mutation-manifest",
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/mutation-manifest.json",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/mutation-manifest.json",
           "sha256": "f5baa95b2076874bf95f50a1ee9bbfa69a41f09c671b29cfedfde7fe03ee5a64",
           "size_bytes": 8434
         },
         {
           "kind": "v14g-terminal-status",
-          "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/status",
+          "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/status",
           "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
           "size_bytes": 5
         }
       ],
-      "result_dir": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2"
+      "result_dir": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1"
     },
     "overlay": {
       "base": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
@@ -1509,14 +1509,14 @@
     "semantic_preflight": {
       "ledger": {
         "kind": "semantic-local-preflight-ledger",
-        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/semantic-local-preflight.json",
-        "sha256": "8c57e1262e24f38792c1b8e7215371902dffc4aa62e7113af2c396937cff98f6",
-        "size_bytes": 205440
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/semantic-local-preflight.json",
+        "sha256": "3202a11cadaf4dd5f4718f3b6b741cba2f8e7e69353b1886397bcc5d077fa328",
+        "size_bytes": 203339
       },
       "log": {
         "kind": "semantic-local-preflight-log",
-        "path": ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/evidence/v14g-current-f7a-a2/semantic-coverage.log",
-        "sha256": "24d284a70463c5dc13ab4347e545d232521b879422f0d558d8f2cb1a182b7fe3",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v14g-current-v1/semantic-coverage.log",
+        "sha256": "cf1876118fb4fe2a72e96abf03a3a554002b801f23ec8d2fc314f530237de352",
         "size_bytes": 311
       },
       "rc": 0,
@@ -1527,7 +1527,7 @@
         "current_required": false,
         "path": "npc/rv64/Makefile",
         "role": "orchestration_snapshot",
-        "sha256": "b3830e3d01f235f594936455887a357b2e8c72c1edaef51de0b979d47a2abd00"
+        "sha256": "633949a4c65dad9c5c8b8f6e075640f64993f747515d853b6a27a6ab91d901bd"
       },
       {
         "current_required": false,
@@ -1539,7 +1539,7 @@
         "current_required": false,
         "path": "npc/rv64/testbench/Makefile",
         "role": "orchestration_snapshot",
-        "sha256": "034d703f4611cc34e643e835db38ebc6179b4fccf9d570aa398a0622e6f23b1e"
+        "sha256": "1ffa855b0bbcd987465b441a1b279c842b75f457db5ddf3d77bf5b7c8f08c5b9"
       },
       {
         "current_required": true,
@@ -1800,7 +1800,7 @@
         "sha256": "7f4e96dc20e6dff8cd14c702a05c364299a3c33901fa1dbba4f786afda16efb0"
       }
     ],
-    "source_manifest_digest": "487f13c1b075e686bd21567ed5020c2435466acb7547741b31d1c7e89b217531",
+    "source_manifest_digest": "b3039b0b506d09a55fa294061492719cac6e5c9a7b0fb16a95cf33ccc8c06602",
     "status": "PASS",
     "tools": {
       "iverilog": {

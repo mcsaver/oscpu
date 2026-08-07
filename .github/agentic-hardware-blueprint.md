@@ -296,17 +296,25 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 ```text
 recall-and-freeze
- → completion-definition
+ → current-receipt-and-census-reconciliation
+ → cpi-ppa-next-slice-selector
+ → completion-definition-or-discriminating-measurement
  → reversible-implementation-slice
  → focused-positive-and-mutation
  → full-functional-and-representative-performance
  → complete-design-hard-gates
  → same-design-synth-sta-power-qualification
  → global-pareto-or-development-record
+ → refresh-selector-decision
  → workflow-feedback
 ```
 
 适用场景：持续优化 RV64 双发射完整 OoO 核及 PPA。只有同一完整设计状态通过功能、性能、时序、面积、功耗和证据硬门后，才允许进入全局 Pareto；流程摩擦和假绿必须回流到 AI 环境的唯一真源与自动 gate。
+
+`cpi-ppa-next-slice-selector` 使用 versioned policy、active catalog 和 current receipt hash，只选择下一次
+状态对账、因果量测、PPA 资格化或可回退 RTL 实验。CPI/Area/qualified-Power 互有得失或观测区间重叠时，
+节点输出 `RESEARCH_REQUIRED`；Timing 只作 hard gate。该节点不运行 RTL、综合或 STA，也不替代
+`front.py` 的完整设计点全局 Pareto/promotion 裁决。
 
 ### `rv64-historical-defect-backfill-loop`
 

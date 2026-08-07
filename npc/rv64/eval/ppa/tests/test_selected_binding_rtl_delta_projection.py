@@ -16,6 +16,10 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py"
+PRIOR_RECEIPT = ROOT / (
+    ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/"
+    "evidence/selected-binding-rtl-delta-projection/receipt.json"
+)
 
 
 def load_tool():
@@ -39,13 +43,11 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
             [
                 sys.executable,
                 str(TOOL),
-                "capture",
+                "rebind",
                 "--root",
                 str(ROOT),
-                "--baseline-ref",
-                "HEAD",
-                "--consumer-baseline-ref",
-                "c34dc1f3b9c9ff7f6f9cf5e133321164e8645822^",
+                "--input",
+                str(PRIOR_RECEIPT),
                 "--output",
                 str(cls.captured),
             ],
@@ -56,7 +58,7 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
         )
         if cls.capture.returncode != 0:
             raise AssertionError(
-                f"capture rc={cls.capture.returncode}\n"
+                f"rebind rc={cls.capture.returncode}\n"
                 f"stdout={cls.capture.stdout}\nstderr={cls.capture.stderr}"
             )
         cls.master = cls.base / "master"
@@ -104,14 +106,33 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
             check=False,
         )
 
+    def rebind(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(TOOL),
+                "rebind",
+                "--root",
+                str(self.fixture),
+                "--input",
+                str(self.fixture / "receipt.json"),
+                "--output",
+                str(self.fixture / "rebound.json"),
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
     def rewrite_receipt(self, mutate) -> None:
         path = self.fixture / "receipt.json"
         value = json.loads(path.read_text(encoding="utf-8"))
         mutate(value)
         path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    def test_current_v14r_capture_and_git_free_verify_pass(self) -> None:
-        self.assertIn("PASS mode=capture", self.capture.stdout)
+    def test_current_v14r_rebind_and_git_free_verify_pass(self) -> None:
+        self.assertIn("PASS mode=rebind", self.capture.stdout)
         receipt = json.loads(self.captured.read_text(encoding="utf-8"))
         self.assertRegex(
             receipt["current_design_id"], r"^sha256:[0-9a-f]{64}$"
@@ -156,6 +177,21 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
         completed = self.verify()
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("current design identity drift", completed.stderr)
+
+    def test_unrelated_whole_design_identity_can_rebind_without_git(self) -> None:
+        census_path = self.fixture / MODULE.CENSUS
+        census = json.loads(census_path.read_text(encoding="utf-8"))
+        census["design_id"] = "sha256:" + "1" * 64
+        census_path.write_text(
+            json.dumps(census, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        completed = self.rebind()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("PASS mode=rebind", completed.stdout)
+        shutil.copy2(self.fixture / "rebound.json", self.fixture / "receipt.json")
+        verified = self.verify(no_path=True)
+        self.assertEqual(verified.returncode, 0, verified.stderr)
 
     def test_reversible_edit_mutation_returns_nonzero(self) -> None:
         def mutate(value):

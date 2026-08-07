@@ -1,0 +1,12 @@
+npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv
+npc/rv64/testbench/Makefile
+npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py
+npc/rv64/eval/ppa/tests/test_owner_timing_causal_analysis.py
+npc/rv64/eval/ppa/tools/optimization_slice_selector.py
+npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py
+npc/rv64/eval/ppa/optimization-slices-current.json
+npc/rv64/design/arch/optimization-slice-selector-policy-v1.json
+npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh
+npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+.github/task-runs/2026-08-06-rv64-v15m-owner-timing-hypothesis-f7a/evidence

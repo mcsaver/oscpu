@@ -53,6 +53,56 @@ every policy floor, dominate the accepted baseline on all qualified axes within
 the configured Pareto epsilon, exceed the balanced-score threshold, and remain
 on the global candidate-set Pareto front.
 
+## Medium next-slice selector
+
+The promotion tools compare complete design points. The optimization loop uses
+a separate medium-weight selector to decide which bounded action should happen
+next:
+
+```bash
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh --validate-only
+
+python3 -B npc/rv64/eval/ppa/tools/optimization_slice_selector.py build \
+  --output npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+```
+
+The selector binds the live RTL design-id, current architecture/historical/
+ARCH_STABLE/system/PERF receipts, canonical CPI census, normative PPA policy,
+active slice catalog and optional research-state artifacts. It first resolves
+state and hard blockers, then selects causal measurement, reference PPA
+qualification or one reversible RTL experiment. Its current decision is a
+derived cache, not a new authority.
+
+`--validate-only` is a selector-contract gate rather than a current-design
+signoff.  Its decision-logic tests use an explicit frozen design identity so a
+normal RTL edit does not invalidate unrelated unit-test fixtures.  It then
+checks the live cache separately: a coherent cache must verify canonically and
+its stored design-id must independently equal a fresh live report; a
+cache whose bound design differs from live RTL is accepted only as an expected
+fail-closed condition after a fresh runtime-only rebuild and verify produces
+`STATE_CONFLICT` with `STATE_RECONCILIATION`.  In that case the retained
+`optimization-slice-current.json` still fails direct `verify` and is not a
+current authority.  Rebinding or publishing it remains a separate engineering
+action.
+
+Information slices are compared without a hidden scalar score. Measured design
+alternatives use conservative interval Pareto relations for performance, area
+and qualified power. Timing is only a hard gate. If CPI improves while area
+regresses, or intervals overlap so neither point certainly dominates, the
+result is `RESEARCH_REQUIRED`; qualified evidence must be narrowed or an
+explicit deployment preference must be frozen before selection continues.
+Unqualified and qualified power are never mixed in one three-axis front.
+
+Research-state JSON cannot assert causal or PPA facts directly. Owner timing is
+derived only from a same-design workload A/B receipt that rebuilds canonically;
+an available PPA reference must pass the existing checker with
+`--require-accepted`. The decision schema and both verifier implementations are
+hash-bound inputs, so changing their semantics invalidates the current decision.
+
+`optimization_slice_selector.py` never authorizes promotion or RTL semantics.
+Complete candidates still pass `check.py`, `compare.py` and the global
+`front.py` flow below.
+
 ## One-time architecture-feasible seed
 
 R3.6 is an architecture-infeasible measurement anchor, not an accepted

@@ -133,6 +133,131 @@ class TerminalCollectorLaneContractTests(unittest.TestCase):
         ):
             LANES.audit_text(mutant, COLLECTOR)
 
+    def test_scalar_birth_inhibit_removal_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "      !v15r_mem_birth_any_w &&\n",
+            "",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "reduced exact owner-terminal predicate"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_scalar_birth_lane_omission_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "mem_issue_res_capture_w || mem_issue1_res_capture_w",
+            "mem_issue_res_capture_w || mem_issue_res_capture_w",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "scalar memory-birth predicate"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_indexed_birth_mask_in_active_holder_is_rejected(self) -> None:
+        target = (
+            "      mem_req_fire_owner_mask_w | mem1_req_fire_owner_mask_w;"
+        )
+        prefix, suffix = BACKEND.rsplit(target, 1)
+        mutant = (
+            prefix
+            + "      v9y_mem_birth_token_mask_w |\n"
+            + target
+            + suffix
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError, "birth mask must not feed active holder"
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_indexed_birth_assignment_tail_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "      (v9y_pending_without_live_mask_w == 32'b0);",
+            "      (v9y_pending_without_live_mask_w == 32'b0) &&\n"
+            "      (v9y_mem_birth_token_mask_w == 32'b0);",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError,
+            "indexed birth decode reaches production terminal cone",
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_indexed_birth_alias_in_active_holder_is_rejected(self) -> None:
+        target = "  wire [31:0] v9y_active_holder_mask_w ="
+        mutant = BACKEND.replace(
+            target,
+            "  wire [31:0] v15r_birth_alias_w = "
+            "v9y_mem_birth_token_mask_w;\n"
+            + target
+            + "\n      v15r_birth_alias_w |",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError,
+            "indexed birth decode reaches production terminal cone",
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_indexed_birth_in_intermediate_mask_is_rejected(self) -> None:
+        mutant = BACKEND.replace(
+            "  wire [31:0] v9y_unterminalized_holder_mask_w =\n"
+            "      v9y_active_holder_mask_w & ~v9y_terminal_transfer_mask_w;",
+            "  wire [31:0] v9y_unterminalized_holder_mask_w =\n"
+            "      (v9y_active_holder_mask_w | v9y_mem_birth_token_mask_w) &\n"
+            "      ~v9y_terminal_transfer_mask_w;",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError,
+            "indexed birth decode reaches production terminal cone",
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_renamed_indexed_birth_decode_is_rejected(self) -> None:
+        target = "  wire [31:0] v9y_active_holder_mask_w ="
+        mutant = BACKEND.replace(
+            target,
+            "  wire [31:0] v15r_birth_clone_w =\n"
+            "      mem_issue_res_capture_w ?\n"
+            "      (32'h1 << mem_owner_alloc0_token_w) : 32'b0;\n"
+            + target
+            + "\n      v15r_birth_clone_w |",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError,
+            "indexed birth decode reaches production terminal cone",
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
+    def test_indexed_birth_always_reg_alias_is_rejected(self) -> None:
+        target = "  wire [31:0] v9y_active_holder_mask_w ="
+        mutant = BACKEND.replace(
+            target,
+            "  reg [31:0] v15r_birth_reg_alias_r;\n"
+            "  always @(*) begin\n"
+            "    v15r_birth_reg_alias_r = v9y_mem_birth_token_mask_w;\n"
+            "  end\n"
+            + target
+            + "\n      v15r_birth_reg_alias_r |",
+            1,
+        )
+        self.assertNotEqual(mutant, BACKEND)
+        with self.assertRaisesRegex(
+            LANES.ContractError,
+            "indexed birth decode reaches production terminal cone",
+        ):
+            LANES.audit_text(mutant, COLLECTOR)
+
     def test_tracker_free_lane_swap_is_rejected(self) -> None:
         mutant = BACKEND.replace(
             ".free1_token_i(mem_terminal_deq1_token_w)",

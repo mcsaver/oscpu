@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15q-arch-stable-methodology-rebind-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地RV64双发射OoO核337de8bf的ARCH_STABLE候选5da5a860：确认production RTL、配置、simulator、workload与L0-L3证据未漂移，v1到v2仅吸收本轮性能基线、CPI census和owner-timing方法文件更新；不得重跑DUT",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence",
+      ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2",
+      ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+      "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py",
+      "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-arch-stable-methodology-rebind-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按RV64对象→设计配置→TB/EDA观测→PASS/GAP范围组织结论；核对candidate SHA-256 5da5a860b6e6c4a3359c51aeda8cd62446a1b77fc8e166b8809b56d5ab546dfd、146项production RTL、architecture 9/9、L0-L3、零assertion、债务/历史/holder及PPA边界",
+    "若无blocker，最终报告恰好一次原样输出 [ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 candidate_sha256=5da5a860b6e6c4a3359c51aeda8cd62446a1b77fc8e166b8809b56d5ab546dfd，并保留unknowns、scope_extension_request与confidence_and_basis"
+  ],
+  "success_criteria": [
+    "候选v1/v2的production RTL、配置、simulator与workload exact identity一致；方法文件变化不得被误述为DUT语义变化",
+    "L0 113/113、L1 177/177+61/61且DiffTest mismatch 0、L2/L3 all PASS、RTL assertion 0；Ubuntu保持explicit-request-only NOT_RUN，PPA UNQUALIFIED",
+    "若证据不足、哈希不一致或发现反例，返回GAP或inconclusive，不弱化断言、不修改历史证据"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -75,22 +75,37 @@ For one token, let:
 
 The production reduction is local to `OooIntBackend`:
 
-- active holders include both MIQs, both bridge residency masks, both
-  reservations, legacy buffer, `mem_pending_q`, both retries, SQ ownership,
-  same-edge request handoffs, and same-edge reservation births;
+- the token-indexed active-holder mask includes both MIQs, both bridge
+  residency masks, both reservations, legacy buffer, `mem_pending_q`, both
+  retries, SQ ownership, and same-edge request handoffs;
+- same-edge reservation birth is carried separately as
+  `mem_birth_any = mem_issue_res_capture || mem_issue1_res_capture`. The
+  token-indexed birth mask remains an observability/assertion fact but does not
+  feed the production control reduction;
 - terminal transfer is the twelve-lane collector-accepted mask OR exact STORE
   release;
 - collector pending and tracker live remain separate inputs.
 
+This scalar factorization is exact under the existing edge-old event algebra:
+a birth names an edge-old FREE token, while a terminal transfer names an
+edge-old LIVE exact holder. Thus `birth_mask & (live_mask |
+terminal_transfer_mask) == 0`. With no birth, the four mask clauses below are
+unchanged; with any birth, the explicit scalar inhibit produces the same
+required non-terminal result without putting the allocated token value and a
+32-bit dynamic one-hot decoder in the global control cone.
+
 `mem_owner_terminalized_o` requires:
 
-1. no active holder without a current exact transfer;
-2. no transfer without an active holder;
-3. no live token outside active, transfer, or collector-pending phase;
-4. no collector-pending token outside the tracker live set.
+1. no same-edge reservation birth;
+2. no active holder without a current exact transfer;
+3. no transfer without an active holder;
+4. no live token outside active, transfer, or collector-pending phase;
+5. no collector-pending token outside the tracker live set.
 
-The last transfer is shadowed for one cycle under `OOO_ASSERT`; the same token
-must not remain in any active holder on the next edge.
+The last transfer is shadowed for one cycle under `OOO_ASSERT`; the transferred
+tuple must not remain in any edge-old active holder on the next edge. A legal
+new same-edge birth is not the old tuple and is checked separately by the
+FREE-versus-LIVE disjointness assertions above.
 
 The holder masks and `mem_owner_terminalized_o` assignment are production
 logic outside `OOO_ASSERT`. Only fail-loud checks and their shadow state are
@@ -149,6 +164,10 @@ global drain condition.
 - Compile and run the focused backend and collector with `OOO_ASSERT` both
   enabled and disabled; both configurations must observe the same production
   scalar.
+- Observe bank0 and bank1 same-edge reservation births forcing the production
+  scalar low; reject a compile-success assertion-disabled variant that deletes
+  the scalar birth inhibit. Also fail loud if a birth token overlaps the
+  edge-old live or accepted-transfer set.
 - Observe exact SD/FSD SQ release terminalizing the final STORE holder.
 - Reject independent compile-success variants that:
   remove the non-CSR term, remove the CSR term, or replace the exact phase
@@ -177,3 +196,41 @@ global drain condition.
   holder and its ECALL/IRQ/xRET/CSR/FENCE overlap boundary.  This contract
   still does not close the full post-fire lifecycle of every pending SYSTEM
   kind, simulation exit, full Linux flag-on, architecture-stable, or PPA.
+
+## 6. V15R implementation record
+
+V15R factors the same-edge reservation-birth term out of the token-indexed
+active-holder reduction.  Production logic uses
+`mem_issue_res_capture_w || mem_issue1_res_capture_w` as a scalar hard inhibit
+of `mem_owner_terminalized_o`; the token-indexed birth mask remains only for
+assertion observability.  No interface, state, allocator cursor, handshake,
+flush, exception, memory-order, or terminal-transfer authority changes.
+
+The equivalence basis is the edge-old state partition in
+`OooMemOwnerTracker`: allocation selects FREE, while release/terminal transfer
+requires LIVE.  Focused V8W/V11M runs pass with `OOO_ASSERT` on and off, and an
+assertion-disabled compile-success mutant deleting the scalar inhibit is
+rejected at the intended observation.  A same-configuration 5 ns mapped A/B
+improves WNS, TNS and area proxy, but remains 40/40 timing-violating; vectorless
+power is unqualified.  This record therefore authorizes retaining the change
+as an engineering candidate only.  It does not constitute canonical-current,
+PPA, architecture-stable, L2, L3, or Ubuntu signoff.
+
+## 7. V15S owner-set emptiness factorization
+
+The complete-memory-idle predicate needs only the Boolean fact that the
+registered owner-token set is empty.  It must not consume the arithmetic
+`OooMemOwnerTracker.live_count_o` popcount merely to compare it with zero.
+Production `OooIntBackend` therefore derives
+`v15s_mem_owner_any_live_w = |mem_owner_live_mask_w` and uses its inverse in
+`mem_idle_o`.  The count remains present for conservation assertions,
+diagnostics and testbench observability.
+
+This is a same-cycle combinational factorization over the same Q-only
+`live_q` state.  It does not change allocation/free authority, token metadata,
+terminal collection, memory ordering, flush, CSR retirement or frontend
+redirect policy.  With `OOO_ASSERT` enabled, mask emptiness and count zero are
+required to agree on every active edge.  Focused validation must observe a
+live owner holding `mem_idle_o` low and must reject a compile-success variant
+that constantizes the owner-exists reduction.  PPA qualification remains a
+separate same-configuration mapped A/B decision.

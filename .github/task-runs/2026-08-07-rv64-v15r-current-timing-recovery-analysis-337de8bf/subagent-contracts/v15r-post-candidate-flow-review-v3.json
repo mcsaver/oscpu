@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15r-post-candidate-flow-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 V15R 候选后收尾：确认 optimization selector 的冻结身份单测与 live stale-cache 检查职责分离但未削弱 direct canonical verify；确认 terminal-collector 静态合同精确绑定 scalar reservation-birth inhibit 且负向变体有效；核对四个 candidate fast gate 日志与既有 RTL 复核结论；不得修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/run-optimization-slice-selector.sh",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/README.md",
+      "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+      "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/task-report.md",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/evidence/independent-review-v2.md",
+      ".github/runtime-artifacts/agent-flow/rv64-v15r-current-timing-recovery-analysis-337de8bf/gates",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/subagent-contracts/v15r-post-candidate-flow-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-optimization-slice-selector.sh",
+      "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按本地 RV64 对象、配置、checker/test 观测和 PASS/GAP 范围给出候选后独立结论。",
+    "列出所有会把 stale current 误当 canonical、让冻结 fixture 掩盖 live drift、或让 indexed birth decode 重返 production cone 的反例与未知项。"
+  ],
+  "success_criteria": [
+    "证明 direct selector verify 对旧 337 decision 在 f784 live RTL 上仍 fail closed，而 validate-only 只把可验证的 STATE_CONFLICT/STATE_RECONCILIATION 视为合同 PASS。",
+    "证明 terminal collector checker 要求两 lane scalar birth OR、最终 hard inhibit 和 indexed birth mask exclusion，且对应负向测试实际被拒绝。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15q-arch-stable-current-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 双发射 OoO 核当前设计 337de8bf 的 exact ARCH_STABLE candidate 42e1b98c：确认 v1 已核实的两项 RTL delta source-closure 排除、architecture 9/9、L0-L3、债务/历史/holder 合同与新增 5/5 transcript，并核对 v2 合同和报告都只出现一次 canonical approval marker；不得重跑 DUT",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence",
+      ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence",
+      ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2",
+      ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1",
+      ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/design/arch",
+      "npc/rv64/eval/ppa/tools/architecture_current_delta_rebind.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_current_delta_rebind.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/system_recertification_current.py",
+      "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-arch-stable-current-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RV64 对象→设计周期/配置→testbench/EDA 观测→PASS/GAP 范围组织独立结论；核对 candidate SHA-256 42e1b98c4dfb7798b7d2c01a4c99a21c9ad9061b44bacf1d3a1e54403f1b19a3、design-id、146-file RTL、两项 delta、9/9 architecture、L0-L3、零 assertion、16/4 debt、6/6 historical、holder、PPA/Ubuntu 与 5/5 transcript",
+    "若无 blocker，最终报告必须恰好一次原样输出 [ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 candidate_sha256=42e1b98c4dfb7798b7d2c01a4c99a21c9ad9061b44bacf1d3a1e54403f1b19a3；同时保留 unknowns、scope_extension_request、confidence_and_basis，证据不足则 GAP"
+  ],
+  "success_criteria": [
+    "v2 合同自身与最终独立报告都恰好包含一次 canonical approval marker，且 marker 精确绑定当前 design-id 与 candidate SHA-256",
+    "两项 production RTL delta 均不进入九项 directed source closure；directed_simulation_reexecuted=false；4/4 负向 fixture 与 unit-tests.log 中 5 个 ok、Ran 5 tests、OK、rc=0 闭合",
+    "L0 113/113、L1 177/177+61/61 且 DiffTest mismatch 0、L2/L3 all PASS、RTL assertion 0；Ubuntu explicit-request-only NOT_RUN，PPA UNQUALIFIED，不得越权晋级",
+    "若证据不足、哈希不一致或发现反例，返回 GAP/inconclusive，不弱化断言、不绕过 source closure、不修改历史证据"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

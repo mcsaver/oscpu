@@ -6,10 +6,11 @@ repo_root=/home/lyg/PA/ysyx-workbench
 run_dir=""
 mode=full
 probe_workload=coremark
+arch_stable_input=npc/rv64/eval/ppa/evidence/arch-stable-current.json
 
 usage() {
   printf '%s\n' \
-    "usage: $0 --run-dir .github/task-runs/<run-id> [--mode full|invalid-probe] [--workload coremark|dhrystone_10000]" >&2
+    "usage: $0 --run-dir .github/task-runs/<run-id> [--arch-stable PATH] [--mode full|invalid-probe] [--workload coremark|dhrystone_10000]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -22,6 +23,11 @@ while [[ $# -gt 0 ]]; do
     --mode)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       mode=$2
+      shift 2
+      ;;
+    --arch-stable)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      arch_stable_input=$2
       shift 2
       ;;
     --workload)
@@ -57,6 +63,25 @@ case "${run_dir}" in
     exit 2
     ;;
 esac
+if [[ -e "${run_dir}" || -L "${run_dir}" ]]; then
+  printf '%s\n' '[owner-timing-workload] run directory already exists' >&2
+  exit 2
+fi
+if [[ "${arch_stable_input}" != /* ]]; then
+  arch_stable_input="${repo_root}/${arch_stable_input}"
+fi
+arch_stable=$(realpath -m -- "${arch_stable_input}") || exit 2
+case "${arch_stable}" in
+  "${repo_root}/"*) ;;
+  *)
+    printf '%s\n' '[owner-timing-workload] ARCH_STABLE receipt escapes workspace' >&2
+    exit 2
+    ;;
+esac
+[[ -f "${arch_stable}" ]] || {
+  printf '%s\n' '[owner-timing-workload] ARCH_STABLE receipt is missing' >&2
+  exit 2
+}
 
 artifact_name=owner-timing-workload-ab
 arch_stable_required=1
@@ -75,14 +100,20 @@ simulator_identity="${evidence_dir}/simulator-identity.json"
 cleanup_identity="${evidence_dir}/runtime-cleanup.json"
 
 runtime_base="${repo_root}/.github/runtime-artifacts/owner-timing-workload-ab"
-mkdir -p "${evidence_dir}" "${logs_dir}" "${runtime_base}" || exit 1
+lock_path="${repo_root}/.github/runtime-artifacts/rv64-engineering-single-flight.lock"
+mkdir -p "${evidence_dir}" "${logs_dir}" "${runtime_base}" \
+  "$(dirname -- "${lock_path}")" || exit 1
+exec 9>"${lock_path}"
+if ! flock -n 9; then
+  printf '%s\n' '[owner-timing-workload] RV64 engineering lane is occupied' >&2
+  exit 3
+fi
 runtime_dir=$(mktemp -d "${runtime_base}/run.XXXXXX") || exit 1
 build_dir="${runtime_dir}/build"
 build_log_full="${runtime_dir}/build-full.log"
 diagnostic_simulator="${build_dir}/NpcSimTop"
 
 baseline="${repo_root}/npc/rv64/eval/ppa/evidence/performance-baseline-current.json"
-arch_stable="${repo_root}/npc/rv64/eval/ppa/evidence/arch-stable-current.json"
 contract="${repo_root}/npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json"
 profile="${repo_root}/npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json"
 make_fragment="${repo_root}/npc/rv64/eval/ppa/instrumentation/owner-timing.mk"
@@ -90,8 +121,8 @@ checker="${repo_root}/npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh"
 tool="${repo_root}/npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py"
 arch_tool="${repo_root}/npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
 baseline_tool="${repo_root}/npc/rv64/eval/ppa/tools/performance_baseline_current.py"
-coremark_image="${repo_root}/.github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/coremark.bin"
-dhrystone_image="${repo_root}/.github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/dhrystone.bin"
+coremark_image=""
+dhrystone_image=""
 
 active_pid=""
 cleanup_rc=0
@@ -230,9 +261,23 @@ if [[ "${preflight_rc}" -eq 0 ]]; then
   preflight_rc=$?
 fi
 if [[ "${preflight_rc}" -eq 0 ]]; then
+  task_run_status_stage "preflight-workload-images"
+  coremark_image=$(python3 -B "${tool}" resolve-image \
+    --baseline "${baseline}" --contract "${contract}" --profile "${profile}" \
+    --workload coremark) || preflight_rc=$?
+fi
+if [[ "${preflight_rc}" -eq 0 ]]; then
+  dhrystone_image=$(python3 -B "${tool}" resolve-image \
+    --baseline "${baseline}" --contract "${contract}" --profile "${profile}" \
+    --workload dhrystone_10000) || preflight_rc=$?
+fi
+if [[ "${preflight_rc}" -eq 0 ]]; then
   if [[ ! -f "${coremark_image}" || ! -f "${dhrystone_image}" ||
         ! -f "${contract}" || ! -f "${profile}" || ! -f "${tool}" ]]; then
     preflight_rc=1
+  else
+    sha256sum "${coremark_image}" "${dhrystone_image}" \
+      >"${evidence_dir}/workload-images.sha256" || preflight_rc=$?
   fi
 fi
 
@@ -243,9 +288,9 @@ if [[ "${preflight_rc}" -eq 0 ]]; then
   fast_rc=0
   wait "${active_pid}" || fast_rc=$?
   active_pid=""
-  if ! grep -Fqx \
-      '[OWNER-TIMING-CHECK][PASS] tier=fast unit_cases=12 workload_cases=14 candidate_authorized=0 ppa=UNQUALIFIED' \
-      "${evidence_dir}/owner-timing-fast.log"; then
+  if [[ $(grep -Ec \
+      '^\[OWNER-TIMING-CHECK\]\[PASS\] tier=fast unit_cases=[1-9][0-9]* workload_cases=[1-9][0-9]* candidate_authorized=0 ppa=UNQUALIFIED$' \
+      "${evidence_dir}/owner-timing-fast.log") -ne 1 ]]; then
     fast_rc=1
   fi
 fi
@@ -364,6 +409,7 @@ if [[ "${postflight_rc}" -eq 0 && "${cleanup_capture_rc}" -eq 0 ]]; then
   if [[ "${mode}" == full ]]; then
     python3 -B "${tool}" build \
       --baseline "${baseline}" \
+      --arch-stable "${arch_stable}" \
       --contract "${contract}" \
       --profile "${profile}" \
       --production-manifest "${manifest_before}" \

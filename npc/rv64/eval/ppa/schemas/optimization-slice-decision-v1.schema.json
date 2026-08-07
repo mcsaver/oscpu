@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-optimization-slice-decision-v1.schema.json",
+  "title": "NPC RV64 CPI/PPA next-slice decision",
+  "type": "object",
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "decision",
+    "next_action",
+    "reason_codes",
+    "live_design_id",
+    "snapshot_key",
+    "inputs",
+    "state",
+    "eligible_front",
+    "selected_slice",
+    "candidate_dispositions",
+    "tradeoff_analysis",
+    "deferred",
+    "stale_refs",
+    "claim_boundary"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-optimization-slice-decision-v1"
+    },
+    "decision": {
+      "enum": [
+        "SELECT",
+        "STATE_CONFLICT",
+        "NO_ELIGIBLE",
+        "RESEARCH_REQUIRED"
+      ]
+    },
+    "next_action": {
+      "enum": [
+        "STATE_RECONCILIATION",
+        "CORRECTNESS_CLOSURE",
+        "CAUSAL_MEASUREMENT",
+        "PPA_QUALIFICATION",
+        "RTL_EXPERIMENT",
+        "DIVERSITY_EXPERIMENT",
+        "HOLD",
+        "RESEARCH_REQUIRED"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "live_design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "snapshot_key": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "policy",
+        "catalog",
+        "normative",
+        "authorities",
+        "decision_schema",
+        "verification_tools",
+        "research_state"
+      ],
+      "properties": {
+        "policy": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "catalog": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "normative": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/artifactReference"
+          }
+        },
+        "authorities": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/artifactReference"
+          }
+        },
+        "decision_schema": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "verification_tools": {
+          "type": "object",
+          "required": [
+            "b_latency_sensitivity",
+            "b_response_candidate_analysis",
+            "causal_analysis",
+            "current_reference_ppa",
+            "owner_timing",
+            "ppa_checker"
+          ],
+          "properties": {
+            "b_latency_sensitivity": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "b_response_candidate_analysis": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "causal_analysis": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "current_reference_ppa": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "owner_timing": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "ppa_checker": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          },
+          "additionalProperties": false
+        },
+        "research_state": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/artifactReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object"
+    },
+    "eligible_front": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "selected_slice": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "candidate_dispositions": {
+      "type": "array"
+    },
+    "tradeoff_analysis": {
+      "type": "object"
+    },
+    "deferred": {
+      "type": "array"
+    },
+    "stale_refs": {
+      "type": "array"
+    },
+    "claim_boundary": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

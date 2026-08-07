@@ -1,0 +1,12 @@
+npc/rv64/eval/ppa/tools
+npc/rv64/eval/ppa/tests
+npc/rv64/eval/ppa
+.github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf
+npc/rv64/design/specs
+npc/rv64/vsrc/execute
+npc/rv64/testbench/tests
+npc/rv64/testbench
+npc/rv64/testbench/scripts
+.github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/driver
+.github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/subagent-contracts
+.github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/evidence

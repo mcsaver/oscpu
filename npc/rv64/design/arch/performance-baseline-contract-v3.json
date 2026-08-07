@@ -1,42 +1,42 @@
 {
   "schema": "npc-rv64-performance-baseline-contract-v3",
-  "performance_baseline_contract_id": "npc-rv64-perf-baseline-v3-f7a-fresh-direct-20260806",
+  "performance_baseline_contract_id": "npc-rv64-perf-baseline-v3-337-fresh-direct-20260807",
   "contract_state": "FROZEN_CURRENT_ARCH_STABLE_FRESH_EXECUTION_CONTRACT",
   "performance_baseline_eligible": true,
   "current_arch_stable_binding": {
-    "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
     "result": {
       "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
-      "sha256": "7e9844baacf69fb807b2e48630386016ba2f51b528712ba40cbff6ef4e2fd404",
-      "size_bytes": 762555
+      "sha256": "14c36b137a8d188538da5d1a57ef96ce624af362dec7da25698d9cc88df0866d",
+      "size_bytes": 758886
     },
     "candidate": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15j-arch-stable-current-f7a/evidence/arch-stable-candidate-f7a-v3/candidate.json",
-      "sha256": "4f25d52d235e8f19a5050302ea91de7e8be8197fa0af3f6163b7586b61ccd0f1",
-      "size_bytes": 162721
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/candidate.json",
+      "sha256": "42e1b98c4dfb7798b7d2c01a4c99a21c9ad9061b44bacf1d3a1e54403f1b19a3",
+      "size_bytes": 163052
     },
     "functional_inputs_pre": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.pre.json",
-      "sha256": "63a250cf43c051b56d873bba785f05e1b53a7e82f0e37a283621368aa119806c",
-      "size_bytes": 314126
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.pre.json",
+      "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
+      "size_bytes": 314702
     },
     "functional_inputs_post": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/inputs.post.json",
-      "sha256": "63a250cf43c051b56d873bba785f05e1b53a7e82f0e37a283621368aa119806c",
-      "size_bytes": 314126
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.post.json",
+      "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
+      "size_bytes": 314702
     },
     "simulator": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/frozen/NpcSimTop",
-      "sha256": "4c991c9fdaf70cb15e1c525bddb6417fd659f367de46c3b6d4b5e3012eef232e",
-      "size_bytes": 3243304
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop",
+      "sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6",
+      "size_bytes": 3235088
     },
-    "simulator_sha256": "4c991c9fdaf70cb15e1c525bddb6417fd659f367de46c3b6d4b5e3012eef232e",
+    "simulator_sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6",
     "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
   },
   "measurement_contract": {
     "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
-    "sha256": "873d3fa27a307278e078d1e65f4686ffd9b2c59902fa0518179d04cee8678b51",
-    "size_bytes": 5837
+    "sha256": "5b23b81f49c0003a4c80c7e825b446b011ca7932578da6a0c7ccd16fa2b7a6e5",
+    "size_bytes": 5854
   },
   "counter_schema": {
     "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
@@ -45,24 +45,24 @@
   },
   "boundary_qualification_amendment": {
     "path": "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
-    "sha256": "f4236d6426145f9698865ce95ec8b1951fb4e6be66eac1328bccb58ecbff36ac",
-    "size_bytes": 3777
+    "sha256": "361df81bdeb0a3886758eafb93863098f62c4f014394541b2e51bbaf1e3093fe",
+    "size_bytes": 3782
   },
   "workload_matrix": {
     "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
-    "sha256": "c2f4245d5f8793ab92ef0a44e3222e6d58a35e59f59a9aa938b8b030c4d0900e",
+    "sha256": "26db1d8705a1c2d187cc4feedf8296fca3eccd19b8fd891cb9d67418f0aed2e2",
     "size_bytes": 3310
   },
   "policy": {
     "path": "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
-    "sha256": "9ec60a37f243575be750ac5473e7908ba08ea33dc9fd74cd462609856866e391",
-    "size_bytes": 2391
+    "sha256": "3ce023e3e76b8beb1fab78fbb735137fdf17b13d0c64816167bf3d557395eec6",
+    "size_bytes": 2395
   },
   "workloads": {
     "coremark": {
       "input": "ITERATIONS=10",
       "image": {
-        "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/images/benchmarks/coremark.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/coremark.bin",
         "sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
         "size_bytes": 1068536
       },
@@ -75,7 +75,7 @@
     "dhrystone_10000": {
       "input": "mainargs=10000",
       "image": {
-        "path": ".github/task-runs/2026-08-05-rv64-v15f-full-core-current-f7a6-a1/evidence/functional/images/benchmarks/dhrystone.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/dhrystone.bin",
         "sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
         "size_bytes": 1073376
       },

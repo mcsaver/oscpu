@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15o-owner-b-response-candidate-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 store AW/W 到 B terminal 的五拍 canonical 层级映射，并判定 OooLsuAxiLaneAdapter final-B fall-through 候选是否保持 split-write、BRESP、backpressure、owner/holder、flush/replay 与精确完成合同，同时指出 5 ns 路径风险。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1/evidence/owner-b-latency-sensitivity/checker-replay-v2/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/evidence/owner-b-response-candidate-analysis/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/evidence/owner-b-response-candidate-analysis/result.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/subagent-contracts/v15o-owner-b-response-candidate-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/evidence/owner-b-response-candidate-analysis/result.json",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出五拍周期链逐边复核、唯一候选的必要/充分条件、必须杀死的 RTL 反例、时序路径风险以及 PASS/GAP 边界；不得把投影写成实测 CPI。"
+  ],
+  "success_criteria": [
+    "所有 source/report/receipt 哈希一致；五拍映射与 RTL 时序状态一致；候选不提前 store terminal、不暴露 split 中间 B、不丢失 first-error BRESP，backpressure fallback 稳定；若任一项不成立则明确 GAP 和 scope_extension_request。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

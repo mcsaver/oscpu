@@ -2513,6 +2513,9 @@ module tb_ooo_int_backend;
           (dut.mem_owner_alloc0_token_w !== V11M_TOKEN0) ||
           (dut.mem_owner_alloc1_token_w !== V11M_TOKEN1))
         v11m_oracle_fail("pair-credit-atomic");
+      if (dut.mem_owner_terminalized_o !== 1'b0)
+        v11m_oracle_fail("v15r-dual-birth-terminalized");
+      $display("[V15R-DUAL-ISSUE-BIRTH-TERMINALIZED][PASS] lane0=1 lane1=1 terminalized=0");
       `TB_TICK(clk);
       #1;
 
@@ -10612,6 +10615,8 @@ module tb_ooo_int_backend;
       #1;
       tb_check1("V8W bank0 LOAD capture",
                 dut.mem_issue_res_capture_w, 1'b1);
+      tb_check1("V15R issue-lane0 birth blocks terminalized",
+                dut.mem_owner_terminalized_o, 1'b0);
       `TB_TICK(clk);
       #1;
       tb_check1("V8W bank0 LOAD request fire",
@@ -10741,6 +10746,9 @@ module tb_ooo_int_backend;
       #1;
       tb_check1("V8W bank1 LOAD capture",
                 dut.mem_issue_res_capture_w, 1'b1);
+      tb_check1("V15R bank1-routed birth blocks terminalized",
+                dut.mem_owner_terminalized_o, 1'b0);
+      $display("[V15R-SINGLE-ISSUE-BIRTH-TERMINALIZED][PASS] route_bank0=1 route_bank1=1 terminalized=0");
       `TB_TICK(clk);
       #1;
       tb_check1("V8W bank1 LOAD request fire",

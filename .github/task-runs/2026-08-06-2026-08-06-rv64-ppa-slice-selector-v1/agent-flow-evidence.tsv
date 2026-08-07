@@ -1,0 +1,6 @@
+2026-08-06T04:38:34Z	optimization-selector-27-tests-and-canonical-verify	PASS	npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+2026-08-06T04:38:40Z	agent-flow-gate-routing-regression	PASS	scripts/tests/test-agent-flow.sh
+2026-08-06T04:38:45Z	rv64-soc-delivery-gate-regression	PASS	npc/rv64/design/arch/rv64-soc-delivery-gates.tsv
+2026-08-06T05:06:11Z	optimization-selector-49-tests-and-canonical-verify	PASS	npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+2026-08-06T05:06:16Z	owner-timing-f7a-v3-fast-gate	PASS	npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json
+2026-08-06T05:17:45Z	independent-counterexample-review-generation-4	PASS	npc/rv64/eval/ppa/evidence/optimization-slice-current.json

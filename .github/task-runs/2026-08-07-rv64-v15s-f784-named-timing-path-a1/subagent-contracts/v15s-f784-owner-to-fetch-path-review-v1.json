@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15s-f784-owner-to-fetch-path-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 f784 设计 5ns OpenSTA Top40 中从 OooMemOwnerTracker.free0_ready_o 相关寄存器经 mem_owner_live_count、mem_idle、control-event 到 OooFetchPcOutstandingSequencer JALR/redirect 状态的组合路径；定位最小且可逆的 RTL 切分候选、功能合同风险和需验证反例；不得修改文件或运行仿真综合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/evidence/traceable-f784-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/evidence/traceable-f784-a1/summary.json",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/evidence/traceable-f784-a1/command-status.txt",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/evidence/traceable-f784-a1/traceability.txt",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/traceable-f784-a1.status",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/subagent-contracts/v15s-f784-owner-to-fetch-path-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      ".github/task-runs/2026-08-07-rv64-v15s-f784-named-timing-path-a1/evidence/traceable-f784-a1/opensta-top40.rpt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象和 5ns EDA 观测组织独立路径审查，列出共同锥、关键端点、候选切分点与不可接受的语义变化。",
+    "给出一个首选和至少一个备选的可证伪 RTL 假设，并列明 L0 反例、断言和后续 PPA 判定条件。"
+  ],
+  "success_criteria": [
+    "确认 40 条路径的真实共同起点与目标状态，不沿用 337 设计的 next_token_q 结论。",
+    "候选优化必须保持 owner/holder、mem_idle、flush、control-event、JALR/redirect 的周期合同，并明确未知项。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

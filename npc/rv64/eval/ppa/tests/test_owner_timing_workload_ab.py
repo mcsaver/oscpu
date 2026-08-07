@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -10,6 +12,15 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py"
+BASELINE = ROOT / "npc/rv64/eval/ppa/evidence/performance-baseline-current.json"
+ARCH_STABLE = ROOT / "npc/rv64/eval/ppa/evidence/arch-stable-current.json"
+CONTRACT = ROOT / (
+    "npc/rv64/eval/ppa/instrumentation/owner-timing-contract-v1.json")
+PROFILE = ROOT / (
+    "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json")
+RUNNER = ROOT / "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh"
+CHECKER = ROOT / (
+    "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh")
 SPEC = importlib.util.spec_from_file_location("owner_timing_workload_ab", TOOL)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -93,6 +104,59 @@ class OwnerTimingWorkloadAbTests(unittest.TestCase):
             common_lines(workload, start_hits) + owner_lines(start_hits)
         )
         return MODULE.parse_diagnostic_log(path, workload)
+
+    def test_current_337_v3_baseline_binding_is_canonical(self) -> None:
+        baseline, _, profile = MODULE.validate_static_inputs(
+            BASELINE, CONTRACT, PROFILE)
+        self.assertEqual(
+            baseline["schema"], "npc-rv64-performance-baseline-current-v3")
+        self.assertEqual(profile["binding"]["design_id"], baseline["design_id"])
+        self.assertEqual(profile["binding"]["baseline_schema"], baseline["schema"])
+        coremark = MODULE.baseline_image_path(baseline, "coremark")
+        dhrystone = MODULE.baseline_image_path(baseline, "dhrystone_10000")
+        expected_input_run = "2026-08-07-rv64-v15p-control-loop-current-f7a"
+        self.assertIn(expected_input_run, str(coremark))
+        self.assertIn(expected_input_run, str(dhrystone))
+        runner = RUNNER.read_text(encoding="utf-8")
+        self.assertIn("resolve-image", runner)
+        self.assertNotIn(
+            "2026-08-04-rv64-v14m-arch-stable-current-cohort-v1", runner)
+
+    def test_live_arch_stable_successor_matches_frozen_baseline_identity(self) -> None:
+        baseline, _, _ = MODULE.validate_static_inputs(
+            BASELINE, CONTRACT, PROFILE)
+        arch_stable = MODULE.validate_arch_stable_reference(
+            ARCH_STABLE, baseline)
+        self.assertEqual(arch_stable["design_id"], baseline["design_id"])
+        self.assertEqual(arch_stable["architecture_freeze"], "ARCH_STABLE")
+
+    def test_arch_stable_design_drift_is_rejected(self) -> None:
+        baseline, _, _ = MODULE.validate_static_inputs(
+            BASELINE, CONTRACT, PROFILE)
+        mutated = copy.deepcopy(json.loads(ARCH_STABLE.read_text(encoding="utf-8")))
+        mutated["design_id"] = "sha256:" + "0" * 64
+        path = self.work / "arch-stable-design-drift.json"
+        path.write_text(
+            json.dumps(mutated, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(MODULE.EvidenceError, "design-id mismatch"):
+            MODULE.validate_arch_stable_reference(path, baseline)
+
+    def test_fast_marker_case_counts_are_observed_not_duplicated(self) -> None:
+        runner = RUNNER.read_text(encoding="utf-8")
+        checker = CHECKER.read_text(encoding="utf-8")
+        self.assertIn("unit_cases=[1-9][0-9]*", runner)
+        self.assertIn("workload_cases=[1-9][0-9]*", runner)
+        self.assertNotIn("workload_cases=14", runner)
+        self.assertIn("workload_case_markers", checker)
+        self.assertIn("unit_case_markers", checker)
+        self.assertNotIn("unit_cases=12 workload_cases=", checker)
+        self.assertIn("rv64-engineering-single-flight.lock", runner)
+        self.assertIn("flock -n 9", runner)
+        self.assertIn("run directory already exists", runner)
+        self.assertIn("--arch-stable", runner)
+        self.assertIn("arch_stable_baseline_identity", TOOL.read_text(encoding="utf-8"))
 
     def test_dhrystone_repeated_start_hits_are_legal(self) -> None:
         parsed = self.diagnostic("dhrystone_10000", start_hits=10000)

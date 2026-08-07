@@ -250,6 +250,69 @@ def require_pattern(text: str, pattern: str, label: str) -> None:
         raise ContractError(f"missing exact contract: {label}")
 
 
+def reject_indexed_birth_production_flow(backend: str) -> None:
+    anchor = backend.find("wire [31:0] v9y_mem_birth_token_mask_w")
+    if anchor < 0:
+        raise ContractError("missing indexed birth observability decode")
+    assertion_boundary = backend.find("`ifdef OOO_ASSERT", anchor)
+    if assertion_boundary < 0:
+        raise ContractError("missing post-terminal assertion boundary")
+    production = backend[:assertion_boundary]
+    production = re.sub(r"/\*.*?\*/", "", production, flags=re.DOTALL)
+    production = re.sub(r"//[^\n]*", "", production)
+    assignments: dict[str, list[str]] = {}
+    for match in re.finditer(
+        r"\b(?P<lhs>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?!=)"
+        r"(?P<rhs>.*?)\s*;",
+        production,
+        re.DOTALL,
+    ):
+        assignments.setdefault(match.group("lhs"), []).append(
+            match.group("rhs")
+        )
+
+    indexed_decode = re.compile(
+        r"(?:32'b0*1|32'h0*1|32'd0*1|1'b1|1)\s*<<\s*"
+        r"mem_owner_alloc[01]_token_w"
+    )
+    tainted = {
+        lhs for lhs, expressions in assignments.items()
+        if any(indexed_decode.search(rhs) for rhs in expressions)
+    }
+    if "v9y_mem_birth_token_mask_w" not in tainted:
+        raise ContractError("missing indexed birth observability decode")
+    identifiers = {
+        lhs: {
+            identifier
+            for rhs in expressions
+            for identifier in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", rhs)
+        }
+        for lhs, expressions in assignments.items()
+    }
+    changed = True
+    while changed:
+        changed = False
+        for lhs, dependencies in identifiers.items():
+            if lhs not in tainted and dependencies & tainted:
+                tainted.add(lhs)
+                changed = True
+
+    sinks = {
+        "v9y_active_holder_mask_w",
+        "v9y_unterminalized_holder_mask_w",
+        "v9y_terminal_without_holder_mask_w",
+        "v9y_unaccounted_live_mask_w",
+        "v9y_pending_without_live_mask_w",
+        "mem_owner_terminalized_o",
+    }
+    leaked = sorted(sinks & tainted)
+    if leaked:
+        raise ContractError(
+            "indexed birth decode reaches production terminal cone: "
+            + ",".join(leaked)
+        )
+
+
 def detect_source_guards(backend: str) -> dict[str, bool]:
     return {
         guard: all(re.search(pattern, backend, re.DOTALL) is not None
@@ -443,11 +506,30 @@ def audit_text(backend: str, collector: str) -> dict[str, Any]:
         )
     require_pattern(
         backend,
+        r"wire\s+v15r_mem_birth_any_w\s*=\s*"
+        r"mem_issue_res_capture_w\s*\|\|\s*"
+        r"mem_issue1_res_capture_w\s*;",
+        "scalar memory-birth predicate",
+    )
+    active_holder = re.search(
+        r"wire\s+\[31:0\]\s+v9y_active_holder_mask_w\s*=\s*"
+        r"(?P<body>.*?)\s*;",
+        backend,
+        re.DOTALL,
+    )
+    if not active_holder:
+        raise ContractError("missing active holder mask")
+    if "v9y_mem_birth_token_mask_w" in active_holder.group("body"):
+        raise ContractError("birth mask must not feed active holder reduction")
+    reject_indexed_birth_production_flow(backend)
+    require_pattern(
+        backend,
         r"assign\s+mem_owner_terminalized_o\s*=\s*"
+        r"!v15r_mem_birth_any_w\s*&&\s*"
         r"\(v9y_unterminalized_holder_mask_w\s*==\s*32'b0\)\s*&&\s*"
         r"\(v9y_terminal_without_holder_mask_w\s*==\s*32'b0\)\s*&&\s*"
         r"\(v9y_unaccounted_live_mask_w\s*==\s*32'b0\)\s*&&\s*"
-        r"\(v9y_pending_without_live_mask_w\s*==\s*32'b0\)",
+        r"\(v9y_pending_without_live_mask_w\s*==\s*32'b0\)\s*;",
         "reduced exact owner-terminal predicate",
     )
     for label in (

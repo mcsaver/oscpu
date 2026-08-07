@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15r-mem-birth-factor-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooIntBackend.mem_owner_terminalized_o 同周期 reservation-birth 标量因子化，补充核对 OooMemOwnerTracker.alloc_ready/token 的旧状态不交叠合同，并核对 OOO_ASSERT 开关下定向 testbench、compile-success mutation、5ns mapped A/B 与 L0/L1 证据；识别 RTL 语义反例、PPA 结论边界、陈旧绑定和未闭合项；不得修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/specs/ooo-memory-producer-lease.md",
+      "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
+      "npc/rv64/testbench/scripts/run_v15r_mem_birth_terminalized_mutation.sh",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/task-report.md",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/evidence/focused",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/evidence/mutation",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/evidence/ppa-candidate-f784-a1",
+      ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/current-fresh-a1",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-trace-337-a1/evidence/checker-replay-v1/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15r-mem-birth-factor-f784-a1/evidence/module/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15r-mem-birth-factor-f784-a1/evidence/functional/run-result.json",
+      ".github/task-runs/2026-08-07-rv64-v15r-mem-birth-factor-f784-a1/evidence/functional/functional-aggregate-result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/subagent-contracts/v15r-mem-birth-factor-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      ".github/task-runs/2026-08-07-rv64-v15r-current-timing-recovery-analysis-337de8bf/task-report.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件、周期或编译配置、testbench/EDA 观测、PASS/GAP 范围组织独立结论。",
+    "列出全部实质性反例、未知项、替代解释、证据绑定缺口及是否可接受当前候选作为下一轮工程基线。"
+  ],
+  "success_criteria": [
+    "确认 tracker 的旧状态 free-token 分配与旧 LIVE terminal 是否互斥，以及同周期 birth 标量抑制是否正确表达；确认定向正向、断言关闭 mutation 具有因果判别力。",
+    "严格区分数值 PPA 改善、功耗未限定、40/40 负裕量、未运行候选 named trace、陈旧 instance-graph 和未执行 L2/L3 的边界。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

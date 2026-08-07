@@ -1,0 +1,7 @@
+2026-08-06T07:24:10Z	owner-timing-fast	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-fast.log
+2026-08-06T08:41:37Z	arch-stable-successor-v4	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/arch-stable-current-f7a-v4.json
+2026-08-06T08:41:37Z	owner-timing-workload-a2	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json
+2026-08-06T08:41:38Z	owner-timing-selector	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/optimization-slice-owner-timing-a2.json
+2026-08-06T08:41:38Z	owner-timing-regression-43	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-selector-tests.log
+2026-08-06T08:41:38Z	owner-timing-independent-review	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-causality-f7a/evidence/owner-timing-independent-review-f7a-a2.md
+2026-08-06T08:42:35Z	task-run-status	PASS	.github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/owner-timing-workload-ab.status

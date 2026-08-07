@@ -1,8 +1,8 @@
 {
   "schema": "npc-rv64-performance-workload-matrix-v1",
-  "workload_matrix_id": "npc-rv64-pwm-v1-f7a-scoped-baseline-20260806",
+  "workload_matrix_id": "npc-rv64-pwm-v1-337-scoped-baseline-20260807",
   "state": "FROZEN_SCOPED_BASELINE_MATRIX",
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "performance_baseline_eligible": true,
   "global_representativeness": false,
   "qualified_baseline_workloads": [

@@ -1,0 +1,431 @@
+{
+  "candidate_dispositions": [
+    {
+      "disposition": "SELECTED_NEXT_ACTION",
+      "id": "analyze.current-timing-recovery-candidate",
+      "reasons": []
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "analyze.owner-b-response-latency-candidate",
+      "reasons": [
+        "PREREQUISITE:b_response_candidate_analysis_completed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "analyze.owner-timing-hypothesis",
+      "reasons": [
+        "PREREQUISITE:causal_analysis_completed:eq:false",
+        "PREREQUISITE:causal_selection_authorized:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "close.current-hard-blocker",
+      "reasons": [
+        "PREREQUISITE:hard_blockers_closed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.hide-b-response-latency",
+      "reasons": [
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.increase-write-concurrency",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H2_WRITE_CONCURRENCY\"",
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.reduce-pre-request-residency",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H4_PRE_REQUEST_PIPELINE\"",
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.current-performance-baseline",
+      "reasons": [
+        "PREREQUISITE:performance_baseline_current:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.owner-b-latency-sensitivity",
+      "reasons": [
+        "PREREQUISITE:causal_selection_authorized:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.owner-timing-causality",
+      "reasons": [
+        "PREREQUISITE:causal_analysis_completed:eq:false",
+        "PREREQUISITE:causal_selection_authorized:eq:false",
+        "PREREQUISITE:owner_timing_measured:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "qualify.current-reference-ppa",
+      "reasons": [
+        "PREREQUISITE:ppa_reference_measurement_completed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "reconcile.current-cpi-census",
+      "reasons": [
+        "PREREQUISITE:cpi_census_current:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "research.correct-head-residency-weighting",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H3_HEAD_RESIDENCY_WEIGHTING\""
+      ]
+    }
+  ],
+  "claim_boundary": {
+    "current_decision_authorizes_only_next_action": true,
+    "front_py_remains_promotion_authority": true,
+    "multiobjective_prediction_authorizes_promotion": false,
+    "selected_slice_meaning": "下一次有界工程动作，而不是 CPI/PPA 胜者",
+    "selector_authorizes_promotion": false,
+    "selector_authorizes_rtl_semantics": false,
+    "timing_is_a_hard_gate_not_a_soft_objective": true
+  },
+  "decision": "SELECT",
+  "deferred": [
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "analyze.owner-b-response-latency-candidate",
+      "reasons": [
+        "PREREQUISITE:b_response_candidate_analysis_completed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "analyze.owner-timing-hypothesis",
+      "reasons": [
+        "PREREQUISITE:causal_analysis_completed:eq:false",
+        "PREREQUISITE:causal_selection_authorized:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "close.current-hard-blocker",
+      "reasons": [
+        "PREREQUISITE:hard_blockers_closed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.hide-b-response-latency",
+      "reasons": [
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.increase-write-concurrency",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H2_WRITE_CONCURRENCY\"",
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.reduce-pre-request-residency",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H4_PRE_REQUEST_PIPELINE\"",
+        "PREREQUISITE:ppa_reference_available:eq:true"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.current-performance-baseline",
+      "reasons": [
+        "PREREQUISITE:performance_baseline_current:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.owner-b-latency-sensitivity",
+      "reasons": [
+        "PREREQUISITE:causal_selection_authorized:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "measure.owner-timing-causality",
+      "reasons": [
+        "PREREQUISITE:causal_analysis_completed:eq:false",
+        "PREREQUISITE:causal_selection_authorized:eq:false",
+        "PREREQUISITE:owner_timing_measured:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "qualify.current-reference-ppa",
+      "reasons": [
+        "PREREQUISITE:ppa_reference_measurement_completed:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "reconcile.current-cpi-census",
+      "reasons": [
+        "PREREQUISITE:cpi_census_current:eq:false"
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
+      "id": "research.correct-head-residency-weighting",
+      "reasons": [
+        "PREREQUISITE:causal_hypothesis:eq:\"H3_HEAD_RESIDENCY_WEIGHTING\""
+      ]
+    }
+  ],
+  "eligible_front": [
+    "analyze.current-timing-recovery-candidate"
+  ],
+  "inputs": {
+    "authorities": {
+      "architecture_debt": {
+        "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+        "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689",
+        "size_bytes": 13227
+      },
+      "architecture_stable": {
+        "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+        "sha256": "14c36b137a8d188538da5d1a57ef96ce624af362dec7da25698d9cc88df0866d",
+        "size_bytes": 758886
+      },
+      "baseline_index": {
+        "path": "npc/rv64/eval/ppa/baselines/index.json",
+        "sha256": "8d60c5696d5311c952c63b3004bed7591e81dd44f463b73e5b530111770800e2",
+        "size_bytes": 1448
+      },
+      "cpi_census": {
+        "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+        "sha256": "59ed4d136d036cef9cbf538f6dfe0e5a1b0d78af6a21b2834b309197c2e7ebce",
+        "size_bytes": 15548
+      },
+      "historical_defect": {
+        "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+        "sha256": "6937db456ec6ceed543be291e7c43c0feb358aa28549a08578855e1dedf27c45",
+        "size_bytes": 17521
+      },
+      "layered_system": {
+        "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+        "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7",
+        "size_bytes": 15303
+      },
+      "performance_baseline": {
+        "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+        "sha256": "735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
+        "size_bytes": 11761
+      }
+    },
+    "catalog": {
+      "path": "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "sha256": "4a40442cd243a38e3ad9816ab80caa09ad94b70032b5b36123da0736461646ac",
+      "size_bytes": 25748
+    },
+    "decision_schema": {
+      "path": "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "sha256": "eeb52be92e6b7e8e62acbe75a747c22e73e4acd345ed92138bf559737632e477",
+      "size_bytes": 4538
+    },
+    "normative": {
+      "architecture_ppa_contract": {
+        "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+        "sha256": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+        "size_bytes": 19500
+      },
+      "maturity_stages": {
+        "path": "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+        "sha256": "71e1f2517de9ff9befec12ad64f1d7b658c3458b650fb26f5ce5397cc4bdfa2b",
+        "size_bytes": 2032
+      },
+      "ppa_policy": {
+        "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+        "sha256": "1e1cefe497e327c975229135af827afbe3cddb26efccd4fd4c1e141b774e5fce",
+        "size_bytes": 8270
+      }
+    },
+    "policy": {
+      "path": "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
+      "sha256": "4110b0857ab9d2e178c98adba1bd1ef42017432e47f1255caa0ed46ebdad70d3",
+      "size_bytes": 5135
+    },
+    "research_state": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/optimization-research-state-337-v3.json",
+      "sha256": "9295f0ada34662b833d6986c7214744a70dcbb07cbf7e9785db7d46693e9170e",
+      "size_bytes": 3012
+    },
+    "verification_tools": {
+      "b_latency_sensitivity": {
+        "path": "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
+        "sha256": "d0a9034dcebd2905032d0f4abfc2c08efe678c96b20a1df242a74c74b60adfca",
+        "size_bytes": 33766
+      },
+      "b_response_candidate_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
+        "sha256": "8530ad45419c56febe6f7e41ae15ea0e8587ecc61525d13716f643c4b1654177",
+        "size_bytes": 25181
+      },
+      "causal_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py",
+        "sha256": "902aac43ffc938bbc0f423cd3e4cc89d7f4333249ca9a9230898c56266f6944b",
+        "size_bytes": 23316
+      },
+      "current_reference_ppa": {
+        "path": "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+        "sha256": "403bec598d6a2e8eba7d0693025695e93c24c1d6da5eb028fa04c6cc4cf5292a",
+        "size_bytes": 22124
+      },
+      "owner_timing": {
+        "path": "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+        "sha256": "75e964753ce491d2de2c8cf57da31888038b31e034e4929f9f5a7f26029c1329",
+        "size_bytes": 58948
+      },
+      "ppa_checker": {
+        "path": "npc/rv64/eval/ppa/tools/check.py",
+        "sha256": "327ea3ad4c9d328749c0123cc614bc4bdc9769aec9f27019128e7da7ce5809a5",
+        "size_bytes": 129598
+      }
+    }
+  },
+  "live_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "next_action": "CAUSAL_MEASUREMENT",
+  "reason_codes": [
+    "CURRENT_IDENTITY_COHERENT",
+    "CORRECTNESS_BLOCKERS_CLOSED",
+    "PERF_BASELINE_CURRENT",
+    "PERFORMANCE_ANCHOR_FLOOR_NOT_MET",
+    "PPA_UNQUALIFIED",
+    "UNIQUE_ELIGIBLE_FRONT"
+  ],
+  "schema": "npc-rv64-optimization-slice-decision-v1",
+  "selected_slice": {
+    "action": "对两轮 bit-exact mapped netlist 的 top-40 路径按 startpoint、endpoint、共享组合锥和 RTL owner 聚类，区分主导路径族与旁支，只定义一个保持 CPI、owner/holder、flush/replay 和精确异常合同的可回退时序候选或明确 GAP；本切片不修改 production RTL。",
+    "class": "causal_measurement",
+    "domain": "RV64 mapped critical-path causality",
+    "forbidden_claims": [
+      "a negative WNS reference is an accepted PPA baseline",
+      "vectorless power is qualified power",
+      "production RTL authorization or promotion from path clustering alone"
+    ],
+    "id": "analyze.current-timing-recovery-candidate",
+    "required_evidence": [
+      "two-run exact top-40 path-member identity and setup-warning closure",
+      "path-family counts with shared startpoint, endpoint and RTL owner mapping",
+      "one minimal reversible timing candidate invariant or one explicit no-safe-candidate GAP",
+      "CPI, area, owner/holder, flush/replay and exception counterexamples"
+    ],
+    "rollback_conditions": [
+      "path reports or source mapping are not repeatable",
+      "the proposed cut changes architectural terminal or owner lifetime semantics"
+    ],
+    "scope": [
+      "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
+    ],
+    "selection_mode": "information",
+    "success_conditions": [
+      "one dominant physical proxy path family is distinguished from secondary families",
+      "the next candidate has an exact register-cut or logic-cone objective without weakening the 5 ns hard gate"
+    ],
+    "title": "聚类 current 5 ns 违例路径并定义最小可回退时序候选"
+  },
+  "snapshot_key": "sha256:4d5ed9ece66213303a2662ab2503431d660818f40e3f3696a1943c4a242cfb3c",
+  "stale_refs": [],
+  "state": {
+    "authority_status": {
+      "architecture_debt": {
+        "schema": "npc-rv64-architecture-debt-current-v2",
+        "status_matches": true
+      },
+      "architecture_stable": {
+        "schema": "npc-rv64-arch-stable-result-v1",
+        "status_matches": true
+      },
+      "baseline_index": {
+        "schema": "npc-rv64-ppa-baseline-index-v1",
+        "status_matches": false
+      },
+      "cpi_census": {
+        "schema": "npc-rv64-cpi-bottleneck-census-v2",
+        "status_matches": true
+      },
+      "historical_defect": {
+        "schema": "npc-rv64-historical-defect-current-v1",
+        "status_matches": true
+      },
+      "layered_system": {
+        "schema": "npc-rv64-layered-system-signoff-current-v1",
+        "status_matches": true
+      },
+      "performance_baseline": {
+        "schema": "npc-rv64-performance-baseline-current-v3",
+        "status_matches": true
+      }
+    },
+    "b_latency_sensitivity_completed": true,
+    "b_latency_sensitivity_status": "H1_B_RESPONSE_LATENCY_SENSITIVE",
+    "b_response_candidate_analysis_completed": true,
+    "b_response_candidate_analysis_status": "CURRENT_PATH_MAPPED_NEXT_CANDIDATE_DEFINED",
+    "causal_analysis_completed": true,
+    "causal_analysis_status": "RESEARCH_REQUIRED",
+    "causal_hypothesis": "H1_B_RESPONSE_LATENCY",
+    "causal_selection_authorized": true,
+    "causal_status": "HYPOTHESIS_NOT_PROVEN",
+    "cpi_census_current": true,
+    "hard_blockers_closed": true,
+    "maturity": "PERF_BASELINE",
+    "owner_timing_measured": true,
+    "performance_anchor_floor": 0.995,
+    "performance_anchor_floor_met": false,
+    "performance_anchor_ratios": {
+      "coremark": "0.931908419516",
+      "dhrystone_10000": "0.972328046810"
+    },
+    "performance_baseline_current": true,
+    "ppa_engineering_reference_available": true,
+    "ppa_qualified": false,
+    "ppa_reference_available": false,
+    "ppa_reference_measurement_completed": true,
+    "ppa_reference_measurement_status": "REPEATABLE_CURRENT_REFERENCE_TIMING_HARD_GATE_FAIL",
+    "ppa_timing_hard_gate": "FAIL",
+    "production_rtl_file_count": 146,
+    "state_conflicts": []
+  },
+  "tradeoff_analysis": {
+    "active_class": "causal_measurement",
+    "active_mode": "information",
+    "front_status": "UNIQUE",
+    "qualified_axes": [
+      "information_gain",
+      "evidence_confidence",
+      "reversibility",
+      "execution_cost",
+      "functional_risk",
+      "scope_width"
+    ],
+    "scalarization_used": false,
+    "timing_role": "HARD_GATE_NOT_OBJECTIVE"
+  }
+}

@@ -63,6 +63,32 @@ backend dispatch full P 与 ROB head full P 逐层只作同名 observation trans
   `pending_jump_resolve_ready` 等 level 信号必须与真实 clear outcome 精确相与，裸 ready 不得取得
   cancel capability，避免 pre-ROB pending CSR 永久自锁。
 
+### 5.1 admission-cancel 组合边界
+
+`OooPendingSystemAdmissionCancelGate` 的两个输出承担不同职责，禁止再次合并成同一反馈锥：
+
+| 输出/组合锥 | 允许输入 | 禁止用途 |
+|---|---|---|
+| `system_csr_admission_clear_o`（完整 ordinary-clear 观测） | 下列无反馈见证，以及兼容观测口 `pending_branch_commit_resolve_i` / `pending_branch_match_clear_i` | 不得直接驱动 `system_csr_dispatch_cancel_o` |
+| `system_csr_dispatch_cancel_o`（ROB admission 权限） | reset、core-local flush、memory trap、branch-spec resolve、untracked branch resolve、已由 outcome 限定的 pending-jump clear、pending/head0 CSR commit | 不得读取 backend ready、direct fire、`direct_frontend_flush`，也不得读取任何由它们后置屏蔽得到的 branch terminal |
+
+当前 ROB-walk 产品拓扑已把 `pending_branch_q` 与 `pending_branch_dispatched_q`硬连为 0；两个
+`pending_branch_*clear` 端口仅为兼容观测。即使未来重新启用 pending-branch owner，也只能新增一个
+不读取 ready/direct-fire 的 pre-priority cancel witness，不能把 post-priority terminal 重新接回
+system CSR valid。组合方程固定为：
+
+```text
+feedback_free_clear = trap | branch_spec_resolve | branch_untracked |
+                      qualified_jump_clear | pending_csr_commit | head0_csr_commit
+full_observed_clear = feedback_free_clear | pending_branch_commit_resolve |
+                      pending_branch_match_clear
+dispatch_cancel     = reset | core_local_flush | feedback_free_clear
+```
+
+因此，单独翻转任一 pending-branch 兼容观测口可以改变完整 clear 观测，但不得改变 dispatch cancel；
+其余每个真实无反馈 clear witness 必须同拍取消 admission。该区分由 standalone TB 正向矩阵和把
+`full_observed_clear` 重新接回 cancel 的 compile-success 负向版本共同守护。
+
 ## 6. 不变量
 
 1. lease valid 蕴含 pending valid/CSR/dispatched，且 P 在生命周期内稳定。

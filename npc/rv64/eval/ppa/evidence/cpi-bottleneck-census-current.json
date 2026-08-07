@@ -40,7 +40,7 @@
     "interpretation": "Both workloads spend the largest cycle residency in a memory head, primarily while a request is outstanding, with S_WRITE_RESP as the largest request-state residency.",
     "warning": "These are mutually exclusive ROB-head residency buckets, not transaction counts or proof that AXI B latency is the sole cause."
   },
-  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "next_discriminating_measurement": {
     "action": "Add diagnostic-only owner-correlated event counts, fixed-bin duration histograms and bridge/pre-request timing channels so H1 through H4 can be separated before choosing an RTL change.",
     "channels": {
@@ -111,8 +111,8 @@
   "optimization_candidate_authorized": false,
   "performance_baseline": {
     "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
-    "sha256": "941bbf0df1c51dd284dba0cacb46c2281da642cbe749d1127d27c29e66f87dd7",
-    "size_bytes": 12024
+    "sha256": "735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
+    "size_bytes": 11761
   },
   "ppa": "UNQUALIFIED",
   "promotion_eligible": false,
@@ -120,36 +120,36 @@
   "status": "CPI_BOTTLENECK_CENSUS",
   "workloads": {
     "coremark": {
-      "cpi": "1.693729804810",
+      "cpi": "1.653109654836",
       "cycle_residency_rank": [
         {
-          "cycles_or_slots": 2542049,
-          "fraction": "0.471431907",
+          "cycles_or_slots": 2414173,
+          "fraction": "0.458718136",
           "name": "memory_latency"
         },
         {
-          "cycles_or_slots": 2006774,
-          "fraction": "0.372163280",
+          "cycles_or_slots": 2003880,
+          "fraction": "0.380758172",
           "name": "useful"
         },
         {
-          "cycles_or_slots": 601844,
-          "fraction": "0.111614082",
+          "cycles_or_slots": 603503,
+          "fraction": "0.114671886",
           "name": "execution_latency"
         },
         {
-          "cycles_or_slots": 214701,
-          "fraction": "0.039817054",
+          "cycles_or_slots": 214843,
+          "fraction": "0.040822418",
           "name": "exception_redirect"
         },
         {
-          "cycles_or_slots": 15766,
-          "fraction": "0.002923860",
+          "cycles_or_slots": 15313,
+          "fraction": "0.002909630",
           "name": "issue_terminal"
         },
         {
-          "cycles_or_slots": 11053,
-          "fraction": "0.002049818",
+          "cycles_or_slots": 11156,
+          "fraction": "0.002119757",
           "name": "rob_empty"
         },
         {
@@ -178,34 +178,34 @@
           "name": "unknown"
         }
       ],
-      "cycles": 5392187,
-      "ipc": "0.590412943765",
+      "cycles": 5262868,
+      "ipc": "0.604920549024",
       "key_ratios": {
-        "axi_write_response_cycles": "0.128248149",
-        "memory_latency_cycles": "0.471431907",
-        "request_outstanding_cycles": "0.211232659",
-        "unused_retire_slots": "0.704793528",
-        "useful_cycles": "0.372163280"
+        "axi_write_response_cycles": "0.104715148",
+        "memory_latency_cycles": "0.458718136",
+        "request_outstanding_cycles": "0.189242253",
+        "unused_retire_slots": "0.697539725",
+        "useful_cycles": "0.380758172"
       },
       "memory_lifecycle_rank": [
         {
-          "cycles_or_slots": 1139006,
-          "fraction": "0.448066107",
+          "cycles_or_slots": 995957,
+          "fraction": "0.412545828",
           "name": "request_outstanding"
         },
         {
-          "cycles_or_slots": 633721,
-          "fraction": "0.249295352",
+          "cycles_or_slots": 638410,
+          "fraction": "0.264442523",
           "name": "reservation_queue"
         },
         {
-          "cycles_or_slots": 469892,
-          "fraction": "0.184847735",
+          "cycles_or_slots": 479687,
+          "fraction": "0.198696199",
           "name": "response_terminal"
         },
         {
-          "cycles_or_slots": 299430,
-          "fraction": "0.117790806",
+          "cycles_or_slots": 300119,
+          "fraction": "0.124315449",
           "name": "translation_order"
         },
         {
@@ -221,28 +221,28 @@
       ],
       "memory_request_detail_rank": [
         {
-          "cycles_or_slots": 691538,
-          "fraction": "0.607141666",
+          "cycles_or_slots": 551102,
+          "fraction": "0.553339150",
           "name": "axi_write_response"
         },
         {
-          "cycles_or_slots": 308164,
-          "fraction": "0.270555203",
+          "cycles_or_slots": 303884,
+          "fraction": "0.305117590",
           "name": "axi_write_request"
         },
         {
-          "cycles_or_slots": 112890,
-          "fraction": "0.099112735",
+          "cycles_or_slots": 111732,
+          "fraction": "0.112185566",
           "name": "axi_read_data"
         },
         {
-          "cycles_or_slots": 15848,
-          "fraction": "0.013913886",
+          "cycles_or_slots": 18752,
+          "fraction": "0.018828122",
           "name": "cache_lookup"
         },
         {
-          "cycles_or_slots": 10566,
-          "fraction": "0.009276510",
+          "cycles_or_slots": 10487,
+          "fraction": "0.010529571",
           "name": "axi_read_address"
         },
         {
@@ -259,33 +259,33 @@
       "retired_instructions": 3183617,
       "slot_residency_rank": [
         {
-          "cycles_or_slots": 5406892,
-          "fraction": "0.501363547",
+          "cycles_or_slots": 5148274,
+          "fraction": "0.489112970",
           "name": "memory_latency"
         },
         {
           "cycles_or_slots": 3183617,
-          "fraction": "0.295206472",
+          "fraction": "0.302460275",
           "name": "retired"
         },
         {
-          "cycles_or_slots": 1418734,
-          "fraction": "0.131554599",
+          "cycles_or_slots": 1419986,
+          "fraction": "0.134906101",
           "name": "execution_latency"
         },
         {
-          "cycles_or_slots": 429402,
-          "fraction": "0.039817054",
+          "cycles_or_slots": 429686,
+          "fraction": "0.040822418",
           "name": "exception_redirect"
         },
         {
-          "cycles_or_slots": 319439,
-          "fraction": "0.029620542",
+          "cycles_or_slots": 317647,
+          "fraction": "0.030178127",
           "name": "issue_terminal"
         },
         {
-          "cycles_or_slots": 26290,
-          "fraction": "0.002437786",
+          "cycles_or_slots": 26526,
+          "fraction": "0.002520109",
           "name": "rob_empty"
         },
         {
@@ -317,36 +317,36 @@
       "unknown_cycle_ratio": "0.000000000"
     },
     "dhrystone_10000": {
-      "cpi": "2.426219058824",
+      "cpi": "2.294461647059",
       "cycle_residency_rank": [
         {
-          "cycles_or_slots": 7100359,
-          "fraction": "0.688591040",
+          "cycles_or_slots": 6550362,
+          "fraction": "0.671731275",
           "name": "memory_latency"
         },
         {
-          "cycles_or_slots": 2710035,
-          "fraction": "0.262818517",
+          "cycles_or_slots": 2700038,
+          "fraction": "0.276885456",
           "name": "useful"
         },
         {
-          "cycles_or_slots": 280019,
-          "fraction": "0.027156173",
+          "cycles_or_slots": 280020,
+          "fraction": "0.028715694",
           "name": "execution_latency"
         },
         {
-          "cycles_or_slots": 190014,
-          "fraction": "0.018427510",
+          "cycles_or_slots": 190015,
+          "fraction": "0.019485796",
           "name": "exception_redirect"
         },
         {
-          "cycles_or_slots": 20076,
-          "fraction": "0.001946965",
+          "cycles_or_slots": 20082,
+          "fraction": "0.002059384",
           "name": "issue_terminal"
         },
         {
-          "cycles_or_slots": 10928,
-          "fraction": "0.001059795",
+          "cycles_or_slots": 10945,
+          "fraction": "0.001122396",
           "name": "rob_empty"
         },
         {
@@ -375,34 +375,34 @@
           "name": "unknown"
         }
       ],
-      "cycles": 10311431,
-      "ipc": "0.412163937285",
+      "cycles": 9751462,
+      "ipc": "0.435832083435",
       "key_ratios": {
-        "axi_write_response_cycles": "0.288029663",
-        "memory_latency_cycles": "0.688591040",
-        "request_outstanding_cycles": "0.437392249",
-        "unused_retire_slots": "0.793918021",
-        "useful_cycles": "0.262818517"
+        "axi_write_response_cycles": "0.243040479",
+        "memory_latency_cycles": "0.671731275",
+        "request_outstanding_cycles": "0.400980284",
+        "unused_retire_slots": "0.782083947",
+        "useful_cycles": "0.276885456"
       },
       "memory_lifecycle_rank": [
         {
-          "cycles_or_slots": 4510140,
-          "fraction": "0.635198868",
+          "cycles_or_slots": 3910144,
+          "fraction": "0.596935559",
           "name": "request_outstanding"
         },
         {
-          "cycles_or_slots": 1690109,
-          "fraction": "0.238031485",
+          "cycles_or_slots": 1750102,
+          "fraction": "0.267176379",
           "name": "reservation_queue"
         },
         {
-          "cycles_or_slots": 460083,
-          "fraction": "0.064797146",
+          "cycles_or_slots": 460086,
+          "fraction": "0.070238256",
           "name": "response_terminal"
         },
         {
-          "cycles_or_slots": 440027,
-          "fraction": "0.061972500",
+          "cycles_or_slots": 430030,
+          "fraction": "0.065649807",
           "name": "translation_order"
         },
         {
@@ -418,28 +418,28 @@
       ],
       "memory_request_detail_rank": [
         {
-          "cycles_or_slots": 2969998,
-          "fraction": "0.658515700",
+          "cycles_or_slots": 2370000,
+          "fraction": "0.606115785",
           "name": "axi_write_response"
         },
         {
-          "cycles_or_slots": 1279997,
-          "fraction": "0.283804272",
+          "cycles_or_slots": 1279994,
+          "fraction": "0.327352138",
           "name": "axi_write_request"
         },
         {
           "cycles_or_slots": 200011,
-          "fraction": "0.044346960",
+          "fraction": "0.051151825",
           "name": "cache_lookup"
         },
         {
-          "cycles_or_slots": 50110,
-          "fraction": "0.011110520",
+          "cycles_or_slots": 50114,
+          "fraction": "0.012816408",
           "name": "axi_read_data"
         },
         {
-          "cycles_or_slots": 10024,
-          "fraction": "0.002222547",
+          "cycles_or_slots": 10025,
+          "fraction": "0.002563844",
           "name": "axi_read_address"
         },
         {
@@ -456,33 +456,33 @@
       "retired_instructions": 4250000,
       "slot_residency_rank": [
         {
-          "cycles_or_slots": 14950732,
-          "fraction": "0.724959161",
+          "cycles_or_slots": 13830741,
+          "fraction": "0.709162468",
           "name": "memory_latency"
         },
         {
           "cycles_or_slots": 4250000,
-          "fraction": "0.206081979",
+          "fraction": "0.217916053",
           "name": "retired"
         },
         {
-          "cycles_or_slots": 770045,
-          "fraction": "0.037339388",
+          "cycles_or_slots": 770048,
+          "fraction": "0.039483723",
           "name": "execution_latency"
         },
         {
-          "cycles_or_slots": 380028,
-          "fraction": "0.018427511",
+          "cycles_or_slots": 380030,
+          "fraction": "0.019485797",
           "name": "exception_redirect"
         },
         {
-          "cycles_or_slots": 240158,
-          "fraction": "0.011645232",
+          "cycles_or_slots": 240169,
+          "fraction": "0.012314513",
           "name": "issue_terminal"
         },
         {
-          "cycles_or_slots": 31898,
-          "fraction": "0.001546730",
+          "cycles_or_slots": 31935,
+          "fraction": "0.001637447",
           "name": "rob_empty"
         },
         {

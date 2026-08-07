@@ -1,11 +1,12 @@
 {
   "artifacts": {
-    "architecture_evidence": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/rebind-2/architecture-current-replay.json",
-    "architecture_result": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/rebind-2/architecture-current-result.json",
-    "cohort_inventory": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/cohort-inventory.json",
+    "architecture_evidence": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/architecture-current-delta-rebind-v1/architecture-current.json",
+    "architecture_result": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/architecture-current-delta-rebind-v1/architecture-result.json",
+    "cohort_inventory": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/cohort-inventory.json",
     "debt_ledger": "npc/rv64/design/arch/architecture-debt-ledger.json",
-    "functional_aggregate": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/functional-aggregate-rehydrated.json",
-    "holder_census": "npc/rv64/design/arch/producer-holder-census.json"
+    "functional_aggregate": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate.json",
+    "holder_census": "npc/rv64/design/arch/producer-holder-census.json",
+    "system_recertification": "npc/rv64/eval/ppa/evidence/system-recertification-current.json"
   },
   "claim": {
     "architecture_feasible_seed": null,
@@ -14,24 +15,24 @@
     "ppa": "UNQUALIFIED",
     "promotion_eligible": false
   },
-  "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "freeze_inputs": {
     "binaries": [
       {
         "kind": "simulator_binary",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/frozen/NpcSimTop",
-        "sha256": "c7c9d9184560fc8d8d7b82fccb9d0a5567e37aac1837500add1d3357a1e01e33"
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop",
+        "sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6"
       },
       {
         "kind": "reference_model_binary",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/frozen/riscv64-nemu-interpreter-so",
-        "sha256": "a7277da49ed0bb84555bbae586114d44c4dcf905f885e1400d328dfc210f0b10"
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/riscv64-nemu-interpreter-so",
+        "sha256": "96bf8ed25222daa31cdcea0917f32b7257e26f2fe69b9dbbac46067646ea5917"
       }
     ],
     "config": [
       {
         "kind": "kconfig",
-        "path": ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/evidence/f0-run-2/functional/frozen/npc.config",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/npc.config",
         "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
       },
       {
@@ -43,7 +44,7 @@
     "constraints": [
       {
         "kind": "primary_sdc",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/primary-clock-5ns.sdc",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/primary-clock-5ns.sdc",
         "sha256": "0942f4cc004ac87aa80122024406f17047f8e809b5fa87eee2114c47a1a420ae"
       }
     ],
@@ -51,7 +52,7 @@
       {
         "kind": "test_inventory",
         "path": "npc/rv64/testbench/Makefile",
-        "sha256": "9468acb422ec3939ac2fc9114667c5018e2a868569b6587c601d1d6675f3647c"
+        "sha256": "1ffa855b0bbcd987465b441a1b279c842b75f457db5ddf3d77bf5b7c8f08c5b9"
       },
       {
         "kind": "rtl_filelist",
@@ -264,1202 +265,1202 @@
     "images": [
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/add-longlong.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/add-longlong.bin",
         "sha256": "f4383c4d50bcb979e57fa800e4dcd3d8d2198c42223b3cb1b619af7241cc670d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/add.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/add.bin",
         "sha256": "2142e467297bd8ea2ff71b268663c547303a59acd3569e50df1af36c44e9c195"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bit.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/bit.bin",
         "sha256": "8302a9a6a410b7cd431f9957474762814a41e84d3af31fa6d5836580b4897197"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bitmanip.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/bitmanip.bin",
         "sha256": "8206f183e26ea648398184c5a5eaadc364d88dfb9c61e5bc1f0bf6e049534832"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/branch-fallthrough-save.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/branch-fallthrough-save.bin",
         "sha256": "07a08b1ae9cf65ef223f1cb9ed959e7b5f52694aa76f5804d85cc19eff756dfd"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/branch-resolve-loop.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/branch-resolve-loop.bin",
         "sha256": "bff663994532a4d9d1f349668b65ced5d561ffc4eec07293fb47b3e56c1a47a7"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/bubble-sort.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/bubble-sort.bin",
         "sha256": "b4366670fdd0b3fb2c7e88d23f828dc313dd13b1086abde39cd75a74c99dc901"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/char-test.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/char-test.bin",
         "sha256": "e445d14c1e96f15720bfe53031d6c441c277ae29ba98a1b6a70b7588932dc09e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/compressed.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/compressed.bin",
         "sha256": "3f1643548b84430163e7393673ed275f10244da85708ec898fafc67a0d7bc3e8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/counteren-time.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/counteren-time.bin",
         "sha256": "5689db1a7991bacae9f9c413394849c41c3199344d9b3d48d503dbc1024df649"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/crc32.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/crc32.bin",
         "sha256": "6a7a59d4b5d6750b8c8bfee604d37aff8ad754c69bb89cc2c5b10b2c43a2a121"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/div.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/div.bin",
         "sha256": "7980c913e3ffe23f762349ffee524a13d559686e82e434ef1fa24e547c3e07f2"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/dummy.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/dummy.bin",
         "sha256": "01dbe4c3a33bf506407d2d40d20c3d127b240ba30d07894f5045d3f3302465fa"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fact.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/fact.bin",
         "sha256": "d372cb0ee4507b0a5cc6d5008168869dc2d1892a49c9dc093b8cd55d5bc5bcf1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fence-i.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/fence-i.bin",
         "sha256": "cef50150652e8eaced47db93e8b18c36f0f6a55aa46d9bd5153077f354662626"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fib.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/fib.bin",
         "sha256": "99354c8a1a51e4337de47bf5fcf6f82e582e9f5a991344485d805c3569a98296"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/fp-difftest-probe.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/fp-difftest-probe.bin",
         "sha256": "fccc4db970dfc94d2aea513a8c73aa171c3b4e09cb0e6ddbfc47ee73715a044e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/goldbach.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/goldbach.bin",
         "sha256": "3d0b49397407ca7a198c58f852c63ed2a1f1a15cd72a784c6d33363f82573fee"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/hello-str.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/hello-str.bin",
         "sha256": "49115609fbf1b505b0158069a4515522fd9caf1a753d89094fa91cb712259b48"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/if-else.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/if-else.bin",
         "sha256": "6b69814e828d57494cbe58d06b894b225627db242f24b8078171e4de60375e3c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/leap-year.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/leap-year.bin",
         "sha256": "63eb0932ca8bd2287d2923781064930ee62ab577140cbf825a10b64807c61c47"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/linux-handoff.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/linux-handoff.bin",
         "sha256": "c68d62399245b6a89c518547f9d86719004bc2246863d0b29f5ce42d01fa5171"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/linux-mini-boot.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/linux-mini-boot.bin",
         "sha256": "6b76cc153c1e6f497c62a296a4c59a257a1b45468e2438d6b964082700e3b985"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/load-store.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/load-store.bin",
         "sha256": "0012faf5abc8682b6806dd975bd7c071008a5954c22e42d8a5585c5d44e8a469"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/matrix-mul.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/matrix-mul.bin",
         "sha256": "88c9ac961392ffe540d7255146f7095100cbd8102868af7d46c83c628b16f0ba"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/max.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/max.bin",
         "sha256": "005d5d1e2dd3a296eac2777f080db2b27de0c61e8d47cdd8f9d42e50661f1c2e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mem-test.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/mem-test.bin",
         "sha256": "2907e4d2eb0cc285d13ec6e6039a09ae1792d0ba0c9220bf9b44c230d2e579ba"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mersenne.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/mersenne.bin",
         "sha256": "26df1008b0b45c2dc3a5b7b497d242637fe4627b2a5d4c0704d2bb9f65c29f4d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/min3.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/min3.bin",
         "sha256": "39568450df61732790b0475cd636cc9e37addaf0cebd091f189ce9c935c142aa"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/misa-priv.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/misa-priv.bin",
         "sha256": "c2de5ec82d47746e28ca076761c7130d39fda01a6e3727ce3a090c7c6573ff2b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mov-c.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/mov-c.bin",
         "sha256": "d93fc5da36ccb77c149ca8b17d3ac898fc73a7a6d05c5127844cb9d26830dd60"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/movsx.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/movsx.bin",
         "sha256": "4e134ce2f5f5f3e97ef5b7d71383eab0e43a2f07dee46f5e88c4cfa4080e3216"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/mul-longlong.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/mul-longlong.bin",
         "sha256": "12ebc4f9785b08791f3f8d61c6f0ab91df29a648329769d1ff532ecfc0be5142"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/ooo-mem-order.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/ooo-mem-order.bin",
         "sha256": "c821cdadd32345d69dc11ae17e11152c125602a110be8881d66ec2d348b62d62"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/pascal.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/pascal.bin",
         "sha256": "82a4982f12c1997b9f4609eb11fafb5871b85c1cf5e5768f4e18a4b59ba9b45c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/plic-sirq.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/plic-sirq.bin",
         "sha256": "6be9f5126886ce9a517bcf2d6237b068f24c217ea7620e274350a57a1316f1f4"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/prime.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/prime.bin",
         "sha256": "94e58c3031dd6abebb6da292c015b3f55a27e88de16efa0fd31fa2144a25fbbf"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/quick-sort.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/quick-sort.bin",
         "sha256": "41c06b504ab650645187db1bb998fe948ac9777d3874d7dcf2cf742010044a3b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/recursion.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/recursion.bin",
         "sha256": "43c36773adeb56894f02a89f6fafc66ea03c08e45fb4c662cd9d94ca38a4b25b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/rv64-inst-audit.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/rv64-inst-audit.bin",
         "sha256": "fbbaf6f3ee0a91cc4f09611a20fae1c862881334fefe9a0ca0a1be70ddcdfcd1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/rv64a-amo.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/rv64a-amo.bin",
         "sha256": "250a96c0369701c9e12095014a4ad3b6f2dbbbd70d207f49055b4085f61d1ed5"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-base-console.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sbi-base-console.bin",
         "sha256": "f4c601a1573209e329c3687b4585177e85e60e3824e15721c7a1d64d04e480a8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-ipi-reset-hsm.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sbi-ipi-reset-hsm.bin",
         "sha256": "ddf53d4bff5b1879c14c3a6b627e35be74f6d1e2466f7958146a140965baff6d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sbi-timer.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sbi-timer.bin",
         "sha256": "9bb5994bc0df999f7a3fb93582ac34a5bcc48256ed1ecc87494d3649cefd0e58"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/select-sort.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/select-sort.bin",
         "sha256": "6a7cc3f65ce17576fa909e1710b5510dd5ab92553377dc55ebc454a92e6c8aeb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/semihost-ebreak.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/semihost-ebreak.bin",
         "sha256": "c50798385228c716cc6af70a31395f97348a08da0dd89b4c72855c338d238ea0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/shift.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/shift.bin",
         "sha256": "4628f3ef47a649e647c6bd893ea500e9055c0e02edd4637b3a53366c8e8f4718"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/shuixianhua.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/shuixianhua.bin",
         "sha256": "ce76164ded189638663ef0440d280952215b2245cafbaf488cbc4ad56be77cbc"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/smc-fencei-trigger.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/smc-fencei-trigger.bin",
         "sha256": "070712f94348cd261073134911182924a5e1b7a5ca55767b1a1486a9f11db6a6"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/stdio-format.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/stdio-format.bin",
         "sha256": "cec794ec62e7d1e6e94144bf8e3c156a8b6da992d41f5137444f7f1fa86995b8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/string.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/string.bin",
         "sha256": "7966645e96826582bc103d4cd417550825c39e7c3c467216795eb616ca5b4041"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sub-longlong.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sub-longlong.bin",
         "sha256": "7862955a9e82a836e0bd5f74239b1a697b896f2e69f024208db3e4cbe383f587"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sum.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sum.bin",
         "sha256": "2bed96d0e498d7f5df777f42f6fdcdd5d10b140161089d509b118fdd1e9669f3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-ad-bits.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sv39-ad-bits.bin",
         "sha256": "6f086a32cd079e13ed57060492db6cb707ac045594a6d5535de695b93bcdd160"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-ras-relocate.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sv39-ras-relocate.bin",
         "sha256": "acf21d7abd4f1c6fc6cd5109c6bc19846f64e50db28567a4505daf09e7e4b5ee"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/sv39-xpage-misalign.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/sv39-xpage-misalign.bin",
         "sha256": "028d823fe101b65c842abbeb5fcf8cb7bb97e374eb5ee9d1e42bf8b25a541b0b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/switch.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/switch.bin",
         "sha256": "d28249224aaf642e3a992582ce82b49d0b6966d64dc8bba80ecf09f8f2508356"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/to-lower-case.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/to-lower-case.bin",
         "sha256": "a5f9111c7c43e5e7d2410d9a92d8826a09610c35dd08e0eb65fee62481fd65d4"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/uart-plic-sirq.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/uart-plic-sirq.bin",
         "sha256": "ad3c30794e4f45012ee3014e48ffd28f55606c35a6ee997d5007439b7e7443c1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/unalign.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/unalign.bin",
         "sha256": "af08e99da09e8adbda0d2a8d102fc3b46c0e396d7be96145f618a5fb29211a11"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/am/wanshu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/am/wanshu.bin",
         "sha256": "0ffe7f881a4d0382b1cf38b915bc2b6b1e3f7eb662cfdc3e78ba91b73cd17374"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/coremark.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/coremark.bin",
         "sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/benchmarks/dhrystone.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/dhrystone.bin",
         "sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-breakpoint.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-breakpoint.bin",
         "sha256": "759bacf90a27050b888263f901fd5eb0ffa9c3e8b10d9c2c1add856d31c28392"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-csr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-csr.bin",
         "sha256": "64ea22733c1c648d458ed72ca058e8e6cab07bf1bb3a405c30194b124d72ea43"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-illegal.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-illegal.bin",
         "sha256": "fe618512fc09c6bec94ec603c2d4669b6f9225895d1018c00296d4ae648e9453"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-instret_overflow.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-instret_overflow.bin",
         "sha256": "c7eb752ddf7df2836c15e057636b2b3b066bbe61020cfa1fcb7667044ba4fb74"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ld-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-ld-misaligned.bin",
         "sha256": "c44e62773c367801944447046f471368c167a7b46cc18ff61e89ced9b1e10b45"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-lh-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-lh-misaligned.bin",
         "sha256": "0a625bdb1bde894e591b08910e9c522dae78cacf6f215057e5084ebb7215469f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-lw-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-lw-misaligned.bin",
         "sha256": "81a2d0f7543c87aab91ea4ba7f6df69cb54772b8b02fc1970baaa2dec4813138"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ma_addr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-ma_addr.bin",
         "sha256": "43aba4a5ed598e42eafa14d04575df2738a9dc1b2262e599788408accf523041"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-ma_fetch.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-ma_fetch.bin",
         "sha256": "23128cb88a441f0ec5b0aa92e3ff235468a97a94e292d35d9092ba02c0cd6d75"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-mcsr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-mcsr.bin",
         "sha256": "c8ab2c5fbb9cf529518ebf007812028ad1dc524efde5bf2edfaa20c2b8a3df6c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-pmpaddr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-pmpaddr.bin",
         "sha256": "f5c82f4f85902b25a1496ffba37f4338b26a971da939e6921985125def9242a2"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sbreak.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-sbreak.bin",
         "sha256": "fab026d76c46c8506cb94a08cb632f2de6937d8b057204464e3e2cdc019780e3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-scall.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-scall.bin",
         "sha256": "eb468050871ee3c797254f90c6571b5dab04bb018834af2c69265c0274a165b8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sd-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-sd-misaligned.bin",
         "sha256": "580363d39fef7b89f9e2e386be8a7e60ac3fd56c1df679ebe3ed5de107573e9e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sh-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-sh-misaligned.bin",
         "sha256": "3c3de98bcf0acee9619646b0ace0b28ce19cad50d97d6323aeb3e30866219c48"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-sw-misaligned.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-sw-misaligned.bin",
         "sha256": "e0715db1e4a9e3efd1784bbde55edb741d3ae50f551315ce987e5434a5683aa4"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64mi-p-zicntr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64mi-p-zicntr.bin",
         "sha256": "aeadca97e007d646ed5565e489bf1a0b805cfa321e996930effd2ad4bab21159"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-csr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-csr.bin",
         "sha256": "2f7d31a97b4a1a8836b5b16b048e42d6d3be2d02275a1bb9e4810b27575a72f3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-dirty.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-dirty.bin",
         "sha256": "302f824e3cbcf3b842793355d42fdc5011dfaed03e59cec2ab8d1b4831766a3f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-icache-alias.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-icache-alias.bin",
         "sha256": "4557a25ddcb7abec27c88269b480cb0d7ec7fa64305725d29d8d3c0a52f7dada"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-ma_fetch.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-ma_fetch.bin",
         "sha256": "4f38f4a5a44b94c3317295c23666c5c5d6eb5d5aa6978b7de5509ec65f3ae17c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-sbreak.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-sbreak.bin",
         "sha256": "5a27651d09a02b29a03a577555aa3571f8196280aa72cfd8baf0f3fd7b8778ae"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-scall.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-scall.bin",
         "sha256": "16442ae5360eef6283fa542a660128ff90f325c6385c4f14561403282e63b9d6"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64si-p-wfi.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64si-p-wfi.bin",
         "sha256": "00771ff518788f921c94a744180cc11a58d4c6867a7a28e02f20735727e41927"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoadd_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoadd_d.bin",
         "sha256": "40e36f29967eb4e4805ce6477ff3f3b783b42c57d705830f2472b839dfe48e55"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoadd_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoadd_w.bin",
         "sha256": "ac499bd0251351f4b1e130a27056d44e45d75979cc4af96639d6acfe7c13ac23"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoand_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoand_d.bin",
         "sha256": "83526b92eb1da801ad8660b78a289d1e160b9b4c125d1c30d936ac216cf31ecb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoand_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoand_w.bin",
         "sha256": "981f7712d80bd44562f82e9da3a41ec67699e500a43ca80bc887a014b467df84"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomax_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomax_d.bin",
         "sha256": "5a72b7c6b753e84547cdab70ca9d7780b800c9c6f4760db2eb2064c37e65fcb6"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomax_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomax_w.bin",
         "sha256": "7b8c04a10dc435a2ddde3e9528ff897203351b99f92f779560651b9278d42ad7"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomaxu_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomaxu_d.bin",
         "sha256": "f5d3864b8101cbf257989c27910912f0825615d420e8ac6b1f19e3c5c5c1bcdc"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomaxu_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomaxu_w.bin",
         "sha256": "505c10ab25037803850bbc52edf18b2073ddd78b15768a6a27b1030b9f04a2c4"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomin_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomin_d.bin",
         "sha256": "b10fde08ed33e391d3ff5713e06fc91aaaac9d0e909f96332add44427e1168ac"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amomin_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amomin_w.bin",
         "sha256": "4851f09c3903fa24910dd59972ef663328987e6b2f62bb178cdf7b29c1f9d117"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amominu_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amominu_d.bin",
         "sha256": "5e6b8e0bdc3c2c50052ec5d43972747e350316163eb08091236fbafa8d7ca7eb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amominu_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amominu_w.bin",
         "sha256": "83740d372ffcb61e19f26331c8f5d8c533d65cffde907bb8b2c9656ceb7dee2e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoor_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoor_d.bin",
         "sha256": "c9afab2a4030512754ec44ad51f1e8624a29613681448e5d45ded9e797a2c171"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoor_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoor_w.bin",
         "sha256": "9754b97b64e07d958a6282a148d26f218f550e94f4e724a60878c5c567e811ed"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoswap_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoswap_d.bin",
         "sha256": "019138d4a449c94f2983d64cf02306e2a0ae07feed0ece548550806df77bafbb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoswap_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoswap_w.bin",
         "sha256": "896e94d947929333edc5b7483a3f23f39a0d13732e92d2a721c2fa607b1151f3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoxor_d.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoxor_d.bin",
         "sha256": "93d5ee153afebc219fd10c90c8799b58115c27678637e10d2906c1828cbe0ce0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-amoxor_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-amoxor_w.bin",
         "sha256": "a23e3c5246e5bf6181c96e8e164fcc6ec25c8b4ae0f05f49eeebc1b9233c6708"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ua-p-lrsc.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ua-p-lrsc.bin",
         "sha256": "b934d0ff06ddb997af53c9be2710ea84278a1001f4c87a937778c1a58cef8beb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uc-p-rvc.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uc-p-rvc.bin",
         "sha256": "d11f34f3af9c0724bdb29392691fe6ec38679020d44e62de83bc6256ed1fa132"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fadd.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fadd.bin",
         "sha256": "b0e889ab180282b4cf5e6c57aad517ab7550809d64f0cc473d6b915a95b895f3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fclass.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fclass.bin",
         "sha256": "b5100addefba2520e1bbb51e3ce674b327cc5f6c520fc7866a9a558e4e44b35d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcmp.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fcmp.bin",
         "sha256": "0513970de2ddf14819bc8d70b2e526c18da9487a281272771b1ff12a2efb97f3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcvt.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fcvt.bin",
         "sha256": "0ac6c2fb446436b221ab7b4cc0022dc9bb9dd8e4fd2975348876ea88d67e1d0e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fcvt_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fcvt_w.bin",
         "sha256": "445e86b8b46053286a56e2087568d83355d4ada764ce452c00e4e4709be8f92e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fdiv.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fdiv.bin",
         "sha256": "bf081a07cd10966e78a44a59916f2da5d22e1adb56dedafa44d3269aa5b90abc"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fmadd.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fmadd.bin",
         "sha256": "04df09e50d4f00cdc41abc6a91edea03e104c6d50431b97ba13a159d39551a1d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-fmin.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-fmin.bin",
         "sha256": "16fe340833f9d20de8929da17b51d40300445a0da83121f52f8fb162cf301d94"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-ldst.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-ldst.bin",
         "sha256": "3fb88b571e6628e02017cd30299d0cbb9f4f25fda0880e6c2459fe391652b54d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-move.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-move.bin",
         "sha256": "39228c2a37a0907671708e1f7b2d9aa764eefd15563b0b0879e8ff21580827f7"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-recoding.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-recoding.bin",
         "sha256": "75981a7020a53723f745c100b9fc05946a2782a61b478050c0fedbfe1212e267"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ud-p-structural.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ud-p-structural.bin",
         "sha256": "f4a62ea79e01a2943c4a1aa54ed53b92597640168f9a23752bf14dd9c3bd3f2c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fadd.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fadd.bin",
         "sha256": "de456b0c77d3b3e6e1acb2fedbfc6a36ee1ee8c69cf9a9f3f4d80362e3508992"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fclass.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fclass.bin",
         "sha256": "da0f54056f527d4bc1607f26774d685dde856fce4cf6942eff0b218bb0c27e5c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcmp.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fcmp.bin",
         "sha256": "18d301b130316c7a4dd6484c5a8f892aa0231ccb59b31989ea038bef8d304294"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcvt.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fcvt.bin",
         "sha256": "d625880b74f7b97c409757846041172d5e93509cf9b79702a612170935068a5e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fcvt_w.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fcvt_w.bin",
         "sha256": "fc5f80f2c1581c2a1b8dcee8fe5598cb80b1ccd878ca5c5c731127d63f250863"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fdiv.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fdiv.bin",
         "sha256": "a169bccfc06c73ee84565aab803639927d3d21b773248d67218b5c9622fde1de"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fmadd.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fmadd.bin",
         "sha256": "ed00e3e01ff59b91cdc3824e3e2ae9ae63a1c3364e189fbf33a79194f40b5c71"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-fmin.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-fmin.bin",
         "sha256": "a3479614997bfa55019327d587ba04f10f67dd86e114d4073385ea8bca36af1f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-ldst.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-ldst.bin",
         "sha256": "1aa70a8aa263a27757a3f038ee25ade6ee3189bbbc23e5617ca1ee9fb7cd80c3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-move.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-move.bin",
         "sha256": "e77d600105f5adae64cce494f6fec18c30d4f7ee19eea08d22b7e5e1f12273fb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uf-p-recoding.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uf-p-recoding.bin",
         "sha256": "b3d139f51b82815a69dc2acd83dd16ef3e3b98927059ee1fa234bb889b892b47"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-add.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-add.bin",
         "sha256": "5e0de399fa1191cc396b73a5a2a95af51d64d7ebbaa03dfa707b231227303883"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addi.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-addi.bin",
         "sha256": "6aa27611ac4914609dc0bd1fc2c5348bffb0459717524f0affbd8259394dd9ca"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addiw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-addiw.bin",
         "sha256": "73eced0e4a130e15b35aa8b5a9acb6c303caaaa1102d84fcd1d8bdba191dd1f5"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-addw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-addw.bin",
         "sha256": "3fb84def959f1446056d6c66941da4033068109c752cffdd96a0b472a58fa79f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-and.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-and.bin",
         "sha256": "dc72de604bc42485e0271c7544746a72de89a570ab090bc55b203f680671cf6c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-andi.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-andi.bin",
         "sha256": "8757079a76ef41dfc130617b2144c2a0fe418991befeeed1d912695b9341e51b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-auipc.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-auipc.bin",
         "sha256": "5737a743ca924512a42d40ce3e3b2dd5044b3d3221c219f4aa8c4617a1295454"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-beq.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-beq.bin",
         "sha256": "518cd4573367f0d382361c2707ce33b41d330608e868ed4afee028e81207dda1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bge.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-bge.bin",
         "sha256": "5c1462b5fb4cf846b54fb69e3e94ab0dfee308c1991fa2293937c80fda1db72e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bgeu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-bgeu.bin",
         "sha256": "66b061fd0f306e8f148bfe163c0ba5d5631335d0c30bea3bbaed4f8b0bdbc1ff"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-blt.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-blt.bin",
         "sha256": "844f0e1f0d01a1c092ca75a06d5aa321622ed07f969ce592732b4cbf0c79d377"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bltu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-bltu.bin",
         "sha256": "8eac0b7cdff8e5ee7187e6ea44486ed76fb448c89b8b324773f7ac31bf663fad"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-bne.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-bne.bin",
         "sha256": "fe4ea4101123b640952077d483c6f65f58819ce80577a5ebf86b67cec6a0d5c3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-fence_i.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-fence_i.bin",
         "sha256": "001bb2441512f111a6966ec788c6a0aa6ba0833b023be3249aaf1fb336dcf51b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-jal.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-jal.bin",
         "sha256": "97c289adb0a05a00ecfc5e453b799362f5c7eefeccd8de28a174a27f42379926"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-jalr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-jalr.bin",
         "sha256": "1a870f25986986f0180de3fb002756ce815fa493103da6f14038f285dbd12def"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lb.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lb.bin",
         "sha256": "fe5efc3cf1cb425553acee7541d20eca46c4b3d722e5cf2371b7dcbd148f92d1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lbu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lbu.bin",
         "sha256": "4213656b18ac462e7ec26d3792f43f0b7343d516ff1de66e67d8ee3ac5050ff9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ld.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-ld.bin",
         "sha256": "7fb6be2f482e67be0e3af4ed092baded2c49edefc7c017a648a37165372ccadb"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ld_st.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-ld_st.bin",
         "sha256": "72cb9b77ea434075d99cb03ab327c7dcd17cf3f8ff6d52341aaf52f0f47a4dce"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lh.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lh.bin",
         "sha256": "341466d1395a140faab6a5814b30ab4f83c0551f80d0d6671c0ef76683ec725b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lhu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lhu.bin",
         "sha256": "4df1d87d56d9353beaba36442afc43b86b3fd655120607d94b70d22963bdd555"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lui.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lui.bin",
         "sha256": "56a456dcc5e9f2ea4c77cc466e720ea79a6c17e01aa529e7125b33546f13e037"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lw.bin",
         "sha256": "36a994d5c817f93d63d3af87a26dba769f7275c41ac5503e6e8afde59108b5fe"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-lwu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-lwu.bin",
         "sha256": "ff0a91d6b257411f081481518152421d17cf1eacae6ee9970615991c5ba05889"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ma_data.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-ma_data.bin",
         "sha256": "13510f7775f6b00ec9758047eba52b9762391479124eab48c0b70e2ebb9f374a"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-or.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-or.bin",
         "sha256": "78225c1a4ebbacbbec69375927f62aa3151aec634f201e25c3adbbcc59e97a93"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-ori.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-ori.bin",
         "sha256": "0919e2c9836799768872805903f4f273bf3a6ca54bfb787726a7a9fe52a1a17e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sb.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sb.bin",
         "sha256": "aea94b4b941d5a381806f6d6ab89ec571a2358eb7ac1e5a5209ce6579ca4adee"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sd.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sd.bin",
         "sha256": "a6242e8c759d72402ec92b7359c91e1985c29f08d9603a580d8dfa2c6bb5d07f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sh.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sh.bin",
         "sha256": "c02250cb78530fb2fa56a57e05c5c22df5dcdb4b18c1d81f6eb84f0076f5f7ec"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-simple.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-simple.bin",
         "sha256": "caae9f5816f6ff2f9a90cfb68eb3e2cedbd701e0fbcb30cf8171df39a0fa97c0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sll.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sll.bin",
         "sha256": "18becf549a748446c93404fc8765a111595178cf4cc14195a0f31d18af131b32"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slli.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-slli.bin",
         "sha256": "fbfa31452bd8b73e1f436cdf83ab84d265647ae633ef41c57f6eeec474a06b94"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slliw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-slliw.bin",
         "sha256": "7d394b5a2d0dc7339db3c2253a8b0e8d732a475b925ff8abcadb08b7e1f5879b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sllw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sllw.bin",
         "sha256": "ddfa5d1ebc4a0b4a327168239aef60b0ed3e2fd2af3bb3d70c95ad80e3379d30"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slt.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-slt.bin",
         "sha256": "ed0e65bf51d7fc4cf676ffaaab798796ea3533d8d640629ab3422a5baed9fac9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-slti.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-slti.bin",
         "sha256": "5e33686b1f0a37a1b98cb1982517ef6cdb48a8074b9abe0ed2a750f95b2235e2"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sltiu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sltiu.bin",
         "sha256": "9858d08fce765bb22f43a40258c2444346e42baa10b2be7b687609654812f39d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sltu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sltu.bin",
         "sha256": "da9c47137f6cb7dd35dc660ad6c7125a64b29ea28efeee1ff7f2f34f04f4d86d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sra.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sra.bin",
         "sha256": "8f6a33066b58bb8677937fff5f2bb8f0c0bbe09492adfbba1b91446838c37a5a"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srai.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-srai.bin",
         "sha256": "58932bf914fd2c79288c5c2879669571b2562c4865b5009fc38af52ebf118c3e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sraiw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sraiw.bin",
         "sha256": "c57e317cdf106796b258c1fdf2bfd8565ffb40d68277c4bf32993d6d43c39bc3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sraw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sraw.bin",
         "sha256": "b9b9e8362cc9b690e492d19e6991671f1fecd4eb423d4b5db55df69260726012"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srl.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-srl.bin",
         "sha256": "31177e38a90aef3df4d0156bc763fcfb14e6eb91813dc3602cdd026f0641c8b0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srli.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-srli.bin",
         "sha256": "0e3348cf25e9833f3894b5acf831b92064825f05f57d98f3a681c69df1b39428"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srliw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-srliw.bin",
         "sha256": "e8fe166c0b04a7ef084a82c33809b4aeb0d45574dc4da7560bb1ea7e998ef9a3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-srlw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-srlw.bin",
         "sha256": "e912ffc7f56ad5844b242c2a0e8c79909ed0a3140ffccd8b29d9038be79d02a1"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-st_ld.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-st_ld.bin",
         "sha256": "e61f1fad19e0cee7c85d55e1a86920a692ee499a95ccdbd4fd211e148f61c357"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sub.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sub.bin",
         "sha256": "3d112840acb08e32ef43ef5bd37d5eed92261da52a866ef7d1229afc028850dd"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-subw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-subw.bin",
         "sha256": "b1da1b356666b94e50970e427b03b68eb46edb0514a062f27a935e356b77180e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-sw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-sw.bin",
         "sha256": "eb76e441433952d6781f3525265b31c213532d4d418844ccc0c8ee04c00cc679"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-xor.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-xor.bin",
         "sha256": "b606a64937436d5c4f4f074785589a8afd427a603d4611cc1e5e953cfee64f96"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64ui-p-xori.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64ui-p-xori.bin",
         "sha256": "2a1d90b9a3c60dc7e7d231e01a05c0a1d8d3ca986e0c2f602b617bc9c5d3278d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-div.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-div.bin",
         "sha256": "44f3840869e0cc074db1ed335c932519ccbe34f1d866807cf86ffb0743c953a9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-divu.bin",
         "sha256": "672440b891c867bdaabdb9c9eaca0dbe10d4a04794829edbbc5c130fdf85897b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divuw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-divuw.bin",
         "sha256": "a8d5711ccf23018c73208a0f422dbb7c1e905e738102d4ec7c2eed2dba9a217d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-divw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-divw.bin",
         "sha256": "bb0d9bb0a24016c4cb11adcd4071e8bfa516605d0f5860e2ca7a198e7b23788e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mul.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-mul.bin",
         "sha256": "01f2bbace777f073716b8cc5091a3e863c6f3ccff53f89b23aa00ba6696f8ded"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulh.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-mulh.bin",
         "sha256": "fc6fd7c53853a5e5d14990bb6a3421d00530c06b778490af40b8541bcd7b76e8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulhsu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-mulhsu.bin",
         "sha256": "f6983457179bd80659fd1afbb9024cee384b3ada4996b262b57faeb49a85d2ae"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulhu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-mulhu.bin",
         "sha256": "f0438bbeeb21c46bb99761757f0413bccc69e6e5f33bb0a01d30e57f72c268f8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-mulw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-mulw.bin",
         "sha256": "5c7d95105555210e28b07d58c81048f6f78e338e2bd8161c88a8cec0535bd956"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-rem.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-rem.bin",
         "sha256": "e82f781f5b19120186f630daa68af1dc202746ea31852f1c808d0eb6383c9326"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-remu.bin",
         "sha256": "5e6f1723551a16bd7868daffbbe9817055f707d43374a7eab9f6cd5e80d0ed51"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remuw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-remuw.bin",
         "sha256": "f4e559c92755434d1e876748d7c9199e15d419a2c73fd4616b7fa9ea4b09f9f9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64um-p-remw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64um-p-remw.bin",
         "sha256": "cab5034a4b8b98c4420e369d0aa35d0f35271d5efed7e159bd0a027b4b4f8f24"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-add_uw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-add_uw.bin",
         "sha256": "0aa918cab4e34388264e8098188820d738f44369eb5829ad847a65210809fe4f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh1add.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh1add.bin",
         "sha256": "4188c2ad410b55bd716f4c2b5297c5a87e04b19e117b7cd69de1bceb0d630bb7"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh1add_uw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh1add_uw.bin",
         "sha256": "f5ff38ec3295945c11f73a714a2f55791b2310d4822bc9cf01e4e3fdb018705a"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh2add.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh2add.bin",
         "sha256": "1bd567c563aa3412339a468b45424a817f9e5a2bb6bee85029b0773e571cb4e7"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh2add_uw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh2add_uw.bin",
         "sha256": "0074b1b96e82aac4d68087d00870690e364fa5ef58194df4a93d3b6bc321f2e9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh3add.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh3add.bin",
         "sha256": "4a9fa44ae324c163c502187fbd91ab065b1a1bdc260364526e6545a00e80566e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-sh3add_uw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-sh3add_uw.bin",
         "sha256": "ae8f68b876fefa498f3a6844f0fb8f0f4aa1b8abd5d9efbc26ab34cdd640f23a"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzba-p-slli_uw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzba-p-slli_uw.bin",
         "sha256": "15b0f47a599f0f0c0d0aaae5e5af1ff928f678235cedd081876bad8a4fb8e32f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-andn.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-andn.bin",
         "sha256": "f19811cbb497c05b5d6e5826225333ae8478bd04946ebc2a9133a70200e593fd"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-clz.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-clz.bin",
         "sha256": "6ba3a3bc33691afa8d79aedd4d97a9f4c6a16f77b4f073f24dbe96808612be88"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-clzw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-clzw.bin",
         "sha256": "33408c5db8a984c06ddb78bc3eddde3d8c4dc1d1b0cabfca2336d557c5ae1813"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-cpop.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-cpop.bin",
         "sha256": "54d9c69097cc7b5c6d74ece7fdfcca78f5b4c47197fb2033da8b8c995d2fbb6d"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-cpopw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-cpopw.bin",
         "sha256": "d38e270e6f87084436a7d4d3dc269712e1f051d578c3f04e1f07ddc48156b29e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ctz.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-ctz.bin",
         "sha256": "93c879bd6d9e8052df6c2347e190adf55af18bb6b038e6d5f2c3d471faedbce3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ctzw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-ctzw.bin",
         "sha256": "6b828c243d4c31420d1653b451e86d6828e3ed6f7223500e72d8cf71acb65de0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-max.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-max.bin",
         "sha256": "6194cb4ce3d87cb3b42f08c42303d9d17be9d40e58fa3fbf0f6498667676db83"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-maxu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-maxu.bin",
         "sha256": "e6e47bd13db350550048d36260bdf5c54cf265ccf628201a972cf84aa47e6d55"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-min.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-min.bin",
         "sha256": "1dce3122d4f7af347afe0704cd2287d2e841d95a33745018704ef4c34c53791c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-minu.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-minu.bin",
         "sha256": "e42fb382e38e338157a7a09f0af61b81e1adb55fce8c0238fbc18a1f9f854c6c"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-orc_b.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-orc_b.bin",
         "sha256": "e747140fda5bf4c2a9c7c61baaf50e98f11d9a0868de2929226a73897c24d89a"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-orn.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-orn.bin",
         "sha256": "1dc85c483efa1dd9ae3caa4ac8b83652a9d703b17e19200432dc03b7344f7860"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rev8.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-rev8.bin",
         "sha256": "8323caa090d7bef716030ff48c874bb610e4bcdafa9f40650b67b65b5df587f2"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rol.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-rol.bin",
         "sha256": "b30437b4efdc38041fa7f3359789077de3c4b0354cffb8e557ea373cb3d12fb0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rolw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-rolw.bin",
         "sha256": "4ea26f5aa28665049b718ca9c205a14211eb22a23d6ade4abced5e6f86d19040"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-ror.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-ror.bin",
         "sha256": "00e3f4989872295d4cc789ca5157c7d3f4e79f960ae64dc5a4a9f91a8b142b02"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rori.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-rori.bin",
         "sha256": "dedf00a9bb2ad52ba976e88740212cffdb2b38241368d634ec25cc88c4e66b1e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-roriw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-roriw.bin",
         "sha256": "d0eab7105f35eb9f734d2ec7d0b324b75837d4c2d0945ce6f7ac3bec01571f7b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-rorw.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-rorw.bin",
         "sha256": "033a1c7ae08aa96a008e3bd79de503629bf9ee854e6ac95af66a4d47e6a72115"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-sext_b.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-sext_b.bin",
         "sha256": "5eaaaa6053c3f1df1397b1efd948ca59a029e8d4cb9e7e109017e12aa93ff1f8"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-sext_h.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-sext_h.bin",
         "sha256": "f65dd47398f516e100712d6007e634099fcc8e73eeb780ce4557fa1f376d5656"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-xnor.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-xnor.bin",
         "sha256": "5c9520fd4b5b92c89d63a8125af88be702afbf8361042b894ec8fb96668eb9b0"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbb-p-zext_h.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbb-p-zext_h.bin",
         "sha256": "b7684eda4bb87bb88bd76be1a5b41c4799d2a21d94881327ff419326b612901b"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmul.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbc-p-clmul.bin",
         "sha256": "d144029621d295b0c2ad5c1dfc2dcfd2162695e8c1605400060e8e9dec2797dd"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmulh.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbc-p-clmulh.bin",
         "sha256": "d14fdd7c58a57a0035f5ca09c2df530c963671bd1ee1cbef9584b52755637731"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbc-p-clmulr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbc-p-clmulr.bin",
         "sha256": "a9215a3d0608c6d4f3d495d947fc4f808241ad42d99292913dd9d3d75bf71e1e"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bclr.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bclr.bin",
         "sha256": "f8d5a36e757e695191986e5601ab988354c85febedc4e76cc78c25fb0609392f"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bclri.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bclri.bin",
         "sha256": "37d0418280baac2d769f3145216ec157e06966460815bf5740f2f22f6e306f42"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bext.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bext.bin",
         "sha256": "c3b71a5fb246eee19e888009d61837fcf6b2c449d2fdb8af289f60d927e135c9"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bexti.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bexti.bin",
         "sha256": "793fe375c8e13a7b1c7b5e6f4af73049e37cc664e477bde2cc7555985a92d4db"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-binv.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-binv.bin",
         "sha256": "8471d3e0a7b4a987ad22ef20b34cecb76d725f29f9c8a5a284e34c7a1032c894"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-binvi.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-binvi.bin",
         "sha256": "8974fed3cb7c502d42aca753d05044e2db6f8bbd3243a23c4377d82bc5977b39"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bset.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bset.bin",
         "sha256": "31e4ba324b166112ff91fd8e518c314831ff07fefbda4bb1e90f60cc7fbe30d3"
       },
       {
         "kind": "program_image",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/functional-freeze-1/inputs/images/official/rv64uzbs-p-bseti.bin",
+        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/official/rv64uzbs-p-bseti.bin",
         "sha256": "937f8e935000f904dff522ad07d3ccc9f029b6cd2cfc072ef92ff2cefff37c97"
       }
     ],
@@ -1493,7 +1494,7 @@
     "macros": [
       {
         "kind": "macro_inventory",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/macro-inventory.json",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/macro-inventory.json",
         "sha256": "1415453d2ae9a8c1e9eeea0ac9dfde9551978ff96bc35a6b1267322cb7c7bcca"
       }
     ],
@@ -1501,7 +1502,7 @@
       {
         "kind": "architecture_spec",
         "path": "npc/rv64/design/arch/ROADMAP.md",
-        "sha256": "2206102f044176ba907e72914e44589551321f2de10149cdbc281156e181f3c3"
+        "sha256": "8d28b0513c28ca1f53c7ae0bbd1553fb0a83d69d80020551a972815a973964b5"
       },
       {
         "kind": "architecture_spec",
@@ -1511,7 +1512,7 @@
       {
         "kind": "architecture_spec",
         "path": "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
-        "sha256": "66e699b3d0ab38710d77c8922377045a0bf9424eea5938120051d119cb9dd14a"
+        "sha256": "7ebb0a27bdabd4fb68ba3ae41d5ddb20e59ac2873649a659c494385a174aeb85"
       },
       {
         "kind": "architecture_spec",
@@ -1711,7 +1712,7 @@
       {
         "kind": "module_spec",
         "path": "npc/rv64/design/specs/ooo-current-system-recertification.md",
-        "sha256": "43f17a5cf02b54ea5d6bffdb2d02a3143e4b33b0695a08547bb247be6a20900d"
+        "sha256": "88dbaa867a0670d6becb4b2798df04ae951868fe8a90f6db28dde185ae7a929c"
       },
       {
         "kind": "module_spec",
@@ -1751,7 +1752,7 @@
       {
         "kind": "module_spec",
         "path": "npc/rv64/design/specs/ooo-dual-memory-terminal-owners.md",
-        "sha256": "dbbca6e84c079fabcbb3c1c90f1b26459b5bedca898d1d2bfa2b2d764dace2d8"
+        "sha256": "ebb59dbcf09210b3ddce587eb863b2ab19a71cfed204f9277bd0225bcd043b98"
       },
       {
         "kind": "module_spec",
@@ -1945,6 +1946,11 @@
       },
       {
         "kind": "module_spec",
+        "path": "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
+        "sha256": "9c5601078c286f7a6bfe896a1aca424bc090d43bfd2f46146a139f732b3b3a6b"
+      },
+      {
+        "kind": "module_spec",
         "path": "npc/rv64/design/specs/ooo-memory-typed-abi.md",
         "sha256": "18a01675f2d38fcda6d9d73c498754af02ac920973aa6f6874cea78a71e57e1a"
       },
@@ -1971,7 +1977,7 @@
       {
         "kind": "module_spec",
         "path": "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
-        "sha256": "4c457f671fbc5f59ff9cb34d6aab8ce65c57479b2cbd07f074e3bc6f91b770f2"
+        "sha256": "a47ede168ca284a6f6d00a5b0a8e2245abf22d1478521981ed4f111fed80f41d"
       },
       {
         "kind": "module_spec",
@@ -2107,6 +2113,11 @@
       },
       {
         "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh",
+        "sha256": "df3bb9e53a06a90e42a33ddb9d97468c18bdd854eb5571629ce5d23eab29a0f2"
+      },
+      {
+        "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/fixtures/tb_error_then_pass.sv",
         "sha256": "704e44b7bcd6626944efe30214a0a143586c2837c9faaba39738f5cd41a190b3"
       },
@@ -2119,6 +2130,11 @@
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/fixtures/tb_true_green.sv",
         "sha256": "b099d60595e7861b9256507a67354b86f11a1b1777388cfeceb71db6928b253b"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_architecture_delta_mutations.py",
+        "sha256": "ef6204b90bc174682976419e172b94e9b861e043e8289a6d95437abb02348f3d"
       },
       {
         "kind": "test_runner",
@@ -2193,7 +2209,7 @@
       {
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/run_v11n_memory_pending_holder_semantic.py",
-        "sha256": "4e5812f4767387eb1ac5126649b108e94c27cb093a938d58c388c4951df26a6d"
+        "sha256": "0485dcdf0a273c21e90f3a4ce6b7874fee67293c81917ece285f245af921c449"
       },
       {
         "kind": "test_runner",
@@ -2228,7 +2244,7 @@
       {
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/run_v11u_pending_system_producer_semantic.py",
-        "sha256": "2953b22e4f7353a5a884798ae679b2fd0db44713b2f5c616a4100ce66c1cdb77"
+        "sha256": "110e80e6e8135dcfdcf33f22bcca4ba5f2e39b81795a3274da574bf0cffea67f"
       },
       {
         "kind": "test_runner",
@@ -2248,7 +2264,17 @@
       {
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/run_v14g_global_producer_owner_fence.py",
-        "sha256": "5b1b9d4569b65208ce48a179969de10e387b6e5a42e246d8794182121b738b82"
+        "sha256": "44f898e9724193b61e7ef2ede2d733d4c1eb1e44543e4a13ad4062437bc0caf9"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh",
+        "sha256": "88153b03fb22452015b290f88677863042182ed68503d871f7afb0957d56daed"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/run_v15p_adapter_final_b_fallthrough_mutation.sh",
+        "sha256": "ae850ce83e073ffcb48f1366c87dafe0fc99b8f6068f16ec295790b433005cb8"
       },
       {
         "kind": "test_runner",
@@ -2264,6 +2290,11 @@
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py",
         "sha256": "f8c41eb8a3e3b07d6af42c3672d09455b53a25d0e8eb6d539c39faa5d149f15f"
+      },
+      {
+        "kind": "test_runner",
+        "path": "npc/rv64/testbench/scripts/test_run_architecture_delta_mutations.py",
+        "sha256": "03239f08ddf97148f56e6201be27939025deffdb01a853ffa6158e2b7de97e9e"
       },
       {
         "kind": "test_runner",
@@ -2293,7 +2324,7 @@
       {
         "kind": "test_runner",
         "path": "npc/rv64/testbench/scripts/test_run_v11n_memory_pending_holder_semantic.py",
-        "sha256": "1804f93533fcd25d4ebaa3e0c1aca4677853be132dbe89d50cb5492e8aad4c2e"
+        "sha256": "a030cb3536e36686a7125eafb6c1c56fab89b90677c0f37c8f4615ac13ddaa26"
       },
       {
         "kind": "test_runner",
@@ -2758,7 +2789,7 @@
       {
         "kind": "module_test_source",
         "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-        "sha256": "2eea52178419fe53d741bca48a78f8edca09e11af93be256ec8466ba11b23613"
+        "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6"
       },
       {
         "kind": "module_test_source",
@@ -2803,7 +2834,7 @@
       {
         "kind": "module_test_source",
         "path": "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
-        "sha256": "17675c45fb4d8079ecb6ac954ae7b654ab8f4ee63b3487c4b5ced5ac89b4b739"
+        "sha256": "b648ce4a00011f9ccebcd98b7d39ee69c81862f7c3d84c8b3451eb76c14ddbfd"
       },
       {
         "kind": "module_test_source",
@@ -2852,6 +2883,11 @@
       },
       {
         "kind": "module_test_source",
+        "path": "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+        "sha256": "b13ef4cfc4140c1c2471fb60b39b808854a2a9ed2f5b0f920ecf52b1ca9bf988"
+      },
+      {
+        "kind": "module_test_source",
         "path": "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv",
         "sha256": "049415506d00b2d09f0f6f46dcc01dcca0a2b84d784a40ffad8e19b70cf9655b"
       },
@@ -2873,7 +2909,7 @@
       {
         "kind": "module_test_source",
         "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
-        "sha256": "f37c48e9f744f5e1bd65e5c653d8b6842dbc671b9dc965ca24c9a454b2a40fcd"
+        "sha256": "00af4d4cc68bea126424a87eab9e4226bfbaf1e4caa865950d72381b5faf07d2"
       },
       {
         "kind": "module_test_source",
@@ -2943,7 +2979,7 @@
       {
         "kind": "module_test_source",
         "path": "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
-        "sha256": "6968ad0699be59e7166064bcf62033d655185c688cb52aa4cf80d8536cb67823"
+        "sha256": "d9d2c38ad7a53679ecf376305eefded569b88871c82979ce52728913a197c2df"
       },
       {
         "kind": "module_test_source",
@@ -2989,7 +3025,7 @@
     "tool_versions": [
       {
         "kind": "tool_version_manifest",
-        "path": ".github/task-runs/2026-08-04-rv64-v14m-arch-stable-current-cohort-v1/evidence/freeze-final-3/tool-versions.json",
+        "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/tool-versions.json",
         "sha256": "c4b344dc3051315df5f0ec0841e730802142cf3cdd044cd27bd28314f5967dfc"
       }
     ],
@@ -2997,7 +3033,7 @@
       {
         "kind": "audit_test",
         "path": ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
-        "sha256": "5ccb74fadf8266aacfb7f38114eb1819a2aa43a49c3a0027fe65bd3ead190d2b"
+        "sha256": "c66ed74c0cd3dd23c7315a6ae5f1bd02e2fd56df00fc7826dcbf6804790f7682"
       },
       {
         "kind": "audit_checker",
@@ -3017,12 +3053,12 @@
       {
         "kind": "audit_test",
         "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh",
-        "sha256": "76ebb93546f42e949066b502a74e04568b80544cc31114a550837fc20c7cd3f1"
+        "sha256": "7071ba39332f6ec7998559057eeedd077c3d28c40115720db6c2be1c9988fde0"
       },
       {
         "kind": "audit_checker",
         "path": ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py",
-        "sha256": "80804cd9d289b9e4a0086b264de0a46fc01b7fbb3a0b8a4777f83af16cdb7cf6"
+        "sha256": "f53cb97665e1061095873ee74bbc5c3738450be78f0a3e8450e85c08d08c1098"
       },
       {
         "kind": "audit_test",
@@ -3062,47 +3098,57 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
-        "sha256": "7ab2a753fe5c93d3a6163b64f6a7d90f8a38280c94e6b6a5ecf18ab2ac84e5be"
+        "sha256": "53e2ea89b33f78f3bcb38950e494a818392ad41a944c409022f99553a09dd83f"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+        "sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100"
       },
       {
         "kind": "holder_semantic_policy",
         "path": "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
-        "sha256": "f8f77e71feafe0b585d1c8f47ff5acd7771b8819496eaea2850dc40dedd9a507"
+        "sha256": "8c9e3241806c30d1e9ca5d8604975ef73c065c8fc96073a60ee0ddf014ef55fe"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
-        "sha256": "ba73ab3be961b5626593b50c86d126796ab2e9fc246e77ccb6c9aeba811c0fcd"
+        "sha256": "ef8f5404a13194a74ebe02d92031b776a5a60944ceecb8ea808c3b91542c62c0"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
-        "sha256": "d81bc48f7c4c4d2728fc9869da6a0ba943c05a0e9f0cf38a3fab0fb205fbb762"
+        "sha256": "7a6515cebec0e01bca20413bf24fedb365a6ac5f1b975c0cee1b88f9893cdaeb"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
-        "sha256": "522b45d18f1f3b9aa6e7c12086515946c6fdb35ce81571c366d24d4275b4e1c2"
+        "sha256": "71e1f2517de9ff9befec12ad64f1d7b658c3458b650fb26f5ce5397cc4bdfa2b"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
-        "sha256": "3723d9a437bc4972e3c1390978ef7493444fc2513defe1a85fd0e64c53d11aa3"
+        "sha256": "cc0ae696f59c72799aa640bd11b8714c236a9fca83d688bb62f2a328e64aee4f"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-        "sha256": "10325db82110ffd854a28d420f5b2c5fa867dfab7edf7b8da0f804a7602876c8"
+        "sha256": "ce4bfaf09ed0bdd28fc8e69c176d90fc02d1189a3f2358db08c33f54b9839a1c"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-        "sha256": "8f80e3b5b2115733e85c87e4723b56e1f9e8a80ae3c4d15a71a222fdf3407a19"
+        "sha256": "6937db456ec6ceed543be291e7c43c0feb358aa28549a08578855e1dedf27c45"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+        "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
-        "sha256": "bfaec77c6b3fb60f3fca89f13585283ae639cfc172dd7a47878249acbdde5e99"
+        "sha256": "99fe31b9bba8128277cb1c158154888f062b3e71f85eefdf498631142884873d"
       },
       {
         "kind": "audit_test",
@@ -3116,8 +3162,8 @@
       },
       {
         "kind": "json_schema",
-        "path": "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v1.schema.json",
-        "sha256": "04e460d0505ff9a97a87c31b8bde340825b88b113b1e285e6697c901a1cac7f9"
+        "path": "npc/rv64/eval/ppa/schemas/arch-stable-candidate-v2.schema.json",
+        "sha256": "ac1b67bb614c1231381f7f1098bfd2c0626072e521ad70809b6f0a32f0e45c81"
       },
       {
         "kind": "json_schema",
@@ -3136,8 +3182,8 @@
       },
       {
         "kind": "json_schema",
-        "path": "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json",
-        "sha256": "7cfb6ce81c19fdac5bbb0548ef08095981a1acfc783a8eb6ee38cd1e7408cf5d"
+        "path": "npc/rv64/eval/ppa/schemas/architecture-debt-current-v2.schema.json",
+        "sha256": "0acfe2c19ebafbc00f5c9d72a4d4ba51aec2f47ae16360284925146928a27357"
       },
       {
         "kind": "json_schema",
@@ -3167,7 +3213,12 @@
       {
         "kind": "json_schema",
         "path": "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
-        "sha256": "966e877c657c889be2a5c6e752839e1d5e40be20a30b20d9c9b4e33b9973bfb2"
+        "sha256": "440264de564a0ef6a91e75f66b82a5bc001a2648e7780756139ae07147288640"
+      },
+      {
+        "kind": "json_schema",
+        "path": "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
+        "sha256": "0bba1d980ba161f5c2592d84a94f52943e96ce898fe059f28e41bad019429d38"
       },
       {
         "kind": "audit_test",
@@ -3177,12 +3228,17 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
-        "sha256": "ecd1961b3b87af398924583b5d2e1f2590991f0309d7ed728b4a288858ef9f46"
+        "sha256": "381303ae7092c1bd06efb3405b68e607ac362fc404327d63b084755ee14afe2d"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
-        "sha256": "f64c0d9d317e99618b4923a4a46974800526be3e96812c4998baf54b7cbd0ec3"
+        "sha256": "027f1d6520a679a21cb4d5ccbc1c8bb59c7777a605e9bedacf208991e8647608"
+      },
+      {
+        "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_architecture_debt_delta_rebind.py",
+        "sha256": "e9054c0e475588a39e0854b7174032e82617ea9b6aa12176555a8428bb24b119"
       },
       {
         "kind": "audit_test",
@@ -3197,7 +3253,7 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
-        "sha256": "73e582cf2542c8a5f402d57e8af07cffd7c4414a27d8274a156b66485da02175"
+        "sha256": "31f9759d4c256773122a9ac6070fcc0b3186798d916997e9d7f57eb8fde72b03"
       },
       {
         "kind": "audit_test",
@@ -3207,17 +3263,17 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_global_producer_no_live_reuse.py",
-        "sha256": "a959ae5f4a8a025fd4194dcdf272f78a0a38605a0fbdab0b4a9818893e00175f"
+        "sha256": "debdc349b8e73dd5a1ba7f4c42094cb9e39076546657d6716986fe4c8c399b24"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
-        "sha256": "101f2000f5a6f5810f4572afd00d9641bb5d2e462677252f4f412b7dc3590775"
+        "sha256": "deb9398b1e8720247b2550f96ef9d89c6a044a675a745653eb2a0f936cc6d1a0"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
-        "sha256": "59fcb6de7aee4815417adb157fa8dddafc824a6144295c32270f809cbe811f8e"
+        "sha256": "529666f93170435e650c2fde1e08ba5ec185c4f52737d8335f9ba40282a10fa2"
       },
       {
         "kind": "audit_test",
@@ -3241,6 +3297,11 @@
       },
       {
         "kind": "audit_test",
+        "path": "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py",
+        "sha256": "a7fe4231add8d705925bea4686b86289f4b4a3e483f81d1d831312dae63416c0"
+      },
+      {
+        "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_memory_issue_lifecycle_evidence.py",
         "sha256": "03db6f096825d076aafc4cb9e1d6f3244786aeeee7c67790511a33348f7cf9a9"
       },
@@ -3257,7 +3318,7 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
-        "sha256": "1ee6b0f6c7278c4b5e0d8dfeb221a07c0bed93ab1bf74d8b2b0ccf86acaeb605"
+        "sha256": "e2882273a19a0d00a4b372d52cc0cd1a12aa361e7fcf79b583360158cd60ff91"
       },
       {
         "kind": "audit_test",
@@ -3267,17 +3328,17 @@
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_producer_holder_semantic_coverage.py",
-        "sha256": "d9bb418f312adbdd50760819348b116dd901ac9690457121ea748c0d1dd4437d"
+        "sha256": "388c169a280778aeaa6cc5bd9e7965e31f3f1b8c72a133c71de14c7d206feacf"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_system_recertification_current.py",
-        "sha256": "9462563f5c4c59c25676e30d1b90208eaf8c63380af951b45219d33cb59fb776"
+        "sha256": "c39f41f289de8eb6fc3c82b005add861d82128767fb4ec55750de168b4407f0e"
       },
       {
         "kind": "audit_test",
         "path": "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py",
-        "sha256": "7614466c97bfc6b8a389fa7dde7a6524b38be10d5f252041edc4c109607633cd"
+        "sha256": "12d0bb79ea07fdfd62615a655bd63557013dfd82c55a6a4c6aca87df89b378ac"
       },
       {
         "kind": "audit_test",
@@ -3302,22 +3363,27 @@
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
-        "sha256": "504d0143c77bdfe056aefba94d697879872846b54835f3d3e0e05f93fadf3a5b"
+        "sha256": "a7ebcc30363559aa55c337f50f093ba857c7be1ac01f54c22018a7af4fbaf242"
       },
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
-        "sha256": "14ad24573d96601e68ccf9463eba4e2afc793f4f3c10848c52a84911d36758d1"
+        "sha256": "d3f3e99964dc86960d7293054d1f568ed53619933f03e58cb9d6ae10b44e8697"
       },
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
-        "sha256": "59f4299065132bf183090dd7b66f1778ed0c1a199a2a9e35f20e0b9b8c947a97"
+        "sha256": "de1524b6cc58c37cf84343837a80b75f09002e1a1483848bf47881f9f9c63d5f"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
+        "sha256": "b82fd3d13dd2bbb50696ee7e7182acd43866573816e4f9af10e804eac9944578"
       },
       {
         "kind": "canonical_architecture_checker",
         "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
-        "sha256": "785d3add61a33b793200dc264886f67fb19f97c72d09665ab3fb69f096e32467"
+        "sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274"
       },
       {
         "kind": "canonical_architecture_checker",
@@ -3332,7 +3398,7 @@
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/functional_aggregate.py",
-        "sha256": "90a9f87c6490dec06a0cca55761e0b8cd38aa904bfb545a29348015441be3e2b"
+        "sha256": "f5bcb0512c5003fc4f8b0e5576b35f2092e2bdd72f58ebbfd46259b4e2374843"
       },
       {
         "kind": "audit_checker",
@@ -3342,17 +3408,17 @@
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
-        "sha256": "846623ab8ba31b6a7a1f0b496ef72f536330e2858b2eb2be316923133e946f3d"
+        "sha256": "7c7812861ae85434e058c058c9866e5e1e90f69ed9656f137577f2f255fc82c8"
       },
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
-        "sha256": "e2fcf1bcde15db1ae8f8a4aab7b09801f1d9c3ee9396624237a168b9fb5f8205"
+        "sha256": "d6025d962ac8b4a036b37e2526327917a1697fc534199283e3a735a7bb6656fa"
       },
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/historical_defect_current.py",
-        "sha256": "c87a1133b3a392b5a0e6842341e2900ef8138520a0012457b4bd86c037b08feb"
+        "sha256": "7039f4d1bc04d1b30b0f41362397ce6add316fd1987a47bf24c20630773c8ac9"
       },
       {
         "kind": "audit_checker",
@@ -3373,6 +3439,11 @@
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py",
         "sha256": "9dc27f788a39db3d7ffc324e659ad7e98abad98889e274b97a778de96408d004"
+      },
+      {
+        "kind": "audit_checker",
+        "path": "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+        "sha256": "457e48f1701bf1461f30ea478dfffde77b1c8a999d1496ec6aa8228cf9fbf0f4"
       },
       {
         "kind": "audit_checker",
@@ -3402,17 +3473,17 @@
       {
         "kind": "holder_semantic_checker",
         "path": "npc/rv64/eval/ppa/tools/producer_holder_semantic_coverage.py",
-        "sha256": "22c01241de26d1dcf7fccf716f1415fc444ae52e3793a584cefffed2457fd2f4"
+        "sha256": "1e64d7d11882f77c4712a6131ee9c917bf9838ce205f162f0bf8482e39f5945c"
       },
       {
         "kind": "audit_checker",
         "path": "npc/rv64/eval/ppa/tools/system_recertification_current.py",
-        "sha256": "6672747775c5bd3787a944deefcd56e87587c79cdfc81a2b18b2e5caa26ae935"
+        "sha256": "ccd47e1051f49488204169956c38327854da57f80d96c52549576484772793c8"
       },
       {
         "kind": "holder_lane_contract_checker",
         "path": "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py",
-        "sha256": "cce4660da1141f990ec9a235c08243aa046d1bf33cdca71dab36fdc6dcaf2bb4"
+        "sha256": "30ab79f3e3a3d8afc838ec2dd8f59e1fbc38c601c307711524385f330f8bf9ca"
       },
       {
         "kind": "audit_checker",
@@ -3427,7 +3498,7 @@
       {
         "kind": "audit_test",
         "path": "scripts/check-rv64-soc-delivery-gates.sh",
-        "sha256": "a787d8b7a1082ee7fc9c915662936c7a51f64c3a705b99688637beef65148ee5"
+        "sha256": "103f869c000ff4988c88994599b8ce4e72d1f0fae6c426ec4707e1bd878dd66e"
       },
       {
         "kind": "task_run_status_helper",
@@ -3437,7 +3508,7 @@
       {
         "kind": "audit_test",
         "path": "scripts/tests/test-rv64-soc-delivery-gates.sh",
-        "sha256": "ab2fc077446e62cde5b7065be31a66bbbb4fb722d542966e8d49e3d9e4e706a3"
+        "sha256": "96b1b8e476d5a6ef2b0367ae51388a818553fa2f35fce1b865698da95013ca4a"
       },
       {
         "kind": "task_run_status_test",
@@ -3453,7 +3524,7 @@
     "threads": 1,
     "top": "NpcTop"
   },
-  "schema": "npc-rv64-arch-stable-candidate-v1",
+  "schema": "npc-rv64-arch-stable-candidate-v2",
   "scope": {
     "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
     "excluded_debt_ids": [

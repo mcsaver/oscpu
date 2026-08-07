@@ -4,7 +4,7 @@
 > `full-core-single-hart-rv64-dual-issue-ooo-v1`
 >
 > **Bound RTL design ID**:
-> `sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9`
+> `sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968`
 
 This document freezes product-capability boundaries that are not inferred from
 test availability.  Each exclusion has a machine-readable

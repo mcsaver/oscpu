@@ -32,7 +32,7 @@
     "HIST-V8L-FORCE-RELEASE-SHADOW": "BACKFILLED_CURRENT_DESIGN",
     "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": "BACKFILLED_CURRENT_DESIGN"
   },
-  "design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
   "evidence_reuse_contract": {
     "artifact_state": "TOP_LEVEL_RECEIPTS_PATH_SHA256_SIZE_BOUND_AND_RETAINED_LOGS_SHA256_BOUND",
     "assertion_state": "POSITIVE_ZERO_FAILURE_AND_COMPILE_SUCCESS_NEGATIVE_REJECTION_REQUIRED",
@@ -109,8 +109,8 @@
     },
     "layered_system_current": {
       "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-      "sha256": "f342ce6ed7317afcb2cda6676f130616b5e15a76a8e5d43305ae8ede8ab0a09c",
-      "size_bytes": 15150
+      "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7",
+      "size_bytes": 15303
     },
     "receipt_schema": {
       "path": "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
@@ -119,13 +119,13 @@
     },
     "receipt_tool": {
       "path": "npc/rv64/eval/ppa/tools/historical_defect_current.py",
-      "sha256": "581b52026bbf06bf2027fa0406bdaa7249475fb7254433a86803926b157f476b",
-      "size_bytes": 85804
+      "sha256": "7039f4d1bc04d1b30b0f41362397ce6add316fd1987a47bf24c20630773c8ac9",
+      "size_bytes": 103215
     },
     "v15g_exit_current": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/exit/summary.json",
-      "sha256": "d47e84d8e9b74435017831e3e054dd19299efa6cc3e4302a995c2ee320c98db9",
-      "size_bytes": 17553
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/historical-current-v1/exit/summary.json",
+      "sha256": "8819158b15e85226a54c89d30cf636e4234b86235fa0acac903d0a89774a492d",
+      "size_bytes": 17535
     },
     "v15g_independent_review": {
       "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/independent-review.json",
@@ -138,29 +138,104 @@
       "size_bytes": 23901
     },
     "v15g_serialize_qh_current": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/qh/summary.json",
-      "sha256": "a4969ec2635648450ff43e7ecb7b1f4ec307edde54994742a9c96b78f9d4a098",
-      "size_bytes": 254045
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/historical-current-v1/qh/summary.json",
+      "sha256": "9c8ae81d9aadd2bb827bf4c2f056e445cb6445100de41c0153145534b8eb8e25",
+      "size_bytes": 253964
     },
     "v15g_serialize_system_current": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/historical-current-f7a-run-1/system/summary.json",
-      "sha256": "cf90786defd91eef71c31691a78cc0e011ca23d3d29bf1014d5d58503f74e8f8",
-      "size_bytes": 707626
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/historical-current-v1/system/summary.json",
+      "sha256": "c8ed68fe350c692b4eb712ceef307a1a1ed20025764aa54eadb9302f5c37fb10",
+      "size_bytes": 707316
     },
     "v15g_v8l_current": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v8l-current-f7a-run-1/summary.json",
-      "sha256": "622ab7711f3af47dbd415ec7098679e4cc75be65449cf4357dd8c6d3dd629346",
-      "size_bytes": 15549
+      "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
+      "sha256": "ce4bfaf09ed0bdd28fc8e69c176d90fc02d1189a3f2358db08c33f54b9839a1c",
+      "size_bytes": 81779
+    },
+    "v15p_adapter_mutation_log": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation/mutation/logs/tb_ooo_owner_timing_causal_probe.log",
+      "sha256": "63824d914ca187129e3a4243f6217010e052f910fa53fb9de4b75b753fb093fa",
+      "size_bytes": 2457
+    },
+    "v15p_adapter_mutation_result": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation/result.txt",
+      "sha256": "547a6c56b60c272b56802197f2d121c9bc27a7e66f8e84ad461f4a7ec6b8242d",
+      "size_bytes": 673
+    },
+    "v15p_adapter_review_closure": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/independent-review-closure-v2.txt",
+      "sha256": "e8317fd754b000d5720ee6b8bfb592dcd74b8f3bcc4565c0f10fa36430916e51",
+      "size_bytes": 2872
+    },
+    "v15p_adapter_review_result": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-evidence-closure-review-v2.result.md",
+      "sha256": "d80d6096ca5acc11d346123820d0c24a893716d589a4f9a3ae0223439dd890c5",
+      "size_bytes": 3782
+    },
+    "v15p_adapter_testbench": {
+      "path": "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "sha256": "b648ce4a00011f9ccebcd98b7d39ee69c81862f7c3d84c8b3451eb76c14ddbfd",
+      "size_bytes": 23507
+    },
+    "v15p_current_adapter": {
+      "path": "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "sha256": "6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22",
+      "size_bytes": 18405
+    },
+    "v15p_current_adapter_log": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log",
+      "sha256": "99f427762e80010dc437f1115c963f5657b961639aa30707f40c3d8e3a2e3554",
+      "size_bytes": 851
+    },
+    "v15p_current_module_result": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
+      "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
+      "size_bytes": 42270
+    },
+    "v15p_owner_timing_testbench": {
+      "path": "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      "sha256": "b13ef4cfc4140c1c2471fb60b39b808854a2a9ed2f5b0f920ecf52b1ca9bf988",
+      "size_bytes": 15167
+    },
+    "v15q_v9p_current_rebind_contract": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-v9p-current-rebind-review-v1.json",
+      "sha256": "8ea2e2830d484c02bc0928512ceb90e0bfbadc1f30801946c2a8f750c6d2b64c",
+      "size_bytes": 5075
+    },
+    "v15q_v9p_current_rebind_result": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-v9p-current-rebind-review-v1.result.md",
+      "sha256": "bb5d7eda7818ffcf1c9bfcdc15082dee57cadbf6659179d17566c50ccbbdc167",
+      "size_bytes": 5880
+    },
+    "v15q_v9p_current_rebind_review": {
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v9p-current-rebind-review-v1.json",
+      "sha256": "fb8448afd4ab84f95bc139eb81d6dd29ffaea85f3078a187f3393893045ee309",
+      "size_bytes": 4836
     },
     "v8l_testbench": {
       "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
       "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
       "size_bytes": 925236
     },
+    "v9p_current_backend": {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
+      "size_bytes": 411981
+    },
+    "v9p_current_bridge": {
+      "path": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "sha256": "86299fad8c136030365c92ed9aa3ca4c84306a00d2f9b827a73da71a4f870348",
+      "size_bytes": 121736
+    },
     "v9r_current": {
-      "path": ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9r-current/summary.json",
-      "sha256": "b0fa888b9ad028af9ea19567eed4b4415c4d01845b642430198e873333d9aa07",
-      "size_bytes": 4098
+      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/v9r-current-v1/summary.json",
+      "sha256": "415862d8beabe3fa40d56fb7d9b1ca82d481dee8dbec21104bffe37e51823772",
+      "size_bytes": 4170
+    },
+    "v9r_current_runner": {
+      "path": "npc/rv64/eval/ppa/run-v9r-sq-retry-current.sh",
+      "sha256": "4eb1c25af4e34bc222c8efff8e6c4fa81391c38aa3fcd2f48ac8dc348d6bc3c6",
+      "size_bytes": 7808
     }
   },
   "metrics": {
@@ -220,24 +295,41 @@
       "historical_negative_rejection": "2/2"
     },
     "HIST-V8L-FORCE-RELEASE-SHADOW": {
-      "assertion_modes": [
-        "assert",
-        "release"
-      ],
       "current_baseline_profiles": "4/4",
-      "current_compile_success_mutations": "9/9",
+      "current_compile_success_mutations": "22/22",
       "distinct_forced_producer_ids": 4,
+      "generation_widths": [
+        1,
+        4
+      ],
       "historical_compile_success_mutations": "9/9",
-      "intermediate_products_retained": 0,
       "release_reset_boundaries": 4,
-      "scope": "FOCUSED_V8L_CURRENT_DESIGN"
+      "retained_log_return_code_crosscheck": "26/26"
     },
     "HIST-V9P-TERMINAL-COLLECTOR-INGRESS-DUP": {
       "compiled_images_retained": 0,
+      "current_adapter_terminal_path": {
+        "compile_success_mutation": "1/1_REJECTED",
+        "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+        "directed_adapter": "PASS",
+        "module_tests": "113/113",
+        "mutated_store_terminal_cycles": [
+          3,
+          5,
+          8
+        ],
+        "positive_store_terminal_cycles": [
+          2,
+          4,
+          7
+        ],
+        "timing_hard_gate": "FAIL_NOT_PROMOTABLE"
+      },
       "current_baseline_profiles": "2/2",
       "current_compile_success_mutations": "3/3",
       "current_default_signoff": "L0+L1+L2+L3",
-      "current_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
+      "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "current_fix_sources": "BACKEND_BRIDGE_BYTE_IDENTICAL_TO_F7A",
       "exact_reproducible_lane_pairs": {
         "bank0": [
           2,
@@ -251,7 +343,9 @@
       "historical_design_id": "sha256:9ac1ae14b18635cf25ea80efa7ce4cd85a07bdd6f0e525755658dc8dcd26207a",
       "historical_physical_assertion_events": 1,
       "immutable_frozen_lane_pair": "UNKNOWN",
-      "independent_review": "PASS_VD4",
+      "immutable_frozen_owner_tuple": "UNKNOWN",
+      "independent_review": "PASS_VD4_REBOUND_CURRENT_DESIGN",
+      "legacy_fixed_design_id": "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9",
       "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
       "root_cause": "C0_RETRY_HANDOFF_SPLIT_OWNERSHIP_THEN_C1_DUPLICATE_TERMINAL"
     }
@@ -289,7 +383,9 @@
       "historical_v9p_root_cause",
       "v9r_current",
       "layered_system_current",
-      "v15g_independent_review"
+      "v15g_independent_review",
+      "v15p_adapter_review_closure",
+      "v15q_v9p_current_rebind_review"
     ]
   },
   "validation_depth": {

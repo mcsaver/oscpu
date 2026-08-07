@@ -32,6 +32,12 @@ V11O_MEMORY_BUFFER_TOKEN_RESULT ?= $(abspath $(RESULT_DIR)/v11o-memory-buffer-to
 V11O_MEMORY_BUFFER_TOKEN_RUNNER := scripts/run_v11o_memory_buffer_token_semantic.py
 V11P_CHECKPOINT_IRREVOCABLE_WRITE_RESULT ?= $(abspath $(RESULT_DIR)/v11p-checkpoint-irrevocable-write-semantic)
 V11P_CHECKPOINT_IRREVOCABLE_WRITE_RUNNER := scripts/run_v11p_checkpoint_irrevocable_write_semantic.py
+V15P_ADAPTER_FINAL_B_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15p-adapter-final-b-mutation)
+V15P_ADAPTER_FINAL_B_MUTATION_RUNNER := scripts/run_v15p_adapter_final_b_fallthrough_mutation.sh
+V15R_MEM_BIRTH_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15r-mem-birth-terminalized-mutation)
+V15R_MEM_BIRTH_MUTATION_RUNNER := scripts/run_v15r_mem_birth_terminalized_mutation.sh
+V15S_MEM_OWNER_ANY_LIVE_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15s-mem-owner-any-live-mutation)
+V15S_MEM_OWNER_ANY_LIVE_MUTATION_RUNNER := scripts/run_v15s_mem_owner_any_live_mutation.sh
 V11Q_INT_LANE0_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11q-int-lane0-packet-semantic)
 V11Q_INT_LANE0_PACKET_RUNNER := scripts/run_v11q_int_lane0_packet_semantic.py
 V11R_INT_LANE1_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11r-int-lane1-packet-semantic)
@@ -191,7 +197,8 @@ FOCUSED_TESTS := \
   tb_ooo_core_top_glue_v8z_frontend_ii1 \
   tb_ooo_int_backend_v8y_speculation_recovery \
   tb_ooo_int_backend_v8x_backend_bridge_recovery \
-  tb_ooo_int_backend_v8w_memory_recovery
+  tb_ooo_int_backend_v8w_memory_recovery \
+  tb_ooo_owner_timing_causal_probe
 EXTRA_TESTS := $(FOCUSED_TESTS) tb_ooo_dual_mem_bridge_wrapper
 
 TB_SRCS_tb_alu := tests/tb_alu.sv $(RTL_ALU)
@@ -397,6 +404,7 @@ TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_TYPED_PMA_CHECKE
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_dual_memory_sustained_issue := tests/tb_ooo_dual_memory_sustained_issue.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_lsu_axi_lane_adapter := tests/tb_ooo_lsu_axi_lane_adapter.sv $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
+TB_SRCS_tb_ooo_owner_timing_causal_probe := tests/tb_ooo_owner_timing_causal_probe.sv $(RTL_OOO_DUAL_MEM_AXI_ARBITER) $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 TB_SRCS_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := $(TB_SRCS_tb_ooo_mem_axi_bridge)
 TB_TOP_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := tb_ooo_mem_axi_bridge
@@ -731,6 +739,38 @@ v13r-store-b-multicycle-retire-hold-focused: \
   $(LOG_DIR)/tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold.log
 	@grep -E '\[V13R-B-FUSION-MULTICYCLE|\[PASS\]|\[RESULT\]' $<
 	@grep -E '\[V13R-BACKEND-|\[V13Q-BACKEND-B-CASE|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+.PHONY: owner-timing-causal-probe-focused
+owner-timing-causal-probe-focused: \
+  $(LOG_DIR)/tb_ooo_owner_timing_causal_probe.log
+	@grep -E '\[OWNER-TIMING-CAUSAL-PROBE|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: v15p-adapter-final-b-fallthrough-mutation
+v15p-adapter-final-b-fallthrough-mutation:
+	@$(abspath $(V15P_ADAPTER_FINAL_B_MUTATION_RUNNER)) \
+	  "$(V15P_ADAPTER_FINAL_B_MUTATION_RESULT)"
+
+.PHONY: v15r-mem-birth-terminalized-focused
+v15r-mem-birth-terminalized-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_v8w_memory_recovery.log \
+  $(LOG_DIR)/tb_ooo_int_backend_v11m_memory_reservation_holder.log
+	@grep -E '\[V15R-|\[V9Y-|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V11M-|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+.PHONY: v15r-mem-birth-terminalized-mutation
+v15r-mem-birth-terminalized-mutation:
+	@$(abspath $(V15R_MEM_BIRTH_MUTATION_RUNNER)) \
+	  "$(V15R_MEM_BIRTH_MUTATION_RESULT)"
+
+.PHONY: v15s-mem-owner-any-live-focused
+v15s-mem-owner-any-live-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_hist_ser_qh_younger_store.log
+	@grep -E '\[HIST-SER-QH-|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: v15s-mem-owner-any-live-mutation
+v15s-mem-owner-any-live-mutation:
+	@$(abspath $(V15S_MEM_OWNER_ANY_LIVE_MUTATION_RUNNER)) \
+	  "$(V15S_MEM_OWNER_ANY_LIVE_MUTATION_RESULT)"
 
 v8y-speculation-recovery: $(LOG_DIR)/tb_ooo_int_backend_v8y_speculation_recovery.log
 	@grep -E '\[V8Y-|\[V8D-|\[V8X-|\[PASS\]|\[RESULT\]' $<

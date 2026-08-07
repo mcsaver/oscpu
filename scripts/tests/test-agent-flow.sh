@@ -236,8 +236,10 @@ grep -Fqx 'PLANNED_GATE_1=rv64-historical-defect-current' \
   --path npc/rv64/design/arch/rv64-soc-maturity-stages.tsv
 "${runner}" finish --task rv64-methodology-plan --plan \
   >"${test_root}/rv64-methodology-plan.summary"
-grep -Fqx 'GATE_COUNT=1' "${test_root}/rv64-methodology-plan.summary"
+grep -Fqx 'GATE_COUNT=2' "${test_root}/rv64-methodology-plan.summary"
 grep -Fqx 'PLANNED_GATE_0=rv64-soc-delivery-gates' \
+  "${test_root}/rv64-methodology-plan.summary"
+grep -Fqx 'PLANNED_GATE_1=rv64-optimization-slice-selector' \
   "${test_root}/rv64-methodology-plan.summary"
 
 "${runner}" begin --task rv64-full-core-runner-plan --class environment --archive none
@@ -380,10 +382,13 @@ grep -Fqx \
   --path npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json
 "${runner}" finish --task rv64-layered-system-signoff-plan --plan \
   >"${test_root}/rv64-layered-system-signoff-plan.summary"
-grep -Fqx 'GATE_COUNT=1' \
+grep -Fqx 'GATE_COUNT=2' \
   "${test_root}/rv64-layered-system-signoff-plan.summary"
 grep -Fqx \
   'PLANNED_GATE_0=rv64-layered-system-signoff-current' \
+  "${test_root}/rv64-layered-system-signoff-plan.summary"
+grep -Fqx \
+  'PLANNED_GATE_1=rv64-optimization-slice-selector' \
   "${test_root}/rv64-layered-system-signoff-plan.summary"
 
 full_core_dependency_paths=(
@@ -448,9 +453,11 @@ grep -Fqx 'PLANNED_GATE_0=rv64-arch-stable-current' \
   --path npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py
 "${runner}" finish --task rv64-owner-timing-fast-plan --plan \
   >"${test_root}/rv64-owner-timing-fast-plan.summary"
-grep -Fqx 'GATE_COUNT=1' \
+grep -Fqx 'GATE_COUNT=2' \
   "${test_root}/rv64-owner-timing-fast-plan.summary"
 grep -Fqx 'PLANNED_GATE_0=rv64-owner-timing-fast' \
+  "${test_root}/rv64-owner-timing-fast-plan.summary"
+grep -Fqx 'PLANNED_GATE_1=rv64-optimization-slice-selector' \
   "${test_root}/rv64-owner-timing-fast-plan.summary"
 
 "${runner}" begin --task rv64-owner-timing-link-plan --class development --archive none
@@ -463,6 +470,19 @@ grep -Fqx 'GATE_COUNT=1' \
   "${test_root}/rv64-owner-timing-link-plan.summary"
 grep -Fqx 'PLANNED_GATE_0=rv64-owner-timing-link' \
   "${test_root}/rv64-owner-timing-link-plan.summary"
+
+"${runner}" begin --task rv64-optimization-selector-plan \
+  --class environment --archive none
+"${runner}" record --task rv64-optimization-selector-plan \
+  --path npc/rv64/eval/ppa/tools/optimization_slice_selector.py \
+  --path npc/rv64/eval/ppa/evidence/performance-baseline-current.json \
+  --path npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+"${runner}" finish --task rv64-optimization-selector-plan --plan \
+  >"${test_root}/rv64-optimization-selector-plan.summary"
+grep -Fqx 'GATE_COUNT=1' \
+  "${test_root}/rv64-optimization-selector-plan.summary"
+grep -Fqx 'PLANNED_GATE_0=rv64-optimization-slice-selector' \
+  "${test_root}/rv64-optimization-selector-plan.summary"
 
 "${runner}" begin --task rv64-memory-request-hold-fast-plan --class development --archive none
 "${runner}" record --task rv64-memory-request-hold-fast-plan \

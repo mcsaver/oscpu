@@ -1,0 +1,14 @@
+Warning: There are 1 input ports missing set_input_delay.
+  clk
+Warning: There are 1 output ports missing set_output_delay.
+  fixture_output
+Warning: There are 1 unconstrained endpoints.
+  fixture_endpoint
+Warning: There is 1 combinational loop in the design.
+  _1000001_/Y
+  _1000002_/A
+  _1000002_/Y
+  _1000001_/A
+  | loop cut point
+  _1000001_/Y
+  --------------------------------

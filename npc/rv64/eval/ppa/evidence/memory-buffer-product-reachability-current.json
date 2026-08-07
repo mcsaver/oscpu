@@ -1,0 +1,70 @@
+{
+  "artifacts": {
+    "full_yosys_json": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+      "sha256": "7722f89d2580f8f3dea0037b091b44baf1830d24468f37027be6046204906c44",
+      "uncompressed_sha256": "ed7c61034548ca4e4ec423e8babc4ff0197e7f99f09d452b4ea6c073b8978c07"
+    },
+    "instance_graph_receipt": {
+      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+      "sha256": "73d0897b33a4a896508983fab65a5c974c8f1e0d7dfb24573d7fc6ae090dec19"
+    }
+  },
+  "claim": "The legacy memory buffer has no birth or request path in the current NpcTop ENABLE_DUAL_MEM=1 product instance.",
+  "claim_boundary": "Product configuration reachability only.  Legacy ENABLE_DUAL_MEM=0 lifecycle semantics require independent dynamic evidence; whole architecture and PPA are not promoted.",
+  "classification": "verification",
+  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "elaborated_contract": {
+    "constant_zero_nets": {
+      "issue0_mem_buffer_fire_w": [
+        "0"
+      ],
+      "issue1_mem_buffer_fire_w": [
+        "0"
+      ],
+      "mem_buffer_req_valid_w": [
+        "0"
+      ]
+    },
+    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+    "elaborated_type": "$paramod$dd7abfc1e82f8c6479a0100b65bc43c3520a3cde\\OooIntBackend",
+    "full_yosys_json_sha256": "ed7c61034548ca4e4ec423e8babc4ff0197e7f99f09d452b4ea6c073b8978c07",
+    "product_instance": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
+  },
+  "generated_at_utc": "2026-08-06T21:36:05.742671+00:00",
+  "schema": "npc-rv64-memory-buffer-product-reachability-v1",
+  "source_contract": {
+    "exact_token_capture_count": 2,
+    "legacy_birth_gate_count": 2,
+    "legacy_valid_set_count": 2,
+    "parameter_pass_through_count": 4,
+    "product_top_binding": 1
+  },
+  "sources": [
+    {
+      "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "sha256": "ab73ab4ece7dff903a24d39bbb18e5b1bb9ea06d37d3437165264bf7482afcbe"
+    },
+    {
+      "path": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "sha256": "4302dee926bdd29a8e5fd819801b35d31970399a8e72a73535e180e107c90217"
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "sha256": "27d8b5909d204ada54e880077e83441db6038f20e76aa4df8d5faa1867c3a841"
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "sha256": "ab59fcdf2c90120947e3ed08464e170066d70ed3c18dd961c01827ae3d5984d4"
+    },
+    {
+      "path": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+      "sha256": "bb04faa90b12fe17a47ec09ffdb6558a5afc145889d654c38cce1207ea06e5e7"
+    },
+    {
+      "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e"
+    }
+  ],
+  "status": "PASS"
+}

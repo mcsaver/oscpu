@@ -1,0 +1,730 @@
+{
+  "schema": "npc-rv64-optimization-slice-catalog-v1",
+  "catalog_id": "rv64-current-cpi-ppa-slices-v1",
+  "slices": [
+    {
+      "id": "close.current-hard-blocker",
+      "class": "correctness_closure",
+      "selection_mode": "information",
+      "title": "闭合 current design 的首个架构或历史硬阻塞",
+      "domain": "RV64 correctness and architecture",
+      "action": "从 current receipt 暴露的 blocker head 中只选择一个事务缺口，完成正向、compile-success mutation 与同 design-id 重绑定。",
+      "scope": [
+        "npc/rv64/design/arch/architecture-debt-ledger.json",
+        "npc/rv64/design/arch/historical-defect-backfill-ledger.json"
+      ],
+      "prerequisites": [
+        {
+          "fact": "state_consistent",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "hard_blockers_closed",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 4,
+        "execution_cost": 3,
+        "functional_risk": 2,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "current blocker ID and exact design-id",
+        "focused positive and compile-success negative",
+        "updated current receipt with no borrowed sibling PASS"
+      ],
+      "success_conditions": [
+        "selected blocker is CLOSED on the live design-id",
+        "all original and mutation terminal markers are exact"
+      ],
+      "rollback_conditions": [
+        "focused correctness or mutation oracle fails"
+      ],
+      "forbidden_claims": [
+        "PPA promotion",
+        "whole architecture closure from one blocker"
+      ]
+    },
+    {
+      "id": "measure.current-performance-baseline",
+      "class": "state_reconciliation",
+      "selection_mode": "information",
+      "title": "建立 current design 的 PERF_BASELINE",
+      "domain": "RV64 performance baseline",
+      "action": "在 current correctness/architecture receipt 闭合后，冻结 CoreMark/Dhrystone ROI、simulator 与 counter contract，生成三次 bit-exact baseline。",
+      "scope": [
+        "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+        "npc/rv64/eval/ppa/tools/performance_baseline_current.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "state_consistent",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "hard_blockers_closed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "performance_baseline_current",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 3,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "current ARCH_STABLE input binding",
+        "three independent raw logs per workload",
+        "stats-off/on noninterference and counter conservation"
+      ],
+      "success_conditions": [
+        "canonical PERF_BASELINE verifies on live design-id"
+      ],
+      "rollback_conditions": [
+        "workload, ROI, simulator or counter identity drifts"
+      ],
+      "forbidden_claims": [
+        "PPA qualified",
+        "global workload representativeness"
+      ]
+    },
+    {
+      "id": "reconcile.current-cpi-census",
+      "class": "state_reconciliation",
+      "selection_mode": "information",
+      "title": "重建 current design 的 CPI bottleneck census",
+      "domain": "RV64 performance evidence",
+      "action": "从 canonical PERF_BASELINE 重建 census，并隔离旧 design-id 的 current 命名文件。",
+      "scope": [
+        "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+        "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+        "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json"
+      ],
+      "prerequisites": [
+        {
+          "fact": "state_consistent",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "performance_baseline_current",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cpi_census_current",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 1,
+        "functional_risk": 1,
+        "scope_width": 1
+      },
+      "required_evidence": [
+        "baseline path, size and SHA-256",
+        "live design-id",
+        "canonical census verify PASS"
+      ],
+      "success_conditions": [
+        "census design-id equals live design-id",
+        "census performance_baseline SHA equals canonical baseline"
+      ],
+      "rollback_conditions": [
+        "canonical baseline verification fails"
+      ],
+      "forbidden_claims": [
+        "causal bottleneck proven",
+        "RTL candidate authorized"
+      ]
+    },
+    {
+      "id": "measure.owner-timing-causality",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "在 current design 上完成 LSU→AXI owner-timing A/B",
+      "domain": "RV64 LSU and AXI transaction timing",
+      "action": "冻结 workload、ROI、simulator 和 latency profile，测量 request admission、inflight occupancy、AW/W→B、reservation 与 translation owner 区间。",
+      "scope": [
+        "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh",
+        "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh",
+        "npc/rv64/eval/ppa/instrumentation/owner-timing-validation-profile-v1.json",
+        "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+        "npc/rv64/eval/ppa/instrumentation/owner_timing_collector.cpp"
+      ],
+      "prerequisites": [
+        {
+          "fact": "maturity",
+          "op": "at_least",
+          "value": "PERF_BASELINE"
+        },
+        {
+          "fact": "hard_blockers_closed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cpi_census_current",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "owner_timing_measured",
+          "op": "eq",
+          "value": false
+        },
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": false
+        },
+        {
+          "fact": "causal_analysis_completed",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 2,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "CoreMark and Dhrystone image path, SHA-256 and size from the canonical v3 baseline manifest",
+        "three stats-off/on repetitions for CoreMark and Dhrystone",
+        "owner identity, interval and occupancy conservation",
+        "zero overflow, invalid event and observer interference",
+        "fail-closed status, hash and cleanup markers"
+      ],
+      "success_conditions": [
+        "current design-id owner-timing receipt verifies",
+        "H1 through H4 receive discriminating observations"
+      ],
+      "rollback_conditions": [
+        "identity, counter stack or benchmark terminal changes under instrumentation"
+      ],
+      "forbidden_claims": [
+        "buffer depth or B-channel RTL candidate already wins",
+        "PPA qualified",
+        "promotion eligible"
+      ]
+    },
+    {
+      "id": "analyze.owner-timing-hypothesis",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "从合格 owner-timing receipt 选择唯一因果假设",
+      "domain": "RV64 CPI causal attribution",
+      "action": "比较事务频率、固定分箱时长、ROB-head 相关性和独立工作重叠；主要解释仍并列时输出研究缺口而不授权 RTL。",
+      "scope": [
+        "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+        "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "owner_timing_measured",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": false
+        },
+        {
+          "fact": "causal_analysis_completed",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 4,
+        "reversibility": 5,
+        "execution_cost": 1,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "hypothesis-to-channel matrix",
+        "alternative explanation rejection or explicit ambiguity",
+        "canonical CPI census or dedicated causal-authority receipt binding"
+      ],
+      "success_conditions": [
+        "exactly one causal_hypothesis enters a canonical authority or decision is RESEARCH_REQUIRED"
+      ],
+      "rollback_conditions": [
+        "owner timing receipt is stale or non-conserving"
+      ],
+      "forbidden_claims": [
+        "causal selection from residency percentage alone"
+      ]
+    },
+    {
+      "id": "measure.owner-b-latency-sensitivity",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "受控测量工作负载对 AXI B 返回延迟的敏感度",
+      "domain": "RV64 store terminal and peer memory progress",
+      "action": "保持 production RTL、PC-bounded image、复位、计数器和终端合同不变，仅以测试配置改变 memory slave 的 AW/W→B 返回延迟；比较 CoreMark 与 Dhrystone 的 cycles/retired、B 事务数和逐拍斜率，以解耦 H1 固定延迟和 H2 单 owner 并发限制。",
+      "scope": [
+        "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+        "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh",
+        "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "owner_timing_measured",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "causal_analysis_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "causal_analysis_status",
+          "op": "eq",
+          "value": "RESEARCH_REQUIRED"
+        },
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 3,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "default and controlled-added B-delay configurations with one exact simulator identity",
+        "three bit-exact repetitions per workload and delay point",
+        "unchanged retired count, terminal markers, assertion count and owner conservation",
+        "cycles-per-B-delay slope with uncertainty and H1/H2 decision rule"
+      ],
+      "success_conditions": [
+        "workload cycle sensitivity to B delay is measured independently of transaction frequency",
+        "exactly one H1/H2 interpretation is authorized or a narrower research gap is emitted"
+      ],
+      "rollback_conditions": [
+        "retired count, architectural terminal, assertion or non-B device behavior changes",
+        "test configuration leaks into production RTL semantics"
+      ],
+      "forbidden_claims": [
+        "diagnostic device-latency intervention is a production CPI result",
+        "promotion or PPA qualification from this measurement"
+      ]
+    },
+    {
+      "id": "analyze.owner-b-response-latency-candidate",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "映射 canonical AW/W→B 路径并定义最小可回退候选",
+      "domain": "RV64 store completion and AXI B response timing",
+      "action": "沿 current NpcSimTop 实际 elaborated 路径逐周期映射 AW/W 接收、slave B 生成、bridge B 接收与 store terminal，区分固定设备响应拍和核内可隐藏等待；只定义一个保持精确异常与退休语义的可回退候选或明确 GAP，本切片不修改 production RTL。",
+      "scope": [
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+        "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "b_latency_sensitivity_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "b_latency_sensitivity_status",
+          "op": "eq",
+          "value": "H1_B_RESPONSE_LATENCY_SENSITIVE"
+        },
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "causal_hypothesis",
+          "op": "eq",
+          "value": "H1_B_RESPONSE_LATENCY"
+        },
+        {
+          "fact": "b_response_candidate_analysis_completed",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 1,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "cycle-exact canonical AW/W-to-B and B-to-store-terminal map",
+        "measured workload-cycle bounds derived from the controlled B-delay slopes",
+        "one reversible candidate invariant or one explicit no-safe-candidate GAP",
+        "error response, downstream backpressure, flush and replay counterexamples"
+      ],
+      "success_conditions": [
+        "exactly one production candidate is specified without changing RTL, or a narrower GAP is recorded",
+        "candidate retains store retirement, B terminal and SLVERR/DECERR precision"
+      ],
+      "rollback_conditions": [
+        "canonical elaborated path differs from the analyzed source path",
+        "candidate requires early store retirement or suppressed B completion"
+      ],
+      "forbidden_claims": [
+        "production CPI gain from diagnostic B-delay sensitivity alone",
+        "dropping or coalescing B terminal events",
+        "weakening SLVERR, DECERR, flush, replay or RTL assertion contracts",
+        "PPA qualification or promotion"
+      ]
+    },
+    {
+      "id": "qualify.current-reference-ppa",
+      "class": "ppa_qualification",
+      "selection_mode": "information",
+      "title": "建立 current design 的参考综合与 STA 头寸",
+      "domain": "RV64 synthesis and STA",
+      "action": "在冻结的 5 ns、library、macro inventory、SDC、seed 和 threads 下完成至少两次 fresh synth/STA，形成当前设计的 area/slack 参考。",
+      "scope": [
+        "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+        "npc/rv64/eval/ppa/tools/check.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "b_response_candidate_analysis_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ppa_reference_measurement_completed",
+          "op": "eq",
+          "value": false
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 4,
+        "functional_risk": 1,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "two fresh netlists and exact tool/config binding",
+        "WNS, TNS, violating paths, loops and worst path members",
+        "same-cohort logic area and explicit macro qualification"
+      ],
+      "success_conditions": [
+        "current design has a repeatable P/A + timing reference",
+        "unqualified power remains explicitly unqualified"
+      ],
+      "rollback_conditions": [
+        "netlist, path set or constraints are not repeatable"
+      ],
+      "forbidden_claims": [
+        "final three-axis champion from vectorless or macro-zero power"
+      ]
+    },
+    {
+      "id": "analyze.current-timing-recovery-candidate",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "聚类 current 5 ns 违例路径并定义最小可回退时序候选",
+      "domain": "RV64 mapped critical-path causality",
+      "action": "对两轮 bit-exact mapped netlist 的 top-40 路径按 startpoint、endpoint、共享组合锥和 RTL owner 聚类，区分主导路径族与旁支，只定义一个保持 CPI、owner/holder、flush/replay 和精确异常合同的可回退时序候选或明确 GAP；本切片不修改 production RTL。",
+      "scope": [
+        "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+        "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_selection_authorized",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "b_response_candidate_analysis_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ppa_reference_measurement_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ppa_engineering_reference_available",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ppa_timing_hard_gate",
+          "op": "eq",
+          "value": "FAIL"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 5,
+        "reversibility": 5,
+        "execution_cost": 2,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "two-run exact top-40 path-member identity and setup-warning closure",
+        "path-family counts with shared startpoint, endpoint and RTL owner mapping",
+        "one minimal reversible timing candidate invariant or one explicit no-safe-candidate GAP",
+        "CPI, area, owner/holder, flush/replay and exception counterexamples"
+      ],
+      "success_conditions": [
+        "one dominant physical proxy path family is distinguished from secondary families",
+        "the next candidate has an exact register-cut or logic-cone objective without weakening the 5 ns hard gate"
+      ],
+      "rollback_conditions": [
+        "path reports or source mapping are not repeatable",
+        "the proposed cut changes architectural terminal or owner lifetime semantics"
+      ],
+      "forbidden_claims": [
+        "a negative WNS reference is an accepted PPA baseline",
+        "vectorless power is qualified power",
+        "production RTL authorization or promotion from path clustering alone"
+      ]
+    },
+    {
+      "id": "experiment.hide-b-response-latency",
+      "class": "rtl_experiment",
+      "selection_mode": "information",
+      "title": "可回退地隐藏 AW/W→B 完成等待",
+      "domain": "RV64 store retirement and AXI B completion",
+      "action": "在不提前退休 store、不删除 B terminal 且保持精确 SLVERR/DECERR 的前提下，实验独立事务重叠机制。",
+      "scope": [
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/vsrc/execute/OooIntBackend.v"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_hypothesis",
+          "op": "eq",
+          "value": "H1_B_RESPONSE_LATENCY"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 4,
+        "evidence_confidence": 2,
+        "reversibility": 4,
+        "execution_cost": 4,
+        "functional_risk": 4,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "candidate objective observation with confidence interval",
+        "store/B-response directed positive and negative",
+        "full performance A/B plus quick synth/STA"
+      ],
+      "success_conditions": [
+        "CPI benefit survives per-workload floor",
+        "5 ns hard timing gate is not spent"
+      ],
+      "rollback_conditions": [
+        "precise B-response semantics change",
+        "timing or area compensation path is absent"
+      ],
+      "forbidden_claims": [
+        "promotion from an intermediate checkpoint"
+      ]
+    },
+    {
+      "id": "experiment.increase-write-concurrency",
+      "class": "rtl_experiment",
+      "selection_mode": "information",
+      "title": "可回退地增加 LSU/bridge 写事务并发",
+      "domain": "RV64 LSU admission and AXI outstanding",
+      "action": "只在 H2 被 owner/occupancy 证据支持后实验最小并发增量，并保持 request owner、flush/cancel 与 B terminal 合同。",
+      "scope": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_hypothesis",
+          "op": "eq",
+          "value": "H2_WRITE_CONCURRENCY"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 4,
+        "evidence_confidence": 2,
+        "reversibility": 4,
+        "execution_cost": 4,
+        "functional_risk": 4,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "candidate objective observation with confidence interval",
+        "outstanding capacity and backpressure directed tests",
+        "full performance A/B plus quick synth/STA"
+      ],
+      "success_conditions": [
+        "independent memory overlap increases",
+        "CPI gain is not bought with a timing violation"
+      ],
+      "rollback_conditions": [
+        "queue growth is area-only",
+        "downstream backpressure remains the limiting cause"
+      ],
+      "forbidden_claims": [
+        "more entries imply more throughput without measured overlap"
+      ]
+    },
+    {
+      "id": "experiment.reduce-pre-request-residency",
+      "class": "rtl_experiment",
+      "selection_mode": "information",
+      "title": "可回退地降低 reservation/translation 前请求驻留",
+      "domain": "RV64 translation and memory request admission",
+      "action": "只在 H4 被 owner-correlated 区间支持后，选择 reservation、translation 或 SQ query 中的一个最小瓶颈切片。",
+      "scope": [
+        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/vsrc/memory/OooSv39Tlb.v",
+        "npc/rv64/vsrc/memory/OooMemoryRequestGate.v"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_hypothesis",
+          "op": "eq",
+          "value": "H4_PRE_REQUEST_PIPELINE"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 4,
+        "evidence_confidence": 2,
+        "reversibility": 4,
+        "execution_cost": 4,
+        "functional_risk": 4,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "candidate objective observation with confidence interval",
+        "translation/order/permission directed tests",
+        "full performance A/B plus quick synth/STA"
+      ],
+      "success_conditions": [
+        "target interval shrinks without shifting equal debt downstream",
+        "permission, order and replay semantics remain exact"
+      ],
+      "rollback_conditions": [
+        "memory ordering or permission evidence regresses",
+        "critical path consumes the 5 ns reserve"
+      ],
+      "forbidden_claims": [
+        "aggregate memory_latency proves translation is causal"
+      ]
+    },
+    {
+      "id": "research.correct-head-residency-weighting",
+      "class": "causal_measurement",
+      "selection_mode": "information",
+      "title": "校正 transaction frequency 与 ROB-head residency 权重",
+      "domain": "RV64 performance measurement",
+      "action": "若 H3 成立，先修正解释和候选排名，不以扩大数据通路作为默认动作。",
+      "scope": [
+        "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py",
+        "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py"
+      ],
+      "prerequisites": [
+        {
+          "fact": "causal_hypothesis",
+          "op": "eq",
+          "value": "H3_HEAD_RESIDENCY_WEIGHTING"
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 4,
+        "reversibility": 5,
+        "execution_cost": 1,
+        "functional_risk": 1,
+        "scope_width": 2
+      },
+      "required_evidence": [
+        "transaction-count versus duration decomposition",
+        "updated hypothesis authorization receipt"
+      ],
+      "success_conditions": [
+        "residency attribution no longer masquerades as recoverable CPI"
+      ],
+      "rollback_conditions": [
+        "counter conservation or noninterference fails"
+      ],
+      "forbidden_claims": [
+        "measurement correction is an RTL CPI improvement"
+      ]
+    }
+  ]
+}

@@ -200,7 +200,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
     def test_v8l_current_mutation_shortfall_is_rejected(self) -> None:
         historical = self.tool.load_json(ROOT, self.tool.HISTORICAL_V8L_PATH)
         current = self.tool.load_json(ROOT, self.tool.HOLDER_CURRENT_PATH)
-        current["counts"]["mutations_rejected"] = 8
+        current["v14g_dynamic_fence"]["compile_success_mutations_rejected"] = 21
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
                 ROOT,
@@ -212,7 +212,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
     def test_v8l_single_mutation_survivor_is_rejected(self) -> None:
         historical = self.tool.load_json(ROOT, self.tool.HISTORICAL_V8L_PATH)
         current = self.tool.load_json(ROOT, self.tool.HOLDER_CURRENT_PATH)
-        current["compile_success_mutations"][0]["result"] = "SURVIVED"
+        current["v14g_dynamic_fence"]["mutations"].pop()
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
                 ROOT, historical, current, self.receipt["design_id"]
@@ -221,15 +221,15 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
     def test_v8l_retained_log_hash_drift_is_rejected(self) -> None:
         historical = self.tool.load_json(ROOT, self.tool.HISTORICAL_V8L_PATH)
         current = self.tool.load_json(ROOT, self.tool.HOLDER_CURRENT_PATH)
-        current["compile_success_mutations"][0]["log"]["sha256"] = "0" * 64
+        current["v14g_dynamic_fence"]["mutations"][0]["log"]["sha256"] = "0" * 64
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
                 ROOT, historical, current, self.receipt["design_id"]
             )
 
-    def test_v8l_mutation_return_code_spoof_is_rejected(self) -> None:
+    def test_v8l_mutation_sim_return_code_spoof_is_rejected(self) -> None:
         current = self.tool.load_json(ROOT, self.tool.HOLDER_CURRENT_PATH)
-        current["compile_success_mutations"][0]["make_return_code"] = 0
+        current["v14g_dynamic_fence"]["mutations"][0]["sim_rc"] = 0
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
                 ROOT,
@@ -250,6 +250,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
                 self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
+                self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
             )
 
@@ -265,6 +266,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 current,
                 self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
+                self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
             )
 
@@ -280,6 +282,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
                 layered,
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
+                self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
             )
 
@@ -294,6 +297,43 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 ),
                 self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
                 self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
+                review,
+                self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
+                self.receipt["design_id"],
+            )
+
+    def test_v9p_current_rebind_review_cannot_hide_timing_failure(self) -> None:
+        review = self.tool.load_json(
+            ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH
+        )
+        review["review_boundary"]["timing_hard_gate"] = "PASS"
+        with self.assertRaises(self.tool.HistoricalCurrentError):
+            self.tool.validate_v9p_terminal_duplicate(
+                ROOT,
+                self.tool.load_json(
+                    ROOT, self.tool.HISTORICAL_V9P_ROOT_CAUSE_PATH
+                ),
+                self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
+                review,
+                self.receipt["design_id"],
+            )
+
+    def test_v9p_current_rebind_review_must_preserve_unknown_owner(self) -> None:
+        review = self.tool.load_json(
+            ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH
+        )
+        review["unknowns"][1] = "bank0 owner tuple retained"
+        with self.assertRaises(self.tool.HistoricalCurrentError):
+            self.tool.validate_v9p_terminal_duplicate(
+                ROOT,
+                self.tool.load_json(
+                    ROOT, self.tool.HISTORICAL_V9P_ROOT_CAUSE_PATH
+                ),
+                self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 review,
                 self.receipt["design_id"],
             )

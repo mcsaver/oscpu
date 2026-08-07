@@ -1,0 +1,82 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15n-owner-b-latency-sensitivity-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 NpcSimTop 中 AxiDpiSlave BVALID/BREADY 的 test-only 两周期延迟干预、十二组冻结 workload 事务日志、checker-replay receipt 与 selector 状态转移，确认 production RTL 身份不变、原始 A1 FAIL 保留，并把 H1 授权边界限制在 canonical AW/W→B 路径分析。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+      "npc/rv64/eval/ppa/instrumentation/AxiDpiSlaveOwnerBDelayProbe.sv",
+      "npc/rv64/eval/ppa/instrumentation/owner-b-latency-sensitivity.mk",
+      "npc/rv64/eval/ppa/instrumentation/tb_axi_dpi_owner_b_delay_probe.sv",
+      "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
+      "npc/rv64/eval/ppa/tests/test_owner_b_latency_sensitivity.py",
+      "npc/rv64/eval/ppa/run-owner-b-latency-sensitivity.sh",
+      "npc/rv64/eval/ppa/replay-owner-b-latency-sensitivity.sh",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/run-optimization-slice-selector.sh",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
+      "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-06-rv64-v15l-owner-timing-workload-ab-f7a-a2/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15m-owner-timing-hypothesis-f7a/evidence/owner-timing-causal-analysis/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
+      ".github/task-runs/2026-08-06-rv64-v15n-owner-b-latency-sensitivity-f7a-a1/subagent-contracts/v15n-owner-b-latency-sensitivity-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-hardware-wording-profile.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、周期/配置、testbench/EDA 观测与 PASS/GAP 范围给出独立复核结论，列出 receipt 绑定、原始 marker、反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "冻结十二组执行证据、延迟零和延迟二的 B terminal/retired/断言合同、原 A1 状态、checker-only replay、H1 灵敏度结论及 selector 下一切片均被独立逐项核对；任何不一致必须报告为 GAP，且不得据此授权 production RTL 修改、PPA qualification 或 promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}
