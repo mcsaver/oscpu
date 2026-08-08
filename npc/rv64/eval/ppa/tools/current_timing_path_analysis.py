@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cluster the exact-current RV64 mapped top-40 paths without guessing RTL owners."""
+"""Bind the exact-current RV64 mapped top-40 to one reversible RTL candidate."""
 
 from __future__ import annotations
 
@@ -16,12 +16,16 @@ from typing import Any
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[5]
-SCHEMA = "npc-rv64-current-timing-path-analysis-v1"
+SCHEMA = "npc-rv64-current-timing-path-analysis-v2"
 REFERENCE_SCHEMA = "npc-rv64-current-reference-ppa-v1"
 SELECTOR_SCHEMA = "npc-rv64-optimization-slice-decision-v1"
 SELECTED_SLICE = "analyze.current-timing-recovery-candidate"
 EXPECTED_REFERENCE_STATUS = "REPEATABLE_CURRENT_REFERENCE_TIMING_HARD_GATE_FAIL"
-REVIEW_MARKER = "[V15Q-CURRENT-REFERENCE-PPA-REVIEW][PASS_EVIDENCE_GAP_QUALIFICATION]"
+PATH_CLUSTER_SCHEMA = "npc-rv64-v15v-ppa-delta-path-cluster-v1"
+REVIEW_MARKER = "[V15W-HEAD0-CSR-FROZEN-REVIEW][PASS_CANDIDATE]"
+STATUS = "TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED"
+CANDIDATE_ID = "head0-csr-inflight-permit-block-v1"
+NEXT_ACTION = "validate.head0-csr-dispatch-disjointness"
 
 START_RE = re.compile(r"^Startpoint:\s+(\S+)")
 END_RE = re.compile(r"^Endpoint:\s+(\S+)")
@@ -159,11 +163,12 @@ def parse_report(path: pathlib.Path) -> list[dict[str, Any]]:
     for path_index in range(40):
         block = lines[starts[path_index]:starts[path_index + 1]]
         start_match = START_RE.match(block[0]) if block else None
-        end_match = END_RE.match(block[1]) if len(block) > 1 else None
-        require(start_match is not None and end_match is not None,
+        end_matches = [match for line in block
+                       if (match := END_RE.match(line))]
+        require(start_match is not None and len(end_matches) == 1,
                 f"path {path_index} header is malformed")
         startpoint = start_match.group(1)
-        endpoint = end_match.group(1)
+        endpoint = end_matches[0].group(1)
         slacks = [match.group(1) for line in block
                   if (match := SLACK_RE.match(line))]
         arrivals = [match.group(1) for line in block
@@ -376,17 +381,97 @@ def verify_reference(
     return value
 
 
+def verify_traceability(path: pathlib.Path) -> dict[str, int | str]:
+    pairs: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise EvidenceError(
+            f"cannot read traceability receipt {relative(path)}: {error}") from error
+    for line in lines:
+        require(line.count("=") == 1,
+                f"malformed traceability line in {relative(path)}")
+        key, value = line.split("=", 1)
+        require(key and key not in pairs,
+                f"duplicate traceability key in {relative(path)}: {key}")
+        pairs[key] = value
+    require(set(pairs) == {
+        "status", "startpoints", "endpoints", "public_flat_startpoints",
+        "public_flat_endpoints", "opaque_startpoints", "opaque_endpoints",
+    }, "traceability receipt key set mismatch")
+    require(pairs["status"] == "PASS", "traceability receipt is not PASS")
+    numeric = {
+        key: int(value) for key, value in pairs.items() if key != "status"
+    }
+    require(numeric == {
+        "startpoints": 40,
+        "endpoints": 40,
+        "public_flat_startpoints": 40,
+        "public_flat_endpoints": 40,
+        "opaque_startpoints": 0,
+        "opaque_endpoints": 0,
+    }, "traceability coverage is not exact 40/40 public-flat")
+    return {"status": "PASS", **numeric}
+
+
+def verify_path_cluster(
+        path: pathlib.Path,
+        run1_top40: pathlib.Path,
+        path_analysis: dict[str, Any]) -> dict[str, Any]:
+    value = load_json(path)
+    require(value.get("schema") == PATH_CLUSTER_SCHEMA and
+            value.get("status") == "PASS" and
+            value.get("decision") == "ENGINEERING_CANDIDATE_RETAIN" and
+            value.get("gap") == "5NS_TARGET_NOT_MET",
+            "ca37 path-cluster boundary mismatch")
+    candidate = value.get("top40", {}).get("candidate", {})
+    startpoints = path_analysis.get("startpoint_histogram", {})
+    require(
+        candidate.get("path_count") == 40
+        and candidate.get("unique_startpoints") == 1
+        and candidate.get("unique_endpoints") == 40
+        and candidate.get("startpoint") in startpoints
+        and candidate.get("endpoint_classes") == {
+            "jalr_prefetch_hit_available": 38,
+            "redirect_valid": 2,
+        },
+        "ca37 path-cluster member classification mismatch",
+    )
+    tokens = candidate.get("token_path_counts", {})
+    require(
+        tokens.get("head0_csr_commit") == 40
+        and tokens.get("system_csr_dispatch_cancel") == 40
+        and tokens.get("system_csr_dispatch_valid") == 40
+        and tokens.get("pending_system_inst") == 40
+        and tokens.get("pending_system_csr_commit") == 0,
+        "ca37 path-cluster control-token census mismatch",
+    )
+    top40_ref = value.get("evidence", {}).get("candidate_top40", {})
+    require(isinstance(top40_ref, dict) and
+            set(top40_ref) == {"path", "sha256"},
+            "ca37 candidate top-40 reference key set mismatch")
+    bound_top40 = resolve_workspace(top40_ref.get("path", ""))
+    require(bound_top40 == run1_top40 and
+            top40_ref.get("sha256") == sha256(run1_top40),
+            "ca37 path cluster does not bind the current top-40 report")
+    return value
+
+
 def build_payload(
         current_reference_path: pathlib.Path,
         selector_path: pathlib.Path,
         review_path: pathlib.Path,
         run1_top40_path: pathlib.Path,
-        run2_top40_path: pathlib.Path) -> dict[str, Any]:
+        run2_top40_path: pathlib.Path,
+        traceability_path: pathlib.Path,
+        path_cluster_path: pathlib.Path) -> dict[str, Any]:
     current_reference_path = resolve_workspace(current_reference_path)
     selector_path = resolve_workspace(selector_path)
     review_path = resolve_workspace(review_path)
     run1_top40_path = resolve_workspace(run1_top40_path)
     run2_top40_path = resolve_workspace(run2_top40_path)
+    traceability_path = resolve_workspace(traceability_path)
+    path_cluster_path = resolve_workspace(path_cluster_path)
     reference = verify_reference(
         current_reference_path, run1_top40_path, run2_top40_path)
     design_id = reference.get("design_id")
@@ -396,8 +481,10 @@ def build_payload(
     review_text = review_path.read_text(encoding="utf-8")
     require(REVIEW_MARKER in review_text and
             f"design_id={design_id}" in review_text and
-            "timing_gate=FAIL" in review_text and
-            "production_rtl_authorized=false" in review_text,
+            "candidate-only" in review_text and
+            "production_rtl_change_authorized=false" in review_text and
+            "PPA=UNQUALIFIED" in review_text and
+            "promotion_eligible=false" in review_text,
             "independent-review marker or claim boundary mismatch")
 
     run1_paths = parse_report(run1_top40_path)
@@ -415,16 +502,44 @@ def build_payload(
     require(path_analysis["dominant_family"]["path_count"] >= 20,
             "no dominant physical-proxy path family was identified")
     require(path_analysis["rtl_traceability"]["status"] ==
-            "GAP_NUMERIC_POSTMAP_NAMES",
-            "this receipt is only valid for the observed numeric-name traceability gap")
-
-    rejected_owner_guesses = [
-        path for path in selector.get("selected_slice", {}).get("scope", [])
-        if path.endswith(".v")
-    ]
+            "TRACEABLE_NAMES_PRESENT",
+            "current top-40 does not contain traceable public-flat names")
+    traceability = verify_traceability(traceability_path)
+    cluster = verify_path_cluster(
+        path_cluster_path, run1_top40_path, path_analysis)
+    cluster_candidate = cluster["top40"]["candidate"]
+    path_analysis["rtl_traceability"]["rtl_owner"] = {
+        "launch": {
+            "module": "CsrFile",
+            "state": "csr_mtvec_q[63]",
+            "hierarchy_evidence": next(iter(
+                path_analysis["startpoint_histogram"])),
+            "resolution": "EXACT_PUBLIC_FLAT_STATE",
+        },
+        "capture": {
+            "module": "OooFetchPcOutstandingSequencer",
+            "endpoint_classes": cluster_candidate["endpoint_classes"],
+            "resolution": "PUBLIC_FLAT_MODULE_AND_INPUT_ALIAS",
+            "exact_rtl_register_bit": "NOT_CLAIMED_FROM_AUTONAME_ALIAS",
+        },
+        "dominant_control_segment": {
+            "modules": [
+                "OooCsrAccessRequestMux",
+                "OooPendingSystemAdmissionCancelGate",
+                "OooFrontendBackendDispatchMux",
+            ],
+            "signals": [
+                "head0_csr_commit_w",
+                "system_csr_dispatch_cancel_w",
+                "system_csr_dispatch_valid_w",
+                "pending_system_inst_q",
+            ],
+            "coverage": "40/40",
+        },
+    }
     return {
         "schema": SCHEMA,
-        "status": "GAP_RTL_OWNER_TRACE_REQUIRED",
+        "status": STATUS,
         "design_id": design_id,
         "configuration": {
             "top": "NpcTop",
@@ -440,6 +555,8 @@ def build_payload(
             "independent_review": file_ref(review_path),
             "run1_top40": file_ref(run1_top40_path),
             "run2_top40": file_ref(run2_top40_path),
+            "traceability": file_ref(traceability_path),
+            "ca37_path_cluster": file_ref(path_cluster_path),
             "builder": file_ref(pathlib.Path(__file__)),
         },
         "repeatability": {
@@ -450,42 +567,63 @@ def build_payload(
         },
         "path_analysis": path_analysis,
         "candidate_decision": {
-            "status": "NO_SAFE_RTL_CANDIDATE_FROM_CURRENT_ARTIFACTS",
-            "rtl_owner_resolved": False,
+            "status": "CANDIDATE_ONLY",
+            "id": CANDIDATE_ID,
+            "rtl_owner_resolved": True,
             "production_rtl_change_authorized": False,
             "promotion_eligible": False,
             "ppa": "UNQUALIFIED",
             "reason": (
-                "The dominant shared cone is repeatable, but both launch and "
-                "capture objects are numeric post-map names. Selecting an RTL "
-                "owner or register cut from numeric identifiers would be a guess."
+                "Both current reports and the ca37 cluster place head0 CSR "
+                "commit cancellation in all 40 violating paths.  The reversible "
+                "candidate first blocks pending-CSR permit arm/hold with the "
+                "registered head0 CSR inflight owner, then keeps commit as an "
+                "admission clear while removing it only from pre-ROB dispatch "
+                "cancel.  This receipt defines that topology but does not prove "
+                "the cross-owner disjointness or authorize an RTL edit."
             ),
-            "rejected_owner_guesses": rejected_owner_guesses,
+            "current_top40_control_token_counts":
+                cluster_candidate["token_path_counts"],
+        },
+        "candidate_definition": {
+            "id": CANDIDATE_ID,
+            "state": "CANDIDATE_ONLY",
+            "rtl_objective": (
+                "Use head0_csr_inflight_q as a registered blocker for "
+                "dispatch_permit_q arm/hold, then remove head0_csr_commit_i "
+                "only from system_csr_dispatch_cancel_o while retaining its "
+                "pending-owner admission clear and serial-flush effects."
+            ),
+            "intended_scope": [
+                "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+                "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+                "npc/rv64/vsrc/control/OooControlPlane.v",
+                "npc/rv64/vsrc/frontend/OooFrontend.v",
+            ],
+            "pipeline_state_added": 0,
+            "interface_state_source": "existing head0_csr_inflight_q",
+            "reversible": True,
         },
         "next_measurement": {
-            "id": "measure.current-top40-traceable-names",
+            "id": NEXT_ACTION,
             "purpose": (
-                "Repeat the same post-ABC mapped diagnostic with public autoname "
-                "enabled, then correlate the single shared launch cone and capture "
-                "register bank to exact hierarchy/RTL owners."
+                "Prove or reject the registered-inflight/pre-ROB pending-CSR "
+                "disjointness before any production RTL edit."
             ),
-            "configuration_delta": {
-                "STA_SYNTH_PUBLIC_AUTONAME": 1,
-                "STA_SYNTH_DFF_AUTONAME": 0,
-            },
             "must_hold": [
-                "same production RTL source manifest and design-id",
-                "same top, 5 ns clock, libraries, blackboxes, hierarchy keeps and ABC strategy",
-                "same mapped cell counts, logic-area proxy, loop count and timing values within exact report precision",
-                "named report has traceable hierarchy for launch and capture objects",
-                "numeric report remains the canonical PPA reference; named run is diagnostic only",
-                "runtime netlist and build tree are removed after compact evidence capture",
+                "queue-head CSR dispatch fire cannot capture a lane1 pending SYSTEM owner",
+                "head0_csr_commit implies the edge-old head0_csr_inflight owner",
+                "head0_csr_inflight blocks pending CSR permit arm and clears any held permit",
+                "commit-cycle dispatch fire remains false for dispatch0_ready 0 and 1",
+                "reset, local/global/serial flush and older-control recovery clear both owners",
+                "post-dispatch ProducerId lease is cleared only by exact producer death",
             ],
-            "retained_artifacts": [
-                "source/tool/config manifests",
-                "traceable top-40 report",
-                "mapped cell/area/timing summary",
-                "runtime cleanup receipt",
+            "required_counterexamples": [
+                "same-cycle queue-head CSR lane0 fire plus lane1 SYSTEM capture",
+                "permit held under backend ready stall when head0 CSR commits",
+                "head0 CSR commit with inflight owner absent",
+                "older-control kill or serial flush colliding with permit arm/fire",
+                "pending CSR producer lease colliding with queue-head CSR commit",
             ],
         },
         "candidate_invariants_if_owner_is_resolved": [
@@ -497,14 +635,18 @@ def build_payload(
         ],
         "claim_boundary": {
             "one_dominant_physical_proxy_family_identified": True,
-            "rtl_owner_not_inferred_from_numeric_ids": True,
+            "traceable_public_flat_names_40_of_40":
+                traceability["public_flat_startpoints"] == 40 and
+                traceability["public_flat_endpoints"] == 40,
+            "control_segment_owner_resolved": True,
+            "capture_register_bit_not_inferred_from_autoname_alias": True,
             "adapter_not_attributed_from_zero_top40_tokens":
                 reference.get("timing", {}).get("adapter_tokens_in_top40") == 0,
             "accepted_ppa_reference_not_claimed": True,
             "production_rtl_unchanged": True,
             "ubuntu_full_system_not_run": True,
         },
-        "next_action": "measure.current-top40-traceable-names",
+        "next_action": NEXT_ACTION,
     }
 
 
@@ -521,6 +663,24 @@ def atomic_write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def rebuild_receipt(actual: dict[str, Any]) -> dict[str, Any]:
+    require(actual.get("schema") == SCHEMA, "analysis receipt schema mismatch")
+    inputs = actual.get("inputs", {})
+    for label in ("current_reference", "selector", "independent_review",
+                  "run1_top40", "run2_top40", "traceability",
+                  "ca37_path_cluster", "builder"):
+        verify_ref(inputs.get(label), label)
+    return build_payload(
+        pathlib.Path(inputs["current_reference"]["path"]),
+        pathlib.Path(inputs["selector"]["path"]),
+        pathlib.Path(inputs["independent_review"]["path"]),
+        pathlib.Path(inputs["run1_top40"]["path"]),
+        pathlib.Path(inputs["run2_top40"]["path"]),
+        pathlib.Path(inputs["traceability"]["path"]),
+        pathlib.Path(inputs["ca37_path_cluster"]["path"]),
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -530,6 +690,8 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--independent-review", required=True)
     build.add_argument("--run1-top40", required=True)
     build.add_argument("--run2-top40", required=True)
+    build.add_argument("--traceability", required=True)
+    build.add_argument("--path-cluster", required=True)
     build.add_argument("--output", required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("--input", required=True)
@@ -551,30 +713,20 @@ def main() -> int:
             value = build_payload(
                 pathlib.Path(args.current_reference), pathlib.Path(args.selector),
                 pathlib.Path(args.independent_review), pathlib.Path(args.run1_top40),
-                pathlib.Path(args.run2_top40))
+                pathlib.Path(args.run2_top40), pathlib.Path(args.traceability),
+                pathlib.Path(args.path_cluster))
             atomic_write_json(output, value)
             design_id = value["design_id"]
         else:
             input_path = resolve_workspace(args.input)
             actual = load_json(input_path)
-            require(actual.get("schema") == SCHEMA, "analysis receipt schema mismatch")
-            inputs = actual.get("inputs", {})
-            for label in ("current_reference", "selector", "independent_review",
-                          "run1_top40", "run2_top40", "builder"):
-                verify_ref(inputs.get(label), label)
-            expected = build_payload(
-                pathlib.Path(inputs["current_reference"]["path"]),
-                pathlib.Path(inputs["selector"]["path"]),
-                pathlib.Path(inputs["independent_review"]["path"]),
-                pathlib.Path(inputs["run1_top40"]["path"]),
-                pathlib.Path(inputs["run2_top40"]["path"]),
-            )
+            expected = rebuild_receipt(actual)
             require(actual == expected, "analysis receipt differs from rebuilt evidence")
             design_id = actual["design_id"]
         print(
-            "[CURRENT-TIMING-PATH-ANALYSIS][PASS_GAP] "
+            "[CURRENT-TIMING-PATH-ANALYSIS][PASS_CANDIDATE_ONLY] "
             f"design_id={design_id} paths=40 dominant_shared_cone=1 "
-            "rtl_owner=UNRESOLVED production_rtl_authorized=false"
+            f"candidate={CANDIDATE_ID} production_rtl_authorized=false"
         )
         return 0
     except (EvidenceError, OSError, UnicodeError, KeyError) as error:

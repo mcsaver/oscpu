@@ -20,10 +20,10 @@ import owner_b_response_candidate_analysis as analysis  # noqa: E402
 
 
 SELECTOR = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/optimization-slice-current-337-v3.json")
+    ".github/task-runs/2026-08-07-rv64-v15w-owner-b-latency-sensitivity-ca37-a1/"
+    "evidence/optimization-slice-sensitivity-ca37-a1.json")
 SENSITIVITY = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-owner-b-latency-sensitivity-current-337-a1/"
+    ".github/task-runs/2026-08-07-rv64-v15w-owner-b-latency-sensitivity-ca37-a1/"
     "evidence/owner-b-latency-sensitivity/result.json")
 PRIOR = ROOT / (
     ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/"
@@ -41,8 +41,11 @@ MAPPED_STA = ROOT / (
     ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/"
     "evidence/mapped-sta-current-v2/result.json")
 INDEPENDENT_REVIEW = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/owner-b-path-independent-review-337-v1.md")
+    ".github/task-runs/2026-08-07-rv64-v15w-owner-b-response-candidate-analysis-ca37-a1/"
+    "subagent-contracts/v15w-owner-b-path-current-review-v1.result.md")
+INDEPENDENT_REVIEW_CONTRACT = ROOT / (
+    ".github/task-runs/2026-08-07-rv64-v15w-owner-b-response-candidate-analysis-ca37-a1/"
+    "subagent-contracts/v15w-owner-b-path-current-review-v1.json")
 
 
 class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
@@ -82,6 +85,8 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
             "--performance-ab", self.relative(PERFORMANCE),
             "--mapped-sta", self.relative(MAPPED_STA),
             "--independent-review", self.relative(INDEPENDENT_REVIEW),
+            "--independent-review-contract",
+            self.relative(INDEPENDENT_REVIEW_CONTRACT),
             "--output", self.relative(self.result),
         )
 
@@ -126,7 +131,10 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
                 "independent-review candidate marker"):
             analysis.verify_independent_review(
                 review,
+                INDEPENDENT_REVIEW_CONTRACT,
+                "sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f",
                 "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+                "6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22",
             )
 
     def test_removing_adapter_fallthrough_is_rejected(self) -> None:

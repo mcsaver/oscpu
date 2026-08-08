@@ -1,0 +1,2 @@
+cache_state=built
+cache_dir=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator/f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42

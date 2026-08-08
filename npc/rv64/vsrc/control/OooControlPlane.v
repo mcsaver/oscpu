@@ -270,6 +270,8 @@ module OooControlPlane #(
   // 统一在小门中精确限定；level-ready 本身不能获得取消权限，避免活性自锁。
   wire system_csr_admission_clear_w;
   wire system_csr_dispatch_cancel_w;
+  wire system_csr_dispatch_eligible_w;
+  wire system_csr_dispatch_permit_w;
   OooPendingSystemAdmissionCancelGate
       u_pending_system_admission_cancel_gate (
     .rst_i(rst),
@@ -464,8 +466,8 @@ module OooControlPlane #(
     .mem_owner_terminalized_i(mem_owner_terminalized_i),
     .backend_drained_o(backend_drained_w),
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
-    .system_csr_dispatch_valid_o(system_csr_dispatch_valid_w),
-    .system_csr_dispatch_fire_o(system_csr_dispatch_fire_w),
+    .system_csr_dispatch_valid_o(system_csr_dispatch_eligible_w),
+    .system_csr_dispatch_fire_o(),
     .pending_branch_commit_resolve_o(pending_branch_commit_resolve_w),
     .pending_branch_match_clear_o(pending_branch_match_clear_w),
     .pending_replay_wait_o(pending_replay_wait_w),
@@ -587,6 +589,17 @@ module OooControlPlane #(
       backend_drained_w && stop_pending_q && pending_system_q &&
       pending_system_csr_q && !pending_system_dispatched_q;
 
+  // V15U: the drain gate emits exact same-edge eligibility, while the pending
+  // owner samples it into a cancellable registered permit.  Actual dispatch
+  // remains fail-closed against current holder metadata and cancellation, but
+  // no longer carries mem_owner_terminalized_i into backend ready/frontend.
+  assign system_csr_dispatch_valid_w =
+      system_csr_dispatch_permit_w && !system_csr_dispatch_cancel_w &&
+      stop_pending_q && pending_system_q && pending_system_csr_q &&
+      !pending_system_dispatched_q;
+  assign system_csr_dispatch_fire_w =
+      system_csr_dispatch_valid_w && dispatch0_ready_w;
+
   OooPendingSystemSequencer #(
     .ROB_INDEX_W(ROB_INDEX_W),
     .PRODUCER_GEN_W(PRODUCER_GEN_W),
@@ -597,6 +610,9 @@ module OooControlPlane #(
     .rst(rst || core_local_flush_w),
     .clear_i(pending_system_clear_w),
     .clear_dispatched_i(orphan_stop_pending_w),
+    .dispatch_eligible_i(system_csr_dispatch_eligible_w),
+    .dispatch_cancel_i(system_csr_dispatch_cancel_w),
+    .head0_csr_inflight_i(head0_csr_inflight_w),
     .refresh_rdata_i(pending_system_rdata_refresh_w),
     .refresh_rdata_value_i(csr_rdata_w),
     .dispatch_fire_i(system_csr_dispatch_fire_w),
@@ -642,6 +658,7 @@ module OooControlPlane #(
     .next_pc_o(pending_system_next_pc_q),
     .csr_rdata_o(pending_system_csr_rdata_q),
     .irq_cause_o(pending_system_irq_cause_q),
+    .dispatch_permit_o(system_csr_dispatch_permit_w),
     .producer_valid_o(pending_system_producer_valid_w),
     .producer_id_o(pending_system_producer_id_w)
   );
@@ -924,6 +941,38 @@ module OooControlPlane #(
       end
       if (pending_system_csr_commit_w && head0_csr_commit_w) begin
         $error("[V8K-PENDING-CSR-ONE-WITNESS] pending and head0 commit both authorized @%0t", $time);
+        $fatal;
+      end
+      if (pending_system_csr_commit_w && system_csr_dispatch_valid_w) begin
+        $error("[V15V-CSR-COMMIT-DISPATCH-DISJOINT] exact post-dispatch death overlapped pre-ROB dispatch valid @%0t", $time);
+        $fatal;
+      end
+      if (head0_csr_commit_w && !head0_csr_inflight_w) begin
+        $error("[V15W-HEAD0-CSR-COMMIT-OWNER] queue-head CSR commit lacked registered inflight owner @%0t", $time);
+        $fatal;
+      end
+      if (head0_csr_inflight_w && system_csr_dispatch_permit_w) begin
+        $error("[V15W-HEAD0-CSR-PERMIT-DISJOINT] queue-head CSR inflight overlapped pending CSR permit @%0t", $time);
+        $fatal;
+      end
+      // csr_trap_mem_valid is asserted equivalent to the canonical C0 TRAP
+      // pregrant in OooCoreTopGlue; OooRob closes both dispatch-ready lanes on
+      // that pregrant.  A pending CSR permit therefore cannot coexist with the
+      // trap.  The trap remains in pending_system_clear_w, so the clock edge
+      // clears any pre-ROB holder without extending the late commit cone into
+      // system_csr_dispatch_valid_w.
+      if (csr_trap_mem_valid_w &&
+          (system_csr_dispatch_permit_w || system_csr_dispatch_valid_w ||
+           system_csr_dispatch_fire_w)) begin
+        $error("[V15X-TRAP-PERMIT-DISJOINT] C0 trap overlapped pending CSR permit/valid/fire permit=%b valid=%b fire=%b @%0t",
+               system_csr_dispatch_permit_w, system_csr_dispatch_valid_w,
+               system_csr_dispatch_fire_w, $time);
+        $fatal;
+      end
+      if (head0_csr_commit_w &&
+          (system_csr_dispatch_valid_w || system_csr_dispatch_fire_w)) begin
+        $error("[V15W-HEAD0-CSR-DISPATCH-DISJOINT] queue-head CSR commit overlapped pending CSR dispatch valid=%b fire=%b @%0t",
+               system_csr_dispatch_valid_w, system_csr_dispatch_fire_w, $time);
         $fatal;
       end
       if (system_csr_dispatch_fire_w &&

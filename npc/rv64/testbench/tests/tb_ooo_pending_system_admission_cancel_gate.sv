@@ -91,7 +91,8 @@ module tb_ooo_pending_system_admission_cancel_gate;
     pending_jump_resolve_ready_i = 0;
 
     csr_trap_mem_valid_i = 1;
-    expect_outputs(1, 1, "memory trap cancels admission");
+    expect_outputs(1, 0,
+                   "memory trap clears holder behind C0 dispatch closure");
     csr_trap_mem_valid_i = 0;
     branch_spec_resolve_valid_i = 1;
     expect_outputs(1, 1, "branch-spec resolve cancels admission");
@@ -100,7 +101,8 @@ module tb_ooo_pending_system_admission_cancel_gate;
     expect_outputs(1, 1, "untracked branch resolve cancels admission");
     branch_resolve_untracked_i = 0;
     pending_system_csr_commit_i = 1;
-    expect_outputs(1, 1, "pending CSR commit cancels admission");
+    expect_outputs(1, 0,
+                   "exact pending CSR death clears holder without redispatch cancel");
     pending_system_csr_commit_i = 0;
 
     // 这两路是 direct-fire 后置优先级产生的 branch-owner terminal，保留在
@@ -113,7 +115,8 @@ module tb_ooo_pending_system_admission_cancel_gate;
     pending_branch_match_clear_i = 0;
 
     head0_csr_commit_i = 1;
-    expect_outputs(1, 1, "head0 CSR commit cancels admission");
+    expect_outputs(1, 0,
+                   "head0 CSR death clears holder outside dispatch cancel");
     head0_csr_commit_i = 0;
     core_local_flush_i = 1;
     expect_outputs(0, 1, "backend flush cancels without ordinary clear");
@@ -123,6 +126,9 @@ module tb_ooo_pending_system_admission_cancel_gate;
 
     $display("[INFO] admission-cancel checks=%0d", checks);
     $display("[V15P-PENDING-CSR-FEEDBACK-FREE] PASS");
+    $display("[V15V-CSR-COMMIT-DISPATCH-DISJOINT] clear=1 cancel=0 PASS");
+    $display("[V15W-HEAD0-CSR-ADMISSION-CLEAR] clear=1 cancel=0 PASS");
+    $display("[V15X-TRAP-C0-DISPATCH-CLOSURE] clear=1 cancel=0 PASS");
     $display("PASS tb_ooo_pending_system_admission_cancel_gate");
     $finish;
   end

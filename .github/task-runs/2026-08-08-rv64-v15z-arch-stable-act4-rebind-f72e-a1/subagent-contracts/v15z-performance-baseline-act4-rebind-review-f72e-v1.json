@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15z-performance-baseline-act4-rebind-review-f72e-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 f72e RV64 双发射 OoO 核的 scoped performance baseline checker replay：确认 ACT4 纳入 ARCH_STABLE 后，仅 receipt/合同身份变化；NpcSimTop、CoreMark/Dhrystone 镜像、原始周期与提交计数、stats-off 非干扰及 fail-closed 执行证据均未漂移，并主动寻找旧结果重绑、日志复用、计数守恒或 PPA 越级反例。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
+      "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
+      "npc/rv64/eval/ppa/tools/performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_current.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_v3.py",
+      "npc/rv64/eval/ppa/tests/test_performance_baseline_review_v2.py",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-current-v3.schema.json",
+      "npc/rv64/eval/ppa/schemas/performance-baseline-independent-review-v2.schema.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/performance-baseline",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-performance-baseline-act4-rebind-review-f72e-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象与本地证据路径、周期/配置、checker 观测、PASS/GAP 范围组织独立结论；列出哈希、反例、unknowns、替代解释、scope_extension_request 与 confidence_and_basis；若无 blocker，恰好一次给出指定 APPROVE marker。"
+  ],
+  "success_criteria": [
+    "独立确认 design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42，versioned result SHA-256=460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32；CoreMark=5262868/3183617、Dhrystone10000=9751462/4250000，三次 stats-on 位精确、stats-off 周期/提交相等且 counters unavailable，原 task status/command status/cleanup 仍闭合，旧 result 未改写；PPA 保持 UNQUALIFIED、promotion_eligible=false。若无 blocker，恰好一次输出 [PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 result_sha256=460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32；否则不得输出并明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

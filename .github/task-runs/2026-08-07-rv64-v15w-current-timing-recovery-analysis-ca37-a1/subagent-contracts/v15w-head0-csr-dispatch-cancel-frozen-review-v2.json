@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15w-ca37-head0-csr-dispatch-cancel-frozen-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "依据随附的本地 RV64 ca37 控制路径与 STA 冻结事实，复核 head0 CSR inflight blocker 加入 pending CSR permit 后，head0_csr_commit 是否可从 pre-ROB dispatch cancel 移到 admission clear；仅给出 candidate-only 周期逻辑结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/evidence/current-reference-ppa-ca37-a1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/subagent-contracts/v15w-head0-csr-dispatch-cancel-frozen-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "ca37 design_id=sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f；两轮 5ns mapped Top40 bit-identical，40/40 从 csr_mtvec_q[63] 到 38 个 jalr_prefetch_hit_available 与 2 个 redirect_valid，40/40 经 head0_csr_commit、system_csr_dispatch_cancel、system_csr_dispatch_valid；WNS=-13.694396973ns、TNS=-398171.5625ns、hard gate FAIL。",
+      "当前 OooPendingSystemAdmissionCancelGate 的 feedback_free_dispatch_cancel_w 包含 csr_trap、branch resolve、pending jump clear 与 head0_csr_commit_i；feedback_free_admission_clear_w 另并入 pending_system_csr_commit_i；dispatch_cancel_o 再并入 reset/core-local-flush。",
+      "当前 OooPendingSystemSequencer 的 dispatch_permit_arm_w 要求 dispatch_eligible、无 cancel/clear、valid_q、CSR kind、未 dispatched 且无 producer lease；dispatch_permit_q 在 cancel/clear/fire/death/lease/dispatched/invalid/non-CSR 时清零；dispatch_birth_w 要求 fire、permit、无 cancel、pre-ROB CSR owner。",
+      "当前 OooControlPlane 的 system_csr_dispatch_valid_w=dispatch_permit_q && !dispatch_cancel && stop_pending_q && pending_system_q && pending_system_csr_q && !pending_system_dispatched_q；fire=valid && dispatch0_ready。",
+      "head0_csr_inflight_q 由 queue-head CSR dispatch fire 置位，在 reset/flush/trap-flush/serial-flush/head0_csr_commit/older-control-kill 后沿清零；commit 所在整拍读取的仍是边沿前 inflight_q=1。OooStopPendingSequencer 在 inflight 且未 kill 时保持 stop_pending=1，frontend 的 T3U assertion 要求该 owner 阻止 can_run。",
+      "同一 dispatch 拍中 OooPendingDispatchArbiter 的 lane1_barrier_base 排除 dispatch0 SYSTEM，而 queue-head CSR 的 slot facts 同时置 SYSTEM 与 CSR；因此 queue-head CSR lane0 fire 不与 lane1 pending-system capture 同拍。",
+      "拟议候选只增加 head0_csr_inflight_q 对 dispatch_permit_arm/hold 的同步状态阻断，再把 head0_csr_commit 从 pre-ROB dispatch cancel 移到 admission clear；保留 commit 清 pending owner、serial flush、producer lease、reset/flush/older-control recovery 语义，不声明已实现或已验证。"
+    ]
+  },
+  "deliverables": [
+    "输出唯一 marker [V15W-HEAD0-CSR-FROZEN-REVIEW][PASS_CANDIDATE|GAP_KEEP_CANCEL|INCONCLUSIVE] design_id=sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f；按周期列出证明或反例，并保持 candidate-only、production_rtl_change_authorized=false、PPA=UNQUALIFIED、promotion_eligible=false。"
+  ],
+  "success_criteria": [
+    "判断 inflight blocker 是否覆盖 permit 尚未 arm、permit stall-held、commit 同拍 ready=0/1、capture、flush、older-control recovery 与 producer lease 情形。",
+    "若存在 head0_csr_commit=1、head0_csr_inflight_q=0 且 dispatch_permit_q=1 的可达状态，给出具体周期来源并判 GAP_KEEP_CANCEL；若材料无法排除，判 INCONCLUSIVE。",
+    "列出实现前需要的定向 testbench、编译成功负向 RTL 变体与 OOO_ASSERT 观测，不从 frozen review 直接授权 production RTL。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

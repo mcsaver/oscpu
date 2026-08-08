@@ -13,8 +13,10 @@ return side effects, redirect, pending-owner state, or final terminal output.
 
 1. `core_commit0_csr_o` is true only for a valid, non-exceptional commit0
    SYSTEM instruction whose funct3 is not zero.
-2. `pending_system_csr_commit_o` is true when the pending SYSTEM CSR entry has
-   been dispatched and the matching commit0 CSR reaches the same PC.
+2. `pending_system_csr_commit_o` is true only when the pending SYSTEM entry is
+   a dispatched CSR with a live raw ProducerId lease, commit0 is a valid
+   non-exceptional CSR, and both full ProducerId and PC match. Raw lease or the
+   dispatched logical claim seals the queue-head fallback on mismatch.
 3. The side-effect/readback CSR access instruction priority is commit0 CSR,
    pending SYSTEM entry, lane1 CSR head, then lane0 head. This view remains the
    only source of `csr_access_*` and may depend on commit/pending state.

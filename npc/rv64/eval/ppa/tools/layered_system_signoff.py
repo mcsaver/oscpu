@@ -18,6 +18,8 @@ import re
 import sys
 from typing import Any
 
+import jsonschema
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOLS_DIR = ROOT / "npc/rv64/eval/ppa/tools"
@@ -25,6 +27,7 @@ if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
 import architecture_hard_gates as architecture  # noqa: E402
+import act4_current as act4_checker  # noqa: E402
 import full_core_functional_evidence as full_core  # noqa: E402
 import full_core_functional_replay as full_core_replay  # noqa: E402
 import lightweight_linux_run as l3_checker  # noqa: E402
@@ -37,6 +40,9 @@ POLICY_PATH = pathlib.PurePosixPath(
 )
 SCHEMA_PATH = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json"
+)
+ACT4_CURRENT_RECEIPT_PATH = pathlib.PurePosixPath(
+    "npc/rv64/eval/ppa/evidence/act4-current.json"
 )
 DEFAULT_CONJUNCTION = [
     "L0_DIRECTED_RTL",
@@ -80,6 +86,14 @@ LAYER_EVIDENCE_FILES = {
 }
 LAYER_IDENTITY_HELPER_REPLAY_PATHS = frozenset(
     {"npc/rv64/eval/ppa/tools/architecture_hard_gates.py"}
+)
+LAYER_SIGNOFF_POLICY_REPLAY_PATHS = frozenset(
+    {"npc/rv64/design/arch/layered-system-signoff-policy-v1.json"}
+)
+LAYER_REPORT_REPLAY_PATH_SETS = (
+    LAYER_IDENTITY_HELPER_REPLAY_PATHS,
+    LAYER_SIGNOFF_POLICY_REPLAY_PATHS,
+    LAYER_IDENTITY_HELPER_REPLAY_PATHS | LAYER_SIGNOFF_POLICY_REPLAY_PATHS,
 )
 SHA_LINE_RE = re.compile(r"^(?P<sha>[0-9a-f]{64})  (?P<path>.+)$")
 SOURCE_EXECUTION_FAIL_RE = re.compile(
@@ -319,7 +333,11 @@ def verify_current_inputs(
                 "path": path,
                 "recorded_sha256": entry["recorded_sha256"],
                 "current_sha256": entry["current_sha256"],
-                "classification": "rtl_identity_helper_only",
+                "classification": (
+                    "rtl_identity_helper_only"
+                    if path in LAYER_IDENTITY_HELPER_REPLAY_PATHS
+                    else "layered_signoff_policy_only"
+                ),
             }
         )
     observed_drift = {entry["path"] for entry in live_drift}
@@ -334,7 +352,13 @@ def verify_current_inputs(
         "live_drift": live_drift,
         "execution_reused": bool(live_drift),
         "replay_scope": (
-            "rtl-identity-helper-only" if live_drift else "exact-current-inputs"
+            "+".join(
+                sorted(
+                    entry["classification"].replace("_", "-")
+                    for entry in live_drift
+                )
+            )
+            if live_drift else "exact-current-inputs"
         ),
     }
 
@@ -587,10 +611,17 @@ def verify_l1_direct(
     try:
         result = full_core.verify_functional_result(
             result_path,
-            require_current_design=True,
+            require_current_design=False,
             require_canonical_current=False,
         )
-    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        act4_checker.current_l1_binding(result_path, design_id=design_id)
+    except (
+        act4_checker.Act4Error,
+        OSError,
+        RuntimeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as exc:
         raise SignoffError(f"L1 direct-execution evidence is invalid: {exc}") from exc
     if result.get("design_id") != design_id:
         raise SignoffError("L1 direct-execution design-id differs from live RTL")
@@ -660,6 +691,62 @@ def verify_l1(
     raise SignoffError("L1 authority directory has no supported top status")
 
 
+def verify_act4_current(
+    *, design_id: str, root: pathlib.Path = ROOT
+) -> dict[str, Any]:
+    receipt_path = repo_path(root / ACT4_CURRENT_RECEIPT_PATH, root=root)
+    try:
+        value = act4_checker.verify_receipt(receipt_path)
+    except (act4_checker.Act4Error, OSError, KeyError, TypeError, ValueError) as exc:
+        raise SignoffError(f"ACT4 current receipt is invalid: {exc}") from exc
+    if (
+        value.get("status") != "PASS"
+        or value.get("claim") != "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY"
+        or value.get("design_id") != design_id
+        or value.get("config_name") != "npc-rv64-ooo-current"
+        or value.get("counts", {}).get("required") != 100
+        or value.get("counts", {}).get("passed") != 100
+        or value.get("counts", {}).get("rtl_assertion_failures") != 0
+    ):
+        raise SignoffError("ACT4 current receipt does not bind the common PASS design")
+    source_raw = task_run_dir(value["source_directory"], root=root)
+    source_run = source_raw.parents[2]
+    status_path = repo_path(source_run / "act4-current.status", root=root)
+    if status_path.read_text(encoding="utf-8") != "PASS\n":
+        raise SignoffError("ACT4 task-run status is not exact PASS")
+    return {
+        "claim": value["claim"],
+        "status": "PASS",
+        "design_id": design_id,
+        "config_name": value["config_name"],
+        "cases": {"passed": 100, "required": 100},
+        "rtl_assertions": {"enabled": True, "failures": 0},
+        "simulator_sha256": value["simulator"]["binary"]["sha256"],
+        "receipt": artifact(
+            receipt_path, kind="act4_current_receipt", root=root
+        ),
+        "top_status": artifact(
+            status_path, kind="task_run_status", root=root
+        ),
+    }
+
+
+def attach_l1_required_subcohorts(
+    l1: dict[str, Any], act4: dict[str, Any]
+) -> dict[str, Any]:
+    result = dict(l1)
+    result["required_subcohorts"] = {
+        "official_am_difftest": {
+            "status": "PASS",
+            "official_cases": 177,
+            "am_cases": 61,
+            "difftest_mismatches": 0,
+        },
+        "act4_architectural_certification": act4,
+    }
+    return result
+
+
 def verify_layer(
     result_dir: pathlib.Path,
     *,
@@ -697,16 +784,22 @@ def verify_layer(
     try:
         inputs = verify_current_inputs(result_dir, root=root)
     except SignoffError as exact_error:
-        try:
-            inputs = verify_current_inputs(
-                result_dir,
-                allowed_live_drift=LAYER_IDENTITY_HELPER_REPLAY_PATHS,
-                root=root,
-            )
-        except SignoffError as replay_error:
+        replay_errors: list[str] = []
+        inputs = None
+        for allowed_paths in LAYER_REPORT_REPLAY_PATH_SETS:
+            try:
+                inputs = verify_current_inputs(
+                    result_dir,
+                    allowed_live_drift=allowed_paths,
+                    root=root,
+                )
+                break
+            except SignoffError as replay_error:
+                replay_errors.append(str(replay_error))
+        if inputs is None:
             raise SignoffError(
                 f"{layer} inputs are neither exact-current nor the allowed "
-                f"identity-helper-only replay: {replay_error}"
+                "report-only replay: " + "; ".join(replay_errors)
             ) from exact_error
     binding_path = repo_path(result_dir / "binding.txt", root=root)
     binding = checker.read_binding(binding_path)
@@ -807,6 +900,23 @@ def compose_receipt(
 ) -> dict[str, Any]:
     if policy.get("default_signoff_conjunction") != DEFAULT_CONJUNCTION:
         raise SignoffError("layered policy default conjunction drifted")
+    l1_policy = policy.get("layers", {}).get("L1_FULL_CORE_DIFFTEST", {})
+    required_subcohorts = l1_policy.get("required_subcohorts", {})
+    if (
+        required_subcohorts.get("official_am_difftest")
+        != {
+            "official_cases": 177,
+            "am_cases": 61,
+            "difftest_mismatches": 0,
+        }
+        or required_subcohorts.get("act4_architectural_certification", {}).get(
+            "required_cases"
+        ) != 100
+        or required_subcohorts.get("act4_architectural_certification", {}).get(
+            "config"
+        ) != "npc-rv64-ooo-current"
+    ):
+        raise SignoffError("layered policy L1 required subcohorts drifted")
     promotion = policy.get("promotion_boundary", {})
     if (
         promotion.get("required_default_claim")
@@ -824,6 +934,32 @@ def compose_receipt(
     for name, layer in (("L0", l0), ("L1", l1), ("L2", l2), ("L3", l3)):
         if layer.get("status") != "PASS" or layer.get("design_id") != design_id:
             raise SignoffError(f"{name} does not bind the common PASS design")
+    l1_subcohorts = l1.get("required_subcohorts")
+    if (
+        not isinstance(l1_subcohorts, dict)
+        or set(l1_subcohorts)
+        != {"official_am_difftest", "act4_architectural_certification"}
+        or l1_subcohorts.get("official_am_difftest")
+        != {
+            "status": "PASS",
+            "official_cases": 177,
+            "am_cases": 61,
+            "difftest_mismatches": 0,
+        }
+    ):
+        raise SignoffError("L1 required subcohort set differs")
+    act4 = l1_subcohorts["act4_architectural_certification"]
+    if (
+        not isinstance(act4, dict)
+        or act4.get("status") != "PASS"
+        or act4.get("claim") != "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY"
+        or act4.get("design_id") != design_id
+        or act4.get("config_name") != "npc-rv64-ooo-current"
+        or act4.get("cases") != {"passed": 100, "required": 100}
+        or act4.get("rtl_assertions")
+        != {"enabled": True, "failures": 0}
+    ):
+        raise SignoffError("L1 ACT4 required subcohort is absent or invalid")
     if l2.get("case") != "all" or l3.get("case") != "all":
         raise SignoffError("directed L2/L3 case cannot claim a complete layer")
     return {
@@ -857,6 +993,18 @@ def compose_receipt(
     }
 
 
+def validate_receipt_schema(
+    value: dict[str, Any], *, root: pathlib.Path = ROOT
+) -> None:
+    schema = load_json(repo_path(root / SCHEMA_PATH, root=root))
+    try:
+        jsonschema.Draft202012Validator(schema).validate(value)
+    except jsonschema.ValidationError as exc:
+        raise SignoffError(
+            f"layered receipt violates schema: {exc.message}"
+        ) from exc
+
+
 def evaluate(
     *,
     l0_module_dir: pathlib.Path,
@@ -886,9 +1034,11 @@ def evaluate(
     l3_dir = task_run_dir(l3_result_dir, root=root)
     l0 = verify_l0(l0_dir, design_id=design_id, root=root)
     l1 = verify_l1(l1_source_dir, design_id=design_id, root=root)
+    act4 = verify_act4_current(design_id=design_id, root=root)
+    l1 = attach_l1_required_subcohorts(l1, act4)
     l2 = verify_layer(l2_dir, layer="L2", design_id=design_id, root=root)
     l3 = verify_layer(l3_dir, layer="L3", design_id=design_id, root=root)
-    return compose_receipt(
+    receipt = compose_receipt(
         policy=policy,
         policy_artifact=artifact(policy_path, kind="layered_signoff_policy", root=root),
         checker_artifact=artifact(
@@ -916,6 +1066,8 @@ def evaluate(
         l2=l2,
         l3=l3,
     )
+    validate_receipt_schema(receipt, root=root)
+    return receipt
 
 
 def atomic_json(path: pathlib.Path, value: dict[str, Any]) -> None:
@@ -985,7 +1137,8 @@ def main() -> int:
         print(
             "[RV64-LAYERED-SYSTEM-SIGNOFF][PASS] "
             f"design_id={result['rtl_design_id']} L0=113/113 "
-            "L1=177+61 L2=all L3=all Ubuntu=not-run PPA=not-implied"
+            "L1=177+61+ACT4-100 L2=all L3=all "
+            "Ubuntu=not-run PPA=not-implied"
         )
         return 0
     except (OSError, ValueError, KeyError, SignoffError) as exc:

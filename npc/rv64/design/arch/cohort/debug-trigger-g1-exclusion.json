@@ -1,7 +1,7 @@
 {
   "schema": "npc-rv64-architecture-debt-exclusion-v1",
   "debt_id": "DEBUG-TRIGGER-G1",
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
   "rationale": "The cohort provides simulation observability and semihost EBREAK only; it does not advertise a RISC-V Debug Module, debug mode, halt or resume transport, or executable trigger action."
 }

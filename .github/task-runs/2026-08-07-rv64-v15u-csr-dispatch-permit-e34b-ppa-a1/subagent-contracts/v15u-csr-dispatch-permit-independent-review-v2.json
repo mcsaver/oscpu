@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15u-csr-dispatch-permit-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "以干净的版本化合同补充复核本地 RV64 V15U：直接核对 OooIntBackend、OooMemOwnerTerminalCollector 与 OooMemOwnerTracker 未因 CSR dispatch permit 改变 accepted-transfer、12 ingress、duplicate fail-loud 或 holder phase 权威；确认 owner-terminal 规范公式已与 RTL 的 pending_exit 项同步；并从 102e/e34b 各自的 mapped summary、Top40、synthesis sources 与 production manifest 推导候选路径迁移及设计身份边界。不得搜索任何未列出的 task-run 根目录。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-focused-mutation-a1/evidence",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1/driver-summary.tsv",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1/full-core-current.status",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1/module-driver.log",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1/functional-driver.log",
+      ".github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/traceable-102e-a1/summary.json",
+      ".github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/traceable-102e-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/traceable-102e-a1/synthesis-sources.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/traceable-102e-a1/production-manifest-before.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/traceable-102e-a1/production-manifest-after.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1/summary.json",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1/synthesis-sources.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1/production-manifest-before.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1/production-manifest-after.sha256",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/driver/compare-102e-e34b-v1.py",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/subagent-contracts/v15u-csr-dispatch-permit-independent-review-v2.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git status",
+        "mode": "read-only",
+        "purpose": "inspect-worktree-status"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 V15U v2 独立补充复核：逐项说明 collector/tracker 的 production accepted-transfer、duplicate/phase fail-loud 与事件计数合同是否保持；确认 pending_exit 规范同步；验证 102e/e34b 各自 source/production manifest 前后一致及 Top40 路径迁移。若无 correctness blocker，批准 e34b engineering candidate；仍明确 live-permit 动态覆盖、production ControlPlane 负向版本、driver-summary 状态卫生、5ns/release/signoff 等 GAP。"
+  ],
+  "success_criteria": [
+    "首行采用本地 RV64 module/signal→周期/配置→TB/EDA 观测→PASS/GAP；只读取逐项列出的路径，不把 task-run 目录作为 rg/git 搜索根；区分 collector 功能事件计数与 STA 路径计数；不弱化断言，不扩大到 Ubuntu、绝对功耗或 timing signoff。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

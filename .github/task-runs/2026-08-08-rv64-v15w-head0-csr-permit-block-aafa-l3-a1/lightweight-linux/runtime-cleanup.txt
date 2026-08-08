@@ -1,0 +1,4 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-run/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-l3-a1
+runtime_owned=1
+runtime_removed=1
+remove_rc=0

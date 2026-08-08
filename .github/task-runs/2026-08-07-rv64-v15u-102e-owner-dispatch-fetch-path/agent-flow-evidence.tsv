@@ -1,0 +1,6 @@
+2026-08-07T12:02:08Z	focused-mutation	PASS	.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-focused-mutation-a1/evidence/summary.txt
+2026-08-07T12:02:08Z	l0-l1	PASS	.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1/full-core-current.status
+2026-08-07T12:02:08Z	mapped-ppa	GAP	.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json
+2026-08-07T12:02:08Z	l2-mini-system	PASS	.github/task-runs/2026-08-07-rv64-v15u-e34b-l2-mini-system-all-a1/mini-system/summary.json
+2026-08-07T12:02:08Z	l3-lightweight-linux	PASS	.github/task-runs/2026-08-07-rv64-v15u-e34b-l3-lightweight-linux-all-a1/lightweight-linux/summary.json
+2026-08-07T12:02:08Z	independent-review-v2	PASS	.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/independent-review-v2/result.json

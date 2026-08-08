@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15w-head0-csr-permit-block-final-frozen-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 pending CSR 调度许可候选的周期合同、定向 testbench、完整核 DiffTest、mini-system、轻量 Linux 与 5 ns mapped STA 冻结证据，判断候选是否可保留用于下一轮时序优化，同时严格区分功能签核 PASS 与 PPA UNQUALIFIED。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      ".github/task-runs/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-final-a1/evidence/head0-csr-permit-block-ab-receipt-v1.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-final-a1/subagent-contracts/rv64-v15w-head0-csr-permit-block-final-frozen-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "candidate design_id=sha256:aafa17f7bd385ad57265875b21f484c2d10a1b668d2f967cd12df1bd73a36aa7；parent design_id=sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f；production RTL 文件数均为 146。",
+      "候选周期合同为 head0_csr_inflight_q 阻断 dispatch_permit_q 的 arm 与 hold；head0_csr_commit 只参与 admission clear 和 serial flush，不再参与 pre-ROB dispatch cancel；断言要求 inflight 与 permit 不重叠、commit 必有 inflight owner、commit 与 pending CSR valid/fire 不重叠。",
+      "L0 为 113/113 module PASS；四个 OOO_ASSERT_OFF 编译成功负向 RTL 变体均由定向 testbench 检出；pending-system semantic 为 40 profiles、21 mutations、4 regressions PASS，169 个编译或生成产物已清理。",
+      "L1 当前设计 aafa17 为 module 113/113、official 177/177、AM 61/61、DiffTest mismatch 0、evidence mutation 11/11 PASS；CoreMark 与 Dhrystone 使用相同 image SHA，parent/candidate 的 cycles、commits、CPI 逐项完全相同。",
+      "L2 all 在 aafa17 上以 6098497 commits、9882568 cycles 完成，GOOD TRAP、syscon poweroff、system-reset 各一次，RTL assertion failures=0，evidence seal PASS。",
+      "L3 all 在同一 aafa17 仿真器绑定上以 24460280 commits、57129353 cycles 完成 boot、MMU、process、timer、tmpfs、atomic、UART IRQ 与 shutdown；kernel Power down、GOOD TRAP、syscon poweroff、system-reset 各一次，critical markers=0，RTL assertion failures=0，evidence seal PASS；Ubuntu 22.04 未运行且不属于默认合取条件。",
+      "相同 5 ns NpcTop mapped 配置下，parent WNS/TNS=-13.694396973/-398171.5625 ns，candidate=-13.65828228/-397535.75 ns；candidate 改善 WNS 0.036114693 ns 与 TNS 635.8125 ns，logic area proxy 增加 176.68，sequential area 不变，cells 增加 154，fixed-toggle power 均为 0.136 W；两者均为 40/40 violated paths。",
+      "parent Top40 的 head0_csr_commit path presence 为 40/40；candidate 为 0/40，而 csr_trap_mem_valid、system_csr_dispatch_cancel、system_csr_dispatch_valid、pending_system_inst 均为 40/40；candidate 仍从 CsrFile.csr_mtvec_q[63] 出发，终点为 38 个 jalr_prefetch_hit_available 与 2 个 redirect_valid。",
+      "冻结收据位于 .github/task-runs/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-final-a1/evidence/head0-csr-permit-block-ab-receipt-v1.json；其声明边界是默认 L0+L1+L2+L3 PASS、候选保留、PPA=UNQUALIFIED、200 MHz 未达标、accepted baseline replacement=false、promotion eligible=false，下一主线为 csr_trap_mem_valid 到 system_csr_dispatch_cancel。"
+    ]
+  },
+  "deliverables": [
+    "第一行输出 RV64 RTL 结论格式，并给出唯一 marker [V15W-HEAD0-CSR-FINAL-REVIEW][PASS_RETAIN|GAP|INCONCLUSIVE] design_id=sha256:aafa17f7bd385ad57265875b21f484c2d10a1b668d2f967cd12df1bd73a36aa7；随后列出支持结论的周期合同、TB/系统事务、PPA 边界、反例或未知项。"
+  ],
+  "success_criteria": [
+    "只有 L0 至 L3 的设计身份和终端证据相容、负向 RTL 变体确实约束 arm/hold/cancel/clear 四个语义点、性能无回退且结论不越过 PPA UNQUALIFIED 边界时才判 PASS_RETAIN。",
+    "若材料支持功能候选保留但不支持 200 MHz、promotion 或 accepted baseline replacement，必须明确保持这些项为 false；若存在合同反例、设计身份漂移或终端证据缺口，判 GAP 或 INCONCLUSIVE 并精确指出缺失对象。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

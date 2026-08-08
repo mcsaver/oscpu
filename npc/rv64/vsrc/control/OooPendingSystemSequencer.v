@@ -10,6 +10,9 @@ module OooPendingSystemSequencer #(
 
   input clear_i,
   input clear_dispatched_i,
+  input dispatch_eligible_i,
+  input dispatch_cancel_i,
+  input head0_csr_inflight_i,
   input dispatch_fire_i,
   input producer_death_i,
   input [PRODUCER_ID_W-1:0] dispatch_producer_id_i,
@@ -62,6 +65,7 @@ module OooPendingSystemSequencer #(
   output [`XLEN-1:0] next_pc_o,
   output [`XLEN-1:0] csr_rdata_o,
   output [`TRAP_CAUSE_W-1:0] irq_cause_o,
+  output dispatch_permit_o,
   output producer_valid_o,
   output [PRODUCER_ID_W-1:0] producer_id_o
 );
@@ -84,6 +88,7 @@ module OooPendingSystemSequencer #(
   reg [`XLEN-1:0] next_pc_q;
   reg [`XLEN-1:0] csr_rdata_q;
   reg [`TRAP_CAUSE_W-1:0] irq_cause_q;
+  reg dispatch_permit_q;
   reg producer_valid_q;
   reg [PRODUCER_ID_W-1:0] producer_id_q;
 
@@ -152,9 +157,34 @@ module OooPendingSystemSequencer #(
       {3'b000, lane1_plain_fence_w};
   wire capture_any_w = capture_irq_i || capture_head0_i || capture_lane1_i;
   wire empty_w = !valid_q && !producer_valid_q;
+  wire dispatch_permit_arm_w =
+      dispatch_eligible_i && !dispatch_cancel_i && !clear_i &&
+      !clear_dispatched_i && !head0_csr_inflight_i && valid_q &&
+      (kind_q == SERIAL_KIND_CSR) && !dispatched_q && !producer_valid_q;
   wire dispatch_birth_w =
-      dispatch_fire_i && valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
+      dispatch_fire_i && dispatch_permit_q && !dispatch_cancel_i &&
+      valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
       !producer_valid_q && !clear_i;
+
+  // V15U/V15W: mem-owner terminalization is sampled into a cancellable CSR
+  // admission permit.  The permit holds across backend ready stalls, but it
+  // never survives a holder clear, orphan recovery, dispatch, exact
+  // cancellation witness, or a registered queue-head CSR owner.  The
+  // head0-CSR inflight state replaces its long commit cone on the pre-ROB
+  // valid path without adding pipeline state or changing either owner death.
+  always @(posedge clk) begin
+    if (rst) begin
+      dispatch_permit_q <= 1'b0;
+    end else if (dispatch_cancel_i || clear_i || clear_dispatched_i ||
+                 dispatch_fire_i || producer_death_i ||
+                 (head0_csr_inflight_i && dispatch_permit_q) ||
+                 producer_valid_q || dispatched_q || !valid_q ||
+                 (kind_q != SERIAL_KIND_CSR)) begin
+      dispatch_permit_q <= 1'b0;
+    end else if (dispatch_permit_arm_w) begin
+      dispatch_permit_q <= 1'b1;
+    end
+  end
 
   always @(posedge clk) begin
     if (rst) begin
@@ -242,6 +272,7 @@ module OooPendingSystemSequencer #(
   assign next_pc_o = next_pc_q;
   assign csr_rdata_o = csr_rdata_q;
   assign irq_cause_o = irq_cause_q;
+  assign dispatch_permit_o = dispatch_permit_q;
   // raw lease 是 birth fence 的承重状态。不要与 metadata 相与；metadata
   // 一致性由下方 assertion 守护，异常时保守阻止复用。
   assign producer_valid_o = producer_valid_q;
@@ -251,6 +282,7 @@ module OooPendingSystemSequencer #(
   reg producer_valid_prev_q;
   reg [PRODUCER_ID_W-1:0] producer_id_prev_q;
   reg producer_death_prev_q;
+  reg head0_csr_inflight_prev_q;
   wire [3:0] held_kind_count_w =
       {3'b000, csr_o} + {3'b000, ecall_o} +
       {3'b000, mret_o} + {3'b000, wfi_o} +
@@ -261,6 +293,7 @@ module OooPendingSystemSequencer #(
       producer_valid_prev_q <= 1'b0;
       producer_id_prev_q <= {PRODUCER_ID_W{1'b0}};
       producer_death_prev_q <= 1'b0;
+      head0_csr_inflight_prev_q <= 1'b0;
     end else begin
       if (valid_q != (kind_q != SERIAL_KIND_NONE)) begin
         $error("[V9W-SERIAL-KIND-VALID] valid/kind mismatch valid=%b kind=%0d @%0t",
@@ -285,6 +318,24 @@ module OooPendingSystemSequencer #(
       if (producer_valid_q &&
           !(valid_q && (kind_q == SERIAL_KIND_CSR) && dispatched_q)) begin
         $error("[V8K-PENDING-CSR-LEASE-SHAPE] raw lease lost pending CSR metadata @%0t", $time);
+        $fatal;
+      end
+      if (dispatch_permit_q &&
+          !(valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
+            !producer_valid_q)) begin
+        $error("[V15U-CSR-DISPATCH-PERMIT-SHAPE] permit lost pre-ROB CSR owner valid=%b csr=%b dispatched=%b lease=%b @%0t",
+               valid_q, csr_o, dispatched_q, producer_valid_q, $time);
+        $fatal;
+      end
+      if (head0_csr_inflight_prev_q && dispatch_permit_q) begin
+        $error("[V15W-HEAD0-CSR-PERMIT-CLEAR] queue-head CSR inflight did not clear pending CSR permit @%0t",
+               $time);
+        $fatal;
+      end
+      if (dispatch_fire_i &&
+          (!dispatch_permit_q || dispatch_cancel_i)) begin
+        $error("[V15U-CSR-DISPATCH-PERMIT-AUTHORITY] fire without live uncancelled permit permit=%b cancel=%b @%0t",
+               dispatch_permit_q, dispatch_cancel_i, $time);
         $fatal;
       end
       if (dispatch_fire_i && !dispatch_birth_w) begin
@@ -319,6 +370,7 @@ module OooPendingSystemSequencer #(
       producer_valid_prev_q <= producer_valid_q;
       producer_id_prev_q <= producer_id_q;
       producer_death_prev_q <= producer_death_i;
+      head0_csr_inflight_prev_q <= head0_csr_inflight_i;
     end
   end
 `endif

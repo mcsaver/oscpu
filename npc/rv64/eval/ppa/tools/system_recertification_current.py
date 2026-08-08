@@ -41,7 +41,6 @@ LAYER_KEYS = {
     "L3_LIGHTWEIGHT_LINUX",
 }
 
-
 class RecertificationError(RuntimeError):
     """The retained layered evidence cannot support the declared receipt."""
 
@@ -206,6 +205,30 @@ def validate_layer_contract(receipt: dict[str, Any]) -> None:
         "difftest_mismatches": 0,
     }.items():
         require_equal(counts.get(key), expected, f"L1 {key}")
+    subcohorts = l1.get("required_subcohorts")
+    if not isinstance(subcohorts, dict):
+        raise RecertificationError("L1 required subcohorts are missing")
+    act4 = subcohorts.get("act4_architectural_certification")
+    if not isinstance(act4, dict):
+        raise RecertificationError("L1 ACT4 subcohort is missing")
+    require_equal(act4.get("status"), "PASS", "L1 ACT4 status")
+    require_equal(
+        act4.get("claim"),
+        "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY",
+        "L1 ACT4 claim",
+    )
+    require_equal(act4.get("design_id"), design_id, "L1 ACT4 design-id")
+    require_equal(
+        act4.get("config_name"), "npc-rv64-ooo-current", "L1 ACT4 config"
+    )
+    require_equal(
+        act4.get("cases"), {"passed": 100, "required": 100}, "L1 ACT4 cases"
+    )
+    require_equal(
+        act4.get("rtl_assertions"),
+        {"enabled": True, "failures": 0},
+        "L1 ACT4 assertions",
+    )
     l1_scope = l1.get("signoff_scope")
     if l1_scope == "full-l1-checker-replay":
         require_equal(l1.get("guest_rerun"), False, "L1 replay guest_rerun")
@@ -280,6 +303,12 @@ def build_core_receipt(root: pathlib.Path) -> dict[str, Any]:
                 "am_passed": l1["counts"]["am_passed"],
                 "am_required": l1["counts"]["am_required"],
                 "difftest_mismatches": l1["counts"]["difftest_mismatches"],
+                "act4_config": l1["required_subcohorts"]
+                ["act4_architectural_certification"]["config_name"],
+                "act4_passed": l1["required_subcohorts"]
+                ["act4_architectural_certification"]["cases"]["passed"],
+                "act4_required": l1["required_subcohorts"]
+                ["act4_architectural_certification"]["cases"]["required"],
                 "guest_rerun": l1["guest_rerun"],
             },
             "L2_MINI_SYSTEM": {
@@ -316,7 +345,8 @@ def build_core_receipt(root: pathlib.Path) -> dict[str, Any]:
         },
         "claim_boundary": (
             "PASS_CURRENT_CONFIG covers the same-design L0 directed RTL, L1 "
-            "full-core DiffTest, L2 mini-system, and L3 lightweight-Linux "
+            "full-core DiffTest plus ACT4 architectural certification, L2 "
+            "mini-system, and L3 lightweight-Linux "
             "conjunction. Ubuntu 22.04 is not run and does not block this "
             "default signoff. Whole architecture remains RED and PPA remains "
             "unpromoted."
@@ -404,7 +434,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         "[SYSTEM-RECERTIFICATION-CURRENT][PASS] "
-        f"design_id={result['design_id']} L0=113/113 L1=177+61 "
+        f"design_id={result['design_id']} L0=113/113 L1=177+61+ACT4-100 "
         "L2=all L3=all Ubuntu=not-run-optional assertions=0 "
         "system=PASS_CURRENT_CONFIG whole_architecture=RED ppa=UNPROMOTED"
     )

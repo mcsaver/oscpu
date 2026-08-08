@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15w-ca37-head0-csr-dispatch-cancel-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 ca37 的 head0_csr_commit_w 到 system_csr_dispatch_cancel_w 再到前端 dispatch/ready 的 mapped Top40 组合路径；判断 head0_csr_inflight_q、stop_pending_o 与 pending_system pre-ROB owner 是否已给出严格互斥，使该 commit 仅保留 admission clear 而不进入 pre-ROB dispatch cancel 成为一个可回退候选。本节点只读源码与冻结 STA 证据，不修改 RTL，不运行仿真或综合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-pending-dispatch-arbiter.md",
+      "npc/rv64/design/specs/ooo-stop-pending-sequencer.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+      ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/evidence/current-reference-ppa-ca37-a1.json",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/traceable-ca37-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/evidence/current-fresh-ca37-a2/opensta-top40.rpt",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/traceable-ca37-a1/traceability.txt",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/independent-review-v2/result.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/subagent-contracts/v15w-head0-csr-dispatch-cancel-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "最终回复按 RTL 对象或本地证据、周期配置、TB 或 EDA 观测、PASS 或 GAP 组织；包含唯一 marker [V15W-HEAD0-CSR-DISPATCH-CANCEL-REVIEW][PASS_CANDIDATE|GAP_KEEP_CANCEL|INCONCLUSIVE] design_id=sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f，并明确 candidate-only、production_rtl_change_authorized=false、PPA=UNQUALIFIED、promotion_eligible=false。"
+  ],
+  "success_criteria": [
+    "逐周期枚举 pending system capture、head0 CSR dispatch/inflight/commit、permit arm/hold/fire、clear 与 serial flush 的可达顺序，给出二者互斥的证明或具体反例。",
+    "区分 admission clear 与 same-cycle pre-ROB dispatch cancel 的权限，核对 dispatch_permit_q 在 head0 CSR commit 拍是否可能为 1，以及 core_dispatch0_fire_w 是否可能发生。",
+    "列出实现前必须进入定向 testbench、编译成功负向 RTL 变体和 OOO_ASSERT 的反例，包括同拍 capture、permit stall、commit、flush、older-control recovery、producer lease 与 lane0/lane1 情形。",
+    "冻结 Top40 40/40 startpoint/endpoint、head0_csr_commit/system_csr_dispatch_cancel token 观测和 5ns hard-gate FAIL 边界；不得从路径命名直接宣称 RTL 授权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

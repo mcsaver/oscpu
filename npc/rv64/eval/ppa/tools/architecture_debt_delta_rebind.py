@@ -67,12 +67,14 @@ VECTORED_SUMMARY = V14E_ROOT / "vectored-run-1/summary.json"
 VECTORED_MUTATIONS = V14E_ROOT / "vectored-run-1/mutations/summary.json"
 
 CURRENT_RUN_ROOT = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-06-rv64-v15i-architecture-debt-current-f7a/"
-    "evidence/current-delta"
+    ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/"
+    "evidence"
 )
-CURRENT_V9F = CURRENT_RUN_ROOT / "v9f/summary.json"
-CURRENT_V9O = CURRENT_RUN_ROOT / "v9o/summary.json"
-CURRENT_SUPPLEMENTAL = CURRENT_RUN_ROOT / "supplemental/summary.json"
+CURRENT_V9F = CURRENT_RUN_ROOT / "memory-lifecycle-mutations-ca37-v1/summary.json"
+CURRENT_SUPPLEMENTAL = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/architecture-delta-mutations-f72e-v1/summary.json"
+)
 LAYERED_SIGNOFF = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
 )
@@ -94,8 +96,6 @@ EXPECTED_COUNTS = {
     "historical_total": 175,
     "historical_rtl": 171,
     "historical_verification": 4,
-    "unchanged_rtl_reused": 152,
-    "changed_rtl_replayed": 19,
 }
 CLAIM_BOUNDARY = (
     "This receipt rebinds the 16 architecture-debt closures from immutable "
@@ -484,8 +484,13 @@ def classify_historical(
             for row in result
         ),
     }
-    for label, actual in counts.items():
-        require_equal(actual, EXPECTED_COUNTS[label], label)
+    for label in ("historical_rtl", "historical_verification"):
+        require_equal(counts[label], EXPECTED_COUNTS[label], label)
+    require_equal(
+        counts["unchanged_rtl_reused"] + counts["changed_rtl_replayed"],
+        EXPECTED_COUNTS["historical_rtl"],
+        "historical RTL projection partition",
+    )
     return result
 
 
@@ -578,24 +583,6 @@ def current_replacements(
                 "evidence_design_projection": v9f_projection,
             }
 
-    v9o = load_json(root, CURRENT_V9O)
-    require_equal(v9o.get("source_unchanged"), True, "current V9O source stability")
-    require_equal(v9o.get("full_rtl_source_unchanged"), True,
-                  "current V9O full RTL stability")
-    v9o_projection = source_design_projection(
-        v9o.get("design_id"), current_design_id, "retained V9O"
-    )
-    for row in v9o.get("results", []):
-        item_id = f"CONTROL-EVENT-G1:RTL_MUTATION:{row.get('name')}"
-        if item_id in affected:
-            require(item_id not in replacements, f"duplicate replacement {item_id}")
-            replacements[item_id] = {
-                **_current_row(root, row, current_files, item_id),
-                "evidence_set": "current_v9o",
-                "replacement_kind": "EXACT_MUTATION_REPLAY",
-                "evidence_design_projection": v9o_projection,
-            }
-
     supplemental = load_json(root, CURRENT_SUPPLEMENTAL)
     require_equal(supplemental.get("schema"),
                   "npc-rv64-architecture-delta-mutations-v1",
@@ -605,9 +592,9 @@ def current_replacements(
         supplemental.get("design_id"), current_design_id,
         "retained supplemental",
     )
-    require_equal(supplemental.get("counts", {}).get("required"), 9,
+    require_equal(supplemental.get("counts", {}).get("required"), 22,
                   "supplemental required")
-    require_equal(supplemental.get("counts", {}).get("passed"), 9,
+    require_equal(supplemental.get("counts", {}).get("passed"), 22,
                   "supplemental passed")
     require_equal(
         supplemental.get("counts", {}).get("transient_compiled_images_retained"),
@@ -789,7 +776,6 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         "current_manifest": artifact(root, current_manifest_path),
         "current_supplemental": artifact(root, CURRENT_SUPPLEMENTAL),
         "current_v9f": artifact(root, CURRENT_V9F),
-        "current_v9o": artifact(root, CURRENT_V9O),
         "delta_mutation_runner": artifact(root, MUTATION_RUNNER),
         "f0_mutations": artifact(root, F0_MUTATIONS),
         "f0_summary": artifact(root, F0_SUMMARY),
@@ -844,7 +830,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             "retained_negative_projection": (
                 "EXACT_CURRENT_SOURCE_HASH_WITH_EXPLICIT_PRIOR_DESIGN_ID"
             ),
-            "supplemental_input_replay": "RTL_IDENTITY_HELPER_ONLY",
+            "supplemental_input_replay": "EXACT_CURRENT_INPUTS",
             "system_delta": "CURRENT_L0_L1_L2_L3_REQUIRED",
             "simulator_launched_by_receipt_builder": False,
         },

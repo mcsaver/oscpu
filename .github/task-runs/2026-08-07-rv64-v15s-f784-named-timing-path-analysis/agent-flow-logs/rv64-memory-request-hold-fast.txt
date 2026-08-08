@@ -1,0 +1,7 @@
+[V14R-HOLD-STEP][PASS] step=store-queue
+[V14R-HOLD-STEP][PASS] step=focused
+[V14R-HOLD-STEP][PASS] step=single-bank
+[V14R-HOLD-STEP][PASS] step=mutation-matrix variants=6
+[V14R-HOLD-IDENTITY][PASS] manifest_sha256=33351a96da3ccffdb01fe929601fbcfb25324e09dab115e958a9a8c728645fe6 files=9
+[V14R-HOLD-CHECK][PASS] tier=fast holder_ff=29 payload_shadow_bits=217 mutation=6 ppa=UNQUALIFIED
+[V14R-HOLD-CLEANUP][PASS]

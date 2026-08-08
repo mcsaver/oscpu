@@ -125,6 +125,7 @@
             "b_response_candidate_analysis",
             "causal_analysis",
             "current_reference_ppa",
+            "current_timing_path_analysis",
             "owner_timing",
             "ppa_checker"
           ],
@@ -139,6 +140,9 @@
               "$ref": "#/$defs/artifactReference"
             },
             "current_reference_ppa": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "current_timing_path_analysis": {
               "$ref": "#/$defs/artifactReference"
             },
             "owner_timing": {

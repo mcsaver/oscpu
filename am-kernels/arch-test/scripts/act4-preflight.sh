@@ -20,6 +20,7 @@ XPACK_GCC_TARBALL=${XPACK_GCC_TARBALL:-$ARTIFACT_ROOT/env/xpack-riscv-none-elf-g
 XPACK_GCC_URL=${XPACK_GCC_URL:-https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v$XPACK_GCC_VERSION/xpack-riscv-none-elf-gcc-$XPACK_GCC_VERSION-linux-x64.tar.gz}
 WORKDIR=${WORKDIR:-$ARTIFACT_ROOT/build/probe-work}
 CONFIG_NAME=${CONFIG_NAME:-sail-rv64-max}
+CONFIG_PROFILE=${CONFIG_PROFILE:-upstream}
 ACT4_CONFIG_SRC_DIR=${ACT4_CONFIG_SRC_DIR:-}
 if [[ -v PROBE_CONFIG_DIR ]]; then
   PROBE_CONFIG_DIR_EXPLICIT=1
@@ -52,6 +53,8 @@ Options:
   --final-elfs          Build final self-checking ELFs under elfs/ for DUT execution
   --extensions LIST     ACT extension filter, default: I
   --config-name NAME    ACT config name/output dir, default: sail-rv64-max
+  --config-profile NAME Apply a deterministic local profile after copying the
+                        upstream config; supported: upstream, npc-rv64-ooo-current
   --config-src DIR      Source config dir under riscv-arch-test, default: auto by config name
   --probe-config-dir DIR
                         Generated DUT config dir, default: act4-config/<config-name>-linux-gnu
@@ -134,6 +137,11 @@ parse_args() {
         set_config_name "$2"
         shift 2
         ;;
+      --config-profile)
+        [[ $# -ge 2 ]] || { echo "--config-profile requires NAME" >&2; exit 2; }
+        CONFIG_PROFILE=$2
+        shift 2
+        ;;
       --config-src)
         [[ $# -ge 2 ]] || { echo "--config-src requires DIR" >&2; exit 2; }
         ACT4_CONFIG_SRC_DIR=$(abspath_from_root "$2")
@@ -175,16 +183,28 @@ parse_args() {
 
 ensure_arch_test() {
   mkdir -p "$ARTIFACT_ROOT/src"
-  if [[ -d $ARCH_TEST_DIR/.git ]]; then
-    log "riscv-arch-test checkout: $ARCH_TEST_DIR ($(git -C "$ARCH_TEST_DIR" rev-parse --short HEAD))"
+  if is_arch_test_tree; then
+    log "riscv-arch-test source tree: $ARCH_TEST_DIR (vendored or checkout)"
     return 0
+  fi
+  if [[ -e $ARCH_TEST_DIR ]]; then
+    fail "incomplete riscv-arch-test source tree: $ARCH_TEST_DIR"
+    return 1
   fi
   log "clone riscv-arch-test -> $ARCH_TEST_DIR"
   git clone --depth 1 "$ARCH_TEST_REPO" "$ARCH_TEST_DIR"
 }
 
+is_arch_test_tree() {
+  [[ -f $ARCH_TEST_DIR/Makefile \
+    && -d $ARCH_TEST_DIR/framework \
+    && -d $ARCH_TEST_DIR/generators \
+    && -d $ARCH_TEST_DIR/tests \
+    && -d $ARCH_TEST_DIR/config ]]
+}
+
 ensure_act4_python() {
-  [[ -d $ARCH_TEST_DIR/.git ]] || fail "missing riscv-arch-test checkout; run --prepare first" || return 1
+  is_arch_test_tree || fail "missing or incomplete riscv-arch-test source tree; run --prepare first" || return 1
   if [[ ! -x $ACT4_VENV/bin/python ]]; then
     log "create ACT4 venv: $ACT4_VENV"
     python3 -m venv "$ACT4_VENV"
@@ -388,7 +408,7 @@ resolve_config_src_dir() {
 }
 
 write_probe_config() {
-  [[ -d $ARCH_TEST_DIR/.git ]] || fail "missing riscv-arch-test checkout" || return 1
+  is_arch_test_tree || fail "missing or incomplete riscv-arch-test source tree" || return 1
   local config_src_dir
   config_src_dir=$(resolve_config_src_dir) || return 1
   rm -rf "$PROBE_CONFIG_DIR"
@@ -409,6 +429,7 @@ text = text.replace("riscv64-unknown-elf-objdump", objdump)
 text = text.replace("sail_riscv_sim", sail)
 path.write_text(text)
 PY
+  apply_config_profile || return 1
   cat > "$PROBE_CONFIG_DIR/rvmodel_macros.h" <<'EOF'
 #ifndef _RVMODEL_MACROS_H
 #define _RVMODEL_MACROS_H
@@ -464,6 +485,71 @@ PY
 #endif
 EOF
   log "probe config: $PROBE_CONFIG_DIR/test_config.yaml (name=$CONFIG_NAME src=$config_src_dir)"
+}
+
+apply_config_profile() {
+  case "$CONFIG_PROFILE" in
+    upstream)
+      return 0
+      ;;
+    npc-rv64-ooo-current)
+      ;;
+    *)
+      fail "unknown ACT4 config profile: $CONFIG_PROFILE"
+      return 1
+      ;;
+  esac
+
+  python3 - "$PROBE_CONFIG_DIR" "$CONFIG_NAME" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+config_dir = Path(sys.argv[1])
+config_name = sys.argv[2]
+test_config = config_dir / "test_config.yaml"
+test_text = test_config.read_text()
+test_text, name_count = re.subn(
+    r"(?m)^name: [^\n]+$", f"name: {config_name}", test_text, count=1
+)
+if name_count != 1:
+    raise SystemExit("ACT4 profile could not update test_config name")
+udb_match = re.search(r"(?m)^udb_config: ([^\n]+)$", test_text)
+if udb_match is None:
+    raise SystemExit("ACT4 profile could not resolve udb_config")
+test_config.write_text(test_text)
+
+udb_path = config_dir / udb_match.group(1).strip()
+udb_text = udb_path.read_text()
+udb_text, udb_name_count = re.subn(
+    r"(?m)^name: [^\n]+$", f"name: {config_name}", udb_text, count=1
+)
+if udb_name_count != 1:
+    raise SystemExit("ACT4 profile could not update UDB config name")
+if re.search(r"(?m)^\s*- \{ name: Svnapot,", udb_text) is None:
+    marker = '  - { name: Sv39, version: "= 1.0.0" }'
+    if udb_text.count(marker) != 1:
+        raise SystemExit("ACT4 profile could not locate Sv39 extension marker")
+    udb_text = udb_text.replace(
+        marker,
+        marker + '\n  - { name: Svnapot, version: "= 1.0.0" }',
+    )
+udb_path.write_text(udb_text)
+
+sail_path = config_dir / "sail.json"
+sail_text = sail_path.read_text()
+svnapot_false = re.compile(
+    r'("Svnapot"\s*:\s*\{\s*"supported"\s*:\s*)false(\s*\})',
+    re.MULTILINE,
+)
+sail_text, sail_count = svnapot_false.subn(r'\1true\2', sail_text, count=1)
+if sail_count != 1 and not re.search(
+    r'"Svnapot"\s*:\s*\{\s*"supported"\s*:\s*true\s*\}', sail_text
+):
+    raise SystemExit("ACT4 profile could not enable Sail Svnapot")
+sail_path.write_text(sail_text)
+PY
+  log "config profile: npc-rv64-ooo-current (Sv39 + Svnapot64K)"
 }
 
 run_probe_tests() {

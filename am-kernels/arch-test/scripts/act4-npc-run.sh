@@ -23,6 +23,8 @@ ACT4_FILTER=${ACT4_FILTER:-}
 ACT4_LIMIT=${ACT4_LIMIT:-0}
 ACT4_MAX_CYCLES=${ACT4_MAX_CYCLES:-20000000}
 ACT4_TIMEOUT_SEC=${ACT4_TIMEOUT_SEC:-60}
+RUN_DIR_OVERRIDE=${RUN_DIR_OVERRIDE:-}
+ELF_MANIFEST=${ELF_MANIFEST:-}
 
 RUN_BUILD_FINAL=0
 RUN_BUILD_NPC=0
@@ -45,6 +47,8 @@ Options:
   --list-suites          List available final ELF suite dirs and exit
   --workdir DIR          ACT4 workdir, default: npc/rv64/testsuites/core-tests/act4-npc-final-work-script
   --elf-root DIR         Root containing ACT4 elfs/<suite> directories
+  --elf-manifest FILE    Execute this exact newline-delimited ELF cohort; this
+                        mode rejects --filter and --limit
   --config-name NAME     ACT config name/output dir, default: sail-rv64-max
   --config-src DIR       Source config dir for --build-final, default: preflight auto-resolves by config name
   --suites LIST          Comma-separated final ELF suite dirs, default: rv64i/I
@@ -54,6 +58,7 @@ Options:
   --max-cycles N         NPC max cycles per ELF, default: 20000000
   --timeout-sec N        Host timeout per ELF, default: 60
   --log-base DIR         Result root, default: npc/rv64/perf/results/act4-run
+  --run-dir DIR          Exact fresh result directory; suppresses latest symlink
   -h, --help             Show this help
 
 Notes:
@@ -107,6 +112,11 @@ parse_args() {
         ELF_ROOT_EXPLICIT=1
         shift 2
         ;;
+      --elf-manifest)
+        [[ $# -ge 2 ]] || { echo "--elf-manifest requires FILE" >&2; exit 2; }
+        ELF_MANIFEST=$(abspath_from_root "$2")
+        shift 2
+        ;;
       --config-name)
         [[ $# -ge 2 ]] || { echo "--config-name requires NAME" >&2; exit 2; }
         set_config_name "$2"
@@ -152,6 +162,11 @@ parse_args() {
         LOG_BASE=$(abspath_from_root "$2")
         shift 2
         ;;
+      --run-dir)
+        [[ $# -ge 2 ]] || { echo "--run-dir requires DIR" >&2; exit 2; }
+        RUN_DIR_OVERRIDE=$(abspath_from_root "$2")
+        shift 2
+        ;;
       -h|--help)
         usage
         exit 0
@@ -170,15 +185,27 @@ timestamp() {
 }
 
 prepare_run_dir() {
-  local stamp
-  stamp=$(date '+%Y%m%d-%H%M%S')-$$
-  RUN_DIR="$LOG_BASE/$stamp"
+  if [[ -n $RUN_DIR_OVERRIDE ]]; then
+    RUN_DIR=$RUN_DIR_OVERRIDE
+    if [[ -e $RUN_DIR ]]; then
+      echo "refusing existing --run-dir: $RUN_DIR" >&2
+      exit 2
+    fi
+  else
+    local stamp
+    stamp=$(date '+%Y%m%d-%H%M%S')-$$
+    RUN_DIR="$LOG_BASE/$stamp"
+  fi
   mkdir -p "$RUN_DIR"/act4-bin "$RUN_DIR"/act4-log
-  ln -sfn "$RUN_DIR" "$LOG_BASE/latest"
+  if [[ -z $RUN_DIR_OVERRIDE ]]; then
+    ln -sfn "$RUN_DIR" "$LOG_BASE/latest"
+  fi
   STATUS_FILE="$RUN_DIR/status.txt"
   SUMMARY_FILE="$RUN_DIR/summary.txt"
+  OVERALL_STATUS_FILE="$RUN_DIR/overall.status"
   : > "$STATUS_FILE"
   : > "$SUMMARY_FILE"
+  printf 'FAIL\n' > "$OVERALL_STATUS_FILE"
 }
 
 summary_line() {
@@ -270,21 +297,76 @@ collect_elfs() {
   fi
 }
 
+collect_manifest_elfs() {
+  local elf
+  local resolved
+  local count=0
+  declare -A seen=()
+
+  if [[ -n $ACT4_FILTER || $ACT4_LIMIT -ne 0 ]]; then
+    fail_global "--elf-manifest cannot be combined with --filter or --limit"
+    return 1
+  fi
+  if [[ -L $ELF_MANIFEST || ! -f $ELF_MANIFEST ]]; then
+    fail_global "unsafe ACT4 ELF manifest: $ELF_MANIFEST"
+    return 1
+  fi
+  : > "$RUN_DIR/elf-list.txt"
+  while IFS= read -r elf || [[ -n $elf ]]; do
+    if [[ -z $elf ]]; then
+      fail_global "blank entry in ACT4 ELF manifest"
+      return 1
+    fi
+    resolved=$(realpath -e -- "$elf") || {
+      fail_global "missing ACT4 ELF from manifest: $elf"
+      return 1
+    }
+    case "$resolved" in
+      "$ELF_ROOT"/*.elf) ;;
+      *)
+        fail_global "ACT4 manifest ELF leaves selected root: $elf"
+        return 1
+        ;;
+    esac
+    if [[ -L $elf || ! -f $elf || -n ${seen[$resolved]+present} ]]; then
+      fail_global "unsafe or duplicate ACT4 manifest ELF: $elf"
+      return 1
+    fi
+    seen[$resolved]=1
+    printf '%s\n' "$resolved" >> "$RUN_DIR/elf-list.txt"
+    count=$((count + 1))
+  done < "$ELF_MANIFEST"
+  if [[ $count -eq 0 ]]; then
+    fail_global "empty ACT4 ELF manifest"
+    return 1
+  fi
+}
+
 tohost_addr() {
   local elf=$1
-  "$RISCV_NM" "$elf" | sed -n 's/^\([0-9A-Fa-f]\+\).* tohost$/0x\1/p' | tail -n 1
+  local matches=()
+  mapfile -t matches < <(
+    "$RISCV_NM" "$elf" | sed -n 's/^\([0-9A-Fa-f]\+\).* tohost$/0x\1/p'
+  )
+  [[ ${#matches[@]} -eq 1 ]] || return 1
+  printf '%s\n' "${matches[0]}"
 }
 
 run_one_elf() {
   local elf=$1
   local name
+  local case_id
+  local artifact_id
   local bin
   local log
   local objcopy_log
   local tohost
   local rc
 
-  name=$(basename "$elf" .elf)
+  case_id=${elf#"$ELF_ROOT"/}
+  case_id=${case_id%.elf}
+  name=$(basename "$case_id")
+  artifact_id=${case_id//\//__}
   if [[ -n $ACT4_FILTER && ! $name =~ $ACT4_FILTER ]]; then
     return 0
   fi
@@ -293,23 +375,23 @@ run_one_elf() {
   fi
 
   ATTEMPT_COUNT=$((ATTEMPT_COUNT + 1))
-  bin="$RUN_DIR/act4-bin/$name.bin"
-  log="$RUN_DIR/act4-log/$name.log"
-  objcopy_log="$RUN_DIR/act4-log/$name.objcopy.log"
+  bin="$RUN_DIR/act4-bin/$artifact_id.bin"
+  log="$RUN_DIR/act4-log/$artifact_id.log"
+  objcopy_log="$RUN_DIR/act4-log/$artifact_id.objcopy.log"
 
   summary_line "[$(timestamp)] run $name"
   tohost=$(tohost_addr "$elf")
   if [[ -z $tohost ]]; then
-    status_line "$name" FAIL "missing tohost symbol"
-    summary_line "  FAIL  $name (missing tohost symbol)"
+    status_line "$case_id" FAIL "tohost symbol count is not exactly one"
+    summary_line "  FAIL  $case_id (tohost symbol count is not exactly one)"
     FAIL_COUNT=$((FAIL_COUNT + 1))
     OVERALL_RC=1
     return 0
   fi
 
   if ! "$RISCV_OBJCOPY" -O binary "$elf" "$bin" >"$objcopy_log" 2>&1; then
-    status_line "$name" FAIL "objcopy failed log=$objcopy_log"
-    summary_line "  FAIL  $name (objcopy failed)"
+    status_line "$case_id" FAIL "objcopy failed log=$objcopy_log"
+    summary_line "  FAIL  $case_id (objcopy failed)"
     FAIL_COUNT=$((FAIL_COUNT + 1))
     OVERALL_RC=1
     return 0
@@ -319,22 +401,32 @@ run_one_elf() {
     --max-cycles "$ACT4_MAX_CYCLES" --tohost="$tohost" "$bin" >"$log" 2>&1
   rc=$?
 
-  if [[ $rc -eq 0 && $(grep -c 'TOHOST PASS' "$log") -gt 0 ]]; then
-    status_line "$name" PASS "tohost=$tohost"
-    summary_line "  PASS  $name"
+  local pass_markers
+  local fail_markers
+  local bad_traps
+  local assertion_markers
+  pass_markers=$(grep -c 'TOHOST PASS' "$log" || true)
+  fail_markers=$(grep -c 'TOHOST FAIL' "$log" || true)
+  bad_traps=$(grep -c 'BAD TRAP' "$log" || true)
+  assertion_markers=$(grep -Eac '\[(V[0-9]+[A-Z]?-[^]]*(DISJOINT|HANDOFF|INGRESS-DUP|ASSERT[^]]*FAIL)|S2-G1-TCOLL-INGRESS-DUP)\]|%Error:|Assertion failed|RTL assertion|\[[^]]*ASSERT[^]]*FAIL' "$log" || true)
+
+  if [[ $rc -eq 0 && $pass_markers -eq 1 && $fail_markers -eq 0 \
+      && $bad_traps -eq 0 && $assertion_markers -eq 0 ]]; then
+    status_line "$case_id" PASS "tohost=$tohost pass_markers=1 assertions=0"
+    summary_line "  PASS  $case_id"
     PASS_COUNT=$((PASS_COUNT + 1))
     return 0
   fi
 
   if [[ $rc -eq 124 ]]; then
-    status_line "$name" FAIL "timeout=${ACT4_TIMEOUT_SEC}s tohost=$tohost log=$log"
-    summary_line "  FAIL  $name (host timeout)"
-  elif grep -q 'TOHOST FAIL' "$log"; then
-    status_line "$name" FAIL "tohost fail tohost=$tohost log=$log"
-    summary_line "  FAIL  $name (tohost fail)"
+    status_line "$case_id" FAIL "timeout=${ACT4_TIMEOUT_SEC}s tohost=$tohost log=$log"
+    summary_line "  FAIL  $case_id (host timeout)"
+  elif [[ $fail_markers -ne 0 ]]; then
+    status_line "$case_id" FAIL "tohost fail tohost=$tohost log=$log"
+    summary_line "  FAIL  $case_id (tohost fail)"
   else
-    status_line "$name" FAIL "exit=$rc no TOHOST PASS log=$log"
-    summary_line "  FAIL  $name (exit=$rc, no TOHOST PASS)"
+    status_line "$case_id" FAIL "exit=$rc pass_markers=$pass_markers fail_markers=$fail_markers bad_traps=$bad_traps assertions=$assertion_markers log=$log"
+    summary_line "  FAIL  $case_id (exit=$rc, pass_markers=$pass_markers, assertions=$assertion_markers)"
   fi
   FAIL_COUNT=$((FAIL_COUNT + 1))
   OVERALL_RC=1
@@ -373,6 +465,9 @@ main() {
   fi
   summary_line "  elf_root: $ELF_ROOT"
   summary_line "  suites: $ACT4_SUITES"
+  if [[ -n $ELF_MANIFEST ]]; then
+    summary_line "  elf_manifest: $ELF_MANIFEST"
+  fi
   if [[ -n $ACT4_FILTER ]]; then
     summary_line "  filter: $ACT4_FILTER"
   fi
@@ -400,12 +495,24 @@ main() {
     exit 0
   fi
 
-  check_tools || exit "$OVERALL_RC"
-  collect_elfs || exit "$OVERALL_RC"
+  if ! check_tools; then
+    exit "$OVERALL_RC"
+  fi
+  if [[ -n $ELF_MANIFEST ]]; then
+    collect_manifest_elfs
+  else
+    collect_elfs
+  fi
+  if [[ $? -ne 0 ]]; then
+    exit "$OVERALL_RC"
+  fi
   run_elfs
 
   summary_line "[$(timestamp)] done overall_rc=$OVERALL_RC"
   summary_line "  status: $STATUS_FILE"
+  if [[ $OVERALL_RC -eq 0 ]]; then
+    printf 'PASS\n' > "$OVERALL_STATUS_FILE"
+  fi
   exit "$OVERALL_RC"
 }
 

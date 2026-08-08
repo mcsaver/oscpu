@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-act4-current-v1.schema.json",
+  "title": "RV64 current-design ACT4 architectural certification receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "claim",
+    "design_id",
+    "production_rtl_file_count",
+    "source_directory",
+    "config_name",
+    "selection",
+    "suites",
+    "counts",
+    "rtl_assertions",
+    "inputs",
+    "simulator",
+    "cases",
+    "cleanup",
+    "runner_status",
+    "case_status",
+    "execution_manifest",
+    "runner_summary",
+    "policy",
+    "runner",
+    "checker",
+    "schema_contract",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-act4-current-v1"},
+    "status": {"const": "PASS"},
+    "claim": {"const": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY"},
+    "design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
+    "production_rtl_file_count": {"const": 146},
+    "source_directory": {"pattern": "^\\.github/task-runs/[A-Za-z0-9][A-Za-z0-9._-]*/evidence/act4/raw$"},
+    "config_name": {"const": "npc-rv64-ooo-current"},
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generated", "required", "excluded"],
+      "properties": {
+        "generated": {"const": 101},
+        "required": {"const": 100},
+        "excluded": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {"$ref": "#/$defs/excluded_case"}
+        }
+      }
+    },
+    "suites": {
+      "const": [
+        {"id": "rv64i/I", "passed": 51, "required": 51},
+        {"id": "rv64i/M", "passed": 13, "required": 13},
+        {"id": "priv/Sv", "passed": 32, "required": 32},
+        {"id": "priv/Svnapot", "passed": 4, "required": 4}
+      ]
+    },
+    "counts": {
+      "const": {
+        "attempted": 100,
+        "failed": 0,
+        "passed": 100,
+        "required": 100,
+        "skipped": 0,
+        "terminal_pass_markers": 100,
+        "terminal_fail_markers": 0,
+        "rtl_assertion_failures": 0
+      }
+    },
+    "rtl_assertions": {
+      "const": {"enabled": true, "failures": 0}
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "unchanged"],
+      "properties": {
+        "before": {"$ref": "#/$defs/artifact"},
+        "after": {"$ref": "#/$defs/artifact"},
+        "unchanged": {"const": true}
+      }
+    },
+    "simulator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary", "l1_result", "l1_build_log", "reused", "ooo_assert_define"],
+      "properties": {
+        "binary": {"$ref": "#/$defs/artifact"},
+        "l1_result": {"$ref": "#/$defs/artifact"},
+        "l1_build_log": {"$ref": "#/$defs/artifact"},
+        "reused": {"const": true},
+        "ooo_assert_define": {"const": true}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 100,
+      "maxItems": 100,
+      "items": {"$ref": "#/$defs/case"}
+    },
+    "cleanup": {"$ref": "#/$defs/artifact"},
+    "runner_status": {"$ref": "#/$defs/artifact"},
+    "case_status": {"$ref": "#/$defs/artifact"},
+    "execution_manifest": {"$ref": "#/$defs/artifact"},
+    "runner_summary": {"$ref": "#/$defs/artifact"},
+    "policy": {"$ref": "#/$defs/artifact"},
+    "runner": {"$ref": "#/$defs/artifact"},
+    "checker": {"$ref": "#/$defs/artifact"},
+    "schema_contract": {"$ref": "#/$defs/artifact"},
+    "non_claims": {"type": "array", "minItems": 5, "uniqueItems": true}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "size_bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "suite",
+        "name",
+        "status",
+        "return_code",
+        "tohost_address",
+        "terminal_pass_markers",
+        "terminal_fail_markers",
+        "rtl_assertion_failures",
+        "cycles",
+        "commits",
+        "elf",
+        "log"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "suite": {"enum": ["rv64i/I", "rv64i/M", "priv/Sv", "priv/Svnapot"]},
+        "name": {"type": "string", "minLength": 1},
+        "status": {"const": "PASS"},
+        "return_code": {"const": 0},
+        "tohost_address": {"pattern": "^0x[0-9A-Fa-f]+$"},
+        "terminal_pass_markers": {"const": 1},
+        "terminal_fail_markers": {"const": 0},
+        "rtl_assertion_failures": {"const": 0},
+        "cycles": {"type": "integer", "minimum": 1},
+        "commits": {"type": "integer", "minimum": 1},
+        "elf": {"$ref": "#/$defs/artifact"},
+        "log": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "excluded_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "suite", "name", "artifact", "reason"],
+      "properties": {
+        "case_id": {"const": "priv/Sv/sv39_svnapot_not_supported_Smode"},
+        "suite": {"const": "priv/Sv"},
+        "name": {"const": "sv39_svnapot_not_supported_Smode"},
+        "artifact": {"$ref": "#/$defs/artifact"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

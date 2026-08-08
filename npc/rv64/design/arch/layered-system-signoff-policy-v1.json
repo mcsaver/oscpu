@@ -22,11 +22,26 @@
     },
     "L1_FULL_CORE_DIFFTEST": {
       "entrypoint": "npc/rv64/eval/ppa/run-full-core-current.sh",
-      "scope": "Current complete RV64 core, official/AM cohort and bounded benchmark guardrails.",
+      "scope": "Current complete RV64 core, official/AM DiffTest cohort, ACT4 architectural certification subcohort and bounded benchmark guardrails.",
+      "required_subcohorts": {
+        "official_am_difftest": {
+          "official_cases": 177,
+          "am_cases": 61,
+          "difftest_mismatches": 0
+        },
+        "act4_architectural_certification": {
+          "entrypoint": "npc/rv64/eval/ppa/run-act4-current.sh",
+          "policy": "npc/rv64/design/arch/act4-default-signoff-policy-v1.json",
+          "config": "npc-rv64-ooo-current",
+          "required_cases": 100
+        }
+      },
       "required_observations": [
         "execution and publication are independently fail-closed",
         "official and AM source logs bind byte-for-byte to the same run",
-        "semantic verifier rejects its frozen mutation inventory"
+        "semantic verifier rejects its frozen mutation inventory",
+        "ACT4 executes its exact frozen 100-case I/M/Sv39/Svnapot manifest with one terminal PASS and zero RTL assertions per case",
+        "a layered receipt created before ACT4 became mandatory cannot satisfy the current default conjunction"
       ]
     },
     "L2_MINI_SYSTEM": {
@@ -107,6 +122,7 @@
     "linux_opensbi_dtb_pid1_or_simulator_semantics": "rerun L3",
     "mini_payload_opensbi_dtb_or_simulator_semantics": "rerun L2",
     "checker_parser_or_report_only": "retain original execution state, recompute and match current RTL, simulator, layer-source and artifact identities, then produce a versioned frozen-input replay",
+    "act4_policy_config_elf_runner_or_checker": "recompute the exact ACT4 manifest and receipt; rerun ACT4 when execution inputs or terminal semantics change",
     "missing_raw_log_terminal_assertion_artifact_or_post_hash": "execution cannot sign off and the affected layer must rerun",
     "ubuntu2204_full_recertification": "never inferred from another trigger; explicit user request remains mandatory"
   },

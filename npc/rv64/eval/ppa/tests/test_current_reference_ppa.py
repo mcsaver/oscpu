@@ -20,15 +20,17 @@ import current_reference_ppa as reference  # noqa: E402
 
 
 SELECTOR = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/optimization-slice-current-337-v4.json")
+    ".github/task-runs/2026-08-08-rv64-v15x-owner-b-response-candidate-analysis-f72e-a1/"
+    "evidence/optimization-slice-candidate-analysis-f72e-v1.json")
 POLICY = ROOT / "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json"
 RUN1_ROOT = ROOT / (
-    ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a")
-RUN1_EVIDENCE = RUN1_ROOT / "evidence/mapped-sta-current-v2"
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1")
+RUN1_EVIDENCE = RUN1_ROOT / "evidence/traceable-f72e-a1"
+RUN1_STATUS = RUN1_ROOT / "traceable-f72e-a1.status"
 RUN2_ROOT = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1")
-RUN2_EVIDENCE = RUN2_ROOT / "evidence/current-fresh-a1"
+    ".github/task-runs/2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2")
+RUN2_EVIDENCE = RUN2_ROOT / "evidence/current-fresh-f72e-a2"
+RUN2_STATUS = RUN2_ROOT / "current-fresh-f72e-a2.status"
 
 
 class CurrentReferencePpaTests(unittest.TestCase):
@@ -63,18 +65,17 @@ class CurrentReferencePpaTests(unittest.TestCase):
             "--selector", self.relative(SELECTOR),
             "--policy", self.relative(POLICY),
             "--run1-summary", self.relative(
-                RUN1_EVIDENCE / "candidate/summary.json"),
-            "--run1-status", self.relative(
-                RUN1_ROOT / "mapped-sta-current-v2.status"),
+                RUN1_EVIDENCE / "summary.json"),
+            "--run1-status", self.relative(RUN1_STATUS),
             "--run1-cleanup", self.relative(
-                RUN1_EVIDENCE / "candidate/cleanup.txt"),
+                RUN1_EVIDENCE / "cleanup.txt"),
             "--run1-manifest-before", self.relative(
                 RUN1_EVIDENCE / "production-manifest-before.sha256"),
             "--run1-manifest-after", self.relative(
                 RUN1_EVIDENCE / "production-manifest-after.sha256"),
             "--run2-summary", self.relative(
                 run2_summary or RUN2_EVIDENCE / "summary.json"),
-            "--run2-status", self.relative(RUN2_ROOT / "current-fresh-a1.status"),
+            "--run2-status", self.relative(RUN2_STATUS),
             "--run2-cleanup", self.relative(RUN2_EVIDENCE / "cleanup.txt"),
             "--run2-manifest-before", self.relative(
                 RUN2_EVIDENCE / "production-manifest-before.sha256"),
@@ -94,10 +95,10 @@ class CurrentReferencePpaTests(unittest.TestCase):
             "REPEATABLE_CURRENT_REFERENCE_TIMING_HARD_GATE_FAIL")
         self.assertEqual(value["repeatability"]["status"], "PASS")
         self.assertEqual(value["timing"]["hard_gate"], "FAIL")
-        self.assertEqual(value["timing"]["wns_ns"], -18.121620178)
+        self.assertEqual(value["timing"]["wns_ns"], -13.38258934)
         self.assertEqual(
             value["area"]["logic_area_proxy_excluding_unknown_macros"],
-            2181685.8)
+            2181706.52)
         self.assertTrue(
             value["authorization"]["engineering_reference_available"])
         self.assertFalse(

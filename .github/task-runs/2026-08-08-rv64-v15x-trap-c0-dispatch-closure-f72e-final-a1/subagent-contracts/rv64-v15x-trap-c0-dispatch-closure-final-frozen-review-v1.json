@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15x-trap-c0-dispatch-closure-final-frozen-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 C0 trap 与 pending-system dispatch closure 候选的周期合同、定向 testbench、完整核 DiffTest、mini-system、轻量 Linux 与 5 ns mapped STA 冻结证据，判断候选是否可保留，并严格区分功能签核 PASS 与 PPA UNQUALIFIED。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/writeback/OooRob.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-final-a1/evidence/trap-c0-dispatch-closure-ab-receipt-v1.json",
+      ".github/task-runs/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-ppa-a1/evidence/traceable-aafa-a1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-focused-a1/evidence/mutation/result.txt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l0-a1/evidence/pending-system-semantic/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l0-a1/evidence/module/summary.txt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/run-result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-sim-cache-a1/simulator-cache/source-binding.txt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/evidence-seal.txt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/evidence-seal.txt",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-final-a1/subagent-contracts/rv64-v15x-trap-c0-dispatch-closure-final-frozen-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "第一行输出唯一 marker [V15X-TRAP-C0-CLOSURE-FINAL-REVIEW][PASS_RETAIN|GAP|INCONCLUSIVE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42；随后按 RTL 对象/周期合同、TB/EDA 观测、PASS/GAP 边界列出依据、反例和未知项。"
+  ],
+  "success_criteria": [
+    "只有 C0 trap full-pregrant 与双 lane dispatch closure 足以证明移除 pre-ROB cancel 不改变可达 fire、holder clear 仍保留、负向变体有效、L0 至 L3 身份和终端证据相容、性能无回退且结论不越过 PPA UNQUALIFIED 边界时才判 PASS_RETAIN。",
+    "若存在 trap 与 pending permit/valid/fire 的可达重叠、设计身份漂移、终端证据缺口或证据 SHA 不一致，则判 GAP 或 INCONCLUSIVE 并指出精确 RTL 信号、周期或证据文件。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

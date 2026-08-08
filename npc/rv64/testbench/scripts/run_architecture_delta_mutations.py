@@ -25,6 +25,9 @@ SCHEMA = "npc-rv64-architecture-delta-mutations-v1"
 TRANSIENT_TOKEN = "<ARCHITECTURE_DELTA_TRANSIENT>"
 BACKEND = "npc/rv64/vsrc/execute/OooIntBackend.v"
 STORE_QUEUE = "npc/rv64/vsrc/memory/OooStoreQueue.v"
+FRONTEND = "npc/rv64/vsrc/frontend/OooFrontend.v"
+FRONTEND_DISPATCH = "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
+PENDING_SYSTEM = "npc/rv64/vsrc/control/OooPendingSystemSequencer.v"
 CONTROL_TOOL = "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py"
 ARCH_TOOL = "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
 
@@ -154,6 +157,322 @@ LOCAL_VARIANTS = (
             "F0-G1:RTL_MUTATION:retry-distinct-residency-broad-assertion",
         ),
         ivflags="-DV8S_DUAL_MEMORY_FOCUSED",
+    ),
+    Variant(
+        name="head0_pregrant_does_not_mask_branch_event",
+        debt_id="CONTROL-EVENT-G1",
+        source=BACKEND,
+        make_variable="RTL_OOO_INT_BACKEND",
+        test_name="tb_ooo_int_backend",
+        old=(
+            "wire branch_resolve_production_w =\n"
+            "      branch_resolve_authorized_w && "
+            "!control_event_pregrant_w;"
+        ),
+        new=(
+            "wire branch_resolve_production_w =\n"
+            "      branch_resolve_authorized_w;"
+        ),
+        expected_markers=(
+            "V9O C0 suppresses younger branch event",
+            "V9O pending CSR pregrant suppresses younger branch event",
+        ),
+        purpose=(
+            "Expose a younger branch packet while an older head0 control "
+            "event holds the pregrant."
+        ),
+        replaces_historical_items=(
+            "CONTROL-EVENT-G1:RTL_MUTATION:"
+            "head0_pregrant_does_not_mask_branch_event",
+        ),
+    ),
+    Variant(
+        name="head0_pregrant_does_not_mask_branch_recovery",
+        debt_id="CONTROL-EVENT-G1",
+        source=BACKEND,
+        make_variable="RTL_OOO_INT_BACKEND",
+        test_name="tb_ooo_int_backend",
+        old=(
+            "assign branch_resolve_mispredict_w =\n"
+            "      branch_resolve_mispredict_request_w &&\n"
+            "      !control_event_pregrant_w;"
+        ),
+        new=(
+            "assign branch_resolve_mispredict_w =\n"
+            "      branch_resolve_mispredict_request_w;"
+        ),
+        expected_markers=(
+            "V9O C0 suppresses younger branch recovery",
+            "V9O pending CSR pregrant suppresses younger branch recovery",
+        ),
+        purpose=(
+            "Start younger branch recovery while an older head0 control "
+            "event holds the pregrant."
+        ),
+        replaces_historical_items=(
+            "CONTROL-EVENT-G1:RTL_MUTATION:"
+            "head0_pregrant_does_not_mask_branch_recovery",
+        ),
+    ),
+    Variant(
+        name="queue_head_mode_requires_both_memory_pair_ids_at_head",
+        debt_id="CONTROL-EVENT-G1",
+        source=BACKEND,
+        make_variable="RTL_OOO_INT_BACKEND",
+        test_name="tb_ooo_core_top_glue",
+        old=(
+            "wire mem_issue_res_requires_head_w =\n"
+            "      iq_issue0_ctrl_w[`CTRL_AMO_BIT];\n"
+            "  wire mem_issue_res_admit_w =\n"
+            "      !mem_issue_res_requires_head_w ||\n"
+            "      (rob_head_valid_w && "
+            "(iq_issue0_rob_idx_w == rob_head_idx_w));\n"
+            "  // Lane1 reservation is only the plain-memory partner of an "
+            "already\n"
+            "  // classified pair; special/AMO memory is excluded before "
+            "this point.\n"
+            "  wire mem_issue1_res_admit_w = 1'b1;"
+        ),
+        new=(
+            "wire mem_issue_res_requires_head_w =\n"
+            "      iq_issue0_ctrl_w[`CTRL_AMO_BIT] || "
+            "`OOO_CSR_QUEUE_HEAD;\n"
+            "  wire mem_issue_res_admit_w =\n"
+            "      !mem_issue_res_requires_head_w ||\n"
+            "      (rob_head_valid_w && "
+            "(iq_issue0_rob_idx_w == rob_head_idx_w));\n"
+            "  wire mem_issue1_res_admit_w =\n"
+            "      !`OOO_CSR_QUEUE_HEAD ||\n"
+            "      (rob_head_valid_w && "
+            "(issue1_rob_idx_w == rob_head_idx_w));"
+        ),
+        expected_markers=(
+            "[CHECK-FAIL] memory program reaches ebreak got=0 expected=1",
+        ),
+        purpose=(
+            "Require both members of a dual-memory pair to equal the single "
+            "ROB head in queue-head mode."
+        ),
+        replaces_historical_items=(
+            "CONTROL-EVENT-G1:RTL_MUTATION:"
+            "queue_head_mode_requires_both_memory_pair_ids_at_head",
+        ),
+        ivflags="-DOOO_CSR_QUEUE_HEAD=1",
+    ),
+    Variant(
+        name="ordinary_arch_trap_exclusion_removed",
+        debt_id="FDG-G1",
+        source=FRONTEND_DISPATCH,
+        make_variable="RTL_OOO_FRONTEND_DISPATCH_GATE",
+        test_name="tb_ooo_fp_legality_dispatch_path",
+        old=(
+            "      !dispatch0_arch_trap_i &&\n"
+            "      // 【B-FP 簇】FP 迁域 A"
+        ),
+        new="      // 【B-FP 簇】FP 迁域 A",
+        expected_markers=(
+            "[CHECK-FAIL] unknown OP-FP funct7 blocked before backend "
+            "got=1 expected=0",
+        ),
+        purpose=(
+            "Remove the head0 architectural-trap exclusion from ordinary "
+            "backend admission."
+        ),
+        replaces_historical_items=(
+            "FDG-G1:RTL_MUTATION:ordinary_arch_trap_exclusion_removed",
+        ),
+    ),
+    Variant(
+        name="lane1_arch_trap_exclusion_removed",
+        debt_id="FDG-G1",
+        source=FRONTEND_DISPATCH,
+        make_variable="RTL_OOO_FRONTEND_DISPATCH_GATE",
+        test_name="tb_ooo_frontend_dispatch_gate",
+        old=(
+            "      !dispatch0_exit_i &&\n"
+            "      !dispatch0_arch_trap_i &&\n"
+            "      !dispatch0_system_i &&\n"
+            "      // pred-NT branch"
+        ),
+        new=(
+            "      !dispatch0_exit_i &&\n"
+            "      !dispatch0_system_i &&\n"
+            "      // pred-NT branch"
+        ),
+        expected_markers=(
+            "head0 arch trap blocks dual dispatch got=1 expected=0",
+        ),
+        purpose=(
+            "Remove the head0 architectural-trap exclusion from lane1 "
+            "dual-dispatch eligibility."
+        ),
+        replaces_historical_items=(
+            "FDG-G1:RTL_MUTATION:lane1_arch_trap_exclusion_removed",
+        ),
+    ),
+    Variant(
+        name="ordinary_admission_forced_closed",
+        debt_id="FDG-G1",
+        source=FRONTEND_DISPATCH,
+        make_variable="RTL_OOO_FRONTEND_DISPATCH_GATE",
+        test_name="tb_ooo_fp_legality_dispatch_path",
+        old=(
+            "      !dispatch1_control_unsupported_o && "
+            "!dispatch1_mem_unsupported_o;"
+        ),
+        new=(
+            "      !dispatch1_control_unsupported_o && "
+            "!dispatch1_mem_unsupported_o && 1'b0;"
+        ),
+        expected_markers=("legal FADD.S reaches backend got=0 expected=1",),
+        purpose="Force ordinary backend admission closed for the legal FP control.",
+        replaces_historical_items=(
+            "FDG-G1:RTL_MUTATION:ordinary_admission_forced_closed",
+        ),
+    ),
+    Variant(
+        name="final_backend_arch_trap_leak",
+        debt_id="FDG-G1",
+        source=FRONTEND,
+        make_variable="RTL_OOO_FRONTEND",
+        test_name="tb_ooo_priv_system",
+        old=(
+            "    .frontend_dispatch_to_backend_valid_i(\n"
+            "        frontend_dispatch_to_backend_valid_w),"
+        ),
+        new=(
+            "    .frontend_dispatch_to_backend_valid_i(\n"
+            "        frontend_dispatch_to_backend_valid_w || "
+            "dispatch0_arch_trap_w),"
+        ),
+        expected_markers=(
+            "[INT-DISPATCH-PACKET-PACKED] lane1 valid without lane0",
+        ),
+        purpose=(
+            "Inject a head0 architectural-trap fact at the final backend "
+            "dispatch-valid input."
+        ),
+        replaces_historical_items=(
+            "FDG-G1:RTL_MUTATION:final_backend_arch_trap_leak",
+        ),
+    ),
+    Variant(
+        name="dispatch_barrier_ignores_lane1_fetch_fault",
+        debt_id="IFU-ACCESS-G1",
+        source=FRONTEND_DISPATCH,
+        make_variable="RTL_OOO_FRONTEND_DISPATCH_GATE",
+        test_name="tb_ooo_ifu_lane1_fault_owner",
+        old=(
+            "  assign dispatch1_barrier_o =\n"
+            "      lane1_base_w &&\n"
+            "      (head_fetch_fault1_i ||\n"
+            "       head1_exit_raw_i ||"
+        ),
+        new=(
+            "  assign dispatch1_barrier_o =\n"
+            "      lane1_base_w && !head_fetch_fault1_i &&\n"
+            "      (head_fetch_fault1_i ||\n"
+            "       head1_exit_raw_i ||"
+        ),
+        expected_markers=("[ROW-FAIL] ordinary head0 + lane1 PF",),
+        purpose="Mask the lane1 fault barrier while lane1 owns a fetch fault.",
+        replaces_historical_items=(
+            "IFU-ACCESS-G1:RTL_MUTATION:"
+            "dispatch_barrier_ignores_lane1_fetch_fault",
+        ),
+    ),
+    Variant(
+        name="frontend_projection_substitutes_fifo_pc",
+        debt_id="IFU-TVAL-G1",
+        source=FRONTEND,
+        make_variable="RTL_OOO_FRONTEND",
+        test_name="tb_ooo_core_top_glue",
+        old="  assign head_fetch_fault_tval_w = fifo_head_fault_tval_w;",
+        new="  assign head_fetch_fault_tval_w = fifo_head_pc0_w;",
+        expected_markers=(
+            "[CHECK-FAIL] fetch fault handler reads precise mtval",
+        ),
+        purpose=(
+            "Project FIFO lane0 PC instead of the owned faulting-halfword "
+            "address."
+        ),
+        replaces_historical_items=(
+            "IFU-TVAL-G1:RTL_MUTATION:"
+            "frontend_projection_substitutes_fifo_pc",
+        ),
+    ),
+    Variant(
+        name="dispatch_barrier_captures_before_ready",
+        debt_id="IFU-TVAL-G1",
+        source=FRONTEND_DISPATCH,
+        make_variable="RTL_OOO_FRONTEND_DISPATCH_GATE",
+        test_name="tb_ooo_ifu_lane1_fault_owner",
+        old=(
+            "  assign dispatch1_barrier_fire_o =\n"
+            "      dispatch1_barrier_o && !dispatch0_unsupported_i && "
+            "dispatch0_ready_i;"
+        ),
+        new=(
+            "  assign dispatch1_barrier_fire_o =\n"
+            "      dispatch1_barrier_o && !dispatch0_unsupported_i;"
+        ),
+        expected_markers=("[TVAL-G1-DISPATCH-STALL-RED]",),
+        purpose="Capture the lane1 fetch-fault barrier before dispatch0 ready.",
+        replaces_historical_items=(
+            "IFU-TVAL-G1:RTL_MUTATION:dispatch_barrier_captures_before_ready",
+        ),
+    ),
+    Variant(
+        name="sfence-reason-to-serial",
+        debt_id="SERIALIZE-G1",
+        source=FRONTEND,
+        make_variable="RTL_OOO_FRONTEND",
+        test_name="tb_ooo_priv_system",
+        old="commit_e6_system_sfence_w ? `REDIR_REASON_SFENCE :",
+        new="commit_e6_system_sfence_w ? `REDIR_REASON_SERIAL :",
+        expected_markers=(
+            "[CHECK-FAIL] V10B typed redirect kind=5 valid=1 reason=9 "
+            "expected_reason=5 pc=0000000080000028 "
+            "expected_pc=0000000080000028",
+        ),
+        purpose="Collapse the SFENCE redirect type into the generic serial type.",
+        replaces_historical_items=(
+            "SERIALIZE-G1:RTL_MUTATION:sfence-reason-to-serial",
+        ),
+    ),
+    Variant(
+        name="fencei-reason-to-serial",
+        debt_id="SERIALIZE-G1",
+        source=FRONTEND,
+        make_variable="RTL_OOO_FRONTEND",
+        test_name="tb_ooo_priv_system",
+        old="commit_e6_system_fencei_w ? `REDIR_REASON_FENCEI :",
+        new="commit_e6_system_fencei_w ? `REDIR_REASON_SERIAL :",
+        expected_markers=(
+            "[CHECK-FAIL] V10B typed redirect kind=6 valid=1 reason=9 "
+            "expected_reason=6 pc=0000000080000038 "
+            "expected_pc=0000000080000038",
+        ),
+        purpose="Collapse the FENCE.I redirect type into the generic serial type.",
+        replaces_historical_items=(
+            "SERIALIZE-G1:RTL_MUTATION:fencei-reason-to-serial",
+        ),
+    ),
+    Variant(
+        name="retain-noncsr-holder-after-terminal",
+        debt_id="SERIALIZE-G1",
+        source=PENDING_SYSTEM,
+        make_variable="RTL_OOO_PENDING_SYSTEM_SEQUENCER",
+        test_name="tb_ooo_priv_system",
+        old="end else if (clear_i) begin",
+        new="end else if (clear_i && (kind_q == SERIAL_KIND_CSR)) begin",
+        expected_markers=(
+            "[CHECK-FAIL] V10B C1 owner/stop not clear kind=2",
+        ),
+        purpose="Retain a non-CSR pending-SYSTEM holder after its terminal clear.",
+        replaces_historical_items=(
+            "SERIALIZE-G1:RTL_MUTATION:retain-noncsr-holder-after-terminal",
+        ),
     ),
 )
 

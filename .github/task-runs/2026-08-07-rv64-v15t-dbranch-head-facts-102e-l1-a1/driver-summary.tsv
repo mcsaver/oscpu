@@ -1,0 +1,16 @@
+schema	npc-rv64-full-core-current-driver-v2
+state	RUNNING
+run_dir	.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-l1-a1
+jobs	4
+publish_current	0
+policy	npc/rv64/design/arch/full-core-functional-run-policy-v1.json
+policy_sha256	09591cda9accb83e482ed3b9a44c6fe79a905bf73bd6ed2ca4a346f2c71806d3
+module_rc	0
+module_marker_rc	0
+functional_rc	0
+functional_marker_rc	0
+verify_rc	0
+verify_marker_rc	0
+execution_state	PASS
+execution_finalize_rc	0
+publication_state	NOT_REQUESTED

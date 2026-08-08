@@ -1,19 +1,19 @@
 {
   "artifacts": {
     "full_yosys_json": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-      "sha256": "7722f89d2580f8f3dea0037b091b44baf1830d24468f37027be6046204906c44",
-      "uncompressed_sha256": "ed7c61034548ca4e4ec423e8babc4ff0197e7f99f09d452b4ea6c073b8978c07"
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+      "sha256": "4ed6cee79e25450aeefe66100254adfe1b902d88cdff3c610e12d19fbf569b1b",
+      "uncompressed_sha256": "07a7390c1f0414ebf8b4fcaa3b6404101ac8a8532f0f6c6faffda80056ea544f"
     },
     "instance_graph_receipt": {
-      "path": ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-      "sha256": "73d0897b33a4a896508983fab65a5c974c8f1e0d7dfb24573d7fc6ae090dec19"
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+      "sha256": "0c35011d40328ad691775e89636672a0f7e1745321572c6bd7d1c38e420cd440"
     }
   },
   "claim": "The legacy memory buffer has no birth or request path in the current NpcTop ENABLE_DUAL_MEM=1 product instance.",
   "claim_boundary": "Product configuration reachability only.  Legacy ENABLE_DUAL_MEM=0 lifecycle semantics require independent dynamic evidence; whole architecture and PPA are not promoted.",
   "classification": "verification",
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "elaborated_contract": {
     "constant_zero_nets": {
       "issue0_mem_buffer_fire_w": [
@@ -26,12 +26,12 @@
         "0"
       ]
     },
-    "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+    "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
     "elaborated_type": "$paramod$dd7abfc1e82f8c6479a0100b65bc43c3520a3cde\\OooIntBackend",
-    "full_yosys_json_sha256": "ed7c61034548ca4e4ec423e8babc4ff0197e7f99f09d452b4ea6c073b8978c07",
+    "full_yosys_json_sha256": "07a7390c1f0414ebf8b4fcaa3b6404101ac8a8532f0f6c6faffda80056ea544f",
     "product_instance": "NpcTop.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend"
   },
-  "generated_at_utc": "2026-08-06T21:36:05.742671+00:00",
+  "generated_at_utc": "2026-08-07T23:55:46.490558+00:00",
   "schema": "npc-rv64-memory-buffer-product-reachability-v1",
   "source_contract": {
     "exact_token_capture_count": 2,
@@ -63,7 +63,7 @@
     },
     {
       "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
-      "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e"
+      "sha256": "bf07ac64ff59cf24bace41c17139704d2198406db194d5fcc42903e9a7f6a07e"
     }
   ],
   "status": "PASS"

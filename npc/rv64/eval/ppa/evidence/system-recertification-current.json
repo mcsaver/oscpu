@@ -1,6 +1,6 @@
 {
   "claim": "DEFAULT_LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
-  "claim_boundary": "PASS_CURRENT_CONFIG covers the same-design L0 directed RTL, L1 full-core DiffTest, L2 mini-system, and L3 lightweight-Linux conjunction. Ubuntu 22.04 is not run and does not block this default signoff. Whole architecture remains RED and PPA remains unpromoted.",
+  "claim_boundary": "PASS_CURRENT_CONFIG covers the same-design L0 directed RTL, L1 full-core DiffTest plus ACT4 architectural certification, L2 mini-system, and L3 lightweight-Linux conjunction. Ubuntu 22.04 is not run and does not block this default signoff. Whole architecture remains RED and PPA remains unpromoted.",
   "classification": "architecture",
   "default_signoff_conjunction": [
     "L0_DIRECTED_RTL",
@@ -8,11 +8,11 @@
     "L2_MINI_SYSTEM",
     "L3_LIGHTWEIGHT_LINUX"
   ],
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "layered_signoff_receipt": {
     "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-    "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7",
-    "size_bytes": 15303
+    "sha256": "27bd975f4e30dd6397df9755b00caac5f651a32395de8f7ad6e69ee695a5afdf",
+    "size_bytes": 18320
   },
   "layers": {
     "L0_DIRECTED_RTL": {
@@ -24,6 +24,9 @@
       }
     },
     "L1_FULL_CORE_DIFFTEST": {
+      "act4_config": "npc-rv64-ooo-current",
+      "act4_passed": 100,
+      "act4_required": 100,
       "am_passed": 61,
       "am_required": 61,
       "difftest_mismatches": 0,
@@ -35,7 +38,7 @@
     "L2_MINI_SYSTEM": {
       "case": "all",
       "commits": 6098497,
-      "cycles": 9879662,
+      "cycles": 9882568,
       "rtl_assertion_failures": 0,
       "status": "PASS",
       "terminal_counts": {
@@ -48,8 +51,8 @@
     },
     "L3_LIGHTWEIGHT_LINUX": {
       "case": "all",
-      "commits": 24459262,
-      "cycles": 57112863,
+      "commits": 24460280,
+      "cycles": 57129353,
       "rtl_assertion_failures": 0,
       "status": "PASS",
       "terminal_counts": {

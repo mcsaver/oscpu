@@ -876,8 +876,6 @@ module OooFrontend #(
     .dispatch0_return_i(dispatch0_return_w),
     .dispatch0_unsupported_i(dispatch0_unsupported_w),
     .dispatch1_unsupported_i(dispatch1_unsupported_w),
-    .dispatch0_unsupported_raw_i(dispatch0_unsupported_raw_w),
-    .dispatch1_unsupported_raw_i(dispatch1_unsupported_raw_w),
     .dispatch0_ready_i(dispatch0_ready_w),
     .dispatch1_ready_i(dispatch1_ready_w),
     .head0_fp_raw_i(head0_fp_raw_w),
@@ -2375,6 +2373,17 @@ module OooFrontend #(
     if (dispatch0_arch_trap_w && frontend_dispatch_to_backend_valid_w)
       $error("[FDG-CONTRACT FDG-I1] head0 arch trap 同拍仍呈现 backend: pc=%h inst=%h @%0t",
              head_pc_w, head_inst0_w, $time);
+  end
+
+  // V15T-H1：branch dual eligibility 已由 head classifier 的 branch/system/
+  // arch-trap/fetch-fault facts 完整限定，不再读取 post-mux backend decode 的
+  // raw unsupported。若两套解码在真实 dual-go 拍发生分歧，必须 fail-loud，
+  // 禁止用恢复组合反馈的方式掩盖 classifier 合同漂移。
+  always @(posedge clk) if (!rst && dbranch_dual_go_w) begin
+    if (dispatch0_unsupported_raw_w || dispatch1_unsupported_raw_w)
+      $error("[V15T-DBRANCH-HEAD-FACTS] dual-go conflicts with backend raw unsupported: d0=%0d d1=%0d pc0=%h pc1=%h @%0t",
+             dispatch0_unsupported_raw_w, dispatch1_unsupported_raw_w,
+             head_pc_w, head_pc1_w, $time);
   end
 
   // INV-1' (flush-redirect 契约 §4, GAP-1 后继, P4 切消费点改口径): arbiter branch 口

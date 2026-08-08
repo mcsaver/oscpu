@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15x-owner-b-path-current-review-f72e-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 f72e 设计中 OooLsuAxiLaneAdapter 至 AxiDpiSlave 的 AXI B 响应 E0-E4 四周期事务链，并判断 adapter-input-aw-w-fall-through-v1 对自然对齐单拍写的三周期候选是否保持 AW/W 独立反压、BRESP、split-write sticky error、flush/recovery 与 escaped-write 完成语义；只形成候选边界，不修改 RTL、不运行仿真、综合或 STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+      "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-f72e-a1/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-causal-analysis-f72e-a1/evidence/owner-timing-causal-analysis/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-owner-b-latency-sensitivity-f72e-a1/evidence/owner-b-latency-sensitivity/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-owner-b-latency-sensitivity-f72e-a1/evidence/optimization-slice-sensitivity-f72e-v1.json",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/evidence/owner-b-response-candidate-analysis/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/independent-review-closure-v2.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/slice-disposition-v1.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/performance-ab-current-v2/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-current-v2/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15x-owner-b-response-candidate-analysis-f72e-a1/subagent-contracts/v15x-owner-b-path-current-review-f72e-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出当前 E0-E4 周期映射、RTL owner/holder/terminal 依据、候选适用范围、必需反例、未知项、替代假设、scope_extension_request 与 confidence_and_basis；报告必须包含 Contract SHA-256 行、唯一 marker [V15W-OWNER-B-PATH-CURRENT-REVIEW][GAP_CANDIDATE_ONLY] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 prior_design_id=sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 current_cycles=4 candidate_cycles=3 candidate=adapter-input-aw-w-fall-through-v1 adapter_sha256=6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22，并逐字包含 Production RTL change authorized=false、PPA=UNQUALIFIED、Promotion eligible=false 的 Markdown 布尔行。"
+  ],
+  "success_criteria": [
+    "当前源码、f72e owner-timing 与 B-latency sensitivity 证据共同支持 E0-E4 四周期 AXI B 响应链；任何 source/design-id/hash 漂移必须报告 GAP。",
+    "三周期候选仅覆盖 legal naturally aligned single-beat writes，并显式检查 AW-only、W-only、上游 B 反压、OKAY/SLVERR/DECERR、split sticky error、各部分发送边界的 flush/recovery、escaped-write drain/drop/nokill completion 与新的 5 ns mapped STA。",
+    "结论保持 candidate-only：不得授权 production RTL 修改，不得将历史 mapped STA 外推为 f72e 当前参考 PPA，也不得宣称 promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

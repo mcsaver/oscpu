@@ -1,0 +1,7 @@
+[RV64-L2-CHECK-SELF-TEST][PASS] cases=7 exact-terminal=5
+----------------------------------------------------------------------
+Ran 12 tests in 0.017s
+
+OK
+[RV64-L2-POLICY][PASS] default=L0+L1+L2+L3 ubuntu=explicit-only
+[RV64-L2-RUNNER-CONTRACT][PASS] cases=7 checker-positive=7 mutations=10 status=fail-closed evidence-seal=1 source-post-bind=1

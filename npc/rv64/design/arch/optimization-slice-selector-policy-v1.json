@@ -138,7 +138,8 @@
       "causal_analysis",
       "b_latency_sensitivity",
       "b_response_candidate_analysis",
-      "current_reference_ppa"
+      "current_reference_ppa",
+      "current_timing_path_analysis"
     ],
     "required_artifact_binding": true,
     "candidate_observations_authorize_promotion": false

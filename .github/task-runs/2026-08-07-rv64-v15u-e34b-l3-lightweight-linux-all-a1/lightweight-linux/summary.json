@@ -1,0 +1,178 @@
+{
+  "assertion_failures": 0,
+  "binding": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-07-rv64-v15u-e34b-l3-lightweight-linux-all-a1/lightweight-linux/binding.txt",
+    "sha256": "5e8ee4c999bcc4d4ef150028d0abca12f777c68492f9c719331bc975ef8b26b9"
+  },
+  "claim": "L3_LIGHTWEIGHT_LINUX_PASS_CURRENT_IDENTITY",
+  "commits": 24460280,
+  "console": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-07-rv64-v15u-e34b-l3-lightweight-linux-all-a1/lightweight-linux/console.log",
+    "sha256": "0ad803688fc2542f9f409b70237e2d20343974859d81b09b5c21dc666688ac47"
+  },
+  "cpi": 2.3355968533475497,
+  "critical_markers": 0,
+  "cycles": 57129353,
+  "kernel_power_down_observation": {
+    "commit": 24457979,
+    "cycle": 57115657,
+    "tx_ordinal": 4112
+  },
+  "l3_case": "all",
+  "non_claims": [
+    "Ubuntu userland",
+    "systemd",
+    "virtio block rootfs",
+    "networking",
+    "SMP"
+  ],
+  "npc_log": {
+    "path": "/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-07-rv64-v15u-e34b-l3-lightweight-linux-all-a1/lightweight-linux/npc.log",
+    "sha256": "22df67a75cc3d0160c6a89db3628907cfec76815476615390bb058f7cdd0b369"
+  },
+  "phase_observations": {
+    "__RV64_L3_ATOMIC_PASS__": {
+      "commit": 23748687,
+      "cycle": 54489444,
+      "tx_ordinal": 3898
+    },
+    "__RV64_L3_BOOT_PASS__": {
+      "commit": 23448733,
+      "cycle": 52922603,
+      "tx_ordinal": 3783
+    },
+    "__RV64_L3_CASE_ALL__": {
+      "commit": 23444603,
+      "cycle": 52906091,
+      "tx_ordinal": 3761
+    },
+    "__RV64_L3_CASE_SELECT__": {
+      "commit": 23428792,
+      "cycle": 52812188,
+      "tx_ordinal": 3740
+    },
+    "__RV64_L3_COW_PASS__": {
+      "commit": 23549881,
+      "cycle": 53519137,
+      "tx_ordinal": 3804
+    },
+    "__RV64_L3_FILES_PASS__": {
+      "commit": 23415791,
+      "cycle": 52745486,
+      "tx_ordinal": 3715
+    },
+    "__RV64_L3_LIGHTWEIGHT_PASS__": {
+      "commit": 24442510,
+      "cycle": 57050306,
+      "tx_ordinal": 4078
+    },
+    "__RV64_L3_MOUNTS_PASS__": {
+      "commit": 23311165,
+      "cycle": 52313520,
+      "tx_ordinal": 3691
+    },
+    "__RV64_L3_PID1_BEGIN__": {
+      "commit": 23212018,
+      "cycle": 51858893,
+      "tx_ordinal": 3666
+    },
+    "__RV64_L3_PROCESS_PASS__": {
+      "commit": 23621862,
+      "cycle": 53944956,
+      "tx_ordinal": 3829
+    },
+    "__RV64_L3_SHUTDOWN_ARM__": {
+      "commit": 24438000,
+      "cycle": 57034379,
+      "tx_ordinal": 4049
+    },
+    "__RV64_L3_TIME_PASS__": {
+      "commit": 23722448,
+      "cycle": 54334609,
+      "tx_ordinal": 3851
+    },
+    "__RV64_L3_TMPFS_PASS__": {
+      "commit": 23744431,
+      "cycle": 54471624,
+      "tx_ordinal": 3874
+    },
+    "__RV64_L3_UART_ARM_1__": {
+      "commit": 23794101,
+      "cycle": 54678206,
+      "tx_ordinal": 3921
+    },
+    "__RV64_L3_UART_ARM_2__": {
+      "commit": 23841208,
+      "cycle": 54874099,
+      "tx_ordinal": 3971
+    },
+    "__RV64_L3_UART_IRQ_PASS__": {
+      "commit": 24433352,
+      "cycle": 57014734,
+      "tx_ordinal": 4024
+    },
+    "__RV64_L3_UART_RX_1=0x41__": {
+      "commit": 23837015,
+      "cycle": 54858016,
+      "tx_ordinal": 3948
+    },
+    "__RV64_L3_UART_RX_2=0x42__": {
+      "commit": 24391941,
+      "cycle": 56856449,
+      "tx_ordinal": 3998
+    }
+  },
+  "production_rtl_file_count": 146,
+  "rtl_design_id": "sha256:e34bcf47cf2e69976190cff4a13cf21b4f8f3e18495858b3256e9d5205bec6ce",
+  "schema": "npc-rv64-l3-lightweight-linux-execution-v1",
+  "signoff_scope": "full-l3",
+  "status": "PASS",
+  "syscon_poweroff_observation": {
+    "commit": 24460280,
+    "cycle": 57129352
+  },
+  "terminal_counts": {
+    "good_trap": 1,
+    "kernel_power_down": 1,
+    "stats_cycles": 1,
+    "stats_instructions": 1,
+    "syscon_poweroff": 1,
+    "system_reset": 1
+  },
+  "uart_irq_observations": [
+    {
+      "commit": 23828457,
+      "cycle": 54813193,
+      "ordinal": 72,
+      "plic_irq": 1,
+      "uart_irq": 1
+    },
+    {
+      "commit": 24383371,
+      "cycle": 56813193,
+      "ordinal": 84,
+      "plic_irq": 1,
+      "uart_irq": 1
+    }
+  ],
+  "uart_rx": [
+    {
+      "commit": 23429061,
+      "cycle": 52813189,
+      "data": 120,
+      "ordinal": 1
+    },
+    {
+      "commit": 23828455,
+      "cycle": 54813189,
+      "data": 65,
+      "ordinal": 2
+    },
+    {
+      "commit": 24383370,
+      "cycle": 56813189,
+      "data": 66,
+      "ordinal": 3
+    }
+  ]
+}

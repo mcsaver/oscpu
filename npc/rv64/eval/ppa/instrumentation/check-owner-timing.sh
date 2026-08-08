@@ -134,7 +134,7 @@ validate_source_abi() {
 validate_config_fail_closed() {
   local log="${runtime_dir}/config-negative-inner.log"
   if make -s -C "${repo_root}/npc/rv64" -f Makefile \
-      -f eval/ppa/instrumentation/owner-timing.mk lint \
+      -f eval/ppa/instrumentation/owner-timing.mk owner-timing-lint \
       CONFIG_NPC_OOO_STATS=n >"${log}" 2>&1; then
     return 1
   fi
@@ -196,7 +196,7 @@ fi
 unit_case_count=${unit_case_markers[0]}
 run_step sv-lint \
   make -s -C "${repo_root}/npc/rv64" -f Makefile \
-  -f eval/ppa/instrumentation/owner-timing.mk lint \
+  -f eval/ppa/instrumentation/owner-timing.mk owner-timing-lint \
   CONFIG_NPC_OOO_STATS=y || exit $?
 
 if [[ "${tier}" == "link" ]]; then

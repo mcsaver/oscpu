@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15w-arch-stable-current-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 ca37 RV64 OoO 核的 ARCH_STABLE exact-input candidate：确认 146 项 production RTL、九个 DI/OOO 定向门、L0 113/113、L1 official 177/177 与 AM 61/61、L2/L3 系统事务、ProducerId holder 语义、architecture-debt 与 historical-defect 收据共享同一设计身份；确认唯一 pre-review blocker 仅为本次 exact-bound review，并保持 PPA UNQUALIFIED、5ns STA FAIL_NOT_PROMOTABLE 与 Ubuntu 未运行边界。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/evidence/arch-stable-candidate-ca37-v1",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/evidence/arch-stable-pre-review-ca37-v2.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-arch9-ca37-a1/evidence/architecture-current-ca37-v2.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-arch9-ca37-a1/evidence/architecture-current-verification-v2.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-arch9-ca37-a1/architecture-current-resume-a1.status",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-l01-refresh-a1/evidence/module/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-l01-refresh-a1/evidence/functional/run-result.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/design/arch/producer-holder-census.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/design/arch/architecture-debt-ledger.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/evidence/arch-stable-candidate-ca37-v1/candidate.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/subagent-contracts/v15w-arch-stable-current-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/evidence/arch-stable-candidate-ca37-v1/candidate.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-ca37-current-reconciliation-a1/evidence/arch-stable-pre-review-ca37-v2.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按规定首行给出 RV64 RTL 结论；列出 candidate/contract SHA、exact design/input binding、九门与 L0-L3/holder/debt/historical 观测、反例与未知项、PPA/Ubuntu claim boundary、scope_extension_request、confidence_and_basis，并给出 APPROVE_ARCH_STABLE、GAP 或 inconclusive。"
+  ],
+  "success_criteria": [
+    "只有 candidate 的 design-id 为 ca37、146 项 RTL 与 live 哈希一致、DI-1..DI-5/OOO-1..OOO-4 全 GREEN、L0-L3/holder/debt/historical 当前收据闭合、pre-review 除独立审查外无 blocker，且 PPA 保持 UNQUALIFIED、promotion_eligible=false、5ns STA 未达标、Ubuntu 未运行时才可 APPROVE_ARCH_STABLE；任何证据漂移必须报告 GAP/inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -26,13 +26,6 @@ NEXT_ACTION = "qualify.current-reference-ppa"
 SELECTED_SLICE = "analyze.owner-b-response-latency-candidate"
 IMPLEMENTED_CANDIDATE = "adapter-final-b-fall-through-v1"
 NEXT_CANDIDATE = "adapter-input-aw-w-fall-through-v1"
-REVIEW_CONTRACT_PATH = (
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "subagent-contracts/v15q-owner-b-path-current-review-v1.json"
-)
-REVIEW_CONTRACT_SHA256 = (
-    "b8219663034c7e3b1bf5f2d66f123d57135ba56a74568fd5a2f9bb64599a689b"
-)
 
 SOURCE_PATHS = (
     "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
@@ -211,6 +204,11 @@ def verify_sensitivity(path: pathlib.Path) -> dict[str, Any]:
 
 
 def verify_selector(path: pathlib.Path, design_id: str) -> dict[str, Any]:
+    require(
+        evidence.rel(path) !=
+        "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+        "selector input must be an immutable versioned snapshot",
+    )
     value = load_json(path)
     require(value.get("schema") == "npc-rv64-optimization-slice-decision-v1",
             "selector schema mismatch")
@@ -237,23 +235,28 @@ def verify_prior_analysis(path: pathlib.Path) -> dict[str, Any]:
 
 
 def verify_independent_review(
-        path: pathlib.Path, design_id: str) -> dict[str, dict[str, Any]]:
+        path: pathlib.Path,
+        contract_path: pathlib.Path,
+        design_id: str,
+        prior_design_id: str,
+        adapter_sha256: str,
+) -> dict[str, dict[str, Any]]:
     text = path.read_text(encoding="utf-8", errors="strict")
-    contract_path = resolve_file(REVIEW_CONTRACT_PATH)
     contract_reference = file_ref(contract_path)
-    require(contract_reference["sha256"] == REVIEW_CONTRACT_SHA256,
-            "independent-review contract SHA-256 drift")
     require_once(
         text,
-        re.escape(f"- Contract SHA-256: `{REVIEW_CONTRACT_SHA256}`"),
+        re.escape(
+            f"- Contract SHA-256: `{contract_reference['sha256']}`"
+        ),
         "independent-review contract binding",
     )
     require_once(
         text,
         re.escape(
-            "[V15Q-OWNER-B-PATH-INDEPENDENT-REVIEW][GAP_CANDIDATE_ONLY] "
-            f"design_id={design_id} current_cycles=4 candidate_cycles=3 "
-            f"candidate={NEXT_CANDIDATE}"
+            "[V15W-OWNER-B-PATH-CURRENT-REVIEW][GAP_CANDIDATE_ONLY] "
+            f"design_id={design_id} prior_design_id={prior_design_id} "
+            "current_cycles=4 candidate_cycles=3 "
+            f"candidate={NEXT_CANDIDATE} adapter_sha256={adapter_sha256}"
         ),
         "independent-review candidate marker",
     )
@@ -315,6 +318,7 @@ def build_receipt(
     performance_ab_path: pathlib.Path,
     mapped_sta_path: pathlib.Path,
     independent_review_path: pathlib.Path,
+    independent_review_contract_path: pathlib.Path,
 ) -> dict[str, Any]:
     raw_design_id, rtl_entries = architecture.rtl_binding(REPO_ROOT)
     design_id = f"sha256:{raw_design_id}"
@@ -326,12 +330,14 @@ def build_receipt(
     closure = parse_key_values(implementation_closure_path)
     disposition = parse_key_values(slice_disposition_path)
     require(closure.get("RESULT") == "PASS", "implementation review closure is not PASS")
-    require(closure.get("DESIGN_ID") == design_id, "implementation closure design drift")
+    prior_design_id = closure.get("DESIGN_ID", "")
+    require(re.fullmatch(r"sha256:[0-9a-f]{64}", prior_design_id) is not None,
+            "implementation closure design-id is invalid")
     require(closure.get("POSITIVE_STORE_TERMINAL_CYCLES") == "2,4,7" and
             closure.get("MUTATED_STORE_TERMINAL_CYCLES") == "3,5,8",
             "adapter absolute-latency mutation contract mismatch")
-    require(disposition.get("DESIGN_ID") == design_id,
-            "slice disposition design drift")
+    require(disposition.get("DESIGN_ID") == prior_design_id,
+            "slice disposition and implementation closure design drift")
     require(disposition.get("DEVELOPMENT_STATE") == "INTERMEDIATE_CHECKPOINT" and
             disposition.get("COMPLETE_DESIGN_PROMOTION") ==
             "REJECTED_TIMING_HARD_GATE",
@@ -360,8 +366,18 @@ def build_receipt(
             mapped.get("promotion_state") == "NOT_PROMOTABLE",
             "mapped STA claim boundary mismatch")
 
-    review_refs = verify_independent_review(independent_review_path, design_id)
     sources, source_checks = source_snapshot(prior, closure)
+    adapter_ref = next(
+        item for item in sources
+        if item["path"] == "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+    )
+    review_refs = verify_independent_review(
+        independent_review_path,
+        independent_review_contract_path,
+        design_id,
+        prior_design_id,
+        adapter_ref["sha256"],
+    )
     return {
         "schema": SCHEMA,
         "status": STATUS,
@@ -385,9 +401,11 @@ def build_receipt(
                 selector_value["selected_slice"]["id"] == SELECTED_SLICE,
             "current_owner_timing_four_cycles": True,
             "prior_candidate_is_current_rtl": True,
+            "historical_implementation_design_migration_reviewed": True,
             "absolute_latency_mutation_detected": True,
             "current_workloads_match_candidate_ab": True,
             "timing_hard_gate_still_failed": True,
+            "fresh_current_design_mapped_sta_available": False,
             "independent_review_current_path_pass": True,
             "independent_review_next_candidate_only": True,
         },
@@ -407,6 +425,8 @@ def build_receipt(
             "id": IMPLEMENTED_CANDIDATE,
             "state": "IMPLEMENTED_AND_CURRENT",
             "module": "OooLsuAxiLaneAdapter",
+            "historical_evidence_design_id": prior_design_id,
+            "current_design_id": design_id,
             "baseline_cycles": 5,
             "current_cycles": 4,
             "performance_ab_cycles_percent": {
@@ -458,6 +478,7 @@ def build_receipt(
             },
             "reasons": [
                 "the current E0-E4 path and four-cycle workload observation are independently consistent",
+                "the prior implementation evidence is migrated only by exact stable-source and adapter hashes plus current independent review",
                 "the candidate removes the input capture cycle only for the narrow legal single-beat subset",
                 "partial AW/W acceptance and exact response/error behavior are not yet proven",
                 "fresh 5 ns mapped STA is required before production RTL implementation can be authorized",
@@ -478,6 +499,7 @@ def build_receipt(
             "candidate_definition_is_not_production_rtl_authorization": True,
             "diagnostic_slope_is_not_a_candidate_result": True,
             "mapped_reference_failed_5ns_hard_gate": True,
+            "historical_mapped_sta_does_not_qualify_current_design": True,
             "selector_authorizes_promotion": False,
         },
     }
@@ -490,11 +512,9 @@ def rebuild_receipt(value: dict[str, Any]) -> dict[str, Any]:
         "selector_decision", "b_latency_sensitivity", "prior_candidate_analysis",
         "implementation_review_closure", "implementation_slice_disposition",
         "implementation_performance_ab", "implementation_mapped_sta",
-        "independent_rtl_review",
+        "independent_rtl_review", "independent_rtl_review_contract",
     )
     paths = [verify_ref(inputs.get(name), name) for name in names]
-    verify_ref(inputs.get("independent_rtl_review_contract"),
-               "independent_rtl_review_contract")
     source_refs = inputs.get("source_artifacts", [])
     require(isinstance(source_refs, list) and len(source_refs) == len(SOURCE_PATHS),
             "candidate analysis source inventory mismatch")
@@ -513,6 +533,7 @@ def command_build(args: argparse.Namespace) -> int:
         resolve_file(args.performance_ab),
         resolve_file(args.mapped_sta),
         resolve_file(args.independent_review),
+        resolve_file(args.independent_review_contract),
     )
     output = pathlib.Path(args.output)
     if not output.is_absolute():
@@ -554,6 +575,7 @@ def parser() -> argparse.ArgumentParser:
     build.add_argument("--performance-ab", required=True)
     build.add_argument("--mapped-sta", required=True)
     build.add_argument("--independent-review", required=True)
+    build.add_argument("--independent-review-contract", required=True)
     build.add_argument("--output", required=True)
     build.set_defaults(func=command_build)
     verify = sub.add_parser("verify")

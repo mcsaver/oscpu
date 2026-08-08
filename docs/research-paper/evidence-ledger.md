@@ -6,7 +6,7 @@
 
 > 当自然语言中的“当前设计”“验证通过”“性能提升”和“任务完成”被迁移为可执行约束时，仓库级 RTL Agent 的输出是否更容易被归属、检验、拒绝和限定？
 
-审计材料限定为当前仓库中 2026 年 4 月至 8 月 4 日的源码旁证、task-run 报告、原始仿真或 EDA 日志、结构化结果、design-id、哈希、负向 RTL 变体及回滚记录。本文没有改写任何历史 task-run，也没有为缺失的历史字段补造模型名称、返回码或设计身份。月度目录盘点仍冻结于 2026-07-29；八月现状以具名 run 和精确路径加入，不回填这张历史计数表。
+审计材料限定为当前仓库中 2026 年 4 月至 8 月 7 日的源码旁证、task-run 报告、原始仿真或 EDA 日志、结构化结果、design-id、哈希、负向 RTL 变体及回滚记录。本文没有改写任何历史 task-run，也没有为缺失的历史字段补造模型名称、返回码或设计身份。月度目录盘点仍冻结于 2026-07-29；八月证据以具名 run 和精确路径加入，不回填这张历史计数表。
 
 这是一项纵向探索性案例研究。模型、任务难度、代码快照、工具和工作流在四月至八月初同时变化，所以本文可以报告“某机制在某个案例中实际拒绝了错误结论”，不能据此识别该机制的独立平均因果效应。
 
@@ -68,7 +68,7 @@
 | RV64 target/reference（5 月 29—30 日） | NPC 宽度迁移先形成无对拍 38/38；NEMU 补齐 RV64 reference 后形成 40/40 与 CoreMark DiffTest | E02-RV64 |
 | RV64 系统与协议（5 月底—6 月） | 真实 OpenSBI handoff 后，NEMU 进入非交互 Ubuntu shell、NPC 到达 rootfs + systemd/banner；聚合回归定位并回退 branch speculation/JALR pending 全核死锁 | E03—E05 |
 | RV64 系统事务与证据工程（7 月） | design-id、mutation、freshness 与发布边界进入同一证据链；A3 完成绑定快照的 Ubuntu 系统事务且永久保留 raw FAIL | E06—E11 |
-| RV64 性能基线与因果诊断（8 月初） | 当前 design-id 达到 ARCH_STABLE/PERF_BASELINE；CPI census 形成嵌套驻留排序；owner-timing 外置诊断在首次 workload A/B 中因非法身份事件 fail-closed | E12 |
+| RV64 性能基线与因果诊断（8 月初） | 冻结 design-id 达到 ARCH_STABLE/PERF_BASELINE；前一 owner A/B 因非法身份失败关闭；新 A/B 与 $+2$-cycle 干预识别 B-response 延迟敏感性，但 production RTL 与 PPA 晋级仍关闭 | E12 |
 
 ### E01：4 月 RV32I 骨架——语法通过不等于功能完成
 
@@ -292,52 +292,36 @@ oracle 假阳性”。它不支持“raw 17/17 live recertification PASS”；�
 architecture freeze 或 PPA qualification。这里最重要的工程信号是：系统行为、检查器结果
 和 promotion 状态被拆成三个可独立审计的命题，十九小时成本没有迫使流程把它们粗暴合并。
 
-### E12：8 月初从 ARCH_STABLE 到 CPI 因果诊断
+### E12：8 月初从 ARCH_STABLE 到受控 CPI 敏感性分析
 
-当前设计与性能基线：
+冻结设计与性能基线：
 
-- design-id：`sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488`；
-- `npc/rv64/eval/ppa/evidence/arch-stable-current.json`：`ARCH_STABLE`、`ppa=UNQUALIFIED`、`promotion_eligible=false`；
-- CoreMark10：5,392,187 cycles / 3,183,617 retired，CPI 1.693729804810；
-- Dhrystone10000：10,311,431 cycles / 4,250,000 retired，CPI 2.426219058824；
-- 每个 workload 三次 stats-on 的完整 counter stack bit-exact；各一次 stats-off 的 cycles/retired 与 stats-on 完全一致。
+- design-id：`sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968`；
+- `layered-system-signoff-current.json` 绑定 146 个 production RTL 文件，L0–L3 为 PASS；
+- CoreMark10：5,262,868 cycles / 3,183,617 retired，CPI 1.653109654836；
+- Dhrystone10000：9,751,462 cycles / 4,250,000 retired，CPI 2.294461647059；
+- 每个 workload 三次 stats-on bit-exact，各一次 stats-off 的 cycles/retired 与 stats-on 一致；状态只授予 `PERF_BASELINE`，PPA 仍为 `UNQUALIFIED`。
 
-原始状态与资格勘误：
+CPI stack 与 owner-timing A/B：
 
-- A1/A2 原始性能 runner status 都保持 FAIL；旧 consumer 因 Dhrystone ROI 从 lane1 到 lane0、`phase_aligned=0` 而拒绝；
-- 精确双发射容量满足 `2 * cycles + end_lane - start_lane = 20,622,861`；
-- `performance-boundary-qualification-amendment-v1.json` 只替换冲突的 lane-equality 代理条件，保留身份、marker、overflow、invalid-event、cycle/slot/nested conservation 与重复性门；
-- `.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v2/checker-replay-endpoint-correction-v1.status` 为 PASS；它绑定冻结 A2 日志、版本化勘误和新鲜 ARCH_STABLE postflight，不覆盖原始 FAIL；
-- canonical receipt 只授予 `PERF_BASELINE`，PPA 仍为 `UNQUALIFIED`。
+- CoreMark 的 `memory_latency/request_outstanding/axi_write_response` 为 2,414,173 / 995,957 / 551,102 cycles；Dhrystone 为 6,550,362 / 3,910,144 / 2,370,000 cycles；三层是嵌套驻留，不能相加；
+- `.github/task-runs/2026-08-07-rv64-v15q-owner-timing-current-337-a2/` 的两个 workload 各完成三次 reference/diagnostic bit-exact 重复，observer noninterference、区间/状态守恒、invalid/overflow=0 和 cleanup 均通过；
+- AW/W→B 完成数为 144,201 / 600,000，平均 B-response 区间均为 4 cycles；owner A/B 节点只形成 `OWNER_TIMING_WORKLOAD_MEASURED`；
+- owner-timing 输入 manifest 为 148 个条目，canonical production RTL inventory 为 146 个文件；二者是不同清单口径，现有证据不允许把差值解释为 RTL 变动。
 
-CPI census：
+竞争解释与受控敏感性：
 
-- run：`.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/`；
-- CoreMark 的 `memory_latency/request_outstanding/axi_write_response` 为 2,542,049 / 1,139,006 / 691,538 cycles；
-- Dhrystone 为 7,100,359 / 4,510,140 / 2,969,998 cycles；
-- 两个 workload 的共同嵌套排序为 `memory_latency -> request_outstanding -> axi_write_response`；
-- 三层数字嵌套而非互斥可加；edge-old residency 不是事务数或单次延迟；H1 下游 B 延迟、H2 bridge 并发、H3 duration weighting、H4 pre-request pipeline 尚未区分；
-- `optimization_candidate_authorized=false`。
+- 初始因果分析把 H1/H2 判为耦合，返回 `RESEARCH_REQUIRED`；
+- `.github/task-runs/2026-08-07-rv64-v15q-owner-b-latency-sensitivity-current-337-a1/` 仅在诊断构建中增加两个 B-response 周期；CoreMark cycles 增加 239,936，Dhrystone 增加 1,199,949，retired 均不变，每个点三次 bit-exact；
+- 该结果只授权 `H1_B_RESPONSE_LATENCY` 作为下一分析方向，`causal_status=HYPOTHESIS_NOT_PROVEN`，且 `production_rtl_change_authorized=false`、`optimization_candidate_authorized=false`、`promotion_eligible=false`。
 
-owner-timing 诊断基础设施：
+Selector 与 PPA 边界：
 
-- `NpcOooOwnerTimingProbe.sv` 通过 `bind NpcSimTop` 只读两个 `OooMemAxiBridge`，每个 posedge 在一次 DPI 调用中提交两个 64-bit sample；
-- `owner_timing_collector.cpp` 记录 owner kind/token/epoch、station/request、AW/W/B、response/drop/cancel，并对阶段时长、ROB-head 关联、双桥 overlap 和 invalid reason 守恒；
-- `owner-timing.mk` 只向诊断构建追加 probe/collector/define，不修改 production filelist；
-- V14P link 记录：9 个 C++ 单元用例、SV lint、full DPI link 通过；production manifest 前后都是 148 文件，aggregate SHA-256 为 `2f1489…a6edd`；
-- 该 PASS 只证明诊断基础设施，不证明 workload owner timing。
+- `optimization-slice-current.json` 的 `stale_refs=[]`、`decision=SELECT`；它只选择聚类 current 5 ns 违例路径并定义可回退时序候选或明确 GAP；
+- 参考实现量测可重复，但 5 ns timing hard gate 失败，`ppa_reference_available=false`、`ppa_qualified=false`；
+- 前一轮非法 owner 量测及其失败关闭仍由 C30 独立保留，不被新 A/B 覆盖。
 
-首次 workload A/B 的失败关闭：
-
-- run：`.github/task-runs/2026-08-04-rv64-v14q-owner-timing-workload-ab-v1/`；
-- CoreMark、Dhrystone、baseline/ARCH_STABLE pre/post、manifest 与 cleanup 均能完成；
-- CoreMark 三次 owner summary 均为 `complete=0 available=1 overflow=0 invalid_events=1176`；Dhrystone 三次均为 `complete=0 available=1 overflow=0 invalid_events=49993`；
-- V3 冻结负向重放只覆盖 CoreMark 的 1176-event 样本：invalid 全部归入 `admission_identity_change`，并与 1176 个 cancelled admission 守恒；该结论不外推到 Dhrystone 样本；
-- receipt build 返回 1，最终状态为 `FAIL rc=1 stage=receipt-build evidence_complete=0 cleanup_rc=0`；
-- 冻结 invalid-probe replay 为 PASS，含义是 checker 成功拒绝 CoreMark 样本中的该类不合格量测；不是 workload 性能 PASS；
-- 未消费同一日志中的阶段时长，未授权 production RTL candidate，PPA 仍为 `UNQUALIFIED`。
-
-台账结论：E12 支持“环境已把性能基线、驻留分解、竞争假设和诊断非干扰落实为可执行链，并在首次 workload 量测不合格时失败关闭”。它不支持“已经找到唯一 CPI 根因”“已经完成 CPI/PPA 优化”或“owner-timing workload 已通过”。
+台账结论：E12 支持“同一冻结身份已经形成性能基线、owner 量测和 B-response 延迟敏感性证据，并由 Selector 把下一步限制为时序路径聚类”。它不支持“H1 已被证明为 production RTL 中的唯一 CPI 根因”“已经形成可归因的 CPI 优化”或“已完成 PPA 晋级”。
 
 ## 6. 九类失败模式
 
@@ -365,7 +349,7 @@ owner-timing 诊断基础设施：
 1. “Loop 已被证明比 Prompt 更好”：`MISSING`，因为没有同模型、同快照、同预算的 B0—B3 对照。
 2. “当前 RV64CORE 已完成 200 MHz 物理 PPA 签核”：`CONTRADICTED`，因为 I/O 约束、寄生、时钟树、OCV 和真实宏模型均不完整。
 3. “mutation 全绿说明 RTL 正确、oracle 完备”：`CONTRADICTED`，因为仓库已有等价、未改变字节、同值连接和旧值 force/release 等反例。
-4. “CPI census 已证明 AXI B response 是唯一根因并已完成优化”：`CONTRADICTED`，因为当前排序是嵌套驻留，H1—H4 尚未被合格 workload 量测区分，candidate 仍未授权。
+4. “B-response 延迟敏感性已证明 production RTL 中的唯一根因并完成优化”：`CONTRADICTED`，因为受控干预只授权 H1 作为下一分析方向，`causal_status` 仍为 `HYPOTHESIS_NOT_PROVEN`，production candidate 与 promotion 均未授权。
 
 ## 9. 复核入口
 

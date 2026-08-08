@@ -31,14 +31,14 @@ POLICY = ROOT / "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json"
 RESULT_SCHEMA = ROOT / (
     "npc/rv64/eval/ppa/schemas/performance-baseline-current-v3.schema.json")
 SIMULATOR = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
     "evidence/functional/frozen/NpcSimTop")
 CONFIG = ROOT / "npc/rv64/.config"
 COREMARK_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
     "evidence/functional/images/benchmarks/coremark.bin")
 DHRYSTONE_IMAGE = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
     "evidence/functional/images/benchmarks/dhrystone.bin")
 
 
@@ -221,7 +221,7 @@ class PerformanceBaselineV3Tests(unittest.TestCase):
         self.write_json(baseline_path, baseline)
         return baseline_path, measurement_path, amendment_path, matrix_path, policy_path
 
-    def test_preflight_accepts_current_f7_identity(self) -> None:
+    def test_preflight_accepts_current_f72e_identity(self) -> None:
         completed = self.run_tool(*self.preflight_command())
         self.assertEqual(completed.returncode, 0, completed.stdout)
         value = json.loads(self.preflight.read_text(encoding="utf-8"))
@@ -293,7 +293,7 @@ class PerformanceBaselineV3Tests(unittest.TestCase):
         self.assertIn("performance-measurement-contract-v2.json", runner)
         self.assertIn("performance-workload-matrix-v1.json", runner)
         self.assertIn(
-            "2026-08-07-rv64-v15p-control-loop-current-f7a/"
+            "2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
             "evidence/functional/frozen/NpcSimTop",
             runner,
         )

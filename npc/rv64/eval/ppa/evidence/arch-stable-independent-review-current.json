@@ -1,24 +1,24 @@
 {
   "candidate": {
     "kind": "arch_stable_candidate",
-    "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-candidate-337-v1/candidate.json",
-    "sha256": "42e1b98c4dfb7798b7d2c01a4c99a21c9ad9061b44bacf1d3a1e54403f1b19a3",
-    "size_bytes": 163052
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/candidate.json",
+    "sha256": "697ec15673499dc7a2f8e6d07eece5b5020b0a4a5690e3885ff1646a55b6dade",
+    "size_bytes": 167392
   },
   "decision": "APPROVE_ARCH_STABLE",
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "evidence": [
     {
       "kind": "independent_review_report",
-      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/evidence/arch-stable-independent-review-337-v2.md",
-      "sha256": "28085353afede67f0bcd135895b95abaf4ded834781d74094b797db8c2b2dce7",
-      "size_bytes": 2428
+      "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-arch-stable-act4-rebind-review-f72e-v2.result.md",
+      "sha256": "55daea210f7e79d5b76b5580f22a80fa5675598d8c617d4949c95c9bf8a27ddf",
+      "size_bytes": 2851
     },
     {
       "kind": "rtl_task_contract",
-      "path": ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/subagent-contracts/v15q-arch-stable-current-review-v2.json",
-      "sha256": "e496c7fafa28751d1b975b623c0b9985f397851dca766f1d178375ada7359a69",
-      "size_bytes": 4563
+      "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-arch-stable-act4-rebind-review-f72e-v2.json",
+      "sha256": "e9eefb5e92d5d8ccec4b2b9ccc7e2652192f59f0adb48b1e37d4402531c9c0a9",
+      "size_bytes": 4601
     }
   ],
   "open_blockers": [],
@@ -28,8 +28,8 @@
     "producer_holder_static_semantic_dynamic": "PASS",
     "promotion_eligible": false
   },
-  "reviewed_at_utc": "2026-08-06T23:13:38.675792+00:00",
-  "reviewer_task": "v15q-arch-stable-current-review-v2",
+  "reviewed_at_utc": "2026-08-08T06:20:10.422353+00:00",
+  "reviewer_task": "v15z-arch-stable-act4-rebind-review-f72e-v2",
   "schema": "npc-rv64-arch-stable-independent-review-v1",
   "unknowns": []
 }

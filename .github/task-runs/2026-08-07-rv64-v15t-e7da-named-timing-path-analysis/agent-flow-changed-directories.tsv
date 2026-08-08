@@ -1,0 +1,8 @@
+npc/rv64/vsrc/frontend
+npc/rv64/testbench/tests
+npc/rv64/testbench
+npc/rv64/testbench/scripts
+.github/task-runs
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/driver
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/subagent-contracts
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence

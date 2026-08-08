@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15z-act4-default-signoff-review-f72e-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 NpcSimTop 的 ACT4 架构测试如何作为 L1_FULL_CORE_DIFFTEST 必选子队列进入默认 L0+L1+L2+L3 签核，并核对 sail-RVA22S64 的 rv64i/I、rv64i/M、priv/Sv 输入清单、tohost exact-once 终端事务、OOO_ASSERT 编译配置和 f72e 仿真器绑定。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "am-kernels/arch-test/README.md",
+      "am-kernels/arch-test/Makefile",
+      "am-kernels/arch-test/scripts/act4-preflight.sh",
+      "am-kernels/arch-test/scripts/act4-npc-run.sh",
+      "am-kernels/arch-test/config/sail-RVA22S64-linux-gnu",
+      "am-kernels/arch-test/work/sail-RVA22S64/elfs",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+      "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15z-act4-default-signoff-f72e-a1/subagent-contracts/v15z-act4-default-signoff-review-f72e-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 ACT4 在现有四层验证金字塔中的最小接入位置、精确输入/终端/断言/设计身份合同、必须拒绝的反例，以及 PASS/GAP 范围；不得改动文件。"
+  ],
+  "success_criteria": [
+    "结论明确比较 L1 必选子队列与新增层级，核验 RVA22S64 97 项清单和当前 f72e NpcSimTop 证据绑定，并列出足以检出缺项、重复终端、断言、输入漂移和非当前仿真器的定向反例。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

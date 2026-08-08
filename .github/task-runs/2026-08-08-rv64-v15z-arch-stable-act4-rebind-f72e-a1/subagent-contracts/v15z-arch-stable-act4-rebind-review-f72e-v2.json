@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15z-arch-stable-act4-rebind-review-f72e-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 f72e RV64 双发射 OoO 核 ARCH_STABLE 候选 697ec156…6dade 的 146 项 production RTL、ACT4-100 默认 L1、九项架构门、ProducerId holder、历史缺陷与未晋级 PPA 边界是否精确闭合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/candidate.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/cohort-inventory.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/tool-versions.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/pre-review-audit.json",
+      "npc/rv64/eval/ppa/evidence/act4-current.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/v9p-act4-rebind-review-f72e-v2.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-act4-default-signoff-f72e-a1/subagent-contracts/v15z-act4-default-signoff-review-f72e-v2.result.md",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-arch-stable-act4-rebind-review-f72e-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/candidate.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/pre-review-audit.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/v9p-act4-rebind-review-f72e-v2.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按规定首行输出 RTL 复核结论，报告候选 SHA、设计标识、146 项 RTL、九项架构门、L0/L1 official+AM+ACT4/L2/L3、holder 46/46、历史缺陷 6/6、反例、未知项、Ubuntu/PPA/STA 边界、scope_extension_request 和 confidence_and_basis；若通过，合同与报告各精确包含一次 [ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 candidate_sha256=697ec15673499dc7a2f8e6d07eece5b5020b0a4a5690e3885ff1646a55b6dade。"
+  ],
+  "success_criteria": [
+    "仅当 candidate SHA 为 697ec15673499dc7a2f8e6d07eece5b5020b0a4a5690e3885ff1646a55b6dade、design-id 为 f72e、预审除 exact independent review 外无 blocker、ACT4 100/100 为默认 L1 强制子队列、断言与 exactly-once 合同未削弱、Ubuntu 未运行且 PPA/STA 未晋级时才可 PASS；否则明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

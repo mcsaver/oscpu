@@ -62,9 +62,9 @@ workload_matrix="${repo_root}/npc/rv64/design/arch/performance-workload-matrix-v
 policy="${repo_root}/npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json"
 tool="${repo_root}/npc/rv64/eval/ppa/tools/performance_baseline_current.py"
 arch_tool="${repo_root}/npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
-stats_on_simulator="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop"
-coremark_image="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/coremark.bin"
-dhrystone_image="${repo_root}/.github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/images/benchmarks/dhrystone.bin"
+stats_on_simulator="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/NpcSimTop"
+coremark_image="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/images/benchmarks/coremark.bin"
+dhrystone_image="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/images/benchmarks/dhrystone.bin"
 config_path="${repo_root}/npc/rv64/.config"
 
 runtime_root="${repo_root}/.github/runtime-artifacts/rv64-performance-baseline-run"
@@ -209,7 +209,8 @@ if [[ "${stats_on_rc}" -eq 0 ]]; then
   mkdir -p "${build_dir}"
   build_owned=1
   printf '%s\n' "${run_dir}" >"${build_dir}/.performance-baseline-owner"
-  make -C "${repo_root}/npc/rv64" \
+  printf '%s\n' 'VERILATOR_FLAGS += -Wno-PINCONNECTEMPTY' | \
+    make -C "${repo_root}/npc/rv64" -f Makefile -f - \
     BUILD_DIR="${build_dir}" \
     CONFIG_NPC_OOO_STATS=n \
     VERILATOR_BUILD_JOBS=1 \

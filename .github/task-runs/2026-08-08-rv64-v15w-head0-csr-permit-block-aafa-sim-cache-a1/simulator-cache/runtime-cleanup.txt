@@ -1,0 +1,3 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator-build/2026-08-08-rv64-v15w-head0-csr-permit-block-aafa-sim-cache-a1
+runtime_removed=1
+remove_rc=0

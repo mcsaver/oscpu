@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15x-performance-baseline-f72e-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "独立复核本地 f72e RV64 双发射 OoO 核的 fresh PERF_BASELINE：核对 CoreMark 与 Dhrystone committed-PC 区间、三次 stats-on 位精确计数、一次 stats-off 非干扰、retire-slot 守恒、fail-closed 状态、postflight 设计身份及构建树清理，并运行声明的定向 checker 反例；主动寻找日志复用、周期或提交漂移、计数缺口与 PPA 越级结论。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch",
+      "npc/rv64/.config",
+      "npc/rv64/eval/ppa/tools",
+      "npc/rv64/eval/ppa/tests",
+      "npc/rv64/eval/ppa/schemas",
+      "npc/rv64/eval/ppa/policies",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/eval/ppa/run-performance-baseline-current.sh",
+      "scripts/task-run-status.sh",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1",
+      ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/arch-stable-candidate-f72e-v4/candidate.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional",
+      ".github/runtime-artifacts/tests",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/subagent-contracts/v15x-performance-baseline-f72e-review-v3.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts/tests"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/performance-baseline-contract-v3.json",
+      "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "首行给出 f72e PERF_BASELINE 的 PASS/GAP/inconclusive；随后列出已核对的真实路径与哈希、CoreMark/Dhrystone cycles/retired/CPI、原始 marker、retire-slot 与嵌套账本守恒、stats-off 非干扰、状态和清理边界、定向 checker 返回码、反例、unknowns、替代解释、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "独立确认 result design_id 为 sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42、result SHA-256 为 a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b；CoreMark 为 5262868 cycles/3183617 retired，Dhrystone10000 为 9751462/4250000；每 workload 三次 stats-on 完整 counter signature 位精确，stats-off cycles/retired 相等且 counters unavailable，所有守恒与 stage rc=0，build tree absent；old design、noncurrent simulator、missing workload、reused raw log 和 review scope expansion 反例被 checker 拒绝。PPA 保持 UNQUALIFIED、promotion_eligible=false。若 scoped PERF_BASELINE 不存在 blocker，恰好一次输出 [PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 result_sha256=a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b；否则不得输出并明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

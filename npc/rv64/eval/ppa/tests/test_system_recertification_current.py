@@ -7,6 +7,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
@@ -28,14 +29,19 @@ class CurrentWorkspaceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "receipt.json"
             path.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaises(TOOL.RecertificationError):
+            with mock.patch.object(
+                TOOL, "build_core_receipt", return_value=self.receipt
+            ), self.assertRaises(TOOL.RecertificationError):
                 TOOL.validate_receipt(ROOT, path)
 
     def test_current_default_layered_signoff_is_bounded_pass(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "receipt.json"
             path.write_text(json.dumps(self.receipt), encoding="utf-8")
-            result = TOOL.validate_receipt(ROOT, path)
+            with mock.patch.object(
+                TOOL, "build_core_receipt", return_value=self.receipt
+            ):
+                result = TOOL.validate_receipt(ROOT, path)
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["design_id"], self.receipt["design_id"])
         self.assertEqual(
@@ -48,6 +54,13 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             (result["l1_am_passed"], result["l1_am_required"]), (61, 61)
+        )
+        self.assertEqual(
+            (
+                self.receipt["layers"]["L1_FULL_CORE_DIFFTEST"]["act4_passed"],
+                self.receipt["layers"]["L1_FULL_CORE_DIFFTEST"]["act4_required"],
+            ),
+            (100, 100),
         )
         self.assertEqual(result["l2_case"], "all")
         self.assertEqual(result["l3_case"], "all")
@@ -78,6 +91,11 @@ class CurrentWorkspaceTests(unittest.TestCase):
     def test_rejects_l1_count_drift(self) -> None:
         candidate = copy.deepcopy(self.receipt)
         candidate["layers"]["L1_FULL_CORE_DIFFTEST"]["official_passed"] = 176
+        self.validate_mutation(candidate)
+
+    def test_rejects_l1_act4_count_drift(self) -> None:
+        candidate = copy.deepcopy(self.receipt)
+        candidate["layers"]["L1_FULL_CORE_DIFFTEST"]["act4_passed"] = 99
         self.validate_mutation(candidate)
 
     def test_rejects_directed_l2_case_as_full_layer(self) -> None:

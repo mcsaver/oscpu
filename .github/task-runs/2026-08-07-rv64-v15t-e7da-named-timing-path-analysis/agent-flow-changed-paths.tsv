@@ -1,0 +1,13 @@
+npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v
+npc/rv64/vsrc/frontend/OooFrontend.v
+npc/rv64/testbench/tests/tb_ooo_frontend_dispatch_gate.sv
+npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv
+npc/rv64/testbench/tests/tb_ooo_fp_legality_dispatch_path.sv
+npc/rv64/testbench/Makefile
+npc/rv64/testbench/scripts/run_v15t_dbranch_head_facts_mutation.sh
+.github/task-runs/2026-08-07-rv64-v15t-e7da-named-timing-path-a1
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-l1-a1
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/driver/prepare-v15t-independent-review-v1.sh
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/subagent-contracts/v15t-dbranch-head-facts-independent-review-v1.json
+.github/task-runs/2026-08-07-rv64-v15t-dbranch-head-facts-102e-ppa-a1/evidence/independent-review-v1

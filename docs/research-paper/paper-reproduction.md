@@ -69,7 +69,7 @@ claim_map_check.path_warnings = []
 rows = 30
 status_counts = SUPPORTED 18, PARTIALLY_SUPPORTED 4,
                 OBSERVATIONAL_ONLY 1, CONTRADICTED 6, MISSING 1
-claim-map SHA-256 = f20a63ce701d31703f9fe3615d9bb7ae45c134b8b681293c1d98515facf7ab7a
+claim-map SHA-256 = 45f77e90a75ec126c88b46291134090cdf3b0e88321d470cf09d203fb40d8ec7
 ```
 
 路径存在只说明材料可回查，不自动把某条主张升级为 `SUPPORTED`。状态仍需根据设计身份、配置、负向证据和结论边界审计。固定的 12/30 第二 Agent 抽样、初次分歧和修订结论见 `independent-claim-review.tsv`；它不是人类双编码一致性实验。
@@ -139,13 +139,13 @@ python3 scripts/github_index_db.py load \
 | CONTROL-EVENT V9O 身份快照冲突 | `.github/task-runs/2026-07-23-rv64-v9o-control-event-current-design/task-report.md` 与同目录 `evidence-index.md` |
 | 5 ns proxy setup 边界 | `.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/evidence/opensta-fresh-t4i-final/opensta-current-check-setup.txt` |
 | drain gate 三快照演化 | `docs/research-paper/module-evolution-evidence.md` |
-| 当前 ARCH_STABLE | `npc/rv64/eval/ppa/evidence/arch-stable-current.json` |
-| endpoint-corrected PERF_BASELINE | `npc/rv64/eval/ppa/evidence/performance-baseline-current.json` |
-| 性能基线原始 FAIL 与 checker replay | `.github/task-runs/2026-08-04-rv64-v14n-performance-baseline-current-v2/` |
-| CPI bottleneck census | `.github/task-runs/2026-08-04-rv64-v14o-cpi-bottleneck-census-v2/evidence/cpi-bottleneck-census/census.json` |
-| owner-timing 诊断 link | `.github/task-runs/2026-08-04-rv64-v14p-cpi-owner-timing-diagnostics-v1/evidence/owner-timing-diagnostics/command-status.txt` |
-| owner-timing workload A/B 失败关闭 | `.github/task-runs/2026-08-04-rv64-v14q-owner-timing-workload-ab-v1/owner-timing-workload-ab.status` |
-| invalid owner 负向重放 | `.github/task-runs/2026-08-04-rv64-v14q-owner-timing-invalid-probe-replay-v3/evidence/owner-timing-invalid-probe-replay/result.json` |
+| 冻结 ARCH_STABLE/L0–L3 身份 | `npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json` |
+| 冻结 PERF_BASELINE 与 CPI stack | `npc/rv64/eval/ppa/evidence/performance-baseline-current.json` |
+| 同身份 owner-timing A/B | `.github/task-runs/2026-08-07-rv64-v15q-owner-timing-current-337-a2/evidence/owner-timing-workload-ab/result.json` |
+| owner 因果竞争分析 | `.github/task-runs/2026-08-07-rv64-v15q-owner-timing-causal-analysis-current-337-a1/evidence/owner-timing-causal-analysis/result.json` |
+| B-response $+2$-cycle 敏感性 | `.github/task-runs/2026-08-07-rv64-v15q-owner-b-latency-sensitivity-current-337-a1/evidence/owner-b-latency-sensitivity/result.json` |
+| canonical Selector 与 PPA 边界 | `npc/rv64/eval/ppa/evidence/optimization-slice-current.json` |
+| 前一 owner A/B 失败关闭反例 | `.github/task-runs/2026-08-04-rv64-v14q-owner-timing-workload-ab-v1/owner-timing-workload-ab.status` |
 
 逐条字段见 `claim-evidence-map.tsv`。
 
@@ -227,8 +227,8 @@ pdftoppm -png -r 120 \
 - TikZ 流程图是否有文字重叠；
 - NEMU/NPC、Yosys 日志块是否保持等宽且可读；
 - drain gate 三快照表、三段代码和负向证据摘要是否连续、无浮动错位；
-- `agent-flow.c` 状态机表、当前性能基线/CPI census 表与 owner-timing 代码是否越界；
-- 首次 owner-timing workload A/B 的 FAIL 日志是否保持可读，且没有被图表浮动拆散；
+- `agent-flow.c` 状态机表、冻结性能基线/CPI stack 表与 owner-timing 代码是否越界；
+- owner-timing、敏感性和 Selector 段落是否保持连续，历史失败关闭是否与冻结成功收据区分；
 - “自建术语的操作性定义”长表是否跨页正确、表头重复且没有文字越界；
 - 参考证据附录是否出现空白页。
 

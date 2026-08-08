@@ -1,0 +1,12 @@
+npc/rv64/vsrc/control/OooPendingSystemSequencer.v
+npc/rv64/vsrc/control/OooControlPlane.v
+npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv
+npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv
+npc/rv64/testbench/scripts/run_v15u_csr_dispatch_permit_mutation.sh
+npc/rv64/design/specs/ooo-pending-system-sequencer.md
+npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md
+.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-focused-mutation-a1
+.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-l01-a1
+.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1
+.github/task-runs/2026-08-07-rv64-v15u-e34b-l2-mini-system-all-a1
+.github/task-runs/2026-08-07-rv64-v15u-e34b-l3-lightweight-linux-all-a1

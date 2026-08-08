@@ -34,7 +34,7 @@ class ArchitectureDeltaMutationTests(unittest.TestCase):
         ]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(len(replacements), len(set(replacements)))
-        self.assertEqual(len(self.variants), 9)
+        self.assertEqual(len(self.variants), 22)
 
     def test_every_live_rtl_anchor_is_exact_and_non_noop(self) -> None:
         for variant in self.variants:

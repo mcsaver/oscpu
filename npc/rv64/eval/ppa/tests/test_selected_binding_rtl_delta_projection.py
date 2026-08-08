@@ -43,10 +43,14 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
             [
                 sys.executable,
                 str(TOOL),
-                "rebind",
+                "capture",
                 "--root",
                 str(ROOT),
-                "--input",
+                "--baseline-ref",
+                "858fd3cf0dc6cb466c80707051f40d4a4710fcbc",
+                "--consumer-baseline-ref",
+                "6a5951bcf9075176bfe34c1e58a57578eb741844",
+                "--prior-receipt",
                 str(PRIOR_RECEIPT),
                 "--output",
                 str(cls.captured),
@@ -58,7 +62,7 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
         )
         if cls.capture.returncode != 0:
             raise AssertionError(
-                f"rebind rc={cls.capture.returncode}\n"
+                f"capture rc={cls.capture.returncode}\n"
                 f"stdout={cls.capture.stdout}\nstderr={cls.capture.stderr}"
             )
         cls.master = cls.base / "master"
@@ -132,7 +136,7 @@ class SelectedBindingRtlDeltaProjectionTest(unittest.TestCase):
         path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     def test_current_v14r_rebind_and_git_free_verify_pass(self) -> None:
-        self.assertIn("PASS mode=rebind", self.capture.stdout)
+        self.assertIn("PASS mode=capture", self.capture.stdout)
         receipt = json.loads(self.captured.read_text(encoding="utf-8"))
         self.assertRegex(
             receipt["current_design_id"], r"^sha256:[0-9a-f]{64}$"

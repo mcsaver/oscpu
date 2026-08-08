@@ -129,7 +129,7 @@ class V11uPendingSystemProducerRunnerTests(unittest.TestCase):
         self.assertIsNone(profile.mutation)
         self.assertEqual(
             profile.expected_failure_marker,
-            "[V8K-PENDING-CSR-DISPATCH-BIRTH]",
+            "[V15U-CSR-DISPATCH-PERMIT-AUTHORITY]",
         )
 
     def test_generation_sensitive_mutations_cover_both_widths(self) -> None:

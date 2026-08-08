@@ -129,8 +129,19 @@ def replacement(anchor: str, value: str, purpose: str) -> Replacement:
 
 DISPATCH_BIRTH = """\
   wire dispatch_birth_w =
-      dispatch_fire_i && valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
+      dispatch_fire_i && dispatch_permit_q && !dispatch_cancel_i &&
+      valid_q && (kind_q == SERIAL_KIND_CSR) && !dispatched_q &&
       !producer_valid_q && !clear_i;
+"""
+DISPATCH_PERMIT_ARM = """\
+  wire dispatch_permit_arm_w =
+      dispatch_eligible_i && !dispatch_cancel_i && !clear_i &&
+      !clear_dispatched_i && !head0_csr_inflight_i && valid_q &&
+      (kind_q == SERIAL_KIND_CSR) && !dispatched_q && !producer_valid_q;
+"""
+DISPATCH_PERMIT_CLEAR = """\
+                 producer_valid_q || dispatched_q || !valid_q ||
+                 (kind_q != SERIAL_KIND_CSR)) begin
 """
 PENDING_MASK_UNION = """\
       clmul_owner_producer_live_mask_w |
@@ -290,6 +301,22 @@ MUTATIONS = (
         "[V11U-PROBE-NONCSR-DISPATCH]",
         (
             replacement(
+                DISPATCH_PERMIT_ARM,
+                DISPATCH_PERMIT_ARM.replace(
+                    "(kind_q == SERIAL_KIND_CSR)",
+                    "(kind_q != SERIAL_KIND_NONE)",
+                ),
+                "allow a non-CSR serialized kind to arm the dispatch permit",
+            ),
+            replacement(
+                DISPATCH_PERMIT_CLEAR,
+                DISPATCH_PERMIT_CLEAR.replace(
+                    "(kind_q != SERIAL_KIND_CSR)",
+                    "(kind_q == SERIAL_KIND_NONE)",
+                ),
+                "retain the widened permit for every classified system kind",
+            ),
+            replacement(
                 DISPATCH_BIRTH,
                 DISPATCH_BIRTH.replace(
                     "(kind_q == SERIAL_KIND_CSR)",
@@ -424,7 +451,7 @@ MUTATIONS = (
         assertions=True,
     ),
     Mutation(
-        "pending-drain-system-csr-fire-disconnected",
+        "pending-drain-system-csr-eligibility-disconnected",
         PENDING_DRAIN_RESOLVE_GATE,
         "RTL_OOO_PENDING_DRAIN_RESOLVE_GATE",
         TEST_PRIV_SYSTEM,
@@ -434,10 +461,13 @@ MUTATIONS = (
         ),
         (
             replacement(
-                "  assign system_csr_dispatch_fire_o =\n"
-                "      system_csr_dispatch_valid_o && dispatch0_ready_i;\n",
-                "  assign system_csr_dispatch_fire_o = 1'b0;\n",
-                "disconnect the drained pending CSR from ROB allocation",
+                "  assign system_csr_dispatch_valid_o =\n"
+                "      !system_csr_dispatch_cancel_i &&\n"
+                "      stop_pending_i && pending_system_i && pending_system_csr_i &&\n"
+                "      !pending_system_dispatched_i && backend_drained_q_i &&\n"
+                "      mem_owner_terminalized_i;\n",
+                "  assign system_csr_dispatch_valid_o = 1'b0;\n",
+                "disconnect drained CSR eligibility before the registered permit",
             ),
         ),
         extra_defines=("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
@@ -748,7 +778,9 @@ def assertion_profiles() -> tuple[Profile, ...]:
             4,
             assertions=True,
             extra_defines=("-DV11U_ASSERT_NONCSR_DISPATCH",),
-            expected_failure_marker="[V8K-PENDING-CSR-DISPATCH-BIRTH]",
+            expected_failure_marker=(
+                "[V15U-CSR-DISPATCH-PERMIT-AUTHORITY]"
+            ),
         ),
     )
 

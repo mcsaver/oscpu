@@ -1253,7 +1253,7 @@ V11U_ASSERTION_PROFILES = {
         "define": "-DV8K_ASSERT_LIVE_CLEAR",
     },
     "assert-noncsr-dispatch-g4": {
-        "marker": "[V8K-PENDING-CSR-DISPATCH-BIRTH]",
+        "marker": "[V15U-CSR-DISPATCH-PERMIT-AUTHORITY]",
         "define": "-DV11U_ASSERT_NONCSR_DISPATCH",
     },
 }
@@ -1356,7 +1356,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV11U_PENDING_SYSTEM_INTEGRATION_FOCUSED",),
         "assertions": True,
     },
-    "pending-drain-system-csr-fire-disconnected": {
+    "pending-drain-system-csr-eligibility-disconnected": {
         "target": (
             "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
         ),

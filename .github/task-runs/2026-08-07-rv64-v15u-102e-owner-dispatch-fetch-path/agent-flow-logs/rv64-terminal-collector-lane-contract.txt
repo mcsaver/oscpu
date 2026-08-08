@@ -1,0 +1,23 @@
+test_accept_mask_lane_omission_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_accept_mask_lane_omission_is_rejected) ... ok
+test_amo_transient_holder_assertion_removal_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_amo_transient_holder_assertion_removal_is_rejected) ... ok
+test_amo_transient_holder_operand_omission_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_amo_transient_holder_operand_omission_is_rejected) ... ok
+test_current_lane_and_free_pair_contract_passes (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_current_lane_and_free_pair_contract_passes) ... ok
+test_historical_snapshot_keeps_unknown_pair_boundary (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_historical_snapshot_keeps_unknown_pair_boundary) ... ok
+test_indexed_birth_alias_in_active_holder_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_indexed_birth_alias_in_active_holder_is_rejected) ... ok
+test_indexed_birth_always_reg_alias_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_indexed_birth_always_reg_alias_is_rejected) ... ok
+test_indexed_birth_assignment_tail_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_indexed_birth_assignment_tail_is_rejected) ... ok
+test_indexed_birth_in_intermediate_mask_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_indexed_birth_in_intermediate_mask_is_rejected) ... ok
+test_indexed_birth_mask_in_active_holder_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_indexed_birth_mask_in_active_holder_is_rejected) ... ok
+test_lane_token_swap_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_lane_token_swap_is_rejected) ... ok
+test_raw_ingress_transfer_authority_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_raw_ingress_transfer_authority_is_rejected) ... ok
+test_raw_known_assertion_removal_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_raw_known_assertion_removal_is_rejected) ... ok
+test_renamed_indexed_birth_decode_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_renamed_indexed_birth_decode_is_rejected) ... ok
+test_scalar_birth_inhibit_removal_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_scalar_birth_inhibit_removal_is_rejected) ... ok
+test_scalar_birth_lane_omission_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_scalar_birth_lane_omission_is_rejected) ... ok
+test_source_pair_assertion_removal_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_source_pair_assertion_removal_is_rejected) ... ok
+test_tracker_free_lane_swap_is_rejected (npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract.TerminalCollectorLaneContractTests.test_tracker_free_lane_swap_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.197s
+
+OK

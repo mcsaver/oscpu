@@ -63,8 +63,6 @@ module tb_ooo_fp_legality_dispatch_path;
     .dispatch0_return_i(1'b0),
     .dispatch0_unsupported_i(1'b0),
     .dispatch1_unsupported_i(1'b0),
-    .dispatch0_unsupported_raw_i(1'b0),
-    .dispatch1_unsupported_raw_i(1'b0),
     .dispatch0_ready_i(1'b1),
     .dispatch1_ready_i(1'b1),
     .head0_fp_raw_i(fp_raw),

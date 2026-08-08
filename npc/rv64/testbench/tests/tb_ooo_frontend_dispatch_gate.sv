@@ -54,8 +54,6 @@ module tb_ooo_frontend_dispatch_gate;
     // fire 死化后无消费), 换 slot1 截断位。
     .head0_branch_pred_taken_i(head0_branch_pred_taken),
     .head_slot1_valid_i(head_slot1_valid),
-    .dispatch0_unsupported_raw_i(1'b0),
-    .dispatch1_unsupported_raw_i(1'b0),
     .dispatch0_exit_i(dispatch0_exit),
     .dispatch0_arch_trap_i(dispatch0_arch_trap),
     .dispatch0_system_i(dispatch0_system),
@@ -264,6 +262,15 @@ module tb_ooo_frontend_dispatch_gate;
     head1_system_raw = 1'b1;
     #1;
     tb_check1("S2: head1 system blocks dual_go", dbranch_dual_go, 1'b0);
+
+    // V15T-H1：backend raw unsupported 不再回灌 branch dual eligibility；
+    // lane1 非法/无需执行类由同一 head classifier 的 arch-trap fact 阻断。
+    reset_inputs();
+    dispatch0_branch = 1'b1;
+    head0_branch_pred_taken = 1'b0;
+    head1_arch_trap_raw = 1'b1;
+    #1;
+    tb_check1("V15T: head1 arch trap blocks dual_go", dbranch_dual_go, 1'b0);
 
     reset_inputs();
     dispatch0_ready = 1'b0;

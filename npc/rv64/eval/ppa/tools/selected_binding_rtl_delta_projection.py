@@ -5,7 +5,10 @@
 an exact commit, records a self-contained reversible line edit, proves that
 the census-declared pre-existing holder nonblocking writes did not change,
 and binds the V14R positive/mutation evidence to the live Backend/SQ bytes.
-``verify`` deliberately has no Git dependency.
+When the selected RTL changes again, ``--prior-receipt`` supplies only the
+already frozen baseline semantic-coverage snapshot; current RTL and V14R
+observations are still rebuilt.  ``verify`` deliberately has no Git
+dependency.
 """
 
 from __future__ import annotations
@@ -35,8 +38,8 @@ CENSUS = "npc/rv64/design/arch/producer-holder-census.json"
 COVERAGE = "npc/rv64/design/arch/producer-holder-semantic-coverage.json"
 POLICY = "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json"
 EVIDENCE = (
-    ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-current-f7a/"
-    "evidence/v14r-current"
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/v14r-current-f72e-v1"
 )
 NEW_UNITS = {
     "memory-request-hold0-token": "mem_req_hold_owner_token_q",
@@ -528,8 +531,59 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     for record in consumer_delta:
         require_additive_delta(record)
     current.update(consumer_current)
+    frozen_prior_coverage = None
+    prior_receipt = getattr(args, "prior_receipt", None)
+    if prior_receipt is not None:
+        prior = load_json(prior_receipt.resolve())
+        expected_keys = {
+            "schema_version", "status", "current_design_id", "baseline",
+            "consumer_baseline", "rtl_delta", "rtl_delta_sha256",
+            "consumer_delta", "consumer_delta_sha256",
+            "holder_write_projection", "policy_binding", "v14r_evidence",
+            "claim_boundary",
+        }
+        if (
+            set(prior) != expected_keys
+            or prior.get("schema_version") != SCHEMA
+            or prior.get("status") != "PASS"
+            or prior.get("claim_boundary") != CLAIM
+            or prior.get("baseline", {}).get("commit") != commit
+            or prior.get("consumer_baseline", {}).get("commit")
+            != consumer_commit
+        ):
+            raise ProjectionGap("prior receipt baseline envelope drift")
+        prior_rtl = prior.get("rtl_delta")
+        prior_consumer = prior.get("consumer_delta")
+        if (
+            not isinstance(prior_rtl, list)
+            or digest(prior_rtl) != prior.get("rtl_delta_sha256")
+            or {item.get("path") for item in prior_rtl if isinstance(item, dict)}
+            != set(RTL_PATHS)
+            or not isinstance(prior_consumer, list)
+            or digest(prior_consumer) != prior.get("consumer_delta_sha256")
+            or {
+                item.get("path")
+                for item in prior_consumer
+                if isinstance(item, dict)
+            }
+            != set(CONSUMER_PATHS)
+        ):
+            raise ProjectionGap("prior receipt reversible-delta inventory drift")
+        prior_holder = prior.get("holder_write_projection")
+        frozen_prior_coverage = (
+            prior_holder.get("prior_coverage")
+            if isinstance(prior_holder, dict)
+            else None
+        )
+        if not isinstance(frozen_prior_coverage, dict):
+            raise ProjectionGap("prior frozen semantic coverage is missing")
     holder = holder_projection(
-        root, baseline, current, args.census, args.coverage
+        root,
+        baseline,
+        current,
+        args.census,
+        args.coverage,
+        frozen_prior_coverage,
     )
     current_design_id = holder["census"].get("design_id")
     if not isinstance(current_design_id, str) or re.fullmatch(
@@ -720,6 +774,14 @@ def parser() -> argparse.ArgumentParser:
         if name == "capture":
             command.add_argument("--baseline-ref", required=True)
             command.add_argument("--consumer-baseline-ref", required=True)
+            command.add_argument(
+                "--prior-receipt",
+                type=pathlib.Path,
+                help=(
+                    "reuse only a validated prior receipt's frozen baseline "
+                    "coverage snapshot when selected RTL changed again"
+                ),
+            )
             command.add_argument("--output", type=pathlib.Path, required=True)
         elif name == "rebind":
             command.add_argument("--input", type=pathlib.Path, required=True)

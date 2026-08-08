@@ -1,13 +1,13 @@
 {
   "arch_stable": {
     "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
-    "sha256": "14c36b137a8d188538da5d1a57ef96ce624af362dec7da25698d9cc88df0866d",
-    "size_bytes": 758886
+    "sha256": "bf4ec713b3bd9ff1de2f40a4a28ab481187c9ed40251adcfc8aa05ba97a5a9d5",
+    "size_bytes": 770767
   },
   "baseline_contract": {
     "path": "npc/rv64/design/arch/performance-baseline-contract-v3.json",
-    "sha256": "bac209b0b2fd62afb3d7bf9fec0b817e74dcc104a46f3c7cf1b1d6f2c9a35abc",
-    "size_bytes": 6927
+    "sha256": "343a20e9bb08b0d5af6bfeff082cbc55a5f24ba826835bd00764a86985f9ae9d",
+    "size_bytes": 6974
   },
   "benchmarks": {
     "coremark": {
@@ -50,19 +50,19 @@
       "ipc": "0.604920549024",
       "logs": [
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/coremark-stats-on-rep1.log",
-          "sha256": "b73ee8786307265bf158b805fc63845410006345ebe04714001b6079487f3bf2",
-          "size_bytes": 10560
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep1.log",
+          "sha256": "74c98835fd2844d4ab166e1ca916bce5ef222f43f623b3632a59ada41fad21f1",
+          "size_bytes": 10571
         },
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/coremark-stats-on-rep2.log",
-          "sha256": "4cbee37aad3e175e16e05ab70409f9082c510965b244924d8825c1a89048f884",
-          "size_bytes": 10560
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep2.log",
+          "sha256": "ec0dcf6777112ecedd4bba4c78a11f2a8586fb2dd1ece5e9051a805ca5034498",
+          "size_bytes": 10571
         },
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/coremark-stats-on-rep3.log",
-          "sha256": "99384256248b937f94a42db040e531cbe974ac707c175642161b8dff1cf1e1c6",
-          "size_bytes": 10560
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/coremark-stats-on-rep3.log",
+          "sha256": "e7af9a16eab5a9d85f4738164e98097b0538b677dc3eae2edafe6d6ae1627a6e",
+          "size_bytes": 10571
         }
       ],
       "repetitions": 3,
@@ -141,19 +141,19 @@
       "ipc": "0.435832083435",
       "logs": [
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep1.log",
-          "sha256": "0b11819ea4c1d13c931ffa06b27b5b812643f69fc8bb73ed2edb7a2b369d73e2",
-          "size_bytes": 11283
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep1.log",
+          "sha256": "4a1e81e349015ddee68c6eda69c817edcc83cacab24a1f4b79dfdfa26ed387fa",
+          "size_bytes": 11294
         },
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep2.log",
-          "sha256": "b8099e1052d861d2bfe6c319844a7979248181256e12e99f0edf0cfb26c3499f",
-          "size_bytes": 11283
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep2.log",
+          "sha256": "aaf7474d7fc4578d428a288d8d28321e5b4bfc9ec1d395994080c4464e3d43b6",
+          "size_bytes": 11294
         },
         {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep3.log",
-          "sha256": "c89a1c1f6a6c5dd8cefc89418e5c7c74a35eb66493357b83304b98fb5085311e",
-          "size_bytes": 11283
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/dhrystone-stats-on-rep3.log",
+          "sha256": "98dfce95e6249437d89715579faae92b885d23785249f85a8ac8ebf40b094620",
+          "size_bytes": 11294
         }
       ],
       "repetitions": 3,
@@ -196,8 +196,8 @@
   "blockers": [],
   "boundary_qualification_amendment": {
     "path": "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
-    "sha256": "361df81bdeb0a3886758eafb93863098f62c4f014394541b2e51bbaf1e3093fe",
-    "size_bytes": 3782
+    "sha256": "f7b35637c01f6d3025952cf0553c1f48b19d0167f60b46dab96dd3087fd34d29",
+    "size_bytes": 3783
   },
   "claim_boundary": {
     "full_causal_cpi_stack": false,
@@ -220,7 +220,7 @@
     "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
     "size_bytes": 12237
   },
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "execution_mode": "FRESH_CURRENT_DESIGN_DIRECT",
   "identity": {
     "configuration": {
@@ -229,14 +229,14 @@
       "size_bytes": 1257
     },
     "simulator": {
-      "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop",
-      "sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6",
-      "size_bytes": 3235088
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/NpcSimTop",
+      "sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
+      "size_bytes": 3246944
     },
     "stats_off_simulator": {
-      "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/inputs/NpcSimTop-stats-off",
-      "sha256": "eeec326c7c49aa7afbd4a54da62daf4b9a86f1b8656d07f474dea22fa7618443",
-      "size_bytes": 3230784
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/inputs/NpcSimTop-stats-off",
+      "sha256": "9df21c10e254d74c1977a50cd92b13e54f70a087ab185b582283cbb23cbd6379",
+      "size_bytes": 3242720
     }
   },
   "instrumentation_noninterference": {
@@ -246,9 +246,9 @@
         "cycles": 5262868,
         "end_hits": 1,
         "log": {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/coremark-stats-off.log",
-          "sha256": "ae0c705a4ba5bc378efb7781c68222d3c2052bae47aa415c4afbe04e36afc134",
-          "size_bytes": 7756
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/coremark-stats-off.log",
+          "sha256": "02f1528a77b67bd361e90fa94f98ad3cc010b883771d0ee9fe50ffaae31528b8",
+          "size_bytes": 7767
         },
         "matches_stats_on": true,
         "retired_instructions": 3183617,
@@ -259,9 +259,9 @@
         "cycles": 9751462,
         "end_hits": 1,
         "log": {
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/logs/dhrystone-stats-off.log",
-          "sha256": "b4077cd82735ae5fc9655c1313a9907f782e657114fef7045863c22ef7aeb3ba",
-          "size_bytes": 7461
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/logs/dhrystone-stats-off.log",
+          "sha256": "2a9057e24120dcd10b8b0c756d400d5ae3e7794af1177c641b8e371a73a3603e",
+          "size_bytes": 7472
         },
         "matches_stats_on": true,
         "retired_instructions": 4250000,
@@ -272,23 +272,23 @@
     "status": "PASS"
   },
   "manifest": {
-    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/run-manifest.json",
-    "sha256": "90f39867ac40ffac22aa74fb35b349fe0e52c759fbd7bc42c8c21b79bc28d722",
-    "size_bytes": 6086
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/run-manifest.json",
+    "sha256": "125b7410c27338277c4eb7850e4f5faa790e019ddb83a799f95481b4bc815978",
+    "size_bytes": 6049
   },
   "maturity_stage": "PERF_BASELINE",
   "measurement_contract": {
     "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
-    "sha256": "5b23b81f49c0003a4c80c7e825b446b011ca7932578da6a0c7ccd16fa2b7a6e5",
-    "size_bytes": 5854
+    "sha256": "fbf81c1bb92de631248dbd607381743700c3af97895f9a118b505b90a55825db",
+    "size_bytes": 5880
   },
   "policy": {
     "path": "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
-    "sha256": "3ce023e3e76b8beb1fab78fbb735137fdf17b13d0c64816167bf3d557395eec6",
-    "size_bytes": 2395
+    "sha256": "628be663aed21c39c59d5434e37c87c41d913becacc43c426d9566209a14c601",
+    "size_bytes": 2398
   },
   "postflight_arch_stable_verify": {
-    "path": ".github/task-runs/2026-08-07-rv64-v15q-performance-baseline-current-337-a2/evidence/performance-baseline-current/arch-stable-post.log",
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/arch-stable-post.log",
     "sha256": "163e7cd85f0232175fe3aa1307eadb937c2e774acf9f950256931cc531498fc5",
     "size_bytes": 85
   },
@@ -305,7 +305,7 @@
   "unknowns": [],
   "workload_matrix": {
     "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
-    "sha256": "26db1d8705a1c2d187cc4feedf8296fca3eccd19b8fd891cb9d67418f0aed2e2",
-    "size_bytes": 3310
+    "sha256": "e8318d66756ff71751ba2af8f3faa82dce42154590f5982b510816feac4a883e",
+    "size_bytes": 3311
   }
 }

@@ -69,25 +69,41 @@ backend dispatch full P 与 ROB head full P 逐层只作同名 observation trans
 
 | 输出/组合锥 | 允许输入 | 禁止用途 |
 |---|---|---|
-| `system_csr_admission_clear_o`（完整 ordinary-clear 观测） | 下列无反馈见证，以及兼容观测口 `pending_branch_commit_resolve_i` / `pending_branch_match_clear_i` | 不得直接驱动 `system_csr_dispatch_cancel_o` |
-| `system_csr_dispatch_cancel_o`（ROB admission 权限） | reset、core-local flush、memory trap、branch-spec resolve、untracked branch resolve、已由 outcome 限定的 pending-jump clear、pending/head0 CSR commit | 不得读取 backend ready、direct fire、`direct_frontend_flush`，也不得读取任何由它们后置屏蔽得到的 branch terminal |
+| `system_csr_admission_clear_o`（完整 ordinary-clear/terminal 观测） | 下列 dispatch-cancel 见证、exact pending CSR commit、exact head0 CSR commit，以及兼容观测口 `pending_branch_commit_resolve_i` / `pending_branch_match_clear_i` | 不得直接驱动 `system_csr_dispatch_cancel_o` |
+| `system_csr_dispatch_cancel_o`（pre-ROB admission 权限） | reset、core-local flush、branch-spec resolve、untracked branch resolve、已由 outcome 限定的 pending-jump clear | 不得读取 backend ready、direct fire、`direct_frontend_flush`、memory trap、exact pending CSR commit、exact head0 CSR commit，也不得读取任何由 ready/direct-fire 后置屏蔽得到的 branch terminal |
 
 当前 ROB-walk 产品拓扑已把 `pending_branch_q` 与 `pending_branch_dispatched_q`硬连为 0；两个
 `pending_branch_*clear` 端口仅为兼容观测。即使未来重新启用 pending-branch owner，也只能新增一个
 不读取 ready/direct-fire 的 pre-priority cancel witness，不能把 post-priority terminal 重新接回
-system CSR valid。组合方程固定为：
+system CSR valid。exact pending CSR commit 必须同时满足 `dispatched=1` 与 raw ProducerId lease；
+registered permit 则蕴含 `dispatched=0 && producer_valid=0`。两种 phase 结构互斥，故 exact death
+只进入 holder clear 与 sequencer `producer_death_i`，不得进入 pre-ROB dispatch cancel。queue-head
+CSR 使用既有寄存状态 `head0_csr_inflight_q` 从 dispatch 到 commit 封住 younger pending CSR 的
+permit arm/hold；exact head0 commit 仍可清除同窗口捕获的 younger lane1 pending owner，但只进入
+holder/admission clear，不再进入 pre-ROB dispatch cancel。memory trap 也只进入完整 holder clear：
+`OooCoreTopGlue` 已断言它与 canonical C0 `TRAP` pregrant 双向等价，而 ROB-I14 保证该
+pregrant 同拍关闭两路 dispatch ready；在此前已经排空并持有 permit 的状态中也不存在新的 ROB
+队头 trap。因而 trap 通过 `pending_system_clear` 在时钟沿清 payload/permit 即可，重新把晚到的
+commit pulse 接进 dispatch valid 只会延长组合路径，不会排除额外可达 enqueue。组合方程固定为：
 
 ```text
-feedback_free_clear = trap | branch_spec_resolve | branch_untracked |
-                      qualified_jump_clear | pending_csr_commit | head0_csr_commit
-full_observed_clear = feedback_free_clear | pending_branch_commit_resolve |
-                      pending_branch_match_clear
-dispatch_cancel     = reset | core_local_flush | feedback_free_clear
+dispatch_cancel_witness = branch_spec_resolve | branch_untracked |
+                          qualified_jump_clear
+full_observed_clear     = trap | dispatch_cancel_witness | pending_csr_commit |
+                          head0_csr_commit |
+                          pending_branch_commit_resolve |
+                          pending_branch_match_clear
+dispatch_cancel         = reset | core_local_flush | dispatch_cancel_witness
+permit_arm               = exact_drain_eligible & !head0_csr_inflight &
+                           held_pre_rob_csr
+permit_held_clear        = head0_csr_inflight & dispatch_permit
 ```
 
 因此，单独翻转任一 pending-branch 兼容观测口可以改变完整 clear 观测，但不得改变 dispatch cancel；
-其余每个真实无反馈 clear witness 必须同拍取消 admission。该区分由 standalone TB 正向矩阵和把
-`full_observed_clear` 重新接回 cancel 的 compile-success 负向版本共同守护。
+memory trap、exact pending CSR commit 与 exact head0 CSR commit 均只能得到
+`clear=1,cancel=0`；其它真实 pre-ROB cancel witness 必须同拍取消 admission。该区分由 standalone TB
+正向矩阵，以及 V15V 两个 pending-commit 负向版本和 V15W 四个 head0-inflight/commit
+assertion-disabled compile-success 负向版本共同守护。
 
 ## 6. 不变量
 
@@ -101,6 +117,11 @@ dispatch_cancel     = reset | core_local_flush | feedback_free_clear
 7. lease fall 必有 exact commit/reset/backend-global-flush death witness；system enqueue 与 lease birth
    同沿，可达的无反馈 clear/flush witness 同拍不得 enqueue，direct frontend flush 与 pending-system
    owner 必须互斥。
+8. `head0_csr_commit -> head0_csr_inflight`；`head0_csr_inflight` 时 pending CSR permit 必须为 0；
+   head0 commit 与 pending CSR dispatch valid/fire 必须互斥。
+9. `csr_trap_mem_valid -> !system_csr_dispatch_permit && !system_csr_dispatch_valid &&
+   !system_csr_dispatch_fire`；trap 必须仍令完整 holder clear 为 1，并由 canonical C0 pregrant
+   关闭 backend dispatch ready。
 
 ## 7. 验证
 
@@ -109,6 +130,13 @@ dispatch_cancel     = reset | core_local_flush | feedback_free_clear
   fallback seal。
 - backend/top：dispatch P 和 commit P transport、live mask birth fence、system dispatch fire coherence。
 - OOO_ASSERT negative 与 compile-success mutation 覆盖所有承重 fence。
+- V15V 额外要求 exact pending commit 与 pre-ROB dispatch valid phase-disjoint；重新把 commit
+  接回 dispatch cancel 或从 holder clear 删除 commit 的变体都必须被拒绝。
+- V15W 要求 queue-head inflight 分别阻断 permit arm 和 held permit；重新把 head0 commit 接回
+  dispatch cancel、删除 head0 admission clear、删除任一 inflight blocker 的变体都必须被拒绝。
+- V15X 要求 memory trap 只产生 `clear=1,cancel=0`，standalone sequencer 证明 holder clear 可在
+  cancel=0 时清除 held permit/payload；parent assertion 与既有 V9O/ROB-I14 断言共同拒绝
+  trap/permit/valid/fire 重叠或 C0 dispatch-ready 未关闭的变体。
 - legacy ProducerId slices、CSR/pending focused、fresh module aggregate、static/contract guard。
 
 ## 8. 声明边界

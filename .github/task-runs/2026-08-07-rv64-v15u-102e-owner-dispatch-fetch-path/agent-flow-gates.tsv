@@ -1,0 +1,6 @@
+2	rv64-terminal-collector-lane-contract	PASS	301	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/rv64-terminal-collector-lane-contract.log
+2	rv64-full-core-runner-contract	PASS	66949	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/rv64-full-core-runner-contract.log
+2	rv64-mini-system-runner-contract	PASS	150	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/rv64-mini-system-runner-contract.log
+2	rv64-lightweight-linux-runner-contract	PASS	150	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/rv64-lightweight-linux-runner-contract.log
+2	rtl-task-contract	PASS	901	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/rtl-task-contract.log
+2	task-run-status-test	PASS	50	.github/runtime-artifacts/agent-flow/rv64-v15u-102e-owner-dispatch-fetch-path/gates/task-run-status-test.log

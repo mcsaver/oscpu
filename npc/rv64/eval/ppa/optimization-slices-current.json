@@ -476,10 +476,10 @@
       "domain": "RV64 mapped critical-path causality",
       "action": "对两轮 bit-exact mapped netlist 的 top-40 路径按 startpoint、endpoint、共享组合锥和 RTL owner 聚类，区分主导路径族与旁支，只定义一个保持 CPI、owner/holder、flush/replay 和精确异常合同的可回退时序候选或明确 GAP；本切片不修改 production RTL。",
       "scope": [
-        "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
-        "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
+        "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+        "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v"
       ],
       "prerequisites": [
         {
@@ -511,6 +511,11 @@
           "fact": "ppa_reference_available",
           "op": "eq",
           "value": false
+        },
+        {
+          "fact": "current_timing_path_analysis_completed",
+          "op": "eq",
+          "value": false
         }
       ],
       "selector_metrics": {
@@ -539,6 +544,81 @@
         "a negative WNS reference is an accepted PPA baseline",
         "vectorless power is qualified power",
         "production RTL authorization or promotion from path clustering alone"
+      ]
+    },
+    {
+      "id": "experiment.head0-csr-inflight-permit-block",
+      "class": "rtl_experiment",
+      "selection_mode": "information",
+      "title": "用已注册 queue-head CSR owner 切断 pre-ROB dispatch cancel 长路径",
+      "domain": "RV64 CSR serialization, pending-owner admission and frontend dispatch timing",
+      "action": "在 OooPendingSystemSequencer 中用既有 head0_csr_inflight_q 阻断 pending CSR permit 的 arm/hold，再把 head0_csr_commit 仅从 pre-ROB dispatch cancel 移到 admission clear；不新增流水状态，不改变 serial flush、ProducerId lease 或 CSR 重取语义。先以定向 TB、OOO_ASSERT 与编译成功负向 RTL 变体证明 commit/inflight/permit 互斥，再运行分层回归和同配置 mapped A/B。",
+      "scope": [
+        "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/vsrc/control/OooControlPlane.v",
+        "npc/rv64/vsrc/frontend/OooFrontend.v",
+        "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
+        "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv"
+      ],
+      "prerequisites": [
+        {
+          "fact": "current_timing_path_analysis_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "current_timing_path_analysis_status",
+          "op": "eq",
+          "value": "TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED"
+        },
+        {
+          "fact": "current_timing_candidate_id",
+          "op": "eq",
+          "value": "head0-csr-inflight-permit-block-v1"
+        },
+        {
+          "fact": "ppa_timing_hard_gate",
+          "op": "eq",
+          "value": "FAIL"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 4,
+        "reversibility": 5,
+        "execution_cost": 3,
+        "functional_risk": 3,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "head0_csr_commit implies the edge-old head0_csr_inflight owner",
+        "head0_csr_inflight blocks permit arm/hold and commit-cycle dispatch fire for ready 0 and 1",
+        "same-cycle capture, flush, older-control recovery and ProducerId lease counterexamples",
+        "compile-success mutations for arm blocker, hold blocker and admission-clear priority",
+        "L0/L1 functional regression and same-configuration mapped Top40 A/B"
+      ],
+      "success_conditions": [
+        "all candidate invariants and negative variants are observed non-vacuously",
+        "architectural CSR order, serial flush, pending owner and exact ProducerId death remain unchanged",
+        "the head0_csr_commit/system_csr_dispatch_cancel segment leaves the mapped Top40 or the candidate is rolled back",
+        "the 5 ns hard gate remains explicit even if WNS improves but stays negative"
+      ],
+      "rollback_conditions": [
+        "head0 CSR commit can occur without the edge-old inflight owner",
+        "a held permit can fire in the commit cycle",
+        "pending CSR is lost instead of refetched after serial flush",
+        "functional, assertion, CPI, area or same-config timing evidence regresses outside the declared bound"
+      ],
+      "forbidden_claims": [
+        "production promotion from candidate-only timing analysis",
+        "5 ns closure when WNS remains negative",
+        "weakening CSR order, flush/replay, owner/holder or RTL assertions"
       ]
     },
     {

@@ -38,6 +38,16 @@ V15R_MEM_BIRTH_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15r-mem-birth-termina
 V15R_MEM_BIRTH_MUTATION_RUNNER := scripts/run_v15r_mem_birth_terminalized_mutation.sh
 V15S_MEM_OWNER_ANY_LIVE_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15s-mem-owner-any-live-mutation)
 V15S_MEM_OWNER_ANY_LIVE_MUTATION_RUNNER := scripts/run_v15s_mem_owner_any_live_mutation.sh
+V15T_DBRANCH_HEAD_FACTS_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15t-dbranch-head-facts-mutation)
+V15T_DBRANCH_HEAD_FACTS_MUTATION_RUNNER := scripts/run_v15t_dbranch_head_facts_mutation.sh
+V15U_CSR_DISPATCH_PERMIT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15u-csr-dispatch-permit-mutation)
+V15U_CSR_DISPATCH_PERMIT_MUTATION_RUNNER := scripts/run_v15u_csr_dispatch_permit_mutation.sh
+V15V_CSR_COMMIT_DISPATCH_DISJOINT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15v-csr-commit-dispatch-disjoint-mutation)
+V15V_CSR_COMMIT_DISPATCH_DISJOINT_MUTATION_RUNNER := scripts/run_v15v_csr_commit_dispatch_disjoint_mutation.sh
+V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15w-head0-csr-permit-disjoint-mutation)
+V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RUNNER := scripts/run_v15w_head0_csr_permit_disjoint_mutation.sh
+V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15x-trap-c0-dispatch-closure-mutation)
+V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RUNNER := scripts/run_v15x_trap_c0_dispatch_closure_mutation.sh
 V11Q_INT_LANE0_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11q-int-lane0-packet-semantic)
 V11Q_INT_LANE0_PACKET_RUNNER := scripts/run_v11q_int_lane0_packet_semantic.py
 V11R_INT_LANE1_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11r-int-lane1-packet-semantic)
@@ -771,6 +781,62 @@ v15s-mem-owner-any-live-focused: \
 v15s-mem-owner-any-live-mutation:
 	@$(abspath $(V15S_MEM_OWNER_ANY_LIVE_MUTATION_RUNNER)) \
 	  "$(V15S_MEM_OWNER_ANY_LIVE_MUTATION_RESULT)"
+
+.PHONY: v15t-dbranch-head-facts-focused
+v15t-dbranch-head-facts-focused: \
+  $(LOG_DIR)/tb_ooo_frontend_dispatch_gate.log
+	@grep -E '\[V15T:|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: v15t-dbranch-head-facts-mutation
+v15t-dbranch-head-facts-mutation:
+	@$(abspath $(V15T_DBRANCH_HEAD_FACTS_MUTATION_RUNNER)) \
+	  "$(V15T_DBRANCH_HEAD_FACTS_MUTATION_RESULT)"
+
+.PHONY: v15u-csr-dispatch-permit-focused
+v15u-csr-dispatch-permit-focused: \
+  $(LOG_DIR)/tb_ooo_pending_system_sequencer.log \
+  $(LOG_DIR)/tb_ooo_serialized_owner_exactly_once.log
+	@grep -E '\[V15U-CSR-DISPATCH-PERMIT|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V15U-CSR-DISPATCH-PERMIT-INTEGRATION|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+.PHONY: v15u-csr-dispatch-permit-mutation
+v15u-csr-dispatch-permit-mutation:
+	@$(abspath $(V15U_CSR_DISPATCH_PERMIT_MUTATION_RUNNER)) \
+	  "$(V15U_CSR_DISPATCH_PERMIT_MUTATION_RESULT)"
+
+.PHONY: v15v-csr-commit-dispatch-disjoint-focused
+v15v-csr-commit-dispatch-disjoint-focused: \
+  $(LOG_DIR)/tb_ooo_pending_system_admission_cancel_gate.log
+	@grep -E '\[V15V-CSR-COMMIT-DISPATCH-DISJOINT|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: v15v-csr-commit-dispatch-disjoint-mutation
+v15v-csr-commit-dispatch-disjoint-mutation:
+	@$(abspath $(V15V_CSR_COMMIT_DISPATCH_DISJOINT_MUTATION_RUNNER)) \
+	  "$(V15V_CSR_COMMIT_DISPATCH_DISJOINT_MUTATION_RESULT)"
+
+.PHONY: v15w-head0-csr-permit-disjoint-focused
+v15w-head0-csr-permit-disjoint-focused: \
+  $(LOG_DIR)/tb_ooo_pending_system_sequencer.log \
+  $(LOG_DIR)/tb_ooo_pending_system_admission_cancel_gate.log
+	@grep -E '\[V15W-HEAD0-CSR-PERMIT-DISJOINT|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V15W-HEAD0-CSR-ADMISSION-CLEAR|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+.PHONY: v15w-head0-csr-permit-disjoint-mutation
+v15w-head0-csr-permit-disjoint-mutation:
+	@$(abspath $(V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RUNNER)) \
+	  "$(V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RESULT)"
+
+.PHONY: v15x-trap-c0-dispatch-closure-focused
+v15x-trap-c0-dispatch-closure-focused: \
+  $(LOG_DIR)/tb_ooo_pending_system_admission_cancel_gate.log \
+  $(LOG_DIR)/tb_ooo_pending_system_sequencer.log
+	@grep -E '\[V15X-TRAP-C0-DISPATCH-CLOSURE|\[PASS\]|\[RESULT\]' $<
+	@grep -E '\[V15X-TRAP-HOLDER-CLEAR|\[PASS\]|\[RESULT\]' $(word 2,$^)
+
+.PHONY: v15x-trap-c0-dispatch-closure-mutation
+v15x-trap-c0-dispatch-closure-mutation:
+	@$(abspath $(V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RUNNER)) \
+	  "$(V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RESULT)"
 
 v8y-speculation-recovery: $(LOG_DIR)/tb_ooo_int_backend_v8y_speculation_recovery.log
 	@grep -E '\[V8Y-|\[V8D-|\[V8X-|\[PASS\]|\[RESULT\]' $<

@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15x-v9p-current-rebind-review-f72e-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核当前 f72e RV64 OoO 核中 OooIntBackend 与 OooMemAxiBridge 的 SQ-query retry C0/C1 owner/holder 交接、OooMemOwnerTerminalCollector 终端入口 exactly-once 合同及 OooLsuAxiLaneAdapter final-B 时序路径；判定 V9R 定向基线、编译成功负向 RTL 变体、L0-L3 仿真与 f72e PPA 收据能否把不可变 V9P 反例重绑定到当前设计，同时保留未知 bank/owner tuple、禁止终端事件去重且不把 5 ns STA 失败写成可提升状态。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/independent-review.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v9r-current-f72e-v1",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/logs/tb_ooo_mem_owner_terminal_collector.log",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/independent-review-closure-v2.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/subagent-contracts/v15p-loop-adapter-evidence-closure-review-v2.result.md",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/l0/v15p-adapter-final-b-mutation",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-final-a1/evidence/independent-frozen-review-v1.md",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v9r-current-f72e-v1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/subagent-contracts/v15x-v9p-current-rebind-review-f72e-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v9r-current-f72e-v1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/result.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按规定首行给出 RV64 RTL 结论；列出 reviewed_inputs、cycle-level contract、当前源码绑定、定向基线与负向 RTL 变体观测、L0-L3/STA 边界、unknowns、counterexamples、alternative_hypotheses、scope_extension_request 与 confidence_and_basis，并明确 PASS、GAP 或 inconclusive。"
+  ],
+  "success_criteria": [
+    "只有在 f72e 源码与 V9R 2/2 基线和 3/3 编译成功负向 RTL 变体、当前 113/113 L0、L1-L3 收据一致，且不可变 V9P bank/owner tuple 仍标为 UNKNOWN、终端 exactly-once 断言未被去重替代、5 ns WNS/TNS 仍为 FAIL_NOT_PROMOTABLE 时才可给出当前设计重绑定 PASS；任一绑定漂移或反例必须报告 GAP/inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

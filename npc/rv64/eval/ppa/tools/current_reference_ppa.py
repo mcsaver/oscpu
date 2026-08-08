@@ -268,14 +268,16 @@ def normalized_parameters(summary: dict[str, Any], label: str) -> dict[str, str]
         summary["inputs"]["parameters"], f"{label}.inputs.parameters")
     values = parse_key_values(path)
     expected = {
-        "mode", "design", "period_ns", "clock_port", "clock_name",
+        "mode", "diagnostic", "design", "period_ns", "clock_port", "clock_name",
         "result_root", "synth_flatten", "synth_share",
         "synth_public_autoname", "synth_dff_autoname", "sta_flatten_export",
         "stage_scc", "blackbox_modules", "keep_hierarchy_modules", "opensta",
         "std_lib", "macro_libs",
     }
     require(set(values) == expected, f"{label} parameter key set mismatch")
-    require(values["mode"] == "candidate" and values["design"] == "NpcTop" and
+    require(values["mode"] == "candidate" and
+            values["diagnostic"] == "traceable-public-autoname" and
+            values["design"] == "NpcTop" and
             values["period_ns"] == "5.0" and values["clock_port"] == "clk" and
             values["clock_name"] == "core_clock",
             f"{label} top/clock parameter mismatch")

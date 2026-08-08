@@ -2,12 +2,12 @@
 
 ## 1. Scope and snapshot
 
-- Evidence window: 2026-04-01 through 2026-08-04.
+- Evidence window: 2026-04-01 through 2026-08-07.
 - Repository HEAD observed during the major revision:
-  `858fd3cf0dc6cb466c80707051f40d4a4710fcbc`.
+  `ac877a1e857154d70744fd0fd7e994309f2e2ee8`.
 - Claim map: `docs/research-paper/claim-evidence-map.tsv`.
 - Frozen claim-map SHA-256 used by the paper:
-  `f20a63ce701d31703f9fe3615d9bb7ae45c134b8b681293c1d98515facf7ab7a`.
+  `45f77e90a75ec126c88b46291134090cdf3b0e88321d470cf09d203fb40d8ec7`.
 - The map contains 30 claim units. It is a purposive coded set, not a random
   or exhaustive sample of every dated task-run directory.
 

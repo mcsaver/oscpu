@@ -1,0 +1,68 @@
+{
+  "schema": "npc-rv64-act4-default-signoff-policy-v1",
+  "purpose": "Current-design ACT4 architectural certification subcohort for the local RV64 dual-issue OoO core.",
+  "placement": {
+    "default_layer": "L1_FULL_CORE_DIFFTEST",
+    "role": "required_architectural_certification_subcohort",
+    "reason": "ACT4 executes self-checking ISA and privileged-architecture payloads on the complete NpcSimTop core; it complements, but does not replace, directed RTL, DiffTest, mini-system or lightweight-Linux evidence."
+  },
+  "target": "npc",
+  "config_name": "npc-rv64-ooo-current",
+  "config_profile": "npc-rv64-ooo-current",
+  "suites": [
+    {
+      "id": "rv64i/I",
+      "generated_cases": 51,
+      "required_cases": 51
+    },
+    {
+      "id": "rv64i/M",
+      "generated_cases": 13,
+      "required_cases": 13
+    },
+    {
+      "id": "priv/Sv",
+      "generated_cases": 33,
+      "required_cases": 32
+    },
+    {
+      "id": "priv/Svnapot",
+      "generated_cases": 4,
+      "required_cases": 4
+    }
+  ],
+  "generated_case_count": 101,
+  "excluded_cases": [
+    {
+      "case_id": "priv/Sv/sv39_svnapot_not_supported_Smode",
+      "reason": "The production IFU PTW, LSU PTW and TLB implement Svnapot 64 KiB leaves; the mutually exclusive unsupported-extension payload is replaced by the four Sv39 Svnapot positive/reserved-encoding cases."
+    }
+  ],
+  "required_case_count": 100,
+  "execution": {
+    "runner": "npc/rv64/eval/ppa/run-act4-current.sh",
+    "backend_runner": "am-kernels/arch-test/scripts/act4-npc-run.sh",
+    "simulator_reuse": "exact current-design L1 NpcSimTop binary",
+    "difftest": false,
+    "max_cycles_per_case": 20000000,
+    "host_timeout_seconds_per_case": 60
+  },
+  "required_observations": [
+    "all 100 implementation-matched npc-rv64-ooo-current ELF cases execute exactly once",
+    "the generated 101-case inventory contains exactly one declared inapplicable payload for a Svnapot-absent implementation, and the four Sv39 Svnapot positive/reserved-encoding payloads remain mandatory",
+    "each case exits with return code zero and exactly one TOHOST PASS marker",
+    "TOHOST FAIL, BAD TRAP and RTL assertion failure markers are absent",
+    "the reused NpcSimTop build contains +define+OOO_ASSERT",
+    "production RTL, L1 simulator, ACT4 config and all selected ELF identities match before and after execution",
+    "runtime binary copies and objcopy intermediates are removed before PASS",
+    "the checker rejects missing cases, duplicate terminal events, assertion markers, input drift and a simulator from another design identity"
+  ],
+  "claim": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY",
+  "non_claims": [
+    "unimplemented ISA extensions outside sail-RVA22S64",
+    "Sv48, Sv57 or vector-state support",
+    "OoO internal owner, holder, ready/valid or recovery coverage",
+    "system software, Linux userland or device-stack coverage",
+    "synthesis, STA, power, area, CPI or PPA qualification"
+  ]
+}

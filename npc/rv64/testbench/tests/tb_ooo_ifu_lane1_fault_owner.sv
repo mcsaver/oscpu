@@ -273,8 +273,6 @@ module tb_ooo_ifu_lane1_fault_owner;
     .dispatch0_return_i(1'b0),
     .dispatch0_unsupported_i(1'b0),
     .dispatch1_unsupported_i(1'b0),
-    .dispatch0_unsupported_raw_i(1'b0),
-    .dispatch1_unsupported_raw_i(1'b0),
     .dispatch0_ready_i(dispatch0_ready),
     .dispatch1_ready_i(dispatch1_ready),
     .head0_fp_raw_i(head0_fp_raw),

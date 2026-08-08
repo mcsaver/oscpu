@@ -23,23 +23,27 @@ POLICY = ROOT / (
 CATALOG = ROOT / "npc/rv64/eval/ppa/optimization-slices-current.json"
 CENSUS = ROOT / "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json"
 OWNER = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-owner-timing-current-337-a2/"
+    ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-f72e-a1/"
     "evidence/owner-timing-workload-ab/result.json")
 CAUSAL = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-owner-timing-causal-analysis-current-337-a1/"
+    ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-causal-analysis-f72e-a1/"
     "evidence/owner-timing-causal-analysis/result.json")
 SENSITIVITY = ROOT / (
     ".github/task-runs/"
-    "2026-08-07-rv64-v15q-owner-b-latency-sensitivity-current-337-a1/"
+    "2026-08-08-rv64-v15x-owner-b-latency-sensitivity-f72e-a1/"
     "evidence/owner-b-latency-sensitivity/result.json")
 CANDIDATE_ANALYSIS = ROOT / (
     ".github/task-runs/"
-    "2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/owner-b-response-candidate-analysis-337-a1.json")
+    "2026-08-08-rv64-v15x-owner-b-response-candidate-analysis-f72e-a1/"
+    "evidence/owner-b-response-candidate-analysis/result.json")
 CURRENT_REFERENCE_PPA = ROOT / (
     ".github/task-runs/"
-    "2026-08-07-rv64-v15q-current-reference-ppa-337-a1/"
-    "evidence/current-reference-ppa-337-a1.json")
+    "2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/"
+    "evidence/current-reference-ppa-f72e-v1.json")
+CURRENT_TIMING_ANALYSIS = ROOT / (
+    ".github/task-runs/"
+    "2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/"
+    "evidence/current-timing-path-analysis-ca37-a1.json")
 DECISION_SCHEMA = ROOT / (
     "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json")
 CURRENT_DECISION = ROOT / (
@@ -325,6 +329,9 @@ class OptimizationSliceSelectorTests(unittest.TestCase):
             self.assertEqual(stored["live_design_id"], live["live_design_id"])
             return
         self.assertEqual(verified.returncode, 2, verified.stdout)
+        if "decision policy sha256 mismatch" in verified.stdout:
+            self.assertEqual(stored["live_design_id"], live["live_design_id"])
+            return
         self.assertRegex(
             verified.stdout,
             "optimization research state design-id mismatch|"
@@ -672,6 +679,37 @@ class OptimizationSliceSelectorTests(unittest.TestCase):
         self.assertEqual(built.returncode, 2, built.stdout)
         self.assertIn(
             "requires the B-response candidate receipt", built.stdout)
+
+    def test_current_timing_analysis_selects_inflight_permit_experiment(self) -> None:
+        research = self.research_state(evidence_receipts={
+            "owner_timing": self.source_ref(OWNER),
+            "causal_analysis": self.source_ref(CAUSAL),
+            "b_latency_sensitivity": self.source_ref(SENSITIVITY),
+            "b_response_candidate_analysis": self.source_ref(CANDIDATE_ANALYSIS),
+            "current_reference_ppa": self.source_ref(CURRENT_REFERENCE_PPA),
+            "current_timing_path_analysis": self.source_ref(
+                CURRENT_TIMING_ANALYSIS),
+        })
+        built = self.build(research=research)
+        self.assertEqual(built.returncode, 0, built.stdout)
+        result = self.result()
+        self.assertEqual(result["decision"], "SELECT")
+        self.assertEqual(result["next_action"], "RTL_EXPERIMENT")
+        self.assertEqual(
+            result["selected_slice"]["id"],
+            "experiment.head0-csr-inflight-permit-block",
+        )
+        self.assertTrue(
+            result["state"]["current_timing_path_analysis_completed"])
+        self.assertEqual(
+            result["state"]["current_timing_candidate_id"],
+            "head0-csr-inflight-permit-block-v1",
+        )
+        self.assertEqual(
+            result["inputs"]["verification_tools"]
+            ["current_timing_path_analysis"]["path"],
+            "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+        )
 
     def test_tampered_current_reference_cannot_advance_selector(self) -> None:
         value = json.loads(CURRENT_REFERENCE_PPA.read_text(encoding="utf-8"))

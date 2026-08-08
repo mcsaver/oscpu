@@ -1,0 +1,3 @@
+runtime_path=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-current-simulator-build/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-sim-cache-a1
+runtime_removed=1
+remove_rc=0

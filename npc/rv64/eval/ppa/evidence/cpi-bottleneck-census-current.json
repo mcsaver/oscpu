@@ -40,7 +40,7 @@
     "interpretation": "Both workloads spend the largest cycle residency in a memory head, primarily while a request is outstanding, with S_WRITE_RESP as the largest request-state residency.",
     "warning": "These are mutually exclusive ROB-head residency buckets, not transaction counts or proof that AXI B latency is the sole cause."
   },
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "next_discriminating_measurement": {
     "action": "Add diagnostic-only owner-correlated event counts, fixed-bin duration histograms and bridge/pre-request timing channels so H1 through H4 can be separated before choosing an RTL change.",
     "channels": {
@@ -111,8 +111,8 @@
   "optimization_candidate_authorized": false,
   "performance_baseline": {
     "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
-    "sha256": "735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
-    "size_bytes": 11761
+    "sha256": "a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b",
+    "size_bytes": 11695
   },
   "ppa": "UNQUALIFIED",
   "promotion_eligible": false,

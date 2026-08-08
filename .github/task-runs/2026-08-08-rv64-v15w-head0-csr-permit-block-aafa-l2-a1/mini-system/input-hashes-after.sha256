@@ -1,0 +1,17 @@
+3fe5b5636c5afe392d34a1ddacc4368151c488687b759bb411b3ca987ca319ad  .github/runtime-artifacts/rv64-current-simulator/aafa17f7bd385ad57265875b21f484c2d10a1b668d2f967cd12df1bd73a36aa7/NpcSimTop
+f010e19fe521ae4786d2c810e24cb063fc28e2011b8ec62bca7cfb8fcf9c9432  .github/runtime-artifacts/rv64-current-simulator/aafa17f7bd385ad57265875b21f484c2d10a1b668d2f967cd12df1bd73a36aa7/simulator-verFiles.dat
+8c1f2396380c96b0070d3d9bca00eb55e571146c28a1205a0b62af2eea10b419  .github/runtime-artifacts/rv64-current-simulator/aafa17f7bd385ad57265875b21f484c2d10a1b668d2f967cd12df1bd73a36aa7/source-binding.txt
+f05f14c38dd3193810c0c22d44b9d32dd3297ec53e11d36e3888f7dffd30cae3  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.elf
+c896d0ebb83239044d442e188b6ee26e5f2f398c755d85a1735b61b53de63c89  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.bin
+bea515433546d05d1245979898a303c86761a52b8a302329ce6b55fa690ce6f0  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/mini-system.dtb
+b4d7362b22ff07a7f114c82376510acb2bb08ca687ec15d48d7d9b7e2ea462aa  /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-mini-system-current/artifacts/fw_jump.bin
+3b5fbffcaff28a0a74703670ee27bb9eec56c2df798b2a7d5b6f7bc9941b1006  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/run-mini-system-current.sh
+43df4a86ce0448f584de041666586f4d151943dd0992c18e558f3f9db831dd06  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/mini_system_run.py
+234fe63c8169d1321204b539822fcebab92e75720a62fd171b51eca741c674e4  /home/lyg/PA/ysyx-workbench/Linux/scripts/build-rv64-mini-system.sh
+5b27d31cbb3bd48f523d44287bc520d302c98ca2f7a81bdaeb253d378ebbbd9f  /home/lyg/PA/ysyx-workbench/Linux/mini-system/rv64-l2-payload.S
+7ec3ab3d6730fd376b08eb706350ccad127deb6174b83878907968aeab3f5669  /home/lyg/PA/ysyx-workbench/Linux/mini-system/rv64-l2-payload.ld
+4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/tools/architecture_hard_gates.py
+192170d473f14fa8ea23cffe2161536d2f4559e89541dddf079afa7b2a4040a3  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/rv64-simulator-source-id.sh
+1d8f71820787f1b9cc808f84692cb7bfc6b602a34dd4d16804c25be559e3dd05  /home/lyg/PA/ysyx-workbench/npc/rv64/eval/ppa/rv64-layer-source-id.sh
+ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100  /home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/layered-system-signoff-policy-v1.json
+43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6  /home/lyg/PA/ysyx-workbench/scripts/task-run-status.sh

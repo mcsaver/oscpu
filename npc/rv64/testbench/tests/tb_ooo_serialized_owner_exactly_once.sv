@@ -125,8 +125,15 @@ module tb_ooo_serialized_owner_exactly_once;
   wire backend_drained;
   wire drain_complete;
   wire pending_replay_wait;
+  wire system_csr_dispatch_eligible;
+  wire system_csr_dispatch_eligible_fire;
+  wire system_csr_dispatch_permit;
   wire system_csr_dispatch_valid;
   wire system_csr_dispatch_fire;
+  assign system_csr_dispatch_valid =
+      system_csr_dispatch_permit && stop_pending && pending_system &&
+      pending_system_csr && !pending_system_dispatched;
+  assign system_csr_dispatch_fire = system_csr_dispatch_valid;
 
   wire core_commit_exception_trap;
   wire trap_mem_valid;
@@ -339,6 +346,9 @@ module tb_ooo_serialized_owner_exactly_once;
     .rst(rst || core_local_flush),
     .clear_i(pending_system_clear),
     .clear_dispatched_i(orphan_stop_pending),
+    .dispatch_eligible_i(system_csr_dispatch_eligible),
+    .dispatch_cancel_i(1'b0),
+    .head0_csr_inflight_i(1'b0),
     .dispatch_fire_i(system_csr_dispatch_fire),
     .producer_death_i(1'b0),
     .dispatch_producer_id_i({PRODUCER_ID_W{1'b0}}),
@@ -384,6 +394,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .next_pc_o(pending_system_next_pc),
     .csr_rdata_o(pending_system_csr_rdata),
     .irq_cause_o(pending_system_irq_cause),
+    .dispatch_permit_o(system_csr_dispatch_permit),
     .producer_valid_o(pending_system_producer_valid),
     .producer_id_o(pending_system_producer_id)
   );
@@ -420,8 +431,8 @@ module tb_ooo_serialized_owner_exactly_once;
     .system_csr_dispatch_cancel_i(1'b0),
     .backend_drained_o(backend_drained),
     .jump_dispatch_valid_o(),
-    .system_csr_dispatch_valid_o(system_csr_dispatch_valid),
-    .system_csr_dispatch_fire_o(system_csr_dispatch_fire),
+    .system_csr_dispatch_valid_o(system_csr_dispatch_eligible),
+    .system_csr_dispatch_fire_o(system_csr_dispatch_eligible_fire),
     .pending_branch_commit_resolve_o(),
     .pending_branch_match_clear_o(),
     .pending_replay_wait_o(pending_replay_wait),
@@ -919,6 +930,63 @@ module tb_ooo_serialized_owner_exactly_once;
     end
   endtask
 
+  task automatic test_registered_csr_dispatch_permit;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_case();
+      drive_system_candidate(KIND_CSR);
+      #1;
+      tb_check1("V15U CSR lane1 capture request",
+                pending_system_capture_lane1, 1'b1);
+      `TB_TICK(clk);
+
+      clear_inputs();
+      #1;
+      tb_check1("V15U active memory holder blocks eligibility",
+                system_csr_dispatch_eligible, 1'b0);
+      tb_check1("V15U blocked edge has no permit",
+                system_csr_dispatch_permit, 1'b0);
+      tb_check1("V15U blocked edge has no dispatch",
+                system_csr_dispatch_fire, 1'b0);
+      `TB_TICK(clk);
+
+      mem_owner_terminalized = 1'b1;
+      #1;
+      tb_check1("V15U exact terminal creates raw eligibility",
+                system_csr_dispatch_eligible, 1'b1);
+      tb_check1("V15U raw eligibility is not direct dispatch",
+                system_csr_dispatch_valid, 1'b0);
+      tb_check1("V15U raw eligible-ready observation",
+                system_csr_dispatch_eligible_fire, 1'b1);
+      `TB_TICK(clk);
+
+      tb_check1("V15U Cpermit registered authorization",
+                system_csr_dispatch_permit, 1'b1);
+      tb_check1("V15U Cpermit drives actual valid",
+                system_csr_dispatch_valid, 1'b1);
+      tb_check1("V15U Cpermit drives actual fire",
+                system_csr_dispatch_fire, 1'b1);
+      `TB_TICK(clk);
+
+      tb_check1("V15U Cresolve consumes permit",
+                system_csr_dispatch_permit, 1'b0);
+      tb_check1("V15U Cresolve marks CSR dispatched",
+                pending_system_dispatched, 1'b1);
+      tb_check1("V15U Cresolve births exact lease",
+                pending_system_producer_valid, 1'b1);
+      tb_check1("V15U Cresolve removes replay valid",
+                system_csr_dispatch_valid, 1'b0);
+      tb_check1("V15U Cresolve cannot repeat fire",
+                system_csr_dispatch_fire, 1'b0);
+      if (tb_errors == errors_before)
+        $display("[V15U-CSR-DISPATCH-PERMIT-INTEGRATION-PASS] Cterminal-eligible=1 Cpermit-dispatch=1 Cresolve-lease=1 repeat=0");
+      else
+        $display("[V15U-CSR-DISPATCH-PERMIT-INTEGRATION-RED] errors=%0d",
+                 tb_errors - errors_before);
+    end
+  endtask
+
   task automatic test_live_arch_blocks_system_kinds;
     integer kind;
     integer errors_before;
@@ -1285,6 +1353,7 @@ module tb_ooo_serialized_owner_exactly_once;
     if (!$test$plusargs("V10D_ONLY")) begin
       test_same_edge_birth_priority();
       test_standalone_system_kinds();
+      test_registered_csr_dispatch_permit();
       test_live_arch_blocks_system_kinds();
       test_commit_trap_priority();
       test_clocked_arch_exactly_once();

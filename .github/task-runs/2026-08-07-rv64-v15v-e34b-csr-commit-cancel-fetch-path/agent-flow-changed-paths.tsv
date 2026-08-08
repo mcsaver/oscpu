@@ -1,0 +1,14 @@
+npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v
+npc/rv64/vsrc/control/OooControlPlane.v
+npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv
+npc/rv64/testbench/scripts/run_v15v_csr_commit_dispatch_disjoint_mutation.sh
+npc/rv64/testbench/Makefile
+npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md
+npc/rv64/design/specs/ooo-csr-access-request-mux.md
+npc/rv64/design/specs/ooo-pending-system-sequencer.md
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-focused-mutation-a1
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l01-a1
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-sim-cache-a1
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l2-a1
+.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l3-a1

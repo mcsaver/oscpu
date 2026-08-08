@@ -54,9 +54,9 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         self.assertEqual(
             historical["mode_counts"],
             {
-                "CHANGED_RTL_REPLAY_REQUIRED": 19,
+                "CHANGED_RTL_REPLAY_REQUIRED": 29,
                 "CHECKER_ONLY_REUSED": 3,
-                "UNCHANGED_RTL_REUSED": 152,
+                "UNCHANGED_RTL_REUSED": 142,
                 "VERIFICATION_SOURCE_REUSED": 1,
             },
         )
@@ -70,15 +70,15 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         }
         replacements = self.receipt["current_changed_cone"]["replacements"]
         TOOL.validate_affected_replacements(affected, replacements)
-        self.assertEqual(len(replacements), 19)
+        self.assertEqual(len(replacements), 29)
 
-    def test_supplemental_replay_is_identity_helper_only(self) -> None:
+    def test_supplemental_replay_is_exact_current_input(self) -> None:
         replay = self.receipt["current_changed_cone"][
             "supplemental_input_replay"
         ]
         self.assertEqual(replay["path"], TOOL.ARCH_BINDING_TOOL.as_posix())
-        self.assertEqual(replay["classification"], "rtl_identity_helper_only")
-        self.assertNotEqual(replay["recorded_sha256"], replay["current_sha256"])
+        self.assertEqual(replay["classification"], "exact_current_input")
+        self.assertEqual(replay["recorded_sha256"], replay["current_sha256"])
         self.assertFalse(replay["production_rtl_reexecuted"])
 
     def test_supplemental_replay_rejects_non_identity_input_drift(self) -> None:
@@ -198,15 +198,19 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         self.assertEqual(positive["l3"], {"case": "all", "status": "PASS"})
         self.assertEqual(positive["optional_ubuntu"], "NOT_RUN_OPTIONAL")
 
-    def test_retained_changed_cone_is_exact_source_projected(self) -> None:
+    def test_changed_cone_is_reexecuted_on_exact_current_source(self) -> None:
         projections = {
             row["evidence_design_projection"]["mode"]
             for row in self.receipt["current_changed_cone"][
                 "replacements"
             ].values()
         }
-        self.assertIn(
-            "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN", projections
+        self.assertEqual(
+            projections,
+            {
+                "EXACT_CURRENT_DESIGN",
+                "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
+            },
         )
         for row in self.receipt["current_changed_cone"][
             "replacements"

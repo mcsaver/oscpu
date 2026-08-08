@@ -1,0 +1,82 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15z-act4-default-signoff-review-f72e-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地RV64双发射OoO核f72e的ACT4 I/M/Sv39/Svnapot事务清单、NpcSimTop断言配置、终端marker和L1默认签核合取证据",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "am-kernels/arch-test/scripts/act4-preflight.sh",
+      "am-kernels/arch-test/scripts/act4-npc-run.sh",
+      "am-kernels/arch-test/scripts/act4-arch-run.sh",
+      "am-kernels/arch-test/config/npc-rv64-ooo-current-linux-gnu",
+      "npc/rv64/design/arch/act4-default-signoff-policy-v1.json",
+      "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+      "npc/rv64/eval/ppa/run-act4-current.sh",
+      "npc/rv64/eval/ppa/tools/act4_current.py",
+      "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
+      "npc/rv64/eval/ppa/schemas/act4-current-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_act4_current.py",
+      "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py",
+      "npc/rv64/eval/ppa/evidence/act4-current.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a1",
+      ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3",
+      ".github/task-runs/2026-08-08-rv64-v15z-layered-signoff-act4-f72e-a1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "设计ID必须为sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42，冻结NpcSimTop为8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e，Ubuntu未运行",
+      ".github/task-runs/2026-08-08-rv64-v15z-act4-default-signoff-f72e-a1/subagent-contracts/v15z-act4-default-signoff-review-f72e-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "设计ID必须为sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42，冻结NpcSimTop为8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e，Ubuntu未运行"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按RTL对象或证据文件、周期或编译配置、testbench或EDA观测、PASS或GAP范围输出独立审查结论，并列出反例与未知项"
+  ],
+  "success_criteria": [
+    "确认100项ACT4清单的Svnapot能力映射、唯一终端事件、零断言、前后身份和默认L1合取均为fail-closed，或给出具体RTL/证据GAP"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

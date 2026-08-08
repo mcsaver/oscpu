@@ -15,6 +15,8 @@ module tb_ooo_pending_system_lease_probe;
   reg rst;
   reg clear;
   reg clear_dispatched;
+  reg dispatch_eligible;
+  reg dispatch_cancel;
   reg dispatch_fire;
   reg producer_death;
   reg capture_head0;
@@ -24,6 +26,7 @@ module tb_ooo_pending_system_lease_probe;
   wire dispatched;
   wire csr;
   wire ecall;
+  wire dispatch_permit;
   wire producer_valid;
   wire [PRODUCER_ID_W-1:0] producer_id;
 
@@ -36,6 +39,9 @@ module tb_ooo_pending_system_lease_probe;
     .rst(rst),
     .clear_i(clear),
     .clear_dispatched_i(clear_dispatched),
+    .dispatch_eligible_i(dispatch_eligible),
+    .dispatch_cancel_i(dispatch_cancel),
+    .head0_csr_inflight_i(1'b0),
     .dispatch_fire_i(dispatch_fire),
     .producer_death_i(producer_death),
     .dispatch_producer_id_i(PID),
@@ -81,6 +87,7 @@ module tb_ooo_pending_system_lease_probe;
     .next_pc_o(),
     .csr_rdata_o(),
     .irq_cause_o(),
+    .dispatch_permit_o(dispatch_permit),
     .producer_valid_o(producer_valid),
     .producer_id_o(producer_id)
   );
@@ -100,6 +107,8 @@ module tb_ooo_pending_system_lease_probe;
       rst = 1'b1;
       clear = 1'b0;
       clear_dispatched = 1'b0;
+      dispatch_eligible = 1'b0;
+      dispatch_cancel = 1'b0;
       dispatch_fire = 1'b0;
       producer_death = 1'b0;
       capture_head0 = 1'b0;
@@ -110,6 +119,11 @@ module tb_ooo_pending_system_lease_probe;
       capture_head0 = 1'b1;
       tick();
       capture_head0 = 1'b0;
+      dispatch_eligible = 1'b1;
+      tick();
+      dispatch_eligible = 1'b0;
+      if (!dispatch_permit)
+        $fatal(1, "[V15U-PROBE-SETUP] failed to establish dispatch permit");
       dispatch_fire = 1'b1;
       tick();
       dispatch_fire = 1'b0;
@@ -125,6 +139,8 @@ module tb_ooo_pending_system_lease_probe;
       rst = 1'b1;
       clear = 1'b0;
       clear_dispatched = 1'b0;
+      dispatch_eligible = 1'b0;
+      dispatch_cancel = 1'b0;
       dispatch_fire = 1'b0;
       producer_death = 1'b0;
       capture_head0 = 1'b0;
@@ -144,6 +160,11 @@ module tb_ooo_pending_system_lease_probe;
   initial begin
 `ifdef V11U_PROBE_NONCSR_DISPATCH
     establish_noncsr_pending();
+    // 生产 RTL 不会给 ECALL 建立 permit；负向变体必须同时放宽 permit 与
+    // birth，才能证明新增的注册时序边界没有让原非 CSR 隔离检查失效。
+    dispatch_eligible = 1'b1;
+    tick();
+    dispatch_eligible = 1'b0;
     dispatch_fire = 1'b1;
     tick();
     if (!valid || dispatched || csr || !ecall || producer_valid)

@@ -19,10 +19,6 @@ module OooFrontendDispatchGate (
   input dispatch0_return_i,   // B2: 非返回 JALR 在 mode 下走普通 dispatch present（de-pend），return JALR 仍走 RAS
   input dispatch0_unsupported_i,
   input dispatch1_unsupported_i,
-  // 【F2】裸支持性(纯 inst 组合, 无 valid 项): dual_go 谓词专用——含 valid 版经
-  // core_dispatch1_valid←dual_go 成 UNOPTFLAT 环(lint 实测)。
-  input dispatch0_unsupported_raw_i,
-  input dispatch1_unsupported_raw_i,
   input dispatch0_ready_i,
   input dispatch1_ready_i,
   input head0_fp_raw_i,
@@ -68,9 +64,7 @@ module OooFrontendDispatchGate (
       !head_fetch_fault1_i &&
       !head1_exit_raw_i &&
       !head1_system_raw_i &&
-      !head1_arch_trap_raw_i &&
-      !dispatch0_unsupported_raw_i &&
-      !dispatch1_unsupported_raw_i;
+      !head1_arch_trap_raw_i;
 
   wire lane1_base_w =
       dispatch_valid_i &&

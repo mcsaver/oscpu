@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15v-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooPendingSystemAdmissionCancelGate 将精确 pending_system_csr_commit 从 pre-ROB system_csr_dispatch_cancel 中移除、同时保留 holder admission clear 与 head0_csr_commit 对更年轻 lane1 SYSTEM transaction 的取消语义；核对 ca37 的定向 TB、编译成功负向 RTL 版本、mapped STA 路径簇以及 L0/L1/L2/L3 证据是否支持工程候选保留，报告反例、未知项、替代假设和范围扩展需求。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+      "npc/rv64/testbench/tests/tb_ooo_pending_system_admission_cancel_gate.sv",
+      "npc/rv64/testbench/scripts/run_v15v_csr_commit_dispatch_disjoint_mutation.sh",
+      "npc/rv64/testbench/Makefile",
+      ".github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1/evidence/traceable-e34b-a1",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-focused-mutation-a1",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l01-a1/evidence/module/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l01-a1/evidence/functional/run-result.json",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l2-a1/mini-system",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l3-a1/lightweight-linux",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-csr-access-request-mux.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+      ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/subagent-contracts/v15v-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-pending-system-csr-producer-lease.md",
+      "npc/rv64/design/specs/ooo-csr-access-request-mux.md",
+      "npc/rv64/design/specs/ooo-pending-system-sequencer.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象、周期或编译配置、testbench 或 EDA 观测、PASS/GAP 范围给出独立审查结论，逐项列出可操作反例、未知项、替代假设、证据路径与置信依据。"
+  ],
+  "success_criteria": [
+    "确认 exact pending CSR commit 只清除已派发 holder、head0_csr_commit 仍能取消更年轻 lane1 pending SYSTEM transaction，且不存在重复派发、丢失清除或 assertion 弱化；否则给出具体 signal/cycle 反例。",
+    "复算 e34b 到 ca37 的 Top40 token 路径计数与 WNS、TNS、面积、功耗资格，区分 ENGINEERING_CANDIDATE_RETAIN 与 5NS_TARGET_NOT_MET GAP。",
+    "核对 ca37 design-id 绑定、L0 mutation detection、L1 计数、L2/L3 exact-once 终端事务和空 RTL assertion 文件；不得把未运行 Ubuntu 视为默认签核缺口。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

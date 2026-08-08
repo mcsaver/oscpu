@@ -1,5 +1,5 @@
 {
-  "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "entries": [
     {
       "canonical_command": "make -C npc/rv64 check-fdg-arch-trap",
@@ -12,12 +12,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "FDG-G1",
@@ -41,12 +41,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "XRET-G1",
@@ -73,12 +73,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "MEM-ISSUE-G1",
@@ -102,12 +102,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "IFU-AXI-G1",
@@ -130,12 +130,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "IFU-FETCH-G2",
@@ -158,12 +158,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "IFU-ACCESS-G1",
@@ -196,12 +196,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "IFU-TVAL-G1",
@@ -232,12 +232,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "PTW-PMP-G1",
@@ -261,12 +261,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "INSTRET-G1",
@@ -291,12 +291,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "F0-G1",
@@ -319,12 +319,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "MIQ-FLUSH-G1",
@@ -348,12 +348,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "STORE-BRESP-G1",
@@ -377,12 +377,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "FENCE-G1",
@@ -407,7 +407,7 @@
       "priority": "P1",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
-        "sha256": "6f368b4960bed3a6384f83084bea11d966bd1175bf10616bc4816e7aa80a50bc"
+        "sha256": "b1313e6a509a716d98c303d94bed3a7af83145cdee74df96e898db4e19d80772"
       },
       "scope_rationale": "The cohort contains one RV64 hart and no autonomous coherent or exclusive peer that may write the active LR/SC reservation granule; multi-master invalidation and coherent transport are outside this product boundary.",
       "status": "EXCLUDED_BY_COHORT",
@@ -426,12 +426,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "CONTROL-EVENT-G1",
@@ -467,12 +467,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "SERIALIZE-G1",
@@ -498,7 +498,7 @@
       "priority": "P1",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
-        "sha256": "ca635960dec1b6f3b18128785c69465d33ead9b9cfa44af2ab8b3dd24fff4fff"
+        "sha256": "b91f5164e1d799bb352c4171d44de106fcc4f110fa7f41019779e7a446370ebc"
       },
       "scope_rationale": "The cohort implements legal WFI as a serialized immediate-resume hint with TW legality enforcement and makes no promise of a clock or power sleep state, interrupt-only wakeup, or wakeup latency.",
       "status": "EXCLUDED_BY_COHORT",
@@ -517,7 +517,7 @@
       "priority": "P1",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
-        "sha256": "532cb7d680b4e9f1e6dbda6d97c21dce6fcea858a4f3089890c9c961dcc59fd8"
+        "sha256": "9b58383b9cc85ac8384d73956d298ee633721e161b30f592d4d408ebd829f235"
       },
       "scope_rationale": "The cohort serializes every accepted SFENCE.VMA and Svinval-family encoding into a conservative global translation and fetch invalidation; address-selective or ASID-selective invalidation is not a promised capability.",
       "status": "EXCLUDED_BY_COHORT",
@@ -534,12 +534,12 @@
         "positive": true
       },
       "current_design_bound": true,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "evidence": [
         {
           "kind": "architecture_debt_current_receipt",
           "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-          "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689"
+          "sha256": "10ec5e20a287e86e2354fbb203639fcbadb79f226f24d33a4f4a2710b762c406"
         }
       ],
       "id": "VECTORED-TRAP-G1",
@@ -564,14 +564,14 @@
       "priority": "P1",
       "scope_contract": {
         "path": "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
-        "sha256": "46f803e72e578606f8e4a37876b34713d72c0b56e535e390346c242f7ea5ac13"
+        "sha256": "09d7192b51920253d3122350b8236f99d7e9f18f0f7ce6273b8d2368a9d87976"
       },
       "scope_rationale": "The cohort provides simulation observability and semihost EBREAK only; it does not advertise a RISC-V Debug Module, debug mode, halt or resume transport, or executable trigger action.",
       "status": "EXCLUDED_BY_COHORT",
       "title": "architectural debug and trigger capability decision"
     }
   ],
-  "revision": "current-337de8bf9bb7-delta-rebound-evidence-ledger",
+  "revision": "current-f72e1fb43936-delta-rebound-evidence-ledger",
   "roadmap": {
     "path": "npc/rv64/design/arch/ROADMAP.md",
     "sha256": "8d28b0513c28ca1f53c7ae0bbd1553fb0a83d69d80020551a972815a973964b5"

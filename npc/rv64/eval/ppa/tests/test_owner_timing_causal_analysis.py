@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -13,12 +14,16 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py"
-OWNER = ROOT / (
+OWNER = ROOT / os.environ.get(
+    "NPC_OWNER_TIMING_RECEIPT",
     ".github/task-runs/2026-08-07-rv64-v15q-owner-timing-current-337-a2/"
-    "evidence/owner-timing-workload-ab/result.json")
-PROBE = ROOT / (
+    "evidence/owner-timing-workload-ab/result.json",
+)
+PROBE = ROOT / os.environ.get(
+    "NPC_OWNER_TIMING_CAUSAL_PROBE_LOG",
     ".github/task-runs/2026-08-07-rv64-v15q-owner-timing-causal-analysis-current-337-a1/"
-    "evidence/causal-probe/logs/tb_ooo_owner_timing_causal_probe.log")
+    "evidence/causal-probe/logs/tb_ooo_owner_timing_causal_probe.log",
+)
 
 
 class OwnerTimingCausalAnalysisTests(unittest.TestCase):

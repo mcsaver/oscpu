@@ -20,20 +20,26 @@ import current_timing_path_analysis as analysis  # noqa: E402
 
 
 RUN1_TOP40 = ROOT / (
-    ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/"
-    "evidence/mapped-sta-current-v2/candidate/opensta-top40.rpt")
+    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
+    "evidence/traceable-ca37-a1/opensta-top40.rpt")
 RUN2_TOP40 = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/"
-    "evidence/current-fresh-a1/opensta-top40.rpt")
+    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
+    "evidence/current-fresh-ca37-a2/opensta-top40.rpt")
 CURRENT_REFERENCE = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/"
-    "evidence/current-reference-ppa-337-a1.json")
+    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
+    "evidence/current-reference-ppa-ca37-a1.json")
 SELECTOR = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/"
-    "evidence/optimization-slice-current-337-v5.json")
+    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
+    "evidence/optimization-slice-current-reference-ca37-a1.json")
 REVIEW = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/"
-    "evidence/independent-review-v1.md")
+    ".github/task-runs/2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/"
+    "evidence/independent-frozen-review-v2.md")
+TRACEABILITY = ROOT / (
+    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
+    "evidence/traceable-ca37-a1/traceability.txt")
+PATH_CLUSTER = ROOT / (
+    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
+    "evidence/ppa-delta-and-path-cluster-v1.json")
 
 
 class CurrentTimingPathAnalysisTests(unittest.TestCase):
@@ -66,16 +72,20 @@ class CurrentTimingPathAnalysisTests(unittest.TestCase):
             "--independent-review", self.relative(REVIEW),
             "--run1-top40", self.relative(RUN1_TOP40),
             "--run2-top40", self.relative(run2_top40),
+            "--traceability", self.relative(TRACEABILITY),
+            "--path-cluster", self.relative(PATH_CLUSTER),
             "--output", self.relative(self.output),
         )
 
-    def test_exact_reports_form_one_dominant_numeric_path_family_gap(self) -> None:
+    def test_exact_reports_define_one_traceable_candidate_only(self) -> None:
         built = self.build()
         self.assertEqual(built.returncode, 0, built.stdout)
         verified = self.run_tool("verify", "--input", self.relative(self.output))
         self.assertEqual(verified.returncode, 0, verified.stdout)
         value = json.loads(self.output.read_text(encoding="utf-8"))
-        self.assertEqual(value["status"], "GAP_RTL_OWNER_TRACE_REQUIRED")
+        self.assertEqual(
+            value["status"],
+            "TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED")
         paths = value["path_analysis"]
         self.assertEqual(paths["path_count"], 40)
         self.assertEqual(paths["unique_startpoint_count"], 1)
@@ -83,16 +93,23 @@ class CurrentTimingPathAnalysisTests(unittest.TestCase):
         self.assertGreaterEqual(paths["dominant_family"]["path_count"], 20)
         self.assertEqual(
             paths["rtl_traceability"]["status"],
-            "GAP_NUMERIC_POSTMAP_NAMES")
+            "TRACEABLE_NAMES_PRESENT")
+        self.assertEqual(
+            paths["rtl_traceability"]["rtl_owner"]
+            ["dominant_control_segment"]["coverage"], "40/40")
+        self.assertEqual(
+            value["candidate_decision"]["id"],
+            "head0-csr-inflight-permit-block-v1")
         self.assertFalse(
             value["candidate_decision"]["production_rtl_change_authorized"])
         self.assertEqual(
-            value["next_action"], "measure.current-top40-traceable-names")
+            value["next_action"],
+            "validate.head0-csr-dispatch-disjointness")
 
     def test_non_exact_second_report_is_rejected(self) -> None:
         mutated = self.work / "mutated-top40.rpt"
         text = RUN2_TOP40.read_text(encoding="utf-8")
-        mutated.write_text(text.replace("_1135517_", "_1135999_", 1),
+        mutated.write_text(text.replace("csr_mtvec_q_63__", "csr_mtvec_q_62__", 1),
                            encoding="utf-8")
         built = self.build(mutated)
         self.assertEqual(built.returncode, 2, built.stdout)

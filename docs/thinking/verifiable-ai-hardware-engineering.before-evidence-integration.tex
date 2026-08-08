@@ -372,7 +372,7 @@ NEMU 的这段日志证明 ext4、virtio-blk、PLIC IRQ2 和官方 Ubuntu 用户
 
 随后加入的 ROB-walk 恢复通过了隔离测试，但 mode=1 的整体失败几乎没有变化。最后靠 trace 才定位到 branch-spec 与 pending JALR 之间的死锁：投机状态冻结 commit，而 JALR 又在等 ROB 排空，双方互相等待。模型越能快速补实现，就越可能把一个错误假设推进得很完整；没有基线、隔离测试和明确回退点，这种速度只会让排查更困难。
 
-六月一共留下了 1246 个 task-run。这并不等于完成了 1246 项工程，更多是因为候选、复跑、失败和不同 gate 被拆开记录。状态面板上出现的红项反而比以前多，但这些红项至少把原来一句“差不多能跑”里藏着的问题列了出来。
+一次只读目录盘点在 \taskpath{.github/task-runs/} 顶层计得 1246 个名称落在六月的 workflow-event 目录。该数值是记录目录密度，不等于 1246 个已完成工程任务、独立运行或实验样本；同一目标的候选、复跑、失败和不同 gate 可以分别形成目录。状态面板上出现的红项反而比以前多，但这些红项至少把原来一句“差不多能跑”里藏着的问题列了出来。
 
 \subsection{我开始设计 AI 的工作方式}
 
@@ -459,7 +459,7 @@ if not (
 
 \begin{figure}[htbp]
   \centering
-  \fbox{\includegraphics[width=0.96\linewidth]{token-activity.png}}
+  \fbox{\includegraphics[width=0.96\linewidth]{token-activity-2026-07-snapshot.png}}
   \caption{用户提供的个人 AI 使用面板截图。面板显示累计 Token 数 160.5 亿、峰值 Token 数 14.6 亿、最长任务时长 24 小时 11 分钟，当前连续天数与最长连续天数均为 17 天。该图只反映平台统计口径下的账户使用规模，不区分工作区，也不衡量工程质量。}
   \label{fig:token-activity}
 \end{figure}
@@ -894,7 +894,7 @@ conn.commit()
 
 \section{以一次 FENCE 任务为例}
 
-下面用 7 月 23 日的一次普通 FENCE 任务把三条流串起来。FENCE 是 RISC-V 的内存顺序指令，它要求指定范围内的早期访存先完成，后续访存才能继续。实现时不能简单写成“固定等几拍”，而要等待相关内存状态真正清空。
+下面用 7 月 23 日的一次普通 FENCE 任务把三条流串起来。FENCE 是 RISC-V 的内存顺序指令：其 predecessor/successor 字段约束指定的前序与后序内存或设备操作，使其他 hart、外部设备或协处理器观察到前序集合先于后序集合。该 ISA 语义并不普遍要求所有前序访问先物理完成、后序访问才可发射；本工程采用等待相关在途内存状态清空的保守 drain 实现，这是实现策略而非 FENCE 的通用定义。\footnote{RISC-V Unprivileged ISA, RV32I, Memory Ordering Instructions: \url{https://docs.riscv.org/reference/isa/v20260120/unpriv/rv32.html}}
 
 \begin{longtable}{@{}C{8mm}L{25mm}L{39mm}L{29mm}L{35mm}@{}}
   \caption{普通 FENCE 任务中的控制流、工程数据流和证据流}

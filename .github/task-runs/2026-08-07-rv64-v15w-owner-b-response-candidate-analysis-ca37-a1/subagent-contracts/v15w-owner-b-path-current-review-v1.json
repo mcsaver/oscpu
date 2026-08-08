@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "rv64-v15w-ca37-owner-b-path-current-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核本地 RV64 ca37 LSU 到 AXI B-response 当前四周期事务路径与 adapter-input-aw-w-fall-through-v1 三周期候选边界；输出只读 RTL 与证据结论，不修改文件，不运行仿真或综合。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+      "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/bus/NpcAxiBus.v",
+      "npc/rv64/vsrc/bus/AxiCrossbar.v",
+      "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+      "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv",
+      "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv",
+      "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-owner-timing-ca37-a2/evidence/owner-timing-workload-ab/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-owner-timing-causal-analysis-ca37-a1/evidence/owner-timing-causal-analysis/result.json",
+      ".github/task-runs/2026-08-07-rv64-v15w-owner-b-latency-sensitivity-ca37-a1/evidence/owner-b-latency-sensitivity/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15o-owner-b-response-candidate-analysis-f7a/evidence/owner-b-response-candidate-analysis/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/independent-review-closure-v2.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/slice-disposition-v1.txt",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/performance-ab-current-v2/result.json",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/evidence/mapped-sta-current-v2/result.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-07-rv64-v15w-owner-b-response-candidate-analysis-ca37-a1/subagent-contracts/v15w-owner-b-path-current-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "最终回复按 RTL 对象或本地证据、周期配置、TB 或 EDA 观测、PASS 或 GAP 组织；包含唯一 marker [V15W-OWNER-B-PATH-CURRENT-REVIEW][PASS|GAP] design_id=sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f current_cycles=4 candidate_cycles=3 candidate=adapter-input-aw-w-fall-through-v1，并明确 production RTL change authorized=false、PPA=UNQUALIFIED、promotion eligible=false。"
+  ],
+  "success_criteria": [
+    "确认 E0 到 E4 当前 B-response 路径、final-B fall-through 与 owner holder terminal 语义均由当前源码和 ca37 receipt 支持。",
+    "确认三周期候选仅适用于 legal naturally aligned single-beat write，并列出 AW-only、W-only、B backpressure、OKAY SLVERR DECERR、split sticky error、flush recovery、escaped-write 的必需反例。",
+    "若当前设计身份、旧实现证据迁移或 mapped 5ns STA 不能支撑授权，必须给出 GAP，禁止把候选定义写成 production RTL 实现授权。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

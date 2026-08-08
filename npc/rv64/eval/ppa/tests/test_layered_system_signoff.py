@@ -23,11 +23,49 @@ def base_policy() -> dict:
             "required_default_claim": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
             "ubuntu2204_full_recertification": "OPTIONAL_NOT_IMPLIED",
         },
+        "layers": {
+            "L1_FULL_CORE_DIFFTEST": {
+                "required_subcohorts": {
+                    "official_am_difftest": {
+                        "official_cases": 177,
+                        "am_cases": 61,
+                        "difftest_mismatches": 0,
+                    },
+                    "act4_architectural_certification": {
+                        "config": "npc-rv64-ooo-current",
+                        "required_cases": 100,
+                    },
+                }
+            }
+        },
     }
 
 
 def layer(**extra: object) -> dict:
     value = {"status": "PASS", "design_id": DESIGN_ID}
+    value.update(extra)
+    return value
+
+
+def l1_layer(**extra: object) -> dict:
+    value = layer(
+        required_subcohorts={
+            "official_am_difftest": {
+                "status": "PASS",
+                "official_cases": 177,
+                "am_cases": 61,
+                "difftest_mismatches": 0,
+            },
+            "act4_architectural_certification": {
+                "status": "PASS",
+                "claim": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY",
+                "design_id": DESIGN_ID,
+                "config_name": "npc-rv64-ooo-current",
+                "cases": {"passed": 100, "required": 100},
+                "rtl_assertions": {"enabled": True, "failures": 0},
+            },
+        }
+    )
     value.update(extra)
     return value
 
@@ -63,7 +101,7 @@ class LayeredSystemSignoffTests(unittest.TestCase):
                 "l3_lightweight_linux": ".github/task-runs/l3/lightweight-linux",
             },
             "l0": layer(),
-            "l1": layer(),
+            "l1": l1_layer(),
             "l2": layer(case="all"),
             "l3": layer(case="all"),
         }
@@ -103,6 +141,34 @@ class LayeredSystemSignoffTests(unittest.TestCase):
         }
         result = self.compose(source_directories=source_directories)
         self.assertEqual(result["source_directories"], source_directories)
+
+    def test_missing_act4_subcohort_is_rejected(self) -> None:
+        with self.assertRaisesRegex(signoff.SignoffError, "subcohort set"):
+            self.compose(l1=layer())
+
+    def test_act4_design_identity_mismatch_is_rejected(self) -> None:
+        mutated = l1_layer()
+        mutated["required_subcohorts"]["act4_architectural_certification"][
+            "design_id"
+        ] = "sha256:" + "b" * 64
+        with self.assertRaisesRegex(signoff.SignoffError, "ACT4 required"):
+            self.compose(l1=mutated)
+
+    def test_act4_partial_case_count_is_rejected(self) -> None:
+        mutated = l1_layer()
+        mutated["required_subcohorts"]["act4_architectural_certification"][
+            "cases"
+        ] = {"passed": 99, "required": 100}
+        with self.assertRaisesRegex(signoff.SignoffError, "ACT4 required"):
+            self.compose(l1=mutated)
+
+    def test_policy_without_act4_requirement_is_rejected(self) -> None:
+        mutated = base_policy()
+        del mutated["layers"]["L1_FULL_CORE_DIFFTEST"][
+            "required_subcohorts"
+        ]["act4_architectural_certification"]
+        with self.assertRaisesRegex(signoff.SignoffError, "policy L1"):
+            self.compose(policy=mutated)
 
     def test_l1_authority_rejects_ambiguous_top_status(self) -> None:
         with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
@@ -243,6 +309,32 @@ class LayeredSystemSignoffTests(unittest.TestCase):
             self.assertEqual(
                 result["live_drift"][0]["path"],
                 "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
+            )
+
+    def test_current_inputs_accept_layered_policy_only_replay(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            evidence = root / ".github/task-runs/a/evidence"
+            policy = root / "npc/rv64/design/arch/layered-system-signoff-policy-v1.json"
+            evidence.mkdir(parents=True)
+            policy.parent.mkdir(parents=True)
+            policy.write_text("current ACT4 conjunction\n", encoding="utf-8")
+            recorded = hashlib.sha256(b"old conjunction\n").hexdigest()
+            manifest = f"{recorded}  {policy}\n"
+            for name in ("input-hashes-before.sha256", "input-hashes-after.sha256"):
+                (evidence / name).write_text(manifest, encoding="utf-8")
+
+            result = signoff.verify_current_inputs(
+                evidence,
+                allowed_live_drift=signoff.LAYER_SIGNOFF_POLICY_REPLAY_PATHS,
+                root=root,
+            )
+
+            self.assertTrue(result["execution_reused"])
+            self.assertEqual(result["replay_scope"], "layered-signoff-policy-only")
+            self.assertEqual(
+                result["live_drift"][0]["classification"],
+                "layered_signoff_policy_only",
             )
 
     def test_current_inputs_reject_unlisted_live_drift(self) -> None:

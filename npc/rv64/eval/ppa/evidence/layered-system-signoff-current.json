@@ -2,8 +2,8 @@
   "checker": {
     "kind": "layered_signoff_checker",
     "path": "npc/rv64/eval/ppa/tools/layered_system_signoff.py",
-    "sha256": "457e48f1701bf1461f30ea478dfffde77b1c8a999d1496ec6aa8228cf9fbf0f4",
-    "size_bytes": 38987
+    "sha256": "686fbbf332be242c8042bee50e0af8a47327c3087804876dd05d74df50a72ed4",
+    "size_bytes": 44652
   },
   "claim": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY",
   "default_signoff_conjunction": [
@@ -15,12 +15,12 @@
   "layers": {
     "L0_DIRECTED_RTL": {
       "claim": "L0_DIRECTED_RTL_PASS_CURRENT_IDENTITY",
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "result": {
         "kind": "module_current_result",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
-        "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
-        "size_bytes": 42270
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/result.json",
+        "sha256": "b652214d6fd31408d2c1ad7f2564c4a41a062d30c610bde93afb3f8bb8105af1",
+        "size_bytes": 43558
       },
       "rtl_assertions": {
         "enabled": true,
@@ -28,8 +28,8 @@
       },
       "stage_status": {
         "kind": "module_stage_status",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/status.json",
-        "sha256": "565c7ab5987e63fb7f26d9c1505217690eb325737f34363e07b86d529aa71e32",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/status.json",
+        "sha256": "3977a1a1eda1195cbc0056ab9f2e33a04f0505913fca2ccca97d2f871e98afad",
         "size_bytes": 213
       },
       "status": "PASS",
@@ -42,39 +42,39 @@
       "artifacts": {
         "aggregate": {
           "kind": "functional_aggregate",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate.json",
-          "sha256": "7c5e9742199bb25fe7894b5a73479a9e6c672b3696b1a72d07525a6a8b604498",
-          "size_bytes": 238423
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/functional-aggregate.json",
+          "sha256": "98c939958bf06ced9dc19c15e0269e79623cbf285949f0a78ae32ff1f5e1c8cc",
+          "size_bytes": 245078
         },
         "aggregate_log": {
           "kind": "functional_aggregate_log",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate.log",
-          "sha256": "d09cbb10ba451855c670ae9144e143c399db807ebc9498dedfa7531c0a242c34",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/functional-aggregate.log",
+          "sha256": "1453462d94ddd5c239b0e842933280515697d27ef128197d28a9ae0b60c75f3f",
           "size_bytes": 986
         },
         "aggregate_result": {
           "kind": "functional_aggregate_result",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/functional-aggregate-result.json",
-          "sha256": "237d2e98373680bdea376476a67affd7406c1c847891ace8da7218cc742448c0",
-          "size_bytes": 3046
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/functional-aggregate-result.json",
+          "sha256": "e776ce00be7d74ed5f399c86c6dc3358f6c2915fc6d8abc93c295fec10857aae",
+          "size_bytes": 3079
         },
         "configuration": {
           "kind": "kconfig",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/npc.config",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/npc.config",
           "sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
           "size_bytes": 1257
         },
         "reference": {
           "kind": "reference_model_binary",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/riscv64-nemu-interpreter-so",
-          "sha256": "96bf8ed25222daa31cdcea0917f32b7257e26f2fe69b9dbbac46067646ea5917",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/riscv64-nemu-interpreter-so",
+          "sha256": "24b54304e2726bda3aaf0e27ed6510534472b7908de3129a69c7f0bc75196316",
           "size_bytes": 370672
         },
         "simulator": {
           "kind": "simulator_binary",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/frozen/NpcSimTop",
-          "sha256": "72b9be627636e2691e6f55f96d479739396caaed5c0367d3abb1f475ffc24bb6",
-          "size_bytes": 3235088
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/NpcSimTop",
+          "sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
+          "size_bytes": 3246944
         }
       },
       "claim": "L1_FULL_CORE_DIFFTEST_PASS_CURRENT_IDENTITY",
@@ -90,17 +90,17 @@
         "official_passed": 177,
         "official_required": 177
       },
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "execution_result": {
         "kind": "full_core_functional_current_result",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/run-result.json",
-        "sha256": "200a502278545ef841d10d07a2326a2253b2ec371b1277978fe32c058c480a12",
-        "size_bytes": 3462
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/run-result.json",
+        "sha256": "f038be6db2711c13df264e5353c87b163db9520360deb69694f7eb55fc29a4db",
+        "size_bytes": 3561
       },
       "functional_stage_status": {
         "kind": "functional_stage_status",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/status.json",
-        "sha256": "c7a75a0a40812262c634cbac7e61b2062aa6ea046c8a43297d2e8c53a2469607",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/status.json",
+        "sha256": "59c9eb9f10c14b688e8a627675abbe4bb09ba01add629000ac4fb8398d2cda15",
         "size_bytes": 251
       },
       "guest_rerun": true,
@@ -108,26 +108,61 @@
         "execution_reused": false,
         "post": {
           "kind": "functional_input_binding",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.post.json",
-          "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
-          "size_bytes": 314702
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/inputs.post.json",
+          "sha256": "50bea73b215602885379c2fde12169533c88d02eab0564ec59445deac4899afd",
+          "size_bytes": 315876
         },
         "pre": {
           "kind": "functional_input_binding",
-          "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/functional/inputs.pre.json",
-          "sha256": "88e575ce4ace993408ac429a527e240fdcbe29692f8c69a28a40d22d76beca5e",
-          "size_bytes": 314702
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/inputs.pre.json",
+          "sha256": "50bea73b215602885379c2fde12169533c88d02eab0564ec59445deac4899afd",
+          "size_bytes": 315876
         },
         "replay_scope": "direct-current-execution",
         "unchanged": true
       },
       "module_result": {
         "kind": "module_current_result",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module/result.json",
-        "sha256": "c733e5735570ffa19ddd5239d444b45b9ae55574b4b28597705756fd36ac9cd2",
-        "size_bytes": 42270
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/result.json",
+        "sha256": "b652214d6fd31408d2c1ad7f2564c4a41a062d30c610bde93afb3f8bb8105af1",
+        "size_bytes": 43558
       },
       "published_current": false,
+      "required_subcohorts": {
+        "act4_architectural_certification": {
+          "cases": {
+            "passed": 100,
+            "required": 100
+          },
+          "claim": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY",
+          "config_name": "npc-rv64-ooo-current",
+          "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "receipt": {
+            "kind": "act4_current_receipt",
+            "path": "npc/rv64/eval/ppa/evidence/act4-current.json",
+            "sha256": "5a6acd5b7fd631e738699c2ec33b438faa02e82461e20a7756ab2aabf4a79749",
+            "size_bytes": 100155
+          },
+          "rtl_assertions": {
+            "enabled": true,
+            "failures": 0
+          },
+          "simulator_sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
+          "status": "PASS",
+          "top_status": {
+            "kind": "task_run_status",
+            "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/act4-current.status",
+            "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+            "size_bytes": 5
+          }
+        },
+        "official_am_difftest": {
+          "am_cases": 61,
+          "difftest_mismatches": 0,
+          "official_cases": 177,
+          "status": "PASS"
+        }
+      },
       "retention": {
         "compiled_intermediates_retained": 0,
         "frozen_reference_retained": 1,
@@ -139,7 +174,7 @@
       "status": "PASS",
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/full-core-current.status",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/full-core-current.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -147,36 +182,50 @@
     "L2_MINI_SYSTEM": {
       "binding": {
         "kind": "l2_binding",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/binding.txt",
-        "sha256": "7681d556a379a8203e9a2af66392c3a8e59043c36bdf0bdbe35a203ebcd4225d",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/binding.txt",
+        "sha256": "e48ae24503613663a2a91e7160989d8590f3c00d6974b57daa22b88faf5adef5",
         "size_bytes": 1859
       },
       "case": "all",
       "claim": "L2_MINI_SYSTEM_PASS_CURRENT_IDENTITY",
       "commits": 6098497,
-      "cpi": 1.6200158826018936,
-      "cycles": 9879662,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "cpi": 1.6204923934536657,
+      "cycles": 9882568,
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "execution_reused": true,
       "guest_rerun": false,
-      "identity_helper_replay": [],
+      "identity_helper_replay": [
+        {
+          "classification": "layered_signoff_policy_only",
+          "current_sha256": "be69ad817ffc1cf1e6bfc830563fa1628a497bb53d91011c7673a8cf535385ef",
+          "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+          "recorded_sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100"
+        }
+      ],
       "inputs": {
         "after": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/input-hashes-after.sha256",
-          "sha256": "433bf0fff9528bd82abdd6c6c232cf4a12dbadff9ed2b12ceced3a06c7e7082e",
-          "size_bytes": 2722
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/input-hashes-after.sha256",
+          "sha256": "8eb0adc2fa1429526fd6b7e6df0a9cb1644de65242fdf8f113de8ad2919e8049",
+          "size_bytes": 2638
         },
         "before": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/input-hashes-before.sha256",
-          "sha256": "433bf0fff9528bd82abdd6c6c232cf4a12dbadff9ed2b12ceced3a06c7e7082e",
-          "size_bytes": 2722
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/input-hashes-before.sha256",
+          "sha256": "8eb0adc2fa1429526fd6b7e6df0a9cb1644de65242fdf8f113de8ad2919e8049",
+          "size_bytes": 2638
         },
         "current_input_file_count": 17,
-        "execution_reused": false,
-        "live_drift": [],
-        "replay_scope": "exact-current-inputs"
+        "execution_reused": true,
+        "live_drift": [
+          {
+            "classification": "layered_signoff_policy_only",
+            "current_sha256": "be69ad817ffc1cf1e6bfc830563fa1628a497bb53d91011c7673a8cf535385ef",
+            "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+            "recorded_sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100"
+          }
+        ],
+        "replay_scope": "layered-signoff-policy-only"
       },
       "layer_source_sha256": "2ffa538ae319551dee758beaddae0a6140ad92a29c98535126ef30c196676b5d",
       "rtl_assertions": {
@@ -186,32 +235,32 @@
       "seal": {
         "manifest": {
           "kind": "evidence_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-files.sha256",
-          "sha256": "441cbff2f61c77c9e97604c72d85d2b259abcd376596b903bb6a9129b735afae",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/evidence-files.sha256",
+          "sha256": "6e4c32c5654bf8c8b8e53723c6876bf53a3690df9ca94e20ce79408f17b120d4",
           "size_bytes": 1840
         },
         "seal": {
           "kind": "evidence_seal",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-seal.txt",
-          "sha256": "d15e63e334c389f9a6ad51ca58805d177768d7de47f566332abd82a6bbde2d87",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/evidence-seal.txt",
+          "sha256": "ce7c844524ef58924963368c7e7583e44505ce8a9aaf9cecbac084e6701597aa",
           "size_bytes": 241
         },
         "sealed_file_count": 21,
         "verification_log": {
           "kind": "evidence_verification_log",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/evidence-files.verify.log",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/evidence-files.verify.log",
           "sha256": "76664e25c9499579d95e1b002160cb44ef88f716f3d243264402d9807cab4227",
           "size_bytes": 538
         }
       },
       "signoff_scope": "full-l2",
-      "simulator_sha256": "466702fafdae4ccb13ec64b877c61ad1a42a0df0f482fa327c76e27f5a3efa61",
-      "simulator_source_sha256": "9b7a08f1389f1543f825383ac41dc990531310b150e382513313513e0936519b",
+      "simulator_sha256": "af4b0cb912ecf681471b7d998fc1b906638f2310eeaf473cb419a07ebae91e5c",
+      "simulator_source_sha256": "fc2f3d2b2473a7516ee08714c90ad9e6f2a2ecd3e034aa40b135e0b722cecdf2",
       "status": "PASS",
       "summary": {
         "kind": "l2_summary",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system/summary.json",
-        "sha256": "a23d92476b4e44c8b358325df3eedd758c9a0c03a5ef028afc0191884a18647d",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system/summary.json",
+        "sha256": "b92765a413ab1d26149b880655086068121ee80245e003b8fbc8d777fbb42df7",
         "size_bytes": 3234
       },
       "terminal_counts": {
@@ -223,7 +272,7 @@
       },
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system.status",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -231,36 +280,50 @@
     "L3_LIGHTWEIGHT_LINUX": {
       "binding": {
         "kind": "l3_binding",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/binding.txt",
-        "sha256": "991ea75b350028b5584f2fb3e8b80d71b2de3b1d13e1690d551e4e39def6e0ad",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/binding.txt",
+        "sha256": "0cc4d8f5838f528020505e89f192682cd51b0cf286256f26e99c5ccbc3d3e5a9",
         "size_bytes": 2649
       },
       "case": "all",
       "claim": "L3_LIGHTWEIGHT_LINUX_PASS_CURRENT_IDENTITY",
-      "commits": 24459262,
-      "cpi": 2.3350198791770578,
-      "cycles": 57112863,
-      "design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+      "commits": 24460280,
+      "cpi": 2.3355968533475497,
+      "cycles": 57129353,
+      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
       "execution_reused": true,
       "guest_rerun": false,
-      "identity_helper_replay": [],
+      "identity_helper_replay": [
+        {
+          "classification": "layered_signoff_policy_only",
+          "current_sha256": "be69ad817ffc1cf1e6bfc830563fa1628a497bb53d91011c7673a8cf535385ef",
+          "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+          "recorded_sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100"
+        }
+      ],
       "inputs": {
         "after": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/input-hashes-after.sha256",
-          "sha256": "be68cf7a5956c89d1b2aefdfebfc02afa050a28ce46476325f3469ab42049810",
-          "size_bytes": 2868
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/input-hashes-after.sha256",
+          "sha256": "3ff4f9c5ced72be4d3e206716f0b27889af638a3f8bbb946c462a5b7138aad6b",
+          "size_bytes": 2784
         },
         "before": {
           "kind": "input_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/input-hashes-before.sha256",
-          "sha256": "be68cf7a5956c89d1b2aefdfebfc02afa050a28ce46476325f3469ab42049810",
-          "size_bytes": 2868
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/input-hashes-before.sha256",
+          "sha256": "3ff4f9c5ced72be4d3e206716f0b27889af638a3f8bbb946c462a5b7138aad6b",
+          "size_bytes": 2784
         },
         "current_input_file_count": 17,
-        "execution_reused": false,
-        "live_drift": [],
-        "replay_scope": "exact-current-inputs"
+        "execution_reused": true,
+        "live_drift": [
+          {
+            "classification": "layered_signoff_policy_only",
+            "current_sha256": "be69ad817ffc1cf1e6bfc830563fa1628a497bb53d91011c7673a8cf535385ef",
+            "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
+            "recorded_sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100"
+          }
+        ],
+        "replay_scope": "layered-signoff-policy-only"
       },
       "layer_source_sha256": "d0e181836737c83bc3585127ed793a4c258c006e9d3dacc8c49576daa4450b01",
       "rtl_assertions": {
@@ -270,33 +333,33 @@
       "seal": {
         "manifest": {
           "kind": "evidence_manifest",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-files.sha256",
-          "sha256": "0b5fd596f11db7640f9abd33487026c3816038d6e83504d10418cfe87bde5c89",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/evidence-files.sha256",
+          "sha256": "bf2e5ff5172ff04ca08dfbbfdce1137f717195e4e1547ef2c5b01c903ee10dbb",
           "size_bytes": 1840
         },
         "seal": {
           "kind": "evidence_seal",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-seal.txt",
-          "sha256": "58e9694954f795b6decdb2b0ec242d0ce22961fb91832507d9c47dab9290310e",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/evidence-seal.txt",
+          "sha256": "d7a5298f370ccaccfe4d2374ccc54c82efb01f2b03827f35231ac9cb39080a28",
           "size_bytes": 241
         },
         "sealed_file_count": 21,
         "verification_log": {
           "kind": "evidence_verification_log",
-          "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/evidence-files.verify.log",
+          "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/evidence-files.verify.log",
           "sha256": "76664e25c9499579d95e1b002160cb44ef88f716f3d243264402d9807cab4227",
           "size_bytes": 538
         }
       },
       "signoff_scope": "full-l3",
-      "simulator_sha256": "466702fafdae4ccb13ec64b877c61ad1a42a0df0f482fa327c76e27f5a3efa61",
-      "simulator_source_sha256": "9b7a08f1389f1543f825383ac41dc990531310b150e382513313513e0936519b",
+      "simulator_sha256": "af4b0cb912ecf681471b7d998fc1b906638f2310eeaf473cb419a07ebae91e5c",
+      "simulator_source_sha256": "fc2f3d2b2473a7516ee08714c90ad9e6f2a2ecd3e034aa40b135e0b722cecdf2",
       "status": "PASS",
       "summary": {
         "kind": "l3_summary",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux/summary.json",
-        "sha256": "eeb755e8dbb26dfa1defe6cf8f071f78f810c8c4d19a5fa6668330653225552d",
-        "size_bytes": 4409
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux/summary.json",
+        "sha256": "24168ed31032ec7e85d33a0fdf1ea246d5b5c481bf61de72f8297f07c0b9cacd",
+        "size_bytes": 4403
       },
       "terminal_counts": {
         "good_trap": 1,
@@ -308,7 +371,7 @@
       },
       "top_status": {
         "kind": "task_run_status",
-        "path": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux.status",
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux.status",
         "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
         "size_bytes": 5
       }
@@ -328,23 +391,23 @@
   "policy": {
     "kind": "layered_signoff_policy",
     "path": "npc/rv64/design/arch/layered-system-signoff-policy-v1.json",
-    "sha256": "ef98d27ab5c13c56477123a0651bf26ae106d8415d179a337d23bbb5b2442100",
-    "size_bytes": 6369
+    "sha256": "be69ad817ffc1cf1e6bfc830563fa1628a497bb53d91011c7673a8cf535385ef",
+    "size_bytes": 7284
   },
   "production_rtl_file_count": 146,
-  "rtl_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "rtl_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "schema": "npc-rv64-layered-system-signoff-current-v1",
   "schema_contract": {
     "kind": "layered_signoff_schema",
     "path": "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json",
-    "sha256": "0bba1d980ba161f5c2592d84a94f52943e96ce898fe059f28e41bad019429d38",
-    "size_bytes": 1662
+    "sha256": "4bdf30f808b856aa1e3e8a15039cd35e8a7d9a2988d151fb823a6252fcb770a5",
+    "size_bytes": 3243
   },
   "source_directories": {
-    "l0_module": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/evidence/module",
-    "l1_full_core": ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a",
-    "l2_mini_system": ".github/task-runs/2026-08-07-rv64-v15q-mini-system-current-337de8bf-a2/mini-system",
-    "l3_lightweight_linux": ".github/task-runs/2026-08-07-rv64-v15q-lightweight-linux-current-337de8bf-a1/lightweight-linux"
+    "l0_module": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module",
+    "l1_full_core": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1",
+    "l2_mini_system": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l2-a1/mini-system",
+    "l3_lightweight_linux": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l3-a1/lightweight-linux"
   },
   "status": "PASS"
 }

@@ -1,13 +1,13 @@
 {
   "schema": "npc-rv64-performance-boundary-qualification-amendment-v2",
-  "amendment_id": "npc-rv64-pcs-v4-endpoint-qualification-337-20260807",
+  "amendment_id": "npc-rv64-pcs-v4-endpoint-qualification-f72e-20260808",
   "state": "NORMATIVE_ERRATUM",
-  "purpose": "Bind the v4 counter schema to the exact two-lane endpoint equation used by the 337de8bf scoped performance baseline.",
+  "purpose": "Bind the v4 counter schema to the exact two-lane endpoint equation used by the f72e1fb4 scoped performance baseline.",
   "bound_inputs": {
     "measurement_contract": {
       "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
-      "sha256": "5b23b81f49c0003a4c80c7e825b446b011ca7932578da6a0c7ccd16fa2b7a6e5",
-      "size_bytes": 5854
+      "sha256": "3ecc2155fdcc7161ca2c0069bb621a05e28ce15f906b54b608a295bfc5fa7fb8",
+      "size_bytes": 5883
     },
     "counter_schema": {
       "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",

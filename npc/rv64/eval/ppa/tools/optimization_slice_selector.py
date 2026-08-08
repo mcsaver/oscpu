@@ -24,6 +24,7 @@ if str(TOOLS_DIR) not in sys.path:
 
 import architecture_hard_gates as architecture  # noqa: E402
 import current_reference_ppa as current_reference  # noqa: E402
+import current_timing_path_analysis as current_timing  # noqa: E402
 import owner_b_latency_sensitivity as b_latency_sensitivity  # noqa: E402
 import owner_b_response_candidate_analysis as b_response_candidate  # noqa: E402
 import owner_timing_causal_analysis as causal_analysis  # noqa: E402
@@ -53,6 +54,8 @@ B_RESPONSE_CANDIDATE_VERIFIER = (
     "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py")
 CURRENT_REFERENCE_PPA_VERIFIER = (
     "npc/rv64/eval/ppa/tools/current_reference_ppa.py")
+CURRENT_TIMING_PATH_ANALYSIS_VERIFIER = (
+    "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py")
 
 INFO_MAXIMIZE = (
     "information_gain", "evidence_confidence", "reversibility")
@@ -253,7 +256,8 @@ def validate_policy(
             "research state must not override authority facts")
     require(research.get("allowed_evidence_receipts") == [
         "owner_timing", "causal_analysis", "b_latency_sensitivity",
-        "b_response_candidate_analysis", "current_reference_ppa"],
+        "b_response_candidate_analysis", "current_reference_ppa",
+        "current_timing_path_analysis"],
             "research evidence receipt policy mismatch")
     require(research.get("candidate_observations_authorize_promotion") is False,
             "research observations must not authorize promotion")
@@ -611,6 +615,55 @@ def validate_research_state(
             "ppa_engineering_reference_available": True,
             "ppa_timing_hard_gate": timing_gate,
         })
+    timing_analysis_record = receipts.get("current_timing_path_analysis")
+    if timing_analysis_record is not None:
+        require(timing_analysis_record in sources,
+                "current timing-path analysis receipt must be listed as a research source")
+        timing_analysis_path = verify_artifact_ref(
+            root, timing_analysis_record,
+            "research current timing-path analysis receipt")
+        timing_analysis_receipt = read_json(
+            timing_analysis_path, "research current timing-path analysis receipt")
+        try:
+            rebuilt = current_timing.rebuild_receipt(timing_analysis_receipt)
+        except (current_timing.EvidenceError, OSError, KeyError,
+                TypeError, ValueError) as exc:
+            raise SelectorError(
+                f"current timing-path analysis receipt is not canonical: {exc}") from exc
+        require(timing_analysis_receipt == rebuilt,
+                "current timing-path analysis receipt is not canonical")
+        require(timing_analysis_receipt.get("schema") == current_timing.SCHEMA,
+                "current timing-path analysis receipt schema mismatch")
+        require(timing_analysis_receipt.get("design_id") == live_design_id,
+                "current timing-path analysis receipt design-id mismatch")
+        require(current_reference_record is not None,
+                "current timing-path analysis requires current-reference PPA")
+        require(
+            timing_analysis_receipt.get("inputs", {}).get("current_reference")
+            == current_reference_record,
+            "current timing-path analysis current-reference binding mismatch",
+        )
+        candidate = timing_analysis_receipt.get("candidate_decision", {})
+        definition = timing_analysis_receipt.get("candidate_definition", {})
+        require(
+            timing_analysis_receipt.get("status") == current_timing.STATUS
+            and candidate.get("status") == "CANDIDATE_ONLY"
+            and candidate.get("id") == current_timing.CANDIDATE_ID
+            and candidate.get("production_rtl_change_authorized") is False
+            and candidate.get("promotion_eligible") is False
+            and candidate.get("ppa") == "UNQUALIFIED"
+            and definition.get("id") == current_timing.CANDIDATE_ID
+            and definition.get("state") == "CANDIDATE_ONLY"
+            and timing_analysis_receipt.get("next_action")
+            == current_timing.NEXT_ACTION,
+            "current timing-path analysis exceeds its candidate-only boundary",
+        )
+        facts.update({
+            "current_timing_path_analysis_completed": True,
+            "current_timing_path_analysis_status":
+                timing_analysis_receipt["status"],
+            "current_timing_candidate_id": current_timing.CANDIDATE_ID,
+        })
     observations = value.get("candidate_observations", {})
     require(isinstance(observations, dict),
             "candidate observations must be an object")
@@ -815,6 +868,9 @@ def collect_state(
         "ppa_reference_measurement_status": "UNAVAILABLE",
         "ppa_engineering_reference_available": False,
         "ppa_timing_hard_gate": "UNKNOWN",
+        "current_timing_path_analysis_completed": False,
+        "current_timing_path_analysis_status": "UNAVAILABLE",
+        "current_timing_candidate_id": "UNAVAILABLE",
         "causal_selection_authorized": causal_selection_authorized,
         "causal_hypothesis": "UNRESOLVED",
         "ppa_reference_available": ppa_reference_available,
@@ -841,6 +897,9 @@ def collect_state(
         "causal_analysis_status": "UNAVAILABLE",
         "b_latency_sensitivity_completed": False,
         "b_latency_sensitivity_status": "UNAVAILABLE",
+        "current_timing_path_analysis_completed": False,
+        "current_timing_path_analysis_status": "UNAVAILABLE",
+        "current_timing_candidate_id": "UNAVAILABLE",
         "ppa_reference_available": ppa_reference_available,
         "ppa_qualified": ppa_qualified,
         "performance_anchor_floor": floor,
@@ -1291,6 +1350,9 @@ def build_decision(
         root, B_RESPONSE_CANDIDATE_VERIFIER, "B-response candidate verifier")
     current_reference_verifier_path = workspace_path(
         root, CURRENT_REFERENCE_PPA_VERIFIER, "current-reference PPA verifier")
+    current_timing_verifier_path = workspace_path(
+        root, CURRENT_TIMING_PATH_ANALYSIS_VERIFIER,
+        "current timing-path analysis verifier")
     catalog, slices = validate_catalog(root, catalog_path, policy)
     collected, authorities, stale_refs, conflicts = collect_state(
         root, policy, ppa_policy)
@@ -1309,6 +1371,8 @@ def build_decision(
         "causal_hypothesis", "ppa_reference_measurement_completed",
         "ppa_reference_measurement_status", "ppa_engineering_reference_available",
         "ppa_timing_hard_gate", "ppa_reference_available",
+        "current_timing_path_analysis_completed",
+        "current_timing_path_analysis_status", "current_timing_candidate_id",
     ):
         if name in facts:
             state[name] = facts[name]
@@ -1326,6 +1390,8 @@ def build_decision(
             "causal_analysis": artifact(root, causal_verifier_path),
             "current_reference_ppa": artifact(
                 root, current_reference_verifier_path),
+            "current_timing_path_analysis": artifact(
+                root, current_timing_verifier_path),
             "owner_timing": artifact(root, owner_verifier_path),
             "ppa_checker": artifact(root, ppa_checker_path),
         },

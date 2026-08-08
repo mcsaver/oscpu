@@ -44,7 +44,10 @@
         "L1_FULL_CORE_DIFFTEST",
         "L2_MINI_SYSTEM",
         "L3_LIGHTWEIGHT_LINUX"
-      ]
+      ],
+      "properties": {
+        "L1_FULL_CORE_DIFFTEST": {"$ref": "#/$defs/l1"}
+      }
     },
     "optional_full_ubuntu": {
       "type": "object",
@@ -55,5 +58,44 @@
       "required": ["status", "blocks_default_signoff"]
     },
     "non_claims": {"type": "array", "minItems": 3}
+  },
+  "$defs": {
+    "l1": {
+      "type": "object",
+      "required": ["status", "design_id", "required_subcohorts"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
+        "required_subcohorts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["official_am_difftest", "act4_architectural_certification"],
+          "properties": {
+            "official_am_difftest": {
+              "const": {
+                "status": "PASS",
+                "official_cases": 177,
+                "am_cases": 61,
+                "difftest_mismatches": 0
+              }
+            },
+            "act4_architectural_certification": {
+              "type": "object",
+              "required": ["status", "claim", "design_id", "config_name", "cases", "rtl_assertions", "receipt", "top_status"],
+              "properties": {
+                "status": {"const": "PASS"},
+                "claim": {"const": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY"},
+                "design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
+                "config_name": {"const": "npc-rv64-ooo-current"},
+                "cases": {"const": {"passed": 100, "required": 100}},
+                "rtl_assertions": {"const": {"enabled": true, "failures": 0}},
+                "receipt": {"type": "object"},
+                "top_status": {"type": "object"}
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

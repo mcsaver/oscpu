@@ -398,13 +398,13 @@ def validate_delta_rebind(
     require_equal(historical.get("total"), 175, "delta historical negatives")
     require_equal(
         historical.get("mode_counts", {}).get("CHANGED_RTL_REPLAY_REQUIRED"),
-        19,
+        29,
         "delta changed-cone negatives",
     )
     current = payload.get("current_changed_cone", {})
     require_equal(
         (current.get("passed"), current.get("required")),
-        (19, 19),
+        (29, 29),
         "delta current changed-cone replay",
     )
     coverage = payload.get("changed_source_coverage", {})
@@ -435,9 +435,9 @@ def validate_delta_rebind(
         "changed_rtl_files": len(changed_files),
         "positive_only_changed_rtl_files": len(positive_only),
         "historical_negative": "175/175",
-        "unchanged_rtl_reused": 152,
+        "unchanged_rtl_reused": 142,
         "verification_only_reused": 4,
-        "changed_rtl_replayed": "19/19",
+        "changed_rtl_replayed": "29/29",
         "artifact_records": validate_hash_records(
             root, payload.get("inputs", {}), "delta.inputs"
         ),

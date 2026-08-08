@@ -36,6 +36,9 @@ V9P_FROZEN_DESIGN_ID = (
 V15G_FIX_DESIGN_ID = (
     "sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9"
 )
+V15Q_REVIEWED_DESIGN_ID = (
+    "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968"
+)
 
 DEFECT_IDS = (
     "HIST-A3-DMESG-DEBUG-TOKEN",
@@ -116,13 +119,16 @@ HISTORICAL_STOP_PATH = pathlib.PurePosixPath(
     ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/"
     "evidence/stop-hold-matrix/summary.json"
 )
+V15X_STATE_RUN_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1"
+)
 V14E_QH_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/historical-current-v1/qh/summary.json"
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/historical-current-f72e-v1/qh/summary.json"
 )
 V14E_SYSTEM_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/historical-current-v1/system/summary.json"
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/historical-current-f72e-v1/system/summary.json"
 )
 HISTORICAL_A3_PATH = pathlib.PurePosixPath(
     ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/"
@@ -158,7 +164,10 @@ HISTORICAL_V9P_ROOT_CAUSE_PATH = (
 V15Q_RUN_PATH = pathlib.PurePosixPath(
     ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf"
 )
-V9R_CURRENT_PATH = V15Q_RUN_PATH / "evidence/v9r-current-v1/summary.json"
+V9R_CURRENT_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/v9r-current-f72e-v1/summary.json"
+)
 V9R_CURRENT_RUNNER_PATH = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/run-v9r-sq-retry-current.sh"
 )
@@ -196,14 +205,48 @@ V15P_CURRENT_ADAPTER_LOG_PATH = pathlib.PurePosixPath(
     ".github/task-runs/2026-08-07-rv64-v15p-control-loop-current-f7a/"
     "evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log"
 )
+V15W_CURRENT_MODULE_RESULT_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
+    "evidence/module/result.json"
+)
+V15W_CURRENT_ADAPTER_LOG_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
+    "evidence/module/logs/tb_ooo_lsu_axi_lane_adapter.log"
+)
+V15Z_ACT4_REBIND_RUN_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1"
+)
+V15Z_ACT4_REVIEW_RUN_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15z-act4-default-signoff-f72e-a1"
+)
+V9P_PRE_ACT4_REVIEW_PATH = (
+    V15X_STATE_RUN_PATH / "evidence/v9p-current-rebind-review-f72e-v1.json"
+)
 V9P_CURRENT_REBIND_REVIEW_PATH = (
-    V15Q_RUN_PATH / "evidence/v9p-current-rebind-review-v1.json"
+    V15Z_ACT4_REBIND_RUN_PATH
+    / "evidence/v9p-act4-rebind-review-f72e-v2.json"
 )
 V9P_CURRENT_REBIND_CONTRACT_PATH = (
-    V15Q_RUN_PATH / "subagent-contracts/v15q-v9p-current-rebind-review-v1.json"
+    V15Z_ACT4_REBIND_RUN_PATH
+    / "subagent-contracts/v15z-v9p-act4-rebind-review-f72e-v2.json"
 )
 V9P_CURRENT_REBIND_RESULT_PATH = (
-    V15Q_RUN_PATH / "subagent-contracts/v15q-v9p-current-rebind-review-v1.result.md"
+    V15Z_ACT4_REBIND_RUN_PATH
+    / "subagent-contracts/v15z-v9p-act4-rebind-review-f72e-v2.result.md"
+)
+ACT4_CURRENT_PATH = pathlib.PurePosixPath(
+    "npc/rv64/eval/ppa/evidence/act4-current.json"
+)
+ACT4_POLICY_PATH = pathlib.PurePosixPath(
+    "npc/rv64/design/arch/act4-default-signoff-policy-v1.json"
+)
+ACT4_REVIEW_CONTRACT_PATH = (
+    V15Z_ACT4_REVIEW_RUN_PATH
+    / "subagent-contracts/v15z-act4-default-signoff-review-f72e-v2.json"
+)
+ACT4_REVIEW_RESULT_PATH = (
+    V15Z_ACT4_REVIEW_RUN_PATH
+    / "subagent-contracts/v15z-act4-default-signoff-review-f72e-v2.result.md"
 )
 V9P_BACKEND_PATH = pathlib.PurePosixPath(
     "npc/rv64/vsrc/execute/OooIntBackend.v"
@@ -220,9 +263,27 @@ V15P_ADAPTER_TB_PATH = pathlib.PurePosixPath(
 V15P_OWNER_TIMING_TB_PATH = pathlib.PurePosixPath(
     "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv"
 )
+V9P_COLLECTOR_PATH = pathlib.PurePosixPath(
+    "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+)
+SYSTEM_RECERT_CURRENT_PATH = pathlib.PurePosixPath(
+    "npc/rv64/eval/ppa/evidence/system-recertification-current.json"
+)
+V15W_CURRENT_COLLECTOR_LOG_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/"
+    "evidence/module/logs/tb_ooo_mem_owner_terminal_collector.log"
+)
+V15V_CURRENT_PPA_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/"
+    "evidence/traceable-f72e-a1/summary.json"
+)
+V15V_CURRENT_PPA_REVIEW_PATH = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-final-a1/"
+    "evidence/independent-frozen-review-v1.md"
+)
 EXIT_CURRENT_PATH = pathlib.PurePosixPath(
-    ".github/task-runs/2026-08-07-rv64-v15q-selector-state-reconciliation-337de8bf/"
-    "evidence/historical-current-v1/exit/summary.json"
+    ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
+    "evidence/historical-current-f72e-v1/exit/summary.json"
 )
 
 INPUT_PATHS = {
@@ -250,19 +311,31 @@ INPUT_PATHS = {
     "v15p_adapter_review_result": V15P_ADAPTER_REVIEW_RESULT_PATH,
     "v15p_adapter_mutation_result": V15P_ADAPTER_MUTATION_RESULT_PATH,
     "v15p_adapter_mutation_log": V15P_ADAPTER_MUTATION_LOG_PATH,
-    "v15p_current_module_result": V15P_CURRENT_MODULE_RESULT_PATH,
-    "v15p_current_adapter_log": V15P_CURRENT_ADAPTER_LOG_PATH,
-    "v15q_v9p_current_rebind_review": V9P_CURRENT_REBIND_REVIEW_PATH,
-    "v15q_v9p_current_rebind_contract": V9P_CURRENT_REBIND_CONTRACT_PATH,
-    "v15q_v9p_current_rebind_result": V9P_CURRENT_REBIND_RESULT_PATH,
+    "v15p_reviewed_module_result": V15P_CURRENT_MODULE_RESULT_PATH,
+    "v15p_reviewed_adapter_log": V15P_CURRENT_ADAPTER_LOG_PATH,
+    "v15w_current_module_result": V15W_CURRENT_MODULE_RESULT_PATH,
+    "v15w_current_adapter_log": V15W_CURRENT_ADAPTER_LOG_PATH,
+    "v15w_current_collector_log": V15W_CURRENT_COLLECTOR_LOG_PATH,
+    "v15w_v9p_current_rebind_review": V9P_CURRENT_REBIND_REVIEW_PATH,
+    "v15w_v9p_current_rebind_contract": V9P_CURRENT_REBIND_CONTRACT_PATH,
+    "v15w_v9p_current_rebind_result": V9P_CURRENT_REBIND_RESULT_PATH,
+    "v15x_v9p_pre_act4_review": V9P_PRE_ACT4_REVIEW_PATH,
+    "v15z_act4_current": ACT4_CURRENT_PATH,
+    "v15z_act4_policy": ACT4_POLICY_PATH,
+    "v15z_act4_review_contract": ACT4_REVIEW_CONTRACT_PATH,
+    "v15z_act4_review_result": ACT4_REVIEW_RESULT_PATH,
     "v9p_current_backend": V9P_BACKEND_PATH,
     "v9p_current_bridge": V9P_BRIDGE_PATH,
+    "v9p_current_collector": V9P_COLLECTOR_PATH,
     "v15p_current_adapter": V15P_ADAPTER_PATH,
     "v15p_adapter_testbench": V15P_ADAPTER_TB_PATH,
     "v15p_owner_timing_testbench": V15P_OWNER_TIMING_TB_PATH,
     "v8l_testbench": V8L_TB_PATH,
     "v9r_current": V9R_CURRENT_PATH,
     "v9r_current_runner": V9R_CURRENT_RUNNER_PATH,
+    "system_recertification_current": SYSTEM_RECERT_CURRENT_PATH,
+    "v15v_current_ppa": V15V_CURRENT_PPA_PATH,
+    "v15v_current_ppa_review": V15V_CURRENT_PPA_REVIEW_PATH,
 }
 
 CONFIG_PATHS = {
@@ -1622,7 +1695,7 @@ def validate_v15p_adapter_current(
         "SCHEMA": "rv64-v15p-independent-review-closure-v2",
         "RESULT": "PASS",
         "SCOPE": "REVERSIBLE_INTERMEDIATE_CHECKPOINT_ONLY",
-        "DESIGN_ID": design_id,
+        "DESIGN_ID": V15Q_REVIEWED_DESIGN_ID,
         "V1_ORIGINAL_RESULT": "GAP",
         "V1_HISTORY_REWRITTEN": "0",
         "V2_RESULT": "PASS",
@@ -1684,7 +1757,7 @@ def validate_v15p_adapter_current(
     ):
         require(marker in review_text, f"V15P adapter review marker is absent: {marker}")
 
-    module = load_json(root, V15P_CURRENT_MODULE_RESULT_PATH)
+    module = load_json(root, V15W_CURRENT_MODULE_RESULT_PATH)
     require_equal(module.get("schema"), "npc-rv64-full-core-module-current-evidence-v1", "V15P module schema")
     require_equal(module.get("status"), "PASS", "V15P module status")
     require_equal(module.get("design_id"), design_id, "V15P module design-id")
@@ -1697,10 +1770,10 @@ def validate_v15p_adapter_current(
     validate_artifact_record(root, adapter_log_record, "V15P adapter module log", require_size=True)
     require_equal(
         adapter_log_record.get("path") if isinstance(adapter_log_record, dict) else None,
-        V15P_CURRENT_ADAPTER_LOG_PATH.as_posix(),
+        V15W_CURRENT_ADAPTER_LOG_PATH.as_posix(),
         "V15P adapter module log path",
     )
-    adapter_log = safe_file(root, V15P_CURRENT_ADAPTER_LOG_PATH).read_text(
+    adapter_log = safe_file(root, V15W_CURRENT_ADAPTER_LOG_PATH).read_text(
         encoding="utf-8", errors="replace"
     )
     for marker in ("[PASS] tb_ooo_lsu_axi_lane_adapter", design_id, "[RESULT] PASS"):
@@ -1749,50 +1822,71 @@ def validate_v9p_current_rebind_review(
 ) -> None:
     require_equal(
         review.get("schema"),
-        "npc-rv64-v15q-v9p-current-rebind-independent-review-v1",
-        "V15Q V9P current rebind review schema",
+        "npc-rv64-v9p-act4-rebind-independent-review-v3",
+        "current V9P rebind review schema",
     )
-    require_equal(review.get("status"), "PASS", "V15Q V9P current rebind review status")
-    require_equal(review.get("reviewed_design_id"), design_id, "V15Q V9P reviewed design-id")
+    require_equal(review.get("status"), "PASS", "current V9P rebind review status")
+    require_equal(review.get("reviewed_design_id"), design_id, "current V9P reviewed design-id")
     reviewer = review.get("reviewer", {})
-    require_equal(reviewer.get("mode"), "isolated-read-only-review", "V15Q V9P review mode")
+    require_equal(reviewer.get("mode"), "isolated-read-only-review", "current V9P review mode")
+    require_equal(
+        reviewer.get("contract_sha256"),
+        sha256_file(safe_file(root, V9P_CURRENT_REBIND_CONTRACT_PATH)),
+        "current V9P review contract SHA-256",
+    )
+    require_equal(reviewer.get("commands"), ["rg", "sed", "sha256sum"], "current V9P review commands")
+    require_equal(reviewer.get("shell_ownership_returned"), True, "current V9P shell ownership")
     expected_review_artifacts = {
         "contract": V9P_CURRENT_REBIND_CONTRACT_PATH,
         "result": V9P_CURRENT_REBIND_RESULT_PATH,
+        "pre_act4_review": V9P_PRE_ACT4_REVIEW_PATH,
         "historical_summary": HISTORICAL_V9P_ROOT_CAUSE_PATH,
         "legacy_review": V15G_INDEPENDENT_REVIEW_PATH,
         "current_v9r": V9R_CURRENT_PATH,
         "layered_current": LAYERED_SYSTEM_CURRENT_PATH,
-        "adapter_closure": V15P_ADAPTER_REVIEW_CLOSURE_PATH,
-        "adapter_review_result": V15P_ADAPTER_REVIEW_RESULT_PATH,
-        "current_module": V15P_CURRENT_MODULE_RESULT_PATH,
+        "system_current": SYSTEM_RECERT_CURRENT_PATH,
+        "act4_current": ACT4_CURRENT_PATH,
+        "act4_policy": ACT4_POLICY_PATH,
+        "act4_review_contract": ACT4_REVIEW_CONTRACT_PATH,
+        "act4_review_result": ACT4_REVIEW_RESULT_PATH,
+        "current_module": V15W_CURRENT_MODULE_RESULT_PATH,
+        "current_adapter_log": V15W_CURRENT_ADAPTER_LOG_PATH,
+        "current_collector_log": V15W_CURRENT_COLLECTOR_LOG_PATH,
         "adapter_mutation": V15P_ADAPTER_MUTATION_RESULT_PATH,
+        "current_ppa": V15V_CURRENT_PPA_PATH,
+        "current_ppa_review": V15V_CURRENT_PPA_REVIEW_PATH,
         "backend": V9P_BACKEND_PATH,
         "bridge": V9P_BRIDGE_PATH,
         "adapter": V15P_ADAPTER_PATH,
+        "collector": V9P_COLLECTOR_PATH,
     }
     reviewed_inputs = review.get("reviewed_inputs")
-    require(isinstance(reviewed_inputs, dict), "V15Q V9P reviewed inputs are missing")
-    require_equal(set(reviewed_inputs), set(expected_review_artifacts), "V15Q V9P reviewed input inventory")
+    require(isinstance(reviewed_inputs, dict), "current V9P reviewed inputs are missing")
+    require_equal(set(reviewed_inputs), set(expected_review_artifacts), "current V9P reviewed input inventory")
     for name, expected_path in expected_review_artifacts.items():
         record = reviewed_inputs[name]
-        validate_artifact_record(root, record, f"V15Q V9P reviewed {name}", require_size=True)
-        require_equal(record.get("path"), expected_path.as_posix(), f"V15Q V9P reviewed {name} path")
+        validate_artifact_record(root, record, f"current V9P reviewed {name}", require_size=True)
+        require_equal(record.get("path"), expected_path.as_posix(), f"current V9P reviewed {name} path")
 
     conclusions = review.get("conclusions", {})
     expected_conclusions = {
         "historical_root_cause": "PASS_IMMUTABLE_9AC1",
         "legacy_independent_review": "PASS_VD4_F7A",
-        "current_fix_source_binding": "PASS_BACKEND_BRIDGE_BYTE_IDENTICAL_TO_F7A",
+        "predecessor_current_review": "PASS_F72E_PRE_ACT4",
+        "current_fix_source_binding": "PASS_F72E_DIRECTED_SOURCE_BOUND",
         "current_v9r": "PASS_2_BASELINES_3_MUTATIONS",
-        "adapter_terminal_path": "PASS_DIRECTED_AND_MUTATION_TIMING_GATE_FAIL",
-        "layered_signoff": "PASS_L0_L1_L2_L3",
+        "current_l0": "PASS_113_OF_113",
+        "collector_exactly_once": "PASS_FAIL_LOUD_NO_DEDUP",
+        "adapter_terminal_path": "PASS_CURRENT_L0_LEGACY_MUTATION_TIMING_GATE_FAIL",
+        "act4_default_l1": "PASS_100_OF_100",
+        "layered_signoff": "PASS_L0_L1_OFFICIAL_AM_ACT4_L2_L3",
+        "layered_replay": "PASS_POLICY_ONLY_NO_GUEST_RERUN",
         "frozen_lane_claim": "UNKNOWN_PRESERVED",
         "assertion_policy": "PRESERVED_FAIL_LOUD_NO_DEDUP",
         "optional_ubuntu": "NOT_RUN_EXPLICIT_REQUEST_ONLY",
-        "validation_depth": "VD4_REBOUND_CURRENT_DESIGN",
+        "validation_depth": "VD4_REBOUND_CURRENT_DESIGN_ACT4_DEFAULT",
     }
-    require_equal(conclusions, expected_conclusions, "V15Q V9P review conclusions")
+    require_equal(conclusions, expected_conclusions, "current V9P review conclusions")
     require_equal(
         review.get("review_boundary"),
         {
@@ -1802,40 +1896,60 @@ def validate_v9p_current_rebind_review(
             "architecture_stable_claim": False,
             "ppa_claim": False,
             "timing_hard_gate": "FAIL_NOT_PROMOTABLE",
+            "receipt_only_rebind": True,
+            "l2_l3_guest_rerun": False,
         },
-        "V15Q V9P review boundary",
+        "current V9P review boundary",
     )
     require_equal(
         review.get("unknowns"),
         [
             "immutable V9P instance bank is not retained",
             "immutable V9P kind/token/epoch owner tuple is not retained",
+            "no fresh f72e collector fatal-removal RTL mutation was run",
+            "final-B negative mutation is reused only because production RTL and bound evidence hashes are unchanged",
+            "no L2/L3, Ubuntu, synthesis, or STA rerun was launched by review",
         ],
-        "V15Q V9P review unknowns",
+        "current V9P review unknowns",
     )
-    require_equal(review.get("counterexamples"), [], "V15Q V9P review counterexamples")
+    require_equal(
+        review.get("counterexamples"),
+        [
+            "backend-bank0-ready-open was rejected by [V9R-SQ-RETRY-C0-HANDOFF]",
+            "backend-bank1-ready-open was rejected by [V9R-SQ-RETRY-C0-HANDOFF]",
+            "bridge-retry-fire-open was rejected by [V9R-MEM-SQ-RETRY-C0-HANDOFF]",
+            "no-final-b-fallthrough was rejected by the absolute owner-terminal latency oracle",
+        ],
+        "current V9P review counterexamples",
+    )
     require_equal(
         review.get("alternative_hypotheses"),
         [
-            "a future Backend, Bridge or lane-adapter source-byte change requires a new current-design directed rebind"
+            "the immutable duplicate could have originated from either symmetric backend bank",
+            "a registered-only final-B implementation could be functionally valid under a different owner-terminal latency contract",
         ],
-        "V15Q V9P review alternatives",
+        "current V9P review alternatives",
     )
-    require_equal(review.get("scope_extension_request"), None, "V15Q V9P scope extension")
-    require_equal(review.get("gaps"), [], "V15Q V9P review gaps")
+    require_equal(review.get("scope_extension_request"), None, "current V9P scope extension")
+    require_equal(review.get("gaps"), [], "current V9P review gaps")
+    require_equal(
+        review.get("confidence_and_basis"),
+        "HIGH_CURRENT_F72E_SOURCE_HASHES_V9R_MUTATIONS_L0_ACT4_L3_AND_FAIL_LOUD_ASSERTIONS",
+        "current V9P review confidence",
+    )
     result_text = safe_file(root, V9P_CURRENT_REBIND_RESULT_PATH).read_text(
         encoding="utf-8", errors="replace"
     )
     for marker in (
-        "[V15Q-V9P-CURRENT-REBIND] PASS",
-        "FROZEN_INSTANCE_LANE_PAIR=UNKNOWN",
-        "FROZEN_INSTANCE_OWNER_TUPLE=UNKNOWN",
-        "CURRENT_V9R=PASS_2_BASELINES_3_MUTATIONS",
-        "ADAPTER_TIMING_HARD_GATE=FAIL_NOT_PROMOTABLE",
-        "ASSERTION_POLICY=PRESERVED_FAIL_LOUD_NO_DEDUP",
-        "GAPS=NONE",
+        "范围=PASS（RTL/验证语义重绑定",
+        "ACT4 100/100",
+        "不存在选择一路、合并或去重后继续 PASS",
+        "WNS=-13.38258934 ns",
+        "旧 v1 JSON 不能继续作为 exact-current 机器收据直接复用",
+        "scope_extension_request",
+        "WSL single-flight ownership 已归还主节点",
     ):
-        require(marker in result_text, f"V15Q V9P review result marker is absent: {marker}")
+        require(marker in result_text, f"current V9P review result marker is absent: {marker}")
 
 
 def validate_v9p_terminal_duplicate(
@@ -1856,11 +1970,21 @@ def validate_v9p_terminal_duplicate(
         frozen_expected = verifier.verify_frozen_failure(root)
         exact_expected = verifier.verify_exact_source(root)
         counterexamples = verifier.verify_counterexamples(root)
-        legacy_fix = verifier.verify_current_fix(root, V15G_FIX_DESIGN_ID)
     except Exception as exc:
         raise HistoricalCurrentError(
             f"V9P immutable/root-cone verifier failed: {exc}"
         ) from exc
+
+    # The V15G summary is an immutable historical artifact.  Its
+    # ``current_fix`` records intentionally describe the F7A production bytes
+    # reviewed in that run; they must not be recomputed from a newer live RTL
+    # tree.  The legacy independent-review receipt below binds the complete
+    # summary file by path, SHA-256 and size, while the current fix is validated
+    # independently through ``current``.
+    stored_historical = load_json(root, HISTORICAL_V9P_ROOT_CAUSE_PATH)
+    require_equal(historical, stored_historical, "V9P immutable root-cause artifact")
+    legacy_fix = stored_historical.get("current_fix", {}).get("focused_evidence")
+    require(isinstance(legacy_fix, dict), "V9P legacy current-fix evidence is missing")
 
     historical_aggregate = historical.get("current_aggregate")
     require(isinstance(historical_aggregate, dict), "V9P layered aggregate snapshot is missing")
@@ -2003,7 +2127,7 @@ def validate_v9p_terminal_duplicate(
         "exact_reproducible_lane_pairs": {"bank0": [2, 10], "bank1": [4, 11]},
         "root_cause": cause.get("classification"),
         "current_design_id": design_id,
-        "current_fix_sources": "BACKEND_BRIDGE_BYTE_IDENTICAL_TO_F7A",
+        "current_fix_sources": "BACKEND_BRIDGE_F72E_DIRECTED_SOURCE_BOUND",
         "current_baseline_profiles": "2/2",
         "current_compile_success_mutations": "3/3",
         "current_adapter_terminal_path": adapter_metrics,

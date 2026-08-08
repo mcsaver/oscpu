@@ -29,6 +29,15 @@
     },
     {
       "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.head0-csr-inflight-permit-block",
+      "reasons": [
+        "PREREQUISITE:current_timing_candidate_id:eq:\"head0-csr-inflight-permit-block-v1\"",
+        "PREREQUISITE:current_timing_path_analysis_completed:eq:true",
+        "PREREQUISITE:current_timing_path_analysis_status:eq:\"TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED\""
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
       "id": "experiment.hide-b-response-latency",
       "reasons": [
         "PREREQUISITE:ppa_reference_available:eq:true"
@@ -130,6 +139,15 @@
     },
     {
       "disposition": "DEFERRED_PREREQUISITE",
+      "id": "experiment.head0-csr-inflight-permit-block",
+      "reasons": [
+        "PREREQUISITE:current_timing_candidate_id:eq:\"head0-csr-inflight-permit-block-v1\"",
+        "PREREQUISITE:current_timing_path_analysis_completed:eq:true",
+        "PREREQUISITE:current_timing_path_analysis_status:eq:\"TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED\""
+      ]
+    },
+    {
+      "disposition": "DEFERRED_PREREQUISITE",
       "id": "experiment.hide-b-response-latency",
       "reasons": [
         "PREREQUISITE:ppa_reference_available:eq:true"
@@ -203,13 +221,13 @@
     "authorities": {
       "architecture_debt": {
         "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-        "sha256": "79f5174f17ce95928e26e8b98d16707259e7ffc782ca2bfe6d6ea11226f9e689",
+        "sha256": "dc46177af0f1745e89fd3e87c862534b532e3999b9e182fdca5f62b4d87b9b93",
         "size_bytes": 13227
       },
       "architecture_stable": {
         "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
-        "sha256": "14c36b137a8d188538da5d1a57ef96ce624af362dec7da25698d9cc88df0866d",
-        "size_bytes": 758886
+        "sha256": "bf4ec713b3bd9ff1de2f40a4a28ab481187c9ed40251adcfc8aa05ba97a5a9d5",
+        "size_bytes": 770767
       },
       "baseline_index": {
         "path": "npc/rv64/eval/ppa/baselines/index.json",
@@ -218,34 +236,34 @@
       },
       "cpi_census": {
         "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
-        "sha256": "59ed4d136d036cef9cbf538f6dfe0e5a1b0d78af6a21b2834b309197c2e7ebce",
+        "sha256": "71feee06061bc7bc1de76c0ecf664657f9140b0c72be1c1722643eed715fa5c7",
         "size_bytes": 15548
       },
       "historical_defect": {
         "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-        "sha256": "6937db456ec6ceed543be291e7c43c0feb358aa28549a08578855e1dedf27c45",
-        "size_bytes": 17521
+        "sha256": "9157f460b9cda5a83f8ba64137ae5ad081423e890e2e878219d74ed0bacd7200",
+        "size_bytes": 19379
       },
       "layered_system": {
         "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-        "sha256": "2330a0644e55d5d9801cbba36836801f3dc5ad319cf5c6aa55fb0ed992dfc1b7",
-        "size_bytes": 15303
+        "sha256": "1d97e9e13a7c792f87d202ac0bd02f949914aa5708148767b5482f35f5c48612",
+        "size_bytes": 15497
       },
       "performance_baseline": {
         "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
-        "sha256": "735ea3d2b4409af9d66757ce35c88d3e07efca846b8eefd9f9e0009ee1f6f119",
-        "size_bytes": 11761
+        "sha256": "a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b",
+        "size_bytes": 11695
       }
     },
     "catalog": {
       "path": "npc/rv64/eval/ppa/optimization-slices-current.json",
-      "sha256": "4a40442cd243a38e3ad9816ab80caa09ad94b70032b5b36123da0736461646ac",
-      "size_bytes": 25748
+      "sha256": "dac1ac81397389ff7fb6449e7d4fcf2445bd8470b80db74f100447d4a33bfd40",
+      "size_bytes": 29536
     },
     "decision_schema": {
       "path": "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
-      "sha256": "eeb52be92e6b7e8e62acbe75a747c22e73e4acd345ed92138bf559737632e477",
-      "size_bytes": 4538
+      "sha256": "fa0e5f61063a2425c0d62e8d412107a5dcb04f6538551b6dbe888d0dd6fcf8ed",
+      "size_bytes": 4693
     },
     "normative": {
       "architecture_ppa_contract": {
@@ -266,13 +284,13 @@
     },
     "policy": {
       "path": "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
-      "sha256": "4110b0857ab9d2e178c98adba1bd1ef42017432e47f1255caa0ed46ebdad70d3",
-      "size_bytes": 5135
+      "sha256": "139b3721eb69e3c883c3d3955437abd1c23a872643fc9ea8ee498b8d0a833548",
+      "size_bytes": 5173
     },
     "research_state": {
-      "path": ".github/task-runs/2026-08-07-rv64-v15q-current-reference-ppa-337-a1/evidence/optimization-research-state-337-v3.json",
-      "sha256": "9295f0ada34662b833d6986c7214744a70dcbb07cbf7e9785db7d46693e9170e",
-      "size_bytes": 3012
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/evidence/optimization-research-state-current-reference-f72e-v1.json",
+      "sha256": "19ecd7e8316784b95ad88b427bf3301a76af627d5b6ece624cb27b20e2134f20",
+      "size_bytes": 2984
     },
     "verification_tools": {
       "b_latency_sensitivity": {
@@ -282,8 +300,8 @@
       },
       "b_response_candidate_analysis": {
         "path": "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
-        "sha256": "8530ad45419c56febe6f7e41ae15ea0e8587ecc61525d13716f643c4b1654177",
-        "size_bytes": 25181
+        "sha256": "372916c0e5ec9ceaf94eaa79de999b591bab1ada5b447979ab52e352c06190ec",
+        "size_bytes": 26072
       },
       "causal_analysis": {
         "path": "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py",
@@ -292,8 +310,13 @@
       },
       "current_reference_ppa": {
         "path": "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
-        "sha256": "403bec598d6a2e8eba7d0693025695e93c24c1d6da5eb028fa04c6cc4cf5292a",
-        "size_bytes": 22124
+        "sha256": "bbc4524f31ceb402e5c026e816f313e339cedb558c7eff56952136024c51afd6",
+        "size_bytes": 22218
+      },
+      "current_timing_path_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+        "sha256": "a428723d4b0a8b11d9c8851d2609b7ddaa0af620a8a09c0a55ce5006a602f0d9",
+        "size_bytes": 32552
       },
       "owner_timing": {
         "path": "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
@@ -307,7 +330,7 @@
       }
     }
   },
-  "live_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "live_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "next_action": "CAUSAL_MEASUREMENT",
   "reason_codes": [
     "CURRENT_IDENTITY_COHERENT",
@@ -339,10 +362,10 @@
       "the proposed cut changes architectural terminal or owner lifetime semantics"
     ],
     "scope": [
-      "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
-      "npc/rv64/vsrc/execute/OooIntBackend.v",
-      "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
-      "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
+      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v"
     ],
     "selection_mode": "information",
     "success_conditions": [
@@ -351,7 +374,7 @@
     ],
     "title": "聚类 current 5 ns 违例路径并定义最小可回退时序候选"
   },
-  "snapshot_key": "sha256:4d5ed9ece66213303a2662ab2503431d660818f40e3f3696a1943c4a242cfb3c",
+  "snapshot_key": "sha256:9698821fe9ab7ce4c6fe2dfead68d5e0ea46e7eefe2aba67171c73546834e2f0",
   "stale_refs": [],
   "state": {
     "authority_status": {
@@ -394,6 +417,9 @@
     "causal_selection_authorized": true,
     "causal_status": "HYPOTHESIS_NOT_PROVEN",
     "cpi_census_current": true,
+    "current_timing_candidate_id": "UNAVAILABLE",
+    "current_timing_path_analysis_completed": false,
+    "current_timing_path_analysis_status": "UNAVAILABLE",
     "hard_blockers_closed": true,
     "maturity": "PERF_BASELINE",
     "owner_timing_measured": true,

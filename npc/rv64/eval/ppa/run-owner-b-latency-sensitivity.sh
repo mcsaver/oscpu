@@ -2,7 +2,8 @@
 
 set -uo pipefail
 
-repo_root=/home/lyg/PA/ysyx-workbench
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "${script_dir}/../../../.." && pwd)
 run_dir=
 
 usage() {
@@ -69,12 +70,12 @@ l0_dir="${runtime_dir}/l0"
 simulator="${build_dir}/NpcSimTop"
 generated_base="${source_dir}/AxiDpiSlaveOwnerBDelayBase.sv"
 
-owner_receipt="${repo_root}/.github/task-runs/2026-08-07-rv64-v15q-owner-timing-current-337-a2/evidence/owner-timing-workload-ab/result.json"
-causal_receipt="${repo_root}/.github/task-runs/2026-08-07-rv64-v15q-owner-timing-causal-analysis-current-337-a1/evidence/owner-timing-causal-analysis/result.json"
+owner_receipt="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-owner-timing-f72e-a1/evidence/owner-timing-workload-ab/result.json"
+causal_receipt="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-owner-timing-causal-analysis-f72e-a1/evidence/owner-timing-causal-analysis/result.json"
 selector="${repo_root}/npc/rv64/eval/ppa/evidence/optimization-slice-current.json"
 selector_policy="${repo_root}/npc/rv64/design/arch/optimization-slice-selector-policy-v1.json"
 selector_catalog="${repo_root}/npc/rv64/eval/ppa/optimization-slices-current.json"
-selector_research="${repo_root}/.github/task-runs/2026-08-07-rv64-v15q-owner-timing-causal-analysis-current-337-a1/evidence/optimization-research-state-causal-analysis-337-a1.json"
+selector_research="${repo_root}/.github/task-runs/2026-08-08-rv64-v15x-owner-timing-causal-analysis-f72e-a1/evidence/optimization-research-state-causal-analysis-f72e-v1.json"
 original_slave="${repo_root}/npc/rv64/vsrc/sim/AxiDpiSlave.sv"
 wrapper="${repo_root}/npc/rv64/eval/ppa/instrumentation/AxiDpiSlaveOwnerBDelayProbe.sv"
 wrapper_tb="${repo_root}/npc/rv64/eval/ppa/instrumentation/tb_axi_dpi_owner_b_delay_probe.sv"

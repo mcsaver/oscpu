@@ -426,8 +426,8 @@
     {
       "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
       "role": "testbench",
-      "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
-      "size_bytes": 925236
+      "sha256": "0a4764af5b07304432e5ec5d862098ef4cc01e90303770d05c2f4975b33bacea",
+      "size_bytes": 925774
     },
     {
       "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
@@ -468,14 +468,14 @@
     {
       "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
       "role": "testbench",
-      "sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
-      "size_bytes": 6086
+      "sha256": "a15caa967630ffc6b61fa2188ae0ca9c36ed3e3307a343273258dfb5e5cc29f1",
+      "size_bytes": 6885
     },
     {
       "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
       "role": "testbench",
-      "sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
-      "size_bytes": 15712
+      "sha256": "9fa0840f8e16c8d67b31fcaa854acce97f9e0503bd84ecd4b0f3baf79c3aa01e",
+      "size_bytes": 19344
     },
     {
       "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
@@ -498,8 +498,8 @@
     {
       "path": "npc/rv64/vsrc/control/OooControlPlane.v",
       "role": "rtl",
-      "sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
-      "size_bytes": 53881
+      "sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
+      "size_bytes": 56623
     },
     {
       "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
@@ -516,8 +516,8 @@
     {
       "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
       "role": "rtl",
-      "sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
-      "size_bytes": 12302
+      "sha256": "845aca217041f1e3f1555c653fc20656c27cdbd53cc82decd00cd3ff760d5eda",
+      "size_bytes": 14740
     },
     {
       "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
@@ -570,8 +570,8 @@
     {
       "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
       "role": "rtl",
-      "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
-      "size_bytes": 411981
+      "sha256": "bf07ac64ff59cf24bace41c17139704d2198406db194d5fcc42903e9a7f6a07e",
+      "size_bytes": 413852
     },
     {
       "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
@@ -652,7 +652,7 @@
       "size_bytes": 53548
     }
   ],
-  "current_design_id": "sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968",
+  "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "evidence_ids": {
     "v11e_rob_slot_generation": "v11e-rob-slot-generation-current-closure",
     "v11f_int_iq_producer": "v11f-int-iq-producer-current-closure",
@@ -715,8 +715,8 @@
       },
       {
         "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-        "sha256": "f4c14422568261748b8866a58974eede80989953d9f7e6e7452b5ac2328716e6",
-        "size_bytes": 925236
+        "sha256": "0a4764af5b07304432e5ec5d862098ef4cc01e90303770d05c2f4975b33bacea",
+        "size_bytes": 925774
       },
       {
         "path": "npc/rv64/testbench/tests/tb_ooo_int_backend_v11s_muldiv_producer.svh",
@@ -755,13 +755,13 @@
       },
       {
         "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
-        "sha256": "31b115c60d0de6b43e612e132f815c3971f6ea4cff88c60f20d2bfe69cb787f9",
-        "size_bytes": 6086
+        "sha256": "a15caa967630ffc6b61fa2188ae0ca9c36ed3e3307a343273258dfb5e5cc29f1",
+        "size_bytes": 6885
       },
       {
         "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
-        "sha256": "86882b6b1514a91818e483211a0d1c7d629edf22e3881a0e6bbf8275157174bf",
-        "size_bytes": 15712
+        "sha256": "9fa0840f8e16c8d67b31fcaa854acce97f9e0503bd84ecd4b0f3baf79c3aa01e",
+        "size_bytes": 19344
       },
       {
         "path": "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
@@ -785,8 +785,8 @@
       },
       {
         "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-        "sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
-        "size_bytes": 53881
+        "sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
+        "size_bytes": 56623
       },
       {
         "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
@@ -800,8 +800,8 @@
       },
       {
         "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-        "sha256": "9b721c06d45504454547ab7ee3ccf4034fd1e850fac7b6cce0700fc8fb990fd2",
-        "size_bytes": 12302
+        "sha256": "845aca217041f1e3f1555c653fc20656c27cdbd53cc82decd00cd3ff760d5eda",
+        "size_bytes": 14740
       },
       {
         "path": "npc/rv64/vsrc/core/NpcCoreTop.v",
@@ -855,8 +855,8 @@
       },
       {
         "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "sha256": "8b95b9ad899de4bbe461fcde3d68df8e2d379fa39d532beadfc89889cad74d0e",
-        "size_bytes": 411981
+        "sha256": "bf07ac64ff59cf24bace41c17139704d2198406db194d5fcc42903e9a7f6a07e",
+        "size_bytes": 413852
       },
       {
         "path": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
@@ -1223,11 +1223,11 @@
           "size_bytes": 40744
         },
         {
-          "baseline_sha256": "fd8c8fb089ac8c6bc38880de2b9e1b5b4c3ce18316b43e34f7413a86e629aab2",
-          "current_sha256": "fd8c8fb089ac8c6bc38880de2b9e1b5b4c3ce18316b43e34f7413a86e629aab2",
+          "baseline_sha256": "0505a7a0dbc52e108d86d618d235d07874abec28e5998b596fa833a1bf0dca5c",
+          "current_sha256": "0505a7a0dbc52e108d86d618d235d07874abec28e5998b596fa833a1bf0dca5c",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-          "size_bytes": 708988
+          "size_bytes": 709326
         },
         {
           "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
@@ -1272,18 +1272,18 @@
           "size_bytes": 27894
         },
         {
-          "baseline_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
-          "current_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "baseline_sha256": "f9aff49eeb1b3698455b40c0dcbc630c069cf848a607b00bad565baad3114fa0",
+          "current_sha256": "f9aff49eeb1b3698455b40c0dcbc630c069cf848a607b00bad565baad3114fa0",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
-          "size_bytes": 10717
+          "size_bytes": 11256
         },
         {
-          "baseline_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
-          "current_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "baseline_sha256": "5b9c7cc28d6c4ec873f8807c34ec1ff9e10dc0d3a98a9f09ca142d5bfcfe1d1f",
+          "current_sha256": "5b9c7cc28d6c4ec873f8807c34ec1ff9e10dc0d3a98a9f09ca142d5bfcfe1d1f",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
-          "size_bytes": 22265
+          "size_bytes": 25884
         },
         {
           "baseline_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
@@ -1307,11 +1307,11 @@
           "size_bytes": 92944
         },
         {
-          "baseline_sha256": "8d407d0fd25a376fd53c4142aee279263f04cfea8c84a3cb513abf6be487fe82",
-          "current_sha256": "8d407d0fd25a376fd53c4142aee279263f04cfea8c84a3cb513abf6be487fe82",
+          "baseline_sha256": "0172684c372da765c82bd9706b8f492c189f9b9db8da7cb65780ac747355fb3b",
+          "current_sha256": "0172684c372da765c82bd9706b8f492c189f9b9db8da7cb65780ac747355fb3b",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-          "size_bytes": 44324
+          "size_bytes": 45212
         },
         {
           "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
@@ -1328,11 +1328,11 @@
           "size_bytes": 10896
         },
         {
-          "baseline_sha256": "105063e156d537bdc47516728b7678a7f5e96cb0b56c025d9336d5577ce6037f",
-          "current_sha256": "105063e156d537bdc47516728b7678a7f5e96cb0b56c025d9336d5577ce6037f",
+          "baseline_sha256": "cde4d62ce11749056f1d1212bafbef7fee9d5bfcdc01ec4d8b494761eec728c0",
+          "current_sha256": "cde4d62ce11749056f1d1212bafbef7fee9d5bfcdc01ec4d8b494761eec728c0",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-          "size_bytes": 15530
+          "size_bytes": 16959
         },
         {
           "baseline_sha256": "fbd0305b9dd4353c98493353aea45df0e6374b4f31e0e437bafb539389405e6d",
@@ -1391,11 +1391,11 @@
           "size_bytes": 56399
         },
         {
-          "baseline_sha256": "f58d4352903da0e9e5d763a6fc028879408076872be2d69730e210f9ce0f098e",
-          "current_sha256": "f58d4352903da0e9e5d763a6fc028879408076872be2d69730e210f9ce0f098e",
+          "baseline_sha256": "7154cab2e74d6b61022960901aa89bf66c829376432f6d8b6e6f94dda8fd3ccc",
+          "current_sha256": "7154cab2e74d6b61022960901aa89bf66c829376432f6d8b6e6f94dda8fd3ccc",
           "equivalent": true,
           "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
-          "size_bytes": 319366
+          "size_bytes": 319951
         },
         {
           "baseline_sha256": "8c7efec212cb21b64f5ed59feb165aa13a64cd004ecb405c4ed0c23bda023e3d",
@@ -1532,11 +1532,11 @@
           "size_bytes": 40744
         },
         {
-          "baseline_sha256": "1c254432cf1d9ddc96e4596e4c44ffa3ba57047dea5499d306ad91b052b77edd",
-          "current_sha256": "1c254432cf1d9ddc96e4596e4c44ffa3ba57047dea5499d306ad91b052b77edd",
+          "baseline_sha256": "d1307322cd2ae57f5c656c5ae4bdc316c30ecba8c9a3dc1e63e2e73de9aa0a24",
+          "current_sha256": "d1307322cd2ae57f5c656c5ae4bdc316c30ecba8c9a3dc1e63e2e73de9aa0a24",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-          "size_bytes": 716682
+          "size_bytes": 717020
         },
         {
           "baseline_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
@@ -1581,18 +1581,18 @@
           "size_bytes": 27894
         },
         {
-          "baseline_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
-          "current_sha256": "5607221b21d4bb3787bf71a1b4d6fe8725daa2931dce4bc3646ded2846bebfc3",
+          "baseline_sha256": "f9aff49eeb1b3698455b40c0dcbc630c069cf848a607b00bad565baad3114fa0",
+          "current_sha256": "f9aff49eeb1b3698455b40c0dcbc630c069cf848a607b00bad565baad3114fa0",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv",
-          "size_bytes": 10717
+          "size_bytes": 11256
         },
         {
-          "baseline_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
-          "current_sha256": "10229fc365d418f60e74e223108786249fd58c65fb1a8462b91ac6e288c9d7c3",
+          "baseline_sha256": "5b9c7cc28d6c4ec873f8807c34ec1ff9e10dc0d3a98a9f09ca142d5bfcfe1d1f",
+          "current_sha256": "5b9c7cc28d6c4ec873f8807c34ec1ff9e10dc0d3a98a9f09ca142d5bfcfe1d1f",
           "equivalent": true,
           "path": "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv",
-          "size_bytes": 22265
+          "size_bytes": 25884
         },
         {
           "baseline_sha256": "5d9196edc5c094fc142776c4b977095dc0369fd7abd04a9f3cf451574d356781",
@@ -1616,11 +1616,11 @@
           "size_bytes": 92944
         },
         {
-          "baseline_sha256": "08f99e26d4f5dd7454da90a2953c00d58e739a31f4c6a1dc6d6382952686c3ed",
-          "current_sha256": "08f99e26d4f5dd7454da90a2953c00d58e739a31f4c6a1dc6d6382952686c3ed",
+          "baseline_sha256": "d54f79b5ff73dca695a9c4830f0a8269a9e51ca9da707a5ca0eaa5919a09bc8e",
+          "current_sha256": "d54f79b5ff73dca695a9c4830f0a8269a9e51ca9da707a5ca0eaa5919a09bc8e",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-          "size_bytes": 60396
+          "size_bytes": 63137
         },
         {
           "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
@@ -1637,11 +1637,11 @@
           "size_bytes": 10896
         },
         {
-          "baseline_sha256": "5f5e0e32b63a8cef500d46c9c3bb716d77b89ef3d8cea4446a864044fdad977e",
-          "current_sha256": "5f5e0e32b63a8cef500d46c9c3bb716d77b89ef3d8cea4446a864044fdad977e",
+          "baseline_sha256": "6f3b6cbe686057e898468d5f3b0052bea45be7a9e26f9d81dbd714fc5716a8af",
+          "current_sha256": "6f3b6cbe686057e898468d5f3b0052bea45be7a9e26f9d81dbd714fc5716a8af",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-          "size_bytes": 18783
+          "size_bytes": 21220
         },
         {
           "baseline_sha256": "4ae02837d38964f6fd7d751a10f744de105f7180a859c4ba73242a65619d2bb2",
@@ -1700,11 +1700,11 @@
           "size_bytes": 64505
         },
         {
-          "baseline_sha256": "0c410e9e561c88139b227ac46239c6ea6429110983a0516ed11cdd93b20f8d78",
-          "current_sha256": "0c410e9e561c88139b227ac46239c6ea6429110983a0516ed11cdd93b20f8d78",
+          "baseline_sha256": "37654aee8a1a763dce120801b60fd7b341537287c448b9faf9c6599803299b11",
+          "current_sha256": "37654aee8a1a763dce120801b60fd7b341537287c448b9faf9c6599803299b11",
           "equivalent": true,
           "path": "npc/rv64/vsrc/execute/OooIntBackend.v",
-          "size_bytes": 407182
+          "size_bytes": 409028
         },
         {
           "baseline_sha256": "852516ebebb088e052233dce8645f658b6bc578b82d1df9efdc4ece40c1caeb6",

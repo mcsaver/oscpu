@@ -1,0 +1,233 @@
+test_artifact_rejects_final_file_symlink_to_another_task_run (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_artifact_rejects_final_file_symlink_to_another_task_run) ... ok
+test_current_module_input_capture_is_nonempty (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_current_module_input_capture_is_nonempty) ... ok
+test_duplicate_pass_marker_is_rejected (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_duplicate_pass_marker_is_rejected) ... ok
+test_fail_marker_is_rejected (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_fail_marker_is_rejected) ... ok
+test_missing_task_run_descendants_are_allowed (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_missing_task_run_descendants_are_allowed) ... ok
+test_normalization_removes_repo_and_temporary_paths (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_normalization_removes_repo_and_temporary_paths) ... ok
+test_output_must_be_below_task_runs (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_output_must_be_below_task_runs) ... ok
+test_output_rejects_parent_symlink_to_another_task_run (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_output_rejects_parent_symlink_to_another_task_run) ... ok
+test_unbracketed_native_pass_is_accepted (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_unbracketed_native_pass_is_accepted) ... ok
+test_valid_module_log (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_valid_module_log) ... ok
+test_wrong_design_id_is_rejected (npc.rv64.eval.ppa.tests.test_full_core_current_evidence.FullCoreCurrentEvidenceTests.test_wrong_design_id_is_rejected) ... ok
+test_compact_copy_rejects_source_file_symlink (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_compact_copy_rejects_source_file_symlink) ... ok
+test_current_functional_input_capture_is_complete (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_current_functional_input_capture_is_complete) ... ok
+test_current_module_input_binding_matches_exact_contract (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_current_module_input_binding_matches_exact_contract) ... ok
+test_failed_am_logs_are_retained_without_unrelated_files (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_failed_am_logs_are_retained_without_unrelated_files) ... ok
+test_module_input_binding_rejects_design_inventory_and_group_drift (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_input_binding_rejects_design_inventory_and_group_drift) ... ok
+test_module_input_binding_rejects_empty_payload (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_input_binding_rejects_empty_payload) ... ok
+test_module_payload_contract_accepts_exact_shape (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_payload_contract_accepts_exact_shape) ... ok
+test_module_payload_contract_rejects_fail (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_payload_contract_rejects_fail) ... ok
+test_module_payload_contract_rejects_input_drift (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_payload_contract_rejects_input_drift) ... ok
+test_module_payload_contract_rejects_inventory_drift (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_module_payload_contract_rejects_inventory_drift) ... ok
+test_publication_rejects_parent_final_and_temporary_symlinks (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_publication_rejects_parent_final_and_temporary_symlinks) ... ok
+test_repository_input_collection_excludes_generated_products (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_repository_input_collection_excludes_generated_products) ... ok
+test_secondary_product_snapshot_includes_result_and_generated_makefile (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_secondary_product_snapshot_includes_result_and_generated_makefile) ... ok
+test_secondary_products_must_be_absent_before_isolated_build (npc.rv64.eval.ppa.tests.test_full_core_functional_evidence.FullCoreFunctionalEvidenceTests.test_secondary_products_must_be_absent_before_isolated_build) ... ok
+test_aggregate_log_rejects_rebound_semantic_drift (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_aggregate_log_rejects_rebound_semantic_drift) ... ok
+test_legacy_help_and_no_argument_do_not_enter_fixed_output_body (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_legacy_help_and_no_argument_do_not_enter_fixed_output_body) ... ok
+test_mutation_summary_requires_every_counterexample_rejected (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_mutation_summary_requires_every_counterexample_rejected) ... ok
+test_mutation_summary_requires_exact_counterexample_inventory (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_mutation_summary_requires_exact_counterexample_inventory) ... ok
+test_policy_has_immutable_fail_closed_contract (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_policy_has_immutable_fail_closed_contract) ... ok
+test_publication_binding_commits_last_and_rejects_hash_drift (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_publication_binding_commits_last_and_rejects_hash_drift) ... ok
+test_publication_failure_does_not_revoke_execution_pass (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_publication_failure_does_not_revoke_execution_pass) ... ok
+test_publication_rejects_duplicate_or_contradictory_pass_marker (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_publication_rejects_duplicate_or_contradictory_pass_marker) ... ok
+test_publication_requires_explicit_child_pass_marker (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_publication_requires_explicit_child_pass_marker) ... ok
+test_reference_and_am_build_roots_are_explicitly_isolated (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_reference_and_am_build_roots_are_explicitly_isolated) ... ok
+test_semantic_empty_aggregate_is_rejected (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_semantic_empty_aggregate_is_rejected) ... ok
+test_wrapper_phase_failure_remains_fail_closed (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_phase_failure_remains_fail_closed) ... ok
+test_wrapper_publishes_only_after_execution_status_pass (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_publishes_only_after_execution_status_pass) ... ok
+test_wrapper_refuses_to_overwrite_existing_run (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_refuses_to_overwrite_existing_run) ... ok
+test_wrapper_rejects_dangling_run_dir_symlink (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_rejects_dangling_run_dir_symlink) ... ok
+test_wrapper_rejects_missing_duplicate_or_contradictory_stage_markers (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_rejects_missing_duplicate_or_contradictory_stage_markers) ... ok
+test_wrapper_requires_explicit_functional_verify_pass_marker (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_requires_explicit_functional_verify_pass_marker) ... ok
+test_wrapper_success_requires_explicit_verified_completion (npc.rv64.eval.ppa.tests.test_full_core_runner_entry.FullCoreRunnerEntryTests.test_wrapper_success_requires_explicit_verified_completion) ... ok
+test_benchmark_failure_boundary_is_exact (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_benchmark_failure_boundary_is_exact) ... ok
+test_copy_regular_rejects_symlink (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_copy_regular_rejects_symlink) ... ok
+test_generated_elf_drift_is_removed_from_both_bindings (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_generated_elf_drift_is_removed_from_both_bindings) ... ok
+test_official_build_outputs_use_isa_directory (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_official_build_outputs_use_isa_directory) ... ok
+test_phase_command_requires_recorded_zero_return_code (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_phase_command_requires_recorded_zero_return_code) ... ok
+test_real_source_drift_remains_visible (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_real_source_drift_remains_visible) ... ok
+test_relative_repo_dir_accepts_only_directory_inside_root (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_relative_repo_dir_accepts_only_directory_inside_root) ... ok
+test_unlisted_path_drift_is_not_hidden (npc.rv64.eval.ppa.tests.test_full_core_functional_replay.FullCoreFunctionalReplayTests.test_unlisted_path_drift_is_not_hidden) ... ok
+test_am_inventory_count_is_dynamic_but_internally_exact (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_am_inventory_count_is_dynamic_but_internally_exact) ... ok
+test_am_log_with_difftest_off_is_rejected (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_am_log_with_difftest_off_is_rejected) ... ok
+test_benchmark_oracle_accepts_exact_simulator_good_trap_line (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_benchmark_oracle_accepts_exact_simulator_good_trap_line) ... ok
+test_benchmark_oracle_rejects_argument_only_run_count (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_benchmark_oracle_rejects_argument_only_run_count) ... ok
+test_benchmark_oracle_rejects_duplicate_or_conflicting_guest_values (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_benchmark_oracle_rejects_duplicate_or_conflicting_guest_values) ... ok
+test_benchmark_oracle_rejects_prose_or_duplicate_good_trap (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_benchmark_oracle_rejects_prose_or_duplicate_good_trap) ... ok
+test_complete_aggregate_is_reconstructed (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_complete_aggregate_is_reconstructed) ... ok
+test_f0_debt_rejects_crlf_only_raw_log_byte_drift (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_crlf_only_raw_log_byte_drift) ... ok
+test_f0_debt_rejects_cross_run_module_log (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_cross_run_module_log) ... ok
+test_f0_debt_rejects_frozen_official_source_membership_drift (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_frozen_official_source_membership_drift) ... ok
+test_f0_debt_rejects_parent_directory_symlink_to_foreign_module (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_parent_directory_symlink_to_foreign_module) ... ok
+test_f0_debt_rejects_post_wrapper_raw_suite_log_drift (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_post_wrapper_raw_suite_log_drift) ... ok
+test_f0_debt_rejects_rebound_contradictory_terminal_receipt (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_rebound_contradictory_terminal_receipt) ... ok
+test_f0_debt_rejects_rebound_noncanonical_mutation_inventory (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_rebound_noncanonical_mutation_inventory) ... ok
+test_f0_debt_rejects_source_run_without_module_closure (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_rejects_source_run_without_module_closure) ... ok
+test_f0_debt_reparses_benchmark_guest_lines (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_reparses_benchmark_guest_lines) ... ok
+test_f0_debt_replays_rebound_official_and_am_guest_logs (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_replays_rebound_official_and_am_guest_logs) ... ok
+test_f0_debt_requires_canonical_publication_binding (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_requires_canonical_publication_binding) ... ok
+test_f0_debt_requires_execution_and_publication_pass (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_requires_execution_and_publication_pass) ... ok
+test_f0_debt_semantic_validator_reconstructs_live_result (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_f0_debt_semantic_validator_reconstructs_live_result) ... ok
+test_frozen_mutation_summary_matches_read_only_replay (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_frozen_mutation_summary_matches_read_only_replay) ... ok
+test_image_map_digest_excludes_workspace_path (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_image_map_digest_excludes_workspace_path) ... ok
+test_prepare_output_rejects_parent_and_dangling_file_symlinks (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_prepare_output_rejects_parent_and_dangling_file_symlinks) ... ok
+test_schema_valid_evidence_mutations_are_all_rejected (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_schema_valid_evidence_mutations_are_all_rejected) ... ok
+test_suite_oracle_accepts_one_tagged_terminal_and_difftest_state (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_suite_oracle_accepts_one_tagged_terminal_and_difftest_state) ... ok
+test_suite_oracle_rejects_duplicate_terminal_or_difftest_state (npc.rv64.eval.ppa.tests.test_functional_aggregate.FunctionalAggregateTests.test_suite_oracle_rejects_duplicate_terminal_or_difftest_state) ... ok
+
+----------------------------------------------------------------------
+Ran 77 tests in 57.207s
+
+OK
+[FULL-CORE-ISOLATION] START NEMU reference
+make: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
++ CC src/nemu-main.c
++ CC src/device/device.c
++ CC src/device/alarm.c
++ CC src/device/intr.c
++ CC src/device/serial.c
++ CC src/device/uart16550.c
++ CC src/device/disk.c
++ CC src/device/rng.c
++ CC src/device/net.c
++ CC src/device/goldfish_rtc.c
++ CC src/device/syscon.c
++ CC src/isa/riscv64/init.c
++ CC src/isa/riscv64/logo.c
++ CC src/isa/riscv64/difftest/dut.c
++ CC src/isa/riscv64/system/plic.c
++ CC src/isa/riscv64/system/mmu.c
++ CC src/isa/riscv64/system/intr.c
++ CC src/isa/riscv64/inst.c
++ CC src/isa/riscv64/reg.c
++ CC src/cpu/difftest/dut.c
++ CC src/cpu/difftest/ref.c
++ CC src/cpu/bpu.c
++ CC src/cpu/cpu-exec.c
++ CC src/monitor/qmp.c
++ CC src/monitor/monitor.c
++ CC src/monitor/sdb/watchpoint.c
++ CC src/monitor/sdb/expr.c
++ CC src/monitor/sdb/sdb.c
++ CC src/monitor/gdbstub.c
++ CC src/utils/state.c
++ CC src/utils/log.c
++ CC src/utils/timer.c
++ CC src/utils/profile.c
++ CC src/utils/ftrace.c
++ CC src/memory/paddr.c
++ CC src/memory/cache.c
++ CC src/memory/vaddr.c
++ CC src/memory/soc.c
++ CC src/engine/interpreter/init.c
++ CC src/engine/interpreter/hostcall.c
++ CC src/device/io/mmio.c
++ CC src/device/io/port-io.c
++ CC src/device/io/map.c
++ LD /tmp/rv64-full-core-isolation-smoke-gcocsm1f/nemu-work/build/riscv64-nemu-interpreter-so
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+[FULL-CORE-ISOLATION] START AM dummy image
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building dummy-image [riscv64-npc]
++ CC tests/dummy.c
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv64-npc]
++ AS src/riscv/npc/start.S
++ CC src/riscv/npc/trm.c
++ CC src/riscv/npc/ioe.c
++ CC src/riscv/npc/timer.c
++ CC src/riscv/npc/input.c
++ CC src/riscv/npc/gpu.c
++ CC src/riscv/npc/cte.c
++ AS src/riscv/npc/trap.S
++ CC src/platform/dummy/vme.c
++ CC src/platform/dummy/mpe.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/am-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv64-npc]
++ CC src/stdio.c
++ CC src/string.c
++ CC src/cpp.c
++ CC src/stdlib.c
++ CC src/int64.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/klib-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv64-npc]
++ LD -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/dummy-riscv64-npc.elf
++ OBJCOPY -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/dummy-riscv64-npc.bin
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/coremark'
+rm -rf /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/coremark'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/coremark'
+# Building coremark-image [riscv64-npc]
++ CC src/core_portme.c
++ CC src/core_matrix.c
++ CC src/core_list_join.c
++ CC src/core_state.c
++ CC src/core_main.c
++ CC src/core_util.c
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv64-npc]
++ AS src/riscv/npc/start.S
++ CC src/riscv/npc/trm.c
++ CC src/riscv/npc/ioe.c
++ CC src/riscv/npc/timer.c
++ CC src/riscv/npc/input.c
++ CC src/riscv/npc/gpu.c
++ CC src/riscv/npc/cte.c
++ AS src/riscv/npc/trap.S
++ CC src/platform/dummy/vme.c
++ CC src/platform/dummy/mpe.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/am-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv64-npc]
++ CC src/stdio.c
++ CC src/string.c
++ CC src/cpp.c
++ CC src/stdlib.c
++ CC src/int64.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/klib-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv64-npc]
++ LD -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/coremark-riscv64-npc.elf
++ OBJCOPY -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/coremark-riscv64-npc.bin
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/coremark'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/dhrystone'
+rm -rf /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/dhrystone'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/dhrystone'
+# Building dhrystone-image [riscv64-npc]
++ CC dry.c
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv64-npc]
++ AS src/riscv/npc/start.S
++ CC src/riscv/npc/trm.c
++ CC src/riscv/npc/ioe.c
++ CC src/riscv/npc/timer.c
++ CC src/riscv/npc/input.c
++ CC src/riscv/npc/gpu.c
++ CC src/riscv/npc/cte.c
++ AS src/riscv/npc/trap.S
++ CC src/platform/dummy/vme.c
++ CC src/platform/dummy/mpe.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/am-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv64-npc]
++ CC src/stdio.c
++ CC src/string.c
++ CC src/cpp.c
++ CC src/stdlib.c
++ CC src/int64.c
++ AR -> ../../../../../../tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/klib-riscv64-npc.a
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv64-npc]
++ LD -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/dhrystone-riscv64-npc.elf
++ OBJCOPY -> /tmp/rv64-full-core-isolation-smoke-gcocsm1f/am-build/dhrystone-riscv64-npc.bin
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/dhrystone'
+[FULL-CORE-ISOLATION][PASS] reference=1 am_image=1 am_archive=1 klib_archive=1 benchmark_images=2 benchmark_clean_source_drift=0 source_tree_drift=0 retained_temp_products=0
+[task-run-status-test] PASS explicit completion, early exit, command failure, cleanup failure, PASS-write fallback, and HUP/INT/TERM

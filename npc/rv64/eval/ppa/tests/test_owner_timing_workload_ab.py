@@ -105,7 +105,7 @@ class OwnerTimingWorkloadAbTests(unittest.TestCase):
         )
         return MODULE.parse_diagnostic_log(path, workload)
 
-    def test_current_337_v3_baseline_binding_is_canonical(self) -> None:
+    def test_current_f72e_v3_baseline_binding_is_canonical(self) -> None:
         baseline, _, profile = MODULE.validate_static_inputs(
             BASELINE, CONTRACT, PROFILE)
         self.assertEqual(
@@ -114,7 +114,8 @@ class OwnerTimingWorkloadAbTests(unittest.TestCase):
         self.assertEqual(profile["binding"]["baseline_schema"], baseline["schema"])
         coremark = MODULE.baseline_image_path(baseline, "coremark")
         dhrystone = MODULE.baseline_image_path(baseline, "dhrystone_10000")
-        expected_input_run = "2026-08-07-rv64-v15p-control-loop-current-f7a"
+        expected_input_run = (
+            "2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1")
         self.assertIn(expected_input_run, str(coremark))
         self.assertIn(expected_input_run, str(dhrystone))
         runner = RUNNER.read_text(encoding="utf-8")

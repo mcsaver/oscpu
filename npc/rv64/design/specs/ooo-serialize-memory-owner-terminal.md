@@ -122,8 +122,10 @@ The reduced scalar follows:
 
 It has three required consumers:
 
-1. `system_csr_dispatch_valid_o`: CSR Cresolve must not create a ROB owner
-   while an older active memory holder remains.
+1. Raw `system_csr_dispatch_valid_o` eligibility is sampled into the
+   `OooPendingSystemSequencer` CSR permit. The registered permit, current
+   holder metadata, and cancellation state authorize the later Cresolve edge;
+   an older active memory holder therefore cannot create a ROB owner.
 2. `drain_complete_o`: a pending system kind must not generate its non-CSR
    side effect while an active memory holder remains.
 3. `drain_complete_o → OooCsrTrapRequestMux.pending_arch_trap_fire_o`: a
@@ -133,14 +135,15 @@ It has three required consumers:
 
 Ordinary FENCE additionally requires `mem_idle_i`. Collector-pending-only
 tokens therefore do not add up to the collector dequeue latency to the seven
-non-FENCE kinds or the pending architectural trap, while FENCE keeps its
-complete memory graph barrier.
+non-FENCE kinds, the pending architectural trap, or pending exit, while FENCE
+keeps its complete memory graph barrier.
 
 The drain qualifier is:
 
 ```text
 serialized_mem_terminal =
-  !(pending_system || pending_arch_trap) || mem_owner_terminalized
+  !(pending_system || pending_arch_trap || pending_exit) ||
+  mem_owner_terminalized
 
 drain_complete =
   stop_pending && backend_drained && pending_control_ready &&
@@ -183,6 +186,11 @@ global drain condition.
   sequencers, drain gate and request mux to real `CsrFile`; count every raw
   request without de-duplication and require C0 fire, C1 owner/stop clear,
   one CsrFile sample and C2 no-repeat.
+- For CSR dispatch, observe exact terminal eligibility without same-cycle ROB
+  fire, the following registered permit, permit hold under ready stall,
+  cancellation-before-arm and cancellation-while-held, one lease birth, and
+  no repeated dispatch. Reject a compile-success variant that removes
+  cancellation priority from the permit state.
 - A same-edge ROB-head exception must suppress lower-priority pending
   architectural-trap and pending SYSTEM request outputs even though CsrFile
   retains its final `mem > ex > irq` fail-closed selector.
@@ -234,3 +242,52 @@ required to agree on every active edge.  Focused validation must observe a
 live owner holding `mem_idle_o` low and must reject a compile-success variant
 that constantizes the owner-exists reduction.  PPA qualification remains a
 separate same-configuration mapped A/B decision.
+
+## 8. V15U registered CSR dispatch permit
+
+V15U leaves the twelve-lane collector, exact accepted-transfer authority,
+same-edge `mem_owner_terminalized_o` reduction, and non-CSR drain consumers
+unchanged. For the rare pending-CSR path only,
+`OooPendingDrainResolveGate.system_csr_dispatch_valid_o` is reinterpreted as
+raw eligibility and sampled by `OooPendingSystemSequencer` into a one-bit
+cancellable permit. The actual dispatch valid is derived from that registered
+permit plus current registered holder metadata and the feedback-free cancel
+witness.
+
+The extra cycle cannot admit a younger memory owner because the registered
+pending-system owner keeps `can_run == 0` throughout the interval. The permit
+may therefore hold across backend-ready stalls, but it is cleared by reset,
+holder clear, orphan recovery, cancellation, dispatch, or producer lifecycle
+termination. This splits the memory-owner terminal cone from CSR payload
+selection, backend ready, frontend action, and fetch flow without suppressing,
+merging, deduplicating, or delaying any collector ingress event. Focused and
+mapped PPA qualification remain separate evidence obligations.
+
+## 9. V15U Path and Evidence Record
+
+The traceable 5 ns mapped comparison is recorded under
+`.github/task-runs/2026-08-07-rv64-v15u-csr-dispatch-permit-e34b-ppa-a1`.
+All 40 baseline paths contain `mem_owner_terminalized`, the terminal collector
+and the owner tracker. None of the 40 V15U paths contains those three segments,
+so the registered-permit boundary achieved its intended cone cut. The new
+40/40 cluster is
+`pending_system_csr_commit -> system_csr_dispatch_cancel ->
+system_csr_dispatch_valid -> pending_system_inst -> backend ready ->
+frontend/fetch`; endpoint classes remain 38 JALR prefetch-availability and two
+redirect-valid paths. This replacement cluster, rather than the collector or
+tracker, is the next timing investigation scope.
+
+The comparison reports WNS +3.619224548 ns, TNS +64722.21875 ns, logic-area
+proxy -110.88 and 146 fewer cells relative to the 102e baseline. There are no
+combinational loops and the production manifest is stable, but all 40 reported
+paths still violate the 5 ns target. Fixed-toggle power is relative-only and
+unchanged; it is not an absolute power claim. The decision is
+`ENGINEERING_CANDIDATE_RETAIN` with `5NS_TARGET_NOT_MET`.
+
+Functional evidence is independently retained in the focused/mutation,
+full-core L0/L1, L2 mini-system and L3 lightweight-Linux task-runs for design
+identity e34b. The mutation deletes permit cancellation priority without
+changing production RTL and is detected in an `OOO_ASSERT=0` build. L2 and L3
+both complete their terminal transactions with zero RTL assertion failures.
+No event de-duplication, collector-ingress filtering or assertion weakening is
+part of V15U, and Ubuntu is outside this qualification record.

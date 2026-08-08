@@ -12,6 +12,9 @@ module tb_ooo_pending_system_sequencer;
   reg rst;
   reg clear;
   reg clear_dispatched;
+  reg dispatch_eligible;
+  reg dispatch_cancel;
+  reg head0_csr_inflight;
   reg dispatch_fire;
   reg producer_death;
   reg [PRODUCER_ID_W-1:0] dispatch_producer_id;
@@ -56,6 +59,7 @@ module tb_ooo_pending_system_sequencer;
   wire [`XLEN-1:0] next_pc;
   wire [`XLEN-1:0] csr_rdata;
   wire [`TRAP_CAUSE_W-1:0] irq_cause;
+  wire dispatch_permit;
   wire producer_valid;
   wire [PRODUCER_ID_W-1:0] producer_id;
 
@@ -72,6 +76,9 @@ module tb_ooo_pending_system_sequencer;
     .rst(rst),
     .clear_i(clear),
     .clear_dispatched_i(clear_dispatched),
+    .dispatch_eligible_i(dispatch_eligible),
+    .dispatch_cancel_i(dispatch_cancel),
+    .head0_csr_inflight_i(head0_csr_inflight),
     .refresh_rdata_i(1'b0),
     .refresh_rdata_value_i({`XLEN{1'b0}}),
     .dispatch_fire_i(dispatch_fire),
@@ -117,6 +124,7 @@ module tb_ooo_pending_system_sequencer;
     .next_pc_o(next_pc),
     .csr_rdata_o(csr_rdata),
     .irq_cause_o(irq_cause),
+    .dispatch_permit_o(dispatch_permit),
     .producer_valid_o(producer_valid),
     .producer_id_o(producer_id)
   );
@@ -179,6 +187,9 @@ module tb_ooo_pending_system_sequencer;
     begin
       clear = 1'b0;
       clear_dispatched = 1'b0;
+      dispatch_eligible = 1'b0;
+      dispatch_cancel = 1'b0;
+      head0_csr_inflight = 1'b0;
       dispatch_fire = 1'b0;
       producer_death = 1'b0;
       dispatch_producer_id = {PRODUCER_ID_W{1'b0}};
@@ -230,6 +241,7 @@ module tb_ooo_pending_system_sequencer;
       tb_check1({name, " fencei"}, fencei, 1'b0);
       tb_check1({name, " fence"}, fence, 1'b0);
       tb_check1({name, " irq"}, irq, 1'b0);
+      tb_check1({name, " dispatch permit"}, dispatch_permit, 1'b0);
       tb_check1({name, " producer valid"}, producer_valid, 1'b0);
     end
   endtask
@@ -382,12 +394,24 @@ module tb_ooo_pending_system_sequencer;
     tb_check64("head0 pc", pc, 64'h0000_0000_8000_2000);
     tb_check_inst("head0 inst", inst, 32'h3050_9073);
     tb_check64("head0 csr rdata", csr_rdata, 64'h1111_2222_3333_4444);
+    tb_check1("head0 permit initially clear", dispatch_permit, 1'b0);
     tb_check1("head0 pre-ROB has no lease", producer_valid, 1'b0);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("head0 eligibility arms permit", dispatch_permit, 1'b1);
+    tb_check1("head0 permit remains pre-dispatch", dispatched, 1'b0);
+
+    clear_inputs();
+    tick();
+    tb_check1("head0 permit holds across ready stall", dispatch_permit, 1'b1);
 
     clear_inputs();
     dispatch_fire = 1'b1;
     dispatch_producer_id = PID_A;
     tick();
+    tb_check1("head0 fire consumes permit", dispatch_permit, 1'b0);
     tb_check1("head0 dispatched", dispatched, 1'b1);
     tb_check1("head0 lease born", producer_valid, 1'b1);
     if (producer_id !== PID_A) begin
@@ -422,9 +446,75 @@ module tb_ooo_pending_system_sequencer;
     tb_check64("lane1 next pc", next_pc, 64'h0000_0000_8000_3006);
 
     clear_inputs();
+    dispatch_eligible = 1'b1;
+    head0_csr_inflight = 1'b1;
+    tick();
+    tb_check1("head0 inflight blocks permit arm", dispatch_permit, 1'b0);
+    tb_check1("head0 inflight preserves younger pending payload", valid, 1'b1);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("permit arms after head0 inflight releases", dispatch_permit, 1'b1);
+
+    clear_inputs();
+    head0_csr_inflight = 1'b1;
+    tick();
+    tb_check1("head0 inflight clears held permit", dispatch_permit, 1'b0);
+    tb_check1("head0 inflight clear leaves payload held", valid, 1'b1);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    head0_csr_inflight = 1'b1;
+    tick();
+    tb_check1("head0 inflight blocks permit rearm", dispatch_permit, 1'b0);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("lane1 permit rearms after inflight release", dispatch_permit, 1'b1);
+
+    clear_inputs();
+    dispatch_cancel = 1'b1;
+    tick();
+    tb_check1("lane1 cancel clears permit", dispatch_permit, 1'b0);
+    tb_check1("lane1 cancel alone leaves payload held", valid, 1'b1);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    dispatch_cancel = 1'b1;
+    tick();
+    tb_check1("lane1 same-edge cancel blocks permit", dispatch_permit, 1'b0);
+    tb_check1("lane1 same-edge cancel preserves payload", valid, 1'b1);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("lane1 permit rearms after cancelled attempt", dispatch_permit, 1'b1);
+
+    // A ROB-head trap uses the holder-clear path, while its canonical C0
+    // pregrant closes backend dispatch ready.  The sequencer must therefore
+    // clear a held permit and payload even when dispatch_cancel remains low.
+    clear_inputs();
+    clear = 1'b1;
+    tick();
+    expect_idle("trap-like holder clear consumes permit without cancel");
+
+    clear_inputs();
+    capture_lane1 = 1'b1;
+    capture_lane1_csr = 1'b1;
+    tick();
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("lane1 permit rearms after trap-like clear recapture",
+              dispatch_permit, 1'b1);
+
+    clear_inputs();
     dispatch_fire = 1'b1;
     dispatch_producer_id = PID_B;
     tick();
+    tb_check1("lane1 fire consumes permit", dispatch_permit, 1'b0);
     tb_check1("lane1 dispatched", dispatched, 1'b1);
     tb_check1("lane1 lease born", producer_valid, 1'b1);
     if (producer_id !== PID_B) begin
@@ -449,6 +539,12 @@ module tb_ooo_pending_system_sequencer;
     tb_check1("ecall pending valid", valid, 1'b1);
     tb_check1("ecall flag", ecall, 1'b1);
     tb_check1("ecall has no producer lease", producer_valid, 1'b0);
+
+    clear_inputs();
+    dispatch_eligible = 1'b1;
+    tick();
+    tb_check1("non-CSR eligibility cannot arm permit", dispatch_permit, 1'b0);
+    tb_check1("non-CSR eligibility preserves payload", valid, 1'b1);
 
     clear_inputs();
     clear = 1'b1;
@@ -484,6 +580,9 @@ module tb_ooo_pending_system_sequencer;
     expect_idle("priority capture ordinary clear");
 
     if (errors == 0) begin
+      $display("[V15U-CSR-DISPATCH-PERMIT] arm=1 hold=1 cancel-before-arm=1 cancel-held=1 rearm=1 fire-consume=1 noncsr-block=1 PASS");
+      $display("[V15W-HEAD0-CSR-PERMIT-DISJOINT] arm-block=1 held-clear=1 rearm-block=1 release-rearm=1 PASS");
+      $display("[V15X-TRAP-HOLDER-CLEAR] held-permit-clear=1 payload-clear=1 cancel=0 PASS");
       $display("[V9W-SERIAL-KIND-MATRIX] kinds=8 lane-cases=14 onehot=1 hold=1 clear=1 lease-scope=csr-only PASS");
       $display("PASS tb_ooo_pending_system_sequencer");
       $finish;

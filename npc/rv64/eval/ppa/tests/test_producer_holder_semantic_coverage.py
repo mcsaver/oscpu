@@ -321,9 +321,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             receipt_paths,
             {
-                ".github/task-runs/2026-08-06-rv64-"
-                "v15h-architecture-debt-current-f7a/evidence/"
-                "define-projection-current/receipt.json"
+                "npc/rv64/eval/ppa/evidence/"
+                "selected-binding-define-projection-current.json"
             },
         )
         receipt = json.loads(
@@ -766,9 +765,8 @@ class CurrentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             detail["selected_binding_rtl_delta_projection_receipt"]["path"],
-            ".github/task-runs/2026-08-06-rv64-v15h-architecture-debt-"
-            "current-f7a/evidence/selected-binding-rtl-delta-projection/"
-            "receipt.json",
+            "npc/rv64/eval/ppa/evidence/"
+            "selected-binding-rtl-delta-projection-current.json",
         )
         self.assertFalse(detail["system_rerun"]["triggered_by_v11o"])
         self.assertFalse(detail["system_rerun"]["run"])

@@ -1,0 +1,7 @@
+2026-08-07T13:38:19Z	focused-mutation	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-focused-mutation-a1/evidence/summary.txt
+2026-08-07T13:38:20Z	l0-l1-functional	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l01-a1/evidence/functional/run-result.json
+2026-08-07T13:38:20Z	ppa-relative-collection	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json
+2026-08-07T13:38:21Z	timing-5ns-target	GAP	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/ppa-delta-and-path-cluster-v1.json
+2026-08-07T13:38:21Z	l2-mini-system	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l2-a1/mini-system/summary.json
+2026-08-07T13:38:21Z	l3-lightweight-linux	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-l3-a1/lightweight-linux/summary.json
+2026-08-07T13:38:22Z	independent-rtl-review	PASS	.github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/evidence/independent-review-v2/result.md
